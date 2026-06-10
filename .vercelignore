@@ -1,0 +1,13 @@
+# CLI deploys upload from the repo root so each project's Root Directory
+# (viza-fe/marketing-website or viza-fe/internal-website) resolves. Exclude
+# everything the two Next apps don't need to keep the upload small and the
+# build context clean.
+viza-be
+travel-agent
+.codex
+docs
+**/node_modules
+**/.next
+**/.turbo
+**/test-results
+**/playwright-report

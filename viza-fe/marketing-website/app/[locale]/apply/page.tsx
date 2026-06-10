@@ -1,8 +1,12 @@
 "use client";
 import "./apply.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
+import { PayByCardButton } from "@/components/PayByCardButton";
+import { WechatPayButton } from "@/components/WechatPayButton";
+import { countryBySlug } from "@/lib/countries";
 
 type PassportExtraction = {
   surname: string;
@@ -79,6 +83,22 @@ function CountryDisplay({ alpha3 }: { alpha3: string }) {
 export default function ApplyPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const goStepRef = useRef<(n: number) => void>(() => {});
+
+  // The wizard is country-aware: /apply?country=<slug> drives the destination
+  // identity (name, flag, visa type) and the final-step checkout deep-links.
+  // Defaults to Indonesia for a bare /apply (back-compat). Read from the URL on
+  // the client to keep this page statically renderable.
+  const [countrySlug, setCountrySlug] = useState("indonesia");
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("country");
+    if (c && countryBySlug(c)) setCountrySlug(c);
+  }, []);
+  const country = countryBySlug(countrySlug) ?? countryBySlug("indonesia")!;
+
+  const locale = useLocale();
+  const tA = useTranslations("apply");
+  const tc = useTranslations("countries");
+  const countryName = tc.has(country.slug) ? tc(country.slug) : country.name;
 
   const [extractStage, setExtractStage] = useState<ExtractStage>("idle");
   const [extracted, setExtracted] = useState<PassportExtraction | null>(null);
@@ -174,9 +194,9 @@ export default function ApplyPage() {
     // -------------- STATE --------------
     let currentStep = 1;
     const steps: Record<number, { name: string; next: string }> = {
-      1: { name: 'Upload passport',  next: 'Continue' },
-      2: { name: 'Confirm details',  next: 'Continue to checkout' },
-      3: { name: 'Travel & checkout',next: 'Pay SGD 100.00' }
+      1: { name: tA('step1Name'), next: tA('continue') },
+      2: { name: tA('step2Name'), next: tA('continueToCheckout') },
+      3: { name: tA('step3Name'), next: tA('continue') }
     };
     let canProceed = false;
 
@@ -199,14 +219,16 @@ export default function ApplyPage() {
       });
       const conns = document.querySelectorAll('#progressBar .pconn');
       conns.forEach((c, idx) => c.classList.toggle('done', idx < n - 1));
-      const actStepNum = document.getElementById('actStepNum');
-      const actStepName = document.getElementById('actStepName');
+      const actMeta = document.getElementById('actMeta');
       const btnNextLabel = document.getElementById('btnNextLabel');
       const btnBack = document.getElementById('btnBack');
-      if (actStepNum) actStepNum.textContent = 'Step ' + n;
-      if (actStepName) actStepName.textContent = steps[n].name;
+      if (actMeta) actMeta.textContent = `${tA('stepOf', { n })} · ${steps[n].name}`;
       if (btnNextLabel) btnNextLabel.textContent = steps[n].next;
       if (btnBack) (btnBack as HTMLElement).style.visibility = n === 1 ? 'hidden' : 'visible';
+      // Step 3 = checkout: payment method is chosen via the inline card/WeChat
+      // buttons, so hide the bottom Next button there.
+      const btnNextToggle = document.getElementById('btnNext');
+      if (btnNextToggle) (btnNextToggle as HTMLElement).style.display = n === 3 ? 'none' : '';
       canProceed = (n === 2 || n === 3);
       syncNext();
 
@@ -228,14 +250,10 @@ export default function ApplyPage() {
     const btnNextEl = document.getElementById('btnNext');
     const onNext = () => {
       if (!canProceed) return;
-      if (currentStep === 3) {
-        const lbl = document.getElementById('btnNextLabel');
-        const btn = document.getElementById('btnNext') as HTMLButtonElement | null;
-        if (lbl) lbl.textContent = 'Submitting…';
-        if (btn) btn.disabled = true;
-        setTimeout(() => alert('Application submitted. Reference VZ-IDN-294017.'), 800);
-        return;
-      }
+      // Step 3 is the checkout step — payment method (card / WeChat) is chosen
+      // via the inline buttons that deep-link to the portal checkout, so the
+      // bottom Next button does nothing here (it is also hidden in goStep).
+      if (currentStep === 3) return;
       goStep(currentStep + 1);
     };
     if (btnNextEl) btnNextEl.addEventListener('click', onNext);
@@ -257,8 +275,13 @@ export default function ApplyPage() {
       const strip = document.getElementById('dateStrip');
       if (!strip) return;
       const today = new Date('2026-05-08T00:00:00');
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const isZh = locale.toLowerCase().startsWith('zh');
+      const days = isZh
+        ? ['周日','周一','周二','周三','周四','周五','周六']
+        : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const months = isZh
+        ? ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+        : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       let html = '';
       for (let i = 0; i < 7; i++) {
         const d = new Date(today); d.setDate(today.getDate() + i);
@@ -308,15 +331,15 @@ export default function ApplyPage() {
         }
         const er = document.getElementById('sumExpressRow');
         const parts: string[] = [];
-        if (speed !== 'standard') parts.push(speed === 'express' ? 'Express' : 'Super rush');
+        if (speed !== 'standard') parts.push(speed === 'express' ? tA('express') : tA('superRush'));
         const insEl = document.querySelector('.upgrade[data-up="insurance"]');
         const esimEl = document.querySelector('.upgrade[data-up="esim"]');
-        if (insEl && insEl.classList.contains('active')) parts.push('Insurance');
-        if (esimEl && esimEl.classList.contains('active')) parts.push('eSIM');
+        if (insEl && insEl.classList.contains('active')) parts.push(tA('insurance'));
+        if (esimEl && esimEl.classList.contains('active')) parts.push(tA('esim'));
         if (er) {
           const k = er.querySelector('.k');
           const v = er.querySelector('.v');
-          if (k) k.textContent = parts.length ? parts.join(' + ') : 'Upgrades';
+          if (k) k.textContent = parts.length ? parts.join(' + ') : tA('upgrades');
           if (v) v.textContent = parts.length ? '+ SGD ' + (speedAdd + addons).toFixed(2) : '—';
         }
 
@@ -329,7 +352,7 @@ export default function ApplyPage() {
     bindUpgrades();
 
     const helpBubble = document.getElementById('helpBubble');
-    const onHelp = () => alert('Opening chat with Priya M., your VIZA consultant…');
+    const onHelp = () => alert(tA('helpAlert'));
     if (helpBubble) helpBubble.addEventListener('click', onHelp);
 
     goStep(1);
@@ -340,6 +363,10 @@ export default function ApplyPage() {
       if (helpBubble) helpBubble.removeEventListener('click', onHelp);
       segBtns.forEach((b, i) => b.removeEventListener('click', segHandlers[i]));
     };
+    // One-time wizard setup. tA/locale are stable for the page's lifetime
+    // (locale change remounts via route), and adding them would re-run this
+    // effect every render and reset the wizard to step 1.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // -------------- DERIVED EXTRACTION VIEW STATE --------------
@@ -349,10 +376,10 @@ export default function ApplyPage() {
   const rowDoneVerifying = extractStage === "done";
 
   const stageBtnLabel =
-    extractStage === "reading" ? "Reading…" :
-    extractStage === "extracting" ? "Extracting…" :
-    extractStage === "verifying" ? "Verifying…" :
-    extractStage === "done" ? "Continue" : "Continue";
+    extractStage === "reading" ? tA("stReading") :
+    extractStage === "extracting" ? tA("stExtracting") :
+    extractStage === "verifying" ? tA("stVerifying") :
+    tA("continue");
 
   useEffect(() => {
     const lbl = document.getElementById("btnNextLabel");
@@ -371,17 +398,17 @@ export default function ApplyPage() {
         <div className="progress-inner" id="progressBar">
           <div className="pstep current" data-step="1">
             <span className="num">1</span>
-            <span className="lab">Upload passport</span>
+            <span className="lab">{tA("step1Name")}</span>
           </div>
           <span className="pconn"></span>
           <div className="pstep" data-step="2">
             <span className="num">2</span>
-            <span className="lab">Confirm details</span>
+            <span className="lab">{tA("step2Name")}</span>
           </div>
           <span className="pconn"></span>
           <div className="pstep" data-step="3">
             <span className="num">3</span>
-            <span className="lab">Travel & checkout</span>
+            <span className="lab">{tA("step3Name")}</span>
           </div>
         </div>
       </div>
@@ -393,19 +420,19 @@ export default function ApplyPage() {
           {/* ============= STEP 1: UPLOAD ============= */}
           <section className="step step-pane active" data-pane="1">
             <header className="step-head">
-              <div className="step-eyebrow">Step 1 of 3</div>
-              <h1>Upload your passport</h1>
-              <p>We{'’'}ll read your details automatically — no typing required. Use the bio page (the one with your photo).</p>
+              <div className="step-eyebrow">{tA("stepOf", { n: 1 })}</div>
+              <h1>{tA("s1Title")}</h1>
+              <p>{tA("s1Desc")}</p>
             </header>
 
             <div className="seg" id="uploadSeg" style={{ display: isUploading ? "none" : undefined }}>
               <button className="active" data-mode="upload" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Upload file
+                {tA("segUpload")}
               </button>
               <button data-mode="capture" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Take a photo
+                {tA("segCapture")}
               </button>
             </div>
 
@@ -433,21 +460,21 @@ export default function ApplyPage() {
                   <div className="dz-icon">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M9 19l3-3 3 3"/></svg>
                   </div>
-                  <div className="dz-title">Drop your passport photo here</div>
-                  <div className="dz-sub">Or click to browse — your file is encrypted and never shared</div>
+                  <div className="dz-title">{tA("dzTitle")}</div>
+                  <div className="dz-sub">{tA("dzSub")}</div>
                   <button
                     className="dz-browse"
                     type="button"
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Choose file
+                    {tA("dzBrowse")}
                   </button>
                   <div className="dz-formats">
                     <span className="pill">JPG</span>
                     <span className="pill">PNG</span>
                     <span className="pill">WebP</span>
-                    <span>Up to 10 MB</span>
+                    <span>{tA("dzUpTo")}</span>
                   </div>
                 </div>
 
@@ -464,22 +491,22 @@ export default function ApplyPage() {
                       font: "500 13px/1.45 var(--font-sans)",
                     }}
                   >
-                    Couldn{'’'}t read that passport — {extractError}. Please try a clearer photo of the bio page.
+                    {tA("errReadFail", { detail: extractError })}
                   </div>
                 )}
 
                 <div className="tips">
                   <div className="tip">
                     <div className="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                    <div><div className="tt">All four corners visible</div><div className="ts">Frame the entire bio page including the bottom MRZ.</div></div>
+                    <div><div className="tt">{tA("tip1Title")}</div><div className="ts">{tA("tip1Sub")}</div></div>
                   </div>
                   <div className="tip">
                     <div className="ico warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg></div>
-                    <div><div className="tt">Bright, even lighting</div><div className="ts">Avoid shadows from your hand or phone case.</div></div>
+                    <div><div className="tt">{tA("tip2Title")}</div><div className="ts">{tA("tip2Sub")}</div></div>
                   </div>
                   <div className="tip">
                     <div className="ico bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div>
-                    <div><div className="tt">No glare or reflections</div><div className="ts">Tilt slightly if your seal is reflecting.</div></div>
+                    <div><div className="tt">{tA("tip3Title")}</div><div className="ts">{tA("tip3Sub")}</div></div>
                   </div>
                 </div>
               </div>
@@ -501,21 +528,21 @@ export default function ApplyPage() {
                       data-i="0"
                     >
                       <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                      <span className="lab">Reading document</span>
+                      <span className="lab">{tA("extReading")}</span>
                     </div>
                     <div
                       className={`extract-row ${rowDoneExtracting ? "done" : extractStage === "extracting" ? "active" : ""}`}
                       data-i="1"
                     >
                       <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                      <span className="lab">Extracting your details</span>
+                      <span className="lab">{tA("extExtracting")}</span>
                     </div>
                     <div
                       className={`extract-row ${rowDoneVerifying ? "done" : extractStage === "verifying" ? "active" : ""}`}
                       data-i="2"
                     >
                       <div className="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                      <span className="lab">Verifying authenticity</span>
+                      <span className="lab">{tA("extVerifying")}</span>
                     </div>
                   </div>
                 </div>
@@ -526,15 +553,15 @@ export default function ApplyPage() {
           {/* ============= STEP 2: CONFIRM ============= */}
           <section className="step step-pane" data-pane="2">
             <header className="step-head">
-              <div className="step-eyebrow">Step 2 of 3</div>
-              <h1>Confirm your details</h1>
-              <p>We pulled these directly from your passport. Tap any field to edit.</p>
+              <div className="step-eyebrow">{tA("stepOf", { n: 2 })}</div>
+              <h1>{tA("s2Title")}</h1>
+              <p>{tA("s2Desc")}</p>
             </header>
 
             {extracted && !showWarning && (
               <div className="step-success-strip show">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Passport extracted successfully — high confidence
+                {tA("successHigh")}
               </div>
             )}
             {extracted && showWarning && (
@@ -547,9 +574,7 @@ export default function ApplyPage() {
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                {extracted.confidence === "low"
-                  ? "Some fields were hard to read — please double-check each value below."
-                  : "We extracted most of your details — please verify the highlighted fields."}
+                {extracted.confidence === "low" ? tA("warnLow") : tA("warnMed")}
               </div>
             )}
 
@@ -557,56 +582,56 @@ export default function ApplyPage() {
               <div className="review-head">
                 <h3>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  Passport details
+                  {tA("ppDetails")}
                 </h3>
-                <span className="verified"><span className="dot"></span> Auto-extracted</span>
+                <span className="verified"><span className="dot"></span> {tA("autoExtracted")}</span>
               </div>
               <div className="review-grid">
                 <div className="review-field">
-                  <div className="k">Surname</div>
+                  <div className="k">{tA("fSurname")}</div>
                   <div className="v">{extracted?.surname || "—"}</div>
                   <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
                 </div>
                 <div className="review-field">
-                  <div className="k">Given names</div>
+                  <div className="k">{tA("fGiven")}</div>
                   <div className="v">{extracted?.givenNames || "—"}</div>
                   <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
                 </div>
                 <div className="review-field">
-                  <div className="k">Passport number</div>
+                  <div className="k">{tA("fPassport")}</div>
                   <div className="v">{extracted?.passportNumber || "—"}</div>
                   <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
                 </div>
                 <div className="review-field">
-                  <div className="k">Date of birth</div>
+                  <div className="k">{tA("fDob")}</div>
                   <div className="v">{formatDateDisplay(extracted?.dob ?? "")}</div>
                   <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
                 </div>
                 <div className="review-field">
-                  <div className="k">Nationality</div>
+                  <div className="k">{tA("fNationality")}</div>
                   <div className="v">
                     {extracted ? <CountryDisplay alpha3={extracted.nationality} /> : "—"}
                   </div>
                   <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
                 </div>
                 <div className="review-field">
-                  <div className="k">Expires</div>
+                  <div className="k">{tA("fExpires")}</div>
                   <div className="v">{formatDateDisplay(extracted?.expiryDate ?? "")}</div>
                   <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
                 </div>
               </div>
             </div>
 
-            <h2 style={{ font: '500 18px/1.2 var(--font-heading)', letterSpacing: '-0.3px', marginBottom: '6px' }}>How should we reach you?</h2>
-            <p style={{ fontSize: '13px', color: 'var(--fg-2)', marginBottom: '18px', lineHeight: '1.5' }}>We{'’'}ll send your visa here, plus text status updates to your phone.</p>
+            <h2 style={{ font: '500 18px/1.2 var(--font-heading)', letterSpacing: '-0.3px', marginBottom: '6px' }}>{tA("reachTitle")}</h2>
+            <p style={{ fontSize: '13px', color: 'var(--fg-2)', marginBottom: '18px', lineHeight: '1.5' }}>{tA("reachDesc")}</p>
 
             <div className="field-row">
               <div className="field">
-                <label>Email <span className="req">*</span></label>
+                <label>{tA("email")} <span className="req">*</span></label>
                 <input type="email" placeholder="you@example.com" />
               </div>
               <div className="field">
-                <label>Phone <span className="req">*</span></label>
+                <label>{tA("phone")} <span className="req">*</span></label>
                 <div className="phone-grp">
                   <select defaultValue="🇸🇬 +65">
                     <option>🇸🇬 +65</option>
@@ -621,7 +646,7 @@ export default function ApplyPage() {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '8px' }}>
               <input type="checkbox" id="consent" defaultChecked style={{ height: '18px', width: '18px', marginTop: '2px' }}/>
               <label htmlFor="consent" style={{ font: '400 13px/1.5 var(--font-sans)', color: 'var(--fg-2)', cursor: 'pointer' }}>
-                I confirm the details above match my passport, and I authorise VIZA to submit this application on my behalf to the Indonesian government.
+                {tA("consent", { country: countryName })}
               </label>
             </div>
           </section>
@@ -629,47 +654,47 @@ export default function ApplyPage() {
           {/* ============= STEP 3: CHECKOUT ============= */}
           <section className="step step-pane" data-pane="3">
             <header className="step-head">
-              <div className="step-eyebrow">Step 3 of 3</div>
-              <h1>Travel & checkout</h1>
-              <p>Pick your arrival window. We{'’'}ll guarantee your visa is approved before you fly — or we refund every cent.</p>
+              <div className="step-eyebrow">{tA("stepOf", { n: 3 })}</div>
+              <h1>{tA("s3Title")}</h1>
+              <p>{tA("s3Desc")}</p>
             </header>
 
-            <h2 className="checkout-h2">Arrival in Indonesia</h2>
+            <h2 className="checkout-h2">{tA("arrival", { country: countryName })}</h2>
             <div className="date-strip" id="dateStrip"></div>
 
-            <h2 className="checkout-h2">Processing speed</h2>
+            <h2 className="checkout-h2">{tA("speed")}</h2>
             <div id="speedGroup">
               <div className="upgrade" data-up="standard" data-group="speed">
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <div className="txt"><div className="tt">Standard processing</div><div className="ts">Guaranteed by 12 May, 8:00 AM SGT · ~5 business days</div></div>
-                <div className="price"><span className="free">Included</span></div>
+                <div className="txt"><div className="tt">{tA("stdTitle")}</div><div className="ts">{tA("stdSub")}</div></div>
+                <div className="price"><span className="free">{tA("included")}</span></div>
                 <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
               </div>
               <div className="upgrade active" data-up="express" data-group="speed">
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-                <div className="txt"><div className="tt">Express processing <span className="recom">Recommended</span></div><div className="ts">Guaranteed by 8 May, 3:00 PM SGT · ~24 hours</div></div>
+                <div className="txt"><div className="tt">{tA("expTitle")} <span className="recom">{tA("recommended")}</span></div><div className="ts">{tA("expSub")}</div></div>
                 <div className="price">+ SGD 28</div>
                 <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
               </div>
               <div className="upgrade" data-up="superrush" data-group="speed">
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg></div>
-                <div className="txt"><div className="tt">Super rush</div><div className="ts">Guaranteed by 6 May, 6:00 PM SGT · ~4 hours</div></div>
+                <div className="txt"><div className="tt">{tA("rushTitle")}</div><div className="ts">{tA("rushSub")}</div></div>
                 <div className="price">+ SGD 89</div>
                 <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
               </div>
             </div>
 
-            <h2 className="checkout-h2">Add-ons</h2>
+            <h2 className="checkout-h2">{tA("addons")}</h2>
             <div>
               <div className="upgrade" data-up="insurance">
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-                <div className="txt"><div className="tt">Travel insurance</div><div className="ts">Trip cancellation, medical, lost baggage — Allianz, 7-day cover</div></div>
+                <div className="txt"><div className="tt">{tA("insTitle")}</div><div className="ts">{tA("insSub")}</div></div>
                 <div className="price">+ SGD 32</div>
                 <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
               </div>
               <div className="upgrade" data-up="esim">
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
-                <div className="txt"><div className="tt">Indonesia eSIM · 5 GB</div><div className="ts">Activates the moment you land — no roaming fees</div></div>
+                <div className="txt"><div className="tt">{tA("esimTitle", { country: countryName })}</div><div className="ts">{tA("esimSub")}</div></div>
                 <div className="price">+ SGD 12</div>
                 <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
               </div>
@@ -677,41 +702,50 @@ export default function ApplyPage() {
 
             <div className="info-strip">
               <svg className="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <div><strong>Heads up:</strong> the Indonesian government charges its visa fee separately when they approve your application. We don{'’'}t mark up that amount.</div>
+              <div><strong>{tA("headsUp")}</strong> {tA("headsUpBody", { country: countryName })}</div>
+            </div>
+
+            <h2 className="checkout-h2">{tA("payTitle")}</h2>
+            <p style={{ fontSize: '13px', color: 'var(--fg-2)', margin: '-8px 0 14px', lineHeight: '1.5' }}>
+              {tA("paySub")}
+            </p>
+            <div style={{ display: 'grid', gap: '10px', maxWidth: '420px' }}>
+              <PayByCardButton country={country.portalCountry} visaType={country.visaType} />
+              <WechatPayButton country={country.portalCountry} visaType={country.visaType} />
             </div>
           </section>
 
         </main>
 
         <aside className="summary">
-          <div className="sum-title">Your application</div>
+          <div className="sum-title">{tA("yourApp")}</div>
           <div className="sum-country">
-            <div className="flag"><CircleFlag countryCode="id" height={40}/></div>
+            <div className="flag"><CircleFlag countryCode={country.flagCode} height={40}/></div>
             <div>
-              <div className="nm">Indonesia</div>
-              <div className="vt">e-Visa on Arrival · 60 days · Single entry</div>
+              <div className="nm">{countryName}</div>
+              <div className="vt">{country.type} · {country.validity}</div>
             </div>
           </div>
 
           <div className="sum-eta">
-            <div className="lab">Guaranteed delivery by</div>
+            <div className="lab">{tA("guaranteedBy")}</div>
             <div className="val" id="sumEta">8 May 2026, 3:00 PM SGT</div>
-            <div className="sub"><span className="dot"></span> On time, or your money back</div>
+            <div className="sub"><span className="dot"></span> {tA("onTimeRefund")}</div>
           </div>
 
-          <div className="price-row"><span className="k">Government fee</span><span className="v">SGD 50.00</span></div>
-          <div className="price-row"><span className="k">VIZA processing</span><span className="v">SGD 32.00</span></div>
-          <div className="price-row" id="sumExpressRow"><span className="k">Express upgrade</span><span className="v">+ SGD 28.00</span></div>
-          <div className="price-row discount"><span className="k">First-time discount</span><span className="v">−SGD 10.00</span></div>
+          <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">SGD 50.00</span></div>
+          <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">SGD 32.00</span></div>
+          <div className="price-row" id="sumExpressRow"><span className="k">{tA("expressUpgrade")}</span><span className="v">+ SGD 28.00</span></div>
+          <div className="price-row discount"><span className="k">{tA("firstDiscount")}</span><span className="v">−SGD 10.00</span></div>
 
           <div className="price-total">
-            <span className="k">Total</span>
+            <span className="k">{tA("total")}</span>
             <span className="v" id="sumTotal">SGD 100.00</span>
           </div>
 
           <div className="price-foot">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: '1px' }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>Encrypted end-to-end. Charged only once your application is queued with the Indonesian government.</span>
+            <span>{tA("footEncrypted", { country: countryName })}</span>
           </div>
         </aside>
 
@@ -720,8 +754,8 @@ export default function ApplyPage() {
       <div className="help-bubble" id="helpBubble">
         <img src="https://i.pravatar.cc/64?img=47" alt=""/>
         <div>
-          <div className="ht">Priya is online</div>
-          <div className="hs">Tap to chat with your VIZA consultant</div>
+          <div className="ht">{tA("helpOnline")}</div>
+          <div className="hs">{tA("helpTap")}</div>
         </div>
         <span className="pulse"></span>
       </div>
@@ -729,12 +763,12 @@ export default function ApplyPage() {
       <div className="actions">
         <div className="actions-inner">
           <div className="actions-meta">
-            <span><strong id="actStepNum">Step 1</strong> of 3 · <span id="actStepName">Upload passport</span></span>
+            <span id="actMeta">{`${tA("stepOf", { n: 1 })} · ${tA("step1Name")}`}</span>
           </div>
           <div className="actions-buttons">
             <button className="btn-back" id="btnBack" type="button" style={{ visibility: 'hidden' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-              Back
+              {tA("back")}
             </button>
             <button
               className="btn-next"
@@ -742,7 +776,7 @@ export default function ApplyPage() {
               type="button"
               disabled
             >
-              <span id="btnNextLabel">Continue</span>
+              <span id="btnNextLabel">{tA("continue")}</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
@@ -822,19 +856,11 @@ export default function ApplyPage() {
           </div>
 
           <div className="foot-apps">
-            <a className="app-btn" href="#" aria-label="Download VIZA on the App Store">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.04c-.03-2.93 2.39-4.34 2.5-4.41-1.36-1.99-3.48-2.26-4.24-2.29-1.81-.18-3.53 1.06-4.45 1.06-.93 0-2.34-1.04-3.85-1.01-1.98.03-3.81 1.15-4.83 2.91-2.06 3.58-.53 8.86 1.48 11.77.98 1.42 2.15 3.02 3.68 2.96 1.48-.06 2.04-.96 3.83-.96 1.78 0 2.29.96 3.85.93 1.59-.03 2.6-1.45 3.57-2.88 1.13-1.65 1.59-3.25 1.61-3.34-.04-.02-3.08-1.18-3.11-4.69zM14.07 3.62c.81-.99 1.36-2.36 1.21-3.72-1.17.05-2.59.78-3.43 1.76-.75.87-1.41 2.27-1.23 3.6 1.31.1 2.65-.66 3.45-1.64z"/></svg>
-              <span className="ab-text">
-                <span className="ab-pre">Download on the</span>
-                <span className="ab-name">App Store</span>
-              </span>
+            <a className="app-badge" href="#" aria-label="Download VIZA on the App Store">
+              <img src="/assets/app-store-badge.png" alt="Download on the App Store"/>
             </a>
-            <a className="app-btn" href="#" aria-label="Get VIZA on Google Play">
-              <svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 2 21 12 3 22 3 2" fill="currentColor"/><line x1="3" y1="2" x2="14" y2="13" stroke="#03110A"/><line x1="3" y1="22" x2="14" y2="11" stroke="#03110A"/></svg>
-              <span className="ab-text">
-                <span className="ab-pre">Get it on</span>
-                <span className="ab-name">Google Play</span>
-              </span>
+            <a className="app-badge" href="#" aria-label="Get VIZA on Google Play">
+              <img src="/assets/google-play-badge.png" alt="Get it on Google Play"/>
             </a>
           </div>
         </div>

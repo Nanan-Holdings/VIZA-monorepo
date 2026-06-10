@@ -7,16 +7,20 @@ import { renderTemplate, type TemplateLocale } from "@/lib/notify/templates";
 /**
  * Post-payment account provisioning + magic-link mail.
  *
- * Invoked from the WeChat Pay notify webhook once an order flips to
- * `paid`. Side-effect only — never throws into the webhook caller (the
- * webhook fires-and-forgets, matching the Stripe receipt mailer).
+ * Invoked (fire-and-forget) from every guest-checkout rail once an order
+ * flips to `paid` — WeChat Pay Native (`/api/wechat-pay/notify`) and the
+ * guest card rail (`/api/stripe/webhook`, guest branch), both via
+ * `lib/checkout/post-paid.ts`. Side-effect only — never throws into the
+ * webhook caller (matching the Stripe receipt mailer).
  *
  *   1. Resolve order → applicant_profiles → email + locale + app meta.
- *   2. auth.admin.createUser({email_confirm:true}) if no user exists.
- *   3. Bind applicant_profiles.auth_user_id (idempotent).
+ *   2. auth.admin.createUser({email_confirm:true}) if no user exists, and
+ *      bind applicant_profiles.auth_user_id (idempotent) — always.
+ *   3. If order.guest_checkout is false, stop here (authenticated buyers
+ *      already have a session; no login-link mail).
  *   4. auth.admin.generateLink({type:'magiclink'}) with redirectTo back
  *      to the existing /auth/callback?next=/client/home handler.
- *   5. Send the locale-branched welcome email via Resend.
+ *   5. Send the locale-branched `paid_welcome` email via Resend.
  */
 
 interface ProfileLite {
@@ -109,7 +113,7 @@ export async function provisionAccountAndMagicLink(
     async (admin) => {
       const { data: order, error: orderErr } = await admin
         .from("order")
-        .select("id, applicant_id, application_id")
+        .select("id, applicant_id, application_id, guest_checkout")
         .eq("id", orderId)
         .maybeSingle();
       if (orderErr || !order) {
@@ -141,7 +145,9 @@ export async function provisionAccountAndMagicLink(
         return;
       }
 
-      // 1. Find or create the auth user.
+      // 1. Find or create the auth user. We bind auth_user_id regardless
+      //    of guest_checkout so any later sign-in resolves to one user;
+      //    the login-link *email* below is gated on guest_checkout.
       let authUserId = profile.auth_user_id;
       if (!authUserId) {
         const listed = await admin.auth.admin.listUsers();
@@ -172,7 +178,15 @@ export async function provisionAccountAndMagicLink(
           .eq("id", profile.id);
       }
 
-      // 2. Generate magic-link.
+      // 2. Login-link mail is for guest checkouts only. An authenticated
+      //    `/client` purchase (guest_checkout=false) already has a session,
+      //    so re-mailing a magic link would be noise (and a phishing-shaped
+      //    pattern). Bail after binding the auth user above.
+      if (!order.guest_checkout) {
+        return;
+      }
+
+      // 3. Generate magic-link.
       const redirectTo = `${siteUrl()}/auth/callback?next=/client/home`;
       const { data: linkData, error: linkErr } =
         await admin.auth.admin.generateLink({
@@ -185,11 +199,11 @@ export async function provisionAccountAndMagicLink(
       }
       const magicLink = linkData.properties.action_link;
 
-      // 3. Mail it (locale per applicant profile).
+      // 4. Mail it (locale per applicant profile).
       const locale: TemplateLocale =
         profile.language_pref === "zh-CN" ? "zh-CN" : "en";
       const rendered = renderTemplate(
-        "wechat_paid_welcome",
+        "paid_welcome",
         {
           applicantName: profile.full_name ?? profile.email.split("@")[0],
           applicationId: app.id,
@@ -201,7 +215,7 @@ export async function provisionAccountAndMagicLink(
       );
 
       await sendEmail({
-        from: "VIZA <welcome@haggstorm.com>",
+        from: process.env.NOTIFY_FROM_EMAIL ?? "VIZA <welcome@haggstorm.com>",
         to: profile.email,
         subject: rendered.subject,
         text: rendered.text,

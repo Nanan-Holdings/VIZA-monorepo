@@ -30,6 +30,7 @@ import {
   isVietnamEVisaApplication,
   type SubmissionMode,
 } from "@/lib/submission-queue";
+import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -744,6 +745,18 @@ function renderSubmissionResultCard(
           result={result}
         />
       );
+    // POR-006: standard e-Visa launch countries share one generic card.
+    case "ID":
+    case "EG":
+    case "SA":
+    case "MY":
+    case "TH":
+    case "AE":
+    case "CA":
+    case "TR":
+    case "IT":
+    case "IN":
+      return <GenericEvisaResultCard applicationId={applicationId} result={result} />;
     default:
       return <WaitingCard status="running" />;
   }

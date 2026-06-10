@@ -19,7 +19,9 @@ const BUCKET = "submission-artifacts";
 const MAX_BYTES = 200 * 1024; // 200 KB — a 600×200 transparent PNG is ~30 KB
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-export function signaturePathForApplication(applicationId: string): string {
+// Internal helper — must stay unexported: a "use server" module may only
+// export async functions.
+function signaturePathForApplication(applicationId: string): string {
   return `au-signatures/${applicationId}.png`;
 }
 

@@ -7,8 +7,7 @@ import {
   WechatPaySignatureError,
 } from "@/lib/wechatpay/client";
 import { applyWechatEvent } from "@/lib/wechatpay/handle-event";
-import { provisionAccountAndMagicLink } from "@/app/actions/wechat-provisioning";
-import { enqueueRunnerJob } from "@/lib/queue/enqueue";
+import { runPostPaidSideEffects } from "@/lib/checkout/post-paid";
 
 export const dynamic = "force-dynamic";
 
@@ -86,35 +85,9 @@ export async function POST(req: Request) {
     );
 
     if (result.kind === "paid") {
-      // Fire-and-forget. Magic-link mail is idempotent enough for our
-      // purposes (re-mailing a fresh link is acceptable); runner enqueue
-      // is explicitly idempotent on application_id.
-      provisionAccountAndMagicLink(result.orderId).catch((err) => {
-        console.error("[wechat-pay] provisionAccountAndMagicLink failed", err);
-      });
-      withAdmin(
-        "system",
-        "api/wechat-pay/notify:enqueue-paid",
-        async (admin) => {
-          const { data: order } = await admin
-            .from("order")
-            .select("application_id")
-            .eq("id", result.orderId)
-            .maybeSingle();
-          if (!order?.application_id) return;
-          const { data: app } = await admin
-            .from("applications")
-            .select("country")
-            .eq("id", order.application_id)
-            .maybeSingle();
-          if (!app?.country) return;
-          await enqueueRunnerJob(order.application_id, app.country, {
-            correlationId: `wechat:${result.orderId}`,
-          });
-        },
-      ).catch((err) => {
-        console.error("[wechat-pay] enqueueRunnerJob failed", err);
-      });
+      // Fire-and-forget post-paid side-effects (magic-link mail + runner
+      // enqueue), shared with the guest card rail. Both are idempotent.
+      runPostPaidSideEffects(result.orderId, "wechat");
     }
 
     return NextResponse.json({ code: "SUCCESS", message: "OK" });

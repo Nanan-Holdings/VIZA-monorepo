@@ -8,6 +8,7 @@
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "type-check": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.spec.ts\"",
     "install-browsers": "playwright install chromium",
     "recon:uk": "ts-node src/uk/form-recon.ts",
     "seed:edward-creds": "ts-node scripts/seed-edward-test-credentials.ts",
@@ -28,7 +29,15 @@
     "stress:digest": "ts-node scripts/runner-stress-digest.ts",
     "derive:question-sets": "ts-node scripts/derive-question-sets.ts",
     "audit:country-submissions": "ts-node src/country-submissions/audit.ts",
-    "test:country-submissions": "node --test -r ts-node/register src/country-submissions/__tests__/registry.spec.ts"
+    "test:country-submissions": "node --test -r ts-node/register src/country-submissions/__tests__/registry.spec.ts",
+    "queue:list-stuck": "ts-node scripts/queue/list-stuck-jobs.ts",
+    "queue:requeue": "ts-node scripts/queue/requeue-jobs.ts",
+    "queue:backfill": "ts-node scripts/queue/backfill-paid-orders.ts",
+    "db:verify-queue": "ts-node scripts/db/verify-queue-schema.ts",
+    "db:verify-inputs": "ts-node scripts/db/verify-runner-inputs.ts",
+    "db:verify": "npm run db:verify-queue && npm run db:verify-inputs",
+    "db:diff-migrations": "ts-node scripts/db/diff-migrations.ts",
+    "launch:e2e-smoke": "ts-node scripts/launch/e2e-smoke.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.41.0",
@@ -42,6 +51,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "tsx": "^4.19.0"
   }
 }
