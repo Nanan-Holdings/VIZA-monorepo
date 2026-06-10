@@ -4,8 +4,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 import {
   findDropdownDestinationContract,
+  normalizeDestinationContractKey,
   normalizeDestinationSearchText,
 } from "./destination-contracts";
+import type {
+  TravelGoogleAttraction,
+  TravelGoogleCallEvidence,
+  TravelGoogleEnrichedDestination,
+  TravelGooglePhoto,
+} from "./google-places-enrichment-types";
 import {
   TRAVEL_PLACE_FALLBACK_IMAGE,
   filterAndSortGooglePlaces,
@@ -20,6 +27,7 @@ const CITY_FIELD_MASK = [
   "places.id",
   "places.displayName",
   "places.formattedAddress",
+  "places.addressComponents",
   "places.location",
   "places.primaryType",
   "places.types",
@@ -31,6 +39,7 @@ const DETAILS_FIELD_MASK = [
   "id",
   "displayName",
   "formattedAddress",
+  "addressComponents",
   "location",
   "rating",
   "userRatingCount",
@@ -42,61 +51,19 @@ const DETAILS_FIELD_MASK = [
   "businessStatus",
 ].join(",");
 
-export type TravelGooglePhoto = {
-  url: string;
-  provider: "google_places" | "placeholder";
-  attribution?: string | null;
-  width?: number | null;
-  height?: number | null;
-  confidence: number;
-  isPlaceholder: boolean;
-};
-
-export type TravelGoogleAttraction = {
-  nameZh: string;
-  nameEn: string;
-  latitude: number | null;
-  longitude: number | null;
-  descriptionZh: string;
-  descriptionEn: string;
-  photo: TravelGooglePhoto;
-  source: "google_places";
-  googleMapsUri?: string | null;
-  placeId?: string | null;
-  category?: string | null;
-};
-
-export type TravelGoogleEnrichedDestination = {
-  id: string;
-  canonicalName: string;
-  nameZh: string;
-  nameEn: string;
-  countryCode: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  source: "google_places";
-  dataQuality: "api_enriched";
-  descriptionZh: string;
-  descriptionEn: string;
-  descriptionSource:
-    | "google_places"
-    | "llm_from_google_facts"
-    | "local_curated"
-    | "fallback_generic";
-  coverImage: TravelGooglePhoto;
-  attractions: TravelGoogleAttraction[];
-  cache: {
-    attempted: boolean;
-    stored: boolean;
-    skippedReason?: string;
-  };
-};
-
 type GoogleTextSearchResponse = {
   places?: GooglePlace[];
 };
 
+type GoogleAddressComponent = {
+  longText?: string;
+  shortText?: string;
+  types?: string[];
+  languageCode?: string;
+};
+
 type GooglePlaceDetails = GooglePlace & {
+  addressComponents?: GoogleAddressComponent[];
   editorialSummary?: {
     text?: string;
     languageCode?: string;
@@ -148,9 +115,14 @@ function compactSearchText(value: string): string {
   return normalizeDestinationSearchText(value).replace(/\s+/g, "");
 }
 
-function includesDestinationName(place: GooglePlace, city: string): boolean {
-  const expected = compactSearchText(city);
-  if (!expected) return true;
+function includesAnyDestinationName(
+  place: GooglePlace,
+  destinationNames: string[]
+): boolean {
+  const expectedNames = destinationNames
+    .map(compactSearchText)
+    .filter(Boolean);
+  if (expectedNames.length === 0) return true;
   const haystack = compactSearchText(
     [
       place.displayName?.text,
@@ -160,7 +132,168 @@ function includesDestinationName(place: GooglePlace, city: string): boolean {
       .filter(Boolean)
       .join(" ")
   );
-  return haystack.includes(expected) || expected.includes(haystack);
+  return expectedNames.some(
+    (expected) => haystack.includes(expected) || expected.includes(haystack)
+  );
+}
+
+function isWithinBounds(
+  latitude: number | null,
+  longitude: number | null,
+  bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+): boolean {
+  return (
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    latitude >= bounds.minLat &&
+    latitude <= bounds.maxLat &&
+    longitude >= bounds.minLng &&
+    longitude <= bounds.maxLng
+  );
+}
+
+const CHINA_BOUNDS = {
+  minLat: 18,
+  maxLat: 54,
+  minLng: 73,
+  maxLng: 135,
+};
+
+const HUNAN_CHANGSHA_BOUNDS = {
+  minLat: 27.4,
+  maxLat: 29.4,
+  minLng: 111.5,
+  maxLng: 114.3,
+};
+
+function isChangshaDestination(city: string): boolean {
+  const key = normalizeDestinationContractKey(city);
+  return [
+    "changsha",
+    "长沙",
+    "长沙市",
+    "湖南长沙",
+    "changshahunan",
+    "hunanchangsha",
+  ].includes(key);
+}
+
+function extractAddressPart(
+  components: GoogleAddressComponent[] | undefined,
+  type: string,
+  textFallback: string
+): string | null {
+  const component = components?.find((item) => item.types?.includes(type));
+  const value = cleanString(component?.shortText) ?? cleanString(component?.longText);
+  if (value) return value;
+  const normalizedFallback = textFallback.toLowerCase();
+  if (type === "country") {
+    if (normalizedFallback.includes("china") || textFallback.includes("中国")) {
+      return "CN";
+    }
+  }
+  if (type === "administrative_area_level_1") {
+    if (normalizedFallback.includes("hunan") || textFallback.includes("湖南")) {
+      return textFallback.includes("湖南") ? "湖南" : "Hunan";
+    }
+  }
+  return null;
+}
+
+function placeCountryCode(place: GooglePlaceDetails | GooglePlace): string | null {
+  const details = place as GooglePlaceDetails;
+  const country = extractAddressPart(
+    details.addressComponents,
+    "country",
+    cleanString(place.formattedAddress) ?? ""
+  );
+  if (!country) return null;
+  if (/^(cn|china|中国)$/i.test(country)) return "CN";
+  return country.toUpperCase();
+}
+
+function placeAdminArea(place: GooglePlaceDetails | GooglePlace): string | null {
+  const details = place as GooglePlaceDetails;
+  return extractAddressPart(
+    details.addressComponents,
+    "administrative_area_level_1",
+    cleanString(place.formattedAddress) ?? ""
+  );
+}
+
+function placeCoordinates(place: GooglePlace): { latitude: number | null; longitude: number | null } {
+  return {
+    latitude: toFiniteNumber(place.location?.latitude),
+    longitude: toFiniteNumber(place.location?.longitude),
+  };
+}
+
+function isValidDestinationPlace(options: {
+  place: GooglePlaceDetails | GooglePlace;
+  cityEn: string;
+  cityZh: string;
+  countryCode: string | null;
+}): boolean {
+  if (!includesAnyDestinationName(options.place, [options.cityEn, options.cityZh])) {
+    return false;
+  }
+
+  const { latitude, longitude } = placeCoordinates(options.place);
+  if (options.countryCode === "CN" && !isWithinBounds(latitude, longitude, CHINA_BOUNDS)) {
+    return false;
+  }
+
+  if (isChangshaDestination(options.cityEn) || isChangshaDestination(options.cityZh)) {
+    const address = cleanString(options.place.formattedAddress) ?? "";
+    const countryCode = placeCountryCode(options.place);
+    const adminArea = placeAdminArea(options.place);
+    const hasHunanText = /hunan/i.test(address) || address.includes("湖南");
+    const hasChinaText = /china/i.test(address) || address.includes("中国");
+    return (
+      isWithinBounds(latitude, longitude, HUNAN_CHANGSHA_BOUNDS) &&
+      (countryCode === null || countryCode === "CN") &&
+      (adminArea === null || /hunan|湖南/i.test(adminArea)) &&
+      (hasHunanText || hasChinaText || countryCode === "CN")
+    );
+  }
+
+  return true;
+}
+
+function isValidAttractionPlace(options: {
+  place: GooglePlaceDetails | GooglePlace;
+  cityEn: string;
+  cityZh: string;
+  countryCode: string | null;
+}): boolean {
+  const { latitude, longitude } = placeCoordinates(options.place);
+  if (options.countryCode === "CN" && !isWithinBounds(latitude, longitude, CHINA_BOUNDS)) {
+    return false;
+  }
+  if (isChangshaDestination(options.cityEn) || isChangshaDestination(options.cityZh)) {
+    return isWithinBounds(latitude, longitude, HUNAN_CHANGSHA_BOUNDS);
+  }
+  return latitude !== null && longitude !== null;
+}
+
+function recordPlacesCall(
+  evidence: TravelGoogleCallEvidence,
+  query: string,
+  places: GooglePlace[],
+  kind: "destination" | "attraction"
+): void {
+  evidence.textSearchCount += 1;
+  evidence.queries.push(query);
+  if (kind === "destination" && !evidence.destinationQuery) {
+    evidence.destinationQuery = query;
+  }
+  if (kind === "attraction") {
+    evidence.attractionQueries.push(query);
+  }
+  places.forEach((place) => {
+    const id = cleanString(place.id);
+    if (id && !evidence.placeIds.includes(id)) evidence.placeIds.push(id);
+  });
 }
 
 function photoAttributionText(
@@ -236,12 +369,17 @@ async function requestPlacesTextSearch(options: {
   pageSize: number;
   lat?: number | null;
   lng?: number | null;
+  regionCode?: string | null;
 }): Promise<GooglePlace[]> {
   const body: Record<string, unknown> = {
     textQuery: options.query,
     languageCode: options.languageCode,
     pageSize: options.pageSize,
   };
+
+  if (options.regionCode) {
+    body.regionCode = options.regionCode;
+  }
 
   if (options.lat !== null && options.lng !== null) {
     body.locationBias = {
@@ -360,11 +498,23 @@ async function cacheGoogleEnrichmentResult(
           normalized_name: normalizedName,
           name_en: destination.nameEn,
           name_zh: destination.nameZh,
-          aliases_json: [destination.nameEn, destination.nameZh],
+          aliases_json: [
+            destination.nameEn,
+            destination.nameZh,
+            destination.adminAreaEn
+              ? `${destination.nameEn} ${destination.adminAreaEn}`
+              : null,
+            destination.adminAreaZh
+              ? `${destination.adminAreaZh}${destination.nameZh}`
+              : null,
+          ].filter(Boolean),
           country_code: destination.countryCode,
-          country_name: destination.countryCode,
-          country_name_en: destination.countryCode,
-          country_name_zh: destination.countryCode,
+          country_name: destination.countryCode === "CN" ? "China" : destination.countryCode,
+          country_name_en:
+            destination.countryCode === "CN" ? "China" : destination.countryCode,
+          country_name_zh:
+            destination.countryCode === "CN" ? "中国" : destination.countryCode,
+          region: destination.adminAreaEn ?? null,
           city: destination.nameEn,
           place_type: "city",
           latitude: destination.latitude,
@@ -484,7 +634,11 @@ async function cacheGoogleEnrichmentResult(
           image_url: destination.coverImage.isPlaceholder
             ? null
             : destination.coverImage.url,
-          payload_json: toJson(destination),
+          payload_json: toJson({
+            ...destination,
+            googlePlaceId: destination.placeId,
+            calls: destination.calls,
+          }),
           source: "google_places",
           source_status: "api_enriched",
           is_generated: false,
@@ -508,7 +662,11 @@ async function cacheGoogleEnrichmentResult(
           image_url:
             destination.attractions.find((item) => !item.photo.isPlaceholder)?.photo
               .url ?? null,
-          payload_json: toJson({ attractions: destination.attractions }),
+          payload_json: toJson({
+            googlePlaceId: destination.placeId,
+            calls: destination.calls,
+            attractions: destination.attractions,
+          }),
           source: "google_places",
           source_status: "api_enriched",
           is_generated: false,
@@ -559,21 +717,57 @@ export async function enrichDestinationWithGooglePlaces(
   const cityZh = contract?.nameZh ?? input.city;
   const countryCode = contract?.countryCode ?? null;
   const country = input.country ?? contract?.countryNameEn ?? null;
-  const cityQuery = [cityEn, country].filter(Boolean).join(", ");
+  const isChangsha = isChangshaDestination(cityEn) || isChangshaDestination(cityZh);
+  const adminAreaEn = isChangsha ? "Hunan" : contract?.region ?? null;
+  const adminAreaZh = isChangsha ? "湖南" : null;
+  const evidence: TravelGoogleCallEvidence = {
+    textSearchCount: 0,
+    detailsCount: 0,
+    queries: [],
+    placeIds: [],
+    destinationPlaceId: null,
+    destinationQuery: null,
+    attractionQueries: [],
+  };
 
-  const cityCandidates = await requestPlacesTextSearch({
-    query: cityQuery,
-    apiKey,
-    fetchImpl,
-    languageCode,
-    fieldMask: CITY_FIELD_MASK,
-    pageSize: 3,
-  });
-  const cityPlace =
-    cityCandidates.find((place) => includesDestinationName(place, cityEn)) ??
-    cityCandidates[0];
+  const cityQueries = Array.from(
+    new Set(
+      isChangsha
+        ? [
+            `${cityZh} ${adminAreaZh} 中国`,
+            `${cityEn} ${adminAreaEn} China`,
+            `${cityEn}, ${adminAreaEn}, China`,
+          ]
+        : [
+            [cityEn, contract?.region, country].filter(Boolean).join(", "),
+            [cityZh, contract?.countryNameZh ?? country].filter(Boolean).join(" "),
+          ].filter(Boolean)
+    )
+  );
+
+  let cityPlace: GooglePlace | null = null;
+  for (const query of cityQueries) {
+    const cityCandidates = await requestPlacesTextSearch({
+      query,
+      apiKey,
+      fetchImpl,
+      languageCode,
+      fieldMask: CITY_FIELD_MASK,
+      pageSize: 5,
+      lat: contract?.latitude,
+      lng: contract?.longitude,
+      regionCode: countryCode,
+    });
+    recordPlacesCall(evidence, query, cityCandidates, "destination");
+    cityPlace =
+      cityCandidates.find((place) =>
+        isValidDestinationPlace({ place, cityEn, cityZh, countryCode })
+      ) ?? null;
+    if (cityPlace) break;
+  }
+
   if (!cityPlace) {
-    throw new Error("Google Places did not return a destination match.");
+    throw new Error("Google Places did not return a validated destination match.");
   }
 
   const cityDetails = cityPlace.id
@@ -584,24 +778,116 @@ export async function enrichDestinationWithGooglePlaces(
         languageCode,
       })
     : null;
+  if (cityDetails) {
+    evidence.detailsCount += 1;
+    const id = cleanString(cityDetails.id);
+    if (id && !evidence.placeIds.includes(id)) evidence.placeIds.push(id);
+  }
   const destinationPlace = cityDetails ?? cityPlace;
+  if (
+    !isValidDestinationPlace({
+      place: destinationPlace,
+      cityEn,
+      cityZh,
+      countryCode,
+    })
+  ) {
+    throw new Error("Google Places destination failed country/admin validation.");
+  }
   const latitude =
     toFiniteNumber(destinationPlace.location?.latitude) ?? contract?.latitude ?? null;
   const longitude =
     toFiniteNumber(destinationPlace.location?.longitude) ?? contract?.longitude ?? null;
-  const attractionCandidates = await requestPlacesTextSearch({
-    query: `top tourist attractions in ${cityEn}`,
-    apiKey,
-    fetchImpl,
-    languageCode,
-    fieldMask: CITY_FIELD_MASK,
-    pageSize: 12,
-    lat: latitude,
-    lng: longitude,
-  });
-  const attractions = filterAndSortGooglePlaces(attractionCandidates, 8).map(
-    (place) => normalizeAttraction(place, cityZh)
+  evidence.destinationPlaceId = cleanString(destinationPlace.id);
+
+  const changshaHints = [
+    "岳麓山",
+    "橘子洲",
+    "湖南博物院",
+    "太平老街",
+    "黄兴路步行街",
+    "杜甫江阁",
+    "长沙IFS国金中心",
+    "烈士公园",
+    "谢子龙影像艺术馆",
+    "梅溪湖国际文化艺术中心",
+  ];
+  const attractionQueries = Array.from(
+    new Set(
+      isChangsha
+        ? [
+            `长沙 景点 湖南 中国`,
+            `top tourist attractions in Changsha Hunan China`,
+            ...changshaHints.map((name) => `${name} 长沙 湖南 中国`),
+          ]
+        : [
+            `top tourist attractions in ${cityEn} ${country ?? ""}`.trim(),
+            `${cityZh} 景点 ${contract?.countryNameZh ?? country ?? ""}`.trim(),
+          ]
+    )
   );
+  const attractionCandidatesById = new Map<string, GooglePlace>();
+  for (const query of attractionQueries) {
+    const places = await requestPlacesTextSearch({
+      query,
+      apiKey,
+      fetchImpl,
+      languageCode,
+      fieldMask: CITY_FIELD_MASK,
+      pageSize: isChangsha ? 5 : 12,
+      lat: latitude,
+      lng: longitude,
+      regionCode: countryCode,
+    });
+    recordPlacesCall(evidence, query, places, "attraction");
+    places
+      .filter((place) => isValidAttractionPlace({ place, cityEn, cityZh, countryCode }))
+      .forEach((place) => {
+        const id = cleanString(place.id);
+        if (id && !attractionCandidatesById.has(id)) {
+          attractionCandidatesById.set(id, place);
+        }
+      });
+  }
+
+  const rankedAttractionCandidates = filterAndSortGooglePlaces(
+    Array.from(attractionCandidatesById.values()),
+    12
+  );
+  const attractionDetails: GooglePlace[] = [];
+  for (const place of rankedAttractionCandidates) {
+    if (!place.id) {
+      attractionDetails.push(place);
+      continue;
+    }
+    const details = await requestPlaceDetails({
+      placeId: place.id,
+      apiKey,
+      fetchImpl,
+      languageCode,
+    });
+    evidence.detailsCount += 1;
+    if (details) {
+      const id = cleanString(details.id);
+      if (id && !evidence.placeIds.includes(id)) evidence.placeIds.push(id);
+    }
+    const detailedPlace = details ?? place;
+    if (isValidAttractionPlace({ place: detailedPlace, cityEn, cityZh, countryCode })) {
+      attractionDetails.push(detailedPlace);
+    }
+    if (
+      attractionDetails.length >= 8 &&
+      attractionDetails.filter((item) => !photoFromPlace(item).isPlaceholder).length >= 3
+    ) {
+      break;
+    }
+  }
+  const attractions = attractionDetails.slice(0, 10).map((place) =>
+    normalizeAttraction(place, cityZh)
+  );
+  const firstVerifiedAttractionPhoto = attractions.find(
+    (item) => !item.photo.isPlaceholder
+  )?.photo;
   const descriptions = descriptionFromFacts({
     cityZh,
     cityEn,
@@ -624,8 +910,15 @@ export async function enrichDestinationWithGooglePlaces(
     descriptionZh: descriptions.zh,
     descriptionEn: descriptions.en,
     descriptionSource: descriptions.source,
-    coverImage: photoFromPlace(destinationPlace),
+    adminAreaZh,
+    adminAreaEn,
+    googleMapsUri: cleanString(destinationPlace.googleMapsUri),
+    placeId: cleanString(destinationPlace.id),
+    coverImage: photoFromPlace(destinationPlace).isPlaceholder && firstVerifiedAttractionPhoto
+      ? firstVerifiedAttractionPhoto
+      : photoFromPlace(destinationPlace),
     attractions,
+    calls: evidence,
   };
 
   const cache =

@@ -162,6 +162,7 @@ async function upsertApplicantProfileWithOptionalColumnFallback(
   payload: Record<string, string | null>,
 ) {
   let nextPayload = { ...payload };
+  const missingColumns: string[] = [];
 
   for (let attempt = 0; attempt <= PROFILE_SAVE_FALLBACK_COLUMNS.length; attempt += 1) {
     const result = await adminClient
@@ -170,20 +171,22 @@ async function upsertApplicantProfileWithOptionalColumnFallback(
       .select("*")
       .single();
 
-    if (!result.error) return result;
+    if (!result.error) return { ...result, missingColumns };
 
     const missingColumn = getMissingProfileSaveColumn(result.error.message, nextPayload);
     if (!missingColumn) return result;
 
     const { [missingColumn]: _missingValue, ...fallbackPayload } = nextPayload;
+    missingColumns.push(missingColumn);
     nextPayload = fallbackPayload;
   }
 
-  return adminClient
+  const result = await adminClient
     .from("applicant_profiles")
     .upsert(nextPayload, { onConflict: "auth_user_id" })
     .select("*")
     .single();
+  return { ...result, missingColumns };
 }
 
 async function seedNewApplicationFromUniversalProfile(
@@ -338,7 +341,14 @@ export async function saveUniversalProfileWithSharedAnswers(
     preferExplicit?: boolean;
     clearedFields?: UniversalProfileSaveField[];
   },
-): Promise<{ applicationId?: string; answerCount?: number; profile?: UniversalProfileSnapshot; error?: string }> {
+): Promise<{
+  applicationId?: string;
+  answerCount?: number;
+  profile?: UniversalProfileSnapshot;
+  missingColumns?: string[];
+  schemaWarning?: string;
+  error?: string;
+}> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -384,7 +394,17 @@ export async function saveUniversalProfileWithSharedAnswers(
       return { error: profileError?.message ?? "Failed to save profile" };
     }
 
-    return { applicationId: input.applicationId ?? undefined, answerCount: 0, profile: savedProfile as UniversalProfileSnapshot };
+    const missingColumns = "missingColumns" in profileResult ? profileResult.missingColumns : [];
+
+    return {
+      applicationId: input.applicationId ?? undefined,
+      answerCount: 0,
+      profile: savedProfile as UniversalProfileSnapshot,
+      missingColumns,
+      schemaWarning: missingColumns.length > 0
+        ? `Universal Profile saved with legacy fallback. Missing applicant_profiles columns: ${missingColumns.join(", ")}. Run migration 0090_applicant_profile_bilingual_fields.sql.`
+        : undefined,
+    };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save profile" };
   }

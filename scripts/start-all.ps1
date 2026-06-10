@@ -167,11 +167,42 @@ function Test-CommandLineContainsPath {
   return $CommandLine.ToLowerInvariant().Contains($fullPath.ToLowerInvariant())
 }
 
+function Test-HttpProbe {
+  param(
+    [string]$Uri,
+    [string[]]$ExpectedContent = @()
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Uri)) {
+    return $false
+  }
+
+  try {
+    $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+    if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 500) {
+      return $false
+    }
+
+    $body = [string]$response.Content
+    foreach ($token in $ExpectedContent) {
+      if (!$body.Contains($token)) {
+        return $false
+      }
+    }
+
+    return $true
+  } catch {
+    return $false
+  }
+}
+
 function Assert-PortAvailableOrExpected {
   param(
     [string]$Name,
     [int]$Port,
-    [string]$ExpectedPath
+    [string]$ExpectedPath,
+    [string]$HealthUri = "",
+    [string[]]$ExpectedContent = @()
   )
 
   $listener = Get-PortListener -Port $Port
@@ -182,6 +213,11 @@ function Assert-PortAvailableOrExpected {
   $process = Get-ProcessInfo -ProcessId $listener.OwningProcess
   if ($process -and (Test-CommandLineContainsPath -CommandLine $process.CommandLine -Path $ExpectedPath)) {
     Write-Warn "$Name already listening on port $Port (PID $($listener.OwningProcess)); reusing it."
+    return $true
+  }
+
+  if (Test-HttpProbe -Uri $HealthUri -ExpectedContent $ExpectedContent) {
+    Write-Warn "$Name already responding on port $Port (PID $($listener.OwningProcess)); reusing it."
     return $true
   }
 
@@ -405,9 +441,24 @@ New-Item -ItemType Directory -Force -Path $runLogDir | Out-Null
 Assert-ServiceInputs
 Start-DatabaseServices
 
-$frontendAlreadyRunning = Assert-PortAvailableOrExpected -Name "frontend" -Port $FrontendPort -ExpectedPath $frontendDir
-$agentAlreadyRunning = Assert-PortAvailableOrExpected -Name "agent-backend" -Port $AgentPort -ExpectedPath $agentBackendDir
-$travelAlreadyRunning = Assert-PortAvailableOrExpected -Name "travel-service" -Port $TravelPort -ExpectedPath $travelServiceDir
+$frontendAlreadyRunning = Assert-PortAvailableOrExpected `
+  -Name "frontend" `
+  -Port $FrontendPort `
+  -ExpectedPath $frontendDir `
+  -HealthUri "http://127.0.0.1:$FrontendPort/client/login" `
+  -ExpectedContent @("_next")
+$agentAlreadyRunning = Assert-PortAvailableOrExpected `
+  -Name "agent-backend" `
+  -Port $AgentPort `
+  -ExpectedPath $agentBackendDir `
+  -HealthUri "http://127.0.0.1:$AgentPort/health" `
+  -ExpectedContent @('"status":"ok"')
+$travelAlreadyRunning = Assert-PortAvailableOrExpected `
+  -Name "travel-service" `
+  -Port $TravelPort `
+  -ExpectedPath $travelServiceDir `
+  -HealthUri "http://127.0.0.1:$TravelPort/openapi.json" `
+  -ExpectedContent @('"/generate"', '"/chat"', '"/flight-options"')
 
 $started = @()
 

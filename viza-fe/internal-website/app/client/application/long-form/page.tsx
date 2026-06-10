@@ -63,9 +63,9 @@ import {
 import {
   isDs160VisaType,
   isFranceVisasVisaType,
-  queueProviderForVisaType,
+  isVietnamEVisaApplication,
+  queueProviderForApplication,
   queueStatusForApplication,
-  queueStatusForSubmissionMode,
   type SubmissionMode,
 } from "@/lib/submission-queue";
 
@@ -92,7 +92,11 @@ const FRANCE_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
   process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
 
-type LiveAssistedTarget = "ds160" | "france" | null;
+const VN_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED === "true" &&
+  process.env.NEXT_PUBLIC_VN_SUBMISSION_MODE === "live_assisted";
+
+type LiveAssistedTarget = "ds160" | "france" | "vietnam" | null;
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -879,6 +883,7 @@ function FinalConfirmationPanel({
   const baseDisabled = isSubmitting || hasMissing || requirementsLoading;
   const hasLiveAssistedTarget = liveAssistedTarget !== null;
   const isFrance = liveAssistedTarget === "france";
+  const isVietnam = liveAssistedTarget === "vietnam";
   const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
@@ -887,6 +892,10 @@ function FinalConfirmationPanel({
         ? (isZh
             ? "本地 France live assisted 环境未启用。请确认 FRANCE_LIVE_SUBMISSION_ENABLED 和 FRANCE_SUBMISSION_MODE。"
             : "France live assisted is not enabled locally. Check FRANCE_LIVE_SUBMISSION_ENABLED and FRANCE_SUBMISSION_MODE.")
+        : isVietnam
+          ? (isZh
+              ? "本地 Vietnam live assisted 环境未启用。请确认 VN_LIVE_SUBMISSION_ENABLED 和 VN_SUBMISSION_MODE。"
+              : "Vietnam live assisted is not enabled locally. Check VN_LIVE_SUBMISSION_ENABLED and VN_SUBMISSION_MODE.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -897,7 +906,52 @@ function FinalConfirmationPanel({
     : (isZh ? "确认并提交申请" : "Confirm and submit application");
   const liveLabel = isFrance
     ? (isZh ? "Live assisted 官网辅助填写" : "Live assisted France-Visas fill")
-    : (isZh ? "Live assisted 官网辅助填写" : "Live assisted CEAC fill");
+    : isVietnam
+      ? (isZh ? "Live assisted 越南官网辅助填写" : "Live assisted Vietnam e-Visa fill")
+      : (isZh ? "Live assisted 官网辅助填写" : "Live assisted CEAC fill");
+  const liveSafetyCopy = isFrance
+    ? (isZh
+        ? "真实辅助填写会打开 France-Visas 官方流程；验证码、登录、邮箱验证、官网页面核对、最终确认、支付和预约都必须由本人处理。VIZA 不会自动最终提交、付款或预约。"
+        : "Live assisted mode opens the France-Visas official flow. CAPTCHA, login, email verification, official-page review, final validation, payment, and appointment booking remain manual. VIZA will not silently submit, pay, or book.")
+    : isVietnam
+      ? (isZh
+          ? "真实辅助填写会打开越南 e-Visa 官方网站；NOTE 提示、验证码、付款和最终提交都必须由本人处理。VIZA 不会绕过验证码，也不会自动付款或点击最终提交。"
+          : "Live assisted mode opens the official Vietnam e-Visa website. NOTE prompts, CAPTCHA, payment, and final submit remain manual. VIZA will not bypass CAPTCHA, pay, or click the final submit.")
+      : (isZh
+          ? "真实辅助填写会打开 CEAC 官网流程；验证码、官网页面核对，以及最终 Sign/Submit 必须由本人完成。VIZA 不会自动点击最终提交。"
+          : "Live assisted mode opens the CEAC flow. CAPTCHA, official-page review, and the final Sign/Submit step must be completed by you. VIZA will not click the final official submit button.");
+  const liveConsentTitle = isFrance
+    ? (isZh ? "确认启动 France-Visas 官网辅助填写" : "Confirm live assisted France-Visas fill")
+    : isVietnam
+      ? (isZh ? "确认启动越南 e-Visa 官网辅助填写" : "Confirm live assisted Vietnam e-Visa fill")
+      : (isZh ? "确认启动真实官网辅助填写" : "Confirm live assisted CEAC fill");
+  const liveConsentDescription = isFrance
+    ? (isZh
+        ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方网站，使用 VIZA 已保存答案辅助填写。验证码、登录、邮箱验证、官网最终核对、支付、预约和任何线下递签/采集生物信息步骤都需要你本人处理。"
+        : "This creates a live_assisted queue job and opens the official France-Visas website using your saved VIZA answers. CAPTCHA, login, email verification, official final review, payment, appointment booking, and any in-person filing or biometrics remain manual.")
+    : isVietnam
+      ? (isZh
+          ? "这会创建 live_assisted 队列任务并打开越南 e-Visa 官方网站，使用 VIZA 已保存答案辅助填写。NOTE 提示、验证码、付款和最终提交都需要你本人处理。"
+          : "This creates a live_assisted queue job and opens the official Vietnam e-Visa website using your saved VIZA answers. NOTE prompts, CAPTCHA, payment, and final submit remain manual.")
+      : (isZh
+          ? "这会创建 live_assisted 队列任务并打开 CEAC 官网填写流程。流程会在验证码、人工检查点或最终 Sign/Submit 前等待你本人操作。"
+          : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step.");
+  const liveConsentCheckbox = isFrance
+    ? (isZh
+        ? "我确认这是本人授权的 France-Visas 官网辅助填写，并知道 VIZA 不会自动最终验证、付款或预约。"
+        : "I confirm this is my authorized France-Visas live assisted fill, and I understand VIZA will not automatically validate, pay, or book an appointment.")
+    : isVietnam
+      ? (isZh
+          ? "我确认这是本人授权的越南 e-Visa 官网辅助填写，并知道 VIZA 不会绕过验证码、自动付款或最终提交。"
+          : "I confirm this is my authorized Vietnam e-Visa live assisted fill, and I understand VIZA will not bypass CAPTCHA, pay, or finally submit.")
+      : (isZh
+          ? "我确认这是本人授权的真实官网辅助填写，并知道最终官网提交仍需本人手动确认。"
+          : "I confirm this is my authorized live assisted fill, and I understand the final official submission still requires my manual confirmation.");
+  const liveStartLabel = isFrance
+    ? (isZh ? "启动 France-Visas 辅助填写" : "Start live assisted fill")
+    : isVietnam
+      ? (isZh ? "启动越南 e-Visa 辅助填写" : "Start Vietnam e-Visa fill")
+      : (isZh ? "启动真实辅助填写" : "Start live assisted fill");
 
   return (
     <div className="space-y-6">
@@ -1029,13 +1083,7 @@ function FinalConfirmationPanel({
 
       {hasLiveAssistedTarget && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-          {liveDisabledReason ?? (isZh
-            ? isFrance
-              ? "真实辅助填写会打开 France-Visas 官方流程；验证码、登录、邮箱验证、官网页面核对、最终确认、支付和预约都必须由本人处理。VIZA 不会自动最终提交、付款或预约。"
-              : "真实辅助填写会打开 CEAC 官网流程；验证码、官网页面核对，以及最终 Sign/Submit 必须由本人完成。VIZA 不会自动点击最终提交。"
-            : isFrance
-              ? "Live assisted mode opens the France-Visas official flow. CAPTCHA, login, email verification, official-page review, final validation, payment, and appointment booking remain manual. VIZA will not silently submit, pay, or book."
-              : "Live assisted mode opens the CEAC flow. CAPTCHA, official-page review, and the final Sign/Submit step must be completed by you. VIZA will not click the final official submit button.")}
+          {liveDisabledReason ?? liveSafetyCopy}
         </div>
       )}
 
@@ -1046,22 +1094,10 @@ function FinalConfirmationPanel({
               <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold text-foreground">
-                  {isZh
-                    ? isFrance
-                      ? "确认启动 France-Visas 官网辅助填写"
-                      : "确认启动真实官网辅助填写"
-                    : isFrance
-                      ? "Confirm live assisted France-Visas fill"
-                      : "Confirm live assisted CEAC fill"}
+                  {liveConsentTitle}
                 </h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  {isZh
-                    ? isFrance
-                      ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方网站，使用 VIZA 已保存答案辅助填写。验证码、登录、邮箱验证、官网最终核对、支付、预约和任何线下递签/采集生物信息步骤都需要你本人处理。"
-                      : "这会创建 live_assisted 队列任务并打开 CEAC 官网填写流程。流程会在验证码、人工检查点或最终 Sign/Submit 前等待你本人操作。"
-                    : isFrance
-                      ? "This creates a live_assisted queue job and opens the official France-Visas website using your saved VIZA answers. CAPTCHA, login, email verification, official final review, payment, appointment booking, and any in-person filing or biometrics remain manual."
-                      : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step."}
+                  {liveConsentDescription}
                 </p>
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-input bg-muted/30 p-3 text-sm text-foreground">
                   <input
@@ -1071,13 +1107,7 @@ function FinalConfirmationPanel({
                     onChange={(event) => setLiveConsentChecked(event.target.checked)}
                   />
                   <span>
-                    {isZh
-                      ? isFrance
-                        ? "我确认这是本人授权的 France-Visas 官网辅助填写，并知道 VIZA 不会自动最终验证、付款或预约。"
-                        : "我确认这是本人授权的真实官网辅助填写，并知道最终官网提交仍需本人手动确认。"
-                      : isFrance
-                        ? "I confirm this is my authorized France-Visas live assisted fill, and I understand VIZA will not automatically validate, pay, or book an appointment."
-                        : "I confirm this is my authorized live assisted fill, and I understand the final official submission still requires my manual confirmation."}
+                    {liveConsentCheckbox}
                   </span>
                 </label>
               </div>
@@ -1106,11 +1136,7 @@ function FinalConfirmationPanel({
               >
                 {submittingMode === "live_assisted"
                   ? (isZh ? "正在启动" : "Starting")
-                  : (isZh
-                      ? isFrance
-                        ? "启动 France-Visas 辅助填写"
-                        : "启动真实辅助填写"
-                      : "Start live assisted fill")}
+                  : liveStartLabel}
               </button>
             </div>
           </div>
@@ -1164,10 +1190,8 @@ async function insertSubmissionQueueJob(
   supabase: ReturnType<typeof createClient>,
   input: SubmissionQueueJobInput,
 ): Promise<void> {
-  const status = input.mode === "live_assisted"
-    ? queueStatusForSubmissionMode(input.visaType, input.mode)
-    : queueStatusForApplication(input.country, input.visaType);
-  const provider = queueProviderForVisaType(input.visaType, input.mode);
+  const status = queueStatusForApplication(input.country, input.visaType, input.mode);
+  const provider = queueProviderForApplication(input.country, input.visaType, input.mode);
 
   const enrichedPayload = {
     application_id: input.applicationId,
@@ -1324,15 +1348,20 @@ export default function ApplicationPage() {
   const isFranceSchengenApplication =
     isFranceVisasVisaType(resolvedVisaType) &&
     ["france", "fr", "法国"].includes(normalizedCountryForLive);
+  const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
       ? "france"
-      : null;
+      : isVietnamEVisa
+        ? "vietnam"
+        : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
     : liveAssistedTarget === "france"
       ? FRANCE_LIVE_ASSISTED_ENABLED
+      : liveAssistedTarget === "vietnam"
+        ? VN_LIVE_ASSISTED_ENABLED
       : false;
 
   useEffect(() => {
@@ -2587,6 +2616,8 @@ export default function ApplicationPage() {
                           appState.submittedAt ? (
                             <SubmissionStatusStep
                               applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
                             />
@@ -2685,6 +2716,8 @@ export default function ApplicationPage() {
                           appState.submittedAt ? (
                             <SubmissionStatusStep
                               applicationId={appState.applicationId}
+                              country={activeCountry}
+                              visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
                             />
