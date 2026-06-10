@@ -34,8 +34,9 @@ the applicant.
   still a known gap.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
-- `src/vietnam/**`: Vietnam e-Visa runner; fills the SPA and stops before
-  payment/submission.
+- `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
+  landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
+  when the official form is reached, and stops before payment/submission.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.

@@ -25,6 +25,8 @@ location data.
   destination payload shaping.
 - `googlePlacesEnrichmentService.ts`: server-only Google Places destination
   enrichment, safe photo placeholder handling, and best-effort local DB cache.
+- `google-places-enrichment-types.ts`: client-safe shared Google Places
+  enrichment payload types consumed by itinerary fallback and Travel UI.
 - `google-places.ts`: shared Google Places attraction card schema,
   normalization, filtering, scoring, and fallback image handling for the
   server-only Places API routes and Travel UI.

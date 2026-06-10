@@ -55,6 +55,26 @@ export async function markSubmissionFailed(
   }
 }
 
+export async function markSubmissionStalled(
+  applicationId: string,
+  reason: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("applications")
+    .update({
+      submission_result: { error: reason } as unknown as Record<string, unknown>,
+      submission_result_status: "stalled" as SubmissionResultStatus,
+      submission_result_updated_at: new Date().toISOString(),
+    })
+    .eq("id", applicationId);
+
+  if (error) {
+    throw new Error(
+      `markSubmissionStalled(${applicationId}) failed: ${error.message}`,
+    );
+  }
+}
+
 /**
  * Bump submission_result_status without changing the payload. Use to
  * advance the FE waiting UI through phases ("processing" once the runner

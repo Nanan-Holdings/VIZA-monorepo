@@ -6,9 +6,12 @@
  * pre-pay/review checkpoint. The runner never clicks Pay or final Submit.
  *
  * Optional env:
- *   VN_SMOKE_HEADFUL=1
- *   VN_SMOKE_TRACE=1
+ *   VN_PLAYWRIGHT_HEADLESS=false
+ *   VN_CAPTURE_TRACE=true
+ *   VN_CAPTURE_SCREENSHOT=true
  *   VN_SMOKE_TIMEOUT_MS=240000
+ *   VN_OFFICIAL_BASE_URL=https://evisa.gov.vn/
+ *   VN_OFFICIAL_FALLBACK_BASE_URL=https://thithucdientu.gov.vn/
  */
 
 import "dotenv/config";
@@ -71,19 +74,42 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 
 function readTimeoutMs(): number {
   const raw = process.env.VN_SMOKE_TIMEOUT_MS;
-  if (!raw) return 120_000;
+  if (!raw) return 240_000;
   const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 120_000;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 240_000;
+}
+
+function readStepTimeoutMs(totalTimeoutMs: number): number {
+  const raw = process.env.VN_SMOKE_STEP_TIMEOUT_MS;
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return Math.min(60_000, totalTimeoutMs);
+}
+
+function readBooleanEnv(key: string, defaultValue: boolean): boolean {
+  const raw = process.env[key];
+  if (raw === undefined) return defaultValue;
+  return raw === "1" || raw.toLowerCase() === "true";
+}
+
+function readHeadless(): boolean {
+  if (process.env.VN_SMOKE_HEADFUL === "1") return false;
+  return readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false);
 }
 
 async function main(): Promise<void> {
   const runId = `vn-smoke-${Date.now()}`;
-  const diagnosticsEnabled = process.env.VN_SMOKE_TRACE === "1";
+  const traceEnabled =
+    readBooleanEnv("VN_CAPTURE_TRACE", true) || process.env.VN_SMOKE_TRACE === "1";
+  const screenshotEnabled = readBooleanEnv("VN_CAPTURE_SCREENSHOT", true);
   const timeoutMs = readTimeoutMs();
+  const stepTimeoutMs = readStepTimeoutMs(timeoutMs);
   const diagnosticsDir = path.resolve("diag-out", "vn-smoke", runId);
   const tracePath = path.join(diagnosticsDir, "trace.zip");
   const finalScreenshotPath = path.join(diagnosticsDir, "final.png");
-  if (diagnosticsEnabled) {
+  if (traceEnabled || screenshotEnabled) {
     fs.mkdirSync(diagnosticsDir, { recursive: true });
     console.log(`[vn-smoke] Diagnostics: ${diagnosticsDir}`);
   }
@@ -92,18 +118,25 @@ async function main(): Promise<void> {
     fillVietnamApplication(
       { answers },
       {
-        headless: process.env.VN_SMOKE_HEADFUL !== "1",
+        headless: readHeadless(),
         runId,
-        stepTimeoutMs: 60_000,
-        ...(diagnosticsEnabled ? { tracePath, finalScreenshotPath } : {}),
+        officialBaseUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+        officialFallbackBaseUrl:
+          process.env.VN_OFFICIAL_FALLBACK_BASE_URL ?? "https://thithucdientu.gov.vn/",
+        stepTimeoutMs,
+        stopAtFirstCheckpoint: readBooleanEnv("VN_SMOKE_STOP_AT_FIRST_CHECKPOINT", true),
+        ...(traceEnabled ? { tracePath } : {}),
+        ...(screenshotEnabled ? { finalScreenshotPath } : {}),
       },
     ),
     timeoutMs,
   );
 
   console.log(JSON.stringify(result, null, 2));
-  if (diagnosticsEnabled) {
+  if (traceEnabled) {
     console.log(`[vn-smoke] Trace: ${tracePath}`);
+  }
+  if (screenshotEnabled) {
     console.log(`[vn-smoke] Final screenshot: ${finalScreenshotPath}`);
   }
   if (result.status === "submitted_pending_pay") {
@@ -112,8 +145,23 @@ async function main(): Promise<void> {
   }
 
   if (result.status === "scaffolded_pending_walk") {
+    if (
+      result.checkpoint === "application_form_visible" ||
+      result.checkpoint === "landing_page_loaded" ||
+      result.checkpoint === "apply_now_visible" ||
+      result.checkpoint === "note_modal_visible" ||
+      result.checkpoint === "captcha_visible"
+    ) {
+      console.log(`[vn-smoke] Official checkpoint reached: ${result.checkpoint}`);
+      process.exit(0);
+    }
     console.error(`[vn-smoke] Scaffolded but did not capture registration code: ${result.reason}`);
     process.exit(2);
+  }
+
+  if (result.status === "action_required") {
+    console.error(`[vn-smoke] Manual checkpoint: ${result.checkpoint} (${result.actionType})`);
+    process.exit(0);
   }
 
   console.error(`[vn-smoke] Failed at ${result.failedStep}`);

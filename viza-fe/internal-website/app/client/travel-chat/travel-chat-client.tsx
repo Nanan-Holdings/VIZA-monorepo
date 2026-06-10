@@ -195,6 +195,7 @@ type TravelItineraryApiResponse = {
   diagnostics?: {
     googleFallbackAttempted?: boolean;
     googleFallbackSucceeded?: boolean;
+    googleFallbackError?: string;
     localQualityReasons?: string[];
     finalDestination?: Record<string, unknown>;
     googleCallEvidence?: Record<string, unknown>;
@@ -426,6 +427,8 @@ const HOTSPOTS_BY_CITY: Record<string, string[]> = {
   london: ["科文特花园", "塔桥", "卡姆登", "博罗市场"],
   rome: ["斗兽场", "特莱维喷泉", "特拉斯提弗列", "梵蒂冈博物馆"],
   beijing: ["故宫", "天坛", "颐和园", "慕田峪长城"],
+  changsha: ["岳麓山", "橘子洲", "湖南博物院", "太平老街"],
+  长沙: ["岳麓山", "橘子洲", "湖南博物院", "太平老街"],
   sanfrancisco: ["金门大桥", "渔人码头", "九曲花街", "联合广场"],
   pisa: ["比萨斜塔", "奇迹广场", "比萨主教座堂", "阿诺河岸"],
   dubai: ["哈利法塔", "迪拜喷泉", "朱美拉海滩", "迪拜老城"],
@@ -465,6 +468,8 @@ const LOCAL_NAME_BY_KEY: Record<string, string> = {
   russia: "俄罗斯",
   turkey: "土耳其",
   china: "中国",
+  changsha: "长沙",
+  长沙: "长沙",
   singapore: "新加坡",
   australia: "澳大利亚",
   france: "法国",
@@ -579,6 +584,8 @@ const PLACE_TEXT_REPLACEMENTS = [
   ["Russia", "俄罗斯"],
   ["Turkey", "土耳其"],
   ["China", "中国"],
+  ["Changsha", "长沙"],
+  ["Hunan", "湖南"],
   ["Japan", "日本"],
   ["Singapore", "新加坡"],
   ["Australia", "澳大利亚"],
@@ -711,6 +718,18 @@ const CITY_CONTEXT: Record<
     countryZh: "中国",
     days: "2-4 days",
     intro: "历史建筑与现代城市共存，景点密度高，适合短途深度游。",
+  },
+  changsha: {
+    countryEn: "China",
+    countryZh: "中国",
+    days: "3-5 days",
+    intro: "长沙适合把岳麓山、橘子洲、湖南博物院和湘菜夜市串成经典城市游。",
+  },
+  长沙: {
+    countryEn: "China",
+    countryZh: "中国",
+    days: "3-5 days",
+    intro: "长沙适合把岳麓山、橘子洲、湖南博物院和湘菜夜市串成经典城市游。",
   },
   newyork: {
     countryEn: "United States",
@@ -1633,6 +1652,24 @@ function buildItinerarySuccessIntro(
     return "Your itinerary is ready. The travel service was unavailable, so I used the text-only backup generator for this version.";
   }
   return "Your itinerary is ready. I organized each day into itinerary cards, and you can keep editing it in chat; I’ll save changes as new versions.";
+}
+
+function buildItineraryModulePatch(
+  result: TravelItineraryApiResponse
+): Record<string, unknown> | undefined {
+  const patch: Record<string, unknown> = {};
+  if (result.enrichment) {
+    patch.destinationEnrichment = result.enrichment;
+  }
+  if (result.debugId || result.fallbackUsed || result.warnings || result.diagnostics) {
+    patch.travelPipeline = {
+      debugId: result.debugId,
+      fallbackUsed: result.fallbackUsed ?? [],
+      warnings: result.warnings ?? [],
+      diagnostics: result.diagnostics ?? null,
+    };
+  }
+  return Object.keys(patch).length > 0 ? patch : undefined;
 }
 
 function parseTravelRevisionResponse(
@@ -3043,7 +3080,10 @@ function buildGoogleGeocodeItem(city: string): GoogleGeocodeRequestItem | null {
   const key = normalizeCityKey(trimmedCity);
   const localName = getLocalDisplayName(trimmedCity);
   const context = getCityContext(trimmedCity);
-  const query = context
+  const isChangsha = key === "changsha" || key === "长沙" || key === "长沙市";
+  const query = isChangsha
+    ? `${localName}, 湖南, 中国`
+    : context
     ? `${localName}, ${context.countryZh}`
     : localName !== trimmedCity
       ? `${localName}, ${trimmedCity}`
@@ -3067,7 +3107,12 @@ function buildGoogleHotspotGeocodeItem(
   const cityName = getLocalDisplayName(trimmedCity);
   const hotspotName = getLocalDisplayName(trimmedHotspot);
   const context = getCityContext(trimmedCity);
-  const query = context
+  const cityKey = normalizeCityKey(trimmedCity);
+  const isChangsha =
+    cityKey === "changsha" || cityKey === "长沙" || cityKey === "长沙市";
+  const query = isChangsha
+    ? `${hotspotName}, ${cityName}, 湖南, 中国`
+    : context
     ? `${hotspotName}, ${cityName}, ${context.countryZh}`
     : `${hotspotName}, ${cityName}`;
 
@@ -4972,11 +5017,13 @@ export function TravelChatClient({
           );
         }
 
+        const itineraryModulePatch = buildItineraryModulePatch(result);
         const assistantMessage = createItineraryAssistantMessage({
           itinerary,
           selectedFlights: payload.selected_flights,
           selectedHotels: payload.selected_hotels,
           intro: buildItinerarySuccessIntro(interfaceLocale, result),
+          modulePatch: itineraryModulePatch,
           quickReplies:
             interfaceLocale === "zh"
               ? ITINERARY_REVISION_QUICK_REPLIES
@@ -5006,6 +5053,7 @@ export function TravelChatClient({
                 : interfaceLocale === "zh"
                   ? "生成初始行程"
                   : "Generated the initial itinerary",
+            modulePatch: itineraryModulePatch,
             locale: interfaceLocale,
           });
           return {

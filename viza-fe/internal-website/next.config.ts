@@ -8,6 +8,11 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   images: {
+    localPatterns: [
+      {
+        pathname: "/**",
+      },
+    ],
     remotePatterns: [
       {
         protocol: "https",

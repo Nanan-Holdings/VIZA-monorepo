@@ -79,6 +79,10 @@ import {
   CURATED_CITY_ZH_LABELS_BY_KEY,
   getCuratedCityLabel,
 } from "@/lib/travel/locations";
+import type {
+  TravelGoogleAttraction,
+  TravelGoogleEnrichedDestination,
+} from "@/lib/travel/google-places-enrichment-types";
 
 type ItineryTableRow = {
   time?: string;
@@ -179,6 +183,9 @@ type CitySegment = {
   dayEnd: number;
   rangeLabel: string;
   imageSrc: string;
+  lat?: number;
+  lng?: number;
+  enrichment?: TravelGoogleEnrichedDestination | null;
 };
 
 type ItineraryTravelStatePatch = Pick<
@@ -945,6 +952,10 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   kyoto: [35.0116, 135.7681],
   osaka: [34.6937, 135.5023],
   singapore: [1.3521, 103.8198],
+  新加坡: [1.3521, 103.8198],
+  changsha: [28.2278, 112.9389],
+  长沙: [28.2278, 112.9389],
+  长沙市: [28.2278, 112.9389],
   sydney: [-33.8688, 151.2093],
   london: [51.5072, -0.1276],
   paris: [48.8566, 2.3522],
@@ -976,6 +987,85 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
 
 function normalizeLookupKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, "");
+}
+
+function isFiniteLatLng(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined
+): boolean {
+  return (
+    typeof latitude === "number" &&
+    Number.isFinite(latitude) &&
+    typeof longitude === "number" &&
+    Number.isFinite(longitude)
+  );
+}
+
+function isRealGooglePhoto(
+  photo: { url?: string | null; isPlaceholder?: boolean; provider?: string } | null | undefined
+): photo is { url: string; isPlaceholder?: boolean; provider?: string } {
+  return Boolean(
+    photo?.url &&
+      photo.provider === "google_places" &&
+      photo.isPlaceholder !== true &&
+      !photo.url.includes("travel-fallback") &&
+      !photo.url.includes("placeholder")
+  );
+}
+
+function isPlacesPhotoProxySrc(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.startsWith("/api/places/photo?");
+}
+
+function getDestinationEnrichmentFromPatch(
+  modulePatch?: Record<string, unknown>
+): TravelGoogleEnrichedDestination | null {
+  const value = modulePatch?.destinationEnrichment;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<TravelGoogleEnrichedDestination>;
+  if (
+    candidate.source !== "google_places" ||
+    typeof candidate.canonicalName !== "string" ||
+    typeof candidate.nameEn !== "string" ||
+    !candidate.coverImage ||
+    !Array.isArray(candidate.attractions)
+  ) {
+    return null;
+  }
+  return candidate as TravelGoogleEnrichedDestination;
+}
+
+function enrichmentMatchesCity(
+  enrichment: TravelGoogleEnrichedDestination | null,
+  city: string
+): boolean {
+  if (!enrichment) return false;
+  const cityKey = normalizeLookupKey(city);
+  return [
+    enrichment.canonicalName,
+    enrichment.nameEn,
+    enrichment.nameZh,
+  ].some((value) => normalizeLookupKey(value) === cityKey);
+}
+
+function getEnrichmentForCity(
+  enrichment: TravelGoogleEnrichedDestination | null,
+  city: string
+): TravelGoogleEnrichedDestination | null {
+  return enrichmentMatchesCity(enrichment, city) ? enrichment : null;
+}
+
+function getEnrichedAttractionForName(
+  enrichment: TravelGoogleEnrichedDestination | null,
+  attractionName: string
+): TravelGoogleAttraction | null {
+  if (!enrichment) return null;
+  const key = normalizeLookupKey(attractionName);
+  return (
+    enrichment.attractions.find((item) =>
+      [item.nameZh, item.nameEn].some((name) => normalizeLookupKey(name) === key)
+    ) ?? null
+  );
 }
 
 function hashString(value: string): number {
@@ -1368,7 +1458,8 @@ function buildCitySegments(
   itinerary: ItineraryDay[],
   orderedCities: string[],
   travelState: TravelState,
-  language: TravelInterfaceLocale
+  language: TravelInterfaceLocale,
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
 ): CitySegment[] {
   const cities = getUniqueCities(itinerary, orderedCities);
   let cursor = 1;
@@ -1386,6 +1477,14 @@ function buildCitySegments(
 
     const partialSegment = { dayStart, dayEnd };
     const hotel = findHotelForCity(travelState.selected_hotels, city);
+    const enrichment = getEnrichmentForCity(destinationEnrichment, city);
+    const enrichedCover = isRealGooglePhoto(enrichment?.coverImage)
+      ? enrichment.coverImage.url
+      : null;
+    const hasEnrichedCoordinates = isFiniteLatLng(
+      enrichment?.latitude,
+      enrichment?.longitude
+    );
 
     return {
       city,
@@ -1393,7 +1492,10 @@ function buildCitySegments(
       dayStart,
       dayEnd,
       rangeLabel: formatCityRange(partialSegment, hotel, language),
-      imageSrc: getCityImage(city, `segment-${index}`),
+      imageSrc: enrichedCover ?? getCityImage(city, `segment-${index}`),
+      lat: hasEnrichedCoordinates ? enrichment?.latitude ?? undefined : undefined,
+      lng: hasEnrichedCoordinates ? enrichment?.longitude ?? undefined : undefined,
+      enrichment,
     };
   });
 }
@@ -1799,7 +1901,7 @@ function summarizeDay(
 function getAttractionImage(
   city: string,
   attraction: string,
-  fallbackSeed: string
+  _fallbackSeed: string
 ): string {
   const knowledgeImage = findTravelAttraction(city, attraction)?.imageSrc;
   if (knowledgeImage) return knowledgeImage;
@@ -1807,7 +1909,26 @@ function getAttractionImage(
   return CITY_IMAGE_FALLBACK;
 }
 
-function getDayImage(day: ItineraryDay, index: number): string {
+function getDayImage(
+  day: ItineraryDay,
+  index: number,
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
+): string {
+  const enrichment = getEnrichmentForCity(destinationEnrichment, day.city);
+  const enrichedActivityPhoto = day.activities
+    .map((activity) => getEnrichedAttractionForName(enrichment, activity)?.photo)
+    .find((photo) => isRealGooglePhoto(photo));
+  if (enrichedActivityPhoto) return enrichedActivityPhoto.url;
+
+  const enrichedFallbackPhoto = enrichment?.attractions
+    ?.map((item) => item.photo)
+    .filter((photo) => isRealGooglePhoto(photo))[index];
+  if (enrichedFallbackPhoto) return enrichedFallbackPhoto.url;
+
+  if (isRealGooglePhoto(enrichment?.coverImage)) {
+    return enrichment.coverImage.url;
+  }
+
   const representedActivity =
     day.activities.find((activity) =>
       findTravelAttraction(day.city, activity)
@@ -1849,7 +1970,9 @@ function buildFallbackMapPoints(
   language: TravelInterfaceLocale
 ): TripMapPoint[] {
   return segments.map((segment, index) => {
-    const [lat, lng] = getCityCoordinates(segment.city);
+    const [lat, lng] = isFiniteLatLng(segment.lat, segment.lng)
+      ? [segment.lat as number, segment.lng as number]
+      : getCityCoordinates(segment.city);
     return {
       id: `itinerary-city-${normalizeLookupKey(segment.city)}-${index}`,
       kind: "city",
@@ -1874,18 +1997,26 @@ function buildFallbackRouteCoordinates(
 ): Array<[number, number]> {
   if (!segments.length) return [];
 
-  const routeCities: string[] = [];
-  if (travelState.origin_city) routeCities.push(travelState.origin_city);
-  routeCities.push(...segments.map((segment) => segment.city));
+  const routeItems: Array<string | CitySegment> = [];
+  if (travelState.origin_city) routeItems.push(travelState.origin_city);
+  routeItems.push(...segments);
   if (
     travelState.return_city &&
     normalizeLookupKey(travelState.return_city) !==
-      normalizeLookupKey(routeCities[routeCities.length - 1] ?? "")
+      normalizeLookupKey(
+        typeof routeItems[routeItems.length - 1] === "string"
+          ? (routeItems[routeItems.length - 1] as string)
+          : (routeItems[routeItems.length - 1] as CitySegment | undefined)?.city ?? ""
+      )
   ) {
-    routeCities.push(travelState.return_city);
+    routeItems.push(travelState.return_city);
   }
 
-  return routeCities.map(getCityCoordinates);
+  return routeItems.map((item) => {
+    if (typeof item === "string") return getCityCoordinates(item);
+    if (isFiniteLatLng(item.lat, item.lng)) return [item.lat as number, item.lng as number];
+    return getCityCoordinates(item.city);
+  });
 }
 
 function formatDayTab(
@@ -1937,7 +2068,25 @@ function buildAttractionGeocodeItems(
     }));
 }
 
-function getAttractionChoicesForCity(city: string): AttractionChoiceCard[] {
+function getAttractionChoicesForCity(
+  city: string,
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
+): AttractionChoiceCard[] {
+  const enrichment = getEnrichmentForCity(destinationEnrichment, city);
+  const enrichedChoices =
+    enrichment?.attractions
+      .filter(
+        (item) =>
+          isFiniteLatLng(item.latitude, item.longitude) &&
+          isRealGooglePhoto(item.photo)
+      )
+      .map((item) => ({
+        name: item.nameZh || item.nameEn,
+        location: item.googleMapsUri ?? `${enrichment.nameZh} · Google Places`,
+        imageSrc: item.photo.url,
+        lat: item.latitude ?? undefined,
+        lng: item.longitude ?? undefined,
+      })) ?? [];
   const cityKey = normalizeLookupKey(city);
   const knowledgeChoices = getTravelAttractionsForCity(city).map((item) => ({
     name: item.name,
@@ -1946,7 +2095,9 @@ function getAttractionChoicesForCity(city: string): AttractionChoiceCard[] {
     lat: item.lat,
     lng: item.lng,
   }));
-  if (knowledgeChoices.length) return knowledgeChoices.slice(0, 10);
+  if (enrichedChoices.length || knowledgeChoices.length) {
+    return [...enrichedChoices, ...knowledgeChoices].slice(0, 10);
+  }
 
   const knownKeys = new Set(
     knowledgeChoices.map((item) => normalizeLookupKey(item.name))
@@ -2015,13 +2166,22 @@ function getCityGalleryImages(
   segment: CitySegment,
   days: ItineraryDay[]
 ): string[] {
+  const enrichmentImages = [
+    isRealGooglePhoto(segment.enrichment?.coverImage)
+      ? segment.enrichment.coverImage.url
+      : null,
+    ...(segment.enrichment?.attractions ?? [])
+      .filter((item) => isRealGooglePhoto(item.photo))
+      .map((item) => item.photo.url),
+  ].filter((item): item is string => Boolean(item));
   const attractionImages = getTravelAttractionsForCity(segment.city).map(
     (item) => item.imageSrc
   );
   const images = [
+    ...enrichmentImages,
     ...attractionImages,
     segment.imageSrc,
-    ...days.map((day, index) => getDayImage(day, index)),
+    ...days.map((day, index) => getDayImage(day, index, segment.enrichment)),
   ];
   return Array.from(new Set(images)).slice(0, 3);
 }
@@ -2773,11 +2933,16 @@ function buildAttractionMapPoints(
   city: string,
   seedPrefix: string,
   googleCoordinates: Record<string, GoogleGeocodeCoordinate> = {},
-  language: TravelInterfaceLocale = "zh"
+  language: TravelInterfaceLocale = "zh",
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
 ): TripMapPoint[] {
   const cityKey = normalizeLookupKey(city);
   const cityLabel = getCityLabel(city, language);
-  const center = getCityCoordinates(city);
+  const enrichment = getEnrichmentForCity(destinationEnrichment, city);
+  const center =
+    enrichment && isFiniteLatLng(enrichment.latitude, enrichment.longitude)
+      ? ([enrichment.latitude, enrichment.longitude] as [number, number])
+      : getCityCoordinates(city);
   const seen = new Set<string>();
   const activities = days
     .filter((day) => normalizeLookupKey(day.city) === cityKey)
@@ -2805,16 +2970,36 @@ function buildAttractionMapPoints(
       language,
       activity
     );
+    const enrichedAttraction = getEnrichedAttractionForName(enrichment, activity);
     const attraction = findTravelAttraction(city, activity);
     const googleCoordinate =
       googleCoordinates[getAttractionCoordinateKey(city, activity)];
-    const [lat, lng] = isFiniteCoordinate(googleCoordinate)
-      ? [googleCoordinate.lat, googleCoordinate.lng]
-      : attraction
-        ? [attraction.lat, attraction.lng]
-        : offsetCoordinate(center, `${seedPrefix}-${city}-${activity}`, 0.05);
+    let coordinate: [number, number];
+    if (isFiniteCoordinate(googleCoordinate)) {
+      coordinate = [googleCoordinate.lat, googleCoordinate.lng];
+    } else if (
+      enrichedAttraction &&
+      isFiniteLatLng(enrichedAttraction.latitude, enrichedAttraction.longitude)
+    ) {
+      coordinate = [
+        enrichedAttraction.latitude as number,
+        enrichedAttraction.longitude as number,
+      ];
+    } else if (attraction) {
+      coordinate = [attraction.lat, attraction.lng];
+    } else {
+      coordinate = offsetCoordinate(
+        center,
+        `${seedPrefix}-${city}-${activity}`,
+        0.05
+      );
+    }
+    const [lat, lng] = coordinate;
     const locationText =
-      googleCoordinate?.formattedAddress ?? attraction?.location ?? cityLabel;
+      googleCoordinate?.formattedAddress ??
+      enrichedAttraction?.googleMapsUri ??
+      attraction?.location ??
+      cityLabel;
     return {
       id: `${seedPrefix}-${cityKey}-${index}`,
       kind: "hotspot",
@@ -2825,11 +3010,15 @@ function buildAttractionMapPoints(
           : `${cityLabel} stop ${index + 1}`,
       localName: cityLabel,
       intro:
+        enrichedAttraction?.descriptionZh ??
         attraction?.description ??
         (language === "zh"
           ? `${activityLabel} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`
           : `${activityLabel} is near ${locationText}. The map follows the day order.`),
       imageSrc:
+        (isRealGooglePhoto(enrichedAttraction?.photo)
+          ? enrichedAttraction.photo.url
+          : null) ??
         attraction?.imageSrc ??
         getAttractionImage(city, activity, `${seedPrefix}-${index}`),
       lat,
@@ -3545,6 +3734,10 @@ export function TravelItineraryExperience({
     () => JSON.stringify(apiOptionsPayload),
     [apiOptionsPayload]
   );
+  const destinationEnrichment = useMemo(
+    () => getDestinationEnrichmentFromPatch(modulePatch),
+    [modulePatch]
+  );
   const baseSelectedFlights =
     localSelectedFlights ?? travelState.selected_flights;
   const baseSelectedHotels = localSelectedHotels ?? travelState.selected_hotels;
@@ -3598,9 +3791,16 @@ export function TravelItineraryExperience({
         editableItinerary,
         orderedCities,
         effectiveTravelState,
-        interfaceLocale
+        interfaceLocale,
+        destinationEnrichment
       ),
-    [editableItinerary, effectiveTravelState, interfaceLocale, orderedCities]
+    [
+      destinationEnrichment,
+      editableItinerary,
+      effectiveTravelState,
+      interfaceLocale,
+      orderedCities,
+    ]
   );
   const routeNodes = useMemo(
     () => createRouteNodes(effectiveTravelState, segments, interfaceLocale),
@@ -3642,11 +3842,15 @@ export function TravelItineraryExperience({
     ]
   );
   const activeDayAttractionChoices = useMemo(
-    () => (activeDay ? getAttractionChoicesForCity(activeDay.city) : []),
-    [activeDay]
+    () =>
+      activeDay
+        ? getAttractionChoicesForCity(activeDay.city, destinationEnrichment)
+        : [],
+    [activeDay, destinationEnrichment]
   );
   const heroImage =
-    segments[0]?.imageSrc ?? getDayImage(editableItinerary[0], 0);
+    segments[0]?.imageSrc ??
+    getDayImage(editableItinerary[0], 0, destinationEnrichment);
   const totalExperiences = editableItinerary.reduce(
     (sum, day) => sum + day.activities.length,
     0
@@ -3714,12 +3918,14 @@ export function TravelItineraryExperience({
             activeSegment.city,
             "itinerary-attraction",
             googleAttractionCoordinates,
-            interfaceLocale
+            interfaceLocale,
+            destinationEnrichment
           )
         : [],
     [
       activeCityDays,
       activeSegment,
+      destinationEnrichment,
       googleAttractionCoordinates,
       interfaceLocale,
     ]
@@ -3758,10 +3964,11 @@ export function TravelItineraryExperience({
             activeDay.city,
             "detail-attraction",
             googleAttractionCoordinates,
-            interfaceLocale
+            interfaceLocale,
+            destinationEnrichment
           )
         : [],
-    [activeDay, googleAttractionCoordinates, interfaceLocale]
+    [activeDay, destinationEnrichment, googleAttractionCoordinates, interfaceLocale]
   );
   const fallbackFlightLegs = useMemo(
     () =>
@@ -5346,6 +5553,7 @@ export function TravelItineraryExperience({
                   height={360}
                   priority={false}
                   src={heroImage}
+                  unoptimized={isPlacesPhotoProxySrc(heroImage)}
                   width={480}
                 />
                 <div className="absolute inset-0 bg-black/18" />
@@ -5741,6 +5949,9 @@ export function TravelItineraryExperience({
                               className="h-full w-full object-cover"
                               height={420}
                               src={galleryImages[0] ?? segment.imageSrc}
+                              unoptimized={isPlacesPhotoProxySrc(
+                                galleryImages[0] ?? segment.imageSrc
+                              )}
                               width={760}
                             />
                           </div>
@@ -5758,6 +5969,7 @@ export function TravelItineraryExperience({
                                   className="h-full w-full object-cover"
                                   height={240}
                                   src={imageSrc}
+                                  unoptimized={isPlacesPhotoProxySrc(imageSrc)}
                                   width={320}
                                 />
                               </div>
@@ -5811,7 +6023,18 @@ export function TravelItineraryExperience({
                                   alt={`${getCityLabel(day.city, interfaceLocale)} itinerary`}
                                   className="h-full w-full object-cover"
                                   height={160}
-                                  src={getDayImage(day, safeDayIndex)}
+                                  src={getDayImage(
+                                    day,
+                                    safeDayIndex,
+                                    segment.enrichment
+                                  )}
+                                  unoptimized={isPlacesPhotoProxySrc(
+                                    getDayImage(
+                                      day,
+                                      safeDayIndex,
+                                      segment.enrichment
+                                    )
+                                  )}
                                   width={240}
                                 />
                               </div>
@@ -6167,6 +6390,9 @@ export function TravelItineraryExperience({
                                       className="h-full w-full object-cover"
                                       height={140}
                                       src={attraction.imageSrc}
+                                      unoptimized={isPlacesPhotoProxySrc(
+                                        attraction.imageSrc
+                                      )}
                                       width={140}
                                     />
                                   </span>
@@ -6204,6 +6430,25 @@ export function TravelItineraryExperience({
                               interfaceLocale,
                               activity
                             );
+                            const enrichedAttraction =
+                              getEnrichedAttractionForName(
+                                getEnrichmentForCity(
+                                  destinationEnrichment,
+                                  activeDay.city
+                                ),
+                                activity
+                              );
+                            const activeActivityImageSrc =
+                              (isRealGooglePhoto(enrichedAttraction?.photo)
+                                ? enrichedAttraction.photo.url
+                                : null) ??
+                              findTravelAttraction(activeDay.city, activity)
+                                ?.imageSrc ??
+                              getAttractionImage(
+                                activeDay.city,
+                                activity,
+                                `active-day-${activeDayIndex}-${index}`
+                              );
 
                             return (
                               <div
@@ -6215,17 +6460,10 @@ export function TravelItineraryExperience({
                                     alt={localizedActivity}
                                     className="h-full w-full object-cover"
                                     height={120}
-                                    src={
-                                      findTravelAttraction(
-                                        activeDay.city,
-                                        activity
-                                      )?.imageSrc ??
-                                      getAttractionImage(
-                                        activeDay.city,
-                                        activity,
-                                        `active-day-${activeDayIndex}-${index}`
-                                      )
-                                    }
+                                    src={activeActivityImageSrc}
+                                    unoptimized={isPlacesPhotoProxySrc(
+                                      activeActivityImageSrc
+                                    )}
                                     width={140}
                                   />
                                 </div>
