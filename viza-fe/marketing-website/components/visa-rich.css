@@ -82,14 +82,21 @@
     position: relative;
     color: #fff;
     padding: 48px 0 64px;
+    /* Establish a stacking context so the negative-z ::before image backdrop
+       stays contained and paints above the page background. Without this the
+       hero image disappears behind the body background (the original bug). */
+    isolation: isolate;
   }
-  /* Full-bleed country-image backdrop with dark legibility wash */
+  /* Full-bleed country-image backdrop with dark legibility wash.
+     The image comes from the page via the --hero-img custom property
+     (set inline as url('/assets/heroes/<slug>.jpg')), so each country
+     supplies its own local hero without editing this file. */
   .hero::before {
     content: ""; position: absolute; top: 0; bottom: 0;
     left: 50%; transform: translateX(-50%); width: 100vw;
     background:
       linear-gradient(180deg, rgba(3,52,110,0.82) 0%, rgba(2,33,72,0.92) 100%),
-      url('https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1600&auto=format&fit=crop&q=70') center/cover no-repeat;
+      var(--hero-img) center/cover no-repeat;
     z-index: -2;
   }
   .hero::after {
@@ -169,7 +176,10 @@
       0 2px 4px rgba(15, 23, 42, 0.06),
       0 12px 28px -6px rgba(3, 52, 110, 0.18),
       0 36px 72px -24px rgba(3, 52, 110, 0.30);
-    position: sticky; top: 96px;
+    /* Rides at the top of the viewport on scroll and sits above the sticky
+       section-tabs bar (z-40) and nav backdrop — must stay the highest in-flow
+       layer so it is never clipped behind the tabs strip. */
+    position: sticky; top: 88px; z-index: 45;
   }
   .price-eta {
     display: flex; align-items: center; gap: 10px;
@@ -277,9 +287,13 @@
 
   /* ---------- Page main ---------- */
   .col-main { min-width: 0; padding: 48px 0 96px; }
-  .col-side { min-width: 0; padding-top: 48px; }
-  /* Single card sticks below the section-tabs bar across the whole page */
-  .col-side .price-card { position: sticky; top: 140px; }
+  /* Stretch the side column to fill its full row span (hero → end of main) so
+     the sticky price card can travel the whole page instead of scrolling away
+     after its own short height (the grid uses align-items: start). */
+  .col-side { min-width: 0; padding-top: 48px; align-self: stretch; }
+  /* Single card sticks below the nav across the whole page and stays above the
+     section-tabs bar (see .price-card z-index above). */
+  .col-side .price-card { position: sticky; top: 88px; }
 
   section.block { margin-bottom: 56px; scroll-margin-top: 160px; }
   section.block > h2 {
