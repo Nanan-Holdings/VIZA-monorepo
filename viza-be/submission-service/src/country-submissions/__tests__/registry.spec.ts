@@ -226,6 +226,61 @@ test("from-records: maps Schengen dynamic answers into required dry-run trip fie
   assert.equal(result.targetCountry, "SCHENGEN");
 });
 
+test("from-records: maps common Vietnam fields into runner-required aliases", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "Alex Tan",
+    date_of_birth: "1999-01-15",
+    place_of_birth: "Singapore",
+    gender: "male",
+    nationality: "Singapore",
+    occupation: "Student",
+    address: "1 Test Street, Singapore 000001",
+    passport_number: "TEST123456",
+    passport_issue_date: "2023-01-01",
+    passport_expiry_date: "2033-01-01",
+    issuing_country: "Singapore",
+    issuing_authority: "ICA",
+    email: "test.viza.user@example.com",
+    phone: "+6591234567",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "vietnam",
+    visa_type: "evisa_tourism",
+    status: "submitted",
+    arrival_date: "2026-10-01",
+    departure_date: "2026-10-10",
+    port_of_entry: null,
+    purpose: "tourist",
+    accommodation_name: "Test Hotel",
+    accommodation_address: "1 Nguyen Hue Street, Ho Chi Minh City",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: "test-package",
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const dryRunApplication = buildCountrySubmissionApplication(profile, application, {
+    given_names: "ALEX",
+    passport_document_type: "ordinary_passport",
+  });
+  const answers = dryRunApplication.answers ?? {};
+
+  assert.equal(dryRunApplication.trip.purpose, "tourist");
+  assert.equal(dryRunApplication.trip.accommodationName, "Test Hotel");
+  assert.equal(answers.given_name, "ALEX");
+  assert.equal(answers.re_enter_email_address, "test.viza.user@example.com");
+  assert.equal(answers.intended_date_of_entry, "2026-10-01");
+  assert.equal(answers.intended_length_of_stay, "10");
+  assert.equal(answers.residential_address_in_vietnam, "1 Nguyen Hue Street, Ho Chi Minh City");
+});
+
 test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {
   const provider = getCountrySubmissionProvider("vietnam", "VN_E_VISA");
   assert.ok(provider);

@@ -214,6 +214,7 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   if (
     queueStatus === "failed" ||
     queueStatus.endsWith("_failed") ||
+    queueStatus === "needs_manual_verification" ||
     queueStatus === "vn_blocked"
   ) {
     if (queueStatus === "vn_blocked") {
@@ -230,19 +231,31 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "needs_user_action", stage: "confirming_result", progress: 99 };
   }
 
+  if (queueStatus === "action_required") {
+    return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+  }
+
   if (queueStatus === "done" || queueStatus.endsWith("_prefilled")) {
     return { status: "running", stage: "confirming_result", progress: 92 };
   }
 
-  if (queueStatus === "processing") {
+  if (queueStatus === "processing" || queueStatus === "france_live_processing") {
     return { status: "running", stage: "mapping_answers", progress: 34 };
+  }
+
+  if (queueStatus === "france_live_official_portal_opened") {
+    return { status: "running", stage: "filling_form", progress: 48 };
   }
 
   if (queueStatus.endsWith("_processing")) {
     return { status: "running", stage: "filling_form", progress: 72 };
   }
 
-  if (queueStatus === "pending" || queueStatus.endsWith("_pending")) {
+  if (
+    queueStatus === "pending" ||
+    queueStatus === "france_live_assisted_pending" ||
+    queueStatus.endsWith("_pending")
+  ) {
     return { status: "queued", stage: "preparing", progress: 12 };
   }
 

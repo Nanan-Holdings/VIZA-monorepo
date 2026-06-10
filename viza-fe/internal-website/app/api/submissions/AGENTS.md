@@ -23,4 +23,5 @@ the official portal browser runner remains in `viza-be/submission-service`.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
 - `viza-be/submission-service/src/index.ts`
+- `viza-fe/internal-website/supabase/migrations/20260610_submission_manual_action_bridge.sql`
 - `viza-be/agent-backend/drizzle/0096_vietnam_live_assisted_controls.sql`

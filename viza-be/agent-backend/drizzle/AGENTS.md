@@ -71,6 +71,9 @@ The current internal automation migrations are:
 - `0096_vietnam_live_assisted_controls.sql`: Vietnam e-Visa live-assisted
   queue stage/heartbeat fields, encrypted registration-code storage, and manual
   checkpoint table. CAPTCHA, payment, and final submit remain manual.
+- `0097_ds160_live_queue_compat.sql`: DS-160 queue-level confirmation URL
+  fields and a compatibility live-session table for encrypted official
+  identifiers. CAPTCHA and final Sign/Submit remain manual.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.
