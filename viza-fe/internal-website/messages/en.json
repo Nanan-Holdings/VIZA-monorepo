@@ -84,12 +84,23 @@
       "rejected": "Rejected"
     },
     "docLabels": {
+      "passport_bio_page": "Passport bio page",
       "passport_copy": "Passport Copy",
+      "passport_photo": "Passport photo",
+      "portrait_photo": "Portrait photo",
+      "visa_photo": "Visa photo",
       "photo": "Photo",
       "flight_booking": "Flight Booking",
       "hotel_booking": "Hotel Booking",
       "travel_itinerary": "Travel Itinerary",
-      "bank_statement": "Bank Statement"
+      "bank_statement": "Bank Statement",
+      "employment_letter": "Employment Letter",
+      "student_certificate": "Student Certificate",
+      "accommodation_proof": "Accommodation Proof",
+      "invitation_letter": "Invitation Letter",
+      "insurance": "Insurance",
+      "financial_proof": "Financial Proof",
+      "other": "Other Document"
     },
     "activity": {
       "applicationSubmitted": "Application submitted",
@@ -3791,10 +3802,10 @@
       },
       "placeholders": {
         "fullName": "For example: ZHANG XIAOMING",
-        "surnameZh": "For example: Chen",
-        "surnameEn": "For example: CHEN",
-        "givenNamesZh": "For example: Hongyu",
-        "givenNamesEn": "For example: HONGYU",
+        "surnameZh": "For example: Li",
+        "surnameEn": "For example: LI",
+        "givenNamesZh": "For example: Xiaoming",
+        "givenNamesEn": "For example: XIAOMING",
         "dateOfBirthZh": "Select date of birth",
         "dateOfBirthEn": "Select date of birth",
         "birthCountryZh": "Select country of birth...",

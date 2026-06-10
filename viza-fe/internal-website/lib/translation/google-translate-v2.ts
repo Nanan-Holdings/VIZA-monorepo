@@ -53,6 +53,15 @@ function getApiKey() {
   );
 }
 
+function isGoogleTranslateEnabled() {
+  const value = clean(process.env.GOOGLE_TRANSLATE_ENABLED).toLowerCase();
+  return !["0", "false", "no", "off"].includes(value);
+}
+
+function getConfiguredProvider() {
+  return clean(process.env.GOOGLE_TRANSLATE_PROVIDER) || clean(process.env.TRANSLATION_PROVIDER);
+}
+
 function decodeHtmlEntities(value: string) {
   return value
     .replace(/&quot;/g, "\"")
@@ -85,8 +94,13 @@ export async function translateWithGoogleV2(input: FieldTranslationInput): Promi
     return { ok: false, code: "invalid_request", error: "Translation text is too long", provider: "google" };
   }
 
-  const configuredProvider = clean(process.env.TRANSLATION_PROVIDER).toLowerCase();
-  if (configuredProvider && configuredProvider !== "google") {
+  if (!isGoogleTranslateEnabled()) {
+    return { ok: false, code: "provider_unavailable", error: "Google Translate is disabled", provider: "google" };
+  }
+
+  const configuredProvider = getConfiguredProvider().toLowerCase();
+  const allowedProviders = new Set(["google", "google_cloud_basic", "google_translate_v2", "google_v2"]);
+  if (configuredProvider && !allowedProviders.has(configuredProvider)) {
     return { ok: false, code: "provider_unavailable", error: "Translation provider is not Google", provider: "google" };
   }
 

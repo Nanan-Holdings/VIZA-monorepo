@@ -84,12 +84,23 @@
       "rejected": "已拒绝"
     },
     "docLabels": {
+      "passport_bio_page": "护照资料页",
       "passport_copy": "护照复印件",
+      "passport_photo": "护照照片",
+      "portrait_photo": "证件照",
+      "visa_photo": "签证照片",
       "photo": "照片",
       "flight_booking": "航班预订",
       "hotel_booking": "酒店预订",
       "travel_itinerary": "旅行行程",
-      "bank_statement": "银行对账单"
+      "bank_statement": "银行对账单",
+      "employment_letter": "在职证明",
+      "student_certificate": "在读证明",
+      "accommodation_proof": "住宿证明",
+      "invitation_letter": "邀请函",
+      "insurance": "保险",
+      "financial_proof": "资金证明",
+      "other": "其他材料"
     },
     "activity": {
       "applicationSubmitted": "申请已提交",
@@ -3877,10 +3888,10 @@
       },
       "placeholders": {
         "fullName": "例如：张小明 / ZHANG XIAOMING",
-        "surnameZh": "如：陈",
-        "surnameEn": "For example: CHEN",
-        "givenNamesZh": "如：泓羽",
-        "givenNamesEn": "For example: HONGYU",
+        "surnameZh": "如：李",
+        "surnameEn": "For example: LI",
+        "givenNamesZh": "如：晓明",
+        "givenNamesEn": "For example: XIAOMING",
         "dateOfBirthZh": "选择出生日期",
         "dateOfBirthEn": "Select date of birth",
         "birthCountryZh": "选择出生国家...",

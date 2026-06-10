@@ -32,6 +32,7 @@ import {
   getVisaDestinationKey,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
+import { resolveHomeDocumentLabel } from "./home-activity";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 import {
@@ -535,7 +536,7 @@ export default function HomePage() {
 
       for (const doc of docsList) {
         const application = applicationsById.get(doc.application_id);
-        const docLabel = t(`docLabels.${doc.document_type}`);
+        const docLabel = resolveHomeDocumentLabel(t, doc.document_type);
         events.push({
           id: `doc-${doc.id}`,
           eventType: "document_upload",

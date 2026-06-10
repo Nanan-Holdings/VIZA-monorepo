@@ -148,10 +148,10 @@ function chineseNameWithMrzResponse() {
 
 function fullNameAsSurnameResponse() {
   const fields = {
-    full_name: "CHEN HONGYU",
-    native_full_name: "陈泓羽",
-    given_names: "HONGYU",
-    surname: "CHEN HONGYU",
+    full_name: "LI XIAOMING",
+    native_full_name: "李晓明",
+    given_names: "XIAOMING",
+    surname: "LI XIAOMING",
     passport_number: "E12345678",
     date_of_birth: "1990-01-01",
     place_of_birth: "HUNAN",
@@ -189,10 +189,10 @@ function fullNameAsSurnameResponse() {
 
 function mrzNoiseNameResponse() {
   const fields = {
-    full_name: "EMCHNM HEN HONGYU",
-    native_full_name: "陈泓羽",
-    given_names: "HONGYU",
-    surname: "CHEN",
+    full_name: "EMCHNM LI XIAOMING",
+    native_full_name: "李晓明",
+    given_names: "XIAOMING",
+    surname: "LI",
     passport_number: "EM7429107",
     date_of_birth: "2006/07/27",
     place_of_birth: "HAINAN",
@@ -340,7 +340,7 @@ describe("passport OCR provider", () => {
     const [body] = requestBodies(fetchMock);
     expect(JSON.stringify(body.input)).toContain("Latin/MRZ spelling");
     expect(JSON.stringify(body.input)).toContain("native_full_name");
-    expect(result.fields.fullName.value).toBe("SAN ZHANG");
+    expect(result.fields.fullName.value).toBe("ZHANG SAN");
     expect(result.fields.nativeFullName.value).toBe("张三");
     expect(result.fields.givenNames.value).toBe("SAN");
     expect(result.fields.surname.value).toBe("ZHANG");
@@ -359,9 +359,9 @@ describe("passport OCR provider", () => {
 
     const result = await extractPassportOcr(file);
 
-    expect(result.fields.fullName.value).toBe("CHEN HONGYU");
-    expect(result.fields.givenNames.value).toBe("HONGYU");
-    expect(result.fields.surname.value).toBe("CHEN");
+    expect(result.fields.fullName.value).toBe("LI XIAOMING");
+    expect(result.fields.givenNames.value).toBe("XIAOMING");
+    expect(result.fields.surname.value).toBe("LI");
     expect(result.warnings).toContain("surname_repaired_from_full_name");
   });
 
@@ -377,9 +377,9 @@ describe("passport OCR provider", () => {
 
     const result = await extractPassportOcr(file);
 
-    expect(result.fields.fullName.value).toBe("HONGYU CHEN");
-    expect(result.fields.givenNames.value).toBe("HONGYU");
-    expect(result.fields.surname.value).toBe("CHEN");
+    expect(result.fields.fullName.value).toBe("LI XIAOMING");
+    expect(result.fields.givenNames.value).toBe("XIAOMING");
+    expect(result.fields.surname.value).toBe("LI");
     expect(result.fields.passportNumber.value).toBe("EM7429107");
     expect(result.fields.dateOfBirth.value).toBe("2006-07-27");
     expect(result.fields.expiryDate.value).toBe("2034-06-24");
