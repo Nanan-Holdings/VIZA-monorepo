@@ -43,6 +43,10 @@ import {
   buildCountrySubmissionApplication,
   runDryRunSubmission,
 } from "./country-submissions";
+import { pollAndRun } from "./queue/worker";
+import { runnerJobHandler } from "./queue/handler";
+import { validateEnv } from "./config/validate-env";
+import { startHealthServer } from "./health-server";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
@@ -2964,7 +2968,23 @@ async function poll(): Promise<void> {
   }
 }
 
+// QUE-002: runner_job consumer wiring. Runs alongside the legacy
+// submission_queue poll. Stops cleanly on SIGTERM for Cloud Run shutdown.
+const RUNNER_WORKER_ID = `submission-service-${process.pid}`;
+const runnerAbort = new AbortController();
+let runnerStarted = false;
+
+function shutdownRunner(signal: string): void {
+  console.log(`[main] ${signal} received — stopping runner_job consumer`);
+  runnerAbort.abort();
+}
+process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
+process.on("SIGINT", () => shutdownRunner("SIGINT"));
+
 async function main(): Promise<void> {
+  // DEP-003: fail fast on misconfiguration before doing any work.
+  validateEnv();
+
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
   const ds160Config = loadDs160SubmissionConfig();
@@ -3008,9 +3028,21 @@ async function main(): Promise<void> {
     console.warn(`[main] France live assisted startup check blocked: ${franceLiveStartError}`);
   }
 
+  // DEP-004: health server for Cloud Run probes (/health, /ready).
+  startHealthServer({ isWorkerStarted: () => runnerStarted });
+
   // Run immediately on start, then on interval
   await poll();
   setInterval(poll, POLL_INTERVAL_MS);
+
+  // QUE-002: start the runner_job consumer (does not block the legacy poll).
+  console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
+  runnerStarted = true;
+  void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
+    signal: runnerAbort.signal,
+  }).catch((err) => {
+    console.error("[main] runner_job consumer crashed", err);
+  });
 }
 
 main().catch((err) => {

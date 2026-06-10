@@ -52,6 +52,9 @@ export const PROXY_COUNTRY_OVERRIDES: Readonly<Record<string, ProxyOverride>> =
 const SLUG_TO_ISO2: Readonly<Record<string, string>> = {
   united_kingdom: "gb",
   european_union: "fr", // Default to FR for Schengen (France-Visas hub)
+  france: "fr",
+  italy: "it",
+  saudi_arabia: "sa",
   australia: "au",
   japan: "jp",
   indonesia: "id",
@@ -92,4 +95,21 @@ export function resolveEgressCountry(country: string): {
     );
   }
   return { brightDataCountry: iso2, override: null };
+}
+
+/**
+ * RUN-CORE-006: assert every launch country resolves to a proxy egress
+ * geography. Returns the list of countries with no mapping (empty = full
+ * coverage). Called by DEP-003 validate-env at startup.
+ */
+export function proxyCoverageGaps(countries: readonly string[]): string[] {
+  const gaps: string[] = [];
+  for (const c of countries) {
+    try {
+      resolveEgressCountry(c);
+    } catch {
+      gaps.push(c);
+    }
+  }
+  return gaps;
 }

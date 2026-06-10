@@ -115,24 +115,24 @@
       "daysAgo": "{count}d ago"
     },
     "popularDestinations": {
-        "heading": "Choose a popular destination",
-        "subheading": "Start from a destination card and VIZA will attach the matching application workflow. Schengen destinations use the shared Type C short-stay form while keeping the selected country as the main destination.",
-        "featuredHeading": "Featured destinations",
-        "regionHeading": "Browse by region",
-        "searchResultsHeading": "Search results",
-        "schemaReady": "Official-form schemas ready",
-        "start": "Start",
-        "open": "Open",
-        "continue": "Continue",
-        "starting": "Starting",
-        "browseRegion": "Browse region",
-        "selected": "Selected",
-        "readyToStart": "Ready to start",
-        "addedNotStarted": "Added · not started",
-        "chooseCountry": "Choose country",
-        "comingSoon": "Coming soon",
-        "countriesCount": "{count} countries",
-        "progressPill": "{pct}% filled",
+      "heading": "Choose a popular destination",
+      "subheading": "Start from a destination card and VIZA will attach the matching application workflow. Schengen destinations use the shared Type C short-stay form while keeping the selected country as the main destination.",
+      "featuredHeading": "Featured destinations",
+      "regionHeading": "Browse by region",
+      "searchResultsHeading": "Search results",
+      "schemaReady": "Official-form schemas ready",
+      "start": "Start",
+      "open": "Open",
+      "continue": "Continue",
+      "starting": "Starting",
+      "browseRegion": "Browse region",
+      "selected": "Selected",
+      "readyToStart": "Ready to start",
+      "addedNotStarted": "Added · not started",
+      "chooseCountry": "Choose country",
+      "comingSoon": "Coming soon",
+      "countriesCount": "{count} countries",
+      "progressPill": "{pct}% filled",
       "progressAriaLabel": "{country} application progress",
       "selectedNotFilled": "Selected, not filled",
       "fillable": "Fillable",
@@ -3390,6 +3390,75 @@
       "specializedSkillsExplain": "Please explain",
       "specializedSkillsExplainPlaceholder": "Describe your specialized skills or training...",
       "submit": "Continue to review"
+    },
+    "standardEvisa": {
+      "steps": {
+        "personal": {
+          "label": "Personal details",
+          "title": "Personal details",
+          "subtitle": "Please complete the fields below."
+        },
+        "passport": {
+          "label": "Passport",
+          "title": "Passport",
+          "subtitle": "Please complete the fields below."
+        },
+        "contact": {
+          "label": "Contact",
+          "title": "Contact",
+          "subtitle": "Please complete the fields below."
+        },
+        "trip": {
+          "label": "Trip details",
+          "title": "Trip details",
+          "subtitle": "Please complete the fields below."
+        },
+        "declaration": {
+          "label": "Declaration",
+          "title": "Declaration",
+          "subtitle": "Please complete the fields below."
+        }
+      },
+      "fields": {
+        "surname": "Surname",
+        "givenNames": "Given names",
+        "sex": "Sex",
+        "dob": "Date of birth",
+        "dateOfBirth": "Date of birth",
+        "placeOfBirthCity": "Place of birth (city)",
+        "nationality": "Nationality",
+        "passportNumber": "Passport number",
+        "passportIssuingCountry": "Passport issuing country",
+        "passportExpiryDate": "Passport expiry date",
+        "email": "Email",
+        "phone": "Phone",
+        "homeAddress": "Home address",
+        "intendedArrival": "Intended arrival date",
+        "intendedArrivalDate": "Intended arrival date",
+        "intendedDeparture": "Intended departure date",
+        "intendedDepartureDate": "Intended departure date",
+        "purposeOfVisit": "Purpose of visit",
+        "occupation": "Occupation",
+        "hasCriminalRecord": "Do you have a criminal record?",
+        "finalDeclaration": "I confirm the information is true and correct."
+      },
+      "options": {
+        "sex": {
+          "male": "Male",
+          "female": "Female"
+        }
+      },
+      "declarations": {
+        "hasCriminalRecord": "Do you have a criminal record?",
+        "finalDeclaration": "I confirm the information is true and correct."
+      },
+      "review": {
+        "personal": "Personal details",
+        "passport": "Passport",
+        "contact": "Contact",
+        "trip": "Trip details",
+        "declaration": "Declaration"
+      }
     }
   },
   "documents": {
@@ -3619,11 +3688,11 @@
         "title": "Language",
         "description": "Use the language switcher in the top bar, or read the profile guide."
       },
-    "paymentMethods": {
-      "title": "Payment method setup",
-      "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
-      "badge": "Manage"
-    },
+      "paymentMethods": {
+        "title": "Payment method setup",
+        "description": "Manage card, WeChat, and Alipay accounts, then choose the priority account for each method.",
+        "badge": "Manage"
+      },
       "subscription": {
         "title": "Subscription management",
         "description": "Review your monthly plan, renewal date, payment method, and cancellation status.",
@@ -3851,52 +3920,52 @@
       "failedToSave": "Failed to save.",
       "saved": "Saved."
     },
-  "security": {
-    "title": "Security settings",
-    "passwordTitle": "Change password",
-    "passwordDescription": "Verify your current email code first, then set a new password.",
-    "emailTitle": "Change bound email",
-    "emailDescription": "Confirm your identity with a code sent to the current email. Your password stays the same.",
-    "guideDescription": "Review password, email, and account protection tips.",
-    "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
-    "verifyDescription": "We will send an 8-digit code to {email}. Verify it to continue.",
-    "verificationCode": "Email verification code",
-    "codePlaceholder": "Enter 8-digit code",
-    "sendCode": "Send code",
-    "resendCode": "Resend",
-    "verifyCode": "Verify email",
-    "verificationSent": "Verification code sent. Check your email.",
-    "verificationSendFailed": "Could not send the verification code. Please try again later.",
-    "codeInvalid": "Enter the 8-digit verification code.",
-    "codeFailed": "The code is invalid or expired. Please try again.",
-    "verified": "Email verified.",
-    "verifyFirst": "Verify your email code first.",
-    "newPassword": "New password",
-    "confirmPassword": "Confirm password",
-    "newEmail": "New bound email",
-    "newEmailPlaceholder": "name@example.com",
-    "updatePassword": "Update password",
-    "updateEmail": "Update email",
-    "saving": "Updating...",
-    "savingEmail": "Updating...",
-    "updated": "Password updated.",
-    "emailUpdated": "Bound email updated. Your password was not changed.",
-    "mismatch": "The two passwords do not match.",
-    "tooShort": "Password must be at least 8 characters.",
-    "requirementError": "Password must include letters, numbers, and a special symbol.",
-    "failed": "Could not update the password. Please try again.",
-    "emailMissing": "Your current account email is unavailable. Sign in again and try later.",
-    "emailInvalid": "Enter a valid new email address.",
-    "emailSame": "The new email must be different from the current email.",
-    "emailUpdateFailed": "Could not update the email. Please try again.",
-    "passwordRequirements": {
-      "length": "At least 8 characters",
-      "letter": "Includes a letter",
-      "digit": "Includes a number",
-      "symbol": "Includes a special symbol"
+    "security": {
+      "title": "Security settings",
+      "passwordTitle": "Change password",
+      "passwordDescription": "Verify your current email code first, then set a new password.",
+      "emailTitle": "Change bound email",
+      "emailDescription": "Confirm your identity with a code sent to the current email. Your password stays the same.",
+      "guideDescription": "Review password, email, and account protection tips.",
+      "description": "Use a strong password you do not reuse elsewhere. Official support will never ask for it.",
+      "verifyDescription": "We will send an 8-digit code to {email}. Verify it to continue.",
+      "verificationCode": "Email verification code",
+      "codePlaceholder": "Enter 8-digit code",
+      "sendCode": "Send code",
+      "resendCode": "Resend",
+      "verifyCode": "Verify email",
+      "verificationSent": "Verification code sent. Check your email.",
+      "verificationSendFailed": "Could not send the verification code. Please try again later.",
+      "codeInvalid": "Enter the 8-digit verification code.",
+      "codeFailed": "The code is invalid or expired. Please try again.",
+      "verified": "Email verified.",
+      "verifyFirst": "Verify your email code first.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "newEmail": "New bound email",
+      "newEmailPlaceholder": "name@example.com",
+      "updatePassword": "Update password",
+      "updateEmail": "Update email",
+      "saving": "Updating...",
+      "savingEmail": "Updating...",
+      "updated": "Password updated.",
+      "emailUpdated": "Bound email updated. Your password was not changed.",
+      "mismatch": "The two passwords do not match.",
+      "tooShort": "Password must be at least 8 characters.",
+      "requirementError": "Password must include letters, numbers, and a special symbol.",
+      "failed": "Could not update the password. Please try again.",
+      "emailMissing": "Your current account email is unavailable. Sign in again and try later.",
+      "emailInvalid": "Enter a valid new email address.",
+      "emailSame": "The new email must be different from the current email.",
+      "emailUpdateFailed": "Could not update the email. Please try again.",
+      "passwordRequirements": {
+        "length": "At least 8 characters",
+        "letter": "Includes a letter",
+        "digit": "Includes a number",
+        "symbol": "Includes a special symbol"
+      },
+      "guide": "Security guide"
     },
-    "guide": "Security guide"
-  },
     "signOut": {
       "title": "Sign Out",
       "description": "Sign out of your account on this device.",

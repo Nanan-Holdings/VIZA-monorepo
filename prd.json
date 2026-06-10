@@ -91,12 +91,12 @@
       ],
       "priority": 6,
       "passes": true,
-      "notes": "Schengen is a multilateral visa \u2014 scope to the harmonized Annex I form, not any individual member state's portal."
+      "notes": "Schengen is a multilateral visa — scope to the harmonized Annex I form, not any individual member state's portal."
     },
     {
       "id": "SCH-002",
       "title": "Model the Schengen Annex I field inventory and branching rules in a normalized schema",
-      "description": "As an operator, I need the Schengen Type C journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching Annex I fields 1\u201337, so VIZA can render and validate the form accurately.",
+      "description": "As an operator, I need the Schengen Type C journey represented as a machine-readable schema with fields, requiredness, options, and conditional logic matching Annex I fields 1–37, so VIZA can render and validate the form accurately.",
       "acceptanceCriteria": [
         "A new seed script scripts/seed-eu-schengen-c-short-stay-form-fields.ts exists with visa_type = EU_SCHENGEN_C_SHORT_STAY",
         "The schema captures all Annex I sections (personal, travel document, EU family, contact, occupation, trip, accommodation, travel history, financial support, declaration)",
@@ -105,7 +105,7 @@
       ],
       "priority": 7,
       "passes": true,
-      "notes": "Prefer reuse of UK Standard Visitor patterns \u2014 umbrella purpose with sub-journey fields, repeatable groups for prior visas."
+      "notes": "Prefer reuse of UK Standard Visitor patterns — umbrella purpose with sub-journey fields, repeatable groups for prior visas."
     },
     {
       "id": "SCH-003",
@@ -114,12 +114,12 @@
       "acceptanceCriteria": [
         "A Drizzle migration registers the EU_SCHENGEN_C_SHORT_STAY package in visa_packages (country = european_union)",
         "The migration is idempotent (ON CONFLICT DO NOTHING)",
-        "No frontend code changes are required \u2014 DynamicStepForm renders the seeded fields",
+        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
         "Typecheck passes"
       ],
       "priority": 8,
       "passes": true,
-      "notes": "Follow UK-003 pattern exactly \u2014 DB rows only, no renderer changes."
+      "notes": "Follow UK-003 pattern exactly — DB rows only, no renderer changes."
     },
     {
       "id": "SCH-004",
@@ -175,7 +175,7 @@
       ],
       "priority": 12,
       "passes": true,
-      "notes": "Follow UK Standard Visitor + Schengen seed patterns. No hardcoded React steps \u2014 pure dynamic."
+      "notes": "Follow UK Standard Visitor + Schengen seed patterns. No hardcoded React steps — pure dynamic."
     },
     {
       "id": "VN-003",
@@ -184,12 +184,12 @@
       "acceptanceCriteria": [
         "A Drizzle migration registers the VN_E_VISA package in visa_packages (country = vietnam)",
         "The migration is idempotent (ON CONFLICT DO NOTHING)",
-        "No frontend code changes are required \u2014 DynamicStepForm renders the seeded fields",
+        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
         "Typecheck passes"
       ],
       "priority": 13,
       "passes": true,
-      "notes": "Follow UK-003 / SCH-003 pattern exactly \u2014 DB rows only, no renderer changes."
+      "notes": "Follow UK-003 / SCH-003 pattern exactly — DB rows only, no renderer changes."
     },
     {
       "id": "VN-004",
@@ -231,7 +231,7 @@
       ],
       "priority": 16,
       "passes": true,
-      "notes": "Source is public Department of Home Affairs material (Forms 1419/1418/1149/956, PAM3, Migration Regulations 1994 Schedule 2 cl.600). Live-portal QA against ImmiAccount is deferred \u2014 portal is identity-gated."
+      "notes": "Source is public Department of Home Affairs material (Forms 1419/1418/1149/956, PAM3, Migration Regulations 1994 Schedule 2 cl.600). Live-portal QA against ImmiAccount is deferred — portal is identity-gated."
     },
     {
       "id": "AU-002",
@@ -245,7 +245,7 @@
       ],
       "priority": 17,
       "passes": true,
-      "notes": "Follow UK Standard Visitor + Schengen seed patterns. Five streams gated by single `stream` master select. No hardcoded React steps \u2014 pure dynamic."
+      "notes": "Follow UK Standard Visitor + Schengen seed patterns. Five streams gated by single `stream` master select. No hardcoded React steps — pure dynamic."
     },
     {
       "id": "AU-003",
@@ -254,12 +254,12 @@
       "acceptanceCriteria": [
         "A Drizzle migration registers the AU_VISITOR_600 package in visa_packages (country = australia)",
         "The migration is idempotent (ON CONFLICT DO NOTHING)",
-        "No frontend code changes are required \u2014 DynamicStepForm renders the seeded fields",
+        "No frontend code changes are required — DynamicStepForm renders the seeded fields",
         "Typecheck passes"
       ],
       "priority": 18,
       "passes": true,
-      "notes": "Follow UK-003 / SCH-003 / VN-003 pattern exactly \u2014 DB rows only, no renderer changes."
+      "notes": "Follow UK-003 / SCH-003 / VN-003 pattern exactly — DB rows only, no renderer changes."
     },
     {
       "id": "AU-004",
@@ -273,7 +273,7 @@
       ],
       "priority": 19,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag the live-portal QA pass as the top open item."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag the live-portal QA pass as the top open item."
     },
     {
       "id": "AU-005",
@@ -362,7 +362,7 @@
     {
       "id": "KR-001",
       "title": "Pin the Korea C-3-9 Short-Term General Visa extraction scope and canonical source form",
-      "description": "As a maintainer, I need the repo scoped to the Korea C-3-9 Short-Term General visa (\u226490 days, multi-purpose visit) for mainland-China (PRC) residents, submitted via the Annex 17 / \ubcc4\uc9c0 \uc81c17\ud638\uc11c\uc2dd 'VISA APPLICATION FORM' through the local Korea Visa Application Center (KVAC operated by KVAC.com.cn), so Ralph builds against a concrete reviewable target instead of a vague 'Korea visa' concept.",
+      "description": "As a maintainer, I need the repo scoped to the Korea C-3-9 Short-Term General visa (≤90 days, multi-purpose visit) for mainland-China (PRC) residents, submitted via the Annex 17 / 별지 제17호서식 'VISA APPLICATION FORM' through the local Korea Visa Application Center (KVAC operated by KVAC.com.cn), so Ralph builds against a concrete reviewable target instead of a vague 'Korea visa' concept.",
       "acceptanceCriteria": [
         "prd.json contains KR-001 through KR-005 for this run",
         "The implementation names Annex 17 of the Enforcement Rules of the Immigration Control Act (rev 2022.2.7) as the canonical source form and KVAC.com.cn as the submission channel for PRC residents",
@@ -388,7 +388,7 @@
       ],
       "priority": 27,
       "passes": true,
-      "notes": "Follow JP-002 + AU-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target \u2014 KVAC paper/agency intake is out of schema. Section 2.1/2.2 prefilled to Short-term / C-3-9 (not user-editable). Final count: 101 field rows seeded (each repeater-group field counted separately per-row); 8 wizard steps; 17 conditional gates; 4 repeatable groups."
+      "notes": "Follow JP-002 + AU-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — KVAC paper/agency intake is out of schema. Section 2.1/2.2 prefilled to Short-term / C-3-9 (not user-editable). Final count: 101 field rows seeded (each repeater-group field counted separately per-row); 8 wizard steps; 17 conditional gates; 4 repeatable groups."
     },
     {
       "id": "KR-003",
@@ -416,7 +416,7 @@
       ],
       "priority": 29,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag the multi-select renderer extension and PDF generation for KVAC intake as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag the multi-select renderer extension and PDF generation for KVAC intake as the top open items."
     },
     {
       "id": "KR-005",
@@ -532,7 +532,7 @@
       ],
       "priority": 37,
       "passes": true,
-      "notes": "Follow JP-002 + ID-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target \u2014 Visa2Egypt requires applicant card payment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+      "notes": "Follow JP-002 + ID-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — Visa2Egypt requires applicant card payment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
     },
     {
       "id": "EG-003",
@@ -560,7 +560,7 @@
       ],
       "priority": 39,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag live-portal QA pass with a real Visa2Egypt account and document upload wiring as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live-portal QA pass with a real Visa2Egypt account and document upload wiring as the top open items."
     },
     {
       "id": "EG-005",
@@ -579,7 +579,7 @@
     {
       "id": "IT-001",
       "title": "Pin the Italy Schengen Type C extraction scope and corridor (Italy via VFS Global China)",
-      "description": "As a maintainer, I need the Italy Schengen Type C visa scoped to a concrete submission corridor \u2014 VFS Global Italy China \u2014 so Ralph builds against a reviewable target instead of a vague 'Italy visa' concept. Italy reuses the harmonized EU_SCHENGEN_C_SHORT_STAY schema; this story pins the corridor adapter target, not a new schema.",
+      "description": "As a maintainer, I need the Italy Schengen Type C visa scoped to a concrete submission corridor — VFS Global Italy China — so Ralph builds against a reviewable target instead of a vague 'Italy visa' concept. Italy reuses the harmonized EU_SCHENGEN_C_SHORT_STAY schema; this story pins the corridor adapter target, not a new schema.",
       "acceptanceCriteria": [
         "prd.json contains IT-001 through IT-005 for this run",
         "docs/italy-visa-scope.md exists documenting the canonical journey (VFS Global China-Italy at https://visa.vfsglobal.com/chn/en/ita/), schema reuse from EU_SCHENGEN_C_SHORT_STAY, and the stop-at-appointment-eligibility boundary",
@@ -589,7 +589,7 @@
       ],
       "priority": 41,
       "passes": true,
-      "notes": "Schema reuse only \u2014 no new seed, no new visa_packages row. Italy is a corridor of EU_SCHENGEN_C_SHORT_STAY, not a separate visa type."
+      "notes": "Schema reuse only — no new seed, no new visa_packages row. Italy is a corridor of EU_SCHENGEN_C_SHORT_STAY, not a separate visa type."
     },
     {
       "id": "IT-002",
@@ -609,7 +609,7 @@
     {
       "id": "IT-003",
       "title": "Build the Italy-VFS-CN corridor adapter skeleton (errors, pages, selectors, normalize)",
-      "description": "As a developer, I need the corridor adapter directory scaffolded with errors, pages, selectors, normalize, and a public index barrel \u2014 parallel to france-visas/ and au-visitor/ \u2014 so the live-walk follow-up can land fill-steps and run.ts without churning the structural layer.",
+      "description": "As a developer, I need the corridor adapter directory scaffolded with errors, pages, selectors, normalize, and a public index barrel — parallel to france-visas/ and au-visitor/ — so the live-walk follow-up can land fill-steps and run.ts without churning the structural layer.",
       "acceptanceCriteria": [
         "viza-be/submission-service/src/italy-vfs-cn/ exists with errors.ts, pages.ts, selectors.ts, normalize.ts, index.ts",
         "ItVfsError taxonomy mirrors FvError (UNEXPECTED_PAGE / SESSION_EXPIRED / NAVIGATION_FAILED / VALIDATION_FAILED / SESSION_BOOTSTRAP_FAILED / GATE_DETECTED / LOGIN_FAILED / CORRIDOR_INELIGIBLE)",
@@ -620,12 +620,12 @@
       ],
       "priority": 43,
       "passes": true,
-      "notes": "fill-steps.ts and run.ts are intentionally deferred until the live walk runs \u2014 DOM mappings can't be authored without live VFS-CN access. Selectors, page URL regexes, and normalize enum mappings are TODO(walk) until then."
+      "notes": "fill-steps.ts and run.ts are intentionally deferred until the live walk runs — DOM mappings can't be authored without live VFS-CN access. Selectors, page URL regexes, and normalize enum mappings are TODO(walk) until then."
     },
     {
       "id": "IT-004",
       "title": "Publish the Italy-VFS-CN gap report",
-      "description": "As a maintainer, I need Italy-corridor gaps surfaced explicitly \u2014 schema reuse vs new fields, live walk pending, Turnstile risk, document-upload boundary, appointment/payment stop boundary \u2014 so we don't silently ship an incomplete autofiller while pretending parity is done.",
+      "description": "As a maintainer, I need Italy-corridor gaps surfaced explicitly — schema reuse vs new fields, live walk pending, Turnstile risk, document-upload boundary, appointment/payment stop boundary — so we don't silently ship an incomplete autofiller while pretending parity is done.",
       "acceptanceCriteria": [
         "docs/italy-visa-gap-report.md exists with coverage summary, corridor adapter status (errors/pages/selectors/normalize complete; fill-steps/run pending), known limitations, conditional-logic carry-over from EU_SCHENGEN_C_SHORT_STAY, reviewer checklist, and open questions for the live walk",
         "Live-portal QA is flagged as the top open item",
@@ -634,14 +634,14 @@
       ],
       "priority": 44,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag live walk + Turnstile handling + queue-worker dispatcher wiring as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live walk + Turnstile handling + queue-worker dispatcher wiring as the top open items."
     },
     {
       "id": "IT-005",
       "title": "Document the Italy-VFS-CN corridor workflow and next expansion path",
       "description": "As a maintainer, I need scope + gap docs and a progress log entry explaining how the Italy corridor adapter was scaffolded, how to rerun the recon walk, and what the next Italy-corridor / Italy-Type-D expansion should be (Italy-from-India / Italy-from-MENA / Italy-Type-D-long-stay).",
       "acceptanceCriteria": [
-        "docs/italy-visa-scope.md \u00a78 lists immediate (live walk + fill-steps + queue worker wiring), short-term (stealth-profile hoist, Turnstile, resume-by-reference), and medium-term (other Italy corridors, Italy Type D, per-consulate routing matrix) actions",
+        "docs/italy-visa-scope.md §8 lists immediate (live walk + fill-steps + queue worker wiring), short-term (stealth-profile hoist, Turnstile, resume-by-reference), and medium-term (other Italy corridors, Italy Type D, per-consulate routing matrix) actions",
         "progress.txt is updated with IT-001..IT-005 entries, learnings, and the corridor pattern that future Schengen-state corridors should follow",
         "Recommended next actions are stated clearly",
         "Typecheck passes"
@@ -679,7 +679,7 @@
       ],
       "priority": 47,
       "passes": true,
-      "notes": "Follow JP-002 / ID-002 / EG-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target \u2014 thaievisa.go.th requires applicant card payment + optional biometric appointment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
+      "notes": "Follow JP-002 / ID-002 / EG-002 patterns. Pure-dynamic rendering (no hardcoded React steps). No submission automation target — thaievisa.go.th requires applicant card payment + optional biometric appointment. visa_type_requested radio captures single vs multi-entry within one schema; purpose locked to tourism."
     },
     {
       "id": "TH-003",
@@ -707,7 +707,7 @@
       ],
       "priority": 49,
       "passes": true,
-      "notes": "Truthfulness matters more than pretending the first pass is perfect \u2014 flag live-portal QA pass with a real thaievisa.go.th account and document upload wiring as the top open items."
+      "notes": "Truthfulness matters more than pretending the first pass is perfect — flag live-portal QA pass with a real thaievisa.go.th account and document upload wiring as the top open items."
     },
     {
       "id": "TH-005",
@@ -799,7 +799,7 @@
     {
       "id": "SG-001",
       "title": "Pin the Singapore Visit Visa extraction scope and canonical source journey",
-      "description": "As a maintainer, I need the repo scoped to the Singapore Visit Visa (Tourist / Social \u2014 single + multi-entry variants) submitted via the ICA SAVE e-Service, so Ralph builds against a concrete reviewable target.",
+      "description": "As a maintainer, I need the repo scoped to the Singapore Visit Visa (Tourist / Social — single + multi-entry variants) submitted via the ICA SAVE e-Service, so Ralph builds against a concrete reviewable target.",
       "acceptanceCriteria": [
         "prd.json contains SG-001 through SG-005 for this run",
         "The implementation names ICA SAVE (eservices.ica.gov.sg/esvclandingpage/save) as the canonical source",
@@ -809,7 +809,7 @@
       ],
       "priority": 56,
       "passes": true,
-      "notes": "ICA SAVE is identity-gated \u2014 local sponsor (Singpass) submits on applicant's behalf. Live-portal QA deferred. Schema reconstruction posture: same as TH/EG/JP/ID."
+      "notes": "ICA SAVE is identity-gated — local sponsor (Singpass) submits on applicant's behalf. Live-portal QA deferred. Schema reconstruction posture: same as TH/EG/JP/ID."
     },
     {
       "id": "SG-002",
@@ -825,7 +825,7 @@
       ],
       "priority": 57,
       "passes": true,
-      "notes": "Local-sponsor sub-journey is the SG-specific feature \u2014 extends the standard 8-step Asia-tourist template by 1 step."
+      "notes": "Local-sponsor sub-journey is the SG-specific feature — extends the standard 8-step Asia-tourist template by 1 step."
     },
     {
       "id": "SG-003",
@@ -1101,7 +1101,7 @@
       ],
       "priority": 76,
       "passes": true,
-      "notes": "Eligibility list excludes Western nationals \u2014 VIZA intake should filter on nationality before assigning this package."
+      "notes": "Eligibility list excludes Western nationals — VIZA intake should filter on nationality before assigning this package."
     },
     {
       "id": "RU-002",
@@ -1163,7 +1163,7 @@
     },
     {
       "id": "TR-001",
-      "title": "Pin the T\u00fcrkiye Tourist e-Visa extraction scope and canonical source journey",
+      "title": "Pin the Türkiye Tourist e-Visa extraction scope and canonical source journey",
       "description": "TR Tourist e-Visa scoped to MFA evisa.gov.tr flow.",
       "acceptanceCriteria": [
         "prd.json contains TR-001 through TR-005",
@@ -1174,16 +1174,16 @@
       ],
       "priority": 81,
       "passes": true,
-      "notes": "evisa.gov.tr is publicly accessible without account \u2014 easiest live-portal QA candidate of all VIZA-modeled e-Visa flows."
+      "notes": "evisa.gov.tr is publicly accessible without account — easiest live-portal QA candidate of all VIZA-modeled e-Visa flows."
     },
     {
       "id": "TR-002",
-      "title": "Model the T\u00fcrkiye Tourist e-Visa field inventory",
+      "title": "Model the Türkiye Tourist e-Visa field inventory",
       "description": "TR e-Visa journey as machine-readable schema matching the MFA e-Visa form.",
       "acceptanceCriteria": [
         "scripts/seed-tr-e-visa-form-fields.ts exists with visa_type = TR_E_VISA",
         "8 sections covering all MFA-collected fields",
-        "TR-specific: dual-language country naming (T\u00fcrkiye / Turkey), 8 airports + 4 land borders + 3 cruise ports in port-of-entry list",
+        "TR-specific: dual-language country naming (Türkiye / Turkey), 8 airports + 4 land borders + 3 cruise ports in port-of-entry list",
         "Typecheck passes for agent-backend"
       ],
       "priority": 82,
@@ -1192,7 +1192,7 @@
     },
     {
       "id": "TR-003",
-      "title": "Wire the T\u00fcrkiye Tourist e-Visa package into VIZA's dynamic form path",
+      "title": "Wire the Türkiye Tourist e-Visa package into VIZA's dynamic form path",
       "description": "TR e-Visa form renders through dynamic form infrastructure.",
       "acceptanceCriteria": [
         "Drizzle migration registers TR_E_VISA in visa_packages (country = turkey)",
@@ -1206,7 +1206,7 @@
     },
     {
       "id": "TR-004",
-      "title": "Publish the T\u00fcrkiye Tourist e-Visa gap report",
+      "title": "Publish the Türkiye Tourist e-Visa gap report",
       "description": "TR e-Visa gaps surfaced explicitly.",
       "acceptanceCriteria": [
         "docs/turkiye-visa-gap-report.md exists with coverage summary, parity status, doc-upload boundary, submission-automation boundary, reviewer checklist, open items",
@@ -1216,11 +1216,11 @@
       ],
       "priority": 84,
       "passes": true,
-      "notes": "TR is a strong automation candidate \u2014 flag as priority for first auto-runner expansion."
+      "notes": "TR is a strong automation candidate — flag as priority for first auto-runner expansion."
     },
     {
       "id": "TR-005",
-      "title": "Document the T\u00fcrkiye Tourist e-Visa workflow and next expansion path",
+      "title": "Document the Türkiye Tourist e-Visa workflow and next expansion path",
       "description": "Scope + gap docs and progress entry for TR_E_VISA.",
       "acceptanceCriteria": [
         "docs/turkiye-visa-scope.md documents the MFA source",
@@ -2043,7 +2043,7 @@
       ],
       "priority": 141,
       "passes": true,
-      "notes": "Staff route ships at /admin/users/[id]/inbox \u2014 repo has /admin/* (no /staff/* yet). Same RLS-driven data path as /client/inbox; will rehome under /staff if/when staff portal lands."
+      "notes": "Staff route ships at /admin/users/[id]/inbox — repo has /admin/* (no /staff/* yet). Same RLS-driven data path as /client/inbox; will rehome under /staff if/when staff portal lands."
     },
     {
       "id": "INBOX-007",
@@ -2069,7 +2069,7 @@
         "`docs/legal/terms-of-service.md` covers scope of service, fees, refund stance, liability cap, jurisdiction",
         "`docs/legal/privacy-policy.md` enumerates PII categories collected, retention, third-party processors (Supabase, Cloudflare, 2captcha, Stripe, government portals)",
         "`docs/legal/dpa.md` for B2B clients (corporate immigration)",
-        "Each doc flagged `STATUS: draft \u2014 pending counsel review`",
+        "Each doc flagged `STATUS: draft — pending counsel review`",
         "All third-party processors listed in a single `subprocessors.md`"
       ],
       "priority": 143,
@@ -2466,7 +2466,7 @@
       ],
       "priority": 170,
       "passes": true,
-      "notes": "ML-based ICAO checks (background, head height, expression) deferred \u2014 current validator handles deterministic rules (format, size, dimensions)."
+      "notes": "ML-based ICAO checks (background, head height, expression) deferred — current validator handles deterministic rules (format, size, dimensions)."
     },
     {
       "id": "DOC-002",
@@ -2628,7 +2628,7 @@
       ],
       "priority": 181,
       "passes": true,
-      "notes": "KH portal is public \u2014 no auth gate. Smoke runs via `npx tsx scripts/kh-smoke.ts` against synthetic answers."
+      "notes": "KH portal is public — no auth gate. Smoke runs via `npx tsx scripts/kh-smoke.ts` against synthetic answers."
     },
     {
       "id": "AUTO-KH-02",
@@ -2802,7 +2802,7 @@
       ],
       "priority": 193,
       "passes": true,
-      "notes": "src/za/runner.ts runZaPrefill drives BASE_URL\u2192apply\u2192personal-info\u2192review and halts before pay/signature. captureStep uploads PNG + HAR via artifact.put. detectAntiBotGate handles Cloudflare interstitial. scripts/za-smoke.ts exits 0 on stopped_before_pay (90s cap). typecheck clean."
+      "notes": "src/za/runner.ts runZaPrefill drives BASE_URL→apply→personal-info→review and halts before pay/signature. captureStep uploads PNG + HAR via artifact.put. detectAntiBotGate handles Cloudflare interstitial. scripts/za-smoke.ts exits 0 on stopped_before_pay (90s cap). typecheck clean."
     },
     {
       "id": "AUTO-ZA-02",
@@ -2860,7 +2860,7 @@
       ],
       "priority": 197,
       "passes": true,
-      "notes": "src/in/runner.ts runInPrefill drives indianvisaonline.gov.in/evisa landing\u2192apply\u2192personal\u2192passport\u2192visa-details\u2192review, halts before pay. Sub-journey gating per visa_purpose surfaces hospital_name (medical/medical_attendant) + conference_name (conference). scripts/in-smoke.ts 90s smoke. typecheck clean."
+      "notes": "src/in/runner.ts runInPrefill drives indianvisaonline.gov.in/evisa landing→apply→personal→passport→visa-details→review, halts before pay. Sub-journey gating per visa_purpose surfaces hospital_name (medical/medical_attendant) + conference_name (conference). scripts/in-smoke.ts 90s smoke. typecheck clean."
     },
     {
       "id": "AUTO-IN-02",
@@ -2918,7 +2918,7 @@
       ],
       "priority": 201,
       "passes": true,
-      "notes": "Existing src/uk/orchestrator.ts + resume.ts + field-mappings.ts + widgets.ts drive the UK Standard Visitor form across language/country/VAC/visa-type/registration. Stops at registration page (handoffReady=false) when post-auth selectors not yet mapped \u2014 recon walker harvests them. Gates + diagnostics + screenshot capture wired."
+      "notes": "Existing src/uk/orchestrator.ts + resume.ts + field-mappings.ts + widgets.ts drive the UK Standard Visitor form across language/country/VAC/visa-type/registration. Stops at registration page (handoffReady=false) when post-auth selectors not yet mapped — recon walker harvests them. Gates + diagnostics + screenshot capture wired."
     },
     {
       "id": "AUTO-UK-02",
@@ -2946,7 +2946,7 @@
       ],
       "priority": 203,
       "passes": true,
-      "notes": "src/uk/payment.ts payUkWithEscrowCard via shared loadEscrowCard with Worldpay receipt regex (GWF prefix). src/uk/finalize.ts persistUkSubmitted uploads jobs/<jobId>/uk-application-summary.pdf, inserts application_documents kind=submission_summary_pdf, flips status='submitted_to_government' (NOT delivered \u2014 UK is two-step), queues biometrics_pending. typecheck clean."
+      "notes": "src/uk/payment.ts payUkWithEscrowCard via shared loadEscrowCard with Worldpay receipt regex (GWF prefix). src/uk/finalize.ts persistUkSubmitted uploads jobs/<jobId>/uk-application-summary.pdf, inserts application_documents kind=submission_summary_pdf, flips status='submitted_to_government' (NOT delivered — UK is two-step), queues biometrics_pending. typecheck clean."
     },
     {
       "id": "AUTO-UK-04",
@@ -2961,7 +2961,7 @@
       ],
       "priority": 204,
       "passes": true,
-      "notes": "docs/runbooks/uk.md covers two-step lifecycle (submitted_to_government \u2192 awaiting_biometrics \u2192 delivered after VAC), Worldpay quirks, GWF reference, biometrics-appointment downstream booking. Concurrency cap=1 due to UKVI email-OTP-per-session. SLA seeded median 21d / p95 60d."
+      "notes": "docs/runbooks/uk.md covers two-step lifecycle (submitted_to_government → awaiting_biometrics → delivered after VAC), Worldpay quirks, GWF reference, biometrics-appointment downstream booking. Concurrency cap=1 due to UKVI email-OTP-per-session. SLA seeded median 21d / p95 60d."
     },
     {
       "id": "AUTO-AU-01",
@@ -2976,7 +2976,7 @@
       ],
       "priority": 205,
       "passes": true,
-      "notes": "src/au/runner.ts runAuPrefill drives ImmiAccount login \u2192 new application \u2192 Subclass 600 \u2192 personal-info-filled \u2192 review, halts before declaration/signature. immi_account_password_ref resolves via vault loader (NOT plain password). captureStep uploads PNG + HAR."
+      "notes": "src/au/runner.ts runAuPrefill drives ImmiAccount login → new application → Subclass 600 → personal-info-filled → review, halts before declaration/signature. immi_account_password_ref resolves via vault loader (NOT plain password). captureStep uploads PNG + HAR."
     },
     {
       "id": "AUTO-AU-02",
@@ -3004,7 +3004,7 @@
       ],
       "priority": 207,
       "passes": true,
-      "notes": "src/au/payment.ts payAuWithEscrowCard with TRN regex (TRN: ALPHA-NUM); src/au/finalize.ts persistAuSubmitted uploads jobs/<jobId>/au-acknowledgement.pdf, inserts application_documents kind=submission_acknowledgement_pdf, flips status='submitted_to_government' (NOT delivered \u2014 AU is two-step), persists trn column, queues grant_pending."
+      "notes": "src/au/payment.ts payAuWithEscrowCard with TRN regex (TRN: ALPHA-NUM); src/au/finalize.ts persistAuSubmitted uploads jobs/<jobId>/au-acknowledgement.pdf, inserts application_documents kind=submission_acknowledgement_pdf, flips status='submitted_to_government' (NOT delivered — AU is two-step), persists trn column, queues grant_pending."
     },
     {
       "id": "AUTO-AU-04",
@@ -3034,7 +3034,7 @@
       ],
       "priority": 209,
       "passes": true,
-      "notes": "Existing src/vietnam/run.ts drives evisa.gov.vn from landing \u2192 post-modal Vue SPA \u2192 all VN_FIELD_MAPPINGS, halts before Pay/Submit. Exposes registrationCode for applicant-direct payment (PAY-003 = applicant_direct_link)."
+      "notes": "Existing src/vietnam/run.ts drives evisa.gov.vn from landing → post-modal Vue SPA → all VN_FIELD_MAPPINGS, halts before Pay/Submit. Exposes registrationCode for applicant-direct payment (PAY-003 = applicant_direct_link)."
     },
     {
       "id": "AUTO-VN-02",
@@ -3078,7 +3078,7 @@
       ],
       "priority": 212,
       "passes": true,
-      "notes": "docs/runbooks/vn.md covers three-step lifecycle (awaiting_government_payment \u2192 submitted_to_government \u2192 delivered), applicant_direct_link payment mechanism (NOT escrow card per 2026-Q1 chargeback risk), captcha + reminder cron mitigations."
+      "notes": "docs/runbooks/vn.md covers three-step lifecycle (awaiting_government_payment → submitted_to_government → delivered), applicant_direct_link payment mechanism (NOT escrow card per 2026-Q1 chargeback risk), captcha + reminder cron mitigations."
     },
     {
       "id": "AUTO-T3-JP",
@@ -3246,7 +3246,7 @@
     },
     {
       "id": "AUTO-T3-TR",
-      "title": "T\u00fcrkiye e-Visa: prefill runner",
+      "title": "Türkiye e-Visa: prefill runner",
       "description": "Phase-3 runner for evisa.gov.tr.",
       "acceptanceCriteria": [
         "`tr/` runner reaches checkpoint",
@@ -3285,7 +3285,7 @@
       ],
       "priority": 227,
       "passes": true,
-      "notes": "src/t3/index.ts runCaEtaPrefill (eTA path public); TRV path stubbed pending GCKey live-QA \u2014 TRV requires GCKey OAuth which we'll graft on once captures land."
+      "notes": "src/t3/index.ts runCaEtaPrefill (eTA path public); TRV path stubbed pending GCKey live-QA — TRV requires GCKey OAuth which we'll graft on once captures land."
     },
     {
       "id": "AUTO-T3-MV",
@@ -3418,7 +3418,7 @@
     },
     {
       "id": "BOT-002",
-      "title": "Selector promotion pipeline: recon-out \u2192 per-country runner config",
+      "title": "Selector promotion pipeline: recon-out → per-country runner config",
       "description": "Selectors harvested by BOT-001 must flow into runner config files (src/<cc>/selectors.ts) so runners stop guessing input[name=\"first_name\"]. Build a `promote-selectors` script that diffs recon-out vs current selectors and proposes patches.",
       "acceptanceCriteria": [
         "scripts/promote-selectors.ts reads latest recon-out/<date>/<country>/selectors.json",
@@ -3434,10 +3434,10 @@
     {
       "id": "BOT-003",
       "title": "Runner stress test: 10 staging applicants per country in CI",
-      "description": "Drive each country's runner against staging-mode synthetic answers in a CI matrix. Pass criterion: 10/10 reach stopped_before_pay (or pay-success in pass-through mode) for \u226595% of countries.",
+      "description": "Drive each country's runner against staging-mode synthetic answers in a CI matrix. Pass criterion: 10/10 reach stopped_before_pay (or pay-success in pass-through mode) for ≥95% of countries.",
       "acceptanceCriteria": [
         ".github/workflows/runner-matrix.yml runs all per-country smokes nightly",
-        "Per-country pass rate \u2265 95% over 10 staging applicants",
+        "Per-country pass rate ≥ 95% over 10 staging applicants",
         "Failures captured as artefacts (PNG + HAR) and uploaded to runner-failures bucket",
         "Slack/email digest summarising which countries regressed",
         "Typecheck passes"
@@ -3452,7 +3452,7 @@
       "description": "Question schemas per package_id are needed to render the answer-collection UI. Currently visa_packages exists but question_set rows are sparse. Derive from each country's CanonicalAnswers TS interface + form-recon DOM dump.",
       "acceptanceCriteria": [
         "scripts/derive-question-sets.ts emits one question_set row per (country, visa_type) with field_name + label + widget_type + required",
-        "Branching rules captured (e.g. IN medical \u2192 hospital_name required)",
+        "Branching rules captured (e.g. IN medical → hospital_name required)",
         "Output upserted into question_set + question_field tables via Drizzle",
         "Per-country JSON snapshot committed under db/seeds/question-sets/<country>.json for review",
         "Typecheck passes"
@@ -3510,7 +3510,7 @@
     {
       "id": "DOCUP-003",
       "title": "Photo auto-crop to consulate spec",
-      "description": "Different consulates require different photo dimensions (US 51\u00d751mm, JP/KR 35\u00d745mm, ZA/IN 50\u00d750mm, etc.). Auto-crop applicant photo to package spec; preserve original.",
+      "description": "Different consulates require different photo dimensions (US 51×51mm, JP/KR 35×45mm, ZA/IN 50×50mm, etc.). Auto-crop applicant photo to package spec; preserve original.",
       "acceptanceCriteria": [
         "lib/photo/crop.ts cropToSpec(buffer, spec) returns cropped Buffer",
         "Per-package photo_spec rows in db (mm + dpi)",
@@ -3601,7 +3601,7 @@
         "viza-be/agent-backend/src/notify/worker.ts polls every 30s",
         "Resend client used for kind='email'; Twilio for kind='sms'",
         "Per-event template resolution via template_key",
-        "Failure \u2192 exponential backoff + DLQ after 5 retries",
+        "Failure → exponential backoff + DLQ after 5 retries",
         "Typecheck passes"
       ],
       "priority": 253,
@@ -3625,7 +3625,7 @@
     {
       "id": "NOTIFY-003",
       "title": "Failure retry + DLQ + admin replay",
-      "description": "When sender fails, retry with backoff; after 5 retries \u2192 notification_dlq table. Admin UI under /admin/notifications shows DLQ + replay button.",
+      "description": "When sender fails, retry with backoff; after 5 retries → notification_dlq table. Admin UI under /admin/notifications shows DLQ + replay button.",
       "acceptanceCriteria": [
         "notification_dlq table + Drizzle migration",
         "Worker writes to DLQ on terminal failure",
@@ -3783,7 +3783,7 @@
       "description": "Alerts from Sentry / runner_job failure rate / canary downtime route to PagerDuty. Founder pager rotation defined.",
       "acceptanceCriteria": [
         "PagerDuty service + escalation policy created",
-        "Sentry \u2192 PagerDuty integration on critical errors",
+        "Sentry → PagerDuty integration on critical errors",
         "Canary cron pages on > 10 min downtime",
         "Runbook URL embedded in every alert",
         "Typecheck passes"
@@ -3911,7 +3911,7 @@
       ],
       "priority": 290,
       "passes": false,
-      "notes": "ON HOLD: Compliance review pending \u2014 defer until counsel reviews jurisdictional matrix. /loop ralph: SKIP this story until note unflagged.",
+      "notes": "ON HOLD: Compliance review pending — defer until counsel reviews jurisdictional matrix. /loop ralph: SKIP this story until note unflagged.",
       "onHold": true
     },
     {
@@ -3926,13 +3926,13 @@
       ],
       "priority": 291,
       "passes": false,
-      "notes": "ON HOLD: Compliance review pending \u2014 defer with RETENTION-001. /loop ralph: SKIP this story until note unflagged.",
+      "notes": "ON HOLD: Compliance review pending — defer with RETENTION-001. /loop ralph: SKIP this story until note unflagged.",
       "onHold": true
     },
     {
       "id": "POLISH-001",
       "title": "Validate /application end-to-end coverage",
-      "description": "User says answer-collection is at /application \u2014 confirm it covers all packages + edge cases (resume, branching, doc-upload integration). Add any missing per-package quirks.",
+      "description": "User says answer-collection is at /application — confirm it covers all packages + edge cases (resume, branching, doc-upload integration). Add any missing per-package quirks.",
       "acceptanceCriteria": [
         "Manual run-through of every package's /application path documented",
         "Gaps captured as PROD-* sub-stories",
@@ -4008,7 +4008,7 @@
     {
       "id": "PROV-005",
       "title": "Bright Data zone provisioned + sticky sessions seeded",
-      "description": "Buy Bright Data residential zone, set BRIGHTDATA_USER/PASSWORD/ZONE envs, seed proxy_pool table with 10\u201330 sticky sessions per region (US/EU/SEA).",
+      "description": "Buy Bright Data residential zone, set BRIGHTDATA_USER/PASSWORD/ZONE envs, seed proxy_pool table with 10–30 sticky sessions per region (US/EU/SEA).",
       "acceptanceCriteria": [
         "Bright Data zone active with billing in place",
         "Env vars set in submission-service deploy target",
@@ -4067,7 +4067,7 @@
     {
       "id": "PROV-009",
       "title": "pg_cron schedules for fee-scraper / canary-pager / sla-breach / retention-purge",
-      "description": "Schedule the four background jobs via pg_cron \u2014 fee-scraper Sun 03:00 UTC, canary-pager every 5 min, sla-breach-sweep hourly, retention-purge daily 02:00 UTC. Each cron entry calls a Supabase Edge Function or pgmq trigger.",
+      "description": "Schedule the four background jobs via pg_cron — fee-scraper Sun 03:00 UTC, canary-pager every 5 min, sla-breach-sweep hourly, retention-purge daily 02:00 UTC. Each cron entry calls a Supabase Edge Function or pgmq trigger.",
       "acceptanceCriteria": [
         "pg_cron rows created (or Edge Function timers) for all four",
         "Each job's first scheduled run completes successfully (verify via logs)",
@@ -4095,7 +4095,7 @@
     {
       "id": "DATA-001",
       "title": "Run parallel recon harvest across 8 countries + commit snapshot",
-      "description": "Execute `npm run recon:parallel` against staging Bright Data zone, commit the harvest under recon-out/<date>/ (sanitised \u2014 no PII).",
+      "description": "Execute `npm run recon:parallel` against staging Bright Data zone, commit the harvest under recon-out/<date>/ (sanitised — no PII).",
       "acceptanceCriteria": [
         "Harvest completes for kh/la/lk/za/in/egypt/vietnam with <5% blocked rate",
         "recon-out/<date>/<country>/ trees committed",
@@ -4209,7 +4209,7 @@
     {
       "id": "FIX-001",
       "title": "Fix fingerprint history applicant scope (ANTIBOT-002 bug)",
-      "description": "readRecentHistory queries runner_job by application_id=applicantId \u2014 wrong key. Correct to applicant-scoped via applications.applicant_id join.",
+      "description": "readRecentHistory queries runner_job by application_id=applicantId — wrong key. Correct to applicant-scoped via applications.applicant_id join.",
       "acceptanceCriteria": [
         "readRecentHistory returns runner_job rows for all applications belonging to the applicant within 7d",
         "Unit test covers the join (applicant with 2 applications, 4 jobs, 5 fingerprints)",
@@ -4289,7 +4289,7 @@
     },
     {
       "id": "QA-001",
-      "title": "E2E Playwright suite covering /signup \u2192 /application \u2192 /payment \u2192 /home",
+      "title": "E2E Playwright suite covering /signup → /application → /payment → /home",
       "description": "End-to-end Playwright suite running against staging. Blocks prod deploys when red.",
       "acceptanceCriteria": [
         "tests/e2e/applicant-happy-path.spec.ts covers signup, answer set fill, doc upload, payment intent, /home landing",
@@ -4587,6 +4587,1534 @@
       "priority": 13,
       "passes": true,
       "notes": "Implemented as a frontend lifecycle aggregation and UI pass. No new database fields were added; submission_queue is read server-side via the admin client after authenticating the current user."
+    },
+    {
+      "id": "SEC-001",
+      "title": "Harden .gitignore for all secret/env files across workspaces",
+      "description": "As a platform owner, I need every env/secret file pattern ignored in every workspace, so credentials can never be committed again.",
+      "acceptanceCriteria": [
+        "Root /Users/gel/Desktop/Github/VIZA-monorepo/.gitignore ignores .env, .env.local, .env.*.local, *.pem, *service-account*.json at root and in nested workspaces (viza-be/agent-backend, viza-be/submission-service, viza-fe/internal-website, viza-fe/marketing-website)",
+        "Run `git ls-files | grep -E '\\.env'` and confirm no real env file is tracked; record the command + output in docs/security/secret-inventory.md",
+        "This is an artifact-only change (gitignore + doc); no dashboard actions required",
+        "Typecheck passes in any workspace whose config changed (none expected)"
+      ],
+      "priority": 319,
+      "passes": true,
+      "notes": "Findings show .env patterns already in .gitignore (lines 41-46, 94-96) and no env file currently tracked, but coverage is incomplete per-workspace. Make ignore patterns exhaustive and document the audit. Cross-ref SECURITY.md and .gitleaks.toml."
+    },
+    {
+      "id": "SEC-002",
+      "title": "Remove any tracked secret files from git and document purge",
+      "description": "As a platform owner, I need a documented, reproducible procedure to untrack and purge committed secrets, so leaked keys are removed from the working tree and history plan is captured.",
+      "acceptanceCriteria": [
+        "Add docs/security/secret-purge-runbook.md with exact `git rm --cached` commands for any tracked env/secret file plus a `git filter-repo`/BFG history-rewrite plan (commands only; not executed by agent)",
+        "If any env/secret file is currently tracked, untrack it with `git rm --cached` in this story",
+        "Runbook states the deliverable is the committed runbook + working-tree untracking, not a remote force-push",
+        "docs/security/secret-purge-runbook.md references the keys named in SEC-003 rotation runbook"
+      ],
+      "priority": 320,
+      "passes": true,
+      "notes": "Brief reported agent-backend/.env.local and submission-service/.env committed with real keys; current findings show them gitignored and untracked, so this story is defensive + documents history-rewrite for any historical commits."
+    },
+    {
+      "id": "SEC-003",
+      "title": "Write secret-rotation runbook for all third-party credentials",
+      "description": "As an on-call engineer, I need a single runbook listing every secret and how to rotate it, so a leaked key can be rotated quickly.",
+      "acceptanceCriteria": [
+        "docs/security/secret-rotation-runbook.md enumerates every secret used: ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY, Stripe live keys, AIRWALLEX_*, Alipay, WeChat, SHOPIFY_*, CALCOM_API_KEY (cross-ref viza-fe/internal-website/cloudbuild.yaml REPLACE_VIA_TRIGGER list)",
+        "For each secret: which workspace/.env var consumes it, rotation steps, and post-rotation redeploy step",
+        "Deliverable is the committed .md file only; no console actions performed by the agent",
+        "File passes markdown lint if a markdown linter is configured, otherwise no typecheck required for this docs-only story"
+      ],
+      "priority": 321,
+      "passes": true,
+      "notes": "Use cloudbuild.yaml secret list as the canonical inventory. Cross-ref SEC-001 inventory."
+    },
+    {
+      "id": "SEC-004",
+      "title": "Add gitleaks pre-commit hook and verify config",
+      "description": "As a developer, I need a pre-commit secret scan, so secrets are blocked before they enter a commit.",
+      "acceptanceCriteria": [
+        "scripts/install-git-hooks.sh installs a pre-commit hook that runs `gitleaks protect --staged --config .gitleaks.toml`",
+        "Root package.json already exposes security:gitleaks and security:install-hooks; confirm both work and document usage in docs/security/secret-rotation-runbook.md",
+        ".gitleaks.toml rules cover Anthropic (sk-ant-), Stripe (sk_live_), and Supabase service-role JWT patterns",
+        "Deliverable is committed hook script + config; running the hook locally is the only verification"
+      ],
+      "priority": 322,
+      "passes": true,
+      "notes": ".gitleaks.toml and scripts/install-git-hooks.sh already exist; this story completes/verifies them. No new typecheck target."
+    },
+    {
+      "id": "SEC-005",
+      "title": "Add gitleaks CI job to scan every push and PR",
+      "description": "As a maintainer, I need CI to scan for secrets on every push, so leaks are caught even without local hooks.",
+      "acceptanceCriteria": [
+        ".github/workflows/secret-scan.yml runs `gitleaks detect --config .gitleaks.toml --redact --no-banner` on push and pull_request",
+        "Job fails the build on any finding",
+        "Workflow is committed YAML only (no dashboard config)",
+        "YAML is valid (parseable by `python3 -c 'import yaml,sys;yaml.safe_load(open(...))'`)"
+      ],
+      "priority": 323,
+      "passes": true,
+      "notes": "Add alongside existing .github/workflows/qa-gates.yml. Reuse root security:gitleaks script."
+    },
+    {
+      "id": "SEC-006",
+      "title": "Add .env.example templates for backend workspaces",
+      "description": "As a new contributor, I need .env.example files listing required vars without values, so I can configure each service safely.",
+      "acceptanceCriteria": [
+        "Create viza-be/agent-backend/.env.example and viza-be/submission-service/.env.example listing every required env var key with placeholder values",
+        "viza-fe/internal-website/.env.example and viza-fe/marketing-website/.env.example list NEXT_PUBLIC_* and server vars referenced in code/cloudbuild.yaml",
+        "No real secret values appear in any .env.example (verify with gitleaks)",
+        "Files are committed templates only"
+      ],
+      "priority": 324,
+      "passes": true,
+      "notes": "Findings confirmed agent-backend has NO .env.example. Derive keys from cloudbuild.yaml and code references."
+    },
+    {
+      "id": "QUE-001",
+      "title": "Define canonical country dispatch table for runner_job consumer",
+      "description": "As the submission service, I need a single country->handler map, so every supported country routes to its runner.",
+      "acceptanceCriteria": [
+        "Add viza-be/submission-service/src/queue/dispatch.ts exporting a typed map from country code to an async runOne(applicationId) handler",
+        "Map includes entries (or explicit 'not-yet-implemented' stubs) for all 16 launch countries: indonesia, egypt, australia, saudi_arabia, united_kingdom, vietnam, malaysia, japan, united_states, canada, turkey, thailand, united_arab_emirates, france, italy, india",
+        "Existing runners (src/in/runner.ts, src/lk/runner.ts, src/kh/runner.ts, src/la/runner.ts, src/za/runner.ts, src/au/runner.ts) are imported and bound in the table",
+        "Unimplemented countries throw a typed UnsupportedCountryError so the worker dead-letters cleanly",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 325,
+      "passes": true,
+      "notes": "Central seam for Epic 5. worker.ts pollAndRun already accepts a JobHandler; this table is what the handler delegates to. Confirmed runners exist but are never imported."
+    },
+    {
+      "id": "QUE-002",
+      "title": "Wire runner_job consumer (pollAndRun) into the service entrypoint",
+      "description": "As the submission service, I need the runner_job worker actually started, so jobs enqueued by the portal are processed.",
+      "acceptanceCriteria": [
+        "viza-be/submission-service/src/index.ts imports pollAndRun from src/queue/worker.ts and starts it in main() with a stable workerId and the QUE-001 dispatch handler",
+        "The runner_job loop runs alongside the existing submission_queue poll without blocking it",
+        "Worker stop is wired to an AbortSignal on SIGTERM for graceful Cloud Run shutdown",
+        "Startup log line confirms the runner_job consumer is active",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 326,
+      "passes": true,
+      "notes": "Findings: pollAndRun exists in src/queue/worker.ts:146+ but is never instantiated in index.ts. This is the core fix for orphaned paid orders."
+    },
+    {
+      "id": "QUE-003",
+      "title": "Make the dispatch handler map runner_job rows to country runOne",
+      "description": "As the runner_job worker, I need each claimed job dispatched to the correct country runner, so IN/LK/KH/LA/ZA orders run end-to-end.",
+      "acceptanceCriteria": [
+        "The JobHandler passed to pollAndRun looks up job.country in the QUE-001 dispatch table and calls its runOne(job.application_id)",
+        "Unknown/unimplemented countries surface UnsupportedCountryError, causing worker.ts to record last_error and dead-letter per existing retry logic",
+        "A unit test in src/queue/__tests__ asserts dispatch routes a sample IN job to runInPrefill",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 327,
+      "passes": true,
+      "notes": "Connects QUE-001 + QUE-002. runInPrefill in src/in/runner.ts:143 and runLkPrefill in src/lk/runner.ts:120 were previously never called."
+    },
+    {
+      "id": "QUE-004",
+      "title": "Reconcile portal producer and service consumer on the runner_job contract",
+      "description": "As an integrator, I need the portal enqueue payload and the worker claim to share one schema, so fields line up.",
+      "acceptanceCriteria": [
+        "Document the runner_job row contract (application_id, country, status, attempts, max_attempts, correlation_id, metadata) in docs/infra/queue.md",
+        "viza-fe/internal-website/lib/queue/enqueue.ts country values are validated against the same 16-country code set used in QUE-001 (shared constant or documented mapping)",
+        "Country code normalization (e.g. 'gb'->'united_kingdom') is captured in one place and referenced by both sides",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 328,
+      "passes": true,
+      "notes": "enqueue.ts writes runner_job with status 'queued'; worker reads status 'queued'. Confirm country string format matches dispatch keys."
+    },
+    {
+      "id": "QUE-005",
+      "title": "Route halt-before-gov-pay countries through runner_job too",
+      "description": "As the service, I need US/UK/FR/AU jobs reachable from runner_job, so the portal can enqueue them uniformly.",
+      "acceptanceCriteria": [
+        "QUE-001 dispatch table binds united_states, united_kingdom, france, australia to their existing prefill/halt runners (ceac/DS-160, uk, france-visas, au)",
+        "Each halt runner returns a status that the worker maps to 'succeeded' with a halt marker (not 'failed') when it stops before government payment",
+        "docs/infra/queue.md documents the halt-vs-submit outcome semantics",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 329,
+      "passes": true,
+      "notes": "Existing US/FR/UK/AU logic lives in the submission_queue *_prefill_pending path in index.ts; expose a runOne wrapper so both queues can drive them."
+    },
+    {
+      "id": "QUE-006",
+      "title": "Add per-country concurrency + pause config used by the claimer",
+      "description": "As an operator, I need to cap concurrency and pause a country, so a misbehaving runner can be throttled without redeploy.",
+      "acceptanceCriteria": [
+        "Add src/queue/concurrency.ts exporting per-country max-in-flight and paused flags read from env (e.g. RUNNER_CONCURRENCY_JSON, RUNNER_PAUSED_COUNTRIES)",
+        "claimNextJob in src/queue/worker.ts consults this config (the country-cap branch referenced at worker.ts already exists; back it with this config)",
+        "Defaults: concurrency 1 per country, none paused",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 330,
+      "passes": true,
+      "notes": "worker.ts already has an INFRA-003 per-country cap branch; this gives it a real config source."
+    },
+    {
+      "id": "QUE-007",
+      "title": "Add dead-letter visibility query/script for stuck runner_job rows",
+      "description": "As an operator, I need to list dead-lettered and stale-leased jobs, so I can recover orphaned paid orders.",
+      "acceptanceCriteria": [
+        "Add scripts/queue/list-stuck-jobs.ts that queries runner_job for status in ('failed','dead_letter') and rows whose leased_until < now() while status='running'",
+        "Script prints application_id, country, attempts, last_error",
+        "Script is read-only (SELECT only) and documented in docs/infra/queue.md",
+        "Typecheck passes for the script (tsc against its workspace tsconfig)"
+      ],
+      "priority": 331,
+      "passes": true,
+      "notes": "Directly addresses 'paid orders orphaned' by surfacing them. Pair with MIG verification."
+    },
+    {
+      "id": "QUE-008",
+      "title": "Add a requeue script to recover stale-leased and dead-lettered jobs",
+      "description": "As an operator, I need to safely requeue recoverable jobs, so customers are not stuck after transient failures.",
+      "acceptanceCriteria": [
+        "Add scripts/queue/requeue-jobs.ts that resets eligible rows (stale lease or dead_letter with attempts<max) back to status='queued' with attempts reset policy documented",
+        "Script requires an explicit --confirm flag and a country or id filter; dry-run by default",
+        "Behavior documented in docs/infra/queue.md",
+        "Typecheck passes for the script"
+      ],
+      "priority": 332,
+      "passes": true,
+      "notes": "Companion to QUE-007. Idempotent and guarded."
+    },
+    {
+      "id": "QUE-009",
+      "title": "Backfill: enqueue runner_job for already-paid unprocessed orders",
+      "description": "As the business, I need previously-paid IN/LK/KH/LA/ZA orders enqueued, so the orphaned backlog gets processed once the worker is live.",
+      "acceptanceCriteria": [
+        "Add scripts/queue/backfill-paid-orders.ts that finds paid applications with no runner_job and no terminal submission_queue row and enqueues them via the same producer contract as enqueue.ts",
+        "Script is dry-run by default with --confirm to write; logs every enqueued application_id",
+        "Country mapping uses the QUE-004 normalization",
+        "Typecheck passes for the script"
+      ],
+      "priority": 333,
+      "passes": true,
+      "notes": "One-time recovery for the orphaned-orders incident. Depends on QUE-002 worker being live."
+    },
+    {
+      "id": "MIG-001",
+      "title": "Add runner_job + submission_queue schema verification script",
+      "description": "As an operator, I need a script that asserts required queue tables/columns/statuses exist, so deploys fail fast on schema drift.",
+      "acceptanceCriteria": [
+        "Add scripts/db/verify-queue-schema.ts that checks runner_job (id, application_id, country, status, attempts, max_attempts, leased_by, leased_until, correlation_id, metadata, last_error) and submission_queue (status enum incl. *_prefill_pending) exist",
+        "Script exits non-zero with a clear list of missing objects",
+        "Read-only (information_schema queries only)",
+        "Typecheck passes for the script"
+      ],
+      "priority": 334,
+      "passes": true,
+      "notes": "Guards Epic 2/4. submission_queue statuses confirmed in src/index.ts:88-103."
+    },
+    {
+      "id": "MIG-002",
+      "title": "Document migration reconciliation runbook (drizzle vs supabase migrations)",
+      "description": "As a release manager, I need a documented plan to reconcile diverged migration lineages, so prod can be brought current safely.",
+      "acceptanceCriteria": [
+        "docs/db/migration-reconciliation-runbook.md inventories the three migration sources: viza-be/agent-backend drizzle migrations (93 .sql files confirmed), viza-fe/internal-website/supabase/migrations, and db/ root",
+        "Runbook gives an ordered, idempotent reconciliation procedure with a backup-first step and a rollback note",
+        "States the deliverable is the committed runbook; no production DB commands are executed by the agent",
+        "Lists which migrations create runner_job and submission_queue so MIG-001 can verify them"
+      ],
+      "priority": 335,
+      "passes": true,
+      "notes": "Brief reports prod ~66 migrations behind with diverged lineage. Locate exact dirs before writing."
+    },
+    {
+      "id": "MIG-003",
+      "title": "Add migration-lineage diff script across the three sources",
+      "description": "As a release manager, I need a script listing which migrations exist where, so divergence is visible.",
+      "acceptanceCriteria": [
+        "Add scripts/db/diff-migrations.ts that lists migration filenames present in each source and flags ones missing from any",
+        "Output is a table grouped by source; read-only filesystem scan, no DB connection required",
+        "Referenced from docs/db/migration-reconciliation-runbook.md",
+        "Typecheck passes for the script"
+      ],
+      "priority": 336,
+      "passes": true,
+      "notes": "Filesystem-only; safe for the agent. Feeds MIG-002."
+    },
+    {
+      "id": "MIG-004",
+      "title": "Add applications/payments schema verification for runner inputs",
+      "description": "As the runner worker, I need to assert the columns runners read actually exist, so jobs do not crash mid-run on missing fields.",
+      "acceptanceCriteria": [
+        "Extend scripts/db/verify-queue-schema.ts (or add scripts/db/verify-runner-inputs.ts) to assert columns read by runners exist: application answers, applicant vault fields, payment status",
+        "Derive the column list from src/applicant-vault.ts and src/payment-routing.ts references",
+        "Read-only; exits non-zero listing missing columns",
+        "Typecheck passes for the script"
+      ],
+      "priority": 337,
+      "passes": true,
+      "notes": "Cross-ref src/applicant-vault.ts and src/payment-routing.ts in submission-service."
+    },
+    {
+      "id": "MIG-005",
+      "title": "Add a CI db-verify job gating deploy on schema presence",
+      "description": "As a release manager, I need schema verification to run in CI against a target DB, so we never deploy against drifted schema.",
+      "acceptanceCriteria": [
+        ".github/workflows/db-verify.yml runs scripts/db/verify-queue-schema.ts (and verify-runner-inputs) using a DATABASE_URL secret",
+        "Job is committed YAML only and documents that the secret is injected via CI, not committed",
+        "Job fails on any missing object",
+        "YAML parses validly"
+      ],
+      "priority": 338,
+      "passes": true,
+      "notes": "Ties MIG-001/004 into CI. Secret injected through CI provider."
+    },
+    {
+      "id": "MIG-006",
+      "title": "Document seed data + visa_packages required for all 16 countries",
+      "description": "As a release manager, I need a checklist of seed rows each country needs, so runners and pricing have their reference data.",
+      "acceptanceCriteria": [
+        "docs/db/launch-seed-checklist.md lists required visa_packages rows (country, visa_type) for all 16 launch countries matching lib/pricing.ts keys",
+        "Checklist flags Saudi Arabia, Italy, and France as currently absent from viza-fe/internal-website/lib/pricing.ts and notes they must be added (cross-ref PAYP-001)",
+        "Deliverable is the committed checklist .md",
+        "No DB writes executed by the agent"
+      ],
+      "priority": 339,
+      "passes": true,
+      "notes": "Confirmed pricing.ts has 27 entries but is missing saudi/italy/france and uses USD."
+    },
+    {
+      "id": "DEP-001",
+      "title": "Author Cloud Run Job manifest for submission-service poller",
+      "description": "As an operator, I need a committed Cloud Run deploy manifest, so the persistent poller has a real deploy target.",
+      "acceptanceCriteria": [
+        "Add viza-be/submission-service/deploy/cloudrun-service.yaml defining a Cloud Run service (min-instances 1 for the persistent poller) using the existing Dockerfile image",
+        "Manifest references env vars by name (no secret values) and documents Secret Manager refs",
+        "States deliverable is the committed YAML; no console deploy performed by the agent",
+        "YAML parses validly"
+      ],
+      "priority": 340,
+      "passes": true,
+      "notes": "Findings: submission-service has Dockerfile but no deploy target. min-instances>=1 because it is a poller, not request-driven."
+    },
+    {
+      "id": "DEP-002",
+      "title": "Add submission-service deploy runbook + env injection doc",
+      "description": "As an operator, I need step-by-step deploy and env-injection docs, so the poller can be deployed reproducibly.",
+      "acceptanceCriteria": [
+        "docs/infra/submission-service-deploy.md documents building the GHCR image, applying deploy/cloudrun-service.yaml, and injecting env via Secret Manager",
+        "Lists every required env var (Supabase, Anthropic, proxy, captcha, payment) cross-referenced to viza-be/submission-service/.env.example",
+        "Includes a graceful-shutdown/SIGTERM note tying to QUE-002",
+        "Deliverable is committed docs only"
+      ],
+      "priority": 341,
+      "passes": true,
+      "notes": "Depends on SEC-006 .env.example and DEP-001 manifest."
+    },
+    {
+      "id": "DEP-003",
+      "title": "Add env-var validation script for submission-service startup",
+      "description": "As the service, I need to fail fast on missing env, so a misconfigured deploy does not silently process nothing.",
+      "acceptanceCriteria": [
+        "Add viza-be/submission-service/src/config/validate-env.ts that asserts all required env vars are present and typed, throwing a clear error listing missing keys",
+        "src/index.ts calls validate-env at startup before main()",
+        "Required-key list matches .env.example",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 342,
+      "passes": true,
+      "notes": "Artifact-framed env validation per the ops constraint."
+    },
+    {
+      "id": "DEP-004",
+      "title": "Add /health and /ready endpoints to submission-service",
+      "description": "As Cloud Run, I need health/readiness endpoints, so the poller container reports liveness.",
+      "acceptanceCriteria": [
+        "submission-service exposes a minimal HTTP server with GET /health (process up) and GET /ready (DB reachable + worker loop started)",
+        "Port read from PORT env (Cloud Run convention)",
+        "cloudrun-service.yaml startup/liveness probes reference /health and /ready",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 343,
+      "passes": true,
+      "notes": "submission-service is currently a headless loop; add a tiny health server for Cloud Run probes."
+    },
+    {
+      "id": "DEP-005",
+      "title": "Add GHCR build-and-push workflow scoped to submission-service",
+      "description": "As CI, I need to build and push the poller image on changes, so deploys consume a fresh image.",
+      "acceptanceCriteria": [
+        ".github/workflows/submission-service-image.yml builds viza-be/submission-service/Dockerfile and pushes to GHCR on push to main affecting that path",
+        "Workflow tags image with commit SHA",
+        "Committed YAML only; registry auth via CI secrets, not committed",
+        "YAML parses validly"
+      ],
+      "priority": 344,
+      "passes": true,
+      "notes": "Brief notes a GHCR build exists; confirm/standardize it scoped to submission-service. Cross-ref existing runner-image.yml."
+    },
+    {
+      "id": "RUN-ID-001",
+      "title": "Build Indonesia e-Visa runner (flagship)",
+      "description": "As a paid Indonesia applicant, I need my e-Visa application auto-submitted, so the flagship country works end-to-end.",
+      "acceptanceCriteria": [
+        "Add viza-be/submission-service/src/id/runner.ts exporting runOne(applicationId) that logs in, fills, and submits the Indonesia e-Visa flow (or halts before government pay per Indonesia rules)",
+        "Add src/id/form-recon.ts and src/id/field-mappings.ts for the Indonesia form schema",
+        "Bind indonesia in src/queue/dispatch.ts (QUE-001)",
+        "Add a unit test in src/id/__tests__ covering field mapping",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 345,
+      "passes": true,
+      "notes": "Confirmed NO src/id runner exists despite Indonesia being the marketing flagship. Model on src/in/runner.ts structure."
+    },
+    {
+      "id": "RUN-ID-002",
+      "title": "Wire Indonesia payment routing + halt/submit policy",
+      "description": "As the service, I need Indonesia fees routed correctly, so payment matches the published Indonesia package.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts returns the correct collector (VIZA vs portal) and fee for indonesia matching lib/pricing.ts",
+        "Indonesia runner respects the routing decision (halt vs collect)",
+        "WeChat-only path (currently Indonesia-only) is preserved",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 346,
+      "passes": true,
+      "notes": "Brief: WeChat only Indonesia. Keep that until PAYP epic generalizes it."
+    },
+    {
+      "id": "RUN-EG-001",
+      "title": "Promote Egypt from recon-only stub to fill runner",
+      "description": "As a paid Egypt applicant, I need my e-Visa form filled and submitted, so Egypt is not recon-only.",
+      "acceptanceCriteria": [
+        "Add src/egypt/field-mappings.ts and src/egypt/fillers.ts driving the Egypt e-Visa form from application answers",
+        "Add src/egypt/runner.ts exporting runOne(applicationId) that uses existing src/egypt/form-recon.ts then fills/submits (or halts before gov pay)",
+        "Bind egypt in src/queue/dispatch.ts",
+        "Unit test covers Egypt field mapping",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 347,
+      "passes": true,
+      "notes": "Confirmed src/egypt has only form-recon.ts (recon-only). Model fill on src/vietnam/fillers.ts."
+    },
+    {
+      "id": "RUN-EG-002",
+      "title": "Egypt runner tests + payment routing",
+      "description": "As the service, I need Egypt fee routing and a smoke test, so Egypt runs reliably.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts handles egypt fee/collector per lib/pricing.ts",
+        "src/egypt/__tests__ includes a recon+fill smoke test against a fixture",
+        "Egypt result mapped to runner_job 'succeeded'/halt status",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 348,
+      "passes": true,
+      "notes": "Pairs with RUN-EG-001."
+    },
+    {
+      "id": "RUN-VN-001",
+      "title": "Make Vietnam per-step fill live (beyond scaffold/nav)",
+      "description": "As a paid Vietnam applicant, I need each form step actually filled, so Vietnam reaches submitted_pending_pay.",
+      "acceptanceCriteria": [
+        "Implement per-step fill in src/vietnam/fillers.ts so fillVietnamApplication progresses past 'scaffolded_pending_walk' to 'submitted_pending_pay'",
+        "src/vietnam/runner exported as runOne and bound in dispatch.ts (vietnam)",
+        "Existing index.ts VN handling (scaffolded_pending_walk path) remains compatible",
+        "Unit test covers at least one full step fill",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 349,
+      "passes": true,
+      "notes": "Confirmed src/vietnam has fillers/form-recon/finalize but index.ts notes per-step fill not yet returning submitted_pending_pay (index.ts ~1210-1255)."
+    },
+    {
+      "id": "RUN-VN-002",
+      "title": "Vietnam govt-payment + inbox e-visa retrieval wiring",
+      "description": "As a Vietnam applicant, I need payment and e-visa email retrieval handled, so I receive my visa artifact.",
+      "acceptanceCriteria": [
+        "src/vietnam/govt-payment.ts is invoked at the correct step or the runner halts before government pay per policy",
+        "src/vietnam/inbox.ts retrieval is wired to store the e-visa artifact via src/artifact-storage.ts",
+        "Status transitions documented in code comments matching index.ts VN statuses",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 350,
+      "passes": true,
+      "notes": "src/vietnam/govt-payment.ts and inbox.ts already exist; wire them into the live flow."
+    },
+    {
+      "id": "RUN-IT-001",
+      "title": "Complete Italy VFS runner (fill + submit) on existing scaffold",
+      "description": "As a paid Italy applicant, I need the VFS appointment/application flow driven, so Italy works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/italy-vfs-cn/runner.ts exporting runOne using existing pages.ts/selectors.ts/normalize.ts",
+        "Implement fill steps for the Italy Schengen-via-VFS flow with halt-before-gov-pay if appointment booking requires manual confirmation",
+        "Bind italy in src/queue/dispatch.ts",
+        "Unit test covers selector normalization",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 351,
+      "passes": true,
+      "notes": "Confirmed src/italy-vfs-cn has pages/selectors/normalize/errors but no runner.ts."
+    },
+    {
+      "id": "RUN-FR-001",
+      "title": "Expose France (france-visas) as a runner_job runOne",
+      "description": "As a paid France applicant, I need the france-visas flow reachable from runner_job, so France is dispatchable like other countries.",
+      "acceptanceCriteria": [
+        "Wrap existing src/france-visas logic in a runOne(applicationId) export",
+        "Bind france in src/queue/dispatch.ts with halt-before-gov-pay semantics",
+        "France result mapped to 'succeeded'+halt marker",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 352,
+      "passes": true,
+      "notes": "france-visas already drives the FR halt flow via submission_queue; this exposes it to runner_job too (QUE-005)."
+    },
+    {
+      "id": "RUN-SA-001",
+      "title": "Build Saudi Arabia e-Visa runner from scratch",
+      "description": "As a paid Saudi Arabia applicant, I need my e-Visa application processed, so Saudi Arabia works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/sa/{runner.ts,form-recon.ts,field-mappings.ts,fillers.ts} for the Saudi e-Visa portal",
+        "runner.ts exports runOne; binds saudi_arabia in dispatch.ts",
+        "Halt-before-gov-pay or full submit per Saudi portal capability, documented in code",
+        "Unit test covers field mapping; Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 353,
+      "passes": true,
+      "notes": "Confirmed no Saudi runner dir. Also missing from lib/pricing.ts (cross-ref PAYP-001/MKT)."
+    },
+    {
+      "id": "RUN-SA-002",
+      "title": "Saudi Arabia recon hardening + payment routing + tests",
+      "description": "As the service, I need Saudi recon resilient and fees routed, so Saudi runs reliably.",
+      "acceptanceCriteria": [
+        "src/sa/form-recon.ts handles login + field discovery with retry/backoff using shared src/recon helpers",
+        "src/payment-routing.ts handles saudi_arabia fee/collector",
+        "src/sa/__tests__ covers recon parsing on a fixture",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 354,
+      "passes": true,
+      "notes": "Pairs with RUN-SA-001."
+    },
+    {
+      "id": "RUN-MY-001",
+      "title": "Build Malaysia eVISA/MDAC runner",
+      "description": "As a paid Malaysia applicant, I need my entry application processed, so Malaysia works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/my/{runner.ts,form-recon.ts,field-mappings.ts,fillers.ts} for the Malaysia eVISA/MDAC flow",
+        "runner.ts exports runOne; binds malaysia in dispatch.ts",
+        "Submit/halt policy documented",
+        "Unit test + Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 355,
+      "passes": true,
+      "notes": "Confirmed no Malaysia runner. malaysia present in pricing.ts."
+    },
+    {
+      "id": "RUN-MY-002",
+      "title": "Malaysia recon + payment routing + tests",
+      "description": "As the service, I need Malaysia fees routed and recon stable, so Malaysia runs reliably.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts handles malaysia",
+        "src/my/__tests__ covers field mapping and recon parse",
+        "Result mapped to runner_job status",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 356,
+      "passes": true,
+      "notes": "Pairs with RUN-MY-001."
+    },
+    {
+      "id": "RUN-JP-001",
+      "title": "Build Japan paper-pack runner using existing paper renderer",
+      "description": "As a paid Japan applicant, I need a completed paper application pack generated, so Japan (paper-only) works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/jp/runner.ts exporting runOne that renders the Japan paper application via src/paper/renderer.ts + templates",
+        "Generated PDF stored via src/artifact-storage.ts and surfaced to the status page",
+        "Binds japan in dispatch.ts with a 'paper_ready' terminal status (no online submit)",
+        "Unit test renders a fixture pack; Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 357,
+      "passes": true,
+      "notes": "Confirmed src/paper has renderer/simple-pdf/templates; Japan is paper-only per brief. JpResultCard already exists in portal."
+    },
+    {
+      "id": "RUN-JP-002",
+      "title": "Japan paper template + field mapping coverage",
+      "description": "As a Japan applicant, I need all required fields on the paper pack, so the pack is acceptance-ready.",
+      "acceptanceCriteria": [
+        "src/paper/templates includes the Japan visa application template with mapped fields",
+        "src/jp/field-mappings.ts maps application answers to template fields",
+        "Snapshot test verifies rendered field values",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 358,
+      "passes": true,
+      "notes": "Pairs with RUN-JP-001."
+    },
+    {
+      "id": "RUN-CA-001",
+      "title": "Build Canada eTA runner",
+      "description": "As a paid Canada applicant, I need my eTA processed, so Canada works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/ca/{runner.ts,form-recon.ts,field-mappings.ts,fillers.ts} for the Canada eTA flow",
+        "runner.ts exports runOne; binds canada in dispatch.ts",
+        "Halt-before-gov-pay if eTA fee is collected on the gov portal",
+        "Unit test + Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 359,
+      "passes": true,
+      "notes": "Confirmed no Canada runner. canada present in pricing.ts."
+    },
+    {
+      "id": "RUN-CA-002",
+      "title": "Canada recon + payment routing + tests",
+      "description": "As the service, I need Canada fees routed and recon stable, so Canada runs reliably.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts handles canada",
+        "src/ca/__tests__ covers field mapping and recon parse",
+        "Result mapped to runner_job status",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 360,
+      "passes": true,
+      "notes": "Pairs with RUN-CA-001."
+    },
+    {
+      "id": "RUN-TR-001",
+      "title": "Build Türkiye e-Visa runner",
+      "description": "As a paid Türkiye applicant, I need my e-Visa processed, so Türkiye works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/tr/{runner.ts,form-recon.ts,field-mappings.ts,fillers.ts} for the Türkiye e-Visa flow",
+        "runner.ts exports runOne; binds turkey in dispatch.ts",
+        "Submit/halt policy documented",
+        "Unit test + Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 361,
+      "passes": true,
+      "notes": "Confirmed no Türkiye runner. turkey present in pricing.ts but brief flagged it missing from older pricing; verify PAYP-001."
+    },
+    {
+      "id": "RUN-TR-002",
+      "title": "Türkiye recon + payment routing + tests",
+      "description": "As the service, I need Türkiye fees routed and recon stable, so Türkiye runs reliably.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts handles turkey",
+        "src/tr/__tests__ covers field mapping and recon parse",
+        "Result mapped to runner_job status",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 362,
+      "passes": true,
+      "notes": "Pairs with RUN-TR-001."
+    },
+    {
+      "id": "RUN-TH-001",
+      "title": "Build Thailand eVisa/eVOA runner",
+      "description": "As a paid Thailand applicant, I need my eVisa/eVOA processed, so Thailand works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/th/{runner.ts,form-recon.ts,field-mappings.ts,fillers.ts} for the Thailand eVisa flow",
+        "runner.ts exports runOne; binds thailand in dispatch.ts",
+        "Submit/halt policy documented",
+        "Unit test + Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 363,
+      "passes": true,
+      "notes": "Confirmed no Thailand runner. thailand present in pricing.ts."
+    },
+    {
+      "id": "RUN-TH-002",
+      "title": "Thailand recon + payment routing + tests",
+      "description": "As the service, I need Thailand fees routed and recon stable, so Thailand runs reliably.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts handles thailand",
+        "src/th/__tests__ covers field mapping and recon parse",
+        "Result mapped to runner_job status",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 364,
+      "passes": true,
+      "notes": "Pairs with RUN-TH-001."
+    },
+    {
+      "id": "RUN-AE-001",
+      "title": "Build UAE e-Visa runner",
+      "description": "As a paid UAE applicant, I need my e-Visa processed, so the UAE works end-to-end.",
+      "acceptanceCriteria": [
+        "Add src/ae/{runner.ts,form-recon.ts,field-mappings.ts,fillers.ts} for the UAE e-Visa flow",
+        "runner.ts exports runOne; binds united_arab_emirates in dispatch.ts",
+        "Submit/halt policy documented",
+        "Unit test + Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 365,
+      "passes": true,
+      "notes": "Confirmed no UAE runner. united_arab_emirates present in pricing.ts."
+    },
+    {
+      "id": "RUN-AE-002",
+      "title": "UAE recon + payment routing + tests",
+      "description": "As the service, I need UAE fees routed and recon stable, so the UAE runs reliably.",
+      "acceptanceCriteria": [
+        "src/payment-routing.ts handles united_arab_emirates",
+        "src/ae/__tests__ covers field mapping and recon parse",
+        "Result mapped to runner_job status",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 366,
+      "passes": true,
+      "notes": "Pairs with RUN-AE-001."
+    },
+    {
+      "id": "RUN-IN-001",
+      "title": "Verify and wire India runner end-to-end",
+      "description": "As a paid India applicant, I need the existing India runner actually invoked, so India works end-to-end.",
+      "acceptanceCriteria": [
+        "src/in/runner.ts runInPrefill is exposed as runOne and bound to india in dispatch.ts",
+        "An integration test asserts a queued india runner_job reaches a terminal status against a fixture",
+        "src/payment-routing.ts handles india",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 367,
+      "passes": true,
+      "notes": "Confirmed src/in/runner.ts exists (runInPrefill at line 143) but was never imported. QUE-001 binds it; this verifies the path."
+    },
+    {
+      "id": "RUN-LK-001",
+      "title": "Verify and wire Sri Lanka runner end-to-end",
+      "description": "As a paid Sri Lanka applicant, I need the existing LK runner invoked, so it works end-to-end (supports the IN/LK/KH/LA/ZA recovery).",
+      "acceptanceCriteria": [
+        "src/lk/runner.ts runLkPrefill exposed as runOne and bound to sri_lanka in dispatch.ts",
+        "Integration test asserts a queued LK job reaches terminal status on a fixture",
+        "src/payment-routing.ts handles sri_lanka",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 368,
+      "passes": true,
+      "notes": "Confirmed src/lk/runner.ts exists (runLkPrefill line 120), never imported."
+    },
+    {
+      "id": "RUN-KH-001",
+      "title": "Verify and wire Cambodia runner end-to-end",
+      "description": "As a paid Cambodia applicant, I need the existing KH runner invoked, so it works end-to-end.",
+      "acceptanceCriteria": [
+        "src/kh/runner.ts exposed as runOne and bound to cambodia in dispatch.ts",
+        "Integration test on a fixture reaches terminal status",
+        "src/payment-routing.ts handles cambodia",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 369,
+      "passes": true,
+      "notes": "Confirmed src/kh/runner.ts exists, never wired."
+    },
+    {
+      "id": "RUN-LA-001",
+      "title": "Verify and wire Laos runner end-to-end",
+      "description": "As a paid Laos applicant, I need the existing LA runner invoked, so it works end-to-end.",
+      "acceptanceCriteria": [
+        "src/la/runner.ts exposed as runOne and bound to laos in dispatch.ts",
+        "Integration test on a fixture reaches terminal status",
+        "src/payment-routing.ts handles laos",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 370,
+      "passes": true,
+      "notes": "Confirmed src/la/runner.ts exists, never wired."
+    },
+    {
+      "id": "RUN-ZA-001",
+      "title": "Verify and wire South Africa runner end-to-end",
+      "description": "As a paid South Africa applicant, I need the existing ZA runner invoked, so it works end-to-end.",
+      "acceptanceCriteria": [
+        "src/za/runner.ts exposed as runOne and bound to south_africa in dispatch.ts",
+        "Integration test on a fixture reaches terminal status",
+        "src/payment-routing.ts handles south_africa",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 371,
+      "passes": true,
+      "notes": "Confirmed src/za/runner.ts exists, never wired."
+    },
+    {
+      "id": "RUN-US-001",
+      "title": "Expose US (CEAC/DS-160) as runner_job runOne with halt",
+      "description": "As a paid US applicant, I need DS-160 prefill reachable from runner_job, so US is dispatchable uniformly.",
+      "acceptanceCriteria": [
+        "Wrap existing CEAC/DS-160 prefill flow in a runOne export bound to united_states in dispatch.ts",
+        "Halts before government payment, mapping to 'succeeded'+halt marker",
+        "Existing src/ds160-* completeness/coverage checks invoked before halt",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 372,
+      "passes": true,
+      "notes": "US flow exists via submission_queue ds160_prefill_pending in index.ts; expose to runner_job (QUE-005). UsResultCard exists in portal."
+    },
+    {
+      "id": "RUN-UK-001",
+      "title": "Expose UK runner as runner_job runOne with halt",
+      "description": "As a paid UK applicant, I need the UK prefill reachable from runner_job, so UK is dispatchable uniformly.",
+      "acceptanceCriteria": [
+        "Wrap existing src/uk flow in a runOne export bound to united_kingdom in dispatch.ts",
+        "Halts before government payment, mapping to 'succeeded'+halt marker",
+        "Existing UK status transitions in index.ts remain compatible",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 373,
+      "passes": true,
+      "notes": "UK exists via uk_prefill_pending in index.ts. UkResultCard exists in portal."
+    },
+    {
+      "id": "RUN-AU-001",
+      "title": "Expose Australia runner as runner_job runOne with halt",
+      "description": "As a paid Australia applicant, I need the AU prefill reachable from runner_job, so AU is dispatchable uniformly.",
+      "acceptanceCriteria": [
+        "Wrap src/au/runner.ts (and au-visitor) in a runOne export bound to australia in dispatch.ts",
+        "Halts before government payment, mapping to 'succeeded'+halt marker",
+        "Existing AU status transitions in index.ts remain compatible",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 374,
+      "passes": true,
+      "notes": "src/au/runner.ts and src/au-visitor exist; AuResultCard exists in portal."
+    },
+    {
+      "id": "RUN-CORE-001",
+      "title": "Shared recon retry/backoff + captcha hooks for new runners",
+      "description": "As a runner author, I need shared recon/captcha utilities, so new countries reuse hardened helpers.",
+      "acceptanceCriteria": [
+        "Extract reusable login+recon+retry helpers into src/recon (or src/generic) consumed by SA/MY/CA/TR/TH/AE/EG runners",
+        "Captcha solving hook in src/captcha is callable from the shared helper",
+        "At least two new-country runners refactored to use the shared helper",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 375,
+      "passes": true,
+      "notes": "src/recon, src/captcha, src/generic already exist; consolidate to reduce per-country duplication."
+    },
+    {
+      "id": "RUN-CORE-002",
+      "title": "Standardize runner result -> runner_job status mapping",
+      "description": "As the worker, I need one helper that maps any runner outcome to a runner_job status, so success/halt/fail are consistent.",
+      "acceptanceCriteria": [
+        "Add src/queue/result-map.ts mapping runner outcomes (submitted, halted_before_pay, paper_ready, recoverable_error, fatal_error) to runner_job statuses",
+        "All bound runners route their outcome through this helper in dispatch.ts",
+        "Unit test covers each outcome mapping",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 376,
+      "passes": true,
+      "notes": "Used by every RUN-* story to keep status semantics uniform with worker.ts retry/dead-letter logic."
+    },
+    {
+      "id": "RUN-CORE-003",
+      "title": "E-visa artifact capture + storage for all submit-capable countries",
+      "description": "As an applicant, I need the issued e-visa/confirmation captured, so the portal status page can serve the download.",
+      "acceptanceCriteria": [
+        "Each submit-capable runner stores its confirmation/e-visa artifact via src/artifact-storage.ts with a country-tagged key",
+        "Artifact reference written to the row the portal status page reads",
+        "Smoke test stores and retrieves a fixture artifact",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 377,
+      "passes": true,
+      "notes": "Ties runners to the portal status-page download flow (Epic 7 POR)."
+    },
+    {
+      "id": "RUN-CORE-004",
+      "title": "Country capability matrix doc (submit vs halt vs paper)",
+      "description": "As a stakeholder, I need a documented matrix of what each country runner does, so launch scope is explicit.",
+      "acceptanceCriteria": [
+        "docs/runners/country-capability-matrix.md lists all 16 countries with: runner path, recon, submit/halt/paper policy, payment collector, and test status",
+        "Matrix matches src/queue/dispatch.ts bindings",
+        "Deliverable is committed docs only",
+        "Referenced from OBSV launch checklist"
+      ],
+      "priority": 378,
+      "passes": true,
+      "notes": "Single source of truth for launch readiness across runners."
+    },
+    {
+      "id": "RUN-CORE-005",
+      "title": "Per-country runner smoke-test harness",
+      "description": "As CI, I need a harness that exercises each runner against a fixture, so regressions are caught.",
+      "acceptanceCriteria": [
+        "Add src/__tests__/runners.smoke.test.ts iterating the dispatch table and asserting each bound runOne handles a minimal fixture without throwing on mapping",
+        "Unimplemented countries assert UnsupportedCountryError",
+        "Harness runs under the existing test runner in viza-be/submission-service",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 379,
+      "passes": true,
+      "notes": "Confirms dispatch coverage for all 16 stays green as countries land."
+    },
+    {
+      "id": "RUN-CORE-006",
+      "title": "Proxy + account pool config coverage for all launch countries",
+      "description": "As a runner, I need a proxy and account per country, so geo-restricted portals are reachable.",
+      "acceptanceCriteria": [
+        "src/proxy and src/account-loader config includes entries for all 16 launch countries (or documents fallback)",
+        "Missing-config for a country raises a clear startup error via DEP-003 validate-env",
+        "Documented in docs/runners/proxy-accounts.md (no secret values)",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 380,
+      "passes": true,
+      "notes": "src/proxy and src/account-loader.ts exist; ensure all 16 covered."
+    },
+    {
+      "id": "RUN-CORE-007",
+      "title": "Translation gate coverage for non-English destination portals",
+      "description": "As a runner, I need applicant answers translated before fill, so non-English portals receive correct values.",
+      "acceptanceCriteria": [
+        "src/translation-gate.ts is invoked by SA/TR/TH/AE/JP/IT runners where the destination portal requires localized input",
+        "Gate failures are non-fatal and logged, with a documented fallback",
+        "Unit test covers gate invocation for one country",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 381,
+      "passes": true,
+      "notes": "src/translation-gate.ts already exists; extend coverage to new runners."
+    },
+    {
+      "id": "RUN-CORE-008",
+      "title": "Inbox/email e-visa retrieval coverage per country",
+      "description": "As an applicant, I need my e-visa email parsed and attached, so countries that deliver by email complete end-to-end.",
+      "acceptanceCriteria": [
+        "src/inbox + src/email retrieval is wired for each email-delivery country (e.g. ID, TR, TH, AE) to pull the e-visa attachment",
+        "Retrieved artifact stored via RUN-CORE-003 path",
+        "Unit test covers parsing one fixture email",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 382,
+      "passes": true,
+      "notes": "src/inbox and src/email exist (used by Vietnam); generalize."
+    },
+    {
+      "id": "MKT-001",
+      "title": "Fix country-card CTA routing on marketing home",
+      "description": "As a visitor, I need each country card to link to its own page, so I do not always land on Indonesia.",
+      "acceptanceCriteria": [
+        "viza-fe/marketing-website/app/[locale]/page.tsx line ~74 builds href from the country code (e.g. `/visa/${slug}`) instead of hardcoding '/visa/indonesia'",
+        "A slug map covers all 16 countries",
+        "Cards for countries without a page yet route to a coming-soon page (MKT-003), not a 404",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 383,
+      "passes": true,
+      "notes": "Confirmed bug at page.tsx:74 `const href = c.name === 'Indonesia' ? '/visa/indonesia' : '/visa/indonesia';`"
+    },
+    {
+      "id": "MKT-002",
+      "title": "Create shared country metadata source for marketing pages",
+      "description": "As a developer, I need one country metadata module, so cards and pages stay consistent.",
+      "acceptanceCriteria": [
+        "Add viza-fe/marketing-website/lib/countries.ts with slug, name, flag, visaType, validity, image, and a launched boolean for all 16 countries",
+        "page.tsx country array is derived from this module",
+        "No mock eta/timestamp strings remain in the card data (replace with a real or omitted field)",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 384,
+      "passes": true,
+      "notes": "Confirmed mock 'eta' timestamps in page.tsx:53-68. Centralize country data."
+    },
+    {
+      "id": "MKT-003",
+      "title": "Add a coming-soon visa page template",
+      "description": "As a visitor, I need a graceful coming-soon page for not-yet-launched countries, so I never hit a 404.",
+      "acceptanceCriteria": [
+        "Add viza-fe/marketing-website/app/[locale]/visa/[country]/page.tsx (or a coming-soon component) rendering a coming-soon state for countries where lib/countries.ts launched=false",
+        "Launched countries render the full visa page (MKT-004 template)",
+        "Coming-soon page is localized in en and zh-CN",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 385,
+      "passes": true,
+      "notes": "Confirmed only /visa/indonesia exists; other 15 would 404."
+    },
+    {
+      "id": "MKT-004",
+      "title": "Generalize Indonesia visa page into a reusable country template",
+      "description": "As a developer, I need the Indonesia page refactored into a data-driven template, so all 16 country pages reuse it.",
+      "acceptanceCriteria": [
+        "Refactor app/[locale]/visa/indonesia/page.tsx into a shared template component fed by lib/countries.ts + lib/pricing source (MKT-006)",
+        "Replace '#' nearby links and 'See all 84' link with real routes or a documented count",
+        "Replace mock dates with real or omitted content",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 386,
+      "passes": true,
+      "notes": "Confirmed nearby links and 'See all 84' are '#' (page.tsx:503)."
+    },
+    {
+      "id": "MKT-005",
+      "title": "Create per-country marketing visa pages for all 16 countries",
+      "description": "As a visitor, I need a real page per launched country, so every advertised country is reachable.",
+      "acceptanceCriteria": [
+        "Each of the 16 launch countries renders via the MKT-004 template at /[locale]/visa/<slug> with no 404",
+        "Page content (validity, type, fee) comes from shared data, not hardcoded SGD strings",
+        "Routing verified for all 16 slugs via the MKT-001 CTA map",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 387,
+      "passes": true,
+      "notes": "Can be implemented as a dynamic [country] route consuming countries.ts; no per-file duplication required."
+    },
+    {
+      "id": "MKT-006",
+      "title": "Share pricing source of truth between portal and marketing",
+      "description": "As the business, I need marketing fees to match backend pricing, so quoted prices are correct.",
+      "acceptanceCriteria": [
+        "Extract a shared pricing module (e.g. in shared/ consumed by both viza-fe/internal-website/lib/pricing.ts and marketing) or generate marketing pricing from the portal source at build time",
+        "Marketing displays currency-correct fees derived from the shared source instead of hardcoded SGD (page.tsx:53-68)",
+        "A currency conversion/display policy (USD base -> display currency) is documented in shared",
+        "Typecheck passes in both viza-fe/marketing-website and viza-fe/internal-website"
+      ],
+      "priority": 388,
+      "passes": true,
+      "notes": "Confirmed marketing uses hardcoded SGD; portal lib/pricing.ts uses USD. shared/ dir exists at repo root."
+    },
+    {
+      "id": "MKT-007",
+      "title": "Add Saudi Arabia, Italy, France to pricing source",
+      "description": "As the business, I need all 16 countries priced, so no launch country is missing a fee.",
+      "acceptanceCriteria": [
+        "viza-fe/internal-website/lib/pricing.ts includes saudi_arabia, italy, and france entries with agency + government fee + currency + collector",
+        "Shared pricing (MKT-006) exposes all 16",
+        "MIG-006 seed checklist updated to mark these present",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 389,
+      "passes": true,
+      "notes": "Confirmed pricing.ts has NO saudi/italy/france entries."
+    },
+    {
+      "id": "MKT-008",
+      "title": "Localize all country pages in en and zh-CN",
+      "description": "As a Chinese-speaking visitor, I need every country page translated, so the site is usable in zh-CN.",
+      "acceptanceCriteria": [
+        "viza-fe/marketing-website/messages/en.json and zh-CN.json contain keys for the country template and all 16 country names/types",
+        "The country template renders translated strings via the i18n hook for both locales",
+        "No untranslated hardcoded English remains in the template",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 390,
+      "passes": true,
+      "notes": "Confirmed en.json + zh-CN.json exist but only Indonesia localized."
+    },
+    {
+      "id": "MKT-009",
+      "title": "Fix 'See all' count and nearby-country links",
+      "description": "As a visitor, I need accurate counts and working nearby links, so navigation is trustworthy.",
+      "acceptanceCriteria": [
+        "'See all 84' replaced with the real launched-country count from lib/countries.ts and linked to a real listing route",
+        "Nearby-country links on each visa page point to real sibling country pages",
+        "No '#' placeholder hrefs remain in marketing page.tsx and the visa template",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 391,
+      "passes": true,
+      "notes": "Confirmed 'See all 84' and nearby links are '#'."
+    },
+    {
+      "id": "MKT-010",
+      "title": "Add vercel.json deployment config for marketing-website",
+      "description": "As an operator, I need an explicit Vercel config, so marketing deploys are deterministic.",
+      "acceptanceCriteria": [
+        "Add viza-fe/marketing-website/vercel.json specifying build/install commands, output, and i18n-aware rewrites if needed",
+        "Config documents required env vars by name (no values)",
+        "Deliverable is committed JSON only; no dashboard actions",
+        "JSON is valid and Next build config is consistent with package.json scripts"
+      ],
+      "priority": 392,
+      "passes": true,
+      "notes": "Confirmed NO vercel.json in marketing-website."
+    },
+    {
+      "id": "MKT-011",
+      "title": "Add marketing deploy runbook + env doc",
+      "description": "As an operator, I need a documented marketing deploy procedure, so launch is reproducible.",
+      "acceptanceCriteria": [
+        "docs/infra/marketing-deploy.md documents the Vercel project linkage, env vars, and preview/prod promotion flow",
+        "Lists NEXT_PUBLIC_* env vars referenced by the marketing app",
+        "Deliverable is committed docs only",
+        "Cross-references vercel.json (MKT-010)"
+      ],
+      "priority": 393,
+      "passes": true,
+      "notes": "Pairs with MKT-010."
+    },
+    {
+      "id": "MKT-012",
+      "title": "Generate sitemap + robots covering all country pages",
+      "description": "As SEO, I need every launched country page in the sitemap, so pages are indexable.",
+      "acceptanceCriteria": [
+        "viza-fe/marketing-website/app/sitemap.ts enumerates all launched country pages for both locales from lib/countries.ts",
+        "robots.ts allows the country routes",
+        "No coming-soon (launched=false) pages are listed",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 394,
+      "passes": true,
+      "notes": "Confirmed sitemap.ts and robots.ts exist; extend to all countries."
+    },
+    {
+      "id": "MKT-013",
+      "title": "Replace remaining mock content on home/explore",
+      "description": "As a visitor, I need real content not placeholders, so the site looks production-ready.",
+      "acceptanceCriteria": [
+        "Audit app/[locale]/page.tsx for mock timestamps, fake counts, and placeholder links and replace or remove them",
+        "Document any intentionally-static demo content in a code comment",
+        "No remaining 'eta' fabricated timestamps in card data",
+        "Typecheck passes in viza-fe/marketing-website"
+      ],
+      "priority": 395,
+      "passes": true,
+      "notes": "Cleanup pass after MKT-002 centralizes data."
+    },
+    {
+      "id": "POR-001",
+      "title": "Define portal wizard coverage contract for all 16 countries",
+      "description": "As a portal user, I need a wizard for every launch country, so I can complete any application.",
+      "acceptanceCriteria": [
+        "viza-fe/internal-website/components/client/wizards/shell/registry.ts documents required configs for all 16 launch countries",
+        "Registry exposes a typed helper to detect missing country configs",
+        "A unit/typecheck guard fails if a launch country lacks a config binding (allow explicit 'comingSoon' markers)",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 396,
+      "passes": true,
+      "notes": "Confirmed registry only imports us, uk, schengen, vn, au, eg, id configs."
+    },
+    {
+      "id": "POR-002",
+      "title": "Add Indonesia/Egypt wizard parity check (already present)",
+      "description": "As a portal user, I need ID and EG wizards validated against the runner schema, so portal answers match runner fields.",
+      "acceptanceCriteria": [
+        "components/client/wizards/id/config and eg/config field keys align with src/id and src/egypt field-mappings (RUN-ID-001, RUN-EG-001)",
+        "A shared field-key constants module prevents drift",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 397,
+      "passes": true,
+      "notes": "id and eg configs exist; ensure they match the new runners."
+    },
+    {
+      "id": "POR-003",
+      "title": "Add Saudi Arabia wizard config + steps",
+      "description": "As a Saudi applicant, I need a guided wizard, so I can complete my Saudi application in the portal.",
+      "acceptanceCriteria": [
+        "Add components/client/wizards/sa/config and steps following the existing wizard config shape",
+        "Bind sa config in registry.ts",
+        "Field keys match src/sa field-mappings (RUN-SA-001)",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 398,
+      "passes": true,
+      "notes": "Model on existing au/config or vn/config."
+    },
+    {
+      "id": "POR-004",
+      "title": "Add Malaysia, Thailand, UAE wizard configs",
+      "description": "As MY/TH/AE applicants, I need guided wizards, so I can complete those applications in the portal.",
+      "acceptanceCriteria": [
+        "Add components/client/wizards/{my,th,ae}/config and steps",
+        "Bind all three in registry.ts",
+        "Field keys match their runner field-mappings",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 399,
+      "passes": true,
+      "notes": "Grouped: similar e-visa shapes. Keep each config single-file."
+    },
+    {
+      "id": "POR-005",
+      "title": "Add Canada, Türkiye, Italy, Japan, India wizard configs",
+      "description": "As CA/TR/IT/JP/IN applicants, I need guided wizards, so I can complete those applications in the portal.",
+      "acceptanceCriteria": [
+        "Add components/client/wizards/{ca,tr,it,jp,in}/config and steps",
+        "Bind all in registry.ts",
+        "Japan config notes paper-only output; Italy notes VFS flow",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 400,
+      "passes": true,
+      "notes": "Completes the 16-country wizard set (US/UK/Schengen/VN/AU/EG/ID already present)."
+    },
+    {
+      "id": "POR-006",
+      "title": "Add result cards for countries missing them",
+      "description": "As a portal user, I need a result card for my country, so I see my submission outcome.",
+      "acceptanceCriteria": [
+        "Add result cards under app/client/application/_components/result-cards for ID, EG, SA, MY, TH, AE, CA, TR, IT, IN (Au/Fr/Jp/Uk/Us/Vn already exist)",
+        "SubmissionStatusStep maps each country to its card",
+        "Cards handle submitted, halted-before-pay, paper-ready, and failure states",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 401,
+      "passes": true,
+      "notes": "Confirmed existing cards: Au, Fr, Jp, Uk, Us, Vn (+ Failure/Waiting/SubmissionStatusStep)."
+    },
+    {
+      "id": "POR-007",
+      "title": "Wire status-page e-visa download to runner_job artifacts",
+      "description": "As an applicant, I need to download my issued e-visa from the status page, so I get my document.",
+      "acceptanceCriteria": [
+        "The portal status/application page reads the artifact reference written by RUN-CORE-003 and exposes a download link",
+        "Download works for at least one submit-capable country end-to-end against a fixture",
+        "Missing-artifact state is handled gracefully (pending message)",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 402,
+      "passes": true,
+      "notes": "Ties Epic 5 artifacts to the existing status-page download flow."
+    },
+    {
+      "id": "POR-008",
+      "title": "Verify guest checkout + magic-link result cards per country",
+      "description": "As a guest, I need my result card to render after magic-link login, so guest checkout completes for any country.",
+      "acceptanceCriteria": [
+        "Guest card checkout + magic-link flow renders the correct country result card for all 16 countries",
+        "A test covers the guest path for one country end-to-end",
+        "No country falls back to a generic/empty card",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 403,
+      "passes": true,
+      "notes": "Brief: guest card checkout + magic-link just landed this branch; verify coverage."
+    },
+    {
+      "id": "POR-009",
+      "title": "Portal enqueue triggers runner_job for all 16 countries",
+      "description": "As a paid applicant, I need my order enqueued for any country, so payment leads to processing.",
+      "acceptanceCriteria": [
+        "The portal post-payment hook calls enqueueRunnerJob with the correct normalized country code for all 16 countries (QUE-004 mapping)",
+        "A test asserts enqueue is called for a sample of countries including ID, SA, JP(paper), US(halt)",
+        "Idempotency preserved (no duplicate active jobs)",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 404,
+      "passes": true,
+      "notes": "Closes the loop: portal -> runner_job -> worker -> runner for every country."
+    },
+    {
+      "id": "POR-010",
+      "title": "Country selection surfaces only launched countries",
+      "description": "As a portal user, I need to start applications only for live countries, so I am not blocked mid-flow.",
+      "acceptanceCriteria": [
+        "Portal country picker reads launched status from a shared source consistent with marketing lib/countries.ts",
+        "Coming-soon countries are visibly disabled with a tooltip",
+        "Direct deep-links to a coming-soon country show a graceful state",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 405,
+      "passes": true,
+      "notes": "Keeps portal and marketing launch scope in sync."
+    },
+    {
+      "id": "POR-011",
+      "title": "Portal application status reflects runner_job lifecycle",
+      "description": "As an applicant, I need my status page to show queue/run/halt/submitted states, so I know where my application is.",
+      "acceptanceCriteria": [
+        "The full-cycle status hub (US-041) reads runner_job status (queued/running/succeeded/halt/failed/dead_letter) in addition to submission_queue",
+        "Halt-before-gov-pay shows an actionable 'pay government fee' step where applicable",
+        "Dead-letter shows a support-contact state",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 406,
+      "passes": true,
+      "notes": "Extends existing US-041 status hub to the unified queue."
+    },
+    {
+      "id": "PAYP-001",
+      "title": "Make payment-routing cover all 16 countries with collector policy",
+      "description": "As the service, I need every country's fee collector resolved, so payments route correctly.",
+      "acceptanceCriteria": [
+        "viza-be/submission-service/src/payment-routing.ts returns a typed routing decision (collector, currency, agency+gov fee) for all 16 launch countries",
+        "Values derive from the shared pricing source (MKT-006) to avoid drift",
+        "Unknown country throws a typed error",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 407,
+      "passes": true,
+      "notes": "Central payment seam; each RUN-* references it. Confirm against lib/pricing.ts keys."
+    },
+    {
+      "id": "PAYP-002",
+      "title": "Add payment provider config validation (Stripe/Airwallex/Alipay/WeChat)",
+      "description": "As an operator, I need provider config validated at startup, so a misconfigured prod payment path fails fast.",
+      "acceptanceCriteria": [
+        "Add a config validator asserting required provider env vars per enabled provider (STRIPE_*, AIRWALLEX_*, Alipay, WeChat)",
+        "Validator flags AIRWALLEX_ENV=demo as non-prod and warns clearly",
+        "Documented in docs/payments/provider-config.md (no secret values)",
+        "Typecheck passes in the owning workspace"
+      ],
+      "priority": 408,
+      "passes": true,
+      "notes": "Brief: Airwallex currently demo; provider readiness needed. Artifact = validator + doc."
+    },
+    {
+      "id": "PAYP-003",
+      "title": "Document prod payment provider cutover runbook",
+      "description": "As a release manager, I need a runbook to switch providers to live, so payment go-live is controlled.",
+      "acceptanceCriteria": [
+        "docs/payments/go-live-runbook.md covers Stripe live keys, AIRWALLEX_ENV=prod, Alipay, WeChat enablement and per-country provider availability",
+        "Lists which env vars change in which workspace and the redeploy step",
+        "Deliverable is committed docs only; no dashboard actions by the agent",
+        "Cross-references SEC-003 rotation runbook"
+      ],
+      "priority": 409,
+      "passes": true,
+      "notes": "Artifact-framed go-live doc."
+    },
+    {
+      "id": "PAYP-004",
+      "title": "Generalize WeChat/Alipay beyond Indonesia where supported",
+      "description": "As an applicant, I need CN payment methods where applicable, so Chinese customers can pay for more countries.",
+      "acceptanceCriteria": [
+        "Payment method availability per country is config-driven (not hardcoded Indonesia-only)",
+        "WeChat/Alipay enabled for the documented set of countries; others fall back to card",
+        "A test asserts method availability resolves per country",
+        "Typecheck passes in the owning workspace"
+      ],
+      "priority": 410,
+      "passes": true,
+      "notes": "Brief: WeChat only Indonesia today. Make method availability a config matrix."
+    },
+    {
+      "id": "PAYP-005",
+      "title": "Verify and document refund/chargeback wiring (PAY-004 follow-up)",
+      "description": "As finance, I need refund/chargeback handling verified, so disputes are handled correctly.",
+      "acceptanceCriteria": [
+        "Audit the existing refund/chargeback handler and document the flow in docs/payments/refunds.md",
+        "Add a test for the refund webhook path against a fixture event",
+        "Gaps (if any) listed as TODO comments referencing follow-up",
+        "Typecheck passes in the owning workspace"
+      ],
+      "priority": 411,
+      "passes": true,
+      "notes": "Brief: PAY-004 claims refund done; verify with a test + doc."
+    },
+    {
+      "id": "PAYP-006",
+      "title": "Reconcile portal display currency with USD base pricing",
+      "description": "As a customer, I need the price I see to equal the price I am charged, so checkout is trustworthy.",
+      "acceptanceCriteria": [
+        "Portal checkout shows the same currency/amount the payment intent is created in, derived from shared pricing",
+        "A test asserts displayed amount equals charged amount for two currencies",
+        "Currency policy documented in shared pricing module",
+        "Typecheck passes in viza-fe/internal-website"
+      ],
+      "priority": 412,
+      "passes": true,
+      "notes": "Closes the SGD-vs-USD mismatch on the charging side."
+    },
+    {
+      "id": "PAYP-007",
+      "title": "Per-country government-fee pass-through correctness check",
+      "description": "As finance, I need gov-fee pass-through amounts validated, so we never under/over-collect.",
+      "acceptanceCriteria": [
+        "Add a test/assertion that each country's collected total = agency fee + gov fee from the shared pricing source",
+        "Halt-before-gov-pay countries collect only the agency fee and document the gov-fee-paid-on-portal note",
+        "Discrepancies fail the test",
+        "Typecheck passes in the owning workspace"
+      ],
+      "priority": 413,
+      "passes": true,
+      "notes": "Ties pricing source to collector policy from PAYP-001."
+    },
+    {
+      "id": "PAYP-008",
+      "title": "Payment webhook idempotency + signature verification audit",
+      "description": "As the service, I need webhooks verified and idempotent, so duplicate/forged events cannot double-charge or double-enqueue.",
+      "acceptanceCriteria": [
+        "Audit each payment webhook for signature verification and idempotency keys; document in docs/payments/webhooks.md",
+        "Add a test that a replayed webhook does not enqueue a duplicate runner_job",
+        "Any missing verification added",
+        "Typecheck passes in the owning workspace"
+      ],
+      "priority": 414,
+      "passes": true,
+      "notes": "Protects QUE idempotency at the payment boundary."
+    },
+    {
+      "id": "CI-001",
+      "title": "Add typecheck+lint CI for viza-fe/internal-website",
+      "description": "As a maintainer, I need portal typecheck/lint in CI, so portal regressions are caught.",
+      "acceptanceCriteria": [
+        ".github/workflows/ci-internal-website.yml runs npm ci, npm run type-check, npm run lint, npm run build in viza-fe/internal-website on PRs touching that path",
+        "Job fails on any error",
+        "Committed YAML only; valid YAML",
+        "Does not duplicate existing qa-gates E2E/a11y"
+      ],
+      "priority": 415,
+      "passes": true,
+      "notes": "Confirmed qa-gates.yml only runs portal E2E/a11y/lighthouse, no typecheck/lint/build."
+    },
+    {
+      "id": "CI-002",
+      "title": "Add typecheck+lint+build CI for viza-fe/marketing-website",
+      "description": "As a maintainer, I need marketing CI, so marketing regressions are caught.",
+      "acceptanceCriteria": [
+        ".github/workflows/ci-marketing.yml runs type-check, lint, build in viza-fe/marketing-website on PRs touching that path",
+        "Job fails on any error",
+        "Committed YAML only; valid YAML"
+      ],
+      "priority": 416,
+      "passes": true,
+      "notes": "marketing-website has type-check/lint/build scripts confirmed."
+    },
+    {
+      "id": "CI-003",
+      "title": "Add typecheck+lint+build CI for viza-be/agent-backend",
+      "description": "As a maintainer, I need agent-backend CI, so backend regressions are caught.",
+      "acceptanceCriteria": [
+        ".github/workflows/ci-agent-backend.yml runs type-check, lint, build in viza-be/agent-backend on PRs touching that path",
+        "Job fails on any error",
+        "Committed YAML only; valid YAML"
+      ],
+      "priority": 417,
+      "passes": true,
+      "notes": "agent-backend has type-check/lint/build scripts confirmed."
+    },
+    {
+      "id": "CI-004",
+      "title": "Add typecheck+test CI for viza-be/submission-service",
+      "description": "As a maintainer, I need submission-service CI, so runner regressions are caught.",
+      "acceptanceCriteria": [
+        ".github/workflows/ci-submission-service.yml runs type-check and the test suite in viza-be/submission-service on PRs touching that path",
+        "Job notes submission-service has no lint script and therefore runs type-check only (no lint step)",
+        "Job fails on any error; committed valid YAML"
+      ],
+      "priority": 418,
+      "passes": true,
+      "notes": "Confirmed submission-service package.json has type-check but NO lint script."
+    },
+    {
+      "id": "CI-005",
+      "title": "Fix agent-backend render.yaml port + plan mismatch",
+      "description": "As an operator, I need render config to match the Dockerfile, so the service actually serves traffic.",
+      "acceptanceCriteria": [
+        "viza-be/agent-backend/render.yaml PORT value matches the Dockerfile EXPOSE/ENV (8080), or the Dockerfile is documented to honor render's injected PORT",
+        "Plan upgraded off 'free' to a tier that supports a persistent WebSocket service, with the chosen plan documented in a comment",
+        "Committed YAML only; valid YAML",
+        "Change documented in docs/infra/agent-backend-deploy.md"
+      ],
+      "priority": 419,
+      "passes": true,
+      "notes": "Confirmed render.yaml PORT=10000, plan: free; Dockerfile EXPOSE 8080 / ENV PORT=8080. Mismatch."
+    },
+    {
+      "id": "CI-006",
+      "title": "Document cloudbuild substitution set + add env validation script",
+      "description": "As an operator, I need the REPLACE_VIA_TRIGGER values documented and validated, so portal builds are configured correctly.",
+      "acceptanceCriteria": [
+        "docs/infra/cloudbuild-substitutions.md lists every REPLACE_VIA_TRIGGER key in viza-fe/internal-website/cloudbuild.yaml and what value/secret each expects",
+        "Add scripts/infra/validate-cloudbuild-subs.ts that fails if any substitution is still the placeholder at build time",
+        "No secret values committed",
+        "Typecheck passes for the script"
+      ],
+      "priority": 420,
+      "passes": true,
+      "notes": "Confirmed cloudbuild.yaml has REPLACE_VIA_TRIGGER placeholders (lines 84-101)."
+    },
+    {
+      "id": "CI-007",
+      "title": "Add a path-filtered CI orchestration doc + required-checks list",
+      "description": "As a maintainer, I need documented required checks per workspace, so merges are gated consistently.",
+      "acceptanceCriteria": [
+        "docs/infra/ci-required-checks.md lists which CI jobs (CI-001..CI-006, SEC-005, MIG-005, DEP-005) gate merges and for which paths",
+        "Document branch-protection intent (no dashboard action; this is the documented policy)",
+        "Cross-references each workflow file",
+        "Deliverable is committed docs only"
+      ],
+      "priority": 421,
+      "passes": true,
+      "notes": "Ties the CI epic together; artifact-framed (doc only)."
+    },
+    {
+      "id": "OBSV-001",
+      "title": "Emit per-country runner metrics + dashboard config artifact",
+      "description": "As an operator, I need runner success/failure metrics per country, so I can watch launch health.",
+      "acceptanceCriteria": [
+        "src/metrics/emit.ts emits per-country counters for jobs started/succeeded/halted/failed/dead-lettered (worker.ts already calls emitRunnerMetric; ensure country dimension present)",
+        "Add docs/observability/metrics.md listing metric names + dimensions and a committed dashboard JSON/config artifact",
+        "Deliverable is code + committed config; no dashboard clicks",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 422,
+      "passes": true,
+      "notes": "Confirmed src/metrics/emit.ts + emitRunnerMetric exist; ensure country dimension and document."
+    },
+    {
+      "id": "OBSV-002",
+      "title": "Wire alerting for dead-letter + halted-stuck jobs",
+      "description": "As on-call, I need alerts when jobs dead-letter or halt-stuck, so customers are not silently stuck.",
+      "acceptanceCriteria": [
+        "src/alerts/dispatch.ts (already invoked by worker.ts on retries-exhausted) is extended with a halted-stuck alert when a halt-before-pay job ages beyond a threshold",
+        "Alert config documented in docs/observability/alerts.md with the routing class names",
+        "A test asserts the alert payload shape",
+        "Typecheck passes in viza-be/submission-service"
+      ],
+      "priority": 423,
+      "passes": true,
+      "notes": "Confirmed src/alerts/dispatch.ts and worker.ts OPS-003 paging on exhausted retries."
+    },
+    {
+      "id": "OBSV-003",
+      "title": "Add structured run logging with correlation_id end-to-end",
+      "description": "As an operator, I need correlated logs from enqueue to runner outcome, so I can trace a single application.",
+      "acceptanceCriteria": [
+        "correlation_id from runner_job is threaded through worker.ts, dispatch.ts, and each runOne and included in log lines",
+        "Portal enqueue.ts sets a correlation_id on the job",
+        "Documented log format in docs/observability/logging.md",
+        "Typecheck passes in viza-be/submission-service and viza-fe/internal-website"
+      ],
+      "priority": 424,
+      "passes": true,
+      "notes": "runner_job already has correlation_id column (worker.ts select). Thread it through."
+    },
+    {
+      "id": "OBSV-004",
+      "title": "Add a launch readiness verification script across all 16 countries",
+      "description": "As a release manager, I need one script that asserts each country is launch-ready, so go/no-go is objective.",
+      "acceptanceCriteria": [
+        "Add scripts/launch/verify-country-readiness.ts that checks per country: runner bound in dispatch.ts, pricing entry present, marketing page exists, portal wizard config present",
+        "Outputs a pass/fail table for all 16 countries",
+        "Read-only filesystem checks; no network/DB writes",
+        "Typecheck passes for the script"
+      ],
+      "priority": 425,
+      "passes": true,
+      "notes": "Single objective gate aggregating Epics 5/6/7/8 per country."
+    },
+    {
+      "id": "OBSV-005",
+      "title": "Author the master launch checklist runbook",
+      "description": "As the team, I need a single launch checklist, so nothing is missed at go-live.",
+      "acceptanceCriteria": [
+        "docs/launch/launch-checklist.md links every epic's deliverables: security, queue, migrations, deploy, runners (capability matrix), marketing, portal, payments, CI, observability",
+        "Includes the OBSV-004 readiness-script step and a rollback plan",
+        "Deliverable is committed docs only",
+        "Cross-references RUN-CORE-004 capability matrix"
+      ],
+      "priority": 426,
+      "passes": true,
+      "notes": "Top-level go-live artifact."
+    },
+    {
+      "id": "OBSV-006",
+      "title": "Add synthetic end-to-end smoke check for one country in prod-like env",
+      "description": "As an operator, I need an automated end-to-end smoke for a representative country, so the full pipe is verified after deploy.",
+      "acceptanceCriteria": [
+        "Add scripts/launch/e2e-smoke.ts that enqueues a fixture runner_job for one country and asserts it reaches a terminal status (against a staging DB/env via env vars)",
+        "Script is guarded behind an explicit --confirm and a non-prod env check",
+        "Documented in docs/launch/launch-checklist.md",
+        "Typecheck passes for the script"
+      ],
+      "priority": 427,
+      "passes": true,
+      "notes": "Exercises portal->queue->worker->runner->artifact->status end to end."
     }
   ]
 }

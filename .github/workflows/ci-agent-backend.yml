@@ -1,0 +1,22 @@
+# CI-003: typecheck + lint + build for the agent backend.
+name: ci-agent-backend
+on:
+  pull_request:
+    paths: ["viza-be/agent-backend/**", ".github/workflows/ci-agent-backend.yml"]
+  push:
+    branches: [main]
+    paths: ["viza-be/agent-backend/**"]
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: viza-be/agent-backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: "npm", cache-dependency-path: viza-be/agent-backend/package-lock.json }
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run lint
+      - run: npm run build

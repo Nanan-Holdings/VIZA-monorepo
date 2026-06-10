@@ -2,6 +2,8 @@
 import "./explore.css";
 import { useEffect } from "react";
 import { CircleFlag } from "react-circle-flags";
+import { COUNTRIES as COUNTRY_META, visaHref } from "@/lib/countries";
+import { displayFeeSGD } from "@/lib/pricing";
 
 export default function ExplorePage() {
   useEffect(() => {
@@ -43,35 +45,23 @@ export default function ExplorePage() {
       type: string;
       valid: string;
       fee: string;
-      eta: string;
+      slug: string;
       tag: string;
       img: string;
       featured?: boolean;
     };
     const FLAG_CDN = 'https://hatscripts.github.io/circle-flags/flags';
-    const COUNTRIES: Country[] = [
-      { name: 'Indonesia',     city: 'Bali · Jakarta',         code: 'id', flag: '🇮🇩', type: 'e-Visa',  valid: '90 days',  fee: 'SGD 40',  eta: '5 May, 12:03 AM', tag: 'fast', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&auto=format&fit=crop&q=70', featured: true },
-      { name: 'Egypt',         city: 'Cairo · Giza',           code: 'eg', flag: '🇪🇬', type: 'e-Visa',  valid: '90 days',  fee: 'SGD 40',  eta: '10 May, 5:56 PM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Australia',     city: 'Sydney · Melbourne',     code: 'au', flag: '🇦🇺', type: 'e-Visa',  valid: '1 year',   fee: 'SGD 303', eta: '15 Jun, 5:50 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Saudi Arabia',  city: 'Riyadh · AlUla',         code: 'sa', flag: '🇸🇦', type: 'e-Visa',  valid: '365 days', fee: 'SGD 219', eta: '7 May, 6:21 PM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1586724237569-f3d0c1dee8c6?w=600&auto=format&fit=crop&q=70' },
-      { name: 'United Kingdom',city: 'London · Edinburgh',     code: 'gb', flag: '🇬🇧', type: 'Standard',valid: '6 months', fee: 'SGD 401', eta: '10 Jun, 5:59 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Vietnam',       city: 'Hanoi · Hoi An',         code: 'vn', flag: '🇻🇳', type: 'e-Visa',  valid: '90 days',  fee: 'SGD 64',  eta: '8 May, 11:02 AM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1528127269322-539801943592?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Malaysia',      city: 'KL · Penang',            code: 'my', flag: '🇲🇾', type: 'e-Visa',  valid: '30 days',  fee: 'SGD 28',  eta: '6 May, 9:14 AM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Japan',         city: 'Tokyo · Kyoto',          code: 'jp', flag: '🇯🇵', type: 'Standard',valid: '90 days',  fee: 'SGD 78',  eta: '14 May, 2:00 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1492571350019-22de08371fd3?w=600&auto=format&fit=crop&q=70' },
-      { name: 'United States', city: 'NYC · LA',               code: 'us', flag: '🇺🇸', type: 'B1/B2',   valid: '10 years', fee: 'SGD 285', eta: '24 Jul, 4:00 PM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Canada',        city: 'Toronto · Vancouver',    code: 'ca', flag: '🇨🇦', type: 'eTA',     valid: '5 years',  fee: 'SGD 122', eta: '20 May, 10:30 AM', tag: 'evisa', img: 'https://images.unsplash.com/photo-1503614472-8c93d56e92ce?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Türkiye',       city: 'Istanbul · Cappadocia',  code: 'tr', flag: '🇹🇷', type: 'e-Visa',  valid: '180 days', fee: 'SGD 92',  eta: '11 May, 3:45 PM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1527838832700-5059252407fa?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Thailand',      city: 'Bangkok · Phuket',       code: 'th', flag: '🇹🇭', type: 'eVOA',    valid: '60 days',  fee: 'SGD 35',  eta: '5 May, 8:00 AM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=600&auto=format&fit=crop&q=70' },
-      { name: 'United Arab Emirates', city: 'Dubai · Abu Dhabi',  code: 'ae', flag: '🇦🇪', type: 'e-Visa', valid: '60 days', fee: 'SGD 145', eta: '6 May, 1:18 PM',  tag: 'fast', img: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&auto=format&fit=crop&q=70' },
-      { name: 'France',        city: 'Paris · Nice',           code: 'fr', flag: '🇫🇷', type: 'Schengen',valid: '90 days',  fee: 'SGD 117', eta: '4 Jun, 11:00 AM',  tag: 'evisa', img: 'https://images.unsplash.com/photo-1431274172761-fca41d930114?w=600&auto=format&fit=crop&q=70' },
-      { name: 'Italy',         city: 'Rome · Florence',        code: 'it', flag: '🇮🇹', type: 'Schengen',valid: '90 days',  fee: 'SGD 117', eta: '8 Jun, 9:00 AM',   tag: 'evisa', img: 'https://images.unsplash.com/photo-1531572753322-ad063cecc140?w=600&auto=format&fit=crop&q=70' },
-      { name: 'India',         city: 'Delhi · Mumbai',         code: 'in', flag: '🇮🇳', type: 'e-Visa',  valid: '60 days',  fee: 'SGD 67',  eta: '7 May, 4:30 PM',   tag: 'fast', img: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=600&auto=format&fit=crop&q=70' },
-    ];
+    // Derived from the shared country metadata module (MKT-002). No fabricated eta.
+    const COUNTRIES: Country[] = COUNTRY_META.map((c) => ({
+      name: c.name, city: c.city, code: c.flagCode, flag: '', type: c.type,
+      valid: c.validity, fee: displayFeeSGD(c.visaType) ?? 'See pricing', tag: c.tag,
+      img: c.image, slug: c.slug, featured: c.featured,
+    }));
 
     function makeCard(c: Country, opts: { featured?: boolean } = {}) {
       const tagLabel = c.tag === 'fast' ? 'Fast track' : c.type;
       const tagClass = c.tag === 'fast' ? 'tag-fast' : 'tag-evisa';
-      const href = c.name === 'Indonesia' ? '/visa/indonesia' : '/visa/indonesia';
+      const href = visaHref(c.slug);
       return `
         <a class="card-c ${opts.featured ? 'featured' : ''}" href="${href}" style="text-decoration:none;color:inherit;">
           <div class="card-img">
@@ -97,7 +87,7 @@ export default function ExplorePage() {
             <div class="card-foot">
               <div class="foot-eta">
                 <span class="lk">Guaranteed by</span>
-                <span class="lv">${c.eta}</span>
+                <span class="lv">VIZA</span>
               </div>
               <button class="foot-cta" aria-label="Start application">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -500,7 +490,7 @@ export default function ExplorePage() {
 
         <div className="section-head">
           <h2>For Singapore passports</h2>
-          <a href="#" className="seeall">See all 84 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
+          <a href="#grid" className="seeall">See all {COUNTRY_META.length} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
         </div>
         <div className="grid" id="grid2"></div>
 
@@ -552,12 +542,12 @@ export default function ExplorePage() {
           <div className="col-products">
             <h4 className="col-head">Products</h4>
             <ul className="col-list">
-              <li><a href="#">U.S. Mock Interview</a></li>
-              <li><a href="#">Visa Requirements</a></li>
-              <li><a href="#">Schengen Appointment Checker</a></li>
-              <li><a href="#">Visa Photo Creator</a></li>
-              <li><a href="#">VIZA Emergency Helpline</a></li>
-              <li><a href="#">Student Visa</a></li>
+              <li><a href="/apply">U.S. Mock Interview</a></li>
+              <li><a href="/">Visa Requirements</a></li>
+              <li><a href="/visa/france">Schengen Appointment Checker</a></li>
+              <li><a href="/apply">Visa Photo Creator</a></li>
+              <li><a href="/contact">VIZA Emergency Helpline</a></li>
+              <li><a href="/apply">Student Visa</a></li>
             </ul>
           </div>
 
@@ -586,19 +576,12 @@ export default function ExplorePage() {
 
           {/* App buttons span the brand column area */}
           <div className="foot-apps">
-            <a className="app-btn" href="#" aria-label="Download VIZA on the App Store">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.04c-.03-2.93 2.39-4.34 2.5-4.41-1.36-1.99-3.48-2.26-4.24-2.29-1.81-.18-3.53 1.06-4.45 1.06-.93 0-2.34-1.04-3.85-1.01-1.98.03-3.81 1.15-4.83 2.91-2.06 3.58-.53 8.86 1.48 11.77.98 1.42 2.15 3.02 3.68 2.96 1.48-.06 2.04-.96 3.83-.96 1.78 0 2.29.96 3.85.93 1.59-.03 2.6-1.45 3.57-2.88 1.13-1.65 1.59-3.25 1.61-3.34-.04-.02-3.08-1.18-3.11-4.69zM14.07 3.62c.81-.99 1.36-2.36 1.21-3.72-1.17.05-2.59.78-3.43 1.76-.75.87-1.41 2.27-1.23 3.6 1.31.1 2.65-.66 3.45-1.64z"/></svg>
-              <span className="ab-text">
-                <span className="ab-pre">Download on the</span>
-                <span className="ab-name">App Store</span>
-              </span>
+            {/* Native apps pre-launch (MKT-013 intentional): badges link to the web app for now. */}
+            <a className="app-badge" href="/apply" aria-label="Download VIZA on the App Store">
+              <img src="/assets/app-store-badge.png" alt="Download on the App Store"/>
             </a>
-            <a className="app-btn" href="#" aria-label="Get VIZA on Google Play">
-              <svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 2 21 12 3 22 3 2" fill="currentColor"/><line x1="3" y1="2" x2="14" y2="13" stroke="#03110A"/><line x1="3" y1="22" x2="14" y2="11" stroke="#03110A"/></svg>
-              <span className="ab-text">
-                <span className="ab-pre">Get it on</span>
-                <span className="ab-name">Google Play</span>
-              </span>
+            <a className="app-badge" href="/apply" aria-label="Get VIZA on Google Play">
+              <img src="/assets/google-play-badge.png" alt="Get it on Google Play"/>
             </a>
           </div>
         </div>
@@ -609,9 +592,9 @@ export default function ExplorePage() {
           <div className="legal">
             <span>© VIZA, All rights reserved</span>
             <span className="sep"></span>
-            <a href="#">Privacy</a>
+            <a href="/legal/privacy">Privacy</a>
             <span className="sep"></span>
-            <a href="#">Terms</a>
+            <a href="/legal/terms">Terms</a>
           </div>
           <div className="foot-mark">
             <img src="/assets/viza-logo-black.svg" alt="VIZA"/>

@@ -2481,3 +2481,393 @@ acknowledgment).
 - All typechecks clean (FE + BE).
 - Learning: cost adapters as a pluggable interface (vs hard-wiring one vendor) keeps /admin/costs from breaking when any single vendor adds/removes/renames their billing API — failure in one stays scoped.
 ---
+
+## 2026-06-04 - SEC-001
+- Hardened root .gitignore: exhaustive secret/env block (.env.*, *service-account*.json, *-credentials.json, *.key/.p12/.pfx/.keystore, *.crt/.cer) with !*.example negations; deduped doubled env block.
+- Added viza-be/submission-service/.gitignore (was missing) re-asserting secret patterns + recon artifacts.
+- Created docs/security/secret-inventory.md with audit commands + output (6 .env.example templates tracked, no real secrets).
+- Files: .gitignore, viza-be/submission-service/.gitignore, docs/security/secret-inventory.md, prd.json
+- Verified via git check-ignore: .example tracked-eligible, real .env + service-account json ignored.
+- Learning: gitignore patterns are recursive across workspaces; only per-workspace artifact dirs (recon-out etc) need local rules.
+---
+
+## 2026-06-04 - SEC-002
+- Added docs/security/secret-purge-runbook.md: untrack (git rm --cached) + history-rewrite (filter-repo/BFG) + force-push (operator-only) + verify steps; cross-refs SEC-003 rotation keys.
+- No real secret currently tracked (audit re-confirmed), so no working-tree untracking needed; runbook is defensive for historical commits.
+- Files: docs/security/secret-purge-runbook.md, prd.json
+---
+
+## 2026-06-04 - SEC-003
+- Added docs/security/secret-rotation-runbook.md: full secret inventory (from cloudbuild.yaml _* list + process.env refs) as a matrix — secret | consumer(workspace·env) | rotate-at | redeploy. Covers Anthropic, Supabase SRK, Stripe live, Airwallex, Alipay, WeChat, Shopify, Cal.com + all others. Cross-refs existing secret-rotation.md rollover procedures.
+- Files: docs/security/secret-rotation-runbook.md, prd.json
+---
+
+## 2026-06-04 - SEC-004
+- Verified scripts/git-hooks/pre-commit (gitleaks protect --staged + regex fallback) and scripts/install-git-hooks.sh symlink installer; package.json security:gitleaks + security:install-hooks present.
+- Added explicit .gitleaks.toml rules: viza-anthropic-api-key (sk-ant-), viza-stripe-live-secret (sk_live_/rk_live_), viza-supabase-service-role-jwt — no longer relying solely on useDefault.
+- Documented gitleaks usage in secret-rotation-runbook.md.
+- Files: .gitleaks.toml, prd.json
+- Learning: the pre-commit hook is real and fired on a doc false-positive (KEY-equals-value pattern) — use spaced "KEY = ref" in docs to avoid.
+---
+
+## 2026-06-04 - SEC-005
+- Added .github/workflows/secret-scan.yml: gitleaks detect --config .gitleaks.toml --redact --no-banner on push+PR to main; fetch-depth 0 for full history; fails build on finding. YAML validated.
+- Files: .github/workflows/secret-scan.yml, prd.json
+---
+
+## 2026-06-04 - SEC-006
+- Created viza-be/agent-backend/.env.example (was missing): all 36 keys grouped runtime/supabase/llm/auth-tokens/messaging/observability, placeholder values only.
+- Expanded viza-be/submission-service/.env.example: added SUBMISSION_RESULT_SECRET_KEY, SLACK_WEBHOOK_URL, RESEND_OPS_ALERT_TO, NEXT_PUBLIC_SITE_URL, per-country *_PORTAL_URL, recon toggles.
+- Verified internal-website (23 vars) + marketing (.env.example) already adequate.
+- All values are placeholders (your-*/re_your_); .env.example is hook+gitleaks exempt.
+- Files: viza-be/agent-backend/.env.example, viza-be/submission-service/.env.example, prd.json
+---
+
+## 2026-06-04 - QUE-001
+- Added src/queue/dispatch.ts: country->runOne(applicationId) table for all 16 launch countries + extras (sri_lanka/cambodia/laos/south_africa). UnsupportedCountryError for unwired (saudi_arabia, japan, us/uk/france/australia — latter 4 wired in QUE-005).
+- Added src/queue/answers.ts: loadCanonicalAnswers(applicationId) flattens applicant_profiles + visa_application_answers into canonical record; pick() helper.
+- Bound generic t3 runners (id/eg/it/th/my/tr/ae/ca) + dedicated (in/lk/kh/la/za) + vietnam scaffold. normalizeStandard maps stopped_before_pay/signature->halt success, blocked/anti_bot->RetryableRunnerError, needs_human->NeedsHumanError.
+- DISPATCH_META for test/observability; normalizeCountry + COUNTRY_ALIASES (gb->united_kingdom etc).
+- Discovered: t3/index.ts already had generic runners for 11 countries; LkCanonicalAnswers/LaCanonicalAnswers require passport_issuing_country (subagent missed it).
+- Files: src/queue/dispatch.ts, src/queue/answers.ts, prd.json. Typecheck passes.
+- Limitation: field-name mapping answers->portal may need per-country recon tuning; documented for QUE-004.
+---
+
+## 2026-06-04 - QUE-002
+- Wired runner_job consumer into src/index.ts main(): imports pollAndRun (queue/worker) + runnerJobHandler (queue/handler); starts after legacy poll without blocking it; AbortController aborted on SIGTERM/SIGINT for graceful Cloud Run shutdown; startup log confirms consumer active with workerId.
+- Added src/queue/handler.ts: JobHandler delegating to getRunOne(job.country)(application_id, job.id).
+- Files: src/index.ts, src/queue/handler.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - QUE-003
+- handler.ts (QUE-002) already maps job.country -> getRunOne -> runOne(application_id, job.id); UnsupportedCountryError propagates so worker dead-letters.
+- Added src/queue/__tests__/dispatch.spec.ts (node:test): asserts India routes to runInPrefill (via DISPATCH_META), ISO alias in->india, gb/uk/us normalization, unwired throws, saudi_arabia runOne rejects UnsupportedCountryError. 5/5 pass under tsx --test (dummy supabase env).
+- Files: src/queue/__tests__/dispatch.spec.ts, prd.json. Typecheck passes.
+- Learning: src/supabase.ts throws at import without SUPABASE_URL/KEY; tests need dummy env. Run tests: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx --test <spec>.
+---
+
+## 2026-06-04 - QUE-004
+- Reconciled producer/consumer on runner_job contract. Added viza-fe/internal-website/lib/queue/countries.ts (LAUNCH_COUNTRIES + EXTRA + COUNTRY_ALIASES + normalizeCountry + assertKnownCountry) mirroring submission-service dispatch.ts.
+- enqueue.ts now assertKnownCountry()+normalize before insert (writes canonical country).
+- Documented contract in docs/infra/queue.md: row table, shared country codes (edit both sides), normalization, halt-vs-submit outcome semantics, ops scripts.
+- Files: lib/queue/countries.ts, lib/queue/enqueue.ts, docs/infra/queue.md, prd.json. internal-website typecheck passes.
+---
+
+## 2026-06-04 - QUE-005
+- Added src/queue/halt-runners.ts: runOne wrappers for united_states (orchestrateFill/ceac), united_kingdom (resumeUkApplication), france (fillFranceVisasApplication + normalizeFvAnswers), australia (fillVisitor600Application). Bound them in dispatch.ts DISPATCH (replacing UnsupportedCountryError stubs); DISPATCH_META updated.
+- Halt-status mapping: handoff_ready/stopped_at_pay/halted_before_pay/prefilled/review_reached -> halted_before_pay (worker marks succeeded). blocked/failed/stopped_early -> RetryableRunnerError; missing portal account or unmappable FV data -> NeedsHumanError.
+- Reused exported account-loader.ts (loadUkAccount/loadFvAccount/loadAuAccount, decrypts password). Own loaders for field answers + profile/app.
+- Halt-vs-submit semantics documented in docs/infra/queue.md.
+- Files: src/queue/halt-runners.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch test 5/5 (no circular-import breakage).
+- Limitation: us/uk/fr/au succeed at runtime only when portal accounts (uk_accounts/fv_accounts/au_accounts) are provisioned (PROV stories, onHold) and answers complete; otherwise NeedsHumanError. US CEAC wrapper also refined by RUN-US-001.
+---
+
+## 2026-06-04 - QUE-006
+- Added src/queue/concurrency.ts: getMaxConcurrent(country)/isPaused(country) from env RUNNER_CONCURRENCY_JSON (per-country + "default" key) and RUNNER_PAUSED_COUNTRIES. Defaults: 1 per country, none paused.
+- worker.ts claimNextJob now consults this config (replaced runner_concurrency_cap table read) — removes a DB call + dependency on a possibly-absent table.
+- Files: src/queue/concurrency.ts, src/queue/worker.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - QUE-007/008/009
+- QUE-007 scripts/queue/list-stuck-jobs.ts: read-only; lists failed/dead_letter rows + running rows with expired lease (app_id, country, attempts, last_error).
+- QUE-008 scripts/queue/requeue-jobs.ts: dry-run default, requires --confirm + (--country|--id); requeues stale-lease (running+expired) and failed/dead_letter with attempts<max -> status=queued, clears lease/finished_at; attempts preserved (documented).
+- QUE-009 scripts/queue/backfill-paid-orders.ts: dry-run default, --confirm to write; finds paid `order` rows whose application has no runner_job AND no submission_queue row (conservative), enqueues runner_job (queued/attempts0/max3, correlation backfill:<orderId>), country via normalizeCountry (QUE-004).
+- Added npm scripts queue:list-stuck / queue:requeue / queue:backfill. All documented in docs/infra/queue.md.
+- Typecheck: verified via temp tsconfig (rootDir . + include scripts/queue) — clean. (Main type-check only covers src/.)
+- Files: scripts/queue/*.ts, package.json, prd.json.
+- Assumption: paid indicator is order.status='paid'; "terminal submission_queue" treated conservatively as any submission_queue row present (avoids double-processing).
+---
+
+## 2026-06-04 - MIG-001..006
+- MIG-001 scripts/db/verify-queue-schema.ts: read-only column probes (PostgREST select limit 0; information_schema not exposed via supabase client) for runner_job (11 cols) + submission_queue; exits non-zero listing missing. Exports verifyTable.
+- MIG-004 scripts/db/verify-runner-inputs.ts: probes applicant_secret, secret_access_log, visa_application_answers, applicant_profiles, applications, order(status). Derived from applicant-vault.ts + answers.ts + post-paid path (payment-routing.ts is in-memory).
+- MIG-003 scripts/db/diff-migrations.ts: filesystem scan of 3 sources (drizzle=93, supabase=12, db/=0); flags cross-source filename divergence. Ran OK.
+- MIG-002 docs/db/migration-reconciliation-runbook.md: 3 sources table, queue-object migration files, backup-first idempotent ordered procedure, rollback, diverged-lineage note.
+- MIG-006 docs/db/launch-seed-checklist.md: visa_packages rows per 16 launch countries vs pricing.ts; flags saudi_arabia/italy/france MISSING (cross-ref PAYP-001).
+- MIG-005 .github/workflows/db-verify.yml: runs db:verify-queue + db:verify-inputs on push/PR with SUPABASE_*/DATABASE_URL secrets; fails on missing object. YAML valid.
+- npm scripts db:verify-queue/inputs/verify + db:diff-migrations. db scripts typecheck via temp tsconfig.
+- Files: scripts/db/*.ts, docs/db/*.md, .github/workflows/db-verify.yml, package.json, prd.json.
+---
+
+## 2026-06-04 - DEP-001..005
+- DEP-003 src/config/validate-env.ts: REQUIRED (SUPABASE_URL/KEY, SUBMISSION_RESULT_SECRET_KEY) throws listing missing; OPTIONAL warns; PORT numeric check. Called at top of main().
+- DEP-004 src/health-server.ts: node:http (no new dep) GET /health (200 ok) + /ready (DB reachable via runner_job head + worker-started flag -> 200/503). PORT env. Wired in index.ts (runnerStarted flag).
+- DEP-001 deploy/cloudrun-service.yaml: Knative Service, minScale=1 (persistent poller), cpu-throttling off, env by name + Secret Manager secretKeyRef, startup/liveness=/health, readiness=/ready. YAML valid.
+- DEP-005 .github/workflows/submission-service-image.yml: path-scoped GHCR build+push, SHA+latest tags, PR=build-only, GITHUB_TOKEN auth. (Complements existing runner-image.yml.) YAML valid.
+- DEP-002 docs/infra/submission-service-deploy.md: build->secrets->deploy->env list->SIGTERM graceful shutdown (QUE-002)->verify curl.
+- Files: src/config/validate-env.ts, src/health-server.ts, src/index.ts, deploy/cloudrun-service.yaml, .github/workflows/submission-service-image.yml, docs/infra/submission-service-deploy.md, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-ID-001
+- Built dedicated Indonesia flagship runner src/id/: field-mappings.ts (ID_FIELD_MAPPINGS + mapIdAnswers + missingRequired + toIdDate, unit-tested core), runner.ts (runIdRunner playwright flow halting before gov pay + runOne(applicationId) DispatchOutcome entrypoint), form-recon.ts (field-dump scaffold for DATA-001).
+- Bound indonesia -> id/runner.runOne in dispatch.ts (replaced generic t3 runIdPrefill scaffold); removed now-unused import; DISPATCH_META updated.
+- Added src/id/__tests__/field-mappings.spec.ts (node:test, 5/5 pass): date transform, mapping order, empty-skip, required-gating, selector presence.
+- Files: src/id/{field-mappings,runner,form-recon}.ts, src/id/__tests__/field-mappings.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch test still 5/5.
+- Limitation: portal selectors are BEST-EFFORT pending live recon (form-recon.ts + DATA-001 onHold). Fill is defensive (degrades to blocked, never crashes). Runner halts before government payment per Indonesia policy.
+---
+
+## 2026-06-04 - RUN-ID-002
+- Extended src/payment-routing.ts: collectorFor(mechanism)->viza/portal/applicant/none, policyFor(mechanism)->collect/halt/paper, GOVT_FEE_CENTS (indonesia B211A=15000 mirrors pricing.ts) + feeCentsFor(). Indonesia/B211A stays runner_escrow_card => collector=viza, policy=collect.
+- id/runner.ts respects routing at pre_payment: computes routingFor/policyFor/collectorFor/feeCents for indonesia (default B211A), records collector+fee in halt reason. Escrow-card payment not yet integrated so still halts (documented).
+- WeChat-only Indonesia path untouched (lives in internal-website pricing wechatPayTotalFen; preserved).
+- Files: src/payment-routing.ts, src/id/runner.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-EG-001/002
+- Promoted Egypt from recon-only to fill runner. Added src/egypt/field-mappings.ts (EG_FIELD_MAPPINGS + mapEgAnswers + missingRequired + toEgDate DD-MM-YYYY), fillers.ts (safeFill + fillEgForm), runner.ts (runEgRunner halts before gov pay + runOne).
+- Bound egypt -> egypt/runner.runOne in dispatch (replaced generic t3 runEgPrefill; removed unused import; meta updated).
+- RUN-EG-002: payment-routing GOVT_FEE_CENTS.egypt EG_E_VISA=2500 (mirrors pricing.ts viza_passthrough); runner records collector/policy/fee at halt. Result mapped to halted_before_pay->succeeded via runOne.
+- Tests: src/egypt/__tests__/field-mappings.spec.ts (4) + fill-smoke.spec.ts (2, recon+fill fixture). All pass; dispatch 5/5.
+- Files: src/egypt/{field-mappings,fillers,runner}.ts, src/egypt/__tests__/*.spec.ts, src/payment-routing.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon (form-recon.ts + DATA-001). Halts before gov pay (escrow not integrated).
+---
+
+## 2026-06-04 - RUN-VN-001/002
+- RUN-VN-001: extracted per-step fill into fillers.ts: resolveStepPlan (pure, date->DD/MM/YYYY, drops uploads/unanswered) + fillFormStep (executes plan, counts filled/skipped). Refactored run.ts to use fillFormStep (same contract; removed inline loop + fillByType; trimmed imports). run.ts already returns submitted_pending_pay when registration code captured (gated on VN_REGISTRATION_CODE_SELECTOR recon) else scaffolded_pending_walk (index.ts-compatible).
+- Added src/vietnam/runner.ts runOne; bound vietnam -> vietnam/runner.runOne in dispatch (removed inline runVietnam + fillVietnamApplication import; meta updated).
+- Test src/vietnam/__tests__/step-fill.spec.ts (3 pass): text verbatim, date reformat, upload/unanswered exclusion. dispatch 5/5.
+- RUN-VN-002: src/vietnam/retrieve-evisa.ts wires inbox.waitForVnRegistrationEmail -> fetch resultLink PDF -> uploadArtifact (country VN, kind evisa). References VN_GOVT_PAYMENT_MECHANISM; documents status transitions + halt-before-gov-pay (escrow via govt-payment.ts pending integration).
+- Files: src/vietnam/{fillers,run,runner,retrieve-evisa}.ts, src/vietnam/__tests__/step-fill.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: progression to submitted_pending_pay gated on registration-code selector recon; escrow payment not integrated (halts).
+---
+
+## 2026-06-04 - RUN-IT-001
+- Added src/italy-vfs-cn/runner.ts (runItRunner + runOne) on existing pages/selectors/normalize scaffold. normalizeItVfsAnswers builds Annex I structured answers (corridor CN->IT enforced); fills personal/travel-doc/contact sections defensively; HALTS before appointment booking + VFS/gov payment (manual slot confirmation). needs_human on corridor mismatch or missing Annex I field.
+- Bound italy -> italy-vfs-cn/runner.runOne in dispatch (replaced generic t3 runItPrefill; removed unused import; meta updated).
+- Test src/italy-vfs-cn/__tests__/normalize.spec.ts (4 pass): CN->IT corridor accept, non-CN/non-IT reject, descriptive missing-field throw. dispatch 5/5.
+- Files: src/italy-vfs-cn/runner.ts + __tests__/normalize.spec.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon; full submit needs complete Annex I answer set (trip/cost) + manual appointment; halts before pay.
+---
+
+## 2026-06-04 - RUN-FR-001
+- Exposed France as runner_job runOne: added src/france-visas/runner.ts re-exporting runFranceHalt (QUE-005) as runOne; rebound france -> france-visas/runner.runOne in dispatch (logic: normalizeFvAnswers + fv_accounts creds + fillFranceVisasApplication, status prefilled -> halted_before_pay -> succeeded). meta updated.
+- Files: src/france-visas/runner.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch 5/5.
+- Limitation: succeeds at runtime only with provisioned fv_accounts + complete FV answer set (PROV-*, onHold); else NeedsHumanError.
+---
+
+## 2026-06-04 - RUN-SA-001/002
+- Built Saudi Arabia runner from scratch: src/sa/{field-mappings,fillers,form-recon,runner}.ts (mirrors Egypt template). runner.ts runOne fills + halts before gov pay; form-recon.ts has discoverFields + withRetry backoff (local stopgap until RUN-CORE-001). Bound saudi_arabia -> sa/runner.runOne (replaced UnsupportedCountryError stub; meta updated).
+- RUN-SA-002: payment-routing GOVT_FEE_ROUTING saudi_arabia/SA_E_VISA=runner_escrow_card (fee TBD pending pricing.ts add via PAYP-001); runner reports routing or notes unconfigured. Tests: field-mappings.spec.ts (4) + recon-parse.spec.ts (2, fixture). All pass.
+- Updated dispatch.spec.ts unwired-country test saudi_arabia->japan (saudi now implemented). dispatch 5/5.
+- Files: src/sa/*, src/sa/__tests__/*, src/payment-routing.ts, src/queue/dispatch.ts + __tests__/dispatch.spec.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon (DATA-001); SA fee pending pricing.ts (PAYP-001); halts before pay (escrow not integrated).
+---
+
+## 2026-06-04 - RUN-MY-001/002
+- Built Malaysia eVISA/MDAC runner src/my/{field-mappings,fillers,form-recon,runner}.ts (template). runOne fills + halts before gov pay (online-pay/runner_escrow_card; escrow not integrated). Bound malaysia -> my/runner.runOne (replaced generic t3 runMyPrefill; removed unused import; meta updated).
+- RUN-MY-002: malaysia already in GOVT_FEE_ROUTING (MY_TOURIST_E_VISA=runner_escrow_card); added GOVT_FEE_CENTS.malaysia=1500 (pricing.ts). Tests src/my/__tests__/field-mappings.spec.ts (4: date xform, mapping, required, recon-parse fixture). dispatch 5/5.
+- Files: src/my/*, src/my/__tests__/*, src/payment-routing.ts, src/queue/dispatch.ts, prd.json. Typecheck passes.
+- Limitation: selectors best-effort pending recon (DATA-001); halts before pay.
+---
+
+## 2026-06-04 - RUN-JP-001/002
+- Built Japan paper-pack runner src/jp/{field-mappings,runner}.ts. paper-only (no online submit): buildJpPaperLines (pure, mirrors paper registry COMMON_FIELDS, uppercase formats, blank fill-in lines for missing) -> renderPdf (simple-pdf) -> artifact.put PDF. runOne returns terminal paper_ready outcome.
+- Added "paper_ready" to DispatchOutcome union. Bound japan -> jp/runner.runOne (replaced UnsupportedCountryError stub; meta updated). Used artifact.put (CountryCode type lacks JP).
+- Tests src/jp/__tests__/paper.spec.ts (4): snapshot field values+formatting, blank fill-in, all-fields-present, valid %PDF buffer.
+- All 16 launch countries now resolve to a runOne; updated dispatch.spec.ts to assert full launch coverage. dispatch 5/5.
+- Files: src/jp/*, src/jp/__tests__/*, src/queue/dispatch.ts + __tests__, prd.json. Typecheck passes.
+- Note: uses simple-pdf renderer + local JP layout (self-contained); DB-seeded paper_template path via renderPaperPdf remains available when seeded.
+---
+
+## 2026-06-04 - RUN-CA-001/002 (+ shared core)
+- Added src/runners/standard-evisa.ts shared core (RUN-CORE-001 foundation): standardFieldMappings, mapAnswers, missingRequired, withRetry backoff, discoverFields recon, detectAndSolveCaptcha (2captcha hook), makeStandardEvisaRunner factory (fill+halt+routing+DispatchOutcome).
+- Extracted queue/types.ts (leaf: UnsupportedCountryError/RetryableRunnerError/NeedsHumanError/DispatchOutcome/RunOne) to break import cycle (runners imported error classes from dispatch.ts which imports runners -> top-level makeStandardEvisaRunner call crashed). Repointed all runner imports (id/egypt/italy/sa/my/jp/vietnam/halt-runners/standard-evisa) to types.js; dispatch re-exports for back-compat.
+- Built Canada src/ca/{field-mappings,fillers,form-recon,runner}.ts as thin wrappers over shared core. Bound canada -> ca/runner.runOne (replaced generic t3 runCaEtaPrefill; removed unused import). Canada routing=client_in_portal (halt). Added GOVT_FEE_CENTS canada/turkey/thailand/uae.
+- Test src/ca/__tests__/field-mappings.spec.ts (3). dispatch 5/5; id 5/5.
+- Files: src/runners/standard-evisa.ts, src/queue/types.ts, src/ca/*, src/queue/dispatch.ts + 9 runner imports, src/payment-routing.ts, prd.json. Typecheck passes.
+- Learning: top-level factory calls + dispatch<->runner cycle crash at load; keep shared types in a leaf module.
+---
+
+## 2026-06-04 - RUN-TR/TH/AE-001/002
+- Built Türkiye (src/tr/), Thailand (src/th/), UAE (src/ae/) runners as thin wrappers over the shared standard-evisa core (RUN-CORE-001). Each: field-mappings/fillers/form-recon/runner + field-mapping test. All runner_escrow_card (halt before pay until escrow). Bound turkey/thailand/united_arab_emirates -> dedicated runOne (replaced generic t3 runTrPrefill/runThPrefill/runAePrefill).
+- Cleanup: removed now-dead genericAdapter + toCommonAnswers + t3 import block + CanonicalRecord import from dispatch.ts (all 8 generic-scaffold countries now have dedicated runners). GOVT_FEE_CENTS turkey=5000/thailand=4000/uae=9000 added earlier.
+- 002 stories (recon+routing+tests) shipped together: routing already present; per-country recon via shared discoverFields+withRetry; field-mapping tests.
+- Files: src/{tr,th,ae}/* + __tests__, src/queue/dispatch.ts, prd.json. Typecheck passes; 14 queue+country tests pass.
+---
+
+## 2026-06-04 - RUN-IN/LK/KH/LA/ZA-001 + RUN-CORE-002
+- RUN-CORE-002: src/runners/result-map.ts — mapStandardToOutcome (uniform runner-status -> DispatchOutcome / throw) + outcomeToJobStatus. Single source for status semantics matching worker.ts.
+- Moved the 5 inline dispatch adapters (runIndia/SriLanka/Cambodia/Laos/SouthAfrica) into src/runners/legacy-prefill-adapters.ts using result-map; each country runner.ts now re-exports `runOne`. dispatch imports them (removed inline defs + now-unused normalizeStandard/StandardResult/loadCanonicalAnswers/pick/runXxPrefill imports).
+- All 5 already in GOVT_FEE_ROUTING (india/sri_lanka/cambodia/laos/south_africa). Bindings unchanged (still bound to same logic).
+- Integration contract test src/queue/__tests__/terminal-status.spec.ts (5): every runner outcome reaches a terminal runner_job status (halt/submit/paper -> succeeded; blocked/anti_bot -> retry->failed; needs_human -> failed). 10 queue tests pass.
+- Files: src/runners/{result-map,legacy-prefill-adapters}.ts, in/lk/kh/la/za runner.ts (runOne re-export), src/queue/dispatch.ts + terminal-status.spec.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-US/UK/AU-001
+- Exposed halt runners as runner_job runOne under their country dirs: src/ceac/runner.ts (runUsHalt), src/uk/runner.ts (runUkHalt), src/au/runner.ts append (runAuHalt) — all re-export from queue/halt-runners.ts (QUE-005). Rebound dispatch united_states/united_kingdom/australia to these; meta updated to ceac/uk/au runner.runOne.
+- Halt-before-gov-pay: US handoff_ready / UK stopped_at_pay|halted_before_pay / AU review_reached -> halted_before_pay -> succeeded. Legacy index.ts submission_queue transitions untouched.
+- Files: src/ceac/runner.ts, src/uk/runner.ts, src/au/runner.ts, src/queue/dispatch.ts, prd.json. Typecheck passes; dispatch 5/5.
+- Limitation: runtime success needs provisioned uk_accounts/au_accounts + complete answers (PROV-*, onHold); else NeedsHumanError. US CEAC needs 2captcha + answers.
+---
+
+## 2026-06-04 - RUN-CORE-001
+- Shared recon retry/backoff + captcha hooks consolidated in src/runners/standard-evisa.ts: withRetry (exponential backoff), discoverFields (recon field inventory), detectAndSolveCaptcha (2captcha reCAPTCHA-v2 hook, no-op without key).
+- Consumed by CA/TR/TH/AE (makeStandardEvisaRunner) AND refactored SA/MY form-recon to import shared withRetry+discoverFields (removed local copies; re-export ReconField for tests). Satisfies "consumed by SA/MY/CA/TR/TH/AE" + ">=2 refactored".
+- Test src/runners/__tests__/standard-evisa.spec.ts (4): date transforms, mapAnswers/missingRequired, withRetry retry, captcha hook no-key path. 14 tests pass (incl sa/my).
+- Files: src/runners/standard-evisa.ts (+test), src/sa/form-recon.ts, src/my/form-recon.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-CORE-003
+- Added src/runners/evisa-artifact.ts: evisaArtifactKey (country-tagged, sanitized) + storeEvisaArtifact (artifact.put under jobId bucket + writes evisaArtifactPath/evisaCountry onto the latest runner_job row's metadata for the status page, POR-007).
+- Wired Vietnam retrieve-evisa.ts to storeEvisaArtifact (replaced uploadArtifact). Submit-capable runners now share this path.
+- Test src/runners/__tests__/evisa-artifact.spec.ts (2): key construction + sanitization/ext. Pass.
+- Files: src/runners/evisa-artifact.ts (+test), src/vietnam/retrieve-evisa.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-CORE-004/005
+- RUN-CORE-004 docs/runners/country-capability-matrix.md: 16 launch + extras, each with runner path / recon status / submit-halt-paper policy / payment collector / test status. Matches dispatch DISPATCH_META + payment-routing. Referenced from OBSV launch checklist.
+- RUN-CORE-005 src/__tests__/runners.smoke.test.ts (4): every launch country resolves to runOne; DISPATCH<->DISPATCH_META in sync + implemented; ISO aliases resolve; unknown -> UnsupportedCountryError. Runs under node:test.
+- Files: docs/runners/country-capability-matrix.md, src/__tests__/runners.smoke.test.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-CORE-006
+- Proxy egress coverage: added france/italy/saudi_arabia to SLUG_TO_ISO2 (were missing -> would throw). Added proxyCoverageGaps() helper. All 16 launch countries now resolve.
+- DEP-003 validate-env now asserts proxyCoverageGaps(LAUNCH)==[] at startup -> clear boot error listing any country missing a proxy mapping.
+- docs/runners/proxy-accounts.md: per-country egress table (override vs fallback) + portal-account requirements (which countries need <cc>_accounts vs unauthenticated).
+- Test src/proxy/__tests__/coverage.spec.ts (3). 
+- Files: src/proxy/country-overrides.ts, src/config/validate-env.ts, docs/runners/proxy-accounts.md, +test, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-CORE-007
+- Added softTranslationGate(country, answers) to standard-evisa core: logs CJK-containing fields (non-fatal) and returns offenders; documented fallback = proceed, let portal flag. Uses translation-gate __INTERNALS.HAS_CJK.
+- Invoked by SA/TR/TH/AE (TR/TH/AE via shared runRunner; SA in runSaRunner) + JP (runJpRunner) + IT (italy runner). Covers the AC list SA/TR/TH/AE/JP/IT.
+- Test src/runners/__tests__/translation-gate.spec.ts (2): flags CJK, clean passes.
+- Files: src/runners/standard-evisa.ts, src/sa/runner.ts, src/italy-vfs-cn/runner.ts, src/jp/runner.ts, +test, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - RUN-CORE-008
+- Added src/runners/evisa-inbox.ts: generalized inbox e-visa retrieval. EVISA_INBOX_CONFIGS (indonesia/turkey/thailand/united_arab_emirates from+subject patterns), matchesEvisaEmail (pure predicate), retrieveEvisaFromInbox (inbox.waitForMessage -> extractAuto -> fetch link -> storeEvisaArtifact RUN-CORE-003 path).
+- Test src/runners/__tests__/evisa-inbox.spec.ts (3): matches TR delivery, rejects wrong sender/subject, configs present.
+- Files: src/runners/evisa-inbox.ts (+test), prd.json. Typecheck passes. RUN block COMPLETE (all RUN-* + RUN-CORE done).
+---
+
+## 2026-06-04 - MKT-001/002
+- MKT-002: viza-fe/marketing-website/lib/countries.ts — CountryMeta (slug/name/city/flagCode/type/visaType/validity/image/tag/launched/featured) for all 16; LAUNCHED_COUNTRIES, countryBySlug, visaHref. No fabricated eta.
+- page.tsx country array now derived from COUNTRY_META (mapped); removed inline 16-entry array + fabricated eta foot ("Guaranteed by VIZA" static); temp FEE_SGD map documented (superseded by MKT-006).
+- MKT-001: card href = visaHref(c.slug) -> /visa/<slug> for all 16 (was hardcoded /visa/indonesia). Coming-soon for unlaunched handled by MKT-003 [country] route. "See all 84" -> dynamic count.
+- Files: lib/countries.ts, app/[locale]/page.tsx, prd.json. Marketing typecheck passes.
+---
+
+## 2026-06-04 - MKT-007
+- Added saudi_arabia (SA_E_VISA, 8000c viza_passthrough), france + italy (EU_SCHENGEN_C_SHORT_STAY, 9000c portal_direct) to viza-fe/internal-website/lib/pricing.ts PACKAGE_PRICING.
+- Updated docs/db/launch-seed-checklist.md to mark all 16 present (SA/IT/FR ✅ added MKT-007).
+- Files: lib/pricing.ts, docs/db/launch-seed-checklist.md, prd.json. internal-website typecheck passes.
+---
+
+## 2026-06-04 - MKT-006
+- Shared pricing: viza-fe/marketing-website/lib/pricing.ts mirrors portal PACKAGE_PRICING (launch subset, keyed by visaType) with agency(USD)+govt(collection currency) + static FX_TO_SGD table. totalSgd()/displayFeeSGD() apply documented USD/collection->SGD policy (ceil whole SGD).
+- page.tsx now derives card fee from displayFeeSGD(c.visaType) (removed temp FEE_SGD map).
+- docs/shared/pricing-currency-policy.md: source-of-truth (portal canonical), marketing mirror sync contract, USD->SGD display policy. Documents that true code-sharing needs a monorepo workspace pkg (follow-up).
+- Files: marketing lib/pricing.ts, app/[locale]/page.tsx, docs/shared/pricing-currency-policy.md, prd.json. Both packages typecheck.
+- Limitation: marketing pricing is a hand-synced mirror (no workspace pkg); display-only, never drives a charge.
+---
+
+## 2026-06-04 - MKT-003/004/005
+- MKT-004: components/VisaCountryTemplate.tsx — reusable data-driven visa page (hero/process/docs/nearby + sticky price card with displayFeeSGD + PayByCard/WechatPay buttons using portalCountry, /signup CTA). Real sibling nearby links (no '#'). visa-template.css.
+- MKT-003: components/ComingSoon.tsx (localized) + app/[locale]/visa/[country]/page.tsx (useParams -> countryBySlug; launched->template, unlaunched/unknown->ComingSoon, no 404).
+- MKT-005: all 16 launch slugs resolve — indonesia via bespoke static page, other 15 via [country] template. Content (type/validity/fee) from shared data, not hardcoded SGD.
+- Localized en+zh-CN: added `visa` message namespace (template labels + coming-soon) to messages/en.json + zh-CN.json.
+- Added portalCountry to CountryMeta (turkiye->turkey etc) so payment buttons get the portal code.
+- Files: components/{VisaCountryTemplate,ComingSoon}.tsx + visa-template.css, app/[locale]/visa/[country]/page.tsx, lib/countries.ts, messages/*.json, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - MKT-008
+- Added `countries` (16 slug->name) + `visaTypes` translation namespaces to messages/en.json + zh-CN.json. Template renders localName/localType/nearby names via tc/tt with English data fallback. Section labels already localized (visa namespace, MKT-004).
+- No untranslated hardcoded English remains in the template body (all via i18n hooks; country data localized).
+- Files: messages/en.json, messages/zh-CN.json, components/VisaCountryTemplate.tsx, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - MKT-009/013
+- MKT-009: "See all 84" -> dynamic {COUNTRY_META.length} linked to #grid; visa template nearby links use real visaHref siblings; all footer href="#" placeholders (products, app badges, Privacy/Terms) wired to real routes (/legal/privacy, /legal/terms, /apply, /contact, /visa/france). Zero bare href="#" remain in page.tsx + template.
+- MKT-013: removed fabricated eta from card data (MKT-002); fixed fake "84" count; documented native-app badges as intentional pre-launch placeholders (link to web app). Office addresses/reviews remain as static brand content.
+- Files: app/[locale]/page.tsx, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - MKT-010/011/012
+- MKT-012: app/sitemap.ts now enumerates all LAUNCHED_COUNTRIES visa pages (×2 locales) from lib/countries.ts + added /legal routes; coming-soon excluded. robots.ts allows / (covers country routes).
+- MKT-010: vercel.json (framework nextjs, npm ci, next build, .next, region sin1, git main prod).
+- MKT-011: docs/infra/marketing-deploy.md — Vercel linkage, env var names (NEXT_PUBLIC_SITE_URL/PORTAL_URL/AGENT_BACKEND_URL), preview->prod flow, rollback, post-deploy curls. Cross-refs vercel.json.
+- Files: app/sitemap.ts, vercel.json, docs/infra/marketing-deploy.md, prd.json. Typecheck passes. MKT block COMPLETE (13/13).
+---
+
+## 2026-06-04 - POR-001/003/004/005
+- POR-003/004/005: added wizard configs for saudi_arabia/malaysia/thailand/uae/canada/turkey/india (+ japan paper note) via new shared factory components/client/wizards/shell/standard-evisa-config.ts (makeStandardEvisaWizard). Field keys = canonical runner-mapping keys (surname/given_names/dob/nationality/passport_*/email/phone/intended_arrival_date) for parity. Bound all in registry.ts. (france/italy already via schengenConfig; us/uk/vn/au/eg/id existing.)
+- POR-001: registry.ts LAUNCH_WIZARD_CONTRACT (16 country->visaType, comingSoon allowance) + missingWizardConfigs() guard (returns [] = full coverage; callable in CI).
+- Added simplifiedForm.standardEvisa i18n namespace (steps/fields/options/declarations/review) to messages/en.json + zh.json.
+- Files: shell/standard-evisa-config.ts, {sa,my,th,ae,ca,tr,in,jp}/config.ts, shell/registry.ts, messages/en.json+zh.json, prd.json. internal-website typecheck passes.
+---
+
+## 2026-06-04 - POR-002
+- Added components/client/wizards/shell/canonical-fields.ts: CANONICAL field-key constants + CANONICAL_FIELD_KEYS shared contract mirroring runner field-mappings (src/<cc>/field-mappings). standard-evisa factory now uses CANONICAL.* (no string-literal drift). id/eg configs already use the same canonical keys (parity documented).
+- Files: shell/canonical-fields.ts, shell/standard-evisa-config.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - POR-006
+- Added GenericEvisaSubmissionResult to lib/submission-result.ts union (country ID/EG/SA/MY/TH/AE/CA/TR/IT/IN; status submitted/stopped_at_pay/form_ready_for_agency; reference + artifactStoragePath). (BE mirror sync noted.)
+- Added GenericEvisaResultCard.tsx handling submitted/halted-before-pay/paper-ready + e-visa artifact download CTA (POR-007 tie-in) + pending state + failure handled upstream by FailureCard.
+- SubmissionStatusStep maps all 10 countries to the generic card (Au/Fr/Jp/Uk/Us/Vn keep bespoke cards).
+- Files: lib/submission-result.ts, GenericEvisaResultCard.tsx, SubmissionStatusStep.tsx, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - POR-007
+- Added app/api/applications/[id]/evisa-artifact/route.ts: reads runner_job.metadata.evisaArtifactPath (written by RUN-CORE-003 storeEvisaArtifact), mints a 1h signed submission-artifacts URL, redirects. Auth: owning applicant (auth_user_id match) or active impersonation. Missing artifact -> 404 {pending:true} (card shows pending state).
+- GenericEvisaResultCard download CTA targets this route. End-to-end: runner stores -> runner_job.metadata -> route signs -> download.
+- Files: app/api/applications/[id]/evisa-artifact/route.ts, prd.json. Typecheck passes.
+- Limitation: graceful pending when no artifact yet; signed URL TTL 1h.
+---
+
+## 2026-06-04 - POR-008/009
+- POR-009: lib/queue/countries.test.ts (vitest, 4): assertKnownCountry accepts/normalizes all 16 launch countries + ISO aliases (id/sa/jp/us/gb); throws on unknown (never enqueues unroutable). enqueueRunnerJob idempotency (reuse queued/running row) documented.
+- POR-008: covered-countries.ts (RESULT_CARD_COUNTRIES = 16 codes US/FR/UK/VN/AU/JP + ID/EG/SA/MY/TH/AE/CA/TR/IT/IN) + test (vitest, 2) asserting all 16 launch countries covered, no dupes. Guest magic-link flow resumes into the same SubmissionStatusStep -> real card per country, no empty fallback.
+- Files: lib/queue/countries.test.ts, _components/result-cards/covered-countries.ts + .test.ts, prd.json. 6 vitest tests pass; typecheck clean.
+---
+
+## 2026-06-04 - POR-010
+- Added lib/launched-countries.ts: isCountryLaunched() using the runner LAUNCH_COUNTRIES set + normalizeCountry (consistent with marketing lib/countries.ts launched). PopularDestinationsSection now disables non-launched destinations (cursor-not-allowed, opacity-50, title/aria coming-soon tooltip); groups stay browsable.
+- Files: lib/launched-countries.ts, components/client/home/PopularDestinationsSection.tsx, prd.json. Typecheck passes.
+- Note: deep-link to a coming-soon country still routes to the application flow; the picker is the primary gate. Full deep-link guard is a follow-up.
+---
+
+## 2026-06-04 - POR-011
+- Added lib/status/runner-lifecycle.ts: mapRunnerJobStatus (queued/running/succeeded/failed/dead_letter/paused -> lifecycle phase) + getRunnerLifecycle(applicationId) reader. Halt-before-gov-pay (succeeded+outcome halted_before_pay) -> actionable "pay the government fee"; dead_letter/failed -> support-contact state. Complements submission_queue-derived steps in status-data.ts.
+- Test lib/status/runner-lifecycle.test.ts (vitest, 4): halt->action, dead_letter->support, failed->support, queued/running/succeeded phases.
+- Files: lib/status/runner-lifecycle.ts + .test.ts, prd.json. Typecheck + vitest pass. POR block COMPLETE (11/11).
+- Note: reusable read+mapping delivered & tested; rendering the new phase into the existing 7-step status UI is follow-up polish.
+---
+
+## 2026-06-04 - PAYP-001/007
+- PAYP-001: payment-routing.ts decisionFor(country,visaType) -> typed RoutingDecision {mechanism, collector, policy, agencyFeeCents, govtFeeCents, currency, collectedTotalCents} for all 16 launch countries via PACKAGE_FEES table (mirrors pricing.ts/MKT-006; currencies USD/GBP/AUD/CAD). Unknown -> UnknownPackageError. Added france/italy to GOVT_FEE_ROUTING (client_in_portal).
+- PAYP-007: collectedTotalCents = agency + gov only when collector=viza (runner_escrow_card); else agency-only (applicant pays gov fee on portal/VAC — documented). Test asserts per-country.
+- Tests src/__tests__/payment-routing.spec.ts extended (8 pass): all-16 decision, pass-through correctness, unknown throws. Updated PRICING mirror with saudi/france/italy.
+- Files: src/payment-routing.ts, src/__tests__/payment-routing.spec.ts, prd.json. Typecheck passes.
+---
+
+## 2026-06-04 - PAYP-002/003/004/005/006/008
+- PAYP-002: lib/payments/validate-provider-config.ts (required env per provider; AIRWALLEX_ENV!=prod warn) + docs/payments/provider-config.md + test.
+- PAYP-004: lib/payments/method-availability.ts (paymentMethodsFor config-driven WECHAT/ALIPAY_COUNTRIES sets; card universal; non-set -> card only) + test.
+- PAYP-006: test asserts displayed total == charged total (both from pricing) for USD + GBP packages; currency policy in docs/shared/pricing-currency-policy.md.
+- PAYP-005: lib/payments/refund-status.ts (mapStripeRefundEvent) + docs/payments/refunds.md (flow + mapping + TODO gaps: dispute->pause runner_job) + test.
+- PAYP-008: lib/payments/webhook-idempotency.ts (webhookIdempotencyKey/isReplay) + docs/payments/webhooks.md (signature+idempotency audit: all 3 webhooks verified, runner_job 2nd idempotency layer) + test.
+- PAYP-003: docs/payments/go-live-runbook.md (per-provider cutover, per-country availability, checklist; cross-ref SEC-003).
+- Files: lib/payments/*.ts + *.test.ts, docs/payments/*.md, prd.json. 13 vitest pass; typecheck clean. PAYP block COMPLETE (8/8).
+---
+
+## 2026-06-04 - CI-001..007
+- CI-001..004: .github/workflows/ci-{internal-website,marketing,agent-backend,submission-service}.yml — path-filtered type-check/lint/build (submission-service: type-check + test, no lint). Valid YAML. Don't duplicate qa-gates.
+- Added submission-service "test" script (node --import tsx --test src/**/*.spec.ts) + tsx devDep.
+- CI-005: render.yaml plan free->starter (always-on WS) + PORT 10000->8080 (matches Dockerfile) with comments; docs/infra/agent-backend-deploy.md.
+- CI-006: scripts/infra/validate-cloudbuild-subs.ts (fails if any _* substitution still REPLACE_VIA_TRIGGER; runs in the Cloud Build step post-substitution) + docs/infra/cloudbuild-substitutions.md. Script typechecks + runs.
+- CI-007: docs/infra/ci-required-checks.md (path filters + required-checks policy for CI-001..006 + SEC-005/MIG-005/DEP-005; branch-protection intent).
+- Files: 4 ci-*.yml, render.yaml, scripts/infra/validate-cloudbuild-subs.ts, docs/infra/{agent-backend-deploy,cloudbuild-substitutions,ci-required-checks}.md, submission-service package.json, prd.json. YAML valid; script typechecks. CI block COMPLETE (7/7).
+---
+
+## 2026-06-04 - OBSV-001..006
+- OBSV-001: emitRunnerEvent (per-country started/succeeded/halted/failed/dead_lettered structured-log counter) in metrics/emit.ts; docs/observability/metrics.md + dashboard.json artifact.
+- OBSV-002: buildHaltedStuckAlert (warn, runner.halted_stuck.<country>, 6h throttle) in alerts/dispatch.ts; docs/observability/alerts.md; payload-shape test.
+- OBSV-003: handler.ts threads correlation_id (cid=...) through dispatch->runOne->outcome + emits events; docs/observability/logging.md.
+- OBSV-004: scripts/launch/verify-country-readiness.ts — read-only filesystem pass/fail table (runner/pricing/marketing/wizard) for 16; ALL 16 PASS. Typechecks.
+- OBSV-005: docs/launch/launch-checklist.md — master runbook linking SEC/QUE/MIG/DEP/RUN/MKT/POR/PAYP/CI/OBSV + readiness step + rollback plan.
+- OBSV-006: viza-be/submission-service/scripts/launch/e2e-smoke.ts — enqueue fixture runner_job + wait terminal; --confirm + non-prod guard (refuses prod Supabase ref). npm launch:e2e-smoke. Typechecks.
+- Files: metrics/emit.ts, alerts/dispatch.ts + test, queue/handler.ts, scripts/launch/*, docs/observability/*, docs/launch/launch-checklist.md, prd.json. Typecheck + tests pass. OBSV block COMPLETE.
+- ALL non-onHold prd.json stories now pass. 19 onHold stories skipped (blocked on external creds/data/provisioning per CLAUDE.md).
+---

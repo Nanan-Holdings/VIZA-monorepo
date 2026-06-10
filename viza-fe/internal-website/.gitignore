@@ -6,3 +6,4 @@ scripts/.migration-progress.json
 scripts/.env.migration
 scripts/migration-dump/
 scripts/logs/
+.vercel

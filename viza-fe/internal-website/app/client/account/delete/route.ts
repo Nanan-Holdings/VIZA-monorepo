@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   requestAccountDeletion,
   revokeAccountDeletion,
-  AccountRateLimitError,
 } from "@/app/actions/account";
+import { AccountRateLimitError } from "@/lib/account/errors";
 
 export const dynamic = "force-dynamic";
 

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { withAdmin } from "@/lib/auth/with-admin";
 import { buildZip, type ZipEntry } from "@/lib/legal/zip-encoder";
+import { AccountRateLimitError } from "@/lib/account/errors";
 
 /**
  * Account-level data subject actions (LEGAL-004).
@@ -21,15 +22,6 @@ import { buildZip, type ZipEntry } from "@/lib/legal/zip-encoder";
 const EXPORT_RATE_WINDOW_S = 3600; // 1/hour
 const DELETE_REQUEST_RATE_WINDOW_S = 86_400; // 1/day
 const DELETION_GRACE_DAYS = 7;
-
-export class AccountRateLimitError extends Error {
-  constructor(action: string, windowSeconds: number) {
-    super(
-      `Rate limit: ${action} can be requested at most once per ${windowSeconds}s`,
-    );
-    this.name = "AccountRateLimitError";
-  }
-}
 
 async function readForensics() {
   const h = await headers();

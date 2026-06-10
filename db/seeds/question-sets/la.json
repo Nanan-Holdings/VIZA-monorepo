@@ -34,7 +34,7 @@
     },
     {
       "field_name": "passport_number",
-      "label": "Passport Number",
+      "label": "Enter Passport Number",
       "widget_type": "text",
       "required": true,
       "ordinal": 4

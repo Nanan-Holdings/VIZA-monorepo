@@ -42,6 +42,31 @@ const AGENCY_USD = 9900;
  * follow-on per-variant table.
  */
 export const PACKAGE_PRICING: PackagePricing[] = [
+  // MKT-007: launch countries previously missing from pricing.
+  {
+    country: "saudi_arabia",
+    visaType: "SA_E_VISA",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 8000, // ≈ SAR 300 tourist e-visa (ops to revise)
+    currency: "USD",
+    govtFeeChannel: "viza_passthrough",
+  },
+  {
+    country: "france",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000, // ≈ EUR 90 Schengen short-stay; applicant pays at VAC
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+  },
+  {
+    country: "italy",
+    visaType: "EU_SCHENGEN_C_SHORT_STAY",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 9000, // ≈ EUR 90 Schengen short-stay; applicant pays at VFS
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+  },
   // Big Five
   {
     country: "indonesia",

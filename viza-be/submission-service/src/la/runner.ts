@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { brightDataProxy } from "../shared/proxy-launch.js";
 import { artifact } from "../artifact.js";
 import { classifyPage, type LaRunnerError } from "./errors";
 import { LA_SELECTORS } from "./selectors";
@@ -116,12 +117,14 @@ async function safeClick(page: Page, selector: string, label: string): Promise<b
 }
 
 export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
-  const browser: Browser = await chromium.launch({ headless: input.headless ?? true });
+  const proxy = brightDataProxy("la");
+  const browser: Browser = await chromium.launch({ headless: input.headless ?? true, proxy });
   const tempHar = fs.mkdtempSync(path.join(os.tmpdir(), "la-har-"));
   const harPath = path.join(tempHar, `la-${input.jobId}.har`);
   const ctx = await browser.newContext({
     locale: "en-US",
     recordHar: { path: harPath, mode: "minimal" },
+    ignoreHTTPSErrors: Boolean(proxy),
   });
   const page = await ctx.newPage();
   const stepCtx: StepCtx = { page, jobId: input.jobId, artefactPaths: [], attemptCount: 0 };
@@ -229,3 +232,6 @@ export async function runLaPrefill(input: LaRunInput): Promise<LaRunResult> {
     result.artefacts = stepCtx.artefactPaths;
   }
 }
+
+// RUN-LA-001: dispatch runOne. See runners/legacy-prefill-adapters.ts.
+export { runLaos as runOne } from "../runners/legacy-prefill-adapters.js";
