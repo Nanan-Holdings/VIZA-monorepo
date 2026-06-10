@@ -2965,7 +2965,7 @@ function createFeaturedDestinationCards(): TravelDestinationCard[] {
       image_key: normalizeCityKey(city),
       highlights: [
         "featured route",
-        context?.countryZh ?? "destination context",
+        context?.countryZh ?? "travel context",
         "map-ready",
       ],
       suggested_days: context?.days ?? "3-5 days",
@@ -3176,7 +3176,7 @@ function toCoordinate(value: string | number | undefined): number | null {
 }
 
 function getHotspotsForCity(city: string): string[] {
-  const curatedHotspots = getTravelAttractionNamesForCity(city).slice(0, 4);
+  const curatedHotspots = getTravelAttractionNamesForCity(city).slice(0, 10);
   if (curatedHotspots.length) return curatedHotspots;
 
   const key = normalizeCityKey(city);
@@ -6351,8 +6351,8 @@ export function TravelChatClient({
                                               <p className="rounded-md bg-slate-50 px-2 py-1 text-[11px] leading-relaxed text-slate-500">
                                                 {isGeneratedCard
                                                   ? interfaceLocale === "zh"
-                                                    ? "临时文字卡片，图片保持占位图。"
-                                                    : "Temporary text card; image remains a placeholder."
+                                                    ? "正在补充地点资料，图片和地点信息正在更新。"
+                                                    : "Place information is being enriched; imagery and details are updating."
                                                   : interfaceLocale === "zh"
                                                     ? "正在补全图片和景点信息"
                                                     : "Completing images and attraction data"}
