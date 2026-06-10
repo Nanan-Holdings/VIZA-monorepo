@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Bot, Plus, Trash2 } from "lucide-react";
+import { Bot, Loader2, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
@@ -20,6 +20,10 @@ import {
 } from "@/lib/bilingual-schema-contract";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import {
+  useRealtimeBilingualTranslate,
+  type RealtimeTranslationStatus,
+} from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
 
 interface DynamicStepFormProps {
@@ -85,15 +89,6 @@ interface FormHistorySnapshot {
   groupCounts: Record<string, number>;
 }
 
-interface CloudTranslationCandidate {
-  valueKey: string;
-  sourceText: string;
-}
-
-type ApplicationTranslateResponse = {
-  translatedText?: unknown;
-};
-
 type FieldIssueSeverity = "ok" | "warning" | "error";
 
 interface FieldIssue {
@@ -116,8 +111,7 @@ const TEXT_EDITING_INPUT_TYPES = new Set([
   "week",
 ]);
 
-const CLOUD_TRANSLATION_DEBOUNCE_MS = 350;
-const CLOUD_TRANSLATION_CACHE = new Map<string, string>();
+const REALTIME_TRANSLATION_DEBOUNCE_MS = 400;
 
 function isTextEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -153,14 +147,11 @@ function isMachineTranslationSensitiveField(field: VisaFormFieldRow): boolean {
   );
 }
 
-function shouldRequestCloudTranslation(field: VisaFormFieldRow, pair: BilingualTextValue): boolean {
+function canRequestRealtimeTranslation(field: VisaFormFieldRow, pair: BilingualTextValue): boolean {
   const sourceText = pair.zh.trim();
   if (!sourceText || !hasChineseText(sourceText)) return false;
   if (isMachineTranslationSensitiveField(field)) return false;
-  if (pair.en.trim() && !hasChineseText(pair.en)) return false;
-
-  const localEnglish = toOfficialEnglishValue(sourceText).trim();
-  return !localEnglish || hasChineseText(localEnglish);
+  return true;
 }
 
 function normalizeCloudTranslation(value: string, sourceText: string): string | null {
@@ -169,28 +160,6 @@ function normalizeCloudTranslation(value: string, sourceText: string): string | 
   if (translated === sourceText.trim()) return null;
   if (hasChineseText(translated)) return null;
   return translated;
-}
-
-async function requestCloudEnglishTranslation(
-  sourceText: string,
-  signal: AbortSignal,
-): Promise<string | null> {
-  const response = await fetch("/api/translations/field", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text: sourceText,
-      sourceLanguage: "zh-CN",
-      targetLanguage: "en",
-      fieldType: "text",
-    }),
-    signal,
-  });
-
-  if (!response.ok) return null;
-
-  const payload = (await response.json()) as ApplicationTranslateResponse;
-  return typeof payload.translatedText === "string" ? payload.translatedText : null;
 }
 
 function getBilingualPrefillText(
@@ -228,6 +197,108 @@ function getLocalizedPlaceholder(
   fallback: string | null,
 ): string | null {
   return resolveLocalizedPlaceholder(field, side) ?? fallback;
+}
+
+function RealtimeTranslationStatusLine({
+  status,
+  error,
+  isChineseInterface,
+  onRetry,
+}: {
+  status: RealtimeTranslationStatus;
+  error: string | null;
+  isChineseInterface: boolean;
+  onRetry: () => void;
+}) {
+  if (status === "idle" || status === "skipped") return null;
+
+  const isBusy = status === "typing" || status === "translating";
+  const copy = {
+    typing: isChineseInterface ? "正在翻译..." : "Translating...",
+    translating: isChineseInterface ? "正在翻译..." : "Translating...",
+    translated: isChineseInterface ? "已翻译" : "Translated",
+    failed: isChineseInterface ? "翻译失败，可重试" : "Translation failed, retry",
+    user_edited: isChineseInterface ? "已手动编辑，不会自动覆盖" : "Manually edited. Auto translation will not overwrite it.",
+  } satisfies Record<Exclude<RealtimeTranslationStatus, "idle" | "skipped">, string>;
+  const message = copy[status];
+
+  return (
+    <div
+      className={cn(
+        "mt-2 flex min-h-5 flex-wrap items-center gap-2 text-[12px] font-medium",
+        status === "failed" ? "text-red-600" : "text-[#667085]",
+      )}
+      aria-live="polite"
+      data-translation-status={status}
+    >
+      {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+      <span>{message}</span>
+      {status === "failed" && error ? <span className="sr-only">{error}</span> : null}
+      {(status === "failed" || status === "user_edited") ? (
+        <button
+          type="button"
+          className="rounded-md px-1.5 py-0.5 text-[12px] font-semibold text-brand-500 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-500"
+          onClick={onRetry}
+        >
+          {isChineseInterface ? "重新翻译" : "Retranslate"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function DynamicFieldRealtimeTranslation({
+  field,
+  valueKey,
+  pair,
+  enabled,
+  isChineseInterface,
+  targetWasManuallyEdited,
+  onApplyTranslation,
+  onResetManualEdit,
+}: {
+  field: VisaFormFieldRow;
+  valueKey: string;
+  pair: BilingualTextValue;
+  enabled: boolean;
+  isChineseInterface: boolean;
+  targetWasManuallyEdited: boolean;
+  onApplyTranslation: (valueKey: string, sourceText: string, translatedText: string, force: boolean) => void;
+  onResetManualEdit: (valueKey: string) => void;
+}) {
+  const handleTranslatedText = useCallback(
+    (translatedText: string, options: { force: boolean; sourceText: string }) => {
+      onApplyTranslation(valueKey, options.sourceText, translatedText, options.force);
+    },
+    [onApplyTranslation, valueKey],
+  );
+  const handleManualEditReset = useCallback(() => {
+    onResetManualEdit(valueKey);
+  }, [onResetManualEdit, valueKey]);
+
+  const { status, error, retry } = useRealtimeBilingualTranslate({
+    sourceValue: pair.zh,
+    targetValue: pair.en,
+    sourceLang: "zh",
+    targetLang: "en",
+    fieldId: field.fieldName,
+    context: `visa_form:${field.visaType ?? "unknown"}`,
+    enabled,
+    fieldType: field.fieldType,
+    targetWasManuallyEdited,
+    debounceMs: REALTIME_TRANSLATION_DEBOUNCE_MS,
+    onTranslatedText: handleTranslatedText,
+    onManualEditReset: handleManualEditReset,
+  });
+
+  return (
+    <RealtimeTranslationStatusLine
+      status={status}
+      error={error}
+      isChineseInterface={isChineseInterface}
+      onRetry={retry}
+    />
+  );
 }
 
 function buildStrictDate(year: number, month: number, day: number): Date | null {
@@ -804,18 +875,20 @@ export function DynamicStepForm({
     }
     return init;
   });
+  const [manualEnglishValueKeys, setManualEnglishValueKeys] = useState<Record<string, boolean>>({});
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
+  const manualEnglishValueKeysRef = useRef(manualEnglishValueKeys);
   const groupCountsRef = useRef(groupCounts);
   const onDraftChangeRef = useRef(onDraftChange);
   const previousPrefillRef = useRef(prefill);
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
   const redoStackRef = useRef<FormHistorySnapshot[]>([]);
-  const pendingCloudTranslationsRef = useRef(new Set<string>());
 
   valuesRef.current = values;
   textPairsRef.current = textPairs;
+  manualEnglishValueKeysRef.current = manualEnglishValueKeys;
   groupCountsRef.current = groupCounts;
 
   useEffect(() => {
@@ -842,25 +915,37 @@ export function DynamicStepForm({
     redoStackRef.current = [];
   };
 
-  const applyCloudTranslation = useCallback((valueKey: string, sourceText: string, translatedText: string) => {
+  const applyRealtimeTranslation = useCallback((valueKey: string, sourceText: string, translatedText: string, force: boolean) => {
     const normalized = normalizeCloudTranslation(translatedText, sourceText);
     if (!normalized) return;
 
     const currentPair = textPairsRef.current[valueKey];
     if (!currentPair || currentPair.zh.trim() !== sourceText) return;
-    if (currentPair.en.trim() && !hasChineseText(currentPair.en)) return;
+    if (!force && manualEnglishValueKeysRef.current[valueKey] && currentPair.en.trim()) return;
 
     const nextPair = { ...currentPair, en: normalized };
     const nextTextPairs = { ...textPairsRef.current, [valueKey]: nextPair };
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
+    if (force && manualEnglishValueKeysRef.current[valueKey]) {
+      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [valueKey]: false };
+      manualEnglishValueKeysRef.current = nextManualKeys;
+      setManualEnglishValueKeys(nextManualKeys);
+    }
 
     const currentValue = valuesRef.current[valueKey] ?? "";
-    if (!currentValue.trim() || currentValue === currentPair.en || hasChineseText(currentValue)) {
+    if (force || !currentValue.trim() || currentValue === currentPair.en || hasChineseText(currentValue)) {
       const nextValues = { ...valuesRef.current, [valueKey]: normalized };
       valuesRef.current = nextValues;
       setValues(nextValues);
     }
+  }, []);
+
+  const resetManualEnglishValue = useCallback((valueKey: string) => {
+    if (!manualEnglishValueKeysRef.current[valueKey]) return;
+    const nextManualKeys = { ...manualEnglishValueKeysRef.current, [valueKey]: false };
+    manualEnglishValueKeysRef.current = nextManualKeys;
+    setManualEnglishValueKeys(nextManualKeys);
   }, []);
 
   useEffect(() => {
@@ -919,62 +1004,6 @@ export function DynamicStepForm({
   useEffect(() => {
     onDraftChangeRef.current?.(filterCurrentStepValues(step.fields, values, groupCounts));
   }, [groupCounts, step.fields, values]);
-
-  useEffect(() => {
-    const candidates: CloudTranslationCandidate[] = [];
-
-    for (const field of step.fields) {
-      if (!isTextLikeField(field)) continue;
-      const group = getRepeatGroup(field);
-      const valueKeys = group
-        ? Array.from({ length: groupCounts[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
-        : [field.fieldName];
-
-      for (const valueKey of valueKeys) {
-        const pair = textPairs[valueKey];
-        if (pair && shouldRequestCloudTranslation(field, pair)) {
-          candidates.push({ valueKey, sourceText: pair.zh.trim() });
-        }
-      }
-    }
-
-    if (candidates.length === 0) return;
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      for (const candidate of candidates) {
-        const cacheKey = `zh-CN:en:${candidate.sourceText}`;
-        const cached = CLOUD_TRANSLATION_CACHE.get(cacheKey);
-        if (cached) {
-          applyCloudTranslation(candidate.valueKey, candidate.sourceText, cached);
-          continue;
-        }
-
-        if (pendingCloudTranslationsRef.current.has(cacheKey)) continue;
-        pendingCloudTranslationsRef.current.add(cacheKey);
-
-        void requestCloudEnglishTranslation(candidate.sourceText, controller.signal)
-          .then((translatedText) => {
-            if (!translatedText) return;
-            const normalized = normalizeCloudTranslation(translatedText, candidate.sourceText);
-            if (!normalized) return;
-            CLOUD_TRANSLATION_CACHE.set(cacheKey, normalized);
-            applyCloudTranslation(candidate.valueKey, candidate.sourceText, normalized);
-          })
-          .catch(() => {
-            // Translation is a convenience sync; leave local fallback intact.
-          })
-          .finally(() => {
-            pendingCloudTranslationsRef.current.delete(cacheKey);
-          });
-      }
-    }, CLOUD_TRANSLATION_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [applyCloudTranslation, groupCounts, step.fields, textPairs]);
 
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
@@ -1082,12 +1111,23 @@ export function DynamicStepForm({
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
+    const targetWasManuallyEdited = Boolean(manualEnglishValueKeysRef.current[fieldName] && currentPair.en.trim());
     const nextPair = side === "zh"
-      ? { zh: value, en: toOfficialEnglishValue(value) }
+      ? { zh: value, en: targetWasManuallyEdited ? currentPair.en : toOfficialEnglishValue(value) }
       : { zh: toChineseSourceValue(value), en: value };
     if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
 
     pushUndoSnapshot();
+    if (side === "en") {
+      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: Boolean(value.trim()) };
+      manualEnglishValueKeysRef.current = nextManualKeys;
+      setManualEnglishValueKeys(nextManualKeys);
+    } else if (!value.trim()) {
+      const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: false };
+      manualEnglishValueKeysRef.current = nextManualKeys;
+      setManualEnglishValueKeys(nextManualKeys);
+    }
+
     const nextTextPairs = { ...textPairsRef.current, [fieldName]: nextPair };
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
@@ -1288,6 +1328,7 @@ export function DynamicStepForm({
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const isTextLike = isTextLikeField(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
+    const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
 
     const renderSide = (side: BilingualSide) => {
       const sideField: VisaFormFieldRow = {
@@ -1400,29 +1441,43 @@ export function DynamicStepForm({
         </div>
         <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
           <div aria-hidden="true" className="hidden md:block" />
-          <div className="flex items-center justify-end gap-2">
-            {issue.severity !== "ok" && (
-              <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
-                {issue.message}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
-              }}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
-                copilotButtonClasses(),
+          <div className="flex min-w-0 flex-col items-end gap-2">
+            {isTextLike ? (
+              <DynamicFieldRealtimeTranslation
+                field={field}
+                valueKey={valueKey}
+                pair={pair}
+                enabled={!lt24Disabled && canRequestRealtimeTranslation(field, pair)}
+                isChineseInterface={isChineseInterface}
+                targetWasManuallyEdited={targetWasManuallyEdited}
+                onApplyTranslation={applyRealtimeTranslation}
+                onResetManualEdit={resetManualEnglishValue}
+              />
+            ) : null}
+            <div className="flex items-center justify-end gap-2">
+              {issue.severity !== "ok" && (
+                <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
+                  {issue.message}
+                </span>
               )}
-              aria-expanded={panelOpen}
-              aria-label={buttonLabel}
-              data-copilot-trigger={valueKey}
-            >
-              <Bot className="h-3.5 w-3.5" />
-              {buttonLabel}
-            </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActiveGuidanceKey((current) => current === valueKey ? null : valueKey);
+                }}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors",
+                  copilotButtonClasses(),
+                )}
+                aria-expanded={panelOpen}
+                aria-label={buttonLabel}
+                data-copilot-trigger={valueKey}
+              >
+                <Bot className="h-3.5 w-3.5" />
+                {buttonLabel}
+              </button>
+            </div>
           </div>
         </div>
         {panelOpen && (

@@ -4,6 +4,7 @@ export type SubmissionQueueStatus =
   | "done"
   | "failed"
   | "stalled"
+  | "action_required"
   | "ds160_prefill_pending"
   | "ds160_prefill_processing"
   | "ds160_prefilled"
@@ -17,6 +18,10 @@ export type SubmissionQueueStatus =
   | "fv_prefilled"
   | "fv_prefill_failed"
   | "fv_blocked"
+  | "france_live_assisted_pending"
+  | "france_live_processing"
+  | "france_live_official_portal_opened"
+  | "needs_manual_verification"
   | "uk_prefill_pending"
   | "uk_prefill_processing"
   | "uk_prefilled"
@@ -75,6 +80,9 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "ds160_live_assisted_processing",
   "fv_prefill_pending",
   "fv_prefill_processing",
+  "france_live_assisted_pending",
+  "france_live_processing",
+  "france_live_official_portal_opened",
   "uk_prefill_pending",
   "uk_prefill_processing",
   "vn_dry_run_pending",
@@ -90,6 +98,8 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
 export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   ...ACTIVE_SUBMISSION_QUEUE_STATUSES,
   "stalled",
+  "action_required",
+  "needs_manual_verification",
   "failed",
   "ds160_prefill_failed",
   "ds160_live_assisted_failed",
@@ -165,6 +175,9 @@ export function queueStatusForSubmissionMode(
 ): SubmissionQueueStatus {
   if (isDs160VisaType(visaType) && mode === "live_assisted") {
     return "ds160_live_assisted_pending";
+  }
+  if (isFranceVisasVisaType(visaType) && mode === "live_assisted") {
+    return "france_live_assisted_pending";
   }
   return queueStatusForVisaType(visaType);
 }

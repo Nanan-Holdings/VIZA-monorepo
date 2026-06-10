@@ -39,6 +39,8 @@ const REQUIRED_SUBMISSION_QUEUE_COLUMNS = [
   "manual_action_status",
   "review_diff_status",
   "official_application_reference_encrypted",
+  "official_confirmation_page_url",
+  "official_confirmation_pdf_url",
 ];
 
 const REQUIRED_DS160_TABLES = [
@@ -46,6 +48,7 @@ const REQUIRED_DS160_TABLES = [
   "ds160_official_review_snapshots",
   "ds160_review_diffs",
   "ds160_live_manual_actions",
+  "ds160_live_sessions",
 ];
 
 const REQUIRED_FRANCE_TABLES = [
@@ -53,6 +56,12 @@ const REQUIRED_FRANCE_TABLES = [
   "france_live_manual_actions",
   "france_official_review_snapshots",
   "france_review_diffs",
+];
+
+const REQUIRED_GENERIC_SUBMISSION_TABLES = [
+  "submission_manual_actions",
+  "submission_review_snapshots",
+  "submission_review_diffs",
 ];
 
 type CheckStatus = "pass" | "fail" | "warn";
@@ -431,6 +440,14 @@ export async function runVerification(): Promise<boolean> {
         "France live-assisted schema",
         REQUIRED_FRANCE_TABLES,
         "supabase/migrations/20260610_fv_accounts.sql and 20260610_france_live_assisted_controls.sql"
+      )
+    );
+    checks.push(
+      await verifyTables(
+        client,
+        "Generic submission manual action bridge",
+        REQUIRED_GENERIC_SUBMISSION_TABLES,
+        "supabase/migrations/20260610_submission_manual_action_bridge.sql"
       )
     );
     checks.push(

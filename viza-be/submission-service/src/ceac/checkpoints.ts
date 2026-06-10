@@ -104,6 +104,49 @@ export interface CheckpointSink {
   record(checkpoint: CeacCheckpoint): void | Promise<void>;
 }
 
+const UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
+const CEAC_APPLICATION_ID_LOG_PATTERN = new RegExp(
+  `\\b${CEAC_APPLICATION_ID_PATTERN.source}\\b`,
+  "g",
+);
+
+function redactIdentifier(value: string): string {
+  if (value.length <= 8) return "<redacted>";
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function redactSensitiveString(value: string): string {
+  return value
+    .replace(UUID_PATTERN, (match) => redactIdentifier(match))
+    .replace(CEAC_APPLICATION_ID_LOG_PATTERN, (match) => redactIdentifier(match));
+}
+
+function sanitizeCheckpointValue(value: unknown, key?: string): unknown {
+  if (typeof value === "string") {
+    const redacted = redactSensitiveString(value);
+    return key?.toLowerCase().includes("applicationid")
+      ? redactIdentifier(redacted)
+      : redacted;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeCheckpointValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    const sanitized: Record<string, unknown> = {};
+    for (const [childKey, childValue] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      sanitized[childKey] = sanitizeCheckpointValue(childValue, childKey);
+    }
+    return sanitized;
+  }
+
+  return value;
+}
+
 /**
  * Default sink: emits one JSON line per checkpoint to stdout. Greppable,
  * survives log aggregation, and has no external dependencies — a sensible
@@ -111,7 +154,9 @@ export interface CheckpointSink {
  */
 export const consoleCheckpointSink: CheckpointSink = {
   record(cp: CeacCheckpoint): void {
-    console.log(JSON.stringify({ event: "ceac.checkpoint", ...cp }));
+    console.log(
+      JSON.stringify(sanitizeCheckpointValue({ event: "ceac.checkpoint", ...cp })),
+    );
   },
 };
 

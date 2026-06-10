@@ -4,7 +4,7 @@ export {
   listCountrySubmissionProviders,
   runDryRunSubmission,
 } from "./registry";
-export { buildCountrySubmissionApplication } from "./from-records";
+export { applyVietnamAnswerAliases, buildCountrySubmissionApplication } from "./from-records";
 export type {
   CountrySubmissionApplication,
   CountrySubmissionProvider,

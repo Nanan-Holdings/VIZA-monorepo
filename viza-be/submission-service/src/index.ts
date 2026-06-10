@@ -39,6 +39,7 @@ import {
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed, markSubmissionStalled, setSubmissionStatus } from "./result-writer";
 import {
+  applyVietnamAnswerAliases,
   buildCountrySubmissionApplication,
   runDryRunSubmission,
 } from "./country-submissions";
@@ -117,6 +118,8 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "ds160_live_assisted_processing",
   "fv_prefill_pending",
   "fv_prefill_processing",
+  "france_live_assisted_pending",
+  "france_live_processing",
   "uk_prefill_pending",
   "uk_prefill_processing",
   "vn_dry_run_pending",
@@ -141,7 +144,9 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
   return (
     item.mode === "live_assisted" ||
     item.status.startsWith("ds160_live_assisted_") ||
+    item.status.startsWith("france_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
+    item.provider === "france_visas_live" ||
     item.provider === "vietnam_evisa_live"
   );
 }
@@ -175,6 +180,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "ds160_prefill_pending",
       "ds160_live_assisted_pending",
       "fv_prefill_pending",
+      "france_live_assisted_pending",
       "uk_prefill_pending",
       "vn_dry_run_pending",
       "vn_live_assisted_pending",
@@ -192,7 +198,7 @@ function isDs160Job(item: SubmissionQueueItem): boolean {
 }
 
 function isFvJob(item: SubmissionQueueItem): boolean {
-  return item.status === "fv_prefill_pending";
+  return item.status === "fv_prefill_pending" || item.status === "france_live_assisted_pending";
 }
 
 function isUkJob(item: SubmissionQueueItem): boolean {
@@ -281,12 +287,12 @@ async function normalizeVietnamQueueItem(item: SubmissionQueueItem): Promise<Sub
     })
     .eq("id", item.id);
   if (error) {
-    console.error(`[vn] Failed to normalize legacy queue ${item.id}: ${error.message}`);
+    console.error(`[vn] Failed to normalize legacy queue ${redactIdentifier(item.id)}: ${error.message}`);
     return item;
   }
 
   console.warn(
-    `[vn] Normalized legacy Vietnam queue ${item.id} from status=${item.status} mode=${item.mode ?? "(null)"} provider=${item.provider ?? "(null)"} to ${expectedStatus}`,
+    `[vn] Normalized legacy Vietnam queue ${redactIdentifier(item.id)} from status=${item.status} mode=${item.mode ?? "(null)"} provider=${item.provider ?? "(null)"} to ${expectedStatus}`,
   );
   return {
     ...item,
@@ -545,7 +551,7 @@ async function submitApplication(
       console.warn("[playwright] Could not extract confirmation number from success page");
     }
 
-    console.log(`[playwright] Submission successful — confirmation: ${confirmationNumber}`);
+    console.log("[playwright] Submission successful — confirmation captured.");
     return confirmationNumber;
   } finally {
     await browser.close();
@@ -820,6 +826,105 @@ function buildFranceActionRequiredResult(
     implementationStatus: "implemented",
     message,
   };
+}
+
+type FranceManualActionType =
+  | "captcha_required"
+  | "login_required"
+  | "email_verification_required"
+  | "official_review_required"
+  | "final_validation_required"
+  | "payment_required"
+  | "appointment_required"
+  | "provider_handoff_required"
+  | "layout_changed"
+  | "official_portal_error";
+
+function redactManualActionMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactManualActionMetadata);
+  if (typeof value !== "object" || value === null) return value;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (/answer|captcha|password|cookie|token|secret|passport|reference/i.test(key)) {
+      out[key] = "<redacted>";
+    } else {
+      out[key] = redactManualActionMetadata(nested);
+    }
+  }
+  return out;
+}
+
+function franceManualActionTypeFromError(error: unknown): FranceManualActionType {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/captcha|gate|anti[- ]?bot/i.test(message)) return "captcha_required";
+  if (/login|sign.?in|session/i.test(message)) return "login_required";
+  if (/email|mail|verification/i.test(message)) return "email_verification_required";
+  if (/review|diff|mismatch/i.test(message)) return "official_review_required";
+  if (/payment|pay/i.test(message)) return "payment_required";
+  if (/appointment|booking|vac|vfs|tls|capago/i.test(message)) return "appointment_required";
+  if (/layout|selector|unknown page/i.test(message)) return "layout_changed";
+  return "official_portal_error";
+}
+
+async function createFranceManualAction(input: {
+  item: SubmissionQueueItem;
+  actionType: FranceManualActionType;
+  instruction: string;
+  metadata?: Record<string, unknown>;
+  userId?: string | null;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  const metadata = redactManualActionMetadata(input.metadata ?? {}) as Record<string, unknown>;
+  const userId = input.userId ?? input.item.user_id ?? null;
+
+  const genericPayload = {
+    submission_queue_id: input.item.id,
+    application_id: input.item.application_id,
+    user_id: userId,
+    country: "france",
+    action_type: input.actionType,
+    status: "pending",
+    instruction: input.instruction,
+    screenshot_url: null,
+    metadata,
+    created_at: now,
+  };
+
+  const { error: genericError } = await supabase
+    .from("submission_manual_actions")
+    .insert(genericPayload);
+
+  if (!genericError) return;
+
+  const genericMessage = genericError.message.toLowerCase();
+  const genericMissing =
+    genericError.code === "PGRST204" ||
+    genericMessage.includes("schema cache") ||
+    genericMessage.includes("does not exist") ||
+    genericMessage.includes("submission_manual_actions");
+  if (!genericMissing) {
+    console.warn(`[fv] Failed to create generic manual action for ${input.item.id}: ${genericError.message}`);
+    return;
+  }
+
+  const { error: franceError } = await supabase
+    .from("france_live_manual_actions")
+    .insert({
+      job_id: input.item.id,
+      application_id: input.item.application_id,
+      user_id: userId,
+      action_type: input.actionType,
+      status: "pending",
+      instruction: input.instruction,
+      screenshot_url: null,
+      redacted_metadata_json: metadata,
+      created_at: now,
+    });
+
+  if (franceError) {
+    console.warn(`[fv] Failed to create France manual action for ${input.item.id}: ${franceError.message}`);
+  }
 }
 
 async function processDs160LiveConfigBlockedItem(
@@ -1162,15 +1267,99 @@ async function processDs160Item(
 
 // ─── France-Visas autofill ──────────────────────────────────────────────────
 
-async function loadFvAccount(applicantId: string): Promise<FvAccount | null> {
-  const { data, error } = await supabase
-    .from("fv_accounts")
-    .select("*")
-    .eq("applicant_id", applicantId)
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(`Failed to load fv_accounts: ${error.message}`);
-  return (data ?? null) as FvAccount | null;
+function isMissingFvAccountColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("column fv_accounts.") ||
+    message.includes("could not find the") ||
+    message.includes("schema cache")
+  );
+}
+
+function normalizeFvAccountRow(row: Record<string, unknown> | null): FvAccount | null {
+  if (!row) return null;
+
+  const rawEmail = typeof row.email === "string" ? row.email : null;
+  const rawPassword = typeof row.password_encrypted === "string" ? row.password_encrypted : null;
+  let officialEmail: string | null = null;
+  let officialPassword: string | null = null;
+
+  try {
+    officialEmail =
+      typeof row.official_account_email_encrypted === "string"
+        ? decryptSecret(row.official_account_email_encrypted)
+        : null;
+    officialPassword =
+      typeof row.official_account_password_encrypted === "string"
+        ? decryptSecret(row.official_account_password_encrypted)
+        : null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[fv] Could not decrypt fv_accounts credentials; manual login required: ${message}`);
+  }
+
+  const email = rawEmail ?? officialEmail;
+  const passwordEncrypted = rawPassword ?? officialPassword;
+
+  if (!email || !passwordEncrypted || typeof row.id !== "string") return null;
+
+  return {
+    id: row.id,
+    applicant_id: typeof row.applicant_id === "string" ? row.applicant_id : null,
+    application_id: typeof row.application_id === "string" ? row.application_id : null,
+    submission_queue_id: typeof row.submission_queue_id === "string" ? row.submission_queue_id : null,
+    user_id: typeof row.user_id === "string" ? row.user_id : null,
+    email,
+    password_encrypted: passwordEncrypted,
+    official_account_email_encrypted:
+      typeof row.official_account_email_encrypted === "string"
+        ? row.official_account_email_encrypted
+        : null,
+    official_account_password_encrypted:
+      typeof row.official_account_password_encrypted === "string"
+        ? row.official_account_password_encrypted
+        : null,
+    storage_state_json:
+      typeof row.storage_state_json === "object" && row.storage_state_json !== null
+        ? (row.storage_state_json as Record<string, unknown>)
+        : null,
+    last_authenticated_at:
+      typeof row.last_authenticated_at === "string" ? row.last_authenticated_at : null,
+    created_at: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+    updated_at: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString(),
+  };
+}
+
+async function loadFvAccount(
+  applicantId: string,
+  applicationId: string,
+  queueId: string,
+): Promise<FvAccount | null> {
+  const lookups: Array<{ column: string; value: string }> = [
+    { column: "applicant_id", value: applicantId },
+    { column: "application_id", value: applicationId },
+    { column: "submission_queue_id", value: queueId },
+  ];
+
+  for (const lookup of lookups) {
+    const { data, error } = await supabase
+      .from("fv_accounts")
+      .select("*")
+      .eq(lookup.column, lookup.value)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingFvAccountColumnError(error)) continue;
+      throw new Error(`Failed to load fv_accounts: ${error.message}`);
+    }
+
+    const account = normalizeFvAccountRow((data ?? null) as Record<string, unknown> | null);
+    if (account) return account;
+  }
+
+  return null;
 }
 
 async function loadRawAnswers(applicationId: string): Promise<VisaApplicationAnswer[]> {
@@ -1198,7 +1387,9 @@ async function processFvConfigBlockedItem(
   item: SubmissionQueueItem,
   reason: string,
 ): Promise<void> {
-  console.warn(`[fv] Live assisted blocked for ${item.application_id}: ${reason}`);
+  console.warn(
+    `[fv] Live assisted blocked for application=${redactIdentifier(item.application_id)}: ${reason}`,
+  );
 
   await supabase
     .from("submission_queue")
@@ -1236,16 +1427,21 @@ async function processFvItem(
   item: SubmissionQueueItem,
   config: FranceSubmissionConfig,
 ): Promise<void> {
-  const runId = `fv-${item.application_id}-${Date.now()}`;
-  console.log(`[fv] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const runId = createRunId("fv");
+  console.log(
+    `[fv] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
   const liveAssisted = isLiveAssistedQueueItem(item);
 
   await supabase
     .from("submission_queue")
     .update({
-      status: "fv_prefill_processing",
+      status: liveAssisted ? "france_live_processing" : "fv_prefill_processing",
       mode: liveAssisted ? "live_assisted" : "dry_run",
       provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
+      manual_action_status: liveAssisted ? null : undefined,
+      live_started_at: liveAssisted ? new Date().toISOString() : undefined,
+      live_checkpoint: liveAssisted ? null : undefined,
       updated_at: new Date().toISOString(),
     })
     .eq("id", item.id);
@@ -1254,8 +1450,42 @@ async function processFvItem(
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
 
-    const account = await loadFvAccount(application.applicant_id);
+    const account = await loadFvAccount(application.applicant_id, item.application_id, item.id);
     if (!account) {
+      if (liveAssisted) {
+        const instruction =
+          "France-Visas login is required before VIZA can continue. Add or confirm the official France-Visas account for this application, or log in manually on the official site when prompted, then click continue.";
+        await createFranceManualAction({
+          item,
+          actionType: "login_required",
+          instruction,
+          userId: profile.auth_user_id,
+          metadata: {
+            reason: "fv_account_missing",
+          },
+        });
+        await supabase
+          .from("submission_queue")
+          .update({
+            status: "action_required",
+            mode: "live_assisted",
+            provider: "france_visas_live",
+            manual_action_status: "pending",
+            live_checkpoint: "login_required",
+            official_status: "manual_action_required",
+            error_code: "france_visas_login_required",
+            error_message: "France-Visas account is missing for this applicant.",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+        await writeSubmissionResult(
+          item.application_id,
+          buildFranceActionRequiredResult(item.application_id, "login_required", instruction),
+          "action_required",
+        );
+        console.warn(`[fv] Live assisted paused for ${redactIdentifier(item.application_id)}: login_required`);
+        return;
+      }
       throw new Error(`No fv_accounts row for applicant ${application.applicant_id} — register first`);
     }
 
@@ -1293,6 +1523,19 @@ async function processFvItem(
         runId,
         finalize: true,
         stepTimeoutMs: Math.min(config.liveMaxDurationSeconds * 1000, 30 * 60 * 1000),
+        onOfficialPortalOpened: liveAssisted
+          ? async ({ url }) => {
+              await supabase
+                .from("submission_queue")
+                .update({
+                  status: "france_live_official_portal_opened",
+                  official_status: "official_portal_opened",
+                  official_confirmation_url: url,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", item.id);
+            }
+          : undefined,
       },
     );
 
@@ -1318,7 +1561,9 @@ async function processFvItem(
           try { fs.unlinkSync(result.pdfPath); } catch { /* ignore */ }
         } catch (uploadEx) {
           const msg = uploadEx instanceof Error ? uploadEx.message : String(uploadEx);
-          console.warn(`[fv] PDF upload failed for ${item.application_id}: ${msg}`);
+          console.warn(
+            `[fv] PDF upload failed for application=${redactIdentifier(item.application_id)}: ${msg}`,
+          );
           pdfStoragePath = null;
         }
       }
@@ -1396,10 +1641,28 @@ async function processFvItem(
         liveAssisted &&
         (resultErrorCode === "GATE_DETECTED" ||
           /captcha|manual|account creation|email verification|login/i.test(errorMsg));
+      const manualActionType = isManualGateFailure
+        ? franceManualActionTypeFromError(errorMsg)
+        : null;
       const newAttempts = item.attempts + 1;
       const newStatus = isManualGateFailure
-        ? "fv_blocked"
+        ? "action_required"
         : newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending";
+
+      if (manualActionType) {
+        await createFranceManualAction({
+          item,
+          actionType: manualActionType,
+          instruction:
+            "France-Visas requires manual action. Complete the checkpoint in the visible official browser or provide the one-time answer in VIZA, then click continue.",
+          metadata: {
+            failedStep: result.failedStep,
+            errorCode: resultErrorCode,
+            url: result.url,
+          },
+          userId: profile.auth_user_id,
+        });
+      }
 
       await supabase
         .from("submission_queue")
@@ -1410,7 +1673,8 @@ async function processFvItem(
           ...(liveAssisted
             ? {
                 provider: "france_visas_live",
-                manual_action_status: isManualGateFailure ? "open" : "blocked",
+                manual_action_status: isManualGateFailure ? "pending" : "blocked",
+                live_checkpoint: manualActionType,
                 official_status: isManualGateFailure ? "manual_action_required" : "official_portal_error",
                 error_code: isManualGateFailure ? "france_visas_manual_gate" : "france_visas_prefill_failed",
                 error_message: errorMsg,
@@ -1423,13 +1687,13 @@ async function processFvItem(
 
       if (isManualGateFailure) {
         await writeSubmissionResult(
-          item.application_id,
-          buildFranceActionRequiredResult(
             item.application_id,
-            "captcha",
-            "France-Visas requires manual action before VIZA can continue. Complete CAPTCHA, login, or account verification on the official page, then retry live assisted mode.",
-          ),
-          "action_required",
+            buildFranceActionRequiredResult(
+              item.application_id,
+              manualActionType ?? "captcha_required",
+              "France-Visas requires manual action before VIZA can continue. Complete CAPTCHA, login, or account verification on the official page, then retry live assisted mode.",
+            ),
+            "action_required",
         );
       } else if (newAttempts >= MAX_ATTEMPTS) {
         await markSubmissionFailed(item.application_id, errorMsg);
@@ -1441,13 +1705,27 @@ async function processFvItem(
     const errorMsg = err instanceof Error ? err.message : String(err);
     const isNormalizationFailure = err instanceof NormalizationError;
     const isGateFailure = isFvGateError(err);
+    const manualActionType = isGateFailure ? franceManualActionTypeFromError(err) : null;
     const newAttempts = item.attempts + 1;
     // Normalization failures are data errors — don't burn retries on them.
     const newStatus = isNormalizationFailure
       ? "fv_prefill_failed"
       : isGateFailure
-        ? "fv_blocked"
+        ? "action_required"
         : (newAttempts >= MAX_ATTEMPTS ? "fv_prefill_failed" : "fv_prefill_pending");
+
+    if (manualActionType) {
+      await createFranceManualAction({
+        item,
+        actionType: manualActionType,
+        instruction:
+          "France-Visas requires manual action. Complete the checkpoint in the visible official browser or provide the one-time answer in VIZA, then click continue.",
+        metadata: {
+          errorCode: (err as { code?: unknown }).code,
+          context: (err as { context?: unknown }).context,
+        },
+      });
+    }
 
     await supabase
       .from("submission_queue")
@@ -1458,7 +1736,8 @@ async function processFvItem(
         ...(isLiveAssistedQueueItem(item)
           ? {
               provider: "france_visas_live",
-              manual_action_status: isGateFailure ? "open" : "blocked",
+              manual_action_status: isGateFailure ? "pending" : "blocked",
+              live_checkpoint: manualActionType,
               official_status: isGateFailure ? "manual_action_required" : "official_portal_error",
               error_code: isGateFailure
                 ? "france_visas_manual_gate"
@@ -1472,12 +1751,12 @@ async function processFvItem(
       })
       .eq("id", item.id);
 
-    if (newStatus === "fv_blocked" && isLiveAssistedQueueItem(item)) {
+    if (newStatus === "action_required" && isLiveAssistedQueueItem(item)) {
       await writeSubmissionResult(
         item.application_id,
         buildFranceActionRequiredResult(
           item.application_id,
-          "captcha",
+          manualActionType ?? "captcha_required",
           "France-Visas requires manual action before VIZA can continue. Complete CAPTCHA, login, or account verification on the official page, then retry live assisted mode.",
         ),
         "action_required",
@@ -1523,8 +1802,10 @@ function decryptUkPassword(encrypted: string): string {
 }
 
 async function processUkItem(item: SubmissionQueueItem): Promise<void> {
-  const runId = `uk-${item.application_id}-${Date.now()}`;
-  console.log(`[uk] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const runId = createRunId("uk");
+  console.log(
+    `[uk] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
 
   await supabase
     .from("submission_queue")
@@ -1946,14 +2227,16 @@ async function createVietnamManualAction(
       },
     });
   if (error) {
-    console.warn(`[vn] Failed to create manual action for ${item.id}: ${error.message}`);
+    console.warn(`[vn] Failed to create manual action for queue=${redactIdentifier(item.id)}: ${error.message}`);
   }
 }
 
 async function processVnItem(item: SubmissionQueueItem): Promise<void> {
-  const runId = `vn-${item.application_id}-${Date.now()}`;
-  console.log(`[vn] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
   const liveAssisted = item.status !== "vn_dry_run_pending" && item.mode !== "dry_run";
+  const runId = createRunId(liveAssisted ? "vn-live" : "vn-dry");
+  console.log(
+    `[vn] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
   const diagnosticsDir = path.resolve("diag-out", "vn-live", runId);
   const captureTrace = readBooleanEnv("VN_CAPTURE_TRACE", true);
   const captureScreenshot = readBooleanEnv("VN_CAPTURE_SCREENSHOT", true);
@@ -1981,7 +2264,12 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   await setSubmissionStatus(item.application_id, "processing");
 
   try {
-    const answers = await loadDs160Answers(item.application_id);
+    const { profile, application } = await loadApplicantData(item.application_id);
+    const answers = applyVietnamAnswerAliases(
+      await loadDs160Answers(item.application_id),
+      profile,
+      application,
+    );
     const result = await fillVietnamApplication(
       { answers },
       {
@@ -2219,8 +2507,10 @@ function decryptAuSecret(encrypted: string): string {
 // inside ImmiAccount — Subclass 600 lodgement legally requires the
 // applicant's own action; VIZA cannot finalise on their behalf.
 async function processAuItem(item: SubmissionQueueItem): Promise<void> {
-  const runId = `au-${item.application_id}-${Date.now()}`;
-  console.log(`[au] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const runId = createRunId("au");
+  console.log(
+    `[au] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
 
   await supabase
     .from("submission_queue")
@@ -2323,7 +2613,9 @@ async function processAuItem(item: SubmissionQueueItem): Promise<void> {
         }
       } catch (screenshotErr) {
         const msg = screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr);
-        console.warn(`[au] Review screenshot capture failed for ${item.application_id}: ${msg}`);
+        console.warn(
+          `[au] Review screenshot capture failed for application=${redactIdentifier(item.application_id)}: ${msg}`,
+        );
       }
 
       const auPayload: AuSubmissionResult = {
@@ -2348,7 +2640,9 @@ async function processAuItem(item: SubmissionQueueItem): Promise<void> {
         })
         .eq("id", item.id);
 
-      console.log(`[au] Run ${runId} stopped_at_review — trn=${trn || "(none)"}, screenshot=${screenshotStoragePath ?? "(none)"}`);
+      console.log(
+        `[au] Run ${runId} stopped_at_review — trnCaptured=${Boolean(trn)}, screenshotCaptured=${Boolean(screenshotStoragePath)}`,
+      );
       return;
     }
 
@@ -2454,7 +2748,7 @@ async function processDryRunItem(
   source: "global_dry_run" | "legacy_fallback" | "ds160_default_dry_run",
 ): Promise<void> {
   console.log(
-    `[dry-run] Processing ${item.application_id} via ${source} (attempt ${item.attempts + 1})`,
+    `[dry-run] Processing application=${redactIdentifier(item.application_id)} via ${source} (attempt ${item.attempts + 1})`,
   );
 
   await supabase
@@ -2501,11 +2795,11 @@ async function processDryRunItem(
       .eq("id", item.id);
 
     console.log(
-      `[dry-run] ${item.application_id} -> ${result.status} (${result.targetCountry})`,
+      `[dry-run] application=${redactIdentifier(item.application_id)} -> ${result.status} (${result.targetCountry})`,
     );
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[dry-run] Error processing ${item.application_id}:`, errorMsg);
+    console.error(`[dry-run] Error processing application=${redactIdentifier(item.application_id)}:`, errorMsg);
     await incrementFailure(item.id, item.attempts, errorMsg);
     await markSubmissionFailed(item.application_id, errorMsg);
   }
@@ -2519,7 +2813,9 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
     return;
   }
 
-  console.log(`[queue] Processing application ${item.application_id} (attempt ${item.attempts + 1})`);
+  console.log(
+    `[queue] Processing application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
 
   await markProcessing(item.id);
 
@@ -2533,16 +2829,18 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
 
     await updateApplicationSubmitted(item.application_id, confirmationNumber);
     await markDone(item.id);
-    console.log(`[queue] Done — application ${item.application_id}`);
+    console.log(`[queue] Done — application=${redactIdentifier(item.application_id)}`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[queue] Error processing ${item.application_id}:`, errorMsg);
+    console.error(`[queue] Error processing application=${redactIdentifier(item.application_id)}:`, errorMsg);
 
     await incrementFailure(item.id, item.attempts, errorMsg);
 
     const newAttempts = item.attempts + 1;
     if (newAttempts >= MAX_ATTEMPTS) {
-      console.error(`[queue] Max attempts reached for ${item.application_id} — sending alert`);
+      console.error(
+        `[queue] Max attempts reached for application=${redactIdentifier(item.application_id)} — sending alert`,
+      );
       await sendFailureAlert(item.application_id, errorMsg);
     }
   } finally {
@@ -2641,6 +2939,7 @@ async function main(): Promise<void> {
       `finalUserConfirmation=${ds160Config.requireFinalUserConfirmation}`,
       `reviewDiffRequired=${ds160Config.requireOfficialReviewDiffPass}`,
       `headless=${ds160Config.playwrightHeadless}`,
+      `manualStartWait=${process.env.DS160_WAIT_FOR_MANUAL_START_CHECKPOINT === "true" || process.env.DS160_WAIT_FOR_MANUAL_START_CHECKPOINT === "1" ? "on" : "off"}`,
       `secretConfigured=${ds160Config.submissionSecretConfigured}`,
     ].join(" "),
   );
@@ -2648,6 +2947,27 @@ async function main(): Promise<void> {
   const ds160LiveStartError = validateDs160LiveStart(ds160Config);
   if (ds160Config.mode === "live_assisted" && ds160LiveStartError) {
     console.warn(`[main] DS-160 live assisted startup check blocked: ${ds160LiveStartError}`);
+  }
+  const franceConfig = loadFranceSubmissionConfig();
+  console.log(
+    [
+      "[main] France config:",
+      `mode=${franceConfig.mode}`,
+      `liveEnabled=${franceConfig.liveSubmissionEnabled}`,
+      `liveAssistedOnly=${franceConfig.liveAssistedOnly}`,
+      `finalUserConfirmation=${franceConfig.requireFinalUserConfirmation}`,
+      `reviewDiffRequired=${franceConfig.requireOfficialReviewDiffPass}`,
+      `headless=${franceConfig.playwrightHeadless}`,
+      `trace=${franceConfig.captureTrace}`,
+      `screenshot=${franceConfig.captureScreenshot}`,
+      `paymentLive=${franceConfig.paymentLiveEnabled}`,
+      `appointmentLive=${franceConfig.appointmentLiveEnabled}`,
+      `secretConfigured=${franceConfig.officialReferenceEncryptionConfigured}`,
+    ].join(" "),
+  );
+  const franceLiveStartError = validateFranceLiveStart(franceConfig);
+  if (franceConfig.mode === "live_assisted" && franceLiveStartError) {
+    console.warn(`[main] France live assisted startup check blocked: ${franceLiveStartError}`);
   }
 
   // Run immediately on start, then on interval

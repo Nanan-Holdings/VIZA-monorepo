@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -55,6 +55,10 @@ import {
 } from "@/lib/birthplace-options";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import {
+  useRealtimeBilingualTranslate,
+  type RealtimeTranslationStatus,
+} from "@/lib/translation/use-realtime-bilingual-translate";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
@@ -95,7 +99,6 @@ type BilingualProfileField = (typeof BILINGUAL_PROFILE_FIELDS)[number];
 type BilingualProfileColumn = `${BilingualProfileField}_zh` | `${BilingualProfileField}_en`;
 
 const TRANSLATABLE_PROFILE_FIELDS = ["birth_province_or_state", "birth_city", "occupation", "address"] as const;
-type TranslationStatus = "idle" | "translating" | "translated" | "failed" | "manual";
 
 interface BilingualTextValue {
   zh: string;
@@ -772,19 +775,80 @@ function ProfileBilingualRow({
   );
 }
 
-function TranslationHint({ status, isZh }: { status?: TranslationStatus; isZh: boolean }) {
-  if (!status || status === "idle") return null;
-  const message = {
-    translating: copy(isZh, "正在自动翻译...", "Auto translating..."),
-    translated: copy(isZh, "已自动翻译，可继续手动修改英文侧。", "Auto translated. You can still edit the English side."),
-    failed: copy(isZh, "暂时无法自动翻译，请手动填写英文侧。", "Auto translation is unavailable. Please fill the English side manually."),
-    manual: copy(isZh, "英文侧已手动编辑，本次未自动覆盖。", "English side was edited manually, so it was not overwritten."),
-  }[status];
+function TranslationHint({
+  field,
+  value,
+  isZh,
+  enabled,
+  targetWasManuallyEdited,
+  onApplyTranslation,
+  onResetManualEdit,
+}: {
+  field: BilingualProfileField;
+  value: BilingualTextValue;
+  isZh: boolean;
+  enabled: boolean;
+  targetWasManuallyEdited: boolean;
+  onApplyTranslation: (field: BilingualProfileField, sourceText: string, translatedText: string, force: boolean) => void;
+  onResetManualEdit: (field: BilingualProfileField) => void;
+}) {
+  const handleTranslatedText = useCallback(
+    (translatedText: string, options: { force: boolean; sourceText: string }) => {
+      onApplyTranslation(field, options.sourceText, translatedText, options.force);
+    },
+    [field, onApplyTranslation],
+  );
+  const handleManualEditReset = useCallback(() => {
+    onResetManualEdit(field);
+  }, [field, onResetManualEdit]);
+  const { status, error, retry } = useRealtimeBilingualTranslate({
+    sourceValue: value.zh,
+    targetValue: value.en,
+    sourceLang: "zh",
+    targetLang: "en",
+    fieldId: field,
+    context: "universal_profile",
+    fieldType: field === "address" ? "textarea" : "text",
+    enabled,
+    targetWasManuallyEdited,
+    debounceMs: 400,
+    onTranslatedText: handleTranslatedText,
+    onManualEditReset: handleManualEditReset,
+  });
+
+  if (status === "idle" || status === "skipped") return null;
+
+  const messageByStatus = {
+    typing: copy(isZh, "正在翻译...", "Translating..."),
+    translating: copy(isZh, "正在翻译...", "Translating..."),
+    translated: copy(isZh, "已翻译", "Translated"),
+    failed: copy(isZh, "翻译失败，可重试", "Translation failed, retry"),
+    user_edited: copy(isZh, "已手动编辑，不会自动覆盖", "Manually edited. Auto translation will not overwrite it."),
+  } satisfies Record<Exclude<RealtimeTranslationStatus, "idle" | "skipped">, string>;
+  const isBusy = status === "typing" || status === "translating";
 
   return (
-    <p className="text-[12px] font-medium text-[#667085]" aria-live="polite">
-      {message}
-    </p>
+    <div
+      className={cn(
+        "flex min-h-5 flex-wrap items-center gap-2 text-[12px] font-medium",
+        status === "failed" ? "text-red-600" : "text-[#667085]",
+      )}
+      aria-live="polite"
+      data-translation-status={status}
+    >
+      {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+      <span>{messageByStatus[status]}</span>
+      {status === "failed" && error ? <span className="sr-only">{error}</span> : null}
+      {(status === "failed" || status === "user_edited") ? (
+        <button
+          type="button"
+          className="rounded-md px-1.5 py-0.5 text-[12px] font-semibold text-brand-500 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-500"
+          onClick={retry}
+        >
+          {copy(isZh, "重新翻译", "Retranslate")}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -955,8 +1019,9 @@ export default function UniversalInfoPage() {
   const isZh = isChineseLocale(locale);
   const [form, setForm] = useState<UniversalProfileForm>(EMPTY_FORM);
   const [bilingualForm, setBilingualForm] = useState<BilingualProfileState>(EMPTY_BILINGUAL_FORM);
-  const [translationStatus, setTranslationStatus] = useState<Partial<Record<BilingualProfileField, TranslationStatus>>>({});
   const [manualEnglishFields, setManualEnglishFields] = useState<Partial<Record<BilingualProfileField, boolean>>>({});
+  const bilingualFormRef = useRef(bilingualForm);
+  const manualEnglishFieldsRef = useRef(manualEnglishFields);
   const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [shouldFocusPhoneError, setShouldFocusPhoneError] = useState(false);
@@ -968,6 +1033,9 @@ export default function UniversalInfoPage() {
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirtyProfileFields, setDirtyProfileFields] = useState<Set<UniversalProfileDirtyField>>(() => new Set());
+
+  bilingualFormRef.current = bilingualForm;
+  manualEnglishFieldsRef.current = manualEnglishFields;
 
   const completedProfileFieldCount = useMemo(() => {
     return PROFILE_FIELDS.filter((field) => {
@@ -1068,7 +1136,6 @@ export default function UniversalInfoPage() {
       setBilingualForm(viewState.bilingualForm);
       setDirtyProfileFields(new Set());
       setManualEnglishFields({});
-      setTranslationStatus({});
       setIsLoading(false);
     }
 
@@ -1100,10 +1167,66 @@ export default function UniversalInfoPage() {
     });
   }
 
+  const resetManualProfileField = useCallback((field: BilingualProfileField) => {
+    if (!manualEnglishFieldsRef.current[field]) return;
+    const nextManualFields = { ...manualEnglishFieldsRef.current, [field]: false };
+    manualEnglishFieldsRef.current = nextManualFields;
+    setManualEnglishFields(nextManualFields);
+  }, []);
+
+  const applyRealtimeProfileTranslation = useCallback((
+    field: BilingualProfileField,
+    sourceText: string,
+    translatedText: string,
+    force: boolean,
+  ) => {
+    if (!isTranslatableProfileField(field)) return;
+    const normalized = translatedText.replace(/\s+/g, " ").trim();
+    if (!normalized || hasChinese(normalized)) return;
+
+    const currentValue = bilingualFormRef.current[field];
+    if (!currentValue || currentValue.zh.trim() !== sourceText.trim()) return;
+    if (!force && manualEnglishFieldsRef.current[field] && currentValue.en.trim()) return;
+
+    const nextBilingualForm = {
+      ...bilingualFormRef.current,
+      [field]: {
+        ...currentValue,
+        en: normalized,
+      },
+    };
+    bilingualFormRef.current = nextBilingualForm;
+    setBilingualForm(nextBilingualForm);
+
+    const dirtyFields: UniversalProfileDirtyField[] = [
+      field,
+      `${field}_zh` as UniversalProfileDirtyField,
+      `${field}_en` as UniversalProfileDirtyField,
+    ];
+    if (field === "birth_province_or_state" || field === "birth_city") {
+      dirtyFields.push("place_of_birth", "place_of_birth_zh", "place_of_birth_en");
+    }
+    setDirtyProfileFields((current) => {
+      const next = new Set(current);
+      for (const dirtyField of dirtyFields) next.add(dirtyField);
+      return next;
+    });
+
+    if (field === "occupation" || field === "address") {
+      setForm((current) => ({ ...current, [field]: normalized }));
+    }
+
+    if (force) {
+      resetManualProfileField(field);
+    }
+    setMessage(null);
+    setWarning(null);
+    setError(null);
+  }, [resetManualProfileField]);
+
   function setBirthplaceBilingualField(field: "birth_province_or_state" | "birth_city", value: BilingualTextValue) {
     markProfileFieldsDirty(field, `${field}_zh` as UniversalProfileDirtyField, `${field}_en` as UniversalProfileDirtyField);
     setBilingualForm((current) => ({ ...current, [field]: value }));
-    setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
     setMessage(null);
     setWarning(null);
     setError(null);
@@ -1136,11 +1259,6 @@ export default function UniversalInfoPage() {
       birth_city: { zh: "", en: "" },
       place_of_birth: { zh: "", en: "" },
     }));
-    setTranslationStatus((current) => ({
-      ...current,
-      birth_province_or_state: "idle",
-      birth_city: "idle",
-    }));
     setMessage(null);
     setWarning(null);
     setError(null);
@@ -1171,11 +1289,6 @@ export default function UniversalInfoPage() {
       ...current,
       birth_province_or_state: nextBilingualValue,
       birth_city: { zh: "", en: "" },
-    }));
-    setTranslationStatus((current) => ({
-      ...current,
-      birth_province_or_state: "idle",
-      birth_city: "idle",
     }));
     setMessage(null);
     setWarning(null);
@@ -1287,73 +1400,9 @@ export default function UniversalInfoPage() {
       }
       return { ...current, [field]: nextValue.en || nextValue.zh };
     });
-    setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
     setMessage(null);
     setWarning(null);
     setError(null);
-  }
-
-  async function translateBilingualField(field: BilingualProfileField) {
-    if (!isTranslatableProfileField(field)) return;
-    const sourceText = bilingualForm[field].zh.trim();
-    if (!sourceText || !hasChinese(sourceText)) return;
-
-    if (manualEnglishFields[field] && bilingualForm[field].en.trim()) {
-      setTranslationStatus((current) => ({ ...current, [field]: "manual" }));
-      return;
-    }
-
-    setTranslationStatus((current) => ({ ...current, [field]: "translating" }));
-
-    try {
-      const response = await fetch("/api/translations/field", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: sourceText,
-          sourceLanguage: "zh-CN",
-          targetLanguage: "en",
-          fieldType: field,
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as { translatedText?: string } | null;
-      const fallback = toEnglishProfileValue(field, sourceText);
-      const translated = payload?.translatedText?.trim() || fallback;
-
-      if (!response.ok && (!fallback || hasChinese(fallback))) {
-        throw new Error("Translation unavailable");
-      }
-
-      if (!translated || hasChinese(translated)) {
-        setTranslationStatus((current) => ({ ...current, [field]: "failed" }));
-        return;
-      }
-
-      setBilingualForm((current) => ({
-        ...current,
-        [field]: {
-          ...current[field],
-          en: translated,
-        },
-      }));
-      setForm((current) => ({ ...current, [field]: translated }));
-      setTranslationStatus((current) => ({ ...current, [field]: "translated" }));
-    } catch {
-      const fallback = toEnglishProfileValue(field, sourceText);
-      if (fallback && !hasChinese(fallback)) {
-        setBilingualForm((current) => ({
-          ...current,
-          [field]: {
-            ...current[field],
-            en: fallback,
-          },
-        }));
-        setForm((current) => ({ ...current, [field]: fallback }));
-        setTranslationStatus((current) => ({ ...current, [field]: "translated" }));
-        return;
-      }
-      setTranslationStatus((current) => ({ ...current, [field]: "failed" }));
-    }
   }
 
   function applyPassportOcrFields(fields: UniversalProfileSnapshot) {
@@ -1796,7 +1845,17 @@ export default function UniversalInfoPage() {
                       ) : null}
                     </div>
                   }
-                  footer={<TranslationHint status={translationStatus.birth_province_or_state} isZh={isZh} />}
+                  footer={(
+                    <TranslationHint
+                      field="birth_province_or_state"
+                      value={bilingualForm.birth_province_or_state}
+                      isZh={isZh}
+                      enabled={isOtherBirthProvince}
+                      targetWasManuallyEdited={Boolean(manualEnglishFields.birth_province_or_state && bilingualForm.birth_province_or_state.en.trim())}
+                      onApplyTranslation={applyRealtimeProfileTranslation}
+                      onResetManualEdit={resetManualProfileField}
+                    />
+                  )}
                 />
                 <ProfileBilingualRow
                   zhLabel="出生城市"
@@ -1843,7 +1902,17 @@ export default function UniversalInfoPage() {
                       ) : null}
                     </div>
                   }
-                  footer={<TranslationHint status={translationStatus.birth_city} isZh={isZh} />}
+                  footer={(
+                    <TranslationHint
+                      field="birth_city"
+                      value={bilingualForm.birth_city}
+                      isZh={isZh}
+                      enabled={isOtherBirthCity}
+                      targetWasManuallyEdited={Boolean(manualEnglishFields.birth_city && bilingualForm.birth_city.en.trim())}
+                      onApplyTranslation={applyRealtimeProfileTranslation}
+                      onResetManualEdit={resetManualProfileField}
+                    />
+                  )}
                 />
                 <ProfileBilingualRow
                   zhLabel="性别"
@@ -1901,7 +1970,6 @@ export default function UniversalInfoPage() {
                       placeholder="如：软件工程师"
                       icon={<WalletCards className="h-4 w-4 text-gray-400" />}
                       onChange={(value) => updateBilingualField("occupation", "zh", value)}
-                      onBlur={() => void translateBilingualField("occupation")}
                     />
                   }
                   enControl={
@@ -1913,7 +1981,17 @@ export default function UniversalInfoPage() {
                       onChange={(value) => updateBilingualField("occupation", "en", value)}
                     />
                   }
-                  footer={<TranslationHint status={translationStatus.occupation} isZh={isZh} />}
+                  footer={(
+                    <TranslationHint
+                      field="occupation"
+                      value={bilingualForm.occupation}
+                      isZh={isZh}
+                      enabled
+                      targetWasManuallyEdited={Boolean(manualEnglishFields.occupation && bilingualForm.occupation.en.trim())}
+                      onApplyTranslation={applyRealtimeProfileTranslation}
+                      onResetManualEdit={resetManualProfileField}
+                    />
+                  )}
                 />
               </div>
             </section>
@@ -2097,7 +2175,6 @@ export default function UniversalInfoPage() {
                       value={bilingualForm.address.zh}
                       placeholder="例如：北京市朝阳区示例路1号"
                       onChange={(value) => updateBilingualField("address", "zh", value)}
-                      onBlur={() => void translateBilingualField("address")}
                     />
                   }
                   enControl={
@@ -2108,7 +2185,17 @@ export default function UniversalInfoPage() {
                       onChange={(value) => updateBilingualField("address", "en", value)}
                     />
                   }
-                  footer={<TranslationHint status={translationStatus.address} isZh={isZh} />}
+                  footer={(
+                    <TranslationHint
+                      field="address"
+                      value={bilingualForm.address}
+                      isZh={isZh}
+                      enabled
+                      targetWasManuallyEdited={Boolean(manualEnglishFields.address && bilingualForm.address.en.trim())}
+                      onApplyTranslation={applyRealtimeProfileTranslation}
+                      onResetManualEdit={resetManualProfileField}
+                    />
+                  )}
                 />
               </div>
             </section>

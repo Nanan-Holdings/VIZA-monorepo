@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import type {
   GenericSubmissionResult,
   SubmissionResult,
@@ -59,6 +59,14 @@ interface SubmissionStatusSnapshot {
     heartbeatAt?: string | null;
   } | null;
 }
+
+type ManualAction = {
+  id: string;
+  actionType: string;
+  status: string;
+  instruction: string | null;
+  screenshotUrl: string | null;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -138,18 +146,27 @@ function GenericResultCard({
   applicationId,
   applicationCountry,
   applicationVisaType,
+  jobId,
   result,
 }: {
   applicationId: string | null;
   applicationCountry: string | null;
   applicationVisaType: string | null;
+  jobId: string | null;
   result: GenericSubmissionResult;
 }) {
   const isZh = isChineseLocale(useLocale());
   const [startingLive, setStartingLive] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [manualAction, setManualAction] = useState<ManualAction | null>(null);
+  const [manualActionError, setManualActionError] = useState<string | null>(null);
+  const [completingManualAction, setCompletingManualAction] = useState(false);
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
+  const isDs160Action =
+    actionRequired &&
+    result.mode === "live_assisted" &&
+    isDs160VisaType(applicationVisaType ?? result.visaType);
   const ds160LiveEnabled =
     process.env.NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_DS160_SUBMISSION_MODE === "live_assisted";
@@ -189,6 +206,44 @@ function GenericResultCard({
       ? (result.actionInstructions ?? result.message)
       : result.message;
 
+  useEffect(() => {
+    if (!jobId || !isDs160Action) return;
+    let cancelled = false;
+
+    const loadManualActions = async () => {
+      try {
+        const response = await fetch(`/api/submissions/${jobId}/manual-actions`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as {
+          error?: unknown;
+          manualActions?: ManualAction[];
+        } | null;
+        if (!response.ok) {
+          throw new Error(
+            typeof payload?.error === "string"
+              ? payload.error
+              : `Manual actions returned ${response.status}`,
+          );
+        }
+        const pending = payload?.manualActions?.find((action) => action.status === "pending") ?? null;
+        if (!cancelled) {
+          setManualAction(pending);
+          setManualActionError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setManualActionError(error instanceof Error ? error.message : String(error));
+        }
+      }
+    };
+
+    void loadManualActions();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDs160Action, jobId]);
+
   const startLiveAssisted = async () => {
     if (!applicationId || startingLive || !liveTarget) return;
 
@@ -224,6 +279,35 @@ function GenericResultCard({
       setLiveError(error instanceof Error ? error.message : String(error));
     } finally {
       setStartingLive(false);
+    }
+  };
+
+  const completeManualAction = async () => {
+    if (!jobId || !manualAction || completingManualAction) return;
+    setCompletingManualAction(true);
+    setManualActionError(null);
+    try {
+      const response = await fetch(
+        `/api/submissions/${jobId}/manual-actions/${manualAction.id}/complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmed: true }),
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.error === "string"
+            ? payload.error
+            : `Manual action completion returned ${response.status}`,
+        );
+      }
+      window.location.reload();
+    } catch (error) {
+      setManualActionError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCompletingManualAction(false);
     }
   };
 
@@ -307,6 +391,67 @@ function GenericResultCard({
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
               {result.actionType}
             </div>
+          </div>
+        )}
+
+        {isDs160Action && (
+          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+              <div>
+                <div className="text-sm font-medium text-amber-900">
+                  {isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required"}
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-amber-900">
+                  {manualAction?.instruction ??
+                    result.actionInstructions ??
+                    (isZh
+                      ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
+                      : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue.")}
+                </p>
+              </div>
+            </div>
+
+            {manualAction?.screenshotUrl && (
+              <div className="rounded-md border border-amber-200 bg-white px-3 py-2">
+                <div className="text-xs text-amber-700">{isZh ? "安全截图" : "Safe screenshot"}</div>
+                <div className="mt-0.5 break-all font-mono text-xs text-foreground">
+                  {manualAction.screenshotUrl}
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button asChild variant="outline" className="bg-white">
+                <a href="https://ceac.state.gov/genniv/" target="_blank" rel="noopener noreferrer">
+                  {isZh ? "打开 CEAC 官网" : "Open CEAC"}
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+              <Button
+                type="button"
+                onClick={completeManualAction}
+                disabled={!manualAction || completingManualAction}
+              >
+                {completingManualAction ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                )}
+                {isZh ? "我已完成，继续" : "I completed it, continue"}
+              </Button>
+            </div>
+
+            {!jobId && (
+              <p className="text-xs text-amber-800">
+                {isZh
+                  ? "正在同步当前 live job，请稍后刷新状态。"
+                  : "The current live job is still syncing. Refresh this status shortly."}
+              </p>
+            )}
+            {manualActionError && (
+              <p className="text-sm text-red-700">{manualActionError}</p>
+            )}
           </div>
         )}
 
@@ -411,7 +556,7 @@ export function SubmissionStatusStep({
 
   useEffect(() => {
     if (!applicationId) return;
-    if (completedWithResult || actionWithResult || failed) return;
+    if (completedWithResult || failed) return;
 
     let cancelled = false;
     const poll = async () => {
@@ -573,6 +718,7 @@ function renderSubmissionResultCard(
           applicationId={applicationId}
           applicationCountry={country}
           applicationVisaType={visaType}
+          jobId={jobId}
           result={result}
         />
       );

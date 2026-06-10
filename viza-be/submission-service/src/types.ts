@@ -21,6 +21,11 @@ export interface SubmissionQueueItem {
     | "fv_prefilled"
     | "fv_prefill_failed"
     | "fv_blocked"
+    | "france_live_assisted_pending"
+    | "france_live_processing"
+    | "france_live_official_portal_opened"
+    | "action_required"
+    | "needs_manual_verification"
     | "uk_prefill_pending"
     | "uk_prefill_processing"
     | "uk_prefilled"
@@ -55,6 +60,14 @@ export interface SubmissionQueueItem {
   official_account_email_encrypted?: string | null;
   official_receipt_url?: string | null;
   official_cerfa_pdf_url?: string | null;
+  official_confirmation_url?: string | null;
+  official_error_code?: string | null;
+  official_error_message?: string | null;
+  live_started_at?: string | null;
+  live_submitted_at?: string | null;
+  live_checkpoint?: string | null;
+  live_trace_url?: string | null;
+  live_screenshot_url?: string | null;
   official_confirmation_screenshot_url?: string | null;
   official_review_snapshot_id?: string | null;
   review_diff_status?: "not_run" | "passed" | "failed" | string | null;
@@ -178,9 +191,14 @@ export interface ItVfsCnAccount {
  */
 export interface FvAccount {
   id: string;
-  applicant_id: string;
+  applicant_id?: string | null;
+  application_id?: string | null;
+  submission_queue_id?: string | null;
+  user_id?: string | null;
   email: string;
   password_encrypted: string;
+  official_account_email_encrypted?: string | null;
+  official_account_password_encrypted?: string | null;
   storage_state_json: Record<string, unknown> | null;
   last_authenticated_at: string | null;
   created_at: string;

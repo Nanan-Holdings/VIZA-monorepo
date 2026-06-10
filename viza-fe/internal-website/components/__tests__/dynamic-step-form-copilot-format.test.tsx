@@ -451,7 +451,7 @@ describe("DynamicStepForm copilot format", () => {
   it("uses the server translation fallback when local sync leaves Chinese in the English field", async () => {
     const onComplete = vi.fn();
     const fetchMock = vi.fn(async () => new Response(
-      JSON.stringify({ translatedText: "Hengqin, Zhuhai" }),
+      JSON.stringify({ ok: true, translatedText: "Hengqin, Zhuhai" }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -473,18 +473,21 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.change(textboxes[0]!, { target: { value: "珠海横琴" } });
     expect(screen.getAllByDisplayValue("珠海横琴")).toHaveLength(2);
+    expect(screen.getByText("正在翻译...")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("Hengqin, Zhuhai")).toBeInTheDocument();
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/translations/field",
+      "/api/translate",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
           text: "珠海横琴",
-          sourceLanguage: "zh-CN",
-          targetLanguage: "en",
+          source: "zh",
+          target: "en",
+          fieldId: "city_of_birth",
+          context: "visa_form:DS160",
           fieldType: "text",
         }),
       }),

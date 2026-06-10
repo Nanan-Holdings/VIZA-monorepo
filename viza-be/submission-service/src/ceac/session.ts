@@ -26,6 +26,11 @@ export interface CeacSessionOptions {
   userAgent?: string;
   /** Optional run identifier for structured logging. */
   runId?: string;
+  /**
+   * When positive, visible live-assisted runs wait for the applicant to
+   * complete the CEAC start-page location/CAPTCHA checkpoint manually.
+   */
+  manualStartWaitMs?: number;
 }
 
 export interface CeacSession {
@@ -126,6 +131,47 @@ export async function startCeacSession(
       ? (await page.locator(captchaSelector).count().catch(() => 0)) > 0
       : false;
     if (captchaPresent || /\/GenNIV\/Default\.aspx/i.test(page.url())) {
+      const manualStartWaitMs = readManualStartWaitMs(options);
+      if (!headless && manualStartWaitMs > 0) {
+        console.warn(
+          `[ceac] Waiting up to ${Math.round(manualStartWaitMs / 1000)}s for applicant to complete CEAC start-page location/CAPTCHA in the visible browser. CAPTCHA-solving APIs are not used.`,
+        );
+        try {
+          await page.waitForURL(
+            (url) => !/\/GenNIV\/Default\.aspx/i.test(url.href),
+            { timeout: manualStartWaitMs },
+          );
+          await page.waitForLoadState("domcontentloaded", { timeout: navigationTimeoutMs }).catch(() => undefined);
+          await assertNoGate(page);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new ManualActionRequiredError(
+            captchaPresent ? "captcha" : "start_application",
+            `CEAC start-page manual checkpoint was not completed within ${Math.round(manualStartWaitMs / 1000)}s. ${message}`,
+            {
+              detected: "start",
+              url: page.url(),
+              details: {
+                runId: options.runId,
+                captchaPresent,
+                checkpoint: "ceac_start",
+                timedOut: true,
+              },
+            },
+          );
+        }
+
+        const session: CeacSession = {
+          browser,
+          context,
+          page,
+          runId: options.runId,
+          close: makeCloser(browser, context),
+        };
+
+        return session;
+      }
+
       throw new ManualActionRequiredError(
         captchaPresent ? "captcha" : "start_application",
         captchaPresent
@@ -214,4 +260,18 @@ function makeCloser(
       // best-effort cleanup
     }
   };
+}
+
+function readManualStartWaitMs(options: CeacSessionOptions): number {
+  if (typeof options.manualStartWaitMs === "number") {
+    return Number.isFinite(options.manualStartWaitMs) ? Math.max(0, options.manualStartWaitMs) : 0;
+  }
+  const enabled = ["1", "true", "yes", "on"].includes(
+    (process.env.DS160_WAIT_FOR_MANUAL_START_CHECKPOINT ?? "").trim().toLowerCase(),
+  );
+  if (!enabled) return 0;
+  const raw = process.env.DS160_MANUAL_START_WAIT_MS?.trim();
+  if (!raw) return 10 * 60 * 1000;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 10 * 60 * 1000;
 }

@@ -13,12 +13,68 @@ interface FailureCardProps {
   onRetry?: (mode: SubmissionMode) => Promise<void> | void;
 }
 
+const VALIDATION_LABELS: Record<string, string> = {
+  "trip.purpose": "旅行目的 / Purpose of travel",
+  "trip.accommodationName": "住宿名称 / Accommodation name",
+  "answers.given_name": "名字 / Given names",
+  "answers.re_enter_email_address": "确认电子邮箱地址 / Re-enter email",
+  "answers.religion": "宗教信仰 / Religion",
+  "answers.has_multiple_nationalities": "是否拥有其他国籍 / Other nationalities",
+  "answers.has_violated_vietnam_laws": "是否曾违反越南法律 / Vietnam law declaration",
+  "answers.visa_type_requested": "申请签证类型 / Visa type requested",
+  "answers.visa_valid_from": "签证生效日期 / Valid from",
+  "answers.visa_valid_to": "签证有效期至 / Valid to",
+  "answers.passport_type": "护照类型 / Passport type",
+  "answers.permanent_residential_address": "永久居住地址 / Permanent address",
+  "answers.contact_address": "联系地址 / Contact address",
+  "answers.telephone_number": "联系电话 / Telephone number",
+  "answers.emergency_contact_full_name": "紧急联系人姓名 / Emergency contact name",
+  "answers.emergency_contact_current_address": "紧急联系人地址 / Emergency contact address",
+  "answers.emergency_contact_telephone": "紧急联系人电话 / Emergency contact phone",
+  "answers.emergency_contact_relationship": "紧急联系人关系 / Emergency contact relationship",
+  "answers.purpose_of_entry": "入境目的 / Purpose of entry",
+  "answers.intended_date_of_entry": "计划入境日期 / Intended entry date",
+  "answers.intended_length_of_stay": "预计停留时间 / Length of stay",
+  "answers.accommodation_name": "住宿名称 / Accommodation name",
+  "answers.residential_address_in_vietnam": "越南住宿地址 / Address in Viet Nam",
+  "answers.intended_province_city": "拟停留省/市 / Province or city",
+  "answers.intended_ward_commune": "拟停留坊/社 / Ward or commune",
+  "answers.intended_border_gate_of_entry": "预计入境口岸 / Entry border gate",
+  "answers.intended_border_gate_of_exit": "预计出境口岸 / Exit border gate",
+  "answers.declaration_temporary_residence": "临时居住申报承诺 / Temporary residence declaration",
+  "answers.visited_vietnam_in_last_year": "过去一年是否到访越南 / Previous Viet Nam visit",
+  "answers.has_relatives_in_vietnam": "是否有亲属在越南 / Relatives in Viet Nam",
+  "answers.final_declaration": "最终声明确认 / Final declaration",
+};
+
+function parseValidationError(errorMessage?: string): { title: string; fields: string[] } | null {
+  if (!errorMessage) return null;
+  const marker = errorMessage.match(/^(Dry-run validation failed|Live-assisted validation failed):\s*(?:missing\s*)?/i);
+  if (!marker) return null;
+  const rawFields = errorMessage
+    .slice(marker[0].length)
+    .replace(/。.*$/u, "")
+    .replace(/请先.*$/u, "")
+    .replace(/\.\s*$/u, "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (rawFields.length === 0) return null;
+  return {
+    title: marker[1]?.toLowerCase().startsWith("live")
+      ? "Live assisted needs more information before it can start."
+      : "Dry-run validation found missing information.",
+    fields: rawFields.map((field) => VALIDATION_LABELS[field] ?? field),
+  };
+}
+
 /**
  * FailureCard — renders when applications.submission_result_status === 'failed'.
  * Surfaces the error and offers a retry that requeues the application.
  */
 export function FailureCard({ applicationId, errorMessage, retryModes, onRetry }: FailureCardProps) {
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
+  const validationError = parseValidationError(errorMessage);
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
@@ -46,8 +102,19 @@ export function FailureCard({ applicationId, errorMessage, retryModes, onRetry }
           The portal returned an error while we were filing your application.
           Your answers are saved — you can retry without re-entering anything.
         </p>
-        {errorMessage && (
-          <pre className="overflow-x-auto rounded-md border border-input bg-muted/50 p-3 text-xs leading-relaxed text-foreground">
+        {validationError ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-medium">{validationError.title}</p>
+            <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+              {validationError.fields.map((field) => (
+                <li key={field} className="rounded-md bg-white/70 px-2 py-1 text-xs leading-relaxed text-foreground">
+                  {field}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : errorMessage && (
+          <pre className="whitespace-pre-wrap break-words rounded-md border border-input bg-muted/50 p-3 text-xs leading-relaxed text-foreground">
             {errorMessage}
           </pre>
         )}

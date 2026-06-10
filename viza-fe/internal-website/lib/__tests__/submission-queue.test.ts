@@ -41,6 +41,9 @@ describe("queueStatusForVisaType", () => {
   });
 
   it("marks France Schengen submissions with the France-Visas provider for each mode", () => {
+    expect(queueStatusForApplication("france", "EU_SCHENGEN_C_SHORT_STAY", "live_assisted")).toBe(
+      "france_live_assisted_pending",
+    );
     expect(queueProviderForVisaType("EU_SCHENGEN_C_SHORT_STAY", "dry_run")).toBe("france_visas_dry_run");
     expect(queueProviderForVisaType("EU_SCHENGEN_C_SHORT_STAY", "live_assisted")).toBe("france_visas_live");
   });

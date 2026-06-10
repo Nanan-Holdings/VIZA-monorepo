@@ -71,8 +71,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Targeted VIZA-only Supabase migration through
   `scripts/migrate-viza-required.ts`.
 - Internal wrapper for the repo env doctor through `scripts/doctor-env.ts`.
-- VIZA-required Supabase migrations under `supabase/migrations/20260610_*` and
-  the SQL Editor bundle under `supabase/manual/viza_required_schema.sql`.
+- VIZA-required Supabase migrations under `supabase/migrations/20260610_*`,
+  including the generic `submission_manual_actions` bridge for official-site
+  checkpoints, and the SQL Editor bundle under
+  `supabase/manual/viza_required_schema.sql`.
 
 ## Source Of Truth
 
