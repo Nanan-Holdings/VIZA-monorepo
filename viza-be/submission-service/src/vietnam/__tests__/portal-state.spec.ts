@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   classifyVietnamPortalSnapshot,
+  checkpointForVietnamPortalState,
   extractVietnamRegistrationCode,
   type VietnamPortalSnapshot,
 } from "../portal-state";
@@ -25,6 +26,7 @@ function snapshot(overrides: Partial<VietnamPortalSnapshot>): VietnamPortalSnaps
     hasPassportUpload: false,
     hasPortraitUpload: false,
     hasPayment: false,
+    hasFinalSubmit: false,
     registrationCode: null,
     failedRequestCount: 0,
     mainRequestFailed: false,
@@ -71,6 +73,15 @@ test("Vietnam portal state: CAPTCHA and payment are detected before generic form
     })),
     "payment_page_visible",
   );
+});
+
+test("Vietnam portal checkpoint mapper exposes manual action checkpoints", () => {
+  assert.equal(checkpointForVietnamPortalState("application_form_visible"), "form_ready");
+  assert.equal(checkpointForVietnamPortalState("note_modal_visible"), "note_modal_required");
+  assert.equal(checkpointForVietnamPortalState("captcha_visible"), "captcha_required");
+  assert.equal(checkpointForVietnamPortalState("payment_page_visible"), "payment_required");
+  assert.equal(checkpointForVietnamPortalState("final_submit_visible"), "final_submit_required");
+  assert.equal(checkpointForVietnamPortalState("white_screen"), "official_portal_error");
 });
 
 test("Vietnam portal state: registration code extraction is explicit", () => {
