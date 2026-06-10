@@ -1072,18 +1072,18 @@ const LOCAL_DESTINATIONS: LocalDestination[] = [
   },
 ];
 
-const LOCAL_DESTINATION_KEYS = new Set(
-  LOCAL_DESTINATIONS.map(
+const DROPDOWN_DESTINATION_KEYS = new Set(
+  DROPDOWN_LOCAL_DESTINATIONS.map(
     (destination) =>
       `${normalizeDestinationText(destination.canonicalName)}|${destination.countryCode ?? ""}`
   )
 );
 
 const ALL_LOCAL_DESTINATIONS: LocalDestination[] = [
-  ...LOCAL_DESTINATIONS,
-  ...DROPDOWN_LOCAL_DESTINATIONS.filter((destination) => {
+  ...DROPDOWN_LOCAL_DESTINATIONS,
+  ...LOCAL_DESTINATIONS.filter((destination) => {
     const key = `${normalizeDestinationText(destination.canonicalName)}|${destination.countryCode ?? ""}`;
-    return !LOCAL_DESTINATION_KEYS.has(key);
+    return !DROPDOWN_DESTINATION_KEYS.has(key);
   }),
 ];
 
@@ -2332,14 +2332,14 @@ export function toTravelDestinationChatCard(
     : "placeholder";
   const highlights = [
     sourceStatus === "llm_generated"
-      ? "temporary text fallback"
+      ? "place information pending"
       : destination.placeType
         ? `${destination.placeType} route`
         : "travel route",
-    destination.countryName ?? destination.region ?? "destination context",
+    destination.countryName ?? destination.region ?? "travel context",
     attractionCount >= 3
       ? `${attractionCount} local attraction cards`
-      : "attraction enrichment pending",
+      : "place data pending",
     destination.latitude !== null && destination.longitude !== null
       ? "map-ready"
       : "coordinate fallback ready",
@@ -2353,7 +2353,7 @@ export function toTravelDestinationChatCard(
     subtitle:
       destination.countryName || destination.region
         ? `${destination.countryName ?? destination.region} · ${destination.placeType ?? "destination"}`
-        : "Temporary destination card generated from your message.",
+        : "Place information is being enriched.",
     country: destination.countryName ?? destination.displayName,
     city: destination.city ?? destination.displayName,
     image_key: destination.imageKey ?? null,

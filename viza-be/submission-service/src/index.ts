@@ -105,6 +105,10 @@ const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_QUEUE_STALE_MS ?? String(10 * 60 * 1000),
   10,
 );
+const DS160_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
+  STALE_QUEUE_TIMEOUT_MS,
+  (Number.parseInt(process.env.DS160_LIVE_MAX_DURATION_SECONDS ?? "1800", 10) + 300) * 1000,
+);
 const PENDING_PICKUP_TIMEOUT_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_PENDING_PICKUP_TIMEOUT_MS ?? "90000",
   10,
@@ -593,6 +597,9 @@ function isPendingQueueStatus(status: SubmissionQueueItem["status"]): boolean {
 
 function timeoutForQueueStatus(status: SubmissionQueueItem["status"]): number {
   if (isPendingQueueStatus(status)) return PENDING_PICKUP_TIMEOUT_MS;
+  if (status === "ds160_live_assisted_processing") {
+    return DS160_LIVE_PROCESSING_TIMEOUT_MS;
+  }
   return STALE_QUEUE_TIMEOUT_MS;
 }
 
