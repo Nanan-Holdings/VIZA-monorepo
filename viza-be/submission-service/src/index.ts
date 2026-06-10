@@ -37,7 +37,7 @@ import {
   type CeacRunResult,
   type ConfirmApplicationResult,
 } from "./ceac";
-import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
+import { writeSubmissionResult, markSubmissionFailed, markSubmissionStalled, setSubmissionStatus } from "./result-writer";
 import {
   buildCountrySubmissionApplication,
   runDryRunSubmission,
@@ -66,7 +66,7 @@ import {
   serializeUkError,
   resumeUkApplication,
 } from "./uk";
-import { fillVietnamApplication } from "./vietnam";
+import { fillVietnamApplication, type FillVietnamResult } from "./vietnam";
 import {
   fillVisitor600Application,
   NationalityIneligibleError,
@@ -104,6 +104,10 @@ const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_QUEUE_STALE_MS ?? String(10 * 60 * 1000),
   10,
 );
+const PENDING_PICKUP_TIMEOUT_MS = Number.parseInt(
+  process.env.VIZA_SUBMISSION_PENDING_PICKUP_TIMEOUT_MS ?? "90000",
+  10,
+);
 const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "pending",
   "processing",
@@ -115,6 +119,10 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "fv_prefill_processing",
   "uk_prefill_pending",
   "uk_prefill_processing",
+  "vn_dry_run_pending",
+  "vn_dry_run_processing",
+  "vn_live_assisted_pending",
+  "vn_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -126,11 +134,16 @@ function isSubmissionDryRunMode(): boolean {
 }
 
 function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
-  return item.mode === "dry_run";
+  return item.mode === "dry_run" || item.status.startsWith("vn_dry_run_");
 }
 
 function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
-  return item.mode === "live_assisted" || item.status.startsWith("ds160_live_assisted_");
+  return (
+    item.mode === "live_assisted" ||
+    item.status.startsWith("ds160_live_assisted_") ||
+    item.status.startsWith("vn_live_assisted_") ||
+    item.provider === "vietnam_evisa_live"
+  );
 }
 
 function isDs160LiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
@@ -139,6 +152,16 @@ function isDs160LiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
 
 function isLegacyRealSubmitEnabled(): boolean {
   return process.env.VIZA_ALLOW_LEGACY_REAL_SUBMIT === "1";
+}
+
+function redactIdentifier(value: string | null | undefined): string {
+  if (!value) return "(none)";
+  if (value.length <= 8) return "<redacted>";
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function createRunId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // ─── Supabase data loaders ───────────────────────────────────────────────────
@@ -153,6 +176,8 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "ds160_live_assisted_pending",
       "fv_prefill_pending",
       "uk_prefill_pending",
+      "vn_dry_run_pending",
+      "vn_live_assisted_pending",
       "vn_prefill_pending",
       "au_prefill_pending",
     ])
@@ -175,11 +200,102 @@ function isUkJob(item: SubmissionQueueItem): boolean {
 }
 
 function isVnJob(item: SubmissionQueueItem): boolean {
-  return item.status === "vn_prefill_pending";
+  return item.status === "vn_prefill_pending" || item.status === "vn_live_assisted_pending";
 }
 
 function isAuJob(item: SubmissionQueueItem): boolean {
   return item.status === "au_prefill_pending";
+}
+
+const VIETNAM_COUNTRY_ALIASES = new Set(["VN", "VIETNAM", "VIET_NAM"]);
+const VIETNAM_EVISA_TYPES = new Set([
+  "VN_E_VISA",
+  "VIETNAM_E_VISA",
+  "E_VISA_TOURISM",
+  "EVISA_TOURISM",
+  "TOURIST_E_VISA",
+  "TOURIST_EVISA",
+]);
+
+type QueueRoutingApplication = Pick<Application, "id" | "country" | "visa_type">;
+
+function normalizeQueueRoutingValue(value: string | null | undefined): string {
+  return (value ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
+function isVietnamApplicationMetadata(application: QueueRoutingApplication | null): boolean {
+  if (!application) return false;
+  return (
+    VIETNAM_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country)) &&
+    VIETNAM_EVISA_TYPES.has(normalizeQueueRoutingValue(application.visa_type))
+  );
+}
+
+function isVietnamQueueMetadata(item: SubmissionQueueItem, application: QueueRoutingApplication | null): boolean {
+  return (
+    item.status.startsWith("vn_") ||
+    item.provider === "vietnam_evisa_live" ||
+    item.provider === "vietnam_evisa_dry_run" ||
+    isVietnamApplicationMetadata(application)
+  );
+}
+
+async function loadQueueRoutingApplication(applicationId: string): Promise<QueueRoutingApplication | null> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("id, country, visa_type")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (error) {
+    console.warn(`[queue] Could not load application routing metadata for ${applicationId}: ${error.message}`);
+    return null;
+  }
+  return (data ?? null) as QueueRoutingApplication | null;
+}
+
+async function normalizeVietnamQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
+  const application = await loadQueueRoutingApplication(item.application_id);
+  if (!isVietnamQueueMetadata(item, application)) return item;
+
+  const liveRequested = isLiveAssistedQueueItem(item);
+  const expectedStatus: SubmissionQueueItem["status"] = liveRequested
+    ? "vn_live_assisted_pending"
+    : "vn_dry_run_pending";
+  const expectedProvider = liveRequested ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
+  const expectedMode = liveRequested ? "live_assisted" : "dry_run";
+
+  if (item.status === expectedStatus && item.provider === expectedProvider && item.mode === expectedMode) {
+    return item;
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("submission_queue")
+    .update({
+      status: expectedStatus,
+      mode: expectedMode,
+      provider: expectedProvider,
+      current_stage: "queued",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  if (error) {
+    console.error(`[vn] Failed to normalize legacy queue ${item.id}: ${error.message}`);
+    return item;
+  }
+
+  console.warn(
+    `[vn] Normalized legacy Vietnam queue ${item.id} from status=${item.status} mode=${item.mode ?? "(null)"} provider=${item.provider ?? "(null)"} to ${expectedStatus}`,
+  );
+  return {
+    ...item,
+    status: expectedStatus,
+    mode: expectedMode,
+    provider: expectedProvider,
+    heartbeat_at: now,
+    updated_at: now,
+  };
 }
 
 async function markProcessing(queueId: string): Promise<void> {
@@ -458,15 +574,24 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("ds160_")) return "ds160_prefill_failed";
   if (status.startsWith("fv_")) return "fv_prefill_failed";
   if (status.startsWith("uk_")) return "uk_prefill_failed";
+  if (status.startsWith("vn_live_assisted_")) return "vn_live_assisted_failed";
+  if (status.startsWith("vn_dry_run_")) return "vn_dry_run_failed";
   if (status.startsWith("vn_")) return "vn_prefill_failed";
   if (status.startsWith("au_")) return "au_prefill_failed";
   return "failed";
 }
 
+function isPendingQueueStatus(status: SubmissionQueueItem["status"]): boolean {
+  return status === "pending" || status.endsWith("_pending");
+}
+
+function timeoutForQueueStatus(status: SubmissionQueueItem["status"]): number {
+  if (isPendingQueueStatus(status)) return PENDING_PICKUP_TIMEOUT_MS;
+  return STALE_QUEUE_TIMEOUT_MS;
+}
+
 async function markStaleQueueItemsTimedOut(): Promise<void> {
   if (!Number.isFinite(STALE_QUEUE_TIMEOUT_MS) || STALE_QUEUE_TIMEOUT_MS <= 0) return;
-
-  const cutoffMs = Date.now() - STALE_QUEUE_TIMEOUT_MS;
   const { data, error } = await supabase
     .from("submission_queue")
     .select("*")
@@ -478,24 +603,42 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
   }
 
   const staleItems = ((data ?? []) as SubmissionQueueItem[]).filter((item) => {
+    const timeoutMs = timeoutForQueueStatus(item.status);
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return false;
+    const cutoffMs = Date.now() - timeoutMs;
     const lastTouched = item.updated_at || item.created_at;
     const touchedMs = lastTouched ? Date.parse(lastTouched) : Number.NaN;
     return Number.isFinite(touchedMs) && touchedMs < cutoffMs;
   });
   for (const item of staleItems) {
-    const timedOutStatus = failedStatusForQueueStatus(item.status);
-    const reason = `Submission job timed out after ${Math.round(STALE_QUEUE_TIMEOUT_MS / 1000)}s in status ${item.status}`;
+    const timeoutMs = timeoutForQueueStatus(item.status);
+    const pendingPickup = isPendingQueueStatus(item.status);
+    const timedOutStatus: SubmissionQueueItem["status"] = pendingPickup
+      ? "stalled"
+      : failedStatusForQueueStatus(item.status);
+    const reason = pendingPickup
+      ? `Submission job stalled: the worker did not pick up queue status ${item.status} within ${Math.round(timeoutMs / 1000)}s.`
+      : `Submission job failed: worker heartbeat stopped for ${Math.round(timeoutMs / 1000)}s in status ${item.status}.`;
     await supabase
       .from("submission_queue")
       .update({
         status: timedOutStatus,
-        attempts: Math.max(item.attempts, MAX_ATTEMPTS),
+        attempts: pendingPickup ? item.attempts : Math.max(item.attempts, MAX_ATTEMPTS),
         last_error: reason,
+        error_code: pendingPickup ? "queue_pickup_stalled" : "queue_processing_timed_out",
+        error_message: reason,
+        current_stage: pendingPickup ? "stalled" : "failed",
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
-    await markSubmissionFailed(item.application_id, reason);
-    console.warn(`[queue-timeout] ${item.id} (${item.application_id}) -> ${timedOutStatus}: ${reason}`);
+    if (pendingPickup) {
+      await markSubmissionStalled(item.application_id, reason);
+    } else {
+      await markSubmissionFailed(item.application_id, reason);
+    }
+    console.warn(
+      `[queue-timeout] queue=${redactIdentifier(item.id)} application=${redactIdentifier(item.application_id)} -> ${timedOutStatus}: ${reason}`,
+    );
   }
 }
 
@@ -594,7 +737,9 @@ async function prefillDs160(
       ? `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${ds160AppId}`
       : "";
 
-    console.log(`[ds160] Application ID: ${ds160AppId}, Retrieval URL: ${retrievalUrl}`);
+    console.log(
+      `[ds160] Application metadata captured: applicationId=${redactIdentifier(ds160AppId)}, retrievalUrl=${retrievalUrl ? "<redacted>" : "(none)"}`,
+    );
 
     return { applicationId: ds160AppId, retrievalUrl, datFilePath };
   } finally {
@@ -618,7 +763,7 @@ async function uploadDs160Dat(
     contentType: "application/octet-stream",
     filePath: datFilePath,
   });
-  console.log(`[ds160] .dat uploaded to storage: ${storagePath}`);
+  console.log("[ds160] .dat uploaded to private storage.");
   return storagePath;
 }
 
@@ -681,7 +826,9 @@ async function processDs160LiveConfigBlockedItem(
   item: SubmissionQueueItem,
   reason: string,
 ): Promise<void> {
-  console.warn(`[ceac] Live assisted blocked for ${item.application_id}: ${reason}`);
+  console.warn(
+    `[ceac] Live assisted blocked for application=${redactIdentifier(item.application_id)}: ${reason}`,
+  );
 
   await supabase
     .from("submission_queue")
@@ -710,9 +857,11 @@ async function processDs160Item(
   item: SubmissionQueueItem,
   config: Ds160SubmissionConfig,
 ): Promise<void> {
-  const runId = `ds160-${item.application_id}-${Date.now()}`;
   const liveAssisted = isDs160LiveAssistedQueueItem(item);
-  console.log(`[ceac] Starting CEAC run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const runId = createRunId(liveAssisted ? "ds160-live" : "ds160-prefill");
+  console.log(
+    `[ceac] Starting CEAC run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
 
   await supabase
     .from("submission_queue")
@@ -761,7 +910,7 @@ async function processDs160Item(
       },
     );
     console.log(
-      `[ceac] confirm-application captured appId=${confirm.applicationId} q="${confirm.securityQuestionText}"`,
+      `[ceac] confirm-application checkpoint captured applicationId=${redactIdentifier(confirm.applicationId)}`,
     );
 
     // Recovery credentials so a mid-fill SessionTimedOut triggers auto-resume
@@ -849,12 +998,17 @@ async function processDs160Item(
       };
       await writeSubmissionResult(item.application_id, usPayload, "stopped_at_sign");
 
-      console.log(`[ceac] Run ${runId} handoff_ready for ${item.application_id}`);
+      console.log(
+        `[ceac] Run ${runId} handoff_ready for application=${redactIdentifier(item.application_id)}`,
+      );
     } else {
       // Orchestrator caught an error internally but preserved recovery state.
       // Persist the failure result payload so ops can inspect recovery metadata.
       const errorMsg = result.error?.message as string ?? "Unknown orchestration error";
-      console.error(`[ceac] Run ${runId} orchestration failed for ${item.application_id}:`, errorMsg);
+      console.error(
+        `[ceac] Run ${runId} orchestration failed for application=${redactIdentifier(item.application_id)}:`,
+        errorMsg,
+      );
 
       const newAttempts = item.attempts + 1;
       const newStatus = newAttempts >= MAX_ATTEMPTS
@@ -904,7 +1058,10 @@ async function processDs160Item(
     // blockers — retrying won't help. Mark as blocked immediately with
     // operator-facing context and alert.
     if (isManualActionRequiredError(err)) {
-      console.warn(`[ceac] Run ${runId} waiting for manual action for ${item.application_id}:`, errorMsg);
+      console.warn(
+        `[ceac] Run ${runId} waiting for manual action for application=${redactIdentifier(item.application_id)}:`,
+        errorMsg,
+      );
 
       await supabase
         .from("submission_queue")
@@ -930,7 +1087,10 @@ async function processDs160Item(
         "action_required",
       );
     } else if (isGateError(err)) {
-      console.error(`[ceac] Run ${runId} GATED for ${item.application_id}:`, errorMsg);
+      console.error(
+        `[ceac] Run ${runId} GATED for application=${redactIdentifier(item.application_id)}:`,
+        errorMsg,
+      );
 
       // Persist Application ID if captured before gate
       if (result.applicationId) {
@@ -959,7 +1119,10 @@ async function processDs160Item(
       );
     } else {
       // Genuine worker/runtime failure — standard retry logic
-      console.error(`[ceac] Run ${runId} failed for ${item.application_id}:`, errorMsg);
+      console.error(
+        `[ceac] Run ${runId} failed for application=${redactIdentifier(item.application_id)}:`,
+        errorMsg,
+      );
 
       // Persist Application ID if captured before failure
       if (result.applicationId) {
@@ -984,7 +1147,9 @@ async function processDs160Item(
         .eq("id", item.id);
 
       if (newAttempts >= MAX_ATTEMPTS) {
-        console.error(`[ceac] Max attempts reached for ${item.application_id} — sending alert`);
+        console.error(
+          `[ceac] Max attempts reached for application=${redactIdentifier(item.application_id)} — sending alert`,
+        );
         await markSubmissionFailed(item.application_id, errorMsg);
         await sendFailureAlert(item.application_id, `[CEAC] ${errorMsg}`);
       }
@@ -1587,37 +1752,316 @@ async function processUkItem(item: SubmissionQueueItem): Promise<void> {
 // Drives evisa.gov.vn through the safe pre-pay checkpoint. A captured
 // registration code is a user-action handoff, not a background completion:
 // the applicant must still review/pay on the official portal.
+function readBooleanEnv(key: string, defaultValue: boolean): boolean {
+  const raw = process.env[key];
+  if (raw === undefined) return defaultValue;
+  return raw === "1" || raw.toLowerCase() === "true";
+}
+
+function readNumberEnv(key: string, defaultValue: number): number {
+  const raw = process.env[key];
+  if (!raw) return defaultValue;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+}
+
+function isMissingSubmissionQueueColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("submission_queue.mode") ||
+    message.includes("submission_queue.provider") ||
+    message.includes("submission_queue.current_stage") ||
+    message.includes("submission_queue.heartbeat_at") ||
+    message.includes("submission_queue.vn_result_payload") ||
+    message.includes("submission_queue.vn_registration_code_encrypted") ||
+    message.includes("submission_queue.official_portal_url") ||
+    message.includes("submission_queue.official_trace_url") ||
+    message.includes("column submission_queue.") ||
+    message.includes("could not find the")
+  );
+}
+
+async function updateVnQueueRow(
+  queueId: string,
+  richPatch: Record<string, unknown>,
+  legacyPatch: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase
+    .from("submission_queue")
+    .update(richPatch)
+    .eq("id", queueId);
+  if (!error) return;
+
+  if (!isMissingSubmissionQueueColumnError(error)) {
+    throw new Error(`Failed to update Vietnam queue ${queueId}: ${error.message}`);
+  }
+
+  const { error: legacyError } = await supabase
+    .from("submission_queue")
+    .update(legacyPatch)
+    .eq("id", queueId);
+  if (legacyError) {
+    throw new Error(`Failed to update legacy Vietnam queue ${queueId}: ${legacyError.message}`);
+  }
+}
+
+function redactedVnDiagnostics(result: FillVietnamResult): Record<string, unknown> | null {
+  const diagnostics = "diagnostics" in result ? result.diagnostics : undefined;
+  if (!diagnostics) return null;
+  const snapshot = diagnostics.lastSnapshot;
+  return {
+    consoleErrors: diagnostics.consoleErrors,
+    failedRequests: diagnostics.failedRequests,
+    tracePath: diagnostics.tracePath,
+    finalScreenshotPath: diagnostics.finalScreenshotPath,
+    lastSnapshot: snapshot
+      ? {
+          url: snapshot.url,
+          title: snapshot.title,
+          antFormItemCount: snapshot.antFormItemCount,
+          inputCount: snapshot.inputCount,
+          failedRequestCount: snapshot.failedRequestCount,
+          mainRequestFailed: snapshot.mainRequestFailed,
+          hasVisibleModal: snapshot.hasVisibleModal,
+          registrationCodeDetected: Boolean(snapshot.registrationCode),
+        }
+      : null,
+  };
+}
+
+function buildVnQueuePayload(
+  result: FillVietnamResult,
+  tracePath: string | undefined,
+  finalScreenshotPath: string | undefined,
+): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    status: result.status,
+    runId: result.runId,
+    tracePath,
+    finalScreenshotPath,
+    diagnostics: redactedVnDiagnostics(result),
+  };
+
+  if (result.status === "submitted_pending_pay") {
+    return {
+      ...base,
+      registrationCodeCaptured: true,
+      submittedAtIso: result.submittedAtIso,
+      fieldsFilled: result.fieldsFilled,
+      fieldsSkipped: result.fieldsSkipped,
+    };
+  }
+  if (result.status === "action_required") {
+    return {
+      ...base,
+      actionType: result.actionType,
+      checkpoint: result.checkpoint,
+      instruction: result.instruction,
+      url: result.url,
+    };
+  }
+  if (result.status === "scaffolded_pending_walk") {
+    return {
+      ...base,
+      reason: result.reason,
+      checkpoint: result.checkpoint,
+      url: result.url,
+    };
+  }
+  return {
+    ...base,
+    failedStep: result.failedStep,
+    error: result.error,
+    url: result.url,
+    checkpoint: result.checkpoint,
+  };
+}
+
+type VietnamActionRequiredRunResult = Extract<FillVietnamResult, { status: "action_required" }>;
+
+function vietnamStatusForAction(result: VietnamActionRequiredRunResult): VnSubmissionResult["status"] {
+  if (result.actionType === "note_modal_required") return "note_modal_required";
+  if (result.actionType === "captcha_required") return "captcha_required";
+  if (result.actionType === "payment_required" || result.actionType === "final_submit_required") {
+    return "stopped_at_pay";
+  }
+  if (result.checkpoint === "application_form_visible") return "official_form_reached";
+  return "official_landing_reached";
+}
+
+function buildVietnamActionRequiredResult(
+  result: VietnamActionRequiredRunResult,
+  finalScreenshotPath: string | undefined,
+): VnSubmissionResult {
+  return {
+    country: "VN",
+    status: vietnamStatusForAction(result),
+    mode: "live_assisted",
+    provider: "vietnam_evisa_live",
+    portalUrl: result.url,
+    checkpoint: result.checkpoint,
+    manualAction: {
+      type: result.actionType,
+      status: "open",
+      instructions: result.instruction,
+      ...(finalScreenshotPath ? { screenshotUrl: finalScreenshotPath } : {}),
+    },
+    paymentStatus:
+      result.actionType === "payment_required" || result.actionType === "final_submit_required"
+        ? "manual_required"
+        : "not_required",
+  };
+}
+
+async function createVietnamManualAction(
+  item: SubmissionQueueItem,
+  result: VietnamActionRequiredRunResult,
+  screenshotPath: string | undefined,
+): Promise<void> {
+  const { error } = await supabase
+    .from("vietnam_live_manual_actions")
+    .insert({
+      job_id: item.id,
+      application_id: item.application_id,
+      user_id: item.user_id ?? null,
+      action_type: result.actionType,
+      status: "pending",
+      instruction: result.instruction,
+      screenshot_url: screenshotPath ?? null,
+      redacted_metadata_json: {
+        checkpoint: result.checkpoint,
+        url: result.url,
+      },
+    });
+  if (error) {
+    console.warn(`[vn] Failed to create manual action for ${item.id}: ${error.message}`);
+  }
+}
+
 async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const runId = `vn-${item.application_id}-${Date.now()}`;
   console.log(`[vn] Starting run ${runId} for ${item.application_id} (attempt ${item.attempts + 1})`);
+  const liveAssisted = item.status !== "vn_dry_run_pending" && item.mode !== "dry_run";
+  const diagnosticsDir = path.resolve("diag-out", "vn-live", runId);
+  const captureTrace = readBooleanEnv("VN_CAPTURE_TRACE", true);
+  const captureScreenshot = readBooleanEnv("VN_CAPTURE_SCREENSHOT", true);
+  const tracePath = captureTrace ? path.join(diagnosticsDir, "trace.zip") : undefined;
+  const finalScreenshotPath = captureScreenshot ? path.join(diagnosticsDir, "final.png") : undefined;
+  const now = new Date().toISOString();
 
-  await supabase
-    .from("submission_queue")
-    .update({ status: "vn_prefill_processing", updated_at: new Date().toISOString() })
-    .eq("id", item.id);
+  await updateVnQueueRow(
+    item.id,
+    {
+      status: liveAssisted ? "vn_live_assisted_processing" : "vn_prefill_processing",
+      mode: liveAssisted ? "live_assisted" : "dry_run",
+      provider: liveAssisted ? "vietnam_evisa_live" : "vietnam_evisa_dry_run",
+      current_stage: "starting",
+      started_at: now,
+      heartbeat_at: now,
+      official_status: "processing",
+      updated_at: now,
+    },
+    {
+      status: liveAssisted ? "vn_live_assisted_processing" : "vn_prefill_processing",
+      updated_at: now,
+    },
+  );
   await setSubmissionStatus(item.application_id, "processing");
 
   try {
     const answers = await loadDs160Answers(item.application_id);
-    const result = await fillVietnamApplication({ answers }, { headless: true, runId });
+    const result = await fillVietnamApplication(
+      { answers },
+      {
+        headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
+        runId,
+        officialBaseUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+        officialFallbackBaseUrl:
+          process.env.VN_OFFICIAL_FALLBACK_BASE_URL ?? "https://thithucdientu.gov.vn/",
+        stepTimeoutMs: readNumberEnv(
+          "VN_SMOKE_STEP_TIMEOUT_MS",
+          Math.min(readNumberEnv("VN_SMOKE_TIMEOUT_MS", 240_000), 60_000),
+        ),
+        ...(tracePath ? { tracePath } : {}),
+        ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
+      },
+    );
 
     if (result.status === "submitted_pending_pay") {
       const vnPayload: VnSubmissionResult = {
         country: "VN",
         status: "submitted_pending_email",
+        mode: liveAssisted ? "live_assisted" : "dry_run",
+        provider: liveAssisted ? "vietnam_evisa_live" : "vietnam_evisa_dry_run",
+        portalUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+        checkpoint: "registration_code_visible",
         registrationCode: result.registrationCode,
         submittedAtIso: result.submittedAtIso,
         noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
+        paymentStatus: "manual_required",
       };
       await writeSubmissionResult(item.application_id, vnPayload, "needs_user_action");
-      await supabase
-        .from("submission_queue")
-        .update({
+      const completedAt = new Date().toISOString();
+      await updateVnQueueRow(
+        item.id,
+        {
           status: "vn_prefilled",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-      console.log(`[vn] Run ${runId} prefilled — registrationCode=${result.registrationCode}`);
+          mode: liveAssisted ? "live_assisted" : "dry_run",
+          provider: liveAssisted ? "vietnam_evisa_live" : "vietnam_evisa_dry_run",
+          vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
+          vn_registration_code_encrypted: encryptSecret(result.registrationCode),
+          official_status: "registration_code_captured",
+          current_stage: "payment_required",
+          manual_action_status: "open",
+          payment_status: "manual_required",
+          official_portal_url: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+          official_trace_url: tracePath ?? null,
+          heartbeat_at: completedAt,
+          updated_at: completedAt,
+        },
+        {
+          status: "vn_prefilled",
+          last_error: null,
+          updated_at: completedAt,
+        },
+      );
+      console.log(`[vn] Run ${runId} prefilled — registration code captured`);
+      return;
+    }
+
+    if (result.status === "action_required") {
+      const actionResult = buildVietnamActionRequiredResult(result, finalScreenshotPath);
+      await createVietnamManualAction(item, result, finalScreenshotPath);
+      const actionAt = new Date().toISOString();
+      await updateVnQueueRow(
+        item.id,
+        {
+          status: "vn_blocked",
+          mode: "live_assisted",
+          provider: "vietnam_evisa_live",
+          attempts: item.attempts + 1,
+          last_error: result.instruction,
+          vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
+          manual_action_status: "open",
+          official_status: "manual_action_required",
+          error_code: result.actionType,
+          error_message: result.instruction,
+          current_stage: result.checkpoint,
+          official_portal_url: result.url,
+          official_trace_url: tracePath ?? null,
+          heartbeat_at: actionAt,
+          updated_at: actionAt,
+        },
+        {
+          status: "vn_blocked",
+          attempts: item.attempts + 1,
+          last_error: result.instruction,
+          updated_at: actionAt,
+        },
+      );
+      await writeSubmissionResult(item.application_id, actionResult, "action_required");
+      console.warn(`[vn] Run ${runId} requires manual action at ${result.checkpoint}: ${result.actionType}`);
       return;
     }
 
@@ -1628,15 +2072,30 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       const reason =
         result.reason ||
         "Vietnam runner reached the portal but could not capture the registration code.";
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: "vn_prefill_failed",
+      const failedAt = new Date().toISOString();
+      await updateVnQueueRow(
+        item.id,
+        {
+          status: liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed",
           attempts: Math.max(item.attempts + 1, MAX_ATTEMPTS),
           last_error: reason,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+          vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
+          official_status: "official_portal_error",
+          error_code: "registration_code_not_found",
+          error_message: reason,
+          current_stage: result.checkpoint ?? "layout_changed",
+          official_portal_url: result.url ?? null,
+          official_trace_url: tracePath ?? null,
+          heartbeat_at: failedAt,
+          updated_at: failedAt,
+        },
+        {
+          status: liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed",
+          attempts: Math.max(item.attempts + 1, MAX_ATTEMPTS),
+          last_error: reason,
+          updated_at: failedAt,
+        },
+      );
       await markSubmissionFailed(item.application_id, reason);
       await sendFailureAlert(item.application_id, `[VN] ${reason}`);
       console.log(`[vn] Run ${runId} stopped at scaffold: ${result.reason}`);
@@ -1646,36 +2105,68 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     // status === "failed"
     const errorMsg = typeof result.error?.message === "string" ? result.error.message : `failed at ${result.failedStep}`;
     const newAttempts = item.attempts + 1;
-    const newStatus = newAttempts >= MAX_ATTEMPTS ? "vn_prefill_failed" : "vn_prefill_pending";
-    await supabase
-      .from("submission_queue")
-      .update({
+    const newStatus = newAttempts >= MAX_ATTEMPTS
+      ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
+      : (liveAssisted ? "vn_live_assisted_pending" : "vn_prefill_pending");
+    const failedAt = new Date().toISOString();
+    await updateVnQueueRow(
+      item.id,
+      {
         status: newStatus,
         attempts: newAttempts,
         last_error: errorMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+        vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
+        official_status: "official_portal_error",
+        error_code: typeof result.error?.code === "string" ? result.error.code : "vietnam_prefill_failed",
+        error_message: errorMsg,
+        current_stage: result.checkpoint ?? "failed",
+        official_portal_url: result.url,
+        official_trace_url: tracePath ?? null,
+        heartbeat_at: failedAt,
+        updated_at: failedAt,
+      },
+      {
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: failedAt,
+      },
+    );
     await markSubmissionFailed(item.application_id, errorMsg);
-    if (newStatus === "vn_prefill_failed") {
+    if (newStatus === "vn_prefill_failed" || newStatus === "vn_live_assisted_failed") {
       await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
     }
     console.error(`[vn] Run ${runId} failed at ${result.failedStep}: ${errorMsg}`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     const newAttempts = item.attempts + 1;
-    const newStatus = newAttempts >= MAX_ATTEMPTS ? "vn_prefill_failed" : "vn_prefill_pending";
-    await supabase
-      .from("submission_queue")
-      .update({
+    const newStatus = newAttempts >= MAX_ATTEMPTS
+      ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
+      : (liveAssisted ? "vn_live_assisted_pending" : "vn_prefill_pending");
+    const failedAt = new Date().toISOString();
+    await updateVnQueueRow(
+      item.id,
+      {
         status: newStatus,
         attempts: newAttempts,
         last_error: errorMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+        official_status: "official_portal_error",
+        error_code: "vietnam_unhandled_error",
+        error_message: errorMsg,
+        current_stage: "failed",
+        official_trace_url: tracePath ?? null,
+        heartbeat_at: failedAt,
+        updated_at: failedAt,
+      },
+      {
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        updated_at: failedAt,
+      },
+    );
     await markSubmissionFailed(item.application_id, errorMsg);
-    if (newStatus === "vn_prefill_failed") {
+    if (newStatus === "vn_prefill_failed" || newStatus === "vn_live_assisted_failed") {
       await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
     }
     console.error(`[vn] Unhandled error in ${runId}:`, errorMsg);
@@ -2067,7 +2558,8 @@ async function poll(): Promise<void> {
   console.log(`[poll] Found ${items.length} pending item(s).`);
 
   // Process sequentially to avoid parallel browser sessions overwhelming the host
-  for (const item of items) {
+  for (const rawItem of items) {
+    const item = await normalizeVietnamQueueItem(rawItem);
     if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160Job(item)) {

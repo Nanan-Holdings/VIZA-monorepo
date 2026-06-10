@@ -3,6 +3,7 @@ export type SubmissionQueueStatus =
   | "processing"
   | "done"
   | "failed"
+  | "stalled"
   | "ds160_prefill_pending"
   | "ds160_prefill_processing"
   | "ds160_prefilled"
@@ -88,6 +89,7 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
 
 export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   ...ACTIVE_SUBMISSION_QUEUE_STATUSES,
+  "stalled",
   "failed",
   "ds160_prefill_failed",
   "ds160_live_assisted_failed",
@@ -188,9 +190,6 @@ export function queueProviderForVisaType(
   }
   if (isFranceVisasVisaType(visaType)) {
     return mode === "live_assisted" ? "france_visas_live" : "france_visas_dry_run";
-  }
-  if (VIETNAM_EVISA_TYPES.has(normalizeVisaType(visaType))) {
-    return mode === "live_assisted" ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
   }
   return null;
 }

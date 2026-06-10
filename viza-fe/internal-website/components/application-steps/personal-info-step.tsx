@@ -158,7 +158,6 @@ const DIRECT_TRANSLATIONS: Record<string, string> = {
   吴: "WU",
   小明: "XIAOMING",
   小红: "XIAOHONG",
-  陈泓羽: "CHEN HONGYU",
   伟: "WEI",
   芳: "FANG",
   王小明: "WANG XIAOMING",

@@ -110,10 +110,33 @@ export interface UkSubmissionResult {
 
 export interface VnSubmissionResult {
   country: "VN";
-  status: "submitted_pending_email";
-  registrationCode: string;
-  submittedAtIso: string;
-  noticeText: "Your e-visa PDF will be emailed within ~3 working days.";
+  status:
+    | "official_landing_reached"
+    | "note_modal_required"
+    | "captcha_required"
+    | "official_form_reached"
+    | "stopped_at_pay"
+    | "submitted_pending_email";
+  mode?: "dry_run" | "live_assisted";
+  provider?: "vietnam_evisa_dry_run" | "vietnam_evisa_live";
+  portalUrl?: string;
+  checkpoint?: string;
+  registrationCode?: string;
+  submittedAtIso?: string;
+  noticeText?: "Your e-visa PDF will be emailed within ~3 working days.";
+  manualAction?: {
+    type:
+      | "note_modal_required"
+      | "captcha_required"
+      | "payment_required"
+      | "final_submit_required"
+      | "layout_changed"
+      | "official_portal_error";
+    status: "open" | "completed";
+    instructions: string;
+    screenshotUrl?: string;
+  };
+  paymentStatus?: "not_required" | "manual_required" | "blocked" | "paid";
 }
 
 export interface AuSubmissionResult {

@@ -965,6 +965,7 @@ export default function UniversalInfoPage() {
   const [passportOcrApplicationId, setPassportOcrApplicationId] = useState<string | null>(null);
   const [passportUpload, setPassportUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [message, setMessage] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirtyProfileFields, setDirtyProfileFields] = useState<Set<UniversalProfileDirtyField>>(() => new Set());
 
@@ -1087,6 +1088,7 @@ export default function UniversalInfoPage() {
       setShouldFocusPhoneError(false);
     }
     setMessage(null);
+    setWarning(null);
     setError(null);
   }
 
@@ -1103,6 +1105,7 @@ export default function UniversalInfoPage() {
     setBilingualForm((current) => ({ ...current, [field]: value }));
     setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
     setMessage(null);
+    setWarning(null);
     setError(null);
   }
 
@@ -1139,6 +1142,7 @@ export default function UniversalInfoPage() {
       birth_city: "idle",
     }));
     setMessage(null);
+    setWarning(null);
     setError(null);
   }
 
@@ -1174,6 +1178,7 @@ export default function UniversalInfoPage() {
       birth_city: "idle",
     }));
     setMessage(null);
+    setWarning(null);
     setError(null);
   }
 
@@ -1284,6 +1289,7 @@ export default function UniversalInfoPage() {
     });
     setTranslationStatus((current) => ({ ...current, [field]: "idle" }));
     setMessage(null);
+    setWarning(null);
     setError(null);
   }
 
@@ -1454,11 +1460,13 @@ export default function UniversalInfoPage() {
       };
     });
     setMessage(isZh ? "护照 OCR 已填入可识别字段，请核对后保存或继续编辑。" : "Passport OCR filled the readable fields. Please review before saving or editing.");
+    setWarning(null);
     setError(null);
   }
 
   async function handleSave() {
     setMessage(null);
+    setWarning(null);
     setError(null);
 
     if (!validatePhoneField()) {
@@ -1556,6 +1564,15 @@ export default function UniversalInfoPage() {
         isZh
           ? "已保存通用资料。"
           : "Universal profile saved.",
+      );
+      setWarning(
+        result.schemaWarning
+          ? copy(
+              isZh,
+              `已使用旧字段兼容保存，但数据库缺少这些通用资料列：${result.missingColumns?.join(", ") || "unknown"}。请运行 0090_applicant_profile_bilingual_fields.sql 迁移，否则姓/名等字段只能通过 full_name 兼容读取。`,
+              result.schemaWarning,
+            )
+          : null,
       );
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : isZh ? "保存失败，请稍后重试。" : "Save failed. Please try again later.");
@@ -2105,8 +2122,9 @@ export default function UniversalInfoPage() {
                   {message}
                 </p>
               )}
+              {warning && <p className="mt-1 max-w-2xl text-[14px] font-medium text-amber-700">{warning}</p>}
               {error && <p className="text-[14px] font-medium text-red-600">{error}</p>}
-              {!message && !error && dirtyProfileFields.size > 0 ? (
+              {!message && !warning && !error && dirtyProfileFields.size > 0 ? (
                 <p className="text-[14px] font-medium text-amber-700">
                   {copy(isZh, "有未保存更改", "Unsaved changes")}
                 </p>

@@ -68,6 +68,9 @@ The current internal automation migrations are:
 - `0095_france_live_assisted_controls.sql`: France-Visas live assisted queue
   fields and manual checkpoint table. Dry-run remains default and final
   validation, payment, and appointment booking remain applicant-controlled.
+- `0096_vietnam_live_assisted_controls.sql`: Vietnam e-Visa live-assisted
+  queue stage/heartbeat fields, encrypted registration-code storage, and manual
+  checkpoint table. CAPTCHA, payment, and final submit remain manual.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.

@@ -145,7 +145,9 @@ async function insertRetryQueueRow(
 
   const canUseLegacyPayload =
     isMissingSubmissionModeColumnError(error) &&
-    (input.mode === "dry_run" || input.queueStatus === "ds160_live_assisted_pending");
+    (input.mode === "dry_run" ||
+      input.queueStatus === "ds160_live_assisted_pending" ||
+      input.queueStatus === "vn_live_assisted_pending");
   if (!canUseLegacyPayload) return { error: error.message, jobId: null };
 
   const { data: legacyData, error: legacyError } = await admin.from("submission_queue").insert({

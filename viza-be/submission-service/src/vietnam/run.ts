@@ -12,10 +12,9 @@
  * "Save" only, never "Submit" or "Pay".
  */
 
-import type { Page } from "@playwright/test";
+import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { launchStealthBrowser } from "../ceac/stealth-browser";
 import {
   getVnPortalOptionText,
   VN_FIELD_MAPPINGS,
@@ -24,6 +23,12 @@ import {
   type VnFieldType,
 } from "./field-mappings";
 import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
+import {
+  classifyVietnamPortalSnapshot,
+  readVietnamPortalSnapshot,
+  type VietnamPortalSnapshot,
+  type VietnamPortalStateId,
+} from "./portal-state";
 
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
@@ -33,12 +38,16 @@ export interface FillVietnamInput {
 export interface FillVietnamOptions {
   headless?: boolean;
   runId?: string;
+  officialBaseUrl?: string;
+  officialFallbackBaseUrl?: string;
   /** Per-step advance timeout (ms). Default 60s. */
   stepTimeoutMs?: number;
   /** Optional Playwright trace path for smoke diagnostics. */
   tracePath?: string;
   /** Optional final screenshot path for smoke diagnostics. */
   finalScreenshotPath?: string;
+  /** Smoke/recon mode: return after the first reliable official checkpoint. */
+  stopAtFirstCheckpoint?: boolean;
 }
 
 export type FillVietnamResult =
@@ -46,6 +55,24 @@ export type FillVietnamResult =
       status: "scaffolded_pending_walk";
       runId?: string;
       reason: string;
+      checkpoint?: VietnamPortalStateId;
+      url?: string;
+      diagnostics?: VietnamDiagnostics;
+    }
+  | {
+      status: "action_required";
+      runId?: string;
+      actionType:
+        | "note_modal_required"
+        | "captcha_required"
+        | "payment_required"
+        | "final_submit_required"
+        | "layout_changed"
+        | "official_portal_error";
+      checkpoint: VietnamPortalStateId;
+      instruction: string;
+      url: string;
+      diagnostics?: VietnamDiagnostics;
     }
   | {
       status: "submitted_pending_pay";
@@ -61,9 +88,21 @@ export type FillVietnamResult =
       failedStep: string;
       error: Record<string, unknown> | null;
       url: string;
+      checkpoint?: VietnamPortalStateId;
+      diagnostics?: VietnamDiagnostics;
     };
 
-const VN_LANDING_URL = "https://evisa.gov.vn/";
+export interface VietnamDiagnostics {
+  consoleErrors: string[];
+  failedRequests: string[];
+  lastSnapshot?: VietnamPortalSnapshot;
+  tracePath?: string;
+  finalScreenshotPath?: string;
+}
+
+const VN_LANDING_URL = process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/";
+const VN_FALLBACK_LANDING_URL =
+  process.env.VN_OFFICIAL_FALLBACK_BASE_URL ?? "https://thithucdientu.gov.vn/";
 const FORM_ROUTE_FRAGMENT = "/e-visa/foreigners";
 
 export async function fillVietnamApplication(
@@ -73,56 +112,101 @@ export async function fillVietnamApplication(
   const runId = options.runId;
   const headless = options.headless ?? true;
   const stepTimeoutMs = options.stepTimeoutMs ?? 60_000;
+  const officialBaseUrl = options.officialBaseUrl ?? VN_LANDING_URL;
+  const officialFallbackBaseUrl = options.officialFallbackBaseUrl ?? VN_FALLBACK_LANDING_URL;
   let page: Page | null = null;
-  let browser: Awaited<ReturnType<typeof launchStealthBrowser>>["browser"] | null = null;
-  let context: Awaited<ReturnType<typeof launchStealthBrowser>>["context"] | null = null;
+  let browser: Browser | null = null;
+  let context: BrowserContext | null = null;
   let traceStarted = false;
+  const consoleErrors: string[] = [];
+  const failedRequests: string[] = [];
+  let mainRequestFailed = false;
+  let lastSnapshot: VietnamPortalSnapshot | undefined;
+
+  const diagnostics = (): VietnamDiagnostics => ({
+    consoleErrors: consoleErrors.slice(-20),
+    failedRequests: failedRequests.slice(-30),
+    lastSnapshot,
+    ...(options.tracePath ? { tracePath: options.tracePath } : {}),
+    ...(options.finalScreenshotPath ? { finalScreenshotPath: options.finalScreenshotPath } : {}),
+  });
 
   try {
-    const handles = await launchStealthBrowser({ headless, acceptDownloads: false });
-    browser = handles.browser;
-    context = handles.context;
-    page = handles.page;
+    browser = await chromium.launch({ headless });
+    context = await browser.newContext({ acceptDownloads: false });
+    page = await context.newPage();
+    page.on("console", (message) => {
+      if (message.type() === "error") {
+        consoleErrors.push(message.text());
+      }
+    });
+    page.on("requestfailed", (request) => {
+      const failureText = request.failure()?.errorText ?? "request failed";
+      failedRequests.push(`${request.method()} ${request.url()} - ${failureText}`);
+      if (request.isNavigationRequest()) {
+        mainRequestFailed = true;
+      }
+    });
     if (options.tracePath) {
       fs.mkdirSync(path.dirname(options.tracePath), { recursive: true });
       await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
       traceStarted = true;
     }
 
-    // ── Landing → form route ───────────────────────────────────────────
-    await page.goto(VN_LANDING_URL, { waitUntil: "domcontentloaded", timeout: stepTimeoutMs });
-    await waitForHydrate(page, stepTimeoutMs);
-
-    // The router link is inside a Vue component; bypass overlays via JS click.
-    await page.evaluate(() => {
-      const doc = (globalThis as unknown as {
-        document?: {
-          querySelector: (selector: string) => { click: () => void } | null;
-        };
-      }).document;
-      const a = doc?.querySelector('a[href="/e-visa/foreigners"]');
-      if (a) a.click();
-    });
-    await page
-      .waitForURL(new RegExp(FORM_ROUTE_FRAGMENT.replace(/\//g, "\\/")), { timeout: 15_000 })
-      .catch(() => undefined);
-
-    // ── Dismiss the NOTE modal (tick checkboxes + Next) ────────────────
-    await dismissIntroModal(page, stepTimeoutMs);
-
-    // ── Wait for form fields ───────────────────────────────────────────
-    await page.waitForFunction(
-      () => {
-        const doc = (globalThis as unknown as {
-          document?: {
-            querySelectorAll: (selector: string) => { length: number };
-          };
-        }).document;
-        return (doc?.querySelectorAll(".ant-form-item").length ?? 0) > 10;
+    // ── Landing → reliable official checkpoint ────────────────────────
+    const bootstrap = await reachVietnamFormCheckpoint(page, {
+      officialBaseUrl,
+      officialFallbackBaseUrl,
+      stepTimeoutMs,
+      failedRequestCount: () => failedRequests.length,
+      mainRequestFailed: () => mainRequestFailed,
+      setMainRequestFailed: (value) => {
+        mainRequestFailed = value;
       },
-      null,
-      { timeout: stepTimeoutMs },
-    );
+      onSnapshot: (snapshot) => {
+        lastSnapshot = snapshot;
+      },
+    });
+
+    if (bootstrap.kind === "action_required") {
+      return {
+        status: "action_required",
+        runId,
+        actionType: bootstrap.actionType,
+        checkpoint: bootstrap.checkpoint,
+        instruction: bootstrap.instruction,
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
+
+    if (bootstrap.kind === "failed") {
+      return {
+        status: "failed",
+        runId,
+        failedStep: bootstrap.checkpoint,
+        error: {
+          code: bootstrap.errorCode,
+          message: bootstrap.reason,
+          consoleErrors: diagnostics().consoleErrors,
+          failedRequests: diagnostics().failedRequests,
+        },
+        url: page.url(),
+        checkpoint: bootstrap.checkpoint,
+        diagnostics: diagnostics(),
+      };
+    }
+
+    if (options.stopAtFirstCheckpoint) {
+      return {
+        status: "scaffolded_pending_walk",
+        runId,
+        reason: `Official Vietnam e-Visa checkpoint reached: ${bootstrap.checkpoint}. Smoke stopped before filling applicant data.`,
+        checkpoint: bootstrap.checkpoint,
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
 
     // ── Fill every mapped field that we have an answer for ─────────────
     let filled = 0;
@@ -147,6 +231,32 @@ export async function fillVietnamApplication(
     // Click the form's primary "Save" / "Next" button to advance to the
     // pre-pay review screen. Never click anything matching VN_STOP_BUTTON_PATTERNS.
     await advanceToReview(page, stepTimeoutMs);
+    lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
+    const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
+    if (reviewState === "captcha_visible") {
+      return {
+        status: "action_required",
+        runId,
+        actionType: "captcha_required",
+        checkpoint: "captcha_visible",
+        instruction:
+          "The official Vietnam e-Visa portal is showing a CAPTCHA. Complete it manually on the official page, then retry live assisted mode if needed.",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
+    if (reviewState === "payment_page_visible") {
+      return {
+        status: "action_required",
+        runId,
+        actionType: "payment_required",
+        checkpoint: "payment_page_visible",
+        instruction:
+          "The official Vietnam e-Visa portal reached payment. VIZA stopped before Pay/Submit; complete payment manually only if you intend to proceed.",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
 
     const registrationCode = await captureRegistrationCode(page);
     if (!registrationCode) {
@@ -156,6 +266,9 @@ export async function fillVietnamApplication(
         reason:
           "Form filled but registration code element not found on review screen — " +
           "selector tweak required (see VN_REGISTRATION_CODE_SELECTOR).",
+        checkpoint: reviewState,
+        url: page.url(),
+        diagnostics: diagnostics(),
       };
     }
 
@@ -174,6 +287,7 @@ export async function fillVietnamApplication(
       failedStep: page?.url() ?? "bootstrap",
       error: serializeError(err),
       url: page?.url() ?? VN_LANDING_URL,
+      diagnostics: diagnostics(),
     };
   } finally {
     if (options.finalScreenshotPath && page) {
@@ -202,6 +316,207 @@ export async function fillVietnamApplication(
       /* best-effort */
     }
   }
+}
+
+type VietnamBootstrapResult =
+  | { kind: "ready"; checkpoint: VietnamPortalStateId }
+  | {
+      kind: "action_required";
+      actionType:
+        | "note_modal_required"
+        | "captcha_required"
+        | "payment_required"
+        | "final_submit_required"
+        | "layout_changed"
+        | "official_portal_error";
+      checkpoint: VietnamPortalStateId;
+      instruction: string;
+    }
+  | {
+      kind: "failed";
+      checkpoint: VietnamPortalStateId;
+      errorCode: string;
+      reason: string;
+    };
+
+interface VietnamBootstrapOptions {
+  officialBaseUrl: string;
+  officialFallbackBaseUrl: string;
+  stepTimeoutMs: number;
+  failedRequestCount: () => number;
+  mainRequestFailed: () => boolean;
+  setMainRequestFailed: (value: boolean) => void;
+  onSnapshot: (snapshot: VietnamPortalSnapshot) => void;
+}
+
+async function reachVietnamFormCheckpoint(
+  page: Page,
+  options: VietnamBootstrapOptions,
+): Promise<VietnamBootstrapResult> {
+  const bases = Array.from(new Set([options.officialBaseUrl, options.officialFallbackBaseUrl].filter(Boolean)));
+  let lastState: VietnamPortalStateId = "layout_changed";
+  let attemptedFallback = false;
+
+  const readState = async (): Promise<VietnamPortalStateId> => {
+    const snapshot = await readVietnamPortalSnapshot(
+      page,
+      options.failedRequestCount(),
+      options.mainRequestFailed(),
+    );
+    options.onSnapshot(snapshot);
+    const state = classifyVietnamPortalSnapshot(snapshot);
+    lastState = state;
+    return state;
+  };
+
+  const openBase = async (baseUrl: string): Promise<VietnamPortalStateId> => {
+    options.setMainRequestFailed(false);
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.stepTimeoutMs }).catch(() => undefined);
+    await waitForHydrate(page, options.stepTimeoutMs);
+    await page.waitForLoadState("networkidle", { timeout: Math.min(options.stepTimeoutMs, 30_000) }).catch(() => undefined);
+    return readState();
+  };
+
+  let state = await openBase(bases[0] ?? VN_LANDING_URL);
+  if (state === "white_screen" || state === "network_blocked") {
+    options.setMainRequestFailed(false);
+    await page.reload({ waitUntil: "domcontentloaded", timeout: Math.min(options.stepTimeoutMs, 45_000) }).catch(() => undefined);
+    await waitForHydrate(page, options.stepTimeoutMs);
+    state = await readState();
+  }
+  if ((state === "white_screen" || state === "network_blocked") && bases.length > 1) {
+    attemptedFallback = true;
+    state = await openBase(bases[1]);
+  }
+
+  for (let step = 0; step < 8; step++) {
+    if (
+      state === "application_form_visible" ||
+      state === "upload_passport_visible" ||
+      state === "upload_portrait_visible"
+    ) {
+      return { kind: "ready", checkpoint: state };
+    }
+
+    if (state === "note_modal_visible") {
+      await dismissIntroModal(page, options.stepTimeoutMs);
+      state = await readState();
+      if (state === "note_modal_visible") {
+        return {
+          kind: "action_required",
+          actionType: "note_modal_required",
+          checkpoint: state,
+          instruction:
+            "The official Vietnam e-Visa page is showing a NOTE dialog. Read it in the official browser and confirm/continue manually, then retry live assisted mode if needed.",
+        };
+      }
+      continue;
+    }
+
+    if (state === "captcha_visible") {
+      return {
+        kind: "action_required",
+        actionType: "captcha_required",
+        checkpoint: state,
+        instruction:
+          "The official Vietnam e-Visa portal is showing a CAPTCHA. Complete it manually on the official page; VIZA will not bypass or solve it.",
+      };
+    }
+
+    if (state === "payment_page_visible" || state === "registration_code_visible") {
+      return {
+        kind: "action_required",
+        actionType: "payment_required",
+        checkpoint: state,
+        instruction:
+          "The official Vietnam e-Visa portal reached a payment/reference checkpoint. VIZA stopped before Pay/Submit.",
+      };
+    }
+
+    if (state === "white_screen" || state === "network_blocked") {
+      if (!attemptedFallback && bases.length > 1) {
+        attemptedFallback = true;
+        state = await openBase(bases[1]);
+        continue;
+      }
+      return {
+        kind: "failed",
+        checkpoint: state,
+        errorCode: state === "white_screen" ? "official_portal_white_screen" : "official_portal_network_blocked",
+        reason:
+          state === "white_screen"
+            ? "The official Vietnam e-Visa portal rendered a white screen after reload and fallback attempts."
+            : "The official Vietnam e-Visa portal navigation or critical resources were blocked after fallback attempts.",
+      };
+    }
+
+    if (state === "portal_error") {
+      return {
+        kind: "failed",
+        checkpoint: state,
+        errorCode: "official_portal_error",
+        reason: "The official Vietnam e-Visa portal returned an error or maintenance page.",
+      };
+    }
+
+    if (
+      state === "landing_page_loaded" ||
+      state === "apply_now_visible" ||
+      state === "language_switch_visible"
+    ) {
+      const clicked = await clickVietnamApplyEntry(page);
+      if (!clicked) {
+        return {
+          kind: "action_required",
+          actionType: "layout_changed",
+          checkpoint: state,
+          instruction:
+            "The official Vietnam e-Visa landing page loaded, but the worker could not find a reliable Apply link. Continue manually on the official page or retry after selectors are updated.",
+        };
+      }
+      await page
+        .waitForURL(new RegExp(FORM_ROUTE_FRAGMENT.replace(/\//g, "\\/")), { timeout: 15_000 })
+        .catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: Math.min(options.stepTimeoutMs, 30_000) }).catch(() => undefined);
+      state = await readState();
+      continue;
+    }
+
+    return {
+      kind: "action_required",
+      actionType: "layout_changed",
+      checkpoint: state,
+      instruction:
+        "The official Vietnam e-Visa portal layout changed. VIZA stopped before filling so the worker can be updated safely.",
+    };
+  }
+
+  return {
+    kind: "action_required",
+    actionType: "layout_changed",
+    checkpoint: lastState,
+    instruction:
+      "The official Vietnam e-Visa portal did not reach the form after multiple safe navigation attempts.",
+  };
+}
+
+async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
+  return page
+    .evaluate(() => {
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>("a, button, [role='button']"));
+      const match = candidates.find((element) => {
+        const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
+        const href = element instanceof HTMLAnchorElement ? element.getAttribute("href") ?? "" : "";
+        return (
+          /\/e-visa\/foreigners/i.test(href) ||
+          /for foreigners outside viet ?nam applying personally|apply now|e-visa for foreigners/i.test(text)
+        );
+      });
+      if (!match) return false;
+      match.click();
+      return true;
+    })
+    .catch(() => false);
 }
 
 async function waitForHydrate(page: Page, timeoutMs: number): Promise<void> {
@@ -268,7 +583,9 @@ async function dismissIntroModal(page: Page, timeoutMs: number): Promise<void> {
       .catch(() => undefined);
 
     const nextBtn = page
-      .locator(".ant-modal button", { hasText: /next|tiếp|continue|i agree/i })
+      .locator(".ant-modal button, [role='dialog'] button", {
+        hasText: /^(ok|agree|i agree|close|continue|next|tiếp|đồng ý|x)$/i,
+      })
       .first();
     if ((await nextBtn.count()) > 0) {
       const disabled = await nextBtn
@@ -281,6 +598,11 @@ async function dismissIntroModal(page: Page, timeoutMs: number): Promise<void> {
         await nextBtn.click({ timeout: 5_000 }).catch(() => undefined);
       }
     }
+    await page
+      .locator(".ant-modal-close, [aria-label='Close'], [aria-label='close']")
+      .first()
+      .click({ timeout: 2_000 })
+      .catch(() => undefined);
 
     await page.waitForTimeout(1_000);
   }

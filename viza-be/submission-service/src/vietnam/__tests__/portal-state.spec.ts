@@ -1,0 +1,84 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  classifyVietnamPortalSnapshot,
+  extractVietnamRegistrationCode,
+  type VietnamPortalSnapshot,
+} from "../portal-state";
+
+function snapshot(overrides: Partial<VietnamPortalSnapshot>): VietnamPortalSnapshot {
+  return {
+    url: "https://evisa.gov.vn/",
+    title: "Vietnam e-Visa",
+    bodyText: "Vietnam e-Visa official portal",
+    bodyHtmlLength: 5_000,
+    buttonTexts: ["Apply now"],
+    linkHrefs: ["https://evisa.gov.vn/e-visa/foreigners"],
+    antFormItemCount: 0,
+    inputCount: 0,
+    hasBody: true,
+    hasVisibleModal: false,
+    modalText: "",
+    hasApplyEntry: true,
+    hasLanguageSwitch: false,
+    hasCaptcha: false,
+    hasPassportUpload: false,
+    hasPortraitUpload: false,
+    hasPayment: false,
+    registrationCode: null,
+    failedRequestCount: 0,
+    mainRequestFailed: false,
+    ...overrides,
+  };
+}
+
+test("Vietnam portal state: NOTE modal is action-required before form selectors", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    hasVisibleModal: true,
+    modalText: "NOTE: Read the instruction carefully before continuing.",
+    antFormItemCount: 0,
+  }));
+
+  assert.equal(state, "note_modal_visible");
+});
+
+test("Vietnam portal state: white screen is explicit terminal state", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    bodyText: "",
+    bodyHtmlLength: 120,
+    buttonTexts: [],
+    linkHrefs: [],
+    hasApplyEntry: false,
+  }));
+
+  assert.equal(state, "white_screen");
+});
+
+test("Vietnam portal state: CAPTCHA and payment are detected before generic form", () => {
+  assert.equal(
+    classifyVietnamPortalSnapshot(snapshot({
+      bodyText: "Please enter CAPTCHA",
+      hasCaptcha: true,
+      antFormItemCount: 20,
+    })),
+    "captcha_visible",
+  );
+  assert.equal(
+    classifyVietnamPortalSnapshot(snapshot({
+      bodyText: "Payment fee - Pay now",
+      hasPayment: true,
+      antFormItemCount: 20,
+    })),
+    "payment_page_visible",
+  );
+});
+
+test("Vietnam portal state: registration code extraction is explicit", () => {
+  const text = "Registration code: E240610ABC123";
+
+  assert.equal(extractVietnamRegistrationCode(text), "E240610ABC123");
+  assert.equal(
+    classifyVietnamPortalSnapshot(snapshot({ registrationCode: "E240610ABC123" })),
+    "registration_code_visible",
+  );
+});

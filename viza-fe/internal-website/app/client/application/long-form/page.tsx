@@ -1207,7 +1207,9 @@ async function insertSubmissionQueueJob(
 
   const canUseLegacyPayload =
     isMissingSubmissionModeColumnError(error) &&
-    (input.mode === "dry_run" || status === "ds160_live_assisted_pending");
+    (input.mode === "dry_run" ||
+      status === "ds160_live_assisted_pending" ||
+      status === "vn_live_assisted_pending");
   if (!canUseLegacyPayload) {
     throw new Error(error.message);
   }

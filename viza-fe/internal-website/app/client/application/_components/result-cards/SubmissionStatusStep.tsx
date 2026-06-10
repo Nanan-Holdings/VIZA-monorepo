@@ -24,7 +24,12 @@ import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
-import type { SubmissionMode } from "@/lib/submission-queue";
+import {
+  isDs160VisaType,
+  isFranceVisasVisaType,
+  isVietnamEVisaApplication,
+  type SubmissionMode,
+} from "@/lib/submission-queue";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -43,6 +48,16 @@ interface SubmissionStatusSnapshot {
   error: string | null;
   updatedAt: string | null;
   applicationStatus: SubmissionResultStatus | null;
+  country: string | null;
+  visaType: string | null;
+  queue: {
+    id: string;
+    status: string;
+    mode: string | null;
+    provider: string | null;
+    currentStage?: string | null;
+    heartbeatAt?: string | null;
+  } | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -111,15 +126,11 @@ function isFranceCountry(country: string | null | undefined): boolean {
   return normalized === "france" || normalized === "fr" || normalized === "法国";
 }
 
-function isFranceVisasVisaType(visaType: string | null | undefined): boolean {
-  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
-  return normalized === "SCHENGEN_C" || normalized === "EU_SCHENGEN_C_SHORT_STAY";
-}
-
-function isDs160VisaType(visaType: string | null | undefined): boolean {
-  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
-  return ["DS160", "DS_160", "B1_B2", "B_1_B_2", "US_B1_B2", "US_DS160"].includes(
-    normalized,
+function supportsLiveRetry(country: string | null | undefined, visaType: string | null | undefined): boolean {
+  return (
+    isDs160VisaType(visaType) ||
+    (isFranceCountry(country) && isFranceVisasVisaType(visaType)) ||
+    isVietnamEVisaApplication(country, visaType)
   );
 }
 
@@ -324,22 +335,29 @@ export function SubmissionStatusStep({
 }: SubmissionStatusStepProps) {
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
   const [showCompletedResult, setShowCompletedResult] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
-  const handleRetry = useCallback(async () => {
+  const handleRetry = useCallback(async (mode: SubmissionMode) => {
     if (!applicationId) return;
-    const retrySource = snapshot?.result ?? result;
-    const retryMode: SubmissionMode =
-      retrySource && "mode" in retrySource && retrySource.mode === "live_assisted"
-        ? "live_assisted"
-        : "dry_run";
-    await fetch(`/api/applications/${applicationId}/retry-submission`, {
+    setRetryError(null);
+    const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: retryMode }),
+      body: JSON.stringify({
+        mode,
+        country: snapshot?.country ?? country,
+        visaType: snapshot?.visaType ?? visaType,
+      }),
     });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      const message = typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`;
+      setRetryError(message);
+      throw new Error(message);
+    }
     setSnapshot(null);
     setShowCompletedResult(false);
-  }, [applicationId, result, snapshot?.result]);
+  }, [applicationId, country, snapshot?.country, snapshot?.visaType, visaType]);
 
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
@@ -371,10 +389,18 @@ export function SubmissionStatusStep({
   const completedWithResult = effectiveStatus === "completed" && Boolean(effectiveResult);
   const actionWithResult = effectiveStatus === "needs_user_action" && Boolean(effectiveResult);
   const failed = effectiveStatus === "failed" || effectiveApplicationStatus === "failed";
+  const stalled = effectiveStatus === "stalled" || effectiveApplicationStatus === "stalled";
+  const retryModes = supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
+    ? [
+        { mode: "dry_run" as const, label: "Dry-run test" },
+        { mode: "live_assisted" as const, label: "Live assisted" },
+      ]
+    : [{ mode: "dry_run" as const, label: "Retry dry-run" }];
 
   useEffect(() => {
     setSnapshot(null);
     setShowCompletedResult(false);
+    setRetryError(null);
   }, [applicationId]);
 
   useEffect(() => {
@@ -411,6 +437,20 @@ export function SubmissionStatusStep({
               typeof body.applicationStatus === "string"
                 ? (body.applicationStatus as SubmissionResultStatus)
                 : null,
+            country: typeof body.country === "string" ? body.country : null,
+            visaType: typeof body.visaType === "string" ? body.visaType : null,
+            queue: isRecord(body.queue)
+              ? {
+                  id: typeof body.queue.id === "string" ? body.queue.id : "",
+                  status: typeof body.queue.status === "string" ? body.queue.status : "",
+                  mode: typeof body.queue.mode === "string" ? body.queue.mode : null,
+                  provider: typeof body.queue.provider === "string" ? body.queue.provider : null,
+                  currentStage:
+                    typeof body.queue.currentStage === "string" ? body.queue.currentStage : null,
+                  heartbeatAt:
+                    typeof body.queue.heartbeatAt === "string" ? body.queue.heartbeatAt : null,
+                }
+              : null,
           });
         }
       } catch (err) {
@@ -425,6 +465,9 @@ export function SubmissionStatusStep({
           error: message,
           updatedAt: current?.updatedAt ?? null,
           applicationStatus: current?.applicationStatus ?? status,
+          country: current?.country ?? country,
+          visaType: current?.visaType ?? visaType,
+          queue: current?.queue ?? null,
         }));
       }
     };
@@ -440,6 +483,8 @@ export function SubmissionStatusStep({
     applicationId,
     completedWithResult,
     failed,
+    country,
+    visaType,
     result,
     status,
   ]);
@@ -448,7 +493,23 @@ export function SubmissionStatusStep({
     return (
       <FailureCard
         applicationId={applicationId ?? undefined}
-        errorMessage={effectiveError}
+        errorMessage={retryError ?? effectiveError}
+        retryModes={retryModes}
+        onRetry={handleRetry}
+      />
+    );
+  }
+
+  if (stalled) {
+    return (
+      <FailureCard
+        applicationId={applicationId ?? undefined}
+        errorMessage={
+          retryError ??
+          effectiveError ??
+          "Submission job stalled because the worker did not pick it up in time."
+        }
+        retryModes={retryModes}
         onRetry={handleRetry}
       />
     );

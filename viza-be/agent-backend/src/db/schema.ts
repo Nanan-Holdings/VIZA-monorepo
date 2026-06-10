@@ -281,6 +281,9 @@ export const submissionQueue = pgTable("submission_queue", {
 	officialReviewSnapshotId: uuid("official_review_snapshot_id"),
 	reviewDiffStatus: text("review_diff_status").default("not_run"),
 	manualActionStatus: text("manual_action_status"),
+	currentStage: text("current_stage"),
+	startedAt: timestamp("started_at", { withTimezone: true }),
+	heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
 	filingLocation: text("filing_location"),
 	externalServiceProvider: text("external_service_provider"),
 	appointmentStatus: text("appointment_status"),
@@ -300,6 +303,10 @@ export const submissionQueue = pgTable("submission_queue", {
 	auResultPayload: jsonb("au_result_payload"),
 	auTrn: text("au_trn"),
 	auReviewScreenshotStoragePath: text("au_review_screenshot_storage_path"),
+	vnResultPayload: jsonb("vn_result_payload"),
+	vnRegistrationCodeEncrypted: text("vn_registration_code_encrypted"),
+	officialPortalUrl: text("official_portal_url"),
+	officialTraceUrl: text("official_trace_url"),
 	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -408,6 +415,26 @@ export const franceLiveManualActions = pgTable("france_live_manual_actions", {
 	applicationIdx: index("france_live_manual_actions_application_idx").on(table.applicationId),
 	statusIdx: index("france_live_manual_actions_status_idx").on(table.status),
 	typeIdx: index("france_live_manual_actions_type_idx").on(table.actionType),
+}));
+
+export const vietnamLiveManualActions = pgTable("vietnam_live_manual_actions", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	jobId: uuid("job_id"),
+	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
+	actionType: text("action_type").notNull(),
+	status: text("status").notNull().default("pending"),
+	instruction: text("instruction"),
+	screenshotUrl: text("screenshot_url"),
+	redactedMetadataJson: jsonb("redacted_metadata_json").notNull().default({}),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	expiresAt: timestamp("expires_at", { withTimezone: true }),
+}, (table) => ({
+	jobIdx: index("vietnam_live_manual_actions_job_idx").on(table.jobId),
+	applicationIdx: index("vietnam_live_manual_actions_application_idx").on(table.applicationId),
+	statusIdx: index("vietnam_live_manual_actions_status_idx").on(table.status),
+	typeIdx: index("vietnam_live_manual_actions_type_idx").on(table.actionType),
 }));
 
 // =============================================================================

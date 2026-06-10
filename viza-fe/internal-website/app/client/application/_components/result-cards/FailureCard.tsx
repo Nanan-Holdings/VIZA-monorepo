@@ -4,27 +4,32 @@ import { useState } from "react";
 import { AlertTriangle, RotateCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import type { SubmissionMode } from "@/lib/submission-queue";
 
 interface FailureCardProps {
   applicationId?: string;
   errorMessage?: string;
-  onRetry?: () => Promise<void> | void;
+  retryModes?: Array<{ mode: SubmissionMode; label: string }>;
+  onRetry?: (mode: SubmissionMode) => Promise<void> | void;
 }
 
 /**
  * FailureCard — renders when applications.submission_result_status === 'failed'.
  * Surfaces the error and offers a retry that requeues the application.
  */
-export function FailureCard({ applicationId, errorMessage, onRetry }: FailureCardProps) {
-  const [retrying, setRetrying] = useState(false);
+export function FailureCard({ applicationId, errorMessage, retryModes, onRetry }: FailureCardProps) {
+  const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
+  const modes = retryModes && retryModes.length > 0
+    ? retryModes
+    : [{ mode: "dry_run" as const, label: "Retry submission" }];
 
-  const handleRetry = async () => {
+  const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry) return;
-    setRetrying(true);
+    setRetryingMode(mode);
     try {
-      await onRetry();
+      await onRetry(mode);
     } finally {
-      setRetrying(false);
+      setRetryingMode(null);
     }
   };
 
@@ -47,14 +52,21 @@ export function FailureCard({ applicationId, errorMessage, onRetry }: FailureCar
           </pre>
         )}
         {applicationId && onRetry && (
-          <BrandActionButton
-            onClick={handleRetry}
-            loading={retrying}
-            loadingText="Retrying"
-          >
-            <RotateCw className="mr-2 h-4 w-4" />
-            Retry submission
-          </BrandActionButton>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {modes.map((item) => (
+              <BrandActionButton
+                key={item.mode}
+                onClick={() => {
+                  void handleRetry(item.mode).catch(() => undefined);
+                }}
+                loading={retryingMode === item.mode}
+                loadingText="Retrying"
+              >
+                <RotateCw className="mr-2 h-4 w-4" />
+                {item.label}
+              </BrandActionButton>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>

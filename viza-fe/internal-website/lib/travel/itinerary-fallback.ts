@@ -38,6 +38,7 @@ export type TravelItineraryFallbackResponse = {
     primaryTravelServiceStatus: "success" | "failed" | "skipped";
     googleFallbackAttempted: boolean;
     googleFallbackSucceeded: boolean;
+    googleFallbackError?: string;
     llmFallbackAttempted: boolean;
     llmFallbackSucceeded: boolean;
     finalSource: "primary_travel_service" | "llm_text";
@@ -532,6 +533,7 @@ export async function generateItineraryWithFallback(
     primaryTravelServiceStatus: "skipped" as "success" | "failed" | "skipped",
     googleFallbackAttempted: false,
     googleFallbackSucceeded: false,
+    googleFallbackError: undefined as string | undefined,
     llmFallbackAttempted: false,
     llmFallbackSucceeded: false,
     googleCallEvidence: undefined as TravelGoogleEnrichedDestination["calls"] | undefined,
@@ -599,6 +601,7 @@ export async function generateItineraryWithFallback(
         },
       });
     } catch (error) {
+      diagnostics.googleFallbackError = getErrorMessage(error);
       warnings.push("google_places_unavailable");
       logTravelPipelineEvent({
         debugId,

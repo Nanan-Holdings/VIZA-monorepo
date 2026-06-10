@@ -113,15 +113,15 @@ describe("legacy application step copilot coverage", () => {
     render(<PersonalInfoStep onComplete={vi.fn()} />);
 
     fireEvent.change(screen.getByPlaceholderText("如：小明"), {
-      target: { value: "泓羽" },
+      target: { value: "小明" },
     });
 
-    expect(screen.getByPlaceholderText("e.g. XIAOMING")).toHaveValue("HONGYU");
+    expect(screen.getByPlaceholderText("e.g. XIAOMING")).toHaveValue("XIAOMING");
     expect(screen.queryByDisplayValue(/Please confirm/i)).not.toBeInTheDocument();
   });
 
   it("transliterates common Chinese names in dynamic bilingual fields", () => {
-    expect(toOfficialEnglishValue("陈泓羽")).toBe("CHENHONGYU");
+    expect(toOfficialEnglishValue("李小明")).toBe("LI XIAOMING");
     expect(toOfficialEnglishValue("软件工程师")).toBe("Software engineer");
     expect(toOfficialEnglishValue("硬件工程师")).toBe("Hardware engineer");
     expect(toOfficialEnglishValue("长沙")).toBe("Changsha");

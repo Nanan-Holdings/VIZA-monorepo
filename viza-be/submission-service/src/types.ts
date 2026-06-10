@@ -7,6 +7,7 @@ export interface SubmissionQueueItem {
     | "processing"
     | "done"
     | "failed"
+    | "stalled"
     | "ds160_prefill_pending"
     | "ds160_prefill_processing"
     | "ds160_prefilled"
