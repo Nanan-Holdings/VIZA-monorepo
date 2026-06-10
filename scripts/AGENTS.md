@@ -30,3 +30,7 @@ smoke-test helpers for the VIZA monorepo.
   internal portal on separate local ports.
 - `audit-bilingual-schema-clarity.ts`: scans visa form schema seed sources and
   fallback form definitions, then writes bilingual schema clarity reports.
+- `doctor-env.ps1`: reports env files, BOMs, frontend secret variable names,
+  and unsafe `NEXT_PUBLIC_` names without printing values.
+- `doctor-env.ts`: cross-platform env doctor used by package scripts and the
+  internal website wrapper.
