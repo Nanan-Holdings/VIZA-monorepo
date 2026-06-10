@@ -4,9 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import {
   isDs160VisaType,
   isFranceVisasVisaType,
-  queueProviderForVisaType,
+  isVietnamEVisaApplication,
+  queueProviderForApplication,
   queueStatusForApplication,
-  queueStatusForSubmissionMode,
   RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   type SubmissionMode,
 } from "@/lib/submission-queue";
@@ -18,12 +18,35 @@ type ApplicationForRetry = {
   visa_type: string | null;
 };
 
-async function readRequestedMode(request: Request): Promise<SubmissionMode> {
+type RetrySubmissionRequest = {
+  mode: SubmissionMode | null;
+  country: string | null;
+  visaType: string | null;
+};
+
+type RetryQueueInsertResult = {
+  error: string | null;
+  jobId: string | null;
+};
+
+async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmissionRequest> {
   try {
-    const body = (await request.json()) as { mode?: unknown };
-    return body.mode === "live_assisted" ? "live_assisted" : "dry_run";
+    const body = (await request.json()) as {
+      mode?: unknown;
+      country?: unknown;
+      visaType?: unknown;
+    };
+    return {
+      mode: body.mode === "live_assisted" || body.mode === "dry_run" ? body.mode : null,
+      country: typeof body.country === "string" && body.country.trim() ? body.country : null,
+      visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
+    };
   } catch {
-    return "dry_run";
+    return {
+      mode: null,
+      country: null,
+      visaType: null,
+    };
   }
 }
 
@@ -40,11 +63,29 @@ function isFranceCountry(country: string | null): boolean {
   return normalized === "france" || normalized === "fr" || normalized === "法国";
 }
 
+function normalizeComparable(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function requestedValueMatchesApplication(
+  requested: string | null,
+  actual: string | null,
+): boolean {
+  if (!requested) return true;
+  return normalizeComparable(requested) === normalizeComparable(actual);
+}
+
 function isFranceLiveRetryApplication(country: string | null, visaType: string | null): boolean {
   return isFranceCountry(country) && isFranceVisasVisaType(visaType);
 }
 
 function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
+  if (isVietnamEVisaApplication(country, visaType)) {
+    return (
+      envEnabled("VN_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED") &&
+      envModeLive("VN_SUBMISSION_MODE", "NEXT_PUBLIC_VN_SUBMISSION_MODE")
+    );
+  }
   if (isFranceLiveRetryApplication(country, visaType)) {
     return (
       envEnabled("FRANCE_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED") &&
@@ -86,8 +127,8 @@ async function insertRetryQueueRow(
     provider: string | null;
     now: string;
   },
-): Promise<string | null> {
-  const { error } = await admin.from("submission_queue").insert({
+): Promise<RetryQueueInsertResult> {
+  const { data, error } = await admin.from("submission_queue").insert({
     application_id: input.applicationId,
     status: input.queueStatus,
     mode: input.mode,
@@ -96,23 +137,28 @@ async function insertRetryQueueRow(
     last_error: null,
     created_at: input.now,
     updated_at: input.now,
-  });
-  if (!error) return null;
+  }).select("id").single();
+  if (!error) {
+    const row = data as { id?: string | null } | null;
+    return { error: null, jobId: row?.id ?? null };
+  }
 
   const canUseLegacyPayload =
     isMissingSubmissionModeColumnError(error) &&
     (input.mode === "dry_run" || input.queueStatus === "ds160_live_assisted_pending");
-  if (!canUseLegacyPayload) return error.message;
+  if (!canUseLegacyPayload) return { error: error.message, jobId: null };
 
-  const { error: legacyError } = await admin.from("submission_queue").insert({
+  const { data: legacyData, error: legacyError } = await admin.from("submission_queue").insert({
     application_id: input.applicationId,
     status: input.queueStatus,
     attempts: 0,
     last_error: null,
     created_at: input.now,
     updated_at: input.now,
-  });
-  return legacyError?.message ?? null;
+  }).select("id").single();
+  if (legacyError) return { error: legacyError.message, jobId: null };
+  const legacyRow = legacyData as { id?: string | null } | null;
+  return { error: null, jobId: legacyRow?.id ?? null };
 }
 
 export async function POST(
@@ -164,16 +210,44 @@ export async function POST(
   }
 
   const now = new Date().toISOString();
-  const mode = await readRequestedMode(request);
-  const queueStatus = mode === "live_assisted"
-    ? queueStatusForSubmissionMode(ownedApplication.visa_type, mode)
-    : queueStatusForApplication(ownedApplication.country, ownedApplication.visa_type);
-  const provider = queueProviderForVisaType(ownedApplication.visa_type, mode);
+  const requestedSubmission = await readRetrySubmissionRequest(request);
+  const mode = requestedSubmission.mode;
+  if (!mode) {
+    return NextResponse.json(
+      { error: "Submission retry mode is required. Choose dry_run or live_assisted." },
+      { status: 400 },
+    );
+  }
+
+  if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
+    return NextResponse.json(
+      { error: "Requested country does not match the application country." },
+      { status: 400 },
+    );
+  }
+  if (!requestedValueMatchesApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
+    return NextResponse.json(
+      { error: "Requested visa type does not match the application visa type." },
+      { status: 400 },
+    );
+  }
+
+  const queueStatus = queueStatusForApplication(
+    ownedApplication.country,
+    ownedApplication.visa_type,
+    mode,
+  );
+  const provider = queueProviderForApplication(
+    ownedApplication.country,
+    ownedApplication.visa_type,
+    mode,
+  );
 
   if (mode === "live_assisted") {
     const supportsLiveAssisted =
       isDs160VisaType(ownedApplication.visa_type) ||
-      isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type);
+      isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
         { error: "Live assisted retry is not supported for this visa type." },
@@ -232,15 +306,15 @@ export async function POST(
     return NextResponse.json({ error: supersedeError.message }, { status: 500 });
   }
 
-  const queueError = await insertRetryQueueRow(admin, {
+  const queueResult = await insertRetryQueueRow(admin, {
     applicationId,
     queueStatus,
     mode,
     provider,
     now,
   });
-  if (queueError) {
-    return NextResponse.json({ error: queueError }, { status: 500 });
+  if (queueResult.error) {
+    return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
 
   const { error: appUpdateError } = await admin
@@ -262,6 +336,7 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     applicationId,
+    jobId: queueResult.jobId,
     queueStatus,
     mode,
     provider,

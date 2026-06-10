@@ -2122,6 +2122,24 @@ async function poll(): Promise<void> {
 async function main(): Promise<void> {
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
+  const ds160Config = loadDs160SubmissionConfig();
+  console.log(
+    [
+      "[main] DS-160 config:",
+      `mode=${ds160Config.mode}`,
+      `liveEnabled=${ds160Config.liveSubmissionEnabled}`,
+      `liveAssistedOnly=${ds160Config.liveAssistedOnly}`,
+      `finalUserConfirmation=${ds160Config.requireFinalUserConfirmation}`,
+      `reviewDiffRequired=${ds160Config.requireOfficialReviewDiffPass}`,
+      `headless=${ds160Config.playwrightHeadless}`,
+      `secretConfigured=${ds160Config.submissionSecretConfigured}`,
+    ].join(" "),
+  );
+  console.log(`[main] Global dry-run override=${isSubmissionDryRunMode() ? "on" : "off"}`);
+  const ds160LiveStartError = validateDs160LiveStart(ds160Config);
+  if (ds160Config.mode === "live_assisted" && ds160LiveStartError) {
+    console.warn(`[main] DS-160 live assisted startup check blocked: ${ds160LiveStartError}`);
+  }
 
   // Run immediately on start, then on interval
   await poll();

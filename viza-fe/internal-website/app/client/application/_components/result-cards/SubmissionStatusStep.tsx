@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, FlaskConical } from "lucide-react";
+import { AlertTriangle, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import type {
   GenericSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import {
@@ -27,6 +28,8 @@ import type { SubmissionMode } from "@/lib/submission-queue";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
+  country: string | null;
+  visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
 }
@@ -103,10 +106,59 @@ function isSnapshot(value: unknown): value is SubmissionStatusSnapshot {
   );
 }
 
-function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
+function isFranceCountry(country: string | null | undefined): boolean {
+  const normalized = (country ?? "").trim().toLowerCase();
+  return normalized === "france" || normalized === "fr" || normalized === "法国";
+}
+
+function isFranceVisasVisaType(visaType: string | null | undefined): boolean {
+  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+  return normalized === "SCHENGEN_C" || normalized === "EU_SCHENGEN_C_SHORT_STAY";
+}
+
+function isDs160VisaType(visaType: string | null | undefined): boolean {
+  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+  return ["DS160", "DS_160", "B1_B2", "B_1_B_2", "US_B1_B2", "US_DS160"].includes(
+    normalized,
+  );
+}
+
+function GenericResultCard({
+  applicationId,
+  applicationCountry,
+  applicationVisaType,
+  result,
+}: {
+  applicationId: string | null;
+  applicationCountry: string | null;
+  applicationVisaType: string | null;
+  result: GenericSubmissionResult;
+}) {
   const isZh = isChineseLocale(useLocale());
+  const [startingLive, setStartingLive] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
+  const ds160LiveEnabled =
+    process.env.NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED === "true" &&
+    process.env.NEXT_PUBLIC_DS160_SUBMISSION_MODE === "live_assisted";
+  const franceLiveEnabled =
+    process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
+    process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
+  const canStartDs160Live =
+    Boolean(applicationId) &&
+    result.status === "submitted_mock" &&
+    result.mode === "dry_run" &&
+    ds160LiveEnabled &&
+    isDs160VisaType(applicationVisaType ?? result.visaType);
+  const canStartFranceLive =
+    Boolean(applicationId) &&
+    result.status === "submitted_mock" &&
+    result.mode === "dry_run" &&
+    franceLiveEnabled &&
+    isFranceCountry(applicationCountry) &&
+    isFranceVisasVisaType(applicationVisaType ?? result.visaType);
+  const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : null;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = actionRequired
     ? (isZh ? "需要人工操作" : "Manual action required")
@@ -125,6 +177,44 @@ function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
     : actionRequired
       ? (result.actionInstructions ?? result.message)
       : result.message;
+
+  const startLiveAssisted = async () => {
+    if (!applicationId || startingLive || !liveTarget) return;
+
+    const confirmed = window.confirm(
+      liveTarget === "ds160"
+        ? (isZh
+            ? "这会创建 live_assisted 队列任务并打开 CEAC 官方 DS-160 流程。地点选择、验证码、官网核对和最终 Sign/Submit 都必须由本人手动处理。确认继续？"
+            : "This will create a live_assisted queue job and open the official CEAC DS-160 flow. Location selection, CAPTCHA, official review, and final Sign/Submit remain manual. Continue?")
+        : (isZh
+            ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方流程。验证码、登录、邮箱验证、官网核对、最终验证、支付和预约都必须由本人手动处理。确认继续？"
+            : "This will create a live_assisted queue job and open the official France-Visas flow. CAPTCHA, login, email verification, official review, final validation, payment, and appointment booking remain manual. Continue?"),
+    );
+    if (!confirmed) return;
+
+    setStartingLive(true);
+    setLiveError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "live_assisted",
+          country: applicationCountry,
+          visaType: applicationVisaType ?? result.visaType,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || `retry-submission returned ${response.status}`);
+      }
+      window.location.reload();
+    } catch (error) {
+      setLiveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setStartingLive(false);
+    }
+  };
 
   return (
     <Card className="rounded-xl border-input">
@@ -151,12 +241,52 @@ function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
           </div>
         </div>
 
-        {result.confirmationNumber && (
+        {result.mode === "dry_run" && result.confirmationNumber && (
           <div className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2">
             <div className="text-xs text-brand-500">Mock confirmation</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
               {result.confirmationNumber}
             </div>
+          </div>
+        )}
+
+        {liveTarget && (
+          <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
+            <div className="flex items-start gap-2 text-sm leading-relaxed text-brand-900">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+              <span>
+                {liveTarget === "ds160"
+                  ? (isZh
+                      ? "这是旧的 dry-run 结果。可以从这里启动 CEAC 官网辅助填写，真实流程会停在地点选择、验证码、官网核对或最终 Sign/Submit 等人工检查点。"
+                      : "This is the previous dry-run result. You can start the CEAC live assisted fill from here; the real flow will stop at location, CAPTCHA, official review, or final Sign/Submit checkpoints.")
+                  : (isZh
+                      ? "这是旧的 dry-run 结果。可以从这里改为启动 France-Visas 官网辅助填写，真实流程会停在需要人工处理的官网检查点。"
+                      : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; the real flow will stop at manual official-site checkpoints.")}
+              </span>
+            </div>
+            <Button
+              type="button"
+              className="mt-3 w-full"
+              onClick={startLiveAssisted}
+              disabled={startingLive}
+            >
+              {startingLive ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="mr-2 h-4 w-4" />
+              )}
+              {startingLive
+                ? (isZh ? "正在启动" : "Starting")
+                : liveTarget === "ds160"
+                  ? (isZh ? "启动真实官网辅助填写" : "Start live assisted CEAC run")
+                  : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
+            </Button>
+          </div>
+        )}
+
+        {liveError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {liveError}
           </div>
         )}
 
@@ -187,6 +317,8 @@ function GenericResultCard({ result }: { result: GenericSubmissionResult }) {
  */
 export function SubmissionStatusStep({
   applicationId,
+  country,
+  visaType,
   status,
   result,
 }: SubmissionStatusStepProps) {
@@ -323,7 +455,7 @@ export function SubmissionStatusStep({
   }
 
   if (actionWithResult || (completedWithResult && showCompletedResult)) {
-    return renderSubmissionResultCard(applicationId, effectiveResult);
+    return renderSubmissionResultCard(applicationId, country, visaType, effectiveResult);
   }
 
   return (
@@ -340,6 +472,8 @@ export function SubmissionStatusStep({
 
 function renderSubmissionResultCard(
   applicationId: string | null,
+  country: string | null,
+  visaType: string | null,
   result: SubmissionResult | null,
 ) {
   if (!result) return <WaitingCard status="running" />;
@@ -366,7 +500,14 @@ function renderSubmissionResultCard(
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "GENERIC":
-      return <GenericResultCard result={result} />;
+      return (
+        <GenericResultCard
+          applicationId={applicationId}
+          applicationCountry={country}
+          applicationVisaType={visaType}
+          result={result}
+        />
+      );
     default:
       return <WaitingCard status="running" />;
   }

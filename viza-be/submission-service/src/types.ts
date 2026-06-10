@@ -25,6 +25,12 @@ export interface SubmissionQueueItem {
     | "uk_prefilled"
     | "uk_prefill_failed"
     | "uk_blocked"
+    | "vn_dry_run_pending"
+    | "vn_dry_run_processing"
+    | "vn_dry_run_failed"
+    | "vn_live_assisted_pending"
+    | "vn_live_assisted_processing"
+    | "vn_live_assisted_failed"
     | "vn_prefill_pending"
     | "vn_prefill_processing"
     | "vn_prefilled"
@@ -52,6 +58,9 @@ export interface SubmissionQueueItem {
   official_review_snapshot_id?: string | null;
   review_diff_status?: "not_run" | "passed" | "failed" | string | null;
   manual_action_status?: string | null;
+  current_stage?: string | null;
+  started_at?: string | null;
+  heartbeat_at?: string | null;
   filing_location?: string | null;
   external_service_provider?: "VFS" | "TLS" | "CAPAGO" | "CONSULATE" | "UNKNOWN" | string | null;
   appointment_status?: string | null;
@@ -81,6 +90,12 @@ export interface SubmissionQueueItem {
   au_trn: string | null;
   /** submission-artifacts bucket path for the captured Review-page screenshot. */
   au_review_screenshot_storage_path: string | null;
+  /** Structured Vietnam e-Visa run result payload (JSON). */
+  vn_result_payload?: Record<string, unknown> | null;
+  /** Encrypted official Vietnam e-Visa registration code. */
+  vn_registration_code_encrypted?: string | null;
+  official_portal_url?: string | null;
+  official_trace_url?: string | null;
   created_at: string;
   updated_at: string;
 }

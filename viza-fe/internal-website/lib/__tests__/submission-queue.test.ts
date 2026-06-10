@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
+  queueProviderForApplication,
   queueProviderForVisaType,
   queueStatusForApplication,
   queueStatusForVisaType,
@@ -15,13 +16,14 @@ describe("queueStatusForVisaType", () => {
   it("keeps other implemented automation providers scoped to their own queues", () => {
     expect(queueStatusForVisaType("DS160")).toBe("ds160_prefill_pending");
     expect(queueStatusForVisaType("UK_STANDARD_VISITOR")).toBe("uk_prefill_pending");
-    expect(queueStatusForVisaType("VN_E_VISA")).toBe("vn_prefill_pending");
+    expect(queueStatusForVisaType("VN_E_VISA")).toBe("vn_dry_run_pending");
     expect(queueStatusForVisaType("AU_VISITOR_600")).toBe("au_prefill_pending");
   });
 
   it("routes legacy Vietnam e-visa tourism packages by country without hijacking other countries", () => {
-    expect(queueStatusForApplication("vietnam", "evisa_tourism")).toBe("vn_prefill_pending");
-    expect(queueStatusForApplication("Viet Nam", "tourist-e-visa")).toBe("vn_prefill_pending");
+    expect(queueStatusForApplication("vietnam", "evisa_tourism")).toBe("vn_dry_run_pending");
+    expect(queueStatusForApplication("Viet Nam", "tourist-e-visa")).toBe("vn_dry_run_pending");
+    expect(queueStatusForApplication("VN", "evisa_tourism", "live_assisted")).toBe("vn_live_assisted_pending");
     expect(queueStatusForApplication("egypt", "evisa_tourism")).toBe("pending");
   });
 
@@ -41,5 +43,11 @@ describe("queueStatusForVisaType", () => {
   it("marks France Schengen submissions with the France-Visas provider for each mode", () => {
     expect(queueProviderForVisaType("EU_SCHENGEN_C_SHORT_STAY", "dry_run")).toBe("france_visas_dry_run");
     expect(queueProviderForVisaType("EU_SCHENGEN_C_SHORT_STAY", "live_assisted")).toBe("france_visas_live");
+  });
+
+  it("marks Vietnam e-visa submissions with the Vietnam provider only when country matches", () => {
+    expect(queueProviderForApplication("vietnam", "evisa_tourism", "dry_run")).toBe("vietnam_evisa_dry_run");
+    expect(queueProviderForApplication("vietnam", "evisa_tourism", "live_assisted")).toBe("vietnam_evisa_live");
+    expect(queueProviderForApplication("egypt", "evisa_tourism", "live_assisted")).toBeNull();
   });
 });
