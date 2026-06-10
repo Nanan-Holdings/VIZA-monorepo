@@ -516,7 +516,13 @@ export function SubmissionStatusStep({
   }
 
   if (actionWithResult || (completedWithResult && showCompletedResult)) {
-    return renderSubmissionResultCard(applicationId, country, visaType, effectiveResult);
+    return renderSubmissionResultCard(
+      applicationId,
+      country,
+      visaType,
+      effectiveResult,
+      snapshot?.queue?.id ?? null,
+    );
   }
 
   return (
@@ -536,6 +542,7 @@ function renderSubmissionResultCard(
   country: string | null,
   visaType: string | null,
   result: SubmissionResult | null,
+  jobId: string | null = null,
 ) {
   if (!result) return <WaitingCard status="running" />;
 
@@ -551,7 +558,7 @@ function renderSubmissionResultCard(
         <UkResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "VN":
-      return <VnResultCard result={result} />;
+      return <VnResultCard result={result} jobId={jobId} />;
     case "AU":
       return applicationId ? (
         <AuResultCard applicationId={applicationId} result={result} />
