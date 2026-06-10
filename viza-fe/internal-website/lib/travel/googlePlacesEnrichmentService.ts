@@ -713,11 +713,14 @@ export async function enrichDestinationWithGooglePlaces(
   const fetchImpl = options.fetchImpl ?? fetch;
   const languageCode = languageForLocale(input.locale);
   const contract = findDropdownDestinationContract(input.city);
-  const cityEn = contract?.nameEn ?? input.city;
-  const cityZh = contract?.nameZh ?? input.city;
-  const countryCode = contract?.countryCode ?? null;
-  const country = input.country ?? contract?.countryNameEn ?? null;
-  const isChangsha = isChangshaDestination(cityEn) || isChangshaDestination(cityZh);
+  const isChangsha =
+    isChangshaDestination(input.city) ||
+    isChangshaDestination(contract?.nameEn ?? "") ||
+    isChangshaDestination(contract?.nameZh ?? "");
+  const cityEn = isChangsha ? "Changsha" : contract?.nameEn ?? input.city;
+  const cityZh = isChangsha ? "长沙" : contract?.nameZh ?? input.city;
+  const countryCode = isChangsha ? "CN" : contract?.countryCode ?? null;
+  const country = isChangsha ? "China" : input.country ?? contract?.countryNameEn ?? null;
   const adminAreaEn = isChangsha ? "Hunan" : contract?.region ?? null;
   const adminAreaZh = isChangsha ? "湖南" : null;
   const evidence: TravelGoogleCallEvidence = {

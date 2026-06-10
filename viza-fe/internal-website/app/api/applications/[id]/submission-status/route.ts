@@ -42,6 +42,12 @@ type QueueRow = {
   mode: string | null;
   provider: string | null;
   last_error: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  current_stage: string | null;
+  heartbeat_at: string | null;
+  manual_action_status: string | null;
+  official_status: string | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -160,6 +166,22 @@ function deriveTerminalApplicationStatus(
     };
   }
 
+  if (appStatus === "stalled") {
+    return {
+      status: "stalled",
+      stage: "confirming_result",
+      progress: 99,
+      message:
+        resultError ??
+        queueError ??
+        "Submission job stalled because the worker did not pick it up in time.",
+      error:
+        resultError ??
+        queueError ??
+        "Submission job stalled because the worker did not pick it up in time.",
+    };
+  }
+
   if (COMPLETED_APPLICATION_STATUSES.has(appStatus)) {
     return {
       status: "completed",
@@ -194,7 +216,14 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     queueStatus.endsWith("_failed") ||
     queueStatus === "vn_blocked"
   ) {
+    if (queueStatus === "vn_blocked") {
+      return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+    }
     return { status: "failed", stage: "failed", progress: 0 };
+  }
+
+  if (queueStatus === "stalled") {
+    return { status: "stalled", stage: "confirming_result", progress: 99 };
   }
 
   if (queueStatus.endsWith("_blocked")) {
@@ -227,11 +256,31 @@ function deriveNonTerminalStatus(
   const queueStatus = normalizeStatus(queue?.status);
   const queueDerived = deriveQueueStage(queueStatus);
   const updatedAt = latestTimestamp(
+    queue?.heartbeat_at,
     queue?.updated_at,
     application.submission_result_updated_at,
     application.updated_at,
   );
-  const error = queue?.last_error?.trim() || extractResultError(application.submission_result);
+  const queueMessage =
+    queue?.error_message?.trim() ||
+    queue?.last_error?.trim() ||
+    extractResultError(application.submission_result);
+  const currentStage = normalizeStatus(queue?.current_stage);
+  const error = queueMessage;
+
+  if (queueDerived.status === "needs_user_action") {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        (currentStage
+          ? `Official portal checkpoint: ${currentStage}.`
+          : "The official portal needs a human action before VIZA can continue."),
+      error: queueMessage,
+    };
+  }
 
   if (
     (queueDerived.status === "queued" || queueDerived.status === "running") &&
@@ -241,7 +290,10 @@ function deriveNonTerminalStatus(
       status: "stalled",
       stage: "confirming_result",
       progress: 99,
-      message: "Still confirming the submission result. The runner heartbeat has not changed recently.",
+      message:
+        queueStatus === "pending" || queueStatus.endsWith("_pending")
+          ? "Submission job is still queued. The worker has not picked it up yet."
+          : "Still confirming the submission result. The runner heartbeat has not changed recently.",
       error,
     };
   }
@@ -250,7 +302,9 @@ function deriveNonTerminalStatus(
     status: queueDerived.status,
     stage: queueDerived.stage,
     progress: clampProgress(queueDerived.progress),
-    message: error ?? messageForStage(queueDerived.stage),
+    message:
+      error ??
+      (currentStage ? `Current stage: ${currentStage}.` : messageForStage(queueDerived.stage)),
     error: queueDerived.status === "failed" ? error ?? "Submission failed." : error,
   };
 }
@@ -352,6 +406,12 @@ export async function GET(
             mode: queue.mode,
             provider: queue.provider,
             lastError: queue.last_error,
+            errorCode: queue.error_code,
+            errorMessage: queue.error_message,
+            currentStage: queue.current_stage,
+            heartbeatAt: queue.heartbeat_at,
+            manualActionStatus: queue.manual_action_status,
+            officialStatus: queue.official_status,
             createdAt: queue.created_at,
             updatedAt: queue.updated_at,
           }

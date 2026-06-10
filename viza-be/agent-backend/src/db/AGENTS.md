@@ -28,6 +28,9 @@ Supabase service-role client setup for the agent backend.
   package document requirements and bilingual label metadata.
 - `../../drizzle/0095_france_live_assisted_controls.sql`: France-Visas live
   assisted queue fields and manual checkpoint table.
+- `../../drizzle/0096_vietnam_live_assisted_controls.sql`: Vietnam e-Visa
+  queue stage/heartbeat fields, encrypted registration-code storage, and
+  manual checkpoint table.
 
 ## Ownership Boundaries
 
@@ -83,6 +86,7 @@ For schema changes, also run any affected route/eval tests.
 - `ds160_review_diffs`
 - `ds160_live_manual_actions`
 - `france_live_manual_actions`
+- `vietnam_live_manual_actions`
 - `consent_events`
 - `application_signatures`
 - `application_packets`

@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  enrichDestinationWithGooglePlaces,
-  type TravelGoogleEnrichedDestination,
-} from "@/lib/travel/googlePlacesEnrichmentService";
+import { enrichDestinationWithGooglePlaces } from "@/lib/travel/googlePlacesEnrichmentService";
+import type { TravelGoogleEnrichedDestination } from "@/lib/travel/google-places-enrichment-types";
 import {
   generateItineraryWithFallback,
   normalizeItineraryFromResponse,
@@ -42,6 +40,8 @@ function mockEnrichment(
     nameZh: "长沙",
     nameEn: "Changsha",
     countryCode: "CN",
+    adminAreaZh: "湖南",
+    adminAreaEn: "Hunan",
     latitude: 28.2282,
     longitude: 112.9388,
     source: "google_places",
@@ -72,12 +72,58 @@ function mockEnrichment(
         source: "google_places",
       },
     ],
+    calls: {
+      textSearchCount: 2,
+      detailsCount: 2,
+      queries: ["长沙 湖南 中国", "长沙 景点 湖南 中国"],
+      placeIds: ["changsha-place", "yuelu"],
+      destinationPlaceId: "changsha-place",
+      destinationQuery: "长沙 湖南 中国",
+      attractionQueries: ["长沙 景点 湖南 中国"],
+    },
     cache: { attempted: true, stored: true },
     ...overrides,
   };
 }
 
 describe("travel itinerary fallback pipeline", () => {
+  it("calls Google enrichment for incomplete local Changsha data even when primary succeeds", async () => {
+    const googleEnricher = vi.fn(async () => mockEnrichment());
+    const primaryGenerator = vi.fn(async () => ({
+      itinerary: fallbackItinerary,
+      raw: { itinerary: fallbackItinerary },
+    }));
+
+    const result = await generateItineraryWithFallback(changshaPayload, {
+      primaryGenerator,
+      googleEnricher,
+      llmGenerator: async () => {
+        throw new Error("LLM fallback should not run");
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(primaryGenerator).toHaveBeenCalledTimes(1);
+    expect(googleEnricher).toHaveBeenCalledTimes(1);
+    expect(result.fallbackUsed).toContain("google_places");
+    expect(result.enrichment?.coverImage.isPlaceholder).toBe(false);
+    expect(result.diagnostics.localDestinationSufficient).toBe(false);
+    expect(result.diagnostics.localQualityReasons).toContain("local_incomplete");
+    expect(result.diagnostics.finalDestination).toMatchObject({
+      canonicalName: "Changsha",
+      countryCode: "CN",
+      adminAreaEn: "Hunan",
+      latitude: 28.2282,
+      longitude: 112.9388,
+      source: "google_places",
+      coverImagePlaceholder: false,
+    });
+    expect(result.diagnostics.googleCallEvidence?.destinationPlaceId).toBe(
+      "changsha-place"
+    );
+  });
+
   it("continues from primary fetch failure to Google and LLM fallback", async () => {
     const googleEnricher = vi.fn(async () => mockEnrichment());
     const llmGenerator = vi.fn(async () => fallbackItinerary);
@@ -188,62 +234,112 @@ describe("Google Places enrichment service", () => {
     vi.stubEnv("TRAVEL_GOOGLE_FALLBACK_ENABLED", "true");
     vi.stubEnv("GOOGLE_PLACES_API_ENABLED", "true");
 
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce(
-        Response.json({
-          places: [
-            {
-              id: "changsha-place",
-              displayName: { text: "长沙市" },
-              formattedAddress: "Changsha, Hunan, China",
-              location: { latitude: 28.2282, longitude: 112.9388 },
-              photos: [{ name: "places/changsha/photos/city", widthPx: 640 }],
-              types: ["locality", "political"],
-            },
-          ],
-        })
-      )
-      .mockResolvedValueOnce(
-        Response.json({
+    const places = {
+      yuelu: {
+        id: "yuelu",
+        displayName: { text: "岳麓山" },
+        formattedAddress: "中国湖南省长沙市岳麓区",
+        location: { latitude: 28.184, longitude: 112.944 },
+        primaryType: "tourist_attraction",
+        types: ["tourist_attraction"],
+        photos: [{ name: "places/yuelu/photos/1", heightPx: 480 }],
+        googleMapsUri: "https://maps.google.com/?cid=yuelu",
+      },
+      orange: {
+        id: "orange",
+        displayName: { text: "橘子洲" },
+        formattedAddress: "中国湖南省长沙市岳麓区橘子洲",
+        location: { latitude: 28.185, longitude: 112.961 },
+        primaryType: "tourist_attraction",
+        types: ["tourist_attraction"],
+        photos: [{ name: "places/orange/photos/1", heightPx: 480 }],
+      },
+      museum: {
+        id: "museum",
+        displayName: { text: "湖南博物院" },
+        formattedAddress: "中国湖南省长沙市开福区",
+        location: { latitude: 28.213, longitude: 112.982 },
+        primaryType: "museum",
+        types: ["museum", "tourist_attraction"],
+        photos: [{ name: "places/museum/photos/1", heightPx: 480 }],
+      },
+      taiping: {
+        id: "taiping",
+        displayName: { text: "太平老街" },
+        formattedAddress: "中国湖南省长沙市天心区",
+        location: { latitude: 28.194, longitude: 112.972 },
+        primaryType: "tourist_attraction",
+        types: ["tourist_attraction"],
+      },
+      huangxing: {
+        id: "huangxing",
+        displayName: { text: "黄兴路步行街" },
+        formattedAddress: "中国湖南省长沙市天心区",
+        location: { latitude: 28.187, longitude: 112.976 },
+        primaryType: "tourist_attraction",
+        types: ["tourist_attraction"],
+      },
+    };
+
+    const fetchImpl = vi.fn(async (request: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(request);
+      if (url.includes("places:searchText")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { textQuery?: string };
+        if (body.textQuery?.includes("南美")) {
+          return Response.json({ places: [] });
+        }
+        if (
+          body.textQuery?.includes("长沙 湖南 中国") ||
+          body.textQuery?.includes("Changsha Hunan China")
+        ) {
+          return Response.json({
+            places: [
+              {
+                id: "changsha-place",
+                displayName: { text: "长沙市" },
+                formattedAddress: "中国湖南省长沙市",
+                addressComponents: [
+                  { shortText: "CN", longText: "China", types: ["country"] },
+                  {
+                    shortText: "湖南",
+                    longText: "湖南省",
+                    types: ["administrative_area_level_1"],
+                  },
+                ],
+                location: { latitude: 28.2282, longitude: 112.9388 },
+                photos: [{ name: "places/changsha/photos/city", widthPx: 640 }],
+                types: ["locality", "political"],
+              },
+            ],
+          });
+        }
+
+        return Response.json({ places: Object.values(places) });
+      }
+
+      const placeId = decodeURIComponent(url.split("/places/")[1]?.split("?")[0] ?? "");
+      if (placeId === "changsha-place") {
+        return Response.json({
           id: "changsha-place",
           displayName: { text: "长沙市" },
-          formattedAddress: "Changsha, Hunan, China",
+          formattedAddress: "中国湖南省长沙市",
+          addressComponents: [
+            { shortText: "CN", longText: "China", types: ["country"] },
+            {
+              shortText: "湖南",
+              longText: "湖南省",
+              types: ["administrative_area_level_1"],
+            },
+          ],
           location: { latitude: 28.2282, longitude: 112.9388 },
           photos: [{ name: "places/changsha/photos/city", widthPx: 640 }],
           editorialSummary: { text: "长沙是湖南省会。" },
           types: ["locality", "political"],
-        })
-      )
-      .mockResolvedValueOnce(
-        Response.json({
-          places: [
-            {
-              id: "yuelu",
-              displayName: { text: "岳麓山" },
-              formattedAddress: "长沙市岳麓区",
-              location: { latitude: 28.18, longitude: 112.94 },
-              primaryType: "tourist_attraction",
-              types: ["tourist_attraction"],
-              rating: 4.7,
-              userRatingCount: 1000,
-              photos: [{ name: "places/yuelu/photos/1", heightPx: 480 }],
-              businessStatus: "OPERATIONAL",
-            },
-            {
-              id: "no-photo",
-              displayName: { text: "太平老街" },
-              formattedAddress: "长沙市天心区",
-              location: { latitude: 28.19, longitude: 112.97 },
-              primaryType: "tourist_attraction",
-              types: ["tourist_attraction"],
-              rating: 4.5,
-              userRatingCount: 800,
-              businessStatus: "OPERATIONAL",
-            },
-          ],
-        })
-      );
+        });
+      }
+
+      return Response.json(places[placeId as keyof typeof places]);
+    });
 
     const result = await enrichDestinationWithGooglePlaces(
       { city: "长沙", country: "中国", locale: "zh-CN" },
@@ -254,22 +350,60 @@ describe("Google Places enrichment service", () => {
       canonicalName: "Changsha",
       nameZh: "长沙",
       countryCode: "CN",
+      adminAreaZh: "湖南",
+      adminAreaEn: "Hunan",
       source: "google_places",
       dataQuality: "api_enriched",
       descriptionSource: "google_places",
     });
+    expect(result.latitude).toBeCloseTo(28.2282, 4);
+    expect(result.longitude).toBeCloseTo(112.9388, 4);
     expect(result.coverImage.provider).toBe("google_places");
     expect(result.coverImage.url).toContain("/api/places/photo?name=");
-    expect(result.attractions).toHaveLength(2);
+    expect(result.attractions.length).toBeGreaterThanOrEqual(5);
     expect(result.attractions[0].photo.provider).toBe("google_places");
-    expect(result.attractions[1].photo).toMatchObject({
+    expect(result.attractions.filter((item) => !item.photo.isPlaceholder).length)
+      .toBeGreaterThanOrEqual(3);
+    expect(result.attractions.find((item) => item.nameZh === "太平老街")?.photo)
+      .toMatchObject({
       provider: "placeholder",
       url: TRAVEL_PLACE_FALLBACK_IMAGE,
       isPlaceholder: true,
     });
+    expect(result.calls?.textSearchCount).toBeGreaterThanOrEqual(2);
+    expect(result.calls?.detailsCount).toBeGreaterThanOrEqual(2);
+    expect(result.calls?.queries.join(" ")).toContain("长沙 湖南 中国");
+    expect(result.calls?.destinationPlaceId).toBe("changsha-place");
     expect(result.cache).toMatchObject({
       attempted: false,
       stored: false,
     });
+  });
+
+  it("rejects a Changsha result outside Hunan instead of accepting bad coordinates", async () => {
+    vi.stubEnv("GOOGLE_MAPS_API_KEY", "test-google-key");
+    vi.stubEnv("TRAVEL_GOOGLE_FALLBACK_ENABLED", "true");
+    vi.stubEnv("GOOGLE_PLACES_API_ENABLED", "true");
+
+    const fetchImpl = vi.fn(async () =>
+      Response.json({
+        places: [
+          {
+            id: "bad-changsha",
+            displayName: { text: "Changsha" },
+            formattedAddress: "South America",
+            location: { latitude: -33.45, longitude: -70.66 },
+            types: ["locality"],
+          },
+        ],
+      })
+    );
+
+    await expect(
+      enrichDestinationWithGooglePlaces(
+        { city: "长沙", country: "中国", locale: "zh-CN" },
+        { fetchImpl, cacheResult: false }
+      )
+    ).rejects.toThrow(/validated destination match/);
   });
 });
