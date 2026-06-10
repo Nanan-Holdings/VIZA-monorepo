@@ -89,7 +89,7 @@ function payloadToLazyCards(
 ): LazyTravelDestinationCard[] {
   const destination = payload.destination;
   const coverImage = payload.coverImage?.imageUrl ?? PLACEHOLDER_IMAGE_URL;
-  const attractions = payload.attractionCards.slice(0, 8);
+  const attractions = payload.attractionCards.slice(0, 12);
   const basePayload = {
     destination_id: destinationId,
     canonical_name: destination.canonicalName,
