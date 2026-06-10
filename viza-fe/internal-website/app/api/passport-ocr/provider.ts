@@ -273,7 +273,7 @@ function parseMrzName(line1: string | null): Pick<RawProviderFields, "full_name"
   if (!surname && !givenNames) return null;
 
   return {
-    full_name: cleanText([givenNames, surname].filter(Boolean).join(" ")),
+    full_name: cleanText([surname, givenNames].filter(Boolean).join(" ")),
     given_names: givenNames,
     surname,
   };
@@ -346,7 +346,7 @@ function repairLatinNameParts(fields: RawProviderFields, warnings: string[]): Ra
   if (!fullName || !givenNames || !surname) return fields;
   if (containsCjk(fullName) || containsCjk(givenNames) || containsCjk(surname)) return fields;
 
-  const expectedFullName = cleanText([givenNames, surname].join(" "));
+  const expectedFullName = cleanText([surname, givenNames].join(" "));
   const fullNameHasMrzNoise =
     /\d/.test(fullName) ||
     fullName.includes("<<") ||
@@ -366,10 +366,10 @@ function repairLatinNameParts(fields: RawProviderFields, warnings: string[]): Ra
   const suffix = ` ${givenNames}`;
   let repairedSurname: string | null = null;
 
-  if (fullName.startsWith(prefix)) {
-    repairedSurname = cleanText(fullName.slice(prefix.length));
-  } else if (fullName.endsWith(suffix)) {
+  if (fullName.endsWith(suffix)) {
     repairedSurname = cleanText(fullName.slice(0, -suffix.length));
+  } else if (fullName.startsWith(prefix)) {
+    repairedSurname = cleanText(fullName.slice(prefix.length));
   }
 
   if (!repairedSurname) return fields;

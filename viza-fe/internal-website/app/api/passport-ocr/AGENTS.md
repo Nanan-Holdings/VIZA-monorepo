@@ -30,7 +30,8 @@ it updates profile or application answers.
 - `route.ts`: authenticated POST boundary, ownership validation, storage
   download, audit metadata, and structured responses.
 - `provider.ts`: server-only OCR adapter. Default provider is `openai_vision`
-  and it requires `OPENAI_API_KEY` or `PASSPORT_OCR_OPENAI_API_KEY`.
+  and it requires `OPENAI_API_KEY` or `PASSPORT_OCR_OPENAI_API_KEY`. MRZ name
+  fields should remain surname/given-name authoritative when available.
 - `provider.test.ts`: mocked-provider regression tests for request payloads,
   model fallback, and structured parsing.
 - `types.ts`: response, proposal, provider, and error contracts.
