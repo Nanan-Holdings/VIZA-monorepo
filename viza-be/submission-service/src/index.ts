@@ -979,6 +979,20 @@ async function processDs160Item(
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-run-"));
   let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
+  const heartbeatTimer = setInterval(() => {
+    void supabase
+      .from("submission_queue")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", item.id)
+      .in("status", ["ds160_live_assisted_processing", "ds160_prefill_processing"])
+      .then(({ error }) => {
+        if (error) {
+          console.warn(
+            `[ceac] Heartbeat update failed for queue=${redactIdentifier(item.id)}: ${error.message}`,
+          );
+        }
+      });
+  }, 60_000);
 
   const tracker = createRecoveryTracker({ runId });
 
@@ -1260,6 +1274,7 @@ async function processDs160Item(
       }
     }
   } finally {
+    clearInterval(heartbeatTimer);
     if (session) await session.close();
     try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
   }
@@ -2853,7 +2868,7 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
   }
 }
 
-async function poll(): Promise<void> {
+async function pollOnce(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
   await markStaleQueueItemsTimedOut();
 
@@ -2923,6 +2938,22 @@ async function poll(): Promise<void> {
     } else {
       await processItem(item);
     }
+  }
+}
+
+let pollInFlight = false;
+
+async function poll(): Promise<void> {
+  if (pollInFlight) {
+    console.log("[poll] Previous poll is still running; skipping this tick.");
+    return;
+  }
+
+  pollInFlight = true;
+  try {
+    await pollOnce();
+  } finally {
+    pollInFlight = false;
   }
 }
 
