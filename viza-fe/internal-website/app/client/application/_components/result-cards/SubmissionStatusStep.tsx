@@ -167,6 +167,12 @@ function GenericResultCard({
     actionRequired &&
     result.mode === "live_assisted" &&
     isDs160VisaType(applicationVisaType ?? result.visaType);
+  const isFranceAction =
+    actionRequired &&
+    result.mode === "live_assisted" &&
+    isFranceCountry(applicationCountry ?? result.targetCountry) &&
+    isFranceVisasVisaType(applicationVisaType ?? result.visaType);
+  const officialManualAction = isDs160Action || isFranceAction;
   const ds160LiveEnabled =
     process.env.NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_DS160_SUBMISSION_MODE === "live_assisted";
@@ -207,7 +213,7 @@ function GenericResultCard({
       : result.message;
 
   useEffect(() => {
-    if (!jobId || !isDs160Action) return;
+    if (!jobId || !officialManualAction) return;
     let cancelled = false;
 
     const loadManualActions = async () => {
@@ -242,7 +248,7 @@ function GenericResultCard({
     return () => {
       cancelled = true;
     };
-  }, [isDs160Action, jobId]);
+  }, [jobId, officialManualAction]);
 
   const startLiveAssisted = async () => {
     if (!applicationId || startingLive || !liveTarget) return;
@@ -394,20 +400,26 @@ function GenericResultCard({
           </div>
         )}
 
-        {isDs160Action && (
+        {officialManualAction && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
               <div>
                 <div className="text-sm font-medium text-amber-900">
-                  {isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required"}
+                  {isFranceAction
+                    ? (isZh ? "需要你完成 France-Visas 官网操作" : "France-Visas official action required")
+                    : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-amber-900">
                   {manualAction?.instruction ??
                     result.actionInstructions ??
-                    (isZh
-                      ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
-                      : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue.")}
+                    (isFranceAction
+                      ? (isZh
+                          ? "请在 France-Visas 官方页面完成登录、验证码或邮箱验证，然后回到这里继续。"
+                          : "Complete login, CAPTCHA, or email verification on the official France-Visas page, then return here to continue.")
+                      : (isZh
+                          ? "请在打开的 CEAC 官方页面完成地点选择或 CAPTCHA，然后回到这里继续。"
+                          : "Complete the location or CAPTCHA checkpoint on the official CEAC page, then return here to continue."))}
                 </p>
               </div>
             </div>
@@ -423,8 +435,18 @@ function GenericResultCard({
 
             <div className="grid gap-2 sm:grid-cols-2">
               <Button asChild variant="outline" className="bg-white">
-                <a href="https://ceac.state.gov/genniv/" target="_blank" rel="noopener noreferrer">
-                  {isZh ? "打开 CEAC 官网" : "Open CEAC"}
+                <a
+                  href={
+                    isFranceAction
+                      ? "https://application-form.france-visas.gouv.fr/fv-fo-dde/"
+                      : "https://ceac.state.gov/genniv/"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {isFranceAction
+                    ? (isZh ? "打开 France-Visas 官网" : "Open France-Visas")
+                    : (isZh ? "打开 CEAC 官网" : "Open CEAC")}
                   <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>

@@ -192,6 +192,31 @@ describe("useRealtimeBilingualTranslate", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("keeps translated status when the parent writes the translated target value back", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      ok: true,
+      translatedText: "Software engineer",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result, rerender } = renderHook(
+      ({ targetValue }) =>
+        useRealtimeBilingualTranslate({
+          ...baseProps,
+          targetValue,
+        }),
+      { initialProps: { targetValue: "" } },
+    );
+
+    await advanceAndFlush(400);
+    expect(result.current.status).toBe("translated");
+
+    rerender({ targetValue: "Software engineer" });
+    expect(result.current.status).toBe("translated");
+    await advanceAndFlush(400);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps user content on failure and exposes failed status", async () => {
     const onTranslatedText = vi.fn();
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(

@@ -48,6 +48,7 @@ const DATE_SPLITS: ReadonlyArray<DateSplit> = [
   // an "arrival" trio and an "intended arrival" trio, distinct repeaters.
   { source: "arrival_date", targetPrefix: "arrival_date" },
   { source: "arrival_date", targetPrefix: "intended_arrival_date" },
+  { source: "intended_arrival_date", targetPrefix: "intended_arrival_date" },
   { source: "departure_date", targetPrefix: "departure_date" },
 ];
 
@@ -98,6 +99,11 @@ const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
   { from: "home_address_state_province", to: "home_address_state" },
   { from: "home_address_postal_code", to: "home_address_postal" },
   { from: "us_address_street1", to: "us_address_street" },
+  { from: "intended_length_of_stay_value", to: "intended_length_of_stay" },
+  { from: "us_contact_address_street1", to: "us_address_street" },
+  { from: "us_contact_city", to: "us_address_city" },
+  { from: "us_contact_state", to: "us_address_state" },
+  { from: "us_contact_zip", to: "us_address_zip" },
   // Travel page asks one question ("who is paying for your trip?"); the
   // orchestrator binds it to two CEAC selectors that point at the same
   // dropdown (one historical, one current). Populate both from the single
@@ -220,6 +226,8 @@ const NA_VALUE_TOKENS: ReadonlySet<string> = new Set([
   "N/A",
 ]);
 
+const HAS_CJK = /[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/;
+
 const MONTH_ABBREVS = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
@@ -290,6 +298,19 @@ function applyAliases(answers: Record<string, string>): void {
     const value = answers[from];
     if (value === undefined) continue;
     if (answers[to] === undefined) answers[to] = value;
+  }
+}
+
+function applyEnglishAliases(answers: Record<string, string>): void {
+  for (const [key, value] of Object.entries(answers)) {
+    if (!key.endsWith("_en")) continue;
+    const baseKey = key.slice(0, -3);
+    if (!baseKey || !value.trim()) continue;
+
+    const current = answers[baseKey];
+    if (!current || HAS_CJK.test(current)) {
+      answers[baseKey] = value;
+    }
   }
 }
 
@@ -386,6 +407,7 @@ export function deriveDS160Answers(
   // canonical key, then CEAC value-code normalization, then date splits,
   // then NA flags (NA may delete source keys, so do it last to avoid losing
   // data needed by date-split source resolution).
+  applyEnglishAliases(answers);
   applyAliases(answers);
   normalizeCeacValueCodes(answers);
   deriveDateSplits(answers);
@@ -402,6 +424,15 @@ export function deriveDS160Answers(
  */
 const CUSTOM_DERIVATIONS: ReadonlyArray<{ requires: string[]; produces: string[] }> = [
   { requires: ["arrival_date"], produces: ["intended_arrival_date"] },
+  {
+    requires: ["intended_arrival_date"],
+    produces: [
+      "intended_arrival_date_day",
+      "intended_arrival_date_month",
+      "intended_arrival_date_year",
+    ],
+  },
+  { requires: ["intended_length_of_stay_value"], produces: ["intended_length_of_stay"] },
   {
     requires: ["arrival_date", "departure_date"],
     produces: [

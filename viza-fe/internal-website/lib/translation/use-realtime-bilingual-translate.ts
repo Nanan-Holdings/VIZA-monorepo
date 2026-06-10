@@ -306,6 +306,15 @@ export function useRealtimeBilingualTranslate({
       return;
     }
 
+    if (lastRequestedKeyRef.current === normalized.key && targetValue.trim()) {
+      abortCurrentRequest();
+      activeSourceKeyRef.current = normalized.key;
+      setTranslatedText(targetValue.trim());
+      setError(null);
+      setStatus("translated");
+      return;
+    }
+
     if (activeSourceKeyRef.current !== normalized.key) {
       abortCurrentRequest();
       activeSourceKeyRef.current = normalized.key;
