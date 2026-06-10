@@ -1,12 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
-import { PayByCardButton } from "@/components/PayByCardButton";
-import { WechatPayButton } from "@/components/WechatPayButton";
 import { LAUNCHED_COUNTRIES, visaHref, type CountryMeta } from "@/lib/countries";
 import { displayFeeSGD } from "@/lib/pricing";
-import { portalUrl } from "@/lib/utils";
 import "./visa-template.css";
 
 const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
@@ -22,6 +19,8 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
   const t = useTranslations("visa");
   const tc = useTranslations("countries");
   const tt = useTranslations("visaTypes");
+  const locale = useLocale();
+  const applyHref = `${locale === "en" ? "" : `/${locale}`}/apply?country=${encodeURIComponent(country.slug)}`;
   const fee = displayFeeSGD(country.visaType) ?? t("seePricing");
   const nearby = LAUNCHED_COUNTRIES.filter((c) => c.slug !== country.slug).slice(0, 4);
   // Localized name/type with English data as the fallback.
@@ -90,9 +89,7 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
                 <small>{t("allInclusive")}</small>
               </div>
               <div className="vt-cta">
-                <PayByCardButton country={country.portalCountry} visaType={country.visaType} />
-                <WechatPayButton country={country.portalCountry} visaType={country.visaType} />
-                <a className="vt-btn secondary" href={portalUrl("/signup")}>
+                <a className="vt-btn" href={applyHref}>
                   {t("startApplication")}
                 </a>
               </div>

@@ -3,7 +3,9 @@ import "./apply.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
-import { portalUrl } from "@/lib/utils";
+import { PayByCardButton } from "@/components/PayByCardButton";
+import { WechatPayButton } from "@/components/WechatPayButton";
+import { countryBySlug } from "@/lib/countries";
 
 type PassportExtraction = {
   surname: string;
@@ -80,6 +82,17 @@ function CountryDisplay({ alpha3 }: { alpha3: string }) {
 export default function ApplyPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const goStepRef = useRef<(n: number) => void>(() => {});
+
+  // The wizard is country-aware: /apply?country=<slug> drives the destination
+  // identity (name, flag, visa type) and the final-step checkout deep-links.
+  // Defaults to Indonesia for a bare /apply (back-compat). Read from the URL on
+  // the client to keep this page statically renderable.
+  const [countrySlug, setCountrySlug] = useState("indonesia");
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get("country");
+    if (c && countryBySlug(c)) setCountrySlug(c);
+  }, []);
+  const country = countryBySlug(countrySlug) ?? countryBySlug("indonesia")!;
 
   const [extractStage, setExtractStage] = useState<ExtractStage>("idle");
   const [extracted, setExtracted] = useState<PassportExtraction | null>(null);
@@ -208,6 +221,10 @@ export default function ApplyPage() {
       if (actStepName) actStepName.textContent = steps[n].name;
       if (btnNextLabel) btnNextLabel.textContent = steps[n].next;
       if (btnBack) (btnBack as HTMLElement).style.visibility = n === 1 ? 'hidden' : 'visible';
+      // Step 3 = checkout: payment method is chosen via the inline card/WeChat
+      // buttons, so hide the bottom Next button there.
+      const btnNextToggle = document.getElementById('btnNext');
+      if (btnNextToggle) (btnNextToggle as HTMLElement).style.display = n === 3 ? 'none' : '';
       canProceed = (n === 2 || n === 3);
       syncNext();
 
@@ -229,20 +246,10 @@ export default function ApplyPage() {
     const btnNextEl = document.getElementById('btnNext');
     const onNext = () => {
       if (!canProceed) return;
-      if (currentStep === 3) {
-        const lbl = document.getElementById('btnNextLabel');
-        const btn = document.getElementById('btnNext') as HTMLButtonElement | null;
-        if (lbl) lbl.textContent = 'Redirecting to payment…';
-        if (btn) btn.disabled = true;
-        // Hand off to the portal's guest card checkout. Payment + account
-        // provisioning + the magic-link email all live in the portal; this
-        // marketing page stays auth/payment-SDK free.
-        const loc = window.location.pathname.startsWith('/zh-CN') ? 'zh-CN' : 'en';
-        window.location.href = portalUrl(
-          `/checkout/card?country=indonesia&visa=B211A&locale=${loc}`,
-        );
-        return;
-      }
+      // Step 3 is the checkout step — payment method (card / WeChat) is chosen
+      // via the inline buttons that deep-link to the portal checkout, so the
+      // bottom Next button does nothing here (it is also hidden in goStep).
+      if (currentStep === 3) return;
       goStep(currentStep + 1);
     };
     if (btnNextEl) btnNextEl.addEventListener('click', onNext);
@@ -628,7 +635,7 @@ export default function ApplyPage() {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '8px' }}>
               <input type="checkbox" id="consent" defaultChecked style={{ height: '18px', width: '18px', marginTop: '2px' }}/>
               <label htmlFor="consent" style={{ font: '400 13px/1.5 var(--font-sans)', color: 'var(--fg-2)', cursor: 'pointer' }}>
-                I confirm the details above match my passport, and I authorise VIZA to submit this application on my behalf to the Indonesian government.
+                I confirm the details above match my passport, and I authorise VIZA to submit this application on my behalf to the immigration authorities of {country.name}.
               </label>
             </div>
           </section>
@@ -641,7 +648,7 @@ export default function ApplyPage() {
               <p>Pick your arrival window. We{'’'}ll guarantee your visa is approved before you fly — or we refund every cent.</p>
             </header>
 
-            <h2 className="checkout-h2">Arrival in Indonesia</h2>
+            <h2 className="checkout-h2">Arrival in {country.name}</h2>
             <div className="date-strip" id="dateStrip"></div>
 
             <h2 className="checkout-h2">Processing speed</h2>
@@ -676,7 +683,7 @@ export default function ApplyPage() {
               </div>
               <div className="upgrade" data-up="esim">
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
-                <div className="txt"><div className="tt">Indonesia eSIM · 5 GB</div><div className="ts">Activates the moment you land — no roaming fees</div></div>
+                <div className="txt"><div className="tt">{country.name} eSIM · 5 GB</div><div className="ts">Activates the moment you land — no roaming fees</div></div>
                 <div className="price">+ SGD 12</div>
                 <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
               </div>
@@ -684,7 +691,16 @@ export default function ApplyPage() {
 
             <div className="info-strip">
               <svg className="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <div><strong>Heads up:</strong> the Indonesian government charges its visa fee separately when they approve your application. We don{'’'}t mark up that amount.</div>
+              <div><strong>Heads up:</strong> the {country.name} government charges its visa fee separately when they approve your application. We don{'’'}t mark up that amount.</div>
+            </div>
+
+            <h2 className="checkout-h2">Choose how to pay</h2>
+            <p style={{ fontSize: '13px', color: 'var(--fg-2)', margin: '-8px 0 14px', lineHeight: '1.5' }}>
+              Secure checkout is handled by VIZA{'’'}s portal. Pick a method to continue — your application details carry over automatically.
+            </p>
+            <div style={{ display: 'grid', gap: '10px', maxWidth: '420px' }}>
+              <PayByCardButton country={country.portalCountry} visaType={country.visaType} />
+              <WechatPayButton country={country.portalCountry} visaType={country.visaType} />
             </div>
           </section>
 
@@ -693,10 +709,10 @@ export default function ApplyPage() {
         <aside className="summary">
           <div className="sum-title">Your application</div>
           <div className="sum-country">
-            <div className="flag"><CircleFlag countryCode="id" height={40}/></div>
+            <div className="flag"><CircleFlag countryCode={country.flagCode} height={40}/></div>
             <div>
-              <div className="nm">Indonesia</div>
-              <div className="vt">e-Visa on Arrival · 60 days · Single entry</div>
+              <div className="nm">{country.name}</div>
+              <div className="vt">{country.type} · {country.validity}</div>
             </div>
           </div>
 
@@ -718,7 +734,7 @@ export default function ApplyPage() {
 
           <div className="price-foot">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: '1px' }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span>Encrypted end-to-end. Charged only once your application is queued with the Indonesian government.</span>
+            <span>Encrypted end-to-end. Charged only once your application is queued with the {country.name} government.</span>
           </div>
         </aside>
 

@@ -64,6 +64,28 @@ export function totalSgd(visaType: string): number | null {
   return Math.ceil(agencySgd + govtSgd);
 }
 
+export interface PriceBreakdownSgd {
+  /** Government fee in whole SGD. */
+  govtSgd: number;
+  /** VIZA agency/processing fee in whole SGD. */
+  agencySgd: number;
+  /** Sum of the two, in whole SGD. */
+  totalSgd: number;
+}
+
+/**
+ * Government / agency / total split in whole SGD for the price card. Drives the
+ * sticky price card across all country pages so displayed numbers always match
+ * the canonical pricing mirror. null if the visa type is unknown.
+ */
+export function priceBreakdownSgd(visaType: string): PriceBreakdownSgd | null {
+  const p = PRICING[visaType];
+  if (!p) return null;
+  const govtSgd = Math.ceil((p.govtCents / 100) * FX_TO_SGD[p.govtCurrency]);
+  const agencySgd = Math.ceil((p.agencyUsdCents / 100) * FX_TO_SGD.USD);
+  return { govtSgd, agencySgd, totalSgd: govtSgd + agencySgd };
+}
+
 /** Formatted display fee, e.g. "SGD 264". null if unknown. */
 export function displayFeeSGD(visaType: string): string | null {
   const total = totalSgd(visaType);
