@@ -415,9 +415,9 @@ describe("DynamicStepForm copilot format", () => {
   it("autofills bilingual values from universal profile without submitting helper keys", () => {
     const onComplete = vi.fn();
     const prefill = buildUniversalProfileAnswerPatch({
-      full_name: "CHEN HONGYU",
-      full_name_zh: "陈泓羽",
-      full_name_en: "CHEN HONGYU",
+      full_name: "LI XIAOMING",
+      full_name_zh: "李晓明",
+      full_name_en: "LI XIAOMING",
       birth_country: "China",
       birth_province_or_state: "湖南",
       birth_province_or_state_zh: "湖南",
@@ -438,8 +438,8 @@ describe("DynamicStepForm copilot format", () => {
 
     expect(screen.getByDisplayValue("长沙")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Changsha")).toBeInTheDocument();
-    expect(prefill.full_name_zh).toBe("陈泓羽");
-    expect(prefill.full_name_en).toBe("CHEN HONGYU");
+    expect(prefill.full_name_zh).toBe("李晓明");
+    expect(prefill.full_name_en).toBe("LI XIAOMING");
     expect(prefill.state_of_birth).toBe("Hunan");
     expect(prefill.country_of_birth).toBe("China");
 

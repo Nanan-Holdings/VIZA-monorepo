@@ -144,14 +144,15 @@ export function extractPassport(payload: OcrPayload): ExtractedPassport {
         lines.length >= 2 ? parseTd3(lines[0], lines[1]) : parseTd3Block(payload.mrz);
       const out = fromMrz(mrz);
       out.rawMrz = payload.mrz;
-      // Layer in any visual-zone fields the MRZ doesn't carry (e.g. high-fidelity
-      // surname diacritics from the visible side) without overwriting MRZ trust.
+      // Layer in visual-zone fields only when MRZ has no value. Valid MRZ name
+      // parts stay authoritative because the visual OCR can swap surname/given
+      // names on bilingual passports.
       const ocr = fromOcr(payload);
-      if (ocr.surname && ocr.surname.confidence > 0.9 && out.surname) {
-        out.surname = { ...ocr.surname, value: ocr.surname.value };
+      if (ocr.surname && ocr.surname.confidence > 0.9 && !out.surname) {
+        out.surname = ocr.surname;
       }
-      if (ocr.givenNames && ocr.givenNames.confidence > 0.9 && out.givenNames) {
-        out.givenNames = { ...ocr.givenNames, value: ocr.givenNames.value };
+      if (ocr.givenNames && ocr.givenNames.confidence > 0.9 && !out.givenNames) {
+        out.givenNames = ocr.givenNames;
       }
       return out;
     } catch (err) {

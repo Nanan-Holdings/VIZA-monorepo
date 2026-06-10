@@ -3,6 +3,8 @@ import { translateWithGoogleV2 } from "@/lib/translation/google-translate-v2";
 
 const ENV_KEYS = [
   "TRANSLATION_PROVIDER",
+  "GOOGLE_TRANSLATE_PROVIDER",
+  "GOOGLE_TRANSLATE_ENABLED",
   "GOOGLE_TRANSLATE_API_VERSION",
   "GOOGLE_TRANSLATE_API_KEY",
   "TRANSLATION_MAX_CHARS_PER_REQUEST",
@@ -48,7 +50,7 @@ describe("translateWithGoogleV2", () => {
   });
 
   it("posts a Basic v2 translation request from the server boundary", async () => {
-    setEnv("TRANSLATION_PROVIDER", "google");
+    setEnv("GOOGLE_TRANSLATE_PROVIDER", "google_cloud_basic");
     setEnv("GOOGLE_TRANSLATE_API_VERSION", "v2");
     setEnv("GOOGLE_TRANSLATE_API_KEY", "test-google-key");
 
@@ -92,5 +94,24 @@ describe("translateWithGoogleV2", () => {
       provider: "google",
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("can be disabled explicitly", async () => {
+    setEnv("GOOGLE_TRANSLATE_ENABLED", "false");
+    setEnv("GOOGLE_TRANSLATE_PROVIDER", "google_cloud_basic");
+    setEnv("GOOGLE_TRANSLATE_API_KEY", "test-google-key");
+
+    const result = await translateWithGoogleV2({
+      text: "软件工程师",
+      sourceLanguage: "zh-CN",
+      targetLanguage: "en",
+      fieldType: "occupation",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "provider_unavailable",
+      error: "Google Translate is disabled",
+    });
   });
 });
