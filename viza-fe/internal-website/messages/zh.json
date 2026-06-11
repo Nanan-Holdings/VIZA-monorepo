@@ -4300,7 +4300,8 @@
       "resendIn": "{seconds}秒后重新发送",
       "resendCode": "重新发送验证码",
       "privacyPolicy": "隐私政策",
-      "termsOfService": "服务条款"
+      "termsOfService": "服务条款",
+      "disclaimer": "免责声明"
     },
     "signup": {
       "title": "创建您的账户",
@@ -4324,7 +4325,8 @@
       "requestInvite": "申请邀请",
       "acceptTos": "我同意",
       "acceptPrivacy": "我同意",
-      "acceptRequired": "请先同意服务条款和隐私政策。",
+      "acceptDisclaimer": "我同意",
+      "acceptRequired": "请先同意服务条款、隐私政策和免责声明。",
       "back": "返回",
       "setPasswordTitle": "设置您的密码",
       "setPasswordSubtitle": "密码需要包含字母、数字和特殊符号。",
@@ -4355,7 +4357,8 @@
       "urgentAccess": "如需紧急访问，请联系 support@viza.com。",
       "backToLogin": "返回登录",
       "privacyPolicy": "隐私政策",
-      "termsOfService": "服务条款"
+      "termsOfService": "服务条款",
+      "disclaimer": "免责声明"
     },
     "forgotPassword": {
       "title": "重置您的密码",

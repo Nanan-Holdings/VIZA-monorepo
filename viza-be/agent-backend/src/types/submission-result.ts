@@ -33,6 +33,7 @@ export type SubmissionResult =
   | FrSubmissionResult
   | UkSubmissionResult
   | VnSubmissionResult
+  | SgArrivalCardSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
   | GenericSubmissionResult;
@@ -134,6 +135,41 @@ export interface VnSubmissionResult {
     screenshotUrl?: string;
   };
   paymentStatus?: "not_required" | "manual_required" | "blocked" | "paid";
+}
+
+export interface SgArrivalCardSubmissionResult {
+  country: "SG";
+  visaType: "SG_ARRIVAL_CARD";
+  status:
+    | "submitted"
+    | "validation_failed"
+    | "official_portal_handoff_required"
+    | "official_portal_error";
+  mode: "live_assisted";
+  provider: "sg_arrival_card_live";
+  applicationId: string;
+  submitted: boolean;
+  confirmationNumber?: string | null;
+  referenceNumber?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots?: string[];
+    logs?: string[];
+    traces?: string[];
+  };
+  payloadSummary?: {
+    purposeOfTravel?: string | null;
+    arrivalDate?: string | null;
+    modeOfTravel?: string | null;
+    transportNumber?: string | null;
+    accommodationAddressProvided: boolean;
+  };
 }
 
 export interface AuSubmissionResult {

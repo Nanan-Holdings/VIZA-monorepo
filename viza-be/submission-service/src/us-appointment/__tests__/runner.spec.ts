@@ -4,6 +4,7 @@ import {
   buildRunnerHandoff,
   isEligibleUSAppointmentJob,
   loadUSAppointmentRunnerConfig,
+  validateUSAppointmentRunnerStart,
   type USAppointmentJobRow,
 } from "../runner";
 
@@ -26,8 +27,32 @@ const baseJob: USAppointmentJobRow = {
 test("US appointment runner config is disabled by default", () => {
   const config = loadUSAppointmentRunnerConfig({});
   assert.equal(config.enabled, false);
+  assert.equal(config.captchaSolvingEnabled, false);
+  assert.equal(config.twoCaptchaConfigured, false);
   assert.deepEqual(config.providerAllowlist, ["usvisascheduling"]);
   assert.deepEqual(config.supportedCountries, ["CN"]);
+});
+
+test("US appointment runner blocks 2captcha mode without TWOCAPTCHA_API_KEY", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED: "true",
+  });
+  assert.equal(config.captchaSolvingEnabled, true);
+  assert.equal(config.twoCaptchaConfigured, false);
+  assert.match(validateUSAppointmentRunnerStart(config) ?? "", /TWOCAPTCHA_API_KEY/);
+});
+
+test("US appointment runner exposes 2captcha handoff metadata when configured", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED: "true",
+    TWOCAPTCHA_API_KEY: "test-key",
+  });
+  assert.equal(validateUSAppointmentRunnerStart(config), null);
+  const handoff = buildRunnerHandoff(baseJob, config);
+  assert.equal(handoff.metadata.captcha_solver_enabled, true);
+  assert.equal(handoff.metadata.captcha_solver_provider, "2captcha");
 });
 
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {
@@ -48,6 +73,6 @@ test("US appointment runner handoff pauses at manual login without final booking
   assert.equal(handoff.jobStatus, "appointment_login_required");
   assert.equal(handoff.actionType, "login");
   assert.match(handoff.instruction, /official-site login/i);
-  assert.equal(handoff.metadata.no_captcha_solver, true);
+  assert.equal(handoff.metadata.captcha_solver_enabled, false);
   assert.equal(handoff.metadata.no_final_confirmation_click, true);
 });

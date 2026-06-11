@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   isDs160VisaType,
   isFranceVisasVisaType,
+  isSgArrivalCardApplication,
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
@@ -184,6 +185,10 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       ) &&
       envModeLive("DS160_SUBMISSION_MODE", "NEXT_PUBLIC_DS160_SUBMISSION_MODE")
     );
+  }
+  if (isSgArrivalCardApplication(country, visaType)) {
+    return process.env.SGAC_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
 }
@@ -628,7 +633,8 @@ export async function POST(
     const supportsLiveAssisted =
       isDs160VisaType(ownedApplication.visa_type) ||
       isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
-      isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type);
+      isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
         { error: "Live assisted retry is not supported for this visa type." },

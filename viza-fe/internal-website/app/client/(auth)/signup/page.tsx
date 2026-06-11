@@ -229,7 +229,8 @@ export default function ClientSignupPage() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [acceptTos, setAcceptTos] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
-  const consentReady = acceptTos && acceptPrivacy
+  const [acceptDisclaimer, setAcceptDisclaimer] = useState(false)
+  const consentReady = acceptTos && acceptPrivacy && acceptDisclaimer
   const passwordStrength = getPasswordScore(password)
   const passwordsMatch = password.length > 0 && password === confirmPassword
   const strengthKey =
@@ -512,6 +513,22 @@ export default function ClientSignupPage() {
                 <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
                   <input
                     type="checkbox"
+                    checked={acceptDisclaimer}
+                    onChange={(e) => setAcceptDisclaimer(e.target.checked)}
+                    className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
+                    required
+                  />
+                  <span>
+                    {t('acceptDisclaimer')}{' '}
+                    <Link href="/disclaimer" className="underline hover:opacity-70">
+                      {t('disclaimer')}
+                    </Link>
+                    .
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-[12px] tracking-[-0.18px] text-[#3d3d3d]">
+                  <input
+                    type="checkbox"
                     checked={acceptPrivacy}
                     onChange={(e) => setAcceptPrivacy(e.target.checked)}
                     className="mt-[3px] h-4 w-4 cursor-pointer accent-black"
@@ -771,6 +788,7 @@ export default function ClientSignupPage() {
         <div className="flex items-center gap-[16px] font-sans text-[clamp(10px,0.85vw,12px)] font-medium tracking-[-0.21px] leading-[1.5] text-[rgba(0,0,0,0.55)] shrink-0">
           <Link href="/privacy" className="whitespace-nowrap hover:opacity-70 transition-opacity">{t('privacyPolicy')}</Link>
           <Link href="/terms" className="whitespace-nowrap hover:opacity-70 transition-opacity">{t('termsOfService')}</Link>
+          <Link href="/disclaimer" className="whitespace-nowrap hover:opacity-70 transition-opacity">{t('disclaimer')}</Link>
           <AuthLanguageSwitcher />
         </div>
       </motion.section>

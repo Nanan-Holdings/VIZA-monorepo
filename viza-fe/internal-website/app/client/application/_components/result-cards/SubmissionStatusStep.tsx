@@ -5,6 +5,7 @@ import { useLocale } from "next-intl";
 import { AlertTriangle, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import type {
   GenericSubmissionResult,
+  SgArrivalCardSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
@@ -27,6 +28,7 @@ import { JpResultCard } from "./JpResultCard";
 import {
   isDs160VisaType,
   isFranceVisasVisaType,
+  isSgArrivalCardApplication,
   isVietnamEVisaApplication,
   type SubmissionMode,
 } from "@/lib/submission-queue";
@@ -139,7 +141,8 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
   return (
     isDs160VisaType(visaType) ||
     (isFranceCountry(country) && isFranceVisasVisaType(visaType)) ||
-    isVietnamEVisaApplication(country, visaType)
+    isVietnamEVisaApplication(country, visaType) ||
+    isSgArrivalCardApplication(country, visaType)
   );
 }
 
@@ -488,6 +491,100 @@ function GenericResultCard({
   );
 }
 
+function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionResult }) {
+  const isZh = isChineseLocale(useLocale());
+  const successful = result.submitted && result.status === "submitted";
+  const artifactLines = [
+    ...(result.artifacts?.screenshots ?? []),
+    ...(result.artifacts?.logs ?? []),
+    ...(result.artifacts?.traces ?? []),
+  ];
+
+  return (
+    <Card className="rounded-xl border-input">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-3 text-foreground">
+            {successful ? (
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+            )}
+            {successful
+              ? (isZh ? "SG Arrival Card 已提交" : "SG Arrival Card submitted")
+              : (isZh ? "SG Arrival Card 未完成提交" : "SG Arrival Card submission not completed")}
+          </CardTitle>
+          <Badge variant={successful ? "default" : "secondary"}>
+            {result.submitted ? (isZh ? "已提交" : "Submitted") : "submitted=false"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {result.portalResponseSummary}
+        </p>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md border border-input bg-background px-3 py-2">
+            <div className="text-xs text-muted-foreground">{isZh ? "状态" : "Status"}</div>
+            <div className="mt-0.5 font-mono text-sm text-foreground">{result.status}</div>
+          </div>
+          <div className="rounded-md border border-input bg-background px-3 py-2">
+            <div className="text-xs text-muted-foreground">{isZh ? "确认/参考号" : "Confirmation / reference"}</div>
+            <div className="mt-0.5 font-mono text-sm text-foreground">
+              {result.confirmationNumber ?? result.referenceNumber ?? (isZh ? "暂无" : "None")}
+            </div>
+          </div>
+        </div>
+
+        {result.payloadSummary && (
+          <div className="rounded-md border border-input bg-background px-3 py-2">
+            <div className="text-xs text-muted-foreground">{isZh ? "提交 payload 摘要" : "Submission payload summary"}</div>
+            <div className="mt-1 grid gap-1 font-mono text-xs text-foreground">
+              <span>purpose_of_travel={result.payloadSummary.purposeOfTravel ?? "(missing)"}</span>
+              <span>arrival_date={result.payloadSummary.arrivalDate ?? "(missing)"}</span>
+              <span>mode_of_travel={result.payloadSummary.modeOfTravel ?? "(missing)"}</span>
+              <span>transport_number={result.payloadSummary.transportNumber ?? "(missing)"}</span>
+            </div>
+          </div>
+        )}
+
+        {result.errorDetails && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className="font-medium">{result.errorDetails.code}</div>
+            <p className="mt-1 leading-relaxed">{result.errorDetails.message}</p>
+            {result.errorDetails.missingFields?.length ? (
+              <p className="mt-1 font-mono text-xs">
+                {result.errorDetails.missingFields.join(", ")}
+              </p>
+            ) : null}
+          </div>
+        )}
+
+        {artifactLines.length > 0 && (
+          <div className="rounded-md border border-input bg-background px-3 py-2">
+            <div className="text-xs text-muted-foreground">{isZh ? "Artifacts" : "Artifacts"}</div>
+            <div className="mt-1 space-y-1">
+              {artifactLines.map((line) => (
+                <div key={line} className="break-all font-mono text-xs text-foreground">
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <Button asChild variant="outline" className="w-full">
+          <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
+            {isZh ? "打开 ICA SGAC 官方入口" : "Open ICA SGAC official portal"}
+            <ExternalLink className="ml-2 h-4 w-4" />
+          </a>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 /**
  * Drives the final wizard step from the same-origin submission-status API,
  * with the parent application's realtime props as a terminal-state fallback.
@@ -727,6 +824,8 @@ function renderSubmissionResultCard(
       ) : null;
     case "VN":
       return <VnResultCard result={result} jobId={jobId} />;
+    case "SG":
+      return <SgArrivalCardResultCard result={result} />;
     case "AU":
       return applicationId ? (
         <AuResultCard applicationId={applicationId} result={result} />

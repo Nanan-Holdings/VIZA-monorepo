@@ -15,6 +15,9 @@ export interface USAppointmentRunnerConfig {
   batchSize: number;
   emailTimeoutMs: number;
   slotCheckCooldownMs: number;
+  captchaSolvingEnabled: boolean;
+  twoCaptchaConfigured: boolean;
+  captchaMaxAttempts: number;
 }
 
 export interface USAppointmentJobRow {
@@ -107,7 +110,19 @@ export function loadUSAppointmentRunnerConfig(
       env.US_APPOINTMENT_SLOT_CHECK_COOLDOWN_MS,
       600_000,
     ),
+    captchaSolvingEnabled: env.US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED === "true",
+    twoCaptchaConfigured: Boolean(env.TWOCAPTCHA_API_KEY?.trim()),
+    captchaMaxAttempts: readPositiveInt(env.US_APPOINTMENT_CAPTCHA_MAX_ATTEMPTS, 2),
   };
+}
+
+export function validateUSAppointmentRunnerStart(
+  config: USAppointmentRunnerConfig,
+): string | null {
+  if (config.captchaSolvingEnabled && !config.twoCaptchaConfigured) {
+    return "US appointment CAPTCHA solving is blocked: TWOCAPTCHA_API_KEY must be set when US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED=true.";
+  }
+  return null;
 }
 
 export function isEligibleUSAppointmentJob(
@@ -129,12 +144,19 @@ export function isEligibleUSAppointmentJob(
   return config.supportedCountries.includes(country);
 }
 
-export function buildRunnerHandoff(job: USAppointmentJobRow): RunnerHandoff {
+export function buildRunnerHandoff(
+  job: USAppointmentJobRow,
+  config: USAppointmentRunnerConfig = loadUSAppointmentRunnerConfig(),
+): RunnerHandoff {
+  const captchaSolverEnabled =
+    config.captchaSolvingEnabled && config.twoCaptchaConfigured;
   return {
     jobStatus: "appointment_login_required",
     actionType: "login",
     instruction:
-      "The VIZA appointment runner is ready for the official-site login step. Complete any official-site login, CAPTCHA, waiting-room, or policy prompt manually; VIZA will pause before payment and final confirmation.",
+      captchaSolverEnabled
+        ? "The VIZA appointment runner is ready for the official-site login step. VIZA may use 2captcha for supported image CAPTCHA surfaces when enabled, but will still pause for waiting-room, policy, payment, and final confirmation boundaries."
+        : "The VIZA appointment runner is ready for the official-site login step. Complete any official-site login, CAPTCHA, waiting-room, or policy prompt manually; VIZA will pause before payment and final confirmation.",
     userInputSchemaJson: {
       type: "object",
       properties: {
@@ -146,7 +168,9 @@ export function buildRunnerHandoff(job: USAppointmentJobRow): RunnerHandoff {
       applying_country_code: (job.applying_country_code ?? "").trim().toUpperCase(),
       applying_post_city: job.applying_post_city,
       runner_service: "submission-service",
-      no_captcha_solver: true,
+      captcha_solver_enabled: captchaSolverEnabled,
+      captcha_solver_provider: captchaSolverEnabled ? "2captcha" : null,
+      captcha_max_attempts: config.captchaMaxAttempts,
       no_payment_automation: true,
       no_final_confirmation_click: true,
     },
@@ -161,7 +185,7 @@ export async function processUSAppointmentJob(
   if (!isEligibleUSAppointmentJob(job, config)) return "skipped";
   if (await repository.hasPendingManualAction(job.id)) return "skipped";
 
-  const handoff = buildRunnerHandoff(job);
+  const handoff = buildRunnerHandoff(job, config);
   await repository.insertManualAction({
     job_id: job.id,
     application_id: job.application_id,
