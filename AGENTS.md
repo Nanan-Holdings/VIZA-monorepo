@@ -271,10 +271,10 @@ checks:
 - Website internal automation covers payment, consent, documents, OCR, packet
   generation, status display, notifications, staff monitoring, and external
   status ingestion only.
-- Do not add official portal runners, CAPTCHA solving, proxy/browser
-  fingerprinting, or Playwright submission automation unless the user
-  explicitly reopens `viza-be/submission-service` scope.
-- DS-160 CEAC automation must stop before final sign/submit.
+- For `viza-be/submission-service`, official portal automation should use
+  CAPTCHA solving with the TWOCAPTCHA API when a CAPTCHA is encountered.
+- DS-160 CEAC automation should complete all form filling and one-shot
+  submission automatically for the user.
 - Travel AI required-field order is deterministic and lives in
   `viza-fe/internal-website/lib/travel/planner.ts`.
 

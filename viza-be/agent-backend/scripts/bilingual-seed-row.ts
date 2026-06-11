@@ -1,8 +1,12 @@
-import { normalizeBilingualFormField } from "../../../viza-fe/internal-website/lib/bilingual-schema-contract";
-import type {
-  VisaFormFieldOption,
-  VisaFormFieldRow,
-} from "../../../viza-fe/internal-website/types/visa-form-fields";
+type VisaFormFieldOption =
+  | string
+  | {
+      value: string;
+      text?: string;
+      label_zh?: string;
+      label_en?: string;
+      official_label?: string;
+    };
 
 export interface BilingualSeedField {
   field_name: string;
@@ -72,26 +76,36 @@ function normalizeOptions(options: unknown[] | null | undefined): VisaFormFieldO
   return normalized.length > 0 ? normalized : null;
 }
 
+function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormFieldOption {
+  if (typeof option === "string") {
+    return {
+      value: option,
+      text: option,
+      label_en: option,
+      official_label: option,
+    };
+  }
+
+  const text = clean(option.text) || clean(option.label_en) || clean(option.official_label) || option.value;
+  return {
+    ...option,
+    text,
+    label_en: clean(option.label_en) || text,
+    official_label: clean(option.official_label) || text,
+  };
+}
+
 export function toBilingualSeedRow(
   visaType: string,
   field: BilingualSeedField,
 ): BilingualSeedRow {
   const options = normalizeOptions(field.options);
-  const normalized = normalizeBilingualFormField({
-    id: `seed:${visaType}:${field.field_name}`,
-    visaType,
-    fieldName: field.field_name,
-    label: field.label,
-    fieldType: field.field_type as VisaFormFieldRow["fieldType"],
-    required: field.required,
-    stepNumber: field.step_number,
-    stepName: field.step_name,
-    displayOrder: field.display_order,
-    placeholder: field.placeholder ?? null,
-    validationRules: field.validation_rules ?? null,
-    options,
-    conditionalLogic: normalizeConditionalLogic(field.conditional_logic),
-  });
+  const validationRules = {
+    ...(field.validation_rules ?? {}),
+    label_en: field.label,
+    official_label_en: field.label,
+    ...(field.placeholder ? { placeholder_en: field.placeholder } : {}),
+  };
 
   return {
     visa_type: visaType,
@@ -103,8 +117,8 @@ export function toBilingualSeedRow(
     step_name: field.step_name,
     display_order: field.display_order,
     placeholder: field.placeholder ?? null,
-    validation_rules: normalized.validationRules,
-    options: normalized.options,
-    conditional_logic: normalized.conditionalLogic,
+    validation_rules: validationRules,
+    options: options?.map(normalizeBilingualOption) ?? options,
+    conditional_logic: normalizeConditionalLogic(field.conditional_logic),
   };
 }
