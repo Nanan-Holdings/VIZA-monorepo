@@ -15,6 +15,8 @@
     "db:migrate:viza": "tsx scripts/migrate-viza-required.ts",
     "doctor:env": "tsx scripts/doctor-env.ts",
     "travel:audit-dropdown": "tsx scripts/audit-travel-dropdown-destinations.ts",
+    "travel:coverage-report": "tsx scripts/audit-travel-dropdown-destinations.ts --strict --report",
+    "travel:capture-city-screenshots": "tsx scripts/capture-travel-city-coverage-screenshots.ts",
     "travel:seed-dropdown": "tsx scripts/seed-dropdown-destinations.ts",
     "travel:verify-images": "tsx scripts/verify-travel-image-relevance.ts",
     "travel:qa-prompts": "tsx scripts/qa-travel-agent-prompts.ts",

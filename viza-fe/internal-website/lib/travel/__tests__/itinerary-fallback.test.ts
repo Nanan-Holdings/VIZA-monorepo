@@ -21,6 +21,12 @@ const changshaPayload = {
   locale: "zh-CN",
 };
 
+const missingDestinationPayload = {
+  ...changshaPayload,
+  cities: ["Xyzabc"],
+  travel_order: ["Xyzabc"],
+};
+
 const fallbackItinerary: ItineraryDay[] = [
   {
     day: 1,
@@ -87,7 +93,7 @@ function mockEnrichment(
 }
 
 describe("travel itinerary fallback pipeline", () => {
-  it("calls Google enrichment for incomplete local Changsha data even when primary succeeds", async () => {
+  it("uses complete local Changsha data without Google enrichment when primary succeeds", async () => {
     const googleEnricher = vi.fn(async () => mockEnrichment());
     const primaryGenerator = vi.fn(async () => ({
       itinerary: fallbackItinerary,
@@ -105,30 +111,19 @@ describe("travel itinerary fallback pipeline", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(primaryGenerator).toHaveBeenCalledTimes(1);
-    expect(googleEnricher).toHaveBeenCalledTimes(1);
-    expect(result.fallbackUsed).toContain("google_places");
-    expect(result.enrichment?.coverImage.isPlaceholder).toBe(false);
-    expect(result.diagnostics.localDestinationSufficient).toBe(false);
-    expect(result.diagnostics.localQualityReasons).toContain("local_incomplete");
-    expect(result.diagnostics.finalDestination).toMatchObject({
-      canonicalName: "Changsha",
-      countryCode: "CN",
-      adminAreaEn: "Hunan",
-      latitude: 28.2282,
-      longitude: 112.9388,
-      source: "google_places",
-      coverImagePlaceholder: false,
-    });
-    expect(result.diagnostics.googleCallEvidence?.destinationPlaceId).toBe(
-      "changsha-place"
-    );
+    expect(googleEnricher).not.toHaveBeenCalled();
+    expect(result.fallbackUsed).not.toContain("google_places");
+    expect(result.enrichment).toBeNull();
+    expect(result.diagnostics.localDestinationSufficient).toBe(true);
+    expect(result.diagnostics.localQualityReasons).toEqual(["local_complete"]);
+    expect(result.diagnostics.googleFallbackAttempted).toBe(false);
   });
 
   it("continues from primary fetch failure to Google and LLM fallback", async () => {
     const googleEnricher = vi.fn(async () => mockEnrichment());
     const llmGenerator = vi.fn(async () => fallbackItinerary);
 
-    const result = await generateItineraryWithFallback(changshaPayload, {
+    const result = await generateItineraryWithFallback(missingDestinationPayload, {
       primaryGenerator: async () => {
         throw new Error("fetch failed");
       },
@@ -144,13 +139,13 @@ describe("travel itinerary fallback pipeline", () => {
     expect(result.diagnostics.googleFallbackSucceeded).toBe(true);
     expect(googleEnricher).toHaveBeenCalledTimes(1);
     expect(llmGenerator).toHaveBeenCalledWith(
-      expect.objectContaining({ cities: ["长沙"] }),
+      expect.objectContaining({ cities: ["Xyzabc"] }),
       expect.objectContaining({ source: "google_places" })
     );
   });
 
   it("falls back to LLM text-only itinerary when Google fails", async () => {
-    const result = await generateItineraryWithFallback(changshaPayload, {
+    const result = await generateItineraryWithFallback(missingDestinationPayload, {
       primaryGenerator: async () => {
         throw new Error("fetch failed");
       },

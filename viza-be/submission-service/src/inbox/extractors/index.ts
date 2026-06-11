@@ -4,6 +4,7 @@ import { vfsGlobalProfile } from "./vfsglobal";
 import { evisaGovVnProfile } from "./evisa-gov-vn";
 import { ceacStateGovProfile } from "./ceac-state-gov";
 import { govUkProfile } from "./gov-uk";
+import { usVisaSchedulingProfile } from "./usvisascheduling";
 
 /**
  * Extractor registry (INBOX-004).
@@ -19,6 +20,7 @@ const PROFILES: ExtractorProfile[] = [
   evisaGovVnProfile,
   ceacStateGovProfile,
   govUkProfile,
+  usVisaSchedulingProfile,
 ];
 
 function senderDomain(from: string): string {

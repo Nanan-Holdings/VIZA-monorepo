@@ -60,6 +60,17 @@ test("gov.uk — UKVI security code", () => {
   assert.equal(result.reference, "GWF000123456");
 });
 
+test("usvisascheduling — appointment account verification code and link", () => {
+  const result = extractAuto({
+    from: "donotreply@usvisascheduling.com",
+    subject: "Verify your email address",
+    text: "Your verification code is 814209.\n\nContinue at https://www.usvisascheduling.com/en-US/account/verify?token=sample-token\n",
+  });
+  assert.equal(result.profileId, "usvisascheduling");
+  assert.equal(result.code, "814209");
+  assert.match(result.link ?? "", /usvisascheduling\.com/);
+});
+
 test("unknown sender — generic 6-digit fallback", () => {
   const result = extractAuto({
     from: "noreply@unknown-portal.example",

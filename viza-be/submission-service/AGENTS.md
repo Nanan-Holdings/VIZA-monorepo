@@ -26,7 +26,11 @@ the applicant.
 - `src/ceac/**`: CEAC runtime pipeline for DS-160 prefill.
 - `src/france-visas/**`: France-Visas sign-in, five fill steps, dashboard
   reference capture, optional CERFA PDF finalization, standard Chromium launch,
-  manual CAPTCHA/account checkpoints, and typed failures.
+  VIZA-alias account registration, registration CAPTCHA solving when explicitly
+  enabled, manual checkpoints, and typed failures.
+- `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
+  alias provisioning and inbound-email verification-link extraction for
+  official account registration.
 - `src/country-submissions/**`: safe provider registry, schema/dry-run
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.
@@ -60,7 +64,7 @@ the applicant.
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, never solves CAPTCHA APIs, and stops before applicant Sign/Submit. |
-| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses standard Playwright Chromium with no stealth/CAPTCHA solver, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
+| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
@@ -74,6 +78,10 @@ the applicant.
 - Do not click final applicant declaration, final submit, irreversible payment,
   or appointment confirmation unless the user explicitly reopens that scope and
   the legal/product boundary has been updated.
+- France-Visas registration CAPTCHA solving is allowed only for the explicit
+  account-registration flow guarded by `FRANCE_ACCOUNT_REGISTRATION_ENABLED`
+  and `FRANCE_REGISTRATION_2CAPTCHA_ENABLED`; login risk challenges and
+  anti-bot/Cloudflare gates remain manual checkpoints.
 - Keep Playwright selectors isolated in mapping files where possible.
 - Keep retries and queue status transitions explicit.
 - Do not move AI/RAG logic here; use `agent-backend`.
@@ -141,6 +149,8 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/index.ts`
 - `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/types.ts`
+- `viza-be/submission-service/src/inbox/alias.ts`
+- `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
 - `viza-be/agent-backend/src/db/schema.ts`
 - `docs/prd-ds160-ceac-runtime-validation.md`

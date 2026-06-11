@@ -459,6 +459,35 @@ async function createReadyJob(
   return { repository, orchestrator, job };
 }
 
+async function createChinaAssistedLiveJob(
+  repository = new InMemoryUSAppointmentRepository(),
+) {
+  const { orchestrator } = createUSAppointmentServices(repository);
+  await orchestrator.recordConsent({
+    applicationId: APPLICATION_ID,
+    actorUserId: USER_ID,
+    consentSnapshot: {
+      accepted: true,
+      mode: "assisted_live",
+      finalConfirmationRequired: true,
+      noSecurityBypass: true,
+    },
+  });
+  const job = await orchestrator.createJob({
+    applicationId: APPLICATION_ID,
+    userId: USER_ID,
+    mode: "assisted_live",
+    applyingCountryCode: "CN",
+    applyingPostCity: "Beijing",
+    schedulingProvider: "usvisascheduling",
+    userPreferencesJson: {
+      preferredDateRange: "2026-08-01..2026-08-31",
+      timePreference: "morning",
+    },
+  });
+  return { repository, orchestrator, job };
+}
+
 async function progressToPaymentCheckpoint() {
   const setup = await createReadyJob();
   await setup.orchestrator.runJob(setup.job.id);
@@ -554,6 +583,29 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(repository.jobs).toHaveLength(1);
     expect(job.mode).toBe("dry_run");
     expect(job.schedulingProvider).toBe("usvisascheduling");
+  });
+
+  it("creates a China assisted-live usvisascheduling job without disabling the provider", async () => {
+    const { job } = await createChinaAssistedLiveJob();
+    expect(job.mode).toBe("assisted_live");
+    expect(job.applyingCountryCode).toBe("CN");
+    expect(job.applyingPostCity).toBe("Beijing");
+    expect(job.schedulingProvider).toBe("usvisascheduling");
+    expect(job.status).toBe("appointment_consent_received");
+  });
+
+  it("queues China assisted-live jobs for the submission runner instead of running browser automation in agent-backend", async () => {
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
+    const status = await orchestrator.runJob(job.id);
+    expect(status.job?.status).toBe("appointment_login_required");
+    expect(status.pendingManualAction?.actionType).toBe("login");
+    expect(status.pendingManualAction?.instruction).toContain("VIZA appointment runner");
+    expect(repository.auditEvents.at(-1)?.metadataRedactedJson).toMatchObject({
+      assisted_live_enabled: true,
+      runner_service: "submission-service",
+      provider: "usvisascheduling",
+      applying_country_code: "CN",
+    });
   });
 
   it("creates the dry-run email verification checkpoint on first run", async () => {

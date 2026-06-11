@@ -3,6 +3,10 @@ import * as path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database";
 import {
+  findTravelAttraction,
+  getTravelAttractionsForCity,
+} from "../components/client/travel/travel-attraction-knowledge";
+import {
   getDropdownDestinationContracts,
   normalizeDestinationSearchText,
   type TravelDestinationContract,
@@ -18,6 +22,22 @@ type AuditRow = {
   "Attraction images": string;
   "Data quality": string;
   "Missing fields": string;
+};
+
+type CoverageReportRow = {
+  cityId: string;
+  cityNameZh: string;
+  cityNameEn: string;
+  cardCount: number;
+  localCount: number;
+  googleCount: number;
+  placeholderCount: number;
+  imagePass: boolean;
+  coordinatePass: boolean;
+  mapPinPass: boolean;
+  itineraryMatchPass: boolean;
+  status: "PASS" | "PARTIAL" | "FAIL";
+  notes: string;
 };
 
 type TypedSupabaseClient = SupabaseClient<Database>;
@@ -97,16 +117,143 @@ function missingCoreFields(destination: TravelDestinationContract): string[] {
   if (!destination.coverImage || !localAssetExists(destination.coverImage.imageUrl)) {
     missing.add("cover_image");
   }
-  if (destination.attractions.length < 3) missing.add("attractions");
+  if (destination.attractions.length < 10) missing.add("attractions");
   return Array.from(missing);
+}
+
+function hasAttractionCoordinates(
+  destination: TravelDestinationContract,
+  count = 10
+): boolean {
+  return destination.attractions.slice(0, count).every(
+    (item) =>
+      typeof item.latitude === "number" &&
+      Number.isFinite(item.latitude) &&
+      typeof item.longitude === "number" &&
+      Number.isFinite(item.longitude)
+  );
+}
+
+function hasAttractionImages(
+  destination: TravelDestinationContract,
+  count = 10
+): boolean {
+  return destination.attractions
+    .slice(0, count)
+    .every((item) => item.image && localAssetExists(item.image.imageUrl));
+}
+
+function itineraryMatchesLocalKnowledge(
+  destination: TravelDestinationContract
+): boolean {
+  const localAttractions = getTravelAttractionsForCity(destination.nameZh);
+  if (localAttractions.length < 10) return false;
+  return destination.attractions.slice(0, 3).every((item) =>
+    Boolean(
+      findTravelAttraction(destination.nameZh, item.nameZh) ??
+        findTravelAttraction(destination.nameEn, item.nameEn)
+    )
+  );
+}
+
+function buildCoverageReportRow(
+  destination: TravelDestinationContract,
+  missing: string[],
+  rowExists: boolean | null
+): CoverageReportRow {
+  const firstTen = destination.attractions.slice(0, 10);
+  const imagePass = firstTen.length >= 10 && hasAttractionImages(destination);
+  const coordinatePass = hasCoordinates(destination) && hasAttractionCoordinates(destination);
+  const mapPinPass = coordinatePass;
+  const itineraryMatchPass = itineraryMatchesLocalKnowledge(destination);
+  const placeholderCount = firstTen.filter(
+    (item) => !item.image || !localAssetExists(item.image.imageUrl)
+  ).length;
+  const status =
+    missing.length === 0 &&
+    imagePass &&
+    coordinatePass &&
+    mapPinPass &&
+    itineraryMatchPass
+      ? "PASS"
+      : destination.attractions.length >= 10
+        ? "PARTIAL"
+        : "FAIL";
+  const notes = [
+    rowExists === null
+      ? "database cache skipped: travel_destinations table missing or unavailable"
+      : rowExists
+        ? "database cache row present"
+        : "database cache row missing",
+    missing.length ? `missing: ${missing.join(", ")}` : "",
+  ].filter(Boolean);
+
+  return {
+    cityId: destination.key,
+    cityNameZh: destination.nameZh,
+    cityNameEn: destination.nameEn,
+    cardCount: destination.attractions.length,
+    localCount: destination.attractions.filter((item) => item.source === "local_curated")
+      .length,
+    googleCount: 0,
+    placeholderCount,
+    imagePass,
+    coordinatePass,
+    mapPinPass,
+    itineraryMatchPass,
+    status,
+    notes: notes.join("; "),
+  };
+}
+
+function markdownCell(value: string | number | boolean): string {
+  return String(value).replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+}
+
+function writeCoverageReport(rows: CoverageReportRow[], outputPath: string): void {
+  const lines = [
+    "# Travel City Coverage Report",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    "",
+    "| cityId | cityNameZh | cityNameEn | cardCount | localCount | googleCount | placeholderCount | imagePass | coordinatePass | mapPinPass | itineraryMatchPass | status | notes |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- | --- |",
+    ...rows.map((row) =>
+      [
+        row.cityId,
+        row.cityNameZh,
+        row.cityNameEn,
+        row.cardCount,
+        row.localCount,
+        row.googleCount,
+        row.placeholderCount,
+        row.imagePass ? "yes" : "no",
+        row.coordinatePass ? "yes" : "no",
+        row.mapPinPass ? "yes" : "no",
+        row.itineraryMatchPass ? "yes" : "no",
+        row.status,
+        row.notes,
+      ]
+        .map(markdownCell)
+        .join(" | ")
+        .replace(/^/, "| ")
+        .replace(/$/, " |")
+    ),
+    "",
+  ];
+
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, lines.join("\n"), "utf8");
 }
 
 async function main() {
   const strict = process.argv.includes("--strict");
   const requireDb = process.argv.includes("--require-db");
+  const shouldWriteReport = process.argv.includes("--report");
   const supabase = createSupabaseAdminClient();
   const contracts = getDropdownDestinationContracts();
   const rows: AuditRow[] = [];
+  const reportRows: CoverageReportRow[] = [];
   const failures: string[] = [];
 
   if (requireDb && !supabase) {
@@ -141,10 +288,21 @@ async function main() {
       "Data quality": destination.dataQuality,
       "Missing fields": missing.length ? missing.join(", ") : "-",
     });
+    reportRows.push(buildCoverageReportRow(destination, missing, rowExists));
   }
 
   console.table(rows);
   console.log(`Audited ${rows.length} dropdown destinations.`);
+
+  if (shouldWriteReport) {
+    const outputPath = path.resolve(
+      process.cwd(),
+      "test-results",
+      "travel-city-coverage-report.md"
+    );
+    writeCoverageReport(reportRows, outputPath);
+    console.log(`Coverage report written to ${outputPath}`);
+  }
 
   if (!supabase) {
     console.warn(

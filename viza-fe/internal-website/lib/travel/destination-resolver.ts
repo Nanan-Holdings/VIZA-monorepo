@@ -1172,7 +1172,13 @@ const DESTINATION_SUFFIX_PATTERNS = [
 ];
 
 const SHORT_AMBIGUOUS_DESTINATION_IDS: Record<string, string[]> = {
-  长: ["local-changsha", "local-changchun", "local-nagasaki"],
+  长: ["Changsha", "Changchun", "Nagasaki"],
+};
+
+const COUNTRY_DEFAULT_DESTINATIONS: Record<string, string> = {
+  japan: "Tokyo",
+  jp: "Tokyo",
+  日本: "Tokyo",
 };
 
 function toNumber(value: string | number | null | undefined): number | null {
@@ -1437,10 +1443,17 @@ function toIntentDestinationCandidate(
 
 function shortAmbiguousOptions(query: string): LocalDestination[] {
   const normalized = normalizeDestinationText(query);
-  const ids = SHORT_AMBIGUOUS_DESTINATION_IDS[normalized];
-  if (!ids) return [];
-  return ids
-    .map((id) => ALL_LOCAL_DESTINATIONS.find((destination) => destination.id === id))
+  const identifiers = SHORT_AMBIGUOUS_DESTINATION_IDS[normalized];
+  if (!identifiers) return [];
+  return identifiers
+    .map((identifier) => {
+      const normalizedIdentifier = normalizeDestinationText(identifier);
+      return ALL_LOCAL_DESTINATIONS.find(
+        (destination) =>
+          destination.id === identifier ||
+          normalizeDestinationText(destination.canonicalName) === normalizedIdentifier
+      );
+    })
     .filter((destination): destination is LocalDestination => Boolean(destination));
 }
 
@@ -1472,6 +1485,16 @@ export function canonicalizeDestination(
   const normalized = normalizeDestinationCandidate(rawCandidate, locale);
   if (!normalized.normalized) {
     return toIntentDestinationCandidate(rawCandidate, null, normalized, "unresolved");
+  }
+
+  const countryDefault = countryDefaultDestinationForQuery(normalized.normalized);
+  if (countryDefault) {
+    return toIntentDestinationCandidate(
+      rawCandidate,
+      countryDefault,
+      normalized,
+      "alias_match"
+    );
   }
 
   const mentioned = findMentionedDestinations(normalized.normalized)[0];
@@ -1846,6 +1869,21 @@ function ambiguousGroupForQuery(query: string): LocalDestination[] | null {
   return disambiguatingAlias ? null : options;
 }
 
+function countryDefaultDestinationForQuery(
+  query: string
+): TravelDestinationSearchResult | null {
+  const normalizedQuery = normalizeDestinationText(query);
+  const defaultName = COUNTRY_DEFAULT_DESTINATIONS[normalizedQuery];
+  if (!defaultName) return null;
+  const normalizedDefaultName = normalizeDestinationText(defaultName);
+  return (
+    ALL_LOCAL_DESTINATIONS.find(
+      (destination) =>
+        normalizeDestinationText(destination.canonicalName) === normalizedDefaultName
+    ) ?? null
+  );
+}
+
 export function extractDestinationTripHints(rawText: string): DestinationTripHints {
   const preferences: string[] = [];
   const duration = extractTravelDuration(rawText);
@@ -2199,6 +2237,26 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
         localDb: "local_index_hit",
         fallbackReason: "awaiting_destination_clarification",
         cardSourceStatus: "none",
+      }),
+    };
+  }
+
+  const countryDefault = countryDefaultDestinationForQuery(query);
+  if (countryDefault) {
+    return {
+      status: "resolved",
+      query,
+      destinations: [countryDefault],
+      confidenceScore: countryDefault.confidenceScore,
+      tripHints,
+      cards: generateLazyDestinationCards(countryDefault, { source: "curated_fallback" }),
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "resolved",
+        localDb: "local_index_hit",
+        fallbackReason: null,
+        cardSourceStatus: sourceStatusForDestination(countryDefault),
       }),
     };
   }

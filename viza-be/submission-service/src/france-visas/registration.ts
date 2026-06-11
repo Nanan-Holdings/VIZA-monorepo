@@ -1,22 +1,25 @@
 /**
- * France-Visas Keycloak registration flow — manual checkpoint scaffold.
+ * France-Visas Keycloak registration flow.
  *
  * End-to-end:
  *   launch a standard Playwright Chromium browser
  *   → go to application entry URL (redirects to Keycloak login)
  *   → click "Create an account" to reach Keycloak registration
  *   → fill name / email / password / language
- *   → stop before CAPTCHA / email verification and ask the applicant to
- *     complete account creation manually.
+ *   → solve the registration image CAPTCHA when explicitly configured
+ *   → wait for the verification email and open the official verification link
+ *   → return credentials plus storageState for the subsequent sign-in/fill.
  */
 
 import type { BrowserContext } from "@playwright/test";
 import { launchFvBrowser, type FvBrowserHandles } from "./browser";
 import { FV_URLS, FV_REGISTRATION_SELECTORS } from "./selectors";
-import { waitForPage } from "./pages";
+import { detectPage, waitForPage } from "./pages";
 import { assertNoGate } from "./gates";
 import type { MailboxProvider } from "./inbox-poller";
 import { RegistrationFailedError } from "./errors";
+import { pollInboxForVerificationLink } from "./inbox-poller";
+import { solveRegistrationCaptchaWithRetry, type FvCaptchaSolveWithTelemetry } from "./registration-captcha";
 
 export interface FvRegistrationInput {
   firstName: string;
@@ -33,6 +36,7 @@ export interface FvRegistrationOptions {
   maxCaptchaAttempts?: number;
   verificationTimeoutMs?: number;
   runId?: string;
+  enableCaptchaSolving?: boolean;
 }
 
 export interface FvRegistrationResult {
@@ -40,14 +44,15 @@ export interface FvRegistrationResult {
   password: string;
   verificationUrl: string;
   storageState: Awaited<ReturnType<BrowserContext["storageState"]>>;
-  captcha: null;
+  captcha: FvCaptchaSolveWithTelemetry | null;
   runId?: string;
 }
 
 /**
- * Walk to the France-Visas registration page and stop at the manual account
- * creation checkpoint. Automated CAPTCHA solving and email verification are
- * intentionally disabled for France live-assisted runs.
+ * Walk through France-Visas registration after the applicant has explicitly
+ * authorized live-assisted account creation. Only the registration image
+ * CAPTCHA is solved; anti-bot, final validation, payment, and appointment
+ * checkpoints remain out of scope.
  *
  * Throws `RegistrationFailedError` (or other FvError subclasses) on
  * unrecoverable failure. Transient failures inside the CAPTCHA loop are
@@ -60,8 +65,12 @@ export async function registerFvAccount(
   const {
     headless = true,
     runId,
+    maxCaptchaAttempts = 3,
+    verificationTimeoutMs = 180_000,
+    enableCaptchaSolving = false,
   } = options;
   const language = input.language ?? "English";
+  let captcha: FvCaptchaSolveWithTelemetry | null = null;
 
   const handles = await launchFvBrowser({
     headless,
@@ -100,10 +109,69 @@ export async function registerFvAccount(
     };
 
     await fillRegistrationForm();
-    throw new RegistrationFailedError(
-      "France-Visas account creation requires manual CAPTCHA and email verification. Automated CAPTCHA solving is disabled for live assisted France runs.",
-      { url: page.url(), details: { runId, manualAction: "account_creation_required" } },
-    );
+    if (!enableCaptchaSolving) {
+      throw new RegistrationFailedError(
+        "France-Visas registration CAPTCHA solving is disabled by configuration.",
+        { url: page.url(), details: { runId, manualAction: "captcha_required" } },
+      );
+    }
+
+    captcha = await solveRegistrationCaptchaWithRetry(page, maxCaptchaAttempts, fillRegistrationForm);
+
+    const submit = page.locator(FV_REGISTRATION_SELECTORS.submit).first();
+    await Promise.all([
+      page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined),
+      submit.click(),
+    ]);
+
+    const pageAfterSubmit = await waitForPage(page, ["check_mailbox", "email_verified", "login", "accueil"], {
+      timeoutMs: 45_000,
+    }).catch(async () => {
+      const detected = await detectPage(page);
+      if (detected.id === "registration") {
+        return detected.id;
+      }
+      throw new RegistrationFailedError(
+        `France-Visas registration did not reach the email verification step; detected ${detected.id}.`,
+        { url: detected.url, details: { runId, captchaTelemetry: captcha?.telemetry } },
+      );
+    });
+    if (pageAfterSubmit === "registration") {
+      throw new RegistrationFailedError(
+        "France-Visas registration did not advance after CAPTCHA submission.",
+        { url: page.url(), details: { runId, captchaTelemetry: captcha?.telemetry } },
+      );
+    }
+
+    const verificationUrl = await pollInboxForVerificationLink(options.mailbox, {
+      mailboxAddress: input.email,
+      timeoutMs: verificationTimeoutMs,
+    });
+
+    await page.goto(verificationUrl.toString(), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    await waitForPage(page, ["email_verified", "login", "accueil"], { timeoutMs: 60_000 }).catch(async () => {
+      const detected = await detectPage(page);
+      if (detected.id === "registration" || detected.id === "check_mailbox" || detected.id === "session_expired") {
+        throw new RegistrationFailedError(
+          `France-Visas email verification did not complete; detected ${detected.id}.`,
+          { url: detected.url, details: { runId } },
+        );
+      }
+    });
+    await assertNoGate(page);
+
+    const storageState = await context.storageState();
+    return {
+      email: input.email,
+      password: input.password,
+      verificationUrl: verificationUrl.toString(),
+      storageState,
+      captcha,
+      runId,
+    };
   } catch (err) {
     throw err instanceof RegistrationFailedError
       ? err

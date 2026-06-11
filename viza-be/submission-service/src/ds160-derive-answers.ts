@@ -104,6 +104,8 @@ const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
   { from: "us_contact_city", to: "us_address_city" },
   { from: "us_contact_state", to: "us_address_state" },
   { from: "us_contact_zip", to: "us_address_zip" },
+  { from: "social_media_platform", to: "social_media_provider" },
+  { from: "social_media_handle", to: "social_media_identifier" },
   // Travel page asks one question ("who is paying for your trip?"); the
   // orchestrator binds it to two CEAC selectors that point at the same
   // dropdown (one historical, one current). Populate both from the single
@@ -413,8 +415,70 @@ export function deriveDS160Answers(
   deriveDateSplits(answers);
   deriveIntendedArrivalDate(answers);
   deriveLengthOfStay(answers);
+  deriveContactPageConsistency(answers);
   deriveNaFlags(answers);
   return answers;
+}
+
+function deriveContactPageConsistency(answers: Record<string, string>): void {
+  deriveSocialMediaPresence(answers);
+  deriveDuplicatePhoneNaFlags(answers);
+}
+
+function deriveSocialMediaPresence(answers: Record<string, string>): void {
+  const provider = answers.social_media_provider?.trim();
+  const handle = answers.social_media_identifier?.trim();
+
+  if (provider) {
+    const normalizedProvider = provider.toUpperCase();
+    answers.social_media_provider = normalizedProvider;
+    if (answers.has_social_media === undefined) {
+      answers.has_social_media = normalizedProvider === "NONE" ? "N" : "Y";
+    }
+    if (normalizedProvider === "NONE" && !handle) {
+      delete answers.social_media_identifier;
+    }
+    return;
+  }
+
+  if (!handle && answers.has_social_media === undefined) {
+    answers.has_social_media = "N";
+  }
+}
+
+function deriveDuplicatePhoneNaFlags(answers: Record<string, string>): void {
+  const seen: string[] = [];
+  const phoneFields: Array<{ key: string; naKey?: string }> = [
+    { key: "primary_phone" },
+    { key: "mobile_phone", naKey: "mobile_phone_na" },
+    { key: "work_phone", naKey: "work_phone_na" },
+    { key: "secondary_phone", naKey: "secondary_phone_na" },
+  ];
+
+  for (const { key, naKey } of phoneFields) {
+    const value = answers[key];
+    if (!value || isNaToken(value)) continue;
+    const normalized = normalizePhoneForDuplicateCheck(value);
+    if (!normalized) continue;
+    if (seen.some((existing) => areDuplicatePhoneNumbers(existing, normalized))) {
+      delete answers[key];
+      if (naKey && answers[naKey] === undefined) answers[naKey] = "Y";
+      continue;
+    }
+    seen.push(normalized);
+  }
+}
+
+function normalizePhoneForDuplicateCheck(value: string): string | null {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 5 ? digits : null;
+}
+
+function areDuplicatePhoneNumbers(left: string, right: string): boolean {
+  if (left === right) return true;
+  const shortest = left.length <= right.length ? left : right;
+  const longest = left.length > right.length ? left : right;
+  return shortest.length >= 7 && longest.endsWith(shortest);
 }
 
 /**

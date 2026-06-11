@@ -792,6 +792,17 @@
     "notCreated": "Not created yet",
     "notStarted": "Not started",
     "notAssigned": "Not assigned",
+    "liveAction": {
+      "title": "Official site action required",
+      "description": "VIZA has opened and prepared the official portal. Complete the visible official-site step yourself, then continue the assisted submission here.",
+      "actionType": "Action",
+      "checkpoint": "Checkpoint",
+      "openOfficial": "Open official site",
+      "continue": "Continue after completing",
+      "continuing": "Continuing",
+      "completed": "Action completed. VIZA will resume the job.",
+      "failed": "We could not resume the job. Please try again or contact support."
+    },
     "empty": {
       "title": "No active applications yet",
       "description": "Choose a destination from Home to start a visa workflow. Once an application exists, this page will show payment, consent, documents, packet, handoff, and result status.",

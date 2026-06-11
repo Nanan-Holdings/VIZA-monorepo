@@ -3,8 +3,11 @@ import { getLocale } from "next-intl/server";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
+  AlertTriangle,
   CalendarClock,
+  CheckCircle2,
   CircleDot,
+  ExternalLink,
   FileText,
   Mail,
   PackageCheck,
@@ -39,6 +42,7 @@ import {
   localizeMissingItem,
   maskPassportForLocale,
 } from "../copy";
+import { completeLiveManualAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -113,24 +117,35 @@ function localizeStatusText(status: string, locale: InterfaceLocale): string {
 
 function ActionMessage({
   queued,
+  manualActionCompleted,
   error,
   copy,
+  locale,
 }: {
   queued: boolean;
+  manualActionCompleted: boolean;
   error: boolean;
   copy: AdminApplicationCopy;
+  locale: InterfaceLocale;
 }) {
-  if (!queued && !error) return null;
+  if (!queued && !manualActionCompleted && !error) return null;
+  const success = queued || manualActionCompleted;
   return (
     <div
       className={[
         "rounded-lg border px-4 py-3 text-sm font-medium",
-        queued
+        success
           ? "border-emerald-200 bg-emerald-50 text-emerald-800"
           : "border-red-200 bg-red-50 text-red-700",
       ].join(" ")}
     >
-      {queued ? copy.detail.queued : copy.detail.actionError}
+      {queued
+        ? copy.detail.queued
+        : manualActionCompleted
+          ? locale === "zh"
+            ? "官网人工步骤已标记完成，live-assisted 任务将恢复。"
+            : "Official-site action marked complete. The live-assisted job will resume."
+          : copy.detail.actionError}
     </div>
   );
 }
@@ -440,6 +455,138 @@ function ApplicationsOverview({
   );
 }
 
+function LiveSubmissionPanel({
+  applicant,
+  locale,
+}: {
+  applicant: AdminApplicantOverview;
+  locale: InterfaceLocale;
+}) {
+  const liveSubmissions = applicant.applications
+    .map((application) => ({ application, live: application.liveSubmission }))
+    .filter((item): item is { application: AdminApplicationModel; live: NonNullable<AdminApplicationModel["liveSubmission"]> } => Boolean(item.live));
+
+  const text = locale === "zh"
+    ? {
+        title: "官网辅助提交",
+        description: "这里显示 live-assisted 官方站任务、当前检查点和需要人工完成的合规步骤。",
+        emptyTitle: "暂无 live-assisted 任务",
+        emptyBody: "当用户点击 Live assisted 并通过字段校验后，任务会出现在这里。",
+        job: "任务",
+        status: "状态",
+        provider: "服务",
+        checkpoint: "检查点",
+        officialStatus: "官网状态",
+        paymentStatus: "付款状态",
+        reference: "官方编号",
+        openOfficial: "打开官网",
+        actionRequired: "需要人工处理",
+        complete: "已在官网完成，恢复任务",
+        instruction: "说明",
+      }
+    : {
+        title: "Live-assisted official submission",
+        description: "Live-assisted jobs, checkpoints, and compliant human action points appear here.",
+        emptyTitle: "No live-assisted job yet",
+        emptyBody: "A job appears here after the applicant clicks Live assisted and passes validation.",
+        job: "Job",
+        status: "Status",
+        provider: "Provider",
+        checkpoint: "Checkpoint",
+        officialStatus: "Official status",
+        paymentStatus: "Payment status",
+        reference: "Official reference",
+        openOfficial: "Open official site",
+        actionRequired: "Action required",
+        complete: "Completed on official site, resume job",
+        instruction: "Instruction",
+      };
+
+  return (
+    <SectionPanel title={text.title} description={text.description}>
+      {liveSubmissions.length === 0 ? (
+        <EmptyState title={text.emptyTitle} body={text.emptyBody} />
+      ) : (
+        <div className="space-y-3">
+          {liveSubmissions.map(({ application, live }) => {
+            const action = live.pendingManualAction;
+            const returnTo = `/admin/applications/${applicant.applicantId}`;
+            return (
+              <div key={live.jobId} className="rounded-lg border border-[#efefef] bg-[#fafafa] p-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-[#232323]">
+                        {application.countryLabel} - {application.visaTypeLabel}
+                      </p>
+                      <StatusPill tone={live.state === "action_required" ? "warning" : live.state === "failed" ? "danger" : "brand"}>
+                        {localizeStatusText(live.state, locale)}
+                      </StatusPill>
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-[#9ca3af]">{text.job}: {shortenId(live.jobId)}</p>
+                  </div>
+                  {live.officialPortalUrl && (
+                    <a
+                      href={live.officialPortalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#d7d7d7] bg-white px-3 py-2 text-sm font-semibold text-brand-500 transition hover:border-brand-300"
+                    >
+                      {text.openOfficial}
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
+
+                <dl className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <FieldValue label={text.status} value={localizeStatusText(live.status ?? live.state, locale)} fallback="-" />
+                  <FieldValue label={text.provider} value={live.provider ?? "-"} fallback="-" />
+                  <FieldValue label={text.checkpoint} value={live.liveCheckpoint ?? live.currentStage ?? "-"} fallback="-" />
+                  <FieldValue label={text.officialStatus} value={live.officialStatus ?? "-"} fallback="-" />
+                  <FieldValue label={text.paymentStatus} value={live.paymentStatus ?? "-"} fallback="-" />
+                  <FieldValue label={text.reference} value={live.officialReference ?? "-"} fallback="-" />
+                </dl>
+
+                {action && (
+                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                          <AlertTriangle className="h-4 w-4" />
+                          {text.actionRequired}: {localizeStatusText(action.actionType, locale)}
+                        </div>
+                        {action.instruction && (
+                          <p className="mt-2 text-sm leading-6 text-amber-900">
+                            <span className="font-semibold">{text.instruction}: </span>
+                            {action.instruction}
+                          </p>
+                        )}
+                      </div>
+                      <form action={completeLiveManualAction}>
+                        <input type="hidden" name="jobId" value={live.jobId} />
+                        <input type="hidden" name="actionId" value={action.id} />
+                        <input type="hidden" name="applicationId" value={application.id} />
+                        <input type="hidden" name="returnTo" value={returnTo} />
+                        <button
+                          type="submit"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {text.complete}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </SectionPanel>
+  );
+}
+
 function EventTimeline({
   applicant,
   copy,
@@ -515,6 +662,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   }
 
   const queued = firstParam(resolvedSearchParams, "queuedNotification") === "1";
+  const manualActionCompleted = firstParam(resolvedSearchParams, "manualActionCompleted") === "1";
   const actionError = firstParam(resolvedSearchParams, "actionError") === "1";
 
   if (error) {
@@ -583,7 +731,13 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       </div>
 
       <UserSummaryHeader applicant={applicant} copy={copy} />
-      <ActionMessage queued={queued} error={actionError} copy={copy} />
+      <ActionMessage
+        queued={queued}
+        manualActionCompleted={manualActionCompleted}
+        error={actionError}
+        copy={copy}
+        locale={locale}
+      />
       
       {applicant.latestApplication && (
         <RealtimeApplicationStatus
@@ -596,6 +750,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
       <ApplicantProfile applicant={applicant} copy={copy} locale={locale} />
       <PackageOverview applicant={applicant} copy={copy} locale={locale} />
       <SupportItems applicant={applicant} copy={copy} />
+      <LiveSubmissionPanel applicant={applicant} locale={locale} />
       <ApplicationsOverview applicant={applicant} copy={copy} locale={locale} />
       <EventTimeline applicant={applicant} copy={copy} locale={locale} />
 

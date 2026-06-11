@@ -1,5 +1,6 @@
 param(
   [int]$FrontendPort = 3000,
+  [int]$MarketingPort = 3001,
   [int]$AgentPort = 3002,
   [int]$TravelPort = 8000,
   [int]$StartupTimeoutSeconds = 120,
@@ -12,6 +13,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $frontendDir = Join-Path $repoRoot "viza-fe\internal-website"
+$marketingDir = Join-Path $repoRoot "viza-fe\marketing-website"
 $agentBackendDir = Join-Path $repoRoot "viza-be\agent-backend"
 $submissionServiceDir = Join-Path $repoRoot "viza-be\submission-service"
 $travelServiceDir = Join-Path $repoRoot "viza-be\travel-service"
@@ -387,11 +389,13 @@ function Start-DatabaseServices {
 
 function Assert-ServiceInputs {
   Assert-Directory -Path $frontendDir
+  Assert-Directory -Path $marketingDir
   Assert-Directory -Path $agentBackendDir
   Assert-Directory -Path $submissionServiceDir
   Assert-Directory -Path $travelServiceDir
 
   Assert-NpmScript -Directory $frontendDir -ExpectedName "admin-website" -ScriptName "dev"
+  Assert-NpmScript -Directory $marketingDir -ExpectedName "marketing-website" -ScriptName "dev"
   Assert-NpmScript -Directory $agentBackendDir -ExpectedName "@viza/agent-backend" -ScriptName "dev"
   Assert-NpmScript -Directory $submissionServiceDir -ExpectedName "viza-submission-service" -ScriptName "dev"
 
@@ -447,6 +451,12 @@ $frontendAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $frontendDir `
   -HealthUri "http://127.0.0.1:$FrontendPort/client/login" `
   -ExpectedContent @("_next")
+$marketingAlreadyRunning = Assert-PortAvailableOrExpected `
+  -Name "marketing web" `
+  -Port $MarketingPort `
+  -ExpectedPath $marketingDir `
+  -HealthUri "http://127.0.0.1:$MarketingPort/" `
+  -ExpectedContent @("_next")
 $agentAlreadyRunning = Assert-PortAvailableOrExpected `
   -Name "agent-backend" `
   -Port $AgentPort `
@@ -492,6 +502,15 @@ if (!$travelAlreadyRunning) {
     -Command $travelCommand
 }
 
+if (!$marketingAlreadyRunning) {
+  $marketingCommand = "`$env:NEXT_PUBLIC_SITE_URL = 'http://127.0.0.1:$MarketingPort'; `$env:NEXT_PUBLIC_PORTAL_URL = 'http://127.0.0.1:$FrontendPort'; npm run dev -- -p $MarketingPort"
+  $started += Start-ManagedProcess `
+    -Name "marketing web" `
+    -SafeName "marketing-web" `
+    -WorkingDirectory $marketingDir `
+    -Command $marketingCommand
+}
+
 if (!$frontendAlreadyRunning) {
   $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; npm run dev -- -p $FrontendPort"
   $started += Start-ManagedProcess `
@@ -507,11 +526,13 @@ foreach ($process in $started) {
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds
 
 Write-Host ""
 Write-Ok "VIZA local development stack is ready."
 Write-Host "Frontend/client:     http://127.0.0.1:$FrontendPort/client/login" -ForegroundColor Green
+Write-Host "Marketing web:       http://127.0.0.1:$MarketingPort/" -ForegroundColor Green
 Write-Host "Admin login:         http://127.0.0.1:$FrontendPort/admin/login" -ForegroundColor Green
 Write-Host "Agent backend:       http://127.0.0.1:$AgentPort/health" -ForegroundColor Green
 Write-Host "Travel service docs: http://127.0.0.1:$TravelPort/docs" -ForegroundColor Green

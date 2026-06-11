@@ -878,6 +878,17 @@
     "notCreated": "尚未创建",
     "notStarted": "未开始",
     "notAssigned": "暂未分配",
+    "liveAction": {
+      "title": "需要处理官网步骤",
+      "description": "VIZA 已打开并准备好官方门户。请你亲自在官网完成当前可见步骤，然后回到这里继续辅助提交。",
+      "actionType": "动作",
+      "checkpoint": "检查点",
+      "openOfficial": "打开官方网站",
+      "continue": "完成后继续",
+      "continuing": "正在继续",
+      "completed": "动作已完成，VIZA 将恢复任务。",
+      "failed": "暂时无法恢复任务，请重试或联系支持。"
+    },
     "empty": {
       "title": "暂无进行中的申请",
       "description": "请先从首页选择目的地并开始签证流程。创建申请后，这里会显示付款、授权、材料、申请包、交接和结果状态。",

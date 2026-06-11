@@ -17,6 +17,10 @@ website state and externally ingested submission/result state.
 - Render `/client/status` as the canonical application status route.
 - Reuse `components/client/application/application-status-hub.tsx` where
   possible instead of building a second lifecycle UI.
+- Render live-assisted official-site checkpoints through
+  `live-manual-action-card.tsx`; it may resume an existing job after a human
+  completes an official-site step, but must not collect CAPTCHA answers or
+  bypass official checks.
 - Keep `/client/documents` focused on document upload/checklist work; do not
   put document-management UI here unless it is a status summary.
 - Surface customer-safe statuses only. Technical backend or external process
