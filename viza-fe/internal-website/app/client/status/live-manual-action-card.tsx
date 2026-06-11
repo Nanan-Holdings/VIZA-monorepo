@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
-import type { LiveSubmissionSummary } from "@/lib/submission-live-status";
+import type { LiveManualActionSummary, LiveSubmissionSummary } from "@/lib/submission-live-status";
 
 type Copy = {
   title: string;
@@ -32,11 +32,11 @@ export function LiveManualActionCard({
 
   if (!action) return null;
 
-  async function completeAction() {
+  async function completeAction(actionToComplete: LiveManualActionSummary) {
     setMessage(null);
     setIsSubmitting(true);
     const response = await fetch(
-      `/api/submissions/${encodeURIComponent(liveSubmission.jobId)}/manual-actions/${encodeURIComponent(action.id)}/complete`,
+      `/api/submissions/${encodeURIComponent(liveSubmission.jobId)}/manual-actions/${encodeURIComponent(actionToComplete.id)}/complete`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +102,7 @@ export function LiveManualActionCard({
           <button
             type="button"
             disabled={isSubmitting || isPending}
-            onClick={() => void completeAction()}
+            onClick={() => void completeAction(action)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting || isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}

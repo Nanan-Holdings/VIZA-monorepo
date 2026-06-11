@@ -35,8 +35,11 @@ explicitly reintroduces another provider.
   a future task explicitly enables provider-approved live payment.
 - U.S. B1/B2 appointment assistant: `src/routes/us-appointment.routes.ts`,
   `src/services/us-appointment/**`, `src/db/schema.ts`, and
-  `drizzle/0091_us_appointment_assistant.sql`. Dry-run/manual-checkpoint only;
-  assisted live providers are disabled scaffolds.
+  `drizzle/0091_us_appointment_assistant.sql`. Dry-run/manual-checkpoint by
+  default; China `CN/usvisascheduling` may create assisted-live handoff jobs for
+  `submission-service`, but `agent-backend` must not run browser automation or
+  bypass login, CAPTCHA, email, payment, waiting-room, rate-limit, policy, or
+  final-confirmation controls.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
