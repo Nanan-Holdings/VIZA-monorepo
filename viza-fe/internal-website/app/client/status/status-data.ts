@@ -1,5 +1,6 @@
 import "server-only";
 
+// eslint-disable-next-line no-restricted-imports -- This server-only data loader uses service-role access after authenticating the applicant and scoping rows to their profile.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {

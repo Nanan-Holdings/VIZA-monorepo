@@ -244,12 +244,10 @@ export function USAppointmentAssistant({
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentRecorded, setConsentRecorded] = useState(false);
   const [ds160Code, setDs160Code] = useState("");
-  const [applyingCountryCode, setApplyingCountryCode] = useState("CN");
   const [applyingPostCity, setApplyingPostCity] = useState("Beijing");
   const [preferredDateRange, setPreferredDateRange] = useState("");
   const [avoidDates, setAvoidDates] = useState("");
   const [timePreference, setTimePreference] = useState("any");
-  const [slotScenario, setSlotScenario] = useState("slots");
   const [manualInput, setManualInput] = useState("");
 
   const job = snapshot?.job ?? null;
@@ -274,7 +272,6 @@ export function USAppointmentAssistant({
       setSnapshot(next);
       if (next.job) {
         setDs160Code((current) => current || next.job?.ds160ConfirmationCode || "");
-        setApplyingCountryCode(next.job.applyingCountryCode ?? "CN");
         setApplyingPostCity(next.job.applyingPostCity ?? "Beijing");
         setConsentRecorded(true);
         setConsentAccepted(true);
@@ -328,7 +325,6 @@ export function USAppointmentAssistant({
         version: "2026-06-us-appointment-v1",
         mode: "assisted_live",
         assistedLiveCountry: "CN",
-        finalConfirmationRequired: true,
         finalConfirmationRequired: true,
         noSecurityBypass: true,
         acceptedAt: new Date().toISOString(),
@@ -501,7 +497,7 @@ export function USAppointmentAssistant({
                     <Select
                       value="CN"
                       disabled={Boolean(job)}
-                      onValueChange={() => setApplyingCountryCode("CN")}
+                      onValueChange={() => undefined}
                     >
                       <SelectTrigger className="h-12 rounded-lg border-input">
                         <SelectValue />

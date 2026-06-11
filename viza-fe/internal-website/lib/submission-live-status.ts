@@ -317,11 +317,6 @@ export async function loadLiveSubmissionSummaries(
     const manualActions = [...(actionGroups.get(row.id) ?? [])].sort(compareManualNewest);
     const pendingManualAction =
       manualActions.find((action) => normalizeStatus(action.status) !== "completed") ?? null;
-    const officialReference =
-      row.vn_registration_code_encrypted ??
-      row.official_application_reference_encrypted ??
-      null;
-
     summaries.set(applicationId, {
       jobId: row.id,
       applicationId,
@@ -337,7 +332,7 @@ export async function loadLiveSubmissionSummaries(
       officialPortalUrl: row.official_portal_url ?? null,
       officialStatus: row.official_status ?? null,
       paymentStatus: row.payment_status ?? null,
-      officialReference,
+      officialReference: null,
       liveSubmittedAt: row.live_submitted_at ?? null,
       updatedAt: row.updated_at,
       createdAt: row.created_at,

@@ -36,6 +36,11 @@ the applicant.
   submission capability audits.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
+- `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live handoff
+  runner. Polls `appointment_assistance_jobs` when
+  `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, uses the Cloudflare-backed
+  `inbound_email` path for verification mail helpers, and pauses at login,
+  CAPTCHA, payment, policy warnings, and final confirmation.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
@@ -64,6 +69,7 @@ the applicant.
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, never solves CAPTCHA APIs, and stops before applicant Sign/Submit. |
+| US B1/B2 appointment / China USVisaScheduling | Assisted-live handoff gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; creates manual checkpoints and never bypasses CAPTCHA, waiting rooms, payment, policy warnings, or final confirmation. |
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
@@ -78,6 +84,10 @@ the applicant.
 - Do not click final applicant declaration, final submit, irreversible payment,
   or appointment confirmation unless the user explicitly reopens that scope and
   the legal/product boundary has been updated.
+- China US appointment assisted-live uses standard runner state and VIZA alias
+  email helpers only. Do not use legacy IMAP for this flow, do not introduce
+  stealth/proxy behavior, and keep slot/status checks user-triggered and
+  cooldown-protected.
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
   account-registration flow guarded by `FRANCE_ACCOUNT_REGISTRATION_ENABLED`
   and `FRANCE_REGISTRATION_2CAPTCHA_ENABLED`; login risk challenges and

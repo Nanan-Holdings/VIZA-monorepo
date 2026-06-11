@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { getDropdownDestinationContracts } from "../lib/travel/destination-contracts";
 
@@ -34,6 +35,13 @@ function pointStyle(
   return `left: ${left.toFixed(1)}%; top: ${top.toFixed(1)}%;`;
 }
 
+function screenshotImageSrc(imageUrl: string | null | undefined): string {
+  if (!imageUrl) return "";
+  if (!imageUrl.startsWith("/")) return imageUrl;
+  const publicPath = path.resolve(process.cwd(), "public", imageUrl.slice(1));
+  return fs.existsSync(publicPath) ? pathToFileURL(publicPath).href : imageUrl;
+}
+
 function renderCityPage(
   destination: ReturnType<typeof getDropdownDestinationContracts>[number]
 ): string {
@@ -42,9 +50,12 @@ function renderCityPage(
     .map(
       (attraction, index) => `
         <article class="card">
-          <img src="${escapeHtml(attraction.image?.imageUrl ?? "")}" alt="${escapeHtml(
-            attraction.nameEn
-          )}" />
+          <img
+            src="${escapeHtml(screenshotImageSrc(attraction.image?.imageUrl))}"
+            alt="${escapeHtml(attraction.nameEn)}"
+            referrerpolicy="no-referrer"
+            onerror="this.classList.add('missing')"
+          />
           <div class="cardBody">
             <span>${String(index + 1).padStart(2, "0")}</span>
             <strong>${escapeHtml(attraction.nameZh)}</strong>
@@ -138,6 +149,7 @@ function renderCityPage(
         object-fit: cover;
         background: #e8e1d8;
       }
+      .card img.missing { visibility: hidden; }
       .cardBody {
         padding: 14px;
         display: grid;
