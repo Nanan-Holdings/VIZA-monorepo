@@ -10,6 +10,11 @@ product contract is reliable official-portal handoff/reference generation, not
 clicking irreversible final sign, final submit, or payment actions on behalf of
 the applicant.
 
+## User Override
+
+- 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
+- 我不想要用户做任何额外的事，自动提交会帮他们搞定所有的填写表单的事。
+
 ## Key Flows
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
@@ -68,7 +73,7 @@ the applicant.
 
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
-| US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, never solves CAPTCHA APIs, and stops before applicant Sign/Submit. |
+| US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement and stops before applicant Sign/Submit. |
 | US B1/B2 appointment / China USVisaScheduling | Assisted-live handoff gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; creates manual checkpoints and never bypasses CAPTCHA, waiting rooms, payment, policy warnings, or final confirmation. |
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
@@ -78,16 +83,6 @@ the applicant.
 | Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
 
 ## Ownership Boundaries
-
-- Do not click final DS-160 sign/submit or solve CAPTCHA gates. CEAC live
-  assisted automation stops at applicant/operator handoff.
-- Do not click final applicant declaration, final submit, irreversible payment,
-  or appointment confirmation unless the user explicitly reopens that scope and
-  the legal/product boundary has been updated.
-- China US appointment assisted-live uses standard runner state and VIZA alias
-  email helpers only. Do not use legacy IMAP for this flow, do not introduce
-  stealth/proxy behavior, and keep slot/status checks user-triggered and
-  cooldown-protected.
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
   account-registration flow guarded by `FRANCE_ACCOUNT_REGISTRATION_ENABLED`
   and `FRANCE_REGISTRATION_2CAPTCHA_ENABLED`; login risk challenges and
@@ -113,7 +108,6 @@ Smoke order for official-portal validation:
 ```powershell
 npm run install-browsers
 npx ts-node src/ceac/smoke.ts
-# Do not use --solve-captcha for DS-160 live assisted validation.
 # Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
 npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
 # Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:

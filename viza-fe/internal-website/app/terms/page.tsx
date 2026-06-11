@@ -1,11 +1,18 @@
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 import { StaticArticle } from "@/components/client/static-article";
+import { zhTermsArticle } from "@/lib/legal/zh-legal-content";
 
 export const metadata = {
   title: "Terms of Service | VIZA",
 };
 
 export default async function TermsPage() {
+  const locale = await getLocale();
+  if (locale.startsWith("zh")) {
+    return <StaticArticle {...zhTermsArticle} />;
+  }
+
   const t = await getTranslations("terms");
 
   return (

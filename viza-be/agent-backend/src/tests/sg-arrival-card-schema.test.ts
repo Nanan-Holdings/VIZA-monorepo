@@ -32,6 +32,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "passport_number",
       "passport_expiry_date",
       "arrival_date",
+      "purpose_of_travel",
       "mode_of_travel",
       "transport_number",
       "accommodation_address",
@@ -42,6 +43,15 @@ describe("Singapore SG Arrival Card schema seed", () => {
     ]) {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
     }
+    expect(fieldNames.has("purpose_of_visit"), "legacy purpose_of_visit must not be used for SGAC").toBe(false);
+  });
+
+  test("uses the SGAC canonical purpose field and bilingual label", () => {
+    expect(seedSource).toContain('field_name: "purpose_of_travel"');
+    expect(seedSource).toContain('label: "Purpose of travel"');
+    expect(seedSource).toContain('validation_rules: rules("旅行目的"');
+    expect(seedSource).toContain('const HAS_OTHER_PURPOSE = "purpose_of_travel === other"');
+    expect(seedSource).toContain('field_name: "purpose_of_travel_other"');
   });
 
   test("includes bilingual Chinese labels for every field", () => {

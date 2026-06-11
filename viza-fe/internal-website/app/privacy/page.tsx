@@ -1,11 +1,18 @@
 import { getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 import { StaticArticle } from "@/components/client/static-article";
+import { zhPrivacyArticle } from "@/lib/legal/zh-legal-content";
 
 export const metadata = {
   title: "Privacy Policy | VIZA",
 };
 
 export default async function PrivacyPage() {
+  const locale = await getLocale();
+  if (locale.startsWith("zh")) {
+    return <StaticArticle {...zhPrivacyArticle} />;
+  }
+
   const t = await getTranslations("privacy");
 
   return (

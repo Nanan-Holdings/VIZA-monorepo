@@ -177,6 +177,52 @@ const VN_REQUIRED_FIELDS: FieldRequirement[] = [
   vnField("final_declaration", "Final declaration", "security"),
 ];
 
+function sgacField(
+  key: string,
+  label: string,
+  category: FieldCategory,
+  condition?: FieldRequirement["condition"],
+): FieldRequirement {
+  return { key: `answers.${key}`, label, category, required: true, condition };
+}
+
+const WHEN_SGAC_OTHER_PURPOSE = {
+  key: "answers.purpose_of_travel",
+  equals: "other",
+};
+const WHEN_SGAC_DECLARABLE_TRAVEL_HISTORY = {
+  key: "answers.recent_country_visit_history",
+  equals: "yes",
+};
+const WHEN_SGAC_HEALTH_SYMPTOMS = {
+  key: "answers.has_health_symptoms",
+  equals: "yes",
+};
+
+const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
+  { key: "profile.fullName", label: "Full name", category: "personal", required: true },
+  { key: "profile.dateOfBirth", label: "Date of birth", category: "personal", required: true },
+  { key: "profile.gender", label: "Gender", category: "personal", required: true },
+  { key: "profile.nationality", label: "Nationality", category: "personal", required: true },
+  { key: "profile.passportNumber", label: "Passport number", category: "passport", required: true },
+  { key: "profile.passportExpiryDate", label: "Passport expiry date", category: "passport", required: true },
+  { key: "profile.email", label: "Email", category: "contact", required: true },
+  { key: "profile.phone", label: "Phone", category: "contact", required: true },
+  { key: "trip.arrivalDate", label: "Arrival date", category: "trip", required: true },
+  sgacField("purpose_of_travel", "Purpose of travel", "trip"),
+  sgacField("purpose_of_travel_other", "Other purpose of travel", "trip", WHEN_SGAC_OTHER_PURPOSE),
+  sgacField("mode_of_travel", "Mode of travel", "trip"),
+  sgacField("transport_number", "Transport number", "trip"),
+  sgacField("accommodation_address", "Address in Singapore", "trip"),
+  sgacField("recent_country_visit_history", "Recent travel history declaration", "security"),
+  sgacField("recent_country_visit_details", "Recent travel history details", "security", WHEN_SGAC_DECLARABLE_TRAVEL_HISTORY),
+  sgacField("has_health_symptoms", "Health symptoms declaration", "security"),
+  sgacField("health_symptoms_details", "Health symptoms details", "security", WHEN_SGAC_HEALTH_SYMPTOMS),
+  sgacField("health_declaration", "Electronic health declaration", "security"),
+  sgacField("official_submission_acknowledgement", "Official submission acknowledgement", "security"),
+  sgacField("final_declaration", "Final declaration", "security"),
+];
+
 const CONFIGS: ProviderConfig[] = [
   {
     countryCode: "US",
@@ -380,6 +426,25 @@ const CONFIGS: ProviderConfig[] = [
     routeStatus: "package_catalog_only",
     schemaFiles: ["../agent-backend/scripts/seed-ae-tourist-visa-form-fields.ts"],
     notes: "Package and schema seed exist; no submission-service runner.",
+  },
+  {
+    countryCode: "SG",
+    countryAliases: ["sg", "singapore"],
+    displayName: "Singapore SG Arrival Card",
+    supportedVisaTypes: ["SG_ARRIVAL_CARD"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: false,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/index.ts"],
+    schemaFiles: ["../agent-backend/scripts/seed-sg-arrival-card-form-fields.ts"],
+    mapperFiles: ["src/country-submissions/from-records.ts"],
+    automationFiles: [],
+    requiredFields: SGAC_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-SGAC",
+    notes: "Dry-run validates SGAC traveller, trip, contact, and health declaration data. Live assisted handoff is structured separately from SG_VISITOR_VISA.",
   },
   {
     countryCode: "SG",
@@ -674,6 +739,7 @@ function createProvider(config: ProviderConfig): CountrySubmissionProvider {
         trip: {
           ...application.trip,
           destinationCountry: application.trip.destinationCountry ?? config.displayName,
+          purpose: application.trip.purpose ?? readAnswer(application, "purpose_of_travel"),
         },
         countrySpecific: buildCountrySpecificPayload(application, config.includeAllAnswersInPayload),
         metadata: {
