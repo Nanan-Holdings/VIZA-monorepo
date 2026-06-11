@@ -1,6 +1,5 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { getDropdownDestinationContracts } from "../lib/travel/destination-contracts";
 
@@ -39,7 +38,15 @@ function screenshotImageSrc(imageUrl: string | null | undefined): string {
   if (!imageUrl) return "";
   if (!imageUrl.startsWith("/")) return imageUrl;
   const publicPath = path.resolve(process.cwd(), "public", imageUrl.slice(1));
-  return fs.existsSync(publicPath) ? pathToFileURL(publicPath).href : imageUrl;
+  if (!fs.existsSync(publicPath)) return imageUrl;
+  const extension = path.extname(publicPath).toLowerCase();
+  const mimeType =
+    extension === ".png"
+      ? "image/png"
+      : extension === ".webp"
+        ? "image/webp"
+        : "image/jpeg";
+  return `data:${mimeType};base64,${fs.readFileSync(publicPath).toString("base64")}`;
 }
 
 function renderCityPage(
