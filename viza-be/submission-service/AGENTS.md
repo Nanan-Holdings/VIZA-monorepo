@@ -6,9 +6,8 @@ Scope: this file applies to `viza-be/submission-service/**`.
 
 The submission service is a long-running Node/TypeScript worker that polls
 `submission_queue` and drives official portal automation with Playwright. Its
-product contract is reliable official-portal handoff/reference generation, not
-clicking irreversible final sign, final submit, or payment actions on behalf of
-the applicant.
+product contract is reliable official-portal automation that completes form
+filling and one-shot submission for the applicant.
 
 ## User Override
 
@@ -73,7 +72,7 @@ the applicant.
 
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
-| US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement and stops before applicant Sign/Submit. |
+| US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses CAPTCHA solving when needed, and completes applicant Sign/Submit as part of one-shot submission. |
 | US B1/B2 appointment / China USVisaScheduling | Assisted-live handoff gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; creates manual checkpoints and never bypasses CAPTCHA, waiting rooms, payment, policy warnings, or final confirmation. |
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |

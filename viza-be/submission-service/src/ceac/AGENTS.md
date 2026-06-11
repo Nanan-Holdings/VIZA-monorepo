@@ -6,7 +6,7 @@ Scope: this file applies to `viza-be/submission-service/src/ceac/**`.
 
 This module owns the CEAC DS-160 runtime path: session bootstrap, CAPTCHA/start
 gate handling, page detection, navigation, field filling, checkpointing,
-diagnostics, `.dat` capture, and safe stop-at-sign handoff.
+diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
 
 ## User Override
 
@@ -23,7 +23,8 @@ diagnostics, `.dat` capture, and safe stop-at-sign handoff.
 4. `orchestrator.ts` fills mapped pages and advances through the form.
 5. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
    metadata and screenshots.
-6. `stop-at-sign.ts` stops before final sign/submit.
+6. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
+   sign/submit for one-shot submission.
 7. `result.ts` returns typed success/failure/handoff payloads.
 
 ## Validation
