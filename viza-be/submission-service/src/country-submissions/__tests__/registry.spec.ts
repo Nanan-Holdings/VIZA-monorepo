@@ -303,6 +303,67 @@ test("registry: Vietnam provider retains seeded answers in dry-run payload", () 
   assert.equal(payload.countrySpecific.final_declaration, "true");
 });
 
+test("registry: SG Arrival Card maps purpose_of_travel into validation and payload", async () => {
+  const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
+  assert.ok(provider);
+
+  const application = baseApplication({
+    countryCode: "singapore",
+    visaType: "SG_ARRIVAL_CARD",
+    trip: {
+      ...baseApplication().trip,
+      destinationCountry: "Singapore",
+      purpose: null,
+    },
+    answers: {
+      purpose_of_travel: "holiday",
+      mode_of_travel: "air",
+      transport_number: "SQ317",
+      accommodation_address: "1 Test Road, Singapore 000001",
+      recent_country_visit_history: "none",
+      has_health_symptoms: "no",
+      health_declaration: "yes",
+      official_submission_acknowledgement: "yes",
+      final_declaration: "yes",
+    },
+  });
+
+  const payload = provider.mapToSubmissionPayload(application);
+  assert.equal(payload.trip.purpose, "holiday");
+  assert.equal(payload.countrySpecific.purpose_of_travel, "holiday");
+  assert.equal(payload.countrySpecific.mode_of_travel, "air");
+
+  const result = await runDryRunSubmission(application);
+  assert.equal(result.status, "submitted_mock");
+  assert.equal(result.targetCountry, "SG");
+});
+
+test("registry: SG Arrival Card rejects missing purpose_of_travel without using SG visitor visa", async () => {
+  const result = await runDryRunSubmission(
+    baseApplication({
+      countryCode: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
+      trip: {
+        ...baseApplication().trip,
+        destinationCountry: "Singapore",
+        purpose: null,
+      },
+      answers: {
+        mode_of_travel: "air",
+        transport_number: "SQ317",
+        accommodation_address: "1 Test Road, Singapore 000001",
+        health_declaration: "yes",
+        official_submission_acknowledgement: "yes",
+        final_declaration: "yes",
+      },
+    }),
+  );
+
+  assert.equal(result.status, "unsupported");
+  assert.match(result.message, /answers\.purpose_of_travel/);
+  assert.equal(result.targetCountry, "SG");
+});
+
 test("registry: Vietnam dry-run uses deterministic Vietnam confirmation", async () => {
   const result = await runDryRunSubmission(
     baseApplication({

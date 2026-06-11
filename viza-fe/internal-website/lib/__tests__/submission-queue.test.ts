@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
+  isSgArrivalCardApplication,
   queueProviderForApplication,
   queueProviderForVisaType,
   queueStatusForApplication,
@@ -52,5 +53,15 @@ describe("queueStatusForVisaType", () => {
     expect(queueProviderForApplication("vietnam", "evisa_tourism", "dry_run")).toBe("vietnam_evisa_dry_run");
     expect(queueProviderForApplication("vietnam", "evisa_tourism", "live_assisted")).toBe("vietnam_evisa_live");
     expect(queueProviderForApplication("egypt", "evisa_tourism", "live_assisted")).toBeNull();
+  });
+
+  it("routes SG Arrival Card to its own queue and never to Singapore visitor visa", () => {
+    expect(isSgArrivalCardApplication("singapore", "SG_ARRIVAL_CARD")).toBe(true);
+    expect(isSgArrivalCardApplication("singapore", "SG_VISITOR_VISA")).toBe(false);
+    expect(queueStatusForApplication("singapore", "SG_ARRIVAL_CARD", "dry_run")).toBe("sgac_dry_run_pending");
+    expect(queueStatusForApplication("singapore", "SG_ARRIVAL_CARD", "live_assisted")).toBe("sgac_live_assisted_pending");
+    expect(queueProviderForApplication("singapore", "SG_ARRIVAL_CARD", "dry_run")).toBe("sg_arrival_card_dry_run");
+    expect(queueProviderForApplication("singapore", "SG_ARRIVAL_CARD", "live_assisted")).toBe("sg_arrival_card_live");
+    expect(queueStatusForApplication("singapore", "SG_VISITOR_VISA", "live_assisted")).not.toBe("sgac_live_assisted_pending");
   });
 });
