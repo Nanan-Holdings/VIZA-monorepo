@@ -97,7 +97,7 @@ const COUNTRY_VISITED_HISTORY_OPTIONS = [
   { value: "yes", text: "Yes, I have recent travel history to declare" },
 ];
 
-const HAS_OTHER_PURPOSE = "purpose_of_visit === other";
+const HAS_OTHER_PURPOSE = "purpose_of_travel === other";
 const HAS_FLIGHT_OR_VESSEL = "mode_of_travel === air || mode_of_travel === sea";
 const HAS_VEHICLE = "mode_of_travel === land";
 const HAS_DECLARABLE_TRAVEL_HISTORY = "recent_country_visit_history === yes";
@@ -121,8 +121,8 @@ const FIELDS: FieldDef[] = [
 
   { field_name: "arrival_date", label: "Date of arrival in Singapore", field_type: "date", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 1, placeholder: "YYYY-MM-DD", validation_rules: rules("抵达新加坡日期", { format: "YYYY-MM-DD" }) },
   { field_name: "departure_date", label: "Date of departure from Singapore", field_type: "date", required: false, step_number: 3, step_name: "Trip to Singapore", display_order: 2, placeholder: "YYYY-MM-DD", validation_rules: rules("离开新加坡日期", { format: "YYYY-MM-DD" }) },
-  { field_name: "purpose_of_visit", label: "Purpose of visit", field_type: "select", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 3, options: TRAVEL_PURPOSE_OPTIONS, validation_rules: rules("访问目的") },
-  { field_name: "purpose_of_visit_other", label: "Specify other purpose of visit", field_type: "text", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 4, conditional_logic: { showIf: HAS_OTHER_PURPOSE }, validation_rules: rules("请说明其他访问目的", { maxLength: 120 }) },
+  { field_name: "purpose_of_travel", label: "Purpose of travel", field_type: "select", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 3, options: TRAVEL_PURPOSE_OPTIONS, validation_rules: rules("旅行目的") },
+  { field_name: "purpose_of_travel_other", label: "Specify other purpose of travel", field_type: "text", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 4, conditional_logic: { showIf: HAS_OTHER_PURPOSE }, validation_rules: rules("请说明其他旅行目的", { maxLength: 120 }) },
   { field_name: "last_city_or_port_before_singapore", label: "Last city / port before Singapore", field_type: "text", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 5, placeholder: "e.g. Shanghai, Kuala Lumpur, Bangkok", validation_rules: rules("抵达新加坡前最后停留城市或口岸", { maxLength: 80 }) },
   { field_name: "next_city_or_port_after_singapore", label: "Next city / port after Singapore", field_type: "text", required: false, step_number: 3, step_name: "Trip to Singapore", display_order: 6, placeholder: "If known", validation_rules: rules("离开新加坡后的下一站城市或口岸", { maxLength: 80 }) },
   { field_name: "mode_of_travel", label: "Mode of travel into Singapore", field_type: "select", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 7, options: MODE_OF_TRAVEL_OPTIONS, validation_rules: rules("入境新加坡交通方式") },

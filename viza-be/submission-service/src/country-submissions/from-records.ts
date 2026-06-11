@@ -159,6 +159,16 @@ export function buildCountrySubmissionApplication(
   if (isVietnamApplication) {
     applyVietnamAnswerAliases(normalizedAnswers, profile, application);
   }
+  const isSgArrivalCard =
+    (normalizedCountry === "sg" || normalizedCountry === "singapore") &&
+    normalizedVisaType === "sg_arrival_card";
+  if (isSgArrivalCard) {
+    setIfMissing(normalizedAnswers, "purpose_of_travel", [
+      answers.purpose_of_travel,
+      answers.purpose_of_visit,
+      application.purpose,
+    ]);
+  }
 
   return {
     applicationId: application.id,
@@ -224,6 +234,7 @@ export function buildCountrySubmissionApplication(
       purpose: firstValue([
         application.purpose,
         firstAnswer(normalizedAnswers, [
+          "purpose_of_travel",
           "purpose_of_journey",
           "main_purpose_of_journey",
           "purpose_of_stay",
