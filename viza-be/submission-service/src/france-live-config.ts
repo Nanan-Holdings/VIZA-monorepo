@@ -14,6 +14,11 @@ export interface FranceSubmissionConfig {
   paymentLiveEnabled: boolean;
   appointmentLiveEnabled: boolean;
   officialReferenceEncryptionConfigured: boolean;
+  accountRegistrationEnabled: boolean;
+  registrationTwoCaptchaEnabled: boolean;
+  registrationMaxCaptchaAttempts: number;
+  registrationEmailTimeoutMs: number;
+  twoCaptchaConfigured: boolean;
 }
 
 function boolEnv(
@@ -60,6 +65,11 @@ export function loadFranceSubmissionConfig(
     appointmentLiveEnabled: boolEnv(env, "FRANCE_APPOINTMENT_LIVE_ENABLED", false),
     officialReferenceEncryptionConfigured:
       (env.SUBMISSION_RESULT_SECRET_KEY?.length ?? 0) >= 16,
+    accountRegistrationEnabled: boolEnv(env, "FRANCE_ACCOUNT_REGISTRATION_ENABLED", false),
+    registrationTwoCaptchaEnabled: boolEnv(env, "FRANCE_REGISTRATION_2CAPTCHA_ENABLED", false),
+    registrationMaxCaptchaAttempts: positiveIntEnv(env, "FRANCE_REGISTRATION_MAX_CAPTCHA_ATTEMPTS", 3),
+    registrationEmailTimeoutMs: positiveIntEnv(env, "FRANCE_REGISTRATION_EMAIL_TIMEOUT_MS", 180_000),
+    twoCaptchaConfigured: Boolean(env.TWOCAPTCHA_API_KEY?.trim()),
   };
 }
 
@@ -90,6 +100,12 @@ export function validateFranceLiveStart(config: FranceSubmissionConfig): string 
   }
   if (!config.officialReferenceEncryptionConfigured) {
     return "France live assisted is blocked: SUBMISSION_RESULT_SECRET_KEY must be set to encrypt official references.";
+  }
+  if (config.accountRegistrationEnabled && !config.registrationTwoCaptchaEnabled) {
+    return "France live assisted is blocked: FRANCE_REGISTRATION_2CAPTCHA_ENABLED must be true when France account registration is enabled.";
+  }
+  if (config.accountRegistrationEnabled && !config.twoCaptchaConfigured) {
+    return "France live assisted is blocked: TWOCAPTCHA_API_KEY must be set for France account registration.";
   }
   return null;
 }

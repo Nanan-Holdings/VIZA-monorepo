@@ -19,6 +19,9 @@ applicant info, and help pages.
   label fallback for unknown uploads.
 - `application/page.tsx`: status hub by default; direct `country`/`visaType`
   links open the application form workflow.
+- `arrival-cards/**`: country-specific digital arrival-card preview entries
+  that route into dedicated DB-driven application packages without changing the
+  main destination catalog before review.
 - `status/**`: canonical customer-facing status center for website automation
   progress, external handoff state, and result delivery.
 - `documents/**`: document checklist center, upload state, OCR confirmation,
@@ -85,6 +88,7 @@ accessible component state.
 - `viza-fe/internal-website/app/client/layout.tsx`
 - `viza-fe/internal-website/app/client/home/page.tsx`
 - `viza-fe/internal-website/app/client/application/page.tsx`
+- `viza-fe/internal-website/app/client/arrival-cards/AGENTS.md`
 - `viza-fe/internal-website/app/client/status/AGENTS.md`
 - `viza-fe/internal-website/app/client/documents/AGENTS.md`
 - `viza-fe/internal-website/app/client/checkout/AGENTS.md`
