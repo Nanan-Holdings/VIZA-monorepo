@@ -18,7 +18,7 @@ export const CURATED_CITIES_BY_COUNTRY: Record<string, CuratedCity[]> = {
     { en: "Chongqing", zh: "重庆" },
   ],
   Japan: [
-    { en: "Tokyo", zh: "东京" },
+    { en: "Tokyo", zh: "东京", aliases: ["東京"] },
     { en: "Osaka", zh: "大阪" },
     { en: "Kyoto", zh: "京都" },
     { en: "Nagasaki", zh: "长崎", aliases: ["長崎"] },

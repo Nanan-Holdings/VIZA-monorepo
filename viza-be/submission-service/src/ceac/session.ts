@@ -11,6 +11,7 @@ import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
 import { assertNoGate } from "./gates";
+import { selectStartPageLocation } from "./start-page-location";
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -31,6 +32,8 @@ export interface CeacSessionOptions {
    * complete the CEAC start-page location/CAPTCHA checkpoint manually.
    */
   manualStartWaitMs?: number;
+  /** CEAC start-page post/location code to select before manual CAPTCHA. */
+  startLocationCode?: string | null;
 }
 
 export interface CeacSession {
@@ -126,6 +129,35 @@ export async function startCeacSession(
       );
     }
 
+    const onStartPage = /\/GenNIV\/Default\.aspx/i.test(page.url());
+    if (onStartPage && options.startLocationCode) {
+      const locationOutcome = await selectStartPageLocation(page, {
+        locationCode: options.startLocationCode,
+      });
+      if (
+        locationOutcome.status === "missing_selector" ||
+        locationOutcome.status === "missing_option" ||
+        locationOutcome.status === "failed"
+      ) {
+        throw new ManualActionRequiredError(
+          "start_application",
+          `CEAC start location ${locationOutcome.locationCode} could not be selected automatically. Please choose the location manually, then complete the start-page CAPTCHA.`,
+          {
+            detected: "start",
+            url: page.url(),
+            details: {
+              runId: options.runId,
+              checkpoint: "ceac_start_location",
+              locationCode: locationOutcome.locationCode,
+              status: locationOutcome.status,
+              reason: "reason" in locationOutcome ? locationOutcome.reason : undefined,
+            },
+          },
+        );
+      }
+      console.warn(`[ceac] CEAC start location selected: ${locationOutcome.locationCode}`);
+    }
+
     const captchaSelector = CEAC_GATE_MARKERS.solvableCaptchaSelectors.join(", ");
     const captchaPresent = captchaSelector
       ? (await page.locator(captchaSelector).count().catch(() => 0)) > 0
@@ -134,7 +166,7 @@ export async function startCeacSession(
       const manualStartWaitMs = readManualStartWaitMs(options);
       if (!headless && manualStartWaitMs > 0) {
         console.warn(
-          `[ceac] Waiting up to ${Math.round(manualStartWaitMs / 1000)}s for applicant to complete CEAC start-page location/CAPTCHA in the visible browser. CAPTCHA-solving APIs are not used.`,
+          `[ceac] Location is auto-selected when possible. Waiting up to ${Math.round(manualStartWaitMs / 1000)}s for applicant to complete the CEAC start-page CAPTCHA in the visible browser. CAPTCHA-solving APIs are not used.`,
         );
         try {
           await page.waitForURL(

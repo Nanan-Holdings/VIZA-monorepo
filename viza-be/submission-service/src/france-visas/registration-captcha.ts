@@ -90,7 +90,7 @@ export async function solveRegistrationCaptcha(page: Page): Promise<FvCaptchaOut
 
 /**
  * Solve with retry. On wrong answer, reports to 2captcha for refund then
- * reloads the registration page (Keycloak emits a fresh CAPTCHA on reload).
+ * reloads the current registration page (Keycloak emits a fresh CAPTCHA on reload).
  *
  * Note: callers must call this AFTER filling the name/email/password fields
  * but BEFORE clicking Submit — since a reload clears every field, retrying
@@ -128,21 +128,21 @@ export async function solveRegistrationCaptchaWithRetry(
         });
         try { await reportBadCaptcha(outcome.solve.solveId); } catch { /* best-effort */ }
         if (attempt === maxAttempts) break;
-        await page.goto(FV_URLS.REGISTRATION_BASE, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+        await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
         await refillForm();
         continue;
 
       case "no_captcha":
         telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });
         if (attempt === maxAttempts) break;
-        await page.goto(FV_URLS.REGISTRATION_BASE, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+        await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
         await refillForm();
         continue;
 
       case "failed":
         telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });
         if (attempt === maxAttempts) break;
-        await page.goto(FV_URLS.REGISTRATION_BASE, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+        await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
         await refillForm();
         continue;
     }

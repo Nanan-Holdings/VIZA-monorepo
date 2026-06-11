@@ -1,5 +1,6 @@
 import "server-only";
 
+// eslint-disable-next-line no-restricted-imports -- This server-only data loader uses service-role access after authenticating the applicant and scoping rows to their profile.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -11,6 +12,10 @@ import {
   getVisaTypeDisplayName,
   getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
+import {
+  loadLiveSubmissionSummaries,
+  type LiveSubmissionSummary,
+} from "@/lib/submission-live-status";
 
 export type StatusStepKey =
   | "payment"
@@ -103,6 +108,7 @@ export interface StatusApplication {
   rawApplicationStatus: string | null;
   externalStatus: string | null;
   resultStatus: string | null;
+  liveSubmission: LiveSubmissionSummary | null;
   governmentFee: {
     amountCents: number | null;
     currency: string | null;
@@ -449,7 +455,21 @@ function getPacketState(
   return documentsComplete ? "current" : "upcoming";
 }
 
-function getHandoffState(application: ApplicationRow, packetComplete: boolean): StatusStepState {
+function getHandoffState(
+  application: ApplicationRow,
+  packetComplete: boolean,
+  liveSubmission: LiveSubmissionSummary | null,
+): StatusStepState {
+  if (liveSubmission?.state === "action_required" || liveSubmission?.state === "failed") return "attention";
+  if (
+    liveSubmission?.state === "pending" ||
+    liveSubmission?.state === "running" ||
+    liveSubmission?.state === "submitted" ||
+    liveSubmission?.state === "completed"
+  ) {
+    return "complete";
+  }
+
   const status = normalizeStatus(application.external_status);
   if (application.external_reference || EXTERNAL_ACTIVE_STATUSES.has(status) || APPROVED_RESULT_STATUSES.has(status) || REJECTED_RESULT_STATUSES.has(status)) {
     return "complete";
@@ -458,10 +478,17 @@ function getHandoffState(application: ApplicationRow, packetComplete: boolean): 
   return packetComplete ? "current" : "upcoming";
 }
 
-function getResultState(application: ApplicationRow, handoffComplete: boolean): StatusStepState {
+function getResultState(
+  application: ApplicationRow,
+  handoffComplete: boolean,
+  liveSubmission: LiveSubmissionSummary | null,
+): StatusStepState {
   const resultStatus = normalizeStatus(application.result_status);
   const rawStatus = normalizeStatus(application.status);
+  if (liveSubmission?.state === "failed") return "attention";
   if (
+    liveSubmission?.state === "submitted" ||
+    liveSubmission?.state === "completed" ||
     application.result_storage_path ||
     APPROVED_RESULT_STATUSES.has(resultStatus) ||
     REJECTED_RESULT_STATUSES.has(resultStatus) ||
@@ -470,6 +497,7 @@ function getResultState(application: ApplicationRow, handoffComplete: boolean): 
   ) {
     return "complete";
   }
+  if (liveSubmission?.state === "pending" || liveSubmission?.state === "running") return "current";
   if (ATTENTION_STATUSES.has(resultStatus)) return "attention";
   return handoffComplete ? "current" : "upcoming";
 }
@@ -703,6 +731,7 @@ function buildPackageOnlyApplication(userPackage: {
     rawApplicationStatus: null,
     externalStatus: null,
     resultStatus: null,
+    liveSubmission: null,
     governmentFee: {
       amountCents: null,
       currency: userPackage.package.currency,
@@ -741,6 +770,7 @@ async function buildApplicationStatus({
   adminClient,
   application,
   visaPackage,
+  liveSubmission,
   payments,
   consents,
   signatures,
@@ -753,6 +783,7 @@ async function buildApplicationStatus({
   adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
   visaPackage: VisaPackageRow | null;
+  liveSubmission: LiveSubmissionSummary | null;
   payments: PaymentRow[];
   consents: ConsentRow[];
   signatures: SignatureRow[];
@@ -778,9 +809,9 @@ async function buildApplicationStatus({
   const documentsComplete = documentState === "complete";
   const packetState = getPacketState(application, latestPacket, documentsComplete);
   const packetComplete = packetState === "complete";
-  const handoffState = getHandoffState(application, packetComplete);
+  const handoffState = getHandoffState(application, packetComplete, liveSubmission);
   const handoffComplete = handoffState === "complete";
-  const resultState = getResultState(application, handoffComplete);
+  const resultState = getResultState(application, handoffComplete, liveSubmission);
   const latestConsent = sortByNewest(consents, (row) => row.created_at)[0];
   const latestSignature = sortByNewest(signatures, (row) => row.signed_at ?? row.created_at)[0];
   const files = await buildFiles({ adminClient, application, latestPayment, latestPacket });
@@ -824,15 +855,15 @@ async function buildApplicationStatus({
     {
       key: "handoff",
       state: handoffState,
-      updatedAt: application.external_status_updated_at,
-      statusValue: application.external_status,
+      updatedAt: liveSubmission?.updatedAt ?? application.external_status_updated_at,
+      statusValue: liveSubmission?.status ?? application.external_status,
       metricValue: null,
     },
     {
       key: "result",
       state: resultState,
-      updatedAt: application.updated_at,
-      statusValue: application.result_status ?? (APPROVED_RESULT_STATUSES.has(normalizeStatus(application.status)) || REJECTED_RESULT_STATUSES.has(normalizeStatus(application.status)) ? application.status : null),
+      updatedAt: liveSubmission?.liveSubmittedAt ?? application.updated_at,
+      statusValue: liveSubmission?.officialStatus ?? application.result_status ?? (APPROVED_RESULT_STATUSES.has(normalizeStatus(application.status)) || REJECTED_RESULT_STATUSES.has(normalizeStatus(application.status)) ? application.status : null),
       metricValue: null,
     },
   ];
@@ -853,11 +884,12 @@ async function buildApplicationStatus({
       latestPayment?.updated_at,
     ]),
     submittedAt: application.submitted_at,
-    officialReference: application.external_reference ?? application.confirmation_number,
-    officialReferenceKind: application.external_reference ? "official" : application.confirmation_number ? "viza" : null,
+    officialReference: liveSubmission?.officialReference ?? application.external_reference ?? application.confirmation_number,
+    officialReferenceKind: liveSubmission?.officialReference || application.external_reference ? "official" : application.confirmation_number ? "viza" : null,
     rawApplicationStatus: application.status,
-    externalStatus: application.external_status,
-    resultStatus: application.result_status,
+    externalStatus: liveSubmission?.status ?? application.external_status,
+    resultStatus: liveSubmission?.officialStatus ?? application.result_status,
+    liveSubmission,
     governmentFee: {
       amountCents: application.government_fee_cents,
       currency: application.government_fee_currency,
@@ -961,6 +993,12 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   }
 
   const applicationIds = applications.map((application) => application.id);
+  let liveSubmissionByApplication = new Map<string, LiveSubmissionSummary>();
+  try {
+    liveSubmissionByApplication = await loadLiveSubmissionSummaries(adminClient, applicationIds);
+  } catch {
+    partialData = true;
+  }
   const applicationPackageIds = applications
     .map((application) => application.visa_package_id)
     .filter((id): id is string => Boolean(id));
@@ -1110,6 +1148,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
         adminClient,
         application,
         visaPackage: application.visa_package_id ? packagesById.get(application.visa_package_id) ?? null : null,
+        liveSubmission: liveSubmissionByApplication.get(application.id) ?? null,
         payments: [
           ...(paymentsByApplication.get(application.id) ?? []),
           ...(application.visa_package_id ? paymentsByPackage.get(application.visa_package_id) ?? [] : []),

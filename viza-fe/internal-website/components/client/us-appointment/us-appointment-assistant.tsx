@@ -77,14 +77,12 @@ type BusyAction =
   | "checkStatus"
   | "cancel";
 
-const APPLYING_COUNTRIES = [
-  { code: "SG", post: "Singapore", labelKey: "countries.sg" },
-  { code: "CA", post: "Toronto", labelKey: "countries.ca" },
-  { code: "GB", post: "London", labelKey: "countries.gb" },
-  { code: "CN", post: "Beijing", labelKey: "countries.cn" },
-  { code: "IN", post: "New Delhi", labelKey: "countries.in" },
-  { code: "JP", post: "Tokyo", labelKey: "countries.jp" },
-  { code: "DE", post: "Berlin", labelKey: "countries.de" },
+const CHINA_POSTS = [
+  "Beijing",
+  "Shanghai",
+  "Guangzhou",
+  "Shenyang",
+  "Wuhan",
 ] as const;
 
 const TERMINAL_STATUSES = new Set<USAppointmentStatus>([
@@ -246,12 +244,10 @@ export function USAppointmentAssistant({
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentRecorded, setConsentRecorded] = useState(false);
   const [ds160Code, setDs160Code] = useState("");
-  const [applyingCountryCode, setApplyingCountryCode] = useState("SG");
-  const [applyingPostCity, setApplyingPostCity] = useState("Singapore");
+  const [applyingPostCity, setApplyingPostCity] = useState("Beijing");
   const [preferredDateRange, setPreferredDateRange] = useState("");
   const [avoidDates, setAvoidDates] = useState("");
   const [timePreference, setTimePreference] = useState("any");
-  const [slotScenario, setSlotScenario] = useState("slots");
   const [manualInput, setManualInput] = useState("");
 
   const job = snapshot?.job ?? null;
@@ -276,8 +272,7 @@ export function USAppointmentAssistant({
       setSnapshot(next);
       if (next.job) {
         setDs160Code((current) => current || next.job?.ds160ConfirmationCode || "");
-        setApplyingCountryCode(next.job.applyingCountryCode ?? "SG");
-        setApplyingPostCity(next.job.applyingPostCity ?? "Singapore");
+        setApplyingPostCity(next.job.applyingPostCity ?? "Beijing");
         setConsentRecorded(true);
         setConsentAccepted(true);
       }
@@ -328,8 +323,8 @@ export function USAppointmentAssistant({
       idempotencyKey: `us-appointment-consent:${applicationId}:2026-06-v1`,
       consentSnapshot: {
         version: "2026-06-us-appointment-v1",
-        mode: "dry_run",
-        dryRunFirst: true,
+        mode: "assisted_live",
+        assistedLiveCountry: "CN",
         finalConfirmationRequired: true,
         noSecurityBypass: true,
         acceptedAt: new Date().toISOString(),
@@ -351,10 +346,11 @@ export function USAppointmentAssistant({
       const consentOk = consentRecorded || (await recordConsent());
       if (!consentOk) return null;
       await createAppointmentJob(applicationId, {
-        mode: "dry_run",
+        mode: "assisted_live",
         ds160ConfirmationCode: ds160Code.trim() || undefined,
-        applyingCountryCode,
+        applyingCountryCode: "CN",
         applyingPostCity,
+        schedulingProvider: "usvisascheduling",
         userPreferencesJson: {
           preferredDateRange: preferredDateRange.trim(),
           avoidDates: avoidDates
@@ -362,8 +358,10 @@ export function USAppointmentAssistant({
             .map((value) => value.trim())
             .filter(Boolean),
           timePreference,
-          slotScenario,
-          dryRunOnly: true,
+          assistedLiveCountry: "CN",
+          provider: "usvisascheduling",
+          usesVizaAliasEmail: true,
+          finalConfirmationRequired: true,
         },
       });
       return getAppointmentStatus(applicationId);
@@ -497,36 +495,44 @@ export function USAppointmentAssistant({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <BrandField label={t("setup.applyingCountry")}>
                     <Select
-                      value={applyingCountryCode}
+                      value="CN"
                       disabled={Boolean(job)}
-                      onValueChange={(value) => {
-                        const country = APPLYING_COUNTRIES.find((item) => item.code === value);
-                        setApplyingCountryCode(value);
-                        if (country) setApplyingPostCity(country.post);
-                      }}
+                      onValueChange={() => undefined}
                     >
                       <SelectTrigger className="h-12 rounded-lg border-input">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {APPLYING_COUNTRIES.map((country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {t(country.labelKey)}
+                        <SelectItem value="CN">{t("countries.cn")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </BrandField>
+
+                  <BrandField label={t("setup.postCity")}>
+                    <Select
+                      value={applyingPostCity}
+                      disabled={Boolean(job)}
+                      onValueChange={setApplyingPostCity}
+                    >
+                      <SelectTrigger className="h-12 rounded-lg border-input">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CHINA_POSTS.map((post) => (
+                          <SelectItem key={post} value={post}>
+                            {t(`posts.${post.toLowerCase()}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </BrandField>
-
-                  <BrandField label={t("setup.postCity")} htmlFor="post-city">
-                    <BrandInput
-                      id="post-city"
-                      value={applyingPostCity}
-                      onChange={(event) => setApplyingPostCity(event.target.value)}
-                      disabled={Boolean(job)}
-                    />
-                  </BrandField>
                 </div>
+
+                <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+                  <ShieldCheck className="h-4 w-4" />
+                  <AlertTitle>{t("setup.aliasNoticeTitle")}</AlertTitle>
+                  <AlertDescription>{t("setup.aliasNotice")}</AlertDescription>
+                </Alert>
 
                 <BrandField label={t("setup.dateRange")} htmlFor="date-range">
                   <BrandInput
@@ -548,7 +554,7 @@ export function USAppointmentAssistant({
                   />
                 </BrandField>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-1">
                   <BrandField label={t("setup.timePreference")}>
                     <Select
                       value={timePreference}
@@ -562,22 +568,6 @@ export function USAppointmentAssistant({
                         <SelectItem value="any">{t("setup.timeAny")}</SelectItem>
                         <SelectItem value="morning">{t("setup.timeMorning")}</SelectItem>
                         <SelectItem value="afternoon">{t("setup.timeAfternoon")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </BrandField>
-
-                  <BrandField label={t("setup.slotScenario")}>
-                    <Select
-                      value={slotScenario}
-                      disabled={Boolean(job)}
-                      onValueChange={setSlotScenario}
-                    >
-                      <SelectTrigger className="h-12 rounded-lg border-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="slots">{t("setup.slotScenarioSlots")}</SelectItem>
-                        <SelectItem value="no_slots">{t("setup.slotScenarioNoSlots")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </BrandField>

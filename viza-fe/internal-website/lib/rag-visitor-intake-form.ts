@@ -5,6 +5,7 @@ const EXISTING_NORMALIZED_FORM_TYPES = new Set([
   "DS160",
   "UK_STANDARD_VISITOR",
   "EU_SCHENGEN_C_SHORT_STAY",
+  "SG_ARRIVAL_CARD",
 ]);
 
 function field(

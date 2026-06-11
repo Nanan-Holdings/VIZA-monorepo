@@ -911,8 +911,8 @@ function FinalConfirmationPanel({
       : (isZh ? "Live assisted 官网辅助填写" : "Live assisted CEAC fill");
   const liveSafetyCopy = isFrance
     ? (isZh
-        ? "真实辅助填写会打开 France-Visas 官方流程；验证码、登录、邮箱验证、官网页面核对、最终确认、支付和预约都必须由本人处理。VIZA 不会自动最终提交、付款或预约。"
-        : "Live assisted mode opens the France-Visas official flow. CAPTCHA, login, email verification, official-page review, final validation, payment, and appointment booking remain manual. VIZA will not silently submit, pay, or book.")
+        ? "真实辅助填写会打开 France-Visas 官方流程；如需注册账号，VIZA 会使用专属邮箱 alias，并经你授权用 2captcha 处理注册页图片验证码。登录风控、官网页面核对、最终确认、支付和预约仍需人工处理。VIZA 不会自动最终提交、付款或预约。"
+        : "Live assisted mode opens the France-Visas official flow. If account registration is needed, VIZA uses a dedicated email alias and, with your authorization, 2captcha for the registration image CAPTCHA. Login risk checks, official-page review, final validation, payment, and appointment booking remain manual. VIZA will not silently submit, pay, or book.")
     : isVietnam
       ? (isZh
           ? "真实辅助填写会打开越南 e-Visa 官方网站；NOTE 提示、验证码、付款和最终提交都必须由本人处理。VIZA 不会绕过验证码，也不会自动付款或点击最终提交。"
@@ -927,8 +927,8 @@ function FinalConfirmationPanel({
       : (isZh ? "确认启动真实官网辅助填写" : "Confirm live assisted CEAC fill");
   const liveConsentDescription = isFrance
     ? (isZh
-        ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方网站，使用 VIZA 已保存答案辅助填写。验证码、登录、邮箱验证、官网最终核对、支付、预约和任何线下递签/采集生物信息步骤都需要你本人处理。"
-        : "This creates a live_assisted queue job and opens the official France-Visas website using your saved VIZA answers. CAPTCHA, login, email verification, official final review, payment, appointment booking, and any in-person filing or biometrics remain manual.")
+        ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方网站，使用 VIZA 已保存答案辅助填写。若需要注册账号，VIZA 会用专属邮箱 alias 接收验证邮件，并用 2captcha 处理注册页图片验证码。登录风控、官网最终核对、支付、预约和任何线下递签/采集生物信息步骤都需要你本人处理。"
+        : "This creates a live_assisted queue job and opens the official France-Visas website using your saved VIZA answers. If account registration is needed, VIZA uses a dedicated email alias for verification mail and 2captcha for the registration image CAPTCHA. Login risk checks, official final review, payment, appointment booking, and any in-person filing or biometrics remain manual.")
     : isVietnam
       ? (isZh
           ? "这会创建 live_assisted 队列任务并打开越南 e-Visa 官方网站，使用 VIZA 已保存答案辅助填写。NOTE 提示、验证码、付款和最终提交都需要你本人处理。"
@@ -938,8 +938,8 @@ function FinalConfirmationPanel({
           : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step.");
   const liveConsentCheckbox = isFrance
     ? (isZh
-        ? "我确认这是本人授权的 France-Visas 官网辅助填写，并知道 VIZA 不会自动最终验证、付款或预约。"
-        : "I confirm this is my authorized France-Visas live assisted fill, and I understand VIZA will not automatically validate, pay, or book an appointment.")
+        ? "我确认这是本人授权的 France-Visas 官网辅助填写，并授权 VIZA 在注册账号时使用邮箱 alias 和 2captcha 处理注册页图片验证码；我知道 VIZA 不会自动最终验证、付款或预约。"
+        : "I confirm this is my authorized France-Visas live assisted fill, and I authorize VIZA to use an email alias and 2captcha for the registration image CAPTCHA during account registration; I understand VIZA will not automatically validate, pay, or book an appointment.")
     : isVietnam
       ? (isZh
           ? "我确认这是本人授权的越南 e-Visa 官网辅助填写，并知道 VIZA 不会绕过验证码、自动付款或最终提交。"

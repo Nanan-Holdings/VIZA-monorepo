@@ -661,6 +661,51 @@ export class USAppointmentOrchestrator {
   private async runAssistedLiveDisabledStep(
     job: AppointmentAssistanceJob,
   ): Promise<AppointmentAssistanceJob> {
+    const normalizedProvider = (job.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const normalizedCountry = (job.applyingCountryCode ?? "").trim().toUpperCase();
+    if (normalizedProvider === "usvisascheduling" && normalizedCountry === "CN") {
+      const checkpoint = await this.checkpointService.createPendingCheckpoint({
+        job,
+        actionType: "login",
+        jobStatus: "appointment_login_required",
+        instruction:
+          "VIZA appointment runner is ready for China USVisaScheduling. Complete any official-site login, CAPTCHA, or policy prompt manually when requested; VIZA will not bypass those controls.",
+        userInputSchemaJson: {
+          type: "object",
+          properties: {
+            completedByUser: { type: "boolean" },
+          },
+        },
+        metadata: {
+          assisted_live_enabled: true,
+          runner_service: "submission-service",
+          provider: "usvisascheduling",
+          applying_country_code: "CN",
+          no_captcha_solver: true,
+          no_final_confirmation_click: true,
+        },
+      });
+      await this.auditService.recordJobTransition(
+        checkpoint.job,
+        "appointment_assisted_live_runner_handoff",
+        "China USVisaScheduling assisted-live job queued for submission-service runner.",
+        {
+          assisted_live_enabled: true,
+          runner_service: "submission-service",
+          provider: "usvisascheduling",
+          applying_country_code: "CN",
+          stop_points: [
+            "captcha",
+            "email_verification_failure",
+            "payment",
+            "site_policy_warning",
+            "final_confirmation",
+          ],
+        },
+      );
+      return checkpoint.job;
+    }
+
     const provider = this.providerRegistry.getProvider(job.schedulingProvider, job.mode);
     const result = await provider.runAccountCreation(job);
     const checkpoint = await this.checkpointService.createPendingCheckpoint({
