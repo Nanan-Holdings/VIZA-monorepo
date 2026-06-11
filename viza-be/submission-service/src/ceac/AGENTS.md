@@ -11,8 +11,9 @@ diagnostics, `.dat` capture, and safe stop-at-sign handoff.
 ## Key Flow
 
 1. `session.ts` creates a standard Playwright browser/session for compliant
-   live assisted runs. Start-page location/CAPTCHA is a manual checkpoint, not
-   an automated solver path.
+   live assisted runs. `start-page-location.ts` may select the CEAC location
+   dropdown and dismiss the location modal, but CAPTCHA remains a manual
+   applicant checkpoint.
 2. `start-page-captcha.ts` remains a legacy diagnostic helper only; do not use
    CAPTCHA-solving APIs in the live assisted DS-160 flow.
 3. `pages.ts` detects the current DS-160 page.

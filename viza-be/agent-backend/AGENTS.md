@@ -40,6 +40,9 @@ explicitly reintroduces another provider.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
+- Singapore SG Arrival Card seed:
+  `scripts/seed-sg-arrival-card-form-fields.ts`, with focused coverage in
+  `src/tests/sg-arrival-card-schema.test.ts`.
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
 

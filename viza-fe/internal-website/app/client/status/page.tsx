@@ -37,6 +37,7 @@ import {
   type StatusStepState,
 } from "./status-data";
 import { SmoothProgressBar } from "@/components/smooth-progress";
+import { LiveManualActionCard } from "./live-manual-action-card";
 
 type SearchParams = Promise<{
   applicationId?: string | string[];
@@ -430,6 +431,22 @@ function DetailView({
   return (
     <section className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5 lg:p-6">
       <div className="space-y-5">
+      {application.liveSubmission?.pendingManualAction && (
+        <LiveManualActionCard
+          liveSubmission={application.liveSubmission}
+          copy={{
+            title: t("liveAction.title"),
+            description: t("liveAction.description"),
+            actionType: t("liveAction.actionType"),
+            checkpoint: t("liveAction.checkpoint"),
+            openOfficial: t("liveAction.openOfficial"),
+            continue: t("liveAction.continue"),
+            continuing: t("liveAction.continuing"),
+            completed: t("liveAction.completed"),
+            failed: t("liveAction.failed"),
+          }}
+        />
+      )}
       <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 gap-4">

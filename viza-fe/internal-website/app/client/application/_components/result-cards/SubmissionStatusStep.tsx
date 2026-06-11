@@ -259,8 +259,8 @@ function GenericResultCard({
             ? "这会创建 live_assisted 队列任务并打开 CEAC 官方 DS-160 流程。地点选择、验证码、官网核对和最终 Sign/Submit 都必须由本人手动处理。确认继续？"
             : "This will create a live_assisted queue job and open the official CEAC DS-160 flow. Location selection, CAPTCHA, official review, and final Sign/Submit remain manual. Continue?")
         : (isZh
-            ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方流程。验证码、登录、邮箱验证、官网核对、最终验证、支付和预约都必须由本人手动处理。确认继续？"
-            : "This will create a live_assisted queue job and open the official France-Visas flow. CAPTCHA, login, email verification, official review, final validation, payment, and appointment booking remain manual. Continue?"),
+            ? "这会创建 live_assisted 队列任务，并可用 VIZA 邮箱 alias 注册 France-Visas 账号；注册页图片验证码会经你授权使用 2captcha 处理。登录风控、官网核对、最终验证、支付和预约仍需人工处理。确认继续？"
+            : "This will create a live_assisted queue job and may register a France-Visas account with a VIZA email alias; the registration image CAPTCHA may be solved with 2captcha with your authorization. Login risk checks, official review, final validation, payment, and appointment booking remain manual. Continue?"),
     );
     if (!confirmed) return;
 
@@ -361,8 +361,8 @@ function GenericResultCard({
                       ? "这是旧的 dry-run 结果。可以从这里启动 CEAC 官网辅助填写，真实流程会停在地点选择、验证码、官网核对或最终 Sign/Submit 等人工检查点。"
                       : "This is the previous dry-run result. You can start the CEAC live assisted fill from here; the real flow will stop at location, CAPTCHA, official review, or final Sign/Submit checkpoints.")
                   : (isZh
-                      ? "这是旧的 dry-run 结果。可以从这里改为启动 France-Visas 官网辅助填写，真实流程会停在需要人工处理的官网检查点。"
-                      : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; the real flow will stop at manual official-site checkpoints.")}
+                      ? "这是旧的 dry-run 结果。可以从这里启动 France-Visas 官网辅助填写；如需新账号，VIZA 会用专属邮箱 alias 注册并用 2captcha 处理注册页图片验证码。"
+                      : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; if a new account is needed, VIZA will use a dedicated email alias and 2captcha for the registration image CAPTCHA.")}
               </span>
             </div>
             <Button
