@@ -12,9 +12,10 @@ confirmation, status checks, and redacted audit events.
 
 ## Guardrails
 
-- Dry-run is the only executable mode. Assisted-live provider classes are
-  disabled scaffolds until legal/product approval and current post verification
-  exist.
+- Dry-run remains the default executable mode. The only currently approved
+  assisted-live handoff is China `CN/usvisascheduling`, which queues work for
+  `submission-service` and creates human-in-the-loop checkpoints rather than
+  running browser automation in `agent-backend`.
 - Do not add CAPTCHA solving, MFA/email bypass, real payment execution,
   waiting-room bypass, rate-limit bypass, proxy/fingerprint/stealth behavior,
   high-frequency polling, or final booking without explicit applicant approval.
@@ -22,6 +23,9 @@ confirmation, status checks, and redacted audit events.
   status-check, or manual-action storage.
 - Slot and status checks must be user-triggered and cooldown-protected.
 - Stop or route to manual review on site policy warnings.
+- China assisted-live must preserve final confirmation, payment, CAPTCHA,
+  waiting-room, and policy-warning stop points. Do not add final booking clicks
+  here.
 
 ## Key Files
 

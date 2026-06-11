@@ -24392,17 +24392,17 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "大屿山",
-      "location": "Lantau Island",
-      "imageSrc": "/travel/attractions/shenzhen-lantau-island.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Lantau_Island",
-      "description": "香港離岛区岛嶼",
+      "name": "世界之窗",
+      "location": "Window of the World, Shenzhen",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Shenzhen_window_of_the_world.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shenzhen_window_of_the_world.JPG",
+      "description": "世界之窗是深圳华侨城片区的主题公园，适合安排夜景、微缩景观和家庭游动线。",
       "aliases": [
-        "Lantau Island",
-        "大屿山"
+        "Window of the World",
+        "世界之窗"
       ],
-      "lat": 22.270556,
-      "lng": 113.952778
+      "lat": 22.5361,
+      "lng": 113.9745
     },
     {
       "cityKeys": [
@@ -24411,17 +24411,18 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "港珠澳大桥",
-      "location": "Hong Kong–Zhuhai–Macau Bridge",
-      "imageSrc": "/travel/attractions/shenzhen-hong-kong-zhuhai-macau-bridge.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong%E2%80%93Zhuhai%E2%80%93Macau_Bridge",
-      "description": "珠江口连接香港、澳门及珠海的跨海桥隧结合体",
+      "name": "锦绣中华民俗村",
+      "location": "Splendid China Folk Village",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/1_shenzhen_splendid_china_2011.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:1_shenzhen_splendid_china_2011.JPG",
+      "description": "锦绣中华民俗村位于深圳华侨城，可与世界之窗、欢乐海岸组成文化主题游线。",
       "aliases": [
-        "Hong Kong–Zhuhai–Macau Bridge",
-        "港珠澳大桥"
+        "Splendid China Folk Village",
+        "锦绣中华",
+        "民俗村"
       ],
-      "lat": 22.2824,
-      "lng": 113.775
+      "lat": 22.5345,
+      "lng": 113.9873
     },
     {
       "cityKeys": [
@@ -24430,17 +24431,17 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "青马大桥",
-      "location": "Tsing Ma Bridge",
-      "imageSrc": "/travel/attractions/shenzhen-tsing-ma-bridge.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Tsing_Ma_Bridge",
-      "description": "深圳可安排的代表性景点，适合加入当地观光动线。",
+      "name": "莲花山公园",
+      "location": "Lianhuashan Park, Shenzhen",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Lake_B%2C_Shenzhen_Lianhuashan_Park.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lake_B,_Shenzhen_Lianhuashan_Park.JPG",
+      "description": "莲花山公园靠近市民中心，是深圳市区俯瞰天际线和安排轻松步行的经典点位。",
       "aliases": [
-        "Tsing Ma Bridge",
-        "青马大桥"
+        "Lianhuashan Park",
+        "莲花山"
       ],
-      "lat": 22.351389,
-      "lng": 114.074167
+      "lat": 22.5568,
+      "lng": 114.0579
     },
     {
       "cityKeys": [
@@ -24449,17 +24450,17 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "如心广场",
-      "location": "Nina Tower",
-      "imageSrc": "/travel/attractions/shenzhen-nina-tower.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Nina_Tower",
-      "description": "香港商業建築物",
+      "name": "深圳湾公园",
+      "location": "Shenzhen Bay Park",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Shenzhen_Bay_Park.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shenzhen_Bay_Park.jpg",
+      "description": "深圳湾公园沿海岸线展开，适合傍晚散步、骑行和串联人才公园、海岸城片区。",
       "aliases": [
-        "Nina Tower",
-        "如心广场"
+        "Shenzhen Bay Park",
+        "深圳湾"
       ],
-      "lat": 22.368611,
-      "lng": 114.113056
+      "lat": 22.5166,
+      "lng": 113.9413
     },
     {
       "cityKeys": [
@@ -24468,17 +24469,18 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "赛格广场",
-      "location": "SEG Plaza",
-      "imageSrc": "/travel/attractions/shenzhen-seg-plaza.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/SEG_Plaza",
-      "description": "深圳的一座摩天大楼",
+      "name": "平安金融中心",
+      "location": "Ping An Finance Centre",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/PING_AN_FINANCE_CENTER%2C_SHENZHEN_%286%29.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:PING_AN_FINANCE_CENTER,_SHENZHEN_(6).jpg",
+      "description": "平安金融中心是福田 CBD 的地标摩天楼，可与购物中心和市民中心夜景组合安排。",
       "aliases": [
-        "SEG Plaza",
-        "赛格广场"
+        "Ping An Finance Centre",
+        "Ping An Finance Center",
+        "平安金融中心"
       ],
-      "lat": 22.544167,
-      "lng": 114.0825
+      "lat": 22.5365,
+      "lng": 114.0504
     },
     {
       "cityKeys": [
@@ -24487,17 +24489,18 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "沙田马场",
-      "location": "Sha Tin Racecourse",
-      "imageSrc": "/travel/attractions/shenzhen-sha-tin-racecourse.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Sha_Tin_Racecourse",
-      "description": "香港賽马场",
+      "name": "大芬油画村",
+      "location": "Dafen Oil Painting Village",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Dafen_Oil_Painting_Village_%28Day%29.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dafen_Oil_Painting_Village_(Day).JPG",
+      "description": "大芬油画村聚集画廊、工作室和街区小店，适合安排半日艺术街区体验。",
       "aliases": [
-        "Sha Tin Racecourse",
-        "沙田马场"
+        "Dafen Oil Painting Village",
+        "大芬村",
+        "大芬油画村"
       ],
-      "lat": 22.3994,
-      "lng": 114.207
+      "lat": 22.6111,
+      "lng": 114.1422
     },
     {
       "cityKeys": [
@@ -24525,17 +24528,17 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "香港岛",
-      "location": "Hong Kong Island",
-      "imageSrc": "/travel/attractions/shenzhen-hong-kong-island.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Island",
-      "description": "香港第二大的岛屿",
+      "name": "深圳博物馆",
+      "location": "Shenzhen Museum",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/Shenzhen_museum.JPG",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shenzhen_museum.JPG",
+      "description": "深圳博物馆位于市民中心片区，适合了解深圳城市发展、岭南历史和改革开放主题。",
       "aliases": [
-        "Hong Kong Island",
-        "香港岛"
+        "Shenzhen Museum",
+        "深圳博物馆"
       ],
-      "lat": 22.255,
-      "lng": 114.195
+      "lat": 22.5431,
+      "lng": 114.0597
     },
     {
       "cityKeys": [
@@ -24544,17 +24547,18 @@
         "shenzhen"
       ],
       "cityLabel": "深圳",
-      "name": "香港天文台",
-      "location": "Hong Kong Observatory",
-      "imageSrc": "/travel/attractions/shenzhen-hong-kong-observatory.jpg",
-      "sourceUrl": "https://en.wikipedia.org/wiki/Hong_Kong_Observatory",
-      "description": "香港特別行政区政府部门",
+      "name": "华侨城创意文化园",
+      "location": "OCT Loft, Shenzhen",
+      "imageSrc": "https://commons.wikimedia.org/wiki/Special:FilePath/OCT_LOFT%2C_SHENZHEN_%2814%29.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:OCT_LOFT,_SHENZHEN_(14).jpg",
+      "description": "华侨城创意文化园聚集展览、咖啡和设计店铺，适合安排城市文化与夜间餐饮。",
       "aliases": [
-        "Hong Kong Observatory",
-        "香港天文台"
+        "OCT Loft",
+        "OCT-LOFT",
+        "华侨城创意文化园"
       ],
-      "lat": 22.474601,
-      "lng": 114.22
+      "lat": 22.5395,
+      "lng": 113.9916
     },
     {
       "cityKeys": [

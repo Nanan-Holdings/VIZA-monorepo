@@ -11,6 +11,8 @@ runtime application code.
 ## Current Skills
 
 - `skills/brand-style-guide`: VIZA brand and voice rules.
+- `skills/arrival-card-country-builder`: reusable workflow for adding
+  country-specific digital arrival-card packages and preview routes.
 - `skills/supabase`: Supabase workflow, MCP, CLI, security, and verification
   guidance.
 - `skills/supabase-postgres-best-practices`: Postgres schema, query,

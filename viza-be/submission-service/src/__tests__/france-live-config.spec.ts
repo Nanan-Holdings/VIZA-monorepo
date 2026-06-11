@@ -29,7 +29,39 @@ describe("France live assisted config", () => {
     });
 
     assert.equal(config.mode, "live_assisted");
+    assert.equal(config.accountRegistrationEnabled, false);
     assert.equal(validateFranceLiveStart(config), null);
+  });
+
+  it("accepts explicit account registration with 2captcha configured", () => {
+    const config = loadFranceSubmissionConfig({
+      FRANCE_SUBMISSION_MODE: "live_assisted",
+      FRANCE_LIVE_SUBMISSION_ENABLED: "true",
+      FRANCE_ACCOUNT_REGISTRATION_ENABLED: "true",
+      FRANCE_REGISTRATION_2CAPTCHA_ENABLED: "true",
+      FRANCE_REGISTRATION_MAX_CAPTCHA_ATTEMPTS: "4",
+      FRANCE_REGISTRATION_EMAIL_TIMEOUT_MS: "240000",
+      TWOCAPTCHA_API_KEY: "test-key",
+      SUBMISSION_RESULT_SECRET_KEY: "1234567890abcdef",
+    });
+
+    assert.equal(config.accountRegistrationEnabled, true);
+    assert.equal(config.registrationTwoCaptchaEnabled, true);
+    assert.equal(config.registrationMaxCaptchaAttempts, 4);
+    assert.equal(config.registrationEmailTimeoutMs, 240000);
+    assert.equal(validateFranceLiveStart(config), null);
+  });
+
+  it("blocks account registration when 2captcha is not configured", () => {
+    const config = loadFranceSubmissionConfig({
+      FRANCE_SUBMISSION_MODE: "live_assisted",
+      FRANCE_LIVE_SUBMISSION_ENABLED: "true",
+      FRANCE_ACCOUNT_REGISTRATION_ENABLED: "true",
+      FRANCE_REGISTRATION_2CAPTCHA_ENABLED: "true",
+      SUBMISSION_RESULT_SECRET_KEY: "1234567890abcdef",
+    });
+
+    assert.match(validateFranceLiveStart(config) ?? "", /TWOCAPTCHA_API_KEY/);
   });
 
   it("blocks live mode when payment or appointment automation is enabled", () => {

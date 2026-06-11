@@ -21,9 +21,9 @@ smoke-test helpers for the VIZA monorepo.
 ## Current Runners
 
 - `start-all.ps1`: starts the full local VIZA development stack from the repo
-  root, including the internal website, agent backend, submission worker,
-  travel service, optional database services, logs, health checks, and stop
-  support.
+  root, including the internal website, marketing website, agent backend,
+  submission worker, travel service, optional database services, logs, health
+  checks, and stop support.
 - `start-viza-dev.ps1`: starts the internal website with backend services.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the

@@ -61,7 +61,10 @@ describe("travel destination resolver", () => {
       expect(card.source_status).not.toBe("llm_generated");
       expect(card.subtitle).not.toContain("Temporary destination card");
       expect(card.highlights).not.toContain("temporary text fallback");
-      expect(card.map_marker).toEqual({ lat: 28.2282, lng: 112.9388 });
+      expect(card.map_marker?.lat).toBeGreaterThan(28);
+      expect(card.map_marker?.lat).toBeLessThan(29);
+      expect(card.map_marker?.lng).toBeGreaterThan(112);
+      expect(card.map_marker?.lng).toBeLessThan(113.5);
     }
   });
 

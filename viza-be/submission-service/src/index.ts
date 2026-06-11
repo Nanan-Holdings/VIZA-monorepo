@@ -2,6 +2,7 @@ import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { randomBytes } from "crypto";
 import { chromium } from "@playwright/test";
 import { supabase } from "./supabase";
 import { sendFailureAlert } from "./alert";
@@ -58,12 +59,15 @@ import type {
 } from "./submission-result";
 import {
   fillFranceVisasApplication,
+  registerFvAccount,
   normalizeFvAnswers,
   buildAnswerMap,
   isGateError as isFvGateError,
   NormalizationError,
   type NormalizeInput,
 } from "./france-visas";
+import { ensureApplicantInboxAlias } from "./inbox/alias";
+import { createSupabaseMailboxProvider } from "./france-visas/mailbox-provider";
 import {
   startUkSession,
   orchestrateUkFill,
@@ -102,6 +106,11 @@ import {
   validateFranceLiveStart,
   type FranceSubmissionConfig,
 } from "./france-live-config";
+import {
+  createUSAppointmentRunnerRepository,
+  loadUSAppointmentRunnerConfig,
+  pollUSAppointmentAssistedJobs,
+} from "./us-appointment";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
@@ -583,6 +592,23 @@ function applyEnglishAliases(answers: Record<string, string>): void {
   }
 }
 
+function resolveCeacStartLocationCode(answers: Record<string, string>): string {
+  const candidates = [
+    answers["consular_post"],
+    answers["embassy_or_consulate"],
+    answers["location_where_applying_for_visa"],
+    process.env.CEAC_LOCATION_CODE,
+    "NSS",
+  ];
+
+  for (const candidate of candidates) {
+    const code = candidate?.trim();
+    if (code) return code.toUpperCase();
+  }
+
+  return "NSS";
+}
+
 function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): SubmissionQueueItem["status"] {
   if (status.startsWith("ds160_live_assisted_")) return "ds160_live_assisted_failed";
   if (status.startsWith("ds160_")) return "ds160_prefill_failed";
@@ -1008,17 +1034,20 @@ async function processDs160Item(
   const tracker = createRecoveryTracker({ runId });
 
   try {
+    // Load applicant data and answers before bootstrap so the CEAC start-page
+    // post/location can be selected from the applicant's own DS-160 answers.
+    const { profile } = await loadApplicantData(item.application_id);
+    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
+    const startLocationCode = resolveCeacStartLocationCode(answers);
+
     session = await startCeacSession({
       headless: config.playwrightHeadless,
       acceptDownloads: true,
       runId,
+      startLocationCode,
     });
     // Record bootstrap checkpoint — proves CEAC start page was reached
     await recordBootstrapCheckpoint(session.page, { sink: tracker, runId });
-
-    // Load applicant data and answers for form filling
-    const { profile } = await loadApplicantData(item.application_id);
-    const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
 
     // Confirm-application page (Privacy Act ack + Application ID + security
     // question). Captures `applicationId` + `securityQuestionText` +
@@ -1388,6 +1417,173 @@ async function loadFvAccount(
   return null;
 }
 
+function generateFvPortalPassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%*?";
+  const all = upper + lower + digits + symbols;
+  const required = [
+    upper[randomBytes(1)[0] % upper.length],
+    lower[randomBytes(1)[0] % lower.length],
+    digits[randomBytes(1)[0] % digits.length],
+    symbols[randomBytes(1)[0] % symbols.length],
+  ];
+  while (required.length < 18) {
+    required.push(all[randomBytes(1)[0] % all.length]);
+  }
+  return required
+    .map((char) => ({ char, sort: randomBytes(2).readUInt16BE(0) }))
+    .sort((a, b) => a.sort - b.sort)
+    .map((entry) => entry.char)
+    .join("");
+}
+
+function registrationNameParts(
+  profile: ApplicantProfile,
+  answers: Record<string, string | null>,
+): { firstName: string; lastName: string } {
+  const lastName =
+    answers.surname ??
+    answers.surname_en ??
+    profile.full_name?.trim().split(/\s+/).slice(-1)[0] ??
+    "Applicant";
+  const firstName =
+    answers.given_names ??
+    answers.given_names_en ??
+    profile.full_name?.trim().split(/\s+/).slice(0, -1).join(" ") ??
+    "VIZA";
+  return {
+    firstName: firstName.trim() || "VIZA",
+    lastName: lastName.trim() || "Applicant",
+  };
+}
+
+function isMissingFvAccountWriteColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("schema cache") ||
+    message.includes("column") ||
+    message.includes("could not find")
+  );
+}
+
+async function persistRegisteredFvAccount(input: {
+  item: SubmissionQueueItem;
+  applicantId: string;
+  userId: string | null;
+  email: string;
+  password: string;
+  storageState: Record<string, unknown>;
+}): Promise<FvAccount> {
+  const now = new Date().toISOString();
+  const emailCipher = encryptSecret(input.email);
+  const passwordCipher = encryptSecret(input.password);
+  const payload = {
+    application_id: input.item.application_id,
+    submission_queue_id: input.item.id,
+    user_id: input.userId,
+    official_account_email_encrypted: emailCipher,
+    official_account_password_encrypted: passwordCipher,
+    storage_state_json: input.storageState,
+    last_authenticated_at: now,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const { data, error } = await supabase
+    .from("fv_accounts")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (error && isMissingFvAccountWriteColumnError(error)) {
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("fv_accounts")
+      .insert({
+        applicant_id: input.applicantId,
+        email: input.email,
+        password_encrypted: passwordCipher,
+        storage_state_json: input.storageState,
+        last_authenticated_at: now,
+        created_at: now,
+        updated_at: now,
+      })
+      .select("*")
+      .single();
+    if (legacyError) {
+      throw new Error(`Failed to persist legacy fv_accounts row: ${legacyError.message}`);
+    }
+    const account = normalizeFvAccountRow((legacyData ?? null) as Record<string, unknown> | null);
+    if (!account) throw new Error("Persisted legacy fv_accounts row could not be normalized");
+    return account;
+  }
+
+  if (error) {
+    throw new Error(`Failed to persist fv_accounts row: ${error.message}`);
+  }
+
+  const account = normalizeFvAccountRow((data ?? null) as Record<string, unknown> | null);
+  if (!account) throw new Error("Persisted fv_accounts row could not be normalized");
+  return account;
+}
+
+async function registerFvAccountForQueue(input: {
+  item: SubmissionQueueItem;
+  profile: ApplicantProfile;
+  answers: Record<string, string | null>;
+  config: FranceSubmissionConfig;
+  runId: string;
+}): Promise<FvAccount> {
+  if (!input.config.accountRegistrationEnabled) {
+    throw new Error("France-Visas account registration is disabled by configuration.");
+  }
+
+  const alias = await ensureApplicantInboxAlias(input.profile.id);
+  const password = generateFvPortalPassword();
+  const name = registrationNameParts(input.profile, input.answers);
+  const registration = await registerFvAccount(
+    {
+      firstName: name.firstName,
+      lastName: name.lastName,
+      email: alias.alias,
+      password,
+      language: "English",
+    },
+    {
+      mailbox: createSupabaseMailboxProvider(input.profile.id),
+      headless: input.config.playwrightHeadless,
+      maxCaptchaAttempts: input.config.registrationMaxCaptchaAttempts,
+      verificationTimeoutMs: input.config.registrationEmailTimeoutMs,
+      enableCaptchaSolving: input.config.registrationTwoCaptchaEnabled,
+      runId: input.runId,
+    },
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      fv_result_payload: {
+        status: "account_registered",
+        mode: "live_assisted",
+        captchaTelemetry: registration.captcha?.telemetry ?? [],
+        aliasCreated: alias.created,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.item.id);
+
+  return persistRegisteredFvAccount({
+    item: input.item,
+    applicantId: input.profile.id,
+    userId: input.profile.auth_user_id,
+    email: registration.email,
+    password: registration.password,
+    storageState: registration.storageState as Record<string, unknown>,
+  });
+}
+
 async function loadRawAnswers(applicationId: string): Promise<VisaApplicationAnswer[]> {
   const { data, error } = await supabase
     .from("visa_application_answers")
@@ -1405,8 +1601,11 @@ async function loadRawAnswers(applicationId: string): Promise<VisaApplicationAns
  * as plain text for dev parity with the smoke runner's env-var flow.
  */
 function decryptFvPassword(encrypted: string): string {
-  // TODO(crypto): hook into shared KMS helper before production.
-  return encrypted;
+  try {
+    return decryptSecret(encrypted);
+  } catch {
+    return encrypted;
+  }
 }
 
 async function processFvConfigBlockedItem(
@@ -1475,48 +1674,75 @@ async function processFvItem(
 
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
-
-    const account = await loadFvAccount(application.applicant_id, item.application_id, item.id);
-    if (!account) {
-      if (liveAssisted) {
-        const instruction =
-          "France-Visas login is required before VIZA can continue. Add or confirm the official France-Visas account for this application, or log in manually on the official site when prompted, then click continue.";
-        await createFranceManualAction({
-          item,
-          actionType: "login_required",
-          instruction,
-          userId: profile.auth_user_id,
-          metadata: {
-            reason: "fv_account_missing",
-          },
-        });
-        await supabase
-          .from("submission_queue")
-          .update({
-            status: "action_required",
-            mode: "live_assisted",
-            provider: "france_visas_live",
-            manual_action_status: "pending",
-            live_checkpoint: "login_required",
-            official_status: "manual_action_required",
-            error_code: "france_visas_login_required",
-            error_message: "France-Visas account is missing for this applicant.",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", item.id);
-        await writeSubmissionResult(
-          item.application_id,
-          buildFranceActionRequiredResult(item.application_id, "login_required", instruction),
-          "action_required",
-        );
-        console.warn(`[fv] Live assisted paused for ${redactIdentifier(item.application_id)}: login_required`);
-        return;
-      }
-      throw new Error(`No fv_accounts row for applicant ${application.applicant_id} — register first`);
-    }
-
     const rawAnswers = await loadRawAnswers(item.application_id);
     const answerMap = buildAnswerMap(rawAnswers);
+
+    let account = await loadFvAccount(application.applicant_id, item.application_id, item.id);
+    if (!account) {
+      if (liveAssisted) {
+        try {
+          await supabase
+            .from("submission_queue")
+            .update({
+              live_checkpoint: "account_registration",
+              official_status: "account_registration_in_progress",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", item.id);
+          account = await registerFvAccountForQueue({
+            item,
+            profile,
+            answers: answerMap,
+            config,
+            runId,
+          });
+        } catch (registrationError) {
+          const instruction =
+            "France-Visas account registration needs manual help. Complete the official registration, CAPTCHA, or email verification checkpoint, then click continue.";
+          const actionType = franceManualActionTypeFromError(registrationError);
+          const message = registrationError instanceof Error ? registrationError.message : String(registrationError);
+          await createFranceManualAction({
+            item,
+            actionType,
+            instruction,
+            userId: profile.auth_user_id,
+            metadata: {
+              reason: "fv_account_registration_failed",
+              errorCode: (registrationError as { code?: unknown }).code,
+              context: (registrationError as { context?: unknown }).context,
+            },
+          });
+          await supabase
+            .from("submission_queue")
+            .update({
+              status: "action_required",
+              mode: "live_assisted",
+              provider: "france_visas_live",
+              manual_action_status: "pending",
+              live_checkpoint: actionType,
+              official_status: "manual_action_required",
+              error_code: "france_visas_account_registration_required",
+              error_message: message,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", item.id);
+          await writeSubmissionResult(
+            item.application_id,
+            buildFranceActionRequiredResult(item.application_id, actionType, instruction),
+            "action_required",
+          );
+          console.warn(
+            `[fv] Live assisted paused for ${redactIdentifier(item.application_id)} during account registration: ${message}`,
+          );
+          return;
+        }
+      } else {
+        throw new Error(`No fv_accounts row for applicant ${application.applicant_id} — register first`);
+      }
+      if (!account) {
+        throw new Error(`France-Visas account registration did not return credentials for applicant ${application.applicant_id}`);
+      }
+    }
 
     // FV-specific overrides that the seed schema doesn't carry — the frontend
     // writes them into visa_application_answers with `fv_` prefixed keys.
@@ -2882,6 +3108,18 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
 async function pollOnce(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
   await markStaleQueueItemsTimedOut();
+  try {
+    const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
+      createUSAppointmentRunnerRepository(),
+    );
+    if (processedUsAppointmentJobs > 0) {
+      console.log(
+        `[poll] Processed ${processedUsAppointmentJobs} US appointment assisted job(s).`,
+      );
+    }
+  } catch (err) {
+    console.error("[poll] US appointment runner failed:", err);
+  }
 
   let items: SubmissionQueueItem[];
   try {
@@ -3021,12 +3259,27 @@ async function main(): Promise<void> {
       `paymentLive=${franceConfig.paymentLiveEnabled}`,
       `appointmentLive=${franceConfig.appointmentLiveEnabled}`,
       `secretConfigured=${franceConfig.officialReferenceEncryptionConfigured}`,
+      `accountRegistration=${franceConfig.accountRegistrationEnabled}`,
+      `registration2captcha=${franceConfig.registrationTwoCaptchaEnabled}`,
+      `twoCaptchaConfigured=${franceConfig.twoCaptchaConfigured}`,
     ].join(" "),
   );
   const franceLiveStartError = validateFranceLiveStart(franceConfig);
   if (franceConfig.mode === "live_assisted" && franceLiveStartError) {
     console.warn(`[main] France live assisted startup check blocked: ${franceLiveStartError}`);
   }
+  const usAppointmentConfig = loadUSAppointmentRunnerConfig();
+  console.log(
+    [
+      "[main] US appointment runner:",
+      `enabled=${usAppointmentConfig.enabled}`,
+      `providers=${usAppointmentConfig.providerAllowlist.join(",")}`,
+      `countries=${usAppointmentConfig.supportedCountries.join(",")}`,
+      `batchSize=${usAppointmentConfig.batchSize}`,
+      `emailTimeoutMs=${usAppointmentConfig.emailTimeoutMs}`,
+      `slotCooldownMs=${usAppointmentConfig.slotCheckCooldownMs}`,
+    ].join(" "),
+  );
 
   // DEP-004: health server for Cloud Run probes (/health, /ready).
   startHealthServer({ isWorkerStarted: () => runnerStarted });

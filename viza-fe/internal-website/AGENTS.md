@@ -11,6 +11,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 ## Key Flows
 
 - Client portal under `app/client/**`.
+- Arrival-card preview entries under `app/client/arrival-cards/**`, routed to
+  dedicated DB-driven application packages and kept separate from visa packages.
 - Admin portal under `app/admin/**`.
 - Application lifecycle and dynamic forms under `app/client/application/**`,
   `components/dynamic-step-form.tsx`, `components/dynamic-form-field.tsx`, and
@@ -70,6 +72,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `scripts/verify-supabase-schema.ts`.
 - Targeted VIZA-only Supabase migration through
   `scripts/migrate-viza-required.ts`.
+- Live-assisted official submission status summaries are loaded through
+  `lib/submission-live-status.ts`; keep service-role access server-only and
+  expose customer/staff actions through route handlers or server actions.
 - Internal wrapper for the repo env doctor through `scripts/doctor-env.ts`.
 - VIZA-required Supabase migrations under `supabase/migrations/20260610_*`,
   including the generic `submission_manual_actions` bridge for official-site
