@@ -878,6 +878,17 @@
     "notCreated": "尚未创建",
     "notStarted": "未开始",
     "notAssigned": "暂未分配",
+    "liveAction": {
+      "title": "需要处理官网步骤",
+      "description": "VIZA 已打开并准备好官方门户。请你亲自在官网完成当前可见步骤，然后回到这里继续辅助提交。",
+      "actionType": "动作",
+      "checkpoint": "检查点",
+      "openOfficial": "打开官方网站",
+      "continue": "完成后继续",
+      "continuing": "正在继续",
+      "completed": "动作已完成，VIZA 将恢复任务。",
+      "failed": "暂时无法恢复任务，请重试或联系支持。"
+    },
     "empty": {
       "title": "暂无进行中的申请",
       "description": "请先从首页选择目的地并开始签证流程。创建申请后，这里会显示付款、授权、材料、申请包、交接和结果状态。",
@@ -4703,12 +4714,12 @@
     "page": {
       "eyebrow": "美国面签预约助手",
       "title": "B1/B2 预约设置",
-      "subtitle": "DS-160 完成后，使用合规的 dry-run 助手继续预约准备。账号、邮箱、付款、验证码、选位和最终确认都会暂停等待您本人操作。"
+      "subtitle": "DS-160 完成后，使用合规的中国美国签证预约助手继续预约准备。VIZA 可以协助准备和查看进度，但登录、CAPTCHA、付款、政策提示、选位和最终确认都会暂停等待您本人操作。"
     },
     "loading": "正在加载预约助手...",
     "errorTitle": "预约助手需要处理",
-    "dryRunNoticeTitle": "仅 dry-run 演练",
-    "dryRunNotice": "此流程不会真实预约、付款或修改任何美国签证预约。系统不会后台轮询，也不会绕过 CAPTCHA、MFA、等待室、频率限制，不会使用代理或隐身自动化。",
+    "dryRunNoticeTitle": "人工边界内的 live 辅助",
+    "dryRunNotice": "中国首版流程不会绕过 CAPTCHA、MFA、等待室、频率限制、付款、政策提示或最终确认。VIZA 只执行用户触发的检查，并会在不可逆官方操作前暂停。",
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
       "withCode": "预约请求暂时无法完成。参考代码：{code}。"
@@ -4726,6 +4737,13 @@
       "in": "印度",
       "jp": "日本",
       "de": "德国"
+    },
+    "posts": {
+      "beijing": "北京",
+      "shanghai": "上海",
+      "guangzhou": "广州",
+      "shenyang": "沈阳",
+      "wuhan": "武汉"
     },
     "statusLabels": {
       "appointment_not_started": "未开始",
@@ -4783,22 +4801,24 @@
       "slotScenario": "Dry-run 名额场景",
       "slotScenarioSlots": "显示示例名额",
       "slotScenarioNoSlots": "显示暂无名额",
-      "createJob": "创建 dry-run 任务",
+      "aliasNoticeTitle": "VIZA 别名邮箱",
+      "aliasNotice": "新建预约账号时，VIZA 使用此申请人资料分配的别名邮箱。验证邮件经 Cloudflare Email Routing 入站并从 Supabase inbound_email 消费；此流程不使用旧 IMAP 邮箱轮询。",
+      "createJob": "创建辅助任务",
       "creating": "正在创建...",
       "recordConsent": "记录授权",
       "consentRequiredError": "请先阅读并同意授权说明。"
     },
     "consent": {
       "title": "授权与边界",
-      "body1": "VIZA 可以协助整理 DS-160 后的预约步骤，但官方门户的决策与安全校验仍由您本人控制。",
-      "body2": "登录、邮箱验证、CAPTCHA、签证费支付和最终确认都需要您本人完成。VIZA 会暂停并等待您的明确操作。",
-      "checkbox": "我理解当前首先是 dry-run 助手，并将本人处理官方门户安全校验、付款和最终预约确认。",
+      "body1": "VIZA 可以协助整理 DS-160 后的中国美国签证预约步骤，但官方门户的决策与安全校验仍由您本人控制。",
+      "body2": "登录、CAPTCHA、网站政策确认、签证费支付、选位和最终确认都需要您本人完成。VIZA 会暂停并等待您的明确操作。",
+      "checkbox": "我理解 VIZA 可以辅助中国预约流程，并将本人处理官方门户安全校验、付款和最终预约确认。",
       "recorded": "授权已记录",
       "security": "敏感输入会从助手日志中脱敏。"
     },
     "panel": {
       "title": "实时助手",
-      "noJob": "请先创建 dry-run 任务，开始预约助手流程。",
+      "noJob": "请先创建辅助任务，开始中国预约助手流程。",
       "provider": "预约平台",
       "providerUnknown": "待识别",
       "mode": "模式",
@@ -4820,7 +4840,7 @@
       "instructions": {
         "consent": "请阅读并接受授权说明。",
         "account_email_verification": "请输入邮箱中的验证码。VIZA 不会访问您的邮箱。",
-        "login": "如果官方门户要求登录，请您本人登录。",
+        "login": "如果官方门户要求登录，请您本人登录。VIZA runner 不会绕过登录、CAPTCHA、等待室或网站政策控制。",
         "captcha": "请您本人完成 CAPTCHA。VIZA 不会代解或绕过 CAPTCHA。",
         "payment": "请确认 dry-run 付款节点。本环境不会产生真实付款。",
         "slot_selection": "请选择一个 dry-run 发现的预约名额。",

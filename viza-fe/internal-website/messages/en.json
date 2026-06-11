@@ -792,6 +792,17 @@
     "notCreated": "Not created yet",
     "notStarted": "Not started",
     "notAssigned": "Not assigned",
+    "liveAction": {
+      "title": "Official site action required",
+      "description": "VIZA has opened and prepared the official portal. Complete the visible official-site step yourself, then continue the assisted submission here.",
+      "actionType": "Action",
+      "checkpoint": "Checkpoint",
+      "openOfficial": "Open official site",
+      "continue": "Continue after completing",
+      "continuing": "Continuing",
+      "completed": "Action completed. VIZA will resume the job.",
+      "failed": "We could not resume the job. Please try again or contact support."
+    },
     "empty": {
       "title": "No active applications yet",
       "description": "Choose a destination from Home to start a visa workflow. Once an application exists, this page will show payment, consent, documents, packet, handoff, and result status.",
@@ -4617,12 +4628,12 @@
     "page": {
       "eyebrow": "U.S. appointment assistant",
       "title": "B1/B2 appointment setup",
-      "subtitle": "Continue after DS-160 with a compliant dry-run assistant. VIZA pauses for every account, email, payment, CAPTCHA, slot choice, and final confirmation boundary."
+      "subtitle": "Continue after DS-160 with a compliant China appointment assistant. VIZA can help prepare and observe progress, but pauses for login, CAPTCHA, payment, policy notices, slot choice, and final confirmation."
     },
     "loading": "Loading appointment assistant...",
     "errorTitle": "Appointment assistant needs attention",
-    "dryRunNoticeTitle": "Dry-run only",
-    "dryRunNotice": "This workflow does not book, pay for, or modify any real U.S. visa appointment. No background polling, CAPTCHA bypass, MFA bypass, waiting-room bypass, proxy, or stealth automation is used.",
+    "dryRunNoticeTitle": "Assisted live with manual boundaries",
+    "dryRunNotice": "This China-first workflow does not bypass CAPTCHA, MFA, waiting rooms, rate limits, payment, policy notices, or final confirmation. VIZA uses user-triggered checks and pauses before irreversible official-site actions.",
     "errors": {
       "generic": "The appointment request could not be completed. Please try again.",
       "withCode": "The appointment request could not be completed. Reference: {code}."
@@ -4640,6 +4651,13 @@
       "in": "India",
       "jp": "Japan",
       "de": "Germany"
+    },
+    "posts": {
+      "beijing": "Beijing",
+      "shanghai": "Shanghai",
+      "guangzhou": "Guangzhou",
+      "shenyang": "Shenyang",
+      "wuhan": "Wuhan"
     },
     "statusLabels": {
       "appointment_not_started": "Not started",
@@ -4697,22 +4715,24 @@
       "slotScenario": "Dry-run slot scenario",
       "slotScenarioSlots": "Show sample slots",
       "slotScenarioNoSlots": "Show no slots",
-      "createJob": "Create dry-run job",
+      "aliasNoticeTitle": "VIZA alias email",
+      "aliasNotice": "For new appointment accounts, VIZA uses the applicant alias email assigned to this profile. Verification messages are received through Cloudflare Email Routing and consumed from Supabase inbound mail; VIZA does not use legacy IMAP for this flow.",
+      "createJob": "Create assisted job",
       "creating": "Creating...",
       "recordConsent": "Record consent",
       "consentRequiredError": "Please review and accept the consent statement before continuing."
     },
     "consent": {
       "title": "Consent and boundaries",
-      "body1": "VIZA can help organize the appointment steps after DS-160, but official portal decisions and security checks stay under your control.",
-      "body2": "You will complete any login, email verification, CAPTCHA, fee payment, and final confirmation yourself. VIZA will pause and wait for your explicit action.",
-      "checkbox": "I understand this is a dry-run assistant first, and I will personally handle official portal security, payment, and final booking approval steps.",
+      "body1": "VIZA can help organize the China U.S. appointment steps after DS-160, but official portal decisions and security checks stay under your control.",
+      "body2": "You will complete any login, CAPTCHA, site-policy acknowledgement, fee payment, slot choice, and final confirmation yourself. VIZA will pause and wait for your explicit action.",
+      "checkbox": "I understand VIZA may assist with the China appointment workflow, and I will personally handle official portal security, payment, and final booking approval steps.",
       "recorded": "Consent recorded",
       "security": "Sensitive inputs are redacted from assistant logs."
     },
     "panel": {
       "title": "Live assistant",
-      "noJob": "Create a dry-run job to begin the appointment assistant.",
+      "noJob": "Create an assisted job to begin the China appointment assistant.",
       "provider": "Scheduling provider",
       "providerUnknown": "To be detected",
       "mode": "Mode",
@@ -4734,7 +4754,7 @@
       "instructions": {
         "consent": "Review and accept the consent statement.",
         "account_email_verification": "Enter the verification code from your email. VIZA will not access your inbox.",
-        "login": "Sign in yourself if the official portal asks for credentials.",
+        "login": "Sign in yourself if the official portal asks for credentials. The VIZA runner will not bypass login, CAPTCHA, waiting-room, or policy controls.",
         "captcha": "Complete the CAPTCHA yourself. VIZA does not solve or bypass CAPTCHA.",
         "payment": "Acknowledge the dry-run payment checkpoint. No real payment is made in this environment.",
         "slot_selection": "Choose one observed dry-run appointment slot.",

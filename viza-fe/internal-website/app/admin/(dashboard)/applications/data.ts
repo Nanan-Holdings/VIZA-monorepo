@@ -4,6 +4,10 @@ import {
   getFormVisaType,
   getVisaTypeDisplayName,
 } from "@/lib/visa-destinations";
+import {
+  loadLiveSubmissionSummaries,
+  type LiveSubmissionSummary,
+} from "@/lib/submission-live-status";
 
 export type LifecycleState =
   | "intake"
@@ -272,6 +276,7 @@ export interface AdminApplicationModel {
   packet: PacketStatusSummary;
   external: ExternalStatusSummary;
   result: ResultStatusSummary;
+  liveSubmission: LiveSubmissionSummary | null;
   answers: ApplicationAnswerRow[];
   applicationDocuments: ApplicationDocumentRow[];
   payments: PaymentRecordRow[];
@@ -349,6 +354,7 @@ interface RelatedData {
   packetsByApplication: Map<string, ApplicationPacketRow[]>;
   eventsByApplication: Map<string, ApplicationEventRow[]>;
   notificationsByApplication: Map<string, NotificationEventRow[]>;
+  liveSubmissionByApplication: Map<string, LiveSubmissionSummary>;
 }
 
 export const LIFECYCLE_LABELS: Record<LifecycleState, string> = {
@@ -1008,6 +1014,7 @@ function deriveLifecycleState({
   packet,
   external,
   result,
+  liveSubmission,
   answers,
 }: {
   rawStatus: string;
@@ -1017,11 +1024,14 @@ function deriveLifecycleState({
   packet: PacketStatusSummary;
   external: ExternalStatusSummary;
   result: ResultStatusSummary;
+  liveSubmission: LiveSubmissionSummary | null;
   answers: ApplicationAnswerRow[];
 }): LifecycleState {
   const normalizedRawStatus = normalizeStatus(rawStatus);
 
   if (
+    liveSubmission?.state === "action_required" ||
+    liveSubmission?.state === "failed" ||
     payment.state === "failed" ||
     consent.state === "declined" ||
     documents.state === "rejected" ||
@@ -1038,6 +1048,8 @@ function deriveLifecycleState({
     return "completed";
   }
 
+  if (liveSubmission?.state === "submitted" || liveSubmission?.state === "completed") return "result_delivery";
+  if (liveSubmission?.state === "pending" || liveSubmission?.state === "running") return "external_submission";
   if (result.state !== "none") return "result_delivery";
   if (external.state === "in_progress" || external.state === "submitted" || external.state === "approved") {
     return "external_submission";
@@ -1058,6 +1070,7 @@ function buildMissingItems({
   documents,
   packet,
   external,
+  liveSubmission,
   answers,
 }: {
   payment: PaymentStatusSummary;
@@ -1065,6 +1078,7 @@ function buildMissingItems({
   documents: DocumentStatusSummary;
   packet: PacketStatusSummary;
   external: ExternalStatusSummary;
+  liveSubmission: LiveSubmissionSummary | null;
   answers: ApplicationAnswerRow[];
 }): string[] {
   const items: string[] = [];
@@ -1089,6 +1103,12 @@ function buildMissingItems({
   if (external.state === "attention" || external.state === "rejected") {
     items.push("External status needs follow-up");
   }
+  if (liveSubmission?.pendingManualAction) {
+    items.push(`Official-site action needed: ${liveSubmission.pendingManualAction.actionType.replace(/_/g, " ")}`);
+  }
+  if (liveSubmission?.state === "failed") {
+    items.push("Live-assisted submission failed");
+  }
 
   return items;
 }
@@ -1109,6 +1129,7 @@ function buildApplicationModel(
   const consent = summarizeConsent(consents, signatures);
   const documents = summarizeDocuments(application, applicationDocuments, related.requirements);
   const packet = summarizePacket(application, packets);
+  const liveSubmission = related.liveSubmissionByApplication.get(application.id) ?? null;
   const external = summarizeExternal(application, packet);
   const result = summarizeResult(application);
   const lifecycleState = deriveLifecycleState({
@@ -1119,6 +1140,7 @@ function buildApplicationModel(
     packet,
     external,
     result,
+    liveSubmission,
     answers,
   });
 
@@ -1131,7 +1153,7 @@ function buildApplicationModel(
     visaTypeLabel: getVisaTypeDisplayName(getFormVisaType(application.visa_type)),
     rawStatus: application.status,
     lifecycleState,
-    missingItems: buildMissingItems({ payment, consent, documents, packet, external, answers }),
+    missingItems: buildMissingItems({ payment, consent, documents, packet, external, liveSubmission, answers }),
     profile: related.profilesById.get(application.applicant_id) ?? null,
     visaPackage: application.visa_package_id ? related.packagesById.get(application.visa_package_id) ?? null : null,
     payment,
@@ -1140,6 +1162,7 @@ function buildApplicationModel(
     packet,
     external,
     result,
+    liveSubmission,
     answers,
     applicationDocuments,
     payments,
@@ -1183,6 +1206,7 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     packetRes,
     eventRes,
     notificationRes,
+    liveSubmissionByApplication,
   ] = await Promise.all([
     applicantIds.length > 0
       ? adminClient
@@ -1260,6 +1284,7 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
           .in("application_id", applicationIds)
           .limit(1000)
       : Promise.resolve({ data: [], error: null }),
+    loadLiveSubmissionSummaries(adminClient, applicationIds).catch(() => new Map<string, LiveSubmissionSummary>()),
   ]);
 
   const firstError = [
@@ -1299,6 +1324,7 @@ async function loadRelatedData(applications: ApplicationRow[]): Promise<RelatedD
     packetsByApplication: groupByApplication((packetRes.data ?? []) as ApplicationPacketRow[]),
     eventsByApplication: groupByApplication((eventRes.data ?? []) as ApplicationEventRow[]),
     notificationsByApplication: groupByApplication((notificationRes.data ?? []) as NotificationEventRow[]),
+    liveSubmissionByApplication,
   };
 }
 
