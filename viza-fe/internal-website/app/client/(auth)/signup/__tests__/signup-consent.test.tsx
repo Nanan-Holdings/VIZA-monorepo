@@ -1,9 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ImgHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";
 import ClientSignupPage from "../page";
 
 vi.mock("next/image", () => ({
-  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
+  default: ({ priority: _priority, ...props }: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => (
+    <img {...props} />
+  ),
 }));
 
 vi.mock("next/link", () => ({

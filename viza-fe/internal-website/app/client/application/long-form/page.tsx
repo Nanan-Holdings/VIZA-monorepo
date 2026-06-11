@@ -63,6 +63,7 @@ import {
 import {
   isDs160VisaType,
   isFranceVisasVisaType,
+  isSgArrivalCardApplication,
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
@@ -96,7 +97,10 @@ const VN_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED === "true" &&
   process.env.NEXT_PUBLIC_VN_SUBMISSION_MODE === "live_assisted";
 
-type LiveAssistedTarget = "ds160" | "france" | "vietnam" | null;
+const SGAC_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
+
+type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | null;
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -884,6 +888,7 @@ function FinalConfirmationPanel({
   const hasLiveAssistedTarget = liveAssistedTarget !== null;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
+  const isSgac = liveAssistedTarget === "sgac";
   const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
@@ -896,6 +901,10 @@ function FinalConfirmationPanel({
           ? (isZh
               ? "本地 Vietnam live assisted 环境未启用。请确认 VN_LIVE_SUBMISSION_ENABLED 和 VN_SUBMISSION_MODE。"
               : "Vietnam live assisted is not enabled locally. Check VN_LIVE_SUBMISSION_ENABLED and VN_SUBMISSION_MODE.")
+          : isSgac
+            ? (isZh
+                ? "本地 SG Arrival Card live handoff 已关闭。请确认 SGAC_LIVE_SUBMISSION_ENABLED。"
+                : "SG Arrival Card live handoff is disabled locally. Check SGAC_LIVE_SUBMISSION_ENABLED.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -908,6 +917,8 @@ function FinalConfirmationPanel({
     ? (isZh ? "Live assisted 官网辅助填写" : "Live assisted France-Visas fill")
     : isVietnam
       ? (isZh ? "Live assisted 越南官网辅助填写" : "Live assisted Vietnam e-Visa fill")
+      : isSgac
+        ? (isZh ? "继续 SG Arrival Card 官方提交" : "Continue SG Arrival Card submission")
       : (isZh ? "Live assisted 官网辅助填写" : "Live assisted CEAC fill");
   const liveSafetyCopy = isFrance
     ? (isZh
@@ -917,6 +928,10 @@ function FinalConfirmationPanel({
       ? (isZh
           ? "真实辅助填写会打开越南 e-Visa 官方网站；NOTE 提示、验证码、付款和最终提交都必须由本人处理。VIZA 不会绕过验证码，也不会自动付款或点击最终提交。"
           : "Live assisted mode opens the official Vietnam e-Visa website. NOTE prompts, CAPTCHA, payment, and final submit remain manual. VIZA will not bypass CAPTCHA, pay, or click the final submit.")
+      : isSgac
+        ? (isZh
+            ? "SGAC dry-run 通过后会继续创建 SG Arrival Card 官方提交任务。若官方入口需要本人操作、验证码或页面确认，结果会明确显示 submitted=false 和具体原因。"
+            : "After SGAC dry-run passes, VIZA continues to an SG Arrival Card official-submission task. If the official portal requires manual action, CAPTCHA, or page confirmation, the result will clearly show submitted=false and the reason.")
       : (isZh
           ? "真实辅助填写会打开 CEAC 官网流程；验证码、官网页面核对，以及最终 Sign/Submit 必须由本人完成。VIZA 不会自动点击最终提交。"
           : "Live assisted mode opens the CEAC flow. CAPTCHA, official-page review, and the final Sign/Submit step must be completed by you. VIZA will not click the final official submit button.");
@@ -924,6 +939,8 @@ function FinalConfirmationPanel({
     ? (isZh ? "确认启动 France-Visas 官网辅助填写" : "Confirm live assisted France-Visas fill")
     : isVietnam
       ? (isZh ? "确认启动越南 e-Visa 官网辅助填写" : "Confirm live assisted Vietnam e-Visa fill")
+      : isSgac
+        ? (isZh ? "确认继续 SG Arrival Card 官方提交" : "Confirm SG Arrival Card official submission")
       : (isZh ? "确认启动真实官网辅助填写" : "Confirm live assisted CEAC fill");
   const liveConsentDescription = isFrance
     ? (isZh
@@ -933,6 +950,10 @@ function FinalConfirmationPanel({
       ? (isZh
           ? "这会创建 live_assisted 队列任务并打开越南 e-Visa 官方网站，使用 VIZA 已保存答案辅助填写。NOTE 提示、验证码、付款和最终提交都需要你本人处理。"
           : "This creates a live_assisted queue job and opens the official Vietnam e-Visa website using your saved VIZA answers. NOTE prompts, CAPTCHA, payment, and final submit remain manual.")
+      : isSgac
+        ? (isZh
+            ? "这会创建 SG Arrival Card live_assisted 队列任务，使用 SG_ARRIVAL_CARD 已保存答案构建官方提交 payload。结果会返回是否真实提交、确认/参考号、官方响应摘要和错误详情。"
+            : "This creates an SG Arrival Card live_assisted queue job using the saved SG_ARRIVAL_CARD answers to build the official-submission payload. The result returns submitted status, confirmation/reference number, portal response summary, and error details.")
       : (isZh
           ? "这会创建 live_assisted 队列任务并打开 CEAC 官网填写流程。流程会在验证码、人工检查点或最终 Sign/Submit 前等待你本人操作。"
           : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step.");
@@ -944,6 +965,10 @@ function FinalConfirmationPanel({
       ? (isZh
           ? "我确认这是本人授权的越南 e-Visa 官网辅助填写，并知道 VIZA 不会绕过验证码、自动付款或最终提交。"
           : "I confirm this is my authorized Vietnam e-Visa live assisted fill, and I understand VIZA will not bypass CAPTCHA, pay, or finally submit.")
+      : isSgac
+        ? (isZh
+            ? "我确认这是本人授权的 SG Arrival Card 官方提交任务，并知道若官方入口要求验证码、本人确认或页面操作，VIZA 会停止并显示结构化结果。"
+            : "I confirm this is my authorized SG Arrival Card official-submission task, and I understand VIZA will stop with a structured result if the official portal requires CAPTCHA, personal confirmation, or page action.")
       : (isZh
           ? "我确认这是本人授权的真实官网辅助填写，并知道最终官网提交仍需本人手动确认。"
           : "I confirm this is my authorized live assisted fill, and I understand the final official submission still requires my manual confirmation.");
@@ -951,6 +976,8 @@ function FinalConfirmationPanel({
     ? (isZh ? "启动 France-Visas 辅助填写" : "Start live assisted fill")
     : isVietnam
       ? (isZh ? "启动越南 e-Visa 辅助填写" : "Start Vietnam e-Visa fill")
+      : isSgac
+        ? (isZh ? "继续 SGAC 官方提交" : "Continue SGAC submission")
       : (isZh ? "启动真实辅助填写" : "Start live assisted fill");
 
   return (
@@ -1372,12 +1399,15 @@ export default function ApplicationPage() {
     isFranceVisasVisaType(resolvedVisaType) &&
     ["france", "fr", "法国"].includes(normalizedCountryForLive);
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
+  const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
       ? "france"
       : isVietnamEVisa
         ? "vietnam"
+        : isSgArrivalCard
+          ? "sgac"
         : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
@@ -1385,7 +1415,9 @@ export default function ApplicationPage() {
       ? FRANCE_LIVE_ASSISTED_ENABLED
       : liveAssistedTarget === "vietnam"
         ? VN_LIVE_ASSISTED_ENABLED
-      : false;
+        : liveAssistedTarget === "sgac"
+          ? SGAC_LIVE_ASSISTED_ENABLED
+          : false;
 
   useEffect(() => {
     const href = buildApplicationFormHref(

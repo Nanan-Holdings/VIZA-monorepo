@@ -4214,7 +4214,8 @@
       "resendIn": "Resend in {seconds}s",
       "resendCode": "Resend code",
       "privacyPolicy": "Privacy Policy",
-      "termsOfService": "Terms of Service"
+      "termsOfService": "Terms of Service",
+      "disclaimer": "Disclaimer"
     },
     "signup": {
       "title": "Create your account",
@@ -4238,7 +4239,8 @@
       "requestInvite": "Request Invite",
       "acceptTos": "I accept the",
       "acceptPrivacy": "I accept the",
-      "acceptRequired": "Please accept the Terms of Service and Privacy Policy to continue.",
+      "acceptDisclaimer": "I accept the",
+      "acceptRequired": "Please accept the Terms of Service, Privacy Policy, and Disclaimer to continue.",
       "back": "Back",
       "setPasswordTitle": "Set your password",
       "setPasswordSubtitle": "Use a password with letters, numbers, and a special symbol.",
@@ -4269,7 +4271,8 @@
       "urgentAccess": "For urgent access, contact support at support@viza.com.",
       "backToLogin": "Back to Login",
       "privacyPolicy": "Privacy Policy",
-      "termsOfService": "Terms of Service"
+      "termsOfService": "Terms of Service",
+      "disclaimer": "Disclaimer"
     },
     "forgotPassword": {
       "title": "Reset your password",
