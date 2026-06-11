@@ -463,6 +463,7 @@ function ClientLoginContent() {
         <div className="flex items-center gap-[16px] font-sans text-[clamp(10px,0.85vw,12px)] font-medium tracking-[-0.21px] leading-[1.5] text-[rgba(0,0,0,0.55)] shrink-0">
           <Link href="/privacy" className="whitespace-nowrap hover:opacity-70 transition-opacity">{t('privacyPolicy')}</Link>
           <Link href="/terms" className="whitespace-nowrap hover:opacity-70 transition-opacity">{t('termsOfService')}</Link>
+          <Link href="/disclaimer" className="whitespace-nowrap hover:opacity-70 transition-opacity">{t('disclaimer')}</Link>
           <AuthLanguageSwitcher />
         </div>
       </motion.section>

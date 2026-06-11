@@ -38,6 +38,13 @@ export type SubmissionQueueStatus =
   | "vn_prefilled"
   | "vn_prefill_failed"
   | "vn_blocked"
+  | "sgac_dry_run_pending"
+  | "sgac_dry_run_processing"
+  | "sgac_dry_run_failed"
+  | "sgac_live_assisted_pending"
+  | "sgac_live_assisted_processing"
+  | "sgac_live_assisted_failed"
+  | "sgac_blocked"
   | "au_prefill_pending"
   | "au_prefill_processing"
   | "au_prefilled"
@@ -71,6 +78,15 @@ const VIETNAM_EVISA_TYPES = new Set([
   "TOURIST_EVISA",
 ]);
 
+const SINGAPORE_COUNTRY_ALIASES = new Set([
+  "SG",
+  "SINGAPORE",
+]);
+
+const SG_ARRIVAL_CARD_TYPES = new Set([
+  "SG_ARRIVAL_CARD",
+]);
+
 export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "pending",
   "processing",
@@ -89,6 +105,10 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "vn_dry_run_processing",
   "vn_live_assisted_pending",
   "vn_live_assisted_processing",
+  "sgac_dry_run_pending",
+  "sgac_dry_run_processing",
+  "sgac_live_assisted_pending",
+  "sgac_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -110,6 +130,9 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "uk_blocked",
   "vn_dry_run_failed",
   "vn_live_assisted_failed",
+  "sgac_dry_run_failed",
+  "sgac_live_assisted_failed",
+  "sgac_blocked",
   "vn_prefill_failed",
   "vn_blocked",
   "au_prefill_failed",
@@ -142,6 +165,16 @@ export function isVietnamEVisaApplication(
   );
 }
 
+export function isSgArrivalCardApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    SINGAPORE_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    SG_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
 /** Map a visa package's visa_type to the submission_queue status that
  * routes the worker to the right autofill pipeline. */
 export function queueStatusForVisaType(visaType: string | null | undefined): SubmissionQueueStatus {
@@ -162,6 +195,8 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     case "VN_E_VISA":
     case "VIETNAM_E_VISA":
       return "vn_dry_run_pending";
+    case "SG_ARRIVAL_CARD":
+      return "sgac_dry_run_pending";
     case "AU_VISITOR_600":
       return "au_prefill_pending";
     default:
@@ -190,6 +225,9 @@ export function queueStatusForApplication(
   if (isVietnamEVisaApplication(country, visaType)) {
     return mode === "live_assisted" ? "vn_live_assisted_pending" : "vn_dry_run_pending";
   }
+  if (isSgArrivalCardApplication(country, visaType)) {
+    return mode === "live_assisted" ? "sgac_live_assisted_pending" : "sgac_dry_run_pending";
+  }
 
   return queueStatusForSubmissionMode(visaType, mode);
 }
@@ -204,6 +242,9 @@ export function queueProviderForVisaType(
   if (isFranceVisasVisaType(visaType)) {
     return mode === "live_assisted" ? "france_visas_live" : "france_visas_dry_run";
   }
+  if (SG_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "sg_arrival_card_live" : "sg_arrival_card_dry_run";
+  }
   return null;
 }
 
@@ -214,6 +255,9 @@ export function queueProviderForApplication(
 ): string | null {
   if (isVietnamEVisaApplication(country, visaType)) {
     return mode === "live_assisted" ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
+  }
+  if (isSgArrivalCardApplication(country, visaType)) {
+    return mode === "live_assisted" ? "sg_arrival_card_live" : "sg_arrival_card_dry_run";
   }
   return queueProviderForVisaType(visaType, mode);
 }

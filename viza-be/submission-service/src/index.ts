@@ -42,6 +42,7 @@ import { writeSubmissionResult, markSubmissionFailed, markSubmissionStalled, set
 import {
   applyVietnamAnswerAliases,
   buildCountrySubmissionApplication,
+  getCountrySubmissionProvider,
   runDryRunSubmission,
 } from "./country-submissions";
 import { pollAndRun } from "./queue/worker";
@@ -56,6 +57,7 @@ import type {
   UkSubmissionResult,
   UsSubmissionResult,
   VnSubmissionResult,
+  SgArrivalCardSubmissionResult,
 } from "./submission-result";
 import {
   fillFranceVisasApplication,
@@ -110,6 +112,7 @@ import {
   createUSAppointmentRunnerRepository,
   loadUSAppointmentRunnerConfig,
   pollUSAppointmentAssistedJobs,
+  validateUSAppointmentRunnerStart,
 } from "./us-appointment";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -143,6 +146,10 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "vn_dry_run_processing",
   "vn_live_assisted_pending",
   "vn_live_assisted_processing",
+  "sgac_dry_run_pending",
+  "sgac_dry_run_processing",
+  "sgac_live_assisted_pending",
+  "sgac_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -154,7 +161,7 @@ function isSubmissionDryRunMode(): boolean {
 }
 
 function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
-  return item.mode === "dry_run" || item.status.startsWith("vn_dry_run_");
+  return item.mode === "dry_run" || item.status.startsWith("vn_dry_run_") || item.status.startsWith("sgac_dry_run_");
 }
 
 function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
@@ -163,8 +170,10 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("ds160_live_assisted_") ||
     item.status.startsWith("france_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
+    item.status.startsWith("sgac_live_assisted_") ||
     item.provider === "france_visas_live" ||
-    item.provider === "vietnam_evisa_live"
+    item.provider === "vietnam_evisa_live" ||
+    item.provider === "sg_arrival_card_live"
   );
 }
 
@@ -201,6 +210,8 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "uk_prefill_pending",
       "vn_dry_run_pending",
       "vn_live_assisted_pending",
+      "sgac_dry_run_pending",
+      "sgac_live_assisted_pending",
       "vn_prefill_pending",
       "au_prefill_pending",
     ])
@@ -226,6 +237,10 @@ function isVnJob(item: SubmissionQueueItem): boolean {
   return item.status === "vn_prefill_pending" || item.status === "vn_live_assisted_pending";
 }
 
+function isSgacJob(item: SubmissionQueueItem): boolean {
+  return item.status === "sgac_live_assisted_pending";
+}
+
 function isAuJob(item: SubmissionQueueItem): boolean {
   return item.status === "au_prefill_pending";
 }
@@ -240,6 +255,9 @@ const VIETNAM_EVISA_TYPES = new Set([
   "TOURIST_EVISA",
 ]);
 
+const SINGAPORE_COUNTRY_ALIASES = new Set(["SG", "SINGAPORE"]);
+const SG_ARRIVAL_CARD_TYPES = new Set(["SG_ARRIVAL_CARD"]);
+
 type QueueRoutingApplication = Pick<Application, "id" | "country" | "visa_type">;
 
 function normalizeQueueRoutingValue(value: string | null | undefined): string {
@@ -251,6 +269,26 @@ function isVietnamApplicationMetadata(application: QueueRoutingApplication | nul
   return (
     VIETNAM_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country)) &&
     VIETNAM_EVISA_TYPES.has(normalizeQueueRoutingValue(application.visa_type))
+  );
+}
+
+function isSgArrivalCardApplicationMetadata(application: QueueRoutingApplication | null): boolean {
+  if (!application) return false;
+  return (
+    SINGAPORE_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country)) &&
+    SG_ARRIVAL_CARD_TYPES.has(normalizeQueueRoutingValue(application.visa_type))
+  );
+}
+
+function isSgArrivalCardQueueItem(
+  item: SubmissionQueueItem,
+  application: QueueRoutingApplication | null = null,
+): boolean {
+  return (
+    item.status.startsWith("sgac_") ||
+    item.provider === "sg_arrival_card_dry_run" ||
+    item.provider === "sg_arrival_card_live" ||
+    isSgArrivalCardApplicationMetadata(application)
   );
 }
 
@@ -310,6 +348,51 @@ async function normalizeVietnamQueueItem(item: SubmissionQueueItem): Promise<Sub
 
   console.warn(
     `[vn] Normalized legacy Vietnam queue ${redactIdentifier(item.id)} from status=${item.status} mode=${item.mode ?? "(null)"} provider=${item.provider ?? "(null)"} to ${expectedStatus}`,
+  );
+  return {
+    ...item,
+    status: expectedStatus,
+    mode: expectedMode,
+    provider: expectedProvider,
+    heartbeat_at: now,
+    updated_at: now,
+  };
+}
+
+async function normalizeSgacQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
+  const application = await loadQueueRoutingApplication(item.application_id);
+  if (!isSgArrivalCardQueueItem(item, application)) return item;
+
+  const liveRequested = isLiveAssistedQueueItem(item);
+  const expectedStatus: SubmissionQueueItem["status"] = liveRequested
+    ? "sgac_live_assisted_pending"
+    : "sgac_dry_run_pending";
+  const expectedProvider = liveRequested ? "sg_arrival_card_live" : "sg_arrival_card_dry_run";
+  const expectedMode = liveRequested ? "live_assisted" : "dry_run";
+
+  if (item.status === expectedStatus && item.provider === expectedProvider && item.mode === expectedMode) {
+    return item;
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("submission_queue")
+    .update({
+      status: expectedStatus,
+      mode: expectedMode,
+      provider: expectedProvider,
+      current_stage: "queued",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  if (error) {
+    console.error(`[sgac] Failed to normalize queue ${redactIdentifier(item.id)}: ${error.message}`);
+    return item;
+  }
+
+  console.warn(
+    `[sgac] Normalized queue ${redactIdentifier(item.id)} from status=${item.status} mode=${item.mode ?? "(null)"} provider=${item.provider ?? "(null)"} to ${expectedStatus}`,
   );
   return {
     ...item,
@@ -617,6 +700,9 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("vn_live_assisted_")) return "vn_live_assisted_failed";
   if (status.startsWith("vn_dry_run_")) return "vn_dry_run_failed";
   if (status.startsWith("vn_")) return "vn_prefill_failed";
+  if (status.startsWith("sgac_live_assisted_")) return "sgac_live_assisted_failed";
+  if (status.startsWith("sgac_dry_run_")) return "sgac_dry_run_failed";
+  if (status.startsWith("sgac_")) return "sgac_blocked";
   if (status.startsWith("au_")) return "au_prefill_failed";
   return "failed";
 }
@@ -2995,6 +3081,187 @@ function requireAnswer(map: Record<string, string | null>, field: string): strin
   return v.trim();
 }
 
+const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/";
+
+async function enqueueSgacLiveAfterDryRun(item: SubmissionQueueItem): Promise<string | null> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .insert({
+      application_id: item.application_id,
+      status: "sgac_live_assisted_pending",
+      mode: "live_assisted",
+      provider: "sg_arrival_card_live",
+      attempts: 0,
+      last_error: null,
+      current_stage: "queued_after_dry_run",
+      heartbeat_at: now,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`SGAC dry-run passed but live submission could not be queued: ${error.message}`);
+  }
+
+  await setSubmissionStatus(item.application_id, "waiting");
+  const row = data as { id?: string | null } | null;
+  return row?.id ?? null;
+}
+
+async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
+  console.log(
+    `[sgac] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "sgac_live_assisted_processing",
+      current_stage: "mapping_answers",
+      heartbeat_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    const answers = await loadDs160Answers(item.application_id);
+    const sgacApplication = buildCountrySubmissionApplication(profile, application, answers);
+    const provider = getCountrySubmissionProvider(application.country, application.visa_type);
+    if (!provider || provider.countryCode !== "SG" || application.visa_type !== "SG_ARRIVAL_CARD") {
+      throw new Error(
+        `SGAC live submission requires SG_ARRIVAL_CARD; got country=${application.country} visa_type=${application.visa_type}`,
+      );
+    }
+
+    const validation = provider.validate(sgacApplication);
+    const payload = provider.mapToSubmissionPayload(sgacApplication, {
+      dryRun: false,
+      idempotencyKey: `sgac-live:${item.id}`,
+    });
+    const payloadSummary = {
+      purposeOfTravel: payload.countrySpecific.purpose_of_travel ?? payload.trip.purpose ?? null,
+      arrivalDate: payload.trip.arrivalDate ?? null,
+      modeOfTravel: payload.countrySpecific.mode_of_travel ?? null,
+      transportNumber: payload.countrySpecific.transport_number ?? null,
+      accommodationAddressProvided: Boolean(payload.countrySpecific.accommodation_address?.trim()),
+    };
+
+    if (!validation.ok) {
+      const missingFields = validation.missingRequiredFields;
+      const message = `SGAC live validation failed: missing ${missingFields.join(", ")}.`;
+      const result: SgArrivalCardSubmissionResult = {
+        country: "SG",
+        visaType: "SG_ARRIVAL_CARD",
+        status: "validation_failed",
+        mode: "live_assisted",
+        provider: "sg_arrival_card_live",
+        applicationId: item.application_id,
+        submitted: false,
+        confirmationNumber: null,
+        referenceNumber: null,
+        portalUrl: SGAC_OFFICIAL_PORTAL_URL,
+        portalResponseSummary: "SG Arrival Card was not submitted because required VIZA form data is missing.",
+        errorDetails: {
+          code: "sgac_validation_failed",
+          message,
+          missingFields,
+        },
+        artifacts: { screenshots: [], logs: [], traces: [] },
+        payloadSummary,
+      };
+      await writeSubmissionResult(item.application_id, result, "failed");
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "sgac_live_assisted_failed",
+          attempts: item.attempts + 1,
+          last_error: message,
+          error_code: "sgac_validation_failed",
+          error_message: message,
+          current_stage: "validation_failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      return;
+    }
+
+    const result: SgArrivalCardSubmissionResult = {
+      country: "SG",
+      visaType: "SG_ARRIVAL_CARD",
+      status: "official_portal_handoff_required",
+      mode: "live_assisted",
+      provider: "sg_arrival_card_live",
+      applicationId: item.application_id,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: SGAC_OFFICIAL_PORTAL_URL,
+      portalResponseSummary:
+        "SGAC dry-run validation passed and the official-submission payload was built, including purpose_of_travel. No ICA confirmation number is available because this repository does not contain an ICA SGAC portal runner; open the official ICA SGAC e-Service to complete final submission.",
+      errorDetails: {
+        code: "sgac_official_handoff_required",
+        message:
+          "The SG Arrival Card was not submitted to ICA by automation. Complete final submission through the official ICA SGAC e-Service or MyICA Mobile.",
+      },
+      artifacts: { screenshots: [], logs: [], traces: [] },
+      payloadSummary,
+    };
+
+    await writeSubmissionResult(item.application_id, result, "action_required");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "action_required",
+        last_error: null,
+        error_code: "sgac_official_handoff_required",
+        error_message: result.errorDetails?.message ?? null,
+        current_stage: "official_portal_handoff_required",
+        official_portal_url: SGAC_OFFICIAL_PORTAL_URL,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const result: SgArrivalCardSubmissionResult = {
+      country: "SG",
+      visaType: "SG_ARRIVAL_CARD",
+      status: "official_portal_error",
+      mode: "live_assisted",
+      provider: "sg_arrival_card_live",
+      applicationId: item.application_id,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: SGAC_OFFICIAL_PORTAL_URL,
+      portalResponseSummary: "SG Arrival Card submission failed before an ICA confirmation could be captured.",
+      errorDetails: {
+        code: "sgac_live_worker_error",
+        message: errorMsg,
+      },
+      artifacts: { screenshots: [], logs: [], traces: [] },
+    };
+    await writeSubmissionResult(item.application_id, result, "failed");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "sgac_live_assisted_failed",
+        attempts: item.attempts + 1,
+        last_error: errorMsg,
+        error_code: "sgac_live_worker_error",
+        error_message: errorMsg,
+        current_stage: "failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    console.error(`[sgac] Live submission failed: ${errorMsg}`);
+  }
+}
+
 async function processDryRunItem(
   item: SubmissionQueueItem,
   source: "global_dry_run" | "legacy_fallback" | "ds160_default_dry_run",
@@ -3005,7 +3272,10 @@ async function processDryRunItem(
 
   await supabase
     .from("submission_queue")
-    .update({ status: "processing", updated_at: new Date().toISOString() })
+    .update({
+      status: item.status === "sgac_dry_run_pending" ? "sgac_dry_run_processing" : "processing",
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", item.id);
   await setSubmissionStatus(item.application_id, "processing");
 
@@ -3025,6 +3295,10 @@ async function processDryRunItem(
       dryRun: true,
       idempotencyKey: `submission-queue:${item.id}`,
     });
+    const isSgacDryRun =
+      isSgArrivalCardQueueItem(item, application) &&
+      item.status.startsWith("sgac_dry_run_") &&
+      result.status === "submitted_mock";
     const validationFailed =
       result.status === "unsupported" &&
       result.message.startsWith("Dry-run validation failed:");
@@ -3033,6 +3307,11 @@ async function processDryRunItem(
 
     if (validationFailed) {
       await markSubmissionFailed(item.application_id, result.message);
+    } else if (isSgacDryRun) {
+      const liveJobId = await enqueueSgacLiveAfterDryRun(item);
+      console.log(
+        `[sgac] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
+      );
     } else {
       await writeSubmissionResult(item.application_id, result, resultStatus);
     }
@@ -3040,7 +3319,7 @@ async function processDryRunItem(
     await supabase
       .from("submission_queue")
       .update({
-        status: result.status === "submitted_mock" ? "done" : "failed",
+        status: result.status === "submitted_mock" ? "done" : failedStatusForQueueStatus(item.status),
         last_error: result.status === "unsupported" ? result.message : null,
         updated_at: new Date().toISOString(),
       })
@@ -3138,7 +3417,7 @@ async function pollOnce(): Promise<void> {
 
   // Process sequentially to avoid parallel browser sessions overwhelming the host
   for (const rawItem of items) {
-    const item = await normalizeVietnamQueueItem(rawItem);
+    const item = await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem));
     if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160Job(item)) {
@@ -3182,6 +3461,8 @@ async function pollOnce(): Promise<void> {
       await processUkItem(item);
     } else if (isVnJob(item)) {
       await processVnItem(item);
+    } else if (isSgacJob(item)) {
+      await processSgacLiveItem(item);
     } else if (isAuJob(item)) {
       await processAuItem(item);
     } else {
@@ -3278,8 +3559,14 @@ async function main(): Promise<void> {
       `batchSize=${usAppointmentConfig.batchSize}`,
       `emailTimeoutMs=${usAppointmentConfig.emailTimeoutMs}`,
       `slotCooldownMs=${usAppointmentConfig.slotCheckCooldownMs}`,
+      `captchaSolving=${usAppointmentConfig.captchaSolvingEnabled}`,
+      `twoCaptchaConfigured=${usAppointmentConfig.twoCaptchaConfigured}`,
     ].join(" "),
   );
+  const usAppointmentStartError = validateUSAppointmentRunnerStart(usAppointmentConfig);
+  if (usAppointmentStartError) {
+    console.warn(`[main] US appointment runner startup check blocked: ${usAppointmentStartError}`);
+  }
 
   // DEP-004: health server for Cloud Run probes (/health, /ready).
   startHealthServer({ isWorkerStarted: () => runnerStarted });
