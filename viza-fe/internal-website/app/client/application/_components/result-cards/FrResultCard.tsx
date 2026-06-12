@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, CalendarCheck, FileDown, Loader2, MapPin, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarCheck,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileDown,
+  Loader2,
+  MapPin,
+  ShieldCheck,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +32,13 @@ type ManualAction = {
   screenshotUrl: string | null;
 };
 
+type FvOfficialAccount = {
+  email: string | null;
+  password: string | null;
+  portalUrl: string;
+  updatedAt: string | null;
+};
+
 export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -30,6 +47,9 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const [manualAnswer, setManualAnswer] = useState("");
   const [manualActionError, setManualActionError] = useState<string | null>(null);
   const [completingAction, setCompletingAction] = useState(false);
+  const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const liveAssisted = result.mode === "live_assisted" || result.status === "final_review_required";
   const badgeLabel = liveAssisted
     ? "Manual review required"
@@ -97,6 +117,43 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
     };
 
     void loadManualAction();
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationId, liveAssisted]);
+
+  useEffect(() => {
+    if (!liveAssisted) return;
+    let cancelled = false;
+
+    const loadOfficialAccount = async () => {
+      try {
+        const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as {
+          account?: FvOfficialAccount | null;
+          error?: unknown;
+        } | null;
+        if (!response.ok) {
+          throw new Error(
+            typeof payload?.error === "string"
+              ? payload.error
+              : `France-Visas account returned ${response.status}`,
+          );
+        }
+        if (!cancelled) {
+          setOfficialAccount(payload?.account ?? null);
+          setAccountError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAccountError(error instanceof Error ? error.message : String(error));
+        }
+      }
+    };
+
+    void loadOfficialAccount();
     return () => {
       cancelled = true;
     };
@@ -180,6 +237,60 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             <p className="mt-2 text-sm leading-relaxed text-amber-900">
               {result.manualAction.instructions}
             </p>
+          </div>
+        )}
+
+        {liveAssisted && (officialAccount || accountError) && (
+          <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-brand-700">
+              <ShieldCheck className="h-4 w-4" />
+              {isZh ? "France-Visas 官方账号" : "France-Visas official account"}
+            </div>
+            {officialAccount && (
+              <>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                    <div className="text-xs text-brand-700">{isZh ? "账号邮箱" : "Account email"}</div>
+                    <div className="mt-0.5 break-all font-mono text-sm text-foreground">
+                      {officialAccount.email ?? (isZh ? "尚未生成" : "Not generated yet")}
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                    <div className="text-xs text-brand-700">{isZh ? "账号密码" : "Account password"}</div>
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <span className="break-all font-mono text-sm text-foreground">
+                        {officialAccount.password
+                          ? showPassword
+                            ? officialAccount.password
+                            : "••••••••••••"
+                          : (isZh ? "尚未生成" : "Not generated yet")}
+                      </span>
+                      {officialAccount.password && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => setShowPassword((value) => !value)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Button asChild variant="outline" className="w-full bg-white">
+                  <a href={officialAccount.portalUrl} target="_blank" rel="noopener noreferrer">
+                    {isZh ? "打开 France-Visas 官网核验草稿" : "Open France-Visas to verify the draft"}
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </>
+            )}
+            {accountError && (
+              <p className="text-sm text-red-700">{accountError}</p>
+            )}
           </div>
         )}
 
