@@ -68,7 +68,7 @@ async function clickVisibleRoleButton(page: Page, name: RegExp): Promise<void> {
 
 function isConfirmationBody(body: string): boolean {
   if (/Security Verification|Enter text here|Try another text/i.test(body)) return false;
-  return /Submission\s*(?:Successful|Completed)|Successfully\s*submitted|DE\s*No\.?|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(body);
+  return /Submission\s*(?:is\s*)?(?:Successful|Completed)|Successfully\s*submitted|DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(body);
 }
 
 async function solveSecurityVerificationIfPresent(
@@ -311,7 +311,7 @@ async function fillTripStep(page: Page, payload: SgacPortalPayload): Promise<voi
 
 function extractReferenceNumbers(body: string): { confirmationNumber: string | null; referenceNumber: string | null } {
   const confirmation =
-    /(?:DE\s*No\.?|Submission\s*(?:No\.?|Number)|Confirmation\s*(?:No\.?|Number))\s*[:：]?\s*([A-Z0-9-]{6,})/i.exec(body)?.[1] ??
+    /(?:DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Submission\s*(?:No\.?|Number)|Confirmation\s*(?:No\.?|Number))\s*[:：]?\s*([A-Z0-9-]{6,})/i.exec(body)?.[1] ??
     null;
   const reference =
     /(?:Reference\s*(?:No\.?|Number)|Acknowledgement\s*(?:No\.?|Number))\s*[:：]?\s*([A-Z0-9-]{6,})/i.exec(body)?.[1] ??
@@ -357,7 +357,7 @@ export async function runSgacPortalSubmission(
     await solveSecurityVerificationIfPresent(page, artifactDir, logs);
     await Promise.race([
       page.waitForFunction(
-        () => /Submission\s*(?:Successful|Completed)|Successfully\s*submitted|DE\s*No\.?|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(document.body.innerText) &&
+        () => /Submission\s*(?:is\s*)?(?:Successful|Completed)|Successfully\s*submitted|DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(document.body.innerText) &&
           !/Security Verification|Enter text here|Try another text/i.test(document.body.innerText),
         null,
         { timeout: 90_000 },
