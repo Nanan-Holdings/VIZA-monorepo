@@ -114,6 +114,13 @@ import {
   pollUSAppointmentAssistedJobs,
   validateUSAppointmentRunnerStart,
 } from "./us-appointment";
+import {
+  normalizeSgacPortalPayload,
+  runSgacPortalSubmission,
+  SGAC_OFFICIAL_PORTAL_URL,
+  SgacPortalError,
+  SgacPortalValidationError,
+} from "./sgac";
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_ATTEMPTS = 3;
@@ -1647,7 +1654,7 @@ async function registerFvAccountForQueue(input: {
     },
   );
 
-  await supabase
+  const { error: resultPayloadError } = await supabase
     .from("submission_queue")
     .update({
       fv_result_payload: {
@@ -1659,6 +1666,24 @@ async function registerFvAccountForQueue(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.item.id);
+  if (resultPayloadError) {
+    const message = resultPayloadError.message.toLowerCase();
+    if (
+      resultPayloadError.code === "PGRST204" ||
+      message.includes("fv_result_payload") ||
+      message.includes("could not find")
+    ) {
+      await supabase
+        .from("submission_queue")
+        .update({
+          official_status: "account_registered",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", input.item.id);
+    } else {
+      throw new Error(`Failed to record France account registration telemetry: ${resultPayloadError.message}`);
+    }
+  }
 
   return persistRegisteredFvAccount({
     item: input.item,
@@ -3081,8 +3106,6 @@ function requireAnswer(map: Record<string, string | null>, field: string): strin
   return v.trim();
 }
 
-const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/";
-
 async function enqueueSgacLiveAfterDryRun(item: SubmissionQueueItem): Promise<string | null> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -3127,8 +3150,37 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
     .eq("id", item.id);
   await setSubmissionStatus(item.application_id, "processing");
 
+  let lastPayloadSummary: SgArrivalCardSubmissionResult["payloadSummary"] | undefined;
+  let artifactOwnerId: string | null = null;
+
+  async function uploadSgacScreenshots(paths: string[]): Promise<string[]> {
+    if (!artifactOwnerId) return paths;
+    const uploaded: string[] = [];
+    for (const filePath of paths) {
+      try {
+        uploaded.push(
+          await uploadArtifact({
+            authUserId: artifactOwnerId,
+            applicationId: item.application_id,
+            country: "SG",
+            kind: "sgac-screenshot",
+            ext: "png",
+            contentType: "image/png",
+            filePath,
+          }),
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[sgac] Failed to upload screenshot artifact: ${message}`);
+        uploaded.push(filePath);
+      }
+    }
+    return uploaded;
+  }
+
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
+    artifactOwnerId = profile.auth_user_id ?? null;
     const answers = await loadDs160Answers(item.application_id);
     const sgacApplication = buildCountrySubmissionApplication(profile, application, answers);
     const provider = getCountrySubmissionProvider(application.country, application.visa_type);
@@ -3150,6 +3202,7 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       transportNumber: payload.countrySpecific.transport_number ?? null,
       accommodationAddressProvided: Boolean(payload.countrySpecific.accommodation_address?.trim()),
     };
+    lastPayloadSummary = payloadSummary;
 
     if (!validation.ok) {
       const missingFields = validation.missingRequiredFields;
@@ -3190,10 +3243,73 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       return;
     }
 
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: "running_ica_portal",
+        official_portal_url: SGAC_OFFICIAL_PORTAL_URL,
+        heartbeat_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    const portalPayload = normalizeSgacPortalPayload(payload);
+    const portalResult = await runSgacPortalSubmission(portalPayload, {
+      headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
+      stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+    });
+    const screenshotArtifacts = await uploadSgacScreenshots(portalResult.screenshots);
+
     const result: SgArrivalCardSubmissionResult = {
       country: "SG",
       visaType: "SG_ARRIVAL_CARD",
-      status: "official_portal_handoff_required",
+      status: portalResult.submitted ? "submitted" : "official_portal_error",
+      mode: "live_assisted",
+      provider: "sg_arrival_card_live",
+      applicationId: item.application_id,
+      submitted: portalResult.submitted,
+      confirmationNumber: portalResult.confirmationNumber ?? null,
+      referenceNumber: portalResult.referenceNumber ?? null,
+      portalUrl: portalResult.portalUrl,
+      portalResponseSummary: portalResult.portalResponseSummary,
+      errorDetails: portalResult.submitted
+        ? undefined
+        : {
+            code: "sgac_stopped_before_submit",
+            message:
+              "ICA SGAC runner reached Review, but final submit was disabled by SGAC_STOP_BEFORE_SUBMIT.",
+          },
+      artifacts: { screenshots: screenshotArtifacts, logs: portalResult.logs, traces: [] },
+      payloadSummary,
+    };
+
+    await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: portalResult.submitted ? "done" : "sgac_live_assisted_failed",
+        last_error: null,
+        error_code: result.errorDetails?.code ?? null,
+        error_message: result.errorDetails?.message ?? null,
+        current_stage: portalResult.submitted ? "submitted" : "stopped_before_submit",
+        official_portal_url: portalResult.portalUrl,
+        official_confirmation_number_encrypted: portalResult.confirmationNumber
+          ? encryptSecret(portalResult.confirmationNumber)
+          : null,
+        live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
+        live_screenshot_url: screenshotArtifacts[0] ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const screenshots =
+      err instanceof SgacPortalError ? await uploadSgacScreenshots(err.screenshotPaths) : [];
+    const isValidationError = err instanceof SgacPortalValidationError;
+    const result: SgArrivalCardSubmissionResult = {
+      country: "SG",
+      visaType: "SG_ARRIVAL_CARD",
+      status: isValidationError ? "validation_failed" : "official_portal_error",
       mode: "live_assisted",
       provider: "sg_arrival_card_live",
       applicationId: item.application_id,
@@ -3202,48 +3318,22 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       referenceNumber: null,
       portalUrl: SGAC_OFFICIAL_PORTAL_URL,
       portalResponseSummary:
-        "SGAC dry-run validation passed and the official-submission payload was built, including purpose_of_travel. No ICA confirmation number is available because this repository does not contain an ICA SGAC portal runner; open the official ICA SGAC e-Service to complete final submission.",
+        err instanceof SgacPortalError && err.portalSummary
+          ? err.portalSummary
+          : isValidationError
+            ? "SG Arrival Card was not submitted because VIZA could not map all required data into the ICA portal payload."
+            : "SG Arrival Card submission failed before an ICA confirmation could be captured.",
       errorDetails: {
-        code: "sgac_official_handoff_required",
-        message:
-          "The SG Arrival Card was not submitted to ICA by automation. Complete final submission through the official ICA SGAC e-Service or MyICA Mobile.",
-      },
-      artifacts: { screenshots: [], logs: [], traces: [] },
-      payloadSummary,
-    };
-
-    await writeSubmissionResult(item.application_id, result, "action_required");
-    await supabase
-      .from("submission_queue")
-      .update({
-        status: "action_required",
-        last_error: null,
-        error_code: "sgac_official_handoff_required",
-        error_message: result.errorDetails?.message ?? null,
-        current_stage: "official_portal_handoff_required",
-        official_portal_url: SGAC_OFFICIAL_PORTAL_URL,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    const result: SgArrivalCardSubmissionResult = {
-      country: "SG",
-      visaType: "SG_ARRIVAL_CARD",
-      status: "official_portal_error",
-      mode: "live_assisted",
-      provider: "sg_arrival_card_live",
-      applicationId: item.application_id,
-      submitted: false,
-      confirmationNumber: null,
-      referenceNumber: null,
-      portalUrl: SGAC_OFFICIAL_PORTAL_URL,
-      portalResponseSummary: "SG Arrival Card submission failed before an ICA confirmation could be captured.",
-      errorDetails: {
-        code: "sgac_live_worker_error",
+        code: isValidationError
+          ? err.code
+          : err instanceof SgacPortalError
+            ? err.code
+            : "sgac_live_worker_error",
         message: errorMsg,
+        missingFields: isValidationError ? err.missingFields : undefined,
       },
-      artifacts: { screenshots: [], logs: [], traces: [] },
+      artifacts: { screenshots, logs: [], traces: [] },
+      payloadSummary: lastPayloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");
     await supabase
@@ -3252,9 +3342,10 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
         status: "sgac_live_assisted_failed",
         attempts: item.attempts + 1,
         last_error: errorMsg,
-        error_code: "sgac_live_worker_error",
+        error_code: result.errorDetails?.code ?? "sgac_live_worker_error",
         error_message: errorMsg,
-        current_stage: "failed",
+        current_stage: isValidationError ? "portal_payload_validation_failed" : "failed",
+        live_screenshot_url: screenshots[0] ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);

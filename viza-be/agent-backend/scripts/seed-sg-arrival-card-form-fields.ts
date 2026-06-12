@@ -7,12 +7,11 @@
  * Singapore unless an ICA exemption applies.
  *
  * Source baseline: ICA SG Arrival Card with Electronic Health Declaration.
- * VIZA collects and reviews the traveller's information only. The traveller
- * must submit the final SGAC through ICA SGAC e-Service or MyICA Mobile.
+ * VIZA collects, reviews, validates, and passes the traveller's saved
+ * information to the submission-service SGAC ICA portal runner.
  *
  * Out of scope: Singapore Visit Visa / SAVE, pass applications, group
- * submission, payment, CAPTCHA, official-site automation, and final official
- * submission.
+ * submission, and payment.
  *
  * Run: npx tsx scripts/seed-sg-arrival-card-form-fields.ts
  */
@@ -92,6 +91,11 @@ const ACCOMMODATION_TYPE_OPTIONS = [
   { value: "others", text: "Others" },
 ];
 
+const ACCOMMODATION_OTHER_OPTIONS = [
+  { value: "day_trip", text: "Day trip" },
+  { value: "transit", text: "Transit" },
+];
+
 const COUNTRY_VISITED_HISTORY_OPTIONS = [
   { value: "none", text: "No recent travel to countries requiring declaration" },
   { value: "yes", text: "Yes, I have recent travel history to declare" },
@@ -100,6 +104,9 @@ const COUNTRY_VISITED_HISTORY_OPTIONS = [
 const HAS_OTHER_PURPOSE = "purpose_of_travel === other";
 const HAS_FLIGHT_OR_VESSEL = "mode_of_travel === air || mode_of_travel === sea";
 const HAS_VEHICLE = "mode_of_travel === land";
+const HAS_HOTEL = "accommodation_type === hotel";
+const HAS_RESIDENTIAL = "accommodation_type === residential";
+const HAS_OTHER_ACCOMMODATION = "accommodation_type === others";
 const HAS_DECLARABLE_TRAVEL_HISTORY = "recent_country_visit_history === yes";
 const HAS_SYMPTOMS = "has_health_symptoms === yes";
 
@@ -110,8 +117,10 @@ const FIELDS: FieldDef[] = [
   { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Traveller Information", display_order: 4, placeholder: "YYYY-MM-DD", validation_rules: rules("出生日期", { format: "YYYY-MM-DD" }) },
   { field_name: "nationality", label: "Nationality / Citizenship", field_type: "country", required: true, step_number: 1, step_name: "Traveller Information", display_order: 5, validation_rules: rules("国籍", { source: "ISO3166-1" }) },
   { field_name: "date_of_birth_country", label: "Country/Region of birth", field_type: "country", required: false, step_number: 1, step_name: "Traveller Information", display_order: 6, validation_rules: rules("出生国家/地区", { source: "ISO3166-1" }) },
-  { field_name: "email_address", label: "Email address for SGAC acknowledgement and e-Pass notices", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 7, placeholder: "name@example.com", validation_rules: rules("接收 SGAC 确认和 e-Pass 通知的邮箱", { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" }) },
-  { field_name: "mobile_number", label: "Mobile number", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 8, placeholder: "Including country code", validation_rules: rules("手机号码（含国家/地区区号）", { maxLength: 30 }) },
+  { field_name: "place_of_residence", label: "Place of residence / City", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 7, placeholder: "e.g. CHINA, BEIJING, BEIJING", validation_rules: rules("居住地 / 城市（用于匹配 ICA 选项）", { maxLength: 120 }) },
+  { field_name: "email_address", label: "Email address for SGAC acknowledgement and e-Pass notices", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 8, placeholder: "name@example.com", validation_rules: rules("接收 SGAC 确认和 e-Pass 通知的邮箱", { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" }) },
+  { field_name: "mobile_number", label: "Mobile number", field_type: "text", required: true, step_number: 1, step_name: "Traveller Information", display_order: 9, placeholder: "Including country code", validation_rules: rules("手机号码（含国家/地区区号）", { maxLength: 30 }) },
+  { field_name: "has_used_different_name_to_enter_singapore", label: "Have you ever used a passport under a different name to enter Singapore?", field_type: "radio", required: true, step_number: 1, step_name: "Traveller Information", display_order: 10, options: YES_NO, validation_rules: rules("是否曾用不同姓名的护照入境新加坡？") },
 
   { field_name: "passport_number", label: "Passport / Travel document number", field_type: "text", required: true, step_number: 2, step_name: "Passport Details", display_order: 1, placeholder: "As shown in passport", validation_rules: rules("护照或旅行证件号码", { maxLength: 20 }) },
   { field_name: "passport_issuing_country", label: "Passport / Travel document issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport Details", display_order: 2, validation_rules: rules("护照或旅行证件签发国家/地区", { source: "ISO3166-1" }) },
@@ -120,8 +129,8 @@ const FIELDS: FieldDef[] = [
   { field_name: "passport_validity_acknowledgement", label: "I understand Singapore entry requirements may require sufficient passport validity and any required visa before travel.", field_type: "checkbox", required: true, step_number: 2, step_name: "Passport Details", display_order: 5, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉入境新加坡仍需满足护照有效期和签证等入境要求") },
 
   { field_name: "arrival_date", label: "Date of arrival in Singapore", field_type: "date", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 1, placeholder: "YYYY-MM-DD", validation_rules: rules("抵达新加坡日期", { format: "YYYY-MM-DD" }) },
-  { field_name: "departure_date", label: "Date of departure from Singapore", field_type: "date", required: false, step_number: 3, step_name: "Trip to Singapore", display_order: 2, placeholder: "YYYY-MM-DD", validation_rules: rules("离开新加坡日期", { format: "YYYY-MM-DD" }) },
-  { field_name: "purpose_of_travel", label: "Purpose of travel", field_type: "select", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 3, options: TRAVEL_PURPOSE_OPTIONS, validation_rules: rules("旅行目的") },
+  { field_name: "departure_date", label: "Date of departure from Singapore", field_type: "date", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 2, placeholder: "YYYY-MM-DD", validation_rules: rules("离开新加坡日期", { format: "YYYY-MM-DD" }) },
+  { field_name: "purpose_of_travel", label: "Purpose of travel", field_type: "select", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 3, options: TRAVEL_PURPOSE_OPTIONS, validation_rules: rules("旅行目的", { display_label: "旅行目的 / Purpose of travel" }) },
   { field_name: "purpose_of_travel_other", label: "Specify other purpose of travel", field_type: "text", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 4, conditional_logic: { showIf: HAS_OTHER_PURPOSE }, validation_rules: rules("请说明其他旅行目的", { maxLength: 120 }) },
   { field_name: "last_city_or_port_before_singapore", label: "Last city / port before Singapore", field_type: "text", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 5, placeholder: "e.g. Shanghai, Kuala Lumpur, Bangkok", validation_rules: rules("抵达新加坡前最后停留城市或口岸", { maxLength: 80 }) },
   { field_name: "next_city_or_port_after_singapore", label: "Next city / port after Singapore", field_type: "text", required: false, step_number: 3, step_name: "Trip to Singapore", display_order: 6, placeholder: "If known", validation_rules: rules("离开新加坡后的下一站城市或口岸", { maxLength: 80 }) },
@@ -131,11 +140,17 @@ const FIELDS: FieldDef[] = [
   { field_name: "vehicle_registration_number", label: "Vehicle registration number", field_type: "text", required: false, step_number: 3, step_name: "Trip to Singapore", display_order: 10, conditional_logic: { showIf: HAS_VEHICLE }, validation_rules: rules("车辆注册号码", { maxLength: 30 }) },
 
   { field_name: "accommodation_type", label: "Accommodation type in Singapore", field_type: "select", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 1, options: ACCOMMODATION_TYPE_OPTIONS, validation_rules: rules("在新加坡住宿类型") },
-  { field_name: "accommodation_name", label: "Hotel / residence / host name", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 2, placeholder: "Hotel name or host name", validation_rules: rules("酒店、住处或接待方名称", { maxLength: 120 }) },
-  { field_name: "accommodation_address", label: "Address in Singapore", field_type: "textarea", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 3, placeholder: "Full address in Singapore", validation_rules: rules("在新加坡停留地址", { maxLength: 300 }) },
-  { field_name: "accommodation_postcode", label: "Singapore postal code", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 4, validation_rules: rules("新加坡邮政编码", { pattern: "^[0-9]{6}$" }) },
-  { field_name: "contact_person_in_singapore", label: "Contact person in Singapore (if any)", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 5, validation_rules: rules("新加坡联系人（如有）", { maxLength: 120 }) },
-  { field_name: "contact_phone_in_singapore", label: "Contact phone in Singapore (if any)", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 6, validation_rules: rules("新加坡联系电话（如有）", { maxLength: 30 }) },
+  { field_name: "accommodation_name", label: "Hotel name", field_type: "text", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 2, conditional_logic: { showIf: HAS_HOTEL }, placeholder: "e.g. Marina Bay Sands", validation_rules: rules("酒店名称", { maxLength: 120 }) },
+  { field_name: "accommodation_other_type", label: "Accommodation (Others)", field_type: "select", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 3, conditional_logic: { showIf: HAS_OTHER_ACCOMMODATION }, options: ACCOMMODATION_OTHER_OPTIONS, validation_rules: rules("其他住宿类型") },
+  { field_name: "accommodation_address", label: "Address in Singapore", field_type: "textarea", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 4, conditional_logic: { showIf: HAS_RESIDENTIAL }, placeholder: "Full address in Singapore", validation_rules: rules("在新加坡停留地址", { maxLength: 300 }) },
+  { field_name: "accommodation_postcode", label: "Singapore postal code", field_type: "text", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 5, conditional_logic: { showIf: HAS_RESIDENTIAL }, validation_rules: rules("新加坡邮政编码", { pattern: "^[0-9]{6}$" }) },
+  { field_name: "accommodation_block_number", label: "Block / house number", field_type: "text", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 6, conditional_logic: { showIf: HAS_RESIDENTIAL }, validation_rules: rules("门牌或楼号", { maxLength: 20 }) },
+  { field_name: "accommodation_street_name", label: "Street name", field_type: "text", required: true, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 7, conditional_logic: { showIf: HAS_RESIDENTIAL }, validation_rules: rules("街道名称", { maxLength: 120 }) },
+  { field_name: "accommodation_building_name", label: "Building name", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 8, conditional_logic: { showIf: HAS_RESIDENTIAL }, validation_rules: rules("建筑名称", { maxLength: 120 }) },
+  { field_name: "accommodation_floor_number", label: "Floor number", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 9, conditional_logic: { showIf: HAS_RESIDENTIAL }, validation_rules: rules("楼层", { maxLength: 10 }) },
+  { field_name: "accommodation_unit_number", label: "Unit number", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 10, conditional_logic: { showIf: HAS_RESIDENTIAL }, validation_rules: rules("单位号", { maxLength: 10 }) },
+  { field_name: "contact_person_in_singapore", label: "Contact person in Singapore (if any)", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 11, validation_rules: rules("新加坡联系人（如有）", { maxLength: 120 }) },
+  { field_name: "contact_phone_in_singapore", label: "Contact phone in Singapore (if any)", field_type: "text", required: false, step_number: 4, step_name: "Contact and Stay in Singapore", display_order: 12, validation_rules: rules("新加坡联系电话（如有）", { maxLength: 30 }) },
 
   { field_name: "recent_country_visit_history", label: "Recent travel history relevant to electronic health declaration", field_type: "radio", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 1, options: COUNTRY_VISITED_HISTORY_OPTIONS, validation_rules: rules("电子健康申报相关近期旅行史") },
   { field_name: "recent_country_visit_details", label: "Countries/regions and dates visited recently", field_type: "textarea", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 2, conditional_logic: { showIf: HAS_DECLARABLE_TRAVEL_HISTORY }, placeholder: "List countries/regions and dates", validation_rules: rules("请列明近期到访国家/地区及日期", { maxLength: 500 }) },
@@ -146,7 +161,7 @@ const FIELDS: FieldDef[] = [
 
   { field_name: "sgac_is_not_visa_acknowledgement", label: "I understand the SG Arrival Card is not a visa and does not replace visa or entry requirements.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 1, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉 SG Arrival Card 不是签证，不能替代签证或其他入境要求") },
   { field_name: "official_submission_timing_acknowledgement", label: "I understand SGAC should normally be submitted within three (3) days including the day of arrival before arriving in Singapore.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 2, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉 SGAC 通常应在抵达前 3 天内（含抵达当天）通过官方渠道提交") },
-  { field_name: "official_submission_acknowledgement", label: "I understand VIZA prepares and reviews my information only; I must submit the final SGAC via ICA SGAC e-Service or MyICA Mobile.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 3, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉 VIZA 仅准备和核对资料，最终 SGAC 需本人通过 ICA 官方渠道提交") },
+  { field_name: "official_submission_acknowledgement", label: "I authorize VIZA to submit my SG Arrival Card through the official ICA SGAC e-Service using the information I provided.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 3, options: [{ value: "yes", text: "I authorize" }], validation_rules: rules("我授权 VIZA 使用我提供的信息通过 ICA 官方 SGAC e-Service 提交 SG Arrival Card") },
   { field_name: "final_declaration", label: "I declare that the information prepared here is true, complete, and matches my travel document and itinerary.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 4, options: [{ value: "yes", text: "I agree" }], validation_rules: rules("我声明以上资料真实、完整，并与旅行证件和行程一致") },
 ];
 

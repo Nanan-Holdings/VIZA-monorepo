@@ -55,6 +55,7 @@ export type FvPageId =
 const URL_PATTERNS: ReadonlyArray<[FvPageId, RegExp]> = [
   ["registration", /login-actions\/registration/i],
   ["login", /login-actions\/authenticate/i],
+  ["check_mailbox", /login-actions\/required-action.*execution=VERIFY_EMAIL/i],
   ["email_verified", /execute-actions|verify-email/i],
   ["accueil", /accueil\.xhtml/i],
   ["step1", /step1\.xhtml/i],

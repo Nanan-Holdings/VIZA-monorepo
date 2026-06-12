@@ -26,6 +26,7 @@ import { detectPage } from "./pages";
 import { detectGate, type GateDetectionResult } from "./gates";
 import { solveStartPageCaptcha, type StartPageCaptchaOutcome } from "./start-page-captcha";
 import { launchStealthBrowser } from "./stealth-browser";
+import { gotoCeacStartPage } from "./session";
 
 export type SmokeOutcome = "start_page" | "anti_bot_gate" | "blocked";
 
@@ -70,10 +71,7 @@ export async function probeCeacStartPage(options: {
     const page = handles.page;
 
     try {
-      await page.goto(CEAC_URLS.START, {
-        waitUntil: "domcontentloaded",
-        timeout: timeoutMs,
-      });
+      await gotoCeacStartPage(page, timeoutMs);
     } catch (err) {
       return {
         outcome: "blocked",
@@ -191,10 +189,7 @@ export async function probeCaptchaSolve(options: {
     browser = handles.browser;
     const page = handles.page;
 
-    await page.goto(CEAC_URLS.START, {
-      waitUntil: "domcontentloaded",
-      timeout: timeoutMs,
-    });
+    await gotoCeacStartPage(page, timeoutMs);
 
     const outcome = await solveStartPageCaptcha(page);
     const postProbe = await detectPage(page);
