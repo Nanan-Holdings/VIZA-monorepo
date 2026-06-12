@@ -83,9 +83,16 @@ export type DestinationTripHints = {
 
 export type TravelIntentKind =
   | "plan_trip"
+  | "create_itinerary"
   | "choose_destination"
+  | "destination_lookup"
   | "edit_itinerary"
+  | "modify_itinerary"
+  | "remove_item"
+  | "replace_item"
+  | "clarify_needed"
   | "ask_question"
+  | "invalid_or_unrelated"
   | "unknown";
 
 export type DestinationResolutionMethod =
@@ -1149,6 +1156,31 @@ const EDIT_INTENT_PATTERNS = [
   /\b(delete|remove|reorder|refresh|change|edit|revise|move|replace)\b/i,
 ];
 
+const REMOVE_ITEM_INTENT_PATTERNS = [
+  /^(?:不要|别要|不想要|删除|删掉|移除|去掉)(?:这个|这个卡片|这张卡片|它|此项)?$/u,
+  /^(?:这个|这张卡片|它)(?:不要|删掉|删除|移除|去掉)$/u,
+  /^(?:不要|别安排|不安排|删除|删掉|移除|去掉).{1,20}$/u,
+  /我不(?:喜欢|想去|想要).{0,12}(?:这个|景点|卡片|地方)?$/u,
+  /\b(?:remove|delete|drop)\s+(?:this|this card|it)\b/i,
+  /\b(?:remove|delete|drop)\s+.{1,40}$/i,
+];
+
+const REPLACE_ITEM_INTENT_PATTERNS = [
+  /^(?:换一个|换个|换一下|换掉|替换|换成)$/u,
+  /(?:换掉|替换|换成|改成)/u,
+  /\b(?:replace|swap|change)\b/i,
+];
+
+const CLARIFY_COMMAND_PATTERNS = [
+  /^(?:换一个|换个|改一下|不要|太累了|这个太远了|重新来|重新生成)$/u,
+  /^(?:too far|too tiring|try again|redo|another one)$/i,
+];
+
+const MODIFY_ITINERARY_INTENT_PATTERNS = [
+  /(?:太满|太累|轻松一点|节奏|晚上不要|不要安排|重新安排|重排|调整|修改|改一下|删除第[一二三四五六七八九十\d]+天)/u,
+  /\b(?:lighter|relax|too full|too tiring|revise|adjust|reschedule)\b/i,
+];
+
 const NON_DESTINATION_QUESTION_PATTERNS = [
   /(签证|申根|保险|护照|材料|准备什么|需要买吗|可以带|安全吗|退改|报销)/,
   /\b(visa|insurance|passport|document|documents|refund|question)\b/i,
@@ -1381,6 +1413,18 @@ export function normalizeDestinationCandidate(
 
 function classifyTravelIntent(value: string): TravelIntentKind {
   const normalized = normalizeUserUtterance(value);
+  if (CLARIFY_COMMAND_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return "clarify_needed";
+  }
+  if (REPLACE_ITEM_INTENT_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return "replace_item";
+  }
+  if (REMOVE_ITEM_INTENT_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return "remove_item";
+  }
+  if (MODIFY_ITINERARY_INTENT_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return "modify_itinerary";
+  }
   if (EDIT_INTENT_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return "edit_itinerary";
   }
@@ -1405,6 +1449,16 @@ function classifyTravelIntent(value: string): TravelIntentKind {
     return "choose_destination";
   }
   return "unknown";
+}
+
+function isTravelCommandIntent(intent: TravelIntentKind): boolean {
+  return (
+    intent === "edit_itinerary" ||
+    intent === "modify_itinerary" ||
+    intent === "remove_item" ||
+    intent === "replace_item" ||
+    intent === "clarify_needed"
+  );
 }
 
 function rawMentionForDestination(
@@ -1527,7 +1581,7 @@ export function extractDestinationCandidates(
   locale: "zh" | "en" | string = "zh"
 ): TravelIntentDestinationCandidate[] {
   const intent = classifyTravelIntent(message);
-  if (intent === "edit_itinerary") return [];
+  if (isTravelCommandIntent(intent)) return [];
 
   const normalizedInput = normalizeUserUtterance(message);
   if (
@@ -2080,7 +2134,7 @@ function resolutionQueryFromIntent(
   rawText: string,
   intent: TravelIntentParseResult
 ): string {
-  if (intent.intent === "edit_itinerary" || intent.intent === "ask_question") {
+  if (isTravelCommandIntent(intent.intent) || intent.intent === "ask_question") {
     return intent.normalizedInput;
   }
   const candidateQuery = intent.destinations
@@ -2127,8 +2181,8 @@ function allowsTemporaryFallback(
   query: string
 ): { allowed: boolean; reason: string | null } {
   if (!query) return { allowed: false, reason: "empty_destination_query" };
-  if (intent.intent === "edit_itinerary") {
-    return { allowed: false, reason: "edit_intent_does_not_create_destination" };
+  if (isTravelCommandIntent(intent.intent)) {
+    return { allowed: false, reason: `${intent.intent}_does_not_create_destination` };
   }
   if (intent.intent === "ask_question") {
     return { allowed: false, reason: "question_intent_does_not_create_destination" };
@@ -2182,11 +2236,11 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
     };
   }
 
-  if (intent.intent === "edit_itinerary") {
+  if (isTravelCommandIntent(intent.intent)) {
     return {
       status: "unresolved",
       query,
-      message: "The user is editing an itinerary, not naming a new destination.",
+      message: "The user is editing or removing itinerary content, not naming a new destination.",
       tripHints,
       cards: [],
       debugTrace: createPipelineDebug({
@@ -2194,7 +2248,7 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
         intent,
         resolverResult: "unresolved",
         localDb: "not_checked",
-        fallbackReason: "edit_intent_does_not_create_destination",
+        fallbackReason: `${intent.intent}_does_not_create_destination`,
         cardSourceStatus: "none",
       }),
     };

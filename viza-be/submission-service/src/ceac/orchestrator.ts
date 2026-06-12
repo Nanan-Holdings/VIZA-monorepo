@@ -639,13 +639,17 @@ async function fillPageFields(
           }
           const visible = await candidate.isVisible().catch(() => false);
           if (!visible) continue;
-          // For non-radio fills, also require the element to be editable:
+          // For text fills, also require the element to be editable:
           // CEAC disables fields like social_media_identifier when its
           // sibling dropdown is set to "NONE", and we don't want to burn
-          // the 5s actionability timeout on those.
-          if (mapping.type !== "radio") {
+          // the 5s actionability timeout on those. Selects are not
+          // "editable" in Playwright's sense, so only require enabled.
+          if (mapping.type === "text") {
             const editable = await candidate.isEditable().catch(() => false);
             if (!editable) continue;
+          } else if (mapping.type === "select") {
+            const enabled = await candidate.isEnabled().catch(() => false);
+            if (!enabled) continue;
           }
           el = candidate;
           break;
@@ -665,7 +669,16 @@ async function fillPageFields(
           const radio = page.locator(specific).first();
           const radioCount = await radio.count();
           if (radioCount > 0) {
-            await radio.click({ timeout: 5_000 });
+            await radio.evaluate((node) => {
+              const input = node as HTMLInputElement;
+              input.checked = true;
+              input.dispatchEvent(new Event("input", { bubbles: true }));
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+              const win = window as typeof window & { __doPostBack?: (target: string, argument: string) => void };
+              if (typeof win.__doPostBack === "function" && input.name) {
+                try { win.__doPostBack(input.name, ""); } catch { /* best effort */ }
+              }
+            });
           } else {
             continue; // No matching radio option
           }
