@@ -4,6 +4,7 @@ import {
   classifyVietnamPortalSnapshot,
   checkpointForVietnamPortalState,
   extractVietnamRegistrationCode,
+  isAutoAcknowledgeableVietnamPortalState,
   type VietnamPortalSnapshot,
 } from "../portal-state";
 
@@ -82,6 +83,13 @@ test("Vietnam portal checkpoint mapper exposes manual action checkpoints", () =>
   assert.equal(checkpointForVietnamPortalState("payment_page_visible"), "payment_required");
   assert.equal(checkpointForVietnamPortalState("final_submit_visible"), "final_submit_required");
   assert.equal(checkpointForVietnamPortalState("white_screen"), "official_portal_error");
+});
+
+test("Vietnam portal state: NOTE is auto-acknowledgeable, payment and final submit are not", () => {
+  assert.equal(isAutoAcknowledgeableVietnamPortalState("note_modal_visible"), true);
+  assert.equal(isAutoAcknowledgeableVietnamPortalState("captcha_visible"), false);
+  assert.equal(isAutoAcknowledgeableVietnamPortalState("payment_page_visible"), false);
+  assert.equal(isAutoAcknowledgeableVietnamPortalState("final_submit_visible"), false);
 });
 
 test("Vietnam portal state: registration code extraction is explicit", () => {
