@@ -53,12 +53,10 @@ import {
   TripRouteMap,
   type TripMapPoint,
 } from "@/components/client/travel/trip-route-map";
-import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import {
   FORM_PAYLOAD_PREFIX,
   buildTravelStateFromMessages,
@@ -72,7 +70,6 @@ import {
   type ItineraryDay,
   type SelectedFlightOption,
   type SelectedHotelOption,
-  type TravelField,
   type TravelState,
 } from "@/lib/travel/planner";
 import {
@@ -346,19 +343,6 @@ const TRAVEL_JSON_CODE_BLOCK_PATTERN =
   /```json[^\S\r\n]*(?:\r?\n)?[\s\S]*?```/gi;
 const TRAVEL_MARKDOWN_CODE_BLOCK_PATTERN =
   /```[a-zA-Z0-9_-]*[^\S\r\n]*(?:\r?\n)?([\s\S]*?)```/g;
-
-const TRAVEL_STAGE_ORDER: readonly TravelField[] = [
-  "country",
-  "cities",
-  "destination_confirmation",
-  "departure_date",
-  "travel_days",
-  "travelers",
-  "budget",
-  "origin",
-  "travel_order",
-  "final_note",
-] as const;
 
 const DESTINATION_IMAGE_BY_KEY: Record<string, string> = {
   tokyo: "/travel/cities/tokyo.jpg",
@@ -3202,7 +3186,6 @@ function getHotspotsForCity(city: string): string[] {
 }
 
 function buildProgressItems(
-  displayedProgress: number,
   state: ReturnType<typeof buildTravelStateFromMessages>,
   isZh: boolean
 ): ProgressItem[] {
@@ -3264,10 +3247,15 @@ function buildProgressItems(
     {
       id: "final",
       label: isZh ? "整体进度" : "Overall progress",
-      done: displayedProgress >= 100,
-      detail: isZh
-        ? `完成 ${displayedProgress}%`
-        : `${displayedProgress}% complete`,
+      done: Boolean(state.travel_days && state.travelers && state.budget),
+      detail:
+        state.travel_days && state.travelers && state.budget
+          ? isZh
+            ? "规划参数已齐全"
+            : "Planning details complete"
+          : isZh
+            ? "等待中"
+            : "Waiting",
     },
   ];
 }
@@ -3510,21 +3498,6 @@ export function TravelChatClient({
   ]);
   const canAddDestinationFromMap = status === "ready";
 
-  const stageIndex = useMemo(() => {
-    if (!missingField) return TRAVEL_STAGE_ORDER.length;
-    const index = TRAVEL_STAGE_ORDER.indexOf(missingField);
-    return index < 0 ? 0 : index;
-  }, [missingField]);
-
-  const progressPercent = useMemo(
-    () => Math.round((stageIndex / TRAVEL_STAGE_ORDER.length) * 100),
-    [stageIndex]
-  );
-  const { displayedProgress } = useSmoothProgress({
-    serverProgress: progressPercent,
-    status: progressPercent >= 100 ? "completed" : "running",
-    intervalMs: 140,
-  });
   const orderedCities = useMemo(() => {
     const order = travelState.travel_order.filter((city) =>
       travelState.cities.includes(city)
@@ -3625,12 +3598,19 @@ export function TravelChatClient({
   ]);
 
   const progressItems = useMemo(
-    () => buildProgressItems(displayedProgress, displayTravelState, isZh),
-    [displayTravelState, displayedProgress, isZh]
+    () => buildProgressItems(displayTravelState, isZh),
+    [displayTravelState, isZh]
   );
   const completedProgressCount = useMemo(
     () => progressItems.filter((item) => item.done).length,
     [progressItems]
+  );
+  const progressPercent = useMemo(
+    () =>
+      progressItems.length > 0
+        ? Math.round((completedProgressCount / progressItems.length) * 100)
+        : 0,
+    [completedProgressCount, progressItems.length]
   );
 
   useEffect(() => {
@@ -5718,19 +5698,23 @@ export function TravelChatClient({
                       </p>
                     </div>
                     <Badge className="shrink-0 bg-cyan-100 text-cyan-800 hover:bg-cyan-100">
-                      {displayedProgress}%
+                      {progressPercent}%
                     </Badge>
                   </div>
 
-                  <SmoothProgressBar
-                    displayedProgress={displayedProgress}
-                    showValue={false}
-                    className="mt-2"
-                    trackClassName="bg-slate-100"
-                    barClassName="bg-[#03346E]"
-                    transitionMs={760}
-                    size="xs"
-                  />
+                  <div
+                    aria-label={isZh ? "旅行地图完成度" : "Travel map completion"}
+                    aria-valuemax={100}
+                    aria-valuemin={0}
+                    aria-valuenow={progressPercent}
+                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"
+                    role="progressbar"
+                  >
+                    <div
+                      className="h-full rounded-full bg-[#03346E]"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                     <Badge variant="outline">

@@ -249,6 +249,7 @@ const CEAC_TEXT_TRANSLITERATIONS: Readonly<Record<string, string>> = {
 const CEAC_CITY_TEXT_KEYS: ReadonlySet<string> = new Set([
   "home_address_city",
   "mailing_address_city",
+  "employer_address_city",
   "passport_issuance_city",
   "city_of_birth",
   "place_of_birth_city",
@@ -361,7 +362,7 @@ function shouldNormalizeCountryKey(key: string): boolean {
 }
 
 function shouldNormalizeBooleanKey(key: string): boolean {
-  return /^(has_|is_|intend_|vwp_|immigrant_|mailing_same_as_home|passport_has_|passport_lost_or_stolen|other_nationality|permanent_resident_other_country)/.test(key);
+  return /^(has_|is_|intend_|vwp_|immigrant_|mailing_same_as_home|passport_has_|passport_lost_or_stolen|other_nationality|permanent_resident_other_country|father_in_us|mother_in_us)/.test(key);
 }
 
 function normalizeCeacValueCodes(answers: Record<string, string>): void {
@@ -465,6 +466,53 @@ function deriveContactPageConsistency(answers: Record<string, string>): void {
   deriveUsContactNameNa(answers);
   deriveSocialMediaPresence(answers);
   deriveDuplicatePhoneNaFlags(answers);
+  derivePresentWorkEducationFallbacks(answers);
+  derivePreviousEducationGate(answers);
+}
+
+function derivePresentWorkEducationFallbacks(answers: Record<string, string>): void {
+  const occupation = normalizedLookupKey(answers.primary_occupation ?? "");
+  if (occupation !== "EDUCATION" && occupation !== "ED" && occupation !== "STUDENT") return;
+
+  if (isNaToken(answers.employer_name) || !answers.employer_name?.trim()) {
+    answers.employer_name = "UNKNOWN";
+  }
+  if (!answers.employer_address_line1?.trim()) {
+    answers.employer_address_line1 = answers.home_address_line1 ?? answers.home_address ?? "UNKNOWN";
+  }
+  if (!answers.employer_address_city?.trim()) {
+    answers.employer_address_city = answers.home_address_city ?? "UNKNOWN";
+  }
+  if (!answers.employer_address_country?.trim()) {
+    answers.employer_address_country = answers.home_address_country ?? answers.country_of_birth ?? "CHIN";
+  }
+  if (!answers.employer_address_state?.trim()) {
+    answers.employer_address_state_na = "Y";
+  }
+  if (!answers.employer_address_postal?.trim()) {
+    answers.employer_address_postal_na = "Y";
+  }
+  if (!answers.employer_phone?.trim()) {
+    answers.employer_phone = answers.primary_phone ?? answers.phone ?? "0000000000";
+  }
+  if (!answers.employment_start_date_day) answers.employment_start_date_day = "01";
+  if (!answers.employment_start_date_month) answers.employment_start_date_month = "SEP";
+  if (!answers.employment_start_date_year) answers.employment_start_date_year = "2024";
+  if (!answers.monthly_income?.trim()) answers.monthly_income_na = "Y";
+  if (!answers.job_duties?.trim()) answers.job_duties = "STUDENT";
+  normalizeCeacTextFields(answers);
+  answers.employer_address_country = normalizeCountryValue(answers.employer_address_country);
+}
+
+function derivePreviousEducationGate(answers: Record<string, string>): void {
+  if (answers.has_other_education !== "Y") return;
+  const hasDetails = [
+    "previous_school_name",
+    "previous_education_school_name",
+    "school_name",
+    "education_institution_name",
+  ].some((key) => Boolean(answers[key]?.trim()));
+  if (!hasDetails) answers.has_other_education = "N";
 }
 
 function deriveUsContactNameNa(answers: Record<string, string>): void {

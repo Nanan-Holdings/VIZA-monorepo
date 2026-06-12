@@ -113,6 +113,15 @@ interface VisibleDynamicStep {
   sourceIndex: number;
 }
 
+const SGAC_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Traveller Information": "旅客信息",
+  "Passport Details": "护照信息",
+  "Trip to Singapore": "新加坡行程",
+  "Contact and Stay in Singapore": "在新加坡联系方式与住宿",
+  "Electronic Health Declaration": "电子健康申报",
+  "Official Submission Checklist": "官方提交确认",
+};
+
 type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
@@ -142,6 +151,23 @@ function getNextVisibleStepId(steps: StepDef[], currentStepId: number): number |
 
 function getVisibleStepIndex(steps: StepDef[], currentStepId: number): number {
   return steps.findIndex((step) => step.id === currentStepId);
+}
+
+function localizeDynamicStepName(
+  stepName: string,
+  options: {
+    isZhInterface: boolean;
+    visaType?: string | null;
+    translate: ReturnType<typeof useTranslations>;
+  },
+): string {
+  if (options.isZhInterface && options.visaType === "SG_ARRIVAL_CARD") {
+    return SGAC_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
+  const translationKey = getDynamicStepTranslationCandidates(stepName)
+    .find((key) => options.translate.has(key as never));
+  return translationKey ? options.translate(translationKey as never) : stepName;
 }
 
 // ---------------------------------------------------------------------------
@@ -308,7 +334,7 @@ function GroupedStepSidebar({
   onStepClick: StepClickHandler;
 }) {
   const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
-  const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const getStatus = useCallback((stepId: number): StepStatus => {
     return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
   }, [completedStepIds, currentStep]);
@@ -317,18 +343,18 @@ function GroupedStepSidebar({
     setExpandedSections((prev) => {
       const next = { ...prev };
       for (const section of sections) {
-        if (next[section.key] === undefined) {
-          next[section.key] = section.steps.some((step) => step.id === currentStep);
+        if (next[section.id] === undefined) {
+          next[section.id] = section.steps.some((step) => step.id === currentStep);
         }
       }
       return next;
     });
   }, [sections, currentStep]);
 
-  const toggleSection = useCallback((key: StepSectionKey) => {
+  const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [key]: !(prev[key] ?? false),
+      [sectionId]: !(prev[sectionId] ?? false),
     }));
   }, []);
 
@@ -345,7 +371,7 @@ function GroupedStepSidebar({
             return (
               <button
                 type="button"
-                key={section.key}
+                key={section.id}
                 onClick={() => {
                   void onStepClick(step.id);
                 }}
@@ -383,7 +409,7 @@ function GroupedStepSidebar({
           }
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
-          const isExpanded = expandedSections[section.key] ?? activeInSection;
+          const isExpanded = expandedSections[section.id] ?? activeInSection;
           const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
             return completedStepIds.has(step.id);
@@ -392,7 +418,7 @@ function GroupedStepSidebar({
 
           return (
             <section
-              key={section.key}
+              key={section.id}
               className={cn(
                 "rounded-xl border bg-white overflow-hidden transition-all duration-200",
                 activeInSection
@@ -402,7 +428,7 @@ function GroupedStepSidebar({
             >
               <button
                 type="button"
-                onClick={() => toggleSection(section.key)}
+                onClick={() => toggleSection(section.id)}
                 className="w-full flex items-center gap-4 px-5 py-4 text-left cursor-pointer"
               >
                 {/* Circle badge — matches single-step card */}
@@ -520,7 +546,7 @@ function GroupedMobileStepBar({
   const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const currentStepIndex = currentStepIndexById.get(currentStep);
   const currentSection = sections.find((section) => section.steps.some((step) => step.id === currentStep));
-  const [expandedSections, setExpandedSections] = useState<Partial<Record<StepSectionKey, boolean>>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const getStatus = useCallback((stepId: number): StepStatus => {
     return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
   }, [completedStepIds, currentStep]);
@@ -531,18 +557,18 @@ function GroupedMobileStepBar({
     setExpandedSections((prev) => {
       const next = { ...prev };
       for (const section of sections) {
-        if (next[section.key] === undefined) {
-          next[section.key] = section.steps.some((step) => step.id === currentStep);
+        if (next[section.id] === undefined) {
+          next[section.id] = section.steps.some((step) => step.id === currentStep);
         }
       }
       return next;
     });
   }, [sections, currentStep]);
 
-  const toggleSection = useCallback((key: StepSectionKey) => {
+  const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [key]: !(prev[key] ?? false),
+      [sectionId]: !(prev[sectionId] ?? false),
     }));
   }, []);
 
@@ -583,7 +609,7 @@ function GroupedMobileStepBar({
 
             return (
               <button
-                key={section.key}
+                key={section.id}
                 type="button"
                 onClick={() => {
                   void onStepClick(step.id);
@@ -623,7 +649,7 @@ function GroupedMobileStepBar({
           }
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
-          const isExpanded = expandedSections[section.key] ?? activeInSection;
+          const isExpanded = expandedSections[section.id] ?? activeInSection;
           const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
             return completedStepIds.has(step.id);
@@ -632,7 +658,7 @@ function GroupedMobileStepBar({
 
           return (
             <section
-              key={section.key}
+              key={section.id}
               className={cn(
                 "rounded-xl border bg-white overflow-hidden transition-all duration-200",
                 activeInSection
@@ -642,7 +668,7 @@ function GroupedMobileStepBar({
             >
               <button
                 type="button"
-                onClick={() => toggleSection(section.key)}
+                onClick={() => toggleSection(section.id)}
                 className="w-full cursor-pointer px-4 py-3.5 flex items-center gap-3 text-left"
               >
                 <div
@@ -1400,11 +1426,11 @@ export default function ApplicationPage() {
         ...visibleDynamicSteps.map(({ step, sourceIndex }) => ({
           id: sourceIndex,
           sourceName: step.stepName,
-          name: (() => {
-            const translationKey = getDynamicStepTranslationCandidates(step.stepName)
-              .find((key) => tDyn.has(key as never));
-            return translationKey ? tDyn(translationKey as never) : step.stepName;
-          })(),
+          name: localizeDynamicStepName(step.stepName, {
+            isZhInterface,
+            visaType: resolvedVisaType,
+            translate: tDyn,
+          }),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
         {
@@ -1444,6 +1470,7 @@ export default function ApplicationPage() {
       statusStepIndex,
       STEPS,
       teamStepIndex,
+      resolvedVisaType,
       isZhInterface,
       tApp,
       tDyn,

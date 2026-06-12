@@ -23,6 +23,7 @@ export interface ApplicationStepRef {
 }
 
 export interface ApplicationStepSection<TStep extends ApplicationStepRef = ApplicationStepRef> {
+  id: string;
   key: ApplicationStepSectionKey;
   title: string;
   steps: TStep[];
@@ -103,6 +104,7 @@ export function buildApplicationStepSections<TStep extends ApplicationStepRef>(
     }
 
     sections.push({
+      id: `${key}-${sections.length}`,
       key,
       title: titles[key],
       steps: [step],

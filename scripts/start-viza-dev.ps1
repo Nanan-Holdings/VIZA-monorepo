@@ -7,7 +7,8 @@ param(
   [switch]$NoBrowser,
   [switch]$CleanNext,
   [switch]$Reset,
-  [switch]$Stop
+  [switch]$Stop,
+  [int]$StartupTimeoutSeconds = 120
 )
 
 $ErrorActionPreference = "Stop"
@@ -155,6 +156,182 @@ function Start-DevProcess {
   Write-Host ("Started {0} (PID {1})" -f $Name, $process.Id) -ForegroundColor Green
   Write-Host "  stdout: $stdout" -ForegroundColor DarkGray
   Write-Host "  stderr: $stderr" -ForegroundColor DarkGray
+
+  return [PSCustomObject]@{
+    Name = $Name
+    Pid = $process.Id
+    Stdout = $stdout
+    Stderr = $stderr
+  }
+}
+
+function Write-Ok {
+  param([string]$Message)
+  Write-Host $Message -ForegroundColor Green
+}
+
+function Write-LogTail {
+  param(
+    [string]$Path,
+    [int]$Tail = 80
+  )
+
+  if (!(Test-Path -LiteralPath $Path -PathType Leaf)) {
+    return
+  }
+
+  $content = @(Get-Content -LiteralPath $Path -Tail $Tail -ErrorAction SilentlyContinue)
+  if ($content.Count -eq 0) {
+    return
+  }
+
+  Write-Warn "Last $Tail lines from $Path"
+  foreach ($line in $content) {
+    Write-Host $line -ForegroundColor DarkYellow
+  }
+}
+
+function Wait-ProcessAlive {
+  param(
+    [string]$Name,
+    [int]$ProcessId,
+    [string]$Stdout = "",
+    [string]$Stderr = "",
+    [int]$Seconds = 8
+  )
+
+  for ($i = 0; $i -lt $Seconds; $i++) {
+    $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if (!$process) {
+      Write-LogTail -Path $Stderr
+      Write-LogTail -Path $Stdout
+      throw "$Name exited during startup. Check logs in $logDir."
+    }
+    Start-Sleep -Seconds 1
+  }
+
+  Write-Ok "$Name process is still running (PID $ProcessId)"
+}
+
+function Wait-HttpReady {
+  param(
+    [string]$Name,
+    [string]$Uri,
+    [int]$TimeoutSeconds
+  )
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+        Write-Ok "$Name ready: $Uri"
+        return
+      }
+    } catch {
+      Start-Sleep -Seconds 2
+      continue
+    }
+
+    Start-Sleep -Seconds 2
+  }
+
+  throw "$Name did not become ready before timeout: $Uri"
+}
+
+function Wait-HttpJsonFieldReady {
+  param(
+    [string]$Name,
+    [string]$Uri,
+    [string]$FieldName,
+    [object]$ExpectedValue,
+    [int]$TimeoutSeconds
+  )
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $lastMessage = ""
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+        $json = $response.Content | ConvertFrom-Json
+        if ($json.PSObject.Properties.Name -contains $FieldName -and $json.$FieldName -eq $ExpectedValue) {
+          Write-Ok "$Name ready: $Uri ($FieldName=$ExpectedValue)"
+          return
+        }
+        $lastMessage = "$FieldName was '$($json.$FieldName)'"
+      }
+    } catch {
+      $lastMessage = $_.Exception.Message
+    }
+
+    Start-Sleep -Seconds 2
+  }
+
+  throw "$Name did not report $FieldName=$ExpectedValue before timeout: $Uri. Last result: $lastMessage"
+}
+
+function Wait-AgentSocketReady {
+  param(
+    [string]$ServerUrl,
+    [int]$TimeoutSeconds
+  )
+
+  $socketModule = Join-Path $frontendDir "node_modules\socket.io-client"
+  if (!(Test-Path -LiteralPath $socketModule -PathType Container)) {
+    throw "socket.io-client is missing under frontend node_modules: $socketModule"
+  }
+
+  $probePath = Join-Path $logDir "probe-agent-socket.cjs"
+  $escapedSocketModule = $socketModule.Replace("\", "\\")
+  Set-Content -LiteralPath $probePath -Value @"
+const { io } = require("$escapedSocketModule");
+const url = process.argv[2];
+const timeoutMs = Number(process.argv[3] || "10000");
+const socket = io(url + "/visa", {
+  path: "/socket.io",
+  transports: ["polling", "websocket"],
+  timeout: timeoutMs,
+  forceNew: true
+});
+const timer = setTimeout(() => {
+  console.error("timeout waiting for Socket.IO /visa connection");
+  socket.close();
+  process.exit(1);
+}, timeoutMs + 2000);
+socket.on("connect", () => {
+  console.log(JSON.stringify({
+    connected: true,
+    id: socket.id,
+    transport: socket.io.engine.transport.name
+  }));
+  clearTimeout(timer);
+  socket.close();
+  process.exit(0);
+});
+socket.on("connect_error", (error) => {
+  console.error(error && error.message ? error.message : String(error));
+  clearTimeout(timer);
+  socket.close();
+  process.exit(1);
+});
+"@
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $lastOutput = ""
+  while ((Get-Date) -lt $deadline) {
+    $output = & node $probePath $ServerUrl 8000 2>&1
+    $lastOutput = ($output | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0) {
+      Write-Ok "VIZA agent Socket.IO namespace ready: $ServerUrl/visa"
+      Write-Host "  $lastOutput" -ForegroundColor DarkGray
+      return
+    }
+
+    Start-Sleep -Seconds 2
+  }
+
+  throw "VIZA agent Socket.IO namespace did not connect before timeout: $ServerUrl/visa. Last output: $lastOutput"
 }
 
 Assert-Directory -Path $frontendDir
@@ -205,8 +382,10 @@ if (Test-PortInUse -Port $selectedFrontendPort) {
   Write-Warn "Frontend port $FrontendPort is busy. Using $selectedFrontendPort."
 }
 
+$started = @()
+
 if (!$NoBackend) {
-  Start-DevProcess `
+  $started += Start-DevProcess `
     -Name "VIZA Agent Backend" `
     -WorkingDirectory $agentBackendDir `
     -Command "`$env:PORT = '$selectedAgentPort'; `$env:CORS_ORIGINS = 'http://localhost:$selectedFrontendPort,http://127.0.0.1:$selectedFrontendPort'; npm run dev"
@@ -215,20 +394,23 @@ if (!$NoBackend) {
 if (!$NoTravel) {
   $venvActivate = Join-Path $travelServiceDir ".venv\Scripts\Activate.ps1"
   if (Test-Path $venvActivate) {
-    Start-DevProcess `
+    $started += Start-DevProcess `
       -Name "VIZA Travel Service" `
       -WorkingDirectory $travelServiceDir `
       -Command ". '.\.venv\Scripts\Activate.ps1'; uvicorn main:app --host 0.0.0.0 --port $selectedTravelPort --reload"
   } else {
-    Write-Warn "Travel service .venv not found. Skipping Travel service."
-    Write-Warn "Setup later with: cd viza-be\travel-service; python -m venv .venv; .\.venv\Scripts\activate; pip install -r requirements.txt"
+    throw "Travel service .venv not found. Setup with: cd viza-be\travel-service; python -m venv .venv; .\.venv\Scripts\activate; pip install -r requirements.txt"
   }
 }
 
-Start-DevProcess `
+$started += Start-DevProcess `
   -Name "VIZA Frontend" `
   -WorkingDirectory $frontendDir `
-  -Command "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$selectedTravelPort'; npm run dev -- -p $selectedFrontendPort"
+  -Command "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$selectedTravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$selectedFrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$selectedFrontendPort'; npm run dev -- -p $selectedFrontendPort"
+
+foreach ($process in $started) {
+  Wait-ProcessAlive -Name $process.Name -ProcessId $process.Pid -Stdout $process.Stdout -Stderr $process.Stderr
+}
 
 $clientLoginUrl = "http://127.0.0.1:$selectedFrontendPort/client/login"
 $clientHomeUrl = "http://127.0.0.1:$selectedFrontendPort/client/home"
@@ -246,7 +428,26 @@ Write-Host "  .\scripts\start-viza-dev.ps1 -Stop" -ForegroundColor Yellow
 Write-Host "Clean restart later with:" -ForegroundColor Yellow
 Write-Host "  .\scripts\start-viza-dev.ps1 -Reset" -ForegroundColor Yellow
 
+if (!$NoBackend) {
+  Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$selectedAgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
+  Wait-AgentSocketReady -ServerUrl "http://127.0.0.1:$selectedAgentPort" -TimeoutSeconds $StartupTimeoutSeconds
+}
+
+if (!$NoTravel) {
+  Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$selectedTravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
+}
+
+Wait-HttpReady -Name "frontend" -Uri $clientLoginUrl -TimeoutSeconds $StartupTimeoutSeconds
+
+if (!$NoTravel) {
+  Wait-HttpJsonFieldReady `
+    -Name "frontend travel proxy" `
+    -Uri "http://127.0.0.1:$selectedFrontendPort/api/travel/health" `
+    -FieldName "travelBackendReachable" `
+    -ExpectedValue $true `
+    -TimeoutSeconds $StartupTimeoutSeconds
+}
+
 if (!$NoBrowser) {
-  Start-Sleep -Seconds 4
   Start-Process $clientLoginUrl | Out-Null
 }

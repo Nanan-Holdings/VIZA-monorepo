@@ -412,6 +412,76 @@ export const ds160WorkMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Employer Name",
   },
+  employer_address_line1: {
+    selector: 'input[id*="tbxEmpSchAddr1"]',
+    type: "text",
+    label: "Employer/School Street Address",
+  },
+  employer_address_city: {
+    selector: 'input[id*="tbxEmpSchCity"]',
+    type: "text",
+    label: "Employer/School City",
+  },
+  employer_address_state: {
+    selector: 'input[id*="tbxWORK_EDUC_ADDR_STATE"]',
+    type: "text",
+    label: "Employer/School State",
+  },
+  employer_address_state_na: {
+    selector: 'input[id*="cbxWORK_EDUC_ADDR_STATE_NA"]',
+    type: "checkbox",
+    label: "Employer/School State Does Not Apply",
+  },
+  employer_address_postal: {
+    selector: 'input[id*="tbxWORK_EDUC_ADDR_POSTAL_CD"]',
+    type: "text",
+    label: "Employer/School Postal Code",
+  },
+  employer_address_postal_na: {
+    selector: 'input[id*="cbxWORK_EDUC_ADDR_POSTAL_CD_NA"]',
+    type: "checkbox",
+    label: "Employer/School Postal Does Not Apply",
+  },
+  employer_address_country: {
+    selector: 'select[id*="ddlEmpSchCountry"]',
+    type: "select",
+    label: "Employer/School Country",
+  },
+  employer_phone: {
+    selector: 'input[id*="tbxWORK_EDUC_TEL"]',
+    type: "text",
+    label: "Employer/School Phone",
+  },
+  employment_start_date_day: {
+    selector: 'select[id*="ddlEmpDateFromDay"]',
+    type: "select",
+    label: "Employment/School Start Day",
+  },
+  employment_start_date_month: {
+    selector: 'select[id*="ddlEmpDateFromMonth"]',
+    type: "select",
+    label: "Employment/School Start Month",
+  },
+  employment_start_date_year: {
+    selector: 'input[id*="tbxEmpDateFromYear"]',
+    type: "text",
+    label: "Employment/School Start Year",
+  },
+  monthly_income: {
+    selector: 'input[id*="tbxCURR_MONTHLY_SALARY"]',
+    type: "text",
+    label: "Monthly Income",
+  },
+  monthly_income_na: {
+    selector: 'input[id*="cbxCURR_MONTHLY_SALARY_NA"]',
+    type: "checkbox",
+    label: "Monthly Income Does Not Apply",
+  },
+  job_duties: {
+    selector: 'textarea[id*="tbxDescribeDuties"], textarea[id*="tbxCURR_JOB_DUTIES"]',
+    type: "text",
+    label: "Job Duties",
+  },
   job_title: {
     selector: 'input[id*="tbxEmpSchJobTitle"], input[id*="tbxWORK_EDUC_PRSNT_JOB_TITLE"]',
     type: "text",

@@ -581,6 +581,10 @@ async function forceTextValue(el: Locator, value: string): Promise<void> {
   }, value);
 }
 
+const RADIO_FIELDS_REQUIRING_CLICK: ReadonlySet<string> = new Set([
+  "has_immediate_us_relatives",
+]);
+
 async function fillPageFields(
   page: Page,
   mappings: Record<string, FormFieldMapping>,
@@ -702,12 +706,16 @@ async function fillPageFields(
           const radio = page.locator(specific).first();
           const radioCount = await radio.count();
           if (radioCount > 0) {
-            await radio.evaluate((node) => {
-              const input = node as HTMLInputElement;
-              input.checked = true;
-              input.dispatchEvent(new Event("input", { bubbles: true }));
-              input.dispatchEvent(new Event("change", { bubbles: true }));
-            });
+            if (RADIO_FIELDS_REQUIRING_CLICK.has(fieldName)) {
+              await radio.click({ timeout: 5_000 });
+            } else {
+              await radio.evaluate((node) => {
+                const input = node as HTMLInputElement;
+                input.checked = true;
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+              });
+            }
           } else {
             continue; // No matching radio option
           }

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   parseTravelIntent,
   resolveLocalDestinationText,
@@ -12,6 +14,19 @@ type PromptCase = {
   commandIntent?: boolean;
   expectedIntent?: string;
   typoChangsha?: boolean;
+};
+
+type PromptQaRow = {
+  id: number;
+  prompt: string;
+  intent: string;
+  destinations: string;
+  confidence: string;
+  duration: string;
+  clarification: string;
+  fallbackCardAllowed: string;
+  status: string;
+  result: string;
 };
 
 const promptCases: PromptCase[] = [
@@ -89,6 +104,7 @@ function canonicalNamesForResolution(prompt: string): string[] {
 }
 
 const failures: string[] = [];
+const reportRows: PromptQaRow[] = [];
 
 for (const item of promptCases) {
   const intent = parseTravelIntent(item.prompt);
@@ -100,6 +116,7 @@ for (const item of promptCases) {
   const duration = intent.duration
     ? `${intent.duration.minDays}-${intent.duration.maxDays} days`
     : "-";
+  const failureCountBeforeCase = failures.length;
 
   if (item.expectedCanonicals) {
     if (resolution.status !== "resolved") {
@@ -164,6 +181,22 @@ for (const item of promptCases) {
     }
   }
 
+  reportRows.push({
+    id: item.id,
+    prompt: item.prompt,
+    intent: intent.intent,
+    destinations: canonicalNames.join("|") || "-",
+    confidence:
+      intent.destinations
+        .map((destination) => destination.confidence.toFixed(2))
+        .join("|") || "-",
+    duration,
+    clarification: clarificationNeeded ? "yes" : "no",
+    fallbackCardAllowed: fallbackCardAllowed ? "yes" : "no",
+    status: resolution.status,
+    result: failures.length === failureCountBeforeCase ? "PASS" : "FAIL",
+  });
+
   console.log(
     [
       `#${item.id}`,
@@ -178,6 +211,45 @@ for (const item of promptCases) {
     ].join(" | ")
   );
 }
+
+const reportPath = path.resolve(
+  process.cwd(),
+  "test-results",
+  "travel-agent-prompt-qa-report.md"
+);
+fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+fs.writeFileSync(
+  reportPath,
+  [
+    "# Travel Agent Prompt QA Report",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    "",
+    "| id | prompt | intent | destinations | confidence | duration | clarification | fallbackCardAllowed | status | result |",
+    "| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...reportRows.map((row) =>
+      [
+        row.id,
+        row.prompt.replaceAll("|", "\\|"),
+        row.intent,
+        row.destinations,
+        row.confidence,
+        row.duration,
+        row.clarification,
+        row.fallbackCardAllowed,
+        row.status,
+        row.result,
+      ].join(" | ")
+    ).map((line) => `| ${line} |`),
+    "",
+    failures.length > 0
+      ? `Result: FAIL (${failures.length} failure${failures.length === 1 ? "" : "s"})`
+      : "Result: PASS",
+    "",
+  ].join("\n"),
+  "utf8"
+);
+console.log(`Prompt QA report written to ${reportPath}`);
 
 if (failures.length > 0) {
   console.error("\nTravel Agent prompt QA failed:");
