@@ -55,16 +55,34 @@ export async function getAuthenticatedUser(): Promise<{
     .eq("auth_user_id", authUser.id)
     .single();
 
-  if (error || !profile) {
-    return null;
+  if (!error && profile) {
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      date_of_birth: profile.date_of_birth,
+      sex: profile.sex as "M" | "F" | null,
+    };
   }
 
+  const { data: applicantProfile } = await adminClient
+    .from("applicant_profiles")
+    .select("full_name, email, date_of_birth, gender")
+    .eq("auth_user_id", authUser.id)
+    .maybeSingle();
+
+  if (!applicantProfile && !authUser.email) return null;
+
   return {
-    id: profile.id,
-    name: profile.name,
-    email: profile.email,
-    date_of_birth: profile.date_of_birth,
-    sex: profile.sex as "M" | "F" | null,
+    id: authUser.id,
+    name: applicantProfile?.full_name ?? authUser.user_metadata?.name ?? authUser.email ?? "Applicant",
+    email: applicantProfile?.email ?? authUser.email ?? "",
+    date_of_birth: applicantProfile?.date_of_birth ?? null,
+    sex: applicantProfile?.gender === "male" || applicantProfile?.gender === "M"
+      ? "M"
+      : applicantProfile?.gender === "female" || applicantProfile?.gender === "F"
+        ? "F"
+        : null,
   };
 }
 
@@ -95,9 +113,15 @@ export async function getAuthenticatedUserId(): Promise<string | null> {
     .eq("auth_user_id", authUser.id)
     .single();
 
-  if (error || !profile) {
-    return null;
+  if (!error && profile) {
+    return profile.id;
   }
 
-  return profile.id;
+  const { data: applicantProfile } = await adminClient
+    .from("applicant_profiles")
+    .select("id")
+    .eq("auth_user_id", authUser.id)
+    .maybeSingle();
+
+  return applicantProfile ? authUser.id : null;
 }

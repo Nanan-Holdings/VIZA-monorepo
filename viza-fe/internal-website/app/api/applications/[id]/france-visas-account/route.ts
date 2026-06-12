@@ -25,6 +25,16 @@ type FvAccountRow = {
 
 const KEY_LEN = 32;
 
+function isMissingFvAccountColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("schema cache") ||
+    message.includes("column fv_accounts.") ||
+    message.includes("could not find")
+  );
+}
+
 function decryptSecret(payload: string): string {
   const parts = payload.split(":");
   if (parts.length !== 4) {
@@ -105,19 +115,33 @@ export async function GET(
   const { data: accountData, error: accountError } = await admin
     .from("fv_accounts")
     .select(
-      "id, application_id, submission_queue_id, applicant_id, email, password_encrypted, official_account_email_encrypted, official_account_password_encrypted, updated_at, created_at",
+      "id, application_id, submission_queue_id, user_id, official_account_email_encrypted, official_account_password_encrypted, updated_at, created_at",
     )
-    .or(`application_id.eq.${applicationId},applicant_id.eq.${application.applicant_id}`)
+    .eq("application_id", applicationId)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
-  if (accountError) {
+  let account = accountData as FvAccountRow | null;
+  if (accountError && isMissingFvAccountColumnError(accountError)) {
+    const { data: legacyData, error: legacyError } = await admin
+      .from("fv_accounts")
+      .select("id, applicant_id, email, password_encrypted, updated_at, created_at")
+      .eq("applicant_id", application.applicant_id)
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (legacyError) {
+      return NextResponse.json({ error: legacyError.message }, { status: 500 });
+    }
+    account = legacyData as FvAccountRow | null;
+  } else if (accountError) {
     return NextResponse.json({ error: accountError.message }, { status: 500 });
   }
 
-  const account = accountData as FvAccountRow | null;
   if (!account) {
     return NextResponse.json(
       {

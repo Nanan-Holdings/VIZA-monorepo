@@ -360,12 +360,22 @@ export function DynamicFormField({
       );
 
     case "checkbox":
+      {
+        const opts = normaliseOptions(options, sideLocale);
+        const checkedValue = opts[0]?.value || "true";
+        const normalisedValue = value.trim().toLowerCase();
+        const isChecked = normalisedValue === checkedValue.toLowerCase()
+          || normalisedValue === "true"
+          || normalisedValue === "yes"
+          || normalisedValue === "1"
+          || normalisedValue === "on";
+
       return (
         <div className="flex items-center gap-3">
           <Checkbox
             id={field.fieldName}
-            checked={value === "true"}
-            onCheckedChange={(checked) => onChange(checked ? "true" : "false")}
+            checked={isChecked}
+            onCheckedChange={(checked) => onChange(checked ? checkedValue : "")}
           />
           <Label htmlFor={field.fieldName} className="text-[14px] font-medium text-gray-700 cursor-pointer">
             {label}
@@ -373,6 +383,7 @@ export function DynamicFormField({
           </Label>
         </div>
       );
+      }
 
     case "file":
       return (

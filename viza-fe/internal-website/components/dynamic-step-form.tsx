@@ -492,6 +492,11 @@ function normaliseFieldOptions(
   });
 }
 
+function isCheckedCheckboxValue(value: string): boolean {
+  const normalised = value.trim().toLowerCase();
+  return normalised === "true" || normalised === "yes" || normalised === "1" || normalised === "on";
+}
+
 function isAuxiliaryBilingualKey(key: string): boolean {
   return /_(zh|en)$/.test(key);
 }
@@ -556,6 +561,10 @@ function getLocalFieldIssue(
   }
 
   const options = normaliseFieldOptions(field.options, isZh ? "zh" : "en");
+  if (field.fieldType === "checkbox" && trimmed && isCheckedCheckboxValue(trimmed)) {
+    return issue("ok", "");
+  }
+
   if (
     (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
     trimmed &&
