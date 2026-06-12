@@ -261,3 +261,15 @@ export function queueProviderForApplication(
   }
   return queueProviderForVisaType(visaType, mode);
 }
+
+export function submissionQueueRequiresServerEnqueue(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+  mode: SubmissionMode,
+): boolean {
+  return (
+    mode === "live_assisted" ||
+    isVietnamEVisaApplication(country, visaType) ||
+    isSgArrivalCardApplication(country, visaType)
+  );
+}

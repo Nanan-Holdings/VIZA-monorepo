@@ -73,6 +73,7 @@ import {
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
+  submissionQueueRequiresServerEnqueue,
   type SubmissionMode,
 } from "@/lib/submission-queue";
 
@@ -1138,7 +1139,7 @@ async function insertSubmissionQueueJob(
   supabase: ReturnType<typeof createClient>,
   input: SubmissionQueueJobInput,
 ): Promise<void> {
-  if (input.mode === "live_assisted") {
+  if (submissionQueueRequiresServerEnqueue(input.country, input.visaType, input.mode)) {
     const response = await fetch(`/api/applications/${input.applicationId}/retry-submission`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1153,7 +1154,7 @@ async function insertSubmissionQueueJob(
       throw new Error(
         typeof payload?.error === "string"
           ? payload.error
-          : `Live assisted queue creation failed with ${response.status}`,
+          : `Submission queue creation failed with ${response.status}`,
       );
     }
     return;

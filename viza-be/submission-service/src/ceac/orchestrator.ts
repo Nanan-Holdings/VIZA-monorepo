@@ -6,8 +6,9 @@
  * to the next page, and repeats until the Sign and Submit page is reached.
  *
  * Key contracts:
- *   - No code path enters the passport-signature field, solves the final
- *     CAPTCHA, or clicks the final "Sign and Submit Application" button.
+ *   - When `finalSubmit` is supplied, the worker enters the passport
+ *     signature, solves the final CAPTCHA, and clicks the final submit
+ *     button. Without it, legacy callers still stop at Sign and Submit.
  *   - Failure paths preserve recovery metadata (Application ID, last
  *     checkpoint, `.dat` artifact) through the typed result contract.
  *   - Checkpoint and `.dat` capture are wired at natural section boundaries.
@@ -73,6 +74,7 @@ import {
   PhotoRejectedError,
   type PhotoFile,
 } from "./upload-photo";
+import { signAndSubmitApplication } from "./final-submit";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -142,12 +144,17 @@ export interface OrchestrateOptions {
   maxResumeAttempts?: number;
   /**
    * Applicant photo to upload on the upload_photo page. When provided, the
-   * orchestrator uploads the photo and continues through Review to stop at
-   * Sign and Submit. When omitted (or when CEAC rejects the photo), the
-   * orchestrator stops at upload_photo with `handoff_ready` so the applicant
-   * uploads the photo themselves.
+   * orchestrator uploads the photo and continues through Review.
    */
   photo?: PhotoFile;
+  /**
+   * Final submit credentials. When set, reaching Sign and Submit performs
+   * the irreversible DS-160 submit and returns `status: "submitted"`.
+   */
+  finalSubmit?: {
+    passportNumber: string;
+    maxCaptchaAttempts?: number;
+  };
 }
 
 export interface SectionCoverage {
@@ -378,6 +385,42 @@ export async function orchestrateFill(
         }
         const signIdentity = await detectSignAndSubmit(page);
         if (signIdentity) {
+          if (options.finalSubmit?.passportNumber) {
+            const submitResult = await signAndSubmitApplication(page, options.finalSubmit);
+            const tracked = tracker.snapshot();
+            const checkpoint = {
+              action: "manual" as const,
+              at: submitResult.submittedAt,
+              pageId: "confirmation" as const,
+              heading: "Confirmation",
+              url: submitResult.url,
+              applicationId: submitResult.applicationId ?? tracked.applicationId ?? null,
+              runId,
+              details: {
+                section: "confirmation",
+                terminal: true,
+                confirmationNumber: submitResult.confirmationNumber,
+                captchaAttempts: submitResult.captchaAttempts,
+              },
+            };
+            await tracker.record(checkpoint);
+            return {
+              result: {
+                status: "submitted",
+                applicationId: submitResult.applicationId ?? tracked.applicationId ?? null,
+                confirmationNumber: submitResult.confirmationNumber,
+                submittedAt: submitResult.submittedAt,
+                url: submitResult.url,
+                captchaAttempts: submitResult.captchaAttempts,
+                runId,
+                checkpoint,
+                datArtifact,
+              },
+              datArtifact,
+              sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped },
+            };
+          }
+
           const outcome = await stopAtSignAndSubmit(page, {
             tracker,
             runId,

@@ -57,6 +57,7 @@ export interface UsSubmissionResult {
   country: "US";
   status: "stopped_at_sign" | "stopped_at_pay" | "submitted";
   applicationId: string;
+  confirmationNumber?: string;
   surnameFirst5: string;
   yearOfBirth: number;
   securityQuestion: string;

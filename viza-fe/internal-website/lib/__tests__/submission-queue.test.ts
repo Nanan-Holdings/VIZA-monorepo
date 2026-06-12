@@ -4,6 +4,7 @@ import {
   isSgArrivalCardApplication,
   queueProviderForApplication,
   queueProviderForVisaType,
+  submissionQueueRequiresServerEnqueue,
   queueStatusForApplication,
   queueStatusForVisaType,
 } from "@/lib/submission-queue";
@@ -53,6 +54,12 @@ describe("queueStatusForVisaType", () => {
     expect(queueProviderForApplication("vietnam", "evisa_tourism", "dry_run")).toBe("vietnam_evisa_dry_run");
     expect(queueProviderForApplication("vietnam", "evisa_tourism", "live_assisted")).toBe("vietnam_evisa_live");
     expect(queueProviderForApplication("egypt", "evisa_tourism", "live_assisted")).toBeNull();
+  });
+
+  it("requires server-side queue creation for Vietnam e-visa in both modes", () => {
+    expect(submissionQueueRequiresServerEnqueue("vietnam", "evisa_tourism", "dry_run")).toBe(true);
+    expect(submissionQueueRequiresServerEnqueue("vietnam", "evisa_tourism", "live_assisted")).toBe(true);
+    expect(submissionQueueRequiresServerEnqueue("indonesia", "B211A", "dry_run")).toBe(false);
   });
 
   it("routes SG Arrival Card to its own queue and never to Singapore visitor visa", () => {

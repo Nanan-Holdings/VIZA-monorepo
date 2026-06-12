@@ -41,6 +41,7 @@ export interface UsSubmissionResult {
   country: "US";
   status: "stopped_at_sign" | "stopped_at_pay" | "submitted";
   applicationId: string;        // CEAC App ID, AA\w{8,10}
+  confirmationNumber?: string;
   surnameFirst5: string;        // uppercased first 5 chars of surname
   yearOfBirth: number;
   securityQuestion: string;

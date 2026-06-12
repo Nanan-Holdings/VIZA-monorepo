@@ -1,8 +1,10 @@
 param(
   [int]$FrontendPort = 3000,
   [int]$AgentPort = 3002,
+  [int]$SubmissionPort = 8085,
   [int]$TravelPort = 8000,
   [switch]$NoBackend,
+  [switch]$NoSubmission,
   [switch]$NoTravel,
   [switch]$NoBrowser,
   [switch]$CleanNext,
@@ -16,6 +18,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $frontendDir = Join-Path $repoRoot "viza-fe\internal-website"
 $agentBackendDir = Join-Path $repoRoot "viza-be\agent-backend"
+$submissionServiceDir = Join-Path $repoRoot "viza-be\submission-service"
 $travelServiceDir = Join-Path $repoRoot "viza-be\travel-service"
 $logDir = Join-Path $repoRoot ".dev-logs"
 
@@ -88,6 +91,7 @@ function Stop-RepoDevProcesses {
   $repoPattern = [WildcardPattern]::Escape($repoRoot)
   $frontendPattern = "*$repoPattern*viza-fe*internal-website*"
   $agentPattern = "*$repoPattern*viza-be*agent-backend*"
+  $submissionPattern = "*$repoPattern*viza-be*submission-service*"
   $travelPattern = "*$repoPattern*viza-be*travel-service*"
 
   $processes = Get-CimInstance Win32_Process |
@@ -96,6 +100,7 @@ function Stop-RepoDevProcesses {
       (
         ($_.Name -eq "node.exe" -and $_.CommandLine -like $frontendPattern) -or
         ($_.Name -eq "node.exe" -and $_.CommandLine -like $agentPattern) -or
+        ($_.Name -eq "node.exe" -and $_.CommandLine -like $submissionPattern) -or
         (($_.Name -eq "python.exe" -or $_.Name -eq "uvicorn.exe") -and $_.CommandLine -like $travelPattern)
       )
     }
@@ -336,6 +341,7 @@ socket.on("connect_error", (error) => {
 
 Assert-Directory -Path $frontendDir
 Assert-Directory -Path $agentBackendDir
+Assert-Directory -Path $submissionServiceDir
 Assert-Directory -Path $travelServiceDir
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -389,6 +395,17 @@ if (!$NoBackend) {
     -Name "VIZA Agent Backend" `
     -WorkingDirectory $agentBackendDir `
     -Command "`$env:PORT = '$selectedAgentPort'; `$env:CORS_ORIGINS = 'http://localhost:$selectedFrontendPort,http://127.0.0.1:$selectedFrontendPort'; npm run dev"
+}
+
+if (!$NoSubmission) {
+  if (Test-PortInUse -Port $SubmissionPort) {
+    $SubmissionPort = Find-FreePort -PreferredPort ($SubmissionPort + 1) -AvoidPorts @($FrontendPort, $selectedAgentPort, $selectedTravelPort)
+    Write-Warn "Submission service port is busy. Using $SubmissionPort."
+  }
+  $started += Start-DevProcess `
+    -Name "VIZA Submission Service" `
+    -WorkingDirectory $submissionServiceDir `
+    -Command "`$env:PORT = '$SubmissionPort'; npm run dev"
 }
 
 if (!$NoTravel) {

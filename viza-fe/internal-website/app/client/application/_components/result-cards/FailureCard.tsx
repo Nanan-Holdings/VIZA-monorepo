@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, RotateCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
+import { AlertTriangle, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import type { SubmissionMode } from "@/lib/submission-queue";
 
 interface FailureCardProps {
@@ -11,7 +14,15 @@ interface FailureCardProps {
   errorMessage?: string;
   retryModes?: Array<{ mode: SubmissionMode; label: string }>;
   onRetry?: (mode: SubmissionMode) => Promise<void> | void;
+  showFranceAccount?: boolean;
 }
+
+type FvOfficialAccount = {
+  email: string | null;
+  password: string | null;
+  portalUrl: string;
+  updatedAt: string | null;
+};
 
 const VALIDATION_LABELS: Record<string, string> = {
   "trip.purpose": "旅行目的 / Purpose of travel",
@@ -68,16 +79,55 @@ function parseValidationError(errorMessage?: string): { title: string; fields: s
   };
 }
 
+function isWorkerPickupError(errorMessage?: string): boolean {
+  const normalized = (errorMessage ?? "").toLowerCase();
+  return normalized.includes("worker did not pick up") ||
+    normalized.includes("worker heartbeat stopped") ||
+    normalized.includes("submission job stalled");
+}
+
 /**
  * FailureCard — renders when applications.submission_result_status === 'failed'.
  * Surfaces the error and offers a retry that requeues the application.
  */
-export function FailureCard({ applicationId, errorMessage, retryModes, onRetry }: FailureCardProps) {
+export function FailureCard({
+  applicationId,
+  errorMessage,
+  retryModes,
+  onRetry,
+  showFranceAccount = false,
+}: FailureCardProps) {
+  const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
+  const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const validationError = parseValidationError(errorMessage);
+  const workerPickupError = isWorkerPickupError(errorMessage);
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
+
+  useEffect(() => {
+    if (!applicationId || !showFranceAccount) return;
+    let cancelled = false;
+
+    const loadAccount = async () => {
+      const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        account?: FvOfficialAccount | null;
+      } | null;
+      if (!cancelled && response.ok) {
+        setOfficialAccount(payload?.account ?? null);
+      }
+    };
+
+    void loadAccount();
+    return () => {
+      cancelled = true;
+    };
+  }, [applicationId, showFranceAccount]);
 
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry) return;
@@ -94,13 +144,18 @@ export function FailureCard({ applicationId, errorMessage, retryModes, onRetry }
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-foreground">
           <AlertTriangle className="h-5 w-5 text-destructive" />
-          We couldn&apos;t complete your submission
+          {workerPickupError
+            ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
+            : "We couldn't complete your submission"}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          The portal returned an error while we were filing your application.
-          Your answers are saved — you can retry without re-entering anything.
+          {workerPickupError
+            ? (isZh
+                ? "这不是 ICA 表单内容错误，而是本地 submission-service worker 没有运行或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
+                : "This is not an ICA form-data error. The local submission-service worker was not running or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
+            : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything."}
         </p>
         {validationError ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
@@ -133,6 +188,43 @@ export function FailureCard({ applicationId, errorMessage, retryModes, onRetry }
                 {item.label}
               </BrandActionButton>
             ))}
+          </div>
+        )}
+        {officialAccount?.email && (
+          <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
+            <div className="text-sm font-semibold text-foreground">
+              {isZh ? "France-Visas 官方账号" : "France-Visas official account"}
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                <div className="text-xs text-muted-foreground">{isZh ? "账号" : "Email"}</div>
+                <div className="mt-0.5 break-all font-mono text-sm text-foreground">
+                  {officialAccount.email}
+                </div>
+              </div>
+              <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                <div className="text-xs text-muted-foreground">{isZh ? "密码" : "Password"}</div>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <span className="break-all font-mono text-sm text-foreground">
+                    {showPassword ? officialAccount.password : "••••••••••••"}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPassword((value) => !value)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="mt-3 bg-white">
+              <a href={officialAccount.portalUrl} target="_blank" rel="noopener noreferrer">
+                {isZh ? "打开 France-Visas 官网" : "Open France-Visas"}
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </a>
+            </Button>
           </div>
         )}
       </CardContent>

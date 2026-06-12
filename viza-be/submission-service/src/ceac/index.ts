@@ -110,9 +110,11 @@ export {
   buildSuccessResult,
   buildFailureResult,
   isSuccessResult,
+  isSubmittedResult,
   isFailureResult,
   type CeacRunResult,
   type CeacRunSuccess,
+  type CeacRunSubmitted,
   type CeacRunFailure,
 } from "./result";
 
@@ -166,3 +168,15 @@ export {
   type ConfirmApplicationOptions,
   type ConfirmApplicationResult,
 } from "./confirm-application";
+
+export {
+  signAndSubmitApplication,
+  type FinalSubmitOptions,
+  type FinalSubmitResult,
+} from "./final-submit";
+
+export {
+  selectDs160PhotoDocument,
+  buildPhotoFileFromDownloadedDocument,
+  isDs160PhotoDocument,
+} from "./photo-document";
