@@ -19,7 +19,11 @@ import { assertNoGate } from "./gates";
 import type { MailboxProvider } from "./inbox-poller";
 import { RegistrationFailedError } from "./errors";
 import { pollInboxForVerificationLink } from "./inbox-poller";
-import { solveRegistrationCaptchaWithRetry, type FvCaptchaSolveWithTelemetry } from "./registration-captcha";
+import { reportBadCaptcha } from "../captcha";
+import {
+  solveRegistrationCaptcha,
+  type FvCaptchaSolveWithTelemetry,
+} from "./registration-captcha";
 
 export interface FvRegistrationInput {
   firstName: string;
@@ -46,6 +50,11 @@ export interface FvRegistrationResult {
   storageState: Awaited<ReturnType<BrowserContext["storageState"]>>;
   captcha: FvCaptchaSolveWithTelemetry | null;
   runId?: string;
+}
+
+async function hasInvalidSecurityCodeMessage(page: { locator: (selector: string) => { innerText: (options?: { timeout?: number }) => Promise<string> } }): Promise<boolean> {
+  const body = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+  return /invalid security code|code de sécurité invalide|security code.*try again/i.test(body);
 }
 
 /**
@@ -108,7 +117,6 @@ export async function registerFvAccount(
       await page.locator(FV_REGISTRATION_SELECTORS.languageSelect).first().selectOption(language);
     };
 
-    await fillRegistrationForm();
     if (!enableCaptchaSolving) {
       throw new RegistrationFailedError(
         "France-Visas registration CAPTCHA solving is disabled by configuration.",
@@ -116,30 +124,73 @@ export async function registerFvAccount(
       );
     }
 
-    captcha = await solveRegistrationCaptchaWithRetry(page, maxCaptchaAttempts, fillRegistrationForm);
-
-    const submit = page.locator(FV_REGISTRATION_SELECTORS.submit).first();
-    await Promise.all([
-      page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined),
-      submit.click(),
-    ]);
-
-    const pageAfterSubmit = await waitForPage(page, ["check_mailbox", "email_verified", "login", "accueil"], {
-      timeoutMs: 45_000,
-    }).catch(async () => {
-      const detected = await detectPage(page);
-      if (detected.id === "registration") {
-        return detected.id;
+    const telemetry: FvCaptchaSolveWithTelemetry["telemetry"] = [];
+    let pageAfterSubmit: Awaited<ReturnType<typeof waitForPage>> | "registration" | null = null;
+    let lastRegistrationFailure = "unknown";
+    for (let attempt = 1; attempt <= maxCaptchaAttempts; attempt += 1) {
+      await fillRegistrationForm();
+      const outcome = await solveRegistrationCaptcha(page);
+      if (outcome.status === "solved") {
+        captcha = {
+          solve: outcome.solve,
+          telemetry,
+        };
+        telemetry.push({
+          solveId: outcome.solve.solveId,
+          durationMs: outcome.solve.durationMs,
+          attempt,
+          outcome: "solved",
+        });
+      } else if (outcome.status === "no_captcha") {
+        telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });
+      } else {
+        telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });
+        lastRegistrationFailure = outcome.status === "failed" ? outcome.reason : outcome.status;
+        if (attempt === maxCaptchaAttempts) break;
+        await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+        continue;
       }
+
+      const submit = page.locator(FV_REGISTRATION_SELECTORS.submit).first();
+      await submit.click();
+      pageAfterSubmit = await waitForPage(page, ["check_mailbox", "email_verified", "login", "accueil"], {
+        timeoutMs: 45_000,
+      }).catch(async () => {
+        const detected = await detectPage(page);
+        if (detected.id === "registration") {
+          return detected.id;
+        }
+        throw new RegistrationFailedError(
+          `France-Visas registration did not reach the email verification step; detected ${detected.id}.`,
+          { url: detected.url, details: { runId, captchaTelemetry: telemetry } },
+        );
+      });
+
+      if (pageAfterSubmit !== "registration") break;
+
+      const invalidSecurityCode = await hasInvalidSecurityCodeMessage(page);
+      lastRegistrationFailure = invalidSecurityCode
+        ? "invalid_security_code"
+        : "registration_form_still_visible";
+      if (outcome.status === "solved") {
+        telemetry[telemetry.length - 1] = {
+          solveId: outcome.solve.solveId,
+          durationMs: outcome.solve.durationMs,
+          attempt,
+          outcome: invalidSecurityCode ? "wrong_answer_retry" : "failed",
+        };
+        if (invalidSecurityCode) {
+          try { await reportBadCaptcha(outcome.solve.solveId); } catch { /* best-effort */ }
+        }
+      }
+      if (attempt === maxCaptchaAttempts) break;
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+    }
+
+    if (pageAfterSubmit === "registration" || pageAfterSubmit === null) {
       throw new RegistrationFailedError(
-        `France-Visas registration did not reach the email verification step; detected ${detected.id}.`,
-        { url: detected.url, details: { runId, captchaTelemetry: captcha?.telemetry } },
-      );
-    });
-    if (pageAfterSubmit === "registration") {
-      throw new RegistrationFailedError(
-        "France-Visas registration did not advance after CAPTCHA submission.",
-        { url: page.url(), details: { runId, captchaTelemetry: captcha?.telemetry } },
+        `France-Visas registration did not advance after CAPTCHA submission (${lastRegistrationFailure}).`,
+        { url: page.url(), details: { runId, captchaTelemetry: telemetry } },
       );
     }
 

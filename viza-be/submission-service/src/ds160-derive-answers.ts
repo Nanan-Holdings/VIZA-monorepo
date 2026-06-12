@@ -67,7 +67,9 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "us_contact_email", naKey: "us_contact_email_na" },
   { source: "passport_book_number", naKey: "passport_book_number_na" },
   { source: "home_address_state_province", naKey: "home_address_state_na" },
+  { source: "home_address_state", naKey: "home_address_state_na" },
   { source: "home_address_postal_code", naKey: "home_address_postal_na" },
+  { source: "home_address_postal", naKey: "home_address_postal_na" },
   { source: "mobile_phone", naKey: "mobile_phone_na" },
   { source: "work_phone", naKey: "work_phone_na" },
   { source: "secondary_phone", naKey: "secondary_phone_na" },
@@ -90,6 +92,8 @@ const DEFAULT_NA_SOURCES: ReadonlySet<string> = new Set([
 
 const CLEAR_NA_TEXT_FIELDS: ReadonlySet<string> = new Set([
   "passport_issuance_state",
+  "home_address_state",
+  "home_address_postal",
 ]);
 
 interface KeyAlias {

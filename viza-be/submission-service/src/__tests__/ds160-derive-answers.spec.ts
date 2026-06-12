@@ -18,9 +18,15 @@ describe("deriveDS160Answers", () => {
   });
 
   it("removes non-fillable NA tokens from optional CEAC text fields", () => {
-    const answers = deriveDS160Answers({ passport_issuance_state: "DOES_NOT_APPLY" });
+    const answers = deriveDS160Answers({
+      passport_issuance_state: "DOES_NOT_APPLY",
+      home_address_state: "DOES_NOT_APPLY",
+      home_address_postal: "DOES_NOT_APPLY",
+    });
 
     assert.equal(answers.passport_issuance_state, undefined);
+    assert.equal(answers.home_address_state, undefined);
+    assert.equal(answers.home_address_postal, undefined);
   });
 
   it("maps unknown U.S. contact name and email tokens to CEAC NA checkboxes", () => {

@@ -141,7 +141,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   romania: destination('romania', 'Romania', ['罗马尼亚', 'romania', 'bucharest', '布加勒斯特'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   russia: destination('russia', 'Russia', ['俄罗斯', '俄签', 'russia', 'russian federation', 'moscow', 'saint petersburg', '莫斯科', '圣彼得堡'], 'unified_evisa'),
   saudi_arabia: destination('saudi_arabia', 'Saudi Arabia', ['沙特', '沙特阿拉伯', 'saudi', 'saudi arabia', 'riyadh', 'jeddah', '利雅得', '吉达'], 'tourist_evisa'),
-  singapore: destination('singapore', 'Singapore', ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'], 'entry_visa_or_visit_pass'),
+  singapore: destination('singapore', 'Singapore', ['新加坡', 'singapore', 'singapore visa', 'sg arrival card', 'sgac'], 'SG_ARRIVAL_CARD'),
   slovakia: destination('slovakia', 'Slovakia', ['斯洛伐克', 'slovakia', 'bratislava', '布拉迪斯拉发'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   slovenia: destination('slovenia', 'Slovenia', ['斯洛文尼亚', 'slovenia', 'ljubljana', '卢布尔雅那'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   south_africa: destination('south_africa', 'South Africa', ['南非', 'south africa', 'cape town', 'johannesburg', '开普敦', '约翰内斯堡'], 'visitor_visa_tourism'),
