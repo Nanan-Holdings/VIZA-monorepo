@@ -2,21 +2,22 @@
  * CEAC DS-160 worker result payload (US-008).
  *
  * This module defines the typed result contract for a CEAC autofill run.
- * Every run terminates in one of two states:
+ * Every run terminates in one of three states:
  *
  *   - `"handoff_ready"` — the worker reached the Sign and Submit page and
  *     stopped before any irreversible action. The result carries everything
  *     ops needs to hand off to the client: Application ID, recovery
  *     artifacts, and proof-of-reach screenshot.
  *
+ *   - `"submitted"` — the worker completed the final Sign and Submit step
+ *     and reached the CEAC confirmation page.
+ *
  *   - `"failed"` — the run terminated with an error. The result preserves
  *     whatever recovery state was accumulated (Application ID, last
  *     checkpoint, `.dat` artifact, failure screenshot) so ops can attempt
  *     a resume.
  *
- * The discriminant is `status`. The literal `"submitted"` does not appear
- * anywhere in this union — by construction, no code path performs final
- * DS-160 submission.
+ * The discriminant is `status`.
  */
 
 import type { ScreenshotArtifact } from "./diagnostics";
@@ -52,6 +53,18 @@ export interface CeacRunSuccess {
   signPageScreenshot: ScreenshotArtifact | null;
 }
 
+export interface CeacRunSubmitted {
+  status: "submitted";
+  applicationId: string | null;
+  confirmationNumber: string | null;
+  runId?: string;
+  submittedAt: string;
+  url: string;
+  captchaAttempts: number;
+  checkpoint: CeacCheckpoint;
+  datArtifact: DatArtifact | null;
+}
+
 /**
  * Failed terminal state: worker encountered an unrecoverable error.
  *
@@ -83,10 +96,8 @@ export interface CeacRunFailure {
  *   - `"handoff_ready"`: success — ready for client handoff
  *   - `"failed"`: failure — recovery metadata preserved
  *
- * `"submitted"` is not a member of this union. No code path in the CEAC
- * module performs final DS-160 submission.
  */
-export type CeacRunResult = CeacRunSuccess | CeacRunFailure;
+export type CeacRunResult = CeacRunSuccess | CeacRunSubmitted | CeacRunFailure;
 
 /**
  * Build a success result from a `HandoffReadyOutcome`.
@@ -140,6 +151,10 @@ export function buildFailureResult(
  */
 export function isSuccessResult(result: CeacRunResult): result is CeacRunSuccess {
   return result.status === "handoff_ready";
+}
+
+export function isSubmittedResult(result: CeacRunResult): result is CeacRunSubmitted {
+  return result.status === "submitted";
 }
 
 /**

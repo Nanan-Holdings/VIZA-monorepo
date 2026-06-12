@@ -34,7 +34,10 @@ import {
   isManualActionRequiredError,
   orchestrateFill,
   isSuccessResult,
+  isSubmittedResult,
   handleConfirmApplicationPage,
+  selectDs160PhotoDocument,
+  buildPhotoFileFromDownloadedDocument,
   type CeacRunResult,
   type ConfirmApplicationResult,
 } from "./ceac";
@@ -485,7 +488,12 @@ async function loadApplicantData(applicationId: string): Promise<{
     throw new Error(`Failed to load documents: ${docsError.message}`);
   }
 
-  return { profile, application, documents: documents ?? [] };
+  const normalizedDocuments = ((documents ?? []) as Array<ApplicationDocument & { filename?: string | null }>).map((doc) => ({
+    ...doc,
+    file_name: doc.file_name ?? doc.filename ?? null,
+  }));
+
+  return { profile, application, documents: normalizedDocuments };
 }
 
 async function updateApplicationSubmitted(
@@ -1136,9 +1144,23 @@ async function processDs160Item(
   try {
     // Load applicant data and answers before bootstrap so the CEAC start-page
     // post/location can be selected from the applicant's own DS-160 answers.
-    const { profile } = await loadApplicantData(item.application_id);
+    const { profile, documents } = await loadApplicantData(item.application_id);
     const answers = await loadDs160Answers(item.application_id, { prepareForCeac: true });
     const startLocationCode = resolveCeacStartLocationCode(answers);
+    const photoDocument = selectDs160PhotoDocument(documents);
+    const documentPaths = photoDocument
+      ? await downloadDocuments([photoDocument], tempDir)
+      : new Map<string, string>();
+    const photoFile = buildPhotoFileFromDownloadedDocument(photoDocument, documentPaths);
+    const passportNumberForSignature = answers["passport_number"]?.trim();
+
+    if (liveAssisted && !photoFile) {
+      throw new Error("DS-160 live submission requires an uploaded applicant photo before CEAC submission.");
+    }
+
+    if (liveAssisted && !passportNumberForSignature) {
+      throw new Error("DS-160 live submission requires passport_number for the final signature step.");
+    }
 
     session = await startCeacSession({
       headless: config.playwrightHeadless,
@@ -1186,13 +1208,17 @@ async function processDs160Item(
 
     // Drive page-by-page fill through CEAC navigation/checkpoint helpers.
     // orchestrateFill handles: field filling, page advancement, section
-    // checkpoints, .dat capture, and stop-at-sign-and-submit.
+    // checkpoints, .dat capture, photo upload, and final Sign and Submit.
     const { result, datArtifact, sectionCoverage } = await orchestrateFill(session, {
       answers,
       profile: profile as unknown as Record<string, unknown>,
       tracker,
       runId,
       outputDir: tempDir,
+      photo: photoFile,
+      finalSubmit: passportNumberForSignature
+        ? { passportNumber: passportNumberForSignature }
+        : undefined,
       recoveryCredentials: {
         applicationId: confirm.applicationId,
         surnameFirstFive,
@@ -1221,7 +1247,43 @@ async function processDs160Item(
       ? { captchaSolve: session.captchaSolve.telemetry }
       : {};
 
-    if (isSuccessResult(result)) {
+    if (isSubmittedResult(result)) {
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "ds160_submitted",
+          current_stage: "submitted",
+          ceac_result_payload: { ...result, sectionCoverage, ...captchaTelemetry } as unknown as Record<string, unknown>,
+          live_submitted_at: result.submittedAt,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      const applicationId = result.applicationId ?? confirm.applicationId;
+      const usPayload: UsSubmissionResult = {
+        country: "US",
+        status: "submitted",
+        applicationId,
+        confirmationNumber: result.confirmationNumber ?? applicationId,
+        surnameFirst5: surnameFirstFive,
+        yearOfBirth: Number(yearOfBirth) || 0,
+        securityQuestion: confirm.securityQuestionText,
+        securityAnswerCipher: encryptSecret(confirm.securityAnswer),
+        embassyOrConsulate:
+          answers["consular_post"] ??
+          answers["embassy_or_consulate"] ??
+          answers["location_where_applying_for_visa"] ??
+          "Pending — confirm at appointment",
+        retrievalUrl: `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${applicationId}`,
+        ...(storagePath ? { datStoragePath: storagePath } : {}),
+        finalSubmissionMode: "external_verified",
+      };
+      await writeSubmissionResult(item.application_id, usPayload, "submitted");
+
+      console.log(
+        `[ceac] Run ${runId} submitted for application=${redactIdentifier(item.application_id)} ceac=${redactIdentifier(applicationId)}`,
+      );
+    } else if (isSuccessResult(result)) {
       // Handoff-ready: form filled up to Sign and Submit page.
       // Persist full CEAC result payload for operator diagnostics.
       await supabase

@@ -47,6 +47,7 @@ export function UsResultCard({
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
     ? result.securityAnswer
     : null;
+  const submitted = result.status === "submitted";
 
   return (
     <Card className="rounded-xl border-input">
@@ -56,17 +57,20 @@ export function UsResultCard({
             <ShieldCheck className="h-5 w-5 text-brand-500" />
             {t("title")}
           </CardTitle>
-          <Badge variant={result.status === "submitted" ? "default" : "secondary"}>
-            {result.status === "submitted" ? t("submitted") : t("awaitingSignature")}
+          <Badge variant={submitted ? "default" : "secondary"}>
+            {submitted ? t("submitted") : t("awaitingSignature")}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {t("body")}
+          {submitted ? t("submittedBody") : t("body")}
         </p>
 
         <div className="grid gap-2">
+          {result.confirmationNumber && result.confirmationNumber !== result.applicationId && (
+            <CopyValue label={t("confirmationNumber")} value={result.confirmationNumber} />
+          )}
           <CopyValue label={t("applicationId")} value={result.applicationId} />
           <CopyValue label={t("surnameFirst5")} value={result.surnameFirst5} />
           <CopyValue label={t("yearOfBirth")} value={String(result.yearOfBirth)} />

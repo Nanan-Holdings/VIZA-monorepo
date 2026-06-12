@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import type { SgacPortalPayload } from "./normalize";
 
-export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/";
+export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
 
 export class SgacPortalError extends Error {
   readonly code: string;
@@ -124,8 +124,16 @@ async function launch(headless: boolean): Promise<Handles> {
 }
 
 async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promise<void> {
-  await page.getByRole("button", { name: /Submit SGAC/i }).click();
-  await page.getByRole("button", { name: /Foreign Visitor/i }).click();
+  await page.waitForSelector("#indFullName_0", { timeout: 10_000 }).catch(() => undefined);
+  if ((await page.locator("#indFullName_0").count()) === 0) {
+    await page.getByRole("button", { name: /Submit SGAC/i }).click();
+  }
+  if ((await page.locator("#indFullName_0").count()) === 0) {
+    const foreignVisitorButton = page.getByRole("button", { name: /Foreign Visitor/i });
+    if ((await foreignVisitorButton.count()) > 0) {
+      await foreignVisitorButton.click();
+    }
+  }
   await page.waitForSelector("#indFullName_0", { timeout: 40_000 });
 
   const arrivalButton = page.getByRole("button", { name: new RegExp(escapeRegex(payload.arrivalDate)) }).first();

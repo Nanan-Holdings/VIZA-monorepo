@@ -21,12 +21,17 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
    CEAC location dropdown and dismiss the location modal.
 2. `start-page-captcha.ts` remains a legacy diagnostic helper only. Please use CAPTCHA-solving APIs to help to bypass the captcha verification at the beginning.
 3. `pages.ts` detects the current DS-160 page.
-4. `orchestrator.ts` fills mapped pages and advances through the form.
-5. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
+4. `orchestrator.ts` fills mapped pages, uploads the applicant photo, and
+   advances through final submission when supplied with signature data.
+5. `final-submit.ts` owns the irreversible CEAC Sign and Submit action and
+   final CAPTCHA solving.
+6. `photo-document.ts` selects the frontend-uploaded DS-160 photo document for
+   the worker.
+7. `checkpoints.ts`, `artifacts.ts`, and `diagnostics.ts` preserve recovery
    metadata and screenshots.
-6. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
+8. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
    sign/submit for one-shot submission.
-7. `result.ts` returns typed success/failure/handoff payloads.
+9. `result.ts` returns typed success/failure/handoff payloads.
 
 ## Validation
 
@@ -47,5 +52,8 @@ Then follow:
 - `viza-be/submission-service/src/ds160-form-mappings.ts`
 - `viza-be/submission-service/src/ds160-coverage-audit.ts`
 - `viza-be/submission-service/src/ds160-completeness-verify.ts`
+- `viza-be/submission-service/src/ceac/final-submit.ts`
+- `viza-be/submission-service/src/ceac/photo-document.ts`
+- `viza-be/submission-service/src/ceac/__tests__/photo-document.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/session.spec.ts`
 - `viza-be/submission-service/docs/ceac-smoke-test.md`

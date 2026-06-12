@@ -20,6 +20,8 @@
  * this automation.
  */
 
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Page } from "@playwright/test";
 import { signInWithPassword, type FvSignInInput, type FvSessionHandles } from "./sign-in";
 import { startNewApplication, finalizeAndDownloadPdf } from "./accueil";
@@ -52,6 +54,14 @@ export interface FillFranceVisasOptions {
   pdfOutputDir?: string;
   /** Optional heartbeat invoked once a signed-in official portal page is open. */
   onOfficialPortalOpened?: (info: { url: string }) => Promise<void> | void;
+  /** Where to save failure screenshots/HTML/text. Default: artifacts/france-live/<runId>. */
+  diagnosticsDir?: string;
+}
+
+export interface FranceVisasFailureDiagnostics {
+  screenshotPath: string | null;
+  htmlPath: string | null;
+  textPath: string | null;
 }
 
 export type FillFranceVisasResult =
@@ -85,6 +95,7 @@ export type FillFranceVisasResult =
       runId?: string;
       failedStep: FvPageId | "unknown";
       validationMessages: string[];
+      diagnostics: FranceVisasFailureDiagnostics | null;
       error: Record<string, unknown> | null;
       url: string;
     };
@@ -107,61 +118,83 @@ export async function fillFranceVisasApplication(
 
   try {
     // ── Sign in ───────────────────────────────────────────────────────────
+    logRun(runId, "sign-in starting");
     session = await signInWithPassword(input.credentials, {
       headless: options.headless ?? true,
       runId,
     });
+    logRun(runId, "sign-in complete");
     await options.onOfficialPortalOpened?.({ url: session.page.url() });
 
     // ── Start a fresh application ────────────────────────────────────────
+    logRun(runId, "starting new application");
     await startNewApplication(session.page, { timeoutMs: stepTimeoutMs });
     currentStep = "step1";
+    logRun(runId, "landed on step1");
 
     // ── Step 1 — Your plans ──────────────────────────────────────────────
+    logRun(runId, "filling step1");
     await fillStep1(session.page, input.answers.step1);
+    logRun(runId, "advancing step1 to step2");
     await advanceStep(session.page, "step1", "step2", stepTimeoutMs);
     stepsCompleted.push("step1");
     currentStep = "step2";
+    logRun(runId, "landed on step2");
 
     // ── Step 2 — Your information ────────────────────────────────────────
+    logRun(runId, "filling step2");
     await fillStep2(session.page, input.answers.step2);
+    logRun(runId, "advancing step2 to step3");
     await advanceStep(session.page, "step2", "step3", stepTimeoutMs);
     stepsCompleted.push("step2");
     currentStep = "step3";
+    logRun(runId, "landed on step3");
 
     // ── Step 3 — Your last visa ──────────────────────────────────────────
+    logRun(runId, "filling step3");
     await fillStep3(session.page, input.answers.step3);
+    logRun(runId, "advancing step3 to step4");
     await advanceStep(session.page, "step3", "step4", stepTimeoutMs);
     stepsCompleted.push("step3");
     currentStep = "step4";
+    logRun(runId, "landed on step4");
 
     // ── Step 4 — Your stay ───────────────────────────────────────────────
+    logRun(runId, "filling step4");
     await fillStep4(session.page, input.answers.step4);
+    logRun(runId, "advancing step4 to step5");
     await advanceStep(session.page, "step4", "step5", stepTimeoutMs);
     stepsCompleted.push("step4");
     currentStep = "step5";
+    logRun(runId, "landed on step5");
 
     // ── Step 5 — Your contacts ───────────────────────────────────────────
+    logRun(runId, "filling step5");
     await fillStep5(session.page, input.answers.step5);
+    logRun(runId, "advancing step5 to step6");
     await advanceStep(session.page, "step5", "step6", stepTimeoutMs);
     stepsCompleted.push("step5");
     currentStep = "step6";
+    logRun(runId, "landed on step6");
 
     // ── Step 6 — Supporting documents (informational, "Continue") ────────
     // Step 6 is informational with no fillable fields; just advance via the
     // localized "Continue" button. Use the same polling loop in case an
     // interstitial appears.
+    logRun(runId, "advancing step6 to dashboard");
     await advanceStep(session.page, "step6", "accueil", stepTimeoutMs);
     stepsCompleted.push("step6");
 
     const landed = await detectPage(session.page);
     const draftReference = await captureLatestApplicationReference(session.page);
+    logRun(runId, `dashboard reached; draftReference=${draftReference ? "<captured>" : "(none)"}`);
 
     // ── Finalize + download PDF (optional but on by default) ────────────
     let applicationReference: string | null = null;
     let pdfPath: string | null = null;
     if (options.finalize !== false) {
       currentStep = "accueil";
+      logRun(runId, "finalizing draft and downloading CERFA");
       const finalized = await finalizeAndDownloadPdf(session.page, {
         outputDir: options.pdfOutputDir,
         timeoutMs: stepTimeoutMs,
@@ -169,6 +202,7 @@ export async function fillFranceVisasApplication(
       });
       applicationReference = finalized.applicationReference;
       pdfPath = finalized.pdfPath;
+      logRun(runId, `finalize complete; applicationReference=${applicationReference ? "<captured>" : "(none)"} pdf=${pdfPath ? "<saved>" : "(none)"}`);
     }
 
     return {
@@ -181,8 +215,10 @@ export async function fillFranceVisasApplication(
       pdfPath,
     };
   } catch (err) {
+    logRun(runId, `failed at ${currentStep}: ${err instanceof Error ? err.message : String(err)}`);
     const url = session?.page.url() ?? "";
     let validationMessages: string[] = [];
+    let diagnostics: FranceVisasFailureDiagnostics | null = null;
     if (session) {
       try {
         const report = await readValidationMessages(session.page);
@@ -190,12 +226,17 @@ export async function fillFranceVisasApplication(
       } catch {
         // best-effort
       }
+      diagnostics = await captureFailureDiagnostics(session.page, {
+        dir: options.diagnosticsDir ?? path.join(process.cwd(), "artifacts", "france-live", runId ?? "latest"),
+        failedStep: currentStep,
+      });
     }
     return {
       status: "failed",
       runId,
       failedStep: currentStep,
       validationMessages,
+      diagnostics,
       error: serializeError(err),
       url,
     };
@@ -225,7 +266,6 @@ async function advanceStep(
   to: FvPageId,
   timeoutMs: number,
 ): Promise<void> {
-  void from;
   const deadline = Date.now() + timeoutMs;
   const tickIntervalMs = 1500;
 
@@ -252,7 +292,35 @@ async function advanceStep(
 
   // Final identity check before throwing — gives the page a last beat to
   // settle if the navigation fired right at the deadline.
-  await waitForPage(page, to, { timeoutMs: 5_000 });
+  try {
+    await waitForPage(page, to, { timeoutMs: 5_000 });
+  } catch (err) {
+    const probe = await detectPage(page).catch(() => null);
+    const validation = await readValidationMessages(page).catch(() => null);
+    const buttons = await readVisibleButtons(page).catch(() => []);
+    const bodyPreview = await readBodyPreview(page).catch(() => "");
+    throw new NavigationError(
+      `France-Visas advance from "${from}" did not reach "${to}" within ${timeoutMs}ms`,
+      {
+        expected: to,
+        detected: probe?.id ?? "unknown",
+        url: probe?.url ?? page.url(),
+        validationMessages: validation?.all ?? [],
+        details: {
+          from,
+          to,
+          heading: probe?.heading,
+          visibleButtons: buttons,
+          bodyPreview,
+          cause: err instanceof Error ? err.message : String(err),
+        },
+      },
+    );
+  }
+}
+
+function logRun(runId: string | undefined, message: string): void {
+  console.log(`[fv-run${runId ? ` ${runId}` : ""}] ${message}`);
 }
 
 async function clickIfVisible(page: Page, labelPattern: RegExp): Promise<boolean> {
@@ -273,6 +341,67 @@ async function clickIfVisible(page: Page, labelPattern: RegExp): Promise<boolean
       btn.click();
       return true;
     })()`);
+}
+
+async function readVisibleButtons(page: Page): Promise<Array<{ label: string; disabled: boolean }>> {
+  return page.evaluate(`(() => Array.from(
+      document.querySelectorAll('button, input[type="submit"], input[type="button"]'),
+    )
+      .filter((b) => b.offsetParent !== null)
+      .map((b) => ({
+        label: ((b.value || b.textContent || "") + "").trim().replace(/\\s+/g, " "),
+        disabled: Boolean(b.disabled || b.getAttribute("aria-disabled") === "true"),
+      }))
+      .filter((b) => b.label.length > 0)
+      .slice(0, 30))()`);
+}
+
+async function readBodyPreview(page: Page): Promise<string> {
+  const text = await page.locator("body").innerText({ timeout: 2_000 });
+  return text.replace(/\s+/g, " ").trim().slice(0, 2_000);
+}
+
+async function captureFailureDiagnostics(
+  page: Page,
+  input: { dir: string; failedStep: FvPageId | "unknown" },
+): Promise<FranceVisasFailureDiagnostics> {
+  const safeStep = input.failedStep.replace(/[^a-z0-9_-]/gi, "_");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const base = path.join(input.dir, `${timestamp}-${safeStep}`);
+  const screenshotPath = `${base}.png`;
+  const htmlPath = `${base}.html`;
+  const textPath = `${base}.txt`;
+  const out: FranceVisasFailureDiagnostics = {
+    screenshotPath,
+    htmlPath,
+    textPath,
+  };
+
+  try {
+    await fs.mkdir(input.dir, { recursive: true });
+  } catch {
+    return { screenshotPath: null, htmlPath: null, textPath: null };
+  }
+
+  try {
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+  } catch {
+    out.screenshotPath = null;
+  }
+
+  try {
+    await fs.writeFile(htmlPath, await page.content(), "utf8");
+  } catch {
+    out.htmlPath = null;
+  }
+
+  try {
+    await fs.writeFile(textPath, await page.locator("body").innerText({ timeout: 2_000 }), "utf8");
+  } catch {
+    out.textPath = null;
+  }
+
+  return out;
 }
 
 /**
