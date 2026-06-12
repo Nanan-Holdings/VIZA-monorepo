@@ -94,13 +94,13 @@ async function reapplyClearedSelects(
   for (let pass = 0; pass < 3; pass += 1) {
     let anyReapplied = false;
     for (const t of targets) {
-      const current = await page.evaluate(
-        (name) => {
-          const sel = document.querySelector(`select[name="${name.replace(/"/g, '\\"')}"]`);
-          return sel ? (sel as HTMLSelectElement).value : null;
-        },
-        t.name,
-      );
+      const safeName = JSON.stringify(t.name).replace(/</g, "\\u003c");
+      const current = await page.evaluate(`(() => {
+        const name = ${safeName};
+        const escaped = name.replace(/"/g, '\\"');
+        const sel = document.querySelector('select[name="' + escaped + '"]');
+        return sel ? sel.value : null;
+      })()`);
       if (current === t.value) continue;
       await selectPrimeFacesOption(page, t.widget, t.value);
       anyReapplied = true;

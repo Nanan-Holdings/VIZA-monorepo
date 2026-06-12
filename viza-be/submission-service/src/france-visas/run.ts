@@ -258,23 +258,21 @@ async function advanceStep(
 async function clickIfVisible(page: Page, labelPattern: RegExp): Promise<boolean> {
   const source = labelPattern.source;
   const flags = labelPattern.flags;
-  return page.evaluate(
-    ({ source, flags }) => {
+  return page.evaluate(`(() => {
+      const source = ${JSON.stringify(source)};
+      const flags = ${JSON.stringify(flags)};
       const re = new RegExp(source, flags);
-      const visible = (e: Element) => (e as HTMLElement).offsetParent !== null;
-      const label = (b: Element) =>
-        (((b as HTMLInputElement).value || b.textContent || "") + "").trim();
+      const visible = (e) => e.offsetParent !== null;
+      const label = (b) => ((b.value || b.textContent || "") + "").trim();
       const btn = Array.from(
-        document.querySelectorAll<HTMLElement>('button, input[type="submit"]'),
+        document.querySelectorAll('button, input[type="submit"]'),
       )
         .filter(visible)
         .find((b) => re.test(label(b)));
       if (!btn) return false;
       btn.click();
       return true;
-    },
-    { source, flags },
-  );
+    })()`);
 }
 
 /**
@@ -282,14 +280,14 @@ async function clickIfVisible(page: Page, labelPattern: RegExp): Promise<boolean
  * "Verify" (step 1 eligibility), "Suivant" (FR), or "Continue" (step 6).
  */
 async function clickAdvanceButton(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  await page.evaluate(`(() => {
     const btn = Array.from(
-      document.querySelectorAll<HTMLElement>('button, input[type="submit"]'),
+      document.querySelectorAll('button, input[type="submit"]'),
     )
       .filter((b) => b.offsetParent !== null)
       .find((b) => {
         const label = (
-          (b as HTMLInputElement).value ||
+          b.value ||
           b.textContent ||
           ""
         )
@@ -304,8 +302,8 @@ async function clickAdvanceButton(page: Page): Promise<void> {
           label === "continuer"
         );
       });
-    if (btn) (btn as HTMLElement).click();
-  });
+    if (btn) btn.click();
+  })()`);
   await waitForJsfIdle(page);
 }
 
@@ -314,21 +312,21 @@ async function clickAdvanceButton(page: Page): Promise<void> {
  * click Yes. No-op when no dialog is visible.
  */
 async function confirmModalIfPresent(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  await page.evaluate(`(() => {
     const yes = Array.from(
-      document.querySelectorAll<HTMLElement>('button, input[type="submit"]'),
+      document.querySelectorAll('button, input[type="submit"]'),
     )
       .filter((b) => b.offsetParent !== null)
       .find((b) => {
         const label = (
-          (b as HTMLInputElement).value ||
+          b.value ||
           b.textContent ||
           ""
         ).trim();
         return /^(yes|oui)$/i.test(label);
       });
-    if (yes) (yes as HTMLElement).click();
-  });
+    if (yes) yes.click();
+  })()`);
   await waitForJsfIdle(page);
 }
 
@@ -343,9 +341,9 @@ async function confirmModalIfPresent(page: Page): Promise<void> {
  * time). Non-fatal — the run is still successful without it.
  */
 async function captureLatestApplicationReference(page: Page): Promise<string | null> {
-  return page.evaluate(() => {
+  return page.evaluate(`(() => {
     const text = document.body?.innerText ?? "";
     const match = text.match(/\b(202\d{10,12})\b/);
     return match ? match[1] : null;
-  });
+  })()`);
 }
