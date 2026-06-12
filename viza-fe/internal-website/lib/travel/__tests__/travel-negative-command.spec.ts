@@ -56,6 +56,18 @@ describe("travel negative command handling", () => {
     expect(resolution.cards).toEqual([]);
   });
 
+  it.each(["你好", "hello", "谢谢", "好的"])(
+    "does not create a destination card for greeting %s",
+    (message) => {
+      const intent = parseTravelIntent(message);
+      expect(intent.intent).toBe("invalid_or_unrelated");
+
+      const resolution = resolveLocalDestinationText(message);
+      expect(resolution.status).toBe("unresolved");
+      expect(resolution.cards).toEqual([]);
+    }
+  );
+
   it("chat API answers vague removal with clarification and no cards", async () => {
     const response = await postTravelChat(travelChatRequest("不要这个"));
     const payload = await response.json();
@@ -65,5 +77,17 @@ describe("travel negative command handling", () => {
     expect(payload.candidate_payload).toEqual({});
     expect(payload.reply).toContain("你想删除哪一个景点或卡片");
     expect(payload.debug?.travel_pipeline?.detectedIntent).toBe("remove_item");
+  });
+
+  it("chat API answers greetings without creating destination cards", async () => {
+    const response = await postTravelChat(travelChatRequest("你好"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.cards).toEqual([]);
+    expect(payload.candidate_payload).toEqual({});
+    expect(payload.debug?.travel_pipeline?.detectedIntent).toBe(
+      "invalid_or_unrelated"
+    );
   });
 });

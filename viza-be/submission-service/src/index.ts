@@ -1514,7 +1514,7 @@ function generateFvPortalPassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghijkmnopqrstuvwxyz";
   const digits = "23456789";
-  const symbols = "!@#$%*?";
+  const symbols = "!@#$*?";
   const all = upper + lower + digits + symbols;
   const required = [
     upper[randomBytes(1)[0] % upper.length],
@@ -3502,6 +3502,15 @@ async function pollOnce(): Promise<void> {
   if (items.length === 0) {
     console.log("[poll] No pending items.");
     return;
+  }
+
+  const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
+  if (targetJobId) {
+    items = items.filter((item) => item.id === targetJobId);
+    if (items.length === 0) {
+      console.log(`[poll] No pending items matched target job ${redactIdentifier(targetJobId)}.`);
+      return;
+    }
   }
 
   console.log(`[poll] Found ${items.length} pending item(s).`);

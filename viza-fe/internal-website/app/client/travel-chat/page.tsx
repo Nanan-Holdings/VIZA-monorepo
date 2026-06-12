@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { TravelChatClient } from "./travel-chat-client";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { getLatestTravelApplicationIdForApplicant } from "@/lib/travel/travel-chat-application";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +26,7 @@ export default async function TravelChatPage() {
     redirect("/client/login");
   }
 
-  const adminClient = createAdminClient();
-  const { data: application } = await adminClient
-    .from("applications")
-    .select("id")
-    .eq("applicant_id", applicantId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const applicationId = await getLatestTravelApplicationIdForApplicant(applicantId);
 
-  return <TravelChatClient applicationId={application?.id ?? null} />;
+  return <TravelChatClient applicationId={applicationId} />;
 }

@@ -156,6 +156,32 @@ function isCommandIntent(intent: string | undefined): boolean {
   );
 }
 
+function isInvalidOrUnrelatedIntent(intent: string | undefined): boolean {
+  return intent === "invalid_or_unrelated";
+}
+
+function invalidOrUnrelatedResponse(
+  resolution: DestinationResolution
+): TravelAgentChatResponse {
+  return withTravelPipelineDebug(
+    {
+      reply: "可以告诉我你的目的地、天数、预算或想调整的行程项目，我会再继续规划。",
+      mode: "collect_slots",
+      quick_replies: [],
+      cards: [],
+      candidate_payload: {},
+      sources: [
+        {
+          id: "travel_intent_parser",
+          title: "Invalid or unrelated travel input",
+          type: "parser",
+        },
+      ],
+    },
+    resolution
+  );
+}
+
 function enrichTravelChatResponse(
   payload: unknown,
   response: TravelAgentChatResponse
@@ -190,6 +216,13 @@ function enrichTravelChatResponse(
       },
       resolution
     );
+  }
+
+  if (
+    resolution.status === "unresolved" &&
+    isInvalidOrUnrelatedIntent(resolution.debugTrace?.detectedIntent)
+  ) {
+    return invalidOrUnrelatedResponse(resolution);
   }
 
   if (resolution.status === "ambiguous") {
@@ -269,7 +302,7 @@ function enrichTravelChatResponse(
       {
         reply:
           response.reply ||
-          "我先把这个目的地作为临时未验证地点继续规划；后续会补充坐标和目的地资料。",
+          "我识别到一个待验证旅行地点。正在补充地点资料；在确认前不会把它作为最终行程依据。",
         mode: "destination_detail",
         quick_replies: response.quick_replies ?? [],
         cards: mergeDestinationCards(response.cards, [card]),
@@ -324,6 +357,13 @@ function buildImmediateLocalFirstResponse(
       },
       resolution
     );
+  }
+
+  if (
+    resolution.status === "unresolved" &&
+    isInvalidOrUnrelatedIntent(resolution.debugTrace?.detectedIntent)
+  ) {
+    return invalidOrUnrelatedResponse(resolution);
   }
 
   if (resolution.status === "ambiguous") {
@@ -388,7 +428,7 @@ function buildImmediateLocalFirstResponse(
     return withTravelPipelineDebug(
       {
         reply:
-          "这个目的地暂时无法通过本地库确认。我会先创建低置信度文字草稿卡，并保持图片为占位图，直到后续 API 找到可信资料。",
+          "正在补充地点资料；确认前不会把它作为最终行程依据。",
         mode: "destination_detail",
         quick_replies: [],
         cards: [card],

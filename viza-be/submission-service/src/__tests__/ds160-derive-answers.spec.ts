@@ -25,6 +25,8 @@ describe("deriveDS160Answers", () => {
     });
 
     assert.equal(answers.passport_issuance_state, undefined);
+    assert.equal(answers.home_address_state_na, "Y");
+    assert.equal(answers.home_address_postal_na, "Y");
     assert.equal(answers.home_address_state, undefined);
     assert.equal(answers.home_address_postal, undefined);
   });
@@ -33,11 +35,14 @@ describe("deriveDS160Answers", () => {
     const answers = deriveDS160Answers({
       us_contact_surname: "DO_NOT_KNOW",
       us_contact_given_names: "DO_NOT_KNOW",
+      us_contact_organization: "DO_NOT_KNOW",
       us_contact_email: "DOES_NOT_APPLY",
     });
 
     assert.equal(answers.us_contact_name_na, "Y");
     assert.equal(answers.us_contact_email_na, "Y");
+    assert.equal(answers.us_contact_organization, "UNKNOWN");
+    assert.equal(answers.us_contact_organization_na, undefined);
     assert.equal(answers.us_contact_surname, undefined);
     assert.equal(answers.us_contact_given_names, undefined);
     assert.equal(answers.us_contact_email, undefined);

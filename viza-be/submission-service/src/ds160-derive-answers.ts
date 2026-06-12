@@ -92,8 +92,6 @@ const DEFAULT_NA_SOURCES: ReadonlySet<string> = new Set([
 
 const CLEAR_NA_TEXT_FIELDS: ReadonlySet<string> = new Set([
   "passport_issuance_state",
-  "home_address_state",
-  "home_address_postal",
 ]);
 
 interface KeyAlias {
@@ -476,6 +474,15 @@ function deriveUsContactNameNa(answers: Record<string, string>): void {
   answers.us_contact_name_na = "Y";
   if (surnameNa) delete answers.us_contact_surname;
   if (givenNa) delete answers.us_contact_given_names;
+
+  // CEAC's U.S. Contact page treats "Contact Person unknown" and
+  // "Organization unknown" as mutually exclusive. If both source answers are
+  // unknown, keep the person-level Do Not Know checkbox and provide a minimal
+  // text value for Organization so the page can validate.
+  if (isNaToken(answers.us_contact_organization)) {
+    answers.us_contact_organization = "UNKNOWN";
+    delete answers.us_contact_organization_na;
+  }
 }
 
 function deriveSocialMediaPresence(answers: Record<string, string>): void {

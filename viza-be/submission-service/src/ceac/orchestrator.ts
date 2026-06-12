@@ -558,8 +558,27 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
     }, normalizedTarget).catch(() => null);
 
     if (!matchedValue) throw firstError;
-    await el.selectOption(matchedValue, { timeout: 5_000 });
+    try {
+      await el.selectOption(matchedValue, { timeout: 5_000 });
+      return;
+    } catch {
+      await el.evaluate((node, nextValue) => {
+        const select = node as HTMLSelectElement;
+        select.value = nextValue;
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }, matchedValue);
+    }
   }
+}
+
+async function forceTextValue(el: Locator, value: string): Promise<void> {
+  await el.evaluate((node, nextValue) => {
+    const input = node as HTMLInputElement | HTMLTextAreaElement;
+    input.value = nextValue;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
 }
 
 async function fillPageFields(
@@ -619,7 +638,7 @@ async function fillPageFields(
       try {
         const all = page.locator(selector);
         let count = await all.count();
-        if (count === 0 && mapping.type === "checkbox") {
+        if (count === 0) {
           await all.first().waitFor({ state: "attached", timeout: 2_500 }).catch(() => undefined);
           count = await all.count();
         }
@@ -633,7 +652,13 @@ async function fillPageFields(
         let el: ReturnType<typeof page.locator> | null = null;
         for (let i = 0; i < count; i += 1) {
           const candidate = all.nth(i);
-          if (mapping.type === "checkbox") {
+          if (mapping.type === "checkbox" || mapping.type === "radio") {
+            el = candidate;
+            break;
+          }
+          if (mapping.type === "select") {
+            const enabled = await candidate.isEnabled().catch(() => false);
+            if (!enabled) continue;
             el = candidate;
             break;
           }
@@ -642,17 +667,25 @@ async function fillPageFields(
           // For text fills, also require the element to be editable:
           // CEAC disables fields like social_media_identifier when its
           // sibling dropdown is set to "NONE", and we don't want to burn
-          // the 5s actionability timeout on those. Selects are not
-          // "editable" in Playwright's sense, so only require enabled.
+          // the 5s actionability timeout on those.
           if (mapping.type === "text") {
             const editable = await candidate.isEditable().catch(() => false);
             if (!editable) continue;
-          } else if (mapping.type === "select") {
-            const enabled = await candidate.isEnabled().catch(() => false);
-            if (!enabled) continue;
           }
           el = candidate;
           break;
+        }
+        if (!el && mapping.type === "text") {
+          // Some CEAC controls are rendered below the initial viewport or
+          // inside tables that confuse actionability checks. As a fallback,
+          // use the first enabled text input and assign through DOM events.
+          for (let i = 0; i < count; i += 1) {
+            const candidate = all.nth(i);
+            const enabled = await candidate.isEnabled().catch(() => false);
+            if (!enabled) continue;
+            el = candidate;
+            break;
+          }
         }
         if (!el) {
           skippedAsInapplicable = true;
@@ -674,10 +707,6 @@ async function fillPageFields(
               input.checked = true;
               input.dispatchEvent(new Event("input", { bubbles: true }));
               input.dispatchEvent(new Event("change", { bubbles: true }));
-              const win = window as typeof window & { __doPostBack?: (target: string, argument: string) => void };
-              if (typeof win.__doPostBack === "function" && input.name) {
-                try { win.__doPostBack(input.name, ""); } catch { /* best effort */ }
-              }
             });
           } else {
             continue; // No matching radio option
@@ -694,13 +723,13 @@ async function fillPageFields(
             input.dispatchEvent(new Event("input", { bubbles: true }));
             input.dispatchEvent(new Event("change", { bubbles: true }));
             input.checked = Boolean(checked);
-            const win = window as typeof window & { __doPostBack?: (target: string, argument: string) => void };
-            if (typeof win.__doPostBack === "function" && input.name) {
-              try { win.__doPostBack(input.name, ""); } catch { /* best effort */ }
-            }
           }, shouldCheck);
         } else {
-          await el.fill(value, { timeout: 5_000 });
+          try {
+            await el.fill(value, { timeout: 5_000 });
+          } catch {
+            await forceTextValue(el, value);
+          }
         }
 
         // Many CEAC controls (radios, AutoPostBack selects, NA
@@ -724,6 +753,54 @@ async function fillPageFields(
     if (!filled && !skippedAsInapplicable) {
       const hint = lastErr instanceof Error ? ` — last err: ${lastErr.message.slice(0, 100)}` : "";
       console.warn(`[orchestrator] Could not fill "${mapping.label}" on current page${hint}`);
+    }
+  }
+
+  await reinforceChoiceFields(page, mappings, answers, profile, debug);
+}
+
+async function reinforceChoiceFields(
+  page: Page,
+  mappings: Record<string, FormFieldMapping>,
+  answers: Record<string, string>,
+  profile: Record<string, unknown>,
+  debug: boolean,
+): Promise<void> {
+  for (const [fieldName, mapping] of Object.entries(mappings)) {
+    if (mapping.type !== "checkbox" && mapping.type !== "radio") continue;
+    const value = answers[fieldName]
+      ?? (profile[fieldName] as string | undefined)
+      ?? null;
+    if (!value) continue;
+
+    const selectors = mapping.selector.split(",").map((s) => s.trim());
+    for (const selector of selectors) {
+      try {
+        if (mapping.type === "checkbox") {
+          const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
+          const candidate = page.locator(selector).first();
+          if ((await candidate.count()) === 0) continue;
+          await candidate.evaluate((node, checked) => {
+            const input = node as HTMLInputElement;
+            input.checked = Boolean(checked);
+          }, shouldCheck);
+          if (debug) console.log(`[fill] ${fieldName} final checkbox state=${shouldCheck ? "checked" : "unchecked"}`);
+          break;
+        }
+
+        const candidate = page.locator(`${selector}[value="${value}"]`).first();
+        if ((await candidate.count()) === 0) continue;
+        await candidate.evaluate((node) => {
+          const input = node as HTMLInputElement;
+          input.checked = true;
+        });
+        if (debug) console.log(`[fill] ${fieldName} final radio value="${value}"`);
+        break;
+      } catch {
+        // Final reinforcement is best effort. The primary fill path above
+        // still reports missing fields and CEAC validation remains the
+        // source of truth.
+      }
     }
   }
 }

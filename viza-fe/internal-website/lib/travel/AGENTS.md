@@ -32,6 +32,8 @@ location data.
   server-only Places API routes and Travel UI.
 - `travel-errors.ts`: shared normalized Travel pipeline error shape and debug
   logging helpers.
+- `travel-chat-application.ts`: server-only loader for Travel Chat page
+  application context.
 - `locations.ts`: curated country/city data and aliases.
 - `locations-provider.ts`: async options provider and cache layer.
 
