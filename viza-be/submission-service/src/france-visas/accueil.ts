@@ -33,26 +33,49 @@ export async function startNewApplication(
   options: CreateApplicationOptions = {},
 ): Promise<void> {
   const timeoutMs = options.timeoutMs ?? 30_000;
+  const createTextPattern =
+    /create\s+(a\s+)?(new\s+)?application|new\s+application|nouvelle\s+demande|créer\s+une\s+nouvelle\s+demande/i;
   // The button's label is localized — match against EN + FR.
   const cta = page.locator(
     [
       'a:has-text("Create a new application")',
+      'a:has-text("Create an application")',
+      'a:has-text("New application")',
       'button:has-text("Create a new application")',
+      'button:has-text("Create an application")',
+      'button:has-text("New application")',
       'a:has-text("Créer une nouvelle demande")',
+      'a:has-text("Nouvelle demande")',
       'button:has-text("Créer une nouvelle demande")',
+      'button:has-text("Nouvelle demande")',
       'input[type="submit"][value*="Create a new application"]',
+      'input[type="submit"][value*="Create an application"]',
+      'input[type="submit"][value*="New application"]',
+      'input[type="submit"][value*="nouvelle demande" i]',
     ].join(", "),
   ).first();
 
-  const count = await cta.count();
-  if (count === 0) {
+  let target = cta;
+  if ((await target.count()) === 0) {
+    target = page
+      .locator("a, button, input[type='submit'], input[type='button']")
+      .filter({ hasText: createTextPattern })
+      .first();
+  }
+  if ((await target.count()) === 0) {
+    target = page
+      .locator('a[href*="step1.xhtml"], a[href*="create" i], a[href*="nouvelle" i]')
+      .first();
+  }
+
+  if ((await target.count()) === 0) {
     throw new NavigationError(
       `"Create a new application" CTA not found on accueil.xhtml`,
       { url: page.url() },
     );
   }
 
-  await cta.click({ force: true });
+  await target.click({ force: true });
   await waitForPage(page, "step1", { timeoutMs });
 }
 
@@ -132,10 +155,11 @@ export async function finalizeAndDownloadPdf(
   try {
     [download] = await Promise.all([
       page.waitForEvent("download", { timeout: timeoutMs }),
-      page.evaluate((id) => {
+      page.evaluate(`(() => {
+        const id = ${JSON.stringify(pdfLinkId).replace(/</g, "\\u003c")};
         const el = document.getElementById(id);
-        if (el instanceof HTMLElement) el.click();
-      }, pdfLinkId),
+        if (el) el.click();
+      })()`),
     ]);
   } catch (err) {
     throw new NavigationError(
@@ -179,9 +203,10 @@ async function pickInProgressPdfTarget(
   page: Page,
   draftReference: string | undefined,
 ): Promise<InProgressPdfTarget | null> {
-  return page.evaluate(({ draftReference }) => {
+  return page.evaluate(`(() => {
+    const draftReference = ${JSON.stringify(draftReference ?? null).replace(/</g, "\\u003c")};
     const links = Array.from(
-      document.querySelectorAll<HTMLElement>("a, button"),
+      document.querySelectorAll("a, button"),
     ).filter((l) => {
       if (l.offsetParent === null) return false;
       const text = (l.textContent || "").trim();
@@ -189,14 +214,14 @@ async function pickInProgressPdfTarget(
     });
     if (links.length === 0) return null;
 
-    const findRefIn = (root: HTMLElement): string | null => {
+    const findRefIn = (root) => {
       const m = (root.textContent ?? "").match(/\bFRA[A-Z0-9]{10,}\b/);
       return m ? m[0] : null;
     };
 
     if (draftReference) {
       for (const link of links) {
-        let p: HTMLElement | null = link.parentElement;
+        let p = link.parentElement;
         for (let i = 0; i < 12 && p; i += 1) {
           if (p.textContent?.includes(draftReference)) {
             const ref = findRefIn(p);
@@ -209,13 +234,13 @@ async function pickInProgressPdfTarget(
 
     // Fallback: pick the LAST in-progress link.
     const last = links[links.length - 1];
-    let p: HTMLElement | null = last.parentElement;
+    let p = last.parentElement;
     for (let i = 0; i < 12 && p; i += 1) {
       const ref = findRefIn(p);
       if (ref) return { pdfLinkId: last.id, applicationReference: ref };
       p = p.parentElement;
     }
     return null;
-  }, { draftReference });
+  })()`) as Promise<InProgressPdfTarget | null>;
 }
 
