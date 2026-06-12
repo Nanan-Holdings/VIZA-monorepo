@@ -797,6 +797,9 @@ export function SubmissionStatusStep({
       serverProgress={effectiveProgress}
       message={snapshot?.message}
       error={effectiveError}
+      applicationId={applicationId}
+      country={country}
+      visaType={visaType}
       onVisualComplete={() => setShowCompletedResult(true)}
     />
   );

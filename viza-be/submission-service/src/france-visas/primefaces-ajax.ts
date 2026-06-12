@@ -24,6 +24,10 @@
 import type { Page } from "@playwright/test";
 import { NavigationError } from "./errors";
 
+function pageLiteral(value: string | readonly string[] | boolean): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
 /**
  * Wait until a PrimeFaces widget is registered with the API we need.
  * Conditionally-revealed widgets (e.g. businessSegment after occupation
@@ -37,18 +41,13 @@ async function waitForPrimeFacesWidget(
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const exists = await page.evaluate(
-      (widgetVar) => {
-        const win = window as unknown as {
-          PrimeFaces?: { widgets?: Record<string, unknown> };
-        };
-        const widget = win.PrimeFaces?.widgets?.[widgetVar] as
-          | { selectValue?: unknown; triggerChange?: unknown }
-          | undefined;
+    const exists = await page.evaluate(`(() => {
+        const widgetVar = ${pageLiteral(widgetVar)};
+        const widget = window.PrimeFaces && window.PrimeFaces.widgets
+          ? window.PrimeFaces.widgets[widgetVar]
+          : undefined;
         return !!(widget && typeof widget.selectValue === "function" && typeof widget.triggerChange === "function");
-      },
-      widgetVar,
-    );
+      })()`);
     if (exists) return true;
     await page.waitForTimeout(300);
   }
@@ -90,21 +89,17 @@ export async function selectPrimeFacesOption(
     { timeout: timeoutMs },
   ).catch(() => null);
 
-  await page.evaluate(
-    ({ widgetVar, value }) => {
-      const win = window as unknown as {
-        PrimeFaces?: { widgets?: Record<string, unknown> };
-      };
-      const widget = win.PrimeFaces?.widgets?.[widgetVar] as
-        | { selectValue: (v: string) => void; triggerChange: () => void }
-        | undefined;
+  await page.evaluate(`(() => {
+      const widgetVar = ${pageLiteral(widgetVar)};
+      const value = ${pageLiteral(value)};
+      const widget = window.PrimeFaces && window.PrimeFaces.widgets
+        ? window.PrimeFaces.widgets[widgetVar]
+        : undefined;
       if (widget) {
         widget.selectValue(value);
         widget.triggerChange();
       }
-    },
-    { widgetVar, value },
-  );
+    })()`);
 
   await postbackPromise;
 }
@@ -121,11 +116,11 @@ export async function setJsfTextInput(
   fieldName: string,
   value: string,
 ): Promise<void> {
-  const result = await page.evaluate(
-    ({ fieldName, value }) => {
-      const el = document.querySelector(
-        `input[name="${fieldName.replace(/"/g, '\\"')}"]`,
-      ) as HTMLInputElement | null;
+  const result = await page.evaluate(`(() => {
+      const fieldName = ${pageLiteral(fieldName)};
+      const value = ${pageLiteral(value)};
+      const escaped = fieldName.replace(/"/g, '\\"');
+      const el = document.querySelector('input[name="' + escaped + '"]');
       if (!el) return { ok: false };
       el.focus();
       el.value = value;
@@ -133,9 +128,7 @@ export async function setJsfTextInput(
       el.dispatchEvent(new Event("change", { bubbles: true }));
       el.dispatchEvent(new Event("blur", { bubbles: true }));
       return { ok: true, value: el.value };
-    },
-    { fieldName, value },
-  );
+    })()`) as { ok: boolean; value?: string };
 
   if (!result.ok) {
     throw new NavigationError(
@@ -156,15 +149,13 @@ export async function selectPrimeFacesRadio(
   value: "Yes" | "No",
 ): Promise<void> {
   const index = value === "Yes" ? "0" : "1";
-  await page.evaluate(
-    ({ baseName, index }) => {
-      const el = document.querySelector(
-        `input[name="${baseName.replace(/"/g, '\\"')}"][id$=":${index}"]`,
-      ) as HTMLInputElement | null;
+  await page.evaluate(`(() => {
+      const baseName = ${pageLiteral(baseName)};
+      const index = ${pageLiteral(index)};
+      const escaped = baseName.replace(/"/g, '\\"');
+      const el = document.querySelector('input[name="' + escaped + '"][id$=":' + index + '"]');
       if (el) el.click();
-    },
-    { baseName, index },
-  );
+    })()`);
 }
 
 /**
@@ -176,16 +167,14 @@ export async function setJsfCheckbox(
   name: string,
   checked: boolean,
 ): Promise<void> {
-  await page.evaluate(
-    ({ name, checked }) => {
-      const el = document.querySelector(
-        `input[type="checkbox"][name="${name.replace(/"/g, '\\"')}"]`,
-      ) as HTMLInputElement | null;
+  await page.evaluate(`(() => {
+      const name = ${pageLiteral(name)};
+      const checked = ${pageLiteral(checked)};
+      const escaped = name.replace(/"/g, '\\"');
+      const el = document.querySelector('input[type="checkbox"][name="' + escaped + '"]');
       if (!el) return;
       if (el.checked !== checked) el.click();
-    },
-    { name, checked },
-  );
+    })()`);
 }
 
 /**
@@ -198,20 +187,18 @@ export async function setJsfCheckboxGroup(
   groupName: string,
   values: readonly string[],
 ): Promise<void> {
-  await page.evaluate(
-    ({ groupName, values }) => {
+  await page.evaluate(`(() => {
+      const groupName = ${pageLiteral(groupName)};
+      const values = ${pageLiteral(values)};
+      const escaped = groupName.replace(/"/g, '\\"');
       const inputs = Array.from(
-        document.querySelectorAll<HTMLInputElement>(
-          `input[type="checkbox"][name="${groupName.replace(/"/g, '\\"')}"]`,
-        ),
+        document.querySelectorAll('input[type="checkbox"][name="' + escaped + '"]'),
       );
       for (const input of inputs) {
         const shouldCheck = values.includes(input.value);
         if (input.checked !== shouldCheck) input.click();
       }
-    },
-    { groupName, values },
-  );
+    })()`);
 }
 
 /**

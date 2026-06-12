@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useSmoothProgress } from "@/hooks/use-smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,13 @@ interface Phase {
   labelEn: string;
   labelZh: string;
 }
+
+type FvOfficialAccount = {
+  email: string | null;
+  password: string | null;
+  portalUrl: string;
+  updatedAt: string | null;
+};
 
 const PHASES: Phase[] = [
   {
@@ -107,6 +115,9 @@ export function WaitingCard({
   serverProgress,
   message,
   error,
+  applicationId,
+  country,
+  visaType,
   onVisualComplete,
 }: {
   status: SubmissionVisualStatus | null;
@@ -114,14 +125,23 @@ export function WaitingCard({
   serverProgress?: number | null;
   message?: string | null;
   error?: string | null;
+  applicationId?: string | null;
+  country?: string | null;
+  visaType?: string | null;
   onVisualComplete?: () => void;
 }) {
   const locale = useLocale();
   const isZh = isChineseLocale(locale);
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
+  const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const completeStatus = isCompletionStatus(status);
   const failedStatus = isFailedStatus(status);
   const waitingForUser = isWaitingForUserStatus(status);
+  const isFrance =
+    country?.toUpperCase() === "FR" ||
+    country?.toLowerCase() === "france" ||
+    visaType === "EU_SCHENGEN_C_SHORT_STAY";
   const visualServerProgress =
     typeof serverProgress === "number"
       ? serverProgress
@@ -167,6 +187,30 @@ export function WaitingCard({
     const id = setTimeout(() => setActivePhaseIdx((i) => Math.min(i + 1, PHASES.length - 1)), 12_000);
     return () => clearTimeout(id);
   }, [activePhaseIdx, completeStatus, failedStatus, serverProgress, stage, waitingForUser]);
+
+  useEffect(() => {
+    if (!applicationId || !isFrance) return;
+    let cancelled = false;
+
+    const loadAccount = async () => {
+      const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        account?: FvOfficialAccount | null;
+      } | null;
+      if (!cancelled && response.ok) {
+        setOfficialAccount(payload?.account ?? null);
+      }
+    };
+
+    void loadAccount();
+    const timer = window.setInterval(loadAccount, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [applicationId, isFrance]);
 
   const progressMessage = (() => {
     if (failedStatus && error) return error;
@@ -266,6 +310,44 @@ export function WaitingCard({
             );
           })}
         </ol>
+
+        {officialAccount?.email && (
+          <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
+            <div className="text-sm font-semibold text-foreground">
+              {isZh ? "France-Visas 官方账号" : "France-Visas official account"}
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                <div className="text-xs text-muted-foreground">{isZh ? "账号" : "Email"}</div>
+                <div className="mt-0.5 break-all font-mono text-sm text-foreground">
+                  {officialAccount.email}
+                </div>
+              </div>
+              <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                <div className="text-xs text-muted-foreground">{isZh ? "密码" : "Password"}</div>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <span className="break-all font-mono text-sm text-foreground">
+                    {showPassword ? officialAccount.password : "••••••••••••"}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPassword((value) => !value)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="mt-3 bg-white">
+              <a href={officialAccount.portalUrl} target="_blank" rel="noopener noreferrer">
+                {isZh ? "打开 France-Visas 官网" : "Open France-Visas"}
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </a>
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
