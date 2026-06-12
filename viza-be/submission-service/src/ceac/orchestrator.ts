@@ -430,6 +430,18 @@ export async function orchestrateFill(
           return { result, datArtifact, sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped } };
         }
 
+        if (options.finalSubmit?.passportNumber) {
+          console.log(
+            `[orchestrator] Sign certification page detected — advancing to final signature controls`,
+          );
+          await advance(page, {
+            from: "sign_and_submit",
+            to: ["sign_and_submit", "confirmation"],
+          });
+          transitions++;
+          continue;
+        }
+
         // Heading + URL match but strict markers (signature input,
         // final submit) absent — typical for the SignCertify
         // attestation page that precedes the actual signature.

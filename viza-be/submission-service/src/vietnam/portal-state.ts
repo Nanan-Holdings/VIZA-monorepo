@@ -239,6 +239,10 @@ export function checkpointForVietnamPortalState(
   }
 }
 
+export function isAutoAcknowledgeableVietnamPortalState(state: VietnamPortalStateId): boolean {
+  return state === "note_modal_visible";
+}
+
 export async function waitForVietnamPortalCheckpoint(
   page: Page,
   expected: "any" | VietnamPortalCheckpoint | VietnamPortalCheckpoint[],

@@ -25,6 +25,7 @@ import {
 import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
 import {
   classifyVietnamPortalSnapshot,
+  isAutoAcknowledgeableVietnamPortalState,
   readVietnamPortalSnapshot,
   waitForVietnamPortalCheckpoint,
   type VietnamPortalSnapshot,
@@ -427,14 +428,38 @@ async function reachVietnamFormCheckpoint(
       return { kind: "ready", checkpoint: state };
     }
 
-    if (state === "note_modal_visible") {
-      return {
-        kind: "action_required",
-        actionType: "note_modal_required",
-        checkpoint: state,
-        instruction:
-          "The official Vietnam e-Visa page is showing a NOTE declaration dialog. Read and acknowledge it manually in the official browser, then click Continue in VIZA.",
-      };
+    if (isAutoAcknowledgeableVietnamPortalState(state)) {
+      const acknowledged = await acknowledgeVietnamNoteModal(page);
+      if (!acknowledged) {
+        return {
+          kind: "action_required",
+          actionType: "note_modal_required",
+          checkpoint: state,
+          instruction:
+            "The official Vietnam e-Visa page is showing a NOTE declaration dialog, but VIZA could not find a safe acknowledgement control.",
+        };
+      }
+      const checkpoint = await waitForVietnamPortalCheckpoint(
+        page,
+        [
+          "form_ready",
+          "captcha_required",
+          "upload_required",
+          "payment_required",
+          "final_submit_required",
+          "official_portal_error",
+          "layout_changed",
+          "needs_manual_verification",
+        ],
+        {
+          timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
+          failedRequestCount: options.failedRequestCount,
+          mainRequestFailed: options.mainRequestFailed,
+          onSnapshot: options.onSnapshot,
+        },
+      );
+      state = checkpoint.state;
+      continue;
     }
 
     if (state === "captcha_visible") {
@@ -580,6 +605,57 @@ async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
       return true;
     })
     .catch(() => false);
+}
+
+async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
+  const ticked = await page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+      };
+      let count = 0;
+      for (const element of Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper, label, input[type='checkbox']"))) {
+        if (!visible(element)) continue;
+        const input =
+          element instanceof HTMLInputElement && element.type === "checkbox"
+            ? element
+            : element.querySelector<HTMLInputElement>("input[type='checkbox']");
+        if (input?.checked) continue;
+        element.click();
+        count++;
+      }
+      return count;
+    })
+    .catch(() => 0);
+
+  const clicked = await page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
+      };
+      const buttons = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"));
+      const button = buttons.find((element) => {
+        if (!visible(element)) return false;
+        if (element.getAttribute("disabled") !== null || element.getAttribute("aria-disabled") === "true") {
+          return false;
+        }
+        const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
+        return /^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý)$/i.test(text);
+      });
+      if (!button) return false;
+      button.click();
+      return true;
+    })
+    .catch(() => false);
+
+  if (!clicked) return false;
+  await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForTimeout(ticked > 0 ? 2_000 : 1_000);
+  return true;
 }
 
 async function fillByType(
