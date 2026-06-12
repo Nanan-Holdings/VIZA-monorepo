@@ -690,32 +690,6 @@ export async function POST(
           { status: 503 },
         );
       }
-
-      const { data: existingOfficialRows, error: existingOfficialError } = await admin
-        .from("submission_queue")
-        .select("id, status, official_application_reference_encrypted")
-        .eq("application_id", applicationId)
-        .eq("mode", "live_assisted")
-        .limit(20);
-
-      if (existingOfficialError) {
-        return NextResponse.json({ error: existingOfficialError.message }, { status: 500 });
-      }
-      const hasOfficialReference = (existingOfficialRows ?? []).some((row) => {
-        const bag = row as {
-          official_application_reference_encrypted?: string | null;
-        };
-        return Boolean(bag.official_application_reference_encrypted);
-      });
-      if (hasOfficialReference) {
-        return NextResponse.json(
-          {
-            error:
-              "A France-Visas live job already captured an official reference. Verify the existing official draft before retrying.",
-          },
-          { status: 409 },
-        );
-      }
     }
   }
 

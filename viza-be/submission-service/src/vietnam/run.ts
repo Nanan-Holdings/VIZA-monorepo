@@ -16,10 +16,13 @@ import { chromium, type Browser, type BrowserContext, type Page } from "@playwri
 import fs from "node:fs";
 import path from "node:path";
 import {
+  buildVnFieldFallback,
   getVnPortalOptionText,
+  getVnFieldFallbackValue,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
   VN_STOP_BUTTON_PATTERNS,
+  type VnFieldFallbackRecord,
   type VnFieldType,
 } from "./field-mappings";
 import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
@@ -85,6 +88,7 @@ export type FillVietnamResult =
       submittedAtIso: string;
       fieldsFilled: number;
       fieldsSkipped: number;
+      fieldFallbacks: VnFieldFallbackRecord[];
     }
   | {
       status: "failed";
@@ -99,6 +103,7 @@ export type FillVietnamResult =
 export interface VietnamDiagnostics {
   consoleErrors: string[];
   failedRequests: string[];
+  fieldFallbacks?: VnFieldFallbackRecord[];
   lastSnapshot?: VietnamPortalSnapshot;
   tracePath?: string;
   finalScreenshotPath?: string;
@@ -124,12 +129,14 @@ export async function fillVietnamApplication(
   let traceStarted = false;
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
+  const fieldFallbacks: VnFieldFallbackRecord[] = [];
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
 
   const diagnostics = (): VietnamDiagnostics => ({
     consoleErrors: consoleErrors.slice(-20),
     failedRequests: failedRequests.slice(-30),
+    fieldFallbacks: fieldFallbacks.slice(),
     lastSnapshot,
     ...(options.tracePath ? { tracePath: options.tracePath } : {}),
     ...(options.finalScreenshotPath ? { finalScreenshotPath: options.finalScreenshotPath } : {}),
@@ -226,6 +233,30 @@ export async function fillVietnamApplication(
         filled++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        const fallbackValue = getVnFieldFallbackValue(fieldName);
+        const fallbackRecord = buildVnFieldFallback({
+          fieldName,
+          domId: mapping.domId,
+          type: mapping.type,
+          userValue: value,
+          errorMessage: msg,
+        });
+        if (fallbackValue && fallbackRecord) {
+          try {
+            await fillByType(page, fieldName, mapping.type, mapping.domId, fallbackValue);
+            fieldFallbacks.push(fallbackRecord);
+            filled++;
+            console.warn(
+              `[vn] fill fallback for ${fieldName} (${mapping.domId}): ${msg}; used ${fallbackValue}`,
+            );
+            continue;
+          } catch (fallbackErr) {
+            const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+            console.warn(
+              `[vn] fallback fill failed for ${fieldName} (${mapping.domId}): ${fallbackMsg}`,
+            );
+          }
+        }
         console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}): ${msg}`);
         skipped++;
       }
@@ -307,6 +338,7 @@ export async function fillVietnamApplication(
       submittedAtIso: new Date().toISOString(),
       fieldsFilled: filled,
       fieldsSkipped: skipped,
+      fieldFallbacks,
     };
   } catch (err) {
     return {

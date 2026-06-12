@@ -48,6 +48,7 @@ type QueueRow = {
   heartbeat_at: string | null;
   manual_action_status: string | null;
   official_status: string | null;
+  vn_result_payload?: unknown | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -101,6 +102,17 @@ function extractResultError(result: unknown): string | null {
   return null;
 }
 
+function extractFieldFallbacks(payload: unknown): unknown[] {
+  if (!isRecord(payload)) return [];
+  const direct = payload.fieldFallbacks;
+  if (Array.isArray(direct)) return direct;
+  const diagnostics = payload.diagnostics;
+  if (isRecord(diagnostics) && Array.isArray(diagnostics.fieldFallbacks)) {
+    return diagnostics.fieldFallbacks;
+  }
+  return [];
+}
+
 function latestTimestamp(...values: Array<string | null | undefined>): string | null {
   let latest: string | null = null;
   let latestMs = Number.NEGATIVE_INFINITY;
@@ -118,6 +130,14 @@ function isStale(updatedAt: string | null): boolean {
   if (!updatedAt) return false;
   const ms = Date.parse(updatedAt);
   return Number.isFinite(ms) && Date.now() - ms > STALE_AFTER_MS;
+}
+
+function isAfterOrEqual(candidate: string | null, baseline: string | null): boolean {
+  if (!candidate) return false;
+  if (!baseline) return true;
+  const candidateMs = Date.parse(candidate);
+  const baselineMs = Date.parse(baseline);
+  return Number.isFinite(candidateMs) && Number.isFinite(baselineMs) && candidateMs >= baselineMs;
 }
 
 function stageForActionStatus(status: string): SubmissionApiStage {
@@ -262,6 +282,12 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   return { status: "running", stage: "confirming_result", progress: 92 };
 }
 
+function isActiveQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const derived = deriveQueueStage(normalizeStatus(queue.status));
+  return derived.status === "queued" || derived.status === "running";
+}
+
 function deriveNonTerminalStatus(
   application: ApplicationForStatus,
   queue: QueueRow | null,
@@ -387,9 +413,13 @@ export async function GET(
   }
 
   const queue = (queueData ?? null) as QueueRow | null;
-  const derived =
-    deriveTerminalApplicationStatus(application, queue) ??
-    deriveNonTerminalStatus(application, queue);
+  const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
+  const activeQueueOverridesTerminal =
+    isActiveQueue(queue) && isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
+  const derived = activeQueueOverridesTerminal
+    ? deriveNonTerminalStatus(application, queue)
+    : deriveTerminalApplicationStatus(application, queue) ??
+      deriveNonTerminalStatus(application, queue);
   const updatedAt = latestTimestamp(
     application.submission_result_updated_at,
     queue?.updated_at,
@@ -407,10 +437,14 @@ export async function GET(
       stage: derived.stage,
       progress: derived.progress,
       message: derived.message,
-      result: application.submission_result ?? null,
+      result: activeQueueOverridesTerminal ? null : application.submission_result ?? null,
       error: derived.error,
       updatedAt,
-      applicationStatus: application.submission_result_status ?? null,
+      applicationStatus: activeQueueOverridesTerminal
+        ? queue?.status?.endsWith("_pending")
+          ? "waiting"
+          : "processing"
+        : application.submission_result_status ?? null,
       queue: queue
         ? {
             id: queue.id,
@@ -425,6 +459,7 @@ export async function GET(
             heartbeatAt: queue.heartbeat_at,
             manualActionStatus: queue.manual_action_status,
             officialStatus: queue.official_status,
+            fieldFallbacks: extractFieldFallbacks(queue.vn_result_payload),
             createdAt: queue.created_at,
             updatedAt: queue.updated_at,
           }

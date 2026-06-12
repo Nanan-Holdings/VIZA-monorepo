@@ -51,15 +51,36 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const liveAssisted = result.mode === "live_assisted" || result.status === "final_review_required";
-  const badgeLabel = liveAssisted
-    ? "Manual review required"
-    : result.status === "appointment_held"
-      ? "Appointment held"
-      : "Dry-run prepared";
+  const officialConfirmed =
+    result.officialStatus === "official_record_confirmed" ||
+    Boolean(result.applicationReference && liveAssisted && !result.manualAction);
+  const badgeLabel = officialConfirmed
+    ? (isZh ? "提交成功" : "Submitted")
+    : liveAssisted
+      ? (isZh ? "需要后续操作" : "Follow-up required")
+      : result.status === "appointment_held"
+        ? (isZh ? "已保留预约" : "Appointment held")
+        : (isZh ? "已准备" : "Prepared");
 
   const formatStatus = (value?: string) => {
     if (!value) return null;
-    return value.replace(/_/g, " ");
+    const zh: Record<string, string> = {
+      not_run: "未运行",
+      passed: "已通过",
+      failed: "失败",
+      manual_required: "需后续处理",
+      not_required: "无需处理",
+      blocked: "已阻塞",
+      paid: "已付款",
+      booked: "已预约",
+      draft_prefilled: "草稿已填写",
+      official_record_created: "官网记录已创建",
+      official_record_confirmed: "官网已确认",
+      payment_required: "需要付款",
+      appointment_required: "需要预约",
+      lodged_at_visa_centre: "已递交签证中心",
+    };
+    return isZh ? (zh[value] ?? value.replace(/_/g, " ")) : value.replace(/_/g, " ");
   };
 
   const expectsTextAnswer = manualAction?.actionType === "captcha_required";
@@ -213,9 +234,13 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-foreground">
             <ShieldCheck className="h-5 w-5 text-brand-500" />
-            {liveAssisted ? "France-Visas live assisted checkpoint" : "France-Visas application prepared"}
+            {officialConfirmed
+              ? (isZh ? "France-Visas 已提交" : "France-Visas submission completed")
+              : liveAssisted
+                ? (isZh ? "France-Visas 提交状态" : "France-Visas submission status")
+                : (isZh ? "France-Visas 申请已准备" : "France-Visas application prepared")}
           </CardTitle>
-          <Badge variant={liveAssisted ? "secondary" : result.status === "appointment_held" ? "default" : "secondary"}>
+          <Badge variant={officialConfirmed || result.status === "appointment_held" ? "default" : "secondary"}>
             {badgeLabel}
           </Badge>
         </div>
@@ -223,16 +248,30 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
       <CardContent className="space-y-4">
         <div className="rounded-md border border-input bg-background px-3 py-2">
           <div className="text-xs text-muted-foreground">
-            {liveAssisted ? "Official reference (redacted)" : "Application reference"}
+            {isZh ? "官方申请编号" : liveAssisted ? "Official reference" : "Application reference"}
           </div>
           <div className="mt-0.5 font-mono text-sm text-foreground">{result.applicationReference}</div>
         </div>
 
-        {liveAssisted && result.manualAction && (
+        {officialConfirmed && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-emerald-800">
+              <ShieldCheck className="h-4 w-4" />
+              {isZh ? "官网记录已确认" : "Official record confirmed"}
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-emerald-950">
+              {isZh
+                ? "VIZA 已在 France-Visas 官网创建并确认这份申请。请使用上方官方编号作为核验证据；如官网后续要求付款、预约或打印签署，请继续按官网提示完成。"
+                : "VIZA created and confirmed this application on France-Visas. Use the official reference above as evidence; continue with any payment, appointment, print, or signature steps shown by the portal."}
+            </p>
+          </div>
+        )}
+
+        {liveAssisted && !officialConfirmed && result.manualAction && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-amber-700">
               <AlertTriangle className="h-4 w-4" />
-              Manual checkpoint: {formatStatus(result.manualAction.type)}
+              {isZh ? "官网检查点" : "Manual checkpoint"}: {formatStatus(result.manualAction.type)}
             </div>
             <p className="mt-2 text-sm leading-relaxed text-amber-900">
               {result.manualAction.instructions}
@@ -282,7 +321,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
                 </div>
                 <Button asChild variant="outline" className="w-full bg-white">
                   <a href={officialAccount.portalUrl} target="_blank" rel="noopener noreferrer">
-                    {isZh ? "打开 France-Visas 官网核验草稿" : "Open France-Visas to verify the draft"}
+                    {isZh ? "打开 France-Visas 官网核验申请" : "Open France-Visas to verify the application"}
                     <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
@@ -294,7 +333,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
           </div>
         )}
 
-        {liveAssisted && (manualAction || manualActionError) && (
+        {liveAssisted && !officialConfirmed && (manualAction || manualActionError) && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-amber-700">
               <AlertTriangle className="h-4 w-4" />
@@ -369,7 +408,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
           <div className="grid gap-2 sm:grid-cols-2">
             {result.reviewDiffStatus && (
               <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">Review diff</div>
+                <div className="text-xs text-muted-foreground">{isZh ? "复核差异" : "Review diff"}</div>
                 <div className="mt-0.5 text-sm font-medium text-foreground">
                   {formatStatus(result.reviewDiffStatus)}
                 </div>
@@ -377,7 +416,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             )}
             {result.officialStatus && (
               <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">Official status</div>
+                <div className="text-xs text-muted-foreground">{isZh ? "官网状态" : "Official status"}</div>
                 <div className="mt-0.5 text-sm font-medium text-foreground">
                   {formatStatus(result.officialStatus)}
                 </div>
@@ -385,7 +424,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             )}
             {result.paymentStatus && (
               <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">Payment</div>
+                <div className="text-xs text-muted-foreground">{isZh ? "付款" : "Payment"}</div>
                 <div className="mt-0.5 text-sm font-medium text-foreground">
                   {formatStatus(result.paymentStatus)}
                 </div>
@@ -393,12 +432,38 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             )}
             {result.appointmentStatus && (
               <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">Appointment</div>
+                <div className="text-xs text-muted-foreground">{isZh ? "预约" : "Appointment"}</div>
                 <div className="mt-0.5 text-sm font-medium text-foreground">
                   {formatStatus(result.appointmentStatus)}
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {result.fieldFallbacks?.length ? (
+          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+            <div className="font-medium">
+              {isZh
+                ? `已记录 ${result.fieldFallbacks.length} 条官网字段规范`
+                : `${result.fieldFallbacks.length} official field fallback(s) recorded`}
+            </div>
+            <p className="mt-1 leading-relaxed">
+              {isZh
+                ? "这些规范会用于改进 VIZA 表单校验，避免后续用户在官网同一字段卡住。"
+                : "These constraints can be fed back into VIZA validation so future applicants do not get stuck on the same official fields."}
+            </p>
+          </div>
+        ) : null}
+
+        {result.postConfirmationContinue?.clickedContinue && (
+          <div className="rounded-md border border-input bg-background px-3 py-2">
+            <div className="text-xs text-muted-foreground">
+              {isZh ? "声明与 Continue" : "Declaration and Continue"}
+            </div>
+            <div className="mt-0.5 text-sm font-medium text-foreground">
+              {isZh ? "已勾选声明并继续" : "Declaration checked and continued"}
+            </div>
           </div>
         )}
 
@@ -429,7 +494,7 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             ) : (
               <FileDown className="mr-2 h-4 w-4" />
             )}
-            Download printable summary (PDF)
+            {isZh ? "下载可打印申请表 PDF" : "Download printable summary (PDF)"}
           </Button>
         )}
       </CardContent>

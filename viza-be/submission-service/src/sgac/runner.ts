@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import type { SgacPortalPayload } from "./normalize";
+import { reportBadCaptcha, solveImageCaptcha } from "../captcha";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
 
@@ -65,6 +66,71 @@ async function clickVisibleRoleButton(page: Page, name: RegExp): Promise<void> {
   await button.click({ timeout: 20_000 });
 }
 
+function isConfirmationBody(body: string): boolean {
+  if (/Security Verification|Enter text here|Try another text/i.test(body)) return false;
+  return /Submission\s*(?:Successful|Completed)|Successfully\s*submitted|DE\s*No\.?|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(body);
+}
+
+async function solveSecurityVerificationIfPresent(
+  page: Page,
+  artifactDir: string,
+  logs: string[],
+): Promise<void> {
+  const securityText = page.getByText(/Security Verification/i).last();
+  if (!(await securityText.isVisible({ timeout: 8_000 }).catch(() => false))) return;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const dialog = page.locator(".modal-content, .modal-dialog, [role='dialog'], body").filter({
+      hasText: /Security Verification/i,
+    }).last();
+    const captchaInput = dialog.locator("input[type='text'], input:not([type])").last();
+    await captchaInput.waitFor({ state: "visible", timeout: 30_000 });
+    await page.waitForTimeout(2_000);
+    const imageCandidate = dialog.locator("img, canvas").last();
+    const captchaBuffer = (await imageCandidate.count()) > 0 &&
+      (await imageCandidate.isVisible().catch(() => false))
+      ? await imageCandidate.screenshot({ timeout: 10_000 })
+      : await dialog.screenshot({ timeout: 10_000 });
+    const solve = await solveImageCaptcha(captchaBuffer, 120_000);
+    logs.push(`sgac_captcha_solved attempt=${attempt} solveId=${solve.solveId}`);
+    await captchaInput.fill(solve.text.trim());
+    await dialog.getByRole("button", { name: /^Submit$/i }).last().click({ timeout: 20_000 });
+
+    await Promise.race([
+      page.waitForFunction(
+        () => !/Security Verification|Enter text here/i.test(document.body.innerText),
+        null,
+        { timeout: 20_000 },
+      ),
+      page.waitForTimeout(20_000),
+    ]);
+    const body = await visibleBodySummary(page, 4000);
+    if (/Incorrect captcha/i.test(body)) {
+      logs.push(`sgac_captcha_wrong_answer attempt=${attempt}`);
+      await reportBadCaptcha(solve.solveId).catch(() => undefined);
+      await screenshot(page, artifactDir, `sgac-captcha-wrong-answer-${attempt}`).catch(() => "");
+      await clickVisibleRoleButton(page, /^Next$/i);
+      await page.getByText(/Security Verification/i).last().waitFor({ state: "visible", timeout: 30_000 });
+      continue;
+    }
+    if (!/Security Verification|Enter text here/i.test(body)) return;
+
+    logs.push(`sgac_captcha_retry_required attempt=${attempt}`);
+    await screenshot(page, artifactDir, `sgac-captcha-retry-${attempt}`).catch(() => "");
+    const tryAnotherText = dialog.getByText(/Try another text/i).last();
+    if (await tryAnotherText.isVisible().catch(() => false)) {
+      await tryAnotherText.click().catch(() => undefined);
+    }
+  }
+
+  const shot = await screenshot(page, artifactDir, "sgac-captcha-failed");
+  throw new SgacPortalError("ICA SGAC security verification CAPTCHA could not be solved.", {
+    code: "sgac_captcha_failed",
+    screenshotPaths: [shot],
+    portalSummary: await visibleBodySummary(page),
+  });
+}
+
 async function selectNgOption(page: Page, selector: string, query: string, expectedText?: string): Promise<string> {
   await page.locator(selector).click({ timeout: 20_000 });
   await page.keyboard.press("Control+A").catch(() => undefined);
@@ -124,17 +190,35 @@ async function launch(headless: boolean): Promise<Handles> {
 }
 
 async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promise<void> {
-  await page.waitForSelector("#indFullName_0", { timeout: 10_000 }).catch(() => undefined);
-  if ((await page.locator("#indFullName_0").count()) === 0) {
-    await page.getByRole("button", { name: /Submit SGAC/i }).click();
-  }
-  if ((await page.locator("#indFullName_0").count()) === 0) {
-    const foreignVisitorButton = page.getByRole("button", { name: /Foreign Visitor/i });
-    if ((await foreignVisitorButton.count()) > 0) {
-      await foreignVisitorButton.click();
+  const fullNameInput = page.locator("#indFullName_0");
+  const waitForTravellerForm = async (timeout = 8_000): Promise<boolean> => {
+    await fullNameInput.waitFor({ state: "visible", timeout }).catch(() => undefined);
+    return fullNameInput.isVisible().catch(() => false);
+  };
+
+  if (!(await waitForTravellerForm(10_000))) {
+    const submitSgacButton = page.getByRole("button", { name: /Submit SGAC/i }).last();
+    if (await submitSgacButton.isVisible().catch(() => false)) {
+      await submitSgacButton.click({ timeout: 20_000 });
+      await waitForTravellerForm();
     }
   }
-  await page.waitForSelector("#indFullName_0", { timeout: 40_000 });
+
+  if (!(await fullNameInput.isVisible().catch(() => false))) {
+    const foreignVisitorButtons = page.getByRole("button", { name: /Foreign Visitor/i });
+    const count = await foreignVisitorButtons.count();
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const button = foreignVisitorButtons.nth(index);
+      if (!(await button.isVisible().catch(() => false))) continue;
+      await button.click({ timeout: 20_000 });
+      if (await waitForTravellerForm()) break;
+    }
+  }
+
+  if (!(await fullNameInput.isVisible().catch(() => false))) {
+    await page.goto(SGAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  }
+  await fullNameInput.waitFor({ state: "visible", timeout: 40_000 });
 
   const arrivalButton = page.getByRole("button", { name: new RegExp(escapeRegex(payload.arrivalDate)) }).first();
   await arrivalButton.click({ timeout: 20_000 });
@@ -270,12 +354,25 @@ export async function runSgacPortalSubmission(
 
     await page.locator("#hdc_Submission_Declaration").check({ force: true });
     await clickVisibleRoleButton(page, /^Next$/i);
+    await solveSecurityVerificationIfPresent(page, artifactDir, logs);
     await Promise.race([
-      page.waitForSelector("text=/Confirmation|Acknowledgement|Successfully|submitted/i", { timeout: 90_000 }),
+      page.waitForFunction(
+        () => /Submission\s*(?:Successful|Completed)|Successfully\s*submitted|DE\s*No\.?|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(document.body.innerText) &&
+          !/Security Verification|Enter text here|Try another text/i.test(document.body.innerText),
+        null,
+        { timeout: 90_000 },
+      ),
       sleep(90_000),
     ]);
     const body = await visibleBodySummary(page, 4000);
     screenshots.push(await screenshot(page, artifactDir, "sgac-confirmation"));
+    if (!isConfirmationBody(body)) {
+      throw new SgacPortalError("ICA SGAC final confirmation page was not reached after final submit.", {
+        code: "sgac_confirmation_not_reached",
+        screenshotPaths: screenshots,
+        portalSummary: body,
+      });
+    }
     const refs = extractReferenceNumbers(body);
     return {
       submitted: true,

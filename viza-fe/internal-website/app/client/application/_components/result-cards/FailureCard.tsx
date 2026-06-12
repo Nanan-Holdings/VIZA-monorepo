@@ -174,7 +174,7 @@ export function FailureCard({
           </pre>
         )}
         {applicationId && onRetry && (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className={modes.length > 1 ? "grid gap-2 sm:grid-cols-2" : "grid gap-2"}>
             {modes.map((item) => (
               <BrandActionButton
                 key={item.mode}
@@ -182,7 +182,7 @@ export function FailureCard({
                   void handleRetry(item.mode).catch(() => undefined);
                 }}
                 loading={retryingMode === item.mode}
-                loadingText="Retrying"
+                loadingText={isZh ? "正在提交" : "Submitting"}
               >
                 <RotateCw className="mr-2 h-4 w-4" />
                 {item.label}

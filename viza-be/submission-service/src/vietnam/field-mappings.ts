@@ -32,6 +32,21 @@ export interface VnFieldMapping {
   optionLabels?: Record<string, string>;
 }
 
+export interface VnFieldFallbackRecord {
+  fieldName: string;
+  domId: string;
+  type: VnFieldType;
+  userValue: string;
+  fallbackValue: string;
+  reason: string;
+  schemaRuleSuggestion: {
+    pattern?: string;
+    maxLength?: number;
+    fallbackDefault: string;
+    normalizeToUppercase?: boolean;
+  };
+}
+
 const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
 const SEX_LABELS = { male: "Male", female: "Female" };
 const PASSPORT_TYPE_LABELS = {
@@ -63,6 +78,49 @@ const OCCUPATION_LABELS = {
 const EXPENSE_COVERAGE_LABELS = {
   personal: "Personal",
   company: "Company",
+};
+
+const LATIN_TEXT_SCHEMA_RULE = {
+  pattern: "^[A-Za-z0-9 .,'()/-]+$",
+  maxLength: 120,
+  normalizeToUppercase: true,
+} as const;
+
+const VN_FIELD_FALLBACK_DEFAULTS: Record<
+  string,
+  {
+    value: string;
+    schemaRuleSuggestion: Omit<VnFieldFallbackRecord["schemaRuleSuggestion"], "fallbackDefault">;
+  }
+> = {
+  religion: {
+    value: "NONE",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
+  occupation_info: {
+    value: "NOT APPLICABLE",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
+  company_or_school_name: {
+    value: "NOT APPLICABLE",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
+  position_course: {
+    value: "NOT APPLICABLE",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
+  company_address: {
+    value: "NOT APPLICABLE",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
+  emergency_contact_relationship: {
+    value: "FRIEND",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
+  intended_ward_commune: {
+    value: "PHUONG MY BINH",
+    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
+  },
 };
 
 function titleizeOptionSlug(value: string): string {
@@ -105,6 +163,33 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
       .replace(/\bSeaport\b/g, "Seaport");
   }
   return rawValue;
+}
+
+export function getVnFieldFallbackValue(fieldName: string): string | null {
+  return VN_FIELD_FALLBACK_DEFAULTS[fieldName]?.value ?? null;
+}
+
+export function buildVnFieldFallback(input: {
+  fieldName: string;
+  domId: string;
+  type: VnFieldType;
+  userValue: string;
+  errorMessage: string;
+}): VnFieldFallbackRecord | null {
+  const fallback = VN_FIELD_FALLBACK_DEFAULTS[input.fieldName];
+  if (!fallback) return null;
+  return {
+    fieldName: input.fieldName,
+    domId: input.domId,
+    type: input.type,
+    userValue: input.userValue,
+    fallbackValue: fallback.value,
+    reason: input.errorMessage,
+    schemaRuleSuggestion: {
+      ...fallback.schemaRuleSuggestion,
+      fallbackDefault: fallback.value,
+    },
+  };
 }
 
 export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {

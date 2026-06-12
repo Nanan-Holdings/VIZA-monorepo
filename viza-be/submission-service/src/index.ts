@@ -231,7 +231,15 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
     .lt("attempts", MAX_ATTEMPTS);
 
   if (error) throw new Error(`Failed to fetch submission_queue: ${error.message}`);
-  return data ?? [];
+  return (data ?? []).sort((left, right) => queuePriority(left) - queuePriority(right));
+}
+
+function queuePriority(item: SubmissionQueueItem): number {
+  if (item.status === "sgac_live_assisted_pending") return 0;
+  if (item.status === "sgac_dry_run_pending") return 1;
+  if (item.status === "vn_live_assisted_pending") return 2;
+  if (item.status === "vn_dry_run_pending") return 3;
+  return 10;
 }
 
 function isDs160Job(item: SubmissionQueueItem): boolean {
@@ -1812,6 +1820,48 @@ function decryptFvPassword(encrypted: string): string {
   }
 }
 
+function missingColumnNameFromPostgrestError(error: { message?: string; code?: string }): string | null {
+  const message = error.message ?? "";
+  const quoted = message.match(/Could not find the '([^']+)' column/i);
+  if (quoted?.[1]) return quoted[1];
+  const dotted = message.match(/column\s+(?:public\.)?submission_queue\.([a-z0-9_]+)/i);
+  if (dotted?.[1]) return dotted[1];
+  if (error.code === "PGRST204") {
+    const plain = message.match(/\b([a-z][a-z0-9_]+)\b(?=.*schema cache)/i);
+    return plain?.[1] ?? null;
+  }
+  return null;
+}
+
+async function updateSubmissionQueueCompat(
+  queueId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const remaining = { ...payload };
+  const removed = new Set<string>();
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const { error } = await supabase
+      .from("submission_queue")
+      .update(remaining)
+      .eq("id", queueId);
+    if (!error) return;
+
+    const missingColumn = missingColumnNameFromPostgrestError(error);
+    if (!missingColumn || !(missingColumn in remaining) || removed.has(missingColumn)) {
+      throw new Error(`submission_queue update failed: ${error.message}`);
+    }
+
+    delete remaining[missingColumn];
+    removed.add(missingColumn);
+    console.warn(
+      `[queue] submission_queue.${missingColumn} is not available in this schema; retrying without it.`,
+    );
+  }
+
+  throw new Error("submission_queue update failed after removing unsupported columns.");
+}
+
 async function processFvConfigBlockedItem(
   item: SubmissionQueueItem,
   reason: string,
@@ -1978,18 +2028,17 @@ async function processFvItem(
         headless: liveAssisted ? config.playwrightHeadless : true,
         runId,
         finalize: true,
+        continueAfterConfirmation:
+          liveAssisted && process.env.FRANCE_CONTINUE_AFTER_CONFIRMATION_ENABLED !== "false",
         stepTimeoutMs: Math.min(config.liveMaxDurationSeconds * 1000, 30 * 60 * 1000),
         onOfficialPortalOpened: liveAssisted
           ? async ({ url }) => {
-              await supabase
-                .from("submission_queue")
-                .update({
+              await updateSubmissionQueueCompat(item.id, {
                   status: "france_live_official_portal_opened",
                   official_status: "official_portal_opened",
                   official_confirmation_url: url,
                   updated_at: new Date().toISOString(),
-                })
-                .eq("id", item.id);
+                });
             }
           : undefined,
       },
@@ -2029,9 +2078,7 @@ async function processFvItem(
         ? encryptSecret(officialReference)
         : null;
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateSubmissionQueueCompat(item.id, {
           status: "fv_prefilled",
           mode: liveAssisted ? "live_assisted" : "dry_run",
           provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
@@ -2039,15 +2086,14 @@ async function processFvItem(
           official_application_id_encrypted: officialReferenceCipher,
           official_application_reference_encrypted: officialReferenceCipher,
           review_diff_status: liveAssisted ? "not_run" : "not_run",
-          manual_action_status: liveAssisted ? "open" : null,
+          manual_action_status: liveAssisted ? "completed" : null,
           payment_status: "manual_required",
           appointment_status: "manual_required",
-          official_status: liveAssisted ? "official_record_created" : "draft_prefilled",
+          official_status: liveAssisted ? "official_record_confirmed" : "draft_prefilled",
           fv_application_reference: liveAssisted ? null : result.applicationReference,
           fv_pdf_storage_path: pdfStoragePath,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       // User-facing FrSubmissionResult. France-Visas requires payment to
       // lock an actual appointment slot, so we surface `stopped_at_pay`
@@ -2064,23 +2110,18 @@ async function processFvItem(
           ? redactOfficialReference(officialReference)
           : officialReference,
         reviewDiffStatus: liveAssisted ? "not_run" : undefined,
-        manualAction: liveAssisted
-          ? {
-              type: "final_review_required",
-              status: "open",
-              instructions:
-                "Review the official France-Visas draft/CERFA yourself. VIZA stopped before final validation, payment, and appointment booking.",
-            }
-          : undefined,
+        manualAction: undefined,
         paymentStatus: "manual_required",
         appointmentStatus: "manual_required",
-        officialStatus: liveAssisted ? "official_record_created" : "draft_prefilled",
+        officialStatus: liveAssisted ? "official_record_confirmed" : "draft_prefilled",
+        fieldFallbacks: result.fieldFallbacks,
+        postConfirmationContinue: result.postConfirmationContinue,
         ...(pdfStoragePath ? { printablePdfStoragePath: pdfStoragePath } : {}),
       };
       await writeSubmissionResult(
         item.application_id,
         frPayload,
-        liveAssisted ? "action_required" : "stopped_at_pay",
+        liveAssisted ? "completed" : "stopped_at_pay",
       );
       const logReference = liveAssisted && officialReference
         ? redactOfficialReference(officialReference)
@@ -2594,6 +2635,7 @@ function buildVnQueuePayload(
       submittedAtIso: result.submittedAtIso,
       fieldsFilled: result.fieldsFilled,
       fieldsSkipped: result.fieldsSkipped,
+      fieldFallbacks: result.fieldFallbacks,
     };
   }
   if (result.status === "action_required") {
@@ -3602,7 +3644,10 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
 
 async function pollOnce(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
-  await markStaleQueueItemsTimedOut();
+  const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
+  if (!targetJobId) {
+    await markStaleQueueItemsTimedOut();
+  }
   try {
     const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
       createUSAppointmentRunnerRepository(),
@@ -3629,7 +3674,6 @@ async function pollOnce(): Promise<void> {
     return;
   }
 
-  const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
   if (targetJobId) {
     items = items.filter((item) => item.id === targetJobId);
     if (items.length === 0) {

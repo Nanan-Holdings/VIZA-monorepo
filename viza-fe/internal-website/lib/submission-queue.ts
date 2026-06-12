@@ -273,3 +273,13 @@ export function submissionQueueRequiresServerEnqueue(
     isSgArrivalCardApplication(country, visaType)
   );
 }
+
+export function submitModeForPrimaryApplicationAction(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): SubmissionMode {
+  if (isVietnamEVisaApplication(country, visaType) || isSgArrivalCardApplication(country, visaType)) {
+    return "live_assisted";
+  }
+  return "dry_run";
+}

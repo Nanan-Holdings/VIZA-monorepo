@@ -81,6 +81,7 @@ export interface FrSubmissionResult {
   officialStatus?:
     | "draft_prefilled"
     | "official_record_created"
+    | "official_record_confirmed"
     | "appointment_required"
     | "payment_required"
     | "lodged_at_visa_centre";
@@ -90,6 +91,19 @@ export interface FrSubmissionResult {
     atIso: string;
   };
   printablePdfStoragePath?: string;
+  fieldFallbacks?: Array<{
+    step: "step2" | "step5";
+    field: string;
+    reason: "missing" | "contains_non_latin" | "invalid_format";
+    originalPreview: string | null;
+    fallbackValue: string;
+    vizaRuleSuggestion: string;
+  }>;
+  postConfirmationContinue?: {
+    clickedDeclare: boolean;
+    clickedContinue: boolean;
+    resultingUrl: string;
+  };
 }
 
 export interface UkSubmissionResult {

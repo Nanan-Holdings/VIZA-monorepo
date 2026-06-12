@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Check, ChevronDown, PlayCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
@@ -789,8 +789,6 @@ function FinalConfirmationPanel({
   onEdit: StepClickHandler;
   onSubmit: (mode: SubmissionMode) => void | Promise<void>;
 }) {
-  const [showLiveConsent, setShowLiveConsent] = useState(false);
-  const [liveConsentChecked, setLiveConsentChecked] = useState(false);
   const groupedMissing = useMemo(() => {
     const groups = new Map<number, { stepName: string; fields: MissingApplicationField[] }>();
     for (const item of missingFields) {
@@ -832,75 +830,30 @@ function FinalConfirmationPanel({
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
       : null;
 
-  const dryRunLabel = hasLiveAssistedTarget
-    ? (isZh ? "Dry-run 测试提交" : "Dry-run test submission")
-    : (isZh ? "确认并提交申请" : "Confirm and submit application");
-  const liveLabel = isFrance
-    ? (isZh ? "Live assisted 官网辅助填写" : "Live assisted France-Visas fill")
-    : isVietnam
-      ? (isZh ? "Live assisted 越南官网辅助填写" : "Live assisted Vietnam e-Visa fill")
-      : isSgac
-        ? (isZh ? "继续 SG Arrival Card 官方提交" : "Continue SG Arrival Card submission")
-      : (isZh ? "Live assisted 官网辅助填写" : "Live assisted CEAC fill");
+  const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
+  const submitDisabled = hasLiveAssistedTarget ? liveDisabled : baseDisabled;
+  const submitCopy = isZh
+    ? hasLiveAssistedTarget
+      ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
+      : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
+    : hasLiveAssistedTarget
+      ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
+      : "Click Submit to create the background submission job and show progress here.";
   const liveSafetyCopy = isFrance
     ? (isZh
-        ? "真实辅助填写会打开 France-Visas 官方流程；如需注册账号，VIZA 会使用专属邮箱 alias，并经你授权用 2captcha 处理注册页图片验证码。登录风控、官网页面核对、最终确认、支付和预约仍需人工处理。VIZA 不会自动最终提交、付款或预约。"
-        : "Live assisted mode opens the France-Visas official flow. If account registration is needed, VIZA uses a dedicated email alias and, with your authorization, 2captcha for the registration image CAPTCHA. Login risk checks, official-page review, final validation, payment, and appointment booking remain manual. VIZA will not silently submit, pay, or book.")
+        ? "France-Visas 提交会使用 VIZA 保存的答案、官方账号和必要的注册验证码处理来创建/更新官网申请；付款、预约或官网风控如果出现，会作为后续状态展示。"
+        : "France-Visas submission uses saved VIZA answers, the official account, and registration CAPTCHA handling when needed to create/update the official application. Payment, appointment, or portal risk checks are surfaced as follow-up status.")
     : isVietnam
       ? (isZh
-          ? "真实辅助填写会打开越南 e-Visa 官方网站；NOTE 提示、验证码、付款和最终提交都必须由本人处理。VIZA 不会绕过验证码，也不会自动付款或点击最终提交。"
-          : "Live assisted mode opens the official Vietnam e-Visa website. NOTE prompts, CAPTCHA, payment, and final submit remain manual. VIZA will not bypass CAPTCHA, pay, or click the final submit.")
+          ? "越南 e-Visa 会打开官网并使用已保存答案填写；验证码、付款或官网风控会作为后续状态展示。"
+          : "Vietnam e-Visa opens the official portal and uses saved answers to fill it. CAPTCHA, payment, or portal risk checks are surfaced as follow-up status.")
       : isSgac
         ? (isZh
             ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
             : "Submitting creates an SG Arrival Card official-submission task. This page shows the submission in progress and, when the backend succeeds, displays submitted=true, the confirmation/reference number, and the ICA response summary.")
       : (isZh
-          ? "真实辅助填写会打开 CEAC 官网流程；验证码、官网页面核对，以及最终 Sign/Submit 必须由本人完成。VIZA 不会自动点击最终提交。"
-          : "Live assisted mode opens the CEAC flow. CAPTCHA, official-page review, and the final Sign/Submit step must be completed by you. VIZA will not click the final official submit button.");
-  const liveConsentTitle = isFrance
-    ? (isZh ? "确认启动 France-Visas 官网辅助填写" : "Confirm live assisted France-Visas fill")
-    : isVietnam
-      ? (isZh ? "确认启动越南 e-Visa 官网辅助填写" : "Confirm live assisted Vietnam e-Visa fill")
-      : isSgac
-        ? (isZh ? "确认继续 SG Arrival Card 官方提交" : "Confirm SG Arrival Card official submission")
-      : (isZh ? "确认启动真实官网辅助填写" : "Confirm live assisted CEAC fill");
-  const liveConsentDescription = isFrance
-    ? (isZh
-        ? "这会创建 live_assisted 队列任务并打开 France-Visas 官方网站，使用 VIZA 已保存答案辅助填写。若需要注册账号，VIZA 会用专属邮箱 alias 接收验证邮件，并用 2captcha 处理注册页图片验证码。登录风控、官网最终核对、支付、预约和任何线下递签/采集生物信息步骤都需要你本人处理。"
-        : "This creates a live_assisted queue job and opens the official France-Visas website using your saved VIZA answers. If account registration is needed, VIZA uses a dedicated email alias for verification mail and 2captcha for the registration image CAPTCHA. Login risk checks, official final review, payment, appointment booking, and any in-person filing or biometrics remain manual.")
-    : isVietnam
-      ? (isZh
-          ? "这会创建 live_assisted 队列任务并打开越南 e-Visa 官方网站，使用 VIZA 已保存答案辅助填写。NOTE 提示、验证码、付款和最终提交都需要你本人处理。"
-          : "This creates a live_assisted queue job and opens the official Vietnam e-Visa website using your saved VIZA answers. NOTE prompts, CAPTCHA, payment, and final submit remain manual.")
-      : isSgac
-        ? (isZh
-            ? "这会创建 SG Arrival Card live_assisted 队列任务，并用已保存的 SG_ARRIVAL_CARD 答案提交到 ICA SGAC。结果会返回 submitted、确认/参考号、官方响应摘要和错误详情。"
-            : "This creates an SG Arrival Card live_assisted queue job and submits the saved SG_ARRIVAL_CARD answers to ICA SGAC. The result returns submitted status, confirmation/reference number, portal response summary, and error details.")
-      : (isZh
-          ? "这会创建 live_assisted 队列任务并打开 CEAC 官网填写流程。流程会在验证码、人工检查点或最终 Sign/Submit 前等待你本人操作。"
-          : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step.");
-  const liveConsentCheckbox = isFrance
-    ? (isZh
-        ? "我确认这是本人授权的 France-Visas 官网辅助填写，并授权 VIZA 在注册账号时使用邮箱 alias 和 2captcha 处理注册页图片验证码；我知道 VIZA 不会自动最终验证、付款或预约。"
-        : "I confirm this is my authorized France-Visas live assisted fill, and I authorize VIZA to use an email alias and 2captcha for the registration image CAPTCHA during account registration; I understand VIZA will not automatically validate, pay, or book an appointment.")
-    : isVietnam
-      ? (isZh
-          ? "我确认这是本人授权的越南 e-Visa 官网辅助填写，并知道 VIZA 不会绕过验证码、自动付款或最终提交。"
-          : "I confirm this is my authorized Vietnam e-Visa live assisted fill, and I understand VIZA will not bypass CAPTCHA, pay, or finally submit.")
-      : isSgac
-        ? (isZh
-            ? "我确认这是本人授权的 SG Arrival Card 官方提交任务，并授权 VIZA 使用我保存的 SG_ARRIVAL_CARD 答案提交到 ICA SGAC。"
-            : "I confirm this is my authorized SG Arrival Card official-submission task, and I authorize VIZA to submit my saved SG_ARRIVAL_CARD answers to ICA SGAC.")
-      : (isZh
-          ? "我确认这是本人授权的真实官网辅助填写，并知道最终官网提交仍需本人手动确认。"
-          : "I confirm this is my authorized live assisted fill, and I understand the final official submission still requires my manual confirmation.");
-  const liveStartLabel = isFrance
-    ? (isZh ? "启动 France-Visas 辅助填写" : "Start live assisted fill")
-    : isVietnam
-      ? (isZh ? "启动越南 e-Visa 辅助填写" : "Start Vietnam e-Visa fill")
-      : isSgac
-        ? (isZh ? "继续 SGAC 官方提交" : "Continue SGAC submission")
-      : (isZh ? "启动真实辅助填写" : "Start live assisted fill");
+          ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
+          : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
 
   return (
     <div className="space-y-6">
@@ -920,13 +873,7 @@ function FinalConfirmationPanel({
                   ? isZh
                     ? "正在检查支持材料和当前表单状态。完成后才可以提交。"
                     : "Checking supporting documents and current form status. You can submit once this finishes."
-                : isZh
-                  ? hasLiveAssistedTarget
-                    ? "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。当前表单可选择测试提交或真实官网辅助填写。"
-                    : "所有当前条件下必填的信息已经就绪。点击下方按钮后才会创建后台提交任务。"
-                  : hasLiveAssistedTarget
-                    ? "All currently required information is ready. The background submission job is created only after you click below. This form can be started as a dry-run or live assisted official-site fill."
-                    : "All currently required information is ready. The background submission job is created only after you click below."}
+                : submitCopy}
             </p>
           </div>
         </div>
@@ -965,130 +912,41 @@ function FinalConfirmationPanel({
         </div>
       )}
 
-      <div className={cn("grid gap-3", hasLiveAssistedTarget ? "lg:grid-cols-2" : "grid-cols-1")}>
-        <button
-          type="button"
-          disabled={baseDisabled}
-          onClick={() => {
-            void onSubmit("dry_run");
-          }}
-          className={cn(
-            "flex min-h-12 w-full items-center justify-center rounded-full border px-5 text-base font-semibold transition-colors",
-            baseDisabled
-              ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500"
-              : hasLiveAssistedTarget
-                ? "border-brand-200 bg-white text-brand-500 shadow-sm hover:bg-brand-50"
-                : "border-brand-500 bg-brand-500 text-white shadow-sm hover:bg-brand-600",
-          )}
-        >
-          {requirementsLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {isZh ? "正在检查" : "Checking"}
-            </>
-          ) : submittingMode === "dry_run" ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {isZh ? "正在提交" : "Submitting"}
-            </>
-          ) : (
-            <>
-              {hasLiveAssistedTarget && <PlayCircle className="mr-2 h-4 w-4" />}
-              {dryRunLabel}
-            </>
-          )}
-        </button>
-
-        {hasLiveAssistedTarget && (
-          <button
-            type="button"
-            disabled={liveDisabled}
-            onClick={() => {
-              setLiveConsentChecked(false);
-              setShowLiveConsent(true);
-            }}
-            className={cn(
-              "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
-              liveDisabled
-                ? "cursor-not-allowed bg-gray-200 text-gray-500"
-                : "bg-brand-500 text-white shadow-sm hover:bg-brand-600",
-            )}
-            title={liveDisabledReason ?? undefined}
-          >
-            {submittingMode === "live_assisted" ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isZh ? "正在启动" : "Starting"}
-              </>
-            ) : (
-              <>
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                {liveLabel}
-              </>
-            )}
-          </button>
+      <button
+        type="button"
+        disabled={submitDisabled}
+        onClick={() => {
+          void onSubmit(submitMode);
+        }}
+        className={cn(
+          "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
+          submitDisabled
+            ? "cursor-not-allowed bg-gray-200 text-gray-500"
+            : "bg-brand-500 text-white shadow-sm hover:bg-brand-600",
         )}
-      </div>
+        title={liveDisabledReason ?? undefined}
+      >
+        {requirementsLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isZh ? "正在检查" : "Checking"}
+          </>
+        ) : submittingMode === submitMode ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isZh ? "正在提交" : "Submitting"}
+          </>
+        ) : (
+          <>
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            {isZh ? "提交" : "Submit"}
+          </>
+        )}
+      </button>
 
       {hasLiveAssistedTarget && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
           {liveDisabledReason ?? liveSafetyCopy}
-        </div>
-      )}
-
-      {showLiveConsent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
-          <div className="w-full max-w-xl rounded-xl border border-input bg-white p-6 shadow-xl">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-foreground">
-                  {liveConsentTitle}
-                </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {liveConsentDescription}
-                </p>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-input bg-muted/30 p-3 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border-input"
-                    checked={liveConsentChecked}
-                    onChange={(event) => setLiveConsentChecked(event.target.checked)}
-                  />
-                  <span>
-                    {liveConsentCheckbox}
-                  </span>
-                </label>
-              </div>
-            </div>
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="min-h-11 rounded-full border border-input px-5 text-sm font-semibold text-foreground hover:bg-muted"
-                onClick={() => setShowLiveConsent(false)}
-              >
-                {isZh ? "取消" : "Cancel"}
-              </button>
-              <button
-                type="button"
-                disabled={!liveConsentChecked || isSubmitting}
-                className={cn(
-                  "min-h-11 rounded-full px-5 text-sm font-semibold transition-colors",
-                  !liveConsentChecked || isSubmitting
-                    ? "cursor-not-allowed bg-gray-200 text-gray-500"
-                    : "bg-brand-500 text-white hover:bg-brand-600",
-                )}
-                onClick={() => {
-                  setShowLiveConsent(false);
-                  void onSubmit("live_assisted");
-                }}
-              >
-                {submittingMode === "live_assisted"
-                  ? (isZh ? "正在启动" : "Starting")
-                  : liveStartLabel}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -1389,6 +1247,13 @@ export default function ApplicationPage() {
     [dbSteps, dynamicAnswerSnapshot, useDynamic],
   );
   const firstFormStepId = useDynamic ? (visibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
+  const handleEditSubmittedApplication = useCallback(() => {
+    setAppState((prev) => ({
+      ...prev,
+      submittedAt: undefined,
+    }));
+    setCurrentStep(firstFormStepId);
+  }, [firstFormStepId]);
 
   const passportBioPageDocument = useMemo(
     () =>
@@ -2599,6 +2464,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
+                              onEditSubmitted={handleEditSubmittedApplication}
                             />
                           ) : (
                             <FinalConfirmationPanel
@@ -2699,6 +2565,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
+                              onEditSubmitted={handleEditSubmittedApplication}
                             />
                           ) : (
                             <FinalConfirmationPanel

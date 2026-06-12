@@ -150,6 +150,22 @@ const PURPOSE_LABELS: Record<string, string> = {
   others: "Others",
 };
 
+const COUNTRY_DIALING_CODES = [
+  "86",
+  "65",
+  "60",
+  "66",
+  "62",
+  "91",
+  "84",
+  "63",
+  "1",
+  "81",
+  "82",
+  "44",
+  "61",
+];
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/[\s/-]+/g, "_");
 }
@@ -251,9 +267,49 @@ function boolYes(value: string | null): boolean {
 
 function splitPhone(rawPhone: string): { countryCode: string; phoneNumber: string } {
   const compact = rawPhone.trim().replace(/[()\s-]+/g, "");
-  const plus = /^\+(\d{1,4})(\d{6,15})$/.exec(compact);
-  if (plus) return { countryCode: plus[1], phoneNumber: plus[2] };
+  if (compact.startsWith("+")) {
+    const internationalDigits = compact.slice(1).replace(/\D+/g, "");
+    const countryCode = COUNTRY_DIALING_CODES.find((code) => internationalDigits.startsWith(code));
+    if (countryCode) {
+      return {
+        countryCode,
+        phoneNumber: internationalDigits.slice(countryCode.length),
+      };
+    }
+    const plus = /^(\d{1,4})(\d{6,15})$/.exec(internationalDigits);
+    if (plus) return { countryCode: plus[1], phoneNumber: plus[2] };
+  }
   return { countryCode: "", phoneNumber: compact.replace(/^\+/, "") };
+}
+
+function digitsOnly(value: string | null | undefined): string {
+  return (value ?? "").replace(/\D+/g, "");
+}
+
+function normalizePhoneForIca(
+  payload: SubmissionPayload,
+  missing: string[],
+): { countryCode: string; phoneNumber: string } {
+  const rawPhone = required(
+    read(payload, "mobile_number") ??
+      read(payload, "phone_number") ??
+      read(payload, "telephone_number") ??
+      payload.personal.phone,
+    "mobile_number",
+    "Mobile number",
+    missing,
+  );
+  const split = splitPhone(rawPhone);
+  const countryCode = digitsOnly(read(payload, "phone_country_code") ?? split.countryCode);
+  let phoneNumber = digitsOnly(split.phoneNumber || rawPhone);
+
+  if (countryCode && phoneNumber.startsWith(countryCode) && phoneNumber.length - countryCode.length >= 6) {
+    phoneNumber = phoneNumber.slice(countryCode.length);
+  }
+
+  if (!countryCode) missing.push("phone_country_code");
+  if (!/^\d{6,15}$/.test(phoneNumber)) missing.push("mobile_number");
+  return { countryCode, phoneNumber };
 }
 
 function splitFlightNumber(raw: string): { carrierCodeQuery: string; flightNo: string } {
@@ -338,9 +394,7 @@ export function normalizeSgacPortalPayload(
   if (arrivalIso) assertArrivalInIcaWindow(arrivalIso, now);
   const departure = required(payload.trip.departureDate, "departure_date", "Departure date", missing);
   const purpose = mapPurpose(read(payload, "purpose_of_travel") ?? payload.trip.purpose ?? null, missing);
-  const phone = splitPhone(required(payload.personal.phone, "phone", "Mobile number", missing));
-  const explicitPhoneCountryCode = read(payload, "phone_country_code") ?? phone.countryCode;
-  const explicitPhoneNumber = read(payload, "phone_number") ?? phone.phoneNumber;
+  const phone = normalizePhoneForIca(payload, missing);
 
   const normalized: SgacPortalPayload = {
     applicationId: payload.applicationId,
@@ -367,8 +421,8 @@ export function normalizeSgacPortalPayload(
       missing,
     ),
     email: required(payload.personal.email, "email_address", "Email address", missing),
-    phoneCountryCode: required(explicitPhoneCountryCode, "phone_country_code", "Phone country code", missing).replace(/^\+/, ""),
-    phoneNumber: required(explicitPhoneNumber, "mobile_number", "Mobile number", missing).replace(/^\+/, ""),
+    phoneCountryCode: phone.countryCode,
+    phoneNumber: phone.phoneNumber,
     hasUsedDifferentName: boolYes(read(payload, "has_used_different_name_to_enter_singapore")),
     hasHealthSymptoms: boolYes(read(payload, "has_health_symptoms")),
     hasYellowFeverTravelHistory: boolYes(read(payload, "recent_country_visit_history")),

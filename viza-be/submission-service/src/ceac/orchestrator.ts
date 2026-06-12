@@ -434,7 +434,7 @@ export async function orchestrateFill(
           console.log(
             `[orchestrator] Sign certification page detected — advancing to final signature controls`,
           );
-          await certifySignAndSubmitPage(page);
+          await certifySignAndSubmitPage(page, path.join(outputDir, "sign-certify-dom.json"));
           await advance(page, {
             from: "sign_and_submit",
             to: ["sign_and_submit", "confirmation"],
@@ -628,7 +628,8 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
   }
 }
 
-async function certifySignAndSubmitPage(page: Page): Promise<void> {
+async function certifySignAndSubmitPage(page: Page, diagnosticPath?: string): Promise<void> {
+  if (diagnosticPath) await dumpSignCertifyDom(page, diagnosticPath);
   const checkboxes = page.locator('input[type="checkbox"]');
   const count = await checkboxes.count().catch(() => 0);
   for (let i = 0; i < count; i += 1) {
@@ -644,6 +645,16 @@ async function certifySignAndSubmitPage(page: Page): Promise<void> {
   }
 
   await page.evaluate(() => {
+    const radioOrCheckboxes = Array.from(
+      document.querySelectorAll('input[type="checkbox"], input[type="radio"]'),
+    ) as HTMLInputElement[];
+    for (const input of radioOrCheckboxes) {
+      if (!input.checked) input.checked = true;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+
     for (const el of Array.from(document.querySelectorAll('input[type="checkbox"]'))) {
       const input = el as HTMLInputElement;
       if (!input.checked) input.checked = true;
@@ -651,6 +662,11 @@ async function certifySignAndSubmitPage(page: Page): Promise<void> {
       input.dispatchEvent(new Event("change", { bubbles: true }));
       input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     }
+  }).catch(() => undefined);
+
+  await page.evaluate(() => {
+    const maybeValidNavigation = (window as unknown as { ValidNavigation?: () => unknown }).ValidNavigation;
+    if (typeof maybeValidNavigation === "function") maybeValidNavigation();
   }).catch(() => undefined);
 
   const next = page
@@ -670,6 +686,41 @@ async function certifySignAndSubmitPage(page: Page): Promise<void> {
       el.removeAttribute("disabled");
     });
   });
+}
+
+async function dumpSignCertifyDom(page: Page, outPath: string): Promise<void> {
+  try {
+    const dom = await page.evaluate(() => {
+      function row(el: Element) {
+        const input = el as HTMLInputElement;
+        const rect = el.getBoundingClientRect();
+        return {
+          tag: el.tagName,
+          id: input.id ?? "",
+          name: input.name ?? "",
+          type: input.type ?? "",
+          value: input.value ?? "",
+          checked: Boolean(input.checked),
+          disabled: Boolean(input.disabled),
+          visible: rect.width > 0 && rect.height > 0,
+          text: (el.textContent ?? "").trim().slice(0, 120),
+        };
+      }
+      return {
+        url: location.href,
+        bodySnippet: (document.body.innerText ?? "").slice(0, 1200),
+        inputs: Array.from(document.querySelectorAll("input")).map(row),
+        buttons: Array.from(document.querySelectorAll("button, input[type='submit'], input[type='button']")).map(row),
+        labels: Array.from(document.querySelectorAll("label")).map((label) => ({
+          for: label.getAttribute("for"),
+          text: (label.textContent ?? "").trim().slice(0, 200),
+        })),
+      };
+    });
+    fs.writeFileSync(outPath, JSON.stringify(dom, null, 2));
+  } catch {
+    // best effort
+  }
 }
 
 async function forceTextValue(el: Locator, value: string): Promise<void> {

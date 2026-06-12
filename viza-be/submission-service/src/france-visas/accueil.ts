@@ -181,6 +181,67 @@ export async function finalizeAndDownloadPdf(
   return { applicationReference, pdfPath };
 }
 
+export interface ContinueConfirmedApplicationResult {
+  clickedDeclare: boolean;
+  clickedContinue: boolean;
+  resultingUrl: string;
+}
+
+export interface ContinueConfirmedApplicationOptions {
+  applicationReference?: string | null;
+  timeoutMs?: number;
+}
+
+/**
+ * France-Visas shows a declaration checkbox + Continue button for confirmed
+ * applications on accueil. When the applicant/operator has explicitly opted
+ * into the post-confirmation action, tick the declaration in the matching
+ * application group and click Continue. This helper stops after that click;
+ * later payment/appointment pages are intentionally left to their own guards.
+ */
+export async function continueConfirmedApplication(
+  page: Page,
+  options: ContinueConfirmedApplicationOptions = {},
+): Promise<ContinueConfirmedApplicationResult> {
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const result = await page.evaluate(`(() => {
+    const applicationReference = ${JSON.stringify(options.applicationReference ?? null).replace(/</g, "\\u003c")};
+    const visible = (el) => el.offsetParent !== null;
+    const textOf = (el) => ((el.value || el.textContent || "") + "").trim().replace(/\\s+/g, " ");
+    const containers = Array.from(document.querySelectorAll("form, section, article, div"))
+      .filter((el) => visible(el) && (!applicationReference || (el.textContent || "").includes(applicationReference)));
+    const root = containers
+      .sort((a, b) => (a.textContent || "").length - (b.textContent || "").length)[0] || document.body;
+
+    const checkbox = Array.from(root.querySelectorAll('input[type="checkbox"]'))
+      .find((el) => visible(el));
+    let clickedDeclare = false;
+    if (checkbox && !checkbox.checked) {
+      checkbox.click();
+      clickedDeclare = true;
+    }
+
+    const continueButton = Array.from(root.querySelectorAll('button, input[type="submit"], input[type="button"], a'))
+      .filter((el) => visible(el))
+      .find((el) => /^continue$|^continuer$/i.test(textOf(el)));
+    if (!continueButton) {
+      return { clickedDeclare, clickedContinue: false };
+    }
+    continueButton.click();
+    return { clickedDeclare, clickedContinue: true };
+  })()`) as { clickedDeclare: boolean; clickedContinue: boolean };
+
+  if (result.clickedContinue) {
+    await page.waitForLoadState("domcontentloaded", { timeout: timeoutMs }).catch(() => undefined);
+    await waitForPage(page, "accueil", { timeoutMs: 2_000 }).catch(() => undefined);
+  }
+
+  return {
+    ...result,
+    resultingUrl: page.url(),
+  };
+}
+
 interface InProgressPdfTarget {
   /** DOM id of the "Read pdf application in progress" link. */
   pdfLinkId: string;
