@@ -4,9 +4,11 @@ param(
   [int]$AgentPort = 3002,
   [int]$TravelPort = 8000,
   [int]$StartupTimeoutSeconds = 120,
+  [string]$PortalPath = "/client/login",
   [switch]$WithDb,
   [switch]$Reset,
-  [switch]$Stop
+  [switch]$Stop,
+  [switch]$NoOpen
 )
 
 $ErrorActionPreference = "Stop"
@@ -300,6 +302,27 @@ function Start-ManagedProcess {
   }
 }
 
+function Write-LogTail {
+  param(
+    [string]$Path,
+    [int]$Tail = 80
+  )
+
+  if (!(Test-Path -LiteralPath $Path -PathType Leaf)) {
+    return
+  }
+
+  $content = @(Get-Content -LiteralPath $Path -Tail $Tail -ErrorAction SilentlyContinue)
+  if ($content.Count -eq 0) {
+    return
+  }
+
+  Write-Warn "Last $Tail lines from $Path"
+  foreach ($line in $content) {
+    Write-Host $line -ForegroundColor DarkYellow
+  }
+}
+
 function Wait-HttpReady {
   param(
     [string]$Name,
@@ -330,18 +353,42 @@ function Wait-ProcessAlive {
   param(
     [string]$Name,
     [int]$ProcessId,
+    [string]$Stdout = "",
+    [string]$Stderr = "",
     [int]$Seconds = 12
   )
 
   for ($i = 0; $i -lt $Seconds; $i++) {
     $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if (!$process) {
+      Write-LogTail -Path $Stderr
+      Write-LogTail -Path $Stdout
       throw "$Name exited during startup. Check logs in $runLogDir."
     }
     Start-Sleep -Seconds 1
   }
 
   Write-Ok "$Name process is still running (PID $ProcessId)"
+}
+
+function Open-Portal {
+  if ($NoOpen) {
+    return
+  }
+
+  $path = if ([string]::IsNullOrWhiteSpace($PortalPath)) { "/client/login" } else { $PortalPath }
+  if (!$path.StartsWith("/")) {
+    $path = "/$path"
+  }
+
+  $portalUrl = "http://127.0.0.1:$FrontendPort$path"
+  try {
+    Start-Process $portalUrl | Out-Null
+    Write-Ok "Opened portal: $portalUrl"
+  } catch {
+    Write-Warn "Could not open portal automatically: $($_.Exception.Message)"
+    Write-Warn "Open manually: $portalUrl"
+  }
 }
 
 function Find-ComposeFiles {
@@ -521,7 +568,7 @@ if (!$frontendAlreadyRunning) {
 }
 
 foreach ($process in $started) {
-  Wait-ProcessAlive -Name $process.Name -ProcessId $process.Pid
+  Wait-ProcessAlive -Name $process.Name -ProcessId $process.Pid -Stdout $process.Stdout -Stderr $process.Stderr
 }
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
@@ -537,6 +584,7 @@ Write-Host "Admin login:         http://127.0.0.1:$FrontendPort/admin/login" -Fo
 Write-Host "Agent backend:       http://127.0.0.1:$AgentPort/health" -ForegroundColor Green
 Write-Host "Travel service docs: http://127.0.0.1:$TravelPort/docs" -ForegroundColor Green
 Write-Host "Logs:                $runLogDir" -ForegroundColor Green
+Open-Portal
 Write-Host ""
 Write-Host "Stop later with:" -ForegroundColor Yellow
 Write-Host "  npm run dev:all:stop" -ForegroundColor Yellow

@@ -83,6 +83,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   including the generic `submission_manual_actions` bridge for official-site
   checkpoints, and the SQL Editor bundle under
   `supabase/manual/viza_required_schema.sql`.
+- France-Visas generated official account lookup for the applicant result UI
+  is exposed server-side through
+  `app/api/applications/[id]/france-visas-account/route.ts`; keep credential
+  decryption service-role only and never put official account passwords in
+  generic polling payloads or logs.
 
 ## Source Of Truth
 
