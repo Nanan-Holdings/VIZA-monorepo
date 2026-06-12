@@ -14,6 +14,7 @@ import { solveImageCaptcha, reportBadCaptcha, type CaptchaSolveResult, type Capt
 import { SessionBootstrapError } from "./errors";
 import { CEAC_URLS } from "./selectors";
 import { waitForAspNetPostback } from "./aspnet";
+import { gotoCeacStartPage } from "./start-page-navigation";
 
 // ---------------------------------------------------------------------------
 // Selectors — CEAC start-page CAPTCHA elements
@@ -448,7 +449,7 @@ export async function solveStartPageCaptchaWithRetry(
             );
           }
           try {
-            await page.goto(CEAC_URLS.START, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await gotoCeacStartPage(page, 30_000);
           } catch {
             await page.waitForTimeout(1_000);
           }
@@ -482,7 +483,7 @@ export async function solveStartPageCaptchaWithRetry(
         // partial state (missing location dropdown etc). A fresh goto
         // gives us a clean start-page structure.
         try {
-          await page.goto(CEAC_URLS.START, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await gotoCeacStartPage(page, 30_000);
         } catch {
           await page.waitForTimeout(1_000);
         }
@@ -527,7 +528,7 @@ export async function solveStartPageCaptchaWithRetry(
         }
         // Reload before retry — same reasoning as the wrong_answer branch.
         try {
-          await page.goto(CEAC_URLS.START, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await gotoCeacStartPage(page, 30_000);
         } catch {
           await page.waitForTimeout(1_000);
         }

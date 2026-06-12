@@ -618,7 +618,11 @@ async function fillPageFields(
     for (const selector of selectors) {
       try {
         const all = page.locator(selector);
-        const count = await all.count();
+        let count = await all.count();
+        if (count === 0 && mapping.type === "checkbox") {
+          await all.first().waitFor({ state: "attached", timeout: 2_500 }).catch(() => undefined);
+          count = await all.count();
+        }
         if (count === 0) continue;
         // Pick the first VISIBLE match. CEAC repeaters (e.g. dtlSocial)
         // sometimes leave a hidden template row in the DOM that matches
@@ -629,6 +633,10 @@ async function fillPageFields(
         let el: ReturnType<typeof page.locator> | null = null;
         for (let i = 0; i < count; i += 1) {
           const candidate = all.nth(i);
+          if (mapping.type === "checkbox") {
+            el = candidate;
+            break;
+          }
           const visible = await candidate.isVisible().catch(() => false);
           if (!visible) continue;
           // For non-radio fills, also require the element to be editable:
@@ -667,11 +675,17 @@ async function fillPageFields(
           // Checkbox: interpret the value as a truthy/falsy flag. "Y",
           // "true", "1", "yes" → check; everything else → uncheck.
           const shouldCheck = /^(Y|1|true|yes)$/i.test(value);
-          if (shouldCheck) {
-            await el.check({ timeout: 5_000, force: true });
-          } else {
-            await el.uncheck({ timeout: 5_000, force: true });
-          }
+          await el.evaluate((node, checked) => {
+            const input = node as HTMLInputElement;
+            input.checked = Boolean(checked);
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            input.checked = Boolean(checked);
+            const win = window as typeof window & { __doPostBack?: (target: string, argument: string) => void };
+            if (typeof win.__doPostBack === "function" && input.name) {
+              try { win.__doPostBack(input.name, ""); } catch { /* best effort */ }
+            }
+          }, shouldCheck);
         } else {
           await el.fill(value, { timeout: 5_000 });
         }
@@ -682,6 +696,9 @@ async function fillPageFields(
         // try the next mapping — otherwise subsequent fills target a
         // transient DOM and silently miss.
         await waitForAspNetPostback(page, 8_000);
+        if (mapping.type === "checkbox") {
+          await page.waitForTimeout(750);
+        }
 
         filled = true;
         break;
