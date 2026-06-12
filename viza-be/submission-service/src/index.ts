@@ -122,7 +122,10 @@ import {
   SgacPortalValidationError,
 } from "./sgac";
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = Number.parseInt(
+  process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
+  10,
+);
 const MAX_ATTEMPTS = 3;
 const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_QUEUE_STALE_MS ?? String(10 * 60 * 1000),

@@ -110,6 +110,8 @@ function toFvCivilStatus(v: string | null | undefined, field: string): FvStep2An
  */
 const TRAVEL_DOC_MAP: Record<string, string> = {
   ordinary_passport: "10",
+  ordinary: "10",
+  passport: "10",
   diplomatic_passport: "30",
   service_passport: "40",
   official_passport: "40",
@@ -195,6 +197,16 @@ const A2_TO_A3: Record<string, string> = {
   VN: "VNM", YE: "YEM", ZM: "ZMB", ZW: "ZWE",
 };
 
+const COUNTRY_NAME_TO_A3: Record<string, string> = {
+  china: "CHN",
+  "people's republic of china": "CHN",
+  prc: "CHN",
+  中国: "CHN",
+  france: "FRA",
+  "french republic": "FRA",
+  法国: "FRA",
+};
+
 export function toFvCountryCode(code: string | null | undefined, field: string): string {
   if (!code) throw new NormalizationError(field, "missing country code");
   const s = code.trim().toUpperCase();
@@ -205,6 +217,8 @@ export function toFvCountryCode(code: string | null | undefined, field: string):
     const mapped = A2_TO_A3[s];
     if (mapped) return mapped;
   }
+  const nameMapped = COUNTRY_NAME_TO_A3[code.trim().toLowerCase()];
+  if (nameMapped) return nameMapped;
   throw new NormalizationError(field, `unrecognized country code "${code}"`);
 }
 
