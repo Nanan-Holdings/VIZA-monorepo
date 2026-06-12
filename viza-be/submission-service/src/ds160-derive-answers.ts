@@ -64,6 +64,7 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
   { source: "us_social_security_number", naKey: "us_social_security_number_na" },
   { source: "us_taxpayer_id", naKey: "us_taxpayer_id_na" },
   { source: "us_contact_organization", naKey: "us_contact_organization_na" },
+  { source: "us_contact_email", naKey: "us_contact_email_na" },
   { source: "passport_book_number", naKey: "passport_book_number_na" },
   { source: "home_address_state_province", naKey: "home_address_state_na" },
   { source: "home_address_postal_code", naKey: "home_address_postal_na" },
@@ -85,6 +86,10 @@ const NA_PAIRS: ReadonlyArray<NaPair> = [
 const DEFAULT_NA_SOURCES: ReadonlySet<string> = new Set([
   "us_social_security_number",
   "us_taxpayer_id",
+]);
+
+const CLEAR_NA_TEXT_FIELDS: ReadonlySet<string> = new Set([
+  "passport_issuance_state",
 ]);
 
 interface KeyAlias {
@@ -230,6 +235,25 @@ const NA_VALUE_TOKENS: ReadonlySet<string> = new Set([
 
 const HAS_CJK = /[\u3400-\u4DBF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/;
 
+const CEAC_TEXT_TRANSLITERATIONS: Readonly<Record<string, string>> = {
+  北京: "BEIJING",
+  上海: "SHANGHAI",
+  广州: "GUANGZHOU",
+  深圳: "SHENZHEN",
+  长沙: "CHANGSHA",
+  湖南: "HUNAN",
+};
+
+const CEAC_CITY_TEXT_KEYS: ReadonlySet<string> = new Set([
+  "home_address_city",
+  "mailing_address_city",
+  "passport_issuance_city",
+  "city_of_birth",
+  "place_of_birth_city",
+  "us_contact_city",
+  "spouse_city_of_birth",
+]);
+
 const MONTH_ABBREVS = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
@@ -280,10 +304,15 @@ function deriveDateSplits(answers: Record<string, string>): void {
 }
 
 function deriveNaFlags(answers: Record<string, string>): void {
+  for (const key of CLEAR_NA_TEXT_FIELDS) {
+    if (isNaToken(answers[key])) delete answers[key];
+  }
+
   for (const { source, naKey } of NA_PAIRS) {
     const value = answers[source];
-    if (value === undefined && DEFAULT_NA_SOURCES.has(source) && answers[naKey] === undefined) {
+    if ((value === undefined || value.trim() === "") && DEFAULT_NA_SOURCES.has(source) && answers[naKey] === undefined) {
       answers[naKey] = "Y";
+      if (value !== undefined) delete answers[source];
       continue;
     }
     if (!isNaToken(value)) continue;
@@ -357,6 +386,15 @@ function normalizeCeacValueCodes(answers: Record<string, string>): void {
   }
 }
 
+function normalizeCeacTextFields(answers: Record<string, string>): void {
+  for (const key of CEAC_CITY_TEXT_KEYS) {
+    const value = answers[key]?.trim();
+    if (!value || !HAS_CJK.test(value)) continue;
+    const transliterated = CEAC_TEXT_TRANSLITERATIONS[value];
+    if (transliterated) answers[key] = transliterated;
+  }
+}
+
 /**
  * Length of stay in days, derived from arrival_date + departure_date.
  * CEAC's travel page accepts a numeric value plus a unit dropdown; we set
@@ -412,6 +450,7 @@ export function deriveDS160Answers(
   applyEnglishAliases(answers);
   applyAliases(answers);
   normalizeCeacValueCodes(answers);
+  normalizeCeacTextFields(answers);
   deriveDateSplits(answers);
   deriveIntendedArrivalDate(answers);
   deriveLengthOfStay(answers);
@@ -421,8 +460,18 @@ export function deriveDS160Answers(
 }
 
 function deriveContactPageConsistency(answers: Record<string, string>): void {
+  deriveUsContactNameNa(answers);
   deriveSocialMediaPresence(answers);
   deriveDuplicatePhoneNaFlags(answers);
+}
+
+function deriveUsContactNameNa(answers: Record<string, string>): void {
+  const surnameNa = isNaToken(answers.us_contact_surname);
+  const givenNa = isNaToken(answers.us_contact_given_names);
+  if (!surnameNa && !givenNa) return;
+  answers.us_contact_name_na = "Y";
+  if (surnameNa) delete answers.us_contact_surname;
+  if (givenNa) delete answers.us_contact_given_names;
 }
 
 function deriveSocialMediaPresence(answers: Record<string, string>): void {
@@ -443,6 +492,9 @@ function deriveSocialMediaPresence(answers: Record<string, string>): void {
 
   if (!handle && answers.has_social_media === undefined) {
     answers.has_social_media = "N";
+  }
+  if (!handle && answers.has_social_media === "N" && answers.social_media_provider === undefined) {
+    answers.social_media_provider = "NONE";
   }
 }
 

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 describe("CEAC session bootstrap navigation", () => {
   it("waits only for the initial CEAC response commit before page detection", async () => {
-    const { gotoCeacStartPage } = require("../session") as typeof import("../session");
+    const { gotoCeacStartPage } = require("../start-page-navigation") as typeof import("../start-page-navigation");
     const calls: Array<{ waitUntil?: string; timeout?: number }> = [];
     const page = {
       goto: async (_url: string, options: { waitUntil?: string; timeout?: number }) => {
@@ -19,7 +19,7 @@ describe("CEAC session bootstrap navigation", () => {
   });
 
   it("waits for CEAC page markers after the initial response commit", async () => {
-    const { gotoCeacStartPage } = require("../session") as typeof import("../session");
+    const { gotoCeacStartPage } = require("../start-page-navigation") as typeof import("../start-page-navigation");
     const selectors: Array<{ selector: string; state?: string; timeout?: number }> = [];
     const page = {
       goto: async () => null,

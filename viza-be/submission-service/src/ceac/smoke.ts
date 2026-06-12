@@ -20,13 +20,13 @@
  */
 
 import "dotenv/config";
-import type { Browser } from "@playwright/test";
+import { chromium, type Browser } from "@playwright/test";
 import { CEAC_URLS } from "./selectors";
 import { detectPage } from "./pages";
 import { detectGate, type GateDetectionResult } from "./gates";
 import { solveStartPageCaptcha, type StartPageCaptchaOutcome } from "./start-page-captcha";
-import { launchStealthBrowser } from "./stealth-browser";
-import { gotoCeacStartPage } from "./session";
+import { gotoCeacStartPage } from "./start-page-navigation";
+import { CEAC_DEFAULT_USER_AGENT } from "./session";
 
 export type SmokeOutcome = "start_page" | "anti_bot_gate" | "blocked";
 
@@ -66,9 +66,9 @@ export async function probeCeacStartPage(options: {
   let browser: Browser | null = null;
 
   try {
-    const handles = await launchStealthBrowser({ headless });
-    browser = handles.browser;
-    const page = handles.page;
+      browser = await chromium.launch({ headless });
+      const context = await browser.newContext({ userAgent: CEAC_DEFAULT_USER_AGENT });
+      const page = await context.newPage();
 
     try {
       await gotoCeacStartPage(page, timeoutMs);
@@ -183,11 +183,9 @@ export async function probeCaptchaSolve(options: {
   let browser: Browser | null = null;
 
   try {
-    // Match the stealth config used in production session bootstrap so the
-    // smoke test exercises the same fingerprint CEAC will see at runtime.
-    const handles = await launchStealthBrowser({ headless });
-    browser = handles.browser;
-    const page = handles.page;
+    browser = await chromium.launch({ headless });
+    const context = await browser.newContext({ userAgent: CEAC_DEFAULT_USER_AGENT });
+    const page = await context.newPage();
 
     await gotoCeacStartPage(page, timeoutMs);
 
