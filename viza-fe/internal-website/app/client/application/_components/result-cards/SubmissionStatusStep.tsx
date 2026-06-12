@@ -40,6 +40,7 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
+  onEditSubmitted?: () => void;
 }
 
 interface SubmissionStatusSnapshot {
@@ -60,6 +61,7 @@ interface SubmissionStatusSnapshot {
     provider: string | null;
     currentStage?: string | null;
     heartbeatAt?: string | null;
+    fieldFallbacks?: unknown[];
     createdAt?: string | null;
     updatedAt?: string | null;
   } | null;
@@ -150,6 +152,10 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
   );
 }
 
+function isActiveSnapshot(snapshot: SubmissionStatusSnapshot | null): boolean {
+  return snapshot?.status === "queued" || snapshot?.status === "running";
+}
+
 function QueueEvidencePanel({
   queue,
   applicationId,
@@ -170,6 +176,12 @@ function QueueEvidencePanel({
     { label: "queue.mode", value: queue?.mode ?? null },
     { label: "queue.current_stage", value: queue?.currentStage ?? null },
     { label: "queue.heartbeat_at", value: queue?.heartbeatAt ?? null },
+    {
+      label: isZh ? "字段默认值兜底" : "field fallbacks",
+      value: queue?.fieldFallbacks?.length
+        ? `${queue.fieldFallbacks.length} ${isZh ? "项" : "record(s)"}`
+        : null,
+    },
     { label: "queue.updated_at", value: queue?.updatedAt ?? updatedAt },
   ].filter((row) => row.value);
 
@@ -188,6 +200,20 @@ function QueueEvidencePanel({
           </div>
         ))}
       </div>
+      {queue?.fieldFallbacks?.length ? (
+        <div className="mt-3 space-y-2">
+          {queue.fieldFallbacks.slice(0, 5).map((fallback, index) => (
+            <div key={index} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+              <div className="text-xs font-medium text-amber-800">
+                {isZh ? "已用默认值通过官网字段" : "Default used for portal field"}
+              </div>
+              <pre className="mt-1 whitespace-pre-wrap break-all text-xs text-amber-950">
+                {JSON.stringify(fallback, null, 2)}
+              </pre>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -223,9 +249,6 @@ function GenericResultCard({
     isFranceCountry(applicationCountry ?? result.targetCountry) &&
     isFranceVisasVisaType(applicationVisaType ?? result.visaType);
   const officialManualAction = isDs160Action || isFranceAction;
-  const ds160LiveEnabled =
-    process.env.NEXT_PUBLIC_DS160_LIVE_ASSISTED_ENABLED === "true" &&
-    process.env.NEXT_PUBLIC_DS160_SUBMISSION_MODE === "live_assisted";
   const franceLiveEnabled =
     process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
     process.env.NEXT_PUBLIC_FRANCE_SUBMISSION_MODE === "live_assisted";
@@ -233,7 +256,6 @@ function GenericResultCard({
     Boolean(applicationId) &&
     result.status === "submitted_mock" &&
     result.mode === "dry_run" &&
-    ds160LiveEnabled &&
     isDs160VisaType(applicationVisaType ?? result.visaType);
   const canStartFranceLive =
     Boolean(applicationId) &&
@@ -303,16 +325,14 @@ function GenericResultCard({
   const startLiveAssisted = async () => {
     if (!applicationId || startingLive || !liveTarget) return;
 
-    const confirmed = window.confirm(
-      liveTarget === "ds160"
-        ? (isZh
-            ? "这会创建 live_assisted 队列任务并打开 CEAC 官方 DS-160 流程。地点选择、验证码、官网核对和最终 Sign/Submit 都必须由本人手动处理。确认继续？"
-            : "This will create a live_assisted queue job and open the official CEAC DS-160 flow. Location selection, CAPTCHA, official review, and final Sign/Submit remain manual. Continue?")
-        : (isZh
-            ? "这会创建 live_assisted 队列任务，并可用 VIZA 邮箱 alias 注册 France-Visas 账号；注册页图片验证码会经你授权使用 2captcha 处理。登录风控、官网核对、最终验证、支付和预约仍需人工处理。确认继续？"
-            : "This will create a live_assisted queue job and may register a France-Visas account with a VIZA email alias; the registration image CAPTCHA may be solved with 2captcha with your authorization. Login risk checks, official review, final validation, payment, and appointment booking remain manual. Continue?"),
-    );
-    if (!confirmed) return;
+    if (liveTarget !== "ds160") {
+      const confirmed = window.confirm(
+        isZh
+          ? "这会创建 live_assisted 队列任务，并可用 VIZA 邮箱 alias 注册 France-Visas 账号；注册页图片验证码会使用 2captcha 处理。确认继续？"
+          : "This will create a live_assisted queue job and may register a France-Visas account with a VIZA email alias; the registration image CAPTCHA may be solved with 2captcha. Continue?",
+      );
+      if (!confirmed) return;
+    }
 
     setStartingLive(true);
     setLiveError(null);
@@ -408,8 +428,8 @@ function GenericResultCard({
               <span>
                 {liveTarget === "ds160"
                   ? (isZh
-                      ? "这是旧的 dry-run 结果。可以从这里启动 CEAC 官网辅助填写，真实流程会停在地点选择、验证码、官网核对或最终 Sign/Submit 等人工检查点。"
-                      : "This is the previous dry-run result. You can start the CEAC live assisted fill from here; the real flow will stop at location, CAPTCHA, official review, or final Sign/Submit checkpoints.")
+                      ? "点击提交后，系统会使用已保存的表单和照片在 CEAC 官方 DS-160 完成真实提交。页面会显示提交进度，成功后展示 DS-160 编号和提交证据。"
+                      : "Submit will use the saved form and photo to file the DS-160 on CEAC. Progress appears here, followed by the DS-160 number and evidence.")
                   : (isZh
                       ? "这是旧的 dry-run 结果。可以从这里启动 France-Visas 官网辅助填写；如需新账号，VIZA 会用专属邮箱 alias 注册并用 2captcha 处理注册页图片验证码。"
                       : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; if a new account is needed, VIZA will use a dedicated email alias and 2captcha for the registration image CAPTCHA.")}
@@ -427,9 +447,9 @@ function GenericResultCard({
                 <ShieldCheck className="mr-2 h-4 w-4" />
               )}
               {startingLive
-                ? (isZh ? "正在启动" : "Starting")
+                ? (isZh ? "正在提交" : "Submitting")
                 : liveTarget === "ds160"
-                  ? (isZh ? "启动真实官网辅助填写" : "Start live assisted CEAC run")
+                  ? (isZh ? "提交" : "Submit")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
             </Button>
           </div>
@@ -643,7 +663,9 @@ export function SubmissionStatusStep({
   visaType,
   status,
   result,
+  onEditSubmitted,
 }: SubmissionStatusStepProps) {
+  const isZh = isChineseLocale(useLocale());
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
   const [showCompletedResult, setShowCompletedResult] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
@@ -674,8 +696,12 @@ export function SubmissionStatusStep({
     () => visualStatusFromApplication(status),
     [status],
   );
+  const snapshotIsActive = isActiveSnapshot(snapshot);
   const terminalPropsAvailable =
-    Boolean(result) && fallbackVisualStatus !== "queued" && fallbackVisualStatus !== "running";
+    !snapshotIsActive &&
+    Boolean(result) &&
+    fallbackVisualStatus !== "queued" &&
+    fallbackVisualStatus !== "running";
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -699,14 +725,20 @@ export function SubmissionStatusStep({
     : snapshot?.applicationStatus ?? status;
   const completedWithResult = effectiveStatus === "completed" && Boolean(effectiveResult);
   const actionWithResult = effectiveStatus === "needs_user_action" && Boolean(effectiveResult);
-  const failed = effectiveStatus === "failed" || effectiveApplicationStatus === "failed";
-  const stalled = effectiveStatus === "stalled" || effectiveApplicationStatus === "stalled";
-  const retryModes = supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
-    ? [
-        { mode: "dry_run" as const, label: "Dry-run test" },
-        { mode: "live_assisted" as const, label: "Live assisted" },
-      ]
-    : [{ mode: "dry_run" as const, label: "Retry dry-run" }];
+  const failed =
+    effectiveStatus === "failed" || (!snapshotIsActive && effectiveApplicationStatus === "failed");
+  const stalled =
+    effectiveStatus === "stalled" || (!snapshotIsActive && effectiveApplicationStatus === "stalled");
+  const isSgacSubmission = isSgArrivalCardApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
+  const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
+  const retryModes = isSgacSubmission || isDs160Submission
+    ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
+    : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
+      ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
+      : [{ mode: "dry_run" as const, label: isZh ? "重新提交" : "Retry submission" }];
 
   useEffect(() => {
     setSnapshot(null);
@@ -761,6 +793,9 @@ export function SubmissionStatusStep({
                     typeof body.queue.currentStage === "string" ? body.queue.currentStage : null,
                   heartbeatAt:
                     typeof body.queue.heartbeatAt === "string" ? body.queue.heartbeatAt : null,
+                  fieldFallbacks: Array.isArray(body.queue.fieldFallbacks)
+                    ? body.queue.fieldFallbacks
+                    : [],
                   createdAt:
                     typeof body.queue.createdAt === "string" ? body.queue.createdAt : null,
                   updatedAt:
@@ -850,12 +885,21 @@ export function SubmissionStatusStep({
   }
 
   if (actionWithResult || (completedWithResult && showCompletedResult)) {
-    return renderSubmissionResultCard(
-      applicationId,
-      country,
-      visaType,
-      effectiveResult,
-      snapshot?.queue?.id ?? null,
+    return (
+      <div className="space-y-4">
+        {renderSubmissionResultCard(
+          applicationId,
+          country,
+          visaType,
+          effectiveResult,
+          snapshot?.queue?.id ?? null,
+        )}
+        {onEditSubmitted && (
+          <Button type="button" variant="outline" className="w-full" onClick={onEditSubmitted}>
+            {isZh ? "修改" : "Edit"}
+          </Button>
+        )}
+      </div>
     );
   }
 

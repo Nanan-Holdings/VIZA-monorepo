@@ -24,13 +24,21 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { signInWithPassword, type FvSignInInput, type FvSessionHandles } from "./sign-in";
-import { startNewApplication, finalizeAndDownloadPdf } from "./accueil";
+import {
+  continueConfirmedApplication,
+  finalizeAndDownloadPdf,
+  startNewApplication,
+} from "./accueil";
 import { fillStep1, fillStep2, fillStep3, fillStep4, fillStep5 } from "./fill-steps";
 import { waitForPage, detectPage, type FvPageId } from "./pages";
 import { readValidationMessages } from "./navigator";
 import { waitForJsfIdle } from "./primefaces-ajax";
 import { NavigationError, serializeError } from "./errors";
 import type { FvApplicationAnswers } from "./field-mappings";
+import {
+  sanitizeFranceAnswersForOfficialPortal,
+  type FranceFieldFallback,
+} from "./fallbacks";
 
 export interface FillFranceVisasInput {
   credentials: FvSignInInput;
@@ -56,6 +64,8 @@ export interface FillFranceVisasOptions {
   onOfficialPortalOpened?: (info: { url: string }) => Promise<void> | void;
   /** Where to save failure screenshots/HTML/text. Default: artifacts/france-live/<runId>. */
   diagnosticsDir?: string;
+  /** After the confirmed application is visible, tick "I declare" and click Continue. */
+  continueAfterConfirmation?: boolean;
 }
 
 export interface FranceVisasFailureDiagnostics {
@@ -89,6 +99,12 @@ export type FillFranceVisasResult =
        * Null when finalize was skipped or did not run.
        */
       pdfPath: string | null;
+      fieldFallbacks: FranceFieldFallback[];
+      postConfirmationContinue?: {
+        clickedDeclare: boolean;
+        clickedContinue: boolean;
+        resultingUrl: string;
+      };
     }
   | {
       status: "failed";
@@ -115,6 +131,8 @@ export async function fillFranceVisasApplication(
   const stepsCompleted: FvPageId[] = [];
   let session: FvSessionHandles | null = null;
   let currentStep: FvPageId | "unknown" = "unknown";
+  const sanitized = sanitizeFranceAnswersForOfficialPortal(input.answers);
+  const answers = sanitized.answers;
 
   try {
     // ── Sign in ───────────────────────────────────────────────────────────
@@ -134,7 +152,7 @@ export async function fillFranceVisasApplication(
 
     // ── Step 1 — Your plans ──────────────────────────────────────────────
     logRun(runId, "filling step1");
-    await fillStep1(session.page, input.answers.step1);
+    await fillStep1(session.page, answers.step1);
     logRun(runId, "advancing step1 to step2");
     await advanceStep(session.page, "step1", "step2", stepTimeoutMs);
     stepsCompleted.push("step1");
@@ -143,7 +161,7 @@ export async function fillFranceVisasApplication(
 
     // ── Step 2 — Your information ────────────────────────────────────────
     logRun(runId, "filling step2");
-    await fillStep2(session.page, input.answers.step2);
+    await fillStep2(session.page, answers.step2);
     logRun(runId, "advancing step2 to step3");
     await advanceStep(session.page, "step2", "step3", stepTimeoutMs);
     stepsCompleted.push("step2");
@@ -152,7 +170,7 @@ export async function fillFranceVisasApplication(
 
     // ── Step 3 — Your last visa ──────────────────────────────────────────
     logRun(runId, "filling step3");
-    await fillStep3(session.page, input.answers.step3);
+    await fillStep3(session.page, answers.step3);
     logRun(runId, "advancing step3 to step4");
     await advanceStep(session.page, "step3", "step4", stepTimeoutMs);
     stepsCompleted.push("step3");
@@ -161,7 +179,7 @@ export async function fillFranceVisasApplication(
 
     // ── Step 4 — Your stay ───────────────────────────────────────────────
     logRun(runId, "filling step4");
-    await fillStep4(session.page, input.answers.step4);
+    await fillStep4(session.page, answers.step4);
     logRun(runId, "advancing step4 to step5");
     await advanceStep(session.page, "step4", "step5", stepTimeoutMs);
     stepsCompleted.push("step4");
@@ -170,7 +188,7 @@ export async function fillFranceVisasApplication(
 
     // ── Step 5 — Your contacts ───────────────────────────────────────────
     logRun(runId, "filling step5");
-    await fillStep5(session.page, input.answers.step5);
+    await fillStep5(session.page, answers.step5);
     logRun(runId, "advancing step5 to step6");
     await advanceStep(session.page, "step5", "step6", stepTimeoutMs);
     stepsCompleted.push("step5");
@@ -205,6 +223,19 @@ export async function fillFranceVisasApplication(
       logRun(runId, `finalize complete; applicationReference=${applicationReference ? "<captured>" : "(none)"} pdf=${pdfPath ? "<saved>" : "(none)"}`);
     }
 
+    const postConfirmationContinue = options.continueAfterConfirmation && applicationReference
+      ? await continueConfirmedApplication(session.page, {
+          applicationReference,
+          timeoutMs: stepTimeoutMs,
+        })
+      : undefined;
+    if (postConfirmationContinue) {
+      logRun(
+        runId,
+        `post-confirmation continue clicked=${postConfirmationContinue.clickedContinue ? "yes" : "no"}`,
+      );
+    }
+
     return {
       status: "prefilled",
       runId,
@@ -213,6 +244,8 @@ export async function fillFranceVisasApplication(
       draftReference,
       applicationReference,
       pdfPath,
+      fieldFallbacks: sanitized.fieldFallbacks,
+      postConfirmationContinue,
     };
   } catch (err) {
     logRun(runId, `failed at ${currentStep}: ${err instanceof Error ? err.message : String(err)}`);

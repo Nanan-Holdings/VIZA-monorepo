@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
 import { AlertTriangle, ExternalLink, FileCheck2, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { isChineseLocale } from "@/lib/i18n/locale";
 import type { VnSubmissionResult } from "@/lib/submission-result";
 
 type ManualAction = {
@@ -22,6 +24,7 @@ export function VnResultCard({
   result: VnSubmissionResult;
   jobId?: string | null;
 }) {
+  const isZh = isChineseLocale(useLocale());
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -30,17 +33,17 @@ export function VnResultCard({
   const isFormCheckpoint = result.status === "official_form_reached";
   const isManualCheckpoint = Boolean(result.manualAction);
   const title = isPaymentCheckpoint
-    ? "Vietnam e-Visa application captured"
+    ? (isZh ? "越南 e-Visa 已提交到付款检查点" : "Vietnam e-Visa application captured")
     : isFormCheckpoint
-      ? "Vietnam e-Visa form reached"
+      ? (isZh ? "已进入越南 e-Visa 官网表单" : "Vietnam e-Visa form reached")
       : isManualCheckpoint
-        ? "Vietnam e-Visa action required"
-        : "Vietnam official portal reached";
+        ? (isZh ? "越南 e-Visa 需要人工操作" : "Vietnam e-Visa action required")
+        : (isZh ? "已进入越南官网流程" : "Vietnam official portal reached");
   const badge = isPaymentCheckpoint
-    ? "Action required: payment"
+    ? (isZh ? "等待付款" : "Action required: payment")
     : isManualCheckpoint
-      ? "Action required"
-      : "Official checkpoint";
+      ? (isZh ? "需要操作" : "Action required")
+      : (isZh ? "官网检查点" : "Official checkpoint");
   const Icon = isPaymentCheckpoint ? ShieldCheck : isFormCheckpoint ? FileCheck2 : AlertTriangle;
 
   useEffect(() => {
@@ -119,14 +122,18 @@ export function VnResultCard({
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {isPaymentCheckpoint
-            ? "We pre-filled your e-Visa application on the official Vietnam portal. To finalize, complete payment yourself on the official site."
+            ? isZh
+              ? "VIZA 已将申请推进到越南 e-Visa 官网的付款/受理检查点。请使用下方编号和官网入口继续核对；如需要付款，付款必须由本人完成。"
+              : "We pre-filled your e-Visa application on the official Vietnam portal. To finalize, complete payment yourself on the official site."
             : result.manualAction?.instructions ??
-              "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit."}
+              (isZh
+                ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
+                : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
         </p>
 
         {result.checkpoint && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">Checkpoint</div>
+            <div className="text-xs text-muted-foreground">{isZh ? "官网检查点" : "Checkpoint"}</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
               {result.checkpoint}
             </div>
@@ -135,7 +142,7 @@ export function VnResultCard({
 
         {hasRegistrationCode && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">Registration code</div>
+            <div className="text-xs text-muted-foreground">{isZh ? "官网登记编号" : "Registration code"}</div>
             <div className="mt-0.5 font-mono text-base font-medium text-foreground">
               {result.registrationCode}
             </div>
@@ -144,11 +151,11 @@ export function VnResultCard({
 
         {result.manualAction && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-            <div className="text-xs font-medium text-amber-700">Manual action</div>
+            <div className="text-xs font-medium text-amber-700">{isZh ? "需要人工操作" : "Manual action"}</div>
             <p className="mt-2 text-sm text-foreground">{result.manualAction.instructions}</p>
             {manualAction?.screenshotUrl && (
               <div className="rounded-md border border-amber-200 bg-white px-3 py-2">
-                <div className="text-xs text-amber-700">Screenshot</div>
+                <div className="text-xs text-amber-700">{isZh ? "证据截图" : "Screenshot"}</div>
                 <div className="mt-0.5 break-all font-mono text-xs text-foreground">
                   {manualAction.screenshotUrl}
                 </div>
@@ -163,7 +170,7 @@ export function VnResultCard({
                 disabled={completing}
               >
                 {completing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                I completed this on the official page, continue
+                {isZh ? "我已在官网完成，继续" : "I completed this on the official page, continue"}
               </Button>
             )}
             {actionError && (
@@ -176,15 +183,17 @@ export function VnResultCard({
           <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-brand-500">
               <Mail className="h-4 w-4" />
-              What happens next
+              {isZh ? "下一步" : "What happens next"}
             </div>
-            <p className="mt-2 text-sm text-foreground">{result.noticeText}</p>
+            <p className="mt-2 text-sm text-foreground">
+              {isZh ? "e-Visa PDF 通常会在付款受理后约 3 个工作日通过邮件送达。" : result.noticeText}
+            </p>
           </div>
         )}
 
         <Button asChild className="w-full">
           <a href={result.portalUrl ?? "https://evisa.gov.vn"} target="_blank" rel="noopener noreferrer">
-            Open official Vietnam e-Visa portal
+            {isZh ? "打开越南 e-Visa 官网" : "Open official Vietnam e-Visa portal"}
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>

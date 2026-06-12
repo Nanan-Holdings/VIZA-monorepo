@@ -134,7 +134,9 @@ async function main() {
     // upload_photo with handoff_ready (back-compat for runs without a
     // photo).
     const photoPath = process.env.CEAC_TEST_PHOTO?.trim();
+    const finalSubmit = process.env.CEAC_FINAL_SUBMIT === "1";
     if (photoPath) log(`Using photo file: ${photoPath}`);
+    if (finalSubmit) log(`Final submit enabled for diagnostic run`);
     log(`Starting orchestrateFill...`);
     const { result, datArtifact, sectionCoverage } = await orchestrateFill(session, {
       answers: SAMPLE_ANSWERS,
@@ -149,6 +151,9 @@ async function main() {
         securityAnswer: confirm.securityAnswer,
       },
       photo: photoPath ? { kind: "path", path: photoPath } : undefined,
+      finalSubmit: finalSubmit
+        ? { passportNumber: SAMPLE_ANSWERS.passport_number ?? "123456789" }
+        : undefined,
     });
 
     log(`orchestrateFill returned`);
