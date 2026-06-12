@@ -7,7 +7,7 @@
  */
 
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
+import { CEAC_GATE_MARKERS, CEAC_HEADING_SELECTOR, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
 import { assertNoGate } from "./gates";
@@ -59,6 +59,10 @@ export async function gotoCeacStartPage(
 ): Promise<void> {
   await page.goto(CEAC_URLS.START, {
     waitUntil: "commit",
+    timeout: navigationTimeoutMs,
+  });
+  await page.waitForSelector(CEAC_HEADING_SELECTOR, {
+    state: "attached",
     timeout: navigationTimeoutMs,
   });
 }
