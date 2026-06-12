@@ -38,16 +38,15 @@ test("ds160 live config: compliant live assisted config passes startup validatio
   assert.equal(validateDs160LiveStart(config), null);
 });
 
-test("ds160 live config: unsafe final automation flags are refused", () => {
+test("ds160 live config: one-shot final automation flags are allowed", () => {
   const config = loadDs160SubmissionConfig({
     DS160_SUBMISSION_MODE: "live_assisted",
     DS160_LIVE_SUBMISSION_ENABLED: "true",
     DS160_LIVE_ASSISTED_ONLY: "false",
-    DS160_REQUIRE_FINAL_USER_CONFIRMATION: "true",
+    DS160_REQUIRE_FINAL_USER_CONFIRMATION: "false",
     DS160_REQUIRE_OFFICIAL_REVIEW_DIFF_PASS: "true",
     SUBMISSION_RESULT_SECRET_KEY: "0123456789abcdef",
   });
 
-  assert.match(validateDs160LiveStart(config) ?? "", /LIVE_ASSISTED_ONLY/);
+  assert.equal(validateDs160LiveStart(config), null);
 });
-

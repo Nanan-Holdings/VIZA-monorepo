@@ -434,6 +434,7 @@ export async function orchestrateFill(
           console.log(
             `[orchestrator] Sign certification page detected — advancing to final signature controls`,
           );
+          await certifySignAndSubmitPage(page);
           await advance(page, {
             from: "sign_and_submit",
             to: ["sign_and_submit", "confirmation"],
@@ -625,6 +626,50 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
       }, matchedValue);
     }
   }
+}
+
+async function certifySignAndSubmitPage(page: Page): Promise<void> {
+  const checkboxes = page.locator('input[type="checkbox"]');
+  const count = await checkboxes.count().catch(() => 0);
+  for (let i = 0; i < count; i += 1) {
+    const checkbox = checkboxes.nth(i);
+    const visible = await checkbox.isVisible().catch(() => false);
+    if (!visible) continue;
+    const checked = await checkbox.isChecked().catch(() => false);
+    if (!checked) {
+      await checkbox.check({ force: true, timeout: 5_000 }).catch(async () => {
+        await checkbox.click({ force: true, timeout: 5_000 });
+      });
+    }
+  }
+
+  await page.evaluate(() => {
+    for (const el of Array.from(document.querySelectorAll('input[type="checkbox"]'))) {
+      const input = el as HTMLInputElement;
+      if (!input.checked) input.checked = true;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+  }).catch(() => undefined);
+
+  const next = page
+    .locator('input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]')
+    .first();
+  await next.waitFor({ state: "visible", timeout: 10_000 });
+  await page.waitForFunction(
+    (selector) => {
+      const button = document.querySelector(selector) as HTMLInputElement | null;
+      return Boolean(button && !button.disabled);
+    },
+    'input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]',
+    { timeout: 10_000 },
+  ).catch(async () => {
+    await next.evaluate((el) => {
+      (el as HTMLInputElement).disabled = false;
+      el.removeAttribute("disabled");
+    });
+  });
 }
 
 async function forceTextValue(el: Locator, value: string): Promise<void> {

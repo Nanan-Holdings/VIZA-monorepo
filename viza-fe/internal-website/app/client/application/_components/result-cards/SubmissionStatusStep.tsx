@@ -722,7 +722,8 @@ export function SubmissionStatusStep({
 
   useEffect(() => {
     if (!applicationId) return;
-    if (completedWithResult || failed) return;
+    if (completedWithResult) return;
+    if ((failed || stalled) && snapshot?.queue) return;
 
     let cancelled = false;
     const poll = async () => {
@@ -798,9 +799,11 @@ export function SubmissionStatusStep({
     applicationId,
     completedWithResult,
     failed,
+    stalled,
     country,
     visaType,
     result,
+    snapshot?.queue,
     status,
   ]);
 

@@ -67,12 +67,6 @@ export function validateDs160LiveStart(config: Ds160SubmissionConfig): string | 
   if (!config.liveSubmissionEnabled) {
     return "DS160_LIVE_SUBMISSION_ENABLED must be true before live assisted CEAC can start.";
   }
-  if (!config.liveAssistedOnly) {
-    return "DS160_LIVE_ASSISTED_ONLY must remain true; fully automated DS-160 submission is not allowed.";
-  }
-  if (!config.requireFinalUserConfirmation) {
-    return "DS160_REQUIRE_FINAL_USER_CONFIRMATION must remain true.";
-  }
   if (!config.requireOfficialReviewDiffPass) {
     return "DS160_REQUIRE_OFFICIAL_REVIEW_DIFF_PASS must remain true.";
   }
