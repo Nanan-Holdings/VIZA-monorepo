@@ -164,9 +164,13 @@ export async function startCeacSession(
       : false;
     if (captchaPresent || /\/GenNIV\/Default\.aspx/i.test(page.url())) {
       console.warn("[ceac] Solving CEAC start-page CAPTCHA with 2Captcha.");
-      const solved = await solveStartPageCaptchaWithRetry(
-        page,
-        options.captchaMaxAttempts ?? 3,
+      const solved = await withTimeout(
+        solveStartPageCaptchaWithRetry(
+          page,
+          options.captchaMaxAttempts ?? 3,
+        ),
+        readStartCaptchaTimeoutMs(),
+        "CEAC start-page CAPTCHA solve timed out",
       );
       captchaSolveTelemetry = solved.telemetry.map((entry) => ({ ...entry }));
       await assertNoGate(page);
@@ -244,5 +248,25 @@ function makeCloser(
       // best-effort cleanup
     }
   };
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new SessionBootstrapError(message, {
+      url: CEAC_URLS.START,
+      details: { timeoutMs },
+    })), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+function readStartCaptchaTimeoutMs(): number {
+  const raw = process.env.DS160_START_CAPTCHA_TIMEOUT_MS?.trim();
+  if (!raw) return 180_000;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 180_000;
 }
 
