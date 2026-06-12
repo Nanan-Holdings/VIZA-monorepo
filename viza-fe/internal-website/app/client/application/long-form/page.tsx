@@ -930,8 +930,8 @@ function FinalConfirmationPanel({
           : "Live assisted mode opens the official Vietnam e-Visa website. NOTE prompts, CAPTCHA, payment, and final submit remain manual. VIZA will not bypass CAPTCHA, pay, or click the final submit.")
       : isSgac
         ? (isZh
-            ? "SGAC dry-run 通过后会继续创建 SG Arrival Card 官方提交任务。若官方入口需要本人操作、验证码或页面确认，结果会明确显示 submitted=false 和具体原因。"
-            : "After SGAC dry-run passes, VIZA continues to an SG Arrival Card official-submission task. If the official portal requires manual action, CAPTCHA, or page confirmation, the result will clearly show submitted=false and the reason.")
+            ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
+            : "Submitting creates an SG Arrival Card official-submission task. This page shows the submission in progress and, when the backend succeeds, displays submitted=true, the confirmation/reference number, and the ICA response summary.")
       : (isZh
           ? "真实辅助填写会打开 CEAC 官网流程；验证码、官网页面核对，以及最终 Sign/Submit 必须由本人完成。VIZA 不会自动点击最终提交。"
           : "Live assisted mode opens the CEAC flow. CAPTCHA, official-page review, and the final Sign/Submit step must be completed by you. VIZA will not click the final official submit button.");
@@ -952,8 +952,8 @@ function FinalConfirmationPanel({
           : "This creates a live_assisted queue job and opens the official Vietnam e-Visa website using your saved VIZA answers. NOTE prompts, CAPTCHA, payment, and final submit remain manual.")
       : isSgac
         ? (isZh
-            ? "这会创建 SG Arrival Card live_assisted 队列任务，使用 SG_ARRIVAL_CARD 已保存答案构建官方提交 payload。结果会返回是否真实提交、确认/参考号、官方响应摘要和错误详情。"
-            : "This creates an SG Arrival Card live_assisted queue job using the saved SG_ARRIVAL_CARD answers to build the official-submission payload. The result returns submitted status, confirmation/reference number, portal response summary, and error details.")
+            ? "这会创建 SG Arrival Card live_assisted 队列任务，并用已保存的 SG_ARRIVAL_CARD 答案提交到 ICA SGAC。结果会返回 submitted、确认/参考号、官方响应摘要和错误详情。"
+            : "This creates an SG Arrival Card live_assisted queue job and submits the saved SG_ARRIVAL_CARD answers to ICA SGAC. The result returns submitted status, confirmation/reference number, portal response summary, and error details.")
       : (isZh
           ? "这会创建 live_assisted 队列任务并打开 CEAC 官网填写流程。流程会在验证码、人工检查点或最终 Sign/Submit 前等待你本人操作。"
           : "This creates a live_assisted queue job and starts the CEAC fill flow. It will wait for you at CAPTCHA, manual checkpoints, or before the final Sign/Submit step.");
@@ -967,8 +967,8 @@ function FinalConfirmationPanel({
           : "I confirm this is my authorized Vietnam e-Visa live assisted fill, and I understand VIZA will not bypass CAPTCHA, pay, or finally submit.")
       : isSgac
         ? (isZh
-            ? "我确认这是本人授权的 SG Arrival Card 官方提交任务，并知道若官方入口要求验证码、本人确认或页面操作，VIZA 会停止并显示结构化结果。"
-            : "I confirm this is my authorized SG Arrival Card official-submission task, and I understand VIZA will stop with a structured result if the official portal requires CAPTCHA, personal confirmation, or page action.")
+            ? "我确认这是本人授权的 SG Arrival Card 官方提交任务，并授权 VIZA 使用我保存的 SG_ARRIVAL_CARD 答案提交到 ICA SGAC。"
+            : "I confirm this is my authorized SG Arrival Card official-submission task, and I authorize VIZA to submit my saved SG_ARRIVAL_CARD answers to ICA SGAC.")
       : (isZh
           ? "我确认这是本人授权的真实官网辅助填写，并知道最终官网提交仍需本人手动确认。"
           : "I confirm this is my authorized live assisted fill, and I understand the final official submission still requires my manual confirmation.");

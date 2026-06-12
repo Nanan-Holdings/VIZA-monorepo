@@ -4,12 +4,12 @@
   "notes": "Country-level VIZA RAG seed for singapore. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
     {
-      "slug": "singapore-ica-entry-visa-sgac",
+      "slug": "singapore-ica-sg-arrival-card",
       "country": "singapore",
-      "visaType": "entry_visa_or_visit_pass",
+      "visaType": "SG_ARRIVAL_CARD",
       "documentType": "requirements",
-      "title": "Singapore Entry Visa and SG Arrival Card",
-      "sourceUrl": "https://www.ica.gov.sg/enter-transit-depart/entering-singapore/visa_requirements",
+      "title": "Singapore SG Arrival Card",
+      "sourceUrl": "https://www.ica.gov.sg/enter-transit-depart/entering-singapore/sg-arrival-card",
       "chunks": [
         {
           "id": "sgp_entry_visa_basic_route_zh",
@@ -53,10 +53,10 @@
     {
       "slug": "singapore-form-requirements",
       "country": "singapore",
-      "visaType": "entry_visa_or_visit_pass",
+      "visaType": "SG_ARRIVAL_CARD",
       "documentType": "form_requirements",
-      "title": "Singapore Application Form and Document Intake Requirements",
-      "sourceUrl": "https://www.ica.gov.sg/eservicesandforms/all-forms",
+      "title": "Singapore SG Arrival Card Intake Requirements",
+      "sourceUrl": "https://www.ica.gov.sg/enter-transit-depart/entering-singapore/sg-arrival-card",
       "chunks": [
         {
           "id": "singapore_form_channel_and_scope",
@@ -68,7 +68,7 @@
             "workflow",
             "official-source"
           ],
-          "content": "Use ICA/SAVE or an authorised local contact/strategic partner where a Singapore entry visa is required; Form 14A is the standard visa application form. Official source URLs reviewed for this seed: https://www.ica.gov.sg/eservicesandforms/all-forms ; https://www.ica.gov.sg/enter-transit-depart/entering-singapore/visa_requirements. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "Use ICA SG Arrival Card e-Service or MyICA Mobile for the SGAC workflow. This RAG chunk is for SG Arrival Card traveller declaration intake and form-filling preparation only; route Singapore entry visa, SAVE/Form 14A, work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
         },
         {
           "id": "singapore_form_fields_to_collect",
@@ -80,7 +80,7 @@
             "field-mapping",
             "intake"
           ],
-          "content": "Singapore visa intake should collect Form 14A-style personal particulars, passport details, nationality, sex, marital status, address/contact details, occupation/employer, purpose and duration of visit, arrival/departure details, local contact or sponsor where required, and declarations about previous immigration or criminal matters."
+          "content": "Singapore SG Arrival Card intake should collect traveller identity, passport details, nationality/citizenship, sex, date/place of birth, place of residence, email/mobile contact, arrival/departure dates, last and next city/port, purpose of travel, mode and transport number, accommodation type/details, and electronic health declaration answers."
         },
         {
           "id": "singapore_supporting_documents_and_review",
@@ -92,7 +92,7 @@
             "upload",
             "review-before-submit"
           ],
-          "content": "Common documents include completed Form 14A, passport biodata page, recent passport-sized photo, travel itinerary or tickets, hotel or local contact details, and Letter of Introduction Form V39A when required by the applicant category. Workflow guardrails: SG Arrival Card is separate from the visa and is normally submitted shortly before arrival. VIZA should not describe the visa as an entry pass; ICA states possession of a visa does not guarantee entry."
+          "content": "Workflow guardrails: SG Arrival Card is not a visa, does not replace any visa requirement for visa-required travellers, and is normally submitted within the ICA timing window before arrival. VIZA should keep SGAC separate from Singapore entry visa/Form 14A and surface the ICA submission result when the backend runner succeeds."
         }
       ]
     }

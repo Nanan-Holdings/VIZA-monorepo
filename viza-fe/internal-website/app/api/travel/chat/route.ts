@@ -127,6 +127,35 @@ function withTravelPipelineDebug(
   };
 }
 
+function commandReplyForIntent(intent: string, userText: string): string {
+  if (intent === "remove_item") {
+    if (/(岳麓山|橘子洲|博物馆|museum|mountain|isle|card|卡片|景点)/i.test(userText)) {
+      return "我识别到你想删除某个景点或卡片。请先点选要删除的卡片，或明确告诉我要删掉哪一个。";
+    }
+    return "你想删除哪一个景点或卡片？请点选卡片，或直接告诉我景点名称。";
+  }
+
+  if (intent === "replace_item") {
+    return "你想替换哪一个景点？请告诉我要换掉的名称，以及想换成什么类型的地方。";
+  }
+
+  if (intent === "modify_itinerary" || intent === "edit_itinerary") {
+    return "我识别到这是行程修改指令。请先生成或选择一份行程，然后告诉我要调整哪一天或哪一个项目。";
+  }
+
+  return "我还需要一点上下文：你想修改、删除或替换哪一个行程项目？";
+}
+
+function isCommandIntent(intent: string | undefined): boolean {
+  return (
+    intent === "remove_item" ||
+    intent === "replace_item" ||
+    intent === "modify_itinerary" ||
+    intent === "edit_itinerary" ||
+    intent === "clarify_needed"
+  );
+}
+
 function enrichTravelChatResponse(
   payload: unknown,
   response: TravelAgentChatResponse
@@ -135,6 +164,34 @@ function enrichTravelChatResponse(
   if (!userText) return response;
 
   const resolution = resolveLocalDestinationText(userText);
+  if (
+    resolution.status === "unresolved" &&
+    isCommandIntent(resolution.debugTrace?.detectedIntent)
+  ) {
+    return withTravelPipelineDebug(
+      {
+        ...response,
+        reply: commandReplyForIntent(
+          resolution.debugTrace?.detectedIntent ?? "clarify_needed",
+          userText
+        ),
+        mode: "collect_slots",
+        quick_replies: [],
+        cards: [],
+        candidate_payload: {},
+        sources: [
+          ...(response.sources ?? []),
+          {
+            id: "travel_command_classifier",
+            title: "Travel command classification",
+            type: "parser",
+          },
+        ],
+      },
+      resolution
+    );
+  }
+
   if (resolution.status === "ambiguous") {
     return withTravelPipelineDebug(
       {
@@ -243,6 +300,32 @@ function buildImmediateLocalFirstResponse(
   if (!userText || /加入计划|add to plan/i.test(userText)) return null;
 
   const resolution = resolveLocalDestinationText(userText);
+  if (
+    resolution.status === "unresolved" &&
+    isCommandIntent(resolution.debugTrace?.detectedIntent)
+  ) {
+    return withTravelPipelineDebug(
+      {
+        reply: commandReplyForIntent(
+          resolution.debugTrace?.detectedIntent ?? "clarify_needed",
+          userText
+        ),
+        mode: "collect_slots",
+        quick_replies: [],
+        cards: [],
+        candidate_payload: {},
+        sources: [
+          {
+            id: "travel_command_classifier",
+            title: "Travel command classification",
+            type: "parser",
+          },
+        ],
+      },
+      resolution
+    );
+  }
+
   if (resolution.status === "ambiguous") {
     return withTravelPipelineDebug(
       {
@@ -351,12 +434,14 @@ function buildImmediateLocalFirstResponse(
 
   if (
     resolution.status === "unresolved" &&
-    resolution.debugTrace?.detectedIntent === "edit_itinerary"
+    isCommandIntent(resolution.debugTrace?.detectedIntent)
   ) {
     return withTravelPipelineDebug(
       {
-        reply:
-          "我识别到这是行程编辑指令，不会创建新的目的地卡。请先生成行程后再告诉我要删除、调整或替换哪一天。",
+        reply: commandReplyForIntent(
+          resolution.debugTrace?.detectedIntent ?? "clarify_needed",
+          userText
+        ),
         mode: "collect_slots",
         quick_replies: [],
         cards: [],

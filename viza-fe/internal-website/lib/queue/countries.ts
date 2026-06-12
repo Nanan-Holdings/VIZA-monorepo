@@ -26,6 +26,8 @@ export const LAUNCH_COUNTRIES = [
   "france",
   "italy",
   "india",
+  "new_zealand",
+  "singapore",
 ] as const;
 
 export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
@@ -61,6 +63,8 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   fr: "france",
   it: "italy",
   in: "india",
+  nz: "new_zealand",
+  sg: "singapore",
   lk: "sri_lanka",
   kh: "cambodia",
   la: "laos",

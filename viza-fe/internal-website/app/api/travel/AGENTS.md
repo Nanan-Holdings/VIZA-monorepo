@@ -15,6 +15,8 @@ service URL off the client.
   fallback metadata and never raw backend errors.
 - `itinerary/revise/route.ts`: revise an existing itinerary.
 - `chat/route.ts`: Travel chat response endpoint.
+- `health/route.ts`: Travel Agent runtime health endpoint for frontend/backend,
+  LLM, Google Places, and cache readiness.
 - `flights/route.ts`: flight option search.
 - `hotels/route.ts`: hotel option search.
 - `geocode/route.ts`: server-side Google Geocoding API lookup for city,
