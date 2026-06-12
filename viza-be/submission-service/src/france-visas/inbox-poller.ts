@@ -40,8 +40,8 @@ export interface MailboxProvider {
  * TODO(walk): confirm exact subject line and sender after a real registration.
  */
 export const FV_VERIFICATION_EMAIL_FILTERS = {
-  subjectPattern: /france[- ]?visas|vérif|confirm|activat/i,
-  senderPattern: /(no[-_.]?reply|noreply|contact)@.*france-visas\.gouv\.fr/i,
+  subjectPattern: /france[- ]?visas?|v[ée]rif|confirm|activat|create.*account|cr[ée]ation.*compte/i,
+  senderPattern: /(no[-_.]?reply|noreply|contact)@.*(france-visas|interieur|gouv)\.fr/i,
 } as const;
 
 /**

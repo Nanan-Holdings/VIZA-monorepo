@@ -172,6 +172,15 @@ type TravelAgentChatResponse = {
   sources?: Array<{ id?: string; title?: string; type?: string }>;
 };
 
+type TravelHealthResponse = {
+  ok: boolean;
+  llmConfigured: boolean;
+  llmReachable: boolean;
+  googlePlacesConfigured: boolean;
+  cacheReachable: boolean;
+  travelBackendReachable: boolean;
+};
+
 type TravelItineraryApiError = {
   code?: string;
   stage?: string;
@@ -3026,9 +3035,15 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
+function isStableTravelImageSrc(
+  imageSrc: string | null | undefined
+): imageSrc is string {
+  return Boolean(imageSrc && !/^https?:\/\//i.test(imageSrc));
+}
+
 function getCityImage(city: string): string {
   const curatedCityImage = getTravelCityImage(city);
-  if (curatedCityImage) return curatedCityImage;
+  if (isStableTravelImageSrc(curatedCityImage)) return curatedCityImage;
 
   const key = normalizeCityKey(city);
   const direct = DESTINATION_IMAGE_BY_KEY[key];
@@ -3040,6 +3055,7 @@ function getCityImage(city: string): string {
 function getDestinationCardImage(card: TravelDestinationCard, city: string): string {
   if (
     card.cover_image_url &&
+    isStableTravelImageSrc(card.cover_image_url) &&
     card.image_status !== "placeholder" &&
     card.source_status !== "llm_generated"
   ) {
@@ -3051,7 +3067,7 @@ function getDestinationCardImage(card: TravelDestinationCard, city: string): str
 
 function getAttractionImage(city: string, attraction: string): string {
   const attractionImage = findTravelAttraction(city, attraction)?.imageSrc;
-  if (attractionImage) return attractionImage;
+  if (isStableTravelImageSrc(attractionImage)) return attractionImage;
 
   return DESTINATION_IMAGE_FALLBACK;
 }
@@ -3281,6 +3297,13 @@ export function TravelChatClient({
     string | null
   >(null);
   const [status, setStatus] = useState<TravelChatStatus>("ready");
+  const [travelHealth, setTravelHealth] = useState<TravelHealthResponse | null>(
+    null
+  );
+  const [travelHealthError, setTravelHealthError] = useState("");
+  const [brokenDestinationImages, setBrokenDestinationImages] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [activeMapTargetId, setActiveMapTargetId] = useState<string>("");
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
@@ -3333,6 +3356,38 @@ export function TravelChatClient({
   useEffect(() => {
     setInterfaceLocale(readGlobalInterfaceLocale(nextIntlInterfaceLocale));
   }, [nextIntlInterfaceLocale]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/travel/health", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | TravelHealthResponse
+          | null;
+        if (!response.ok || !payload) {
+          throw new Error("travel_health_unavailable");
+        }
+        setTravelHealth(payload);
+        setTravelHealthError("");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setTravelHealth(null);
+        setTravelHealthError(
+          error instanceof Error ? error.message : "travel_health_unavailable"
+        );
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   useEffect(() => {
     const syncLocale = () => {
@@ -4222,6 +4277,24 @@ export function TravelChatClient({
       });
     },
     []
+  );
+
+  const markDestinationImageBroken = useCallback((imageSrc: string) => {
+    if (!imageSrc || imageSrc === DESTINATION_IMAGE_FALLBACK) return;
+    setBrokenDestinationImages((currentImages) => {
+      if (currentImages.has(imageSrc)) return currentImages;
+      const nextImages = new Set(currentImages);
+      nextImages.add(imageSrc);
+      return nextImages;
+    });
+  }, []);
+
+  const resolveDestinationImageSrc = useCallback(
+    (imageSrc: string) =>
+      brokenDestinationImages.has(imageSrc)
+        ? DESTINATION_IMAGE_FALLBACK
+        : imageSrc,
+    [brokenDestinationImages]
   );
 
   const setActiveTravelVersion = useCallback(
@@ -5393,6 +5466,9 @@ export function TravelChatClient({
   const selectedGooglePlaceAttribution = selectedGooglePlaceDisplay
     ? formatGoogleAttribution(selectedGooglePlaceDisplay.attribution, isZh)
     : null;
+  const showTravelHealthWarning =
+    Boolean(travelHealthError) ||
+    (travelHealth !== null && !travelHealth.llmReachable);
 
   return (
     <div
@@ -5402,6 +5478,18 @@ export function TravelChatClient({
           : "h-[calc(100dvh-8.75rem)] min-h-0 sm:h-[calc(100dvh-9rem)] lg:h-[calc(100dvh-9.5rem)]"
       }`}
     >
+      {showTravelHealthWarning && (
+        <div
+          className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          data-testid="travel-health-warning"
+          role="status"
+        >
+          {isZh
+            ? "旅行 AI 暂时无法连接，请稍后重试。你的输入已保留。"
+            : "Travel AI is temporarily unavailable. Please try again shortly; your input is kept."}
+        </div>
+      )}
+
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_clamp(180px,30dvh,320px)] gap-3 sm:gap-4 lg:grid-cols-[minmax(360px,0.78fr)_minmax(500px,1.22fr)] lg:grid-rows-none xl:grid-cols-[minmax(390px,0.7fr)_minmax(640px,1.3fr)] 2xl:grid-cols-[minmax(430px,0.66fr)_minmax(760px,1.34fr)]">
         <div className="relative h-full min-h-0">
           <Button
@@ -6282,10 +6370,12 @@ export function TravelChatClient({
                                           : interfaceLocale === "zh"
                                             ? `加入计划：${displayCity}`
                                             : `Add to plan: ${displayCity}`;
-                                      const imageSrc = getDestinationCardImage(
+                                      const rawImageSrc = getDestinationCardImage(
                                         card,
                                         rawDisplayCity
                                       );
+                                      const imageSrc =
+                                        resolveDestinationImageSrc(rawImageSrc);
                                       const isGeneratedCard =
                                         card.source_status === "llm_generated" ||
                                         card.data_quality === "generated";
@@ -6310,6 +6400,11 @@ export function TravelChatClient({
                                               alt={displayCity}
                                               className="h-28 w-full object-cover sm:h-36"
                                               height={144}
+                                              onError={() =>
+                                                markDestinationImageBroken(
+                                                  rawImageSrc
+                                                )
+                                              }
                                               src={imageSrc}
                                               unoptimized={imageSrc.startsWith(
                                                 "http"

@@ -69,6 +69,36 @@ describe("bilingual schema contract", () => {
     expect(resolveOptionDisplayLabel(normalized.options, "family_visit", "en")).toBe("Family visit");
   });
 
+  it("uses specific Vietnamese province and border-gate labels instead of generic fallbacks", () => {
+    const province = normalizeBilingualFormField(field({
+      fieldName: "intended_province_city",
+      label: "Intended province/city in Viet Nam",
+      fieldType: "select",
+      options: [
+        { value: "an_giang", text: "AN GIANG" },
+        { value: "ho_chi_minh_city", text: "HO CHI MINH CITY" },
+      ],
+    }));
+    const gate = normalizeBilingualFormField(field({
+      fieldName: "intended_border_gate_of_exit",
+      label: "Intended border gate of exit",
+      fieldType: "select",
+      options: [
+        { value: "bo_y_landport", text: "Bo Y Landport" },
+        { value: "cat_bi_int_airport_hai_phong", text: "Cat Bi Int Airport (Hai Phong)" },
+      ],
+    }));
+
+    expect(resolveLocalizedOptions(province.options, "zh")).toEqual([
+      expect.objectContaining({ value: "an_giang", text: "安江省" }),
+      expect.objectContaining({ value: "ho_chi_minh_city", text: "胡志明市" }),
+    ]);
+    expect(resolveLocalizedOptions(gate.options, "zh")).toEqual([
+      expect.objectContaining({ value: "bo_y_landport", text: "Bo Y 陆路口岸" }),
+      expect.objectContaining({ value: "cat_bi_int_airport_hai_phong", text: "Cat Bi 国际机场（Hai Phong）" }),
+    ]);
+  });
+
   it("resolves vague legacy labels from field meaning", () => {
     const normalized = normalizeBilingualFormField(field({
       fieldName: "has_previous_refusal",

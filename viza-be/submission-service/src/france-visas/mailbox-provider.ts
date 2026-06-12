@@ -37,8 +37,10 @@ function normalizeCandidateUrl(raw: string): string {
 export function extractVerificationUrlFromMessage(message: Pick<InboundMessage, "html" | "text">): URL | null {
   const haystacks = [
     message.html ?? "",
+    message.html ? decodeQuotedPrintableSoftBreaks(message.html) : "",
     message.html ? htmlToText(message.html) : "",
     message.text ?? "",
+    message.text ? decodeQuotedPrintableSoftBreaks(message.text) : "",
   ].filter(Boolean);
 
   for (const haystack of haystacks) {

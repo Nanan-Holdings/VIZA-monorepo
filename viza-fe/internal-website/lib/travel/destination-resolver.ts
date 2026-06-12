@@ -1160,6 +1160,7 @@ const REMOVE_ITEM_INTENT_PATTERNS = [
   /^(?:不要|别要|不想要|删除|删掉|移除|去掉)(?:这个|这个卡片|这张卡片|它|此项)?$/u,
   /^(?:这个|这张卡片|它)(?:不要|删掉|删除|移除|去掉)$/u,
   /^(?:不要|别安排|不安排|删除|删掉|移除|去掉).{1,20}$/u,
+  /^不想去.{1,20}$/u,
   /我不(?:喜欢|想去|想要).{0,12}(?:这个|景点|卡片|地方)?$/u,
   /\b(?:remove|delete|drop)\s+(?:this|this card|it)\b/i,
   /\b(?:remove|delete|drop)\s+.{1,40}$/i,
@@ -1179,6 +1180,10 @@ const CLARIFY_COMMAND_PATTERNS = [
 const MODIFY_ITINERARY_INTENT_PATTERNS = [
   /(?:太满|太累|轻松一点|节奏|晚上不要|不要安排|重新安排|重排|调整|修改|改一下|删除第[一二三四五六七八九十\d]+天)/u,
   /\b(?:lighter|relax|too full|too tiring|revise|adjust|reschedule)\b/i,
+];
+
+const INVALID_OR_UNRELATED_PATTERNS = [
+  /^(?:你好|您好|嗨|哈喽|谢谢|感谢|好的|好|嗯|啊|hi|hello|thanks|thank you|ok|okay)$/i,
 ];
 
 const NON_DESTINATION_QUESTION_PATTERNS = [
@@ -1413,6 +1418,9 @@ export function normalizeDestinationCandidate(
 
 function classifyTravelIntent(value: string): TravelIntentKind {
   const normalized = normalizeUserUtterance(value);
+  if (INVALID_OR_UNRELATED_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return "invalid_or_unrelated";
+  }
   if (CLARIFY_COMMAND_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return "clarify_needed";
   }
@@ -1582,6 +1590,7 @@ export function extractDestinationCandidates(
 ): TravelIntentDestinationCandidate[] {
   const intent = classifyTravelIntent(message);
   if (isTravelCommandIntent(intent)) return [];
+  if (intent === "invalid_or_unrelated") return [];
 
   const normalizedInput = normalizeUserUtterance(message);
   if (
@@ -2187,6 +2196,9 @@ function allowsTemporaryFallback(
   if (intent.intent === "ask_question") {
     return { allowed: false, reason: "question_intent_does_not_create_destination" };
   }
+  if (intent.intent === "invalid_or_unrelated") {
+    return { allowed: false, reason: "invalid_or_unrelated" };
+  }
   if (intent.needsClarification) {
     return { allowed: false, reason: "awaiting_destination_clarification" };
   }
@@ -2256,12 +2268,13 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
 
   if (
     intent.intent === "ask_question" ||
+    intent.intent === "invalid_or_unrelated" ||
     UNDECIDED_DESTINATION_PATTERNS.some((pattern) => pattern.test(rawText))
   ) {
     return {
       status: "unresolved",
       query,
-      message: "The user is asking a travel question, not naming a destination.",
+      message: "The user is not naming a destination.",
       tripHints,
       cards: [],
       debugTrace: createPipelineDebug({
@@ -2269,7 +2282,10 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
         intent,
         resolverResult: "unresolved",
         localDb: "not_checked",
-        fallbackReason: "question_intent_does_not_create_destination",
+        fallbackReason:
+          intent.intent === "invalid_or_unrelated"
+            ? "invalid_or_unrelated"
+            : "question_intent_does_not_create_destination",
         cardSourceStatus: "none",
       }),
     };

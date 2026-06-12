@@ -378,6 +378,7 @@ const PLACEHOLDER_ZH_BY_FIELD_NAME: Record<string, string> = {
   city_of_birth: "请填写出生城市",
   country_of_birth: "请选择出生国家/地区",
   state_of_birth: "请填写出生州/省（如适用）",
+  intended_ward_commune: "请在选择省/市后填写坊/社",
 };
 
 const HELPER_ZH_BY_FIELD_NAME: Record<string, string> = {
@@ -465,6 +466,96 @@ const OPTION_ZH_BY_VALUE: Record<string, string> = {
   etravel_only: "eTravel 入境申报",
   form_id_936_single: "ID 936 访问签证（单次入境）",
 };
+
+const VIETNAM_PROVINCE_ZH_BY_VALUE: Record<string, string> = {
+  an_giang: "安江省",
+  bac_ninh: "北宁省",
+  ca_mau: "金瓯省",
+  cao_bang: "高平省",
+  can_tho: "芹苴市",
+  da_nang: "岘港市",
+  dak_lak: "得乐省",
+  dien_bien: "奠边省",
+  dong_nai: "同奈省",
+  dong_thap: "同塔省",
+  gia_lai: "嘉莱省",
+  ha_noi: "河内市",
+  ha_tinh: "河静省",
+  hai_phong: "海防市",
+  ho_chi_minh_city: "胡志明市",
+  hue: "顺化市",
+  hung_yen: "兴安省",
+  khanh_hoa: "庆和省",
+  lai_chau: "莱州省",
+  lam_dong: "林同省",
+  lang_son: "谅山省",
+  lao_cai: "老街省",
+  nghe_an: "乂安省",
+  ninh_binh: "宁平省",
+  phu_tho: "富寿省",
+  quang_ngai: "广义省",
+  quang_ninh: "广宁省",
+  quang_tri: "广治省",
+  son_la: "山罗省",
+  tay_ninh: "西宁省",
+  thai_nguyen: "太原省",
+  thanh_hoa: "清化省",
+  tuyen_quang: "宣光省",
+  vinh_long: "永隆省",
+};
+
+function normalizeVietnamOptionKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function titleCaseLatin(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase())
+    .replace(/\bInt\b/g, "Int");
+}
+
+function getVietnamGateChineseLabel(value: string, rawText: string): string | null {
+  const text = clean(rawText || value);
+  if (!text) return null;
+
+  const parenthetical = text.match(/\(([^)]+)\)/);
+  const suffix = parenthetical ? `（${parenthetical[1].trim()}）` : "";
+  const withoutParenthetical = text.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  const typeRules: Array<[RegExp, string]> = [
+    [/\b(?:international\s+airport|int\s+airport|airport)\b/i, "国际机场"],
+    [/\blandport\b/i, "陆路口岸"],
+    [/\bseaport\b/i, "海港"],
+    [/\bport\b/i, "港口"],
+    [/\bborder\s+gate\b/i, "口岸"],
+  ];
+
+  for (const [pattern, typeLabel] of typeRules) {
+    if (!pattern.test(withoutParenthetical)) continue;
+    const placeName = withoutParenthetical
+      .replace(pattern, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return `${placeName ? titleCaseLatin(placeName) : titleCaseLatin(withoutParenthetical)} ${typeLabel}${suffix}`;
+  }
+
+  return null;
+}
+
+function getVietnamSpecificChineseOptionLabel(value: string, rawText: string): string | null {
+  const valueKey = normalizeVietnamOptionKey(value);
+  const textKey = normalizeVietnamOptionKey(rawText);
+  const provinceLabel = VIETNAM_PROVINCE_ZH_BY_VALUE[valueKey] ?? VIETNAM_PROVINCE_ZH_BY_VALUE[textKey];
+  if (provinceLabel) return provinceLabel;
+
+  return getVietnamGateChineseLabel(value, rawText);
+}
 
 const COUNTRY_ZH: Record<string, string> = {
   Australia: "澳大利亚",
@@ -917,6 +1008,9 @@ function deriveChineseOptionLabel(option: VisaFormFieldOption): string {
   const normalizedValue = value.toLowerCase();
   const exact = OPTION_ZH_BY_VALUE[normalizedValue] ?? OPTION_ZH_BY_VALUE[rawText.toLowerCase()];
   if (exact) return exact;
+
+  const vietnamSpecific = getVietnamSpecificChineseOptionLabel(value, rawText);
+  if (vietnamSpecific) return vietnamSpecific;
 
   const translated = getChineseOptionText(rawText);
   if (translated && hasCjk(translated) && translated !== rawText) return translated;

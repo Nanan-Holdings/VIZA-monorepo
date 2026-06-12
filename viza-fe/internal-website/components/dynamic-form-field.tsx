@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/input-otp";
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
-import { resolveLocalizedOptions } from "@/lib/bilingual-schema-contract";
+import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bilingual-schema-contract";
 
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
@@ -148,6 +148,12 @@ function isSsnField(field: VisaFormFieldRow): boolean {
   );
 }
 
+function isEmptyDependentSelect(field: VisaFormFieldRow, options: Array<{ value: string; text: string }>): boolean {
+  if (options.length > 0) return false;
+  const rules = field.validationRules as { dependent_on?: unknown; dependsOn?: unknown; live_dom_id?: unknown } | null;
+  return Boolean(rules?.dependent_on || rules?.dependsOn || rules?.live_dom_id);
+}
+
 function SsnSegmentedInput({
   value,
   onChange,
@@ -215,6 +221,7 @@ export function DynamicFormField({
   const whiteControlClass = forceWhiteBackground ? "bg-white hover:bg-white" : "";
   const sideLocale = displayLocale ?? (locale.startsWith("zh") ? "zh" : "en");
   const selectFallback = sideLocale === "zh" ? "请选择..." : "Select...";
+  const localizedPlaceholder = resolveLocalizedPlaceholder(field, sideLocale) ?? placeholder ?? undefined;
   const doNotKnowLabel = sideLocale === "zh" ? t("dynamicField.doNotKnow") : "Do not know";
   const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
 
@@ -230,7 +237,7 @@ export function DynamicFormField({
         <DatePicker
           value={value}
           onChange={onChange}
-          placeholder={placeholder ?? undefined}
+          placeholder={localizedPlaceholder}
           className={whiteControlClass}
           displayLocale={sideLocale}
         />
@@ -281,7 +288,7 @@ export function DynamicFormField({
         return (
           <FieldWrapper label={label} required={required}>
             <CountryDropdown
-              placeholder={placeholder ?? selectFallback}
+              placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
               className={whiteControlClass}
@@ -296,7 +303,7 @@ export function DynamicFormField({
           <FieldWrapper label={label} required={required}>
             <RegionSelect
               countryCode="US"
-              placeholder={placeholder ?? selectFallback}
+              placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
               onChange={(region) => onChange(region.shortCode)}
               className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass}`}
@@ -305,11 +312,28 @@ export function DynamicFormField({
         );
       }
       const opts = normaliseOptions(options, sideLocale);
+      if (isEmptyDependentSelect(field, opts)) {
+        return (
+          <FieldWrapper label={label} required={required}>
+            <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${disabled ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}>
+              <InputGroupInput
+                type="text"
+                placeholder={localizedPlaceholder ?? selectFallback}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                required={required}
+                disabled={disabled}
+                className="h-12 text-[15px]"
+              />
+            </InputGroup>
+          </FieldWrapper>
+        );
+      }
       return (
         <FieldWrapper label={label} required={required}>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
             <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass} ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}>
-              <SelectValue placeholder={placeholder ?? selectFallback} />
+              <SelectValue placeholder={localizedPlaceholder ?? selectFallback} />
             </SelectTrigger>
             <SelectContent>
               {opts.map((opt) => (
@@ -329,7 +353,7 @@ export function DynamicFormField({
           <Textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder ?? undefined}
+            placeholder={localizedPlaceholder}
             className={`rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] ${whiteControlClass}`}
           />
         </FieldWrapper>
@@ -365,7 +389,7 @@ export function DynamicFormField({
         return (
           <FieldWrapper label={label} required={required}>
             <CountryDropdown
-              placeholder={placeholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
+              placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
               defaultValue={value}
               onChange={(country) => onChange(country.name)}
               className={whiteControlClass}
@@ -427,7 +451,7 @@ export function DynamicFormField({
           <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${(isOverridden || disabled) ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}>
             <InputGroupInput
               type={fieldType === "text" ? "text" : fieldType}
-              placeholder={placeholder ?? undefined}
+              placeholder={localizedPlaceholder}
               value={isOverridden ? "" : value}
               onChange={(e) => onChange(e.target.value)}
               required={required && !isOverridden}

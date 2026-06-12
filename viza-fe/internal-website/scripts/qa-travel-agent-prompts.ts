@@ -9,7 +9,8 @@ type PromptCase = {
   expectedCanonicals?: string[];
   ambiguous?: boolean;
   nonDestination?: boolean;
-  editIntent?: boolean;
+  commandIntent?: boolean;
+  expectedIntent?: string;
   typoChangsha?: boolean;
 };
 
@@ -58,8 +59,19 @@ const promptCases: PromptCase[] = [
   { id: 21, prompt: "Georgia travel plan", ambiguous: true },
   { id: 22, prompt: "旅行保险需要买吗", nonDestination: true },
   { id: 23, prompt: "申根签证要准备什么", nonDestination: true },
-  { id: 24, prompt: "帮我删除第二天", editIntent: true },
-  { id: 25, prompt: "把伦敦那天换到最后", editIntent: true },
+  { id: 24, prompt: "帮我删除第二天", commandIntent: true },
+  { id: 25, prompt: "把伦敦那天换到最后", commandIntent: true },
+  { id: 26, prompt: "不要这个", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 27, prompt: "这个不要", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 28, prompt: "我不喜欢这个景点", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 29, prompt: "删掉岳麓山", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 30, prompt: "不要博物馆", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 31, prompt: "换一个", commandIntent: true, expectedIntent: "clarify_needed" },
+  { id: 32, prompt: "这个太远了", commandIntent: true, expectedIntent: "clarify_needed" },
+  { id: 33, prompt: "不要这个卡片", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 34, prompt: "不要安排购物", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 35, prompt: "不想去太商业化的地方", commandIntent: true, expectedIntent: "remove_item" },
+  { id: 36, prompt: "你好", nonDestination: true, expectedIntent: "invalid_or_unrelated" },
 ];
 
 function canonicalNamesForResolution(prompt: string): string[] {
@@ -129,12 +141,26 @@ for (const item of promptCases) {
     }
   }
 
-  if (item.editIntent) {
-    if (intent.intent !== "edit_itinerary" || resolution.status !== "unresolved") {
-      failures.push(`#${item.id} edit intent was not kept out of destination flow`);
+  if (item.commandIntent) {
+    if (resolution.status !== "unresolved") {
+      failures.push(`#${item.id} command intent was not kept out of destination flow`);
     }
     if (fallbackCardAllowed) {
-      failures.push(`#${item.id} edit intent created fallback card`);
+      failures.push(`#${item.id} command intent created fallback card`);
+    }
+  }
+
+  if (item.expectedIntent && intent.intent !== item.expectedIntent) {
+    failures.push(
+      `#${item.id} expected intent ${item.expectedIntent}, got ${intent.intent}`
+    );
+  }
+
+  if (item.commandIntent || item.nonDestination) {
+    if (canonicalNames.length > 0) {
+      failures.push(
+        `#${item.id} should not create destination entities, got ${canonicalNames.join(", ")}`
+      );
     }
   }
 

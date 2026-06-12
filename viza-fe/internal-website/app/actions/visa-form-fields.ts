@@ -11,6 +11,7 @@ import {
   getRagVisitorIntakeSteps,
   shouldUseRagVisitorIntakeFallback,
 } from "@/lib/rag-visitor-intake-form";
+import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -27,14 +28,18 @@ const STEP_NAMES: Record<number, string> = {
  *
  * Returns empty array on error (caller should fall back to hardcoded steps).
  */
-export async function getVisaFormSteps(visaType = "B211A"): Promise<WizardStep[]> {
+export async function getVisaFormSteps(
+  visaType = "B211A",
+  options: { country?: string | null } = {},
+): Promise<WizardStep[]> {
   try {
     const supabase = await createClient();
+    const schemaVisaType = resolveVisaFormSchemaVisaType(visaType, options.country);
 
     const { data, error } = await supabase
       .from("visa_form_fields")
       .select("*")
-      .eq("visa_type", visaType)
+      .eq("visa_type", schemaVisaType)
       .order("step_number", { ascending: true })
       .order("display_order", { ascending: true });
 
@@ -44,8 +49,8 @@ export async function getVisaFormSteps(visaType = "B211A"): Promise<WizardStep[]
     }
 
     if (!data || data.length === 0) {
-      return shouldUseRagVisitorIntakeFallback(visaType)
-        ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(visaType))
+      return shouldUseRagVisitorIntakeFallback(schemaVisaType)
+        ? normalizeBilingualWizardSteps(getRagVisitorIntakeSteps(schemaVisaType))
         : [];
     }
 

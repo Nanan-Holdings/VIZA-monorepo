@@ -14,6 +14,11 @@ import {
   getVisaTypeDisplayNameZh,
 } from "@/lib/visa-destinations";
 import { normalizeBirthplace } from "@/lib/birthplace-options";
+import { isVietnamEVisaApplication as isVietnamEVisaQueueApplication } from "@/lib/submission-queue";
+import {
+  resolveVisaFormSchemaVisaType,
+  visaFormSchemaVisaTypesMatch,
+} from "@/lib/visa-form-schema-aliases";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -361,11 +366,8 @@ function getStringArray(record: JsonRecord, keys: string[]): string[] {
   return [];
 }
 
-function isVietnamEVisaApplication(application: ApplicationRow): boolean {
-  return (
-    application.country.trim().toLowerCase() === "vietnam" &&
-    getFormVisaType(application.visa_type).toUpperCase() === "VN_E_VISA"
-  );
+function isVietnamEVisaDocumentApplication(application: ApplicationRow): boolean {
+  return isVietnamEVisaQueueApplication(application.country, application.visa_type);
 }
 
 function cloneRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
@@ -437,7 +439,7 @@ function selectDocumentApplication(
     const countryMatch = applications.find(
       (application) =>
         application.country.toLowerCase() === params.country!.toLowerCase() &&
-        application.visaType.toLowerCase() === getFormVisaType(params.visaType!).toLowerCase(),
+        visaFormSchemaVisaTypesMatch(application.visaType, getFormVisaType(params.visaType!), application.country),
     );
     if (countryMatch) return countryMatch;
   }
@@ -740,7 +742,11 @@ function findApplicationForPackage(applications: ApplicationRow[], userPackage: 
     applications.find(
       (application) =>
         application.country.toLowerCase() === packageRow.country.toLowerCase() &&
-        getFormVisaType(application.visa_type).toLowerCase() === getFormVisaType(packageRow.visa_type).toLowerCase(),
+        visaFormSchemaVisaTypesMatch(
+          getFormVisaType(application.visa_type),
+          getFormVisaType(packageRow.visa_type),
+          application.country,
+        ),
     ) ??
     null
   );
@@ -820,7 +826,7 @@ async function resolvePackage(application: ApplicationRow): Promise<VisaPackageR
     .from("visa_packages")
     .select("id, country, visa_type, name, description, metadata")
     .eq("country", application.country)
-    .eq("visa_type", getFormVisaType(application.visa_type))
+    .eq("visa_type", resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country))
     .eq("is_active", true)
     .limit(1)
     .maybeSingle();
@@ -851,7 +857,7 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     .from("document_requirements")
     .select("requirement_key, label_en, label_zh, description, required, sort_order, metadata")
     .eq("country", application.country)
-    .eq("visa_type", getFormVisaType(application.visa_type))
+    .eq("visa_type", resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country))
     .order("sort_order", { ascending: true });
 
   if (!error && data && data.length > 0) {
@@ -866,7 +872,7 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     return { source: "package_metadata" as const, requirements: metadataRequirements };
   }
 
-  if (isVietnamEVisaApplication(application)) {
+  if (isVietnamEVisaDocumentApplication(application)) {
     return { source: "fallback" as const, requirements: cloneRequirements(VIETNAM_E_VISA_REQUIREMENTS) };
   }
 

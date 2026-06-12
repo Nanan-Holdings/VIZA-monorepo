@@ -557,11 +557,6 @@ export const ds160UsContactMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "US Contact Given Names",
   },
-  us_contact_name_na: {
-    selector: 'input[id*="cbxUS_POC_NAME_NA"]',
-    type: "checkbox",
-    label: "US Contact Name Does Not Know",
-  },
   us_contact_organization: {
     selector: 'input[id*="tbxUS_POC_ORG"]',
     type: "text",
@@ -614,6 +609,11 @@ export const ds160UsContactMappings: Record<string, FormFieldMapping> = {
     selector: 'input[id*="cbxUS_POC_ORG_NA_IND"]',
     type: "checkbox",
     label: "US Contact Organization Does Not Apply",
+  },
+  us_contact_name_na: {
+    selector: 'input[id*="cbxUS_POC_NAME_NA"]',
+    type: "checkbox",
+    label: "US Contact Name Does Not Know",
   },
 };
 
