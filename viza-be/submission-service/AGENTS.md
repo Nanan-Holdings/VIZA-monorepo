@@ -35,6 +35,9 @@ filling and one-shot submission for the applicant.
 - `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
   alias provisioning and inbound-email verification-link extraction for
   official account registration.
+- `scripts/ts-node-js-resolver.cjs`: local dev preload that lets `ts-node`
+  resolve relative `.js` source imports to sibling `.ts` files while preserving
+  build output imports.
 - `src/country-submissions/**`: safe provider registry, schema/dry-run
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.

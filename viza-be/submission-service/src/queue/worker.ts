@@ -1,7 +1,7 @@
-import { supabase } from "../supabase.js";
-import { sendAlert } from "../alerts/dispatch.js";
-import { emitRunnerMetric } from "../metrics/emit.js";
-import { getMaxConcurrent, isPaused } from "./concurrency.js";
+import { supabase } from "../supabase";
+import { sendAlert } from "../alerts/dispatch";
+import { emitRunnerMetric } from "../metrics/emit";
+import { getMaxConcurrent, isPaused } from "./concurrency";
 
 /**
  * runner_job consumer (INFRA-002).

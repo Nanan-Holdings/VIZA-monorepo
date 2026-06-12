@@ -18,6 +18,7 @@ export async function launchFvBrowser(
 ): Promise<FvBrowserHandles> {
   const browser = await chromium.launch({
     headless: options.headless ?? true,
+    channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL?.trim() || undefined,
   });
   const context = await browser.newContext({
     ...(options.storageState ? { storageState: options.storageState } : {}),
