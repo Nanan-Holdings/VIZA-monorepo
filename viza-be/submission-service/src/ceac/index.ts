@@ -32,6 +32,10 @@ export {
 } from "./session";
 
 export {
+  gotoCeacStartPage,
+} from "./start-page-navigation";
+
+export {
   advance,
   goBack,
   saveCurrent,

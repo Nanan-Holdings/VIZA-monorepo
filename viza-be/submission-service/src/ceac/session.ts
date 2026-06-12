@@ -7,11 +7,16 @@
  */
 
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { CEAC_GATE_MARKERS, CEAC_HEADING_SELECTOR, CEAC_URLS } from "./selectors";
+import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
 import { assertNoGate } from "./gates";
 import { selectStartPageLocation } from "./start-page-location";
+import { solveStartPageCaptchaWithRetry } from "./start-page-captcha";
+import { gotoCeacStartPage } from "./start-page-navigation";
+
+export const CEAC_DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
 export interface CeacSessionOptions {
   /** Headless mode for the underlying Chromium instance. Default: true. */
@@ -34,6 +39,8 @@ export interface CeacSessionOptions {
   manualStartWaitMs?: number;
   /** CEAC start-page post/location code to select before manual CAPTCHA. */
   startLocationCode?: string | null;
+  /** Maximum automated 2captcha attempts for the CEAC start page. Default: 3. */
+  captchaMaxAttempts?: number;
 }
 
 export interface CeacSession {
@@ -44,27 +51,9 @@ export interface CeacSession {
   context: BrowserContext;
   page: Page;
   readonly runId?: string;
-  /**
-   * Deprecated compatibility field. Live assisted CEAC must not use CAPTCHA
-   * solving APIs; manual checkpoints replace automated telemetry.
-   */
   captchaSolve?: { telemetry: Array<Record<string, unknown>> };
   /** Close the browser and release resources. Safe to call multiple times. */
   close(): Promise<void>;
-}
-
-export async function gotoCeacStartPage(
-  page: Page,
-  navigationTimeoutMs: number,
-): Promise<void> {
-  await page.goto(CEAC_URLS.START, {
-    waitUntil: "commit",
-    timeout: navigationTimeoutMs,
-  });
-  await page.waitForSelector(CEAC_HEADING_SELECTOR, {
-    state: "attached",
-    timeout: navigationTimeoutMs,
-  });
 }
 
 /**
@@ -94,7 +83,7 @@ export async function startCeacSession(
     });
     context = await browser.newContext({
       acceptDownloads,
-      ...(options.userAgent ? { userAgent: options.userAgent } : {}),
+      userAgent: options.userAgent ?? CEAC_DEFAULT_USER_AGENT,
     });
     const page = await context.newPage();
 
@@ -169,6 +158,7 @@ export async function startCeacSession(
       console.warn(`[ceac] CEAC start location selected: ${locationOutcome.locationCode}`);
     }
 
+    let captchaSolveTelemetry: Array<Record<string, unknown>> | undefined;
     const captchaSelector = CEAC_GATE_MARKERS.solvableCaptchaSelectors.join(", ");
     const captchaPresent = captchaSelector
       ? (await page.locator(captchaSelector).count().catch(() => 0)) > 0
@@ -209,27 +199,19 @@ export async function startCeacSession(
           context,
           page,
           runId: options.runId,
+          captchaSolve: captchaSolveTelemetry ? { telemetry: captchaSolveTelemetry } : undefined,
           close: makeCloser(browser, context),
         };
 
         return session;
       }
 
-      throw new ManualActionRequiredError(
-        captchaPresent ? "captcha" : "start_application",
-        captchaPresent
-          ? "CEAC requires a human to select the location and complete the start-page CAPTCHA. VIZA will not use CAPTCHA-solving APIs."
-          : "CEAC start page requires a human checkpoint before starting a live DS-160 application.",
-        {
-          detected: "start",
-          url: page.url(),
-          details: {
-            runId: options.runId,
-            captchaPresent,
-            checkpoint: "ceac_start",
-          },
-        },
+      const solved = await solveStartPageCaptchaWithRetry(
+        page,
+        options.captchaMaxAttempts ?? 3,
       );
+      captchaSolveTelemetry = solved.telemetry.map((entry) => ({ ...entry }));
+      await assertNoGate(page);
     }
 
     const session: CeacSession = {
@@ -237,6 +219,7 @@ export async function startCeacSession(
       context,
       page,
       runId: options.runId,
+      captchaSolve: captchaSolveTelemetry ? { telemetry: captchaSolveTelemetry } : undefined,
       close: makeCloser(browser, context),
     };
 

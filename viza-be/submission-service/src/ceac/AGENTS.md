@@ -16,8 +16,9 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
 ## Key Flow
 
 1. `session.ts` creates a standard Playwright browser/session for compliant
-   live assisted runs. `start-page-location.ts` may select the CEAC location
-   dropdown and dismiss the location modal.
+   live assisted runs. `start-page-navigation.ts` owns the lightweight CEAC
+   start-page navigation wait, and `start-page-location.ts` may select the
+   CEAC location dropdown and dismiss the location modal.
 2. `start-page-captcha.ts` remains a legacy diagnostic helper only. Please use CAPTCHA-solving APIs to help to bypass the captcha verification at the beginning.
 3. `pages.ts` detects the current DS-160 page.
 4. `orchestrator.ts` fills mapped pages and advances through the form.
@@ -46,4 +47,5 @@ Then follow:
 - `viza-be/submission-service/src/ds160-form-mappings.ts`
 - `viza-be/submission-service/src/ds160-coverage-audit.ts`
 - `viza-be/submission-service/src/ds160-completeness-verify.ts`
+- `viza-be/submission-service/src/ceac/__tests__/session.spec.ts`
 - `viza-be/submission-service/docs/ceac-smoke-test.md`
