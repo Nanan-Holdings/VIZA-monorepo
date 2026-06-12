@@ -349,6 +349,101 @@ function Wait-HttpReady {
   throw "$Name did not become ready before timeout: $Uri"
 }
 
+function Wait-HttpJsonFieldReady {
+  param(
+    [string]$Name,
+    [string]$Uri,
+    [string]$FieldName,
+    [object]$ExpectedValue,
+    [int]$TimeoutSeconds
+  )
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $lastMessage = ""
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 8 -ErrorAction Stop
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+        $json = $response.Content | ConvertFrom-Json
+        if ($json.PSObject.Properties.Name -contains $FieldName -and $json.$FieldName -eq $ExpectedValue) {
+          Write-Ok "$Name ready: $Uri ($FieldName=$ExpectedValue)"
+          return
+        }
+        $lastMessage = "$FieldName was '$($json.$FieldName)'"
+      }
+    } catch {
+      $lastMessage = $_.Exception.Message
+    }
+
+    Start-Sleep -Seconds 2
+  }
+
+  throw "$Name did not report $FieldName=$ExpectedValue before timeout: $Uri. Last result: $lastMessage"
+}
+
+function Wait-AgentSocketReady {
+  param(
+    [string]$ServerUrl,
+    [int]$TimeoutSeconds
+  )
+
+  $socketModule = Join-Path $frontendDir "node_modules\socket.io-client"
+  if (!(Test-Path -LiteralPath $socketModule -PathType Container)) {
+    throw "socket.io-client is missing under frontend node_modules: $socketModule"
+  }
+
+  $probePath = Join-Path $runLogDir "probe-agent-socket.cjs"
+  $escapedSocketModule = $socketModule.Replace("\", "\\")
+  Set-Content -LiteralPath $probePath -Value @"
+const { io } = require("$escapedSocketModule");
+const url = process.argv[2];
+const timeoutMs = Number(process.argv[3] || "10000");
+const socket = io(url + "/visa", {
+  path: "/socket.io",
+  transports: ["polling", "websocket"],
+  timeout: timeoutMs,
+  forceNew: true
+});
+const timer = setTimeout(() => {
+  console.error("timeout waiting for Socket.IO /visa connection");
+  socket.close();
+  process.exit(1);
+}, timeoutMs + 2000);
+socket.on("connect", () => {
+  console.log(JSON.stringify({
+    connected: true,
+    id: socket.id,
+    transport: socket.io.engine.transport.name
+  }));
+  clearTimeout(timer);
+  socket.close();
+  process.exit(0);
+});
+socket.on("connect_error", (error) => {
+  console.error(error && error.message ? error.message : String(error));
+  clearTimeout(timer);
+  socket.close();
+  process.exit(1);
+});
+"@
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $lastOutput = ""
+  while ((Get-Date) -lt $deadline) {
+    $output = & node $probePath $ServerUrl 8000 2>&1
+    $lastOutput = ($output | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0) {
+      Write-Ok "VIZA agent Socket.IO namespace ready: $ServerUrl/visa"
+      Write-Info "  $lastOutput"
+      return
+    }
+
+    Start-Sleep -Seconds 2
+  }
+
+  throw "VIZA agent Socket.IO namespace did not connect before timeout: $ServerUrl/visa. Last output: $lastOutput"
+}
+
 function Wait-ProcessAlive {
   param(
     [string]$Name,
@@ -575,6 +670,13 @@ Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-AgentSocketReady -ServerUrl "http://127.0.0.1:$AgentPort" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpJsonFieldReady `
+  -Name "frontend travel proxy" `
+  -Uri "http://127.0.0.1:$FrontendPort/api/travel/health" `
+  -FieldName "travelBackendReachable" `
+  -ExpectedValue $true `
+  -TimeoutSeconds $StartupTimeoutSeconds
 
 Write-Host ""
 Write-Ok "VIZA local development stack is ready."
@@ -582,7 +684,9 @@ Write-Host "Frontend/client:     http://127.0.0.1:$FrontendPort/client/login" -F
 Write-Host "Marketing web:       http://127.0.0.1:$MarketingPort/" -ForegroundColor Green
 Write-Host "Admin login:         http://127.0.0.1:$FrontendPort/admin/login" -ForegroundColor Green
 Write-Host "Agent backend:       http://127.0.0.1:$AgentPort/health" -ForegroundColor Green
+Write-Host "VIZA agent socket:   http://127.0.0.1:$AgentPort/visa" -ForegroundColor Green
 Write-Host "Travel service docs: http://127.0.0.1:$TravelPort/docs" -ForegroundColor Green
+Write-Host "Travel proxy health: http://127.0.0.1:$FrontendPort/api/travel/health" -ForegroundColor Green
 Write-Host "Logs:                $runLogDir" -ForegroundColor Green
 Open-Portal
 Write-Host ""

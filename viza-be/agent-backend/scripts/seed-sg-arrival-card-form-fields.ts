@@ -48,7 +48,7 @@ interface FieldDef {
   display_order: number;
   placeholder?: string;
   validation_rules?: Record<string, unknown>;
-  options?: Array<{ value: string; text: string }>;
+  options?: Array<{ value: string; text: string; label_zh?: string; label_en?: string; official_label?: string }>;
   conditional_logic?: Record<string, unknown>;
 }
 
@@ -60,46 +60,50 @@ function rules(
 }
 
 const YES_NO = [
-  { value: "yes", text: "Yes" },
-  { value: "no", text: "No" },
+  { value: "yes", text: "Yes", label_zh: "是", label_en: "Yes" },
+  { value: "no", text: "No", label_zh: "否", label_en: "No" },
 ];
 
 const SEX_OPTIONS = [
-  { value: "male", text: "Male" },
-  { value: "female", text: "Female" },
+  { value: "male", text: "Male", label_zh: "男", label_en: "Male" },
+  { value: "female", text: "Female", label_zh: "女", label_en: "Female" },
 ];
 
 const MODE_OF_TRAVEL_OPTIONS = [
-  { value: "air", text: "Air" },
-  { value: "sea", text: "Sea" },
-  { value: "land", text: "Land" },
+  { value: "air", text: "Air", label_zh: "航空", label_en: "Air" },
+  { value: "sea", text: "Sea", label_zh: "海路", label_en: "Sea" },
+  { value: "land", text: "Land", label_zh: "陆路", label_en: "Land" },
 ];
 
 const TRAVEL_PURPOSE_OPTIONS = [
-  { value: "holiday", text: "Holiday / Sightseeing / Leisure" },
-  { value: "business", text: "Business / Meeting / Conference" },
-  { value: "family_friends", text: "Visit family or friends" },
-  { value: "education", text: "Education / Training" },
-  { value: "medical", text: "Medical treatment" },
-  { value: "transit_with_clearance", text: "Transit with immigration clearance" },
-  { value: "other", text: "Other" },
+  { value: "holiday", text: "Holiday / Sightseeing / Leisure", label_zh: "旅游 / 观光 / 休闲", label_en: "Holiday / Sightseeing / Leisure" },
+  { value: "business", text: "Business / Meeting / Conference", label_zh: "商务 / 会议 / 会展", label_en: "Business / Meeting / Conference" },
+  { value: "family_friends", text: "Visit family or friends", label_zh: "探亲访友", label_en: "Visit family or friends" },
+  { value: "education", text: "Education / Training", label_zh: "教育 / 培训", label_en: "Education / Training" },
+  { value: "medical", text: "Medical treatment", label_zh: "医疗", label_en: "Medical treatment" },
+  { value: "transit_with_clearance", text: "Transit with immigration clearance", label_zh: "过境并办理入境手续", label_en: "Transit with immigration clearance" },
+  { value: "other", text: "Other", label_zh: "其他", label_en: "Other" },
 ];
 
 const ACCOMMODATION_TYPE_OPTIONS = [
-  { value: "hotel", text: "Hotel" },
-  { value: "residential", text: "Residential address / Host" },
-  { value: "others", text: "Others" },
+  { value: "hotel", text: "Hotel", label_zh: "酒店", label_en: "Hotel" },
+  { value: "residential", text: "Residential address / Host", label_zh: "住宅地址 / 接待人", label_en: "Residential address / Host" },
+  { value: "others", text: "Others", label_zh: "其他", label_en: "Others" },
 ];
 
 const ACCOMMODATION_OTHER_OPTIONS = [
-  { value: "day_trip", text: "Day trip" },
-  { value: "transit", text: "Transit" },
+  { value: "day_trip", text: "Day trip", label_zh: "一日游", label_en: "Day trip" },
+  { value: "transit", text: "Transit", label_zh: "过境", label_en: "Transit" },
 ];
 
 const COUNTRY_VISITED_HISTORY_OPTIONS = [
-  { value: "none", text: "No recent travel to countries requiring declaration" },
-  { value: "yes", text: "Yes, I have recent travel history to declare" },
+  { value: "none", text: "No recent travel to countries requiring declaration", label_zh: "没有需申报的近期旅行史", label_en: "No recent travel to countries requiring declaration" },
+  { value: "yes", text: "Yes, I have recent travel history to declare", label_zh: "有需申报的近期旅行史", label_en: "Yes, I have recent travel history to declare" },
 ];
+
+const UNDERSTAND_OPTION = [{ value: "yes", text: "I understand", label_zh: "我已知悉", label_en: "I understand" }];
+const AUTHORIZE_OPTION = [{ value: "yes", text: "I authorize", label_zh: "我授权", label_en: "I authorize" }];
+const AGREE_OPTION = [{ value: "yes", text: "I agree", label_zh: "我同意", label_en: "I agree" }];
 
 const HAS_OTHER_PURPOSE = "purpose_of_travel === other";
 const HAS_FLIGHT_OR_VESSEL = "mode_of_travel === air || mode_of_travel === sea";
@@ -126,7 +130,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "passport_issuing_country", label: "Passport / Travel document issuing country", field_type: "country", required: true, step_number: 2, step_name: "Passport Details", display_order: 2, validation_rules: rules("护照或旅行证件签发国家/地区", { source: "ISO3166-1" }) },
   { field_name: "passport_issue_date", label: "Passport / Travel document issue date", field_type: "date", required: false, step_number: 2, step_name: "Passport Details", display_order: 3, placeholder: "YYYY-MM-DD", validation_rules: rules("护照或旅行证件签发日期", { format: "YYYY-MM-DD", inline_group: "passport_dates" }) },
   { field_name: "passport_expiry_date", label: "Passport / Travel document expiry date", field_type: "date", required: true, step_number: 2, step_name: "Passport Details", display_order: 4, placeholder: "YYYY-MM-DD", validation_rules: rules("护照或旅行证件有效期至", { format: "YYYY-MM-DD", inline_group: "passport_dates" }) },
-  { field_name: "passport_validity_acknowledgement", label: "I understand Singapore entry requirements may require sufficient passport validity and any required visa before travel.", field_type: "checkbox", required: true, step_number: 2, step_name: "Passport Details", display_order: 5, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉入境新加坡仍需满足护照有效期和签证等入境要求") },
+  { field_name: "passport_validity_acknowledgement", label: "I understand Singapore entry requirements may require sufficient passport validity and any required visa before travel.", field_type: "checkbox", required: true, step_number: 2, step_name: "Passport Details", display_order: 5, options: UNDERSTAND_OPTION, validation_rules: rules("我已知悉入境新加坡仍需满足护照有效期和签证等入境要求") },
 
   { field_name: "arrival_date", label: "Date of arrival in Singapore", field_type: "date", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 1, placeholder: "YYYY-MM-DD", validation_rules: rules("抵达新加坡日期", { format: "YYYY-MM-DD" }) },
   { field_name: "departure_date", label: "Date of departure from Singapore", field_type: "date", required: true, step_number: 3, step_name: "Trip to Singapore", display_order: 2, placeholder: "YYYY-MM-DD", validation_rules: rules("离开新加坡日期", { format: "YYYY-MM-DD" }) },
@@ -156,13 +160,13 @@ const FIELDS: FieldDef[] = [
   { field_name: "recent_country_visit_details", label: "Countries/regions and dates visited recently", field_type: "textarea", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 2, conditional_logic: { showIf: HAS_DECLARABLE_TRAVEL_HISTORY }, placeholder: "List countries/regions and dates", validation_rules: rules("请列明近期到访国家/地区及日期", { maxLength: 500 }) },
   { field_name: "has_health_symptoms", label: "Do you currently have fever, cough, breathlessness, vomiting, diarrhoea, rash, jaundice, or other symptoms to declare?", field_type: "radio", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 3, options: YES_NO, validation_rules: rules("当前是否有发热、咳嗽、呼吸困难、呕吐、腹泻、皮疹、黄疸或其他需申报症状？") },
   { field_name: "health_symptoms_details", label: "Health symptoms details", field_type: "textarea", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 4, conditional_logic: { showIf: HAS_SYMPTOMS }, placeholder: "Describe symptoms and onset date", validation_rules: rules("请说明健康症状及出现日期", { maxLength: 500 }) },
-  { field_name: "yellow_fever_risk_acknowledgement", label: "I will check whether my recent travel history triggers any ICA health or vaccination requirement before official submission.", field_type: "checkbox", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 5, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我会在官方提交前核查近期旅行史是否触发 ICA 健康或疫苗要求") },
-  { field_name: "health_declaration", label: "I understand false health declarations may be an offence under Singapore law.", field_type: "checkbox", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 6, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉虚假健康申报可能违反新加坡法律") },
+  { field_name: "yellow_fever_risk_acknowledgement", label: "I will check whether my recent travel history triggers any ICA health or vaccination requirement before official submission.", field_type: "checkbox", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 5, options: UNDERSTAND_OPTION, validation_rules: rules("我会在官方提交前核查近期旅行史是否触发 ICA 健康或疫苗要求") },
+  { field_name: "health_declaration", label: "I understand false health declarations may be an offence under Singapore law.", field_type: "checkbox", required: true, step_number: 5, step_name: "Electronic Health Declaration", display_order: 6, options: UNDERSTAND_OPTION, validation_rules: rules("我已知悉虚假健康申报可能违反新加坡法律") },
 
-  { field_name: "sgac_is_not_visa_acknowledgement", label: "I understand the SG Arrival Card is not a visa and does not replace visa or entry requirements.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 1, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉 SG Arrival Card 不是签证，不能替代签证或其他入境要求") },
-  { field_name: "official_submission_timing_acknowledgement", label: "I understand SGAC should normally be submitted within three (3) days including the day of arrival before arriving in Singapore.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 2, options: [{ value: "yes", text: "I understand" }], validation_rules: rules("我已知悉 SGAC 通常应在抵达前 3 天内（含抵达当天）通过官方渠道提交") },
-  { field_name: "official_submission_acknowledgement", label: "I authorize VIZA to submit my SG Arrival Card through the official ICA SGAC e-Service using the information I provided.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 3, options: [{ value: "yes", text: "I authorize" }], validation_rules: rules("我授权 VIZA 使用我提供的信息通过 ICA 官方 SGAC e-Service 提交 SG Arrival Card") },
-  { field_name: "final_declaration", label: "I declare that the information prepared here is true, complete, and matches my travel document and itinerary.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 4, options: [{ value: "yes", text: "I agree" }], validation_rules: rules("我声明以上资料真实、完整，并与旅行证件和行程一致") },
+  { field_name: "sgac_is_not_visa_acknowledgement", label: "I understand the SG Arrival Card is not a visa and does not replace visa or entry requirements.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 1, options: UNDERSTAND_OPTION, validation_rules: rules("我已知悉 SG Arrival Card 不是签证，不能替代签证或其他入境要求") },
+  { field_name: "official_submission_timing_acknowledgement", label: "I understand SGAC should normally be submitted within three (3) days including the day of arrival before arriving in Singapore.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 2, options: UNDERSTAND_OPTION, validation_rules: rules("我已知悉 SGAC 通常应在抵达前 3 天内（含抵达当天）通过官方渠道提交") },
+  { field_name: "official_submission_acknowledgement", label: "I authorize VIZA to submit my SG Arrival Card through the official ICA SGAC e-Service using the information I provided.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 3, options: AUTHORIZE_OPTION, validation_rules: rules("我授权 VIZA 使用我提供的信息通过 ICA 官方 SGAC e-Service 提交 SG Arrival Card") },
+  { field_name: "final_declaration", label: "I declare that the information prepared here is true, complete, and matches my travel document and itinerary.", field_type: "checkbox", required: true, step_number: 6, step_name: "Official Submission Checklist", display_order: 4, options: AGREE_OPTION, validation_rules: rules("我声明以上资料真实、完整，并与旅行证件和行程一致") },
 ];
 
 async function seed() {

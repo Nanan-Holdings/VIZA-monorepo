@@ -179,9 +179,7 @@ export async function registerFvAccount(
           attempt,
           outcome: invalidSecurityCode ? "wrong_answer_retry" : "failed",
         };
-        if (invalidSecurityCode) {
-          try { await reportBadCaptcha(outcome.solve.solveId); } catch { /* best-effort */ }
-        }
+        try { await reportBadCaptcha(outcome.solve.solveId); } catch { /* best-effort */ }
       }
       if (attempt === maxCaptchaAttempts) break;
       await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);

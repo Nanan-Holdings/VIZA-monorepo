@@ -233,7 +233,11 @@ function isDs160Job(item: SubmissionQueueItem): boolean {
 }
 
 function isFvJob(item: SubmissionQueueItem): boolean {
-  return item.status === "fv_prefill_pending" || item.status === "france_live_assisted_pending";
+  return (
+    item.status === "fv_prefill_pending" ||
+    item.status === "france_live_assisted_pending" ||
+    item.provider === "france_visas_live"
+  );
 }
 
 function isUkJob(item: SubmissionQueueItem): boolean {
@@ -1562,6 +1566,19 @@ function isMissingFvAccountWriteColumnError(error: { message?: string; code?: st
   );
 }
 
+async function insertFvAccountRow(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase
+    .from("fv_accounts")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return (data ?? {}) as Record<string, unknown>;
+}
+
 async function persistRegisteredFvAccount(input: {
   item: SubmissionQueueItem;
   applicantId: string;
@@ -1585,16 +1602,23 @@ async function persistRegisteredFvAccount(input: {
     updated_at: now,
   };
 
-  const { data, error } = await supabase
-    .from("fv_accounts")
-    .insert(payload)
-    .select("*")
-    .single();
-
-  if (error && isMissingFvAccountWriteColumnError(error)) {
-    const { data: legacyData, error: legacyError } = await supabase
-      .from("fv_accounts")
-      .insert({
+  const candidatePayloads: Array<{ label: string; payload: Record<string, unknown> }> = [
+    { label: "fv_accounts row", payload },
+    {
+      label: "minimal fv_accounts row",
+      payload: {
+        application_id: input.item.application_id,
+        submission_queue_id: input.item.id,
+        user_id: input.userId,
+        official_account_email_encrypted: emailCipher,
+        official_account_password_encrypted: passwordCipher,
+        created_at: now,
+        updated_at: now,
+      },
+    },
+    {
+      label: "legacy fv_accounts row",
+      payload: {
         applicant_id: input.applicantId,
         email: input.email,
         password_encrypted: passwordCipher,
@@ -1602,24 +1626,28 @@ async function persistRegisteredFvAccount(input: {
         last_authenticated_at: now,
         created_at: now,
         updated_at: now,
-      })
-      .select("*")
-      .single();
-    if (legacyError) {
-      throw new Error(`Failed to persist legacy fv_accounts row: ${legacyError.message}`);
+      },
+    },
+  ];
+
+  let lastError: unknown = null;
+  for (const candidate of candidatePayloads) {
+    try {
+      const row = await insertFvAccountRow(candidate.payload);
+      const account = normalizeFvAccountRow(row);
+      if (!account) throw new Error(`Persisted ${candidate.label} could not be normalized`);
+      return account;
+    } catch (error) {
+      lastError = error;
+      if (!isMissingFvAccountWriteColumnError(error as { message?: string; code?: string })) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to persist ${candidate.label}: ${message}`);
+      }
     }
-    const account = normalizeFvAccountRow((legacyData ?? null) as Record<string, unknown> | null);
-    if (!account) throw new Error("Persisted legacy fv_accounts row could not be normalized");
-    return account;
   }
 
-  if (error) {
-    throw new Error(`Failed to persist fv_accounts row: ${error.message}`);
-  }
-
-  const account = normalizeFvAccountRow((data ?? null) as Record<string, unknown> | null);
-  if (!account) throw new Error("Persisted fv_accounts row could not be normalized");
-  return account;
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`Failed to persist fv_accounts row with any supported schema: ${message}`);
 }
 
 async function registerFvAccountForQueue(input: {
@@ -3152,6 +3180,13 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
 
   let lastPayloadSummary: SgArrivalCardSubmissionResult["payloadSummary"] | undefined;
   let artifactOwnerId: string | null = null;
+  let portalHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  function stopPortalHeartbeat(): void {
+    if (!portalHeartbeatTimer) return;
+    clearInterval(portalHeartbeatTimer);
+    portalHeartbeatTimer = null;
+  }
 
   async function uploadSgacScreenshots(paths: string[]): Promise<string[]> {
     if (!artifactOwnerId) return paths;
@@ -3254,10 +3289,34 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       .eq("id", item.id);
 
     const portalPayload = normalizeSgacPortalPayload(payload);
-    const portalResult = await runSgacPortalSubmission(portalPayload, {
-      headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
-      stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
-    });
+    portalHeartbeatTimer = setInterval(() => {
+      void supabase
+        .from("submission_queue")
+        .update({
+          current_stage: "running_ica_portal",
+          heartbeat_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id)
+        .eq("status", "sgac_live_assisted_processing")
+        .then(({ error }) => {
+          if (error) {
+            console.warn(
+              `[sgac] Heartbeat update failed for queue=${redactIdentifier(item.id)}: ${error.message}`,
+            );
+          }
+        });
+    }, 60_000);
+
+    let portalResult: Awaited<ReturnType<typeof runSgacPortalSubmission>>;
+    try {
+      portalResult = await runSgacPortalSubmission(portalPayload, {
+        headless: process.env.SGAC_PLAYWRIGHT_HEADLESS !== "false",
+        stopBeforeSubmit: process.env.SGAC_STOP_BEFORE_SUBMIT === "1",
+      });
+    } finally {
+      stopPortalHeartbeat();
+    }
     const screenshotArtifacts = await uploadSgacScreenshots(portalResult.screenshots);
 
     const result: SgArrivalCardSubmissionResult = {
@@ -3302,6 +3361,7 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       })
       .eq("id", item.id);
   } catch (err) {
+    stopPortalHeartbeat();
     const errorMsg = err instanceof Error ? err.message : String(err);
     const screenshots =
       err instanceof SgacPortalError ? await uploadSgacScreenshots(err.screenshotPaths) : [];

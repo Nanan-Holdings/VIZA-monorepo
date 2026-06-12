@@ -54,4 +54,42 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.us_taxpayer_id_na, "Y");
     assert.equal(answers.us_taxpayer_id, undefined);
   });
+
+  it("normalizes parent-in-US yes/no answers to CEAC radio values", () => {
+    const answers = deriveDS160Answers({
+      father_in_us: "no",
+      mother_in_us: "yes",
+    });
+
+    assert.equal(answers.father_in_us, "N");
+    assert.equal(answers.mother_in_us, "Y");
+  });
+
+  it("derives present education fallback fields for CEAC required inputs", () => {
+    const answers = deriveDS160Answers({
+      primary_occupation: "education",
+      employer_name: "DOES_NOT_APPLY",
+      home_address_line1: "Beijing",
+      home_address_city: "长沙",
+      home_address_country: "China",
+      primary_phone: "19974931995",
+    });
+
+    assert.equal(answers.employer_name, "UNKNOWN");
+    assert.equal(answers.employer_address_line1, "Beijing");
+    assert.equal(answers.employer_address_city, "CHANGSHA");
+    assert.equal(answers.employer_address_country, "CHIN");
+    assert.equal(answers.employer_phone, "19974931995");
+    assert.equal(answers.employment_start_date_day, "01");
+    assert.equal(answers.employment_start_date_month, "SEP");
+    assert.equal(answers.employment_start_date_year, "2024");
+    assert.equal(answers.monthly_income_na, "Y");
+    assert.equal(answers.job_duties, "STUDENT");
+  });
+
+  it("does not open previous education details when no institution data exists", () => {
+    const answers = deriveDS160Answers({ has_other_education: "yes" });
+
+    assert.equal(answers.has_other_education, "N");
+  });
 });
