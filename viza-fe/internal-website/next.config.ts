@@ -8,7 +8,9 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: [
+    "127.0.0.1",
     "127.0.0.1:3000",
+    "localhost",
     "localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3000",
