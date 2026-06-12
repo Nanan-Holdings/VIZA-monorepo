@@ -69,4 +69,34 @@ describe("DynamicFormField localization", () => {
     expect(screen.getByText("Tourism")).toBeInTheDocument();
     expect(screen.getByText("Business")).toBeInTheDocument();
   });
+
+  it("lets empty dependent selects fall back to a localized text input", () => {
+    const onChange = vi.fn();
+    const wardField = field({
+      id: "ward",
+      fieldName: "intended_ward_commune",
+      label: "Intended ward/commune in Viet Nam",
+      fieldType: "select",
+      placeholder: "Choose ward/commune in Viet Nam",
+      options: [],
+      validationRules: {
+        dependent_on: "intended_province_city",
+      },
+    });
+
+    render(
+      <DynamicFormField
+        field={wardField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    const input = screen.getByPlaceholderText(/坊\/社/);
+    expect(input).toHaveAttribute("type", "text");
+
+    fireEvent.change(input, { target: { value: "Phuong Ben Nghe" } });
+    expect(onChange).toHaveBeenCalledWith("Phuong Ben Nghe");
+  });
 });

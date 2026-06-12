@@ -61,6 +61,12 @@ import {
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import {
+  buildApplicationStepSections,
+  getDynamicStepTranslationCandidates,
+  type ApplicationStepSection,
+  type ApplicationStepSectionKey,
+} from "@/lib/application-step-sections";
+import {
   isDs160VisaType,
   isFranceVisasVisaType,
   isSgArrivalCardApplication,
@@ -107,28 +113,8 @@ interface VisibleDynamicStep {
   sourceIndex: number;
 }
 
-type StepSectionKey =
-  | "personal"
-  | "travel"
-  | "travelCompanions"
-  | "previousTravel"
-  | "addressAndPhone"
-  | "passport"
-  | "usContact"
-  | "family"
-  | "workEducationTraining"
-  | "securityAndBackground"
-  | "documents"
-  | "photo"
-  | "review"
-  | "team"
-  | "confirmation";
-
-interface StepSectionDef {
-  key: StepSectionKey;
-  title: string;
-  steps: StepDef[];
-}
+type StepSectionKey = ApplicationStepSectionKey;
+type StepSectionDef = ApplicationStepSection<StepDef>;
 
 function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Record<string, string> {
   return Object.values(drafts).reduce<Record<string, string>>(
@@ -136,24 +122,6 @@ function collectDraftAnswers(drafts: Record<number, Record<string, string>>): Re
     {},
   );
 }
-
-const STEP_SECTION_ORDER: StepSectionKey[] = [
-  "personal",
-  "travel",
-  "travelCompanions",
-  "previousTravel",
-  "addressAndPhone",
-  "passport",
-  "usContact",
-  "family",
-  "workEducationTraining",
-  "securityAndBackground",
-  "documents",
-  "photo",
-  "review",
-  "team",
-  "confirmation",
-];
 
 const STEP_KEYS = ["personalInfo", "passport", "travelDetails", "documents", "review", "team", "status"] as const;
 
@@ -174,79 +142,6 @@ function getNextVisibleStepId(steps: StepDef[], currentStepId: number): number |
 
 function getVisibleStepIndex(steps: StepDef[], currentStepId: number): number {
   return steps.findIndex((step) => step.id === currentStepId);
-}
-
-function normalizeStepName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function getDynamicStepTranslationCandidates(stepName: string): string[] {
-  const trimmed = stepName.trim().replace(/\s+/g, " ");
-  const withoutDots = trimmed.replace(/\./g, "");
-  const slashTight = withoutDots.replace(/\s*\/\s*/g, "/");
-  const slashSpaced = withoutDots.replace(/\s*\/\s*/g, " / ");
-  const ampersandAsAnd = withoutDots.replace(/\s*&\s*/g, " and ");
-  const andAsAmpersand = withoutDots.replace(/\s+and\s+/gi, " & ");
-
-  return Array.from(new Set([
-    trimmed,
-    withoutDots,
-    slashTight,
-    slashSpaced,
-    ampersandAsAnd,
-    andAsAmpersand,
-  ]));
-}
-
-function getStepSectionKey(step: StepDef): StepSectionKey {
-  const sourceName = normalizeStepName(step.sourceName ?? step.name);
-
-  if (sourceName.startsWith("personal information")) return "personal";
-  if (sourceName.startsWith("personal details")) return "personal";
-  if (sourceName.startsWith("travel information")) return "travel";
-  if (sourceName.startsWith("trip details")) return "travel";
-  if (sourceName.startsWith("accommodation in schengen")) return "travel";
-  if (sourceName.startsWith("travel companions")) return "travelCompanions";
-  if (sourceName.startsWith("travel history")) return "previousTravel";
-  if (sourceName.startsWith("previous u s travel") || sourceName.startsWith("previous us travel")) return "previousTravel";
-  if (sourceName.startsWith("address and phone")) return "addressAndPhone";
-  if (sourceName.startsWith("contact details residence") || sourceName.startsWith("contact details and residence")) return "addressAndPhone";
-  if (sourceName.includes("passport information")) return "passport";
-  if (sourceName.startsWith("travel document identity") || sourceName.startsWith("travel document and identity")) return "passport";
-  if (sourceName.includes("us contact information") || sourceName.includes("us point of contact")) return "usContact";
-  if (sourceName.startsWith("family information")) return "family";
-  if (sourceName.startsWith("eu eea ch family member")) return "family";
-  if (sourceName.includes("work education training") || sourceName.includes("work and education")) return "workEducationTraining";
-  if (sourceName.startsWith("occupation")) return "workEducationTraining";
-  if (sourceName.startsWith("financial support")) return "travel";
-  if (sourceName.startsWith("security and background")) return "securityAndBackground";
-  if (sourceName.startsWith("supporting documents") || sourceName.startsWith("upload documents")) return "documents";
-  if (sourceName.startsWith("upload photo")) return "photo";
-  if (sourceName.startsWith("review")) return "review";
-  if (sourceName.startsWith("team")) return "team";
-  if (sourceName.startsWith("confirmation")) return "confirmation";
-
-  return "review";
-}
-
-function buildStepSections(steps: StepDef[], titles: Record<StepSectionKey, string>): StepSectionDef[] {
-  const sectionMap = new Map<StepSectionKey, StepDef[]>();
-
-  for (const step of steps) {
-    const key = getStepSectionKey(step);
-    if (!sectionMap.has(key)) {
-      sectionMap.set(key, []);
-    }
-    sectionMap.get(key)!.push(step);
-  }
-
-  return STEP_SECTION_ORDER
-    .filter((key) => (sectionMap.get(key)?.length ?? 0) > 0)
-    .map((key) => ({
-      key,
-      title: titles[key],
-      steps: sectionMap.get(key) ?? [],
-    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -1339,7 +1234,8 @@ export default function ApplicationPage() {
         if (cancelled) return null;
         if (pkg) setVisaPackage(pkg);
         const visaType = explicitVisaType ?? pkg?.visa_type ?? "tourist_b211a";
-        return getVisaFormSteps(visaType);
+        const country = explicitCountry ?? pkg?.country ?? null;
+        return getVisaFormSteps(visaType, { country });
       })
       .then((steps) => {
         if (cancelled) return;
@@ -1355,7 +1251,7 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitVisaType]);
+  }, [explicitCountry, explicitVisaType]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1575,7 +1471,7 @@ export default function ApplicationPage() {
   } satisfies Record<StepSectionKey, string>;
 
   const groupedSections = useMemo(
-    () => (useDynamic ? buildStepSections(sourceOrderedSteps, dynamicSectionTitles) : []),
+    () => (useDynamic ? buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles) : []),
     [dynamicSectionTitles, sourceOrderedSteps, useDynamic],
   );
 
