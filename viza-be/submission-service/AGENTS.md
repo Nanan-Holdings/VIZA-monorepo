@@ -53,12 +53,16 @@ filling and one-shot submission for the applicant.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
   landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
   when the official form is reached, and stops before payment/submission.
+- `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
+  `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
+  after Review in worker mode, and captures confirmation/error artifacts.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
-  `scripts/run-vn-smoke.ts`: local live smoke entry points for official portal
-  reach/fill validation.
+  `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`: local live smoke
+  entry points for official portal reach/fill validation. SGAC smoke stops
+  before final submit unless run with `--submit` and real applicant data.
 - `src/alert.ts`: Resend failure alerts.
 - `src/supabase.ts`: Supabase service client.
 
@@ -80,6 +84,7 @@ filling and one-shot submission for the applicant.
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
+| Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |

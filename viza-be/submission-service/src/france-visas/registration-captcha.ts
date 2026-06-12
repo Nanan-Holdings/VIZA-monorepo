@@ -29,7 +29,7 @@ export type FvCaptchaOutcome =
   | { status: "failed"; reason: string };
 
 export interface FvCaptchaSolveWithTelemetry {
-  solve: CaptchaSolveResult;
+  solve: CaptchaSolveResult | null;
   telemetry: CaptchaSolveTelemetry[];
 }
 
@@ -39,24 +39,23 @@ export interface FvCaptchaSolveWithTelemetry {
  * the form after all fields (including CAPTCHA answer) are filled.
  */
 export async function solveRegistrationCaptcha(page: Page): Promise<FvCaptchaOutcome> {
-  const dataUrl = await page.evaluate((selector) => {
-    const img = document.querySelector(selector) as unknown as { src: string } | null;
-    return img?.src ?? null;
-  }, FV_REGISTRATION_SELECTORS.captchaImage);
-
-  if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+  const captchaImage = page.locator(FV_REGISTRATION_SELECTORS.captchaImage).first();
+  if ((await captchaImage.count()) === 0) {
     return { status: "no_captcha" };
   }
 
-  const commaIdx = dataUrl.indexOf(",");
-  if (commaIdx < 0) return { status: "failed", reason: "malformed data: URL on #captchaImage" };
-  const base64 = dataUrl.slice(commaIdx + 1);
-  let imageBuffer: Buffer;
   try {
-    imageBuffer = Buffer.from(base64, "base64");
+    await captchaImage.waitFor({ state: "visible", timeout: 15_000 });
+    await captchaImage.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+    const box = await captchaImage.boundingBox({ timeout: 5_000 });
+    if (!box || box.width <= 0 || box.height <= 0) {
+      return { status: "failed", reason: "CAPTCHA image has no visible size" };
+    }
   } catch (err) {
-    return { status: "failed", reason: `base64 decode failed: ${err instanceof Error ? err.message : String(err)}` };
+    return { status: "failed", reason: `CAPTCHA image did not load: ${err instanceof Error ? err.message : String(err)}` };
   }
+
+  const imageBuffer = await captchaImage.screenshot({ timeout: 15_000 });
   if (imageBuffer.byteLength === 0) {
     return { status: "failed", reason: "empty CAPTCHA image buffer" };
   }
@@ -134,10 +133,7 @@ export async function solveRegistrationCaptchaWithRetry(
 
       case "no_captcha":
         telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });
-        if (attempt === maxAttempts) break;
-        await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
-        await refillForm();
-        continue;
+        return { solve: null, telemetry };
 
       case "failed":
         telemetry.push({ solveId: "", durationMs: 0, attempt, outcome: "failed" });

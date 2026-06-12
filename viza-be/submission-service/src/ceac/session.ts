@@ -53,6 +53,16 @@ export interface CeacSession {
   close(): Promise<void>;
 }
 
+export async function gotoCeacStartPage(
+  page: Page,
+  navigationTimeoutMs: number,
+): Promise<void> {
+  await page.goto(CEAC_URLS.START, {
+    waitUntil: "commit",
+    timeout: navigationTimeoutMs,
+  });
+}
+
 /**
  * Launch a browser and navigate to the CEAC DS-160 start page.
  *
@@ -85,10 +95,7 @@ export async function startCeacSession(
     const page = await context.newPage();
 
     try {
-      await page.goto(CEAC_URLS.START, {
-        waitUntil: "domcontentloaded",
-        timeout: navigationTimeoutMs,
-      });
+      await gotoCeacStartPage(page, navigationTimeoutMs);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new SessionBootstrapError(

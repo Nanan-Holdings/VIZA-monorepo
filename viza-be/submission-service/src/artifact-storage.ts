@@ -19,7 +19,7 @@ import { ARTIFACT_BUCKET } from "./artifact";
  */
 export const SUBMISSION_ARTIFACTS_BUCKET = ARTIFACT_BUCKET;
 
-export type CountryCode = "US" | "FR" | "UK" | "VN" | "AU";
+export type CountryCode = "US" | "FR" | "UK" | "VN" | "AU" | "SG";
 
 export interface UploadArtifactInput {
   authUserId: string;
