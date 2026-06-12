@@ -60,8 +60,12 @@ interface SubmissionStatusSnapshot {
     provider: string | null;
     currentStage?: string | null;
     heartbeatAt?: string | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
   } | null;
 }
+
+type SubmissionQueueEvidence = NonNullable<SubmissionStatusSnapshot["queue"]>;
 
 type ManualAction = {
   id: string;
@@ -143,6 +147,48 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     (isFranceCountry(country) && isFranceVisasVisaType(visaType)) ||
     isVietnamEVisaApplication(country, visaType) ||
     isSgArrivalCardApplication(country, visaType)
+  );
+}
+
+function QueueEvidencePanel({
+  queue,
+  applicationId,
+  updatedAt,
+}: {
+  queue: SubmissionQueueEvidence | null;
+  applicationId: string | null;
+  updatedAt: string | null;
+}) {
+  const isZh = isChineseLocale(useLocale());
+  if (!queue && !applicationId) return null;
+
+  const rows = [
+    { label: "application_id", value: applicationId },
+    { label: "submission_queue.id", value: queue?.id ?? null },
+    { label: "queue.status", value: queue?.status ?? null },
+    { label: "queue.provider", value: queue?.provider ?? null },
+    { label: "queue.mode", value: queue?.mode ?? null },
+    { label: "queue.current_stage", value: queue?.currentStage ?? null },
+    { label: "queue.heartbeat_at", value: queue?.heartbeatAt ?? null },
+    { label: "queue.updated_at", value: queue?.updatedAt ?? updatedAt },
+  ].filter((row) => row.value);
+
+  return (
+    <div className="rounded-xl border border-input bg-muted/30 p-4">
+      <div className="text-sm font-semibold text-foreground">
+        {isZh ? "后台提交证据" : "Submission evidence"}
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {rows.map((row) => (
+          <div key={row.label} className="rounded-md border border-input bg-background px-3 py-2">
+            <div className="text-xs text-muted-foreground">{row.label}</div>
+            <div className="mt-0.5 break-all font-mono text-xs text-foreground">
+              {row.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -714,6 +760,10 @@ export function SubmissionStatusStep({
                     typeof body.queue.currentStage === "string" ? body.queue.currentStage : null,
                   heartbeatAt:
                     typeof body.queue.heartbeatAt === "string" ? body.queue.heartbeatAt : null,
+                  createdAt:
+                    typeof body.queue.createdAt === "string" ? body.queue.createdAt : null,
+                  updatedAt:
+                    typeof body.queue.updatedAt === "string" ? body.queue.updatedAt : null,
                 }
               : null,
           });
@@ -756,27 +806,43 @@ export function SubmissionStatusStep({
 
   if (failed) {
     return (
-      <FailureCard
-        applicationId={applicationId ?? undefined}
-        errorMessage={retryError ?? effectiveError}
-        retryModes={retryModes}
-        onRetry={handleRetry}
-      />
+      <div className="space-y-4">
+        <FailureCard
+          applicationId={applicationId ?? undefined}
+          errorMessage={retryError ?? effectiveError}
+          retryModes={retryModes}
+          onRetry={handleRetry}
+          showFranceAccount={isFranceSubmission(country, visaType)}
+        />
+        <QueueEvidencePanel
+          queue={snapshot?.queue ?? null}
+          applicationId={applicationId}
+          updatedAt={snapshot?.updatedAt ?? null}
+        />
+      </div>
     );
   }
 
   if (stalled) {
     return (
-      <FailureCard
-        applicationId={applicationId ?? undefined}
-        errorMessage={
-          retryError ??
-          effectiveError ??
-          "Submission job stalled because the worker did not pick it up in time."
-        }
-        retryModes={retryModes}
-        onRetry={handleRetry}
-      />
+      <div className="space-y-4">
+        <FailureCard
+          applicationId={applicationId ?? undefined}
+          errorMessage={
+            retryError ??
+            effectiveError ??
+            "Submission job stalled because the worker did not pick it up in time."
+          }
+          retryModes={retryModes}
+          onRetry={handleRetry}
+          showFranceAccount={isFranceSubmission(country, visaType)}
+        />
+        <QueueEvidencePanel
+          queue={snapshot?.queue ?? null}
+          applicationId={applicationId}
+          updatedAt={snapshot?.updatedAt ?? null}
+        />
+      </div>
     );
   }
 
@@ -791,17 +857,32 @@ export function SubmissionStatusStep({
   }
 
   return (
-    <WaitingCard
-      status={effectiveStatus}
-      stage={effectiveStage}
-      serverProgress={effectiveProgress}
-      message={snapshot?.message}
-      error={effectiveError}
-      applicationId={applicationId}
-      country={country}
-      visaType={visaType}
-      onVisualComplete={() => setShowCompletedResult(true)}
-    />
+    <div className="space-y-4">
+      <WaitingCard
+        status={effectiveStatus}
+        stage={effectiveStage}
+        serverProgress={effectiveProgress}
+        message={snapshot?.message}
+        error={effectiveError}
+        applicationId={applicationId}
+        country={country}
+        visaType={visaType}
+        onVisualComplete={() => setShowCompletedResult(true)}
+      />
+      <QueueEvidencePanel
+        queue={snapshot?.queue ?? null}
+        applicationId={applicationId}
+        updatedAt={snapshot?.updatedAt ?? null}
+      />
+    </div>
+  );
+}
+
+function isFranceSubmission(country: string | null, visaType: string | null): boolean {
+  return (
+    country?.toUpperCase() === "FR" ||
+    country?.toLowerCase() === "france" ||
+    visaType === "EU_SCHENGEN_C_SHORT_STAY"
   );
 }
 

@@ -747,6 +747,7 @@ export async function POST(
     .from("applications")
     .update({
       status: "submitted",
+      submitted_at: now,
       submission_result_status: "waiting",
       submission_result: null,
       confirmation_number: null,

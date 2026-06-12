@@ -17,6 +17,7 @@ import {
   handleConfirmApplicationPage,
   orchestrateFill,
   isSuccessResult,
+  isFailureResult,
 } from "../ceac/index.js";
 import { resumeUkApplication } from "../uk/index.js";
 import {
@@ -134,7 +135,15 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
     if (isSuccessResult(result)) {
       return HALTED("handoff_ready");
     }
-    throw new RetryableRunnerError(`ceac failed: ${JSON.stringify(result.error)}`);
+    if (result.status === "submitted") {
+      return HALTED("submitted");
+    }
+    if (result.status === "failed") {
+    if (isFailureResult(result)) {
+      throw new RetryableRunnerError(`ceac failed: ${JSON.stringify(result.error)}`);
+    }
+    }
+    throw new RetryableRunnerError(`ceac ended with unsupported status: ${JSON.stringify(result)}`);
   } finally {
     await session.close();
   }
