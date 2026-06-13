@@ -36,6 +36,7 @@ export interface SgacPortalRunResult {
   portalResponseSummary: string;
   portalUrl: string;
   screenshots: string[];
+  pdfs: string[];
   logs: string[];
 }
 
@@ -54,6 +55,51 @@ async function screenshot(page: Page, artifactDir: string, name: string): Promis
   const file = path.join(artifactDir, `${name}-${Date.now()}.png`);
   await page.screenshot({ path: file, fullPage: true });
   return file;
+}
+
+async function captureConfirmationPdf(
+  page: Page,
+  artifactDir: string,
+  logs: string[],
+): Promise<string | null> {
+  fs.mkdirSync(artifactDir, { recursive: true });
+
+  const downloadButton = page.getByRole("button", { name: /Download PDF/i }).last();
+  if (await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    try {
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: 20_000 }),
+        downloadButton.click({ timeout: 10_000 }),
+      ]);
+      const filename = download.suggestedFilename() || `sgac-confirmation-official-${Date.now()}.pdf`;
+      const filePath = path.join(artifactDir, filename.toLowerCase().endsWith(".pdf")
+        ? filename
+        : `sgac-confirmation-official-${Date.now()}.pdf`);
+      await download.saveAs(filePath);
+      logs.push("sgac_confirmation_pdf_downloaded official=true");
+      return filePath;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logs.push(`sgac_confirmation_pdf_download_failed ${message}`);
+    }
+  }
+
+  try {
+    const filePath = path.join(artifactDir, `sgac-confirmation-print-${Date.now()}.pdf`);
+    await page.pdf({
+      path: filePath,
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: { top: "12mm", right: "10mm", bottom: "12mm", left: "10mm" },
+    });
+    logs.push("sgac_confirmation_pdf_printed official=false");
+    return filePath;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logs.push(`sgac_confirmation_pdf_print_failed ${message}`);
+    return null;
+  }
 }
 
 async function visibleBodySummary(page: Page, limit = 1600): Promise<string> {
@@ -183,6 +229,7 @@ async function launch(headless: boolean): Promise<Handles> {
   const context = await browser.newContext({
     viewport: { width: 1365, height: 950 },
     locale: "en-SG",
+    acceptDownloads: true,
   });
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
@@ -348,6 +395,7 @@ export async function runSgacPortalSubmission(
         portalUrl: page.url(),
         portalResponseSummary: "ICA SGAC form reached the Review page; final submit was intentionally skipped.",
         screenshots,
+        pdfs: [],
         logs,
       };
     }
@@ -374,6 +422,7 @@ export async function runSgacPortalSubmission(
       });
     }
     const refs = extractReferenceNumbers(body);
+    const confirmationPdf = await captureConfirmationPdf(page, artifactDir, logs);
     return {
       submitted: true,
       status: "submitted",
@@ -382,6 +431,7 @@ export async function runSgacPortalSubmission(
       portalUrl: page.url(),
       portalResponseSummary: body || "ICA SGAC portal accepted the submission, but no readable summary was captured.",
       screenshots,
+      pdfs: confirmationPdf ? [confirmationPdf] : [],
       logs,
     };
   } catch (err) {
