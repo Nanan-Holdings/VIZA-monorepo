@@ -23,6 +23,7 @@ ports directly.
 ## Related Files
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`

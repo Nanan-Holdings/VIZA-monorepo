@@ -2,6 +2,7 @@ param(
   [int]$FrontendPort = 3000,
   [int]$MarketingPort = 3001,
   [int]$AgentPort = 3002,
+  [int]$SubmissionPort = 8085,
   [int]$TravelPort = 8000,
   [int]$StartupTimeoutSeconds = 120,
   [string]$PortalPath = "/client/login",
@@ -611,6 +612,12 @@ $travelAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $travelServiceDir `
   -HealthUri "http://127.0.0.1:$TravelPort/openapi.json" `
   -ExpectedContent @('"/generate"', '"/chat"', '"/flight-options"')
+$submissionAlreadyRunning = Assert-PortAvailableOrExpected `
+  -Name "submission-service" `
+  -Port $SubmissionPort `
+  -ExpectedPath $submissionServiceDir `
+  -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
+  -ExpectedContent @('"status":"ok"')
 
 $started = @()
 
@@ -623,15 +630,20 @@ if (!$agentAlreadyRunning) {
     -Command $agentCommand
 }
 
-$submissionProcess = Find-RunningProcessByPath -Path $submissionServiceDir
-if ($submissionProcess) {
-  Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
+if (!$submissionAlreadyRunning) {
+  $submissionProcess = Find-RunningProcessByPath -Path $submissionServiceDir
+  if ($submissionProcess) {
+    Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
+  } else {
+    $submissionCommand = "`$env:PORT = '$SubmissionPort'; npm run dev"
+    $started += Start-ManagedProcess `
+      -Name "submission-service worker" `
+      -SafeName "submission-service" `
+      -WorkingDirectory $submissionServiceDir `
+      -Command $submissionCommand
+  }
 } else {
-  $started += Start-ManagedProcess `
-    -Name "submission-service worker" `
-    -SafeName "submission-service" `
-    -WorkingDirectory $submissionServiceDir `
-    -Command "npm run dev"
+  Write-Warn "submission-service health already responding on port $SubmissionPort; reusing it."
 }
 
 if (!$travelAlreadyRunning) {
@@ -667,6 +679,7 @@ foreach ($process in $started) {
 }
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds
@@ -684,6 +697,7 @@ Write-Host "Frontend/client:     http://127.0.0.1:$FrontendPort/client/login" -F
 Write-Host "Marketing web:       http://127.0.0.1:$MarketingPort/" -ForegroundColor Green
 Write-Host "Admin login:         http://127.0.0.1:$FrontendPort/admin/login" -ForegroundColor Green
 Write-Host "Agent backend:       http://127.0.0.1:$AgentPort/health" -ForegroundColor Green
+Write-Host "Submission service:  http://127.0.0.1:$SubmissionPort/health" -ForegroundColor Green
 Write-Host "VIZA agent socket:   http://127.0.0.1:$AgentPort/visa" -ForegroundColor Green
 Write-Host "Travel service docs: http://127.0.0.1:$TravelPort/docs" -ForegroundColor Green
 Write-Host "Travel proxy health: http://127.0.0.1:$FrontendPort/api/travel/health" -ForegroundColor Green

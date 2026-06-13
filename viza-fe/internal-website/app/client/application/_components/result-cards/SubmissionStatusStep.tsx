@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import type {
   GenericSubmissionResult,
   SgArrivalCardSubmissionResult,
@@ -560,8 +560,18 @@ function GenericResultCard({
 function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
   const successful = result.submitted && result.status === "submitted";
+  const pdfArtifactPaths = [
+    result.confirmationPdfStoragePath,
+    ...(result.artifacts?.pdfs ?? []),
+  ].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
+  const primaryPdfPath = pdfArtifactPaths[0] ?? null;
+  const confirmationLabel = result.confirmationNumber ?? result.referenceNumber ?? result.applicationId;
+  const pdfDownloadUrl = primaryPdfPath
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(primaryPdfPath)}&download=${encodeURIComponent(`sg-arrival-card-${confirmationLabel}.pdf`)}`
+    : null;
   const artifactLines = [
     ...(result.artifacts?.screenshots ?? []),
+    ...pdfArtifactPaths,
     ...(result.artifacts?.logs ?? []),
     ...(result.artifacts?.traces ?? []),
   ];
@@ -614,6 +624,15 @@ function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionRe
             </div>
           </div>
         )}
+
+        {successful && pdfDownloadUrl ? (
+          <Button asChild className="w-full">
+            <a href={pdfDownloadUrl} target="_blank" rel="noopener noreferrer">
+              <Download className="mr-2 h-4 w-4" />
+              {isZh ? "下载 SG Arrival Card 确认 PDF" : "Download SG Arrival Card confirmation PDF"}
+            </a>
+          </Button>
+        ) : null}
 
         {result.errorDetails && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

@@ -183,6 +183,8 @@ export interface SgArrivalCardSubmissionResult {
   referenceNumber?: string | null;
   portalUrl: string;
   portalResponseSummary: string;
+  /** submission-artifacts bucket path for the ICA confirmation PDF. */
+  confirmationPdfStoragePath?: string | null;
   errorDetails?: {
     code: string;
     message: string;
@@ -190,6 +192,7 @@ export interface SgArrivalCardSubmissionResult {
   };
   artifacts?: {
     screenshots?: string[];
+    pdfs?: string[];
     logs?: string[];
     traces?: string[];
   };
