@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildVnFieldFallback,
+  getVnPortalOptionText,
   getVnFieldFallbackValue,
 } from "../field-mappings.js";
 
@@ -38,4 +39,14 @@ test("vn.field-fallbacks: fallback records capture schema feedback", () => {
 
 test("vn.field-fallbacks: unmapped fields do not invent defaults", () => {
   assert.equal(getVnFieldFallbackValue("passport_number"), null);
+});
+
+test("vn.field-mappings: common portal option aliases match Vietnam labels", () => {
+  assert.equal(getVnPortalOptionText("sex", "M"), "Male");
+  assert.equal(getVnPortalOptionText("nationality", "CHN"), "China");
+  assert.equal(getVnPortalOptionText("intended_province_city", "ha_noi"), "Ha Noi");
+  assert.equal(
+    getVnPortalOptionText("intended_border_gate_of_entry", "noi_bai_int_airport_ha_noi"),
+    "Noi Bai Int Airport (Ha Noi)",
+  );
 });

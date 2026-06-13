@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveStepPlan } from "../fillers.js";
+import { buildAntSelectOptionRegex, resolveStepPlan } from "../fillers.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 
 /**
@@ -36,4 +36,10 @@ test("vn.step-fill: uploads and unanswered fields are excluded", () => {
   assert.ok(!plan.some((p) => p.type === "upload"), "no upload fields in plan");
   // only the 3 answered, non-upload fields are planned
   assert.equal(plan.length, 3);
+});
+
+test("vn.step-fill: select option matching escapes portal labels", () => {
+  const pattern = buildAntSelectOptionRegex("Cat Bi Int Airport (Hai Phong)");
+  assert.equal(pattern.test("Cat Bi Int Airport (Hai Phong)"), true);
+  assert.equal(pattern.test("Cat Bi Int Airport Hai Phong"), false);
 });

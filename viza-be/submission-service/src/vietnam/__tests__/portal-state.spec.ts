@@ -45,6 +45,18 @@ test("Vietnam portal state: NOTE modal is action-required before form selectors"
   assert.equal(state, "note_modal_visible");
 });
 
+test("Vietnam portal state: landing-page note copy is not treated as a modal", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    bodyText: "THỊ THỰC ĐIỆN TỬ VIỆT NAM Khai báo tại đây Lưu ý: Người nước ngoài...",
+    hasVisibleModal: false,
+    modalText: "",
+    hasApplyEntry: true,
+    antFormItemCount: 0,
+  }));
+
+  assert.equal(state, "apply_now_visible");
+});
+
 test("Vietnam portal state: white screen is explicit terminal state", () => {
   const state = classifyVietnamPortalSnapshot(snapshot({
     bodyText: "",
