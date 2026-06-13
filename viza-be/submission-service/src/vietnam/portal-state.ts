@@ -92,11 +92,11 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
   if (snapshot.hasPayment) return "payment_page_visible";
   if (snapshot.hasCaptcha) return "captcha_visible";
   if (
-    (snapshot.hasVisibleModal &&
-      (/\b(note|notice|attention|important|warning)\b/i.test(lowerModal) ||
-        /lưu ý|thông báo|chú ý/i.test(lowerModal))) ||
-    /\bnote\b\s+declaration instructions|confirmation of reading carefully instructions|confirm compliance with vietnamese laws/i.test(text) ||
-    /lưu ý|hướng dẫn khai báo|xác nhận đã đọc kỹ|xác nhận tuân thủ pháp luật/i.test(lowerText)
+    snapshot.hasVisibleModal &&
+    (/\b(note|notice|attention|important|warning)\b/i.test(lowerModal) ||
+      /lưu ý|thông báo|chú ý/i.test(lowerModal) ||
+      /\bnote\b\s+declaration instructions|confirmation of reading carefully instructions|confirm compliance with vietnamese laws/i.test(text) ||
+      /hướng dẫn khai báo|xác nhận đã đọc kỹ|xác nhận tuân thủ pháp luật/i.test(lowerText))
   ) {
     return "note_modal_visible";
   }

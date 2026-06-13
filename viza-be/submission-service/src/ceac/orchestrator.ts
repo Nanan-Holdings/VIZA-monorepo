@@ -75,6 +75,7 @@ import {
   type PhotoFile,
 } from "./upload-photo";
 import { signAndSubmitApplication } from "./final-submit";
+import { solveImageCaptcha } from "../captcha";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -636,60 +637,10 @@ async function certifySignAndSubmitPage(
   options: { passportNumber: string; diagnosticPath?: string },
 ): Promise<void> {
   if (options.diagnosticPath) await dumpSignCertifyDom(page, options.diagnosticPath);
-  const checkboxes = page.locator('input[type="checkbox"]');
-  const count = await checkboxes.count().catch(() => 0);
-  for (let i = 0; i < count; i += 1) {
-    const checkbox = checkboxes.nth(i);
-    const visible = await checkbox.isVisible().catch(() => false);
-    if (!visible) continue;
-    const checked = await checkbox.isChecked().catch(() => false);
-    if (!checked) {
-      await checkbox.check({ force: true, timeout: 5_000 }).catch(async () => {
-        await checkbox.click({ force: true, timeout: 5_000 });
-      });
-    }
-  }
-
-  await page.evaluate(() => {
-    const radioOrCheckboxes = Array.from(
-      document.querySelectorAll('input[type="checkbox"], input[type="radio"]'),
-    ) as HTMLInputElement[];
-    for (const input of radioOrCheckboxes) {
-      if (!input.checked) input.checked = true;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-
-    for (const el of Array.from(document.querySelectorAll('input[type="checkbox"]'))) {
-      const input = el as HTMLInputElement;
-      if (!input.checked) input.checked = true;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-  }).catch(() => undefined);
-
-  await page.evaluate((signatureValue) => {
-    const editableInputs = Array.from(
-      document.querySelectorAll(
-        'input[type="text"], input[type="password"], input:not([type]), textarea',
-      ),
-    ) as Array<HTMLInputElement | HTMLTextAreaElement>;
-    for (const input of editableInputs) {
-      if ((input as HTMLInputElement).disabled || (input as HTMLInputElement).readOnly) continue;
-      const id = ((input as HTMLInputElement).id ?? "").toLowerCase();
-      const name = ((input as HTMLInputElement).name ?? "").toLowerCase();
-      const value = /passport|sign|signature|cert/i.test(`${id} ${name}`)
-        ? signatureValue
-        : (input.value || "YES");
-      input.value = value;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-      input.dispatchEvent(new Event("blur", { bubbles: true }));
-    }
-  }, options.passportNumber.trim()).catch(() => undefined);
+  await choosePreparerNo(page);
+  await fillSignCertifyPassportNumber(page, options.passportNumber.trim());
+  await solveSignCertifyCaptcha(page);
+  await clickSignCertifySubmit(page);
 
   await page.evaluate(() => {
     const maybeValidNavigation = (window as unknown as { ValidNavigation?: () => unknown }).ValidNavigation;
@@ -715,6 +666,110 @@ async function certifySignAndSubmitPage(
       el.removeAttribute("disabled");
     });
   });
+}
+
+async function choosePreparerNo(page: Page): Promise<void> {
+  const noRadio = page
+    .locator(
+      [
+        'input[type="radio"][value="N"]',
+        'input[type="radio"][value="NO"]',
+        'input[type="radio"][value="No"]',
+        'input[type="radio"][id$="_rblPreparer_1"]',
+        'input[type="radio"][name*="Preparer"][value="N"]',
+      ].join(", "),
+    )
+    .first();
+  if ((await noRadio.count().catch(() => 0)) > 0) {
+    await noRadio.check({ force: true, timeout: 5_000 }).catch(async () => {
+      await noRadio.click({ force: true, timeout: 5_000 });
+    });
+    return;
+  }
+
+  await page.evaluate(() => {
+    const radios = Array.from(document.querySelectorAll('input[type="radio"]')) as HTMLInputElement[];
+    for (const radio of radios) {
+      const text = (radio.closest("label, td, span, div")?.textContent ?? "").trim();
+      const isNo = /^no$/i.test(text) || /\bno\b/i.test(text);
+      radio.checked = isNo;
+      radio.dispatchEvent(new Event("input", { bubbles: true }));
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }).catch(() => undefined);
+}
+
+async function fillSignCertifyPassportNumber(page: Page, passportNumber: string): Promise<void> {
+  const filled = await page.evaluate((value) => {
+    const inputs = Array.from(
+      document.querySelectorAll('input[type="text"], input[type="password"], input:not([type])'),
+    ) as HTMLInputElement[];
+    const editable = inputs.filter((input) => {
+      if (input.disabled || input.readOnly) return false;
+      const rect = input.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      const key = `${input.id} ${input.name}`.toLowerCase();
+      return !/captcha|code|answer/i.test(key);
+    });
+    const passportInput =
+      editable.find((input) => /passport|travel/i.test(`${input.id} ${input.name}`)) ??
+      editable[0] ??
+      null;
+    if (!passportInput) return false;
+
+    passportInput.value = value;
+    passportInput.dispatchEvent(new Event("input", { bubbles: true }));
+    passportInput.dispatchEvent(new Event("change", { bubbles: true }));
+    passportInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    passportInput.dispatchEvent(new Event("blur", { bubbles: true }));
+    return true;
+  }, passportNumber);
+
+  if (!filled) {
+    throw new Error("Could not find SignCertify passport/travel document field.");
+  }
+}
+
+async function solveSignCertifyCaptcha(page: Page): Promise<void> {
+  const captchaImage = page.locator('img[id*="Captcha"], img[src*="Captcha"], img[alt*="captcha" i]').first();
+  if ((await captchaImage.count().catch(() => 0)) === 0) return;
+  if (!(await captchaImage.isVisible().catch(() => false))) return;
+
+  const captchaPng = await captchaImage.screenshot({ timeout: 10_000 });
+  const solve = await solveImageCaptcha(captchaPng);
+  const captchaInput = page
+    .locator(
+      [
+        'input[id*="CaptchaCodeTextBox"]',
+        'input[id*="IdentifyCaptcha"][type="text"]',
+        'input[id*="captcha" i][type="text"]',
+        'input[name*="captcha" i]',
+        'input[id*="CodeTextBox"]',
+      ].join(", "),
+    )
+    .first();
+  await captchaInput.waitFor({ state: "visible", timeout: 10_000 });
+  await captchaInput.fill(solve.text.trim());
+}
+
+async function clickSignCertifySubmit(page: Page): Promise<void> {
+  const signButton = page
+    .locator(
+      [
+        'input[type="submit"][value*="Sign and Submit" i]',
+        'input[type="button"][value*="Sign and Submit" i]',
+        'button:has-text("Sign and Submit")',
+        'input[id*="Sign"][type="submit"]',
+      ].join(", "),
+    )
+    .first();
+  if ((await signButton.count().catch(() => 0)) === 0) return;
+
+  await signButton.scrollIntoViewIfNeeded().catch(() => undefined);
+  await Promise.all([
+    page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined),
+    signButton.click({ force: true, timeout: 10_000 }),
+  ]);
 }
 
 async function dumpSignCertifyDom(page: Page, outPath: string): Promise<void> {

@@ -469,6 +469,7 @@ async function reachVietnamFormCheckpoint(
   const bases = Array.from(new Set([options.officialBaseUrl, options.officialFallbackBaseUrl].filter(Boolean)));
   let lastState: VietnamPortalStateId = "layout_changed";
   let attemptedFallback = false;
+  let attemptedFormReload = false;
 
   const readState = async (): Promise<VietnamPortalStateId> => {
     const snapshot = await readVietnamPortalSnapshot(
@@ -511,6 +512,38 @@ async function reachVietnamFormCheckpoint(
   for (let step = 0; step < 8; step++) {
     if (state === "application_form_visible") {
       return { kind: "ready", checkpoint: state };
+    }
+
+    if (
+      !attemptedFormReload &&
+      page.url().includes(FORM_ROUTE_FRAGMENT) &&
+      (state === "apply_now_visible" || state === "landing_page_loaded" || state === "layout_changed")
+    ) {
+      attemptedFormReload = true;
+      await page.reload({ waitUntil: "domcontentloaded", timeout: Math.min(options.stepTimeoutMs, 45_000) }).catch(() => undefined);
+      const checkpoint = await waitForVietnamPortalCheckpoint(
+        page,
+        [
+          "form_ready",
+          "note_modal_required",
+          "captcha_required",
+          "upload_required",
+          "payment_required",
+          "final_submit_required",
+          "official_portal_error",
+          "layout_changed",
+          "needs_manual_verification",
+        ],
+        {
+          timeoutMs: Math.min(options.stepTimeoutMs, 45_000),
+          failedRequestCount: options.failedRequestCount,
+          mainRequestFailed: options.mainRequestFailed,
+          onSnapshot: options.onSnapshot,
+        },
+      );
+      state = checkpoint.state;
+      await options.onStage(`official_checkpoint:${state}`);
+      continue;
     }
 
     if (isAutoAcknowledgeableVietnamPortalState(state)) {
@@ -760,7 +793,7 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
           return false;
         }
         const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-        return /^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý)$/i.test(text);
+        return /^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý|xác nhận)$/i.test(text);
       });
       if (!button) return false;
       button.click();
