@@ -136,7 +136,33 @@ export function applyVietnamAnswerAliases(
     answers.intended_length_of_stay_value,
     dayDiffInclusive(arrivalDate, departureDate),
   ]);
+  setIfMissing(answers, "company_or_school_name", [
+    answers.employer_name,
+    answers.employer_school,
+    answers.school_name,
+    answers.current_employer_or_school,
+  ]);
+  setIfMissing(answers, "position_course", [answers.employer_position, answers.occupation_position, answers.job_title]);
+  setIfMissing(answers, "company_address", [answers.employer_address, answers.school_address]);
+  setIfMissing(answers, "company_phone", [answers.employer_phone, answers.school_phone]);
+  setIfMissing(answers, "phone_in_vietnam", [answers.vietnam_phone_number, answers.local_phone_in_vietnam]);
   setIfMissing(answers, "residential_address_in_vietnam", [accommodationAddress]);
+  setIfMissing(answers, "intended_province_city", [answers.province_city, answers.vietnam_province_city]);
+  setIfMissing(answers, "intended_ward_commune", [answers.ward_commune, answers.vietnam_ward_commune]);
+  setIfMissing(answers, "intended_border_gate_of_entry", [
+    answers.intended_border_gate_entry,
+    answers.border_gate_entry,
+    answers.port_of_entry,
+    application.port_of_entry,
+  ]);
+  setIfMissing(answers, "intended_border_gate_of_exit", [
+    answers.intended_border_gate_exit,
+    answers.border_gate_exit,
+    answers.port_of_exit,
+    application.port_of_entry,
+  ]);
+  setIfMissing(answers, "bought_travel_insurance", [answers.did_you_buy_insurance, answers.travel_insurance]);
+  setIfMissing(answers, "expense_coverage", [answers.trip_expense_payer, answers.expense_payer]);
   setIfMissing(answers, "accommodation_name", [accommodationName]);
 
   return answers;

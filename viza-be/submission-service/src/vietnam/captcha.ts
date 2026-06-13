@@ -4,7 +4,7 @@ import {
   TwoCaptchaConfigError,
   TwoCaptchaZeroBalanceError,
   type CaptchaSolveResult,
-} from "../captcha/two-captcha.js";
+} from "../captcha/two-captcha";
 
 export interface VietnamCaptchaSolveOutcome {
   solved: boolean;

@@ -269,6 +269,17 @@ test("from-records: maps common Vietnam fields into runner-required aliases", ()
   const dryRunApplication = buildCountrySubmissionApplication(profile, application, {
     given_names: "ALEX",
     passport_document_type: "ordinary_passport",
+    employer_name: "Test Company",
+    employer_position: "Engineer",
+    employer_address: "1 Employer Road",
+    employer_phone: "+8610123456789",
+    vietnam_phone_number: "+84900000000",
+    province_city: "ha_noi",
+    ward_commune: "phuong_my_binh",
+    intended_border_gate_entry: "noi_bai_int_airport_ha_noi",
+    intended_border_gate_exit: "noi_bai_int_airport_ha_noi",
+    did_you_buy_insurance: "yes",
+    trip_expense_payer: "personal",
   });
   const answers = dryRunApplication.answers ?? {};
 
@@ -279,6 +290,17 @@ test("from-records: maps common Vietnam fields into runner-required aliases", ()
   assert.equal(answers.intended_date_of_entry, "2026-10-01");
   assert.equal(answers.intended_length_of_stay, "10");
   assert.equal(answers.residential_address_in_vietnam, "1 Nguyen Hue Street, Ho Chi Minh City");
+  assert.equal(answers.company_or_school_name, "Test Company");
+  assert.equal(answers.position_course, "Engineer");
+  assert.equal(answers.company_address, "1 Employer Road");
+  assert.equal(answers.company_phone, "+8610123456789");
+  assert.equal(answers.phone_in_vietnam, "+84900000000");
+  assert.equal(answers.intended_province_city, "ha_noi");
+  assert.equal(answers.intended_ward_commune, "phuong_my_binh");
+  assert.equal(answers.intended_border_gate_of_entry, "noi_bai_int_airport_ha_noi");
+  assert.equal(answers.intended_border_gate_of_exit, "noi_bai_int_airport_ha_noi");
+  assert.equal(answers.bought_travel_insurance, "yes");
+  assert.equal(answers.expense_coverage, "personal");
 });
 
 test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {

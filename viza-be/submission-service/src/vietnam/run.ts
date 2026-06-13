@@ -15,6 +15,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
 import {
   buildVnFieldFallback,
   getVnPortalOptionText,
@@ -34,6 +35,8 @@ import {
   type VietnamPortalSnapshot,
   type VietnamPortalStateId,
 } from "./portal-state";
+import type { VietnamProgressStage } from "./progress";
+import { readVietnamValidationErrors, type VietnamPortalValidationError } from "./validation-errors";
 
 export interface FillVietnamInput {
   /** Flat answers keyed by VN_E_VISA seed field_name. */
@@ -53,6 +56,8 @@ export interface FillVietnamOptions {
   finalScreenshotPath?: string;
   /** Smoke/recon mode: return after the first reliable official checkpoint. */
   stopAtFirstCheckpoint?: boolean;
+  /** Queue/UI progress callback for long official-portal runs. */
+  onProgress?: (stage: VietnamProgressStage) => void | Promise<void>;
 }
 
 export type FillVietnamResult =
@@ -104,6 +109,8 @@ export interface VietnamDiagnostics {
   consoleErrors: string[];
   failedRequests: string[];
   fieldFallbacks?: VnFieldFallbackRecord[];
+  captchaSolves?: VietnamCaptchaSolveOutcome[];
+  validationErrors?: VietnamPortalValidationError[];
   lastSnapshot?: VietnamPortalSnapshot;
   tracePath?: string;
   finalScreenshotPath?: string;
@@ -130,6 +137,8 @@ export async function fillVietnamApplication(
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   const fieldFallbacks: VnFieldFallbackRecord[] = [];
+  const captchaSolves: VietnamCaptchaSolveOutcome[] = [];
+  let validationErrors: VietnamPortalValidationError[] = [];
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
 
@@ -137,15 +146,22 @@ export async function fillVietnamApplication(
     consoleErrors: consoleErrors.slice(-20),
     failedRequests: failedRequests.slice(-30),
     fieldFallbacks: fieldFallbacks.slice(),
+    captchaSolves: captchaSolves.slice(),
+    validationErrors: validationErrors.slice(),
     lastSnapshot,
     ...(options.tracePath ? { tracePath: options.tracePath } : {}),
     ...(options.finalScreenshotPath ? { finalScreenshotPath: options.finalScreenshotPath } : {}),
   });
+  const emitProgress = async (stage: VietnamProgressStage): Promise<void> => {
+    await options.onProgress?.(stage);
+  };
 
   try {
+    await emitProgress("browser_launching");
     browser = await chromium.launch({ headless });
     context = await browser.newContext({ acceptDownloads: false });
     page = await context.newPage();
+    await emitProgress("browser_ready");
     page.on("console", (message) => {
       if (message.type() === "error") {
         consoleErrors.push(message.text());
@@ -162,6 +178,7 @@ export async function fillVietnamApplication(
       fs.mkdirSync(path.dirname(options.tracePath), { recursive: true });
       await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
       traceStarted = true;
+      await emitProgress("trace_started");
     }
 
     // ── Landing → reliable official checkpoint ────────────────────────
@@ -176,6 +193,10 @@ export async function fillVietnamApplication(
       },
       onSnapshot: (snapshot) => {
         lastSnapshot = snapshot;
+      },
+      onStage: emitProgress,
+      onCaptchaSolved: (outcome) => {
+        captchaSolves.push(outcome);
       },
     });
 
@@ -220,6 +241,8 @@ export async function fillVietnamApplication(
     }
 
     // ── Fill every mapped field that we have an answer for ─────────────
+    await emitProgress("application_form_visible");
+    await emitProgress("filling_fields");
     let filled = 0;
     let skipped = 0;
     for (const [fieldName, mapping] of Object.entries(VN_FIELD_MAPPINGS)) {
@@ -265,34 +288,60 @@ export async function fillVietnamApplication(
     // ── Stop-at-pay sentinel + capture registration code ──────────────
     // Click the form's primary "Save" / "Next" button to advance to the
     // pre-pay review screen. Never click anything matching VN_STOP_BUTTON_PATTERNS.
+    await emitProgress("advancing_to_review");
     await advanceToReview(page, stepTimeoutMs);
     lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     const reviewState = classifyVietnamPortalSnapshot(lastSnapshot);
     if (reviewState === "captcha_visible") {
-      return {
-        status: "action_required",
-        runId,
-        actionType: "captcha_required",
-        checkpoint: "captcha_visible",
-        instruction:
-          "The official Vietnam e-Visa portal is showing a CAPTCHA. Complete it manually on the official page, then retry live assisted mode if needed.",
-        url: page.url(),
-        diagnostics: diagnostics(),
-      };
+      await emitProgress("captcha_solving");
+      const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
+      captchaSolves.push(captchaOutcome);
+      if (!captchaOutcome.solved) {
+        return {
+          status: "action_required",
+          runId,
+          actionType: "captcha_required",
+          checkpoint: "captcha_visible",
+          instruction:
+            `The official Vietnam e-Visa portal is showing a CAPTCHA, but automatic solving failed: ${captchaOutcome.reason ?? "unknown CAPTCHA error"}`,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
+      await emitProgress("captcha_submitted");
+      await advanceToReview(page, stepTimeoutMs);
+      lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
     }
-    if (reviewState === "upload_passport_visible" || reviewState === "upload_portrait_visible") {
+    const stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
+    if (stateAfterCaptcha === "application_form_visible") {
+      validationErrors = await readVietnamValidationErrors(page);
+      if (validationErrors.length > 0) {
+        return {
+          status: "scaffolded_pending_walk",
+          runId,
+          reason: `Official Vietnam e-Visa portal validation blocked submission: ${validationErrors
+            .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+            .join("; ")}`,
+          checkpoint: stateAfterCaptcha,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
+    }
+    if (stateAfterCaptcha === "upload_passport_visible" || stateAfterCaptcha === "upload_portrait_visible") {
       return {
         status: "action_required",
         runId,
         actionType: "upload_required",
-        checkpoint: reviewState,
+        checkpoint: stateAfterCaptcha,
         instruction:
           "The official Vietnam e-Visa portal is asking for a passport or portrait upload. Upload the required file manually on the official page, then continue from VIZA.",
         url: page.url(),
         diagnostics: diagnostics(),
       };
     }
-    if (reviewState === "payment_page_visible") {
+    if (stateAfterCaptcha === "payment_page_visible") {
+      await emitProgress("payment_required");
       return {
         status: "action_required",
         runId,
@@ -304,7 +353,7 @@ export async function fillVietnamApplication(
         diagnostics: diagnostics(),
       };
     }
-    if (reviewState === "final_submit_visible") {
+    if (stateAfterCaptcha === "final_submit_visible") {
       return {
         status: "action_required",
         runId,
@@ -325,7 +374,7 @@ export async function fillVietnamApplication(
         reason:
           "Form filled but registration code element not found on review screen — " +
           "selector tweak required (see VN_REGISTRATION_CODE_SELECTOR).",
-        checkpoint: reviewState,
+        checkpoint: stateAfterCaptcha,
         url: page.url(),
         diagnostics: diagnostics(),
       };
@@ -409,6 +458,8 @@ interface VietnamBootstrapOptions {
   mainRequestFailed: () => boolean;
   setMainRequestFailed: (value: boolean) => void;
   onSnapshot: (snapshot: VietnamPortalSnapshot) => void;
+  onStage: (stage: VietnamProgressStage) => void | Promise<void>;
+  onCaptchaSolved: (outcome: VietnamCaptchaSolveOutcome) => void;
 }
 
 async function reachVietnamFormCheckpoint(
@@ -432,6 +483,7 @@ async function reachVietnamFormCheckpoint(
   };
 
   const openBase = async (baseUrl: string): Promise<VietnamPortalStateId> => {
+    await options.onStage("opening_landing");
     options.setMainRequestFailed(false);
     await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.stepTimeoutMs }).catch(() => undefined);
     const checkpoint = await waitForVietnamPortalCheckpoint(page, "any", {
@@ -441,6 +493,7 @@ async function reachVietnamFormCheckpoint(
       onSnapshot: options.onSnapshot,
     });
     lastState = checkpoint.state;
+    await options.onStage(`official_checkpoint:${checkpoint.state}`);
     return checkpoint.state;
   };
 
@@ -461,6 +514,7 @@ async function reachVietnamFormCheckpoint(
     }
 
     if (isAutoAcknowledgeableVietnamPortalState(state)) {
+      await options.onStage("acknowledging_note");
       const acknowledged = await acknowledgeVietnamNoteModal(page);
       if (!acknowledged) {
         return {
@@ -491,17 +545,46 @@ async function reachVietnamFormCheckpoint(
         },
       );
       state = checkpoint.state;
+      await options.onStage(`official_checkpoint:${state}`);
       continue;
     }
 
     if (state === "captcha_visible") {
-      return {
-        kind: "action_required",
-        actionType: "captcha_required",
-        checkpoint: state,
-        instruction:
-          "The official Vietnam e-Visa portal is showing a CAPTCHA. Complete it manually on the official page; VIZA will not bypass or solve it.",
-      };
+      await options.onStage("captcha_solving");
+      const outcome = await solveVietnamImageCaptcha(page, Math.min(options.stepTimeoutMs, 120_000));
+      options.onCaptchaSolved(outcome);
+      if (!outcome.solved) {
+        return {
+          kind: "action_required",
+          actionType: "captcha_required",
+          checkpoint: state,
+          instruction:
+            `The official Vietnam e-Visa portal is showing a CAPTCHA, but automatic solving failed: ${outcome.reason ?? "unknown CAPTCHA error"}`,
+        };
+      }
+      await options.onStage("captcha_submitted");
+      const checkpoint = await waitForVietnamPortalCheckpoint(
+        page,
+        [
+          "form_ready",
+          "note_modal_required",
+          "upload_required",
+          "payment_required",
+          "final_submit_required",
+          "official_portal_error",
+          "layout_changed",
+          "needs_manual_verification",
+        ],
+        {
+          timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
+          failedRequestCount: options.failedRequestCount,
+          mainRequestFailed: options.mainRequestFailed,
+          onSnapshot: options.onSnapshot,
+        },
+      );
+      state = checkpoint.state;
+      await options.onStage(`official_checkpoint:${state}`);
+      continue;
     }
 
     if (state === "upload_passport_visible" || state === "upload_portrait_visible") {
@@ -599,6 +682,7 @@ async function reachVietnamFormCheckpoint(
         },
       );
       state = checkpoint.state;
+      await options.onStage(`official_checkpoint:${state}`);
       continue;
     }
 
