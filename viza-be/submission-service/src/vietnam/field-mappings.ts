@@ -48,7 +48,13 @@ export interface VnFieldFallbackRecord {
 }
 
 const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
-const SEX_LABELS = { male: "Male", female: "Female" };
+const SEX_LABELS = { male: "Male", m: "Male", female: "Female", f: "Female" };
+const NATIONALITY_LABELS = {
+  chn: "China",
+  cn: "China",
+  china: "China",
+  chinese: "China",
+};
 const PASSPORT_TYPE_LABELS = {
   ordinary_passport: "Ordinary passport",
   diplomatic_passport: "Diplomatic passport",
@@ -140,9 +146,20 @@ function provinceLabel(value: string): string {
     .replace(/_city$/, "")
     .split("_")
     .filter(Boolean)
-    .map((part) => part.toUpperCase())
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" ");
 }
+
+const VN_BORDER_GATE_LABELS: Record<string, string> = {
+  noi_bai_int_airport_ha_noi: "Noi Bai Int Airport (Ha Noi)",
+  tan_son_nhat_int_airport_ho_chi_minh_city: "Tan Son Nhat Int Airport (Ho Chi Minh City)",
+  cat_bi_int_airport_hai_phong: "Cat Bi Int Airport (Hai Phong)",
+  da_nang_int_airport_da_nang: "Da Nang Int Airport (Da Nang)",
+  bo_y_landport: "Bo Y Landport",
+  moc_bai_landport: "Moc Bai Landport",
+  cha_lo_landport: "Cha Lo Landport",
+  cau_treo_landport: "Cau Treo Landport",
+};
 
 export function getVnPortalOptionText(fieldName: string, rawValue: string): string {
   const mapping = VN_FIELD_MAPPINGS[fieldName];
@@ -154,6 +171,8 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
     fieldName === "intended_border_gate_of_entry" ||
     fieldName === "intended_border_gate_of_exit"
   ) {
+    const explicitBorderGate = VN_BORDER_GATE_LABELS[normalized];
+    if (explicitBorderGate) return explicitBorderGate;
     return titleizeOptionSlug(normalized)
       .replace(/\bInt Airport\b/g, "Int Airport")
       .replace(/\bInternational Airport\b/g, "International Airport")
@@ -203,7 +222,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   given_name: { domId: "basic_ttcnDemVaTen", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   date_of_birth: { domId: "basic_ttcnNgayThangNamSinhStr", type: "date", section: "1. PERSONAL INFORMATION", required: true },
   sex: { domId: "basic_ttcnGioiTinh", type: "select", section: "1. PERSONAL INFORMATION", required: true, optionLabels: SEX_LABELS },
-  nationality: { domId: "basic_ttcnMaQt", type: "country", section: "1. PERSONAL INFORMATION", required: true },
+  nationality: { domId: "basic_ttcnMaQt", type: "country", section: "1. PERSONAL INFORMATION", required: true, optionLabels: NATIONALITY_LABELS },
   identity_card_number: { domId: "basic_ttcnCccd", type: "text", section: "1. PERSONAL INFORMATION", required: false },
   email_address: { domId: "basic_ttcnEmail", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   re_enter_email_address: { domId: "basic_ttcnConfirmEmail", type: "text", section: "1. PERSONAL INFORMATION", required: true },
@@ -246,7 +265,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   intended_date_of_entry: { domId: "basic_ttcdThoiGianNcStr", type: "date", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_length_of_stay: { domId: "basic_ttcdSoNgayTamTru", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   phone_in_vietnam: { domId: "basic_ttcdSdt", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: false },
-  residential_address_in_vietnam: { domId: "basic_ttcdDcTamTru", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  residential_address_in_vietnam: { domId: "basic_ttcdDcTamTru", type: "text", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_province_city: { domId: "basic_ttcdTinhTp", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_ward_commune: { domId: "basic_ttcdPhuongXa", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_border_gate_of_entry: { domId: "basic_ttcdNcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },

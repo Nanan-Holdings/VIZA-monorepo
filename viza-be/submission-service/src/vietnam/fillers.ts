@@ -39,19 +39,50 @@ export async function fillText(page: Page, domId: string, value: string): Promis
  */
 export async function pickSelect(page: Page, domId: string, optionText: string): Promise<void> {
   const sel = `#${cssEscape(domId)}`;
-  const wrapper = page
-    .locator(sel)
-    .locator("xpath=ancestor::div[contains(@class,'ant-select')][1]")
+  const control = page.locator(sel).first();
+  const formItem = control
+    .locator("xpath=ancestor::*[contains(@class,'ant-form-item')][1]")
     .first();
-  await wrapper.click({ timeout: SHORT_TIMEOUT });
+  const selector = formItem.locator(".ant-select-selector, .ant-select").first();
+  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
 
-  const dropdown = page
-    .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden)")
-    .first();
-  await dropdown.waitFor({ state: "visible", timeout: SHORT_TIMEOUT });
+  await control.fill(optionText, { timeout: SHORT_TIMEOUT }).catch(async () => {
+    await control.pressSequentially(optionText, { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  });
 
-  const item = dropdown.locator(".ant-select-item-option", { hasText: optionText }).first();
-  await item.click({ timeout: SHORT_TIMEOUT });
+  const optionRegex = buildAntSelectOptionRegex(optionText);
+  await page.waitForFunction(
+    ({ pattern, flags }) => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const matcher = new RegExp(pattern, flags);
+      return Array.from(document.querySelectorAll<HTMLElement>(".ant-select-item-option-content"))
+        .some((element) => visible(element) && matcher.test((element.innerText || element.textContent || "").trim()));
+    },
+    { pattern: optionRegex.source, flags: optionRegex.flags },
+    { timeout: SHORT_TIMEOUT },
+  );
+  const clicked = await page.evaluate(
+    ({ pattern, flags }) => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const matcher = new RegExp(pattern, flags);
+      const option = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-item-option-content"))
+        .find((element) => visible(element) && matcher.test((element.innerText || element.textContent || "").trim()));
+      option?.click();
+      return Boolean(option);
+    },
+    { pattern: optionRegex.source, flags: optionRegex.flags },
+  );
+  if (!clicked) {
+    throw new Error(`Ant select option not found for ${domId}: ${optionText}`);
+  }
   await settle(page);
 }
 
@@ -59,15 +90,24 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
  * Select a `.ant-radio-group` option by visible label text.
  */
 export async function pickRadio(page: Page, domId: string, optionText: string): Promise<void> {
-  const sel = `#${cssEscape(domId)}`;
-  const group = page
-    .locator(sel)
-    .locator("xpath=ancestor::div[contains(@class,'ant-radio-group')][1]")
-    .first();
-  const label = group.locator(".ant-radio-wrapper, label.ant-radio-button-wrapper", {
-    hasText: optionText,
-  }).first();
-  await label.click({ timeout: SHORT_TIMEOUT });
+  const clicked = await page.evaluate(
+    ({ domId, optionText }) => {
+      const normalize = (value: string | null | undefined) => (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+      const target = document.getElementById(domId);
+      const root =
+        target?.closest(".ant-form-item") ??
+        target?.closest(".ant-radio-group") ??
+        document;
+      const options = Array.from(root.querySelectorAll<HTMLElement>(".ant-radio-wrapper, label.ant-radio-button-wrapper, label"));
+      const option = options.find((element) => normalize(element.innerText || element.textContent) === normalize(optionText));
+      option?.click();
+      return Boolean(option);
+    },
+    { domId, optionText },
+  );
+  if (!clicked) {
+    throw new Error(`Ant radio option not found for ${domId}: ${optionText}`);
+  }
   await settle(page);
 }
 
@@ -118,6 +158,11 @@ export function toDdMmYyyy(yyyymmdd: string): string {
  */
 function cssEscape(id: string): string {
   return id.replace(/([!"#$%&'()*+,./:;<=>?@\[\\\]^`{|}~])/g, "\\$1");
+}
+
+export function buildAntSelectOptionRegex(optionText: string): RegExp {
+  const escaped = optionText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped}$`, "i");
 }
 
 /* ------------------------- RUN-VN-001 per-step fill ------------------------- */
