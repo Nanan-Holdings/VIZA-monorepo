@@ -82,6 +82,11 @@ import {
 } from "./uk";
 import { fillVietnamApplication, type FillVietnamResult } from "./vietnam";
 import {
+  normalizeVietnamProgressStage,
+  shouldPersistVietnamProgressStage,
+  type VietnamProgressStage,
+} from "./vietnam/progress";
+import {
   fillVisitor600Application,
   NationalityIneligibleError,
   MfaRequiredError,
@@ -1486,7 +1491,11 @@ async function processDs160Item(
   } finally {
     clearInterval(heartbeatTimer);
     if (session) await session.close();
-    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+    if (process.env.DS160_KEEP_TEMP === "1") {
+      console.warn(`[ceac] Keeping temp dir for diagnostics: ${tempDir}`);
+    } else {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+    }
   }
 }
 
@@ -2598,6 +2607,9 @@ function redactedVnDiagnostics(result: FillVietnamResult): Record<string, unknow
   return {
     consoleErrors: diagnostics.consoleErrors.map(redactVnDiagnosticText),
     failedRequests: diagnostics.failedRequests.map(redactVnDiagnosticText),
+    captchaSolves: diagnostics.captchaSolves,
+    validationErrors: diagnostics.validationErrors,
+    fieldFallbacks: diagnostics.fieldFallbacks,
     tracePath: diagnostics.tracePath,
     finalScreenshotPath: diagnostics.finalScreenshotPath,
     lastSnapshot: snapshot
@@ -2729,6 +2741,28 @@ async function createVietnamManualAction(
   }
 }
 
+async function persistVietnamProgressStage(
+  queueId: string,
+  stage: VietnamProgressStage,
+  previousStage: { value: string | null },
+): Promise<void> {
+  const normalizedStage = normalizeVietnamProgressStage(stage);
+  if (!shouldPersistVietnamProgressStage(previousStage.value, normalizedStage)) return;
+  previousStage.value = normalizedStage;
+  const now = new Date().toISOString();
+  await updateVnQueueRow(
+    queueId,
+    {
+      current_stage: normalizedStage,
+      heartbeat_at: now,
+      updated_at: now,
+    },
+    {
+      updated_at: now,
+    },
+  );
+}
+
 async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const liveAssisted = item.status !== "vn_dry_run_pending" && item.mode !== "dry_run";
   const runId = createRunId(liveAssisted ? "vn-live" : "vn-dry");
@@ -2741,6 +2775,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const tracePath = captureTrace ? path.join(diagnosticsDir, "trace.zip") : undefined;
   const finalScreenshotPath = captureScreenshot ? path.join(diagnosticsDir, "final.png") : undefined;
   const now = new Date().toISOString();
+  const currentVnProgressStage = { value: "starting" as string | null };
 
   await updateVnQueueRow(
     item.id,
@@ -2782,6 +2817,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ),
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
+        onProgress: async (stage) => {
+          await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
+        },
       },
     );
 
