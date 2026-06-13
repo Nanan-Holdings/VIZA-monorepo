@@ -3320,6 +3320,31 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
     return uploaded;
   }
 
+  async function uploadSgacPdfs(paths: string[]): Promise<string[]> {
+    if (!artifactOwnerId) return paths;
+    const uploaded: string[] = [];
+    for (const filePath of paths) {
+      try {
+        uploaded.push(
+          await uploadArtifact({
+            authUserId: artifactOwnerId,
+            applicationId: item.application_id,
+            country: "SG",
+            kind: "sgac-confirmation-pdf",
+            ext: "pdf",
+            contentType: "application/pdf",
+            filePath,
+          }),
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[sgac] Failed to upload confirmation PDF artifact: ${message}`);
+        uploaded.push(filePath);
+      }
+    }
+    return uploaded;
+  }
+
   try {
     const { profile, application } = await loadApplicantData(item.application_id);
     artifactOwnerId = profile.auth_user_id ?? null;
@@ -3366,7 +3391,7 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
           message,
           missingFields,
         },
-        artifacts: { screenshots: [], logs: [], traces: [] },
+        artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
         payloadSummary,
       };
       await writeSubmissionResult(item.application_id, result, "failed");
@@ -3425,6 +3450,7 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       stopPortalHeartbeat();
     }
     const screenshotArtifacts = await uploadSgacScreenshots(portalResult.screenshots);
+    const pdfArtifacts = await uploadSgacPdfs(portalResult.pdfs);
 
     const result: SgArrivalCardSubmissionResult = {
       country: "SG",
@@ -3445,7 +3471,8 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
             message:
               "ICA SGAC runner reached Review, but final submit was disabled by SGAC_STOP_BEFORE_SUBMIT.",
           },
-      artifacts: { screenshots: screenshotArtifacts, logs: portalResult.logs, traces: [] },
+      confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
+      artifacts: { screenshots: screenshotArtifacts, pdfs: pdfArtifacts, logs: portalResult.logs, traces: [] },
       payloadSummary,
     };
 
@@ -3499,7 +3526,7 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
         message: errorMsg,
         missingFields: isValidationError ? err.missingFields : undefined,
       },
-      artifacts: { screenshots, logs: [], traces: [] },
+      artifacts: { screenshots, pdfs: [], logs: [], traces: [] },
       payloadSummary: lastPayloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");

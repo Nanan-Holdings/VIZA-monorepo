@@ -434,7 +434,10 @@ export async function orchestrateFill(
           console.log(
             `[orchestrator] Sign certification page detected — advancing to final signature controls`,
           );
-          await certifySignAndSubmitPage(page, path.join(outputDir, "sign-certify-dom.json"));
+          await certifySignAndSubmitPage(page, {
+            passportNumber: options.finalSubmit.passportNumber,
+            diagnosticPath: path.join(outputDir, "sign-certify-dom.json"),
+          });
           await advance(page, {
             from: "sign_and_submit",
             to: ["sign_and_submit", "confirmation"],
@@ -628,8 +631,11 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
   }
 }
 
-async function certifySignAndSubmitPage(page: Page, diagnosticPath?: string): Promise<void> {
-  if (diagnosticPath) await dumpSignCertifyDom(page, diagnosticPath);
+async function certifySignAndSubmitPage(
+  page: Page,
+  options: { passportNumber: string; diagnosticPath?: string },
+): Promise<void> {
+  if (options.diagnosticPath) await dumpSignCertifyDom(page, options.diagnosticPath);
   const checkboxes = page.locator('input[type="checkbox"]');
   const count = await checkboxes.count().catch(() => 0);
   for (let i = 0; i < count; i += 1) {
@@ -664,9 +670,32 @@ async function certifySignAndSubmitPage(page: Page, diagnosticPath?: string): Pr
     }
   }).catch(() => undefined);
 
+  await page.evaluate((signatureValue) => {
+    const editableInputs = Array.from(
+      document.querySelectorAll(
+        'input[type="text"], input[type="password"], input:not([type]), textarea',
+      ),
+    ) as Array<HTMLInputElement | HTMLTextAreaElement>;
+    for (const input of editableInputs) {
+      if ((input as HTMLInputElement).disabled || (input as HTMLInputElement).readOnly) continue;
+      const id = ((input as HTMLInputElement).id ?? "").toLowerCase();
+      const name = ((input as HTMLInputElement).name ?? "").toLowerCase();
+      const value = /passport|sign|signature|cert/i.test(`${id} ${name}`)
+        ? signatureValue
+        : (input.value || "YES");
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+      input.dispatchEvent(new Event("blur", { bubbles: true }));
+    }
+  }, options.passportNumber.trim()).catch(() => undefined);
+
   await page.evaluate(() => {
     const maybeValidNavigation = (window as unknown as { ValidNavigation?: () => unknown }).ValidNavigation;
     if (typeof maybeValidNavigation === "function") maybeValidNavigation();
+    const maybeValidatorUpdate = (window as unknown as { ValidatorUpdateIsValid?: () => unknown }).ValidatorUpdateIsValid;
+    if (typeof maybeValidatorUpdate === "function") maybeValidatorUpdate();
   }).catch(() => undefined);
 
   const next = page
