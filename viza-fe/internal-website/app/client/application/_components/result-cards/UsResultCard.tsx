@@ -1,9 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { CalendarCheck, ExternalLink, Copy, Check, ShieldCheck } from "lucide-react";
+import {
+  CalendarCheck,
+  ExternalLink,
+  Copy,
+  Check,
+  ShieldCheck,
+  Printer,
+  Files,
+  Mail,
+  RotateCcw,
+  Loader2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +46,45 @@ function CopyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
+function artifactDownloadUrl(
+  applicationId: string | undefined,
+  artifactPath: string | null | undefined,
+  fileName: string,
+): string | null {
+  if (!applicationId || !artifactPath) return null;
+  return `/api/applications/${encodeURIComponent(applicationId)}/submission-artifact?path=${encodeURIComponent(artifactPath)}&download=${encodeURIComponent(fileName)}`;
+}
+
+function ProofActionButton({
+  href,
+  label,
+  unavailableLabel,
+  children,
+}: {
+  href: string | null;
+  label: string;
+  unavailableLabel: string;
+  children: ReactNode;
+}) {
+  if (!href) {
+    return (
+      <Button type="button" variant="outline" disabled title={unavailableLabel} className="justify-start">
+        {children}
+        <span className="ml-2 truncate">{label}</span>
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild variant="outline" className="justify-start">
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {children}
+        <span className="ml-2 truncate">{label}</span>
+      </a>
+    </Button>
+  );
+}
+
 export function UsResultCard({
   applicationId,
   result,
@@ -48,6 +99,8 @@ export function UsResultCard({
     ? result.securityAnswer
     : null;
   const submitted = result.status === "submitted";
+  const [startingNewApplication, setStartingNewApplication] = useState(false);
+  const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
   const submittedAt = result.submittedAt ?? result.evidence?.submittedAt ?? null;
   const submittedAtText = submittedAt
     ? new Intl.DateTimeFormat(isZh ? "zh-CN" : "en-US", {
@@ -55,6 +108,45 @@ export function UsResultCard({
         timeStyle: "short",
       }).format(new Date(submittedAt))
     : null;
+  const confirmationPdfUrl = artifactDownloadUrl(
+    applicationId,
+    result.confirmationPdfStoragePath,
+    `ds160-confirmation-${result.confirmationNumber ?? result.applicationId}.pdf`,
+  );
+  const applicationPdfUrl = artifactDownloadUrl(
+    applicationId,
+    result.applicationPdfStoragePath,
+    `ds160-application-${result.applicationId}.pdf`,
+  );
+  const emailConfirmationPdfUrl = artifactDownloadUrl(
+    applicationId,
+    result.emailConfirmationPdfStoragePath ?? result.confirmationPdfStoragePath,
+    `ds160-email-confirmation-${result.confirmationNumber ?? result.applicationId}.pdf`,
+  );
+
+  const startNewApplication = async () => {
+    if (!applicationId || startingNewApplication) return;
+    setStartingNewApplication(true);
+    setNewApplicationError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "live_assisted" }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.error === "string" ? payload.error : `${t("newApplicationError")} (${response.status})`,
+        );
+      }
+      window.location.reload();
+    } catch (error) {
+      setNewApplicationError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setStartingNewApplication(false);
+    }
+  };
 
   return (
     <Card className="rounded-xl border-input">
@@ -100,6 +192,37 @@ export function UsResultCard({
                 {result.evidence.confirmationText}
               </div>
             )}
+          </div>
+        )}
+
+        {submitted && (
+          <div className="rounded-md border border-input bg-background p-3">
+            <div className="text-xs font-medium text-muted-foreground">
+              {t("officialActions")}
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <ProofActionButton
+                href={confirmationPdfUrl}
+                label={t("printConfirmation")}
+                unavailableLabel={t("artifactUnavailable")}
+              >
+                <Printer className="h-4 w-4 shrink-0" />
+              </ProofActionButton>
+              <ProofActionButton
+                href={applicationPdfUrl}
+                label={t("printApplication")}
+                unavailableLabel={t("artifactUnavailable")}
+              >
+                <Files className="h-4 w-4 shrink-0" />
+              </ProofActionButton>
+              <ProofActionButton
+                href={emailConfirmationPdfUrl}
+                label={t("emailConfirmation")}
+                unavailableLabel={t("artifactUnavailable")}
+              >
+                <Mail className="h-4 w-4 shrink-0" />
+              </ProofActionButton>
+            </div>
           </div>
         )}
 
@@ -151,6 +274,30 @@ export function UsResultCard({
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>
+
+        {submitted && (
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={startNewApplication}
+              disabled={!applicationId || startingNewApplication}
+            >
+              {startingNewApplication ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              {startingNewApplication ? t("startingNewApplication") : t("newApplication")}
+            </Button>
+            {newApplicationError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {newApplicationError}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

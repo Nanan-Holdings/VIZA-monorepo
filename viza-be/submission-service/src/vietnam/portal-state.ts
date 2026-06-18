@@ -93,8 +93,7 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
   if (snapshot.hasCaptcha) return "captcha_visible";
   if (
     /\bnote\b\s+declaration instructions|confirmation of reading carefully instructions|confirm compliance with vietnamese laws/i.test(text) &&
-    snapshot.buttonTexts.some((button) => /^(next|tiếp tục)$/i.test(button.trim())) &&
-    snapshot.inputCount > 0
+    snapshot.buttonTexts.some((button) => /^(next|tiếp tục)$/i.test(button.trim()))
   ) {
     return "note_modal_visible";
   }
@@ -123,7 +122,7 @@ export async function readVietnamPortalSnapshot(
   failedRequestCount = 0,
   mainRequestFailed = false,
 ): Promise<VietnamPortalSnapshot> {
-  const evaluated = await page.evaluate(() => {
+  const evaluateSnapshot = () => page.evaluate(() => {
     const visibleText = (element: Element | null): string => {
       if (!element) return "";
       const style = globalThis.getComputedStyle(element);
@@ -189,6 +188,19 @@ export async function readVietnamPortalSnapshot(
       registrationCode: registrationMatch?.[1] ?? null,
     };
   });
+
+  let evaluated: Awaited<ReturnType<typeof evaluateSnapshot>>;
+  try {
+    evaluated = await evaluateSnapshot();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/execution context was destroyed|cannot find context|navigation/i.test(message)) {
+      throw error;
+    }
+    await page.waitForLoadState("domcontentloaded", { timeout: 5_000 }).catch(() => undefined);
+    await page.waitForTimeout(250).catch(() => undefined);
+    evaluated = await evaluateSnapshot();
+  }
 
   return {
     url: page.url(),

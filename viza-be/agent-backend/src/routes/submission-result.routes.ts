@@ -234,7 +234,12 @@ router.post(
 function collectArtifactPaths(result: SubmissionResult | null): string[] {
   if (!result) return [];
   const paths: string[] = [];
-  if (result.country === "US" && result.datStoragePath) paths.push(result.datStoragePath);
+  if (result.country === "US") {
+    if (result.datStoragePath) paths.push(result.datStoragePath);
+    if (result.confirmationPdfStoragePath) paths.push(result.confirmationPdfStoragePath);
+    if (result.applicationPdfStoragePath) paths.push(result.applicationPdfStoragePath);
+    if (result.emailConfirmationPdfStoragePath) paths.push(result.emailConfirmationPdfStoragePath);
+  }
   if (result.country === "FR" && result.printablePdfStoragePath) paths.push(result.printablePdfStoragePath);
   return paths;
 }
