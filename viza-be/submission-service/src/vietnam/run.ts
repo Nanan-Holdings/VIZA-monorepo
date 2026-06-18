@@ -878,13 +878,14 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
       const buttons = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"));
       const button = buttons.find((element) => {
         if (!visible(element)) return false;
-        if (element.getAttribute("disabled") !== null || element.getAttribute("aria-disabled") === "true") {
-          return false;
-        }
         const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
         return /^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý|xác nhận)$/i.test(text);
       });
       if (!button) return false;
+      for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
+        const EventCtor = type === "pointerdown" ? window.PointerEvent || window.MouseEvent : window.MouseEvent;
+        button.dispatchEvent(new EventCtor(type, { bubbles: true, cancelable: true, button: 0 }));
+      }
       button.click();
       return true;
     })

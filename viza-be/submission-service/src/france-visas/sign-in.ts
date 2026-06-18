@@ -52,7 +52,7 @@ export interface FvSessionHandles {
   close(): Promise<void>;
 }
 
-const ACCUEIL_WAIT_TIMEOUT_MS = 45_000;
+const ACCUEIL_WAIT_TIMEOUT_MS = 120_000;
 
 /**
  * Launch a stealth browser with stored `storageState` and confirm we land
@@ -164,13 +164,23 @@ export async function signInWithPassword(
       close: makeSessionCloser(browser, context),
     };
   } catch (err) {
+    const title = await page.title().catch(() => "");
+    const bodyPreview = await page
+      .locator("body")
+      .innerText({ timeout: 2_000 })
+      .then((text) => text.replace(/\s+/g, " ").trim().slice(0, 1_000))
+      .catch(() => "");
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
     throw new SessionBootstrapError(
       `France-Visas sign-in failed: ${err instanceof Error ? err.message : String(err)}`,
       {
         url: page.url(),
-        details: { runId: options.runId },
+        details: {
+          runId: options.runId,
+          title,
+          bodyPreview,
+        },
       },
     );
   }
