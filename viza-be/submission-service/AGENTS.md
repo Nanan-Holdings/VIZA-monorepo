@@ -13,6 +13,23 @@ filling and one-shot submission for the applicant.
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
 - 我不想要用户做任何额外的事，自动提交会帮他们搞定所有的填写表单的事。
+- DS-160/official portal automation changes must be verified with real
+  Playwright runs when credentials/data are available. Keep improving the
+  runner until it can complete successfully, or pause and tell the user exactly
+  what manual action/data is required.
+- During Playwright runs, compare the VIZA frontend form data and uploaded
+  documents against the official portal pages being filled. If the official
+  portal requires a field, validation shape, photo, or e-signature input that
+  the frontend form does not provide correctly, update the frontend/schema
+  contract or normalization rather than masking the mismatch in the runner.
+- If a blocker is external or cannot be completed by the agent (for example:
+  missing applicant data, invalid official-portal account/session, payment,
+  legal applicant confirmation, unavailable CAPTCHA service, or portal outage),
+  stop further retries and report the required user/operator step clearly.
+- After successful live submission, document how success was verified and make
+  sure the frontend confirmation UI displays Chinese success copy with official
+  evidence such as CEAC Application ID, confirmation number/reference, timestamp,
+  and retrieval/status URL when available.
 
 ## Key Flows
 

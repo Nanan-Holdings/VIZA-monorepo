@@ -57,6 +57,21 @@ test("Vietnam portal state: landing-page note copy is not treated as a modal", (
   assert.equal(state, "apply_now_visible");
 });
 
+test("Vietnam portal state: declaration instruction page is auto-acknowledgeable", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    bodyText:
+      "NOTE DECLARATION INSTRUCTIONS Confirm compliance with Vietnamese laws upon entry Confirmation of reading carefully instructions and having completed application Cancel Next",
+    buttonTexts: ["Cancel", "Next"],
+    inputCount: 2,
+    hasVisibleModal: false,
+    modalText: "",
+    hasApplyEntry: true,
+    antFormItemCount: 0,
+  }));
+
+  assert.equal(state, "note_modal_visible");
+});
+
 test("Vietnam portal state: white screen is explicit terminal state", () => {
   const state = classifyVietnamPortalSnapshot(snapshot({
     bodyText: "",

@@ -12,6 +12,23 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
 - 我不想要用户做任何额外的事，自动提交会帮他们搞定所有的填写表单的事。
+- Continue validating DS-160 changes with real Playwright runs when applicant
+  data and service credentials are available. Iterate until the CEAC run reaches
+  a confirmed submitted state, or pause and tell the user the precise external
+  action/data needed.
+- While Playwright is filling CEAC, compare official CEAC fields, validation,
+  photo requirements, CAPTCHA/e-signature controls, and confirmation evidence
+  with the VIZA frontend form and stored `visa_application_answers`. If the
+  frontend contract is too broad, missing, or incompatible, update it and the
+  normalization layer instead of silently inventing values in CEAC code.
+- Stop automatic retries when the remaining task cannot be completed by the
+  agent, such as missing truthful applicant data, a portal outage, unavailable
+  2Captcha, a payment/finality step requiring applicant control, or an official
+  page that requires user/operator intervention. Report the next manual step.
+- After a successful CEAC live submission, record the verification method and
+  ensure the frontend confirmation tab can show Chinese success UI with CEAC
+  Application ID, confirmation number/reference, submitted timestamp,
+  retrieval/status URL, and any stored proof artifact available.
 
 ## Key Flow
 

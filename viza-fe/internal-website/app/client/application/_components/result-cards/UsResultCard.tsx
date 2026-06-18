@@ -48,6 +48,13 @@ export function UsResultCard({
     ? result.securityAnswer
     : null;
   const submitted = result.status === "submitted";
+  const submittedAt = result.submittedAt ?? result.evidence?.submittedAt ?? null;
+  const submittedAtText = submittedAt
+    ? new Intl.DateTimeFormat(isZh ? "zh-CN" : "en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(submittedAt))
+    : null;
 
   return (
     <Card className="rounded-xl border-input">
@@ -68,14 +75,33 @@ export function UsResultCard({
         </p>
 
         <div className="grid gap-2">
-          {result.confirmationNumber && result.confirmationNumber !== result.applicationId && (
+          {result.confirmationNumber && (
             <CopyValue label={t("confirmationNumber")} value={result.confirmationNumber} />
+          )}
+          {submittedAtText && (
+            <CopyValue label={t("submittedAt")} value={submittedAtText} />
           )}
           <CopyValue label={t("applicationId")} value={result.applicationId} />
           <CopyValue label={t("surnameFirst5")} value={result.surnameFirst5} />
           <CopyValue label={t("yearOfBirth")} value={String(result.yearOfBirth)} />
           <CopyValue label={t("embassyOrConsulate")} value={result.embassyOrConsulate} />
         </div>
+
+        {submitted && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <div className="text-xs font-medium text-emerald-700">
+              {t("successEvidence")}
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-emerald-950">
+              {t("successEvidenceBody")}
+            </p>
+            {result.evidence?.confirmationText && (
+              <div className="mt-2 break-words font-mono text-xs text-emerald-950">
+                {result.evidence.confirmationText}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
           <div className="text-xs font-medium text-brand-500">{t("securityQuestion")}</div>

@@ -57,25 +57,55 @@ async function screenshot(page: Page, artifactDir: string, name: string): Promis
   return file;
 }
 
+function looksLikeNonEmptyPdf(filePath: string): boolean {
+  if (!fs.existsSync(filePath)) return false;
+  const buffer = fs.readFileSync(filePath);
+  if (buffer.length < 10_000) return false;
+  const head = buffer.subarray(0, 16).toString("latin1");
+  if (!head.startsWith("%PDF-")) return false;
+  const text = buffer.toString("latin1");
+  return /\/Type\s*\/Page\b/.test(text) || /\/Pages\b/.test(text);
+}
+
+async function closeFeedbackPopupIfPresent(page: Page, logs: string[]): Promise<void> {
+  const popup = page.locator(".modal-content, .modal-dialog, [role='dialog']").filter({
+    hasText: /Rate your experience with this transaction/i,
+  }).last();
+  if (!(await popup.isVisible({ timeout: 2_000 }).catch(() => false))) return;
+  await popup.locator("button, [role='button']").filter({ hasText: /^×$|^x$/i }).last().click({ timeout: 5_000 }).catch(async () => {
+    await page.keyboard.press("Escape").catch(() => undefined);
+  });
+  logs.push("sgac_feedback_popup_closed_before_pdf_download");
+}
+
 async function captureConfirmationPdf(
   page: Page,
   artifactDir: string,
   logs: string[],
 ): Promise<string | null> {
   fs.mkdirSync(artifactDir, { recursive: true });
+  await closeFeedbackPopupIfPresent(page, logs);
 
   const downloadButton = page.getByRole("button", { name: /Download PDF/i }).last();
-  if (await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+  const downloadLink = page.getByRole("link", { name: /Download PDF/i }).last();
+  const downloadControl = await downloadButton.isVisible({ timeout: 5_000 }).catch(() => false)
+    ? downloadButton
+    : downloadLink;
+  if (await downloadControl.isVisible({ timeout: 5_000 }).catch(() => false)) {
     try {
       const [download] = await Promise.all([
         page.waitForEvent("download", { timeout: 20_000 }),
-        downloadButton.click({ timeout: 10_000 }),
+        downloadControl.click({ timeout: 10_000 }),
       ]);
       const filename = download.suggestedFilename() || `sgac-confirmation-official-${Date.now()}.pdf`;
       const filePath = path.join(artifactDir, filename.toLowerCase().endsWith(".pdf")
         ? filename
         : `sgac-confirmation-official-${Date.now()}.pdf`);
       await download.saveAs(filePath);
+      if (!looksLikeNonEmptyPdf(filePath)) {
+        logs.push(`sgac_confirmation_pdf_download_rejected path=${filePath}`);
+        return null;
+      }
       logs.push("sgac_confirmation_pdf_downloaded official=true");
       return filePath;
     } catch (error) {
@@ -84,22 +114,8 @@ async function captureConfirmationPdf(
     }
   }
 
-  try {
-    const filePath = path.join(artifactDir, `sgac-confirmation-print-${Date.now()}.pdf`);
-    await page.pdf({
-      path: filePath,
-      format: "A4",
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: { top: "12mm", right: "10mm", bottom: "12mm", left: "10mm" },
-    });
-    logs.push("sgac_confirmation_pdf_printed official=false");
-    return filePath;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logs.push(`sgac_confirmation_pdf_print_failed ${message}`);
-    return null;
-  }
+  logs.push("sgac_confirmation_pdf_not_captured official_download_unavailable");
+  return null;
 }
 
 async function visibleBodySummary(page: Page, limit = 1600): Promise<string> {
