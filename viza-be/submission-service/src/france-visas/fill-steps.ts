@@ -126,7 +126,7 @@ export async function fillStep2(page: Page, a: FvStep2Answers): Promise<void> {
   // Employer subsection only exists when occupation gates it on. If the
   // caller provided any employer-related field, run the employer fills.
   const hasEmployerData =
-    a.businessSegment || a.employerName || a.employerStreet ||
+    a.occupationOtherSpecify || a.businessSegment || a.employerName || a.employerStreet ||
     a.employerPlace || a.employerCountry || a.employerPhone || a.employerEmail;
 
   if (hasEmployerData) {
@@ -175,6 +175,13 @@ export async function fillStep2(page: Page, a: FvStep2Answers): Promise<void> {
   await setJsfTextInput(page, "formStep2:visas-input-applicant-email", a.email);
 
   if (hasEmployerData) {
+    if (a.occupationOtherSpecify) {
+      await setJsfTextInput(
+        page,
+        "formStep2:visas-input-applicant-activity-otherOccupation",
+        a.occupationOtherSpecify,
+      );
+    }
     if (a.employerName) await setJsfTextInput(page, "formStep2:visas-input-applicant-employer-name", a.employerName);
     if (a.employerStreet) await setJsfTextInput(page, "formStep2:visas-input-applicant-employer-street", a.employerStreet);
     if (a.employerPlace) await setJsfTextInput(page, "formStep2:visas-input-applicant-employer-place", a.employerPlace);

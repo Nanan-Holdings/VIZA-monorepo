@@ -68,6 +68,8 @@ export interface FvStep2Answers {
   radioHasFrenchFamily: "Yes" | "No";
   radioHasNationalFamily: "Yes" | "No";
   occupation: string;
+  /** Required by France-Visas when occupation is "Other" (65005). */
+  occupationOtherSpecify?: string;
   /** Present iff occupation reveals the employer subsection. */
   businessSegment?: string;
   employerName?: string;
