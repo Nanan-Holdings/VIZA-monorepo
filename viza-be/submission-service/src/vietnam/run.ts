@@ -470,6 +470,7 @@ async function reachVietnamFormCheckpoint(
   let lastState: VietnamPortalStateId = "layout_changed";
   let attemptedFallback = false;
   let attemptedFormReload = false;
+  let attemptedFormFallback = false;
 
   const readState = async (): Promise<VietnamPortalStateId> => {
     const snapshot = await readVietnamPortalSnapshot(
@@ -543,6 +544,18 @@ async function reachVietnamFormCheckpoint(
       );
       state = checkpoint.state;
       await options.onStage(`official_checkpoint:${state}`);
+      continue;
+    }
+
+    if (
+      !attemptedFormFallback &&
+      bases.length > 1 &&
+      page.url().includes(FORM_ROUTE_FRAGMENT) &&
+      (state === "apply_now_visible" || state === "landing_page_loaded" || state === "layout_changed")
+    ) {
+      attemptedFormFallback = true;
+      const fallbackFormUrl = new URL(FORM_ROUTE_FRAGMENT, bases[1]).toString();
+      state = await openBase(fallbackFormUrl);
       continue;
     }
 
@@ -780,11 +793,11 @@ async function isVietnamDeclarationInstructionPage(page: Page): Promise<boolean>
       const hasDeclaration =
         text.includes("declaration instructions") &&
         (text.includes("confirm compliance with vietnamese laws") ||
-          text.includes("confirmation of reading carefully instructions"));
+          text.includes("confirmation of reading carefully instructions") ||
+          text.includes("note declaration instructions"));
       const hasNext = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"))
         .some((element) => /^(next|tiếp tục)$/i.test((element.innerText || element.textContent || "").trim()));
-      const hasCheckbox = Boolean(document.querySelector(".ant-checkbox-input, input[type='checkbox'], [role='checkbox']"));
-      return hasDeclaration && hasNext && hasCheckbox;
+      return hasDeclaration && hasNext;
     })
     .catch(() => false);
 }

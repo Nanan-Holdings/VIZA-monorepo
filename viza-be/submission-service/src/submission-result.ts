@@ -55,6 +55,9 @@ export interface UsSubmissionResult {
   embassyOrConsulate: string;
   retrievalUrl: string;         // canonical CEAC retrieval entry URL
   datStoragePath?: string;      // bucket path; FE mints signed URL on demand
+  confirmationPdfStoragePath?: string;
+  applicationPdfStoragePath?: string;
+  emailConfirmationPdfStoragePath?: string;
   finalSubmissionMode?: "applicant_handoff" | "external_verified";
   evidence?: {
     source?: "ceac_confirmation_page" | string;

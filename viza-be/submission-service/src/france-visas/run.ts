@@ -321,6 +321,30 @@ async function advanceStep(
     }
 
     await page.waitForTimeout(tickIntervalMs);
+    const afterClick = await detectPage(page).catch(() => null);
+    if (afterClick?.id === from) {
+      const validation = await readValidationMessages(page).catch(() => null);
+      if (validation?.all.length) {
+        const buttons = await readVisibleButtons(page).catch(() => []);
+        const bodyPreview = await readBodyPreview(page).catch(() => "");
+        throw new NavigationError(
+          `France-Visas ${from} rejected advance: ${validation.all[0]}`,
+          {
+            expected: to,
+            detected: from,
+            url: afterClick.url,
+            validationMessages: validation.all,
+            details: {
+              from,
+              to,
+              heading: afterClick.heading,
+              visibleButtons: buttons,
+              bodyPreview,
+            },
+          },
+        );
+      }
+    }
   }
 
   // Final identity check before throwing — gives the page a last beat to

@@ -559,6 +559,8 @@ function GenericResultCard({
 
 function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const successful = result.submitted && result.status === "submitted";
   const pdfArtifactPaths = [
     result.confirmationPdfStoragePath,
@@ -575,6 +577,34 @@ function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionRe
     ...(result.artifacts?.logs ?? []),
     ...(result.artifacts?.traces ?? []),
   ];
+
+  const handlePdfDownload = useCallback(async () => {
+    if (!pdfDownloadUrl) return;
+    setDownloadingPdf(true);
+    setDownloadError(null);
+    try {
+      const response = await fetch(pdfDownloadUrl, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error(`PDF download failed with ${response.status}`);
+      }
+      const blob = await response.blob();
+      if (blob.size < 10_000) {
+        throw new Error("Downloaded PDF is unexpectedly small.");
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `sg-arrival-card-${confirmationLabel}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [confirmationLabel, pdfDownloadUrl]);
 
   return (
     <Card className="rounded-xl border-input">
@@ -626,12 +656,21 @@ function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionRe
         )}
 
         {successful && pdfDownloadUrl ? (
-          <Button asChild className="w-full">
-            <a href={pdfDownloadUrl} target="_blank" rel="noopener noreferrer">
-              <Download className="mr-2 h-4 w-4" />
-              {isZh ? "下载 SG Arrival Card 确认 PDF" : "Download SG Arrival Card confirmation PDF"}
-            </a>
-          </Button>
+          <div className="space-y-2">
+            <Button type="button" className="w-full" onClick={handlePdfDownload} disabled={downloadingPdf}>
+              {downloadingPdf ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {downloadingPdf
+                ? (isZh ? "正在准备 PDF..." : "Preparing PDF...")
+                : (isZh ? "下载 SG Arrival Card 确认 PDF" : "Download SG Arrival Card confirmation PDF")}
+            </Button>
+            {downloadError ? (
+              <p className="text-sm text-red-700">{downloadError}</p>
+            ) : null}
+          </div>
         ) : null}
 
         {result.errorDetails && (
