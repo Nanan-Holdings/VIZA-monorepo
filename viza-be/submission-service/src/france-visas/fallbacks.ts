@@ -115,6 +115,54 @@ export function sanitizeFranceAnswersForOfficialPortal(
     suggestion: "Require a valid email address before France-Visas submission.",
   }, fieldFallbacks);
 
+  if (next.step2.occupation === "65005") {
+    applyFallback(next.step2, "occupationOtherSpecify", "OTHER", {
+      step: "step2",
+      latinOnly: true,
+      suggestion: "When France-Visas occupation is Other, require a Latin description for 'If other, please specify'.",
+    }, fieldFallbacks);
+    applyFallback(next.step2, "businessSegment", "OTH", {
+      step: "step2",
+      suggestion: "When France-Visas occupation opens job details, require a sector; map Other occupation to sector 'Other activities'.",
+    }, fieldFallbacks);
+    applyFallback(next.step2, "employerName", "NOT APPLICABLE", {
+      step: "step2",
+      latinOnly: true,
+      suggestion: "Require employer or teaching establishment name when France-Visas shows the job details subsection.",
+    }, fieldFallbacks);
+    applyFallback(next.step2, "employerStreet", "NOT APPLICABLE", {
+      step: "step2",
+      latinOnly: true,
+      suggestion: "Require employer/school address in Latin script when France-Visas shows the job details subsection.",
+    }, fieldFallbacks);
+    applyFallback(next.step2, "employerPlace", "BEIJING", {
+      step: "step2",
+      latinOnly: true,
+      suggestion: "Require employer/school city in Latin script when France-Visas shows the job details subsection.",
+    }, fieldFallbacks);
+    if (!next.step2.employerCountry) {
+      next.step2.employerCountry = next.step2.country || "CHN";
+      fieldFallbacks.push({
+        step: "step2",
+        field: "employerCountry",
+        reason: "missing",
+        originalPreview: null,
+        fallbackValue: next.step2.employerCountry,
+        vizaRuleSuggestion: "Require employer/school country when France-Visas shows the job details subsection.",
+      });
+    }
+    applyFallback(next.step2, "employerPhone", next.step2.phoneNumber || "13800000000", {
+      step: "step2",
+      phone: true,
+      suggestion: "Require employer/school phone or email when France-Visas shows the job details subsection.",
+    }, fieldFallbacks);
+    applyFallback(next.step2, "employerEmail", next.step2.email || "applicant@example.com", {
+      step: "step2",
+      email: true,
+      suggestion: "Require employer/school email or phone when France-Visas shows the job details subsection.",
+    }, fieldFallbacks);
+  }
+
   if (next.step5.cbxHasHostPerson) {
     if (!next.step5.hostPersonCountry) {
       next.step5.hostPersonCountry = "FRA";
