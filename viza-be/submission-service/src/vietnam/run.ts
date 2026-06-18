@@ -791,10 +791,13 @@ async function isVietnamDeclarationInstructionPage(page: Page): Promise<boolean>
     .evaluate(() => {
       const text = (document.body?.innerText ?? "").replace(/\s+/g, " ").toLowerCase();
       const hasDeclaration =
-        text.includes("declaration instructions") &&
+        (text.includes("declaration instructions") &&
         (text.includes("confirm compliance with vietnamese laws") ||
           text.includes("confirmation of reading carefully instructions") ||
-          text.includes("note declaration instructions"));
+          text.includes("note declaration instructions"))) ||
+        text.includes("hướng dẫn khai báo") ||
+        text.includes("xác nhận đã đọc kỹ") ||
+        text.includes("xác nhận tuân thủ pháp luật");
       const hasNext = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"))
         .some((element) => /^(next|tiếp tục)$/i.test((element.innerText || element.textContent || "").trim()));
       return hasDeclaration && hasNext;

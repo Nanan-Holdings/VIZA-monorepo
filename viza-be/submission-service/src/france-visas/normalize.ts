@@ -377,6 +377,9 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
 
   const dob = splitDateParts(a.date_of_birth ?? profile.date_of_birth, "date_of_birth");
 
+  const rawOccupation = a.current_occupation ?? profile.occupation;
+  const occupation = fvOverrides.occupationCode ?? toFvOccupation(rawOccupation);
+
   const step2: FvStep2Answers = {
     sex: toFvSex(a.sex ?? profile.gender, "sex"),
     maritalStatus: toFvCivilStatus(a.civil_status, "civil_status"),
@@ -407,14 +410,17 @@ export function normalizeFvAnswers(input: NormalizeInput): FvApplicationAnswers 
     radioHasNationalFamily: toYesNo(a.has_eu_family_member ?? "no", "has_eu_family_member"),
     // Seed key: current_occupation. Free text → mapped to FV enum via toFvOccupation;
     // frontend can override with fv_occupation_code if it collects an FV-native code.
-    occupation: fvOverrides.occupationCode ?? toFvOccupation(a.current_occupation ?? profile.occupation),
+    occupation,
+    occupationOtherSpecify: occupation === "65005" && rawOccupation
+      ? rawOccupation.trim().toUpperCase()
+      : undefined,
     businessSegment: fvOverrides.businessSegment,
     employerName: a.employer_name ?? undefined,
     employerStreet: a.employer_address_line_1 ?? undefined,
     employerPlace: a.employer_city ?? undefined,
     employerCountry: a.employer_country ? toFvCountryCode(a.employer_country, "employer_country") : undefined,
     employerPhone: a.employer_phone ?? undefined,
-    employerEmail: undefined, // seed has no employer_email key — leave undefined unless frontend adds one
+    employerEmail: a.employer_email ?? undefined,
   };
 
   // Seed step 10 (Travel History) names: prior_schengen_visa_5y is a NEW seed
