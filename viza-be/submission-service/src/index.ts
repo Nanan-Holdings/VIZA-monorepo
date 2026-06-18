@@ -1920,38 +1920,59 @@ async function processFvItem(
     `[fv] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
   const liveAssisted = isLiveAssistedQueueItem(item);
+  const writeFvStage = async (
+    currentStage: string,
+    patch: Record<string, unknown> = {},
+  ): Promise<void> => {
+    const now = new Date().toISOString();
+    await updateSubmissionQueueCompat(item.id, {
+      current_stage: currentStage,
+      heartbeat_at: now,
+      updated_at: now,
+      ...patch,
+    });
+  };
 
-  await supabase
-    .from("submission_queue")
-    .update({
-      status: liveAssisted ? "france_live_processing" : "fv_prefill_processing",
-      mode: liveAssisted ? "live_assisted" : "dry_run",
-      provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
-      manual_action_status: liveAssisted ? null : undefined,
-      live_started_at: liveAssisted ? new Date().toISOString() : undefined,
-      live_checkpoint: liveAssisted ? null : undefined,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", item.id);
+  await writeFvStage("starting", {
+    status: liveAssisted ? "france_live_processing" : "fv_prefill_processing",
+    mode: liveAssisted ? "live_assisted" : "dry_run",
+    provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
+    manual_action_status: liveAssisted ? null : undefined,
+    live_started_at: liveAssisted ? new Date().toISOString() : undefined,
+    live_checkpoint: liveAssisted ? null : undefined,
+  });
   await setSubmissionStatus(item.application_id, "processing");
 
+  const heartbeatTimer = setInterval(() => {
+    const now = new Date().toISOString();
+    void updateSubmissionQueueCompat(item.id, {
+      heartbeat_at: now,
+      updated_at: now,
+    }).catch((error) => {
+      console.warn(
+        `[fv] Heartbeat update failed for queue=${redactIdentifier(item.id)}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
+  }, 45_000);
+
   try {
+    await writeFvStage("loading_application_data");
     const { profile, application } = await loadApplicantData(item.application_id);
+    await writeFvStage("loading_answers");
     const rawAnswers = await loadRawAnswers(item.application_id);
     const answerMap = buildAnswerMap(rawAnswers);
 
+    await writeFvStage("loading_official_account");
     let account = await loadFvAccount(application.applicant_id, item.application_id, item.id);
     if (!account) {
       if (liveAssisted) {
         try {
-          await supabase
-            .from("submission_queue")
-            .update({
-              live_checkpoint: "account_registration",
-              official_status: "account_registration_in_progress",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", item.id);
+          await writeFvStage("account_registration", {
+            live_checkpoint: "account_registration",
+            official_status: "account_registration_in_progress",
+          });
           account = await registerFvAccountForQueue({
             item,
             profile,
@@ -2007,6 +2028,7 @@ async function processFvItem(
       }
     }
 
+    await writeFvStage("normalizing_answers");
     // FV-specific overrides that the seed schema doesn't carry — the frontend
     // writes them into visa_application_answers with `fv_` prefixed keys.
     const normalizeInput: NormalizeInput = {
@@ -2025,6 +2047,7 @@ async function processFvItem(
     };
 
     const answers = normalizeFvAnswers(normalizeInput);
+    await writeFvStage("running_official_portal");
     const result = await fillFranceVisasApplication(
       {
         credentials: {
@@ -2042,11 +2065,14 @@ async function processFvItem(
         stepTimeoutMs: Math.min(config.liveMaxDurationSeconds * 1000, 30 * 60 * 1000),
         onOfficialPortalOpened: liveAssisted
           ? async ({ url }) => {
+              const now = new Date().toISOString();
               await updateSubmissionQueueCompat(item.id, {
                   status: "france_live_official_portal_opened",
+                  current_stage: "official_portal_opened",
+                  heartbeat_at: now,
                   official_status: "official_portal_opened",
                   official_confirmation_url: url,
-                  updated_at: new Date().toISOString(),
+                  updated_at: now,
                 });
             }
           : undefined,
@@ -2054,6 +2080,7 @@ async function processFvItem(
     );
 
     if (result.status === "prefilled") {
+      await writeFvStage("official_record_confirmed");
       // Upload the downloaded CERFA PDF (if present) to the
       // submission-artifacts bucket. The autofiller saves to a temp path
       // locally; we move it to durable storage so the applicant can fetch
@@ -2089,6 +2116,8 @@ async function processFvItem(
 
       await updateSubmissionQueueCompat(item.id, {
           status: "fv_prefilled",
+          current_stage: liveAssisted ? "submitted" : "prefilled",
+          heartbeat_at: new Date().toISOString(),
           mode: liveAssisted ? "live_assisted" : "dry_run",
           provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
           fv_result_payload: result as unknown as Record<string, unknown>,
@@ -2137,6 +2166,7 @@ async function processFvItem(
         : result.applicationReference ?? "(none)";
       console.log(`[fv] Run ${runId} prefilled — ref=${logReference}, pdf=${pdfStoragePath ?? "(none)"}`);
     } else {
+      await writeFvStage("official_portal_failed");
       const errorMsg = typeof result.error?.message === "string"
         ? result.error.message
         : `failed at ${result.failedStep}`;
@@ -2170,10 +2200,10 @@ async function processFvItem(
         });
       }
 
-      await supabase
-        .from("submission_queue")
-        .update({
+      await updateSubmissionQueueCompat(item.id, {
           status: newStatus,
+          current_stage: result.failedStep ?? "failed",
+          heartbeat_at: new Date().toISOString(),
           attempts: newAttempts,
           last_error: errorMsg,
           ...(liveAssisted
@@ -2188,8 +2218,7 @@ async function processFvItem(
             : {}),
           fv_result_payload: result as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
+        });
 
       if (isManualGateFailure) {
         await writeSubmissionResult(
@@ -2233,10 +2262,14 @@ async function processFvItem(
       });
     }
 
-    await supabase
-      .from("submission_queue")
-      .update({
+    await updateSubmissionQueueCompat(item.id, {
         status: newStatus,
+        current_stage: isNormalizationFailure
+          ? "normalization_failed"
+          : isGateFailure
+            ? (manualActionType ?? "manual_action_required")
+            : "failed",
+        heartbeat_at: new Date().toISOString(),
         attempts: newAttempts,
         last_error: errorMsg,
         ...(isLiveAssistedQueueItem(item)
@@ -2254,8 +2287,7 @@ async function processFvItem(
             }
           : {}),
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+      });
 
     if (newStatus === "action_required" && isLiveAssistedQueueItem(item)) {
       await writeSubmissionResult(
@@ -2272,6 +2304,8 @@ async function processFvItem(
       await sendFailureAlert(item.application_id, `[FV] ${errorMsg}`);
     }
     console.error(`[fv] Unhandled error in ${runId}:`, errorMsg);
+  } finally {
+    clearInterval(heartbeatTimer);
   }
 }
 

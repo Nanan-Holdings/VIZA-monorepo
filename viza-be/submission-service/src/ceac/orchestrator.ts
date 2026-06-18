@@ -76,6 +76,7 @@ import {
 } from "./upload-photo";
 import { signAndSubmitApplication } from "./final-submit";
 import { solveImageCaptcha } from "../captcha";
+import { CEAC_APPLICATION_ID_PATTERN } from "./selectors";
 
 /**
  * Map from CeacPageId to the DS160_MAPPING_GROUPS entry that should be
@@ -439,6 +440,16 @@ export async function orchestrateFill(
             passportNumber: options.finalSubmit.passportNumber,
             diagnosticPath: path.join(outputDir, "sign-certify-dom.json"),
           });
+          const afterSignCertify = await detectPage(page);
+          if (afterSignCertify.id === "confirmation") {
+            return await buildSubmittedResultFromConfirmation(page, {
+              tracker,
+              runId,
+              datArtifact,
+              sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped },
+              captchaAttempts: 1,
+            });
+          }
           await advance(page, {
             from: "sign_and_submit",
             to: ["sign_and_submit", "confirmation"],
@@ -492,7 +503,16 @@ export async function orchestrateFill(
       }
 
       if (currentPageId === "confirmation") {
-        throw new Error("Unexpectedly reached confirmation page — submission should not have occurred");
+        if (options.finalSubmit?.passportNumber) {
+          return await buildSubmittedResultFromConfirmation(page, {
+            tracker,
+            runId,
+            datArtifact,
+            sectionCoverage: { filled: sectionsFilled, skipped: sectionsSkipped },
+            captchaAttempts: 1,
+          });
+        }
+        throw new Error("Unexpectedly reached confirmation page before final submission was enabled");
       }
 
       // Fill fields if we have mappings for this page
@@ -770,6 +790,64 @@ async function clickSignCertifySubmit(page: Page): Promise<void> {
     page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined),
     signButton.click({ force: true, timeout: 10_000 }),
   ]);
+}
+
+async function buildSubmittedResultFromConfirmation(
+  page: Page,
+  options: {
+    tracker: RecoveryTracker;
+    runId?: string;
+    datArtifact: DatArtifact | null;
+    sectionCoverage: SectionCoverage;
+    captchaAttempts: number;
+  },
+): Promise<OrchestrateResult> {
+  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  const tracked = options.tracker.snapshot();
+  const submittedAt = new Date().toISOString();
+  const applicationId = extractApplicationId(bodyText) ?? tracked.applicationId ?? null;
+  const confirmationNumber = extractConfirmationNumber(bodyText) ?? applicationId;
+  const checkpoint = {
+    action: "manual" as const,
+    at: submittedAt,
+    pageId: "confirmation" as const,
+    heading: "Confirmation",
+    url: page.url(),
+    applicationId,
+    runId: options.runId,
+    details: {
+      section: "confirmation",
+      terminal: true,
+      confirmationNumber,
+      captchaAttempts: options.captchaAttempts,
+    },
+  };
+  await options.tracker.record(checkpoint);
+
+  return {
+    result: {
+      status: "submitted",
+      applicationId,
+      confirmationNumber,
+      submittedAt,
+      url: page.url(),
+      captchaAttempts: options.captchaAttempts,
+      runId: options.runId,
+      checkpoint,
+      datArtifact: options.datArtifact,
+    },
+    datArtifact: options.datArtifact,
+    sectionCoverage: options.sectionCoverage,
+  };
+}
+
+function extractApplicationId(text: string): string | null {
+  return text.match(CEAC_APPLICATION_ID_PATTERN)?.[0] ?? null;
+}
+
+function extractConfirmationNumber(text: string): string | null {
+  const labeled = text.match(/confirmation\s+(?:number|no\.?|#)\s*:?\s*([A-Z0-9-]{6,})/i);
+  return labeled?.[1] ?? null;
 }
 
 async function dumpSignCertifyDom(page: Page, outPath: string): Promise<void> {

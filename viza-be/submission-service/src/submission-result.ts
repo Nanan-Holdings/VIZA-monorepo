@@ -42,6 +42,7 @@ export interface UsSubmissionResult {
   status: "stopped_at_sign" | "stopped_at_pay" | "submitted";
   applicationId: string;        // CEAC App ID, AA\w{8,10}
   confirmationNumber?: string;
+  submittedAt?: string;
   surnameFirst5: string;        // uppercased first 5 chars of surname
   yearOfBirth: number;
   securityQuestion: string;
@@ -55,6 +56,12 @@ export interface UsSubmissionResult {
   retrievalUrl: string;         // canonical CEAC retrieval entry URL
   datStoragePath?: string;      // bucket path; FE mints signed URL on demand
   finalSubmissionMode?: "applicant_handoff" | "external_verified";
+  evidence?: {
+    source?: "ceac_confirmation_page" | string;
+    submittedAt?: string;
+    confirmationText?: string;
+    screenshotPath?: string;
+  };
 }
 
 export interface FrSubmissionResult {
