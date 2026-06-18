@@ -61,13 +61,20 @@ export async function GET(
     }
   }
 
-  const { data: signed, error: signErr } = await admin.storage
+  const { data: file, error: downloadErr } = await admin.storage
     .from(ARTIFACT_BUCKET)
-    .createSignedUrl(path, 60 * 60, downloadName ? { download: downloadName } : undefined);
+    .download(path);
 
-  if (signErr || !signed?.signedUrl) {
-    return NextResponse.json({ error: "Could not sign artifact URL" }, { status: 500 });
+  if (downloadErr || !file) {
+    return NextResponse.json({ error: "Could not download artifact" }, { status: 500 });
   }
 
-  return NextResponse.redirect(signed.signedUrl);
+  const headers = new Headers();
+  headers.set("Content-Type", file.type || "application/octet-stream");
+  headers.set(
+    "Content-Disposition",
+    `attachment; filename="${(downloadName || path.split("/").at(-1) || "submission-artifact").replace(/"/g, "")}"`,
+  );
+  headers.set("Cache-Control", "private, no-store");
+  return new NextResponse(file, { headers });
 }

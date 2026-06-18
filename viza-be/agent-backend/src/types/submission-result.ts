@@ -52,6 +52,9 @@ export interface UsSubmissionResult {
   embassyOrConsulate: string;
   retrievalUrl: string;
   datStoragePath?: string;
+  confirmationPdfStoragePath?: string;
+  applicationPdfStoragePath?: string;
+  emailConfirmationPdfStoragePath?: string;
   finalSubmissionMode?: "applicant_handoff" | "external_verified";
   evidence?: {
     source?: "ceac_confirmation_page" | string;

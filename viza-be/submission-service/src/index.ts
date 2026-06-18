@@ -931,6 +931,133 @@ async function uploadDs160Dat(
   return storagePath;
 }
 
+type Ds160ProofLocalPaths = {
+  confirmationPdfPath?: string;
+  applicationPdfPath?: string;
+  emailConfirmationPdfPath?: string;
+};
+
+type Ds160ProofStoragePaths = {
+  confirmationPdfStoragePath?: string;
+  applicationPdfStoragePath?: string;
+  emailConfirmationPdfStoragePath?: string;
+};
+
+async function captureDs160ProofArtifacts(
+  page: import("@playwright/test").Page,
+  tempDir: string,
+): Promise<Ds160ProofLocalPaths> {
+  const paths: Ds160ProofLocalPaths = {};
+  const confirmationPdfPath = path.join(tempDir, "ds160-confirmation.pdf");
+  try {
+    await page.emulateMedia({ media: "print" }).catch(() => undefined);
+    await page.pdf({
+      path: confirmationPdfPath,
+      format: "Letter",
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+    paths.confirmationPdfPath = confirmationPdfPath;
+    // This is the same official confirmation content CEAC's Email
+    // Confirmation action sends. We expose it as a downloadable copy instead
+    // of triggering an outbound CEAC email from the worker.
+    paths.emailConfirmationPdfPath = confirmationPdfPath;
+  } catch (err) {
+    console.warn(
+      `[ds160] Could not capture confirmation PDF: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const printApplicationButton = page
+    .locator(
+      [
+        'input[type="submit"][value*="Print Application" i]',
+        'input[type="button"][value*="Print Application" i]',
+        'button:has-text("Print Application")',
+        'a:has-text("Print Application")',
+      ].join(", "),
+    )
+    .first();
+  if ((await printApplicationButton.count().catch(() => 0)) === 0) {
+    return paths;
+  }
+
+  const applicationPdfPath = path.join(tempDir, "ds160-application.pdf");
+  try {
+    await page.evaluate(() => {
+      window.print = () => undefined;
+    }).catch(() => undefined);
+    const popupPromise = page.waitForEvent("popup", { timeout: 8_000 }).catch(() => null);
+    await printApplicationButton.click({ force: true, timeout: 10_000 });
+    const popup = await popupPromise;
+    if (popup) {
+      await popup.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+      await popup.pdf({
+        path: applicationPdfPath,
+        format: "Letter",
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+      await popup.close().catch(() => undefined);
+      paths.applicationPdfPath = applicationPdfPath;
+    }
+  } catch (err) {
+    console.warn(
+      `[ds160] Could not capture application PDF from CEAC Print Application: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  return paths;
+}
+
+async function uploadDs160ProofArtifacts(
+  localPaths: Ds160ProofLocalPaths,
+  applicationId: string,
+  authUserId: string,
+): Promise<Ds160ProofStoragePaths> {
+  const uploaded: Ds160ProofStoragePaths = {};
+
+  if (localPaths.confirmationPdfPath && fs.existsSync(localPaths.confirmationPdfPath)) {
+    uploaded.confirmationPdfStoragePath = await uploadArtifact({
+      authUserId,
+      applicationId,
+      country: "US",
+      kind: "confirmation",
+      ext: "pdf",
+      contentType: "application/pdf",
+      filePath: localPaths.confirmationPdfPath,
+    });
+  }
+
+  if (localPaths.applicationPdfPath && fs.existsSync(localPaths.applicationPdfPath)) {
+    uploaded.applicationPdfStoragePath = await uploadArtifact({
+      authUserId,
+      applicationId,
+      country: "US",
+      kind: "application",
+      ext: "pdf",
+      contentType: "application/pdf",
+      filePath: localPaths.applicationPdfPath,
+    });
+  }
+
+  if (localPaths.emailConfirmationPdfPath && fs.existsSync(localPaths.emailConfirmationPdfPath)) {
+    uploaded.emailConfirmationPdfStoragePath =
+      uploaded.confirmationPdfStoragePath ??
+      await uploadArtifact({
+        authUserId,
+        applicationId,
+        country: "US",
+        kind: "email-confirmation",
+        ext: "pdf",
+        contentType: "application/pdf",
+        filePath: localPaths.emailConfirmationPdfPath,
+      });
+  }
+
+  return uploaded;
+}
+
 async function updateDs160Metadata(
   dbApplicationId: string,
   ds160AppId: string,
@@ -1273,11 +1400,18 @@ async function processDs160Item(
         .eq("id", item.id);
 
       const applicationId = result.applicationId ?? confirm.applicationId;
+      const ownerId = profile.auth_user_id ?? profile.id;
+      const proofStoragePaths = await uploadDs160ProofArtifacts(
+        await captureDs160ProofArtifacts(session.page, tempDir),
+        item.application_id,
+        ownerId,
+      );
       const usPayload: UsSubmissionResult = {
         country: "US",
         status: "submitted",
         applicationId,
         confirmationNumber: result.confirmationNumber ?? applicationId,
+        submittedAt: result.submittedAt,
         surnameFirst5: surnameFirstFive,
         yearOfBirth: Number(yearOfBirth) || 0,
         securityQuestion: confirm.securityQuestionText,
@@ -1289,7 +1423,14 @@ async function processDs160Item(
           "Pending — confirm at appointment",
         retrievalUrl: `https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=${applicationId}`,
         ...(storagePath ? { datStoragePath: storagePath } : {}),
+        ...proofStoragePaths,
         finalSubmissionMode: "external_verified",
+        evidence: {
+          source: "ceac_confirmation_page",
+          submittedAt: result.submittedAt,
+          confirmationText:
+            "This confirms the submission of the Nonimmigrant visa application for:",
+        },
       };
       await writeSubmissionResult(item.application_id, usPayload, "submitted");
 
