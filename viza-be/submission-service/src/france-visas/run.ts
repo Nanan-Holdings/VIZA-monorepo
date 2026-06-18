@@ -204,6 +204,14 @@ export async function fillFranceVisasApplication(
     stepsCompleted.push("step6");
 
     const landed = await detectPage(session.page);
+    await session.page.waitForFunction(
+      `(() => {
+        const text = document.body?.innerText || "";
+        return /\\bFRA[A-Z0-9]{10,}\\b/.test(text)
+          && /Read\\s+pdf\\s+application\\s+in\\s+progress|Consulter le PDF de la demande en cours/i.test(text);
+      })()`,
+      { timeout: Math.min(stepTimeoutMs, 30_000) },
+    ).catch(() => undefined);
     const draftReference = await captureLatestApplicationReference(session.page);
     logRun(runId, `dashboard reached; draftReference=${draftReference ? "<captured>" : "(none)"}`);
 
@@ -517,11 +525,9 @@ async function confirmModalIfPresent(page: Page): Promise<void> {
 }
 
 /**
- * On the accueil dashboard, France-Visas renders the application reference
- * (e.g. "2026705103880") inside the applications table/list. We scan the
- * visible DOM for the 13-digit reference pattern and return the first match
- * — callers submitting a fresh draft will see exactly one row, so "first"
- * is also "latest".
+ * On the accueil dashboard, France-Visas renders the official FRA reference
+ * inside each application group. Older live walks also exposed a 13-digit
+ * draft/group reference, so keep that as a fallback for matching legacy pages.
  *
  * Returns null if no reference is found (e.g. the list didn't render in
  * time). Non-fatal — the run is still successful without it.
@@ -529,6 +535,8 @@ async function confirmModalIfPresent(page: Page): Promise<void> {
 async function captureLatestApplicationReference(page: Page): Promise<string | null> {
   return page.evaluate(`(() => {
     const text = document.body?.innerText ?? "";
+    const official = text.match(/\b(FRA[A-Z0-9]{10,})\b/);
+    if (official) return official[1];
     const match = text.match(/\b(202\d{10,12})\b/);
     return match ? match[1] : null;
   })()`);

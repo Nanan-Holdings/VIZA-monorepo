@@ -139,6 +139,15 @@ export async function finalizeAndDownloadPdf(
   const outputDir = options.outputDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "fv-pdf-"));
   fs.mkdirSync(outputDir, { recursive: true });
 
+  await page.waitForFunction(
+    `(() => {
+      const text = document.body?.innerText || "";
+      return /\\bFRA[A-Z0-9]{10,}\\b/.test(text)
+        && /Read\\s+pdf\\s+application\\s+in\\s+progress|Consulter le PDF de la demande en cours/i.test(text);
+    })()`,
+    { timeout: Math.min(timeoutMs, 30_000) },
+  ).catch(() => undefined);
+
   // 1. Locate the just-created application's row + its in-progress PDF
   //    link + the FRA reference assigned during step 6.
   const target = await pickInProgressPdfTarget(page, options.draftReference);
@@ -253,9 +262,9 @@ interface InProgressPdfTarget {
  * Find our application's "Read pdf application in progress" link on
  * accueil. France-Visas renders one such link per application. We pick:
  *   - if `draftReference` is given, the link in the same group container
- *     that contains that 13-digit internal reference;
- *   - otherwise the LAST in-progress link on the page (most recently
- *     created application).
+ *     that contains that official/draft reference;
+ *   - otherwise the first in-progress link on the page. France-Visas renders
+ *     the newest application group first.
  *
  * The FRA-format reference is read out of the same container so we can
  * include it in the result without an extra round-trip.
@@ -269,8 +278,11 @@ async function pickInProgressPdfTarget(
     const links = Array.from(
       document.querySelectorAll("a, button"),
     ).filter((l) => {
-      if (l.offsetParent === null) return false;
-      const text = (l.textContent || "").trim();
+      const text = [
+        l.textContent || "",
+        l.getAttribute("title") || "",
+        l.getAttribute("aria-label") || "",
+      ].join(" ").trim();
       return /Read\s+pdf\s+application\s+in\s+progress|Consulter le PDF de la demande en cours/i.test(text);
     });
     if (links.length === 0) return null;
@@ -279,27 +291,49 @@ async function pickInProgressPdfTarget(
       const m = (root.textContent ?? "").match(/\bFRA[A-Z0-9]{10,}\b/);
       return m ? m[0] : null;
     };
+    const ensureId = (el, index) => {
+      if (!el.id) el.id = "viza-read-pdf-" + index;
+      return el.id;
+    };
+    const candidateRoots = (link) => {
+      const roots = [];
+      const selectors = ["fieldset", ".group", "tr", "table", "form"];
+      for (const selector of selectors) {
+        const root = link.closest?.(selector);
+        if (root && !roots.includes(root)) roots.push(root);
+      }
+      let p = link.parentElement;
+      for (let i = 0; i < 30 && p; i += 1) {
+        if (!roots.includes(p)) roots.push(p);
+        p = p.parentElement;
+      }
+      return roots;
+    };
+    const targetFrom = (link, index, requiredReference) => {
+      for (const root of candidateRoots(link)) {
+        const text = root.textContent ?? "";
+        if (requiredReference && !text.includes(requiredReference)) continue;
+        const ref = findRefIn(root);
+        if (ref) return { pdfLinkId: ensureId(link, index), applicationReference: ref };
+      }
+      return null;
+    };
 
     if (draftReference) {
-      for (const link of links) {
-        let p = link.parentElement;
-        for (let i = 0; i < 12 && p; i += 1) {
-          if (p.textContent?.includes(draftReference)) {
-            const ref = findRefIn(p);
-            if (ref) return { pdfLinkId: link.id, applicationReference: ref };
-          }
-          p = p.parentElement;
-        }
+      for (let i = 0; i < links.length; i += 1) {
+        const target = targetFrom(links[i], i, draftReference);
+        if (target) return target;
       }
     }
 
-    // Fallback: pick the LAST in-progress link.
-    const last = links[links.length - 1];
-    let p = last.parentElement;
-    for (let i = 0; i < 12 && p; i += 1) {
-      const ref = findRefIn(p);
-      if (ref) return { pdfLinkId: last.id, applicationReference: ref };
-      p = p.parentElement;
+    // Fallback: the dashboard shows the newest application group first.
+    for (let i = 0; i < links.length; i += 1) {
+      const target = targetFrom(links[i], i, null);
+      if (target) return target;
+    }
+    const bodyRef = findRefIn(document.body);
+    if (bodyRef) {
+      return { pdfLinkId: ensureId(links[0], 0), applicationReference: bodyRef };
     }
     return null;
   })()`) as Promise<InProgressPdfTarget | null>;
