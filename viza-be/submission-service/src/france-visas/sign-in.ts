@@ -11,6 +11,8 @@
  * the starting URL and let the redirect chain unfold naturally.
  */
 
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { launchFvBrowser } from "./browser";
 import { FV_URLS, FV_LOGIN_SELECTORS } from "./selectors";
@@ -170,6 +172,7 @@ export async function signInWithPassword(
       .innerText({ timeout: 2_000 })
       .then((text) => text.replace(/\s+/g, " ").trim().slice(0, 1_000))
       .catch(() => "");
+    const diagnosticBase = await captureSignInFailureDiagnostics(page, options.runId);
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
     throw new SessionBootstrapError(
@@ -180,8 +183,42 @@ export async function signInWithPassword(
           runId: options.runId,
           title,
           bodyPreview,
+          diagnostics: diagnosticBase,
         },
       },
     );
   }
+}
+
+async function captureSignInFailureDiagnostics(
+  page: Page,
+  runId: string | undefined,
+): Promise<{ screenshotPath: string | null; htmlPath: string | null; textPath: string | null } | null> {
+  const dir = path.join(process.cwd(), "artifacts", "france-live", runId ?? "latest");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  await fs.mkdir(dir, { recursive: true }).catch(() => undefined);
+  const screenshotPath = path.join(dir, `${stamp}-sign-in.png`);
+  const htmlPath = path.join(dir, `${stamp}-sign-in.html`);
+  const textPath = path.join(dir, `${stamp}-sign-in.txt`);
+  const out: { screenshotPath: string | null; htmlPath: string | null; textPath: string | null } = {
+    screenshotPath,
+    htmlPath,
+    textPath,
+  };
+  try {
+    await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 10_000 });
+  } catch {
+    out.screenshotPath = null;
+  }
+  try {
+    await fs.writeFile(htmlPath, await page.content(), "utf8");
+  } catch {
+    out.htmlPath = null;
+  }
+  try {
+    await fs.writeFile(textPath, await page.locator("body").innerText({ timeout: 2_000 }), "utf8");
+  } catch {
+    out.textPath = null;
+  }
+  return out;
 }

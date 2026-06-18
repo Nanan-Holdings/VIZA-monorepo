@@ -180,6 +180,11 @@ export function sanitizeFranceAnswersForOfficialPortal(
       latinOnly: true,
       suggestion: "Require Latin hotel/host name for France-Visas accommodation details.",
     }, fieldFallbacks);
+    applyFallback(next.step5, "hostPersonFirstnames", "BOOKING", {
+      step: "step5",
+      latinOnly: true,
+      suggestion: "France-Visas requires host/accommodation first name(s) when the host-person accommodation block is selected.",
+    }, fieldFallbacks);
     applyFallback(next.step5, "hostPersonAddress", "HOTEL ADDRESS", {
       step: "step5",
       latinOnly: true,
