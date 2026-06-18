@@ -44,44 +44,169 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
     .locator("xpath=ancestor::*[contains(@class,'ant-form-item')][1]")
     .first();
   const selector = formItem.locator(".ant-select-selector, .ant-select").first();
-  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
+  await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
 
-  await control.fill(optionText, { timeout: SHORT_TIMEOUT }).catch(async () => {
-    await control.pressSequentially(optionText, { timeout: SHORT_TIMEOUT }).catch(() => undefined);
-  });
-
-  const optionRegex = buildAntSelectOptionRegex(optionText);
-  await page.waitForFunction(
-    ({ pattern, flags }) => {
-      const visible = (element: Element): boolean => {
+  const result = await page.evaluate(
+    async ({ domId, optionText }) => {
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      const visible = (element: Element | null): element is HTMLElement => {
+        if (!element) return false;
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          !element.classList.contains("ant-select-dropdown-hidden") &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const matcher = new RegExp(pattern, flags);
-      return Array.from(document.querySelectorAll<HTMLElement>(".ant-select-item-option-content"))
-        .some((element) => visible(element) && matcher.test((element.innerText || element.textContent || "").trim()));
-    },
-    { pattern: optionRegex.source, flags: optionRegex.flags },
-    { timeout: SHORT_TIMEOUT },
-  );
-  const clicked = await page.evaluate(
-    ({ pattern, flags }) => {
-      const visible = (element: Element): boolean => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      const normalize = (value: string) =>
+        value
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
+      const tokens = (value: string) => normalize(value).split(" ").filter((token) => token.length > 1);
+      const score = (candidate: string, target: string): number => {
+        const c = normalize(candidate);
+        const t = normalize(target);
+        if (!c || !t) return -1;
+        if (c === t) return 100;
+        if (c.startsWith(t) || t.startsWith(c)) return 92;
+        if (c.includes(t) || t.includes(c)) return 86;
+        const candidateTokens = tokens(candidate);
+        const targetTokens = tokens(target);
+        const overlap = targetTokens.filter((token) => candidateTokens.includes(token)).length;
+        if (targetTokens.length > 0 && overlap === targetTokens.length) return 88;
+        if (overlap >= 2) return 70 + overlap * 5;
+        if (overlap === 1 && targetTokens.length === 1) return 72;
+        return -1;
       };
-      const matcher = new RegExp(pattern, flags);
-      const option = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-item-option-content"))
-        .find((element) => visible(element) && matcher.test((element.innerText || element.textContent || "").trim()));
-      option?.click();
-      return Boolean(option);
+      const dispatchRealClick = (target: HTMLElement) => {
+        for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
+          const EventCtor = type === "pointerdown" ? window.PointerEvent || window.MouseEvent : window.MouseEvent;
+          target.dispatchEvent(new EventCtor(type, { bubbles: true, cancelable: true, button: 0 }));
+        }
+        target.click();
+      };
+      const setNativeValue = (input: HTMLInputElement, value: string) => {
+        const descriptor =
+          Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value") ||
+          Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value");
+        if (descriptor?.set) descriptor.set.call(input, value);
+        else input.value = value;
+      };
+      const target = document.getElementById(domId);
+      const select =
+        target?.closest(".ant-select") ??
+        target?.closest(".ant-form-item")?.querySelector<HTMLElement>(".ant-select");
+      if (!select) return { ok: false, reason: "select_container_not_found", candidates: [] as string[] };
+      const input =
+        select.querySelector<HTMLInputElement>(".ant-select-selection-search-input, input[role='combobox']") ??
+        (target instanceof HTMLInputElement ? target : null);
+      const selector = select.querySelector<HTMLElement>(".ant-select-selector") ?? (select as HTMLElement);
+      const open = async () => {
+        document.activeElement instanceof HTMLElement && document.activeElement.blur();
+        dispatchRealClick(selector);
+        await sleep(120);
+        if (input) {
+          input.focus();
+          input.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+          input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+          input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+        }
+        await sleep(180);
+      };
+      const dropdowns = () => {
+        const results: HTMLElement[] = [];
+        const seen = new Set<HTMLElement>();
+        const add = (dropdown: HTMLElement | null) => {
+          if (!dropdown || seen.has(dropdown) || !visible(dropdown)) return;
+          seen.add(dropdown);
+          results.push(dropdown);
+        };
+        for (const id of [input?.getAttribute("aria-controls"), input?.getAttribute("aria-owns")].filter(Boolean)) {
+          const owned = document.getElementById(id as string);
+          add((owned?.closest(".ant-select-dropdown") as HTMLElement | null) ?? owned);
+        }
+        const selectRect = select.getBoundingClientRect();
+        Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+          .filter(visible)
+          .map((dropdown) => {
+            const rect = dropdown.getBoundingClientRect();
+            return {
+              dropdown,
+              distance: Math.abs(rect.left - selectRect.left) + Math.abs(rect.top - selectRect.bottom),
+            };
+          })
+          .sort((a, b) => a.distance - b.distance)
+          .forEach(({ dropdown }) => add(dropdown));
+        return results;
+      };
+      const options = () =>
+        dropdowns().flatMap((dropdown) =>
+          Array.from(dropdown.querySelectorAll<HTMLElement>("[role='option'], .ant-select-item-option"))
+            .filter((option) => visible(option) && option.getAttribute("aria-disabled") !== "true")
+            .map((option) => {
+              const content = option.querySelector<HTMLElement>(".ant-select-item-option-content") ?? option;
+              const text = (option.getAttribute("title") || content.innerText || content.textContent || "")
+                .replace(/\s+/g, " ")
+                .trim();
+              return { option, content, text, score: score(text, optionText) };
+            })
+            .filter((option) => option.text),
+        );
+      const search = async (term: string) => {
+        if (!input) return;
+        input.focus();
+        input.click();
+        setNativeValue(input, "");
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+        await sleep(80);
+        setNativeValue(input, term);
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: term, inputType: "insertText" }));
+        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: term.slice(-1) || "a" }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        await sleep(700);
+      };
+
+      await open();
+      let optionList = options();
+      if (input) {
+        await search(optionText);
+        optionList = options();
+      }
+      const best = optionList.sort((a, b) => b.score - a.score)[0];
+      if (!best || best.score < 72) {
+        return {
+          ok: false,
+          reason: "option_not_found",
+          candidates: optionList.slice(0, 8).map((option) => `${option.text}(${option.score})`),
+        };
+      }
+      best.option.scrollIntoView({ block: "nearest" });
+      dispatchRealClick(best.content);
+      input?.blur();
+      await sleep(250);
+      const currentText = [
+        select.querySelector<HTMLElement>(".ant-select-selection-item")?.innerText,
+        select.querySelector<HTMLInputElement>(".ant-select-selection-search-input")?.value,
+        select.getAttribute("title"),
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const confirmed = score(currentText, best.text) >= 72 || score(currentText, optionText) >= 72;
+      return { ok: confirmed, reason: confirmed ? undefined : "selection_not_confirmed", candidates: [best.text] };
     },
-    { pattern: optionRegex.source, flags: optionRegex.flags },
+    { domId, optionText },
   );
-  if (!clicked) {
-    throw new Error(`Ant select option not found for ${domId}: ${optionText}`);
+
+  if (!result.ok) {
+    throw new Error(
+      `Ant select option not found for ${domId}: ${optionText}; ${result.reason}; candidates=${result.candidates.join(", ")}`,
+    );
   }
   await settle(page);
 }

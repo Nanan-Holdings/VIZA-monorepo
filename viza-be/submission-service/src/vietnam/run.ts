@@ -681,6 +681,42 @@ async function reachVietnamFormCheckpoint(
       state === "apply_now_visible" ||
       state === "language_switch_visible"
     ) {
+      const declarationVisible = await isVietnamDeclarationInstructionPage(page);
+      if (declarationVisible) {
+        await options.onStage("acknowledging_note");
+        const acknowledged = await acknowledgeVietnamNoteModal(page);
+        if (!acknowledged) {
+          return {
+            kind: "action_required",
+            actionType: "note_modal_required",
+            checkpoint: "note_modal_visible",
+            instruction:
+              "The official Vietnam e-Visa declaration page is visible, but VIZA could not find a safe acknowledgement control.",
+          };
+        }
+        const checkpoint = await waitForVietnamPortalCheckpoint(
+          page,
+          [
+            "form_ready",
+            "captcha_required",
+            "upload_required",
+            "payment_required",
+            "final_submit_required",
+            "official_portal_error",
+            "layout_changed",
+            "needs_manual_verification",
+          ],
+          {
+            timeoutMs: Math.min(options.stepTimeoutMs, 45_000),
+            failedRequestCount: options.failedRequestCount,
+            mainRequestFailed: options.mainRequestFailed,
+            onSnapshot: options.onSnapshot,
+          },
+        );
+        state = checkpoint.state;
+        await options.onStage(`official_checkpoint:${state}`);
+        continue;
+      }
       const clicked = await clickVietnamApplyEntry(page);
       if (!clicked) {
         return {
@@ -737,15 +773,37 @@ async function reachVietnamFormCheckpoint(
   };
 }
 
+async function isVietnamDeclarationInstructionPage(page: Page): Promise<boolean> {
+  return page
+    .evaluate(() => {
+      const text = (document.body?.innerText ?? "").replace(/\s+/g, " ").toLowerCase();
+      const hasDeclaration =
+        text.includes("declaration instructions") &&
+        (text.includes("confirm compliance with vietnamese laws") ||
+          text.includes("confirmation of reading carefully instructions"));
+      const hasNext = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"))
+        .some((element) => /^(next|tiếp tục)$/i.test((element.innerText || element.textContent || "").trim()));
+      const hasCheckbox = Boolean(document.querySelector(".ant-checkbox-input, input[type='checkbox'], [role='checkbox']"));
+      return hasDeclaration && hasNext && hasCheckbox;
+    })
+    .catch(() => false);
+}
+
 async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
   return page
     .evaluate(() => {
-      const candidates = Array.from(document.querySelectorAll<HTMLElement>("a, button, [role='button']"));
+      const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+      const href = links
+        .map((anchor) => anchor.href || anchor.getAttribute("href") || "")
+        .find((candidate) => /\/e-visa\/foreigners/i.test(candidate));
+      if (href) {
+        window.location.href = href;
+        return true;
+      }
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"));
       const match = candidates.find((element) => {
         const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-        const href = element instanceof HTMLAnchorElement ? element.getAttribute("href") ?? "" : "";
         return (
-          /\/e-visa\/foreigners/i.test(href) ||
           /for foreigners outside viet ?nam applying personally|apply now|e-visa for foreigners/i.test(text)
         );
       });
@@ -757,6 +815,18 @@ async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
 }
 
 async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
+  await page
+    .evaluate(() => {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" as ScrollBehavior });
+      for (const element of Array.from(document.querySelectorAll<HTMLElement>("div, main, section, article"))) {
+        if (element.scrollHeight > element.clientHeight + 100) {
+          element.scrollTop = element.scrollHeight;
+        }
+      }
+    })
+    .catch(() => undefined);
+  await page.waitForTimeout(300);
+
   const ticked = await page
     .evaluate(() => {
       const visible = (element: Element): boolean => {
@@ -765,14 +835,20 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
         return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
       };
       let count = 0;
-      for (const element of Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper, label, input[type='checkbox']"))) {
+      for (const element of Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-input, input[type='checkbox'], .ant-checkbox-wrapper, label, [role='checkbox']"))) {
         if (!visible(element)) continue;
         const input =
           element instanceof HTMLInputElement && element.type === "checkbox"
             ? element
             : element.querySelector<HTMLInputElement>("input[type='checkbox']");
         if (input?.checked) continue;
-        element.click();
+        if (input) {
+          input.click();
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        } else {
+          element.click();
+        }
         count++;
       }
       return count;

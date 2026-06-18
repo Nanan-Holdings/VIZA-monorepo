@@ -43,6 +43,7 @@ export interface UsSubmissionResult {
   status: "stopped_at_sign" | "stopped_at_pay" | "submitted";
   applicationId: string;
   confirmationNumber?: string;
+  submittedAt?: string;
   surnameFirst5: string;
   yearOfBirth: number;
   securityQuestion: string;
@@ -52,6 +53,12 @@ export interface UsSubmissionResult {
   retrievalUrl: string;
   datStoragePath?: string;
   finalSubmissionMode?: "applicant_handoff" | "external_verified";
+  evidence?: {
+    source?: "ceac_confirmation_page" | string;
+    submittedAt?: string;
+    confirmationText?: string;
+    screenshotPath?: string;
+  };
 }
 
 export interface FrSubmissionResult {
