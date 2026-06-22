@@ -242,6 +242,16 @@ function readProfileAuthUserId(value: unknown): string | null {
   return null;
 }
 
+function isMissingAppointmentSchemaError(error: { message?: string }): boolean {
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    message.includes("appointment_") &&
+    (message.includes("schema cache") ||
+      message.includes("could not find the table") ||
+      message.includes("could not find the column"))
+  );
+}
+
 function resolveCountryCode(country: string): string {
   const normalized = country.trim().toLowerCase();
   if (["us", "usa", "united_states", "united states", "united-states"].includes(normalized)) {
@@ -513,7 +523,10 @@ export class SupabaseUSAppointmentRepository implements USAppointmentRepository 
       .eq("idempotency_key", idempotencyKey)
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (isMissingAppointmentSchemaError(error)) return null;
+      throw new Error(error.message);
+    }
     return data ? mapJob(data as SupabaseObject) : null;
   }
 
