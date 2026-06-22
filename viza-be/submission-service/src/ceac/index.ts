@@ -176,6 +176,18 @@ export {
 } from "./final-submit";
 
 export {
+  fillRetrieveApplicationForm,
+  retrievalUrlFor,
+  type RecoveryCredentials,
+} from "./resume-application";
+
+export {
+  mergeUsProofStoragePaths,
+  waitForDs160ConfirmationPage,
+  type Ds160ProofStoragePaths,
+} from "./proof-artifacts";
+
+export {
   selectDs160PhotoDocument,
   buildPhotoFileFromDownloadedDocument,
   isDs160PhotoDocument,

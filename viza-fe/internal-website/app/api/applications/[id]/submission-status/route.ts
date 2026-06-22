@@ -284,6 +284,7 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
 
 function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
+  if (normalizeStatus(queue.status).startsWith("ds160_proof_")) return false;
   const derived = deriveQueueStage(normalizeStatus(queue.status));
   return derived.status === "queued" || derived.status === "running";
 }

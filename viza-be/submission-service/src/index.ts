@@ -36,6 +36,9 @@ import {
   isSuccessResult,
   isSubmittedResult,
   handleConfirmApplicationPage,
+  fillRetrieveApplicationForm,
+  mergeUsProofStoragePaths,
+  waitForDs160ConfirmationPage,
   selectDs160PhotoDocument,
   buildPhotoFileFromDownloadedDocument,
   type CeacRunResult,
@@ -154,6 +157,8 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "ds160_prefill_processing",
   "ds160_live_assisted_pending",
   "ds160_live_assisted_processing",
+  "ds160_proof_pending",
+  "ds160_proof_processing",
   "fv_prefill_pending",
   "fv_prefill_processing",
   "france_live_assisted_pending",
@@ -186,12 +191,14 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
   return (
     item.mode === "live_assisted" ||
     item.status.startsWith("ds160_live_assisted_") ||
+    item.status.startsWith("ds160_proof_") ||
     item.status.startsWith("france_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
     item.status.startsWith("sgac_live_assisted_") ||
     item.provider === "france_visas_live" ||
     item.provider === "vietnam_evisa_live" ||
-    item.provider === "sg_arrival_card_live"
+    item.provider === "sg_arrival_card_live" ||
+    item.provider === "ceac_proof"
   );
 }
 
@@ -223,6 +230,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "pending",
       "ds160_prefill_pending",
       "ds160_live_assisted_pending",
+      "ds160_proof_pending",
       "fv_prefill_pending",
       "france_live_assisted_pending",
       "uk_prefill_pending",
@@ -249,6 +257,10 @@ function queuePriority(item: SubmissionQueueItem): number {
 
 function isDs160Job(item: SubmissionQueueItem): boolean {
   return item.status === "ds160_prefill_pending" || item.status === "ds160_live_assisted_pending";
+}
+
+function isDs160ProofJob(item: SubmissionQueueItem): boolean {
+  return item.status === "ds160_proof_pending" || item.provider === "ceac_proof";
 }
 
 function isFvJob(item: SubmissionQueueItem): boolean {
@@ -729,6 +741,7 @@ function resolveCeacStartLocationCode(answers: Record<string, string>): string {
 
 function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): SubmissionQueueItem["status"] {
   if (status.startsWith("ds160_live_assisted_")) return "ds160_live_assisted_failed";
+  if (status.startsWith("ds160_proof_")) return "ds160_proof_failed";
   if (status.startsWith("ds160_")) return "ds160_prefill_failed";
   if (status.startsWith("fv_")) return "fv_prefill_failed";
   if (status.startsWith("uk_")) return "uk_prefill_failed";
@@ -1056,6 +1069,128 @@ async function uploadDs160ProofArtifacts(
   }
 
   return uploaded;
+}
+
+async function processDs160ProofItem(
+  item: SubmissionQueueItem,
+  config: Ds160SubmissionConfig,
+): Promise<void> {
+  const runId = createRunId("ds160-proof");
+  console.log(
+    `[ceac-proof] Starting proof recovery ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "ds160_proof_processing",
+      current_stage: "retrieving_confirmation",
+      heartbeat_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ceac-proof-"));
+  let session: Awaited<ReturnType<typeof startCeacSession>> | null = null;
+  const heartbeatTimer = setInterval(() => {
+    void supabase
+      .from("submission_queue")
+      .update({
+        heartbeat_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id)
+      .eq("status", "ds160_proof_processing");
+  }, 60_000);
+
+  try {
+    const { profile } = await loadApplicantData(item.application_id);
+    const { data: application, error } = await supabase
+      .from("applications")
+      .select("submission_result")
+      .eq("id", item.application_id)
+      .single();
+    if (error) throw new Error(`Failed to load submitted DS-160 result: ${error.message}`);
+    const currentResult = application?.submission_result as Partial<UsSubmissionResult> | null;
+    if (!currentResult || currentResult.country !== "US" || currentResult.status !== "submitted") {
+      throw new Error("DS-160 proof recovery requires an existing submitted US result.");
+    }
+    const securityAnswer =
+      currentResult.securityAnswer ??
+      (currentResult.securityAnswerCipher ? decryptSecret(currentResult.securityAnswerCipher) : null);
+    if (!securityAnswer) {
+      throw new Error("DS-160 proof recovery requires the stored security answer.");
+    }
+
+    session = await startCeacSession({
+      headless: config.playwrightHeadless,
+      acceptDownloads: true,
+      runId,
+      captchaMaxAttempts: 3,
+    });
+    await fillRetrieveApplicationForm(session.page, {
+      applicationId: currentResult.applicationId ?? "",
+      surnameFirstFive: currentResult.surnameFirst5 ?? "",
+      yearOfBirth: String(currentResult.yearOfBirth ?? ""),
+      securityAnswer,
+    });
+    await waitForDs160ConfirmationPage(session.page);
+
+    const ownerId = profile.auth_user_id ?? profile.id;
+    const proofStoragePaths = await uploadDs160ProofArtifacts(
+      await captureDs160ProofArtifacts(session.page, tempDir),
+      item.application_id,
+      ownerId,
+    );
+    const merged = mergeUsProofStoragePaths(currentResult, proofStoragePaths);
+    await writeSubmissionResult(item.application_id, merged, "submitted");
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "done",
+        current_stage: "proof_artifacts_ready",
+        ceac_result_payload: {
+          status: "proof_artifacts_ready",
+          proofStoragePaths,
+          captchaSolve: session.captchaSolve?.telemetry ?? [],
+        },
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    console.log(
+      `[ceac-proof] Proof recovery ${runId} completed for application=${redactIdentifier(item.application_id)}`,
+    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const newAttempts = item.attempts + 1;
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? "ds160_proof_failed" : "ds160_proof_pending";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        error_code: "ds160_proof_recovery_failed",
+        error_message: errorMsg,
+        current_stage: "proof_recovery_failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    console.error(
+      `[ceac-proof] Proof recovery ${runId} failed for application=${redactIdentifier(item.application_id)}: ${errorMsg}`,
+    );
+  } finally {
+    clearInterval(heartbeatTimer);
+    if (session) await session.close();
+    if (process.env.DS160_KEEP_TEMP === "1") {
+      console.warn(`[ceac-proof] Keeping temp dir for diagnostics: ${tempDir}`);
+    } else {
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+    }
+  }
 }
 
 async function updateDs160Metadata(
@@ -3929,6 +4064,24 @@ async function pollOnce(): Promise<void> {
     const item = await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem));
     if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
       await processDryRunItem(item, "global_dry_run");
+    } else if (isDs160ProofJob(item)) {
+      const ds160Config = loadDs160SubmissionConfig();
+      const liveStartError = validateDs160LiveStart(ds160Config);
+      if (liveStartError) {
+        await supabase
+          .from("submission_queue")
+          .update({
+            status: "ds160_proof_failed",
+            attempts: item.attempts + 1,
+            last_error: liveStartError,
+            error_code: "ds160_proof_config_blocked",
+            error_message: liveStartError,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+        continue;
+      }
+      await processDs160ProofItem(item, ds160Config);
     } else if (isDs160Job(item)) {
       const liveRequested = isDs160LiveAssistedQueueItem(item);
       if (!liveRequested) {

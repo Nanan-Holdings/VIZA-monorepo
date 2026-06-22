@@ -44,14 +44,16 @@ const RETRIEVE_FORM_SELECTORS = {
     'a[id*="lnkRetrieve"], a[id*="lnkContinueApp"], input[id*="btnRetrieve"]',
   applicationId:
     'input[id*="tbxApplicationID"], input[id*="txtApplicationID"], input[id*="ApplicationID"][type="text"]',
+  applicationIdSubmit:
+    'input[id*="btnBarcodeSubmit"], input[type="submit"][value="Retrieve Application"]',
   surnameFive:
-    'input[id*="tbxSurname"], input[id*="txtSurname"], input[id*="Surname"][type="text"]',
+    'input[id*="tbxSurname"]:visible, input[id*="txtSurname"]:visible, input[id*="txbSname"]:visible, input[id*="Surname"][type="text"]:visible',
   yearOfBirth:
-    'input[id*="tbxDOBYear"], input[id*="txtYearOfBirth"], select[id*="ddlDOBYear"]',
+    'input[id*="tbxDOBYear"]:visible, input[id*="txtYearOfBirth"]:visible, input[id*="txbYear"]:visible, select[id*="ddlDOBYear"]:visible',
   securityAnswer:
-    'input[id*="tbxAnswer"], input[id*="txtAnswer"], input[id*="SecurityAnswer"][type="text"]',
+    'input[id*="tbxAnswer"]:visible, input[id*="txtAnswer"]:visible, input[id*="txbAnswer1"]:visible, input[id*="SecurityAnswer"][type="text"]:visible',
   continue:
-    'input[id*="btnContinue"], input[type="submit"][value*="Continue"], a[id*="lnkContinue"]',
+    'input[id*="btnRetrieve"]:visible, input[name*="ApplicationRecovery1$Button1"]:visible, input[id*="btnContinue"]:visible, input[type="submit"][value*="Continue"]:visible, a[id*="lnkContinue"]:visible',
 } as const;
 
 /**
@@ -92,6 +94,14 @@ export async function fillRetrieveApplicationForm(
   // field isn't on the page (CEAC variations omit some), we skip it and
   // let server-side validation surface a clearer error downstream.
   await fillIfPresent(page, RETRIEVE_FORM_SELECTORS.applicationId, credentials.applicationId);
+
+  // Current CEAC renders retrieval as two postbacks. The first accepts only
+  // the Application ID; surname/year/security answer are attached after it.
+  const applicationIdSubmit = page.locator(RETRIEVE_FORM_SELECTORS.applicationIdSubmit).first();
+  if ((await applicationIdSubmit.count()) > 0) {
+    await clickAndSettle(page, applicationIdSubmit);
+  }
+
   await fillIfPresent(
     page,
     RETRIEVE_FORM_SELECTORS.surnameFive,
@@ -106,7 +116,9 @@ export async function fillRetrieveApplicationForm(
     } catch {
       try {
         await yob.selectOption(credentials.yearOfBirth, { timeout: 3_000 });
-      } catch { /* best effort */ }
+      } catch {
+        await assignDomValue(yob, credentials.yearOfBirth);
+      }
     }
   }
   await fillIfPresent(page, RETRIEVE_FORM_SELECTORS.securityAnswer, credentials.securityAnswer);
@@ -116,16 +128,7 @@ export async function fillRetrieveApplicationForm(
   if ((await continueBtn.count()) === 0) {
     throw new Error("CEAC Retrieve form: no Continue button found");
   }
-  try {
-    await continueBtn.click({ force: true, timeout: 10_000 });
-  } catch {
-    await continueBtn.evaluate("el => el.click()");
-  }
-  try {
-    await page.waitForLoadState("networkidle", { timeout: 30_000 });
-  } catch {
-    await page.waitForTimeout(3_000);
-  }
+  await clickAndSettle(page, continueBtn);
 }
 
 /**
@@ -143,6 +146,28 @@ async function fillIfPresent(page: Page, selector: string, value: string): Promi
   try {
     await el.fill(value, { timeout: 3_000 });
   } catch {
-    // best effort — downstream validation will complain if it really mattered
+    await assignDomValue(el, value);
+  }
+}
+
+async function assignDomValue(locator: ReturnType<Page["locator"]>, value: string): Promise<void> {
+  await locator.evaluate((node, nextValue) => {
+    const input = node as HTMLInputElement | HTMLSelectElement;
+    input.value = nextValue;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
+
+async function clickAndSettle(page: Page, locator: ReturnType<Page["locator"]>): Promise<void> {
+  try {
+    await locator.click({ force: true, timeout: 10_000 });
+  } catch {
+    await locator.evaluate("el => el.click()");
+  }
+  try {
+    await page.waitForLoadState("networkidle", { timeout: 30_000 });
+  } catch {
+    await page.waitForTimeout(3_000);
   }
 }

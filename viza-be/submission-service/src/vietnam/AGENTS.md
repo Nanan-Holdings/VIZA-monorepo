@@ -13,6 +13,10 @@ D:\NUS_Bachelor\Study\Y2S2\VIZA-monorepo\vietnam-visa-helper-v1
 
 Key files:
 
+- `apply-entry.ts`: chooses the visible official Apply control before falling
+  back to direct route navigation so Vue initialization handlers are preserved.
+- `declaration.ts`: keeps NOTE declaration checkbox acknowledgement idempotent
+  so each official input is checked exactly once before `Next`.
 - `vietnam-visa-helper-v1/content.js`: production content script with robust
   field discovery, Ant Design Vue select handling, checkbox/radio filling, and
   upload helpers.

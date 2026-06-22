@@ -196,6 +196,21 @@ export function buildCountrySubmissionApplication(
     ]);
   }
 
+  const sgacFullName = isSgArrivalCard
+    ? firstAnswer(normalizedAnswers, ["full_name", "full_name_en", "applicant_full_name"])
+    : null;
+  const sgacEmail = isSgArrivalCard
+    ? firstAnswer(normalizedAnswers, ["email_address", "email"])
+    : null;
+  const sgacPhone = isSgArrivalCard
+    ? firstValue([
+        [normalizedAnswers.mobile_country_code, normalizedAnswers.mobile_number]
+          .filter(Boolean)
+          .join(""),
+        normalizedAnswers.mobile_number,
+      ])
+    : null;
+
   return {
     applicationId: application.id,
     userId: profile.auth_user_id,
@@ -203,7 +218,7 @@ export function buildCountrySubmissionApplication(
     countryCode: application.country,
     visaType: application.visa_type,
     profile: {
-      fullName: profile.full_name,
+      fullName: sgacFullName ?? profile.full_name,
       dateOfBirth: profile.date_of_birth,
       gender: profile.gender,
       nationality: profile.nationality,
@@ -211,8 +226,8 @@ export function buildCountrySubmissionApplication(
       passportIssueDate: profile.passport_issue_date,
       passportExpiryDate: profile.passport_expiry_date,
       passportIssuingCountry: profile.issuing_country,
-      email: profile.email,
-      phone: profile.phone,
+      email: sgacEmail ?? profile.email,
+      phone: sgacPhone ?? profile.phone,
       address: profile.address,
       occupation: profile.occupation,
       employerOrSchool: firstAnswer(normalizedAnswers, [

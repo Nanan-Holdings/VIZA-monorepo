@@ -72,5 +72,8 @@ Then follow:
 - `viza-be/submission-service/src/ceac/final-submit.ts`
 - `viza-be/submission-service/src/ceac/photo-document.ts`
 - `viza-be/submission-service/src/ceac/__tests__/photo-document.spec.ts`
+- `viza-be/submission-service/src/ceac/proof-artifacts.ts`
+- `viza-be/submission-service/src/ceac/__tests__/proof-artifacts.spec.ts`
+- `viza-be/submission-service/src/ceac/__tests__/resume-application.spec.ts`
 - `viza-be/submission-service/src/ceac/__tests__/session.spec.ts`
 - `viza-be/submission-service/docs/ceac-smoke-test.md`

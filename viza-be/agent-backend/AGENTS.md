@@ -44,7 +44,8 @@ explicitly reintroduces another provider.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 - Singapore SG Arrival Card seed:
-  `scripts/seed-sg-arrival-card-form-fields.ts`, with focused coverage in
+  `scripts/sgac/form-fields.ts` and `scripts/sgac/seed-form-fields.ts`, with
+  `scripts/seed-sg-arrival-card-form-fields.ts` retained as the command entry and focused coverage in
   `src/tests/sg-arrival-card-schema.test.ts`.
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
