@@ -4726,7 +4726,8 @@
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
       "withCode": "预约请求暂时无法完成。参考代码：{code}。",
-      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，然后重启后端。"
+      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，或 SUPABASE_URL 和 SUPABASE_ANON_KEY，然后重启后端。",
+      "appointmentSchemaNotConfigured": "预约服务的数据库表尚未部署。请先执行 agent-backend 的 0091_us_appointment_assistant.sql 迁移，然后重启后端。"
     },
     "modes": {
       "dry_run": "Dry run 演练",

@@ -64,6 +64,16 @@ function latestCompleted(actions: AppointmentManualAction[], actionType: string)
     .sort((a, b) => Date.parse(b.completedAt ?? b.createdAt ?? "") - Date.parse(a.completedAt ?? a.createdAt ?? ""))[0] ?? null;
 }
 
+function isMissingAppointmentSchemaError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes("appointment_") &&
+    (message.includes("schema cache") ||
+      message.includes("could not find the table") ||
+      message.includes("could not find the column"))
+  );
+}
+
 export class USAppointmentOrchestrator {
   private readonly auditService: AppointmentAuditService;
   private readonly checkpointService: AppointmentCheckpointService;
@@ -215,7 +225,16 @@ export class USAppointmentOrchestrator {
   }
 
   async getStatus(applicationId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.repository.getLatestJobForApplication(applicationId);
+    let job: AppointmentAssistanceJob | null;
+    try {
+      job = await this.repository.getLatestJobForApplication(applicationId);
+    } catch (error) {
+      if (isMissingAppointmentSchemaError(error)) {
+        job = null;
+      } else {
+        throw error;
+      }
+    }
     if (!job) {
       return {
         job: null,

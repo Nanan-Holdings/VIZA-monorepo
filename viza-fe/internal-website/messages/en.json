@@ -4640,7 +4640,8 @@
     "errors": {
       "generic": "The appointment request could not be completed. Please try again.",
       "withCode": "The appointment request could not be completed. Reference: {code}.",
-      "supabaseAuthNotConfigured": "The appointment service is missing Supabase auth configuration. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to agent-backend, then restart the backend."
+      "supabaseAuthNotConfigured": "The appointment service is missing Supabase auth configuration. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or SUPABASE_URL and SUPABASE_ANON_KEY, to agent-backend, then restart the backend.",
+      "appointmentSchemaNotConfigured": "The appointment database tables have not been deployed yet. Run the agent-backend 0091_us_appointment_assistant.sql migration, then restart the backend."
     },
     "modes": {
       "dry_run": "Dry run",

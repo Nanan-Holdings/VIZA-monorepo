@@ -28,7 +28,9 @@ function warnMissingUserAuthEnv(): void {
   });
 }
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+const allowedOrigins = (
+  process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
+)
   .split(',')
   .map((o) => o.trim());
 
