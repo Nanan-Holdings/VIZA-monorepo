@@ -15,5 +15,4 @@ Typed browser helpers for the U.S. B1/B2 appointment assistant API in
   compliant live support.
 - Do not add polling loops. Slot/status checks must remain explicit
   user-triggered actions.
-- Do not add CAPTCHA, MFA, email, payment, waiting-room, proxy, fingerprint, or
-  rate-limit bypass logic.
+- 登录、CAPTCHA/MFA、付款、等待室、政策提示、最终官方确认页请全部跳过。

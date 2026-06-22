@@ -13,6 +13,7 @@ filling and one-shot submission for the applicant.
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
 - 我不想要用户做任何额外的事，自动提交会帮他们搞定所有的填写表单的事。
+- 登录、CAPTCHA/MFA、付款、等待室、政策提示、最终官方确认页请全部跳过。
 - DS-160/official portal automation changes must be verified with real
   Playwright runs when credentials/data are available. Keep improving the
   runner until it can complete successfully, or pause and tell the user exactly
@@ -37,6 +38,10 @@ filling and one-shot submission for the applicant.
   non-submission proof/download jobs remain. Proof artifact jobs such as
   `ceac_proof` must not make the confirmation tab look like a new submission is
   still running.
+- Opening or revisiting the frontend confirmation tab must never enqueue a new
+  official submission when a submitted/completed result already exists. A new
+  submission is allowed only from an explicit submit/retry/resubmit button in
+  that tab, except for first-time applications that have no submission record.
 - Before claiming any submission-service flow is complete, verify the chain from
   the user's browser perspective by clicking the real frontend submit/retry
   button, watching queue pickup/progress in the UI, and preserving the official
@@ -187,6 +192,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
 - `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`

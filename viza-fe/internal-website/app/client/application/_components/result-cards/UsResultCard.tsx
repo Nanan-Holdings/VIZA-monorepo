@@ -224,6 +224,8 @@ export function UsResultCard({
 
         <div className="grid gap-2">
           <CopyValue label={t("applicationId")} value={result.applicationId} />
+          <CopyValue label={t("surnameFirst5")} value={result.surnameFirst5} />
+          <CopyValue label={t("yearOfBirth")} value={String(result.yearOfBirth)} />
         </div>
 
         {submitted && (

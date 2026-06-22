@@ -12,8 +12,10 @@ import {
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
+  retryQueueInsertCanUseLegacyPayload,
   RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   type SubmissionMode,
+  type SubmissionQueueStatus,
 } from "@/lib/submission-queue";
 
 type ApplicationForRetry = {
@@ -207,19 +209,6 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
-}
-
-function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
-  const message = (error.message ?? "").toLowerCase();
-  return (
-    error.code === "PGRST204" ||
-    message.includes("submission_queue.mode") ||
-    message.includes("submission_queue.provider") ||
-    message.includes("column submission_queue.mode does not exist") ||
-    message.includes("column submission_queue.provider does not exist") ||
-    message.includes("could not find the 'mode' column") ||
-    message.includes("could not find the 'provider' column")
-  );
 }
 
 function isMissingVietnamLiveSchemaError(error: { message?: string; code?: string }): boolean {
@@ -519,7 +508,7 @@ async function insertRetryQueueRow(
   admin: ReturnType<typeof createAdminClient>,
   input: {
     applicationId: string;
-    queueStatus: string;
+    queueStatus: SubmissionQueueStatus;
     mode: SubmissionMode;
     provider: string | null;
     now: string;
@@ -542,11 +531,10 @@ async function insertRetryQueueRow(
     return { error: null, jobId: row?.id ?? null };
   }
 
-  const canUseLegacyPayload =
-    isMissingSubmissionModeColumnError(error) &&
-    (input.mode === "dry_run" ||
-      input.queueStatus === "ds160_live_assisted_pending" ||
-      input.queueStatus === "vn_live_assisted_pending");
+  const canUseLegacyPayload = retryQueueInsertCanUseLegacyPayload(error, {
+    mode: input.mode,
+    queueStatus: input.queueStatus,
+  });
   if (!canUseLegacyPayload) return { error: error.message, jobId: null };
 
   const { data: legacyData, error: legacyError } = await admin.from("submission_queue").insert({

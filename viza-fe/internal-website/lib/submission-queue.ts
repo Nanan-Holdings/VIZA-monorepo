@@ -282,6 +282,37 @@ export function submissionQueueRequiresServerEnqueue(
   );
 }
 
+function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST204" ||
+    message.includes("submission_queue.mode") ||
+    message.includes("submission_queue.provider") ||
+    message.includes("column submission_queue.mode does not exist") ||
+    message.includes("column submission_queue.provider does not exist") ||
+    message.includes("could not find the 'mode' column") ||
+    message.includes("could not find the 'provider' column")
+  );
+}
+
+export function retryQueueInsertCanUseLegacyPayload(
+  error: { message?: string; code?: string },
+  input: {
+    mode: SubmissionMode;
+    queueStatus: SubmissionQueueStatus;
+  },
+): boolean {
+  if (!isMissingSubmissionModeColumnError(error)) return false;
+  if (input.mode === "dry_run") return true;
+  return (
+    input.queueStatus === "ds160_live_assisted_pending" ||
+    input.queueStatus === "vn_live_assisted_pending" ||
+    input.queueStatus === "france_live_assisted_pending" ||
+    input.queueStatus === "sgac_live_assisted_pending" ||
+    input.queueStatus === "sgac_live_assisted_scheduled"
+  );
+}
+
 export function submitModeForPrimaryApplicationAction(
   country: string | null | undefined,
   visaType: string | null | undefined,

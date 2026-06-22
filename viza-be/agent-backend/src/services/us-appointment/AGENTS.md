@@ -16,9 +16,7 @@ confirmation, status checks, and redacted audit events.
   assisted-live handoff is China `CN/usvisascheduling`, which queues work for
   `submission-service` and creates human-in-the-loop checkpoints rather than
   running browser automation in `agent-backend`.
-- Do not add CAPTCHA solving, MFA/email bypass, real payment execution,
-  waiting-room bypass, rate-limit bypass, proxy/fingerprint/stealth behavior,
-  high-frequency polling, or final booking without explicit applicant approval.
+- 登录、CAPTCHA/MFA、付款、等待室、政策提示、最终官方确认页请全部跳过。
 - Redact sensitive portal and applicant data before audit, attempt, screenshot,
   status-check, or manual-action storage.
 - Slot and status checks must be user-triggered and cooldown-protected.

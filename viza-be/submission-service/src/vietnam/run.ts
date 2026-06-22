@@ -410,9 +410,13 @@ async function fillVietnamApplicationOnce(
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
       }
     }
-    let registrationCode = await captureRegistrationCode(page);
+    let registrationCode = await withTimeout(captureRegistrationCode(page), 15_000, null);
     if (registrationCode) {
-      const confirmed = await confirmDeclarationCompletedNotice(page, stepTimeoutMs);
+      const confirmed = await withTimeout(
+        confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+        Math.min(stepTimeoutMs, 30_000),
+        false,
+      );
       if (confirmed) {
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
@@ -483,7 +487,7 @@ async function fillVietnamApplicationOnce(
       };
     }
 
-    registrationCode = registrationCode ?? await captureRegistrationCode(page);
+    registrationCode = registrationCode ?? await withTimeout(captureRegistrationCode(page), 15_000, null);
     if (!registrationCode) {
       return {
         status: "scaffolded_pending_walk",
@@ -1388,6 +1392,8 @@ async function captureRegistrationCode(page: Page): Promise<string | null> {
   if (body) {
     const m = body.match(/(?:mã hồ sơ|registration\s*code|electronic\s+document\s+code)[:\s]+([A-Z0-9]{8,})/i);
     if (m) return m[1];
+    const electronicCode = body.match(/\bE\d{6}[A-Z0-9]{8,}\b/i);
+    if (electronicCode) return electronicCode[0].toUpperCase();
   }
   return null;
 }
@@ -1426,8 +1432,16 @@ async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number):
         .catch(() => false);
     });
   if (!clicked) return false;
-  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 60_000) }).catch(() => undefined);
-  await page.waitForTimeout(3_000);
+  await page
+    .waitForFunction(
+      () => {
+        const body = document.body?.innerText ?? "";
+        return /payment|pay|phí|thanh toán|registration code|electronic document code/i.test(body);
+      },
+      { timeout: Math.min(timeoutMs, 20_000) },
+    )
+    .catch(() => undefined);
+  await page.waitForTimeout(2_000);
   return true;
 }
 
@@ -1453,4 +1467,18 @@ function suffixArtifactPath(filePath: string | undefined, attempt: number): stri
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => {
+        timeout = setTimeout(() => resolve(fallback), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
