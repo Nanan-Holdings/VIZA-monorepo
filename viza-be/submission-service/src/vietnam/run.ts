@@ -1379,6 +1379,24 @@ async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {
 async function captureRegistrationCode(page: Page): Promise<string | null> {
   // Try the explicit selector first; fall back to body-text regexes for
   // "Mã hồ sơ" / "Registration code" / "Electronic document code" patterns.
+  const visibleCode = await page
+    .evaluate(() => {
+      const texts = [
+        document.body?.innerText ?? "",
+        ...Array.from(document.querySelectorAll<HTMLElement>(".ant-modal, .ant-modal-root, .ant-modal-content, [role='dialog'], .notice"))
+          .map((element) => element.innerText || element.textContent || ""),
+      ];
+      for (const text of texts) {
+        const electronic = text.match(/\bE\d{6}[A-Z0-9]{8,}\b/i);
+        if (electronic) return electronic[0].toUpperCase();
+        const labeled = text.match(/(?:mã hồ sơ|registration\s*code|electronic\s+document\s+code)[:\s]+([A-Z0-9]{8,})/i);
+        if (labeled) return labeled[1].toUpperCase();
+      }
+      return null;
+    })
+    .catch(() => null);
+  if (visibleCode) return visibleCode;
+
   const explicit = await page
     .locator(VN_REGISTRATION_CODE_SELECTOR)
     .first()

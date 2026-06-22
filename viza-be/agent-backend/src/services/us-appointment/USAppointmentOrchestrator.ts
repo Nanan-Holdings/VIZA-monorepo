@@ -404,13 +404,6 @@ export class USAppointmentOrchestrator {
   async bookSelectedSlot(jobId: string): Promise<AppointmentStatusSnapshot> {
     const job = await this.getJobOrThrow(jobId);
     this.assertJobCanContinue(job);
-    if (job.mode !== "dry_run") {
-      throw new USAppointmentServiceError(
-        403,
-        "live_booking_disabled",
-        "Real appointment booking is disabled. Dry-run is the only executable mode.",
-      );
-    }
 
     const selectedSlot = await this.repository.getSelectedSlot(job.id);
     if (!selectedSlot) {
@@ -428,6 +421,30 @@ export class USAppointmentOrchestrator {
         "final_confirmation_required",
         "Explicit final confirmation is required before booking.",
       );
+    }
+
+    if (job.mode !== "dry_run") {
+      const bookedJob = await this.transitionJob(
+        job,
+        "appointment_booked",
+        "User approved selected assisted-live appointment slot for runner booking.",
+        {
+          selected_slot_id: selectedSlot.id,
+          scheduling_provider: job.schedulingProvider,
+          runner_service: "submission-service",
+          final_approval_present: true,
+        },
+      );
+      await this.auditService.recordJobTransition(
+        bookedJob,
+        "appointment_assisted_live_booking_requested",
+        "Assisted-live appointment booking requested after selected slot and final approval.",
+        {
+          selected_slot_id: selectedSlot.id,
+          runner_service: "submission-service",
+        },
+      );
+      return this.getStatus(bookedJob.applicationId);
     }
 
     const bookedJob = await this.transitionJob(

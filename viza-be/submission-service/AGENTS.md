@@ -77,11 +77,14 @@ filling and one-shot submission for the applicant.
   submission capability audits.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
-- `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live handoff
-  runner. Polls `appointment_assistance_jobs` when
+- `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
+  appointment runner. Polls `appointment_assistance_jobs` when
   `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, uses the Cloudflare-backed
-  `inbound_email` path for verification mail helpers, and pauses at login,
-  CAPTCHA, payment, policy warnings, and final confirmation.
+  `inbound_email` path for verification mail helpers, writes official slot
+  observations to `appointment_slots`, books only after a user-selected slot
+  and final VIZA approval, captures confirmation artifacts in
+  `appointment_confirmations`, and writes follow-up checks to
+  `appointment_status_checks`.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
@@ -114,7 +117,7 @@ filling and one-shot submission for the applicant.
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses CAPTCHA solving when needed, and completes applicant Sign/Submit as part of one-shot submission. |
-| US B1/B2 appointment / China USVisaScheduling | Assisted-live handoff gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; creates manual checkpoints and never bypasses CAPTCHA, waiting rooms, payment, policy warnings, or final confirmation. |
+| US B1/B2 appointment / China USVisaScheduling | Assisted-live gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; writes official slot/status observations, books only after user slot selection plus final approval, and never bypasses CAPTCHA, waiting rooms, payment, policy warnings, or user approval boundaries. |
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
@@ -134,6 +137,12 @@ filling and one-shot submission for the applicant.
 - Do not move frontend submission UI here; use `viza-fe/internal-website`.
 - Never log or commit portal credentials, service-role keys, applicant
   documents, screenshots with secrets, or CAPTCHA/API keys.
+- Appointment loading UI must be tied only to an active appointment job for the
+  same application. Opening or revisiting the appointment page must read the
+  latest VIZA DB status and must not create, rerun, or rebook a job. New
+  official-site work is allowed only from explicit start, check-slots,
+  check-status, select-slot, or confirm-booking actions, with backend cooldowns
+  for official status and slot refreshes.
 
 ## Validation
 

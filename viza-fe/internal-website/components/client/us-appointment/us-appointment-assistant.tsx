@@ -173,7 +173,7 @@ function formatDateTime(value: string | null, locale: string) {
 }
 
 function selectedSlot(slots: AppointmentSlot[]) {
-  return slots.find((slot) => slot.status === "selected") ?? null;
+  return slots.find((slot) => ["selected", "user_selected"].includes(slot.status)) ?? null;
 }
 
 function buildManualInput(
@@ -245,7 +245,8 @@ export function USAppointmentAssistant({
   const [consentRecorded, setConsentRecorded] = useState(false);
   const [ds160Code, setDs160Code] = useState("");
   const [applyingPostCity, setApplyingPostCity] = useState("Beijing");
-  const [preferredDateRange, setPreferredDateRange] = useState("");
+  const [preferredDateStart, setPreferredDateStart] = useState("");
+  const [preferredDateEnd, setPreferredDateEnd] = useState("");
   const [avoidDates, setAvoidDates] = useState("");
   const [timePreference, setTimePreference] = useState("any");
   const [manualInput, setManualInput] = useState("");
@@ -279,7 +280,9 @@ export function USAppointmentAssistant({
     } catch (error) {
       setErrorMessage(
         error instanceof USAppointmentApiError
-          ? t("errors.withCode", { code: error.code })
+          ? error.code === "supabase_auth_not_configured"
+            ? t("errors.supabaseAuthNotConfigured")
+            : t("errors.withCode", { code: error.code })
           : t("errors.generic"),
       );
     } finally {
@@ -290,6 +293,16 @@ export function USAppointmentAssistant({
   useEffect(() => {
     void loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
+    const timer = window.setInterval(() => {
+      void getAppointmentStatus(applicationId)
+        .then(setSnapshot)
+        .catch(() => undefined);
+    }, 7000);
+    return () => window.clearInterval(timer);
+  }, [applicationId, job]);
 
   const runWithBusy = useCallback(
     async (
@@ -304,7 +317,9 @@ export function USAppointmentAssistant({
       } catch (error) {
         setErrorMessage(
           error instanceof USAppointmentApiError
-            ? t("errors.withCode", { code: error.code })
+            ? error.code === "supabase_auth_not_configured"
+              ? t("errors.supabaseAuthNotConfigured")
+              : t("errors.withCode", { code: error.code })
             : t("errors.generic"),
         );
       } finally {
@@ -352,12 +367,15 @@ export function USAppointmentAssistant({
         applyingPostCity,
         schedulingProvider: "usvisascheduling",
         userPreferencesJson: {
-          preferredDateRange: preferredDateRange.trim(),
+          preferredDateStart: preferredDateStart.trim(),
+          preferredDateEnd: preferredDateEnd.trim(),
           avoidDates: avoidDates
             .split(/[,\n]/)
             .map((value) => value.trim())
             .filter(Boolean),
           timePreference,
+          postCity: applyingPostCity,
+          appointmentType: "interview",
           assistedLiveCountry: "CN",
           provider: "usvisascheduling",
           usesVizaAliasEmail: true,
@@ -408,6 +426,15 @@ export function USAppointmentAssistant({
   const canCheckStatus = Boolean(job && snapshot?.confirmation);
   const canBook = Boolean(job && selectedAppointmentSlot && finalApproved && !snapshot?.confirmation);
   const showCreate = !job;
+  const showProgress =
+    Boolean(job) &&
+    !TERMINAL_STATUSES.has(job?.status ?? "appointment_not_started") &&
+    ![
+      "appointment_slot_selection_required",
+      "appointment_final_confirmation_required",
+      "appointment_no_slots_available",
+      "appointment_manual_required",
+    ].includes(job?.status ?? "");
   const statusLabel = job
     ? t(`statusLabels.${job.status}`)
     : t("statusLabels.appointment_not_started");
@@ -534,15 +561,26 @@ export function USAppointmentAssistant({
                   <AlertDescription>{t("setup.aliasNotice")}</AlertDescription>
                 </Alert>
 
-                <BrandField label={t("setup.dateRange")} htmlFor="date-range">
-                  <BrandInput
-                    id="date-range"
-                    value={preferredDateRange}
-                    onChange={(event) => setPreferredDateRange(event.target.value)}
-                    disabled={Boolean(job)}
-                    placeholder={t("setup.dateRangePlaceholder")}
-                  />
-                </BrandField>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <BrandField label={t("setup.preferredDateStart")} htmlFor="date-start">
+                    <BrandInput
+                      id="date-start"
+                      type="date"
+                      value={preferredDateStart}
+                      onChange={(event) => setPreferredDateStart(event.target.value)}
+                      disabled={Boolean(job)}
+                    />
+                  </BrandField>
+                  <BrandField label={t("setup.preferredDateEnd")} htmlFor="date-end">
+                    <BrandInput
+                      id="date-end"
+                      type="date"
+                      value={preferredDateEnd}
+                      onChange={(event) => setPreferredDateEnd(event.target.value)}
+                      disabled={Boolean(job)}
+                    />
+                  </BrandField>
+                </div>
 
                 <BrandField label={t("setup.avoidDates")} htmlFor="avoid-dates">
                   <BrandInput
@@ -662,6 +700,14 @@ export function USAppointmentAssistant({
                         <AlertDescription>
                           {t(`manual.instructions.${pendingManualAction.actionType}`)}
                         </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {showProgress && (
+                      <Alert className="border-brand-200 bg-brand-50 text-brand-900">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <AlertTitle>{t("panel.progressTitle")}</AlertTitle>
+                        <AlertDescription>{t("panel.progressBody")}</AlertDescription>
                       </Alert>
                     )}
 
@@ -798,7 +844,7 @@ export function USAppointmentAssistant({
                 ) : (
                   slots.map((slot) => {
                     const date = formatDate(slot.appointmentDate, locale) ?? t("slots.datePending");
-                    const selected = slot.status === "selected";
+                    const selected = ["selected", "user_selected"].includes(slot.status);
                     return (
                       <div
                         key={slot.id}
