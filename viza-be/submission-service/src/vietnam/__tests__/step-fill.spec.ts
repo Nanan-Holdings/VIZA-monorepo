@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildAntSelectOptionRegex,
+  isAcceptableAntSelectMatch,
   rankAntSelectCandidates,
   resolveStepPlan,
 } from "../fillers.js";
@@ -60,4 +61,13 @@ test("vn.step-fill: virtual select candidates match exact and token-equivalent l
     rankAntSelectCandidates(["Male", "Female"], "Male")[0]?.text,
     "Male",
   );
+});
+
+test("vn.step-fill: weak airport overlap is not accepted as a final select match", () => {
+  const weakMatch = rankAntSelectCandidates(
+    ["Cam Ranh Int Airport (Khanh Hoa)"],
+    "Noi Bai Int Airport (Ha Noi)",
+  )[0];
+  assert.ok(weakMatch, "candidate is ranked");
+  assert.equal(isAcceptableAntSelectMatch(weakMatch.score), false);
 });

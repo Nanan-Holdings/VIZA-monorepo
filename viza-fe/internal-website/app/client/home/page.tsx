@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
@@ -33,6 +33,7 @@ import {
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
 import { resolveHomeDocumentLabel } from "./home-activity";
+import { isIgnorableDashboardLoadError } from "./home-load-errors";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
 import {
@@ -467,6 +468,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const latestLoadRequestId = useRef(0);
 
   // Handle magic link auth callback
   useEffect(() => {
@@ -559,7 +561,17 @@ export default function HomePage() {
   );
 
   const fetchData = useCallback(
-    async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+    async ({
+      showLoading = true,
+      retryOnAbort = true,
+    }: {
+      showLoading?: boolean;
+      retryOnAbort?: boolean;
+    } = {}) => {
+      const requestId = latestLoadRequestId.current + 1;
+      latestLoadRequestId.current = requestId;
+      const isLatestRequest = () => latestLoadRequestId.current === requestId;
+      let keepLoadingForRetry = false;
       if (showLoading) setIsLoading(true);
       setError(null);
 
@@ -568,11 +580,12 @@ export default function HomePage() {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-          if (showLoading) setIsLoading(false);
+          if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
 
         const packages = await getUserVisaPackages();
+        if (!isLatestRequest()) return;
         setVisaPackages(packages);
 
         const { data: profile } = await supabase
@@ -582,6 +595,7 @@ export default function HomePage() {
           .maybeSingle();
 
         const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
+        if (!isLatestRequest()) return;
         setUniversalInfoProgress(
           buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
         );
@@ -602,6 +616,7 @@ export default function HomePage() {
           .eq("applicant_id", profileTyped.id)
           .order("created_at", { ascending: false });
 
+        if (!isLatestRequest()) return;
         const loadedApplications = (appRows ?? []) as ApplicationRow[];
         if (loadedApplications.length === 0) {
           setUniversalInfoProgress(
@@ -638,6 +653,7 @@ export default function HomePage() {
           getApplicationPaymentRecords(applicationIds, packageIds),
         ]);
 
+        if (!isLatestRequest()) return;
         const loadedDocuments = (docs ?? []) as DocumentRow[];
         const hasPassportUpload = loadedDocuments.some(
           (document) => PASSPORT_DOCUMENT_TYPES.has(document.document_type) && document.status !== "missing",
@@ -661,10 +677,21 @@ export default function HomePage() {
           buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers, fieldSchemas, isZh),
         );
         setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments, loadedPayments));
-      } catch {
+      } catch (loadError) {
+        if (!isLatestRequest()) return;
+        if (isIgnorableDashboardLoadError(loadError)) {
+          if (retryOnAbort) {
+            keepLoadingForRetry = true;
+            window.setTimeout(() => {
+              void fetchData({ showLoading, retryOnAbort: false });
+            }, 100);
+          }
+          return;
+        }
+        console.error("Failed to load client home dashboard", loadError);
         setError(t("dashboardError"));
       } finally {
-        if (showLoading) setIsLoading(false);
+        if (showLoading && isLatestRequest() && !keepLoadingForRetry) setIsLoading(false);
       }
     },
     [buildActivityEvents, isZh, t],

@@ -15,6 +15,8 @@ applicant info, and help pages.
   handling, first-login form request redirect.
 - `home/page.tsx`: dashboard, destination cards, subscription entry, universal
   information summary.
+- `home/home-load-errors.ts`: safe dashboard load-error classification for
+  refresh/abort handling.
 - `home/home-activity.ts`: safe activity-feed helpers, including document type
   label fallback for unknown uploads.
 - `application/page.tsx`: status hub by default; direct `country`/`visaType`

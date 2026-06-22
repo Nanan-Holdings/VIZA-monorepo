@@ -86,6 +86,10 @@ const EXPENSE_COVERAGE_LABELS = {
   company: "Company",
 };
 
+const PROVINCE_LABELS: Record<string, string> = {
+  ha_noi_city: "HA NOI City",
+};
+
 const LATIN_TEXT_SCHEMA_RULE = {
   pattern: "^[A-Za-z0-9 .,'()/-]+$",
   maxLength: 120,
@@ -124,7 +128,7 @@ const VN_FIELD_FALLBACK_DEFAULTS: Record<
     schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
   },
   intended_ward_commune: {
-    value: "PHUONG MY BINH",
+    value: "BA DINH WARD",
     schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
   },
 };
@@ -151,7 +155,8 @@ function provinceLabel(value: string): string {
 }
 
 const VN_BORDER_GATE_LABELS: Record<string, string> = {
-  noi_bai_int_airport_ha_noi: "Noi Bai Int Airport (Ha Noi)",
+  noi_bai_int_airport_ha_noi: "Noi Bai Int Airport",
+  noi_bai_int_airport: "Noi Bai Int Airport",
   tan_son_nhat_int_airport_ho_chi_minh_city: "Tan Son Nhat Int Airport (Ho Chi Minh City)",
   cat_bi_int_airport_hai_phong: "Cat Bi Int Airport (Hai Phong)",
   da_nang_int_airport_da_nang: "Da Nang Int Airport (Da Nang)",
@@ -166,6 +171,9 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
   const normalized = rawValue.trim().toLowerCase();
   const explicit = mapping?.optionLabels?.[normalized];
   if (explicit) return explicit;
+  if (fieldName === "intended_province_city" && PROVINCE_LABELS[normalized]) {
+    return PROVINCE_LABELS[normalized];
+  }
   if (fieldName === "intended_province_city") return provinceLabel(normalized);
   if (
     fieldName === "intended_border_gate_of_entry" ||
