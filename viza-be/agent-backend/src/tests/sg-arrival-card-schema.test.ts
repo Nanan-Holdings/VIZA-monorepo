@@ -5,6 +5,10 @@ const seedSource = readFileSync(
   new URL("../../scripts/sgac/form-fields.ts", import.meta.url),
   "utf8",
 );
+const officialOptionsSource = readFileSync(
+  new URL("../../scripts/sgac/official-options.ts", import.meta.url),
+  "utf8",
+);
 
 function extractFieldNames(): string[] {
   return Array.from(seedSource.matchAll(/field_name:\s*"([^"]+)"/g), (match) => match[1]);
@@ -47,6 +51,13 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('label: "Purpose of Travel"');
     expect(seedSource).toContain('validation_rules: rules("旅行目的"');
     expect(seedSource).toContain('option("other", "其他", "Others")');
+  });
+
+  test("keeps hotel name aligned with ICA autocomplete options instead of free text", () => {
+    expect(seedSource).toContain('field_name: "accommodation_name", label: "Hotel Name", field_type: "select"');
+    expect(seedSource).toContain('options: HOTEL_NAMES');
+    expect(officialOptionsSource).toContain('value: "MARINA BAY SANDS"');
+    expect(officialOptionsSource).toContain('labelZh: "滨海湾金沙"');
   });
 
   test("keeps arrival and departure dates together in trip information", () => {

@@ -1,3 +1,5 @@
+import { SGAC_HOTEL_NAME_OPTIONS } from "./official-options";
+
 export const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
 
 export interface SgacFieldDef {
@@ -30,6 +32,7 @@ const PURPOSES = [
 const AIR_TYPES = [option("commercial", "商业航班", "Commercial Flight"), option("private", "私人飞机", "Private Aircraft")];
 const ACCOMMODATION_TYPES = [option("hotel", "酒店", "Hotel"), option("residential", "住宅", "Residential"), option("others", "其他", "Others")];
 const OTHER_ACCOMMODATION = [option("day_trip", "一日游", "Day Trip"), option("transit", "过境", "Transit")];
+const HOTEL_NAMES = SGAC_HOTEL_NAME_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
 
 const showIf = (expression: string) => ({ showIf: expression });
 
@@ -58,7 +61,7 @@ export const SGAC_FORM_FIELDS: SgacFieldDef[] = [
   { field_name: "carrier_name", label: "Name of Airline/Vessel/Transport Operator", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 7, conditional_logic: showIf("mode_of_travel === air || mode_of_travel === sea"), validation_rules: rules("航空公司 / 船舶 / 交通运营方名称", { maxLength: 100, official: true }) },
   { field_name: "transport_number", label: "Flight/Vessel/Vehicle Number", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 8, validation_rules: rules("航班 / 船班 / 车辆号码", { maxLength: 40, official: true }) },
   { field_name: "accommodation_type", label: "Type of Accommodation in Singapore", field_type: "select", required: true, step_number: 2, step_name: "Trip Information", display_order: 9, options: ACCOMMODATION_TYPES, validation_rules: rules("在新加坡的住宿类型", { official: true }) },
-  { field_name: "accommodation_name", label: "Hotel Name", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 10, conditional_logic: showIf("accommodation_type === hotel"), validation_rules: rules("酒店名称", { maxLength: 120, official: true }) },
+  { field_name: "accommodation_name", label: "Hotel Name", field_type: "select", required: true, step_number: 2, step_name: "Trip Information", display_order: 10, options: HOTEL_NAMES, conditional_logic: showIf("accommodation_type === hotel"), validation_rules: rules("酒店名称", { official: true, source: "ICA_SGAC_HOTEL_NAME_AUTOCOMPLETE" }) },
   { field_name: "accommodation_other_type", label: "Accommodation (Others)", field_type: "select", required: true, step_number: 2, step_name: "Trip Information", display_order: 11, options: OTHER_ACCOMMODATION, conditional_logic: showIf("accommodation_type === others"), validation_rules: rules("其他住宿类型", { official: true }) },
   { field_name: "accommodation_postcode", label: "Postal Code", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 12, conditional_logic: showIf("accommodation_type === residential"), validation_rules: rules("邮政编码", { pattern: "^[0-9]{6}$", official: true }) },
   { field_name: "accommodation_block_number", label: "Block/House Number", field_type: "text", required: true, step_number: 2, step_name: "Trip Information", display_order: 13, conditional_logic: showIf("accommodation_type === residential"), validation_rules: rules("门牌 / 楼号", { official: true }) },

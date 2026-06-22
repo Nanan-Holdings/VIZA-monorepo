@@ -385,6 +385,10 @@ async function fillVietnamApplicationOnce(
     if (stateAfterCaptcha === "captcha_visible") {
       const maxReviewCaptchaAttempts = readPositiveInt(process.env.VN_REVIEW_CAPTCHA_MAX_ATTEMPTS, 3);
       for (let attempt = 1; attempt <= maxReviewCaptchaAttempts && stateAfterCaptcha === "captcha_visible"; attempt++) {
+        if (attempt > 1) {
+          await refreshVietnamReviewCaptcha(page);
+          await page.waitForTimeout(1_000);
+        }
         await emitProgress("captcha_solving");
         const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
         captchaSolves.push(captchaOutcome);
@@ -417,6 +421,14 @@ async function fillVietnamApplicationOnce(
         url: page.url(),
         diagnostics: diagnostics(),
       };
+    }
+    let registrationCode = await captureRegistrationCode(page);
+    if (registrationCode) {
+      const confirmed = await confirmDeclarationCompletedNotice(page, stepTimeoutMs);
+      if (confirmed) {
+        lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
+        stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
+      }
     }
     if (stateAfterCaptcha === "application_form_visible") {
       validationErrors = await readVietnamValidationErrors(page);
@@ -471,7 +483,7 @@ async function fillVietnamApplicationOnce(
       };
     }
 
-    const registrationCode = await captureRegistrationCode(page);
+    registrationCode = registrationCode ?? await captureRegistrationCode(page);
     if (!registrationCode) {
       return {
         status: "scaffolded_pending_walk",
@@ -1321,9 +1333,48 @@ async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promis
   await page.waitForTimeout(3_000);
 }
 
+async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {
+  await page
+    .evaluate(() => {
+      const visible = (element: Element | null): element is HTMLElement | SVGElement => {
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const captchaInput = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
+        .filter(visible)
+        .find((input) => /captcha|security code|mã xác nhận|ma xac nhan/i.test(`${input.placeholder} ${input.name} ${input.id} ${input.className}`));
+      captchaInput?.focus();
+      if (captchaInput) {
+        captchaInput.value = "";
+        captchaInput.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+        captchaInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const inputRect = captchaInput?.getBoundingClientRect();
+      const candidates = Array.from(document.querySelectorAll<HTMLElement | SVGElement>("button, .anticon, svg, img, a"))
+        .filter(visible)
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          const text = `${element.textContent ?? ""} ${element.getAttribute("aria-label") ?? ""} ${element.getAttribute("title") ?? ""} ${element.getAttribute("class") ?? ""}`;
+          const isRefresh = /reload|refresh|sync|redo|captcha|anticon-sync/i.test(text);
+          const distance = inputRect
+            ? Math.abs(rect.left - inputRect.right) + Math.abs(rect.top + rect.height / 2 - (inputRect.top + inputRect.height / 2)) * 2
+            : rect.top;
+          return { element, score: distance + (isRefresh ? -200 : 0) };
+        })
+        .sort((left, right) => left.score - right.score);
+      const target = candidates[0]?.element as HTMLElement | SVGElement | undefined;
+      target?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+      target?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
+      target?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    })
+    .catch(() => undefined);
+}
+
 async function captureRegistrationCode(page: Page): Promise<string | null> {
-  // Try the explicit selector first; fall back to a body-text regex for
-  // "Mã hồ sơ" / "Registration code" patterns.
+  // Try the explicit selector first; fall back to body-text regexes for
+  // "Mã hồ sơ" / "Registration code" / "Electronic document code" patterns.
   const explicit = await page
     .locator(VN_REGISTRATION_CODE_SELECTOR)
     .first()
@@ -1335,10 +1386,49 @@ async function captureRegistrationCode(page: Page): Promise<string | null> {
   }
   const body = await page.textContent("body").catch(() => null);
   if (body) {
-    const m = body.match(/(?:mã hồ sơ|registration\s*code)[:\s]+([A-Z0-9]{8,})/i);
+    const m = body.match(/(?:mã hồ sơ|registration\s*code|electronic\s+document\s+code)[:\s]+([A-Z0-9]{8,})/i);
     if (m) return m[1];
   }
   return null;
+}
+
+async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number): Promise<boolean> {
+  const hasNotice = await page
+    .locator("text=/DECLARATION COMPLETED|Electronic document code/i")
+    .first()
+    .isVisible({ timeout: 3_000 })
+    .catch(() => false);
+  if (!hasNotice) return false;
+  const clicked = await page
+    .getByRole("button", { name: /^confirm$/i })
+    .filter({ visible: true })
+    .last()
+    .click({ timeout: 10_000 })
+    .then(() => true)
+    .catch(async () => {
+      return page
+        .evaluate(() => {
+          const visible = (element: Element | null): element is HTMLElement => {
+            if (!element) return false;
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+          };
+          const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+            .filter(visible)
+            .filter((button) => /^confirm$/i.test((button.innerText || button.textContent || "").trim()));
+          const button = buttons[buttons.length - 1];
+          if (!button) return false;
+          button.scrollIntoView({ block: "center" });
+          button.click();
+          return true;
+        })
+        .catch(() => false);
+    });
+  if (!clicked) return false;
+  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 60_000) }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+  return true;
 }
 
 function serializeError(err: unknown): Record<string, unknown> {

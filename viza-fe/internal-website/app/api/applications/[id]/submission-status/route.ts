@@ -343,8 +343,11 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
 
 function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
-  if (normalizeStatus(queue.status).startsWith("ds160_proof_")) return false;
-  const derived = deriveQueueStage(normalizeStatus(queue.status));
+  const queueStatus = normalizeStatus(queue.status);
+  const provider = normalizeStatus(queue.provider);
+  if (queueStatus.startsWith("ds160_proof_") || provider === "ceac_proof") return false;
+  if (queueStatus === "done" || queueStatus.endsWith("_prefilled")) return false;
+  const derived = deriveQueueStage(queueStatus);
   return derived.status === "scheduled" || derived.status === "queued" || derived.status === "running";
 }
 

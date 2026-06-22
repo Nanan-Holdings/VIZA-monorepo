@@ -1,4 +1,5 @@
 import type { SubmissionPayload } from "../country-submissions/types";
+import { normalizeSgacHotelName } from "./official-options";
 
 export class SgacPortalValidationError extends Error {
   readonly code = "sgac_portal_payload_validation_failed" as const;
@@ -352,14 +353,19 @@ function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTran
 function buildAccommodation(payload: SubmissionPayload, missing: string[]): SgacAccommodationPayload {
   const type = normalizeKey(read(payload, "accommodation_type") ?? "residential");
   if (type === "hotel") {
+    const rawHotelName = required(
+      read(payload, "accommodation_name"),
+      "accommodation_name",
+      "Hotel name",
+      missing,
+    );
+    const officialHotelName = rawHotelName ? normalizeSgacHotelName(rawHotelName) : null;
+    if (rawHotelName && !officialHotelName) {
+      missing.push("accommodation_name");
+    }
     return {
       type: "hotel",
-      hotelNameQuery: required(
-        read(payload, "accommodation_name"),
-        "accommodation_name",
-        "Hotel name",
-        missing,
-      ),
+      hotelNameQuery: officialHotelName ?? rawHotelName,
     };
   }
   if (type === "others" || type === "other") {
@@ -460,6 +466,7 @@ export function normalizeSgacPortalPayload(
       departure_date: "Date of departure from Singapore",
       place_of_residence: "Place of residence",
       transport_number: "Transport number",
+      accommodation_name: "Hotel name must be an official ICA hotel option",
     };
     const readableMissing = uniqueMissing.map((field) => labels[field] ?? field).join(", ");
     throw new SgacPortalValidationError(

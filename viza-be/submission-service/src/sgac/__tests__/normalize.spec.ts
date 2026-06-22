@@ -105,6 +105,45 @@ test("normalizeSgacPortalPayload rejects missing purpose_of_travel with a specif
   );
 });
 
+test("normalizeSgacPortalPayload rejects hotel names outside exposed ICA options before opening the portal", () => {
+  const input = basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      accommodation_type: "hotel",
+      accommodation_name: "American TV series",
+    },
+  });
+
+  assert.throws(
+    () => normalizeSgacPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof SgacPortalValidationError);
+      assert.deepEqual(error.missingFields, ["accommodation_name"]);
+      assert.match(error.message, /Hotel name/);
+      assert.match(error.message, /official ICA hotel option/);
+      return true;
+    },
+  );
+});
+
+test("normalizeSgacPortalPayload accepts exposed ICA hotel options", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        accommodation_type: "hotel",
+        accommodation_name: "MARINA BAY SANDS",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.deepEqual(payload.accommodation, {
+    type: "hotel",
+    hotelNameQuery: "MARINA BAY SANDS",
+  });
+});
+
 test("normalizeSgacPortalPayload rejects arrival dates outside the ICA three-day SGAC window", () => {
   const input = basePayload({
     trip: {

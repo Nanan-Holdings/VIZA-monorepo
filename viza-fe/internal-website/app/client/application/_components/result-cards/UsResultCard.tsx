@@ -155,6 +155,7 @@ export function UsResultCard({
         }
       }
     } catch (error) {
+      setProofMessage(null);
       setProofError(error instanceof Error ? error.message : String(error));
     } finally {
       setProofBusy((prev) => ({ ...prev, [kind]: false }));
