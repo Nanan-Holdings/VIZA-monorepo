@@ -662,6 +662,48 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(setup.repository.applicationState.appointmentConfirmationId).toBe(status.confirmation?.id);
   });
 
+  it("allows China assisted-live booking handoff only after selected slot and final approval", async () => {
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
+    const [slot] = await repository.insertSlots([
+      {
+        jobId: job.id,
+        applicationId: job.applicationId,
+        appointmentDate: "2026-08-18",
+        appointmentTime: "09:00",
+        appointmentLocation: "U.S. Embassy Beijing",
+        appointmentType: "interview",
+        source: "usvisascheduling",
+        status: "observed",
+        metadataRedactedJson: {
+          externalSlotId: "redacted-slot-1",
+          calendarPageContext: { month: "2026-08" },
+        },
+      },
+    ]);
+    await repository.updateJob(job.id, {
+      status: "appointment_slot_selection_required",
+      requiresUserAction: false,
+      currentManualAction: null,
+    });
+
+    await expect(orchestrator.bookSelectedSlot(job.id)).rejects.toMatchObject({
+      code: "slot_required",
+    });
+
+    await orchestrator.selectSlot(job.id, slot.id);
+    await expect(orchestrator.bookSelectedSlot(job.id)).rejects.toMatchObject({
+      code: "final_confirmation_required",
+    });
+
+    await orchestrator.approveFinalConfirmation(job.id);
+    const status = await orchestrator.bookSelectedSlot(job.id);
+    expect(status.job?.status).toBe("appointment_booked");
+    expect(status.confirmation).toBeNull();
+    expect(repository.auditEvents.at(-1)?.eventType).toBe(
+      "appointment_assisted_live_booking_requested",
+    );
+  });
+
   it("returns dry-run appointment status and rate-limits repeated status checks", async () => {
     const setup = await progressToSlotSelection();
     await setup.orchestrator.selectSlot(setup.job.id, setup.repository.slots[0].id);

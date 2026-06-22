@@ -4725,7 +4725,8 @@
     "dryRunNotice": "中国首版流程不会绕过 CAPTCHA、MFA、等待室、频率限制、付款、政策提示或最终确认。VIZA 只执行用户触发的检查，并会在不可逆官方操作前暂停。",
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
-      "withCode": "预约请求暂时无法完成。参考代码：{code}。"
+      "withCode": "预约请求暂时无法完成。参考代码：{code}。",
+      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，然后重启后端。"
     },
     "modes": {
       "dry_run": "Dry run 演练",
@@ -4793,8 +4794,8 @@
       "ds160CodePlaceholder": "例如：AA00BC1234",
       "applyingCountry": "申请所在国家",
       "postCity": "使领馆城市",
-      "dateRange": "偏好日期范围",
-      "dateRangePlaceholder": "例如：2026 年 9 月 1-20 日",
+      "preferredDateStart": "偏好开始日期",
+      "preferredDateEnd": "偏好结束日期",
       "avoidDates": "避开日期",
       "avoidDatesPlaceholder": "多个日期用逗号分隔",
       "timePreference": "时间偏好",
@@ -4828,6 +4829,8 @@
       "run": "运行第一步",
       "resume": "继续",
       "running": "处理中...",
+      "progressTitle": "预约任务运行中",
+      "progressBody": "VIZA 每隔数秒读取自己数据库中的最新任务状态；官方网站检查只会在用户触发或后端 cooldown 后执行。",
       "checkSlots": "检查名额",
       "checkStatus": "检查状态",
       "cancel": "取消"

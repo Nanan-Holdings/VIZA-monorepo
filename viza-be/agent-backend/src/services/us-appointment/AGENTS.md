@@ -5,25 +5,26 @@ Scope: this file applies to
 
 ## Purpose
 
-Dry-run/manual-checkpoint framework for U.S. B1/B2 appointment assistance after
-DS-160 capture. It records consent, provider metadata, state transitions,
-manual actions, observed mock slots, explicit final approval, mock
-confirmation, status checks, and redacted audit events.
+State orchestration for U.S. B1/B2 appointment assistance after DS-160 capture.
+It records consent, provider metadata, state transitions, manual actions,
+observed slots, explicit slot selection, final approval, confirmation/status
+snapshots, and redacted audit events. Real China USVisaScheduling browser work
+is handed to `viza-be/submission-service`; this service owns API access control
+and DB state transitions.
 
 ## Guardrails
 
-- Dry-run remains the default executable mode. The only currently approved
-  assisted-live handoff is China `CN/usvisascheduling`, which queues work for
-  `submission-service` and creates human-in-the-loop checkpoints rather than
+- Dry-run remains available. The approved assisted-live path is China
+  `CN/usvisascheduling`, which queues work for `submission-service` rather than
   running browser automation in `agent-backend`.
 - 登录、CAPTCHA/MFA、付款、等待室、政策提示、最终官方确认页请全部跳过。
 - Redact sensitive portal and applicant data before audit, attempt, screenshot,
   status-check, or manual-action storage.
 - Slot and status checks must be user-triggered and cooldown-protected.
 - Stop or route to manual review on site policy warnings.
-- China assisted-live must preserve final confirmation, payment, CAPTCHA,
-  waiting-room, and policy-warning stop points. Do not add final booking clicks
-  here.
+- China assisted-live booking may proceed only after a selected slot and an
+  explicit final approval are stored. `agent-backend` then marks the job for the
+  runner; it must not click official-site booking controls itself.
 
 ## Key Files
 
