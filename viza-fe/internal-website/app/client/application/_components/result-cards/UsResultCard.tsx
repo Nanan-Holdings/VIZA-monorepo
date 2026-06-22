@@ -11,7 +11,6 @@ import {
   Check,
   ShieldCheck,
   Printer,
-  Files,
   Mail,
   RotateCcw,
   Loader2,
@@ -232,20 +231,13 @@ export function UsResultCard({
             <div className="text-xs font-medium text-muted-foreground">
               {t("officialActions")}
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <ProofActionButton
                 busy={Boolean(proofBusy.confirmation)}
                 label={t("printConfirmation")}
                 onClick={() => void requestProof("confirmation", "download")}
               >
                 <Printer className="h-4 w-4 shrink-0" />
-              </ProofActionButton>
-              <ProofActionButton
-                busy={Boolean(proofBusy.application)}
-                label={t("printApplication")}
-                onClick={() => void requestProof("application", "download")}
-              >
-                <Files className="h-4 w-4 shrink-0" />
               </ProofActionButton>
               <ProofActionButton
                 busy={Boolean(proofBusy["email-confirmation"])}
