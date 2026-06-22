@@ -77,6 +77,8 @@ The current internal automation migrations are:
 - `0098_sg_arrival_card_package.sql`: Singapore SG Arrival Card package catalog
   row for manual official-channel SGAC preparation. It is separate from
   Singapore Visit Visa / SAVE and does not add official submission automation.
+- `0099_vietnam_payment_status_tracking.sql`: Vietnam official-fee queue links
+  and redacted official status check history for applicant status refreshes.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.

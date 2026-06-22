@@ -716,6 +716,21 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     });
   });
 
+  it("queues China assisted-live status checks for the submission runner", async () => {
+    const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
+    await repository.updateJob(job.id, {
+      status: "appointment_confirmation_captured",
+      requiresUserAction: false,
+      currentManualAction: null,
+    });
+    const status = await orchestrator.checkAppointmentStatus(job.id);
+    expect(status.job?.status).toBe("appointment_status_check_in_progress");
+    expect(status.latestStatusCheck).toBeNull();
+    expect(repository.auditEvents.at(-1)?.metadataRedactedJson).toMatchObject({
+      runner_service: "submission-service",
+    });
+  });
+
   it("detects providers without assuming one global portal", () => {
     const registry = new USAppointmentProviderRegistry();
     expect(registry.detectProviderForPost({ applyingCountryCode: "SG" })).toBe("usvisascheduling");

@@ -504,6 +504,18 @@ export class USAppointmentOrchestrator {
       "appointment_status_check_in_progress",
       "User-triggered appointment status check started.",
     );
+    if (job.mode !== "dry_run") {
+      await this.auditService.recordJobTransition(
+        inProgress,
+        "appointment_assisted_live_status_check_requested",
+        "Assisted-live appointment status check queued for submission-service runner.",
+        {
+          runner_service: "submission-service",
+          scheduling_provider: job.schedulingProvider,
+        },
+      );
+      return this.getStatus(inProgress.applicationId);
+    }
     const provider = this.providerRegistry.getProvider(inProgress.schedulingProvider, inProgress.mode);
     const result = await provider.checkAppointmentStatus(inProgress);
     await this.statusService.saveStatusCheck(inProgress, result);

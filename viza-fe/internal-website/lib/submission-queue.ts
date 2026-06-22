@@ -40,6 +40,10 @@ export type SubmissionQueueStatus =
   | "vn_prefill_processing"
   | "vn_prefilled"
   | "vn_prefill_failed"
+  | "vn_payment_pending"
+  | "vn_payment_processing"
+  | "vn_payment_paid"
+  | "vn_payment_failed"
   | "vn_blocked"
   | "sgac_dry_run_pending"
   | "sgac_dry_run_processing"
@@ -118,6 +122,8 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "sgac_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
+  "vn_payment_pending",
+  "vn_payment_processing",
   "au_prefill_pending",
   "au_prefill_processing",
 ];
@@ -142,6 +148,7 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "sgac_live_assisted_failed",
   "sgac_blocked",
   "vn_prefill_failed",
+  "vn_payment_failed",
   "vn_blocked",
   "au_prefill_failed",
   "au_blocked",

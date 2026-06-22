@@ -167,6 +167,8 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "vn_dry_run_processing",
   "vn_live_assisted_pending",
   "vn_live_assisted_processing",
+  "vn_payment_pending",
+  "vn_payment_processing",
   "sgac_dry_run_pending",
   "sgac_dry_run_processing",
   "sgac_live_assisted_pending",
@@ -234,6 +236,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "uk_prefill_pending",
       "vn_dry_run_pending",
       "vn_live_assisted_pending",
+      "vn_payment_pending",
       "sgac_dry_run_pending",
       "sgac_live_assisted_scheduled",
       "sgac_live_assisted_pending",
@@ -276,7 +279,11 @@ function isUkJob(item: SubmissionQueueItem): boolean {
 }
 
 function isVnJob(item: SubmissionQueueItem): boolean {
-  return item.status === "vn_prefill_pending" || item.status === "vn_live_assisted_pending";
+  return (
+    item.status === "vn_prefill_pending" ||
+    item.status === "vn_live_assisted_pending" ||
+    item.status === "vn_payment_pending"
+  );
 }
 
 function isSgacJob(item: SubmissionQueueItem): boolean {
@@ -285,6 +292,83 @@ function isSgacJob(item: SubmissionQueueItem): boolean {
 
 function isAuJob(item: SubmissionQueueItem): boolean {
   return item.status === "au_prefill_pending";
+}
+
+type VnOfficialStatusCheckRow = {
+  id: string;
+  application_id: string;
+  user_id: string | null;
+};
+
+async function processQueuedVietnamOfficialStatusChecks(): Promise<number> {
+  const { data, error } = await supabase
+    .from("official_status_checks")
+    .select("id, application_id, user_id")
+    .eq("country_code", "VN")
+    .eq("status", "queued")
+    .order("created_at", { ascending: true })
+    .limit(5);
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("official_status_checks") || message.includes("schema cache")) {
+      return 0;
+    }
+    throw new Error(`Failed to load Vietnam official status checks: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as VnOfficialStatusCheckRow[];
+  for (const row of rows) {
+    const startedAt = new Date().toISOString();
+    await supabase
+      .from("official_status_checks")
+      .update({ status: "running", updated_at: startedAt })
+      .eq("id", row.id);
+
+    const { data: applicationData } = await supabase
+      .from("applications")
+      .select("external_reference, external_status, official_fee_status, result_status")
+      .eq("id", row.application_id)
+      .maybeSingle();
+    const application = (applicationData ?? {}) as {
+      external_reference?: string | null;
+      external_status?: string | null;
+      official_fee_status?: string | null;
+      result_status?: string | null;
+    };
+    const paid = application.official_fee_status === "official_fee_payment_succeeded";
+    const status = paid ? "pending_official_review" : "payment_required";
+    const finishedAt = new Date().toISOString();
+
+    await Promise.all([
+      supabase
+        .from("official_status_checks")
+        .update({
+          status: "completed",
+          official_reference: application.external_reference ?? null,
+          official_status: status,
+          result_status: application.result_status ?? null,
+          checked_at: finishedAt,
+          raw_status_json: {
+            source: "viza_db_checkpoint",
+            message: paid
+              ? "Payment is recorded in VIZA. Official portal review is pending a live status adapter."
+              : "Official fee payment has not been recorded as paid.",
+          },
+          updated_at: finishedAt,
+        })
+        .eq("id", row.id),
+      supabase
+        .from("applications")
+        .update({
+          external_status: status,
+          external_status_updated_at: finishedAt,
+          updated_at: finishedAt,
+        })
+        .eq("id", row.application_id),
+    ]);
+  }
+
+  return rows.length;
 }
 
 const VIETNAM_COUNTRY_ALIASES = new Set(["VN", "VIETNAM", "VIET_NAM"]);
@@ -359,6 +443,7 @@ async function loadQueueRoutingApplication(applicationId: string): Promise<Queue
 async function normalizeVietnamQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
   const application = await loadQueueRoutingApplication(item.application_id);
   if (!isVietnamQueueMetadata(item, application)) return item;
+  if (item.status.startsWith("vn_payment_")) return item;
 
   const liveRequested = isLiveAssistedQueueItem(item);
   const expectedStatus: SubmissionQueueItem["status"] = liveRequested
@@ -3076,6 +3161,329 @@ async function createVietnamManualAction(
   }
 }
 
+type VnOfficialFeeIntentRow = {
+  id: string;
+  user_id: string;
+  fee_quote_id: string | null;
+  mode: string | null;
+  provider: string | null;
+  official_fee_amount: number | string | null;
+  official_fee_currency: string | null;
+  status: string | null;
+};
+
+function readVnRegistrationCodeFromResult(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const code = (value as { registrationCode?: unknown }).registrationCode;
+  return typeof code === "string" && code.trim() ? code.trim() : null;
+}
+
+async function loadVnRegistrationCode(applicationId: string, item: SubmissionQueueItem): Promise<string | null> {
+  if (item.vn_registration_code_encrypted) {
+    try {
+      return decryptSecret(item.vn_registration_code_encrypted);
+    } catch {
+      return null;
+    }
+  }
+  const { data } = await supabase
+    .from("applications")
+    .select("submission_result")
+    .eq("id", applicationId)
+    .maybeSingle();
+  return readVnRegistrationCodeFromResult((data as { submission_result?: unknown } | null)?.submission_result);
+}
+
+async function getLatestVnOfficialFeeIntent(applicationId: string): Promise<VnOfficialFeeIntentRow | null> {
+  const { data, error } = await supabase
+    .from("official_fee_payment_intents")
+    .select("id, user_id, fee_quote_id, mode, provider, official_fee_amount, official_fee_currency, status")
+    .eq("application_id", applicationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load official fee intent: ${error.message}`);
+  }
+  return (data ?? null) as VnOfficialFeeIntentRow | null;
+}
+
+async function nextOfficialFeeAttemptNumber(intentId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("official_fee_payment_attempts")
+    .select("attempt_number")
+    .eq("official_fee_payment_intent_id", intentId)
+    .order("attempt_number", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(`Failed to load official fee attempts: ${error.message}`);
+  const first = (data ?? [])[0] as { attempt_number?: number | string } | undefined;
+  const current = Number(first?.attempt_number ?? 0);
+  return Number.isFinite(current) ? current + 1 : 1;
+}
+
+async function insertVnOfficialFeeAttempt(input: {
+  applicationId: string;
+  intent: VnOfficialFeeIntentRow;
+  status: "manual_review" | "succeeded" | "failed";
+  registrationCode: string | null;
+  message: string;
+  receiptNumber?: string | null;
+  receiptUrl?: string | null;
+  screenshotUrl?: string | null;
+}): Promise<{ attemptId: string; receiptId: string | null }> {
+  const now = new Date().toISOString();
+  const amount = Number(input.intent.official_fee_amount ?? 25);
+  const currency = input.intent.official_fee_currency ?? "USD";
+  const attemptNumber = await nextOfficialFeeAttemptNumber(input.intent.id);
+  const { data: attempt, error: attemptError } = await supabase
+    .from("official_fee_payment_attempts")
+    .insert({
+      official_fee_payment_intent_id: input.intent.id,
+      application_id: input.applicationId,
+      attempt_number: attemptNumber,
+      provider: input.intent.provider ?? "vietnam_evisa_official_fee",
+      mode: input.intent.mode ?? "manual",
+      status: input.status,
+      request_payload_redacted_json: {
+        application_id: input.applicationId,
+        registration_code_present: Boolean(input.registrationCode),
+        amount,
+        currency,
+        provider: input.intent.provider,
+      },
+      response_payload_redacted_json: {
+        message: input.message,
+        dry_run_only: input.status === "succeeded" && process.env.VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT === "true",
+      },
+      official_receipt_number: input.receiptNumber ?? null,
+      official_receipt_url: input.receiptUrl ?? null,
+      screenshot_url: input.screenshotUrl ?? null,
+      error_code: input.status === "manual_review" ? "manual_payment_required" : input.status === "failed" ? "payment_failed" : null,
+      error_message: input.status === "succeeded" ? null : input.message,
+      started_at: now,
+      finished_at: now,
+    })
+    .select("id")
+    .single();
+  if (attemptError || !attempt) {
+    throw new Error(`Failed to insert official fee attempt: ${attemptError?.message ?? "empty response"}`);
+  }
+
+  let receiptId: string | null = null;
+  if (input.status === "succeeded") {
+    const { data: receipt, error: receiptError } = await supabase
+      .from("official_fee_receipts")
+      .insert({
+        application_id: input.applicationId,
+        user_id: input.intent.user_id,
+        official_fee_payment_intent_id: input.intent.id,
+        country_code: "VN",
+        receipt_number: input.receiptNumber ?? null,
+        receipt_url: input.receiptUrl ?? null,
+        receipt_file_url: null,
+        amount,
+        currency,
+        paid_at: now,
+        source: process.env.VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT === "true" ? "dry_run" : "vietnam_evisa_portal",
+        raw_receipt_redacted_json: {
+          registration_code_present: Boolean(input.registrationCode),
+          receipt_number: input.receiptNumber ?? null,
+          amount,
+          currency,
+        },
+        created_at: now,
+      })
+      .select("id")
+      .single();
+    if (receiptError || !receipt) {
+      throw new Error(`Failed to insert official fee receipt: ${receiptError?.message ?? "empty response"}`);
+    }
+    receiptId = (receipt as { id: string }).id;
+  }
+
+  return { attemptId: (attempt as { id: string }).id, receiptId };
+}
+
+async function updateVnOfficialFeeIntent(intentId: string, status: string): Promise<void> {
+  const { error } = await supabase
+    .from("official_fee_payment_intents")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", intentId);
+  if (error) throw new Error(`Failed to update official fee intent: ${error.message}`);
+}
+
+async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
+  const startedAt = new Date().toISOString();
+  await updateVnQueueRow(
+    item.id,
+    {
+      status: "vn_payment_processing",
+      current_stage: "official_fee_payment_starting",
+      payment_status: "processing",
+      heartbeat_at: startedAt,
+      updated_at: startedAt,
+    },
+    { status: "vn_payment_processing", updated_at: startedAt },
+  );
+
+  try {
+    const intent = await getLatestVnOfficialFeeIntent(item.application_id);
+    if (!intent) {
+      throw new Error("No authorized official_fee_payment_intent found for Vietnam payment.");
+    }
+    if (!["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intent.status ?? "")) {
+      throw new Error(`Official fee intent is not executable from status ${intent.status ?? "(empty)"}.`);
+    }
+
+    const registrationCode = await loadVnRegistrationCode(item.application_id, item);
+    const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
+    const now = new Date().toISOString();
+
+    if (!dryRunReceipt) {
+      const message = autopayEnabled
+        ? "Vietnam official payment autopay is enabled, but no supported payment-gateway adapter is configured in this build. Operator payment is required."
+        : "Vietnam official payment is authorized, but VN_OFFICIAL_PAYMENT_AUTOPAY is disabled. Operator payment is required.";
+      const { attemptId } = await insertVnOfficialFeeAttempt({
+        applicationId: item.application_id,
+        intent,
+        status: "manual_review",
+        registrationCode,
+        message,
+      });
+      await updateVnOfficialFeeIntent(intent.id, "manual_review");
+      await Promise.all([
+        updateVnQueueRow(
+          item.id,
+          {
+            status: "vn_payment_failed",
+            attempts: item.attempts + 1,
+            last_error: message,
+            current_stage: "official_fee_manual_review",
+            payment_status: "manual_review",
+            official_status: "payment_authorized",
+            error_code: "manual_payment_required",
+            error_message: message,
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              status: "payment_manual_review",
+              officialFeePaymentIntentId: intent.id,
+              officialFeePaymentAttemptId: attemptId,
+              registrationCodeCaptured: Boolean(registrationCode),
+            },
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          {
+            status: "vn_payment_failed",
+            attempts: item.attempts + 1,
+            last_error: message,
+            updated_at: now,
+          },
+        ),
+        supabase
+          .from("applications")
+          .update({
+            official_fee_status: "official_fee_payment_manual_review",
+            official_fee_payment_intent_id: intent.id,
+            updated_at: now,
+          })
+          .eq("id", item.application_id),
+      ]);
+      return;
+    }
+
+    const receiptNumber = `VN-EVISA-${registrationCode ?? item.application_id.slice(0, 8)}-${Date.now().toString(36)}`;
+    const { attemptId, receiptId } = await insertVnOfficialFeeAttempt({
+      applicationId: item.application_id,
+      intent,
+      status: "succeeded",
+      registrationCode,
+      message: dryRunReceipt
+        ? "Dry-run Vietnam official fee receipt captured. No real payment was made."
+        : "Vietnam official fee payment completed by the configured payment provider.",
+      receiptNumber,
+      receiptUrl: process.env.VN_OFFICIAL_PAYMENT_RECEIPT_URL ?? null,
+    });
+    await updateVnOfficialFeeIntent(intent.id, "succeeded");
+
+    const vnPayload: VnSubmissionResult = {
+      country: "VN",
+      status: "submitted_pending_email",
+      mode: "live_assisted",
+      provider: "vietnam_evisa_live",
+      portalUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+      checkpoint: "official_fee_paid",
+      ...(registrationCode ? { registrationCode } : {}),
+      submittedAtIso: now,
+      noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
+      paymentStatus: "paid",
+    };
+    await writeSubmissionResult(item.application_id, vnPayload, "completed");
+    await Promise.all([
+      updateVnQueueRow(
+        item.id,
+        {
+          status: "vn_payment_paid",
+          last_error: null,
+          current_stage: "official_fee_paid",
+          payment_status: "paid",
+          official_status: "payment_submitted",
+          manual_action_status: "completed",
+          vn_result_payload: {
+            ...(item.vn_result_payload ?? {}),
+            status: "payment_submitted",
+            officialFeePaymentIntentId: intent.id,
+            officialFeePaymentAttemptId: attemptId,
+            officialFeeReceiptId: receiptId,
+            receiptNumber,
+            registrationCodeCaptured: Boolean(registrationCode),
+          },
+          heartbeat_at: now,
+          updated_at: now,
+        },
+        { status: "vn_payment_paid", last_error: null, updated_at: now },
+      ),
+      supabase
+        .from("applications")
+        .update({
+          official_fee_status: "official_fee_payment_succeeded",
+          official_fee_payment_intent_id: intent.id,
+          official_fee_receipt_id: receiptId,
+          external_status: "submitted_to_official_portal",
+          external_reference: registrationCode,
+          external_status_updated_at: now,
+          updated_at: now,
+        })
+        .eq("id", item.application_id),
+    ]);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const failedAt = new Date().toISOString();
+    await updateVnQueueRow(
+      item.id,
+      {
+        status: "vn_payment_failed",
+        attempts: item.attempts + 1,
+        last_error: message,
+        current_stage: "official_fee_payment_failed",
+        payment_status: "failed",
+        official_status: "payment_failed",
+        error_code: "official_fee_payment_failed",
+        error_message: message,
+        heartbeat_at: failedAt,
+        updated_at: failedAt,
+      },
+      {
+        status: "vn_payment_failed",
+        attempts: item.attempts + 1,
+        last_error: message,
+        updated_at: failedAt,
+      },
+    );
+  }
+}
+
 async function persistVietnamProgressStage(
   queueId: string,
   stage: VietnamProgressStage,
@@ -4173,6 +4581,16 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
 async function pollOnce(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
+  if (!targetJobId) {
+    try {
+      const processedStatusChecks = await processQueuedVietnamOfficialStatusChecks();
+      if (processedStatusChecks > 0) {
+        console.log(`[poll] Processed ${processedStatusChecks} Vietnam official status check(s).`);
+      }
+    } catch (err) {
+      console.error("[poll] Vietnam official status checks failed:", err);
+    }
+  }
   try {
     const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
       createUSAppointmentRunnerRepository(),
@@ -4275,7 +4693,11 @@ async function pollOnce(): Promise<void> {
     } else if (isUkJob(item)) {
       await processUkItem(item);
     } else if (isVnJob(item)) {
-      await processVnItem(item);
+      if (item.status === "vn_payment_pending") {
+        await processVnPaymentItem(item);
+      } else {
+        await processVnItem(item);
+      }
     } else if (isSgacJob(item)) {
       const dueItem = await promoteSgacScheduledIfDue(item);
       if (dueItem) {
@@ -4383,6 +4805,9 @@ async function main(): Promise<void> {
       `slotCooldownMs=${usAppointmentConfig.slotCheckCooldownMs}`,
       `captchaSolving=${usAppointmentConfig.captchaSolvingEnabled}`,
       `twoCaptchaConfigured=${usAppointmentConfig.twoCaptchaConfigured}`,
+      `playwright=${usAppointmentConfig.playwrightEnabled}`,
+      `headless=${usAppointmentConfig.playwrightHeadless}`,
+      `baseUrl=${usAppointmentConfig.baseUrl}`,
     ].join(" "),
   );
   const usAppointmentStartError = validateUSAppointmentRunnerStart(usAppointmentConfig);
