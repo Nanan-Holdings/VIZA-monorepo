@@ -42,6 +42,8 @@ export async function waitForDs160ConfirmationPage(page: Page): Promise<void> {
     ].join(", "),
   ];
   const viewConfirmationControls = [
+    'input[type="radio"][id*="radConfirmPage"]',
+    'input[type="radio"][value*="radConfirmPage" i]',
     'input[type="submit"][value*="View Confirmation" i]',
     'input[type="button"][value*="View Confirmation" i]',
     'button:has-text("View Confirmation")',
@@ -56,7 +58,10 @@ export async function waitForDs160ConfirmationPage(page: Page): Promise<void> {
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (await hasOfficialProofControls(page, printControlGroups)) return;
-    if (await clickFirstAvailable(page, viewConfirmationControls)) continue;
+    if (await clickFirstAvailable(page, viewConfirmationControls)) {
+      await clickFirstAvailable(page, continueControls);
+      continue;
+    }
     if (await clickFirstAvailable(page, continueControls)) continue;
     await page.waitForTimeout(1_000);
   }

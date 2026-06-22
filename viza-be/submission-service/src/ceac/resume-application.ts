@@ -45,13 +45,13 @@ const RETRIEVE_FORM_SELECTORS = {
   applicationId:
     'input[id*="tbxApplicationID"], input[id*="txtApplicationID"], input[id*="ApplicationID"][type="text"]',
   applicationIdSubmit:
-    'input[id*="btnBarcodeSubmit"], input[type="submit"][value="Retrieve Application"]',
+    'input[id*="btnBarcodeSubmit"]',
   surnameFive:
-    'input[id*="tbxSurname"]:visible, input[id*="txtSurname"]:visible, input[id*="txbSname"]:visible, input[id*="Surname"][type="text"]:visible',
+    'input[id*="tbxSurname"]:visible, input[id*="txbSurname"]:visible, input[id*="txtSurname"]:visible, input[id*="txbSname"]:visible, input[id*="Surname"][type="text"]:visible',
   yearOfBirth:
-    'input[id*="tbxDOBYear"]:visible, input[id*="txtYearOfBirth"]:visible, input[id*="txbYear"]:visible, select[id*="ddlDOBYear"]:visible',
+    'input[id*="tbxDOBYear"]:visible, input[id*="txbDOBYear"]:visible, input[id*="txtYearOfBirth"]:visible, input[id*="txbYear"]:visible, select[id*="ddlDOBYear"]:visible',
   securityAnswer:
-    'input[id*="tbxAnswer"]:visible, input[id*="txtAnswer"]:visible, input[id*="txbAnswer1"]:visible, input[id*="SecurityAnswer"][type="text"]:visible',
+    'input[id*="tbxAnswer"]:visible, input[id*="txbAnswer"]:visible, input[id*="txtAnswer"]:visible, input[id*="txbAnswer1"]:visible, input[id*="SecurityAnswer"][type="text"]:visible',
   continue:
     'input[id*="btnRetrieve"]:visible, input[name*="ApplicationRecovery1$Button1"]:visible, input[id*="btnContinue"]:visible, input[type="submit"][value*="Continue"]:visible, a[id*="lnkContinue"]:visible',
 } as const;

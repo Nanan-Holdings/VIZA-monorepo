@@ -126,6 +126,29 @@ async function enqueueProofJob(
   return { jobId: (data as { id?: string | null } | null)?.id ?? null };
 }
 
+async function loadLatestProofQueue(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null> {
+  const { data } = await admin
+    .from("submission_queue")
+    .select("id,status,last_error,error_message,updated_at")
+    .eq("application_id", applicationId)
+    .in("status", ["ds160_proof_pending", "ds160_proof_processing", "ds160_proof_failed", "done"])
+    .in("provider", ["ceac_proof"])
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  return data as { id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null;
+}
+
+function missingProofMessage(kind: Ds160ProofKind): string {
+  if (kind === "application") {
+    return "CEAC 当前没有返回可下载的 Print Application 官方 PDF。Print Confirmation 已保存，可直接下载或发送邮件。";
+  }
+  return "CEAC proof recovery completed, but the requested official PDF was not returned.";
+}
+
 async function sendProofEmail(input: {
   admin: ReturnType<typeof createAdminClient>;
   applicationId: string;
@@ -174,15 +197,7 @@ export async function GET(
   if (!loaded.ok) return loaded.response;
   const action = resolveDs160ProofAction(applicationId, kind, loaded.application.submission_result);
   if (action.status === "queued") {
-    const { data: queue } = await loaded.admin
-      .from("submission_queue")
-      .select("id,status,last_error,error_message,updated_at")
-      .eq("application_id", applicationId)
-      .in("status", ["ds160_proof_pending", "ds160_proof_processing", "ds160_proof_failed"])
-      .order("updated_at", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    const proofQueue = queue as { id?: string; status?: string; last_error?: string | null; error_message?: string | null } | null;
+    const proofQueue = await loadLatestProofQueue(loaded.admin, applicationId);
     if (proofQueue?.status === "ds160_proof_failed") {
       return NextResponse.json(
         {
@@ -190,6 +205,17 @@ export async function GET(
           status: "failed",
           jobId: proofQueue.id ?? null,
           error: proofQueue.error_message ?? proofQueue.last_error ?? "CEAC proof recovery failed.",
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (proofQueue?.status === "done") {
+      return NextResponse.json(
+        {
+          ok: false,
+          status: "failed",
+          jobId: proofQueue.id ?? null,
+          error: missingProofMessage(kind),
         },
         { headers: { "Cache-Control": "no-store" } },
       );
@@ -224,6 +250,13 @@ export async function POST(
     return NextResponse.json({ error: proofAction.reason }, { status: 400 });
   }
   if (proofAction.status === "queued") {
+    const latestProofQueue = await loadLatestProofQueue(loaded.admin, applicationId);
+    if (latestProofQueue?.status === "done") {
+      return NextResponse.json(
+        { ok: false, status: "failed", jobId: latestProofQueue.id ?? null, error: missingProofMessage(kind) },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     try {
       const job = await enqueueProofJob(loaded.admin, applicationId);
       return NextResponse.json({

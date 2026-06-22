@@ -97,7 +97,7 @@ function fakeProofPage(
         selector.includes("Print Application") ||
         selector.includes("Email Confirmation")
         ? "print"
-        : selector.includes("View Confirmation")
+        : selector.includes("View Confirmation") || selector.includes("radConfirmPage")
           ? "view"
           : selector.includes("Continue")
             ? "continue"
