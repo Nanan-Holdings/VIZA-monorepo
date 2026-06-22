@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  evaluateSgacSubmissionWindow,
+  validateSgacTravelDates,
+} from "@/features/sgac/date-window";
+import {
   isDs160VisaType,
   isFranceVisasVisaType,
   isSgArrivalCardApplication,
@@ -50,6 +54,18 @@ type RetryQueueInsertResult = {
   error: string | null;
   jobId: string | null;
 };
+
+type SgacScheduleDecision =
+  | { action: "submit"; arrivalDate: string; departureDate: string }
+  | {
+      action: "schedule";
+      arrivalDate: string;
+      departureDate: string;
+      earliestSubmissionDate: string;
+      daysUntilOpen: number;
+      result: Record<string, unknown>;
+    }
+  | { action: "reject"; status: number; code: string; message: string };
 
 type VietnamRequirement = {
   key: string;
@@ -507,6 +523,7 @@ async function insertRetryQueueRow(
     mode: SubmissionMode;
     provider: string | null;
     now: string;
+    currentStage?: string | null;
   },
 ): Promise<RetryQueueInsertResult> {
   const { data, error } = await admin.from("submission_queue").insert({
@@ -516,6 +533,7 @@ async function insertRetryQueueRow(
     provider: input.provider,
     attempts: 0,
     last_error: null,
+    current_stage: input.currentStage ?? null,
     created_at: input.now,
     updated_at: input.now,
   }).select("id").single();
@@ -536,12 +554,138 @@ async function insertRetryQueueRow(
     status: input.queueStatus,
     attempts: 0,
     last_error: null,
+    current_stage: input.currentStage ?? null,
     created_at: input.now,
     updated_at: input.now,
   }).select("id").single();
   if (legacyError) return { error: legacyError.message, jobId: null };
   const legacyRow = legacyData as { id?: string | null } | null;
   return { error: null, jobId: legacyRow?.id ?? null };
+}
+
+async function readSgacDateAnswers(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  application: ApplicationForRetry,
+): Promise<{ arrivalDate: string | null; departureDate: string | null; error: string | null }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId)
+    .in("field_name", [
+      "arrival_date",
+      "intended_arrival_date",
+      "planned_arrival_date",
+      "departure_date",
+      "intended_departure_date",
+      "planned_departure_date",
+    ]);
+
+  if (error) return { arrivalDate: null, departureDate: null, error: error.message };
+
+  const answers: Record<string, string> = {};
+  for (const row of (data ?? []) as Array<{ field_name?: unknown; value_text?: unknown; value_json?: unknown }>) {
+    if (typeof row.field_name !== "string") continue;
+    const value = answerValueToText(row);
+    if (value) answers[row.field_name] = value;
+  }
+
+  return {
+    arrivalDate: firstText([
+      answers.arrival_date,
+      answers.intended_arrival_date,
+      answers.planned_arrival_date,
+      application.arrival_date,
+    ]),
+    departureDate: firstText([
+      answers.departure_date,
+      answers.intended_departure_date,
+      answers.planned_departure_date,
+      application.departure_date,
+    ]),
+    error: null,
+  };
+}
+
+async function decideSgacLiveSchedule(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  application: ApplicationForRetry;
+  now: string;
+}): Promise<SgacScheduleDecision> {
+  const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
+  if (dates.error) {
+    return { action: "reject", status: 500, code: "sgac_date_load_failed", message: dates.error };
+  }
+
+  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  if (!travelDates.ok) {
+    return {
+      action: "reject",
+      status: 422,
+      code: `sgac_${travelDates.code}`,
+      message: travelDates.message,
+    };
+  }
+
+  const window = evaluateSgacSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  if (window.status === "invalid") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "sgac_invalid_arrival_date",
+      message: "SGAC arrival date must use YYYY-MM-DD.",
+    };
+  }
+  if (window.status === "past") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "sgac_arrival_date_past",
+      message: "SGAC arrival date is already in the past. Please update the travel dates before submitting.",
+    };
+  }
+  if (window.status === "scheduled") {
+    const result = {
+      country: "SG",
+      visaType: "SG_ARRIVAL_CARD",
+      status: "scheduled",
+      mode: "live_assisted",
+      provider: "sg_arrival_card_live",
+      applicationId: input.applicationId,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: "https://eservices.ica.gov.sg/sgarrivalcard/fvipa",
+      portalResponseSummary:
+        `ICA accepts SG Arrival Card submissions within three days including arrival day. This application is scheduled for ${window.earliestSubmissionDate}.`,
+      scheduledFor: window.earliestSubmissionDate,
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: {
+        arrivalDate: travelDates.arrivalDate,
+        purposeOfTravel: null,
+        modeOfTravel: null,
+        transportNumber: null,
+        accommodationAddressProvided: false,
+      },
+    };
+    return {
+      action: "schedule",
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      earliestSubmissionDate: window.earliestSubmissionDate,
+      daysUntilOpen: window.daysUntilOpen,
+      result,
+    };
+  }
+
+  return {
+    action: "submit",
+    arrivalDate: travelDates.arrivalDate,
+    departureDate: travelDates.departureDate,
+  };
 }
 
 export async function POST(
@@ -618,7 +762,7 @@ export async function POST(
     );
   }
 
-  const queueStatus = queueStatusForApplication(
+  let queueStatus = queueStatusForApplication(
     ownedApplication.country,
     ownedApplication.visa_type,
     mode,
@@ -628,6 +772,9 @@ export async function POST(
     ownedApplication.visa_type,
     mode,
   );
+
+  let scheduledResult: Record<string, unknown> | null = null;
+  let scheduledFor: string | null = null;
 
   if (mode === "live_assisted") {
     const supportsLiveAssisted =
@@ -691,6 +838,28 @@ export async function POST(
         );
       }
     }
+    if (isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const scheduleDecision = await decideSgacLiveSchedule({
+        admin,
+        applicationId,
+        application: ownedApplication,
+        now,
+      });
+      if (scheduleDecision.action === "reject") {
+        return NextResponse.json(
+          {
+            error: scheduleDecision.message,
+            code: scheduleDecision.code,
+          },
+          { status: scheduleDecision.status },
+        );
+      }
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "sgac_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
+      }
+    }
   }
 
   const { error: supersedeError } = await admin
@@ -712,6 +881,7 @@ export async function POST(
     mode,
     provider,
     now,
+    currentStage: queueStatus === "sgac_live_assisted_scheduled" ? "scheduled_for_ica_window" : null,
   });
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
@@ -722,8 +892,8 @@ export async function POST(
     .update({
       status: "submitted",
       submitted_at: now,
-      submission_result_status: "waiting",
-      submission_result: null,
+      submission_result_status: scheduledResult ? "scheduled" : "waiting",
+      submission_result: scheduledResult,
       confirmation_number: null,
       submission_result_updated_at: now,
       updated_at: now,
@@ -741,5 +911,8 @@ export async function POST(
     queueStatus,
     mode,
     provider,
+    scheduled: Boolean(scheduledResult),
+    scheduledFor,
+    result: scheduledResult,
   });
 }

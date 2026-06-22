@@ -5,6 +5,7 @@ import { switzer, geist } from "./fonts";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { RuntimeAbortErrorGuard } from "@/components/runtime-abort-error-guard";
+import { RuntimeAbortErrorScript } from "@/components/runtime-abort-error-script";
 
 export const metadata: Metadata = {
   title: "VIZA Portal",
@@ -21,6 +22,9 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
+      <head>
+        <RuntimeAbortErrorScript />
+      </head>
       <body className={`${switzer.variable} ${geist.variable} font-sans antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <RuntimeAbortErrorGuard />

@@ -20,8 +20,8 @@ import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./cap
 import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
   buildVnFieldFallback,
+  getVnDependentFieldFallbackValue,
   getVnPortalOptionText,
-  getVnFieldFallbackValue,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
   VN_STOP_BUTTON_PATTERNS,
@@ -335,19 +335,26 @@ async function fillVietnamApplicationOnce(
       }
       try {
         await fillByType(page, fieldName, mapping.type, mapping.domId, value);
+        if (fieldName === "intended_province_city") {
+          await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
+        }
         filled++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const fallbackValue = getVnFieldFallbackValue(fieldName);
+        const fallbackValue = getVnDependentFieldFallbackValue(fieldName, input.answers);
         const fallbackRecord = buildVnFieldFallback({
           fieldName,
           domId: mapping.domId,
           type: mapping.type,
           userValue: value,
+          fallbackValue,
           errorMessage: msg,
         });
         if (fallbackValue && fallbackRecord) {
           try {
+            if (fieldName === "intended_ward_commune") {
+              await waitForDependentAntSelectToHydrate(page, mapping.domId);
+            }
             await fillByType(page, fieldName, mapping.type, mapping.domId, fallbackValue);
             fieldFallbacks.push(fallbackRecord);
             filled++;
@@ -991,28 +998,211 @@ async function fillByType(
       await pickRadio(page, domId, portalOptionText);
       return;
     case "date":
-      await fillDate(page, domId, toDdMmYyyy(rawValue));
+      await fillDate(page, domId, toPortalDateForField(fieldName, rawValue));
       return;
     case "checkbox":
       await tickCheckbox(page, domId, rawValue);
       return;
     case "upload":
-      await uploadVietnamFile(page, domId, rawValue);
+      await uploadVietnamFile(page, domId, rawValue, fieldName);
       return;
     default:
       return;
   }
 }
 
-async function uploadVietnamFile(page: Page, domId: string, rawPath: string): Promise<void> {
+async function waitForDependentAntSelectToHydrate(
+  page: Page,
+  domId: string,
+  timeoutMs = 7_500,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const optionCount = await page
+      .evaluate(async (id) => {
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        const input = document.querySelector<HTMLInputElement>(`#${CSS.escape(id)}`);
+        const select = input?.closest<HTMLElement>(".ant-select");
+        const selector = select?.querySelector<HTMLElement>(".ant-select-selector") ?? select;
+        if (!input || !select || !selector) return 0;
+        selector.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+        selector.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
+        selector.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+        input.focus();
+        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+        await sleep(300);
+        const optionTexts = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+          .filter((dropdown) => {
+            const style = window.getComputedStyle(dropdown);
+            return (
+              style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              !dropdown.classList.contains("ant-select-dropdown-hidden")
+            );
+          })
+          .flatMap((dropdown) =>
+            Array.from(dropdown.querySelectorAll<HTMLElement>(".ant-select-item-option"))
+              .map((option) => (option.innerText || option.textContent || "").trim())
+              .filter(Boolean),
+          );
+        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape", code: "Escape" }));
+        return optionTexts.length;
+      }, domId)
+      .catch(() => 0);
+    if (optionCount > 0) return;
+    await page.waitForTimeout(500);
+  }
+}
+
+export function toPortalDateForField(fieldName: string, rawValue: string, now = new Date()): string {
+  const formatted = toDdMmYyyy(rawValue);
+  if (fieldName !== "visa_valid_from") return formatted;
+  const parsed = parseDdMmYyyy(formatted);
+  if (!parsed) return formatted;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return parsed < today ? formatDdMmYyyy(today) : formatted;
+}
+
+function parseDdMmYyyy(value: string): Date | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+    return null;
+  }
+  return parsed;
+}
+
+function formatDdMmYyyy(value: Date): string {
+  const day = `${value.getDate()}`.padStart(2, "0");
+  const month = `${value.getMonth() + 1}`.padStart(2, "0");
+  return `${day}/${month}/${value.getFullYear()}`;
+}
+
+async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fieldName: string): Promise<void> {
   const localPath = path.resolve(rawPath);
   if (!fs.existsSync(localPath)) {
     throw new Error(`Vietnam upload file not found for ${domId}: ${localPath}`);
   }
-  const inputIndex = domId === "basic_anhMat" ? 0 : 1;
-  const fileInput = page.locator('input[type="file"]').nth(inputIndex);
-  await fileInput.setInputFiles(localPath, { timeout: 20_000 });
-  await page.waitForTimeout(1_000);
+  const uploadPath = await prepareVietnamUploadFile(page, localPath, fieldName);
+  const uploadIndex = fieldName === "portrait_photo" ? 0 : 1;
+  const labelPattern =
+    fieldName === "portrait_photo"
+      ? /portrait photography/i
+      : /passport data page image/i;
+  const byLabel = page
+    .locator(".ant-form-item")
+    .filter({ hasText: labelPattern })
+    .locator('input[type="file"]')
+    .first();
+  const byId = page.locator(`#${cssEscape(domId)}[type="file"]`).first();
+  const fileInput =
+    (await byLabel.count().catch(() => 0)) > 0
+      ? byLabel
+      : (await byId.count().catch(() => 0)) > 0
+        ? byId
+        : page.locator('input[type="file"]').nth(uploadIndex);
+  await fileInput.setInputFiles(uploadPath, { timeout: 20_000 });
+  await waitForVietnamUploadPreview(page, domId, uploadIndex, labelPattern);
+}
+
+async function prepareVietnamUploadFile(page: Page, localPath: string, fieldName: string): Promise<string> {
+  const maxBytes = 1_900_000;
+  const stat = fs.statSync(localPath);
+  if (stat.size <= maxBytes) return localPath;
+  const ext = path.extname(localPath).toLowerCase();
+  if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return localPath;
+
+  const sourceBase64 = fs.readFileSync(localPath).toString("base64");
+  const mimeType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  const compressed = await page.evaluate(
+    async ({ sourceBase64, mimeType, maxBytes, fieldName }) => {
+      const loadImage = (src: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error("image_decode_failed"));
+          image.src = src;
+        });
+      const image = await loadImage(`data:${mimeType};base64,${sourceBase64}`);
+      const maxDimension = fieldName === "portrait_photo" ? 900 : 1800;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("canvas_context_unavailable");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54, 0.46]) {
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        const base64 = dataUrl.split(",", 2)[1] ?? "";
+        const bytes = Math.floor((base64.length * 3) / 4);
+        if (bytes <= maxBytes || quality === 0.46) {
+          return { base64, bytes, width: canvas.width, height: canvas.height, quality };
+        }
+      }
+      throw new Error("image_compression_failed");
+    },
+    { sourceBase64, mimeType, maxBytes, fieldName },
+  );
+  const outputPath = path.join(
+    path.dirname(localPath),
+    `${path.basename(localPath, path.extname(localPath))}-vietnam-upload.jpg`,
+  );
+  fs.writeFileSync(outputPath, Buffer.from(compressed.base64, "base64"));
+  console.log(
+    `[vn] compressed ${fieldName} upload ${path.basename(localPath)} ${stat.size}B -> ${path.basename(outputPath)} ${compressed.bytes}B (${compressed.width}x${compressed.height}, q=${compressed.quality})`,
+  );
+  return outputPath;
+}
+
+async function waitForVietnamUploadPreview(
+  page: Page,
+  domId: string,
+  uploadIndex: number,
+  labelPattern: RegExp,
+): Promise<void> {
+  const accepted = await page
+    .waitForFunction(
+      ({ domId, uploadIndex, labelSource, labelFlags }) => {
+        const labelRegex = new RegExp(labelSource, labelFlags);
+        const labeledInput =
+          Array.from(document.querySelectorAll<HTMLElement>(".ant-form-item"))
+            .find((item) => labelRegex.test(item.textContent ?? ""))
+            ?.querySelector<HTMLInputElement>('input[type="file"]') ?? null;
+        const input =
+          labeledInput ??
+          document.querySelector<HTMLInputElement>(`#${CSS.escape(domId)}[type="file"]`) ??
+          Array.from(document.querySelectorAll<HTMLInputElement>('input[type="file"]'))[uploadIndex] ??
+          null;
+        const formItem = input?.closest(".ant-form-item") ?? input?.closest(".ant-upload-wrapper") ?? input?.parentElement;
+        const text = (formItem?.textContent ?? "").replace(/\s+/g, " ");
+        const hasError = /please enter|not be empty|required/i.test(text);
+        const hasPreview =
+          Boolean(formItem?.querySelector("img[src^='blob:'], img[src^='data:'], .ant-upload-list-item, .ant-upload-list-item-done")) ||
+          Boolean(input?.files && input.files.length > 0);
+        return hasPreview && !hasError;
+      },
+      {
+        domId,
+        uploadIndex,
+        labelSource: labelPattern.source,
+        labelFlags: labelPattern.flags,
+      },
+      { timeout: 8_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (!accepted) {
+    await page.waitForTimeout(1_000);
+  }
+}
+
+function cssEscape(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`);
 }
 
 async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {

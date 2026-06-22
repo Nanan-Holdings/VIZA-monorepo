@@ -443,6 +443,10 @@ function isCurrentDepartureDateField(field: VisaFormFieldRow, valueKey: string):
   return currentFieldMatchesAny(field, valueKey, DEPARTURE_DATE_CANDIDATES);
 }
 
+function isCurrentArrivalDateField(field: VisaFormFieldRow, valueKey: string): boolean {
+  return currentFieldMatchesAny(field, valueKey, ARRIVAL_DATE_CANDIDATES);
+}
+
 function isCurrentNationalityConsistencyField(field: VisaFormFieldRow, valueKey: string): boolean {
   return currentFieldMatchesAny(field, valueKey, NATIONALITY_CONSISTENCY_CANDIDATES);
 }
@@ -618,7 +622,10 @@ function getLocalFieldIssue(
     repeatSuffix,
   ) ?? undefined);
 
-  if (isCurrentDepartureDateField(field, valueKey) && arrivalDate && departureDate && departureDate <= arrivalDate) {
+  const isCurrentTravelDateField =
+    isCurrentArrivalDateField(field, valueKey) ||
+    isCurrentDepartureDateField(field, valueKey);
+  if (isCurrentTravelDateField && arrivalDate && departureDate && departureDate <= arrivalDate) {
     return issue("error", isZh ? "离开日期必须晚于到达日期" : "Departure date must be after arrival date");
   }
   if (isCurrentDocumentExpiryField(field, valueKey) && arrivalDate && expiryDate && expiryDate < arrivalDate) {
@@ -1297,18 +1304,19 @@ export function DynamicStepForm({
     return false;
   }, [gatingToggles, values]);
 
+  const visibleFields = step.fields.filter((f) => {
+      if (isGatedByUnansweredToggle(f)) return false;
+      if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
+      return evaluateShowIf(f, values, step.fields);
+    });
+
   // Required validation: only check visible fields (and all instances of repeat groups)
-  const requiredFilled = step.fields
+  const requiredFilled = visibleFields
     .filter((f) => f.required)
     // Annex-I-style starred fields: required_unless exempts the field when its
     // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
     // skip fields 21/22/30/31/32 of the Schengen form).
     .filter((f) => !isRequiredUnlessSatisfied(f, values))
-    .filter((f) => {
-      if (isGatedByUnansweredToggle(f)) return false;
-      if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
-      return evaluateShowIf(f, values, step.fields);
-    })
     .every((f) => {
       const group = getRepeatGroup(f);
       if (group) {
@@ -1319,6 +1327,18 @@ export function DynamicStepForm({
       }
       return (values[f.fieldName] ?? "").trim();
     });
+
+  const blockingErrorsClear = visibleFields.every((f) => {
+    const group = getRepeatGroup(f);
+    if (group) {
+      const count = groupCounts[group] ?? 1;
+      return Array.from({ length: count }, (_, i) => {
+        const valueKey = instanceKey(f.fieldName, i);
+        return getLocalFieldIssue(f, valueKey, values[valueKey] ?? "", values, locale).severity !== "error";
+      }).every(Boolean);
+    }
+    return getLocalFieldIssue(f, f.fieldName, values[f.fieldName] ?? "", values, locale).severity !== "error";
+  });
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
@@ -1655,7 +1675,7 @@ export function DynamicStepForm({
 
       <BrandActionButton
         type="submit"
-        disabled={!requiredFilled}
+        disabled={!requiredFilled || !blockingErrorsClear}
         loading={saving}
         loadingText={tButtons("saving")}
         className="mt-2"

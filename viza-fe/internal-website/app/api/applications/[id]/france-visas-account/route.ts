@@ -23,6 +23,13 @@ type FvAccountRow = {
   created_at?: string | null;
 };
 
+type SubmissionQueueRow = {
+  official_application_reference_encrypted?: string | null;
+  official_application_id_encrypted?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+};
+
 const KEY_LEN = 32;
 
 function isMissingFvAccountColumnError(error: { message?: string; code?: string }): boolean {
@@ -160,12 +167,26 @@ export async function GET(
     decryptOrPlaintext(account.official_account_password_encrypted) ??
     decryptOrPlaintext(account.password_encrypted);
 
+  const { data: queueData } = await admin
+    .from("submission_queue")
+    .select("official_application_reference_encrypted, official_application_id_encrypted, updated_at, created_at")
+    .eq("application_id", applicationId)
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  const queue = queueData as SubmissionQueueRow | null;
+  const officialReference =
+    decryptOrPlaintext(queue?.official_application_reference_encrypted) ??
+    decryptOrPlaintext(queue?.official_application_id_encrypted);
+
   return NextResponse.json(
     {
       ok: true,
       account: {
         email,
         password,
+        officialReference,
         portalUrl: "https://application-form.france-visas.gouv.fr/fv-fo-dde/",
         updatedAt: account.updated_at ?? account.created_at ?? null,
       },
