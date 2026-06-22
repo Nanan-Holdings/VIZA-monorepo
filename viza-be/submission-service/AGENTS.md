@@ -30,6 +30,13 @@ filling and one-shot submission for the applicant.
   sure the frontend confirmation UI displays Chinese success copy with official
   evidence such as CEAC Application ID, confirmation number/reference, timestamp,
   and retrieval/status URL when available.
+- The frontend submission loading UI must be connected only to an active
+  submission queue for the same application. Show it while the user has just
+  clicked submit/retry and the worker is pending/processing/scheduled/running;
+  hide it once the application is submitted/completed, failed/stalled, or only
+  non-submission proof/download jobs remain. Proof artifact jobs such as
+  `ceac_proof` must not make the confirmation tab look like a new submission is
+  still running.
 - Before claiming any submission-service flow is complete, verify the chain from
   the user's browser perspective by clicking the real frontend submit/retry
   button, watching queue pickup/progress in the UI, and preserving the official
