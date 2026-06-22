@@ -86,6 +86,17 @@ function isWorkerPickupError(errorMessage?: string): boolean {
     normalized.includes("submission job stalled");
 }
 
+function localizeFailureMessage(errorMessage: string | undefined, isZh: boolean): string | undefined {
+  if (!errorMessage || !isZh) return errorMessage;
+  if (/vietnam official portal stayed on the (?:review )?security-code step/i.test(errorMessage)) {
+    return "越南电子签官网在验证码提交后仍停留在安全码页面。VIZA 已完成字段填写、文件上传和官网字段校验，但本轮未进入付款/登记编号页面。";
+  }
+  if (/form filled but registration code element not found/i.test(errorMessage)) {
+    return "官网表单已填写，但未能识别登记编号页面。请重新提交以使用最新识别逻辑。";
+  }
+  return errorMessage;
+}
+
 /**
  * FailureCard — renders when applications.submission_result_status === 'failed'.
  * Surfaces the error and offers a retry that requeues the application.
@@ -103,6 +114,7 @@ export function FailureCard({
   const [showPassword, setShowPassword] = useState(false);
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
+  const displayErrorMessage = localizeFailureMessage(errorMessage, isZh);
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
@@ -170,9 +182,9 @@ export function FailureCard({
               ))}
             </ul>
           </div>
-        ) : errorMessage && (
+        ) : displayErrorMessage && (
           <pre className="whitespace-pre-wrap break-words rounded-md border border-input bg-muted/50 p-3 text-xs leading-relaxed text-foreground">
-            {errorMessage}
+            {displayErrorMessage}
           </pre>
         )}
         {applicationId && onRetry && (
