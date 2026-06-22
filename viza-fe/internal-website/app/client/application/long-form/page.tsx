@@ -2516,6 +2516,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
+                              onResubmit={handleDynamicReviewComplete}
                             />
                           ) : (
                             <FinalConfirmationPanel
@@ -2616,6 +2617,7 @@ export default function ApplicationPage() {
                               visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
+                              onResubmit={handleReviewComplete}
                             />
                           ) : (
                             <FinalConfirmationPanel

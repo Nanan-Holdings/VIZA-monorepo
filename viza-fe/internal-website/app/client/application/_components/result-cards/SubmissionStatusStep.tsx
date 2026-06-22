@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, FlaskConical, Loader2, RotateCw, ShieldCheck } from "lucide-react";
 import type {
   GenericSubmissionResult,
   SubmissionResult,
@@ -40,6 +40,7 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
+  onResubmit?: (mode: SubmissionMode) => Promise<void> | void;
 }
 
 interface SubmissionStatusSnapshot {
@@ -495,6 +496,53 @@ function GenericResultCard({
   );
 }
 
+function FranceResubmitPanel({
+  isZh,
+  busy,
+  disabled,
+  error,
+  onSubmitAgain,
+}: {
+  isZh: boolean;
+  busy: boolean;
+  disabled: boolean;
+  error: string | null;
+  onSubmitAgain: () => void;
+}) {
+  return (
+    <Card className="rounded-xl border-brand-100 bg-brand-50/50">
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">
+            {isZh ? "重新提交 France-Visas 申请" : "Submit the France-Visas application again"}
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {isZh
+              ? "会先保存当前表单里的最新答案，再重新创建法国官网提交任务。"
+              : "VIZA saves the latest answers from this form first, then creates a new France-Visas submission job."}
+          </p>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+        </div>
+        <Button
+          type="button"
+          onClick={onSubmitAgain}
+          disabled={disabled || busy}
+          className="shrink-0"
+        >
+          {busy ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCw className="mr-2 h-4 w-4" />
+          )}
+          {busy
+            ? (isZh ? "正在再次提交" : "Submitting again")
+            : (isZh ? "再次提交申请" : "Submit again")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 /**
  * Drives the final wizard step from the same-origin submission-status API,
  * with the parent application's realtime props as a terminal-state fallback.
@@ -507,33 +555,46 @@ export function SubmissionStatusStep({
   visaType,
   status,
   result,
+  onResubmit,
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
   const [showCompletedResult, setShowCompletedResult] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [resubmitting, setResubmitting] = useState(false);
 
   const handleRetry = useCallback(async (mode: SubmissionMode) => {
     if (!applicationId) return;
     setRetryError(null);
-    const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mode,
-        country: snapshot?.country ?? country,
-        visaType: snapshot?.visaType ?? visaType,
-      }),
-    });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-      const message = typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`;
-      setRetryError(message);
-      throw new Error(message);
+    setResubmitting(true);
+    try {
+      if (onResubmit) {
+        await onResubmit(mode);
+        setSnapshot(null);
+        setShowCompletedResult(false);
+        return;
+      }
+      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          country: snapshot?.country ?? country,
+          visaType: snapshot?.visaType ?? visaType,
+        }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+        const message = typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`;
+        setRetryError(message);
+        throw new Error(message);
+      }
+      setSnapshot(null);
+      setShowCompletedResult(false);
+    } finally {
+      setResubmitting(false);
     }
-    setSnapshot(null);
-    setShowCompletedResult(false);
-  }, [applicationId, country, snapshot?.country, snapshot?.visaType, visaType]);
+  }, [applicationId, country, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
 
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
@@ -574,12 +635,18 @@ export function SubmissionStatusStep({
     effectiveStatus === "failed" || (!snapshotIsActive && effectiveApplicationStatus === "failed");
   const stalled =
     effectiveStatus === "stalled" || (!snapshotIsActive && effectiveApplicationStatus === "stalled");
+  const isFranceSubmissionCurrent = isFranceSubmission(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
   const isSgacSubmission = isSgArrivalCardApplication(
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
   const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
-  const retryModes = isSgacSubmission || isDs160Submission
+  const retryModes = isFranceSubmissionCurrent
+    ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
+    : isSgacSubmission || isDs160Submission
     ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
     : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
       ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
@@ -749,6 +816,17 @@ export function SubmissionStatusStep({
   if (actionWithResult || (completedWithResult && showCompletedResult)) {
     return (
       <div className="space-y-4">
+        {isFranceSubmissionCurrent && (
+          <FranceResubmitPanel
+            isZh={isZh}
+            busy={resubmitting}
+            disabled={!applicationId}
+            error={retryError}
+            onSubmitAgain={() => {
+              void handleRetry("live_assisted").catch(() => undefined);
+            }}
+          />
+        )}
         {renderSubmissionResultCard(
           applicationId,
           country,
@@ -762,6 +840,17 @@ export function SubmissionStatusStep({
 
   return (
     <div className="space-y-4">
+      {isFranceSubmissionCurrent && (
+        <FranceResubmitPanel
+          isZh={isZh}
+          busy={resubmitting}
+          disabled={!applicationId}
+          error={retryError}
+          onSubmitAgain={() => {
+            void handleRetry("live_assisted").catch(() => undefined);
+          }}
+        />
+      )}
       <WaitingCard
         status={effectiveStatus}
         stage={effectiveStage}

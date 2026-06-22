@@ -193,7 +193,13 @@ async function solveSecurityVerificationIfPresent(
   });
 }
 
-async function selectNgOption(page: Page, selector: string, query: string, expectedText?: string): Promise<string> {
+async function selectNgOption(
+  page: Page,
+  selector: string,
+  query: string,
+  expectedText?: string,
+  fieldLabel = selector,
+): Promise<string> {
   await page.locator(selector).click({ timeout: 20_000 });
   await page.keyboard.press("Control+A").catch(() => undefined);
   await page.keyboard.type(query);
@@ -209,7 +215,7 @@ async function selectNgOption(page: Page, selector: string, query: string, expec
   } catch {
     const summary = await visibleBodySummary(page, 1200);
     throw new SgacPortalError(
-      `ICA SGAC dropdown option not found for "${desired}". Please use a value that appears in the official ICA dropdown list.`,
+      `ICA SGAC dropdown option not found for ${fieldLabel}: "${desired}". Please use a value that appears in the official ICA dropdown list.`,
       {
         code: "sgac_dropdown_option_not_found",
         portalSummary: summary,
@@ -301,9 +307,9 @@ async function fillTravellerStep(page: Page, payload: SgacPortalPayload): Promis
   await page.locator("#indTdExpiry_0").fill(payload.passportExpiryDate);
   await page.locator(`#sex_${payload.sex}_0`).click();
   await page.locator("#indDob_0").fill(payload.dateOfBirth);
-  await selectNgOption(page, "#nationality_0", payload.nationalityLabel, payload.nationalityLabel);
-  await selectNgOption(page, "#place_of_birth_0", payload.placeOfBirthLabel, payload.placeOfBirthLabel);
-  await selectNgOption(page, "#residence_city_0", payload.residenceCityQuery, payload.residenceCityQuery);
+  await selectNgOption(page, "#nationality_0", payload.nationalityLabel, payload.nationalityLabel, "Nationality/Citizenship");
+  await selectNgOption(page, "#place_of_birth_0", payload.placeOfBirthLabel, payload.placeOfBirthLabel, "Country/Place of Birth");
+  await selectNgOption(page, "#residence_city_0", payload.residenceCityQuery, payload.residenceCityQuery, "Place of Residence");
   await page.locator("#email_0").fill(payload.email);
   await page.locator("#ccNo_0").fill(payload.phoneCountryCode);
   await page.locator("#contactNo_0").fill(payload.phoneNumber);
@@ -321,7 +327,7 @@ async function fillTransport(page: Page, payload: SgacPortalPayload): Promise<vo
     await page.locator("#tptModeTypeInput_0_0").click();
     if (payload.transport.airTransportType === "commercial") {
       await page.locator("#tptTypeInput_0_0").click();
-      await selectNgOption(page, "#carrierCodeInput_0", payload.transport.carrierCodeQuery ?? "", payload.transport.carrierCodeQuery);
+      await selectNgOption(page, "#carrierCodeInput_0", payload.transport.carrierCodeQuery ?? "", payload.transport.carrierCodeQuery, "Airline code");
       await page.locator("#flightNoInput_0").fill(payload.transport.flightNo ?? "");
     } else {
       await page.locator("#tptTypeInput_0_1").click();
@@ -343,7 +349,7 @@ async function fillAccommodation(page: Page, payload: SgacPortalPayload): Promis
   const accommodation = payload.accommodation;
   if (accommodation.type === "hotel") {
     await page.locator("#accoTypeInput_0_0").click();
-    await selectNgOption(page, "#hotelNameInput_0", accommodation.hotelNameQuery, accommodation.hotelNameQuery);
+    await selectNgOption(page, "#hotelNameInput_0", accommodation.hotelNameQuery, accommodation.hotelNameQuery, "Hotel Name");
     return;
   }
   if (accommodation.type === "residential") {
@@ -369,15 +375,15 @@ async function fillAccommodation(page: Page, payload: SgacPortalPayload): Promis
 }
 
 async function fillTripStep(page: Page, payload: SgacPortalPayload): Promise<void> {
-  await selectNgOption(page, "#lastCityCityInput_0", payload.lastCityQuery, payload.lastCityQuery);
-  await selectNgOption(page, "#purposeOfTravel_0", payload.purposeOfTravelLabel, payload.purposeOfTravelLabel);
+  await selectNgOption(page, "#lastCityCityInput_0", payload.lastCityQuery, payload.lastCityQuery, "Last City/Port of Embarkation Before Singapore");
+  await selectNgOption(page, "#purposeOfTravel_0", payload.purposeOfTravelLabel, payload.purposeOfTravelLabel, "Purpose of Travel");
   await fillTransport(page, payload);
   await fillAccommodation(page, payload);
   await page.locator("#eddInput_group_0").fill(payload.departureDate);
   if (payload.nextCityQuery === payload.lastCityQuery && (await page.locator("#copyLastCityInput_0").count()) > 0) {
     await page.locator("#copyLastCityInput_0").click();
   } else {
-    await selectNgOption(page, "#nextCityCityInput_0", payload.nextCityQuery, payload.nextCityQuery);
+    await selectNgOption(page, "#nextCityCityInput_0", payload.nextCityQuery, payload.nextCityQuery, "Next City/Port of Disembarkation After Singapore");
   }
   await clickVisibleRoleButton(page, /^Next$/i);
   await page.waitForSelector("#hdc_Submission_Declaration", { timeout: 40_000 });

@@ -149,6 +149,14 @@ function missingProofMessage(kind: Ds160ProofKind): string {
   return "CEAC proof recovery completed, but the requested official PDF was not returned.";
 }
 
+function proofEmailErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("RESEND_API_KEY")) {
+    return "邮件服务未配置：请在 viza-fe/internal-website/.env.local 设置 RESEND_API_KEY，然后重启前端服务。";
+  }
+  return message;
+}
+
 async function sendProofEmail(input: {
   admin: ReturnType<typeof createAdminClient>;
   applicationId: string;
@@ -304,7 +312,7 @@ export async function POST(
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
+      { error: proofEmailErrorMessage(error) },
       { status: 500 },
     );
   }
