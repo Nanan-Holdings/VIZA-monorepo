@@ -3,6 +3,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { getSupabaseClient } from "../db/supabase-client.js";
+import { readSupabaseUserAuthConfig } from "./supabase-user-auth-config.js";
 import { Logger } from "../utils/logger.js";
 import {
   createOfficialFeeServices,
@@ -104,9 +105,8 @@ async function resolveRequester(req: Request): Promise<Requester | null> {
   if (!token) return null;
   if (isServiceToken(token)) return { kind: "service", userId: null, role: "service" };
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) {
+  const authConfig = readSupabaseUserAuthConfig();
+  if (!authConfig) {
     throw new OfficialFeeServiceError(
       500,
       "supabase_auth_not_configured",
@@ -114,7 +114,7 @@ async function resolveRequester(req: Request): Promise<Requester | null> {
     );
   }
 
-  const userClient = createClient(supabaseUrl, anonKey, {
+  const userClient = createClient(authConfig.supabaseUrl, authConfig.anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });

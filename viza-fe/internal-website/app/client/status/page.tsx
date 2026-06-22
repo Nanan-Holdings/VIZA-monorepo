@@ -38,6 +38,7 @@ import {
 } from "./status-data";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { LiveManualActionCard } from "./live-manual-action-card";
+import { OfficialStatusRefreshButton } from "./official-status-refresh-button";
 
 type SearchParams = Promise<{
   applicationId?: string | string[];
@@ -428,6 +429,7 @@ function DetailView({
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
+  const isVietnam = application.country.toLowerCase() === "vietnam" || application.country.toUpperCase() === "VN";
   return (
     <section className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5 lg:p-6">
       <div className="space-y-5">
@@ -505,6 +507,14 @@ function DetailView({
               {application.actions.map((action) => (
                 <ActionLink key={`side-${action.key}-${action.href}`} action={action} t={t} />
               ))}
+              {application.id && isVietnam && (
+                <OfficialStatusRefreshButton
+                  applicationId={application.id}
+                  label={locale.startsWith("zh") ? "刷新官网状态" : "Refresh official status"}
+                  loadingLabel={locale.startsWith("zh") ? "正在刷新" : "Refreshing"}
+                  errorLabel={locale.startsWith("zh") ? "官网状态刷新失败" : "Official status refresh failed"}
+                />
+              )}
             </div>
           </section>
 
@@ -515,6 +525,10 @@ function DetailView({
               <DetailMetric label={t("details.payment")} value={application.payment.status ? humanize(application.payment.status) : t("notStarted")} />
               <DetailMetric label={t("details.agencyFee")} value={formatMoney(application.payment.amountCents, application.payment.currency, locale)} />
               <DetailMetric label={t("details.governmentFee")} value={formatMoney(application.governmentFee.amountCents, application.governmentFee.currency, locale)} />
+              <DetailMetric
+                label={locale.startsWith("zh") ? "官方费用状态" : "Official fee status"}
+                value={application.officialFee.status ? humanize(application.officialFee.status) : t("notStarted")}
+              />
               <DetailMetric label={t("details.formAnswers")} value={String(application.formAnswerCount)} />
               <DetailMetric
                 label={t("details.documents")}

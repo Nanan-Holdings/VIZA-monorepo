@@ -41,9 +41,19 @@ Email: czz19974931995@gmail.com
 Login URL: http://127.0.0.1:3000/client/login
 ```
 
+Secondary sample client account for browser smoke testing when explicitly
+provided out-of-band for the current run:
+
+```text
+Email: e1484122@u.nus.edu
+Login URL: http://127.0.0.1:3000/client/login
+```
+
 Do not store the plaintext client password in this repo guide. Use the password
 provided out-of-band for the current test run, or reset the local test password
-before testing if needed.
+before testing if needed. If the current workstation has local sample
+credentials, agents may read `.agents/local-test-credentials.env`; that file is
+ignored by Git and must not be committed.
 
 ## Repository Map
 

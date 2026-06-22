@@ -7,6 +7,7 @@ import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app.js';
 import { testSupabaseConnection } from './db/supabase-client.js';
+import { describeMissingSupabaseUserAuthEnv } from './routes/supabase-user-auth-config.js';
 import { registerVisaNamespace } from './socket/visa-namespace.js';
 import { Logger } from './utils/logger.js';
 import { initSentry } from './observability/sentry-init.js';
@@ -18,16 +19,12 @@ const logger = new Logger({ serviceName: 'ServerStartup' });
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
 
 function warnMissingUserAuthEnv(): void {
-  const missing = [
-    process.env.NEXT_PUBLIC_SUPABASE_URL ? null : 'NEXT_PUBLIC_SUPABASE_URL',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? null : 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  ].filter((value): value is string => Boolean(value));
-
+  const missing = describeMissingSupabaseUserAuthEnv();
   if (missing.length === 0) return;
   logger.warn('supabase_user_auth_env_missing', undefined, {
     missingVars: missing,
     note:
-      'Applicant-authenticated routes such as /api/applications/:id/us-appointment/* require these env vars to verify frontend Supabase access tokens.',
+      'Applicant-authenticated routes such as /api/applications/:id/us-appointment/* require Supabase URL and anon key env vars to verify frontend Supabase access tokens.',
   });
 }
 

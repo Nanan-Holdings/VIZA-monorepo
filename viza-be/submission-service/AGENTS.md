@@ -84,7 +84,8 @@ filling and one-shot submission for the applicant.
   observations to `appointment_slots`, books only after a user-selected slot
   and final VIZA approval, captures confirmation artifacts in
   `appointment_confirmations`, and writes follow-up checks to
-  `appointment_status_checks`.
+  `appointment_status_checks`. Keep the DB state machine in `runner.ts` and
+  official-page selectors/page interactions in `usvisascheduling-portal.ts`.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for

@@ -8,9 +8,11 @@ import {
   validateUSAppointmentRunnerStart,
   type AuditEventInsert,
   type ConfirmationInsert,
+  type AppointmentSlotRow,
   type SlotInsert,
   type StatusCheckInsert,
   type USAppointmentJobRow,
+  type USAppointmentPortalClient,
   type USAppointmentRunnerRepository,
 } from "../runner";
 
@@ -36,6 +38,13 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
   slots: SlotInsert[] = [];
   confirmations: ConfirmationInsert[] = [];
   statusChecks: StatusCheckInsert[] = [];
+  selectedSlot: AppointmentSlotRow | null = null;
+  applicationStates: Array<{
+    applicationId: string;
+    status: string;
+    jobId?: string | null;
+    confirmationId?: string | null;
+  }> = [];
   jobUpdates: Array<{ jobId: string; status: string; currentManualAction: string | null }> = [];
 
   async listCandidateJobs(): Promise<USAppointmentJobRow[]> {
@@ -78,12 +87,26 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
     this.slots.push(...input);
   }
 
-  async insertConfirmation(input: ConfirmationInsert): Promise<void> {
+  async insertConfirmation(input: ConfirmationInsert): Promise<{ id: string | null }> {
     this.confirmations.push(input);
+    return { id: "55555555-5555-4555-8555-555555555555" };
   }
 
   async insertStatusCheck(input: StatusCheckInsert): Promise<void> {
     this.statusChecks.push(input);
+  }
+
+  async getSelectedSlot(): Promise<AppointmentSlotRow | null> {
+    return this.selectedSlot;
+  }
+
+  async updateApplicationAppointmentState(input: {
+    applicationId: string;
+    status: string;
+    jobId?: string | null;
+    confirmationId?: string | null;
+  }): Promise<void> {
+    this.applicationStates.push(input);
   }
 }
 
@@ -140,6 +163,43 @@ test("US appointment runner handoff pauses at manual login without final booking
   assert.equal(handoff.metadata.no_final_confirmation_click, true);
 });
 
+test("US appointment runner advances a prepared portal session to slot capture", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return { readyForSlotCapture: true };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    baseJob,
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.manualActions.length, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+});
+
 test("US appointment runner writes observed slots from a portal fixture", async () => {
   const repository = new InMemoryRunnerRepository();
   const result = await processUSAppointmentJob(
@@ -172,18 +232,80 @@ test("US appointment runner writes observed slots from a portal fixture", async 
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_slot_selection_required");
 });
 
+test("US appointment runner can use an injected portal client for slot observation", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return { readyForSlotCapture: false };
+    },
+    async observeSlots(job) {
+      return [
+        {
+          job_id: job.id,
+          application_id: job.application_id,
+          appointment_date: "2026-09-01",
+          appointment_time: "14:30",
+          appointment_location: "U.S. Consulate General Shanghai",
+          appointment_type: "interview",
+          source: "usvisascheduling",
+          status: "observed",
+          metadata_redacted_json: {
+            externalSlotId: "[REDACTED]",
+            calendarPageContext: { post: "Shanghai" },
+          },
+        },
+      ];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_payment_completed",
+      user_preferences_json: {},
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.slots[0]?.appointment_location, "U.S. Consulate General Shanghai");
+});
+
 test("US appointment runner writes confirmation after final approved booking fixture", async () => {
   const repository = new InMemoryRunnerRepository();
+  repository.selectedSlot = {
+    id: "44444444-4444-4444-8444-444444444444",
+    job_id: baseJob.id,
+    appointment_date: "2026-08-18",
+    appointment_time: "09:00",
+    appointment_location: "U.S. Embassy Beijing",
+    appointment_type: "interview",
+    metadata_redacted_json: {
+      externalSlotId: "[REDACTED]",
+      calendarPageContext: { month: "2026-08" },
+    },
+  };
   const result = await processUSAppointmentJob(
     {
       ...baseJob,
       status: "appointment_booked",
       user_preferences_json: {
-        selectedSlot: {
-          date: "2026-08-18",
-          time: "09:00",
-          location: "U.S. Embassy Beijing",
-        },
         portalFixture: {
           confirmation: {
             confirmationNumber: "CN-BJ-123456",
@@ -202,7 +324,14 @@ test("US appointment runner writes confirmation after final approved booking fix
   assert.equal(result, "processed");
   assert.equal(repository.confirmations.length, 1);
   assert.equal(repository.confirmations[0]?.confirmation_number, "CN-BJ-123456");
+  assert.equal(repository.confirmations[0]?.appointment_date, "2026-08-18");
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_confirmation_captured");
+  assert.deepEqual(repository.applicationStates.at(-1), {
+    applicationId: baseJob.application_id,
+    status: "appointment_confirmation_captured",
+    jobId: baseJob.id,
+    confirmationId: "55555555-5555-4555-8555-555555555555",
+  });
 });
 
 test("US appointment runner writes follow-up status check fixture", async () => {

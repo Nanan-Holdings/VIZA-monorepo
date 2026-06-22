@@ -64,6 +64,7 @@ firebase-adminsdk-*.json
 *.p12
 *.pfx
 *.keystore
+.agents/local-test-credentials.env
 # But always keep example/template files tracked
 !.env.example
 !.env*.example

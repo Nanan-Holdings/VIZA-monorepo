@@ -80,6 +80,7 @@ For schema changes, also run any affected route/eval tests.
 - `appointment_slots`
 - `appointment_confirmations`
 - `appointment_status_checks`
+- `official_status_checks`
 - `appointment_audit_events`
 - `ds160_submission_jobs`
 - `ds160_official_review_snapshots`

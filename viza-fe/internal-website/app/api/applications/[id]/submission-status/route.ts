@@ -318,6 +318,18 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "running", stage: "confirming_result", progress: 92 };
   }
 
+  if (queueStatus === "vn_payment_pending") {
+    return { status: "running", stage: "payment_handoff", progress: 82 };
+  }
+
+  if (queueStatus === "vn_payment_processing") {
+    return { status: "running", stage: "payment_handoff", progress: 88 };
+  }
+
+  if (queueStatus === "vn_payment_paid") {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
   if (queueStatus === "processing" || queueStatus === "france_live_processing") {
     return { status: "running", stage: "mapping_answers", progress: 34 };
   }

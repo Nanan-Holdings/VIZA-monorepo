@@ -133,6 +133,24 @@ function isConfirmationBody(body: string): boolean {
   return /Submission\s*(?:is\s*)?(?:Successful|Completed)|Successfully\s*submitted|DE\s*(?:No\.?|Number)|Disembarkation\/Embarkation\s*\(DE\)\s*Number|Acknowledgement\s*(?:No\.?|Number)|Reference\s*(?:No\.?|Number)/i.test(body);
 }
 
+function isLikelyCaptchaImageBox(box: { width: number; height: number } | null): boolean {
+  if (!box) return false;
+  return box.width >= 80 && box.height >= 25;
+}
+
+async function captureSecurityCaptchaImage(dialog: ReturnType<Page["locator"]>): Promise<Buffer> {
+  const images = dialog.locator("canvas, img");
+  const count = await images.count();
+  for (let index = 0; index < count; index += 1) {
+    const image = images.nth(index);
+    if (!(await image.isVisible().catch(() => false))) continue;
+    const box = await image.boundingBox().catch(() => null);
+    if (!isLikelyCaptchaImageBox(box)) continue;
+    return await image.screenshot({ timeout: 10_000 });
+  }
+  return await dialog.screenshot({ timeout: 10_000 });
+}
+
 async function solveSecurityVerificationIfPresent(
   page: Page,
   artifactDir: string,
@@ -148,11 +166,7 @@ async function solveSecurityVerificationIfPresent(
     const captchaInput = dialog.locator("input[type='text'], input:not([type])").last();
     await captchaInput.waitFor({ state: "visible", timeout: 30_000 });
     await page.waitForTimeout(2_000);
-    const imageCandidate = dialog.locator("img, canvas").last();
-    const captchaBuffer = (await imageCandidate.count()) > 0 &&
-      (await imageCandidate.isVisible().catch(() => false))
-      ? await imageCandidate.screenshot({ timeout: 10_000 })
-      : await dialog.screenshot({ timeout: 10_000 });
+    const captchaBuffer = await captureSecurityCaptchaImage(dialog);
     const solve = await solveImageCaptcha(captchaBuffer, 120_000);
     logs.push(`sgac_captcha_solved attempt=${attempt} solveId=${solve.solveId}`);
     await captchaInput.fill(solve.text.trim());
@@ -171,7 +185,10 @@ async function solveSecurityVerificationIfPresent(
       logs.push(`sgac_captcha_wrong_answer attempt=${attempt}`);
       await reportBadCaptcha(solve.solveId).catch(() => undefined);
       await screenshot(page, artifactDir, `sgac-captcha-wrong-answer-${attempt}`).catch(() => "");
-      await clickVisibleRoleButton(page, /^Next$/i);
+      const tryAnotherText = dialog.getByText(/Try another text/i).last();
+      if (await tryAnotherText.isVisible().catch(() => false)) {
+        await tryAnotherText.click().catch(() => undefined);
+      }
       await page.getByText(/Security Verification/i).last().waitFor({ state: "visible", timeout: 30_000 });
       continue;
     }
