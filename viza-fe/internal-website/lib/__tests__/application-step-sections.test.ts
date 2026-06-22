@@ -34,6 +34,11 @@ function step(id: number, sourceName: string): ApplicationStepRef {
 }
 
 describe("application step sections", () => {
+  it("classifies SGAC traveller and trip steps without collapsing them into review", () => {
+    expect(getApplicationStepSectionKey(step(0, "Traveller Information"))).toBe("personal");
+    expect(getApplicationStepSectionKey(step(1, "Trip Information"))).toBe("travel");
+  });
+
   it("classifies Vietnam e-visa source steps without collapsing them into review", () => {
     expect(getApplicationStepSectionKey(step(1, "Required Information"))).toBe("personal");
     expect(getApplicationStepSectionKey(step(2, "Requested Information"))).toBe("travel");

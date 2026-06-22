@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Download, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import type {
   GenericSubmissionResult,
-  SgArrivalCardSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
@@ -33,6 +32,7 @@ import {
   type SubmissionMode,
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
+import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -40,7 +40,6 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
-  onEditSubmitted?: () => void;
 }
 
 interface SubmissionStatusSnapshot {
@@ -557,158 +556,6 @@ function GenericResultCard({
   );
 }
 
-function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionResult }) {
-  const isZh = isChineseLocale(useLocale());
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const successful = result.submitted && result.status === "submitted";
-  const pdfArtifactPaths = [
-    result.confirmationPdfStoragePath,
-    ...(result.artifacts?.pdfs ?? []),
-  ].filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index);
-  const primaryPdfPath = pdfArtifactPaths[0] ?? null;
-  const confirmationLabel = result.confirmationNumber ?? result.referenceNumber ?? result.applicationId;
-  const pdfDownloadUrl = primaryPdfPath
-    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(primaryPdfPath)}&download=${encodeURIComponent(`sg-arrival-card-${confirmationLabel}.pdf`)}`
-    : null;
-  const artifactLines = [
-    ...(result.artifacts?.screenshots ?? []),
-    ...pdfArtifactPaths,
-    ...(result.artifacts?.logs ?? []),
-    ...(result.artifacts?.traces ?? []),
-  ];
-
-  const handlePdfDownload = useCallback(async () => {
-    if (!pdfDownloadUrl) return;
-    setDownloadingPdf(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch(pdfDownloadUrl, { credentials: "include" });
-      if (!response.ok) {
-        throw new Error(`PDF download failed with ${response.status}`);
-      }
-      const blob = await response.blob();
-      if (blob.size < 10_000) {
-        throw new Error("Downloaded PDF is unexpectedly small.");
-      }
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = `sg-arrival-card-${confirmationLabel}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setDownloadingPdf(false);
-    }
-  }, [confirmationLabel, pdfDownloadUrl]);
-
-  return (
-    <Card className="rounded-xl border-input">
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-3 text-foreground">
-            {successful ? (
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
-            ) : (
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-            )}
-            {successful
-              ? (isZh ? "SG Arrival Card 已提交" : "SG Arrival Card submitted")
-              : (isZh ? "SG Arrival Card 未完成提交" : "SG Arrival Card submission not completed")}
-          </CardTitle>
-          <Badge variant={successful ? "default" : "secondary"}>
-            {result.submitted ? (isZh ? "已提交" : "Submitted") : "submitted=false"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {result.portalResponseSummary}
-        </p>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{isZh ? "状态" : "Status"}</div>
-            <div className="mt-0.5 font-mono text-sm text-foreground">{result.status}</div>
-          </div>
-          <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{isZh ? "确认/参考号" : "Confirmation / reference"}</div>
-            <div className="mt-0.5 font-mono text-sm text-foreground">
-              {result.confirmationNumber ?? result.referenceNumber ?? (isZh ? "暂无" : "None")}
-            </div>
-          </div>
-        </div>
-
-        {result.payloadSummary && (
-          <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{isZh ? "提交 payload 摘要" : "Submission payload summary"}</div>
-            <div className="mt-1 grid gap-1 font-mono text-xs text-foreground">
-              <span>purpose_of_travel={result.payloadSummary.purposeOfTravel ?? "(missing)"}</span>
-              <span>arrival_date={result.payloadSummary.arrivalDate ?? "(missing)"}</span>
-              <span>mode_of_travel={result.payloadSummary.modeOfTravel ?? "(missing)"}</span>
-              <span>transport_number={result.payloadSummary.transportNumber ?? "(missing)"}</span>
-            </div>
-          </div>
-        )}
-
-        {successful && pdfDownloadUrl ? (
-          <div className="space-y-2">
-            <Button type="button" className="w-full" onClick={handlePdfDownload} disabled={downloadingPdf}>
-              {downloadingPdf ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              {downloadingPdf
-                ? (isZh ? "正在准备 PDF..." : "Preparing PDF...")
-                : (isZh ? "下载 SG Arrival Card 确认 PDF" : "Download SG Arrival Card confirmation PDF")}
-            </Button>
-            {downloadError ? (
-              <p className="text-sm text-red-700">{downloadError}</p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {result.errorDetails && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <div className="font-medium">{result.errorDetails.code}</div>
-            <p className="mt-1 leading-relaxed">{result.errorDetails.message}</p>
-            {result.errorDetails.missingFields?.length ? (
-              <p className="mt-1 font-mono text-xs">
-                {result.errorDetails.missingFields.join(", ")}
-              </p>
-            ) : null}
-          </div>
-        )}
-
-        {artifactLines.length > 0 && (
-          <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{isZh ? "Artifacts" : "Artifacts"}</div>
-            <div className="mt-1 space-y-1">
-              {artifactLines.map((line) => (
-                <div key={line} className="break-all font-mono text-xs text-foreground">
-                  {line}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <Button asChild variant="outline" className="w-full">
-          <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
-            {isZh ? "打开 ICA SGAC 官方入口" : "Open ICA SGAC official portal"}
-            <ExternalLink className="ml-2 h-4 w-4" />
-          </a>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 /**
  * Drives the final wizard step from the same-origin submission-status API,
  * with the parent application's realtime props as a terminal-state fallback.
@@ -721,7 +568,6 @@ export function SubmissionStatusStep({
   visaType,
   status,
   result,
-  onEditSubmitted,
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
@@ -910,11 +756,13 @@ export function SubmissionStatusStep({
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
         />
-        <QueueEvidencePanel
-          queue={snapshot?.queue ?? null}
-          applicationId={applicationId}
-          updatedAt={snapshot?.updatedAt ?? null}
-        />
+        {!isSgacSubmission ? (
+          <QueueEvidencePanel
+            queue={snapshot?.queue ?? null}
+            applicationId={applicationId}
+            updatedAt={snapshot?.updatedAt ?? null}
+          />
+        ) : null}
       </div>
     );
   }
@@ -933,11 +781,13 @@ export function SubmissionStatusStep({
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
         />
-        <QueueEvidencePanel
-          queue={snapshot?.queue ?? null}
-          applicationId={applicationId}
-          updatedAt={snapshot?.updatedAt ?? null}
-        />
+        {!isSgacSubmission ? (
+          <QueueEvidencePanel
+            queue={snapshot?.queue ?? null}
+            applicationId={applicationId}
+            updatedAt={snapshot?.updatedAt ?? null}
+          />
+        ) : null}
       </div>
     );
   }
@@ -951,11 +801,6 @@ export function SubmissionStatusStep({
           visaType,
           effectiveResult,
           snapshot?.queue?.id ?? null,
-        )}
-        {onEditSubmitted && (
-          <Button type="button" variant="outline" className="w-full" onClick={onEditSubmitted}>
-            {isZh ? "修改" : "Edit"}
-          </Button>
         )}
       </div>
     );
@@ -974,11 +819,13 @@ export function SubmissionStatusStep({
         visaType={visaType}
         onVisualComplete={() => setShowCompletedResult(true)}
       />
-      <QueueEvidencePanel
-        queue={snapshot?.queue ?? null}
-        applicationId={applicationId}
-        updatedAt={snapshot?.updatedAt ?? null}
-      />
+      {!isSgacSubmission ? (
+        <QueueEvidencePanel
+          queue={snapshot?.queue ?? null}
+          applicationId={applicationId}
+          updatedAt={snapshot?.updatedAt ?? null}
+        />
+      ) : null}
     </div>
   );
 }

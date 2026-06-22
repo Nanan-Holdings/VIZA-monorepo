@@ -300,7 +300,11 @@ function normalizePhoneForIca(
     missing,
   );
   const split = splitPhone(rawPhone);
-  const countryCode = digitsOnly(read(payload, "phone_country_code") ?? split.countryCode);
+  const countryCode = digitsOnly(
+    read(payload, "mobile_country_code") ??
+      read(payload, "phone_country_code") ??
+      split.countryCode,
+  );
   let phoneNumber = digitsOnly(split.phoneNumber || rawPhone);
 
   if (countryCode && phoneNumber.startsWith(countryCode) && phoneNumber.length - countryCode.length >= 6) {

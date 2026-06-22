@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 const seedSource = readFileSync(
-  new URL("../../scripts/seed-sg-arrival-card-form-fields.ts", import.meta.url),
+  new URL("../../scripts/sgac/form-fields.ts", import.meta.url),
   "utf8",
 );
 
@@ -12,21 +12,17 @@ function extractFieldNames(): string[] {
 
 describe("Singapore SG Arrival Card schema seed", () => {
   test("uses a dedicated SGAC visa type with core arrival-card fields", () => {
-    expect(seedSource).toContain('const VISA_TYPE = "SG_ARRIVAL_CARD"');
-    expect(seedSource).toContain("SG Arrival Card is not a visa");
-    expect(seedSource).toContain("free of charge");
-    expect(seedSource).toContain("within three (3) days");
+    expect(seedSource).toContain('SGAC_VISA_TYPE = "SG_ARRIVAL_CARD"');
 
     const fieldNames = new Set(extractFieldNames());
-    expect(fieldNames.size).toBeGreaterThanOrEqual(30);
+    expect(fieldNames.size).toBeGreaterThanOrEqual(25);
     expect(fieldNames).toEqual(
       expect.objectContaining({
         has: expect.any(Function),
       }),
     );
     for (const requiredField of [
-      "surname",
-      "given_names",
+      "full_name",
       "date_of_birth",
       "nationality",
       "passport_number",
@@ -35,11 +31,11 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "purpose_of_travel",
       "mode_of_travel",
       "transport_number",
-      "accommodation_address",
+      "accommodation_type",
       "email_address",
-      "health_declaration",
-      "official_submission_acknowledgement",
-      "final_declaration",
+      "mobile_country_code",
+      "has_health_symptoms",
+      "recent_country_visit_history",
     ]) {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
     }
@@ -48,10 +44,28 @@ describe("Singapore SG Arrival Card schema seed", () => {
 
   test("uses the SGAC canonical purpose field and bilingual label", () => {
     expect(seedSource).toContain('field_name: "purpose_of_travel"');
-    expect(seedSource).toContain('label: "Purpose of travel"');
+    expect(seedSource).toContain('label: "Purpose of Travel"');
     expect(seedSource).toContain('validation_rules: rules("旅行目的"');
-    expect(seedSource).toContain('const HAS_OTHER_PURPOSE = "purpose_of_travel === other"');
-    expect(seedSource).toContain('field_name: "purpose_of_travel_other"');
+    expect(seedSource).toContain('option("other", "其他", "Others")');
+  });
+
+  test("does not collect VIZA-only acknowledgements or non-ICA passport fields", () => {
+    const fieldNames = new Set(extractFieldNames());
+    for (const extraField of [
+      "passport_issuing_country",
+      "passport_issue_date",
+      "passport_validity_acknowledgement",
+      "yellow_fever_risk_acknowledgement",
+      "health_declaration",
+      "sgac_is_not_visa_acknowledgement",
+      "official_submission_timing_acknowledgement",
+      "official_submission_acknowledgement",
+      "final_declaration",
+      "contact_person_in_singapore",
+      "contact_phone_in_singapore",
+    ]) {
+      expect(fieldNames.has(extraField), `${extraField} must not appear in the SGAC form`).toBe(false);
+    }
   });
 
   test("includes bilingual Chinese labels for every field", () => {

@@ -273,7 +273,13 @@ async function pickInProgressPdfTarget(
   page: Page,
   draftReference: string | undefined,
 ): Promise<InProgressPdfTarget | null> {
-  return page.evaluate(`(() => {
+  return page.evaluate(buildPickInProgressPdfTargetScript(draftReference)) as Promise<InProgressPdfTarget | null>;
+}
+
+export function buildPickInProgressPdfTargetScript(
+  draftReference: string | undefined,
+): string {
+  return `(() => {
     const draftReference = ${JSON.stringify(draftReference ?? null).replace(/</g, "\\u003c")};
     const links = Array.from(
       document.querySelectorAll("a, button"),
@@ -283,12 +289,12 @@ async function pickInProgressPdfTarget(
         l.getAttribute("title") || "",
         l.getAttribute("aria-label") || "",
       ].join(" ").trim();
-      return /Read\s+pdf\s+application\s+in\s+progress|Consulter le PDF de la demande en cours/i.test(text);
+      return /Read\\s+pdf\\s+application\\s+in\\s+progress|Consulter le PDF de la demande en cours/i.test(text);
     });
     if (links.length === 0) return null;
 
     const findRefIn = (root) => {
-      const m = (root.textContent ?? "").match(/\bFRA[A-Z0-9]{10,}\b/);
+      const m = (root.textContent ?? "").match(/\\bFRA[A-Z0-9]{10,}\\b/);
       return m ? m[0] : null;
     };
     const ensureId = (el, index) => {
@@ -336,6 +342,6 @@ async function pickInProgressPdfTarget(
       return { pdfLinkId: ensureId(links[0], 0), applicationReference: bodyRef };
     }
     return null;
-  })()`) as Promise<InProgressPdfTarget | null>;
+  })()`;
 }
 
