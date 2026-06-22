@@ -1430,117 +1430,121 @@ export default function ApplicationPage() {
   }, [completedStepIds, effectiveSteps, loading]);
 
   const loadData = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    let profile: LoadedApplicantProfile | null = null;
-    let application: LoadedApplication | null = null;
+      let profile: LoadedApplicantProfile | null = null;
+      let application: LoadedApplication | null = null;
 
-    if (explicitApplicationId) {
-      const context = await getTeamApplicationContext(explicitApplicationId);
-      if (!context.ok || !context.application || !context.profile) {
-        setError(context.reason ?? t("errors.noApplicationFound"));
-        setLoading(false);
-        return;
-      }
-      profile = context.profile as LoadedApplicantProfile;
-      application = context.application as LoadedApplication;
-    } else {
-      const { data: ownerProfile } = await supabase
-        .from("applicant_profiles")
-        .select("*")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
+      if (explicitApplicationId) {
+        const context = await getTeamApplicationContext(explicitApplicationId);
+        if (!context.ok || !context.application || !context.profile) {
+          setError(context.reason ?? t("errors.noApplicationFound"));
+          return;
+        }
+        profile = context.profile as LoadedApplicantProfile;
+        application = context.application as LoadedApplication;
+      } else {
+        const { data: ownerProfile } = await supabase
+          .from("applicant_profiles")
+          .select("*")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
 
-      profile = (ownerProfile as LoadedApplicantProfile | null) ?? null;
+        profile = (ownerProfile as LoadedApplicantProfile | null) ?? null;
 
-      const { data: applicationRows } = await supabase
-        .from("applications")
-        .select("*")
-        .eq("applicant_id", profile?.id ?? "")
-        .order("updated_at", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false });
+        const { data: applicationRows } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("applicant_id", profile?.id ?? "")
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false });
 
-      const applications = (applicationRows ?? []) as LoadedApplication[];
-      application =
-        applications.find(
-          (row) =>
-            String(row.country).toLowerCase() === resolvedCountry.toLowerCase() &&
-            getFormVisaType(String(row.visa_type)).toLowerCase() === getFormVisaType(resolvedVisaType).toLowerCase(),
-        ) ??
-        (preferExplicitPackage ? null : applications[0] ?? null);
-    }
-
-    if (profile) {
-      // Load DS-160 answers from visa_application_answers first (the source of truth)
-      let ds160Answers: Record<string, string> = {};
-      if (application?.id) {
-        const { answers } = await loadDynamicAnswers(application.id);
-        ds160Answers = answers;
-      }
-      const mergedDynamicAnswers = { ...ds160Answers };
-      const profileFallback = application?.id ? null : profile;
-
-      // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
-      const a = ds160Answers;
-      setAppState((prev) => ({
-        ...prev,
-        applicationId: application?.id ?? null,
-        personal: {
-          surname: a.surname || profileFallback?.full_name?.split(" ").slice(-1)[0] || "",
-          givenNames: a.given_names || profileFallback?.full_name?.split(" ").slice(0, -1).join(" ") || "",
-          fullNameNativeAlphabet: a.full_name_native_alphabet || "",
-          sex: a.sex || profileFallback?.gender || "",
-          maritalStatus: a.marital_status || "",
-          dateOfBirth: a.date_of_birth || profileFallback?.date_of_birth || "",
-          cityOfBirth: a.city_of_birth || profileFallback?.place_of_birth || "",
-          stateOfBirth: a.state_of_birth || "",
-          countryOfBirth: a.country_of_birth || "",
-          nationality: a.nationality_country || profileFallback?.nationality || "",
-        },
-        passport: {
-          passportDocumentType: a.passport_document_type || "",
-          passportNumber: a.passport_number || profileFallback?.passport_number || "",
-          passportBookNumber: a.passport_book_number || "",
-          passportIssuingCountry: a.passport_issuing_country || profileFallback?.passport_issuing_country || "",
-          passportIssuanceCity: a.passport_issuance_city || "",
-          passportIssuanceDate: a.passport_issuance_date || profileFallback?.passport_issue_date || "",
-          passportExpirationDate: a.passport_expiration_date || profileFallback?.passport_expiry_date || "",
-        },
-        travel: {
-          purposeOfTrip: a.purpose_of_trip || application?.purpose || "",
-          arrivalDate: application?.arrival_date || "",
-          departureDate: application?.departure_date || "",
-          arrivalCity: a.arrival_city || application?.port_of_entry || "",
-          accommodationName: a.planned_location || application?.accommodation_name || "",
-          usAddressStreet1: a.us_address_street1 || application?.accommodation_address || "",
-          usAddressCity: a.us_address_city || "",
-          usAddressState: a.us_address_state || "",
-          usAddressZip: a.us_address_zip || "",
-        },
-        confirmationNumber: application?.confirmation_number ?? undefined,
-        submittedAt: application?.submitted_at ?? undefined,
-        submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
-        submissionResultStatus:
-          (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
-      }));
-
-      if (!initialStepResolvedRef.current) {
-        setCurrentStep(0);
-        initialStepResolvedRef.current = true;
+        const applications = (applicationRows ?? []) as LoadedApplication[];
+        application =
+          applications.find(
+            (row) =>
+              String(row.country).toLowerCase() === resolvedCountry.toLowerCase() &&
+              getFormVisaType(String(row.visa_type)).toLowerCase() === getFormVisaType(resolvedVisaType).toLowerCase(),
+          ) ??
+          (preferExplicitPackage ? null : applications[0] ?? null);
       }
 
-      // Set dynamic answers for the dynamic form steps
-      if (Object.keys(mergedDynamicAnswers).length > 0) {
-        setDynamicAnswers(mergedDynamicAnswers);
-        if (ds160Answers["photo_path"]) {
-          setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
+      if (profile) {
+        // Load DS-160 answers from visa_application_answers first (the source of truth)
+        let ds160Answers: Record<string, string> = {};
+        if (application?.id) {
+          const { answers } = await loadDynamicAnswers(application.id);
+          ds160Answers = answers;
+        }
+        const mergedDynamicAnswers = { ...ds160Answers };
+        const profileFallback = application?.id ? null : profile;
+
+        // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
+        const a = ds160Answers;
+        setAppState((prev) => ({
+          ...prev,
+          applicationId: application?.id ?? null,
+          personal: {
+            surname: a.surname || profileFallback?.full_name?.split(" ").slice(-1)[0] || "",
+            givenNames: a.given_names || profileFallback?.full_name?.split(" ").slice(0, -1).join(" ") || "",
+            fullNameNativeAlphabet: a.full_name_native_alphabet || "",
+            sex: a.sex || profileFallback?.gender || "",
+            maritalStatus: a.marital_status || "",
+            dateOfBirth: a.date_of_birth || profileFallback?.date_of_birth || "",
+            cityOfBirth: a.city_of_birth || profileFallback?.place_of_birth || "",
+            stateOfBirth: a.state_of_birth || "",
+            countryOfBirth: a.country_of_birth || "",
+            nationality: a.nationality_country || profileFallback?.nationality || "",
+          },
+          passport: {
+            passportDocumentType: a.passport_document_type || "",
+            passportNumber: a.passport_number || profileFallback?.passport_number || "",
+            passportBookNumber: a.passport_book_number || "",
+            passportIssuingCountry: a.passport_issuing_country || profileFallback?.passport_issuing_country || "",
+            passportIssuanceCity: a.passport_issuance_city || "",
+            passportIssuanceDate: a.passport_issuance_date || profileFallback?.passport_issue_date || "",
+            passportExpirationDate: a.passport_expiration_date || profileFallback?.passport_expiry_date || "",
+          },
+          travel: {
+            purposeOfTrip: a.purpose_of_trip || application?.purpose || "",
+            arrivalDate: application?.arrival_date || "",
+            departureDate: application?.departure_date || "",
+            arrivalCity: a.arrival_city || application?.port_of_entry || "",
+            accommodationName: a.planned_location || application?.accommodation_name || "",
+            usAddressStreet1: a.us_address_street1 || application?.accommodation_address || "",
+            usAddressCity: a.us_address_city || "",
+            usAddressState: a.us_address_state || "",
+            usAddressZip: a.us_address_zip || "",
+          },
+          confirmationNumber: application?.confirmation_number ?? undefined,
+          submittedAt: application?.submitted_at ?? undefined,
+          submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
+          submissionResultStatus:
+            (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
+        }));
+
+        if (!initialStepResolvedRef.current) {
+          setCurrentStep(0);
+          initialStepResolvedRef.current = true;
+        }
+
+        // Set dynamic answers for the dynamic form steps
+        if (Object.keys(mergedDynamicAnswers).length > 0) {
+          setDynamicAnswers(mergedDynamicAnswers);
+          if (ds160Answers["photo_path"]) {
+            setAppState((prev) => ({ ...prev, photo: ds160Answers["photo_path"] }));
+          }
         }
       }
+    } catch (err) {
+      console.error("Failed to load application data", err);
+      setError(err instanceof Error ? err.message : t("errors.noApplicationFound"));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, t]);
 
   useEffect(() => {

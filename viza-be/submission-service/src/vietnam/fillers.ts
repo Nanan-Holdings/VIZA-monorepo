@@ -13,6 +13,7 @@ import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
 
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
+const MIN_SELECT_MATCH_SCORE = 88;
 
 async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(SETTLE_MS);
@@ -175,12 +176,12 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       await open();
       let optionList = readOptions();
       let best = rank(optionList.map((option) => option.text))[0];
-      if (!best || best.score < 72) {
+      if (!best || best.score < 88) {
         await search();
         optionList = readOptions();
         best = rank(optionList.map((option) => option.text))[0];
       }
-      if (!best || best.score < 72) {
+      if (!best || best.score < 88) {
         return {
           ok: false,
           reason: "option_not_found",
@@ -200,7 +201,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       ]
         .filter(Boolean)
         .join(" ");
-      const confirmed = (rank([currentText])[0]?.score ?? -1) >= 72;
+      const confirmed = (rank([currentText])[0]?.score ?? -1) >= 88;
       return {
         ok: confirmed,
         reason: confirmed ? undefined : "selection_not_confirmed",
@@ -331,6 +332,10 @@ export function rankAntSelectCandidates(
       return { index, text, score };
     })
     .sort((left, right) => right.score - left.score);
+}
+
+export function isAcceptableAntSelectMatch(score: number): boolean {
+  return score >= MIN_SELECT_MATCH_SCORE;
 }
 
 /* ------------------------- RUN-VN-001 per-step fill ------------------------- */
