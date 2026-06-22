@@ -50,6 +50,7 @@ type QueueRow = {
   heartbeat_at: string | null;
   manual_action_status: string | null;
   official_status: string | null;
+  official_portal_url?: string | null;
   vn_result_payload?: unknown | null;
   created_at: string | null;
   updated_at: string | null;
@@ -113,6 +114,43 @@ function extractFieldFallbacks(payload: unknown): unknown[] {
     return diagnostics.fieldFallbacks;
   }
   return [];
+}
+
+function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
+  const queueStatus = normalizeStatus(queue?.status);
+  if (!queue || queueStatus !== "vn_blocked") return null;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const actionType =
+    typeof payload.actionType === "string" && payload.actionType.trim()
+      ? payload.actionType.trim()
+      : "captcha_required";
+  const instruction =
+    typeof payload.instruction === "string" && payload.instruction.trim()
+      ? payload.instruction.trim()
+      : queue.error_message ?? queue.last_error ?? "Vietnam official portal needs action before VIZA can continue.";
+  const checkpoint =
+    typeof payload.checkpoint === "string" && payload.checkpoint.trim()
+      ? payload.checkpoint.trim()
+      : queue.current_stage ?? "captcha_submitted_blocked";
+  const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
+
+  return {
+    country: "VN",
+    status: actionType,
+    mode: "live_assisted",
+    provider: "vietnam_evisa_live",
+    portalUrl: queue.official_portal_url ?? "https://evisa.gov.vn/e-visa/foreigners",
+    checkpoint,
+    manualAction: {
+      type: actionType,
+      status: "open",
+      instructions: instruction,
+    },
+    paymentStatus: "not_required",
+    applicationCountry: application.country,
+    applicationVisaType: application.visa_type,
+    evidence,
+  };
 }
 
 function latestTimestamp(...values: Array<string | null | undefined>): string | null {
@@ -448,9 +486,17 @@ export async function GET(
 
   const queue = (queueData ?? null) as QueueRow | null;
   const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
+  const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
   const activeQueueOverridesTerminal =
     isActiveQueue(queue) && isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
-  const derived = activeQueueOverridesTerminal
+  const terminalQueueOverridesApplication =
+    !activeQueueOverridesTerminal &&
+    queueDerived.status !== "queued" &&
+    queueDerived.status !== "running" &&
+    isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
+  const queueResult = synthesizeQueueResult(queue, application);
+  const queueOverridesApplication = activeQueueOverridesTerminal || terminalQueueOverridesApplication;
+  const derived = queueOverridesApplication
     ? deriveNonTerminalStatus(application, queue)
     : deriveTerminalApplicationStatus(application, queue) ??
       deriveNonTerminalStatus(application, queue);
@@ -471,15 +517,17 @@ export async function GET(
       stage: derived.stage,
       progress: derived.progress,
       message: derived.message,
-      result: activeQueueOverridesTerminal ? null : application.submission_result ?? null,
+      result: queueResult ?? (activeQueueOverridesTerminal ? null : application.submission_result ?? null),
       error: derived.error,
       updatedAt,
-      applicationStatus: activeQueueOverridesTerminal
+      applicationStatus: queueOverridesApplication
         ? queue?.status === "sgac_live_assisted_scheduled"
           ? "scheduled"
           : queue?.status?.endsWith("_pending")
           ? "waiting"
-          : "processing"
+          : terminalQueueOverridesApplication
+            ? "action_required"
+            : "processing"
         : application.submission_result_status ?? null,
       queue: queue
         ? {
