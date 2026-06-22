@@ -157,6 +157,7 @@ Smoke URLs:
 - `vitest.config.mts`
 - `vitest.server-only.ts`
 - `app/layout.tsx`
+- `app/error.tsx`
 - `app/client/layout.tsx`
 - `app/admin/admin-layout-content.tsx`
 - `app/actions/*`
@@ -170,6 +171,7 @@ Smoke URLs:
 - `app/api/travel/*`
 - `components/ui/*`
 - `components/smooth-progress.tsx`
+- `components/runtime-abort-error-guard.tsx`
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
 - `components/client/us-appointment/*`
@@ -187,6 +189,7 @@ Smoke URLs:
 - `lib/__tests__/universal-profile-prefill.test.ts`
 - `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
+- `lib/runtime-abort-errors.ts`
 - `supabase/migrations/*`
 - `supabase/manual/*`
 - `supabase/templates/*`

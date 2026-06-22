@@ -61,6 +61,7 @@ const answers: Record<string, string> = {
   intended_ward_commune: "phuong_my_binh",
   intended_border_gate_of_entry: "noi_bai_int_airport_ha_noi",
   intended_border_gate_of_exit: "noi_bai_int_airport_ha_noi",
+  declaration_temporary_residence: "yes",
   visited_vietnam_in_last_year: "no",
   has_relatives_in_vietnam: "no",
   intended_expenses_usd: "1200",
