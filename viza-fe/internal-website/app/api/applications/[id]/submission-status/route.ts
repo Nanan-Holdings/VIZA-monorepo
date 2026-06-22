@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 type SubmissionApiStatus =
+  | "scheduled"
   | "queued"
   | "running"
   | "needs_user_action"
@@ -13,6 +14,7 @@ type SubmissionApiStatus =
   | "stalled";
 
 type SubmissionApiStage =
+  | "scheduled"
   | "preparing"
   | "mapping_answers"
   | "filling_form"
@@ -149,6 +151,8 @@ function stageForActionStatus(status: string): SubmissionApiStage {
 
 function messageForStage(stage: SubmissionApiStage): string {
   switch (stage) {
+    case "scheduled":
+      return "SG Arrival Card is scheduled for automatic submission when ICA accepts it.";
     case "preparing":
       return "Submission job is queued and waiting for the runner.";
     case "mapping_answers":
@@ -202,6 +206,19 @@ function deriveTerminalApplicationStatus(
     };
   }
 
+  if (appStatus === "scheduled") {
+    return {
+      status: "scheduled",
+      stage: "scheduled",
+      progress: 0,
+      message:
+        resultError ??
+        queueError ??
+        "SG Arrival Card is scheduled for automatic submission when ICA accepts it.",
+      error: null,
+    };
+  }
+
   if (COMPLETED_APPLICATION_STATUSES.has(appStatus)) {
     return {
       status: "completed",
@@ -229,6 +246,10 @@ function deriveTerminalApplicationStatus(
 function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "stage" | "progress"> {
   if (!queueStatus || queueStatus === "retry_superseded") {
     return { status: "queued", stage: "preparing", progress: 0 };
+  }
+
+  if (queueStatus === "sgac_live_assisted_scheduled") {
+    return { status: "scheduled", stage: "scheduled", progress: 0 };
   }
 
   if (
@@ -286,7 +307,7 @@ function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
   if (normalizeStatus(queue.status).startsWith("ds160_proof_")) return false;
   const derived = deriveQueueStage(normalizeStatus(queue.status));
-  return derived.status === "queued" || derived.status === "running";
+  return derived.status === "scheduled" || derived.status === "queued" || derived.status === "running";
 }
 
 function deriveNonTerminalStatus(
@@ -319,6 +340,18 @@ function deriveNonTerminalStatus(
           ? `Official portal checkpoint: ${currentStage}.`
           : "The official portal needs a human action before VIZA can continue."),
       error: queueMessage,
+    };
+  }
+
+  if (queueDerived.status === "scheduled") {
+    return {
+      status: "scheduled",
+      stage: "scheduled",
+      progress: 0,
+      message:
+        queueMessage ??
+        "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
+      error: null,
     };
   }
 
@@ -442,7 +475,9 @@ export async function GET(
       error: derived.error,
       updatedAt,
       applicationStatus: activeQueueOverridesTerminal
-        ? queue?.status?.endsWith("_pending")
+        ? queue?.status === "sgac_live_assisted_scheduled"
+          ? "scheduled"
+          : queue?.status?.endsWith("_pending")
           ? "waiting"
           : "processing"
         : application.submission_result_status ?? null,

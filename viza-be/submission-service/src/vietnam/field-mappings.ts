@@ -63,10 +63,13 @@ const PASSPORT_TYPE_LABELS = {
 };
 const VISA_TYPE_REQUESTED_LABELS = {
   single: "Single-entry",
+  single_entry: "Single-entry",
   multiple: "Multiple-entry",
+  multiple_entry: "Multiple-entry",
 };
 const PURPOSE_OF_ENTRY_LABELS = {
   tourist: "Tourist",
+  tourism: "Tourist",
   visiting_relatives: "Visiting relatives",
   working: "Working",
   business: "Business",
@@ -88,6 +91,43 @@ const EXPENSE_COVERAGE_LABELS = {
 
 const PROVINCE_LABELS: Record<string, string> = {
   ha_noi_city: "HA NOI City",
+};
+
+const WARD_COMMUNE_FALLBACK_BY_PROVINCE: Record<string, string> = {
+  an_giang: "BINH DUC WARD",
+  bac_ninh: "BAC GIANG WARD",
+  cao_bang: "NUNG TRI CAO WARD",
+  ca_mau: "AN XUYEN WARD",
+  gia_lai: "AN BINH WARD",
+  ha_tinh: "BAC HONG LINH WARD",
+  hung_yen: "HONG CHAU WARD",
+  khanh_hoa: "PHUONG HOA THANG",
+  lai_chau: "TAN PHONG WARD",
+  lao_cai: "CAM DUONG WARD",
+  lam_dong: "1 BAO LOC WARD",
+  lang_son: "HOANG VAN THU WARD",
+  nghe_an: "CUA LO WARD",
+  ninh_binh: "CHAU SON WARD",
+  phu_tho: "HOA BINH WARD",
+  quang_ngai: "CAM THANH WARD",
+  quang_ninh: "AN SINH WARD",
+  quang_tri: "BA DON WARD",
+  son_la: "CHIENG AN WARD",
+  can_tho_city: "AN BINH WARD",
+  hue_city: "AN CUU WARD",
+  ha_noi_city: "BA DINH WARD",
+  hai_phong_city: "AN BIEN WARD",
+  ho_chi_minh_city: "PHUONG AN NHON",
+  da_nang_city: "AN HAI WARD",
+  thanh_hoa: "BIM SON WARD",
+  thai_nguyen: "BA XUYEN WARD",
+  tuyen_quang: "AN TUONG WARD",
+  tay_ninh: "AN TINH WARD",
+  vinh_long: "PHUONG LONG CHAU",
+  dien_bien: "MUONG LAY WARD",
+  dak_lak: "BUON MA THUOT WARD",
+  dong_nai: "AN LOC WARD",
+  dong_thap: "AN BINH WARD",
 };
 
 const LATIN_TEXT_SCHEMA_RULE = {
@@ -157,6 +197,7 @@ function provinceLabel(value: string): string {
 const VN_BORDER_GATE_LABELS: Record<string, string> = {
   noi_bai_int_airport_ha_noi: "Noi Bai Int Airport",
   noi_bai_int_airport: "Noi Bai Int Airport",
+  noi_bai_international_airport: "Noi Bai Int Airport",
   tan_son_nhat_int_airport_ho_chi_minh_city: "Tan Son Nhat Int Airport (Ho Chi Minh City)",
   cat_bi_int_airport_hai_phong: "Cat Bi Int Airport (Hai Phong)",
   da_nang_int_airport_da_nang: "Da Nang Int Airport (Da Nang)",
@@ -169,6 +210,7 @@ const VN_BORDER_GATE_LABELS: Record<string, string> = {
 export function getVnPortalOptionText(fieldName: string, rawValue: string): string {
   const mapping = VN_FIELD_MAPPINGS[fieldName];
   const normalized = rawValue.trim().toLowerCase();
+  const normalizedSlug = normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const explicit = mapping?.optionLabels?.[normalized];
   if (explicit) return explicit;
   if (fieldName === "intended_province_city" && PROVINCE_LABELS[normalized]) {
@@ -179,7 +221,7 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
     fieldName === "intended_border_gate_of_entry" ||
     fieldName === "intended_border_gate_of_exit"
   ) {
-    const explicitBorderGate = VN_BORDER_GATE_LABELS[normalized];
+    const explicitBorderGate = VN_BORDER_GATE_LABELS[normalized] ?? VN_BORDER_GATE_LABELS[normalizedSlug];
     if (explicitBorderGate) return explicitBorderGate;
     return titleizeOptionSlug(normalized)
       .replace(/\bInt Airport\b/g, "Int Airport")
@@ -196,25 +238,47 @@ export function getVnFieldFallbackValue(fieldName: string): string | null {
   return VN_FIELD_FALLBACK_DEFAULTS[fieldName]?.value ?? null;
 }
 
+export function normalizeVnProvinceKey(rawValue: string | null | undefined): string {
+  return (rawValue ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\bcity\b/g, "_city")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export function getVnDependentFieldFallbackValue(
+  fieldName: string,
+  answers: Record<string, string>,
+): string | null {
+  if (fieldName === "intended_ward_commune") {
+    const provinceKey = normalizeVnProvinceKey(answers.intended_province_city);
+    return WARD_COMMUNE_FALLBACK_BY_PROVINCE[provinceKey] ?? getVnFieldFallbackValue(fieldName);
+  }
+  return getVnFieldFallbackValue(fieldName);
+}
+
 export function buildVnFieldFallback(input: {
   fieldName: string;
   domId: string;
   type: VnFieldType;
   userValue: string;
+  fallbackValue?: string | null;
   errorMessage: string;
 }): VnFieldFallbackRecord | null {
   const fallback = VN_FIELD_FALLBACK_DEFAULTS[input.fieldName];
   if (!fallback) return null;
+  const fallbackValue = input.fallbackValue?.trim() || fallback.value;
   return {
     fieldName: input.fieldName,
     domId: input.domId,
     type: input.type,
     userValue: input.userValue,
-    fallbackValue: fallback.value,
+    fallbackValue,
     reason: input.errorMessage,
     schemaRuleSuggestion: {
       ...fallback.schemaRuleSuggestion,
-      fallbackDefault: fallback.value,
+      fallbackDefault: fallbackValue,
     },
   };
 }

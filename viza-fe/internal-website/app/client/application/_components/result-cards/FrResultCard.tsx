@@ -35,6 +35,7 @@ type ManualAction = {
 type FvOfficialAccount = {
   email: string | null;
   password: string | null;
+  officialReference: string | null;
   portalUrl: string;
   updatedAt: string | null;
 };
@@ -61,6 +62,8 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
       : result.status === "appointment_held"
         ? (isZh ? "已保留预约" : "Appointment held")
         : (isZh ? "已准备" : "Prepared");
+  const displayedApplicationReference =
+    officialAccount?.officialReference ?? result.applicationReference;
 
   const formatStatus = (value?: string) => {
     if (!value) return null;
@@ -217,11 +220,8 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
     if (!result.printablePdfStoragePath) return;
     setDownloadingPdf(true);
     try {
-      const res = await fetch(
-        `/api/applications/${applicationId}/artifact-url?path=${encodeURIComponent(result.printablePdfStoragePath)}`,
-      );
-      if (!res.ok) throw new Error("Failed to mint signed URL");
-      const { url } = (await res.json()) as { url: string };
+      const url =
+        `/api/applications/${applicationId}/submission-artifact?path=${encodeURIComponent(result.printablePdfStoragePath)}&download=${encodeURIComponent("france-visas-application.pdf")}`;
       window.open(url, "_blank", "noopener,noreferrer");
     } finally {
       setDownloadingPdf(false);
@@ -250,7 +250,9 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
           <div className="text-xs text-muted-foreground">
             {isZh ? "官方申请编号" : liveAssisted ? "Official reference" : "Application reference"}
           </div>
-          <div className="mt-0.5 font-mono text-sm text-foreground">{result.applicationReference}</div>
+          <div className="mt-0.5 break-all font-mono text-sm text-foreground">
+            {displayedApplicationReference}
+          </div>
         </div>
 
         {officialConfirmed && (
@@ -401,69 +403,6 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             {manualActionError && (
               <p className="text-sm text-red-700">{manualActionError}</p>
             )}
-          </div>
-        )}
-
-        {(result.reviewDiffStatus || result.officialStatus || result.paymentStatus || result.appointmentStatus) && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {result.reviewDiffStatus && (
-              <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">{isZh ? "复核差异" : "Review diff"}</div>
-                <div className="mt-0.5 text-sm font-medium text-foreground">
-                  {formatStatus(result.reviewDiffStatus)}
-                </div>
-              </div>
-            )}
-            {result.officialStatus && (
-              <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">{isZh ? "官网状态" : "Official status"}</div>
-                <div className="mt-0.5 text-sm font-medium text-foreground">
-                  {formatStatus(result.officialStatus)}
-                </div>
-              </div>
-            )}
-            {result.paymentStatus && (
-              <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">{isZh ? "付款" : "Payment"}</div>
-                <div className="mt-0.5 text-sm font-medium text-foreground">
-                  {formatStatus(result.paymentStatus)}
-                </div>
-              </div>
-            )}
-            {result.appointmentStatus && (
-              <div className="rounded-md border border-input bg-background px-3 py-2">
-                <div className="text-xs text-muted-foreground">{isZh ? "预约" : "Appointment"}</div>
-                <div className="mt-0.5 text-sm font-medium text-foreground">
-                  {formatStatus(result.appointmentStatus)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {result.fieldFallbacks?.length ? (
-          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
-            <div className="font-medium">
-              {isZh
-                ? `已记录 ${result.fieldFallbacks.length} 条官网字段规范`
-                : `${result.fieldFallbacks.length} official field fallback(s) recorded`}
-            </div>
-            <p className="mt-1 leading-relaxed">
-              {isZh
-                ? "这些规范会用于改进 VIZA 表单校验，避免后续用户在官网同一字段卡住。"
-                : "These constraints can be fed back into VIZA validation so future applicants do not get stuck on the same official fields."}
-            </p>
-          </div>
-        ) : null}
-
-        {result.postConfirmationContinue?.clickedContinue && (
-          <div className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">
-              {isZh ? "声明与 Continue" : "Declaration and Continue"}
-            </div>
-            <div className="mt-0.5 text-sm font-medium text-foreground">
-              {isZh ? "已勾选声明并继续" : "Declaration checked and continued"}
-            </div>
           </div>
         )}
 

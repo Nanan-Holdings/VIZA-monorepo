@@ -66,8 +66,6 @@ interface SubmissionStatusSnapshot {
   } | null;
 }
 
-type SubmissionQueueEvidence = NonNullable<SubmissionStatusSnapshot["queue"]>;
-
 type ManualAction = {
   id: string;
   actionType: string;
@@ -87,6 +85,7 @@ function normalizeStatus(status: string | null | undefined): string {
 function visualStatusFromApplication(status: SubmissionResultStatus | null): SubmissionVisualStatus {
   const normalized = normalizeStatus(status);
   if (!normalized || normalized === "waiting") return "queued";
+  if (normalized === "scheduled") return "scheduled";
   if (normalized === "processing") return "running";
   if (normalized === "failed") return "failed";
   if (normalized === "stalled") return "stalled";
@@ -105,6 +104,8 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
 
 function fallbackProgressForStatus(status: SubmissionVisualStatus): number {
   switch (status) {
+    case "scheduled":
+      return 0;
     case "completed":
       return 100;
     case "needs_user_action":
@@ -152,69 +153,7 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
 }
 
 function isActiveSnapshot(snapshot: SubmissionStatusSnapshot | null): boolean {
-  return snapshot?.status === "queued" || snapshot?.status === "running";
-}
-
-function QueueEvidencePanel({
-  queue,
-  applicationId,
-  updatedAt,
-}: {
-  queue: SubmissionQueueEvidence | null;
-  applicationId: string | null;
-  updatedAt: string | null;
-}) {
-  const isZh = isChineseLocale(useLocale());
-  if (!queue && !applicationId) return null;
-
-  const rows = [
-    { label: "application_id", value: applicationId },
-    { label: "submission_queue.id", value: queue?.id ?? null },
-    { label: "queue.status", value: queue?.status ?? null },
-    { label: "queue.provider", value: queue?.provider ?? null },
-    { label: "queue.mode", value: queue?.mode ?? null },
-    { label: "queue.current_stage", value: queue?.currentStage ?? null },
-    { label: "queue.heartbeat_at", value: queue?.heartbeatAt ?? null },
-    {
-      label: isZh ? "字段默认值兜底" : "field fallbacks",
-      value: queue?.fieldFallbacks?.length
-        ? `${queue.fieldFallbacks.length} ${isZh ? "项" : "record(s)"}`
-        : null,
-    },
-    { label: "queue.updated_at", value: queue?.updatedAt ?? updatedAt },
-  ].filter((row) => row.value);
-
-  return (
-    <div className="rounded-xl border border-input bg-muted/30 p-4">
-      <div className="text-sm font-semibold text-foreground">
-        {isZh ? "后台提交证据" : "Submission evidence"}
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {rows.map((row) => (
-          <div key={row.label} className="rounded-md border border-input bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{row.label}</div>
-            <div className="mt-0.5 break-all font-mono text-xs text-foreground">
-              {row.value}
-            </div>
-          </div>
-        ))}
-      </div>
-      {queue?.fieldFallbacks?.length ? (
-        <div className="mt-3 space-y-2">
-          {queue.fieldFallbacks.slice(0, 5).map((fallback, index) => (
-            <div key={index} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-              <div className="text-xs font-medium text-amber-800">
-                {isZh ? "已用默认值通过官网字段" : "Default used for portal field"}
-              </div>
-              <pre className="mt-1 whitespace-pre-wrap break-all text-xs text-amber-950">
-                {JSON.stringify(fallback, null, 2)}
-              </pre>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
+  return snapshot?.status === "scheduled" || snapshot?.status === "queued" || snapshot?.status === "running";
 }
 
 function GenericResultCard({
@@ -611,7 +550,9 @@ export function SubmissionStatusStep({
     : snapshot?.status ?? fallbackVisualStatus;
   const effectiveStage =
     snapshot?.stage ??
-    (effectiveStatus === "queued"
+    (effectiveStatus === "scheduled"
+      ? "scheduled"
+      : effectiveStatus === "queued"
       ? "preparing"
       : effectiveStatus === "running"
         ? "filling_form"
@@ -756,13 +697,6 @@ export function SubmissionStatusStep({
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
         />
-        {!isSgacSubmission ? (
-          <QueueEvidencePanel
-            queue={snapshot?.queue ?? null}
-            applicationId={applicationId}
-            updatedAt={snapshot?.updatedAt ?? null}
-          />
-        ) : null}
       </div>
     );
   }
@@ -781,13 +715,33 @@ export function SubmissionStatusStep({
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
         />
-        {!isSgacSubmission ? (
-          <QueueEvidencePanel
-            queue={snapshot?.queue ?? null}
-            applicationId={applicationId}
-            updatedAt={snapshot?.updatedAt ?? null}
-          />
-        ) : null}
+      </div>
+    );
+  }
+
+  if (
+    actionWithResult &&
+    isRecord(effectiveResult) &&
+    effectiveResult.country === "VN" &&
+    typeof effectiveResult.registrationCode !== "string"
+  ) {
+    return (
+      <div className="space-y-4">
+        <FailureCard
+          applicationId={applicationId ?? undefined}
+          errorMessage={
+            retryError ??
+            effectiveError ??
+            (typeof effectiveResult.manualAction === "object" &&
+            effectiveResult.manualAction !== null &&
+            "instructions" in effectiveResult.manualAction &&
+            typeof effectiveResult.manualAction.instructions === "string"
+              ? effectiveResult.manualAction.instructions
+              : snapshot?.message ?? undefined)
+          }
+          retryModes={retryModes}
+          onRetry={handleRetry}
+        />
       </div>
     );
   }
@@ -819,13 +773,6 @@ export function SubmissionStatusStep({
         visaType={visaType}
         onVisualComplete={() => setShowCompletedResult(true)}
       />
-      {!isSgacSubmission ? (
-        <QueueEvidencePanel
-          queue={snapshot?.queue ?? null}
-          applicationId={applicationId}
-          updatedAt={snapshot?.updatedAt ?? null}
-        />
-      ) : null}
     </div>
   );
 }

@@ -49,6 +49,16 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('option("other", "其他", "Others")');
   });
 
+  test("keeps arrival and departure dates together in trip information", () => {
+    expect(seedSource).toContain(
+      'field_name: "arrival_date", label: "Date of Arrival (DD/MM/YYYY)", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 1',
+    );
+    expect(seedSource).toContain(
+      'field_name: "departure_date", label: "Date of Departure from Singapore", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 2',
+    );
+    expect(seedSource.match(/inline_group: "sgac_travel_dates"/g)?.length).toBe(2);
+  });
+
   test("does not collect VIZA-only acknowledgements or non-ICA passport fields", () => {
     const fieldNames = new Set(extractFieldNames());
     for (const extraField of [

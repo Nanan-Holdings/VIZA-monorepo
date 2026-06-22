@@ -177,7 +177,7 @@ export const ds160TravelMappings: Record<string, FormFieldMapping> = {
   },
   // Travel Paying — payer questions appear on the Travel Information page
   travel_payer: {
-    selector: 'select[id*="ddlTRAVEL_WHO_PAY"]',
+    selector: 'select[id*="ddlWhoIsPaying"], select[id*="ddlTRAVEL_WHO_PAY"]',
     type: "select",
     label: "Who is paying for your trip?",
   },

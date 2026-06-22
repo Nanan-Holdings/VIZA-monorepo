@@ -982,6 +982,13 @@ interface SubmissionQueueJobInput {
   createdAt: string;
 }
 
+type SubmissionQueueJobResult = {
+  scheduled: boolean;
+  scheduledFor: string | null;
+  submissionResultStatus: SubmissionResultStatus;
+  submissionResult: SubmissionResult | null;
+};
+
 function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
   const message = (error.message ?? "").toLowerCase();
   return (
@@ -998,7 +1005,7 @@ function isMissingSubmissionModeColumnError(error: { message?: string; code?: st
 async function insertSubmissionQueueJob(
   supabase: ReturnType<typeof createClient>,
   input: SubmissionQueueJobInput,
-): Promise<void> {
+): Promise<SubmissionQueueJobResult> {
   if (submissionQueueRequiresServerEnqueue(input.country, input.visaType, input.mode)) {
     const response = await fetch(`/api/applications/${input.applicationId}/retry-submission`, {
       method: "POST",
@@ -1017,7 +1024,17 @@ async function insertSubmissionQueueJob(
           : `Submission queue creation failed with ${response.status}`,
       );
     }
-    return;
+    const payload = (await response.json().catch(() => null)) as {
+      scheduled?: boolean;
+      scheduledFor?: string | null;
+      result?: SubmissionResult | null;
+    } | null;
+    return {
+      scheduled: Boolean(payload?.scheduled),
+      scheduledFor: payload?.scheduledFor ?? null,
+      submissionResultStatus: payload?.scheduled ? "scheduled" : "waiting",
+      submissionResult: payload?.scheduled ? payload.result ?? null : null,
+    };
   }
 
   const status = queueStatusForApplication(input.country, input.visaType, input.mode);
@@ -1033,7 +1050,14 @@ async function insertSubmissionQueueJob(
   };
 
   const { error } = await supabase.from("submission_queue").insert(enrichedPayload);
-  if (!error) return;
+  if (!error) {
+    return {
+      scheduled: false,
+      scheduledFor: null,
+      submissionResultStatus: "waiting",
+      submissionResult: null,
+    };
+  }
 
   const canUseLegacyPayload =
     isMissingSubmissionModeColumnError(error) &&
@@ -1051,6 +1075,12 @@ async function insertSubmissionQueueJob(
     created_at: input.createdAt,
   });
   if (legacyError) throw new Error(legacyError.message);
+  return {
+    scheduled: false,
+    scheduledFor: null,
+    submissionResultStatus: "waiting",
+    submissionResult: null,
+  };
 }
 
 type LoadedApplicantProfile = UniversalProfileSnapshot & {
@@ -2062,31 +2092,40 @@ export default function ApplicationPage() {
       if (!isJpTourist) {
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
-        await insertSubmissionQueueJob(supabase, {
+        const queueJob = await insertSubmissionQueueJob(supabase, {
           applicationId,
           country: resolvedCountry,
           visaType: resolvedVisaType,
           mode,
           createdAt: new Date().toISOString(),
         });
+        const submittedAt = new Date().toISOString();
+        const { error: submitError } = await supabase.from("applications").update({
+          status: "submitted",
+          submitted_at: submittedAt,
+          submission_result_status: queueJob.submissionResultStatus,
+          submission_result: queueJob.submissionResult,
+          confirmation_number: null,
+          submission_result_updated_at: submittedAt,
+        }).eq("id", applicationId);
+        if (submitError) throw new Error(submitError.message);
+
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt,
+          submissionResultStatus: queueJob.submissionResultStatus,
+          submissionResult: queueJob.submissionResult,
+          confirmationNumber: undefined,
+        }));
       }
 
-      const submittedAt = new Date().toISOString();
-      const { error: submitError } = await supabase.from("applications").update({
-        status: "submitted",
-        submitted_at: submittedAt,
-        ...(!isJpTourist
-          ? {
-              submission_result_status: "waiting",
-              submission_result: null,
-              confirmation_number: null,
-              submission_result_updated_at: submittedAt,
-            }
-          : {}),
-      }).eq("id", applicationId);
-      if (submitError) throw new Error(submitError.message);
-
       if (isJpTourist) {
+        const submittedAt = new Date().toISOString();
+        const { error: submitError } = await supabase.from("applications").update({
+          status: "submitted",
+          submitted_at: submittedAt,
+        }).eq("id", applicationId);
+        if (submitError) throw new Error(submitError.message);
         // JP_TOURIST has no automation pipeline. Synthesize the terminal
         // result client-side so the StatusStep can render JpResultCard with
         // the MOFA Form A download CTA.
@@ -2100,14 +2139,6 @@ export default function ApplicationPage() {
             applicationId,
             formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
           },
-        }));
-      } else {
-        setAppState((prev) => ({
-          ...prev,
-          submittedAt,
-          submissionResultStatus: "waiting",
-          submissionResult: null,
-          confirmationNumber: undefined,
         }));
       }
       setSubmitMissingFields([]);
@@ -2167,7 +2198,7 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      await insertSubmissionQueueJob(supabase, {
+      const queueJob = await insertSubmissionQueueJob(supabase, {
         applicationId,
         country: resolvedCountry,
         visaType: resolvedVisaType,
@@ -2179,8 +2210,8 @@ export default function ApplicationPage() {
       const { error: submitError } = await supabase.from("applications").update({
         status: "submitted",
         submitted_at: submittedAt,
-        submission_result_status: "waiting",
-        submission_result: null,
+        submission_result_status: queueJob.submissionResultStatus,
+        submission_result: queueJob.submissionResult,
         confirmation_number: null,
         submission_result_updated_at: submittedAt,
       }).eq("id", applicationId);
@@ -2189,8 +2220,8 @@ export default function ApplicationPage() {
       setAppState((prev) => ({
         ...prev,
         submittedAt,
-        submissionResultStatus: "waiting",
-        submissionResult: null,
+        submissionResultStatus: queueJob.submissionResultStatus,
+        submissionResult: queueJob.submissionResult,
         confirmationNumber: undefined,
       }));
       setSubmitMissingFields([]);

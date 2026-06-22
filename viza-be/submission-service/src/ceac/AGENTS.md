@@ -29,6 +29,10 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
   ensure the frontend confirmation tab can show Chinese success UI with CEAC
   Application ID, confirmation number/reference, submitted timestamp,
   retrieval/status URL, and any stored proof artifact available.
+- Before marking the CEAC flow verified, run the user-facing browser path:
+  click the frontend submit/retry button, confirm the worker picks up the queue
+  and the UI progresses, then preserve official trace/screenshot and DB result
+  evidence. If the browser-click test is blocked, report the exact reason.
 
 ## Key Flow
 

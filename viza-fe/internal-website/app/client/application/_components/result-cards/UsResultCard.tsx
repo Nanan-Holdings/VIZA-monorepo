@@ -227,22 +227,6 @@ export function UsResultCard({
         </div>
 
         {submitted && (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
-            <div className="text-xs font-medium text-emerald-700">
-              {t("successEvidence")}
-            </div>
-            <p className="mt-1 text-sm leading-relaxed text-emerald-950">
-              {t("successEvidenceBody")}
-            </p>
-            {result.evidence?.confirmationText && (
-              <div className="mt-2 break-words font-mono text-xs text-emerald-950">
-                {result.evidence.confirmationText}
-              </div>
-            )}
-          </div>
-        )}
-
-        {submitted && (
           <div className="rounded-md border border-input bg-background p-3">
             <div className="text-xs font-medium text-muted-foreground">
               {t("officialActions")}

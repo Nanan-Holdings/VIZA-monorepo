@@ -132,6 +132,7 @@ import {
   SgacPortalError,
   SgacPortalValidationError,
 } from "./sgac";
+import { evaluateSgacSubmissionWindow } from "./sgac/date-window";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -237,6 +238,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "vn_dry_run_pending",
       "vn_live_assisted_pending",
       "sgac_dry_run_pending",
+      "sgac_live_assisted_scheduled",
       "sgac_live_assisted_pending",
       "vn_prefill_pending",
       "au_prefill_pending",
@@ -248,6 +250,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
 }
 
 function queuePriority(item: SubmissionQueueItem): number {
+  if (item.status === "sgac_live_assisted_scheduled") return 0;
   if (item.status === "sgac_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
   if (item.status === "vn_live_assisted_pending") return 2;
@@ -280,7 +283,7 @@ function isVnJob(item: SubmissionQueueItem): boolean {
 }
 
 function isSgacJob(item: SubmissionQueueItem): boolean {
-  return item.status === "sgac_live_assisted_pending";
+  return item.status === "sgac_live_assisted_pending" || item.status === "sgac_live_assisted_scheduled";
 }
 
 function isAuJob(item: SubmissionQueueItem): boolean {
@@ -404,6 +407,7 @@ async function normalizeVietnamQueueItem(item: SubmissionQueueItem): Promise<Sub
 async function normalizeSgacQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
   const application = await loadQueueRoutingApplication(item.application_id);
   if (!isSgArrivalCardQueueItem(item, application)) return item;
+  if (item.status === "sgac_live_assisted_scheduled") return item;
 
   const liveRequested = isLiveAssistedQueueItem(item);
   const expectedStatus: SubmissionQueueItem["status"] = liveRequested
@@ -1012,7 +1016,13 @@ async function captureDs160ProofArtifacts(
       window.print = () => undefined;
     }).catch(() => undefined);
     const popupPromise = page.waitForEvent("popup", { timeout: 8_000 }).catch(() => null);
-    await printApplicationButton.click({ force: true, timeout: 10_000 });
+    try {
+      await printApplicationButton.click({ force: true, timeout: 10_000 });
+    } catch {
+      await printApplicationButton.evaluate((element) => {
+        if (element instanceof HTMLElement) element.click();
+      });
+    }
     const popup = await popupPromise;
     if (popup) {
       await popup.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
@@ -3618,19 +3628,54 @@ function requireAnswer(map: Record<string, string | null>, field: string): strin
   return v.trim();
 }
 
-async function enqueueSgacLiveAfterDryRun(item: SubmissionQueueItem): Promise<string | null> {
+function buildScheduledSgacResult(input: {
+  applicationId: string;
+  arrivalDate: string | null | undefined;
+  earliestSubmissionDate: string;
+}): SgArrivalCardSubmissionResult & { scheduledFor: string } {
+  return {
+    country: "SG",
+    visaType: "SG_ARRIVAL_CARD",
+    status: "scheduled",
+    mode: "live_assisted",
+    provider: "sg_arrival_card_live",
+    applicationId: input.applicationId,
+    submitted: false,
+    confirmationNumber: null,
+    referenceNumber: null,
+    portalUrl: SGAC_OFFICIAL_PORTAL_URL,
+    portalResponseSummary:
+      `ICA accepts SG Arrival Card submissions within three days including arrival day. This application is scheduled for ${input.earliestSubmissionDate}.`,
+    scheduledFor: input.earliestSubmissionDate,
+    artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+    payloadSummary: {
+      arrivalDate: input.arrivalDate ?? null,
+      purposeOfTravel: null,
+      modeOfTravel: null,
+      transportNumber: null,
+      accommodationAddressProvided: false,
+    },
+  };
+}
+
+async function enqueueSgacLiveAfterDryRun(
+  item: SubmissionQueueItem,
+  answers: Record<string, string>,
+): Promise<string | null> {
   const now = new Date().toISOString();
+  const window = evaluateSgacSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+  const scheduled = window.status === "scheduled";
   const { data, error } = await supabase
     .from("submission_queue")
     .insert({
       application_id: item.application_id,
-      status: "sgac_live_assisted_pending",
+      status: scheduled ? "sgac_live_assisted_scheduled" : "sgac_live_assisted_pending",
       mode: "live_assisted",
       provider: "sg_arrival_card_live",
       attempts: 0,
       last_error: null,
-      current_stage: "queued_after_dry_run",
-      heartbeat_at: now,
+      current_stage: scheduled ? "scheduled_for_ica_window" : "queued_after_dry_run",
+      heartbeat_at: scheduled ? null : now,
       created_at: now,
       updated_at: now,
     })
@@ -3641,9 +3686,84 @@ async function enqueueSgacLiveAfterDryRun(item: SubmissionQueueItem): Promise<st
     throw new Error(`SGAC dry-run passed but live submission could not be queued: ${error.message}`);
   }
 
-  await setSubmissionStatus(item.application_id, "waiting");
+  if (scheduled) {
+    await writeSubmissionResult(
+      item.application_id,
+      buildScheduledSgacResult({
+        applicationId: item.application_id,
+        arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
+        earliestSubmissionDate: window.earliestSubmissionDate,
+      }),
+      "scheduled",
+    );
+  } else {
+    await setSubmissionStatus(item.application_id, "waiting");
+  }
   const row = data as { id?: string | null } | null;
   return row?.id ?? null;
+}
+
+async function promoteSgacScheduledIfDue(item: SubmissionQueueItem): Promise<SubmissionQueueItem | null> {
+  if (item.status !== "sgac_live_assisted_scheduled") return item;
+  const answers = await loadDs160Answers(item.application_id);
+  const window = evaluateSgacSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+  if (window.status === "scheduled") {
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: "scheduled_for_ica_window",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await writeSubmissionResult(
+      item.application_id,
+      buildScheduledSgacResult({
+        applicationId: item.application_id,
+        arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
+        earliestSubmissionDate: window.earliestSubmissionDate,
+      }),
+      "scheduled",
+    );
+    return null;
+  }
+
+  if (window.status === "past" || window.status === "invalid") {
+    const message = window.status === "past"
+      ? "SGAC scheduled submission missed the ICA submission window because the arrival date is in the past."
+      : "SGAC scheduled submission cannot run because the arrival date is invalid.";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "sgac_live_assisted_failed",
+        last_error: message,
+        error_code: `sgac_arrival_date_${window.status}`,
+        error_message: message,
+        current_stage: "validation_failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, message);
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "sgac_live_assisted_pending",
+      current_stage: "ica_window_open",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "waiting");
+  return {
+    ...item,
+    status: "sgac_live_assisted_pending",
+    current_stage: "ica_window_open",
+    heartbeat_at: now,
+    updated_at: now,
+  };
 }
 
 async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
@@ -3970,7 +4090,7 @@ async function processDryRunItem(
     if (validationFailed) {
       await markSubmissionFailed(item.application_id, result.message);
     } else if (isSgacDryRun) {
-      const liveJobId = await enqueueSgacLiveAfterDryRun(item);
+      const liveJobId = await enqueueSgacLiveAfterDryRun(item, answers);
       console.log(
         `[sgac] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
       );
@@ -4153,7 +4273,10 @@ async function pollOnce(): Promise<void> {
     } else if (isVnJob(item)) {
       await processVnItem(item);
     } else if (isSgacJob(item)) {
-      await processSgacLiveItem(item);
+      const dueItem = await promoteSgacScheduledIfDue(item);
+      if (dueItem) {
+        await processSgacLiveItem(dueItem);
+      }
     } else if (isAuJob(item)) {
       await processAuItem(item);
     } else {

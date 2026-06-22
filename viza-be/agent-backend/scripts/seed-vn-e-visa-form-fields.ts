@@ -167,6 +167,43 @@ const PROVINCE_OPTIONS = [
   { value: "dong_thap", text: "DONG THAP" },
 ];
 
+const WARD_COMMUNE_FALLBACK_BY_PROVINCE: Record<string, string> = {
+  an_giang: "BINH DUC WARD",
+  bac_ninh: "BAC GIANG WARD",
+  cao_bang: "NUNG TRI CAO WARD",
+  ca_mau: "AN XUYEN WARD",
+  gia_lai: "AN BINH WARD",
+  ha_tinh: "BAC HONG LINH WARD",
+  hung_yen: "HONG CHAU WARD",
+  khanh_hoa: "PHUONG HOA THANG",
+  lai_chau: "TAN PHONG WARD",
+  lao_cai: "CAM DUONG WARD",
+  lam_dong: "1 BAO LOC WARD",
+  lang_son: "HOANG VAN THU WARD",
+  nghe_an: "CUA LO WARD",
+  ninh_binh: "CHAU SON WARD",
+  phu_tho: "HOA BINH WARD",
+  quang_ngai: "CAM THANH WARD",
+  quang_ninh: "AN SINH WARD",
+  quang_tri: "BA DON WARD",
+  son_la: "CHIENG AN WARD",
+  can_tho_city: "AN BINH WARD",
+  hue_city: "AN CUU WARD",
+  ha_noi_city: "BA DINH WARD",
+  hai_phong_city: "AN BIEN WARD",
+  ho_chi_minh_city: "PHUONG AN NHON",
+  da_nang_city: "AN HAI WARD",
+  thanh_hoa: "BIM SON WARD",
+  thai_nguyen: "BA XUYEN WARD",
+  tuyen_quang: "AN TUONG WARD",
+  tay_ninh: "AN TINH WARD",
+  vinh_long: "PHUONG LONG CHAU",
+  dien_bien: "MUONG LAY WARD",
+  dak_lak: "BUON MA THUOT WARD",
+  dong_nai: "AN LOC WARD",
+  dong_thap: "AN BINH WARD",
+};
+
 // Live list: 79 border gates (air + land + sea combined). Exact live
 // render order preserved. Labels match the government's Vietnamese-English
 // shipping-and-border-gate nomenclature.
@@ -599,7 +636,7 @@ const FIELDS: FieldDef[] = [
   // We cannot enumerate options statically (they depend on province), so we store as select
   // with an empty option list and rely on the province selection to populate at render time.
   // A future enhancement: wire up a dependent-select loader.
-  { field_name: "intended_ward_commune", label: "Intended ward/commune in Viet Nam", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 7, placeholder: "Choose ward/commune in Viet Nam", options: [], validation_rules: { dependent_on: "intended_province_city", fallbackDefault: "BA DINH WARD", officialSource: "/client-service/public/dm-tinh-tp/get-all -> HA NOI City.dmPhuongXa", live_dom_id: "basic_ttcdPhuongXa" } },
+  { field_name: "intended_ward_commune", label: "Intended ward/commune in Viet Nam", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 7, placeholder: "Choose ward/commune in Viet Nam", options: [], validation_rules: { dependent_on: "intended_province_city", fallbackDefault: "BA DINH WARD", fallbackDefaultByParent: WARD_COMMUNE_FALLBACK_BY_PROVINCE, officialSource: "/client-service/public/dm-tinh-tp/get-all -> selected province dmPhuongXa", live_dom_id: "basic_ttcdPhuongXa" } },
   { field_name: "intended_border_gate_of_entry", label: "Intended border gate of entry", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 8, placeholder: "Choose one", options: BORDER_GATE_OPTIONS, validation_rules: { live_dom_id: "basic_ttcdNcCuaKhau" } },
   { field_name: "intended_border_gate_of_exit", label: "Intended border gate of exit", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 9, placeholder: "Choose one", options: BORDER_GATE_OPTIONS, validation_rules: { live_dom_id: "basic_ttcdXcCuaKhau" } },
   { field_name: "declaration_temporary_residence", label: "I commit to declare temporary residence according to Vietnamese law", field_type: "checkbox", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 10, options: [{ value: "yes", text: "I agree" }], validation_rules: { live_dom_id: "basic_ttcdCqTcCamDoan" } },

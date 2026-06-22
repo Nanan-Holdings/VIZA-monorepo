@@ -60,6 +60,8 @@ import {
   type RealtimeTranslationStatus,
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { createClient } from "@/lib/supabase/client";
+import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
+import { withRuntimeAbortRetry } from "@/lib/runtime-abort-retry";
 import { cn } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
@@ -1082,64 +1084,73 @@ export default function UniversalInfoPage() {
     let isMounted = true;
 
     async function loadProfile() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      await withRuntimeAbortRetry(async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.replace("/client/login");
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("applicant_profiles")
-        .select("*")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (profileError) {
-        setError(isZh ? "读取通用资料失败，请稍后重试。" : "Could not load your universal profile. Please try again later.");
-        setIsLoading(false);
-        return;
-      }
-
-      const typedProfile = profile as UniversalProfileRow | null;
-      if (!typedProfile) {
-        await supabase.from("applicant_profiles").upsert(
-          {
-            auth_user_id: user.id,
-            email: user.email ?? null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "auth_user_id" },
-        );
-      }
-
-      const draftResult = await ensureDraftApplication("us", "b1_b2", { preferExplicit: true });
-      if (isMounted && draftResult.applicationId) {
-        setPassportOcrApplicationId(draftResult.applicationId);
-        const uploadResult = await loadUniversalProfilePassportUploadStatus(draftResult.applicationId);
-        if (isMounted && uploadResult.ok) {
-          setPassportUpload({
-            uploaded: uploadResult.uploaded,
-            fileName: uploadResult.fileName,
-            status: uploadResult.status,
-            updatedAt: uploadResult.updatedAt,
-          });
+        if (!user) {
+          router.replace("/client/login");
+          return;
         }
-      }
 
-      const viewState = buildProfileViewState(typedProfile, user.email ?? "");
-      setForm(viewState.form);
-      setPhoneCountryCode(viewState.phoneCountryCode);
-      setBilingualForm(viewState.bilingualForm);
-      setDirtyProfileFields(new Set());
-      setManualEnglishFields({});
-      setIsLoading(false);
+        const { data: profile, error: profileError } = await supabase
+          .from("applicant_profiles")
+          .select("*")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+
+        if (!isMounted) return;
+
+        if (profileError) {
+          setError(isZh ? "读取通用资料失败，请稍后重试。" : "Could not load your universal profile. Please try again later.");
+          setIsLoading(false);
+          return;
+        }
+
+        const typedProfile = profile as UniversalProfileRow | null;
+        if (!typedProfile) {
+          await supabase.from("applicant_profiles").upsert(
+            {
+              auth_user_id: user.id,
+              email: user.email ?? null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "auth_user_id" },
+          );
+        }
+
+        const draftResult = await ensureDraftApplication("us", "b1_b2", { preferExplicit: true });
+        if (isMounted && draftResult.applicationId) {
+          setPassportOcrApplicationId(draftResult.applicationId);
+          const uploadResult = await loadUniversalProfilePassportUploadStatus(draftResult.applicationId);
+          if (isMounted && uploadResult.ok) {
+            setPassportUpload({
+              uploaded: uploadResult.uploaded,
+              fileName: uploadResult.fileName,
+              status: uploadResult.status,
+              updatedAt: uploadResult.updatedAt,
+            });
+          }
+        }
+
+        const viewState = buildProfileViewState(typedProfile, user.email ?? "");
+        setForm(viewState.form);
+        setPhoneCountryCode(viewState.phoneCountryCode);
+        setBilingualForm(viewState.bilingualForm);
+        setDirtyProfileFields(new Set());
+        setManualEnglishFields({});
+        setIsLoading(false);
+      });
     }
 
-    void loadProfile();
+    void loadProfile().catch((loadError) => {
+      if (!isMounted) return;
+      if (!isIgnorableRuntimeAbortError(loadError)) {
+        console.error("Failed to load universal profile", loadError);
+      }
+      setError(isZh ? "读取通用资料失败，请刷新后重试。" : "Could not load your universal profile. Refresh and try again.");
+      setIsLoading(false);
+    });
     return () => { isMounted = false; };
   }, [isZh, router]);
 

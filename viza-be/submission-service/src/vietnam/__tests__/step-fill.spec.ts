@@ -7,6 +7,7 @@ import {
   resolveStepPlan,
 } from "../fillers.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
+import { toPortalDateForField } from "../run.js";
 
 /**
  * RUN-VN-001: covers a full step fill at the (browser-free) plan level —
@@ -34,6 +35,17 @@ test("vn.step-fill: date fields are reformatted to DD/MM/YYYY", () => {
   assert.ok(dob);
   assert.equal(dob.value, "15/04/1990");
   assert.equal(dob.type, "date");
+});
+
+test("vn.step-fill: visa valid-from date is not earlier than today", () => {
+  assert.equal(
+    toPortalDateForField("visa_valid_from", "2026-06-20", new Date(2026, 5, 22)),
+    "22/06/2026",
+  );
+  assert.equal(
+    toPortalDateForField("visa_valid_from", "2026-06-30", new Date(2026, 5, 22)),
+    "30/06/2026",
+  );
 });
 
 test("vn.step-fill: uploads and unanswered fields are excluded", () => {

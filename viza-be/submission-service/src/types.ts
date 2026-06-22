@@ -49,6 +49,7 @@ export interface SubmissionQueueItem {
     | "sgac_dry_run_processing"
     | "sgac_dry_run_failed"
     | "sgac_live_assisted_pending"
+    | "sgac_live_assisted_scheduled"
     | "sgac_live_assisted_processing"
     | "sgac_live_assisted_failed"
     | "sgac_blocked"
