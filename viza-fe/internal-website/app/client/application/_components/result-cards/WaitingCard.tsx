@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
-import { Loader2, CheckCircle2, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, Clock3, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { SubmissionResultStatus } from "@/lib/submission-result";
 
 export type SubmissionVisualStatus =
+  | "scheduled"
   | "queued"
   | "running"
   | "needs_user_action"
@@ -22,6 +23,7 @@ export type SubmissionVisualStatus =
   | SubmissionResultStatus;
 
 export type SubmissionVisualStage =
+  | "scheduled"
   | "preparing"
   | "mapping_answers"
   | "filling_form"
@@ -85,8 +87,14 @@ function isWaitingForUserStatus(status: SubmissionVisualStatus | null | undefine
   return ["needs_user_action", "action_required"].includes(normalizeStatus(status));
 }
 
+function isScheduledStatus(status: SubmissionVisualStatus | null | undefined): boolean {
+  return normalizeStatus(status) === "scheduled";
+}
+
 function phaseIndexForStage(stage: SubmissionVisualStage | null | undefined): number | null {
   switch (stage) {
+    case "scheduled":
+      return 0;
     case "preparing":
     case "mapping_answers":
       return 0;
@@ -138,6 +146,7 @@ export function WaitingCard({
   const completeStatus = isCompletionStatus(status);
   const failedStatus = isFailedStatus(status);
   const waitingForUser = isWaitingForUserStatus(status);
+  const scheduledStatus = isScheduledStatus(status) || stage === "scheduled";
   const isFrance =
     country?.toUpperCase() === "FR" ||
     country?.toLowerCase() === "france" ||
@@ -170,6 +179,8 @@ export function WaitingCard({
     const stagePhaseIndex = phaseIndexForStage(stage);
     if (stagePhaseIndex !== null) {
       setActivePhaseIdx(stagePhaseIndex);
+    } else if (scheduledStatus) {
+      setActivePhaseIdx(0);
     } else if (completeStatus || failedStatus || waitingForUser) {
       setActivePhaseIdx(PHASES.length - 1);
     } else if (status === "processing") {
@@ -177,16 +188,16 @@ export function WaitingCard({
     } else if (status === "waiting") {
       setActivePhaseIdx(0);
     }
-  }, [completeStatus, failedStatus, stage, status, waitingForUser]);
+  }, [completeStatus, failedStatus, scheduledStatus, stage, status, waitingForUser]);
 
   // Soft auto-advance only when no backend stage/progress has arrived yet.
   useEffect(() => {
     if (stage || typeof serverProgress === "number") return;
-    if (completeStatus || failedStatus || waitingForUser) return;
+    if (completeStatus || failedStatus || waitingForUser || scheduledStatus) return;
     if (activePhaseIdx >= PHASES.length - 1) return;
     const id = setTimeout(() => setActivePhaseIdx((i) => Math.min(i + 1, PHASES.length - 1)), 12_000);
     return () => clearTimeout(id);
-  }, [activePhaseIdx, completeStatus, failedStatus, serverProgress, stage, waitingForUser]);
+  }, [activePhaseIdx, completeStatus, failedStatus, scheduledStatus, serverProgress, stage, waitingForUser]);
 
   useEffect(() => {
     if (!applicationId || !isFrance) return;
@@ -234,6 +245,36 @@ export function WaitingCard({
       ? "该进度会随后台状态自动推进；如果需要你本人操作，会切换到检查点提示。"
       : "This progress updates with the background worker. If your action is needed, this card will switch to a checkpoint prompt.";
   })();
+
+  if (scheduledStatus) {
+    return (
+      <Card className="rounded-xl border-input">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3 text-foreground">
+            <Clock3 className="h-5 w-5 text-brand-500" />
+            {isZh ? "已排队，等待自动提交" : "Scheduled for automatic submission"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {message ??
+              (isZh
+                ? "ICA 只接受抵达前 3 天内（含抵达当天）的 SG Arrival Card。系统会在窗口开启后自动提交。"
+                : "ICA only accepts SG Arrival Card submissions within three days including the day of arrival. VIZA will submit automatically when that window opens.")}
+          </p>
+          <SmoothProgressBar
+            displayedProgress={0}
+            label={isZh ? "等待 ICA 可提交时间" : "Waiting for ICA submission window"}
+            ariaLabel={isZh ? "排队进度" : "Scheduled submission progress"}
+            size="md"
+            transitionMs={760}
+            trackClassName="bg-muted"
+            valueClassName="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700"
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="rounded-xl border-input">

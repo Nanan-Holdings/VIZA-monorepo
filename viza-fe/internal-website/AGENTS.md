@@ -172,6 +172,7 @@ Smoke URLs:
 - `components/ui/*`
 - `components/smooth-progress.tsx`
 - `components/runtime-abort-error-guard.tsx`
+- `components/runtime-abort-error-script.tsx`
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
 - `components/client/us-appointment/*`
@@ -190,6 +191,7 @@ Smoke URLs:
 - `lib/us-appointment/*`
 - `lib/client/recent-application-form.ts`
 - `lib/runtime-abort-errors.ts`
+- `lib/runtime-abort-retry.ts`
 - `supabase/migrations/*`
 - `supabase/manual/*`
 - `supabase/templates/*`

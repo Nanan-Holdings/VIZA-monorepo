@@ -21,18 +21,69 @@ export function mergeUsProofStoragePaths(
 }
 
 export async function waitForDs160ConfirmationPage(page: Page): Promise<void> {
-  const confirmationMarkers = [
-    /print confirmation/i,
-    /print application/i,
-    /email confirmation/i,
-    /confirmation page/i,
+  const printControlGroups = [
+    [
+      'input[type="submit"][value*="Print Confirmation" i]',
+      'input[type="button"][value*="Print Confirmation" i]',
+      'button:has-text("Print Confirmation")',
+      'a:has-text("Print Confirmation")',
+    ].join(", "),
+    [
+      'input[type="submit"][value*="Print Application" i]',
+      'input[type="button"][value*="Print Application" i]',
+      'button:has-text("Print Application")',
+      'a:has-text("Print Application")',
+    ].join(", "),
+    [
+      'input[type="submit"][value*="Email Confirmation" i]',
+      'input[type="button"][value*="Email Confirmation" i]',
+      'button:has-text("Email Confirmation")',
+      'a:has-text("Email Confirmation")',
+    ].join(", "),
   ];
+  const viewConfirmationControls = [
+    'input[type="submit"][value*="View Confirmation" i]',
+    'input[type="button"][value*="View Confirmation" i]',
+    'button:has-text("View Confirmation")',
+    'a:has-text("View Confirmation")',
+  ].join(", ");
+  const continueControls = [
+    'input[type="submit"][value="Continue" i]',
+    'input[type="button"][value="Continue" i]',
+    'button:has-text("Continue")',
+    'a:has-text("Continue")',
+  ].join(", ");
+
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    if (confirmationMarkers.some((marker) => marker.test(text))) return;
+    if (await hasOfficialProofControls(page, printControlGroups)) return;
+    if (await clickFirstAvailable(page, viewConfirmationControls)) continue;
+    if (await clickFirstAvailable(page, continueControls)) continue;
     await page.waitForTimeout(1_000);
   }
   throw new Error("CEAC confirmation page was not reached after DS-160 retrieval.");
+}
+
+async function hasOfficialProofControls(page: Page, selectors: string[]): Promise<boolean> {
+  for (const selector of selectors) {
+    if ((await page.locator(selector).count().catch(() => 0)) === 0) return false;
+  }
+  return true;
+}
+
+async function clickFirstAvailable(page: Page, selector: string): Promise<boolean> {
+  const control = page.locator(selector).first();
+  if ((await control.count().catch(() => 0)) === 0) return false;
+  try {
+    await control.click({ force: true, timeout: 10_000 });
+  } catch {
+    await control.evaluate("el => el.click()");
+  }
+  try {
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+  } catch {
+    await page.waitForTimeout(2_000);
+  }
+  return true;
 }
 
 function isSubmittedUsResult(value: unknown): value is UsSubmissionResult {

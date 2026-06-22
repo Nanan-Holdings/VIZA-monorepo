@@ -53,6 +53,39 @@ function dayDiffInclusive(start: string | null | undefined, end: string | null |
   return String(Math.max(1, Math.round((endTime - startTime) / 86_400_000) + 1));
 }
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isIsoDateOnOrAfter(value: string | null | undefined, minDate: string): boolean {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= minDate);
+}
+
+function chooseVietnamFutureDate(...values: Array<string | null | undefined>): string {
+  const today = todayIso();
+  return values.find((value) => isIsoDateOnOrAfter(value, today)) ?? today;
+}
+
+function normalizeVietnamTravelDates(
+  answers: Record<string, string>,
+  application: Application,
+): void {
+  const entryDate = chooseVietnamFutureDate(
+    application.arrival_date,
+    answers.arrival_date,
+    answers.planned_arrival_date,
+    answers.intended_arrival_date,
+    answers.intended_date_of_entry,
+    answers.visa_valid_from,
+  );
+  if (!isIsoDateOnOrAfter(answers.visa_valid_from, todayIso())) {
+    answers.visa_valid_from = entryDate;
+  }
+  if (!isIsoDateOnOrAfter(answers.intended_date_of_entry, todayIso())) {
+    answers.intended_date_of_entry = entryDate;
+  }
+}
+
 export function applyVietnamAnswerAliases(
   answers: Record<string, string>,
   profile: ApplicantProfile,
@@ -164,6 +197,7 @@ export function applyVietnamAnswerAliases(
   setIfMissing(answers, "bought_travel_insurance", [answers.did_you_buy_insurance, answers.travel_insurance]);
   setIfMissing(answers, "expense_coverage", [answers.trip_expense_payer, answers.expense_payer]);
   setIfMissing(answers, "accommodation_name", [accommodationName]);
+  normalizeVietnamTravelDates(answers, application);
 
   return answers;
 }

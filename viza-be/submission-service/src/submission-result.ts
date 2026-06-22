@@ -175,6 +175,7 @@ export interface SgArrivalCardSubmissionResult {
   country: "SG";
   visaType: "SG_ARRIVAL_CARD";
   status:
+    | "scheduled"
     | "submitted"
     | "validation_failed"
     | "official_portal_handoff_required"
@@ -263,6 +264,7 @@ export interface GenericSubmissionResult {
 
 export type SubmissionResultStatus =
   | "waiting"
+  | "scheduled"
   | "processing"
   | "needs_user_action"
   | "completed"

@@ -46,3 +46,7 @@ Important patterns to mirror in the Playwright runner:
   not pay the official fee.
 - Preserve `validationErrors`, `fieldFallbacks`, CAPTCHA telemetry, trace, and
   final screenshot in the queue payload for frontend evidence and schema tuning.
+- Before marking the Vietnam flow verified, run the user-facing browser path:
+  click the frontend submit/retry button, confirm the worker picks up the queue
+  and the UI progresses, then preserve the official portal trace/screenshot and
+  DB result. If the browser-click test is blocked, report the exact reason.

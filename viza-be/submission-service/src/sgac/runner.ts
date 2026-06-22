@@ -202,9 +202,20 @@ async function selectNgOption(page: Page, selector: string, query: string, expec
   const options = page.locator(".ng-option");
   const exact = options.filter({ hasText: new RegExp(`^\\s*${escapeRegex(desired)}\\s*$`, "i") }).first();
   const candidate = (await exact.count()) > 0 ? exact : options.filter({ hasText: new RegExp(escapeRegex(desired), "i") }).first();
-  const selected = (await candidate.innerText({ timeout: 10_000 })).trim();
-  await candidate.click({ timeout: 10_000 });
-  return selected;
+  try {
+    const selected = (await candidate.innerText({ timeout: 10_000 })).trim();
+    await candidate.click({ timeout: 10_000 });
+    return selected;
+  } catch {
+    const summary = await visibleBodySummary(page, 1200);
+    throw new SgacPortalError(
+      `ICA SGAC dropdown option not found for "${desired}". Please use a value that appears in the official ICA dropdown list.`,
+      {
+        code: "sgac_dropdown_option_not_found",
+        portalSummary: summary,
+      },
+    );
+  }
 }
 
 function escapeRegex(value: string): string {
