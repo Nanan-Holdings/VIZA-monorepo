@@ -1,7 +1,3 @@
-export function isIgnorableDashboardLoadError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === "AbortError") return true;
-  if (error instanceof Error && error.name === "AbortError") return true;
+import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 
-  const message = error instanceof Error ? error.message : String(error);
-  return message.toLowerCase().includes("signal is aborted");
-}
+export const isIgnorableDashboardLoadError = isIgnorableRuntimeAbortError;
