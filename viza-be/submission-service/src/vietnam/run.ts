@@ -997,13 +997,22 @@ async function fillByType(
       await tickCheckbox(page, domId, rawValue);
       return;
     case "upload":
-      // Uploads require a local file path threaded from applicationDocuments.
-      // Skip silently — orchestrator logs are noisy enough; the FE will surface
-      // a missing-portrait error from the portal review screen if it matters.
+      await uploadVietnamFile(page, domId, rawValue);
       return;
     default:
       return;
   }
+}
+
+async function uploadVietnamFile(page: Page, domId: string, rawPath: string): Promise<void> {
+  const localPath = path.resolve(rawPath);
+  if (!fs.existsSync(localPath)) {
+    throw new Error(`Vietnam upload file not found for ${domId}: ${localPath}`);
+  }
+  const inputIndex = domId === "basic_anhMat" ? 0 : 1;
+  const fileInput = page.locator('input[type="file"]').nth(inputIndex);
+  await fileInput.setInputFiles(localPath, { timeout: 20_000 });
+  await page.waitForTimeout(1_000);
 }
 
 async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
@@ -1011,14 +1020,52 @@ async function advanceToReview(page: Page, timeoutMs: number): Promise<void> {
   // its label does NOT match one of the stop patterns. If the dominant
   // action is already a Pay/Submit button, leave the page where it is —
   // the registration-code capture either succeeds or returns null.
-  const candidate = page
-    .locator('button.ant-btn-primary, button[type="submit"]')
-    .first();
-  const text = ((await candidate.textContent().catch(() => "")) ?? "").trim();
-  if (VN_STOP_BUTTON_PATTERNS.some((rx) => rx.test(text))) return;
+  await page.evaluate(() => {
+    const visible = (element: Element | null): element is HTMLElement => {
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const declarationWrapper = Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper"))
+      .filter(visible)
+      .find((wrapper) => /i hereby declare|cam đoan|cam kết/i.test(wrapper.innerText || wrapper.textContent || ""));
+    const declarationInput = declarationWrapper?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    const isChecked =
+      declarationInput?.checked ||
+      declarationWrapper?.querySelector(".ant-checkbox-checked") !== null ||
+      declarationWrapper?.getAttribute("aria-checked") === "true";
+    if (declarationWrapper && !isChecked) {
+      declarationWrapper.scrollIntoView({ block: "center" });
+      declarationWrapper.click();
+    }
+  });
+  await page.waitForTimeout(300);
 
-  await candidate.click({ timeout: 10_000 }).catch(() => undefined);
+  const clicked = await page.evaluate((stopPatterns) => {
+    const visible = (element: Element | null): element is HTMLElement => {
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const stopRegexes = stopPatterns.map((pattern) => new RegExp(pattern, "i"));
+    const candidates = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .filter(visible)
+      .filter((button) => !button.disabled && button.getAttribute("aria-disabled") !== "true")
+      .filter((button) => {
+        const text = (button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
+        return /^(next|save|continue|tiếp tục|lưu)$/i.test(text) && !stopRegexes.some((rx) => rx.test(text));
+      });
+    const button = candidates[candidates.length - 1];
+    if (!button) return false;
+    button.scrollIntoView({ block: "center" });
+    button.click();
+    return true;
+  }, VN_STOP_BUTTON_PATTERNS.map((rx) => rx.source));
+  if (!clicked) return;
   await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 30_000) }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
 }
 
 async function captureRegistrationCode(page: Page): Promise<string | null> {

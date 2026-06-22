@@ -566,6 +566,17 @@ async function downloadDocuments(
   return localPaths;
 }
 
+function firstLocalDocumentPath(
+  localDocPaths: Map<string, string>,
+  documentTypes: readonly string[]
+): string | undefined {
+  for (const documentType of documentTypes) {
+    const localPath = localDocPaths.get(documentType);
+    if (localPath) return localPath;
+  }
+  return undefined;
+}
+
 // ─── Playwright form filler ──────────────────────────────────────────────────
 
 async function fillField(
@@ -3107,12 +3118,30 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   await setSubmissionStatus(item.application_id, "processing");
 
   try {
-    const { profile, application } = await loadApplicantData(item.application_id);
+    const { profile, application, documents } = await loadApplicantData(item.application_id);
     const answers = applyVietnamAnswerAliases(
       await loadDs160Answers(item.application_id),
       profile,
       application,
     );
+    const vnDocsDir = fs.mkdtempSync(path.join(os.tmpdir(), `${runId}-docs-`));
+    const localDocPaths = await downloadDocuments(documents, vnDocsDir);
+    const portraitPath = firstLocalDocumentPath(localDocPaths, [
+      "photo",
+      "applicant_photo",
+      "portrait_photo",
+    ]);
+    const passportPath = firstLocalDocumentPath(localDocPaths, [
+      "passport_copy",
+      "passport_scan",
+      "passport_photo",
+      "passport",
+    ]);
+    if (portraitPath) answers.portrait_photo = portraitPath;
+    if (passportPath) {
+      answers.passport_copy = passportPath;
+      answers.passport_photo = passportPath;
+    }
     const result = await fillVietnamApplication(
       { answers },
       {

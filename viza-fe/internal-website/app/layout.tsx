@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { switzer, geist } from "./fonts";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { RuntimeAbortErrorGuard } from "@/components/runtime-abort-error-guard";
 
 export const metadata: Metadata = {
   title: "VIZA Portal",
@@ -22,6 +23,7 @@ export default async function RootLayout({
     <html lang={locale}>
       <body className={`${switzer.variable} ${geist.variable} font-sans antialiased`}>
         <NextIntlClientProvider messages={messages}>
+          <RuntimeAbortErrorGuard />
           {children}
           <Toaster position="bottom-right" richColors closeButton />
         </NextIntlClientProvider>
