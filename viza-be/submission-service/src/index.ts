@@ -45,7 +45,7 @@ import {
   type CeacRunResult,
   type ConfirmApplicationResult,
 } from "./ceac";
-import { writeSubmissionResult, markSubmissionFailed, markSubmissionStalled, setSubmissionStatus } from "./result-writer";
+import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
 import {
   applyVietnamAnswerAliases,
   buildCountrySubmissionApplication,
@@ -147,10 +147,6 @@ const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
 const DS160_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
   STALE_QUEUE_TIMEOUT_MS,
   (Number.parseInt(process.env.DS160_LIVE_MAX_DURATION_SECONDS ?? "1800", 10) + 300) * 1000,
-);
-const PENDING_PICKUP_TIMEOUT_MS = Number.parseInt(
-  process.env.VIZA_SUBMISSION_PENDING_PICKUP_TIMEOUT_MS ?? "90000",
-  10,
 );
 const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "pending",
@@ -776,7 +772,6 @@ function isPendingQueueStatus(status: SubmissionQueueItem["status"]): boolean {
 }
 
 function timeoutForQueueStatus(status: SubmissionQueueItem["status"]): number {
-  if (isPendingQueueStatus(status)) return PENDING_PICKUP_TIMEOUT_MS;
   if (status === "ds160_live_assisted_processing") {
     return DS160_LIVE_PROCESSING_TIMEOUT_MS;
   }
@@ -796,6 +791,7 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
   }
 
   const staleItems = ((data ?? []) as SubmissionQueueItem[]).filter((item) => {
+    if (isPendingQueueStatus(item.status)) return false;
     const timeoutMs = timeoutForQueueStatus(item.status);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return false;
     const cutoffMs = Date.now() - timeoutMs;
@@ -805,30 +801,21 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
   });
   for (const item of staleItems) {
     const timeoutMs = timeoutForQueueStatus(item.status);
-    const pendingPickup = isPendingQueueStatus(item.status);
-    const timedOutStatus: SubmissionQueueItem["status"] = pendingPickup
-      ? "stalled"
-      : failedStatusForQueueStatus(item.status);
-    const reason = pendingPickup
-      ? `Submission job stalled: the worker did not pick up queue status ${item.status} within ${Math.round(timeoutMs / 1000)}s.`
-      : `Submission job failed: worker heartbeat stopped for ${Math.round(timeoutMs / 1000)}s in status ${item.status}.`;
+    const timedOutStatus = failedStatusForQueueStatus(item.status);
+    const reason = `Submission job failed: worker heartbeat stopped for ${Math.round(timeoutMs / 1000)}s in status ${item.status}.`;
     await supabase
       .from("submission_queue")
       .update({
         status: timedOutStatus,
-        attempts: pendingPickup ? item.attempts : Math.max(item.attempts, MAX_ATTEMPTS),
+        attempts: Math.max(item.attempts, MAX_ATTEMPTS),
         last_error: reason,
-        error_code: pendingPickup ? "queue_pickup_stalled" : "queue_processing_timed_out",
+        error_code: "queue_processing_timed_out",
         error_message: reason,
-        current_stage: pendingPickup ? "stalled" : "failed",
+        current_stage: "failed",
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
-    if (pendingPickup) {
-      await markSubmissionStalled(item.application_id, reason);
-    } else {
-      await markSubmissionFailed(item.application_id, reason);
-    }
+    await markSubmissionFailed(item.application_id, reason);
     console.warn(
       `[queue-timeout] queue=${redactIdentifier(item.id)} application=${redactIdentifier(item.application_id)} -> ${timedOutStatus}: ${reason}`,
     );
@@ -1008,6 +995,18 @@ async function captureDs160ProofArtifacts(
     )
     .first();
   if ((await printApplicationButton.count().catch(() => 0)) === 0) {
+    return paths;
+  }
+  const printApplicationDisabled = await printApplicationButton
+    .evaluate((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLButtonElement) {
+        return element.disabled;
+      }
+      return element.getAttribute("aria-disabled") === "true";
+    })
+    .catch(() => false);
+  if (printApplicationDisabled) {
+    console.warn("[ds160] CEAC Print Application control is disabled on the submitted confirmation page.");
     return paths;
   }
 
@@ -4174,9 +4173,6 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
 async function pollOnce(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
-  if (!targetJobId) {
-    await markStaleQueueItemsTimedOut();
-  }
   try {
     const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
       createUSAppointmentRunnerRepository(),
@@ -4200,6 +4196,9 @@ async function pollOnce(): Promise<void> {
 
   if (items.length === 0) {
     console.log("[poll] No pending items.");
+    if (!targetJobId) {
+      await markStaleQueueItemsTimedOut();
+    }
     return;
   }
 
@@ -4287,6 +4286,10 @@ async function pollOnce(): Promise<void> {
     } else {
       await processItem(item);
     }
+  }
+
+  if (!targetJobId) {
+    await markStaleQueueItemsTimedOut();
   }
 }
 

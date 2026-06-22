@@ -9,10 +9,6 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
 
 ## Guardrails
 
-- The China first-run experience may create `assisted_live` jobs for
-  `CN/usvisascheduling`, but it must not imply final booking, payment, CAPTCHA,
-  MFA, email verification, or irreversible official portal action happened
-  unless the backend confirmation proves it.
 - Keep every sensitive portal boundary as a manual checkpoint. Do not add
   bypass, auto-refresh, scraping loops, stealth browser behavior, or proxy
   instructions.

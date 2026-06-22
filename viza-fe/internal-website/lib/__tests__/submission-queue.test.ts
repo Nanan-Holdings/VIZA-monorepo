@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
   isSgArrivalCardApplication,
+  retryQueueInsertCanUseLegacyPayload,
   queueProviderForApplication,
   queueProviderForVisaType,
   submissionQueueRequiresServerEnqueue,
@@ -77,5 +78,25 @@ describe("queueStatusForVisaType", () => {
     expect(queueProviderForApplication("singapore", "SG_ARRIVAL_CARD", "dry_run")).toBe("sg_arrival_card_dry_run");
     expect(queueProviderForApplication("singapore", "SG_ARRIVAL_CARD", "live_assisted")).toBe("sg_arrival_card_live");
     expect(queueStatusForApplication("singapore", "SG_VISITOR_VISA", "live_assisted")).not.toBe("sgac_live_assisted_pending");
+  });
+
+  it("allows legacy queue inserts for live France and SGAC retry rows when Supabase cache lacks live columns", () => {
+    const schemaCacheError = {
+      code: "PGRST204",
+      message: "Could not find the 'mode' column of 'submission_queue' in the schema cache",
+    };
+
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "france_live_assisted_pending",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "sgac_live_assisted_pending",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "sgac_live_assisted_scheduled",
+    })).toBe(true);
   });
 });
