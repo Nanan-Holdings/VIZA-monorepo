@@ -204,14 +204,20 @@ export function WaitingCard({
     let cancelled = false;
 
     const loadAccount = async () => {
-      const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
-        cache: "no-store",
-      });
-      const payload = (await response.json().catch(() => null)) as {
-        account?: FvOfficialAccount | null;
-      } | null;
-      if (!cancelled && response.ok) {
-        setOfficialAccount(payload?.account ?? null);
+      try {
+        const response = await fetch(`/api/applications/${applicationId}/france-visas-account`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as {
+          account?: FvOfficialAccount | null;
+        } | null;
+        if (!cancelled && response.ok) {
+          setOfficialAccount(payload?.account ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setOfficialAccount(null);
+        }
       }
     };
 

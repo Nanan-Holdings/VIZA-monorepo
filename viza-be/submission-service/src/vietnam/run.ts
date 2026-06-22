@@ -410,7 +410,15 @@ async function fillVietnamApplicationOnce(
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
       }
     }
-    if (stateAfterCaptcha === "captcha_visible") {
+    let registrationCode = await captureRegistrationCode(page);
+    if (registrationCode) {
+      const confirmed = await confirmDeclarationCompletedNotice(page, stepTimeoutMs);
+      if (confirmed) {
+        lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
+        stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
+      }
+    }
+    if (stateAfterCaptcha === "captcha_visible" && !registrationCode) {
       return {
         status: "action_required",
         runId,
@@ -421,14 +429,6 @@ async function fillVietnamApplicationOnce(
         url: page.url(),
         diagnostics: diagnostics(),
       };
-    }
-    let registrationCode = await captureRegistrationCode(page);
-    if (registrationCode) {
-      const confirmed = await confirmDeclarationCompletedNotice(page, stepTimeoutMs);
-      if (confirmed) {
-        lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
-        stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
-      }
     }
     if (stateAfterCaptcha === "application_form_visible") {
       validationErrors = await readVietnamValidationErrors(page);
