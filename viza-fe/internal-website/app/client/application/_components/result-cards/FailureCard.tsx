@@ -146,7 +146,7 @@ export function FailureCard({
           <AlertTriangle className="h-5 w-5 text-destructive" />
           {workerPickupError
             ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
-            : "We couldn't complete your submission"}
+            : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -155,7 +155,9 @@ export function FailureCard({
             ? (isZh
                 ? "这不是 ICA 表单内容错误，而是本地 submission-service worker 没有运行或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
                 : "This is not an ICA form-data error. The local submission-service worker was not running or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
-            : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything."}
+            : (isZh
+                ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
+                : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
         {validationError ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">

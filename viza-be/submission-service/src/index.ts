@@ -37,6 +37,7 @@ import {
   isSubmittedResult,
   handleConfirmApplicationPage,
   fillRetrieveApplicationForm,
+  retrievalUrlFor,
   mergeUsProofStoragePaths,
   waitForDs160ConfirmationPage,
   selectDs160PhotoDocument,
@@ -1148,6 +1149,10 @@ async function processDs160ProofItem(
       acceptDownloads: true,
       runId,
       captchaMaxAttempts: 3,
+    });
+    await session.page.goto(retrievalUrlFor(currentResult.applicationId ?? ""), {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
     });
     await fillRetrieveApplicationForm(session.page, {
       applicationId: currentResult.applicationId ?? "",

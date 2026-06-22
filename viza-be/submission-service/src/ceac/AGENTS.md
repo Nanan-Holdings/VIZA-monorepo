@@ -53,6 +53,12 @@ diagnostics, `.dat` capture, CAPTCHA solving, and one-shot final submission.
 8. `stop-at-sign.ts` is legacy; CEAC automation should continue through final
    sign/submit for one-shot submission.
 9. `result.ts` returns typed success/failure/handoff payloads.
+10. `proof-artifacts.ts` must only accept the submitted application's official
+    confirmation surface after `resume-application.ts` retrieval. Do not treat
+    the new-application security question page, recovery form, or generic
+    "confirmation page" wording as proof; require the official Print
+    Confirmation / Print Application / Email Confirmation controls before
+    storing PDFs.
 
 ## Validation
 

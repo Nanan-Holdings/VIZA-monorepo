@@ -110,6 +110,56 @@ test("completes the two-stage CEAC retrieve flow", async () => {
   assert.equal(submitted, true);
 });
 
+test("fills CEAC prefilled recovery controls that use txbDOBYear and txbAnswer", async () => {
+  const values = new Map<string, string>();
+  let submitted = false;
+  const liveControls = [
+    "tbxApplicationID",
+    "txbSurname",
+    "txbDOBYear",
+    "txbAnswer",
+    "btnRetrieve",
+  ];
+
+  const page = {
+    locator(selector: string) {
+      const matched = liveControls.find((control) => selector.includes(control));
+      return {
+        first() { return this; },
+        async count() { return matched ? 1 : 0; },
+        async fill(value: string) {
+          if (!matched) throw new Error(`missing selector: ${selector}`);
+          values.set(matched, value);
+        },
+        async selectOption(value: string) {
+          if (!matched) throw new Error(`missing selector: ${selector}`);
+          values.set(matched, value);
+        },
+        async click() {
+          if (matched === "btnRetrieve") submitted = true;
+        },
+        async evaluate() {
+          if (matched === "btnRetrieve") submitted = true;
+        },
+      };
+    },
+    async waitForLoadState() {},
+    async waitForTimeout() {},
+  } as unknown as Page;
+
+  await fillRetrieveApplicationForm(page, {
+    applicationId: "AA00FMEE75",
+    surnameFirstFive: "CHEN",
+    yearOfBirth: "2006",
+    securityAnswer: "VIZAREDOC",
+  });
+
+  assert.equal(values.get("txbSurname"), "CHEN");
+  assert.equal(values.get("txbDOBYear"), "2006");
+  assert.equal(values.get("txbAnswer"), "VIZAREDOC");
+  assert.equal(submitted, true);
+});
+
 test("targets visible security controls when CEAC keeps hidden duplicates", async () => {
   const selected: string[] = [];
   const page = {
