@@ -559,7 +559,6 @@ export function SubmissionStatusStep({
 }: SubmissionStatusStepProps) {
   const isZh = isChineseLocale(useLocale());
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
-  const [showCompletedResult, setShowCompletedResult] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
 
@@ -571,7 +570,6 @@ export function SubmissionStatusStep({
       if (onResubmit) {
         await onResubmit(mode);
         setSnapshot(null);
-        setShowCompletedResult(false);
         return;
       }
       const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
@@ -590,7 +588,6 @@ export function SubmissionStatusStep({
         throw new Error(message);
       }
       setSnapshot(null);
-      setShowCompletedResult(false);
     } finally {
       setResubmitting(false);
     }
@@ -654,15 +651,8 @@ export function SubmissionStatusStep({
 
   useEffect(() => {
     setSnapshot(null);
-    setShowCompletedResult(false);
     setRetryError(null);
   }, [applicationId]);
-
-  useEffect(() => {
-    if (effectiveStatus !== "completed") {
-      setShowCompletedResult(false);
-    }
-  }, [effectiveStatus]);
 
   useEffect(() => {
     if (!applicationId) return;
@@ -813,7 +803,7 @@ export function SubmissionStatusStep({
     );
   }
 
-  if (actionWithResult || (completedWithResult && showCompletedResult)) {
+  if (actionWithResult || completedWithResult) {
     return (
       <div className="space-y-4">
         {isFranceSubmissionCurrent && (
@@ -860,7 +850,6 @@ export function SubmissionStatusStep({
         applicationId={applicationId}
         country={country}
         visaType={visaType}
-        onVisualComplete={() => setShowCompletedResult(true)}
       />
     </div>
   );
