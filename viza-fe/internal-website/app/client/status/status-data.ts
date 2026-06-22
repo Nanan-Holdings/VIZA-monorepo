@@ -114,6 +114,12 @@ export interface StatusApplication {
     currency: string | null;
     mode: string | null;
   };
+  officialFee: {
+    status: string | null;
+    quoteId: string | null;
+    paymentIntentId: string | null;
+    receiptId: string | null;
+  };
   payment: {
     status: string | null;
     amountCents: number | null;
@@ -199,6 +205,10 @@ interface ApplicationRow {
   government_fee_cents: number | null;
   government_fee_currency: string | null;
   government_fee_mode: string | null;
+  official_fee_status: string | null;
+  official_fee_quote_id: string | null;
+  official_fee_payment_intent_id: string | null;
+  official_fee_receipt_id: string | null;
 }
 
 interface PaymentRow {
@@ -737,6 +747,12 @@ function buildPackageOnlyApplication(userPackage: {
       currency: userPackage.package.currency,
       mode: null,
     },
+    officialFee: {
+      status: null,
+      quoteId: null,
+      paymentIntentId: null,
+      receiptId: null,
+    },
     payment: {
       status: userPackage.payment?.status ?? null,
       amountCents: userPackage.payment?.amount_cents ?? userPackage.package.price_cents,
@@ -895,6 +911,12 @@ async function buildApplicationStatus({
       currency: application.government_fee_currency,
       mode: application.government_fee_mode,
     },
+    officialFee: {
+      status: application.official_fee_status,
+      quoteId: application.official_fee_quote_id,
+      paymentIntentId: application.official_fee_payment_intent_id,
+      receiptId: application.official_fee_receipt_id,
+    },
     payment: {
       status: latestPayment?.status ?? null,
       amountCents: latestPayment?.amount_cents ?? visaPackage?.price_cents ?? null,
@@ -983,7 +1005,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       adminClient
         .from("applications")
         .select(
-          "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode",
+          "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode, official_fee_status, official_fee_quote_id, official_fee_payment_intent_id, official_fee_receipt_id",
         )
         .eq("applicant_id", profile.id)
         .order("created_at", { ascending: false }),

@@ -23,6 +23,8 @@ and internal admin flows.
 - `us-appointment.routes.ts`: U.S. B1/B2 appointment consent, dry-run job,
   manual checkpoint, slot selection, final approval, mock booking, and
   user-triggered status/slot check APIs.
+- `supabase-user-auth-config.ts`: shared Supabase URL/anon-key env resolver for
+  applicant bearer-token verification in browser-facing backend routes.
 - `chat-save-block.routes.ts`: chat block persistence.
 - `admin-reminders.routes.ts`: admin reminder APIs.
 - `cron.routes.ts`: cron/status endpoints where mounted.

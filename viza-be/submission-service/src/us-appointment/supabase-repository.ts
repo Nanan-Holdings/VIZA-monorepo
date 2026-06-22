@@ -1,6 +1,7 @@
 import { supabase } from "../supabase";
 import type {
   AuditEventInsert,
+  AppointmentSlotRow,
   ConfirmationInsert,
   ManualActionInsert,
   SlotInsert,
@@ -113,17 +114,57 @@ export class SupabaseUSAppointmentRunnerRepository
     }
   }
 
-  async insertConfirmation(input: ConfirmationInsert): Promise<void> {
-    const { error } = await supabase.from("appointment_confirmations").insert(input);
+  async getSelectedSlot(jobId: string): Promise<AppointmentSlotRow | null> {
+    const { data, error } = await supabase
+      .from("appointment_slots")
+      .select("id, job_id, appointment_date, appointment_time, appointment_location, appointment_type, metadata_redacted_json")
+      .eq("job_id", jobId)
+      .in("status", ["user_selected", "selected"])
+      .order("observed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`US appointment selected slot lookup failed: ${error.message}`);
+    }
+    return (data ?? null) as AppointmentSlotRow | null;
+  }
+
+  async insertConfirmation(input: ConfirmationInsert): Promise<{ id: string | null }> {
+    const { data, error } = await supabase
+      .from("appointment_confirmations")
+      .insert(input)
+      .select("id")
+      .single();
     if (error) {
       throw new Error(`US appointment confirmation insert failed: ${error.message}`);
     }
+    return { id: typeof data?.id === "string" ? data.id : null };
   }
 
   async insertStatusCheck(input: StatusCheckInsert): Promise<void> {
     const { error } = await supabase.from("appointment_status_checks").insert(input);
     if (error) {
       throw new Error(`US appointment status check insert failed: ${error.message}`);
+    }
+  }
+
+  async updateApplicationAppointmentState(input: {
+    applicationId: string;
+    status: string;
+    jobId?: string | null;
+    confirmationId?: string | null;
+  }): Promise<void> {
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        appointment_assistance_status: input.status,
+        appointment_assistance_job_id: input.jobId ?? null,
+        appointment_confirmation_id: input.confirmationId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.applicationId);
+    if (error) {
+      throw new Error(`US appointment application state update failed: ${error.message}`);
     }
   }
 }

@@ -884,7 +884,7 @@ function renderSubmissionResultCard(
         <UkResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "VN":
-      return <VnResultCard result={result} jobId={jobId} />;
+      return <VnResultCard applicationId={applicationId} result={result} jobId={jobId} />;
     case "SG":
       return <SgArrivalCardResultCard result={result} />;
     case "AU":
