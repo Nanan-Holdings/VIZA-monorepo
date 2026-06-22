@@ -181,6 +181,22 @@ function sendUSAppointmentError(res: Response, error: unknown, fallbackCode: str
     return;
   }
 
+  const message = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = message.toLowerCase();
+  if (
+    normalizedMessage.includes("appointment_") &&
+    (normalizedMessage.includes("schema cache") ||
+      normalizedMessage.includes("could not find the table") ||
+      normalizedMessage.includes("could not find the column"))
+  ) {
+    res.status(503).json({
+      error: true,
+      code: "appointment_schema_not_configured",
+      message: "U.S. appointment database schema is not configured.",
+    });
+    return;
+  }
+
   logger.error(fallbackCode, error instanceof Error ? error : new Error(String(error)));
   res.status(500).json({
     error: true,

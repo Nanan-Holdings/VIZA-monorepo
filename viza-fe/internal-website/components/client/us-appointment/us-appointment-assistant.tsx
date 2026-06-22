@@ -282,6 +282,8 @@ export function USAppointmentAssistant({
         error instanceof USAppointmentApiError
           ? error.code === "supabase_auth_not_configured"
             ? t("errors.supabaseAuthNotConfigured")
+            : error.code === "appointment_schema_not_configured"
+              ? t("errors.appointmentSchemaNotConfigured")
             : t("errors.withCode", { code: error.code })
           : t("errors.generic"),
       );
@@ -319,6 +321,8 @@ export function USAppointmentAssistant({
           error instanceof USAppointmentApiError
             ? error.code === "supabase_auth_not_configured"
               ? t("errors.supabaseAuthNotConfigured")
+              : error.code === "appointment_schema_not_configured"
+                ? t("errors.appointmentSchemaNotConfigured")
               : t("errors.withCode", { code: error.code })
             : t("errors.generic"),
         );
