@@ -17,6 +17,20 @@ const logger = new Logger({ serviceName: 'ServerStartup' });
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
 
+function warnMissingUserAuthEnv(): void {
+  const missing = [
+    process.env.NEXT_PUBLIC_SUPABASE_URL ? null : 'NEXT_PUBLIC_SUPABASE_URL',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? null : 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  ].filter((value): value is string => Boolean(value));
+
+  if (missing.length === 0) return;
+  logger.warn('supabase_user_auth_env_missing', undefined, {
+    missingVars: missing,
+    note:
+      'Applicant-authenticated routes such as /api/applications/:id/us-appointment/* require these env vars to verify frontend Supabase access tokens.',
+  });
+}
+
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
   .split(',')
   .map((o) => o.trim());
@@ -60,6 +74,7 @@ process.on('SIGINT', () => {
 server.listen(port)
   .once('listening', async () => {
     logger.info('Server started', { url: `http://localhost:${port}`, port });
+    warnMissingUserAuthEnv();
 
     // Health check: Test Supabase connection
     logger.info('Checking Supabase connection');

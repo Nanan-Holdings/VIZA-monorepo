@@ -46,7 +46,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - U.S. B1/B2 appointment assistant under
   `app/client/applications/[applicationId]/us-appointment/**`,
   `components/client/us-appointment/**`, `lib/us-appointment/**`, and
-  `types/us-appointment.ts`. Dry-run/manual-checkpoint only.
+  `types/us-appointment.ts`. The page reads existing VIZA appointment status on
+  load, creates work only from explicit user actions, lets applicants set China
+  USVisaScheduling preferences, select observed official slots, approve final
+  booking, and display confirmation/status snapshots from the DB.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,

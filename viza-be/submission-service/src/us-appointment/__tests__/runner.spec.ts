@@ -4,8 +4,14 @@ import {
   buildRunnerHandoff,
   isEligibleUSAppointmentJob,
   loadUSAppointmentRunnerConfig,
+  processUSAppointmentJob,
   validateUSAppointmentRunnerStart,
+  type AuditEventInsert,
+  type ConfirmationInsert,
+  type SlotInsert,
+  type StatusCheckInsert,
   type USAppointmentJobRow,
+  type USAppointmentRunnerRepository,
 } from "../runner";
 
 const baseJob: USAppointmentJobRow = {
@@ -23,6 +29,63 @@ const baseJob: USAppointmentJobRow = {
   current_manual_action: null,
   updated_at: "2026-06-11T00:00:00.000Z",
 };
+
+class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
+  manualActions: unknown[] = [];
+  auditEvents: AuditEventInsert[] = [];
+  slots: SlotInsert[] = [];
+  confirmations: ConfirmationInsert[] = [];
+  statusChecks: StatusCheckInsert[] = [];
+  jobUpdates: Array<{ jobId: string; status: string; currentManualAction: string | null }> = [];
+
+  async listCandidateJobs(): Promise<USAppointmentJobRow[]> {
+    return [];
+  }
+
+  async hasPendingManualAction(): Promise<boolean> {
+    return false;
+  }
+
+  async insertManualAction(input: never): Promise<void> {
+    this.manualActions.push(input);
+  }
+
+  async updateJobForManualAction(input: {
+    jobId: string;
+    status: string;
+    currentManualAction: string;
+  }): Promise<void> {
+    this.jobUpdates.push(input);
+  }
+
+  async updateJobStatus(input: {
+    jobId: string;
+    status: string;
+    currentManualAction?: string | null;
+  }): Promise<void> {
+    this.jobUpdates.push({
+      jobId: input.jobId,
+      status: input.status,
+      currentManualAction: input.currentManualAction ?? null,
+    });
+  }
+
+  async insertAuditEvent(input: AuditEventInsert): Promise<void> {
+    this.auditEvents.push(input);
+  }
+
+  async insertSlots(input: SlotInsert[]): Promise<void> {
+    this.slots.push(...input);
+  }
+
+  async insertConfirmation(input: ConfirmationInsert): Promise<void> {
+    this.confirmations.push(input);
+  }
+
+  async insertStatusCheck(input: StatusCheckInsert): Promise<void> {
+    this.statusChecks.push(input);
+  }
+}
 
 test("US appointment runner config is disabled by default", () => {
   const config = loadUSAppointmentRunnerConfig({});
@@ -75,4 +138,98 @@ test("US appointment runner handoff pauses at manual login without final booking
   assert.match(handoff.instruction, /official-site login/i);
   assert.equal(handoff.metadata.captcha_solver_enabled, false);
   assert.equal(handoff.metadata.no_final_confirmation_click, true);
+});
+
+test("US appointment runner writes observed slots from a portal fixture", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_payment_completed",
+      user_preferences_json: {
+        portalFixture: {
+          slots: [
+            {
+              date: "2026-08-18",
+              time: "09:00",
+              location: "U.S. Embassy Beijing",
+              externalSlotId: "slot-1",
+            },
+          ],
+        },
+      },
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.slots.length, 1);
+  assert.equal(repository.slots[0]?.appointment_date, "2026-08-18");
+  assert.equal(repository.slots[0]?.metadata_redacted_json.externalSlotId, "[REDACTED]");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_slot_selection_required");
+});
+
+test("US appointment runner writes confirmation after final approved booking fixture", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_booked",
+      user_preferences_json: {
+        selectedSlot: {
+          date: "2026-08-18",
+          time: "09:00",
+          location: "U.S. Embassy Beijing",
+        },
+        portalFixture: {
+          confirmation: {
+            confirmationNumber: "CN-BJ-123456",
+            screenshotUrl: "https://storage.example/confirmation.png",
+            pdfUrl: "https://storage.example/confirmation.pdf",
+          },
+        },
+      },
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.confirmations.length, 1);
+  assert.equal(repository.confirmations[0]?.confirmation_number, "CN-BJ-123456");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_confirmation_captured");
+});
+
+test("US appointment runner writes follow-up status check fixture", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_status_check_in_progress",
+      user_preferences_json: {
+        portalFixture: {
+          statusCheck: {
+            status: "appointment_exists",
+            message: "Appointment still scheduled",
+            screenshotUrl: "https://storage.example/status.png",
+          },
+        },
+      },
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.statusChecks.length, 1);
+  assert.equal(repository.statusChecks[0]?.status, "appointment_exists");
+  assert.equal(repository.statusChecks[0]?.screenshot_url, "https://storage.example/status.png");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_status_checked");
 });
