@@ -35,6 +35,7 @@ interface ComputeAllTabCompletionInput {
   reviewStepId: number;
   teamStepId: number;
   confirmationStepId: number;
+  showDocumentStep?: boolean;
   showTeamStep: boolean;
 }
 
@@ -223,8 +224,9 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   const completed = new Set<number>();
   const missingFields: MissingApplicationField[] = [];
   const dynamicStepIds = input.dbSteps.map((_, index) => index);
+  const showDocumentStep = input.showDocumentStep ?? true;
   const documentsLoaded = input.documentsLoaded ?? true;
-  const documentStepComplete = documentsComplete(input.documentCenterData);
+  const documentStepComplete = !showDocumentStep || documentsComplete(input.documentCenterData);
 
   input.dbSteps.forEach((step, index) => {
     const stepId = dynamicStepIds[index] ?? index;
@@ -240,16 +242,18 @@ export function computeAllTabCompletion(input: ComputeAllTabCompletionInput): Ta
   missingFields.push(...ds160Missing);
   for (const item of ds160Missing) completed.delete(item.stepId);
 
-  if (documentStepComplete) {
-    completed.add(input.documentStepId);
-  } else if (documentsLoaded) {
-    missingFields.push({
-      stepId: input.documentStepId,
-      stepName: findStepName(input.effectiveSteps, input.documentStepId, "Supporting Documents"),
-      fieldName: "supporting_documents",
-      label: "Required supporting documents",
-      reason: "required",
-    });
+  if (showDocumentStep) {
+    if (documentStepComplete) {
+      completed.add(input.documentStepId);
+    } else if (documentsLoaded) {
+      missingFields.push({
+        stepId: input.documentStepId,
+        stepName: findStepName(input.effectiveSteps, input.documentStepId, "Supporting Documents"),
+        fieldName: "supporting_documents",
+        label: "Required supporting documents",
+        reason: "required",
+      });
+    }
   }
   const priorStepsReady = missingFields.length === 0 && documentStepComplete;
   if (input.dbSteps.length > 0 && priorStepsReady) completed.add(input.reviewStepId);

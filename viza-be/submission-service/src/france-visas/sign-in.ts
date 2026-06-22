@@ -44,6 +44,10 @@ export interface FvSignInOptions {
   runId?: string;
   /** Navigation timeout for the login round-trip. Default 60s. */
   timeoutMs?: number;
+  /** Internal guard: disable recovery from the official single-tab 403. */
+  retrySingleTabConflict?: boolean;
+  /** Internal counter for bounded single-tab conflict recovery. */
+  singleTabRetryAttempt?: number;
 }
 
 export interface FvSessionHandles {
@@ -55,6 +59,18 @@ export interface FvSessionHandles {
 }
 
 const ACCUEIL_WAIT_TIMEOUT_MS = 120_000;
+
+export function isFranceVisasSingleTabConflict(text: string): boolean {
+  return /application is open in another tab|application est ouverte dans un autre onglet|应用程序在另一个标签页中打开/i.test(
+    text,
+  );
+}
+
+const SINGLE_TAB_RETRY_DELAYS_MS = [15_000, 45_000, 90_000] as const;
+
+export function franceVisasSingleTabRetryDelayMs(attempt: number): number | null {
+  return SINGLE_TAB_RETRY_DELAYS_MS[attempt] ?? null;
+}
 
 /**
  * Launch a stealth browser with stored `storageState` and confirm we land
@@ -126,6 +142,14 @@ export async function signInWithPassword(
       timeout: timeoutMs,
     });
 
+    const entryText = await page
+      .locator("body")
+      .innerText({ timeout: 5_000 })
+      .catch(() => "");
+    if (isFranceVisasSingleTabConflict(entryText)) {
+      throw new Error("France-Visas single-tab session conflict");
+    }
+
     // If we're already authenticated (e.g. cookies persisted in the profile
     // dir from a prior run), the redirect chain settles on accueil directly.
     const earlyUrl = page.url();
@@ -151,10 +175,19 @@ export async function signInWithPassword(
 
     // Click Log in and wait for the redirect chain to settle on accueil.
     const submit = page.locator(FV_LOGIN_SELECTORS.submit).first();
+    const loginRedirectTimeoutMs = Math.min(timeoutMs, 60_000);
     await Promise.all([
-      page.waitForURL(/accueil\.xhtml/i, { timeout: timeoutMs }).catch(() => undefined),
+      page.waitForURL(/accueil\.xhtml/i, { timeout: loginRedirectTimeoutMs }).catch(() => undefined),
       submit.click(),
     ]);
+
+    const postLoginText = await page
+      .locator("body")
+      .innerText({ timeout: 5_000 })
+      .catch(() => "");
+    if (isFranceVisasSingleTabConflict(postLoginText)) {
+      throw new Error("France-Visas single-tab session conflict");
+    }
 
     // Explicit identity check — waitForURL returns on match OR on timeout;
     // we assert separately so an unexpected mid-flow page surfaces clearly.
@@ -167,11 +200,30 @@ export async function signInWithPassword(
     };
   } catch (err) {
     const title = await page.title().catch(() => "");
-    const bodyPreview = await page
+    const bodyText = await page
       .locator("body")
       .innerText({ timeout: 2_000 })
-      .then((text) => text.replace(/\s+/g, " ").trim().slice(0, 1_000))
       .catch(() => "");
+    const bodyPreview = bodyText.replace(/\s+/g, " ").trim().slice(0, 1_000);
+    const singleTabRetryAttempt = options.singleTabRetryAttempt ?? 0;
+    const singleTabRetryDelayMs = franceVisasSingleTabRetryDelayMs(singleTabRetryAttempt);
+    if (
+      isFranceVisasSingleTabConflict(bodyText) &&
+      options.retrySingleTabConflict !== false &&
+      singleTabRetryDelayMs !== null
+    ) {
+      await context.close().catch(() => undefined);
+      await browser.close().catch(() => undefined);
+      console.warn(
+        `[fv-sign-in] Official single-tab lock detected; retrying in ${singleTabRetryDelayMs}ms ` +
+          `(attempt ${singleTabRetryAttempt + 1}/${SINGLE_TAB_RETRY_DELAYS_MS.length})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, singleTabRetryDelayMs));
+      return signInWithPassword(input, {
+        ...options,
+        singleTabRetryAttempt: singleTabRetryAttempt + 1,
+      });
+    }
     const diagnosticBase = await captureSignInFailureDiagnostics(page, options.runId);
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);

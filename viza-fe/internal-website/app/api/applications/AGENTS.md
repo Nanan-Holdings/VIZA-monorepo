@@ -23,7 +23,9 @@ ports directly.
 ## Related Files
 
 - `viza-fe/internal-website/app/api/applications/[id]/retry-submission/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`

@@ -15,7 +15,11 @@ export const VN_PROGRESS_STAGES = [
   "failed",
 ] as const;
 
-export type VietnamProgressStage = (typeof VN_PROGRESS_STAGES)[number] | `official_checkpoint:${string}` | `field:${string}`;
+export type VietnamProgressStage =
+  | (typeof VN_PROGRESS_STAGES)[number]
+  | `official_checkpoint:${string}`
+  | `field:${string}`
+  | `portal_retry:${number}`;
 
 export function normalizeVietnamProgressStage(stage: string): string {
   return stage.replace(/[^a-zA-Z0-9:_-]+/g, "_").slice(0, 80) || "processing";

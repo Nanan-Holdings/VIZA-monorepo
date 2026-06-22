@@ -15,7 +15,9 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { chooseVietnamApplyEntry } from "./apply-entry";
 import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
+import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
   buildVnFieldFallback,
   getVnPortalOptionText,
@@ -36,6 +38,12 @@ import {
   type VietnamPortalStateId,
 } from "./portal-state";
 import type { VietnamProgressStage } from "./progress";
+import { installVietnamPublicApiProxy } from "./public-api-proxy";
+import {
+  buildVietnamBrowserAttempts,
+  isRetryableVietnamResult,
+  type VietnamBrowserChannel,
+} from "./retry-policy";
 import { readVietnamValidationErrors, type VietnamPortalValidationError } from "./validation-errors";
 
 export interface FillVietnamInput {
@@ -58,6 +66,13 @@ export interface FillVietnamOptions {
   stopAtFirstCheckpoint?: boolean;
   /** Queue/UI progress callback for long official-portal runs. */
   onProgress?: (stage: VietnamProgressStage) => void | Promise<void>;
+  /** Full browser-session retries for intermittent official-portal failures. */
+  maxPortalAttempts?: number;
+  retryBackoffMs?: number;
+  browserChannels?: string;
+  /** Internal/current Playwright browser channel. Undefined uses bundled Chromium. */
+  browserChannel?: VietnamBrowserChannel;
+  portalAttempt?: number;
 }
 
 export type FillVietnamResult =
@@ -114,6 +129,10 @@ export interface VietnamDiagnostics {
   lastSnapshot?: VietnamPortalSnapshot;
   tracePath?: string;
   finalScreenshotPath?: string;
+  browserChannel?: string;
+  portalAttempt?: number;
+  proxiedPublicRequestCount?: number;
+  publicProxyFailures?: string[];
 }
 
 const VN_LANDING_URL = process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/";
@@ -122,6 +141,50 @@ const VN_FALLBACK_LANDING_URL =
 const FORM_ROUTE_FRAGMENT = "/e-visa/foreigners";
 
 export async function fillVietnamApplication(
+  input: FillVietnamInput,
+  options: FillVietnamOptions = {},
+): Promise<FillVietnamResult> {
+  if (options.portalAttempt) {
+    return fillVietnamApplicationOnce(input, options);
+  }
+
+  const maxAttempts = options.maxPortalAttempts ?? readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, 3);
+  const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(process.env.VN_PORTAL_RETRY_BACKOFF_MS, 5_000);
+  const channels = options.browserChannel
+    ? [options.browserChannel]
+    : buildVietnamBrowserAttempts(
+        options.browserChannels ?? process.env.VN_BROWSER_CHANNELS ?? "bundled,msedge,chrome",
+        maxAttempts,
+      );
+  let lastResult: FillVietnamResult | null = null;
+
+  for (let index = 0; index < channels.length; index++) {
+    const attempt = index + 1;
+    const browserChannel = channels[index];
+    const result = await fillVietnamApplicationOnce(input, {
+      ...options,
+      browserChannel,
+      portalAttempt: attempt,
+      tracePath: suffixArtifactPath(options.tracePath, attempt),
+      finalScreenshotPath: suffixArtifactPath(options.finalScreenshotPath, attempt),
+    });
+    lastResult = result;
+    if (!isRetryableVietnamResult(result) || attempt >= channels.length) return result;
+
+    await options.onProgress?.(`portal_retry:${attempt + 1}`);
+    await sleep(Math.min(retryBackoffMs * 2 ** index, 30_000));
+  }
+
+  return lastResult ?? {
+    status: "failed",
+    runId: options.runId,
+    failedStep: "browser_launching",
+    error: { message: "No Vietnam browser attempts were configured." },
+    url: options.officialBaseUrl ?? VN_LANDING_URL,
+  };
+}
+
+async function fillVietnamApplicationOnce(
   input: FillVietnamInput,
   options: FillVietnamOptions = {},
 ): Promise<FillVietnamResult> {
@@ -139,6 +202,8 @@ export async function fillVietnamApplication(
   const fieldFallbacks: VnFieldFallbackRecord[] = [];
   const captchaSolves: VietnamCaptchaSolveOutcome[] = [];
   let validationErrors: VietnamPortalValidationError[] = [];
+  let proxiedPublicRequestCount = 0;
+  const publicProxyFailures: string[] = [];
   let mainRequestFailed = false;
   let lastSnapshot: VietnamPortalSnapshot | undefined;
 
@@ -151,6 +216,10 @@ export async function fillVietnamApplication(
     lastSnapshot,
     ...(options.tracePath ? { tracePath: options.tracePath } : {}),
     ...(options.finalScreenshotPath ? { finalScreenshotPath: options.finalScreenshotPath } : {}),
+    browserChannel: options.browserChannel ?? "bundled",
+    portalAttempt: options.portalAttempt ?? 1,
+    proxiedPublicRequestCount,
+    publicProxyFailures: publicProxyFailures.slice(-10),
   });
   const emitProgress = async (stage: VietnamProgressStage): Promise<void> => {
     await options.onProgress?.(stage);
@@ -158,8 +227,21 @@ export async function fillVietnamApplication(
 
   try {
     await emitProgress("browser_launching");
-    browser = await chromium.launch({ headless });
+    browser = await chromium.launch({
+      headless,
+      ...(options.browserChannel ? { channel: options.browserChannel } : {}),
+    });
     context = await browser.newContext({ acceptDownloads: false });
+    if (process.env.VN_PUBLIC_API_PROXY_ENABLED !== "false") {
+      await installVietnamPublicApiProxy(context, {
+        onSuccess: () => {
+          proxiedPublicRequestCount++;
+        },
+        onFailure: (url, reason) => {
+          publicProxyFailures.push(`${url} - ${reason}`);
+        },
+      });
+    }
     page = await context.newPage();
     await emitProgress("browser_ready");
     page.on("console", (message) => {
@@ -533,7 +615,6 @@ async function reachVietnamFormCheckpoint(
           "final_submit_required",
           "official_portal_error",
           "layout_changed",
-          "needs_manual_verification",
         ],
         {
           timeoutMs: Math.min(options.stepTimeoutMs, 45_000),
@@ -581,7 +662,6 @@ async function reachVietnamFormCheckpoint(
           "final_submit_required",
           "official_portal_error",
           "layout_changed",
-          "needs_manual_verification",
         ],
         {
           timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
@@ -619,7 +699,6 @@ async function reachVietnamFormCheckpoint(
           "final_submit_required",
           "official_portal_error",
           "layout_changed",
-          "needs_manual_verification",
         ],
         {
           timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
@@ -717,7 +796,6 @@ async function reachVietnamFormCheckpoint(
             "final_submit_required",
             "official_portal_error",
             "layout_changed",
-            "needs_manual_verification",
           ],
           {
             timeoutMs: Math.min(options.stepTimeoutMs, 45_000),
@@ -754,7 +832,6 @@ async function reachVietnamFormCheckpoint(
           "final_submit_required",
           "official_portal_error",
           "layout_changed",
-          "needs_manual_verification",
         ],
         {
           timeoutMs: Math.min(options.stepTimeoutMs, 30_000),
@@ -806,28 +883,48 @@ async function isVietnamDeclarationInstructionPage(page: Page): Promise<boolean>
 }
 
 async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
-  return page
+  const candidates = await page
     .evaluate(() => {
-      const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
-      const href = links
-        .map((anchor) => anchor.href || anchor.getAttribute("href") || "")
-        .find((candidate) => /\/e-visa\/foreigners/i.test(candidate));
-      if (href) {
-        window.location.href = href;
-        return true;
-      }
-      const candidates = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"));
-      const match = candidates.find((element) => {
-        const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
         return (
-          /for foreigners outside viet ?nam applying personally|apply now|e-visa for foreigners/i.test(text)
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          style.opacity !== "0" &&
+          rect.width > 0 &&
+          rect.height > 0
         );
-      });
-      if (!match) return false;
-      match.click();
-      return true;
+      };
+      const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+      const buttons = Array.from(
+        document.querySelectorAll<HTMLElement>("button, [role='button']"),
+      );
+      return {
+        buttons: buttons.map((element, index) => ({
+          index,
+          text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim(),
+          visible: visible(element),
+        })),
+        links: links.map((anchor) => ({
+          href: anchor.href || anchor.getAttribute("href") || "",
+        })),
+      };
     })
-    .catch(() => false);
+    .catch(() => null);
+  if (!candidates) return false;
+
+  const choice = chooseVietnamApplyEntry(candidates);
+  if (!choice) return false;
+  if (choice.kind === "button") {
+    await page
+      .locator("button, [role='button']")
+      .nth(choice.index)
+      .click({ timeout: 10_000 });
+    return true;
+  }
+  await page.goto(choice.href, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  return true;
 }
 
 async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
@@ -843,60 +940,33 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
     .catch(() => undefined);
   await page.waitForTimeout(300);
 
-  const ticked = await page
-    .evaluate(() => {
-      const visible = (element: Element): boolean => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
-      };
-      let count = 0;
-      for (const element of Array.from(document.querySelectorAll<HTMLElement>(".ant-checkbox-input, input[type='checkbox'], .ant-checkbox-wrapper, label, [role='checkbox']"))) {
-        if (!visible(element)) continue;
-        const input =
-          element instanceof HTMLInputElement && element.type === "checkbox"
-            ? element
-            : element.querySelector<HTMLInputElement>("input[type='checkbox']");
-        if (input?.checked) continue;
-        if (input) {
-          input.click();
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-        } else {
-          element.click();
-        }
-        count++;
-      }
-      return count;
-    })
-    .catch(() => 0);
+  const checkboxInputs = page.locator("input[type='checkbox']:visible");
+  const checkedStates = await checkboxInputs
+    .evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked))
+    .catch(() => [] as boolean[]);
+  for (const index of uncheckedVietnamDeclarationIndexes(checkedStates)) {
+    await checkboxInputs.nth(index).check({ force: true }).catch(() => undefined);
+  }
+  const allChecked =
+    (await checkboxInputs.count()) >= 2 &&
+    (await checkboxInputs
+      .evaluateAll((inputs) => inputs.every((input) => (input as HTMLInputElement).checked))
+      .catch(() => false));
+  if (!allChecked) return false;
 
   const clicked = await page
-    .evaluate(() => {
-      const visible = (element: Element): boolean => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
-      };
-      const buttons = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button']"));
-      const button = buttons.find((element) => {
-        if (!visible(element)) return false;
-        const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-        return /^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý|xác nhận)$/i.test(text);
-      });
-      if (!button) return false;
-      for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
-        const EventCtor = type === "pointerdown" ? window.PointerEvent || window.MouseEvent : window.MouseEvent;
-        button.dispatchEvent(new EventCtor(type, { bubbles: true, cancelable: true, button: 0 }));
-      }
-      button.click();
-      return true;
+    .getByRole("button", {
+      name: /^(next|ok|confirm|accept|agree|continue|tiếp tục|đồng ý|xác nhận)$/i,
     })
+    .filter({ visible: true })
+    .last()
+    .click({ timeout: 10_000 })
+    .then(() => true)
     .catch(() => false);
 
   if (!clicked) return false;
   await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
-  await page.waitForTimeout(ticked > 0 ? 2_000 : 1_000);
+  await page.waitForTimeout(2_000);
   return true;
 }
 
@@ -976,4 +1046,21 @@ function serializeError(err: unknown): Record<string, unknown> {
     return { name: err.name, message: err.message, stack: err.stack };
   }
   return { value: String(err) };
+}
+
+function readPositiveInt(rawValue: string | undefined, fallback: number): number {
+  if (!rawValue) return fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function suffixArtifactPath(filePath: string | undefined, attempt: number): string | undefined {
+  if (!filePath) return undefined;
+  const extension = path.extname(filePath);
+  const base = extension ? filePath.slice(0, -extension.length) : filePath;
+  return `${base}-attempt-${attempt}${extension}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

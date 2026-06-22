@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import {
   CalendarCheck,
   ExternalLink,
@@ -19,8 +19,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { isChineseLocale } from "@/lib/i18n/locale";
 import type { UsSubmissionResult } from "@/lib/submission-result";
+import type { Ds160ProofKind } from "@/lib/ds160-proof";
 
 function CopyValue({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -46,44 +46,35 @@ function CopyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
-function artifactDownloadUrl(
-  applicationId: string | undefined,
-  artifactPath: string | null | undefined,
-  fileName: string,
-): string | null {
-  if (!applicationId || !artifactPath) return null;
-  return `/api/applications/${encodeURIComponent(applicationId)}/submission-artifact?path=${encodeURIComponent(artifactPath)}&download=${encodeURIComponent(fileName)}`;
-}
-
 function ProofActionButton({
-  href,
+  busy,
   label,
-  unavailableLabel,
+  onClick,
   children,
 }: {
-  href: string | null;
+  busy: boolean;
   label: string;
-  unavailableLabel: string;
+  onClick: () => void;
   children: ReactNode;
 }) {
-  if (!href) {
-    return (
-      <Button type="button" variant="outline" disabled title={unavailableLabel} className="justify-start">
-        {children}
-        <span className="ml-2 truncate">{label}</span>
-      </Button>
-    );
-  }
-
   return (
-    <Button asChild variant="outline" className="justify-start">
-      <a href={href} target="_blank" rel="noopener noreferrer">
-        {children}
-        <span className="ml-2 truncate">{label}</span>
-      </a>
+    <Button type="button" variant="outline" className="justify-start" onClick={onClick} disabled={busy}>
+      {busy ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : children}
+      <span className="ml-2 truncate">{label}</span>
     </Button>
   );
 }
+
+type ProofBusyState = Partial<Record<Ds160ProofKind, boolean>>;
+
+type ProofActionResponse = {
+  ok?: boolean;
+  status?: "ready" | "queued" | "sent" | "unsupported" | "failed";
+  downloadUrl?: string;
+  recipient?: string;
+  message?: string;
+  error?: string;
+};
 
 export function UsResultCard({
   applicationId,
@@ -94,35 +85,17 @@ export function UsResultCard({
 }) {
   const t = useTranslations("usAppointment.ds160Card");
   const nextT = useTranslations("usAppointment.nextStepCard");
-  const isZh = isChineseLocale(useLocale());
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
     ? result.securityAnswer
     : null;
   const submitted = result.status === "submitted";
   const [startingNewApplication, setStartingNewApplication] = useState(false);
   const [newApplicationError, setNewApplicationError] = useState<string | null>(null);
-  const submittedAt = result.submittedAt ?? result.evidence?.submittedAt ?? null;
-  const submittedAtText = submittedAt
-    ? new Intl.DateTimeFormat(isZh ? "zh-CN" : "en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(submittedAt))
-    : null;
-  const confirmationPdfUrl = artifactDownloadUrl(
-    applicationId,
-    result.confirmationPdfStoragePath,
-    `ds160-confirmation-${result.confirmationNumber ?? result.applicationId}.pdf`,
-  );
-  const applicationPdfUrl = artifactDownloadUrl(
-    applicationId,
-    result.applicationPdfStoragePath,
-    `ds160-application-${result.applicationId}.pdf`,
-  );
-  const emailConfirmationPdfUrl = artifactDownloadUrl(
-    applicationId,
-    result.emailConfirmationPdfStoragePath ?? result.confirmationPdfStoragePath,
-    `ds160-email-confirmation-${result.confirmationNumber ?? result.applicationId}.pdf`,
-  );
+  const [proofBusy, setProofBusy] = useState<ProofBusyState>({});
+  const [proofMessage, setProofMessage] = useState<string | null>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const [emailPanelOpen, setEmailPanelOpen] = useState(false);
+  const [customEmail, setCustomEmail] = useState("");
 
   const startNewApplication = async () => {
     if (!applicationId || startingNewApplication) return;
@@ -148,6 +121,89 @@ export function UsResultCard({
     }
   };
 
+  const requestProof = async (
+    kind: Ds160ProofKind,
+    action: "download" | "email",
+    emailMode?: "account" | "custom",
+  ) => {
+    if (!applicationId || proofBusy[kind]) return;
+    setProofBusy((prev) => ({ ...prev, [kind]: true }));
+    setProofError(null);
+    setProofMessage(t("proofPreparing"));
+    try {
+      const payload = await postProofAction(kind, action, emailMode);
+      if (payload.status === "ready" && payload.downloadUrl) {
+        window.open(payload.downloadUrl, "_blank", "noopener,noreferrer");
+        setProofMessage(t("proofReady"));
+        return;
+      }
+      if (payload.status === "sent") {
+        setProofMessage(t("proofEmailSent", { email: payload.recipient ?? "" }));
+        return;
+      }
+      if (payload.status === "queued") {
+        setProofMessage(t("proofQueued"));
+        const ready = await waitForProofReady(kind);
+        if (action === "download") {
+          if (ready.downloadUrl) {
+            window.open(ready.downloadUrl, "_blank", "noopener,noreferrer");
+            setProofMessage(t("proofReady"));
+          }
+        } else {
+          const sent = await postProofAction(kind, "email", emailMode);
+          setProofMessage(t("proofEmailSent", { email: sent.recipient ?? "" }));
+        }
+      }
+    } catch (error) {
+      setProofError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setProofBusy((prev) => ({ ...prev, [kind]: false }));
+    }
+  };
+
+  const postProofAction = async (
+    kind: Ds160ProofKind,
+    action: "download" | "email",
+    emailMode?: "account" | "custom",
+  ): Promise<ProofActionResponse> => {
+    const response = await fetch(`/api/applications/${applicationId}/ds160-proof`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind,
+        action,
+        emailMode,
+        email: emailMode === "custom" ? customEmail : undefined,
+      }),
+    });
+    const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
+    if (!response.ok) {
+      throw new Error(payload?.error ?? `${t("proofFailed")} (${response.status})`);
+    }
+    return payload ?? {};
+  };
+
+  const waitForProofReady = async (kind: Ds160ProofKind): Promise<ProofActionResponse> => {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const response = await fetch(`/api/applications/${applicationId}/ds160-proof?kind=${encodeURIComponent(kind)}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as ProofActionResponse | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? `${t("proofFailed")} (${response.status})`);
+      }
+      if (payload?.status === "failed") {
+        throw new Error(payload.error ?? t("proofFailed"));
+      }
+      if (payload?.status === "ready") return payload;
+      if (payload?.status === "unsupported") {
+        throw new Error(payload.error ?? t("proofFailed"));
+      }
+    }
+    throw new Error(t("proofTimeout"));
+  };
+
   return (
     <Card className="rounded-xl border-input">
       <CardHeader>
@@ -167,16 +223,7 @@ export function UsResultCard({
         </p>
 
         <div className="grid gap-2">
-          {result.confirmationNumber && (
-            <CopyValue label={t("confirmationNumber")} value={result.confirmationNumber} />
-          )}
-          {submittedAtText && (
-            <CopyValue label={t("submittedAt")} value={submittedAtText} />
-          )}
           <CopyValue label={t("applicationId")} value={result.applicationId} />
-          <CopyValue label={t("surnameFirst5")} value={result.surnameFirst5} />
-          <CopyValue label={t("yearOfBirth")} value={String(result.yearOfBirth)} />
-          <CopyValue label={t("embassyOrConsulate")} value={result.embassyOrConsulate} />
         </div>
 
         {submitted && (
@@ -202,27 +249,62 @@ export function UsResultCard({
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               <ProofActionButton
-                href={confirmationPdfUrl}
+                busy={Boolean(proofBusy.confirmation)}
                 label={t("printConfirmation")}
-                unavailableLabel={t("artifactUnavailable")}
+                onClick={() => void requestProof("confirmation", "download")}
               >
                 <Printer className="h-4 w-4 shrink-0" />
               </ProofActionButton>
               <ProofActionButton
-                href={applicationPdfUrl}
+                busy={Boolean(proofBusy.application)}
                 label={t("printApplication")}
-                unavailableLabel={t("artifactUnavailable")}
+                onClick={() => void requestProof("application", "download")}
               >
                 <Files className="h-4 w-4 shrink-0" />
               </ProofActionButton>
               <ProofActionButton
-                href={emailConfirmationPdfUrl}
+                busy={Boolean(proofBusy["email-confirmation"])}
                 label={t("emailConfirmation")}
-                unavailableLabel={t("artifactUnavailable")}
+                onClick={() => setEmailPanelOpen((open) => !open)}
               >
                 <Mail className="h-4 w-4 shrink-0" />
               </ProofActionButton>
             </div>
+            {emailPanelOpen && (
+              <div className="mt-3 rounded-md border border-input bg-muted/30 p-3">
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                  <input
+                    className="min-h-10 rounded-md border border-input bg-background px-3 text-sm outline-none"
+                    placeholder={t("customEmailPlaceholder")}
+                    value={customEmail}
+                    onChange={(event) => setCustomEmail(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void requestProof("email-confirmation", "email", "account")}
+                    disabled={Boolean(proofBusy["email-confirmation"])}
+                  >
+                    {t("sendToAccountEmail")}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void requestProof("email-confirmation", "email", "custom")}
+                    disabled={Boolean(proofBusy["email-confirmation"])}
+                  >
+                    {t("sendToCustomEmail")}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {proofMessage && (
+              <p className="mt-3 text-sm text-muted-foreground">{proofMessage}</p>
+            )}
+            {proofError && (
+              <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {proofError}
+              </div>
+            )}
           </div>
         )}
 
@@ -231,15 +313,7 @@ export function UsResultCard({
           <div className="mt-1 text-sm text-foreground">{result.securityQuestion}</div>
           <div className="mt-2 text-xs font-medium text-brand-500">{t("securityAnswer")}</div>
           <div className="mt-1 text-sm text-foreground">
-            {securityAnswer ? (
-              <span className="font-mono">{securityAnswer}</span>
-            ) : (
-              <span>
-                {isZh
-                  ? "已加密保存。需要取回 DS-160 时，请通过安全揭示流程查看。"
-                  : "Encrypted and hidden. Use secure reveal when retrieving the DS-160."}
-              </span>
-            )}
+            <span className="font-mono">{securityAnswer ?? t("securityAnswerUnavailable")}</span>
           </div>
         </div>
 

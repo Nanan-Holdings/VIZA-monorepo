@@ -60,6 +60,7 @@ import {
   getContiguousCompletedCount,
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
+import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
 import {
   buildApplicationStepSections,
   getDynamicStepTranslationCandidates,
@@ -116,6 +117,7 @@ interface VisibleDynamicStep {
 
 const SGAC_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Traveller Information": "旅客信息",
+  "Trip Information": "行程信息",
   "Passport Details": "护照信息",
   "Trip to Singapore": "新加坡行程",
   "Contact and Stay in Singapore": "在新加坡联系方式与住宿",
@@ -1094,16 +1096,6 @@ export default function ApplicationPage() {
   const explicitVisaType =
     searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
-  const showTeamStep = !isCompanionFlow;
-
-  const STEPS: StepDef[] = STEP_KEYS
-    .filter((key) => showTeamStep || key !== "team")
-    .map((key, id) => ({
-    id,
-    name: t(`steps.${key}.name`),
-    description: t(`steps.${key}.description`),
-    sourceName: key,
-  }));
 
   // DB-driven steps (loaded from visa_form_fields table)
   // Falls back to hardcoded STEPS if DB returns empty
@@ -1174,6 +1166,17 @@ export default function ApplicationPage() {
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
+  const isSgacApplication = resolvedVisaType === "SG_ARRIVAL_CARD";
+  const showDocumentStep = !isSgacApplication;
+  const showTeamStep = !isCompanionFlow && !isSgacApplication;
+  const STEPS: StepDef[] = STEP_KEYS
+    .filter((key) => showTeamStep || key !== "team")
+    .map((key, id) => ({
+      id,
+      name: t(`steps.${key}.name`),
+      description: t(`steps.${key}.description`),
+      sourceName: key,
+    }));
   const isDs160Application = isDs160VisaType(resolvedVisaType);
   const normalizedCountryForLive = resolvedCountry.trim().toLowerCase();
   const isFranceSchengenApplication =
@@ -1223,9 +1226,9 @@ export default function ApplicationPage() {
   const isZhInterface = locale.toLowerCase().startsWith("zh");
   // Indices for the extra steps appended after DB-driven form steps
   const documentStepIndex = dbSteps.length;
-  const reviewStepIndex = dbSteps.length + 1;
-  const teamStepIndex = dbSteps.length + 2;
-  const statusStepIndex = dbSteps.length + (showTeamStep ? 3 : 2);
+  const reviewStepIndex = dbSteps.length + (showDocumentStep ? 1 : 0);
+  const teamStepIndex = reviewStepIndex + 1;
+  const statusStepIndex = reviewStepIndex + (showTeamStep ? 2 : 1);
   const fallbackReviewStepIndex = 4;
   const fallbackTeamStepIndex = 5;
   const fallbackStatusStepIndex = showTeamStep ? 6 : 5;
@@ -1247,14 +1250,6 @@ export default function ApplicationPage() {
     [dbSteps, dynamicAnswerSnapshot, useDynamic],
   );
   const firstFormStepId = useDynamic ? (visibleDynamicSteps[0]?.sourceIndex ?? 0) : 0;
-  const handleEditSubmittedApplication = useCallback(() => {
-    setAppState((prev) => ({
-      ...prev,
-      submittedAt: undefined,
-    }));
-    setCurrentStep(firstFormStepId);
-  }, [firstFormStepId]);
-
   const passportBioPageDocument = useMemo(
     () =>
       documentCenterData?.documents.find((document) =>
@@ -1299,12 +1294,16 @@ export default function ApplicationPage() {
           }),
           description: tApp("dynamicStepDescription", { count: step.fields.length }),
         })),
-        {
-          id: documentStepIndex,
-          sourceName: "Supporting Documents",
-          name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
-          description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
-        },
+        ...(showDocumentStep
+          ? [
+              {
+                id: documentStepIndex,
+                sourceName: "Supporting Documents",
+                name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
+                description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
+              },
+            ]
+          : []),
         {
           id: reviewStepIndex,
           sourceName: "Review",
@@ -1332,6 +1331,7 @@ export default function ApplicationPage() {
     [
       documentStepIndex,
       reviewStepIndex,
+      showDocumentStep,
       showTeamStep,
       statusStepIndex,
       STEPS,
@@ -1390,6 +1390,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
+      showDocumentStep,
       showTeamStep,
     }),
     [
@@ -1404,6 +1405,7 @@ export default function ApplicationPage() {
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
+      showDocumentStep,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
@@ -1416,6 +1418,11 @@ export default function ApplicationPage() {
   const visibleMissingFields = submitMissingFields.length > 0
     ? submitMissingFields
     : tabCompletion.missingFields;
+  const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
+    submittedAt: appState.submittedAt,
+    submissionResultStatus: appState.submissionResultStatus,
+    submissionResult: appState.submissionResult,
+  });
 
   useEffect(() => {
     if (loading || effectiveSteps.length === 0) return;
@@ -1954,6 +1961,7 @@ export default function ApplicationPage() {
       reviewStepId: reviewStepIndex,
       teamStepId: teamStepIndex,
       confirmationStepId: statusStepIndex,
+      showDocumentStep,
       showTeamStep,
     }).missingFields,
     [
@@ -1967,6 +1975,7 @@ export default function ApplicationPage() {
       resolvedCountry,
       resolvedVisaType,
       reviewStepIndex,
+      showDocumentStep,
       showTeamStep,
       statusStepIndex,
       teamStepIndex,
@@ -2402,7 +2411,7 @@ export default function ApplicationPage() {
                         )}
 
                         {/* Supporting documents step */}
-                        {step.id === documentStepIndex && (
+                        {showDocumentStep && step.id === documentStepIndex && (
                           appState.applicationId ? (
                             <DocumentCenterClient
                               initialData={documentCenterData}
@@ -2430,13 +2439,21 @@ export default function ApplicationPage() {
                             dbSteps={dbSteps}
                             photoPath={appState.photo}
                             onEdit={(stepIdx) => setCurrentStep(stepIdx)}
-                            onPhotoEdit={() => setCurrentStep(documentStepIndex)}
-                            onComplete={isCompanionFlow ? handleCompanionReviewComplete : handleReviewContinueToTeam}
+                            onPhotoEdit={() => setCurrentStep(showDocumentStep ? documentStepIndex : firstFormStepId)}
+                            onComplete={
+                              isCompanionFlow
+                                ? handleCompanionReviewComplete
+                                : showTeamStep
+                                  ? handleReviewContinueToTeam
+                                  : handleTeamConfirm
+                            }
                             mode="continue"
                             continueLabel={
                               isCompanionFlow
                                 ? t("team.confirmCompanion")
-                                : t("team.continueToTeam")
+                                : showTeamStep
+                                  ? t("team.continueToTeam")
+                                  : t("dynamicButtons.continue")
                             }
                           />
                         )}
@@ -2457,14 +2474,13 @@ export default function ApplicationPage() {
 
                         {/* Status/confirmation step */}
                         {step.id === statusStepIndex && (
-                          appState.submittedAt ? (
+                          showSubmissionStatusStep ? (
                             <SubmissionStatusStep
                               applicationId={appState.applicationId}
                               country={activeCountry}
                               visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
-                              onEditSubmitted={handleEditSubmittedApplication}
                             />
                           ) : (
                             <FinalConfirmationPanel
@@ -2558,14 +2574,13 @@ export default function ApplicationPage() {
                           />
                         )}
                         {step.id === fallbackStatusStepIndex && (
-                          appState.submittedAt ? (
+                          showSubmissionStatusStep ? (
                             <SubmissionStatusStep
                               applicationId={appState.applicationId}
                               country={activeCountry}
                               visaType={activeVisaType}
                               status={appState.submissionResultStatus}
                               result={appState.submissionResult}
-                              onEditSubmitted={handleEditSubmittedApplication}
                             />
                           ) : (
                             <FinalConfirmationPanel

@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildAntSelectOptionRegex, resolveStepPlan } from "../fillers.js";
+import {
+  buildAntSelectOptionRegex,
+  rankAntSelectCandidates,
+  resolveStepPlan,
+} from "../fillers.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 
 /**
@@ -42,4 +46,18 @@ test("vn.step-fill: select option matching escapes portal labels", () => {
   const pattern = buildAntSelectOptionRegex("Cat Bi Int Airport (Hai Phong)");
   assert.equal(pattern.test("Cat Bi Int Airport (Hai Phong)"), true);
   assert.equal(pattern.test("Cat Bi Int Airport Hai Phong"), false);
+});
+
+test("vn.step-fill: virtual select candidates match exact and token-equivalent labels", () => {
+  assert.deepEqual(
+    rankAntSelectCandidates(
+      ["An Thoi Port Border Gate", "Noi Bai Int Airport (Ha Noi)"],
+      "Noi Bai Int Airport (Ha Noi)",
+    )[0],
+    { index: 1, text: "Noi Bai Int Airport (Ha Noi)", score: 100 },
+  );
+  assert.equal(
+    rankAntSelectCandidates(["Male", "Female"], "Male")[0]?.text,
+    "Male",
+  );
 });

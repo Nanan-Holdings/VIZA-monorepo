@@ -186,21 +186,17 @@ function sgacField(
   return { key: `answers.${key}`, label, category, required: true, condition };
 }
 
-const WHEN_SGAC_OTHER_PURPOSE = {
-  key: "answers.purpose_of_travel",
-  equals: "other",
-};
-const WHEN_SGAC_DECLARABLE_TRAVEL_HISTORY = {
-  key: "answers.recent_country_visit_history",
-  equals: "yes",
-};
-const WHEN_SGAC_HEALTH_SYMPTOMS = {
-  key: "answers.has_health_symptoms",
-  equals: "yes",
-};
 const WHEN_SGAC_HOTEL = {
   key: "answers.accommodation_type",
   equals: "hotel",
+};
+const WHEN_SGAC_AIR = {
+  key: "answers.mode_of_travel",
+  equals: "air",
+};
+const WHEN_SGAC_OTHER_ACCOMMODATION = {
+  key: "answers.accommodation_type",
+  equals: "others",
 };
 const WHEN_SGAC_RESIDENTIAL = {
   key: "answers.accommodation_type",
@@ -218,25 +214,25 @@ const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   { key: "profile.phone", label: "Phone", category: "contact", required: true },
   { key: "trip.arrivalDate", label: "Arrival date", category: "trip", required: true },
   { key: "trip.departureDate", label: "Departure date", category: "trip", required: true },
+  sgacField("place_of_birth_country", "Country/place of birth", "personal"),
   sgacField("place_of_residence", "Place of residence", "personal"),
+  sgacField("mobile_country_code", "Country/region code", "contact"),
+  sgacField("has_used_different_name_to_enter_singapore", "Different-name passport declaration", "security"),
   sgacField("purpose_of_travel", "Purpose of travel", "trip"),
-  sgacField("purpose_of_travel_other", "Other purpose of travel", "trip", WHEN_SGAC_OTHER_PURPOSE),
   sgacField("last_city_or_port_before_singapore", "Last city / port before Singapore", "trip"),
   sgacField("next_city_or_port_after_singapore", "Next city / port after Singapore", "trip"),
   sgacField("mode_of_travel", "Mode of travel", "trip"),
+  sgacField("air_transport_type", "Type of air transport", "trip", WHEN_SGAC_AIR),
+  sgacField("carrier_name", "Airline", "trip", WHEN_SGAC_AIR),
   sgacField("transport_number", "Transport number", "trip"),
   sgacField("accommodation_type", "Accommodation type", "trip"),
   sgacField("accommodation_name", "Hotel name", "trip", WHEN_SGAC_HOTEL),
+  sgacField("accommodation_other_type", "Other accommodation type", "trip", WHEN_SGAC_OTHER_ACCOMMODATION),
   sgacField("accommodation_postcode", "Singapore postal code", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("accommodation_block_number", "Block/house number", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("accommodation_street_name", "Street name", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("recent_country_visit_history", "Recent travel history declaration", "security"),
-  sgacField("recent_country_visit_details", "Recent travel history details", "security", WHEN_SGAC_DECLARABLE_TRAVEL_HISTORY),
   sgacField("has_health_symptoms", "Health symptoms declaration", "security"),
-  sgacField("health_symptoms_details", "Health symptoms details", "security", WHEN_SGAC_HEALTH_SYMPTOMS),
-  sgacField("health_declaration", "Electronic health declaration", "security"),
-  sgacField("official_submission_acknowledgement", "Official submission acknowledgement", "security"),
-  sgacField("final_declaration", "Final declaration", "security"),
 ];
 
 const CONFIGS: ProviderConfig[] = [

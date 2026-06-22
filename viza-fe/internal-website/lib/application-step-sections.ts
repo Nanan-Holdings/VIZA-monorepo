@@ -57,10 +57,12 @@ export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "nam
   if (sourceName.startsWith("required information")) return "personal";
   if (sourceName.startsWith("personal information")) return "personal";
   if (sourceName.startsWith("personal details")) return "personal";
+  if (sourceName.startsWith("traveller information")) return "personal";
   if (sourceName.startsWith("requested information")) return "travel";
   if (sourceName.startsWith("travel information")) return "travel";
   if (sourceName.startsWith("information about the trip")) return "travel";
   if (sourceName.startsWith("trip details")) return "travel";
+  if (sourceName.startsWith("trip information")) return "travel";
   if (sourceName.startsWith("trip expenses") || sourceName.includes("expenses insurance")) return "travel";
   if (sourceName.startsWith("accompanying children")) return "travel";
   if (sourceName.startsWith("accommodation in schengen")) return "travel";

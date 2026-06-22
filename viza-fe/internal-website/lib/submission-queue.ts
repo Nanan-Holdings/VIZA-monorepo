@@ -12,6 +12,9 @@ export type SubmissionQueueStatus =
   | "ds160_live_assisted_pending"
   | "ds160_live_assisted_processing"
   | "ds160_live_assisted_failed"
+  | "ds160_proof_pending"
+  | "ds160_proof_processing"
+  | "ds160_proof_failed"
   | "ds160_blocked"
   | "fv_prefill_pending"
   | "fv_prefill_processing"
@@ -94,6 +97,8 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "ds160_prefill_processing",
   "ds160_live_assisted_pending",
   "ds160_live_assisted_processing",
+  "ds160_proof_pending",
+  "ds160_proof_processing",
   "fv_prefill_pending",
   "fv_prefill_processing",
   "france_live_assisted_pending",
@@ -123,6 +128,7 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "failed",
   "ds160_prefill_failed",
   "ds160_live_assisted_failed",
+  "ds160_proof_failed",
   "ds160_blocked",
   "fv_prefill_failed",
   "fv_blocked",

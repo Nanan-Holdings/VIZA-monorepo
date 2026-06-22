@@ -74,7 +74,8 @@ test("normalizeSgacPortalPayload prefers mobile_number and splits it for ICA pho
       },
       countrySpecific: {
         ...basePayload().countrySpecific,
-        mobile_number: "+8619974911995",
+        mobile_country_code: "86",
+        mobile_number: "19974911995",
       },
     }),
     { now: new Date("2026-06-12T08:00:00+08:00") },

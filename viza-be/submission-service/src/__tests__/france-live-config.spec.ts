@@ -4,6 +4,46 @@ import {
   loadFranceSubmissionConfig,
   validateFranceLiveStart,
 } from "../france-live-config";
+import {
+  franceVisasSingleTabRetryDelayMs,
+  isFranceVisasSingleTabConflict,
+} from "../france-visas/sign-in";
+import { buildPickInProgressPdfTargetScript } from "../france-visas/accueil";
+
+describe("France sign-in recovery", () => {
+  it("recognizes the official single-tab 403 in supported languages", () => {
+    assert.equal(
+      isFranceVisasSingleTabConflict(
+        "403 Connection refused, the application is open in another tab.",
+      ),
+      true,
+    );
+    assert.equal(
+      isFranceVisasSingleTabConflict("连接被拒绝，应用程序在另一个标签页中打开。"),
+      true,
+    );
+  });
+
+  it("does not classify ordinary sign-in failures as a single-tab conflict", () => {
+    assert.equal(isFranceVisasSingleTabConflict("Invalid email or password"), false);
+  });
+
+  it("uses bounded backoff for stale official single-tab locks", () => {
+    assert.equal(franceVisasSingleTabRetryDelayMs(0), 15_000);
+    assert.equal(franceVisasSingleTabRetryDelayMs(1), 45_000);
+    assert.equal(franceVisasSingleTabRetryDelayMs(2), 90_000);
+    assert.equal(franceVisasSingleTabRetryDelayMs(3), null);
+  });
+});
+
+describe("France accueil PDF selection", () => {
+  it("preserves whitespace and word-boundary regex escapes in the browser script", () => {
+    const script = buildPickInProgressPdfTargetScript(undefined);
+
+    assert.equal(script.includes("Read\\s+pdf"), true);
+    assert.equal(script.includes("\\bFRA"), true);
+  });
+});
 
 describe("France live assisted config", () => {
   it("defaults to dry-run with live disabled", () => {

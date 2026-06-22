@@ -276,6 +276,38 @@ describe("computeAllTabCompletion", () => {
     expect(result.missingFields.map((item) => item.fieldName)).toContain("supporting_documents");
   });
 
+  test("SGAC completion does not invent a supporting-documents requirement", () => {
+    const result = computeAllTabCompletion({
+      dbSteps: steps,
+      effectiveSteps: [
+        stepRefs[0],
+        { id: 1, name: "审核申请", sourceName: "Review" },
+        { id: 2, name: "确认", sourceName: "Confirmation" },
+      ],
+      answers: {
+        has_specific_travel_plans: "no",
+        purpose_of_trip: "B",
+        purpose_of_trip_specify: "B1/B2",
+        intended_arrival_date: "2026-10-01",
+        intended_length_of_stay_value: "10",
+        intended_length_of_stay_unit: "DAY(S)",
+      },
+      documentCenterData: null,
+      documentsLoaded: true,
+      country: "singapore",
+      visaType: "SG_ARRIVAL_CARD",
+      documentStepId: 1,
+      reviewStepId: 1,
+      teamStepId: 2,
+      confirmationStepId: 2,
+      showDocumentStep: false,
+      showTeamStep: false,
+    });
+
+    expect(result.missingFields.map((item) => item.fieldName)).not.toContain("supporting_documents");
+    expect(result.completedStepIds).toEqual([0, 1]);
+  });
+
   test("Vietnam document completion accepts required passport and photo without optional itinerary", () => {
     const result = computeAllTabCompletion({
       dbSteps: steps,

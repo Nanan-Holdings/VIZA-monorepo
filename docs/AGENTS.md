@@ -2,6 +2,9 @@
 
 Scope: this file applies to `docs/**`.
 
+SGAC architecture and official-form boundaries are documented in
+`docs/sgac/README.md`.
+
 ## Purpose
 
 `docs` contains product requirements, developer guides, schema playbooks, gap
