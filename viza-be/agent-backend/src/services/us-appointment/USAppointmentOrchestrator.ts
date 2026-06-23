@@ -44,6 +44,10 @@ function getStoredDs160Code(application: USAppointmentApplication): string | nul
   return application.ds160ApplicationId ?? application.confirmationNumber ?? null;
 }
 
+function getStoredApplyingPostCity(application: USAppointmentApplication): string | null {
+  return application.ds160AppointmentPostCity;
+}
+
 function buildJobIdempotencyKey(input: CreateAppointmentJobInput): string {
   return input.idempotencyKey
     ?? `us-appointment:${input.applicationId}:${input.userId}:${input.mode ?? "dry_run"}`;
@@ -150,13 +154,15 @@ export class USAppointmentOrchestrator {
 
     const ds160ConfirmationCode = input.ds160ConfirmationCode?.trim()
       || getStoredDs160Code(application);
+    const applyingPostCity = input.applyingPostCity?.trim()
+      || getStoredApplyingPostCity(application);
     const consent = await this.repository.getLatestCompletedConsent(application.id, input.userId);
     const validation = validateUSAppointmentPreconditions({
       application,
       completedConsent: consent,
       ds160ConfirmationCode,
       applyingCountryCode: input.applyingCountryCode,
-      applyingPostCity: input.applyingPostCity,
+      applyingPostCity,
     });
 
     if (!validation.valid) {
@@ -183,6 +189,15 @@ export class USAppointmentOrchestrator {
     const existing = await this.repository.findJobByIdempotencyKey(idempotencyKey);
     if (existing) return existing;
 
+    const confirmedApplyingPostCity = applyingPostCity?.trim();
+    if (!confirmedApplyingPostCity) {
+      throw new USAppointmentServiceError(
+        409,
+        "missing_applying_post",
+        "The DS-160 application must include the interview embassy/consulate city before appointment assistance can start.",
+      );
+    }
+
     const schedulingProvider = this.providerRegistry.detectProviderForPost({
       schedulingProvider: input.schedulingProvider,
       applyingCountryCode: input.applyingCountryCode,
@@ -195,7 +210,7 @@ export class USAppointmentOrchestrator {
       visaType: "B1/B2",
       ds160ConfirmationCode: ds160ConfirmationCode ?? "",
       applyingCountryCode: input.applyingCountryCode.trim().toUpperCase(),
-      applyingPostCity: input.applyingPostCity.trim(),
+      applyingPostCity: confirmedApplyingPostCity,
       schedulingProvider,
       status: "appointment_consent_received",
       mode: input.mode ?? "dry_run",

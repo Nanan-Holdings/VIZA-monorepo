@@ -11,6 +11,7 @@ export const VN_PROGRESS_STAGES = [
   "filling_fields",
   "advancing_to_review",
   "payment_required",
+  "payment_handoff",
   "registration_code_visible",
   "failed",
 ] as const;
