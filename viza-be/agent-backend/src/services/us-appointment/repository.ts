@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getSupabaseClient } from "../../db/supabase-client.js";
 import type {
   AppointmentAccount,
@@ -36,12 +37,15 @@ const DS160_APPOINTMENT_POST_FIELD_NAMES = [
 ] as const;
 
 const SIMPLIFIED_FORM_STATE_KEY = "__simplified_form_state";
+const APPLICANT_INBOX_DOMAIN = "haggstorm.com";
 
 export interface InsertAppointmentAccountInput {
   userId: string;
   applicationId: string | null;
   portal: string;
   accountEmail?: string | null;
+  encryptedAccountPassword?: string | null;
+  passwordVaultRef?: string | null;
   accountStatus: string;
   emailVerified?: boolean;
   metadataRedactedJson?: JsonObject;
@@ -124,6 +128,12 @@ export interface USAppointmentRepository {
     patch: Partial<Pick<AppointmentAccount, "accountStatus" | "emailVerified" | "lastLoginAt" | "metadataRedactedJson">>,
   ): Promise<AppointmentAccount>;
   getAccount(accountId: string): Promise<AppointmentAccount | null>;
+  ensureApplicantInboxAlias(applicantId: string): Promise<{ alias: string; created: boolean }>;
+  findAccountForApplication(input: {
+    applicationId: string;
+    userId: string;
+    portal: string;
+  }): Promise<AppointmentAccount | null>;
   findJobByIdempotencyKey(idempotencyKey: string): Promise<AppointmentAssistanceJob | null>;
   getJob(jobId: string): Promise<AppointmentAssistanceJob | null>;
   getLatestJobForApplication(applicationId: string): Promise<AppointmentAssistanceJob | null>;
@@ -270,6 +280,10 @@ function resolveCountryCode(country: string): string {
     return "US";
   }
   return normalized.slice(0, 2).toUpperCase() || "US";
+}
+
+function generateApplicantInboxAlias(): string {
+  return `appl-${randomUUID().replace(/-/g, "")}@${APPLICANT_INBOX_DOMAIN}`;
 }
 
 function mapAccount(row: SupabaseObject): AppointmentAccount {
@@ -545,6 +559,8 @@ export class SupabaseUSAppointmentRepository implements USAppointmentRepository 
         country_code: "US",
         portal: input.portal,
         account_email: input.accountEmail,
+        encrypted_account_password: input.encryptedAccountPassword ?? null,
+        password_vault_ref: input.passwordVaultRef ?? null,
         account_status: input.accountStatus,
         email_verified: input.emailVerified ?? false,
         metadata_redacted_json: input.metadataRedactedJson ?? {},
@@ -584,6 +600,53 @@ export class SupabaseUSAppointmentRepository implements USAppointmentRepository 
       .from("appointment_accounts")
       .select("*")
       .eq("id", accountId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return data ? mapAccount(data as SupabaseObject) : null;
+  }
+
+  async ensureApplicantInboxAlias(
+    applicantId: string,
+  ): Promise<{ alias: string; created: boolean }> {
+    const { data: existing, error: readError } = await getSupabaseClient()
+      .from("applicant_profiles")
+      .select("inbox_alias")
+      .eq("id", applicantId)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+
+    const existingAlias = nullableString((existing as SupabaseObject | null)?.inbox_alias);
+    if (existingAlias?.trim()) {
+      return { alias: existingAlias.trim().toLowerCase(), created: false };
+    }
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const alias = generateApplicantInboxAlias();
+      const { error } = await getSupabaseClient()
+        .from("applicant_profiles")
+        .update({ inbox_alias: alias })
+        .eq("id", applicantId)
+        .is("inbox_alias", null);
+      if (!error) return { alias, created: true };
+      if (error.code !== "23505") throw new Error(error.message);
+    }
+    throw new Error("Could not allocate applicant inbox alias after retries.");
+  }
+
+  async findAccountForApplication(input: {
+    applicationId: string;
+    userId: string;
+    portal: string;
+  }): Promise<AppointmentAccount | null> {
+    const { data, error } = await getSupabaseClient()
+      .from("appointment_accounts")
+      .select("*")
+      .eq("application_id", input.applicationId)
+      .eq("user_id", input.userId)
+      .eq("portal", input.portal)
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) throw new Error(error.message);

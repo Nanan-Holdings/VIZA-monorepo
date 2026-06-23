@@ -46,13 +46,15 @@ export function VnResultCard({
     officialFeeStatus?.paymentQueued === true ||
     typeof officialFeeStatus?.queueId === "string";
   const paymentNeedsOperator = officialFeeStatus?.paymentNeedsOperator === true;
+  const paymentQueue = officialFeeStatus?.paymentQueue as Record<string, unknown> | null | undefined;
+  const paymentQueuePaid = paymentQueue?.status === "vn_payment_paid" || paymentQueue?.payment_status === "paid";
   const quoteAmount = typeof quote?.official_fee_amount === "number"
     ? quote.official_fee_amount
     : typeof quote?.official_fee_amount === "string"
       ? Number(quote.official_fee_amount)
       : 25;
   const quoteCurrency = typeof quote?.official_fee_currency === "string" ? quote.official_fee_currency : "USD";
-  const paymentPaid = result.paymentStatus === "paid" || intentStatus === "succeeded" || Boolean(receiptNumber);
+  const paymentPaid = result.paymentStatus === "paid" || intentStatus === "succeeded" || Boolean(receiptNumber) || paymentQueuePaid;
   const paymentQueued =
     paymentQueuedByAction ||
     intentStatus === "in_progress" ||

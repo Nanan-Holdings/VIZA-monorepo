@@ -90,6 +90,7 @@ import {
   toVietnamDob,
   type VietnamOfficialStatus,
 } from "./vietnam/status-check";
+import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
 import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
@@ -3551,6 +3552,128 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
     const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
     const now = new Date().toISOString();
+
+    if (autopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false) && !dryRunReceipt) {
+      const { profile } = await loadApplicantData(item.application_id);
+      const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
+      const email = readAnswerValue(answers, [
+        "email_address",
+        "email",
+        "applicant_email",
+        "contact_email",
+      ]) ?? profile.email ?? null;
+      const dateOfBirth = readAnswerValue(answers, [
+        "date_of_birth",
+        "birth_date",
+        "dob",
+      ]) ?? profile.date_of_birth ?? null;
+      if (!registrationCode || !email || !dateOfBirth) {
+        throw new Error("Vietnam payment resume requires registration code, email, and date of birth.");
+      }
+
+      const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
+      fs.mkdirSync(diagnosticsDir, { recursive: true });
+      const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
+      const payment = await resumeVietnamOfficialPayment({
+        registrationCode,
+        email,
+        dateOfBirth,
+        headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
+        screenshotPath,
+        timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
+      });
+      if (payment.status === "paid") {
+        const receiptNumber = payment.receiptReference;
+        const feeEvidence = intent
+          ? await insertVnOfficialFeeAttempt({
+              applicationId: item.application_id,
+              intent,
+              status: "succeeded",
+              registrationCode,
+              message: "Vietnam official fee payment completed through the official payment resume flow.",
+              receiptNumber,
+              screenshotUrl: screenshotPath,
+            })
+          : { attemptId: null, receiptId: null };
+        if (intent) await updateVnOfficialFeeIntent(intent.id, "succeeded");
+
+        const vnPayload: VnSubmissionResult = {
+          country: "VN",
+          status: "submitted_pending_email",
+          mode: "live_assisted",
+          provider: "vietnam_evisa_live",
+          portalUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
+          checkpoint: "official_fee_paid",
+          registrationCode,
+          submittedAtIso: now,
+          noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
+          paymentStatus: "paid",
+        };
+        await writeSubmissionResult(item.application_id, vnPayload, "completed");
+        await updateVnQueueRow(
+          item.id,
+          {
+            status: "vn_payment_paid",
+            last_error: null,
+            current_stage: "official_fee_paid",
+            payment_status: "paid",
+            official_status: "payment_submitted",
+            manual_action_status: "completed",
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              status: "payment_submitted",
+              officialFeePaymentIntentId: intent?.id ?? null,
+              officialFeePaymentAttemptId: feeEvidence.attemptId,
+              officialFeeReceiptId: feeEvidence.receiptId,
+              receiptNumber,
+              registrationCodeCaptured: true,
+              screenshotPath,
+            },
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          {
+            status: "vn_payment_paid",
+            last_error: null,
+            updated_at: now,
+          },
+        );
+        return;
+      }
+
+      const message = `Vietnam official payment resume did not complete automatically: ${payment.reason}`;
+      await updateVnQueueRow(
+        item.id,
+        {
+          status: "vn_blocked",
+          attempts: item.attempts + 1,
+          last_error: message,
+          current_stage: "official_fee_manual_review",
+          payment_status: payment.status === "declined" ? "failed" : "manual_review",
+          official_status: "payment_authorized",
+          error_code: payment.status === "declined" ? "payment_declined" : "manual_payment_required",
+          error_message: message,
+          vn_result_payload: {
+            ...(item.vn_result_payload ?? {}),
+            status: "payment_manual_review",
+            officialFeePaymentIntentId: intent?.id ?? null,
+            officialFeeSchemaFallback: fallbackAuthorized,
+            registrationCodeCaptured: true,
+            paymentResumeUrl: payment.url,
+            screenshotPath,
+          },
+          heartbeat_at: now,
+          updated_at: now,
+        },
+        {
+          status: "vn_blocked",
+          attempts: item.attempts + 1,
+          last_error: message,
+          updated_at: now,
+        },
+      );
+      return;
+    }
 
     if (!dryRunReceipt || !intent) {
       const message = autopayEnabled
