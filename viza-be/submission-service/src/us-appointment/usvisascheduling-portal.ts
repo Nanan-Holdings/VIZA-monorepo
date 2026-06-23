@@ -34,6 +34,15 @@ interface VisibleSlotCandidate {
   externalSlotId: string | null;
 }
 
+interface PortalDiagnostics {
+  currentUrl: string;
+  title: string;
+  bodyTextLength: number;
+  loginVisible: boolean;
+  scheduleControlVisible: boolean;
+  slotCandidateCount: number;
+}
+
 function normalizeVisibleText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
@@ -105,6 +114,26 @@ export function classifyUSVisaSchedulingGateText(text: string): AppointmentPorta
   }
 
   return null;
+}
+
+function buildUnknownPortalStateGate(diagnostics: PortalDiagnostics): AppointmentPortalGate {
+  return {
+    jobStatus: "appointment_manual_required",
+    actionType: "site_policy_review",
+    instruction:
+      "USVisaScheduling reached an official page state that VIZA does not yet recognize. Review the captured page diagnostics before continuing.",
+    metadata: {
+      gate_type: "unknown_official_state",
+      current_url: diagnostics.currentUrl,
+      page_title: diagnostics.title ? "[REDACTED]" : null,
+      body_text_length: diagnostics.bodyTextLength,
+      login_visible: diagnostics.loginVisible,
+      schedule_control_visible: diagnostics.scheduleControlVisible,
+      slot_candidate_count: diagnostics.slotCandidateCount,
+    },
+    errorCode: "unknown_official_state",
+    errorMessage: "USVisaScheduling reached an unrecognized official page state.",
+  };
 }
 
 function containsAllVisibleParts(text: string, parts: Array<string | null>): boolean {
@@ -194,9 +223,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     const slots = await this.readVisibleSlotCandidates(page);
     if (slots.length > 0) return { readyForSlotCapture: true };
 
-    const calendarLink = page
-      .locator("a:has-text('Appointment'), a:has-text('Schedule'), button:has-text('Schedule'), text=/预约|日历/")
-      .first();
+    const calendarLink = this.scheduleControl(page);
     if (await calendarLink.isVisible().catch(() => false)) {
       await calendarLink.click();
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
@@ -209,7 +236,10 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       };
     }
 
-    return { readyForSlotCapture: false };
+    return {
+      readyForSlotCapture: false,
+      gate: buildUnknownPortalStateGate(await this.readDiagnostics(page)),
+    };
   }
 
   async observeSlots(job: USAppointmentJobRow): Promise<SlotInsert[]> {
@@ -334,6 +364,32 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   private async detectGate(page: Page): Promise<AppointmentPortalGate | null> {
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     return classifyUSVisaSchedulingGateText(bodyText);
+  }
+
+  private scheduleControl(page: Page) {
+    return page
+      .locator("a:has-text('Appointment'), a:has-text('Schedule'), button:has-text('Schedule'), text=/预约|日历/")
+      .first();
+  }
+
+  private async readDiagnostics(page: Page): Promise<PortalDiagnostics> {
+    const [currentUrl, title, bodyText, loginVisible, scheduleControlVisible, slotCandidateCount] =
+      await Promise.all([
+        Promise.resolve(page.url()),
+        page.title().catch(() => ""),
+        page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
+        this.isLoginVisible(page).catch(() => false),
+        this.scheduleControl(page).isVisible().catch(() => false),
+        page.locator(US_VISA_SCHEDULING_SELECTORS.slotCandidates).count().catch(() => 0),
+      ]);
+    return {
+      currentUrl,
+      title: normalizeVisibleText(title),
+      bodyTextLength: normalizeVisibleText(bodyText).length,
+      loginVisible,
+      scheduleControlVisible,
+      slotCandidateCount,
+    };
   }
 
   private async clickSelectedSlot(page: Page, selectedSlot: AppointmentSlotRow): Promise<void> {
