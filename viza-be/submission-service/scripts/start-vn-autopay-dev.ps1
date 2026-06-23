@@ -114,6 +114,8 @@ try {
   $env:VN_LIVE_SUBMISSION_ENABLED = "true"
   $env:VN_LIVE_ASSISTED_ONLY = "true"
   $env:VN_PLAYWRIGHT_HEADLESS = if ($Headless) { "true" } else { "false" }
+  $env:US_APPOINTMENT_ASSISTED_LIVE_ENABLED = "false"
+  $env:US_APPOINTMENT_PLAYWRIGHT_ENABLED = "false"
   $env:PORT = [string](Resolve-HealthPort)
 
   Write-Host "Starting submission-service with Vietnam autopay enabled for this process only."
@@ -133,4 +135,6 @@ try {
   Remove-Item Env:\VN_FIXED_CARD_ENABLED -ErrorAction SilentlyContinue
   Remove-Item Env:\VN_LOCAL_CARD_SESSION_ENABLED -ErrorAction SilentlyContinue
   Remove-Item Env:\VN_OFFICIAL_PAYMENT_AUTOPAY -ErrorAction SilentlyContinue
+  Remove-Item Env:\US_APPOINTMENT_ASSISTED_LIVE_ENABLED -ErrorAction SilentlyContinue
+  Remove-Item Env:\US_APPOINTMENT_PLAYWRIGHT_ENABLED -ErrorAction SilentlyContinue
 }

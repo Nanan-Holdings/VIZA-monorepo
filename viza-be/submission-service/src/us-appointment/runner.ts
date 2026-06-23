@@ -20,6 +20,8 @@ export interface USAppointmentRunnerConfig {
   captchaMaxAttempts: number;
   playwrightEnabled: boolean;
   playwrightHeadless: boolean;
+  playwrightChannel: string | null;
+  playwrightStorageStatePath: string | null;
   baseUrl: string;
 }
 
@@ -225,6 +227,8 @@ export function loadUSAppointmentRunnerConfig(
     captchaMaxAttempts: readPositiveInt(env.US_APPOINTMENT_CAPTCHA_MAX_ATTEMPTS, 2),
     playwrightEnabled: env.US_APPOINTMENT_PLAYWRIGHT_ENABLED === "true",
     playwrightHeadless: env.US_APPOINTMENT_PLAYWRIGHT_HEADLESS !== "false",
+    playwrightChannel: env.US_APPOINTMENT_PLAYWRIGHT_CHANNEL?.trim() || null,
+    playwrightStorageStatePath: env.US_APPOINTMENT_STORAGE_STATE_PATH?.trim() || null,
     baseUrl: env.US_APPOINTMENT_BASE_URL ?? "https://www.usvisascheduling.com/",
   };
 }

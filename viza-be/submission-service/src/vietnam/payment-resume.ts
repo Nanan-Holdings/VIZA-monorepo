@@ -32,14 +32,54 @@ export interface VietnamPaymentResumeInput {
   card?: VietnamFixedCard | null;
 }
 
-const DEFAULT_SEARCH_URL = "https://evisa.gov.vn/e-visa/search";
+const DEFAULT_SEARCH_URL = "https://evisa.xuatnhapcanh.gov.vn/tra-cuu-thi-thuc";
+const SEARCH_FIELD_SELECTORS = [
+  "#basic_maHoSo",
+  "#basic_email",
+  "#basic_dateOfBirth",
+  "#_tracuuthongtinTTDT_WAR_eVisaportlet_tchs_maSoHoSo",
+  "#_tracuuthongtinTTDT_WAR_eVisaportlet_tchs_email",
+  "#_tracuuthongtinTTDT_WAR_eVisaportlet_ngaySinh",
+  'input[name*="code" i]',
+  'input[id*="code" i]',
+  'input[placeholder*="code" i]',
+  'input[placeholder*="profile" i]',
+  'input[placeholder*="registration" i]',
+  'input[placeholder*="Mã" i]',
+  'input[placeholder*="ma" i]',
+  'input[placeholder*="hồ sơ" i]',
+  'input[placeholder*="ho so" i]',
+  'input[type="email"]',
+  'input[name*="email" i]',
+  'input[id*="email" i]',
+  'input[placeholder*="email" i]',
+  'input[name*="birth" i]',
+  'input[id*="birth" i]',
+  'input[placeholder*="birth" i]',
+  'input[placeholder*="dd/mm/yyyy" i]',
+  'input[placeholder*="ngày sinh" i]',
+  'input[placeholder*="ngay sinh" i]',
+];
 
 async function fillByCandidates(page: Page, candidates: string[], value: string): Promise<boolean> {
   for (const selector of candidates) {
     const locator = page.locator(selector).first();
     try {
       if (await locator.isVisible({ timeout: 1_500 })) {
-        await locator.fill(value, { timeout: 5_000 });
+        const readonly = await locator.getAttribute("readonly").catch(() => null);
+        if (readonly !== null) {
+          await locator.evaluate(
+            (element, nextValue) => {
+              if (!(element instanceof HTMLInputElement)) return;
+              element.value = nextValue;
+              element.dispatchEvent(new Event("input", { bubbles: true }));
+              element.dispatchEvent(new Event("change", { bubbles: true }));
+            },
+            value,
+          );
+        } else {
+          await locator.fill(value, { timeout: 5_000 });
+        }
         return true;
       }
     } catch {
@@ -51,6 +91,8 @@ async function fillByCandidates(page: Page, candidates: string[], value: string)
 
 async function fillSearchFields(page: Page, input: VietnamPaymentResumeInput): Promise<void> {
   const filledCode = await fillByCandidates(page, [
+    "#basic_maHoSo",
+    "#_tracuuthongtinTTDT_WAR_eVisaportlet_tchs_maSoHoSo",
     'input[name*="code" i]',
     'input[id*="code" i]',
     'input[placeholder*="code" i]',
@@ -58,28 +100,81 @@ async function fillSearchFields(page: Page, input: VietnamPaymentResumeInput): P
     'input[placeholder*="registration" i]',
   ], input.registrationCode);
   const filledEmail = await fillByCandidates(page, [
+    "#basic_email",
+    "#_tracuuthongtinTTDT_WAR_eVisaportlet_tchs_email",
     'input[type="email"]',
     'input[name*="email" i]',
     'input[id*="email" i]',
     'input[placeholder*="email" i]',
   ], input.email);
   const filledDob = await fillByCandidates(page, [
+    "#basic_dateOfBirth",
+    "#_tracuuthongtinTTDT_WAR_eVisaportlet_ngaySinh",
     'input[name*="birth" i]',
     'input[id*="birth" i]',
     'input[placeholder*="birth" i]',
     'input[placeholder*="dd/mm/yyyy" i]',
   ], toVietnamDob(input.dateOfBirth));
   if (!filledCode || !filledEmail || !filledDob) {
-    throw new Error("Could not locate all Vietnam payment resume search fields.");
+    const visibleInputs = await page.locator("input:visible").count().catch(() => 0);
+    const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+    if (visibleInputs === 0 && bodyText.trim().length < 30) {
+      throw new Error("The official Vietnam payment search page loaded blank; retry later or open the official portal manually.");
+    }
+    throw new Error(`Could not locate all Vietnam payment resume search fields. visibleInputs=${visibleInputs}`);
   }
 }
 
+async function waitForSearchPageReady(page: Page, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + Math.min(timeoutMs, 45_000);
+  while (Date.now() < deadline) {
+    for (const selector of SEARCH_FIELD_SELECTORS) {
+      if (await page.locator(selector).first().isVisible({ timeout: 500 }).catch(() => false)) {
+        return true;
+      }
+    }
+    const bodyText = await page.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+    if (/cloudflare|checking your browser|security verification|verify you are human/i.test(bodyText)) {
+      return false;
+    }
+    await page.waitForTimeout(1_000);
+  }
+  return false;
+}
+
+async function gotoSearchPageWithRetry(page: Page, input: VietnamPaymentResumeInput): Promise<boolean> {
+  const searchUrl = input.searchUrl ?? DEFAULT_SEARCH_URL;
+  const attempts = Math.max(1, Math.min(Number(process.env.VN_PAYMENT_SEARCH_LOAD_ATTEMPTS ?? 3), 5));
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    await page.goto(searchUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: input.timeoutMs ?? 60_000,
+    });
+    if (await waitForSearchPageReady(page, input.timeoutMs ?? 60_000)) {
+      return true;
+    }
+    if (attempt < attempts) {
+      await page.waitForTimeout(2_000 * attempt);
+      await page.reload({ waitUntil: "domcontentloaded", timeout: input.timeoutMs ?? 60_000 }).catch(() => undefined);
+    }
+  }
+  return false;
+}
+
 async function solveSearchCaptcha(page: Page, timeoutMs: number): Promise<void> {
-  const image = page.locator('img[src*="captcha" i], img[alt*="captcha" i], img[id*="captcha" i]').first();
+  const image = page.locator([
+    'img[src*="captcha" i]',
+    'img[alt*="captcha" i]',
+    'img[id*="captcha" i]',
+    'canvas',
+    '.captcha img',
+  ].join(", ")).first();
   if (!(await image.isVisible({ timeout: 3_000 }).catch(() => false))) return;
   const png = await image.screenshot({ timeout: Math.min(timeoutMs, 15_000) });
   const solution = await solveImageCaptcha(png, Math.min(timeoutMs, 120_000));
   const captchaInput = page.locator([
+    "#basic_captcha",
+    "#_tracuuthongtinTTDT_WAR_eVisaportlet_captchaText",
     'input[name*="captcha" i]',
     'input[id*="captcha" i]',
     'input[placeholder*="captcha" i]',
@@ -151,10 +246,17 @@ export async function resumeVietnamOfficialPayment(
   const browser = await chromium.launch({ headless: input.headless ?? true });
   const page = await browser.newPage();
   try {
-    await page.goto(input.searchUrl ?? DEFAULT_SEARCH_URL, {
-      waitUntil: "domcontentloaded",
-      timeout: input.timeoutMs ?? 60_000,
-    });
+    const ready = await gotoSearchPageWithRetry(page, input);
+    if (!ready) {
+      const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+      return {
+        status: "unavailable",
+        reason: bodyText.trim().length < 30
+          ? "The official Vietnam payment search page loaded blank after retries."
+          : "The official Vietnam payment search page did not expose the expected search fields after retries.",
+        url: page.url(),
+      };
+    }
     await fillSearchFields(page, input);
     await solveSearchCaptcha(page, input.timeoutMs ?? 120_000);
     await submitSearch(page);
