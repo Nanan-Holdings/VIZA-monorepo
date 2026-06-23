@@ -49,6 +49,7 @@ function baseApplication(
     confirmationNumber: null,
     ds160ApplicationId: "AA00DRYRUN1",
     ds160RetrievalUrl: "https://ceac.state.gov/GenNIV/Default.aspx",
+    ds160AppointmentPostCity: "Beijing",
     appointmentAssistanceStatus: "appointment_not_started",
     ...overrides,
   };
@@ -556,8 +557,10 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     })).rejects.toMatchObject({ code: "missing_ds160_confirmation" });
   });
 
-  it("blocks job creation when applying post is missing", async () => {
-    const { orchestrator } = createUSAppointmentServices(new InMemoryUSAppointmentRepository());
+  it("blocks job creation when DS-160 appointment post is missing", async () => {
+    const repository = new InMemoryUSAppointmentRepository();
+    repository.application = baseApplication({ ds160AppointmentPostCity: null });
+    const { orchestrator } = createUSAppointmentServices(repository);
     await orchestrator.recordConsent({
       applicationId: APPLICATION_ID,
       actorUserId: USER_ID,
@@ -569,6 +572,24 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
       applyingCountryCode: "",
       applyingPostCity: "",
     })).rejects.toMatchObject({ code: "missing_applying_post" });
+  });
+
+  it("creates a job from the DS-160 saved appointment post without asking the user again", async () => {
+    const repository = new InMemoryUSAppointmentRepository();
+    const { orchestrator } = createUSAppointmentServices(repository);
+    await orchestrator.recordConsent({
+      applicationId: APPLICATION_ID,
+      actorUserId: USER_ID,
+      consentSnapshot: { accepted: true },
+    });
+
+    const job = await orchestrator.createJob({
+      applicationId: APPLICATION_ID,
+      userId: USER_ID,
+      applyingCountryCode: "CN",
+    });
+
+    expect(job.applyingPostCity).toBe("Beijing");
   });
 
   it("creates an idempotent dry-run job", async () => {

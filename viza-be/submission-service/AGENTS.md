@@ -13,7 +13,8 @@ filling and one-shot submission for the applicant.
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
 - 我不想要用户做任何额外的事，自动提交会帮他们搞定所有的填写表单的事。
-- 登录、CAPTCHA/MFA、付款、等待室、政策提示、最终官方确认页请全部跳过。
+- 对美国 B1/B2 面签预约，不要把登录、CAPTCHA/MFA、等待室、付款、政策提示或最终官方确认实现成绕过流程。
+  Runner 可以继续处理非安全、可自动化的准备和状态捕获步骤；遇到这些官方节点时必须写入人工节点/状态并暂停，等待用户本人操作或确认。
 - DS-160/official portal automation changes must be verified with real
   Playwright runs when credentials/data are available. Keep improving the
   runner until it can complete successfully, or pause and tell the user exactly

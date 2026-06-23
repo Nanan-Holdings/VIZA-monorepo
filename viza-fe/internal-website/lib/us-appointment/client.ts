@@ -81,7 +81,6 @@ export interface CreateAppointmentJobPayload {
   mode?: USAppointmentMode;
   ds160ConfirmationCode?: string;
   applyingCountryCode: string;
-  applyingPostCity: string;
   schedulingProvider?: string;
   userPreferencesJson?: JsonObject;
   idempotencyKey?: string;

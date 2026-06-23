@@ -17,14 +17,13 @@ and DB state transitions.
 - Dry-run remains available. The approved assisted-live path is China
   `CN/usvisascheduling`, which queues work for `submission-service` rather than
   running browser automation in `agent-backend`.
-- 登录、CAPTCHA/MFA、付款、等待室、政策提示、最终官方确认页请全部跳过。
-- Redact sensitive portal and applicant data before audit, attempt, screenshot,
-  status-check, or manual-action storage.
-- Slot and status checks must be user-triggered and cooldown-protected.
-- Stop or route to manual review on site policy warnings.
-- China assisted-live booking may proceed only after a selected slot and an
-  explicit final approval are stored. `agent-backend` then marks the job for the
-  runner; it must not click official-site booking controls itself.
+- Do not ask the applicant to re-enter the DS-160 appointment post or preferred
+  timing fields when creating a job. The DS-160-derived post must come from
+  stored application/answer data, and available timings should be observed by
+  the backend before the user chooses a slot.
+- Do implement or document bypasses for official login, CAPTCHA/MFA,
+  waiting rooms, policy prompts, payment controls, rate limits, or final
+  confirmation pages. 
 
 ## Key Files
 

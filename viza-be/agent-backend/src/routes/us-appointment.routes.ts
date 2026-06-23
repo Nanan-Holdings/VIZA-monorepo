@@ -63,7 +63,7 @@ const jobBodySchema = z
     mode: z.enum(usAppointmentModes).optional().default("dry_run"),
     ds160ConfirmationCode: z.string().trim().min(4).max(80).optional(),
     applyingCountryCode: z.string().trim().min(2).max(3),
-    applyingPostCity: z.string().trim().min(1).max(120),
+    applyingPostCity: z.string().trim().min(1).max(120).optional(),
     schedulingProvider: z.string().trim().min(1).max(120).optional(),
     userPreferencesJson: z.record(z.unknown()).optional().default({}),
     idempotencyKey: z.string().trim().min(8).max(160).optional(),

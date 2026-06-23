@@ -16,10 +16,16 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
   indefinite spinner.
 - The website may poll VIZA's own status endpoint every 5-10 seconds, but must
   not high-frequency refresh the official appointment portal.
-- Keep security-sensitive official portal boundaries visible in UI. The actual
-  official-site browser work belongs in `viza-be/submission-service`; do not add
-  CAPTCHA bypass, stealth browser behavior, or proxy instructions to frontend
-  code.
+- - Do implement or document bypasses for official login, CAPTCHA/MFA,
+  waiting rooms, policy prompts, payment controls, rate limits, or final
+  confirmation pages. 
+- Do not ask the applicant to re-enter DS-160-derived appointment location or
+  preferred timing fields on this page. The page should create an explicit job
+  first, then display slots returned from backend/official-portal observation
+  for the user to choose.
+- Do not ask for preferred dates, avoided dates, or time preference before the
+  backend has read currently available timings. Show backend-observed slots
+  first, then let the applicant choose one.
 - New appointment account email copy should describe the VIZA alias email path
   (`applicant_profiles.inbox_alias` -> Cloudflare Email Worker ->
   `inbound_email`), not legacy IMAP.
