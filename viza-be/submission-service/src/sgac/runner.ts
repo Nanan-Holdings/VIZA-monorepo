@@ -163,7 +163,22 @@ async function containsLikelyCaptchaImage(dialog: Locator): Promise<boolean> {
   return false;
 }
 
-async function findSecurityVerificationDialog(page: Page): Promise<Locator | null> {
+async function findVisibleTextInput(scope: Locator): Promise<Locator | null> {
+  const inputs = scope.locator("input[type='text'], input:not([type])");
+  const count = await inputs.count().catch(() => 0);
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const input = inputs.nth(index);
+    if (await input.isVisible().catch(() => false)) return input;
+  }
+  return null;
+}
+
+interface SecurityVerificationTarget {
+  dialog: Locator;
+  input: Locator;
+}
+
+async function findSecurityVerificationTarget(page: Page): Promise<SecurityVerificationTarget | null> {
   const candidates = page.locator(".modal-content, .modal-dialog, [role='dialog'], body");
   const count = await candidates.count();
   for (let index = count - 1; index >= 0; index -= 1) {
@@ -171,20 +186,23 @@ async function findSecurityVerificationDialog(page: Page): Promise<Locator | nul
     if (!(await candidate.isVisible().catch(() => false))) continue;
     const text = await candidate.innerText({ timeout: 1000 }).catch(() => "");
     const hasCaptchaCopy = /Security Verification|Enter text here|Try another text|Incorrect captcha/i.test(text);
-    const input = candidate.locator("input[type='text'], input:not([type])");
-    const inputCount = await input.count().catch(() => 0);
-    const hasVisibleInput = inputCount > 0 && (await input.last().isVisible().catch(() => false));
+    const input = await findVisibleTextInput(candidate);
     const hasCaptchaImage = await containsLikelyCaptchaImage(candidate);
-    if ((hasCaptchaCopy || hasVisibleInput) && hasCaptchaImage) return candidate;
+    if ((hasCaptchaCopy || input) && hasCaptchaImage && input) return { dialog: candidate, input };
   }
   return null;
 }
 
-async function waitForSecurityVerificationDialog(page: Page, timeoutMs: number): Promise<Locator | null> {
+async function pageHasSecurityVerificationCopy(page: Page): Promise<boolean> {
+  const body = await visibleBodySummary(page, 4000);
+  return /Security Verification|Enter text here|Try another text|Incorrect captcha/i.test(body);
+}
+
+async function waitForSecurityVerificationTarget(page: Page, timeoutMs: number): Promise<SecurityVerificationTarget | null> {
   const deadline = Date.now() + timeoutMs;
   do {
-    const dialog = await findSecurityVerificationDialog(page);
-    if (dialog) return dialog;
+    const target = await findSecurityVerificationTarget(page);
+    if (target) return target;
     await page.waitForTimeout(500);
   } while (Date.now() < deadline);
   return null;
@@ -195,17 +213,29 @@ async function solveSecurityVerificationIfPresent(
   artifactDir: string,
   logs: string[],
 ): Promise<void> {
-  const initialDialog = await waitForSecurityVerificationDialog(page, 8_000);
-  if (!initialDialog) return;
+  const initialTarget = await waitForSecurityVerificationTarget(page, 8_000);
+  if (!initialTarget) {
+    if (await pageHasSecurityVerificationCopy(page)) {
+      const shot = await screenshot(page, artifactDir, "sgac-captcha-dialog-missing");
+      throw new SgacPortalError(
+        "ICA SGAC showed Security Verification, but the CAPTCHA dialog input was not visible. Please retry; if it repeats, ICA changed the verification widget.",
+        {
+          code: "sgac_captcha_input_not_visible",
+          screenshotPaths: [shot],
+          portalSummary: await visibleBodySummary(page),
+        },
+      );
+    }
+    return;
+  }
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const dialog = attempt === 1 ? initialDialog : await waitForSecurityVerificationDialog(page, 30_000);
-    if (!dialog) {
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const target = attempt === 1 ? initialTarget : await waitForSecurityVerificationTarget(page, 30_000);
+    if (!target) {
       logs.push(`sgac_captcha_dialog_missing attempt=${attempt}`);
       break;
     }
-    const captchaInput = dialog.locator("input[type='text'], input:not([type])").last();
-    await captchaInput.waitFor({ state: "visible", timeout: 30_000 });
+    const { dialog, input: captchaInput } = target;
     await page.waitForTimeout(2_000);
     const captchaBuffer = await captureSecurityCaptchaImage(dialog);
     const solve = await solveImageCaptcha(captchaBuffer, 120_000);
@@ -230,7 +260,7 @@ async function solveSecurityVerificationIfPresent(
       if (await tryAnotherText.isVisible().catch(() => false)) {
         await tryAnotherText.click().catch(() => undefined);
       }
-      await waitForSecurityVerificationDialog(page, 30_000);
+      await waitForSecurityVerificationTarget(page, 30_000);
       continue;
     }
     if (!/Security Verification|Enter text here/i.test(body)) return;

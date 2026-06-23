@@ -154,13 +154,15 @@ test("US appointment runner only accepts enabled China usvisascheduling assisted
   assert.equal(isEligibleUSAppointmentJob({ ...baseJob, requires_user_action: true }, config), false);
 });
 
-test("US appointment runner handoff pauses at manual login without final booking", () => {
+test("US appointment runner handoff records manual-required unsupported gate metadata", () => {
   const handoff = buildRunnerHandoff(baseJob);
-  assert.equal(handoff.jobStatus, "appointment_login_required");
-  assert.equal(handoff.actionType, "login");
-  assert.match(handoff.instruction, /official-site login/i);
+  assert.equal(handoff.jobStatus, "appointment_manual_required");
+  assert.equal(handoff.actionType, "site_policy_review");
+  assert.match(handoff.instruction, /manual review/i);
   assert.equal(handoff.metadata.captcha_solver_enabled, false);
-  assert.equal(handoff.metadata.no_final_confirmation_click, true);
+  assert.equal(handoff.metadata.supported_checkpoint_handling, true);
+  assert.equal("no_final_confirmation_click" in handoff.metadata, false);
+  assert.equal("no_payment_automation" in handoff.metadata, false);
 });
 
 test("US appointment runner advances a prepared portal session to slot capture", async () => {

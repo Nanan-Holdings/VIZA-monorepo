@@ -3483,6 +3483,37 @@ function isVnOfficialFeeIntentExecutable(intent: VnOfficialFeeIntentRow | null):
   return ["admin_approved", "ready", "pending"].includes(intent?.status ?? "");
 }
 
+function isVnOfficialFeeSchemaMissing(error: unknown): boolean {
+  const value = error as { code?: unknown; message?: unknown } | null;
+  const message = typeof value?.message === "string" ? value.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    value?.code === "PGRST204" ||
+    value?.code === "PGRST205" ||
+    message.includes("official_fee_payment_intents") ||
+    message.includes("official_fee_quotes") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("could not find")
+  );
+}
+
+async function hasVnOfficialFeeFallbackAuthorization(applicationId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("consent_events")
+    .select("id")
+    .eq("application_id", applicationId)
+    .eq("consent_type", "official_fee_payment_authorization")
+    .eq("accepted", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (isVnOfficialFeeSchemaMissing(error)) return false;
+    throw new Error(`Failed to load fallback official fee authorization: ${error.message}`);
+  }
+  return Boolean(data);
+}
+
 async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
   const startedAt = new Date().toISOString();
   await updateVnQueueRow(
@@ -3717,15 +3748,20 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false) &&
       readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
+    let officialFeeFallbackAuthorized = false;
     if (fixedCardPilotEnabled) {
       try {
         officialFeeIntent = await getLatestVnOfficialFeeIntent(item.application_id);
       } catch (error) {
-        console.warn(
-          `[vn] Run ${runId} could not load official fee intent; fixed-card payment will stay disabled: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
+        if (isVnOfficialFeeSchemaMissing(error)) {
+          officialFeeFallbackAuthorized = await hasVnOfficialFeeFallbackAuthorization(item.application_id);
+        } else {
+          console.warn(
+            `[vn] Run ${runId} could not load official fee intent; fixed-card payment will stay disabled: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
       }
     }
     const answers = applyVietnamAnswerAliases(
@@ -3765,7 +3801,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ),
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
-        allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent),
+        allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent) || officialFeeFallbackAuthorized,
         onProgress: async (stage) => {
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
@@ -3777,23 +3813,35 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       let officialFeeAttemptId: string | null = null;
       let officialFeeReceiptId: string | null = null;
       if (paid) {
-        const intent = officialFeeIntent ?? (await getLatestVnOfficialFeeIntent(item.application_id));
-        if (!intent || !isVnOfficialFeeIntentExecutable(intent)) {
+        let intent = officialFeeIntent;
+        if (!intent && !officialFeeFallbackAuthorized) {
+          try {
+            intent = await getLatestVnOfficialFeeIntent(item.application_id);
+          } catch (error) {
+            if (isVnOfficialFeeSchemaMissing(error)) {
+              officialFeeFallbackAuthorized = await hasVnOfficialFeeFallbackAuthorization(item.application_id);
+            } else {
+              throw error;
+            }
+          }
+        }
+        if (intent && isVnOfficialFeeIntentExecutable(intent)) {
+          officialFeeIntent = intent;
+          const feeEvidence = await insertVnOfficialFeeAttempt({
+            applicationId: item.application_id,
+            intent,
+            status: "succeeded",
+            registrationCode: result.registrationCode,
+            message: "Vietnam official fee payment completed by the configured fixed-card payment pilot.",
+            receiptNumber: result.paymentReceiptReference,
+            screenshotUrl: finalScreenshotPath ?? null,
+          });
+          officialFeeAttemptId = feeEvidence.attemptId;
+          officialFeeReceiptId = feeEvidence.receiptId;
+          await updateVnOfficialFeeIntent(intent.id, "succeeded");
+        } else if (!officialFeeFallbackAuthorized) {
           throw new Error("Vietnam official fee payment completed without an executable authorized intent.");
         }
-        officialFeeIntent = intent;
-        const feeEvidence = await insertVnOfficialFeeAttempt({
-          applicationId: item.application_id,
-          intent,
-          status: "succeeded",
-          registrationCode: result.registrationCode,
-          message: "Vietnam official fee payment completed by the configured fixed-card payment pilot.",
-          receiptNumber: result.paymentReceiptReference,
-          screenshotUrl: finalScreenshotPath ?? null,
-        });
-        officialFeeAttemptId = feeEvidence.attemptId;
-        officialFeeReceiptId = feeEvidence.receiptId;
-        await updateVnOfficialFeeIntent(intent.id, "succeeded");
       }
       const vnPayload: VnSubmissionResult = {
         country: "VN",
