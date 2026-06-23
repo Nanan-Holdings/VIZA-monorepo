@@ -15,6 +15,7 @@ import {
   type USAppointmentPortalClient,
   type USAppointmentRunnerRepository,
 } from "../runner";
+import { classifyUSVisaSchedulingGateText } from "../usvisascheduling-portal";
 
 const baseJob: USAppointmentJobRow = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -259,7 +260,6 @@ test("US appointment runner persists unsupported official-site gates as manual-r
     applicationId: baseJob.application_id,
     status: "appointment_manual_required",
     jobId: baseJob.id,
-    confirmationId: undefined,
   });
   assert.equal(repository.auditEvents.at(-1)?.event_type, "appointment_runner_manual_required");
   assert.equal(
@@ -429,4 +429,34 @@ test("US appointment runner writes follow-up status check fixture", async () => 
   assert.equal(repository.statusChecks[0]?.status, "appointment_exists");
   assert.equal(repository.statusChecks[0]?.screenshot_url, "https://storage.example/status.png");
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_status_checked");
+});
+
+test("USVisaScheduling gate classifier identifies unsupported official-site gates", () => {
+  assert.deepEqual(
+    classifyUSVisaSchedulingGateText("Please complete hCaptcha verification before continuing."),
+    {
+      jobStatus: "appointment_manual_required",
+      actionType: "captcha",
+      instruction: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      metadata: {
+        gate_type: "unsupported_captcha",
+        provider: "hcaptcha",
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "unsupported_captcha",
+      errorMessage: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+    },
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("You are now in the waiting room.")?.metadata.gate_type,
+    "waiting_room",
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("Review and accept the privacy policy before continuing.")?.actionType,
+    "site_policy_review",
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("Payment required before scheduling your appointment.")?.actionType,
+    "payment",
+  );
 });

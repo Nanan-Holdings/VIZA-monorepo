@@ -1,5 +1,6 @@
 import { chromium, type Browser, type Page } from "@playwright/test";
 import type {
+  AppointmentPortalGate,
   AppointmentSlotRow,
   ConfirmationInsert,
   JsonObject,
@@ -28,6 +29,75 @@ interface VisibleSlotCandidate {
 
 function normalizeVisibleText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+export function classifyUSVisaSchedulingGateText(text: string): AppointmentPortalGate | null {
+  const normalized = normalizeVisibleText(text).toLowerCase();
+  if (!normalized) return null;
+
+  if (/hcaptcha|captcha|recaptcha|cloudflare|mfa|multi-factor|verification challenge/.test(normalized)) {
+    let provider = "captcha_or_mfa";
+    if (normalized.includes("hcaptcha")) provider = "hcaptcha";
+    if (normalized.includes("recaptcha")) provider = "recaptcha";
+    if (normalized.includes("cloudflare")) provider = "cloudflare";
+
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "captcha",
+      instruction: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      metadata: {
+        gate_type: "unsupported_captcha",
+        provider,
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "unsupported_captcha",
+      errorMessage: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+    };
+  }
+
+  if (/waiting room|queue|too many requests|rate limit|temporarily unavailable/.test(normalized)) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "site_policy_review",
+      instruction: "USVisaScheduling presented a waiting-room or rate-limit gate.",
+      metadata: {
+        gate_type: "waiting_room",
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "waiting_room",
+      errorMessage: "USVisaScheduling presented a waiting-room or rate-limit gate.",
+    };
+  }
+
+  if (/privacy policy|terms|accept.*policy|policy.*accept|review and accept/.test(normalized)) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "site_policy_review",
+      instruction: "USVisaScheduling requires manual review of an official policy checkpoint.",
+      metadata: {
+        gate_type: "site_policy_review",
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "site_policy_review",
+      errorMessage: "USVisaScheduling requires manual review of an official policy checkpoint.",
+    };
+  }
+
+  if (/payment required|pay fee|mrv|receipt|payment/.test(normalized)) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "payment",
+      instruction: "USVisaScheduling requires an official payment checkpoint before scheduling.",
+      metadata: {
+        gate_type: "payment_required",
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "payment_required",
+      errorMessage: "USVisaScheduling requires an official payment checkpoint before scheduling.",
+    };
+  }
+
+  return null;
 }
 
 function containsAllVisibleParts(text: string, parts: Array<string | null>): boolean {
@@ -94,9 +164,14 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   constructor(private readonly config: USAppointmentRunnerConfig) {}
 
-  async prepareAppointmentFlow(): Promise<{ readyForSlotCapture: boolean }> {
+  async prepareAppointmentFlow(): Promise<{ readyForSlotCapture: boolean; gate?: AppointmentPortalGate }> {
     const page = await this.getPage();
     await this.openPortal(page);
+    const initialGate = await this.detectGate(page);
+    if (initialGate) {
+      return { readyForSlotCapture: false, gate: initialGate };
+    }
+
     const slots = await this.readVisibleSlotCandidates(page);
     if (slots.length > 0) return { readyForSlotCapture: true };
 
@@ -106,6 +181,10 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     if (await calendarLink.isVisible().catch(() => false)) {
       await calendarLink.click();
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+      const postClickGate = await this.detectGate(page);
+      if (postClickGate) {
+        return { readyForSlotCapture: false, gate: postClickGate };
+      }
       return {
         readyForSlotCapture: (await this.readVisibleSlotCandidates(page)).length > 0,
       };
@@ -209,6 +288,11 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         })
         .filter((candidate) => candidate.text.trim().length > 0),
     );
+  }
+
+  private async detectGate(page: Page): Promise<AppointmentPortalGate | null> {
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    return classifyUSVisaSchedulingGateText(bodyText);
   }
 
   private async clickSelectedSlot(page: Page, selectedSlot: AppointmentSlotRow): Promise<void> {

@@ -259,6 +259,8 @@ async function solveSecurityVerificationIfPresent(
       const tryAnotherText = dialog.getByText(/Try another text/i).last();
       if (await tryAnotherText.isVisible().catch(() => false)) {
         await tryAnotherText.click().catch(() => undefined);
+      } else {
+        await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
       }
       await waitForSecurityVerificationTarget(page, 30_000);
       continue;
@@ -270,6 +272,8 @@ async function solveSecurityVerificationIfPresent(
     const tryAnotherText = dialog.getByText(/Try another text/i).last();
     if (await tryAnotherText.isVisible().catch(() => false)) {
       await tryAnotherText.click().catch(() => undefined);
+    } else {
+      await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
     }
   }
 
