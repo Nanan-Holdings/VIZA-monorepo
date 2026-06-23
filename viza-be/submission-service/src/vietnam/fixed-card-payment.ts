@@ -24,6 +24,12 @@ export interface VietnamFixedCardPaymentResult {
 }
 
 type EnvLike = Record<string, string | undefined>;
+export type VietnamFixedCardInput = {
+  pan?: string | null;
+  expiry?: string | null;
+  cvv?: string | null;
+  holderName?: string | null;
+};
 
 const RECEIPT_PATTERNS = [
   /receipt[^A-Z0-9]{0,12}([A-Z0-9-]{6,})/i,
@@ -58,19 +64,38 @@ export function loadVietnamFixedCardFromEnv(env: EnvLike = process.env): Vietnam
     return null;
   }
 
-  const pan = normalizeDigits(env.VN_FIXED_CARD_PAN);
+  return parseVietnamFixedCardInput(
+    {
+      pan: env.VN_FIXED_CARD_PAN,
+      expiry: env.VN_FIXED_CARD_EXPIRY,
+      cvv: env.VN_FIXED_CARD_CVV,
+      holderName: env.VN_FIXED_CARD_HOLDER_NAME,
+    },
+    {
+      panLabel: "VN_FIXED_CARD_PAN",
+      expiryLabel: "VN_FIXED_CARD_EXPIRY",
+      cvvLabel: "VN_FIXED_CARD_CVV",
+    },
+  );
+}
+
+export function parseVietnamFixedCardInput(
+  input: VietnamFixedCardInput,
+  labels: { panLabel?: string; expiryLabel?: string; cvvLabel?: string } = {},
+): VietnamFixedCard {
+  const pan = normalizeDigits(input.pan ?? undefined);
   if (!/^\d{12,19}$/.test(pan)) {
-    throw new Error("VN_FIXED_CARD_PAN must be 12-19 digits.");
+    throw new Error(`${labels.panLabel ?? "cardNumber"} must be 12-19 digits.`);
   }
 
-  const expiry = parseExpiry(env.VN_FIXED_CARD_EXPIRY);
+  const expiry = parseExpiry(input.expiry ?? undefined);
   if (!expiry) {
-    throw new Error("VN_FIXED_CARD_EXPIRY must use MM/YY or MM/YYYY.");
+    throw new Error(`${labels.expiryLabel ?? "expiry"} must use MM/YY or MM/YYYY.`);
   }
 
-  const cvv = normalizeDigits(env.VN_FIXED_CARD_CVV);
+  const cvv = normalizeDigits(input.cvv ?? undefined);
   if (!/^\d{3,4}$/.test(cvv)) {
-    throw new Error("VN_FIXED_CARD_CVV must be 3-4 digits.");
+    throw new Error(`${labels.cvvLabel ?? "cvv"} must be 3-4 digits.`);
   }
 
   return {
@@ -78,7 +103,7 @@ export function loadVietnamFixedCardFromEnv(env: EnvLike = process.env): Vietnam
     expiryMonth: expiry.month,
     expiryYear: expiry.year,
     cvv,
-    holderName: (env.VN_FIXED_CARD_HOLDER_NAME ?? "VIZA").trim() || "VIZA",
+    holderName: (input.holderName ?? "VIZA").trim() || "VIZA",
   };
 }
 

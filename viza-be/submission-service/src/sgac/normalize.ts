@@ -1,5 +1,13 @@
 import type { SubmissionPayload } from "../country-submissions/types";
-import { normalizeSgacHotelName } from "./official-options";
+import {
+  normalizeSgacBirthCountry,
+  normalizeSgacCarrierCode,
+  normalizeSgacCity,
+  normalizeSgacHotelName,
+  normalizeSgacNationality,
+  normalizeSgacPurposeOfTravel,
+  SGAC_CITY_OPTIONS,
+} from "./official-options";
 
 export class SgacPortalValidationError extends Error {
   readonly code = "sgac_portal_payload_validation_failed" as const;
@@ -172,6 +180,10 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/[\s/-]+/g, "_");
 }
 
+function normalizeLooseLookupValue(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s/-]+/g, " ");
+}
+
 function text(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -221,18 +233,43 @@ function assertArrivalInIcaWindow(arrivalIso: string, now: Date): void {
   }
 }
 
+function findOfficialCountryLabel(value: string): string | null {
+  const official = normalizeSgacBirthCountry(value);
+  if (official) return official;
+  const legacy = COUNTRY_LABELS[normalizeKey(value)] ?? COUNTRY_LABELS[value.trim().toLowerCase()];
+  if (!legacy) return null;
+  return normalizeSgacBirthCountry(legacy);
+}
+
+function findOfficialNationalityLabel(value: string): string | null {
+  const official = normalizeSgacNationality(value);
+  if (official) return official;
+  const legacy = NATIONALITY_LABELS[normalizeKey(value)] ?? NATIONALITY_LABELS[value.trim().toLowerCase()];
+  if (!legacy) return null;
+  return normalizeSgacNationality(legacy);
+}
+
+function findOfficialCityLabel(value: string): string | null {
+  const official = normalizeSgacCity(value);
+  if (official) return official;
+  const loose = normalizeLooseLookupValue(value);
+  const exactCity = SGAC_CITY_OPTIONS.find((item) => {
+    const parts = item.label.split(",").map((part) => normalizeLooseLookupValue(part));
+    return parts[parts.length - 1] === loose;
+  });
+  return exactCity?.label ?? null;
+}
+
 function mapCountryLabel(value: string, field: string, missing: string[]): string {
-  const direct = COUNTRY_LABELS[normalizeKey(value)] ?? COUNTRY_LABELS[value.trim().toLowerCase()];
-  if (direct) return direct;
-  if (/^[A-Z ,.'-]{3,}$/.test(value.trim())) return value.trim().toUpperCase();
+  const official = findOfficialCountryLabel(value);
+  if (official) return official;
   missing.push(field);
   return "";
 }
 
 function mapNationalityLabel(value: string, missing: string[]): string {
-  const direct = NATIONALITY_LABELS[normalizeKey(value)] ?? NATIONALITY_LABELS[value.trim().toLowerCase()];
-  if (direct) return direct;
-  if (/^[A-Z /,'-]{3,}$/.test(value.trim())) return value.trim().toUpperCase();
+  const official = findOfficialNationalityLabel(value);
+  if (official) return official;
   missing.push("nationality");
   return "";
 }
@@ -240,8 +277,13 @@ function mapNationalityLabel(value: string, missing: string[]): string {
 function mapPurpose(value: string | null, missing: string[]): { label: string; raw: string } {
   const raw = required(value, "purpose_of_travel", "Purpose of travel", missing);
   if (!raw) return { label: "", raw: "" };
+  const official = normalizeSgacPurposeOfTravel(raw);
+  if (official) return { label: official, raw };
   const mapped = PURPOSE_LABELS[normalizeKey(raw)] ?? PURPOSE_LABELS[raw.trim().toLowerCase()];
-  if (mapped) return { label: mapped, raw };
+  if (mapped) {
+    const officialMapped = normalizeSgacPurposeOfTravel(mapped);
+    if (officialMapped) return { label: officialMapped, raw };
+  }
   if (/holiday|sightseeing|leisure/i.test(raw)) return { label: "Holiday/Sightseeing/Leisure", raw };
   if (/business|meeting|conference|exhibition/i.test(raw)) {
     return { label: "Business/Meeting/Conference/Convention/Exhibition", raw };
@@ -329,6 +371,23 @@ function splitFlightNumber(raw: string): { carrierCodeQuery: string; flightNo: s
   return { carrierCodeQuery: raw.trim(), flightNo: "" };
 }
 
+function normalizeCarrierForIca(
+  explicitCarrierCode: string | null,
+  split: { carrierCodeQuery: string; flightNo: string },
+  missing: string[],
+): { carrierCodeQuery: string; flightNo: string } {
+  const rawCarrier = explicitCarrierCode?.trim() || split.carrierCodeQuery;
+  const officialCarrier = rawCarrier ? normalizeSgacCarrierCode(rawCarrier) : null;
+  if (!officialCarrier) {
+    missing.push("carrier_code");
+    return split;
+  }
+  return {
+    carrierCodeQuery: officialCarrier.code,
+    flightNo: split.flightNo,
+  };
+}
+
 function looksLikeCommercialFlightNumber(split: { carrierCodeQuery: string; flightNo: string }): boolean {
   return /^[A-Z0-9]{2,3}$/.test(split.carrierCodeQuery) && /^\d+[A-Z]?$/.test(split.flightNo);
 }
@@ -342,14 +401,17 @@ function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTran
     const isCommercial =
       (transportType !== "private" && transportType !== "cargo" && transportType !== "other") ||
       looksLikeCommercialFlightNumber(split);
+    const carrier = isCommercial
+      ? normalizeCarrierForIca(read(payload, "carrier_code"), split, missing)
+      : split;
     if (isCommercial && (!split.carrierCodeQuery || !split.flightNo)) {
       missing.push("transport_number");
     }
     return {
       mode: "air",
       airTransportType: isCommercial ? "commercial" : "other",
-      carrierCodeQuery: split.carrierCodeQuery,
-      flightNo: split.flightNo,
+      carrierCodeQuery: carrier.carrierCodeQuery,
+      flightNo: carrier.flightNo,
       carrierName: read(payload, "carrier_name") ?? undefined,
       transportNumber,
     };
@@ -432,12 +494,15 @@ export function normalizeSgacPortalPayload(
       "place_of_birth_country",
       missing,
     ),
-    residenceCityQuery: required(
-      read(payload, "place_of_residence") ?? read(payload, "place_of_residence_city"),
-      "place_of_residence",
-      "Place of residence",
-      missing,
-    ),
+    residenceCityQuery:
+      findOfficialCityLabel(
+        required(
+          read(payload, "place_of_residence") ?? read(payload, "place_of_residence_city"),
+          "place_of_residence",
+          "Place of residence",
+          missing,
+        ),
+      ) ?? "",
     email: required(payload.personal.email, "email_address", "Email address", missing),
     phoneCountryCode: phone.countryCode,
     phoneNumber: phone.phoneNumber,
@@ -446,16 +511,20 @@ export function normalizeSgacPortalPayload(
     hasYellowFeverTravelHistory: boolYes(read(payload, "recent_country_visit_history")),
     arrivalDate: formatDate(arrivalIso),
     departureDate: formatDate(departure),
-    lastCityQuery: required(
-      read(payload, "last_city_or_port_before_singapore"),
-      "last_city_or_port_before_singapore",
-      "Last city / port before Singapore",
-      missing,
-    ),
-    nextCityQuery:
+    lastCityQuery:
+      findOfficialCityLabel(
+        required(
+          read(payload, "last_city_or_port_before_singapore"),
+          "last_city_or_port_before_singapore",
+          "Last city / port before Singapore",
+          missing,
+        ),
+      ) ?? "",
+    nextCityQuery: findOfficialCityLabel(
       read(payload, "next_city_or_port_after_singapore") ??
-      read(payload, "last_city_or_port_before_singapore") ??
-      "",
+        read(payload, "last_city_or_port_before_singapore") ??
+        "",
+    ) ?? "",
     purposeOfTravelLabel: purpose.label,
     purposeOfTravelRaw: purpose.raw,
     transport: buildTransport(payload, missing),
@@ -465,6 +534,12 @@ export function normalizeSgacPortalPayload(
   if (!normalized.nextCityQuery) {
     missing.push("next_city_or_port_after_singapore");
   }
+  if (!normalized.residenceCityQuery) {
+    missing.push("place_of_residence");
+  }
+  if (!normalized.lastCityQuery) {
+    missing.push("last_city_or_port_before_singapore");
+  }
 
   const uniqueMissing = [...new Set(missing)];
   if (uniqueMissing.length > 0) {
@@ -473,8 +548,11 @@ export function normalizeSgacPortalPayload(
       arrival_date: "Date of arrival in Singapore",
       departure_date: "Date of departure from Singapore",
       place_of_residence: "Place of residence",
+      last_city_or_port_before_singapore: "Last City/Port of Embarkation Before Singapore must be an official ICA city/port option",
+      next_city_or_port_after_singapore: "Next City/Port of Disembarkation After Singapore must be an official ICA city/port option",
       transport_number: "Transport number",
       accommodation_name: "Hotel name must be an official ICA hotel option",
+      carrier_code: "Carrier code must be an official ICA airline option",
     };
     const readableMissing = uniqueMissing.map((field) => labels[field] ?? field).join(", ");
     throw new SgacPortalValidationError(

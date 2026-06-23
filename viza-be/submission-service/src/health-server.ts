@@ -1,5 +1,6 @@
 import * as http from "node:http";
 import { supabase } from "./supabase.js";
+import { putVietnamCardSession } from "./vietnam/card-session.js";
 
 /**
  * DEP-004: minimal HTTP server for Cloud Run health probes.
@@ -22,6 +23,65 @@ async function dbReachable(): Promise<boolean> {
     return !error;
   } catch {
     return false;
+  }
+}
+
+function envEnabled(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test((value ?? "").trim());
+}
+
+function sendJson(res: http.ServerResponse, status: number, body: Record<string, unknown>): void {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+function isLocalRequest(req: http.IncomingMessage): boolean {
+  const address = req.socket.remoteAddress ?? "";
+  return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
+}
+
+async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.length;
+    if (total > maxBytes) {
+      throw new Error("Request body is too large.");
+    }
+    chunks.push(buffer);
+  }
+  if (chunks.length === 0) return {};
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function handleVietnamCardSession(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req)) as Record<string, unknown>;
+    const card = body.card && typeof body.card === "object" && !Array.isArray(body.card)
+      ? (body.card as Record<string, unknown>)
+      : {};
+    const session = putVietnamCardSession({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      card: {
+        pan: typeof card.pan === "string" ? card.pan : null,
+        expiry: typeof card.expiry === "string" ? card.expiry : null,
+        cvv: typeof card.cvv === "string" ? card.cvv : null,
+        holderName: typeof card.holderName === "string" ? card.holderName : null,
+      },
+    });
+    sendJson(res, 200, { ok: true, ...session });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -50,12 +110,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       })();
       return;
     }
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "not_found" }));
+    if (req.method === "POST" && url === "/local/vietnam/card-session") {
+      void handleVietnamCardSession(req, res);
+      return;
+    }
+    sendJson(res, 404, { error: "not_found" });
   });
 
   server.listen(port, () => {
-    console.log(`[health] listening on :${port} (/health, /ready)`);
+    const extra = envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)
+      ? ", /local/vietnam/card-session"
+      : "";
+    console.log(`[health] listening on :${port} (/health, /ready${extra})`);
   });
   return server;
 }

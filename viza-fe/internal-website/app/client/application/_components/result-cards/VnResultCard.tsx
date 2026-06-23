@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, CheckCircle2, ExternalLink, FileCheck2, Loader2, Mail, Pencil, Receipt, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, ExternalLink, FileCheck2, Loader2, Mail, Pencil, Receipt, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,11 @@ export function VnResultCard({
   const [officialFeeStatus, setOfficialFeeStatus] = useState<Record<string, unknown> | null>(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardHolderName, setCardHolderName] = useState("");
+  const [oneTimeCardLast4, setOneTimeCardLast4] = useState<string | null>(null);
   const hasRegistrationCode = Boolean(result.registrationCode);
   const isPaymentCheckpoint = result.status === "stopped_at_pay" || hasRegistrationCode;
   const receipt = officialFeeStatus?.receipt as Record<string, unknown> | null | undefined;
@@ -61,6 +66,7 @@ export function VnResultCard({
     intentStatus === "pending" ||
     intentStatus === "manual_review";
   const paymentProgress = paymentPaid ? 100 : paymentQueued ? 82 : paymentNeedsOperator ? 72 : intentStatus ? 65 : hasRegistrationCode ? 48 : 30;
+  const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
   const isFormCheckpoint = result.status === "official_form_reached";
   const isManualCheckpoint = Boolean(result.manualAction);
   const title = paymentPaid
@@ -198,11 +204,25 @@ export function VnResultCard({
 
       const pay = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          card: {
+            pan: cardNumber,
+            expiry: cardExpiry,
+            cvv: cardCvv,
+            holderName: cardHolderName,
+          },
+        }),
       });
       const payPayload = (await pay.json().catch(() => null)) as Record<string, unknown> | null;
       if (!pay.ok) {
         throw new Error(typeof payPayload?.error === "string" ? payPayload.error : `official-fee/pay returned ${pay.status}`);
       }
+      const cardSession = payPayload?.cardSession as Record<string, unknown> | undefined;
+      const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
+      setOneTimeCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
+      setCardNumber("");
+      setCardCvv("");
       setOfficialFeeStatus((current) => ({ ...(current ?? {}), paymentQueued: true, queueId: payPayload?.queueId ?? null }));
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : String(error));
@@ -301,15 +321,71 @@ export function VnResultCard({
             </div>
 
             {!paymentPaid && !paymentQueued && !paymentNeedsOperator && (
-              <Button
-                type="button"
-                className="w-full"
-                onClick={authorizeAndPay}
-                disabled={!applicationId || paymentBusy}
-              >
-                {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                {isZh ? "提交" : "Submit"}
-              </Button>
+              <div className="space-y-3 rounded-md border border-brand-100 bg-white p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <CreditCard className="h-4 w-4 text-brand-500" />
+                  {isZh ? "本次付款银行卡" : "One-time payment card"}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
+                    <input
+                      value={cardNumber}
+                      onChange={(event) => setCardNumber(event.target.value)}
+                      autoComplete="cc-number"
+                      inputMode="numeric"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
+                    <input
+                      value={cardExpiry}
+                      onChange={(event) => setCardExpiry(event.target.value)}
+                      autoComplete="cc-exp"
+                      inputMode="numeric"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder="MM/YY"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs text-muted-foreground">CVV</span>
+                    <input
+                      value={cardCvv}
+                      onChange={(event) => setCardCvv(event.target.value)}
+                      autoComplete="cc-csc"
+                      inputMode="numeric"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder="CVV"
+                    />
+                  </label>
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
+                    <input
+                      value={cardHolderName}
+                      onChange={(event) => setCardHolderName(event.target.value)}
+                      autoComplete="cc-name"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {isZh
+                    ? "卡号和 CVV 只用于本次官方付款，会发送到本机 submission-service 的短时内存会话；不会保存到数据库、env、日志或个人资料。"
+                    : "Card number and CVV are used only for this official payment through a short-lived local submission-service session."}
+                </p>
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={authorizeAndPay}
+                  disabled={!applicationId || paymentBusy || !cardReady}
+                >
+                  {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                  {isZh ? "提交" : "Submit"}
+                </Button>
+              </div>
             )}
 
             {!paymentPaid && paymentQueued && (
@@ -317,6 +393,14 @@ export function VnResultCard({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isZh ? "已提交，等待后台付款" : "Submitted, waiting for payment worker"}
               </Button>
+            )}
+
+            {oneTimeCardLast4 && !paymentPaid && (
+              <p className="rounded-md border border-brand-100 bg-white px-3 py-2 text-xs text-muted-foreground">
+                {isZh
+                  ? `已接收本次付款卡尾号 ${oneTimeCardLast4}，后台 worker 正在处理。`
+                  : `Received one-time payment card ending ${oneTimeCardLast4}; the worker is processing it.`}
+              </p>
             )}
 
             {!paymentPaid && paymentNeedsOperator && (

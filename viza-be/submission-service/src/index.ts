@@ -91,6 +91,7 @@ import {
   type VietnamOfficialStatus,
 } from "./vietnam/status-check";
 import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
+import { consumeVietnamCardSession } from "./vietnam/card-session";
 import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
@@ -3553,7 +3554,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
     const now = new Date().toISOString();
 
-    if (autopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false) && !dryRunReceipt) {
+    if (autopayEnabled && !dryRunReceipt) {
       const { profile } = await loadApplicantData(item.application_id);
       const answers = await loadDs160Answers(item.application_id).catch(() => ({}));
       const email = readAnswerValue(answers, [
@@ -3574,6 +3575,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
       fs.mkdirSync(diagnosticsDir, { recursive: true });
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
+      const cardSession = consumeVietnamCardSession(item.application_id);
       const payment = await resumeVietnamOfficialPayment({
         registrationCode,
         email,
@@ -3581,6 +3583,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         headless: readBooleanEnv("VN_PLAYWRIGHT_HEADLESS", false),
         screenshotPath,
         timeoutMs: readNumberEnv("VN_PAYMENT_RESUME_TIMEOUT_MS", 180_000),
+        card: cardSession,
       });
       if (payment.status === "paid") {
         const receiptNumber = payment.receiptReference;

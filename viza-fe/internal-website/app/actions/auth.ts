@@ -65,23 +65,26 @@ export async function signIn(formData: FormData) {
     const userRole = userData?.role;
     revalidatePath("/", "layout");
 
-    if (userRole === "client") {
+    const normalizedEmail = email.toLowerCase().trim();
+    const adminClient = createAdminClient();
+    const { data: applicant } = userRole === "client"
+      ? { data: null }
+      : await adminClient
+          .from("applicant_profiles")
+          .select("id, email")
+          .or(`auth_user_id.eq.${user.id},email.eq.${normalizedEmail}`)
+          .limit(1)
+          .maybeSingle();
+
+    if (userRole === "client" || applicant) {
       // For client users logging in with password, create the client JWT session
       // This allows bypassing OTP for test accounts that have password auth
-      const normalizedEmail = email.toLowerCase().trim();
-      const adminClient = createAdminClient();
 
       // Look up the applicant by email
-      const { data: applicant } = await adminClient
-        .from("users")
-        .select("id")
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      const applicantId = applicant?.id ?? user.id;
 
-      if (applicant) {
-        // Create the client JWT session so they can access /client/* routes
-        await createClientSession(applicant.id, normalizedEmail);
-      }
+      // Create the client JWT session so they can access /client/* routes
+      await createClientSession(applicantId, normalizedEmail);
 
       redirect("/client/home");
     } else {
