@@ -349,6 +349,7 @@ export function USAppointmentAssistant({
         mode: "assisted_live",
         ds160ConfirmationCode: ds160Code.trim() || undefined,
         applyingCountryCode: "CN",
+        applyingPostCity: job?.applyingPostCity || "Beijing",
         schedulingProvider: "usvisascheduling",
         idempotencyKey: restartFromTerminal
           ? `us-appointment:${applicationId}:assisted-live:${Date.now()}`
