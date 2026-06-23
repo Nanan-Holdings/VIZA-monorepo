@@ -50,14 +50,27 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('field_name: "purpose_of_travel"');
     expect(seedSource).toContain('label: "Purpose of Travel"');
     expect(seedSource).toContain('validation_rules: rules("旅行目的"');
-    expect(seedSource).toContain('option("other", "其他", "Others")');
+    expect(officialOptionsSource).toContain('"value": "Holiday/Sightseeing/Leisure"');
+    expect(officialOptionsSource).toContain('"value": "Others"');
   });
 
   test("keeps hotel name aligned with ICA autocomplete options instead of free text", () => {
     expect(seedSource).toContain('field_name: "accommodation_name", label: "Hotel Name", field_type: "select"');
     expect(seedSource).toContain('options: HOTEL_NAMES');
-    expect(officialOptionsSource).toContain('value: "MARINA BAY SANDS"');
-    expect(officialOptionsSource).toContain('labelZh: "滨海湾金沙"');
+    expect(officialOptionsSource).toContain('"value": "MARINA BAY SANDS SINGAPORE"');
+    expect(officialOptionsSource).toContain('"labelEn": "MARINA BAY SANDS SINGAPORE"');
+  });
+
+  test("keeps ICA autocomplete fields as official dropdowns instead of free text", () => {
+    expect(seedSource).toContain('field_name: "nationality", label: "Nationality/Citizenship", field_type: "select"');
+    expect(seedSource).toContain('options: NATIONALITIES');
+    expect(seedSource).toContain('field_name: "place_of_birth_country", label: "Country/Place of Birth", field_type: "select"');
+    expect(seedSource).toContain('options: BIRTH_COUNTRIES');
+    expect(seedSource).toContain('field_name: "place_of_residence", label: "Place of Residence", field_type: "select"');
+    expect(seedSource).toContain('field_name: "last_city_or_port_before_singapore", label: "Last City/Port of Embarkation Before Singapore", field_type: "select"');
+    expect(seedSource).toContain('field_name: "next_city_or_port_after_singapore", label: "Next City/Port of Disembarkation After Singapore", field_type: "select"');
+    expect(officialOptionsSource).toContain('"value": "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR"');
+    expect(officialOptionsSource).toContain('"value": "CHINESE"');
   });
 
   test("keeps arrival and departure dates together in trip information", () => {

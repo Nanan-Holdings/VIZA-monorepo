@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   extractVietnamPaymentReceiptReference,
   loadVietnamFixedCardFromEnv,
+  parseVietnamFixedCardInput,
   redactVietnamFixedCard,
   vietnamPaymentNeedsHuman,
 } from "../fixed-card-payment";
@@ -50,6 +51,23 @@ test("vn.fixed-card-payment: redaction never returns PAN or CVV", () => {
   });
   assert.equal(JSON.stringify(redactVietnamFixedCard(card)).includes("4111111111111111"), false);
   assert.equal(JSON.stringify(redactVietnamFixedCard(card)).includes("123"), false);
+});
+
+test("vn.fixed-card-payment: parses one-time frontend card input", () => {
+  const card = parseVietnamFixedCardInput({
+    pan: "4111 1111 1111 1111",
+    expiry: "1/2031",
+    cvv: "321",
+    holderName: "Applicant",
+  });
+
+  assert.deepEqual(card, {
+    pan: "4111111111111111",
+    expiryMonth: "01",
+    expiryYear: "2031",
+    cvv: "321",
+    holderName: "Applicant",
+  });
 });
 
 test("vn.fixed-card-payment: rejects malformed sensitive fields", () => {

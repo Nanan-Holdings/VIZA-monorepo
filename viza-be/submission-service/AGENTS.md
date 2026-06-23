@@ -106,10 +106,18 @@ filling and one-shot submission for the applicant.
   entry points for official portal reach/fill validation. SGAC smoke stops
   before final submit unless run with `--submit` and real applicant data.
 - `scripts/setup-vn-card-profile.ps1` and `scripts/start-vn-autopay-dev.ps1`:
-  local-only Vietnam fixed-card pilot helpers. The setup script may save only
+  local-only Vietnam official-fee payment helpers. The dev start script enables
+  one-time frontend card sessions by default and reads no card values in the
+  terminal unless `-FixedCard` is passed. The setup script may save only
   non-sensitive card metadata such as last4/expiry/holder in ignored local
-  files. Full PAN and CVV must be entered at worker startup and must not be
-  committed, logged, or stored in `.env`.
+  files. Full PAN and CVV must not be committed, logged, or stored in `.env`.
+- `src/vietnam/card-session.ts` plus the health-server
+  `POST /local/vietnam/card-session` endpoint: local-only one-time card handoff
+  for frontend-entered Vietnam official-fee payments. It is enabled only by
+  `VN_LOCAL_CARD_SESSION_ENABLED=true`, accepts localhost requests, stores PAN
+  and CVV in process memory with a short TTL, and deletes the card when the
+  payment worker consumes it. Do not persist these values to DB, queue payloads,
+  logs, traces, `.env`, AGENTS, or profile records.
 - `src/alert.ts`: Resend failure alerts.
 - `src/supabase.ts`: Supabase service client.
 
