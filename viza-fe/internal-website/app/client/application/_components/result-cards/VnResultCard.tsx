@@ -320,11 +320,13 @@ export function VnResultCard({
               )}
             </div>
 
-            {!paymentPaid && !paymentQueued && !paymentNeedsOperator && (
+            {!paymentPaid && (
               <div className="space-y-3 rounded-md border border-brand-100 bg-white p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <CreditCard className="h-4 w-4 text-brand-500" />
-                  {isZh ? "本次付款银行卡" : "One-time payment card"}
+                  {paymentQueued || paymentNeedsOperator
+                    ? (isZh ? "重新提交本次付款银行卡" : "Resubmit one-time payment card")
+                    : (isZh ? "本次付款银行卡" : "One-time payment card")}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-1 sm:col-span-2">
@@ -376,6 +378,20 @@ export function VnResultCard({
                     ? "卡号和 CVV 只用于本次官方付款，会发送到本机 submission-service 的短时内存会话；不会保存到数据库、env、日志或个人资料。"
                     : "Card number and CVV are used only for this official payment through a short-lived local submission-service session."}
                 </p>
+                {paymentQueued && (
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {isZh
+                      ? "当前已有付款队列在等待后台处理。如果后台没有拿到卡信息，重新填写并提交会刷新本次一次性卡会话并重新排队。"
+                      : "A payment job is already queued. If the worker missed the card session, resubmitting refreshes the one-time card session and queues payment again."}
+                  </p>
+                )}
+                {paymentNeedsOperator && (
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {isZh
+                      ? "当前付款任务需要后台重新处理。重新填写并提交银行卡后，系统会刷新本次一次性卡会话并重新排队。"
+                      : "The current payment job needs backend handling. Resubmitting refreshes the one-time card session and queues payment again."}
+                  </p>
+                )}
                 <Button
                   type="button"
                   className="w-full"
@@ -383,13 +399,15 @@ export function VnResultCard({
                   disabled={!applicationId || paymentBusy || !cardReady}
                 >
                   {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                  {isZh ? "提交" : "Submit"}
+                  {paymentQueued || paymentNeedsOperator
+                    ? (isZh ? "重新提交银行卡并继续付款" : "Resubmit card and continue payment")
+                    : (isZh ? "提交" : "Submit")}
                 </Button>
               </div>
             )}
 
             {!paymentPaid && paymentQueued && (
-              <Button type="button" className="w-full" disabled>
+              <Button type="button" className="w-full" variant="outline" disabled>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isZh ? "已提交，等待后台付款" : "Submitted, waiting for payment worker"}
               </Button>
