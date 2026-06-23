@@ -1,4 +1,7 @@
-import { chromium, type Browser, type Page } from "@playwright/test";
+import { existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { solveCaptcha } from "../captcha";
 import type {
   AppointmentAccountCredentials,
   AppointmentPortalGate,
@@ -41,6 +44,15 @@ interface PortalDiagnostics {
   loginVisible: boolean;
   scheduleControlVisible: boolean;
   slotCandidateCount: number;
+}
+
+interface TurnstileParams {
+  sitekey: string | null;
+  action: string | null;
+  cData: string | null;
+  chlPageData: string | null;
+  pageUrl: string;
+  userAgent: string;
 }
 
 function normalizeVisibleText(value: string | null | undefined): string {
@@ -196,6 +208,7 @@ function inferStatusFromText(text: string): string {
 
 export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPortalClient {
   private browser: Browser | null = null;
+  private context: BrowserContext | null = null;
   private page: Page | null = null;
 
   constructor(private readonly config: USAppointmentRunnerConfig) {}
@@ -208,7 +221,25 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     await this.openPortal(page);
     const initialGate = await this.detectGate(page);
     if (initialGate) {
-      return { readyForSlotCapture: false, gate: initialGate };
+      const solved = initialGate.actionType === "captcha"
+        ? await this.solveTurnstileIfPresent(page)
+        : null;
+      if (!solved) return { readyForSlotCapture: false, gate: initialGate };
+      const gateAfterSolve = await this.detectGate(page);
+      if (gateAfterSolve) {
+        return {
+          readyForSlotCapture: false,
+          gate: {
+            ...gateAfterSolve,
+            metadata: {
+              ...gateAfterSolve.metadata,
+              turnstile_solve_attempted: true,
+              turnstile_solve_id: solved.solveId ? "[REDACTED]" : null,
+              turnstile_duration_ms: solved.durationMs,
+            },
+          },
+        };
+      }
     }
 
     if (credentials && await this.isLoginVisible(page)) {
@@ -216,7 +247,25 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
       const loginGate = await this.detectGate(page);
       if (loginGate) {
-        return { readyForSlotCapture: false, gate: loginGate };
+        const solved = loginGate.actionType === "captcha"
+          ? await this.solveTurnstileIfPresent(page)
+          : null;
+        if (!solved) return { readyForSlotCapture: false, gate: loginGate };
+        const gateAfterSolve = await this.detectGate(page);
+        if (gateAfterSolve) {
+          return {
+            readyForSlotCapture: false,
+            gate: {
+              ...gateAfterSolve,
+              metadata: {
+                ...gateAfterSolve.metadata,
+                turnstile_solve_attempted: true,
+                turnstile_solve_id: solved.solveId ? "[REDACTED]" : null,
+                turnstile_duration_ms: solved.durationMs,
+              },
+            },
+          };
+        }
       }
     }
 
@@ -305,16 +354,68 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   async close(): Promise<void> {
+    await this.saveStorageState().catch(() => undefined);
     await this.browser?.close();
     this.browser = null;
+    this.context = null;
     this.page = null;
   }
 
   private async getPage(): Promise<Page> {
     if (this.page) return this.page;
-    this.browser = await chromium.launch({ headless: this.config.playwrightHeadless });
-    this.page = await this.browser.newPage();
+    this.browser = await chromium.launch({
+      channel: this.config.playwrightChannel ?? undefined,
+      headless: this.config.playwrightHeadless,
+    });
+    const storageState = this.config.playwrightStorageStatePath
+      && existsSync(this.config.playwrightStorageStatePath)
+      ? this.config.playwrightStorageStatePath
+      : undefined;
+    this.context = await this.browser.newContext({ storageState });
+    this.page = await this.context.newPage();
+    await this.installTurnstileHook(this.page);
     return this.page;
+  }
+
+  private async saveStorageState(): Promise<void> {
+    if (!this.context || !this.config.playwrightStorageStatePath) return;
+    mkdirSync(dirname(this.config.playwrightStorageStatePath), { recursive: true });
+    await this.context.storageState({ path: this.config.playwrightStorageStatePath });
+  }
+
+  private async installTurnstileHook(page: Page): Promise<void> {
+    await page.addInitScript(() => {
+      const w = window as typeof window & {
+        turnstile?: { render?: (container: unknown, options?: Record<string, unknown>) => unknown };
+        __vizaTurnstileHooked?: boolean;
+        __vizaTurnstileParams?: Record<string, unknown>;
+        __vizaTurnstileCallback?: (token: string) => void;
+      };
+      const timer = window.setInterval(() => {
+        if (!w.turnstile?.render || w.__vizaTurnstileHooked) return;
+        const originalRender = w.turnstile.render.bind(w.turnstile);
+        w.turnstile.render = (container: unknown, options: Record<string, unknown> = {}) => {
+          const isChallengePage = Boolean(options.cData || options.chlPageData);
+          w.__vizaTurnstileParams = {
+            sitekey: options.sitekey,
+            cData: options.cData,
+            chlPageData: options.chlPageData,
+            action: options.action,
+            pageUrl: window.location.href,
+            userAgent: navigator.userAgent,
+          };
+          if (typeof options.callback === "function") {
+            w.__vizaTurnstileCallback = options.callback as (token: string) => void;
+          }
+          if (isChallengePage) {
+            return "viza-turnstile-challenge";
+          }
+          return originalRender(container, options);
+        };
+        w.__vizaTurnstileHooked = true;
+        window.clearInterval(timer);
+      }, 10);
+    });
   }
 
   private async openPortal(page: Page): Promise<void> {
@@ -364,6 +465,100 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   private async detectGate(page: Page): Promise<AppointmentPortalGate | null> {
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     return classifyUSVisaSchedulingGateText(bodyText);
+  }
+
+  private async readTurnstileParams(page: Page): Promise<TurnstileParams> {
+    return page.evaluate(() => {
+      const w = window as typeof window & {
+        __vizaTurnstileParams?: Record<string, unknown>;
+      };
+      const captured = w.__vizaTurnstileParams ?? {};
+      const elementSitekey = document
+        .querySelector("[data-sitekey]")
+        ?.getAttribute("data-sitekey");
+      const iframeSitekey = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe"))
+        .map((iframe) => {
+          try {
+            const url = new URL(iframe.src);
+            return url.searchParams.get("sitekey") ?? url.searchParams.get("k");
+          } catch {
+            return null;
+          }
+        })
+        .find((value): value is string => Boolean(value));
+
+      const stringValue = (value: unknown): string | null =>
+        typeof value === "string" && value.trim() ? value : null;
+
+      return {
+        sitekey: stringValue(captured.sitekey) ?? elementSitekey ?? iframeSitekey ?? null,
+        action: stringValue(captured.action),
+        cData: stringValue(captured.cData),
+        chlPageData: stringValue(captured.chlPageData),
+        pageUrl: stringValue(captured.pageUrl) ?? window.location.href,
+        userAgent: stringValue(captured.userAgent) ?? navigator.userAgent,
+      };
+    });
+  }
+
+  private async waitForTurnstileParams(
+    page: Page,
+    timeoutMs = 15_000,
+  ): Promise<TurnstileParams> {
+    const started = Date.now();
+    let latest = await this.readTurnstileParams(page);
+    while (!latest.sitekey && Date.now() - started < timeoutMs) {
+      await page.waitForTimeout(250);
+      latest = await this.readTurnstileParams(page);
+    }
+    return latest;
+  }
+
+  private async applyTurnstileToken(page: Page, token: string): Promise<void> {
+    await page.evaluate((captchaToken) => {
+      const w = window as typeof window & {
+        __vizaTurnstileCallback?: (token: string) => void;
+      };
+      const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='g-recaptcha-response'], textarea[name='g-recaptcha-response']",
+      );
+      fields.forEach((field) => {
+        field.value = captchaToken;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      if (typeof w.__vizaTurnstileCallback === "function") {
+        w.__vizaTurnstileCallback(captchaToken);
+      }
+    }, token);
+  }
+
+  private async solveTurnstileIfPresent(
+    page: Page,
+  ): Promise<{ solveId: string; durationMs: number } | null> {
+    if (!this.config.captchaSolvingEnabled || !this.config.twoCaptchaConfigured) {
+      return null;
+    }
+    const params = await this.waitForTurnstileParams(page);
+    if (!params.sitekey) return null;
+
+    const solve = await solveCaptcha({
+      type: "turnstile",
+      siteKey: params.sitekey,
+      pageUrl: params.pageUrl,
+      action: params.action ?? undefined,
+      cdata: params.cData ?? undefined,
+      pageData: params.chlPageData ?? undefined,
+      userAgent: params.userAgent,
+      timeoutMs: 120_000,
+    });
+    await this.applyTurnstileToken(page, solve.text);
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForFunction(() => {
+      const text = document.body?.innerText ?? "";
+      return !/Cloudflare|安全验证|verify you are human|checking your browser|Attention Required/i.test(text);
+    }, { timeout: 30_000 }).catch(() => undefined);
+    return { solveId: solve.solveId, durationMs: solve.durationMs };
   }
 
   private scheduleControl(page: Page) {

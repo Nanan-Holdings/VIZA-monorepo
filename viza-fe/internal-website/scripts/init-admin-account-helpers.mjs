@@ -19,3 +19,7 @@ export function buildExistingAuthUserUpdate({
 
   return update;
 }
+
+export function shouldResetExistingPassword({ resetPassword, passwordArg }) {
+  return Boolean(resetPassword && passwordArg?.trim());
+}

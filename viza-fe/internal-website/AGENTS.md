@@ -59,7 +59,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Local admin test-account bootstrap through
   `scripts/init-admin-account.mjs`, with password-reset decisions covered by
   `scripts/init-admin-account-helpers.mjs` and
-  `scripts/__tests__/init-admin-account.test.ts`.
+  `scripts/__tests__/init-admin-account.test.ts`. Existing auth users must keep
+  their password unless the CLI is run with both `--reset-password` and
+  `--password`.
 - Hosted Supabase auth email template sync through
   `scripts/sync-supabase-auth-email-templates.mjs`.
 - Travel card coverage audit through

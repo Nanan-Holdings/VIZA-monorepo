@@ -5,7 +5,10 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildExistingAuthUserUpdate } from "./init-admin-account-helpers.mjs";
+import {
+  buildExistingAuthUserUpdate,
+  shouldResetExistingPassword,
+} from "./init-admin-account-helpers.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(scriptDir, "..");
@@ -56,6 +59,10 @@ function getArg(name) {
   return undefined;
 }
 
+function hasFlag(name) {
+  return process.argv.includes(`--${name}`);
+}
+
 function generatePassword() {
   return `Viza-${randomBytes(12).toString("base64url")}!1`;
 }
@@ -100,9 +107,14 @@ async function main() {
     .toLowerCase();
   const name = (getArg("name") ?? process.env.VIZA_ADMIN_NAME ?? "VIZA Test Admin").trim();
   const role = (getArg("role") ?? process.env.VIZA_ADMIN_ROLE ?? "admin").trim();
-  const providedPassword = getArg("password") ?? process.env.VIZA_ADMIN_PASSWORD;
-  const shouldUpdateExistingPassword = Boolean(providedPassword?.trim());
-  const password = shouldUpdateExistingPassword ? providedPassword.trim() : generatePassword();
+  const passwordArg = getArg("password");
+  const providedPassword = passwordArg ?? process.env.VIZA_ADMIN_PASSWORD;
+  const providedPasswordValue = providedPassword?.trim();
+  const shouldUpdateExistingPassword = shouldResetExistingPassword({
+    resetPassword: hasFlag("reset-password"),
+    passwordArg,
+  });
+  const password = providedPasswordValue || generatePassword();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error(`Invalid email: ${email}`);
@@ -112,8 +124,8 @@ async function main() {
     throw new Error("Role must be one of: admin, staff, client.");
   }
 
-  if (password.length < 8) {
-    throw new Error("Password must be at least 8 characters.");
+  if (hasFlag("reset-password") && !passwordArg?.trim()) {
+    throw new Error("Pass --password with --reset-password to reset an existing account password.");
   }
 
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
@@ -145,6 +157,10 @@ async function main() {
   const createdAuthUser = !authUser;
 
   if (createdAuthUser) {
+    if (password.length < 8) {
+      throw new Error("Password must be at least 8 characters.");
+    }
+
     const createPayload = {
       email,
       password,
@@ -160,6 +176,10 @@ async function main() {
     if (error || !data.user) throw error ?? new Error("Supabase did not return an auth user.");
     authUser = data.user;
   } else {
+    if (shouldUpdateExistingPassword && password.length < 8) {
+      throw new Error("Password must be at least 8 characters.");
+    }
+
     const { data, error } = await adminClient.auth.admin.updateUserById(
       authUser.id,
       buildExistingAuthUserUpdate({
@@ -194,7 +214,7 @@ async function main() {
   if (createdAuthUser || shouldUpdateExistingPassword) {
     console.log(`Password: ${password}`);
   } else {
-    console.log("Password: unchanged (existing auth user; pass --password to reset)");
+    console.log("Password: unchanged (existing auth user; pass --reset-password --password <value> to reset)");
   }
   console.log(`Role: ${role}`);
   console.log("Login URL: http://127.0.0.1:3000/admin/login");

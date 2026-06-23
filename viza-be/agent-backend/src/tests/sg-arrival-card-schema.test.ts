@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
+import { SGAC_FORM_FIELDS } from "../../scripts/sgac/form-fields";
 
 const seedSource = readFileSync(
   new URL("../../scripts/sgac/form-fields.ts", import.meta.url),
@@ -110,5 +111,29 @@ describe("Singapore SG Arrival Card schema seed", () => {
     for (const match of labelZhMatches) {
       expect(/[\u3400-\u9fff]/.test(match[1])).toBe(true);
     }
+  });
+
+  test("renders SGAC official dropdown labels as Chinese on the left side", () => {
+    const optionsByField = new Map(SGAC_FORM_FIELDS.map((field) => [field.field_name, field.options ?? []]));
+    const labelZh = (fieldName: string, value: string) => {
+      const option = optionsByField.get(fieldName)?.find((item) => item.value === value);
+      return option?.label_zh ?? "";
+    };
+
+    expect(labelZh("nationality", "BRITISH OVERSEAS TERRITORIES CITIZ")).toBe("英国海外领土公民");
+    expect(labelZh("nationality", "BRITISH SUBJECT")).toBe("英国臣民");
+    expect(labelZh("nationality", "KOSOVAR")).toBe("科索沃籍");
+    expect(labelZh("nationality", "STATELESS")).toBe("无国籍");
+
+    expect(labelZh("place_of_birth_country", "CAMBODIA")).toBe("柬埔寨");
+    expect(labelZh("place_of_birth_country", "RUSSIA")).toBe("俄罗斯");
+    expect(labelZh("place_of_birth_country", "UKRAINE")).toBe("乌克兰");
+
+    expect(labelZh("place_of_residence", "CAMBODIA, PHNOM PENH, PHNOM PENH")).toBe("柬埔寨，PHNOM PENH，PHNOM PENH");
+    expect(labelZh("place_of_residence", "RUSSIA, CENTRAL, MOSCOW")).toBe("俄罗斯，CENTRAL，MOSCOW");
+
+    expect(labelZh("purpose_of_travel", "Religion")).toBe("宗教活动");
+    expect(labelZh("purpose_of_travel", "Sports event")).toBe("体育赛事");
+    expect(labelZh("purpose_of_travel", "To take up residence")).toBe("定居");
   });
 });

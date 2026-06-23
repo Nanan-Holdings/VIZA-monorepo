@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -23,9 +25,18 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useLocale, useTranslations } from "next-intl";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bilingual-schema-contract";
+import { cn } from "@/lib/utils";
+
+const SEARCHABLE_SELECT_MIN_OPTIONS = 12;
+const SEARCHABLE_SELECT_VISIBLE_LIMIT = 80;
 
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
@@ -124,6 +135,125 @@ function normaliseOptions(
     }
     return { value: String(o), text: String(o) };
   });
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function SearchableSelectControl({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  whiteControlClass,
+  sideLocale,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; text: string }>;
+  placeholder: string;
+  disabled: boolean;
+  whiteControlClass: string;
+  sideLocale: "zh" | "en";
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = options.find((option) => option.value === value);
+  const normalizedQuery = normalizeSearchText(query);
+  const matchedOptions = useMemo(() => {
+    if (!normalizedQuery) return options;
+    return options.filter((option) => {
+      const haystack = normalizeSearchText(`${option.text} ${option.value}`);
+      return haystack.includes(normalizedQuery);
+    });
+  }, [normalizedQuery, options]);
+  const visibleOptions = matchedOptions.slice(0, SEARCHABLE_SELECT_VISIBLE_LIMIT);
+  const searchPlaceholder = sideLocale === "zh"
+    ? "搜索中文、英文或官方选项..."
+    : "Search Chinese, English, or official option...";
+  const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
+  const moreText = sideLocale === "zh"
+    ? `还有 ${matchedOptions.length - visibleOptions.length} 个匹配项，继续输入以缩小范围`
+    : `${matchedOptions.length - visibleOptions.length} more matches. Keep typing to narrow the list.`;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) setQuery("");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={cn(
+            "flex h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] px-3 text-left text-[15px] focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]",
+            whiteControlClass,
+            disabled ? "cursor-not-allowed opacity-70" : "hover:bg-gray-50",
+          )}
+        >
+          <span className={cn("truncate", !selected && "text-muted-foreground")}>
+            {selected?.text || placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] p-0">
+        <div className="border-b p-2">
+          <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
+            <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-gray-400"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="max-h-[320px] overflow-y-auto p-1">
+          {visibleOptions.length === 0 ? (
+            <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
+          ) : (
+            visibleOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={cn(
+                  "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",
+                  value === option.value ? "bg-gray-100" : "",
+                )}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                  setQuery("");
+                }}
+              >
+                <Check
+                  className={cn("h-4 w-4 shrink-0 text-[#03346E]", value === option.value ? "opacity-100" : "opacity-0")}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 break-words">{option.text}</span>
+              </button>
+            ))
+          )}
+          {matchedOptions.length > visibleOptions.length ? (
+            <div className="border-t px-3 py-2 text-[12px] text-gray-500">
+              {moreText}
+            </div>
+          ) : null}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function parseSsnSegments(raw: string): [string, string, string] {
@@ -326,6 +456,21 @@ export function DynamicFormField({
                 className="h-12 text-[15px]"
               />
             </InputGroup>
+          </FieldWrapper>
+        );
+      }
+      if (opts.length >= SEARCHABLE_SELECT_MIN_OPTIONS) {
+        return (
+          <FieldWrapper label={label} required={required}>
+            <SearchableSelectControl
+              value={value}
+              onChange={onChange}
+              options={opts}
+              placeholder={localizedPlaceholder ?? selectFallback}
+              disabled={disabled}
+              whiteControlClass={whiteControlClass}
+              sideLocale={sideLocale}
+            />
           </FieldWrapper>
         );
       }

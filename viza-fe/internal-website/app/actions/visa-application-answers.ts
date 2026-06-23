@@ -91,6 +91,47 @@ function cleanOptional(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+type NormalizedAnswerValueResult =
+  | { ok: true; value: string }
+  | { ok: false; error: string };
+
+type NormalizedAnswersResult =
+  | { ok: true; data: Record<string, string> }
+  | { ok: false; error: string };
+
+function normalizeDynamicAnswerValue(fieldName: string, value: unknown): NormalizedAnswerValueResult {
+  if (value === null || value === undefined) return { ok: true, value: "" };
+  if (typeof value === "string") return { ok: true, value };
+  if (typeof value === "number" || typeof value === "boolean") return { ok: true, value: String(value) };
+
+  if (typeof value === "object") {
+    const maybeValueObject = value as { value?: unknown };
+    if (typeof maybeValueObject.value === "string") {
+      return { ok: true, value: maybeValueObject.value };
+    }
+  }
+
+  return {
+    ok: false,
+    error: `Invalid answer value for ${fieldName}: expected text but received ${Array.isArray(value) ? "array" : typeof value}.`,
+  };
+}
+
+function normalizeDynamicAnswers(data: Record<string, unknown>): NormalizedAnswersResult {
+  const normalized: Record<string, string> = {};
+
+  for (const [rawFieldName, rawValue] of Object.entries(data)) {
+    const fieldName = rawFieldName.trim();
+    if (!fieldName) return { ok: false, error: "Invalid answer field name: field name cannot be empty." };
+
+    const result = normalizeDynamicAnswerValue(fieldName, rawValue);
+    if (!result.ok) return { ok: false, error: result.error };
+    normalized[fieldName] = result.value;
+  }
+
+  return { ok: true, data: normalized };
+}
+
 function isRetryableMissingProfileColumnError(message: string) {
   const normalized = message.toLowerCase();
   return PROFILE_SAVE_FALLBACK_COLUMNS.some((column) => normalized.includes(column)) &&
@@ -265,7 +306,7 @@ async function seedNewApplicationFromUniversalProfile(
  */
 export async function saveDynamicAnswers(
   applicationId: string,
-  data: Record<string, string>
+  data: Record<string, unknown>
 ): Promise<{ error?: string }> {
   try {
     const supabase = await createClient();
@@ -289,8 +330,12 @@ export async function saveDynamicAnswers(
       return { error: "Unauthorized" };
     }
 
+    const normalized = normalizeDynamicAnswers(data);
+    if (!normalized.ok) return { error: normalized.error };
+    const answers = normalized.data;
+
     const now = new Date().toISOString();
-    const emptyFieldNames = Object.entries(data)
+    const emptyFieldNames = Object.entries(answers)
       .filter(([fieldName, value]) => fieldName.trim() !== "" && value.trim() === "")
       .map(([fieldName]) => fieldName);
 
@@ -303,7 +348,7 @@ export async function saveDynamicAnswers(
       if (deleteError) return { error: deleteError.message };
     }
 
-    const upserts = Object.entries(data)
+    const upserts = Object.entries(answers)
       .filter(([, v]) => v.trim() !== "")
       .map(([fieldName, value]) => ({
         application_id: applicationId,

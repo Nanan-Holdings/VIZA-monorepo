@@ -23,13 +23,17 @@ Email: admin@viza.test
 Login URL: http://127.0.0.1:3000/admin/login
 ```
 
-Do not store the plaintext admin password in this repo guide. To reset the
-local test password before a test run:
+Do not store the plaintext admin password in this repo guide. To intentionally
+reset the local test password before a test run:
 
 ```powershell
 cd viza-fe\internal-website
-npm run init:admin -- --email admin@viza.test --password "<temporary-password>"
+npm run init:admin -- --email admin@viza.test --reset-password --password "<temporary-password>"
 ```
+
+Running `npm run init:admin` without `--reset-password` must never overwrite an
+existing auth user's password, even when `VIZA_ADMIN_PASSWORD` is present in a
+local environment file.
 
 ## Local Test Client
 

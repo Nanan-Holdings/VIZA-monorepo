@@ -6,6 +6,7 @@ import {
   SGAC_NATIONALITY_OPTIONS,
   SGAC_PURPOSE_OF_TRAVEL_OPTIONS,
 } from "./official-options";
+import { sgacOptionLabelZh, type SgacOptionListKind } from "./option-labels";
 
 export const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
 
@@ -25,16 +26,18 @@ export interface SgacFieldDef {
 
 const rules = (labelZh: string, extra: Record<string, unknown> = {}) => ({ label_zh: labelZh, ...extra });
 const option = (value: string, labelZh: string, labelEn: string) => ({ value, text: labelEn, label_zh: labelZh, label_en: labelEn });
+const officialOption = (kind: SgacOptionListKind) => (item: { value: string; labelZh: string; labelEn: string }) =>
+  option(item.value, sgacOptionLabelZh(kind, item), item.labelEn);
 const YES_NO = [option("yes", "是", "Yes"), option("no", "否", "No")];
 const SEX = [option("male", "男", "Male"), option("female", "女", "Female"), option("others", "其他", "Others")];
 const MODES = [option("air", "航空", "Air"), option("land", "陆路", "Land"), option("sea", "海路", "Sea")];
 const AIR_TYPES = [option("commercial", "商业航班", "Commercial Flight"), option("private", "私人飞机", "Private Aircraft")];
 const ACCOMMODATION_TYPES = [option("hotel", "酒店", "Hotel"), option("residential", "住宅", "Residential"), option("others", "其他", "Others")];
 const OTHER_ACCOMMODATION = [option("day_trip", "一日游", "Day Trip"), option("transit", "过境", "Transit")];
-const CITY_PORTS = SGAC_CITY_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
-const NATIONALITIES = SGAC_NATIONALITY_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
-const BIRTH_COUNTRIES = SGAC_BIRTH_COUNTRY_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
-const PURPOSES = SGAC_PURPOSE_OF_TRAVEL_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
+const CITY_PORTS = SGAC_CITY_OPTIONS.map(officialOption("city"));
+const NATIONALITIES = SGAC_NATIONALITY_OPTIONS.map(officialOption("nationality"));
+const BIRTH_COUNTRIES = SGAC_BIRTH_COUNTRY_OPTIONS.map(officialOption("country"));
+const PURPOSES = SGAC_PURPOSE_OF_TRAVEL_OPTIONS.map(officialOption("purpose"));
 const HOTEL_NAMES = SGAC_HOTEL_NAME_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
 const CARRIER_CODES = SGAC_CARRIER_CODE_OPTIONS.map((item) => option(item.value, item.labelZh, item.labelEn));
 
