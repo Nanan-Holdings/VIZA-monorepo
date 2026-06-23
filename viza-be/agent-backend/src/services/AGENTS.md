@@ -36,10 +36,6 @@ conversation state, and other cross-route behavior.
 - Official-fee services may model browser/virtual-card providers as interfaces,
   but must not move real portal payment automation or sensitive card handling
   into `agent-backend`.
-- U.S. appointment services must remain dry-run/manual-checkpoint by default.
-  Do not add CAPTCHA solving, MFA/email bypass, real payment execution,
-  waiting-room bypass, proxy/fingerprint/stealth behavior, background polling,
-  or final booking without explicit user approval.
 
 ## Validation
 

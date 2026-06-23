@@ -75,6 +75,8 @@ export interface FillVietnamOptions {
   /** Internal/current Playwright browser channel. Undefined uses bundled Chromium. */
   browserChannel?: VietnamBrowserChannel;
   portalAttempt?: number;
+  /** True only after VIZA has a user/admin authorized official-fee intent for this application. */
+  allowFixedCardPayment?: boolean;
 }
 
 export type FillVietnamResult =
@@ -476,7 +478,7 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "payment_page_visible") {
       await emitProgress("payment_required");
-      const fixedCard = loadVietnamFixedCardFromEnv();
+      const fixedCard = options.allowFixedCardPayment ? loadVietnamFixedCardFromEnv() : null;
       if (fixedCard) {
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
@@ -500,6 +502,18 @@ async function fillVietnamApplicationOnce(
           checkpoint: "payment_page_visible",
           instruction:
             `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
+      if (!options.allowFixedCardPayment) {
+        return {
+          status: "action_required",
+          runId,
+          actionType: "payment_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            "The official Vietnam e-Visa portal reached payment, but VIZA has not recorded an authorized official-fee payment intent for this application. Authorize payment in VIZA before continuing.",
           url: page.url(),
           diagnostics: diagnostics(),
         };

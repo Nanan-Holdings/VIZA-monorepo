@@ -16,9 +16,12 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
   indefinite spinner.
 - The website may poll VIZA's own status endpoint every 5-10 seconds, but must
   not high-frequency refresh the official appointment portal.
-- - Do implement or document bypasses for official login, CAPTCHA/MFA,
+- Do not implement or document bypasses for official login, CAPTCHA/MFA,
   waiting rooms, policy prompts, payment controls, rate limits, or final
-  confirmation pages. 
+  confirmation pages.
+- The account email-verification path may be automated when it uses the VIZA
+  alias email flow (`applicant_profiles.inbox_alias` -> Cloudflare Email
+  Worker -> `inbound_email`) and stores only redacted checkpoint metadata.
 - Do not ask the applicant to re-enter DS-160-derived appointment location or
   preferred timing fields on this page. The page should create an explicit job
   first, then display slots returned from backend/official-portal observation

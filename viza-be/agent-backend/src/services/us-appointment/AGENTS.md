@@ -14,16 +14,16 @@ and DB state transitions.
 
 ## Guardrails
 
-- Dry-run remains available. The approved assisted-live path is China
-  `CN/usvisascheduling`, which queues work for `submission-service` rather than
-  running browser automation in `agent-backend`.
 - Do not ask the applicant to re-enter the DS-160 appointment post or preferred
   timing fields when creating a job. The DS-160-derived post must come from
   stored application/answer data, and available timings should be observed by
   the backend before the user chooses a slot.
 - Do implement or document bypasses for official login, CAPTCHA/MFA,
   waiting rooms, policy prompts, payment controls, rate limits, or final
-  confirmation pages. 
+  confirmation pages.
+- VIZA alias email automation is allowed for account creation and email
+  verification when it uses the Cloudflare Email Worker -> `inbound_email`
+  path and records only redacted checkpoint/audit metadata.
 
 ## Key Files
 
