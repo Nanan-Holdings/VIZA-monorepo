@@ -3529,11 +3529,21 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
   );
 
   try {
-    const intent = await getLatestVnOfficialFeeIntent(item.application_id);
-    if (!intent) {
+    let intent: VnOfficialFeeIntentRow | null = null;
+    let fallbackAuthorized = false;
+    try {
+      intent = await getLatestVnOfficialFeeIntent(item.application_id);
+    } catch (error) {
+      if (isVnOfficialFeeSchemaMissing(error)) {
+        fallbackAuthorized = await hasVnOfficialFeeFallbackAuthorization(item.application_id);
+      } else {
+        throw error;
+      }
+    }
+    if (!intent && !fallbackAuthorized) {
       throw new Error("No authorized official_fee_payment_intent found for Vietnam payment.");
     }
-    if (!["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intent.status ?? "")) {
+    if (intent && !["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intent.status ?? "")) {
       throw new Error(`Official fee intent is not executable from status ${intent.status ?? "(empty)"}.`);
     }
 
@@ -3542,23 +3552,25 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
     const now = new Date().toISOString();
 
-    if (!dryRunReceipt) {
+    if (!dryRunReceipt || !intent) {
       const message = autopayEnabled
-        ? "Vietnam official payment autopay is enabled, but queued payment resume is not implemented for the fixed-card pilot. Run the live Vietnam runner through the payment page or use operator payment."
+        ? "Vietnam official payment is authorized, but queued payment resume is not implemented for the fixed-card pilot. Re-run the live Vietnam runner through the official payment page or use operator payment."
         : "Vietnam official payment is authorized, but VN_OFFICIAL_PAYMENT_AUTOPAY is disabled. Operator payment is required.";
-      const { attemptId } = await insertVnOfficialFeeAttempt({
-        applicationId: item.application_id,
-        intent,
-        status: "manual_review",
-        registrationCode,
-        message,
-      });
-      await updateVnOfficialFeeIntent(intent.id, "manual_review");
+      const { attemptId } = intent
+        ? await insertVnOfficialFeeAttempt({
+            applicationId: item.application_id,
+            intent,
+            status: "manual_review",
+            registrationCode,
+            message,
+          })
+        : { attemptId: null };
+      if (intent) await updateVnOfficialFeeIntent(intent.id, "manual_review");
       await Promise.all([
         updateVnQueueRow(
           item.id,
           {
-            status: "vn_payment_failed",
+            status: "vn_blocked",
             attempts: item.attempts + 1,
             last_error: message,
             current_stage: "official_fee_manual_review",
@@ -3569,28 +3581,31 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
             vn_result_payload: {
               ...(item.vn_result_payload ?? {}),
               status: "payment_manual_review",
-              officialFeePaymentIntentId: intent.id,
+              officialFeePaymentIntentId: intent?.id ?? null,
               officialFeePaymentAttemptId: attemptId,
+              officialFeeSchemaFallback: fallbackAuthorized,
               registrationCodeCaptured: Boolean(registrationCode),
             },
             heartbeat_at: now,
             updated_at: now,
           },
           {
-            status: "vn_payment_failed",
+            status: "vn_blocked",
             attempts: item.attempts + 1,
             last_error: message,
             updated_at: now,
           },
         ),
-        supabase
-          .from("applications")
-          .update({
-            official_fee_status: "official_fee_payment_manual_review",
-            official_fee_payment_intent_id: intent.id,
-            updated_at: now,
-          })
-          .eq("id", item.application_id),
+        intent
+          ? supabase
+              .from("applications")
+              .update({
+                official_fee_status: "official_fee_payment_manual_review",
+                official_fee_payment_intent_id: intent.id,
+                updated_at: now,
+              })
+              .eq("id", item.application_id)
+          : Promise.resolve({ error: null }),
       ]);
       return;
     }

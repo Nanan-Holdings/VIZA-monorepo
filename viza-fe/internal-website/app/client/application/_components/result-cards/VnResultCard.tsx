@@ -42,6 +42,10 @@ export function VnResultCard({
   const receiptNumber = typeof receipt?.receipt_number === "string" ? receipt.receipt_number : null;
   const receiptUrl = typeof receipt?.receipt_url === "string" ? receipt.receipt_url : null;
   const intentStatus = typeof intent?.status === "string" ? intent.status : null;
+  const paymentQueuedByAction =
+    officialFeeStatus?.paymentQueued === true ||
+    typeof officialFeeStatus?.queueId === "string";
+  const paymentNeedsOperator = officialFeeStatus?.paymentNeedsOperator === true;
   const quoteAmount = typeof quote?.official_fee_amount === "number"
     ? quote.official_fee_amount
     : typeof quote?.official_fee_amount === "string"
@@ -49,8 +53,12 @@ export function VnResultCard({
       : 25;
   const quoteCurrency = typeof quote?.official_fee_currency === "string" ? quote.official_fee_currency : "USD";
   const paymentPaid = result.paymentStatus === "paid" || intentStatus === "succeeded" || Boolean(receiptNumber);
-  const paymentQueued = intentStatus === "in_progress" || intentStatus === "pending" || intentStatus === "manual_review";
-  const paymentProgress = paymentPaid ? 100 : paymentQueued ? 82 : intentStatus ? 65 : hasRegistrationCode ? 48 : 30;
+  const paymentQueued =
+    paymentQueuedByAction ||
+    intentStatus === "in_progress" ||
+    intentStatus === "pending" ||
+    intentStatus === "manual_review";
+  const paymentProgress = paymentPaid ? 100 : paymentQueued ? 82 : paymentNeedsOperator ? 72 : intentStatus ? 65 : hasRegistrationCode ? 48 : 30;
   const isFormCheckpoint = result.status === "official_form_reached";
   const isManualCheckpoint = Boolean(result.manualAction);
   const title = paymentPaid
@@ -120,7 +128,18 @@ export function VnResultCard({
         if (!response.ok) {
           throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/status returned ${response.status}`);
         }
-        if (!cancelled) setOfficialFeeStatus(payload);
+        if (!cancelled) {
+          setOfficialFeeStatus((current) => ({
+            ...(payload ?? {}),
+            paymentQueued: payload?.paymentQueued === true || current?.paymentQueued === true,
+            queueId:
+              typeof payload?.queueId === "string"
+                ? payload.queueId
+                : typeof current?.queueId === "string"
+                  ? current.queueId
+                  : null,
+          }));
+        }
       } catch (error) {
         if (!cancelled) setPaymentError(error instanceof Error ? error.message : String(error));
       }
@@ -258,6 +277,8 @@ export function VnResultCard({
                   ? (isZh ? "付款成功，等待官网审核" : "Paid, waiting for official review")
                   : paymentQueued
                     ? (isZh ? "正在处理官方付款" : "Processing official payment")
+                    : paymentNeedsOperator
+                      ? (isZh ? "已提交，等待后台付款处理" : "Submitted, waiting for operator payment handling")
                     : (isZh ? "等待你的授权" : "Waiting for authorization")
               }
             />
@@ -277,7 +298,7 @@ export function VnResultCard({
               )}
             </div>
 
-            {!paymentPaid && (
+            {!paymentPaid && !paymentQueued && !paymentNeedsOperator && (
               <Button
                 type="button"
                 className="w-full"
@@ -286,6 +307,19 @@ export function VnResultCard({
               >
                 {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                 {isZh ? "提交" : "Submit"}
+              </Button>
+            )}
+
+            {!paymentPaid && paymentQueued && (
+              <Button type="button" className="w-full" disabled>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isZh ? "已提交，等待后台付款" : "Submitted, waiting for payment worker"}
+              </Button>
+            )}
+
+            {!paymentPaid && paymentNeedsOperator && (
+              <Button type="button" className="w-full" disabled>
+                {isZh ? "已提交，等待后台处理" : "Submitted, waiting for operator handling"}
               </Button>
             )}
 

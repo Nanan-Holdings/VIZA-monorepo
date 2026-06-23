@@ -39,6 +39,11 @@ function isSchemaMissing(error: QueryErrorLike | null | undefined): boolean {
   );
 }
 
+function isDuplicateKey(error: QueryErrorLike | null | undefined): boolean {
+  const message = (error?.message ?? "").toLowerCase();
+  return error?.code === "23505" || message.includes("duplicate key value");
+}
+
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
@@ -190,10 +195,10 @@ export async function POST(
       ),
     ]);
 
-    if (consentResult.error && !isSchemaMissing(consentResult.error)) {
+    if (consentResult.error && !isSchemaMissing(consentResult.error) && !isDuplicateKey(consentResult.error)) {
       return NextResponse.json({ error: consentResult.error.message }, { status: 500 });
     }
-    if (eventResult.error && !isSchemaMissing(eventResult.error)) {
+    if (eventResult.error && !isSchemaMissing(eventResult.error) && !isDuplicateKey(eventResult.error)) {
       return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
     }
 
@@ -288,7 +293,7 @@ export async function POST(
       created_at: now,
     },
   );
-  if (consentError) {
+  if (consentError && !isDuplicateKey(consentError)) {
     return NextResponse.json({ error: consentError.message }, { status: 500 });
   }
 
@@ -375,7 +380,7 @@ export async function POST(
   if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
     return NextResponse.json({ error: applicationUpdateResult.error.message }, { status: 500 });
   }
-  if (eventResult.error && !isSchemaMissing(eventResult.error)) {
+  if (eventResult.error && !isSchemaMissing(eventResult.error) && !isDuplicateKey(eventResult.error)) {
     return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
   }
 

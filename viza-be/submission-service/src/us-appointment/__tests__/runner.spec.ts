@@ -14,6 +14,7 @@ import {
   type USAppointmentJobRow,
   type USAppointmentPortalClient,
   type USAppointmentRunnerRepository,
+  type AppointmentAccountCredentials,
 } from "../runner";
 import { classifyUSVisaSchedulingGateText } from "../usvisascheduling-portal";
 
@@ -47,6 +48,7 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
     confirmationId?: string | null;
   }> = [];
   jobUpdates: Array<{ jobId: string; status: string; currentManualAction: string | null }> = [];
+  credentials: AppointmentAccountCredentials | null = null;
 
   async listCandidateJobs(): Promise<USAppointmentJobRow[]> {
     return [];
@@ -54,6 +56,10 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
 
   async hasPendingManualAction(): Promise<boolean> {
     return false;
+  }
+
+  async getAppointmentAccountCredentials(): Promise<AppointmentAccountCredentials | null> {
+    return this.credentials;
   }
 
   async insertManualAction(input: never): Promise<void> {
@@ -153,6 +159,15 @@ test("US appointment runner only accepts enabled China usvisascheduling assisted
   assert.equal(isEligibleUSAppointmentJob({ ...baseJob, applying_country_code: "SG" }, config), false);
   assert.equal(isEligibleUSAppointmentJob({ ...baseJob, scheduling_provider: "ais_usvisa_info" }, config), false);
   assert.equal(isEligibleUSAppointmentJob({ ...baseJob, requires_user_action: true }, config), false);
+  assert.equal(
+    isEligibleUSAppointmentJob({
+      ...baseJob,
+      status: "appointment_login_required",
+      requires_user_action: true,
+      current_manual_action: "login",
+    }, config),
+    true,
+  );
 });
 
 test("US appointment runner handoff records manual-required unsupported gate metadata", () => {
@@ -201,6 +216,80 @@ test("US appointment runner advances a prepared portal session to slot capture",
   assert.equal(result, "processed");
   assert.equal(repository.manualActions.length, 0);
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+});
+
+test("US appointment runner can automate a pending login checkpoint with saved credentials", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = {
+    email: "applicant@example.com",
+    password: "secret-password",
+  };
+  let receivedCredentials: AppointmentAccountCredentials | null = null;
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow(_job, credentials) {
+      receivedCredentials = credentials;
+      return { readyForSlotCapture: true };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_login_required",
+      requires_user_action: true,
+      current_manual_action: "login",
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.deepEqual(receivedCredentials, repository.credentials);
+  assert.equal(repository.manualActions.length, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+});
+
+test("US appointment runner records a login gate when saved credentials are missing", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_login_required",
+      requires_user_action: true,
+      current_manual_action: "login",
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.manualActions.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
+  assert.equal(
+    repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type,
+    "missing_account_credentials",
+  );
 });
 
 test("US appointment runner persists unsupported official-site gates as manual-required", async () => {
