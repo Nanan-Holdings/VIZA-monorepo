@@ -127,6 +127,8 @@ export async function getUserFromSupabaseSession(): Promise<ClientSession | null
 }
 
 export async function getClientSessionWithFallback(): Promise<ClientSession | null> {
+  const cookieSession = await getClientSession();
+  if (cookieSession) return cookieSession;
   return getUserFromSupabaseSession();
 }
 
