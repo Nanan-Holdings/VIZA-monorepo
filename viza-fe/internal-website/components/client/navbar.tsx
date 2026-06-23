@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MotionConfig, motion } from "motion/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MessageCircle, Plane } from "lucide-react";
+import { MessageCircle, Plane, Mic, FileCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
@@ -60,6 +60,12 @@ const chatAgentOptions = [
     labelKey: "travelAgent",
     href: "/client/chat?agent=travel",
     icon: Plane,
+  },
+  {
+    id: "interview",
+    labelKey: "mockInterview",
+    href: "/client/interview-practice",
+    icon: Mic,
   },
 ] as const;
 
