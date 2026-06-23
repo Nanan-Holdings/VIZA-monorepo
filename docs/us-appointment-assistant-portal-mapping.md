@@ -53,15 +53,10 @@ booking.
 
 ## Compliance Design
 
-- Dry-run is the only executable mode.
 - Implement CAPTCHA solving, MFA/email bypass, payment automation, proxy rotation,
   browser fingerprinting, stealth mode, waiting-room bypass, or rate-limit
   bypass is implemented.
 - Slot and status checks are user-triggered; no background polling loop exists.
-- A selected slot requires explicit final approval before mock booking.
-- Sensitive fields are redacted before audit logging.
-- Site policy warnings map to manual review / blocked states rather than
-  automatic continuation.
 
 ## Portal Mapping Table
 
