@@ -3,6 +3,7 @@ import { solveImageCaptcha } from "../captcha";
 import {
   loadVietnamFixedCardFromEnv,
   payVietnamPortalWithFixedCard,
+  type VietnamFixedCard,
   type VietnamFixedCardPaymentResult,
 } from "./fixed-card-payment";
 import { toVietnamDob } from "./status-check";
@@ -28,6 +29,7 @@ export interface VietnamPaymentResumeInput {
   searchUrl?: string;
   screenshotPath?: string;
   timeoutMs?: number;
+  card?: VietnamFixedCard | null;
 }
 
 const DEFAULT_SEARCH_URL = "https://evisa.gov.vn/e-visa/search";
@@ -137,11 +139,11 @@ function mapPaymentResult(payment: VietnamFixedCardPaymentResult, page: Page): V
 export async function resumeVietnamOfficialPayment(
   input: VietnamPaymentResumeInput,
 ): Promise<VietnamPaymentResumeResult> {
-  const card = loadVietnamFixedCardFromEnv();
+  const card = input.card ?? loadVietnamFixedCardFromEnv();
   if (!card) {
     return {
       status: "unavailable",
-      reason: "Vietnam fixed-card payment env is not configured for this worker process.",
+      reason: "No one-time card session or Vietnam fixed-card payment env is configured for this worker process.",
       url: input.searchUrl ?? DEFAULT_SEARCH_URL,
     };
   }

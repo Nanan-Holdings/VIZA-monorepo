@@ -61,6 +61,8 @@ test("normalizeSgacPortalPayload maps purpose_of_travel and transport number int
   assert.equal(payload.nationalityLabel, "CHINESE");
   assert.equal(payload.placeOfBirthLabel, "CHINA");
   assert.equal(payload.residenceCityQuery, "CHINA, BEIJING, BEIJING");
+  assert.equal(payload.lastCityQuery, "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR");
+  assert.equal(payload.nextCityQuery, "THAILAND, BANGKOK, BANGKOK");
   assert.equal(payload.phoneCountryCode, "86");
   assert.equal(payload.phoneNumber, "13800138000");
 });
@@ -145,13 +147,32 @@ test("normalizeSgacPortalPayload rejects hotel names outside exposed ICA options
   );
 });
 
+test("normalizeSgacPortalPayload rejects city values outside ICA city/port options", () => {
+  const input = basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      last_city_or_port_before_singapore: "sadxas",
+    },
+  });
+
+  assert.throws(
+    () => normalizeSgacPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof SgacPortalValidationError);
+      assert.deepEqual(error.missingFields, ["last_city_or_port_before_singapore"]);
+      assert.match(error.message, /official ICA city\/port option/);
+      return true;
+    },
+  );
+});
+
 test("normalizeSgacPortalPayload accepts exposed ICA hotel options", () => {
   const payload = normalizeSgacPortalPayload(
     basePayload({
       countrySpecific: {
         ...basePayload().countrySpecific,
         accommodation_type: "hotel",
-        accommodation_name: "MARINA BAY SANDS",
+        accommodation_name: "MARINA BAY SANDS SINGAPORE",
       },
     }),
     { now: new Date("2026-06-12T08:00:00+08:00") },
@@ -159,7 +180,7 @@ test("normalizeSgacPortalPayload accepts exposed ICA hotel options", () => {
 
   assert.deepEqual(payload.accommodation, {
     type: "hotel",
-    hotelNameQuery: "MARINA BAY SANDS",
+    hotelNameQuery: "MARINA BAY SANDS SINGAPORE",
   });
 });
 

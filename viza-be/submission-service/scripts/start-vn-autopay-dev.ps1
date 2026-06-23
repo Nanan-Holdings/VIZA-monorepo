@@ -1,5 +1,6 @@
 param(
-  [switch]$Headless
+  [switch]$Headless,
+  [switch]$FixedCard
 )
 
 $ErrorActionPreference = "Stop"
@@ -54,14 +55,14 @@ function Resolve-HealthPort {
     return [int]$env:PORT
   }
 
-  if (Test-PortAvailable -Port 8080) {
-    return 8080
-  }
-
   foreach ($candidate in 18080..18120) {
     if (Test-PortAvailable -Port $candidate) {
       return $candidate
     }
+  }
+
+  if (Test-PortAvailable -Port 8080) {
+    return 8080
   }
 
   throw "Could not find a free health server port in 18080..18120."
@@ -76,40 +77,53 @@ if ($configuredLast4) {
   Write-Host "Using local Vietnam card profile ending in $configuredLast4."
 }
 
-$panPrompt = if ($configuredLast4) {
-  "Vietnam fixed-card PAN ending in $configuredLast4"
-} else {
-  "Vietnam fixed-card PAN"
-}
-$pan = Read-Host $panPrompt
-if ($configuredLast4 -and -not $pan.EndsWith($configuredLast4)) {
-  throw "Entered PAN does not match configured last4 $configuredLast4."
-}
+$pan = $null
+$expiry = $null
+$cvv = $null
+if ($FixedCard) {
+  $panPrompt = if ($configuredLast4) {
+    "Vietnam fixed-card PAN ending in $configuredLast4"
+  } else {
+    "Vietnam fixed-card PAN"
+  }
+  $pan = Read-Host $panPrompt
+  if ($configuredLast4 -and -not $pan.EndsWith($configuredLast4)) {
+    throw "Entered PAN does not match configured last4 $configuredLast4."
+  }
 
-$expiry = $configuredExpiry
-if (-not $expiry) {
-  $expiry = Read-Host "Vietnam fixed-card expiry (MM/YY or MM/YYYY)"
+  $expiry = $configuredExpiry
+  if (-not $expiry) {
+    $expiry = Read-Host "Vietnam fixed-card expiry (MM/YY or MM/YYYY)"
+  }
+  $cvvSecure = Read-Host "Vietnam fixed-card CVV" -AsSecureString
+  $cvv = Convert-SecureStringToPlainText $cvvSecure
 }
-$cvvSecure = Read-Host "Vietnam fixed-card CVV" -AsSecureString
-$cvv = Convert-SecureStringToPlainText $cvvSecure
 
 try {
   $env:VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
-  $env:VN_FIXED_CARD_ENABLED = "true"
-  $env:VN_FIXED_CARD_PAN = $pan
-  $env:VN_FIXED_CARD_EXPIRY = $expiry
-  $env:VN_FIXED_CARD_CVV = $cvv
-  if ($configuredHolder) {
-    $env:VN_FIXED_CARD_HOLDER_NAME = $configuredHolder
+  $env:VN_LOCAL_CARD_SESSION_ENABLED = "true"
+  if ($FixedCard) {
+    $env:VN_FIXED_CARD_ENABLED = "true"
+    $env:VN_FIXED_CARD_PAN = $pan
+    $env:VN_FIXED_CARD_EXPIRY = $expiry
+    $env:VN_FIXED_CARD_CVV = $cvv
+    if ($configuredHolder) {
+      $env:VN_FIXED_CARD_HOLDER_NAME = $configuredHolder
+    }
   }
   $env:VN_LIVE_SUBMISSION_ENABLED = "true"
   $env:VN_LIVE_ASSISTED_ONLY = "true"
   $env:VN_PLAYWRIGHT_HEADLESS = if ($Headless) { "true" } else { "false" }
   $env:PORT = [string](Resolve-HealthPort)
 
-  Write-Host "Starting submission-service with Vietnam fixed-card autopay enabled for this process only."
+  Write-Host "Starting submission-service with Vietnam autopay enabled for this process only."
   Write-Host "Health server port: $env:PORT"
-  Write-Host "The card values were not written to disk. Stop this terminal to clear them."
+  Write-Host "Local one-time card session endpoint enabled on http://127.0.0.1:$env:PORT/local/vietnam/card-session."
+  if ($FixedCard) {
+    Write-Host "Fixed-card values were not written to disk. Stop this terminal to clear them."
+  } else {
+    Write-Host "No card values were read in this terminal. The frontend will provide a one-time card session per payment."
+  }
   npm run dev
 } finally {
   Remove-Item Env:\VN_FIXED_CARD_PAN -ErrorAction SilentlyContinue
@@ -117,5 +131,6 @@ try {
   Remove-Item Env:\VN_FIXED_CARD_CVV -ErrorAction SilentlyContinue
   Remove-Item Env:\VN_FIXED_CARD_HOLDER_NAME -ErrorAction SilentlyContinue
   Remove-Item Env:\VN_FIXED_CARD_ENABLED -ErrorAction SilentlyContinue
+  Remove-Item Env:\VN_LOCAL_CARD_SESSION_ENABLED -ErrorAction SilentlyContinue
   Remove-Item Env:\VN_OFFICIAL_PAYMENT_AUTOPAY -ErrorAction SilentlyContinue
 }
