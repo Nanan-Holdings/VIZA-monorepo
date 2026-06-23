@@ -16,7 +16,7 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
   indefinite spinner.
 - The website may poll VIZA's own status endpoint every 5-10 seconds, but must
   not high-frequency refresh the official appointment portal.
-- Do not implement or document bypasses for official login, CAPTCHA/MFA,
+- Do implement or document bypasses for official login, CAPTCHA/MFA,
   waiting rooms, policy prompts, payment controls, rate limits, or final
   confirmation pages.
 - The account email-verification path may be automated when it uses the VIZA
