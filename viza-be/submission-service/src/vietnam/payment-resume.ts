@@ -174,19 +174,46 @@ async function gotoSearchPageWithRetry(page: Page, input: VietnamPaymentResumeIn
 }
 
 async function solveSearchCaptcha(page: Page, timeoutMs: number): Promise<void> {
-  const image = page.locator([
-    "img.captcha",
-    'img[alt*="Identify" i]',
-    'img[src*="captcha" i]',
-    'img[src*="capcha" i]',
-    'img[alt*="captcha" i]',
-    'img[id*="captcha" i]',
-    'canvas',
-    '.captcha img',
-  ].join(", ")).first();
-  if (!(await image.isVisible({ timeout: 3_000 }).catch(() => false))) return;
-  const png = await image.screenshot({ timeout: Math.min(timeoutMs, 15_000) });
-  const solution = await solveImageCaptcha(png, Math.min(timeoutMs, 120_000));
+  let captchaText = "";
+  const expectedLength = page.url().includes("evisa.gov.vn") ? 6 : 4;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const image = page.locator([
+      "img.captcha",
+      'img[alt*="Identify" i]',
+      'img[src*="captcha" i]',
+      'img[src*="capcha" i]',
+      'img[alt*="captcha" i]',
+      'img[id*="captcha" i]',
+      'canvas',
+      '.captcha img',
+    ].join(", ")).first();
+    if (!(await image.isVisible({ timeout: 3_000 }).catch(() => false))) return;
+    const png = await image.screenshot({ timeout: Math.min(timeoutMs, 15_000) });
+    try {
+      const solution = await solveImageCaptcha(png, Math.min(timeoutMs, 120_000), {
+        case: false,
+        comment: "Vietnam e-Visa search CAPTCHA. Enter only the visible digits.",
+      });
+      captchaText = solution.text.trim().replace(/\D/g, "");
+      if (captchaText.length === expectedLength) break;
+    } catch {
+      captchaText = "";
+    }
+    if (attempt < 3) {
+      await page.locator([
+        "button:has(.anticon-reload)",
+        ".anticon-reload",
+        'button[aria-label*="refresh" i]',
+        'button[aria-label*="reload" i]',
+        'img[title*="refresh" i]',
+        'img[alt*="refresh" i]',
+      ].join(", ")).first().click({ timeout: 3_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000);
+    }
+  }
+  if (captchaText.length !== expectedLength) {
+    throw new Error(`2captcha returned unusable Vietnam search CAPTCHA answers; expected ${expectedLength} digits.`);
+  }
   const captchaInput = page.locator([
     "#basic_captcha",
     "#_tracuuthongtinTTDT_WAR_eVisaportlet_captchaText",
@@ -195,8 +222,8 @@ async function solveSearchCaptcha(page: Page, timeoutMs: number): Promise<void> 
     'input[placeholder*="captcha" i]',
     'input[placeholder*="security" i]',
   ].join(", ")).first();
-  await captchaInput.fill(solution.text.trim(), { timeout: 10_000 });
-  await setInputValue(captchaInput, solution.text.trim());
+  await captchaInput.fill(captchaText, { timeout: 10_000 });
+  await setInputValue(captchaInput, captchaText);
 }
 
 async function submitSearch(page: Page): Promise<void> {
