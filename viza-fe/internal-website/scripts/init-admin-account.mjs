@@ -4,7 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { buildExistingAuthUserUpdate } from "./init-admin-account-helpers.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(scriptDir, "..");
@@ -100,7 +101,8 @@ async function main() {
   const name = (getArg("name") ?? process.env.VIZA_ADMIN_NAME ?? "VIZA Test Admin").trim();
   const role = (getArg("role") ?? process.env.VIZA_ADMIN_ROLE ?? "admin").trim();
   const providedPassword = getArg("password") ?? process.env.VIZA_ADMIN_PASSWORD;
-  const password = providedPassword?.trim() || generatePassword();
+  const shouldUpdateExistingPassword = Boolean(providedPassword?.trim());
+  const password = shouldUpdateExistingPassword ? providedPassword.trim() : generatePassword();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error(`Invalid email: ${email}`);
@@ -140,7 +142,9 @@ async function main() {
     );
   }
 
-  if (!authUser) {
+  const createdAuthUser = !authUser;
+
+  if (createdAuthUser) {
     const createPayload = {
       email,
       password,
@@ -156,14 +160,16 @@ async function main() {
     if (error || !data.user) throw error ?? new Error("Supabase did not return an auth user.");
     authUser = data.user;
   } else {
-    const { data, error } = await adminClient.auth.admin.updateUserById(authUser.id, {
-      password,
-      user_metadata: {
-        ...(authUser.user_metadata ?? {}),
+    const { data, error } = await adminClient.auth.admin.updateUserById(
+      authUser.id,
+      buildExistingAuthUserUpdate({
+        existingUserMetadata: authUser.user_metadata,
         name,
         role,
-      },
-    });
+        password,
+        shouldUpdatePassword: shouldUpdateExistingPassword,
+      }),
+    );
 
     if (error || !data.user) throw error ?? new Error("Supabase did not return the updated auth user.");
     authUser = data.user;
@@ -185,12 +191,18 @@ async function main() {
 
   console.log("Admin account ready.");
   console.log(`Email: ${email}`);
-  console.log(`Password: ${password}`);
+  if (createdAuthUser || shouldUpdateExistingPassword) {
+    console.log(`Password: ${password}`);
+  } else {
+    console.log("Password: unchanged (existing auth user; pass --password to reset)");
+  }
   console.log(`Role: ${role}`);
   console.log("Login URL: http://127.0.0.1:3000/admin/login");
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}

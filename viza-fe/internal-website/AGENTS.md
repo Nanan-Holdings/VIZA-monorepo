@@ -57,7 +57,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `lib/client-session.ts`, and `lib/impersonation-session.ts`.
 - User-facing copy through `messages/en.json` and `messages/zh.json`.
 - Local admin test-account bootstrap through
-  `scripts/init-admin-account.mjs`.
+  `scripts/init-admin-account.mjs`, with password-reset decisions covered by
+  `scripts/init-admin-account-helpers.mjs` and
+  `scripts/__tests__/init-admin-account.test.ts`.
 - Hosted Supabase auth email template sync through
   `scripts/sync-supabase-auth-email-templates.mjs`.
 - Travel card coverage audit through

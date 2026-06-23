@@ -83,7 +83,7 @@ export async function getUserFromSupabaseSession(): Promise<ClientSession | null
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !user.email) return null;
 
-    const adminClient = createAdminClient() as any;
+    const adminClient = createAdminClient();
 
     // Try by auth_user_id first
     let { data: profile } = await adminClient
