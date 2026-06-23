@@ -2043,6 +2043,28 @@ export default function ApplicationPage() {
     useDynamic,
   ]);
 
+  const authorizeVietnamOfficialFeeIfNeeded = useCallback(
+    async (applicationId: string, mode: SubmissionMode) => {
+      if (mode !== "live_assisted" || !isVietnamEVisa) return;
+      const response = await fetch(`/api/applications/${applicationId}/official-fee/authorize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accepted: true }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+        throw new Error(
+          typeof payload?.error === "string"
+            ? payload.error
+            : isZhInterface
+              ? "官方费用授权失败，请稍后重试。"
+              : "Official fee authorization failed. Please try again.",
+        );
+      }
+    },
+    [isVietnamEVisa, isZhInterface],
+  );
+
   // ── Dynamic-mode review complete handler ────────────────────────────
   const handleDynamicReviewComplete = async (mode: SubmissionMode = "dry_run") => {
     setSaving(true);
@@ -2090,6 +2112,7 @@ export default function ApplicationPage() {
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
 
       if (!isJpTourist) {
+        await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
         const queueJob = await insertSubmissionQueueJob(supabase, {
@@ -2198,6 +2221,7 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
+      await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
       const queueJob = await insertSubmissionQueueJob(supabase, {
         applicationId,
         country: resolvedCountry,
