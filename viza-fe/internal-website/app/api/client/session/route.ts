@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getImpersonationSession } from "@/lib/impersonation-session";
-import { getUserFromSupabaseSession } from "@/lib/client-session";
+import { getClientSession, getUserFromSupabaseSession } from "@/lib/client-session";
 
 export async function GET() {
   const impersonation = await getImpersonationSession();
@@ -20,6 +20,16 @@ export async function GET() {
       userId: session.userId,
       sessionKind: "supabase",
       sessionId: `supabase:${session.userId}`,
+    });
+  }
+
+  const cookieSession = await getClientSession();
+  if (cookieSession) {
+    return NextResponse.json({
+      valid: true,
+      userId: cookieSession.userId,
+      sessionKind: "supabase",
+      sessionId: `client_session:${cookieSession.userId}`,
     });
   }
 
