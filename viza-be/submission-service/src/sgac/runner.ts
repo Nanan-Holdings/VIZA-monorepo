@@ -328,6 +328,21 @@ async function fillIfPresent(page: Page, selector: string, value: string | undef
   }
 }
 
+async function fillFirstVisible(page: Page, selectors: string[], value: string | undefined): Promise<boolean> {
+  if (!value) return false;
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (!(await candidate.isVisible().catch(() => false))) continue;
+      await candidate.fill(value, { timeout: 10_000 });
+      return true;
+    }
+  }
+  return false;
+}
+
 async function assertNoVisiblePortalErrors(page: Page, artifactDir: string, stage: string): Promise<void> {
   await page.waitForTimeout(800);
   const errors = page.locator(".error, .invalid-feedback, .text-danger, .alert-danger, .mat-error, [role='alert']");
@@ -347,6 +362,87 @@ async function assertNoVisiblePortalErrors(page: Page, artifactDir: string, stag
       portalSummary: await visibleBodySummary(page),
     });
   }
+}
+
+async function collectVisiblePortalErrors(page: Page): Promise<string> {
+  const errors = page.locator(".error, .invalid-feedback, .text-danger, .alert-danger, .mat-error, [role='alert']");
+  const errorText: string[] = [];
+  const count = await errors.count().catch(() => 0);
+  for (let i = 0; i < count; i += 1) {
+    const item = errors.nth(i);
+    if (await item.isVisible().catch(() => false)) {
+      errorText.push(await item.innerText().catch(() => ""));
+    }
+  }
+  return errorText.map((item) => item.trim()).filter(Boolean).join(" | ");
+}
+
+async function waitForReviewStep(page: Page, artifactDir: string): Promise<void> {
+  await Promise.race([
+    page.waitForSelector("#hdc_Submission_Declaration", { state: "visible", timeout: 45_000 }).catch(() => undefined),
+    page.waitForFunction(
+      () => /Review/i.test(document.body.innerText) && /Declaration|Submit|Previous/i.test(document.body.innerText),
+      null,
+      { timeout: 45_000 },
+    ).catch(() => undefined),
+  ]);
+
+  const visibleErrors = await collectVisiblePortalErrors(page);
+  const body = await visibleBodySummary(page, 2500);
+  if (visibleErrors || /There are missing or erroneous field\(s\)|Please fill in the field above/i.test(body)) {
+    const shot = await screenshot(page, artifactDir, "sgac-trip-portal-error");
+    throw new SgacPortalError(
+      `ICA SGAC portal validation error at trip: ${visibleErrors || body}`,
+      {
+        code: "sgac_portal_validation_error",
+        screenshotPaths: [shot],
+        portalSummary: body,
+      },
+    );
+  }
+
+  const declaration = page.locator("#hdc_Submission_Declaration");
+  if (await declaration.isVisible().catch(() => false)) return;
+  if (/Review/i.test(body)) return;
+
+  const shot = await screenshot(page, artifactDir, "sgac-review-not-reached");
+  throw new SgacPortalError("ICA SGAC Review page was not reached after completing Trip Information.", {
+    code: "sgac_review_not_reached",
+    screenshotPaths: [shot],
+    portalSummary: body,
+  });
+}
+
+async function checkReviewDeclaration(page: Page, artifactDir: string): Promise<void> {
+  const selectors = [
+    "#hdc_Submission_Declaration",
+    "input[type='checkbox'][id*='Declaration' i]",
+    "input[type='checkbox'][name*='Declaration' i]",
+    "input[type='checkbox']",
+    "[role='checkbox']",
+  ];
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const candidate = locator.nth(index);
+      if (!(await candidate.isVisible().catch(() => false))) continue;
+      if (selector === "[role='checkbox']") {
+        await candidate.click({ timeout: 10_000 });
+      } else {
+        await candidate.check({ force: true, timeout: 10_000 });
+      }
+      return;
+    }
+  }
+
+  const body = await visibleBodySummary(page, 2500);
+  const shot = await screenshot(page, artifactDir, "sgac-review-declaration-missing");
+  throw new SgacPortalError("ICA SGAC Review declaration checkbox was not visible.", {
+    code: "sgac_review_declaration_not_visible",
+    screenshotPaths: [shot],
+    portalSummary: body,
+  });
 }
 
 async function launch(headless: boolean): Promise<Handles> {
@@ -423,7 +519,20 @@ async function fillTransport(page: Page, payload: SgacPortalPayload): Promise<vo
       await page.locator("#flightNoInput_0").fill(payload.transport.flightNo ?? "");
     } else {
       await page.locator("#tptTypeInput_0_1").click();
-      await fillIfPresent(page, "#flightNoInput_0", payload.transport.transportNumber);
+      const carrierFlightValue = [payload.transport.carrierName, payload.transport.transportNumber].filter(Boolean).join(" ");
+      await fillFirstVisible(
+        page,
+        [
+          "#carrierNameInput_0",
+          "#carrierNmInput_0",
+          "#flightNoInput_0",
+          "input[formcontrolname*='carrier' i]",
+          "input[formcontrolname*='flight' i]",
+          "input[id*='carrier' i]",
+          "input[id*='flight' i]",
+        ],
+        carrierFlightValue || payload.transport.transportNumber,
+      );
     }
     return;
   }
@@ -466,7 +575,7 @@ async function fillAccommodation(page: Page, payload: SgacPortalPayload): Promis
   await page.locator(`#accoOthInput_0_${accommodation.otherType === "day_trip" ? "0" : "1"}`).click();
 }
 
-async function fillTripStep(page: Page, payload: SgacPortalPayload): Promise<void> {
+async function fillTripStep(page: Page, payload: SgacPortalPayload, artifactDir: string): Promise<void> {
   await selectNgOption(page, "#lastCityCityInput_0", payload.lastCityQuery, payload.lastCityQuery, "Last City/Port of Embarkation Before Singapore");
   await selectNgOption(page, "#purposeOfTravel_0", payload.purposeOfTravelLabel, payload.purposeOfTravelLabel, "Purpose of Travel");
   await fillTransport(page, payload);
@@ -478,7 +587,7 @@ async function fillTripStep(page: Page, payload: SgacPortalPayload): Promise<voi
     await selectNgOption(page, "#nextCityCityInput_0", payload.nextCityQuery, payload.nextCityQuery, "Next City/Port of Disembarkation After Singapore");
   }
   await clickVisibleRoleButton(page, /^Next$/i);
-  await page.waitForSelector("#hdc_Submission_Declaration", { timeout: 40_000 });
+  await waitForReviewStep(page, artifactDir);
 }
 
 function extractReferenceNumbers(body: string): { confirmationNumber: string | null; referenceNumber: string | null } {
@@ -507,7 +616,7 @@ export async function runSgacPortalSubmission(
     await page.goto(SGAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: options.timeoutMs ?? 60_000 });
     await fillTravellerStep(page, payload);
     screenshots.push(await screenshot(page, artifactDir, "sgac-trip-step"));
-    await fillTripStep(page, payload);
+    await fillTripStep(page, payload, artifactDir);
     await assertNoVisiblePortalErrors(page, artifactDir, "trip");
     screenshots.push(await screenshot(page, artifactDir, "sgac-review"));
 
@@ -525,7 +634,7 @@ export async function runSgacPortalSubmission(
       };
     }
 
-    await page.locator("#hdc_Submission_Declaration").check({ force: true });
+    await checkReviewDeclaration(page, artifactDir);
     await clickVisibleRoleButton(page, /^Next$/i);
     await solveSecurityVerificationIfPresent(page, artifactDir, logs);
     await Promise.race([

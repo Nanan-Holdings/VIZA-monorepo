@@ -1,5 +1,6 @@
 import { chromium, type Browser, type Page } from "@playwright/test";
 import type {
+  AppointmentAccountCredentials,
   AppointmentPortalGate,
   AppointmentSlotRow,
   ConfirmationInsert,
@@ -12,6 +13,12 @@ import type {
 } from "./runner";
 
 export const US_VISA_SCHEDULING_SELECTORS = {
+  emailInputs:
+    "input[type='email'], input[name*='email' i], input[id*='email' i], input[name*='user' i], input[id*='user' i]",
+  passwordInputs:
+    "input[type='password'], input[name*='password' i], input[id*='password' i]",
+  loginButtons:
+    "button:has-text('Sign In'), button:has-text('Login'), button:has-text('Log in'), button:has-text('Continue'), input[type='submit'], text=/登录|登入|继续/",
   slotCandidates:
     "[data-viza-appointment-slot], [data-slot-id], [data-appointment-slot], table tbody tr, .appointment-slot, .slot",
   confirmButtons:
@@ -164,12 +171,24 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   constructor(private readonly config: USAppointmentRunnerConfig) {}
 
-  async prepareAppointmentFlow(): Promise<{ readyForSlotCapture: boolean; gate?: AppointmentPortalGate }> {
+  async prepareAppointmentFlow(
+    _job: USAppointmentJobRow,
+    credentials: AppointmentAccountCredentials | null,
+  ): Promise<{ readyForSlotCapture: boolean; gate?: AppointmentPortalGate }> {
     const page = await this.getPage();
     await this.openPortal(page);
     const initialGate = await this.detectGate(page);
     if (initialGate) {
       return { readyForSlotCapture: false, gate: initialGate };
+    }
+
+    if (credentials && await this.isLoginVisible(page)) {
+      await this.login(page, credentials);
+      await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+      const loginGate = await this.detectGate(page);
+      if (loginGate) {
+        return { readyForSlotCapture: false, gate: loginGate };
+      }
     }
 
     const slots = await this.readVisibleSlotCandidates(page);
@@ -270,6 +289,28 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   private async openPortal(page: Page): Promise<void> {
     await page.goto(this.config.baseUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  }
+
+  private async isLoginVisible(page: Page): Promise<boolean> {
+    const emailVisible = await page.locator(US_VISA_SCHEDULING_SELECTORS.emailInputs)
+      .first()
+      .isVisible()
+      .catch(() => false);
+    const passwordVisible = await page.locator(US_VISA_SCHEDULING_SELECTORS.passwordInputs)
+      .first()
+      .isVisible()
+      .catch(() => false);
+    return emailVisible && passwordVisible;
+  }
+
+  private async login(page: Page, credentials: AppointmentAccountCredentials): Promise<void> {
+    await page.locator(US_VISA_SCHEDULING_SELECTORS.emailInputs)
+      .first()
+      .fill(credentials.email, { timeout: 15_000 });
+    await page.locator(US_VISA_SCHEDULING_SELECTORS.passwordInputs)
+      .first()
+      .fill(credentials.password, { timeout: 15_000 });
+    await this.clickFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.loginButtons);
   }
 
   private async readVisibleSlotCandidates(page: Page): Promise<VisibleSlotCandidate[]> {

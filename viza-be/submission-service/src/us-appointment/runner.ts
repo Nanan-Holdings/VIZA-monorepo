@@ -39,6 +39,11 @@ export interface USAppointmentJobRow {
   updated_at: string | null;
 }
 
+export interface AppointmentAccountCredentials {
+  email: string;
+  password: string;
+}
+
 export interface ManualActionInsert {
   job_id: string;
   application_id: string;
@@ -125,6 +130,9 @@ export interface AppointmentPortalGate {
 export interface USAppointmentRunnerRepository {
   listCandidateJobs(limit: number): Promise<USAppointmentJobRow[]>;
   hasPendingManualAction(jobId: string): Promise<boolean>;
+  getAppointmentAccountCredentials(
+    job: USAppointmentJobRow,
+  ): Promise<AppointmentAccountCredentials | null>;
   insertManualAction(input: ManualActionInsert): Promise<void>;
   updateJobForManualAction(input: {
     jobId: string;
@@ -152,7 +160,10 @@ export interface USAppointmentRunnerRepository {
 }
 
 export interface USAppointmentPortalClient {
-  prepareAppointmentFlow(job: USAppointmentJobRow): Promise<{
+  prepareAppointmentFlow(
+    job: USAppointmentJobRow,
+    credentials: AppointmentAccountCredentials | null,
+  ): Promise<{
     readyForSlotCapture: boolean;
     gate?: AppointmentPortalGate;
     errorCode?: string;
@@ -233,7 +244,14 @@ export function isEligibleUSAppointmentJob(
 ): boolean {
   if (!config.enabled) return false;
   if (job.mode !== "assisted_live") return false;
-  if (job.requires_user_action || job.current_manual_action) return false;
+  if (
+    job.requires_user_action
+    && !["login", "account_email_verification"].includes(job.current_manual_action ?? "")
+  ) return false;
+  if (
+    job.current_manual_action
+    && !["login", "account_email_verification"].includes(job.current_manual_action)
+  ) return false;
   if (![
     "appointment_consent_received",
     "appointment_account_required",
@@ -383,9 +401,32 @@ async function persistManualGate(
 }
 
 export class FixtureUSAppointmentPortalClient implements USAppointmentPortalClient {
-  async prepareAppointmentFlow(job: USAppointmentJobRow): Promise<{
+  async prepareAppointmentFlow(
+    job: USAppointmentJobRow,
+    credentials: AppointmentAccountCredentials | null,
+  ): Promise<{
     readyForSlotCapture: boolean;
+    gate?: AppointmentPortalGate;
   }> {
+    if (
+      ["appointment_account_required", "appointment_login_required"].includes(job.status)
+      && !credentials
+    ) {
+      return {
+        readyForSlotCapture: false,
+        gate: {
+          jobStatus: "appointment_manual_required",
+          actionType: "login",
+          instruction: "USVisaScheduling login cannot be automated because VIZA has no saved official account credentials for this job.",
+          metadata: {
+            gate_type: "missing_account_credentials",
+            provider: "usvisascheduling",
+          },
+          errorCode: "missing_account_credentials",
+          errorMessage: "USVisaScheduling login cannot be automated without saved official account credentials.",
+        },
+      };
+    }
     const fixture = readObject(job.user_preferences_json?.portalFixture);
     return { readyForSlotCapture: fixture.autoPrepare === true };
   }
@@ -464,8 +505,11 @@ export async function processUSAppointmentJob(
   portalClient?: USAppointmentPortalClient,
 ): Promise<"processed" | "skipped"> {
   if (!isEligibleUSAppointmentJob(job, config)) return "skipped";
-  if (await repository.hasPendingManualAction(job.id)) return "skipped";
-  const client = portalClient ?? await createDefaultPortalClient(job, config);
+  if (
+    !["login", "account_email_verification"].includes(job.current_manual_action ?? "")
+    && await repository.hasPendingManualAction(job.id)
+  ) return "skipped";
+  let client: USAppointmentPortalClient | null = null;
 
   try {
     if ([
@@ -473,7 +517,26 @@ export async function processUSAppointmentJob(
       "appointment_account_required",
       "appointment_login_required",
     ].includes(job.status)) {
-      const prepared = await client.prepareAppointmentFlow(job);
+      const credentials = await repository.getAppointmentAccountCredentials(job);
+      if (
+        !credentials
+        && ["appointment_account_required", "appointment_login_required"].includes(job.status)
+      ) {
+        await persistManualGate(job, repository, {
+          jobStatus: "appointment_manual_required",
+          actionType: "login",
+          instruction: "USVisaScheduling login cannot be automated because VIZA has no saved official account credentials for this job.",
+          metadata: {
+            gate_type: "missing_account_credentials",
+            provider: "usvisascheduling",
+          },
+          errorCode: "missing_account_credentials",
+          errorMessage: "USVisaScheduling login cannot be automated without saved official account credentials.",
+        });
+        return "processed";
+      }
+      client = portalClient ?? await createDefaultPortalClient(job, config);
+      const prepared = await client.prepareAppointmentFlow(job, credentials);
       if (!prepared.readyForSlotCapture) {
         if (prepared.gate) {
           await persistManualGate(job, repository, prepared.gate);
@@ -513,6 +576,7 @@ export async function processUSAppointmentJob(
     }
 
     if (job.status === "appointment_payment_completed") {
+      client = portalClient ?? await createDefaultPortalClient(job, config);
       const slots = await client.observeSlots(job);
     await repository.insertSlots(slots);
       await repository.updateJobStatus({
@@ -543,6 +607,7 @@ export async function processUSAppointmentJob(
     }
 
     if (job.status === "appointment_booked") {
+    client = portalClient ?? await createDefaultPortalClient(job, config);
     const selectedSlot = await repository.getSelectedSlot(job.id);
     if (!selectedSlot) {
       await repository.updateJobStatus({
@@ -589,6 +654,7 @@ export async function processUSAppointmentJob(
     }
 
     if (job.status === "appointment_status_check_in_progress") {
+      client = portalClient ?? await createDefaultPortalClient(job, config);
       const statusCheck = await client.captureStatusCheck(job);
     await repository.insertStatusCheck(statusCheck);
     await repository.updateJobStatus({
@@ -614,7 +680,7 @@ export async function processUSAppointmentJob(
       return "processed";
     }
   } finally {
-    if (!portalClient) await client.close?.();
+    if (!portalClient) await client?.close?.();
   }
 
   const handoff = buildRunnerHandoff(job, config);

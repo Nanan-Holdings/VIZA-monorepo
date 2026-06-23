@@ -44,6 +44,7 @@ export type SgacTransportPayload =
       airTransportType: "commercial" | "other";
       carrierCodeQuery?: string;
       flightNo?: string;
+      carrierName?: string;
       transportNumber: string;
     }
   | {
@@ -328,13 +329,19 @@ function splitFlightNumber(raw: string): { carrierCodeQuery: string; flightNo: s
   return { carrierCodeQuery: raw.trim(), flightNo: "" };
 }
 
+function looksLikeCommercialFlightNumber(split: { carrierCodeQuery: string; flightNo: string }): boolean {
+  return /^[A-Z0-9]{2,3}$/.test(split.carrierCodeQuery) && /^\d+[A-Z]?$/.test(split.flightNo);
+}
+
 function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTransportPayload {
   const mode = normalizeKey(required(read(payload, "mode_of_travel"), "mode_of_travel", "Mode of travel", missing));
   const transportNumber = required(read(payload, "transport_number"), "transport_number", "Transport number", missing);
   if (mode === "air") {
     const transportType = normalizeKey(read(payload, "air_transport_type") ?? "commercial");
-    const isCommercial = transportType !== "private" && transportType !== "cargo" && transportType !== "other";
     const split = splitFlightNumber(transportNumber);
+    const isCommercial =
+      (transportType !== "private" && transportType !== "cargo" && transportType !== "other") ||
+      looksLikeCommercialFlightNumber(split);
     if (isCommercial && (!split.carrierCodeQuery || !split.flightNo)) {
       missing.push("transport_number");
     }
@@ -343,6 +350,7 @@ function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTran
       airTransportType: isCommercial ? "commercial" : "other",
       carrierCodeQuery: split.carrierCodeQuery,
       flightNo: split.flightNo,
+      carrierName: read(payload, "carrier_name") ?? undefined,
       transportNumber,
     };
   }
