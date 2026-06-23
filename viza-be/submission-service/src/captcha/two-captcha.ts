@@ -97,6 +97,14 @@ export interface CaptchaSolveResult {
   userAgent?: string;
 }
 
+export interface ImageCaptchaTaskOptions {
+  case?: boolean;
+  numeric?: number;
+  minLength?: number;
+  maxLength?: number;
+  comment?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -225,6 +233,7 @@ async function runTask(
 export async function solveImageCaptcha(
   imageBuffer: Buffer,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  taskOptions: ImageCaptchaTaskOptions = {},
 ): Promise<CaptchaSolveResult> {
   // `case: true` tells 2captcha workers to preserve letter case. The CEAC
   // BotDetect CAPTCHA is rendered in uppercase letters + digits; without
@@ -233,7 +242,11 @@ export async function solveImageCaptcha(
     {
       type: "ImageToTextTask",
       body: imageBuffer.toString("base64"),
-      case: true,
+      case: taskOptions.case ?? true,
+      ...("numeric" in taskOptions ? { numeric: taskOptions.numeric } : {}),
+      ...("minLength" in taskOptions ? { minLength: taskOptions.minLength } : {}),
+      ...("maxLength" in taskOptions ? { maxLength: taskOptions.maxLength } : {}),
+      ...("comment" in taskOptions ? { comment: taskOptions.comment } : {}),
     },
     timeoutMs,
   );
