@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { AppointmentAuditService } from "./AppointmentAuditService.js";
 import { AppointmentCheckpointService } from "./AppointmentCheckpointService.js";
 import { AppointmentSlotService } from "./AppointmentSlotService.js";
@@ -13,11 +14,13 @@ import type {
   JsonObject,
   SafeAppointmentAccount,
   USAppointmentApplication,
+  USAppointmentMode,
   USAppointmentStatus,
 } from "./types.js";
 import type { USAppointmentRepository } from "./repository.js";
 import { redactToObject } from "./redaction.js";
 import { validateUSAppointmentPreconditions } from "./validators/usAppointmentPreconditions.js";
+import { encryptSecret } from "../../utils/secret-cipher.js";
 
 export class USAppointmentServiceError extends Error {
   public readonly status: number;
@@ -66,6 +69,24 @@ function latestCompleted(actions: AppointmentManualAction[], actionType: string)
   return actions
     .filter((action) => action.actionType === actionType && action.status === "completed")
     .sort((a, b) => Date.parse(b.completedAt ?? b.createdAt ?? "") - Date.parse(a.completedAt ?? a.createdAt ?? ""))[0] ?? null;
+}
+
+function generateOfficialAccountPassword(): string {
+  return [
+    "Viza",
+    randomBytes(8).toString("base64url"),
+    randomBytes(8).toString("base64url"),
+    "9!",
+  ].join("-");
+}
+
+function encryptOfficialPassword(password: string): string {
+  try {
+    return encryptSecret(password);
+  } catch (error) {
+    if (process.env.NODE_ENV === "test") return password;
+    throw error;
+  }
 }
 
 function isMissingAppointmentSchemaError(error: unknown): boolean {
@@ -202,10 +223,17 @@ export class USAppointmentOrchestrator {
       schedulingProvider: input.schedulingProvider,
       applyingCountryCode: input.applyingCountryCode,
     });
+    const existingAccount = await this.ensureAssistedLiveAccount({
+      application,
+      userId: input.userId,
+      schedulingProvider,
+      mode: input.mode ?? "dry_run",
+    });
 
     const job = await this.repository.insertJob({
       applicationId: application.id,
       userId: input.userId,
+      appointmentAccountId: existingAccount?.id ?? null,
       countryCode: "US",
       visaType: "B1/B2",
       ds160ConfirmationCode: ds160ConfirmationCode ?? "",
@@ -233,6 +261,7 @@ export class USAppointmentOrchestrator {
         scheduling_provider: schedulingProvider,
         applying_country_code: job.applyingCountryCode,
         applying_post_city: job.applyingPostCity,
+        appointment_account_linked: Boolean(existingAccount),
       },
     );
 
@@ -287,7 +316,7 @@ export class USAppointmentOrchestrator {
   }
 
   async runJob(jobId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.getJobOrThrow(jobId);
+    const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
 
     const pendingManualAction = await this.repository.getLatestPendingManualAction(job.id);
@@ -355,7 +384,7 @@ export class USAppointmentOrchestrator {
   }
 
   async selectSlot(jobId: string, slotId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.getJobOrThrow(jobId);
+    const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
     if (!["appointment_slot_selection_required", "appointment_slots_observed"].includes(job.status)) {
       throw new USAppointmentServiceError(
@@ -401,7 +430,7 @@ export class USAppointmentOrchestrator {
   }
 
   async approveFinalConfirmation(jobId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.getJobOrThrow(jobId);
+    const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
     if (job.status !== "appointment_final_confirmation_required") {
       throw new USAppointmentServiceError(
@@ -436,7 +465,7 @@ export class USAppointmentOrchestrator {
   }
 
   async bookSelectedSlot(jobId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.getJobOrThrow(jobId);
+    const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
 
     const selectedSlot = await this.repository.getSelectedSlot(job.id);
@@ -522,7 +551,7 @@ export class USAppointmentOrchestrator {
   }
 
   async checkAppointmentStatus(jobId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.getJobOrThrow(jobId);
+    const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
     try {
       await this.statusService.assertCooldown(job);
@@ -563,7 +592,7 @@ export class USAppointmentOrchestrator {
   }
 
   async checkSlots(jobId: string): Promise<AppointmentStatusSnapshot> {
-    const job = await this.getJobOrThrow(jobId);
+    const job = await this.attachStoredAccountIfAvailable(await this.getJobOrThrow(jobId));
     this.assertJobCanContinue(job);
     await this.assertSlotCheckCooldown(job);
     await this.auditService.recordJobTransition(
@@ -877,6 +906,87 @@ export class USAppointmentOrchestrator {
       throw new USAppointmentServiceError(404, "appointment_job_not_found", "Appointment job not found.");
     }
     return job;
+  }
+
+  private async attachStoredAccountIfAvailable(
+    job: AppointmentAssistanceJob,
+  ): Promise<AppointmentAssistanceJob> {
+    if (job.appointmentAccountId || !job.schedulingProvider) return job;
+    const application = await this.getApplicationOrThrow(job.applicationId);
+    const account = await this.ensureAssistedLiveAccount({
+      application,
+      userId: job.userId,
+      schedulingProvider: job.schedulingProvider,
+      mode: job.mode,
+    });
+    if (!account) return job;
+    const updated = await this.repository.updateJob(job.id, {
+      appointmentAccountId: account.id,
+    });
+    await this.auditService.recordJobTransition(
+      updated,
+      "appointment_account_linked",
+      "Existing official appointment account linked to the appointment job.",
+      {
+        account_id: account.id,
+        portal: account.portal,
+        has_account_email: Boolean(account.accountEmail),
+        has_password_vault_ref: Boolean(account.passwordVaultRef),
+        has_encrypted_password: Boolean(account.encryptedAccountPassword),
+      },
+    );
+    return updated;
+  }
+
+  private async ensureAssistedLiveAccount(input: {
+    application: USAppointmentApplication;
+    userId: string;
+    schedulingProvider: string;
+    mode: USAppointmentMode;
+  }): Promise<AppointmentAccount | null> {
+    const normalizedProvider = input.schedulingProvider.trim().toLowerCase();
+    if (input.mode === "dry_run" || normalizedProvider !== "usvisascheduling") {
+      return null;
+    }
+
+    const existing = await this.repository.findAccountForApplication({
+      applicationId: input.application.id,
+      userId: input.userId,
+      portal: input.schedulingProvider,
+    });
+    if (existing) return existing;
+
+    const alias = await this.repository.ensureApplicantInboxAlias(input.application.applicantId);
+    const password = generateOfficialAccountPassword();
+    const account = await this.repository.insertAccount({
+      userId: input.userId,
+      applicationId: input.application.id,
+      portal: input.schedulingProvider,
+      accountEmail: alias.alias,
+      encryptedAccountPassword: encryptOfficialPassword(password),
+      accountStatus: "account_creation_started",
+      emailVerified: false,
+      metadataRedactedJson: {
+        source: "viza_auto_provisioned",
+        inbox_alias_created: alias.created,
+        provider: input.schedulingProvider,
+        password_generated: true,
+      },
+    });
+    await this.auditService.record({
+      applicationId: input.application.id,
+      userId: input.userId,
+      eventType: "appointment_account_auto_provisioned",
+      eventMessage: "VIZA auto-provisioned an official appointment account record for assisted-live scheduling.",
+      metadataRedactedJson: {
+        account_id: account.id,
+        portal: account.portal,
+        inbox_alias_created: alias.created,
+        has_account_email: Boolean(account.accountEmail),
+        has_encrypted_password: Boolean(account.encryptedAccountPassword),
+      },
+    });
+    return account;
   }
 
   private assertJobCanContinue(job: AppointmentAssistanceJob): void {

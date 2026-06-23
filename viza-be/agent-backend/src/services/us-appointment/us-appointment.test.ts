@@ -66,6 +66,7 @@ class InMemoryUSAppointmentRepository implements USAppointmentRepository {
   statusChecks: AppointmentStatusCheck[] = [];
   auditEvents: InsertAppointmentAuditEventInput[] = [];
   applicationState: Record<string, string | null> = {};
+  inboxAlias: string | null = "appl-existing@haggstorm.com";
 
   async getApplicationContext(): Promise<USAppointmentApplication | null> {
     return this.application;
@@ -104,8 +105,8 @@ class InMemoryUSAppointmentRepository implements USAppointmentRepository {
       countryCode: "US",
       portal: input.portal,
       accountEmail: input.accountEmail ?? null,
-      encryptedAccountPassword: null,
-      passwordVaultRef: null,
+      encryptedAccountPassword: input.encryptedAccountPassword ?? null,
+      passwordVaultRef: input.passwordVaultRef ?? null,
       accountStatus: input.accountStatus,
       emailVerified: input.emailVerified ?? false,
       lastLoginAt: null,
@@ -128,6 +129,25 @@ class InMemoryUSAppointmentRepository implements USAppointmentRepository {
 
   async getAccount(accountId: string): Promise<AppointmentAccount | null> {
     return this.accounts.find((account) => account.id === accountId) ?? null;
+  }
+
+  async ensureApplicantInboxAlias(): Promise<{ alias: string; created: boolean }> {
+    if (this.inboxAlias) return { alias: this.inboxAlias, created: false };
+    this.inboxAlias = "appl-created@haggstorm.com";
+    return { alias: this.inboxAlias, created: true };
+  }
+
+  async findAccountForApplication(input: {
+    applicationId: string;
+    userId: string;
+    portal: string;
+  }): Promise<AppointmentAccount | null> {
+    return this.accounts
+      .filter((account) =>
+        account.applicationId === input.applicationId &&
+        account.userId === input.userId &&
+        account.portal === input.portal)
+      .sort((a, b) => Date.parse(b.updatedAt ?? "") - Date.parse(a.updatedAt ?? ""))[0] ?? null;
   }
 
   async findJobByIdempotencyKey(idempotencyKey: string): Promise<AppointmentAssistanceJob | null> {
@@ -613,6 +633,50 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(job.applyingPostCity).toBe("Beijing");
     expect(job.schedulingProvider).toBe("usvisascheduling");
     expect(job.status).toBe("appointment_consent_received");
+  });
+
+  it("auto-provisions and links an appointment account for China assisted-live jobs", async () => {
+    const { repository, job } = await createChinaAssistedLiveJob();
+    expect(repository.accounts).toHaveLength(1);
+    expect(job.appointmentAccountId).toBe(repository.accounts[0]?.id);
+    expect(repository.accounts[0]?.accountEmail).toBe("appl-existing@haggstorm.com");
+    expect(repository.accounts[0]?.encryptedAccountPassword).toBeTruthy();
+    expect(repository.accounts[0]?.accountStatus).toBe("account_creation_started");
+    expect(repository.auditEvents.some((event) =>
+      event.eventType === "appointment_account_auto_provisioned")).toBe(true);
+  });
+
+  it("auto-provisions and links an account when an older assisted-live job is continued", async () => {
+    const repository = new InMemoryUSAppointmentRepository();
+    repository.inboxAlias = null;
+    const { orchestrator } = createUSAppointmentServices(repository);
+    await orchestrator.recordConsent({
+      applicationId: APPLICATION_ID,
+      actorUserId: USER_ID,
+      consentSnapshot: { accepted: true, mode: "assisted_live" },
+    });
+    const job = await repository.insertJob({
+      applicationId: APPLICATION_ID,
+      userId: USER_ID,
+      countryCode: "US",
+      visaType: "B1/B2",
+      ds160ConfirmationCode: "AA00DRYRUN1",
+      applyingCountryCode: "CN",
+      applyingPostCity: "Beijing",
+      schedulingProvider: "usvisascheduling",
+      status: "appointment_consent_received",
+      mode: "assisted_live",
+      userPreferencesJson: {},
+      requiresUserAction: false,
+      currentManualAction: null,
+      idempotencyKey: "legacy-assisted-live-job",
+    });
+
+    const status = await orchestrator.runJob(job.id);
+    expect(repository.accounts).toHaveLength(1);
+    expect(repository.accounts[0]?.accountEmail).toBe("appl-created@haggstorm.com");
+    expect(status.job?.appointmentAccountId).toBe(repository.accounts[0]?.id);
+    expect(status.job?.status).toBe("appointment_login_required");
   });
 
   it("queues China assisted-live jobs for the submission runner without a manual login checkpoint", async () => {

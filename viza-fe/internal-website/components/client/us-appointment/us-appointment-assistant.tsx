@@ -344,11 +344,15 @@ export function USAppointmentAssistant({
     void runWithBusy("create", async () => {
       const consentOk = consentRecorded || (await recordConsent());
       if (!consentOk) return null;
-      await createAppointmentJob(applicationId, {
+      const restartFromTerminal = Boolean(job && TERMINAL_STATUSES.has(job.status));
+      const createdJob = await createAppointmentJob(applicationId, {
         mode: "assisted_live",
         ds160ConfirmationCode: ds160Code.trim() || undefined,
         applyingCountryCode: "CN",
         schedulingProvider: "usvisascheduling",
+        idempotencyKey: restartFromTerminal
+          ? `us-appointment:${applicationId}:assisted-live:${Date.now()}`
+          : undefined,
         userPreferencesJson: {
           appointmentType: "interview",
           assistedLiveCountry: "CN",
@@ -358,7 +362,7 @@ export function USAppointmentAssistant({
           finalConfirmationRequired: true,
         },
       });
-      return getAppointmentStatus(applicationId);
+      return runAppointmentJob(createdJob.id);
     });
   };
 
@@ -401,7 +405,8 @@ export function USAppointmentAssistant({
     Boolean(job) && SLOT_CHECK_STATUSES.has(job?.status ?? "appointment_not_started");
   const canCheckStatus = Boolean(job && snapshot?.confirmation);
   const canBook = Boolean(job && selectedAppointmentSlot && finalApproved && !snapshot?.confirmation);
-  const showCreate = !job;
+  const showCreate = !job || TERMINAL_STATUSES.has(job.status);
+  const hasActiveJob = Boolean(job && !TERMINAL_STATUSES.has(job.status));
   const showProgress =
     Boolean(job) &&
     !TERMINAL_STATUSES.has(job?.status ?? "appointment_not_started") &&
@@ -490,7 +495,7 @@ export function USAppointmentAssistant({
                     id="ds160-code"
                     value={ds160Code}
                     onChange={(event) => setDs160Code(event.target.value)}
-                    disabled={Boolean(job)}
+                    disabled={hasActiveJob}
                     placeholder={t("setup.ds160CodePlaceholder")}
                   />
                 </BrandField>
@@ -530,7 +535,7 @@ export function USAppointmentAssistant({
                 <label className="flex items-start gap-3 rounded-[8px] border border-slate-200 bg-white p-4">
                   <Checkbox
                     checked={consentAccepted}
-                    disabled={Boolean(job)}
+                    disabled={hasActiveJob}
                     onCheckedChange={(checked) => setConsentAccepted(checked === true)}
                     className="mt-1 h-5 w-5"
                   />
