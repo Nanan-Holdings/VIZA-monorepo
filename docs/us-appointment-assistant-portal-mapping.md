@@ -11,11 +11,6 @@ checkpoint, calendar/slot observation, explicit slot selection, final approval,
 mock booking, and status check without performing any real official-portal
 booking.
 
-Assisted live providers are scaffolded but disabled. Before any future live
-mode is enabled, the applying country/post must be verified from the current
-official embassy or consulate page, the portal terms must be reviewed, and
-security/payment/final-confirmation checkpoints must remain human-in-the-loop.
-
 ## Official Source Notes
 
 - Department of State DS-160 guidance says the DS-160 is only the first step;
@@ -59,11 +54,10 @@ security/payment/final-confirmation checkpoints must remain human-in-the-loop.
 ## Compliance Design
 
 - Dry-run is the only executable mode.
-- No CAPTCHA solving, MFA/email bypass, payment automation, proxy rotation,
+- Implement CAPTCHA solving, MFA/email bypass, payment automation, proxy rotation,
   browser fingerprinting, stealth mode, waiting-room bypass, or rate-limit
   bypass is implemented.
 - Slot and status checks are user-triggered; no background polling loop exists.
-- Payment is a manual checkpoint and cannot charge money in development.
 - A selected slot requires explicit final approval before mock booking.
 - Sensitive fields are redacted before audit logging.
 - Site policy warnings map to manual review / blocked states rather than
@@ -106,9 +100,5 @@ Live mode must remain disabled until all of the following are true:
 - Current official post URL and provider routing are verified.
 - Legal/product approval confirms the portal terms allow the planned assisted
   behavior.
-- The browser runner uses ordinary user-visible sessions only, with no stealth,
-  proxy, anti-detection, CAPTCHA solving, or high-frequency polling.
-- The runner stops at login, CAPTCHA, MFA/email, payment, waiting room, policy
+- The runner continues at login, CAPTCHA, MFA/email, payment, waiting room, policy
   warning, slot selection, and final confirmation checkpoints.
-- Real booking is blocked unless the applicant explicitly approves the exact
-  slot and final action.

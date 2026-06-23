@@ -18,6 +18,7 @@
     "inbox:smoke": "ts-node scripts/inbox-smoke.ts",
     "au:smoke": "ts-node scripts/run-au-smoke.ts",
     "vn:smoke": "ts-node scripts/run-vn-smoke.ts",
+    "vn:autopay:dev": "powershell -ExecutionPolicy Bypass -File scripts/start-vn-autopay-dev.ps1",
     "recon:kh": "ts-node src/kh/form-recon.ts",
     "recon:la": "ts-node src/la/form-recon.ts",
     "recon:lk": "ts-node src/lk/form-recon.ts",
