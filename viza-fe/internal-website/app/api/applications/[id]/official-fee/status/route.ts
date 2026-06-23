@@ -162,6 +162,20 @@ export async function GET(
     return NextResponse.json({ error: receiptResult.error.message }, { status: 500 });
   }
 
+  const queueResult = await admin
+    .from("submission_queue")
+    .select("id, status, current_stage, payment_status, official_status, updated_at")
+    .eq("application_id", applicationId)
+    .in("status", ["vn_payment_pending", "vn_payment_processing", "vn_payment_paid", "vn_payment_failed", "vn_blocked"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (queueResult.error && !isSchemaMissing(queueResult.error)) {
+    return NextResponse.json({ error: queueResult.error.message }, { status: 500 });
+  }
+
+  const paymentQueue = queueResult.data as Record<string, unknown> | null;
+
   return NextResponse.json(
     {
       ok: true,
@@ -176,6 +190,14 @@ export async function GET(
         : null,
       attempts: attemptsResult.data ?? [],
       receipt: receiptResult.data ?? null,
+      paymentQueue,
+      paymentQueued:
+        paymentQueue?.status === "vn_payment_pending" ||
+        paymentQueue?.status === "vn_payment_processing",
+      paymentNeedsOperator:
+        paymentQueue?.status === "vn_blocked" ||
+        paymentQueue?.status === "vn_payment_failed" ||
+        paymentQueue?.payment_status === "manual_review",
     },
     { headers: { "Cache-Control": "no-store" } },
   );

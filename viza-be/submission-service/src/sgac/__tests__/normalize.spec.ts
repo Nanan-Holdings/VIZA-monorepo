@@ -65,6 +65,25 @@ test("normalizeSgacPortalPayload maps purpose_of_travel and transport number int
   assert.equal(payload.phoneNumber, "13800138000");
 });
 
+test("normalizeSgacPortalPayload treats standard airline flight numbers as commercial flights", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        air_transport_type: "private",
+        carrier_name: "Singapore Airlines",
+        transport_number: "SQ121",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.transport.mode, "air");
+  assert.equal(payload.transport.airTransportType, "commercial");
+  assert.equal(payload.transport.carrierCodeQuery, "SQ");
+  assert.equal(payload.transport.flightNo, "121");
+});
+
 test("normalizeSgacPortalPayload prefers mobile_number and splits it for ICA phone fields", () => {
   const payload = normalizeSgacPortalPayload(
     basePayload({

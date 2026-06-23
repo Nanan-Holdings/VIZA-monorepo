@@ -1,5 +1,7 @@
 import { supabase } from "../supabase";
+import { decryptSecret } from "../secret-cipher";
 import type {
+  AppointmentAccountCredentials,
   AuditEventInsert,
   AppointmentSlotRow,
   ConfirmationInsert,
@@ -9,6 +11,12 @@ import type {
   USAppointmentJobRow,
   USAppointmentRunnerRepository,
 } from "./runner";
+
+function decryptOrPlaintext(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  if (value.split(":").length !== 4) return value;
+  return decryptSecret(value);
+}
 
 export class SupabaseUSAppointmentRunnerRepository
   implements USAppointmentRunnerRepository
@@ -28,7 +36,7 @@ export class SupabaseUSAppointmentRunnerRepository
         "appointment_booked",
         "appointment_status_check_in_progress",
       ])
-      .eq("requires_user_action", false)
+      .or("requires_user_action.eq.false,current_manual_action.in.(login,account_email_verification)")
       .order("updated_at", { ascending: true })
       .limit(limit);
     if (error) {
@@ -81,6 +89,39 @@ export class SupabaseUSAppointmentRunnerRepository
     if (error) {
       throw new Error(`US appointment audit insert failed: ${error.message}`);
     }
+  }
+
+  async getAppointmentAccountCredentials(
+    job: USAppointmentJobRow,
+  ): Promise<AppointmentAccountCredentials | null> {
+    let query = supabase
+      .from("appointment_accounts")
+      .select("account_email, encrypted_account_password, password_vault_ref")
+      .eq("portal", "usvisascheduling")
+      .limit(1);
+
+    if (job.appointment_account_id) {
+      query = query.eq("id", job.appointment_account_id);
+    } else {
+      query = query
+        .eq("application_id", job.application_id)
+        .eq("user_id", job.user_id);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) {
+      throw new Error(`US appointment account lookup failed: ${error.message}`);
+    }
+    const email = typeof data?.account_email === "string"
+      ? data.account_email.trim()
+      : "";
+    const password = decryptOrPlaintext(
+      typeof data?.encrypted_account_password === "string"
+        ? data.encrypted_account_password
+        : null,
+    );
+    if (!email || !password) return null;
+    return { email, password };
   }
 
   async updateJobStatus(input: {
