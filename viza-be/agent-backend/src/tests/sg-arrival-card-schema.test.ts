@@ -129,8 +129,23 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("place_of_birth_country", "RUSSIA")).toBe("俄罗斯");
     expect(labelZh("place_of_birth_country", "UKRAINE")).toBe("乌克兰");
 
-    expect(labelZh("place_of_residence", "CAMBODIA, PHNOM PENH, PHNOM PENH")).toBe("柬埔寨，PHNOM PENH，PHNOM PENH");
-    expect(labelZh("place_of_residence", "RUSSIA, CENTRAL, MOSCOW")).toBe("俄罗斯，CENTRAL，MOSCOW");
+    expect(labelZh("place_of_residence", "AFGHANISTAN, KABUL, KABUL")).toBe("阿富汗，喀布尔，喀布尔");
+    expect(labelZh("place_of_residence", "ALBANIA, TIRANA, TIRANA")).toBe("阿尔巴尼亚，地拉那，地拉那");
+    expect(labelZh("place_of_residence", "CAMBODIA, PHNOM PENH, PHNOM PENH")).toBe("柬埔寨，金边，金边");
+    expect(labelZh("place_of_residence", "CHINA, BEIJING, BEIJING")).toBe("中国，北京，北京");
+    expect(labelZh("place_of_residence", "CHINA, SHANGHAI, SHANGHAI")).toBe("中国，上海，上海");
+    expect(labelZh("place_of_residence", "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR")).toBe("马来西亚，吉隆坡，吉隆坡");
+    expect(labelZh("place_of_residence", "RUSSIA, CENTRAL, MOSCOW")).toBe("俄罗斯，指定地区，莫斯科");
+    for (const value of [
+      "AFGHANISTAN, KABUL, KABUL",
+      "ALBANIA, TIRANA, TIRANA",
+      "ALGERIA, ALGIERS, ALGIERS",
+      "CHINA, BEIJING, BEIJING",
+      "CHINA, SHANGHAI, SHANGHAI",
+      "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR",
+    ]) {
+      expect(labelZh("place_of_residence", value)).not.toMatch(/[A-Za-z]/);
+    }
 
     expect(labelZh("purpose_of_travel", "Religion")).toBe("宗教活动");
     expect(labelZh("purpose_of_travel", "Sports event")).toBe("体育赛事");

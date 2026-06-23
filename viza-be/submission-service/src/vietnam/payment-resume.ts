@@ -1,4 +1,4 @@
-import { chromium, type Page } from "@playwright/test";
+import { chromium, type Locator, type Page } from "@playwright/test";
 import { solveImageCaptcha } from "../captcha";
 import {
   loadVietnamFixedCardFromEnv,
@@ -32,7 +32,7 @@ export interface VietnamPaymentResumeInput {
   card?: VietnamFixedCard | null;
 }
 
-const DEFAULT_SEARCH_URL = "https://evisa.xuatnhapcanh.gov.vn/tra-cuu-thi-thuc";
+const DEFAULT_SEARCH_URL = "https://evisa.gov.vn/e-visa/search";
 const SEARCH_FIELD_SELECTORS = [
   "#basic_maHoSo",
   "#basic_email",
@@ -68,17 +68,10 @@ async function fillByCandidates(page: Page, candidates: string[], value: string)
       if (await locator.isVisible({ timeout: 1_500 })) {
         const readonly = await locator.getAttribute("readonly").catch(() => null);
         if (readonly !== null) {
-          await locator.evaluate(
-            (element, nextValue) => {
-              if (!(element instanceof HTMLInputElement)) return;
-              element.value = nextValue;
-              element.dispatchEvent(new Event("input", { bubbles: true }));
-              element.dispatchEvent(new Event("change", { bubbles: true }));
-            },
-            value,
-          );
+          await setInputValue(locator, value);
         } else {
           await locator.fill(value, { timeout: 5_000 });
+          await setInputValue(locator, value);
         }
         return true;
       }
@@ -87,6 +80,24 @@ async function fillByCandidates(page: Page, candidates: string[], value: string)
     }
   }
   return false;
+}
+
+async function setInputValue(locator: Locator, value: string): Promise<void> {
+  await locator.evaluate(
+    (element, nextValue) => {
+      if (!(element instanceof HTMLInputElement)) return;
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      if (descriptor?.set) {
+        descriptor.set.call(element, nextValue);
+      } else {
+        element.value = nextValue;
+      }
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      element.dispatchEvent(new Event("blur", { bubbles: true }));
+    },
+    value,
+  );
 }
 
 async function fillSearchFields(page: Page, input: VietnamPaymentResumeInput): Promise<void> {
@@ -115,6 +126,7 @@ async function fillSearchFields(page: Page, input: VietnamPaymentResumeInput): P
     'input[placeholder*="birth" i]',
     'input[placeholder*="dd/mm/yyyy" i]',
   ], toVietnamDob(input.dateOfBirth));
+  await page.keyboard.press("Escape").catch(() => undefined);
   if (!filledCode || !filledEmail || !filledDob) {
     const visibleInputs = await page.locator("input:visible").count().catch(() => 0);
     const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
@@ -163,7 +175,10 @@ async function gotoSearchPageWithRetry(page: Page, input: VietnamPaymentResumeIn
 
 async function solveSearchCaptcha(page: Page, timeoutMs: number): Promise<void> {
   const image = page.locator([
+    "img.captcha",
+    'img[alt*="Identify" i]',
     'img[src*="captcha" i]',
+    'img[src*="capcha" i]',
     'img[alt*="captcha" i]',
     'img[id*="captcha" i]',
     'canvas',
@@ -181,12 +196,15 @@ async function solveSearchCaptcha(page: Page, timeoutMs: number): Promise<void> 
     'input[placeholder*="security" i]',
   ].join(", ")).first();
   await captchaInput.fill(solution.text.trim(), { timeout: 10_000 });
+  await setInputValue(captchaInput, solution.text.trim());
 }
 
 async function submitSearch(page: Page): Promise<void> {
   const submitted =
     await page.locator('button:has-text("Search")').first().click({ timeout: 5_000 }).then(() => true).catch(() => false) ||
     await page.locator('button:has-text("Tra cứu")').first().click({ timeout: 5_000 }).then(() => true).catch(() => false) ||
+    await page.locator('input[type="button"][value*="Search" i]').first().click({ timeout: 5_000 }).then(() => true).catch(() => false) ||
+    await page.locator('input[type="submit"][value*="Search" i]').first().click({ timeout: 5_000 }).then(() => true).catch(() => false) ||
     await page.locator('input[type="submit"]').first().click({ timeout: 5_000 }).then(() => true).catch(() => false);
   if (!submitted) throw new Error("Could not locate Vietnam search submit button.");
   await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
@@ -259,7 +277,16 @@ export async function resumeVietnamOfficialPayment(
     }
     await fillSearchFields(page, input);
     await solveSearchCaptcha(page, input.timeoutMs ?? 120_000);
+    await fillSearchFields(page, input);
     await submitSearch(page);
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    if (/no result found|không tìm thấy|khong tim thay/i.test(bodyText)) {
+      return {
+        status: "unavailable",
+        reason: "The official Vietnam search page returned no result for this registration code, email, and date of birth.",
+        url: page.url(),
+      };
+    }
 
     if (!(await clickPaymentEntry(page))) {
       return {
