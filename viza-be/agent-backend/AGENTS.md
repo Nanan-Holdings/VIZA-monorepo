@@ -35,11 +35,12 @@ explicitly reintroduces another provider.
   a future task explicitly enables provider-approved live payment.
 - U.S. B1/B2 appointment assistant: `src/routes/us-appointment.routes.ts`,
   `src/services/us-appointment/**`, `src/db/schema.ts`, and
-  `drizzle/0091_us_appointment_assistant.sql`. Dry-run/manual-checkpoint by
-  default; China `CN/usvisascheduling` may create assisted-live handoff jobs for
-  `submission-service`, but `agent-backend` must not run browser automation or
-  bypass login, CAPTCHA, email, payment, waiting-room, rate-limit, policy, or
-  final-confirmation controls.
+  `drizzle/0091_us_appointment_assistant.sql`. China
+  `CN/usvisascheduling` assisted-live may auto-provision a VIZA alias official
+  appointment account record and hand off login/slot observation to
+  `submission-service`; `agent-backend` must keep browser automation out of
+  this service and preserve explicit user slot selection plus payment/final
+  approval actions.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
@@ -61,8 +62,11 @@ explicitly reintroduces another provider.
 - Do not move browser automation into this service; official portal automation,
   CAPTCHA handling, proxy/fingerprint handling, and runner artifacts belong
   outside this website automation scope. The U.S. appointment assistant may
-  model checkpoint state, but must not bypass login, CAPTCHA, MFA/email,
-  payment, waiting-room, rate-limit, or final-confirmation controls.
+  create/link appointment account records and model checkpoint state, but
+  actual login, official account registration, CAPTCHA/MFA/email handling,
+  waiting-room/rate-limit handling, and slot capture belong in
+  `submission-service`. User slot selection and payment/final approval remain
+  explicit VIZA actions.
 - Do not move frontend route logic here; Next.js route/UI code belongs in
   `viza-fe/internal-website`.
 

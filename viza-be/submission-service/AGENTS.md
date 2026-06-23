@@ -81,13 +81,15 @@ filling and one-shot submission for the applicant.
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
   appointment runner. Polls `appointment_assistance_jobs` when
-  `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, uses the Cloudflare-backed
-  `inbound_email` path for verification mail helpers, writes official slot
-  observations to `appointment_slots`, books only after a user-selected slot
-  and final VIZA approval, captures confirmation artifacts in
-  `appointment_confirmations`, and writes follow-up checks to
-  `appointment_status_checks`. Keep the DB state machine in `runner.ts` and
-  official-page selectors/page interactions in `usvisascheduling-portal.ts`.
+  `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, reads VIZA-created
+  `appointment_accounts` credentials, uses the Cloudflare-backed
+  `inbound_email` path for verification mail helpers, automates supported
+  official login/account-prep steps, writes official slot observations to
+  `appointment_slots`, books only after a user-selected slot and payment/final
+  VIZA approval, captures confirmation artifacts in `appointment_confirmations`,
+  and writes follow-up checks to `appointment_status_checks`. Keep the DB state
+  machine in `runner.ts` and official-page selectors/page interactions in
+  `usvisascheduling-portal.ts`.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
@@ -103,6 +105,11 @@ filling and one-shot submission for the applicant.
   `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`: local live smoke
   entry points for official portal reach/fill validation. SGAC smoke stops
   before final submit unless run with `--submit` and real applicant data.
+- `scripts/setup-vn-card-profile.ps1` and `scripts/start-vn-autopay-dev.ps1`:
+  local-only Vietnam fixed-card pilot helpers. The setup script may save only
+  non-sensitive card metadata such as last4/expiry/holder in ignored local
+  files. Full PAN and CVV must be entered at worker startup and must not be
+  committed, logged, or stored in `.env`.
 - `src/alert.ts`: Resend failure alerts.
 - `src/supabase.ts`: Supabase service client.
 
@@ -120,7 +127,7 @@ filling and one-shot submission for the applicant.
 | Country/package | Status | Stop point / result |
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses CAPTCHA solving when needed, and completes applicant Sign/Submit as part of one-shot submission. |
-| US B1/B2 appointment / China USVisaScheduling | Assisted-live gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; writes official slot/status observations, books only after user slot selection plus final approval, and must handle supported CAPTCHA, waiting rooms, payment, policy warnings, and approval checkpoints without hiding unsupported gates or skipping user slot selection/final VIZA approval. |
+| US B1/B2 appointment / China USVisaScheduling | Assisted-live gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; reads VIZA-created appointment account credentials, automates supported login/account-prep and official slot/status observation, books only after user slot selection plus payment/final approval, and must handle supported CAPTCHA, waiting rooms, policy warnings, and approval checkpoints without hiding unsupported gates or skipping user slot selection/payment/final VIZA approval. |
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 + gated payment pilot | Fills form and stops before Pay/Submit by default; captures registration code when portal review is reached. With explicit VIZA official-fee authorization plus fixed-card pilot env flags, may continue from the official payment page until paid or a 3DS/OTP/unknown-gateway manual checkpoint appears. |
