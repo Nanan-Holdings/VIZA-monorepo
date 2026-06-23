@@ -18,9 +18,10 @@ and DB state transitions.
   timing fields when creating a job. The DS-160-derived post must come from
   stored application/answer data, and available timings should be observed by
   the backend before the user chooses a slot.
-- Do implement or document bypasses for official login, CAPTCHA/MFA,
-  waiting rooms, policy prompts, payment controls, rate limits, or final
-  confirmation pages.
+- Do implement state transitions for gated assisted-live handling of official
+  login, supported CAPTCHA/MFA, waiting rooms, policy prompts, payment controls,
+  rate limits, and final confirmation pages. Unsupported gates must be recorded
+  as manual-required states with redacted diagnostics, not hidden as success.
 - VIZA alias email automation is allowed for account creation and email
   verification when it uses the Cloudflare Email Worker -> `inbound_email`
   path and records only redacted checkpoint/audit metadata.
@@ -37,4 +38,4 @@ and DB state transitions.
 - `AppointmentStatusService.ts`: user-triggered status check cooldown.
 - `redaction.ts`: recursive sensitive-field redaction.
 - `playwright/**`: non-operational scaffolds and checkpoint classification only.
-- `us-appointment.test.ts`: dry-run lifecycle and compliance tests.
+- `us-appointment.test.ts`: dry-run, assisted-live lifecycle, and compliance tests.

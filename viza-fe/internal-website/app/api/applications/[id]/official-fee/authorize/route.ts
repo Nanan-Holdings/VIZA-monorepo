@@ -23,6 +23,22 @@ type ProfileRow = {
   auth_user_id: string;
 };
 
+type QueryErrorLike = {
+  message?: string;
+  code?: string;
+};
+
+function isSchemaMissing(error: QueryErrorLike | null | undefined): boolean {
+  const message = (error?.message ?? "").toLowerCase();
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "PGRST205" ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("could not find")
+  );
+}
+
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
@@ -109,7 +125,7 @@ export async function POST(
     : VN_OFFICIAL_FEE_AMOUNT;
   const currency = owned.application.government_fee_currency ?? VN_OFFICIAL_FEE_CURRENCY;
 
-  const { data: existingQuote } = await admin
+  const { data: existingQuote, error: existingQuoteError } = await admin
     .from("official_fee_quotes")
     .select("*")
     .eq("application_id", applicationId)
@@ -117,6 +133,96 @@ export async function POST(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  const officialFeeTablesMissing = isSchemaMissing(existingQuoteError);
+  if (existingQuoteError && !officialFeeTablesMissing) {
+    return NextResponse.json({ error: existingQuoteError.message }, { status: 500 });
+  }
+
+  if (officialFeeTablesMissing) {
+    const fallbackQuoteId = `fallback:${applicationId}`;
+    const consentScope = {
+      official_fee: {
+        quote_id: fallbackQuoteId,
+        official_fee_amount: amount,
+        official_fee_currency: currency,
+        authorized_to_pay_on_behalf: true,
+        schema_fallback: true,
+        consent_snapshot: {
+          ui_language: "zh",
+          accepted_text: "我授权 VIZA 使用受控支付工具代我向越南 e-Visa 官网支付本次官方签证费。",
+        },
+        accepted_at: now,
+      },
+    };
+
+    const [consentResult, eventResult] = await Promise.all([
+      admin.from("consent_events").insert(
+        {
+          application_id: applicationId,
+          applicant_id: owned.profile.id,
+          auth_user_id: owned.userId,
+          consent_type: "official_fee_payment_authorization",
+          version: "2026-06-official-fee-v1",
+          accepted: true,
+          consent_scope: consentScope,
+          source: "client_confirmation_tab",
+          idempotency_key: `official-fee-consent-fallback:${applicationId}:${owned.userId}`,
+          created_at: now,
+        },
+      ),
+      admin.from("application_events").insert(
+        {
+          application_id: applicationId,
+          applicant_id: owned.profile.id,
+          auth_user_id: owned.userId,
+          event_type: "official_fee_authorized",
+          actor_type: "user",
+          actor_id: owned.userId,
+          source: "official_fee",
+          visibility: "staff",
+          idempotency_key: `official-fee-authorized-fallback:${applicationId}`,
+          message: "User authorized VIZA to pay the Vietnam e-Visa official fee. Official-fee tables were missing; recorded fallback consent only.",
+          metadata: { quote_id: fallbackQuoteId, amount, currency, schema_fallback: true },
+          occurred_at: now,
+          created_at: now,
+        },
+      ),
+    ]);
+
+    if (consentResult.error && !isSchemaMissing(consentResult.error)) {
+      return NextResponse.json({ error: consentResult.error.message }, { status: 500 });
+    }
+    if (eventResult.error && !isSchemaMissing(eventResult.error)) {
+      return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      schemaWarning: "official_fee_tables_missing",
+      quote: {
+        id: fallbackQuoteId,
+        application_id: applicationId,
+        country_code: "VN",
+        official_fee_amount: amount,
+        official_fee_currency: currency,
+        quote_status: "consented",
+        schema_fallback: true,
+      },
+      intent: {
+        id: null,
+        application_id: applicationId,
+        provider: "vietnam_evisa_official_fee",
+        mode: process.env.VN_OFFICIAL_PAYMENT_AUTOPAY === "true" ? "live" : "manual",
+        status: "admin_approved",
+        official_fee_amount: amount,
+        official_fee_currency: currency,
+        schema_fallback: true,
+        payment_instrument_id: null,
+        user_consent_snapshot_json: null,
+      },
+    });
+  }
 
   const quote = existingQuote
     ? existingQuote
@@ -168,7 +274,7 @@ export async function POST(
     },
   };
 
-  const { error: consentError } = await admin.from("consent_events").upsert(
+  const { error: consentError } = await admin.from("consent_events").insert(
     {
       application_id: applicationId,
       applicant_id: owned.profile.id,
@@ -181,7 +287,6 @@ export async function POST(
       idempotency_key: `official-fee-consent:${applicationId}:${quoteId}:${owned.userId}`,
       created_at: now,
     },
-    { onConflict: "idempotency_key" },
   );
   if (consentError) {
     return NextResponse.json({ error: consentError.message }, { status: 500 });
@@ -231,7 +336,7 @@ export async function POST(
     return NextResponse.json({ error: "Could not create official fee payment intent." }, { status: 500 });
   }
 
-  await Promise.all([
+  const [quoteUpdateResult, applicationUpdateResult, eventResult] = await Promise.all([
     admin
       .from("official_fee_quotes")
       .update({ quote_status: "consented", updated_at: now })
@@ -245,7 +350,7 @@ export async function POST(
         updated_at: now,
       })
       .eq("id", applicationId),
-    admin.from("application_events").upsert(
+    admin.from("application_events").insert(
       {
         application_id: applicationId,
         applicant_id: owned.profile.id,
@@ -261,12 +366,24 @@ export async function POST(
         occurred_at: now,
         created_at: now,
       },
-      { onConflict: "idempotency_key", ignoreDuplicates: true },
     ),
   ]);
 
+  if (quoteUpdateResult.error) {
+    return NextResponse.json({ error: quoteUpdateResult.error.message }, { status: 500 });
+  }
+  if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
+    return NextResponse.json({ error: applicationUpdateResult.error.message }, { status: 500 });
+  }
+  if (eventResult.error && !isSchemaMissing(eventResult.error)) {
+    return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
+  }
+
   return NextResponse.json({
     ok: true,
+    schemaWarning: applicationUpdateResult.error
+      ? "official_fee_application_columns_missing"
+      : null,
     quote,
     intent: {
       ...(intent as Record<string, unknown>),

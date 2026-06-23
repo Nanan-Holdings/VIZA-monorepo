@@ -21,7 +21,7 @@ mechanism enum from `viza-be/submission-service/src/payment-routing.ts`.
 
 | Country | Visa type | Mechanism | Notes |
 |---|---|---|---|
-| United States | B1_B2 (DS-160) | `applicant_direct_link` | DS-160 + MRV fee paid via consular bank link before interview. |
+| United States | B1_B2 (DS-160) | `applicant_direct_link` | DS-160 is submitted through VIZA live-assisted automation when authorized; MRV fee payment follows the appointment system or embassy/consulate instructions for the selected post. |
 | United Kingdom | UK_STANDARD_VISITOR | `client_in_portal` | UKVI portal collects fee mid-flow; runner stops at pay and hands off to client. |
 | EU / Schengen (FR, IT, ...) | EU_SCHENGEN_C_SHORT_STAY | `client_in_portal` | France-Visas + Italy-VFS-CN both expect the applicant to enter their card on portal. |
 | Vietnam | VN_E_VISA | `runner_escrow_card` | **Reference implementation.** Portal accepts third-party cards; fee is fixed (USD 25 / 50). Runner submits via VIZA's virtual card; line item logged. |
