@@ -93,6 +93,8 @@ export interface CaptchaSolveResult {
   solveId: string;
   /** Wall-clock time from task creation to result, in milliseconds. */
   durationMs: number;
+  /** Some token tasks return the browser user agent used by the solver. */
+  userAgent?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +127,7 @@ interface GetTaskResultResponse {
   errorCode?: string;
   errorDescription?: string;
   status?: "processing" | "ready";
-  solution?: { text?: string; gRecaptchaResponse?: string; token?: string };
+  solution?: { text?: string; gRecaptchaResponse?: string; token?: string; userAgent?: string };
 }
 
 function classifyApiError(errorCode: string): never {
@@ -200,6 +202,7 @@ async function runTask(
           text,
           solveId: String(taskId),
           durationMs: Date.now() - start,
+          userAgent: resultRes.solution.userAgent,
         };
       }
     }
@@ -243,7 +246,7 @@ export async function solveImageCaptcha(
 export type TokenCaptchaInput =
   | { type: "recaptcha-v2"; siteKey: string; pageUrl: string; isInvisible?: boolean; timeoutMs?: number }
   | { type: "recaptcha-v3"; siteKey: string; pageUrl: string; action?: string; minScore?: number; timeoutMs?: number }
-  | { type: "turnstile"; siteKey: string; pageUrl: string; action?: string; cdata?: string; timeoutMs?: number }
+  | { type: "turnstile"; siteKey: string; pageUrl: string; action?: string; cdata?: string; pageData?: string; userAgent?: string; timeoutMs?: number }
   | { type: "hcaptcha"; siteKey: string; pageUrl: string; timeoutMs?: number };
 
 /**
@@ -283,6 +286,8 @@ export async function solveCaptcha(input: TokenCaptchaInput): Promise<CaptchaSol
           websiteKey: input.siteKey,
           action: input.action,
           data: input.cdata,
+          pagedata: input.pageData,
+          userAgent: input.userAgent,
         },
         timeoutMs,
       );

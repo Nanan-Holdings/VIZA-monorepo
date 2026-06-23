@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildExistingAuthUserUpdate } from "../init-admin-account-helpers.mjs";
+import {
+  buildExistingAuthUserUpdate,
+  shouldResetExistingPassword,
+} from "../init-admin-account-helpers.mjs";
 
 describe("init-admin-account", () => {
-  it("does not reset an existing user's password unless a password was explicitly provided", () => {
+  it("does not reset an existing user's password unless reset was explicitly requested", () => {
     const update = buildExistingAuthUserUpdate({
       existingUserMetadata: { locale: "zh" },
       name: "VIZA Test Admin",
@@ -21,7 +24,7 @@ describe("init-admin-account", () => {
     });
   });
 
-  it("resets an existing user's password when a password was explicitly provided", () => {
+  it("resets an existing user's password when reset and password were explicitly provided", () => {
     const update = buildExistingAuthUserUpdate({
       existingUserMetadata: {},
       name: "VIZA Test Admin",
@@ -37,5 +40,28 @@ describe("init-admin-account", () => {
         role: "admin",
       },
     });
+  });
+
+  it("does not treat env or password-only values as permission to overwrite an existing password", () => {
+    expect(
+      shouldResetExistingPassword({
+        resetPassword: false,
+        passwordArg: "from-env-or-cli",
+      })
+    ).toBe(false);
+
+    expect(
+      shouldResetExistingPassword({
+        resetPassword: true,
+        passwordArg: undefined,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldResetExistingPassword({
+        resetPassword: true,
+        passwordArg: "intentional-reset",
+      })
+    ).toBe(true);
   });
 });

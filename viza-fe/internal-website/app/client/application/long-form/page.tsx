@@ -43,6 +43,7 @@ import type {
 } from "@/lib/submission-result";
 import {
   buildUniversalProfileAnswerPatch,
+  mergeUniversalProfileIntoAnswers,
   splitUniversalFullName,
   type UniversalProfileSnapshot,
 } from "@/lib/universal-profile-prefill";
@@ -1509,8 +1510,8 @@ export default function ApplicationPage() {
           const { answers } = await loadDynamicAnswers(application.id);
           ds160Answers = answers;
         }
-        const mergedDynamicAnswers = { ...ds160Answers };
-        const profileFallback = application?.id ? null : profile;
+        const mergedDynamicAnswers = mergeUniversalProfileIntoAnswers(ds160Answers, profile);
+        const profileFallback = profile;
 
         // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
         const a = ds160Answers;
@@ -1633,8 +1634,8 @@ export default function ApplicationPage() {
   }, [currentStep, effectiveSteps, useDynamic]);
 
   // US-040: Supabase Realtime — re-fetch application data on application UPDATE.
-  // Universal Profile is a creation-time autofill source only, so profile
-  // updates must not silently re-merge into an existing application.
+  // Universal Profile is a non-overwriting autofill source: saved answers win,
+  // and still-empty fields can be hydrated from the current profile.
   useEffect(() => {
     const supabase = createClient();
 
