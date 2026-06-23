@@ -14,8 +14,6 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
 - Loading/progress UI must be bound only to an active appointment job. Terminal,
   failed, cancelled, or confirmed jobs should show status/results instead of an
   indefinite spinner.
-- The website may poll VIZA's own status endpoint every 5-10 seconds, but must
-  not high-frequency refresh the official appointment portal.
 - Do implement or document bypasses for official login, CAPTCHA/MFA,
   waiting rooms, policy prompts, payment controls, rate limits, or final
   confirmation pages.
