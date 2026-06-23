@@ -202,6 +202,72 @@ test("US appointment runner advances a prepared portal session to slot capture",
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
 });
 
+test("US appointment runner persists unsupported official-site gates as manual-required", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return {
+        readyForSlotCapture: false,
+        gate: {
+          jobStatus: "appointment_manual_required",
+          actionType: "captcha",
+          instruction: "Unsupported hCaptcha challenge requires manual review.",
+          metadata: {
+            gate_type: "unsupported_captcha",
+            provider: "hcaptcha",
+            visible_text: "[REDACTED]",
+          },
+          errorCode: "unsupported_captcha",
+          errorMessage: "USVisaScheduling presented an unsupported CAPTCHA challenge.",
+        },
+      };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    baseJob,
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.manualActions.length, 1);
+  assert.deepEqual(repository.jobUpdates.at(-1), {
+    jobId: baseJob.id,
+    status: "appointment_manual_required",
+    currentManualAction: "captcha",
+  });
+  assert.deepEqual(repository.applicationStates.at(-1), {
+    applicationId: baseJob.application_id,
+    status: "appointment_manual_required",
+    jobId: baseJob.id,
+    confirmationId: undefined,
+  });
+  assert.equal(repository.auditEvents.at(-1)?.event_type, "appointment_runner_manual_required");
+  assert.equal(
+    repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type,
+    "unsupported_captcha",
+  );
+});
+
 test("US appointment runner writes observed slots from a portal fixture", async () => {
   const repository = new InMemoryRunnerRepository();
   const result = await processUSAppointmentJob(

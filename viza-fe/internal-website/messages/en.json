@@ -4631,12 +4631,12 @@
     "page": {
       "eyebrow": "U.S. appointment assistant",
       "title": "B1/B2 appointment setup",
-      "subtitle": "Continue after DS-160 with a compliant China appointment assistant. VIZA can help prepare and observe progress, but pauses for login, CAPTCHA, payment, policy notices, slot choice, and final confirmation."
+      "subtitle": "Continue after DS-160 with China USVisaScheduling assisted-live support. VIZA can handle supported account, CAPTCHA, policy, payment, slot observation, and confirmation checkpoints while keeping slot choice and final booking approval explicit."
     },
     "loading": "Loading appointment assistant...",
     "errorTitle": "Appointment assistant needs attention",
-    "dryRunNoticeTitle": "Assisted live with manual boundaries",
-    "dryRunNotice": "This China-first workflow does not bypass CAPTCHA, MFA, waiting rooms, rate limits, payment, policy notices, or final confirmation. VIZA uses user-triggered checks and pauses before irreversible official-site actions.",
+    "dryRunNoticeTitle": "Gated assisted live",
+    "dryRunNotice": "This China-first workflow runs only after explicit user actions. VIZA can handle supported official-site checkpoints through the gated runner, records redacted official evidence, and surfaces unsupported gates for manual review.",
     "errors": {
       "generic": "The appointment request could not be completed. Please try again.",
       "withCode": "The appointment request could not be completed. Reference: {code}.",
@@ -4671,15 +4671,15 @@
       "appointment_missing_ds160_confirmation": "DS-160 code needed",
       "appointment_missing_applying_post": "DS-160 post missing",
       "appointment_account_required": "Account required",
-      "appointment_account_creation_started": "Account dry-run started",
+      "appointment_account_creation_started": "Account setup started",
       "appointment_email_verification_required": "Email checkpoint",
       "appointment_login_required": "Login checkpoint",
       "appointment_captcha_required": "CAPTCHA checkpoint",
-      "appointment_profile_fill_in_progress": "Profile dry-run in progress",
-      "appointment_profile_filled": "Profile dry-run complete",
+      "appointment_profile_fill_in_progress": "Profile fill in progress",
+      "appointment_profile_filled": "Profile fill complete",
       "appointment_ds160_linked": "DS-160 linked",
       "appointment_payment_required": "Payment checkpoint",
-      "appointment_payment_in_progress": "Payment dry-run in progress",
+      "appointment_payment_in_progress": "Payment in progress",
       "appointment_payment_completed": "Payment checkpoint complete",
       "appointment_calendar_opened": "Calendar opened",
       "appointment_slots_observed": "Slots observed",
@@ -4687,8 +4687,8 @@
       "appointment_slot_selection_required": "Slot selection required",
       "appointment_slot_selected": "Slot selected",
       "appointment_final_confirmation_required": "Final approval required",
-      "appointment_booked": "Dry-run booked",
-      "appointment_confirmation_captured": "Dry-run confirmation captured",
+      "appointment_booked": "Booking requested",
+      "appointment_confirmation_captured": "Official confirmation captured",
       "appointment_status_check_in_progress": "Status check in progress",
       "appointment_status_checked": "Status checked",
       "appointment_manual_required": "Manual review required",
@@ -4707,7 +4707,7 @@
       "ds160Code": "DS-160 confirmation code",
       "ds160CodeHint": "Leave blank if VIZA already stored the DS-160 application ID from the previous step.",
       "ds160CodePlaceholder": "Example: AA00BC1234",
-      "slotScenario": "Dry-run slot scenario",
+      "slotScenario": "Test slot scenario",
       "slotScenarioSlots": "Show sample slots",
       "slotScenarioNoSlots": "Show no slots",
       "aliasNoticeTitle": "VIZA alias email",
@@ -4719,9 +4719,9 @@
     },
     "consent": {
       "title": "Consent and boundaries",
-      "body1": "VIZA can help organize the China U.S. appointment steps after DS-160, but official portal decisions and security checks stay under your control.",
-      "body2": "You will complete any login, CAPTCHA, site-policy acknowledgement, fee payment, slot choice, and final confirmation yourself. VIZA will pause and wait for your explicit action.",
-      "checkbox": "I understand VIZA may assist with the China appointment workflow, and I will personally handle official portal security, payment, and final booking approval steps.",
+      "body1": "VIZA can assist the China U.S. appointment steps after DS-160 through the gated USVisaScheduling runner.",
+      "body2": "VIZA may handle supported login, alias-email verification, CAPTCHA, policy, payment, slot observation, and confirmation checkpoints. You still choose the slot and approve the final booking before any official appointment is confirmed.",
+      "checkbox": "I authorize VIZA to run China USVisaScheduling assisted-live actions for this application, with explicit slot selection, final VIZA approval, and official evidence capture.",
       "recorded": "Consent recorded",
       "security": "Sensitive inputs are redacted from assistant logs."
     },
@@ -4729,7 +4729,7 @@
       "title": "Live assistant",
       "noJob": "Start here: confirm the DS-160 information on the left and authorize VIZA to create a job. VIZA will use the DS-160 interview post already on file, then fetch current available timings from the backend.",
       "startStepPreferences": "Enter the DS-160 confirmation number only if VIZA has not already saved it.",
-      "startStepConsent": "Accept the consent statement on the left so official security steps stay under your control.",
+      "startStepConsent": "Accept the consent statement on the left to authorize gated assisted-live handling.",
       "startStepRun": "Click \"Start appointment assistant\", then use \"Check slots\" to review available timings returned by the backend.",
       "consentHint": "Accept the consent statement on the left before starting.",
       "provider": "Scheduling provider",
@@ -4755,19 +4755,19 @@
       "instructions": {
         "consent": "Review and accept the consent statement.",
         "account_email_verification": "Enter the verification code from your email. VIZA will not access your inbox.",
-        "login": "Sign in yourself if the official portal asks for credentials. The VIZA runner will not bypass login, CAPTCHA, waiting-room, or policy controls.",
-        "captcha": "Complete the CAPTCHA yourself. VIZA does not solve or bypass CAPTCHA.",
-        "payment": "Acknowledge the dry-run payment checkpoint. No real payment is made in this environment.",
-        "slot_selection": "Choose one observed dry-run appointment slot.",
-        "final_confirmation": "Review the selected dry-run slot and approve before the assistant records a mock booking.",
-        "site_policy_review": "Review the site policy notice. The assistant stays paused until you decide what to do."
+        "login": "The runner needs manual review for an unsupported official-site login or risk checkpoint.",
+        "captcha": "The runner needs manual review for an unsupported CAPTCHA or MFA checkpoint.",
+        "payment": "Review the official payment checkpoint. Continue only if VIZA is authorized to proceed.",
+        "slot_selection": "Choose one observed appointment slot.",
+        "final_confirmation": "Review the selected official slot and approve before VIZA requests booking.",
+        "site_policy_review": "Review the unsupported official-site condition. The assistant stays paused until an operator or user decides what to do."
       },
       "actions": {
         "consent": "Confirm that consent was completed.",
         "account_email_verification": "Enter the verification code.",
-        "login": "Confirm that you completed the login step yourself.",
-        "captcha": "Confirm that you completed the CAPTCHA yourself.",
-        "payment": "Confirm that you understand this is a dry-run payment checkpoint.",
+        "login": "Confirm that this unsupported login checkpoint was reviewed.",
+        "captcha": "Confirm that this unsupported CAPTCHA/MFA checkpoint was reviewed.",
+        "payment": "Confirm that the official payment checkpoint was reviewed.",
         "slot_selection": "Choose a slot below.",
         "final_confirmation": "Use the final approval controls below.",
         "site_policy_review": "Confirm that you reviewed the policy notice and want to continue manually."
@@ -4776,7 +4776,7 @@
     "slots": {
       "title": "Observed slots",
       "empty": "No available timings have been returned yet. Start or continue the assistant, then run a user-triggered slot check.",
-      "noSlots": "The dry-run calendar returned no available slots. Use Check slots when you intentionally want another user-triggered check.",
+      "noSlots": "The official calendar returned no available slots. Use Check slots when you intentionally want another user-triggered check.",
       "choose": "Choose",
       "selected": "Selected",
       "observedAt": "Observed {value}",
@@ -4787,17 +4787,17 @@
     },
     "final": {
       "title": "Final approval",
-      "requirement": "Select a dry-run slot before final approval is available.",
+      "requirement": "Select an observed official slot before final approval is available.",
       "selected": "Selected slot: {date} at {time}. Approve only after reviewing the details.",
       "approve": "Approve final step",
       "approving": "Approving...",
-      "book": "Record dry-run booking",
+      "book": "Request official booking",
       "approvedBadge": "Approved"
     },
     "results": {
       "title": "Results",
-      "none": "No dry-run confirmation has been captured yet.",
-      "confirmationNumber": "Mock confirmation",
+      "none": "No official appointment confirmation has been captured yet.",
+      "confirmationNumber": "Official confirmation",
       "date": "Appointment date",
       "time": "Appointment time",
       "location": "Location",
@@ -4806,7 +4806,7 @@
     },
     "cancel": {
       "title": "Cancel appointment assistant?",
-      "description": "This stops the current dry-run job. You can create a new job later if needed.",
+      "description": "This stops the current appointment assistance job. You can create a new job later if needed.",
       "keep": "Keep working",
       "confirm": "Cancel job"
     },
@@ -4848,9 +4848,9 @@
     },
     "nextStepCard": {
       "title": "Next: appointment setup",
-      "body": "Run a safe dry-run for the B1/B2 appointment flow, with human checkpoints before any portal-sensitive step.",
+      "body": "Continue to China USVisaScheduling assisted-live appointment setup with explicit slot selection, final approval, and official evidence capture.",
       "button": "Open appointment assistant",
-      "badge": "Dry run"
+      "badge": "Assisted live"
     }
   }
 }

@@ -727,29 +727,22 @@ export class USAppointmentOrchestrator {
     const normalizedProvider = (job.schedulingProvider ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
     const normalizedCountry = (job.applyingCountryCode ?? "").trim().toUpperCase();
     if (normalizedProvider === "usvisascheduling" && normalizedCountry === "CN") {
-      const checkpoint = await this.checkpointService.createPendingCheckpoint({
+      const queued = await this.transitionJob(
         job,
-        actionType: "login",
-        jobStatus: "appointment_login_required",
-        instruction:
-          "VIZA appointment runner is ready for China USVisaScheduling. Complete any official-site login, CAPTCHA, or policy prompt manually when requested; VIZA will not bypass those controls.",
-        userInputSchemaJson: {
-          type: "object",
-          properties: {
-            completedByUser: { type: "boolean" },
-          },
-        },
-        metadata: {
+        "appointment_login_required",
+        "China USVisaScheduling assisted-live job queued for submission-service runner.",
+        {
           assisted_live_enabled: true,
           runner_service: "submission-service",
           provider: "usvisascheduling",
           applying_country_code: "CN",
-          no_captcha_solver: true,
-          no_final_confirmation_click: true,
+          supported_checkpoint_handling: true,
+          explicit_slot_selection_required: true,
+          final_viza_approval_required: true,
         },
-      });
+      );
       await this.auditService.recordJobTransition(
-        checkpoint.job,
+        queued,
         "appointment_assisted_live_runner_handoff",
         "China USVisaScheduling assisted-live job queued for submission-service runner.",
         {
@@ -757,16 +750,12 @@ export class USAppointmentOrchestrator {
           runner_service: "submission-service",
           provider: "usvisascheduling",
           applying_country_code: "CN",
-          stop_points: [
-            "captcha",
-            "email_verification_failure",
-            "payment",
-            "site_policy_warning",
-            "final_confirmation",
-          ],
+          supported_checkpoint_handling: true,
+          explicit_slot_selection_required: true,
+          final_viza_approval_required: true,
         },
       );
-      return checkpoint.job;
+      return queued;
     }
 
     const provider = this.providerRegistry.getProvider(job.schedulingProvider, job.mode);

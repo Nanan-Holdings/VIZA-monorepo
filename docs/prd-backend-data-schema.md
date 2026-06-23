@@ -1,4 +1,4 @@
-﻿# PRD: VIZA Backend Data Schema & Multi-Visa Architecture
+# PRD: VIZA Backend Data Schema & Multi-Visa Architecture
 
 **Version:** 1.0  
 **Date:** 2026-04-04  
@@ -16,7 +16,7 @@ VIZA is a visa application concierge platform. The frontend portal is largely bu
 2. **User visa package / plan** — each user is attached to an ongoing visa package (which visa they are applying for, purchased via a plan)
 3. **Cross-visa profile reuse** — shared personal data (name, DOB, passport) is stored once and auto-filled into new visa applications
 4. **Admin portal user management** — an admin page to view each Supabase user with their attached visa package
-5. **US DS-160 submission path** — Playwright fills ceac.state.gov, saves the application, and returns an Application ID + retrieval link to the user so they can review and submit themselves
+5. **US DS-160 submission path** — Playwright fills ceac.state.gov and, when the live-assisted gate plus applicant authorization are present, signs/submits the DS-160 and returns official confirmation evidence plus retrieval/status details
 
 ---
 
@@ -318,42 +318,43 @@ Repeatable group data saved to DS-160 extension tables, not `visa_application_an
 
 ### 8.1 Overview
 
-DS-160 uses ceac.state.gov — no public API. VIZA uses Playwright to pre-fill the form, saves the application (Application ID + .dat file), then returns a retrieval link to the user. The user reviews and clicks Submit themselves — they are legally responsible for the accuracy.
+DS-160 uses ceac.state.gov — no public API. VIZA uses Playwright to fill the form, save the application (Application ID + .dat file), and, when the live-assisted gate plus applicant authorization are present, complete final sign/submit on behalf of the applicant. The service returns official confirmation evidence, retrieval/status details, and proof artifacts where CEAC exposes them. If any required applicant fact, authorization, CAPTCHA solve, or portal condition is missing, the worker records a manual-required outcome instead of claiming success.
 
 ### 8.2 Flow
 
 ```
 1. User completes DS-160 fields in VIZA portal
-2. User clicks "Pre-fill DS-160 for me" (after confirming legal disclaimer)
-3. Backend enqueues submission_queue row with status = "ds160_prefill_pending"
+2. User clicks "Submit my DS-160 with VIZA" after confirming the live-assisted submission authorization
+3. Backend enqueues submission_queue row with status = "ds160_submit_pending"
 4. submission-service picks up the job
 5. Playwright opens ceac.state.gov → starts new application
 6. Playwright fills all pages from:
    - applicant_profiles (personal/passport)
    - visa_application_answers (travel, family, US contact)
    - ds160_* extension tables (employers, relatives, social media, security)
-7. Playwright clicks "Save Application to File" → downloads .dat file
+7. Playwright clicks "Save Application to File" when available → downloads .dat file
 8. Playwright records the Application ID shown on screen
-9. Service uploads .dat to Supabase Storage: ds160-saves/{applicationId}.dat
-10. Service updates applications row:
+9. Playwright enters applicant-authorized signature data, solves the final CAPTCHA when required, and clicks final submit under the live-assisted gate
+10. Service uploads .dat/proof artifacts to Supabase Storage: ds160-saves/{applicationId}.dat and ds160-proof/{applicationId}/*
+11. Service updates applications row:
     - ds160_application_id = "AA00123456"
     - ds160_retrieval_url = "https://ceac.state.gov/genniv/?id=AA00123456"
     - ds160_dat_storage_path = "ds160-saves/{applicationId}.dat"
-    - status = "ds160_prefilled"
-11. User notified via Telegram + in-app:
-    "Your DS-160 has been pre-filled. Application ID: AA00123456.
-     Review and submit here: [link]"
+    - status = "ds160_submitted"
+12. User notified via Telegram + in-app:
+    "Your DS-160 has been submitted. Application ID: AA00123456.
+     Confirmation/proof is available in VIZA: [link]"
 ```
 
 ### 8.3 New submission_queue statuses
 
 | Status | Meaning |
 |---|---|
-| ds160_prefill_pending | Queued for Playwright pre-fill |
-| ds160_prefill_processing | Playwright running |
-| ds160_prefilled | Done — Application ID returned to user |
-| ds160_prefill_failed | Failed after 3 attempts |
-| ds160_submitted | User confirmed they submitted on ceac.state.gov |
+| ds160_submit_pending | Queued for Playwright live-assisted fill and submit |
+| ds160_submit_processing | Playwright running |
+| ds160_manual_required | Blocked by missing data, authorization, unsupported gate, CAPTCHA failure, or portal condition |
+| ds160_submitted | Done — official submission evidence captured |
+| ds160_submit_failed | Failed after configured attempts |
 
 ### 8.4 Implementation files
 
@@ -388,10 +389,10 @@ New files in `viza-be/submission-service/src/`:
 
 ### 8.7 Legal disclaimer (frontend)
 
-Before triggering DS-160 pre-fill, show confirmation modal:
-> "VIZA will pre-fill your DS-160 based on your information. You are responsible for reviewing all answers before submitting to the US government. Do not submit if any information is incorrect."
+Before triggering DS-160 live-assisted submission, show confirmation modal:
+> "VIZA will fill and submit your DS-160 based on your confirmed information. You are responsible for ensuring every answer is truthful and complete before authorizing submission. Do not continue if any information is incorrect."
 
-User must click "I understand, pre-fill my DS-160" to proceed.
+User must click "I authorize VIZA to submit my DS-160" to proceed.
 
 ---
 
@@ -429,7 +430,7 @@ Scope: viza-fe/internal-website/app/admin/users/
 Priority: 19
 
 ### US-020: DS-160 submission service
-Full Playwright automation for ceac.state.gov pre-fill. All statuses handled. .dat upload. Alerts.
+Full Playwright automation for ceac.state.gov live-assisted fill and submit. All statuses handled. .dat/proof upload. Alerts.
 Scope: viza-be/submission-service/
 Priority: 20
 
@@ -445,8 +446,8 @@ Priority: 21
 - Frontend dynamic wizard UI (separate PRD)
 - Billing/Stripe for package purchase
 - England/UK visa type
-- DS-160 photo upload automation (user uploads photo themselves on ceac.state.gov)
-- CAPTCHA solving (CAPTCHA = immediate failure + operator alert)
+- DS-160 appointment scheduling beyond the separate U.S. appointment assistant
+- Inventing or correcting applicant facts inside the runner
 
 ---
 
@@ -454,4 +455,4 @@ Priority: 21
 
 1. **Package assignment in production**: Manual admin assignment for now. Will there be a Stripe webhook eventually?
 2. **Multiple concurrent packages**: Can a user have Indonesia + US active simultaneously? Current model allows it.
-3. **DS-160 photo**: User must upload their own photo on ceac.state.gov. VIZA should remind them.
+3. **DS-160 photo**: VIZA should upload the user-provided DS-160 photo when available and return `manual_required` if the official photo step rejects it or no valid applicant photo exists.

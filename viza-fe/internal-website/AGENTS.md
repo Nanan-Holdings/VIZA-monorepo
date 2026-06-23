@@ -47,9 +47,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/client/applications/[applicationId]/us-appointment/**`,
   `components/client/us-appointment/**`, `lib/us-appointment/**`, and
   `types/us-appointment.ts`. The page reads existing VIZA appointment status on
-  load, creates work only from explicit user actions, lets applicants set China
-  USVisaScheduling preferences, select observed official slots, approve final
-  booking, and display confirmation/status snapshots from the DB.
+  load, creates work only from explicit user actions, lets applicants use China
+  USVisaScheduling gated assisted-live, select observed official slots, approve
+  final booking, and display confirmation/status snapshots from the DB.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
@@ -118,10 +118,13 @@ comments.
   there.
 - Do not expose service-role Supabase keys in client components.
 - Do not implement official portal submission runners, CAPTCHA/proxy/browser
-  fingerprint code, background slot polling, real official-site payment, or
-  calls into `viza-be/submission-service` from website internal automation
-  modules. The U.S. appointment assistant must keep login, CAPTCHA, MFA/email,
-  payment, slot choice, and final booking approval as human checkpoints.
+  fingerprint code, background slot polling, or real official-site payment
+  inside website internal automation modules. The U.S. appointment assistant may
+  call the gated submission-service China USVisaScheduling runner only from
+  explicit user actions and must keep slot choice plus final booking approval
+  explicit in VIZA. Supported CAPTCHA/MFA/email/payment/policy checkpoints
+  belong in the gated runner with redacted official evidence and manual-required
+  fallback.
 
 ## Validation
 
