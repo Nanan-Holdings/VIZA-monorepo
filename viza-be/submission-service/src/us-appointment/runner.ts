@@ -153,8 +153,8 @@ export interface USAppointmentPortalClient {
 }
 
 export interface RunnerHandoff {
-  jobStatus: "appointment_login_required";
-  actionType: "login";
+  jobStatus: "appointment_manual_required";
+  actionType: "site_policy_review";
   instruction: string;
   userInputSchemaJson: JsonObject;
   metadata: JsonObject;
@@ -376,12 +376,12 @@ export function buildRunnerHandoff(
   const captchaSolverEnabled =
     config.captchaSolvingEnabled && config.twoCaptchaConfigured;
   return {
-    jobStatus: "appointment_login_required",
-    actionType: "login",
+    jobStatus: "appointment_manual_required",
+    actionType: "site_policy_review",
     instruction:
       captchaSolverEnabled
-        ? "The VIZA appointment runner is ready for the official-site login step. VIZA may use 2captcha for supported image CAPTCHA surfaces when enabled, will bypass waiting-room, policy, payment, and final confirmation boundaries."
-        : "The VIZA appointment runner is ready for the official-site login step. Complete any official-site login, CAPTCHA, waiting-room, or policy prompt automatically.",
+        ? "The VIZA appointment runner reached an official-site condition that needs manual review. Supported image CAPTCHA surfaces may be solved by 2captcha when enabled; unsupported gates are not hidden as success."
+        : "The VIZA appointment runner reached an official-site condition that needs manual review before it can continue.",
     userInputSchemaJson: {
       type: "object",
       properties: {
@@ -396,8 +396,9 @@ export function buildRunnerHandoff(
       captcha_solver_enabled: captchaSolverEnabled,
       captcha_solver_provider: captchaSolverEnabled ? "2captcha" : null,
       captcha_max_attempts: config.captchaMaxAttempts,
-      no_payment_automation: true,
-      no_final_confirmation_click: true,
+      supported_checkpoint_handling: true,
+      explicit_slot_selection_required: true,
+      final_viza_approval_required: true,
     },
   };
 }
@@ -578,9 +579,9 @@ export async function processUSAppointmentJob(
     job_id: job.id,
     application_id: job.application_id,
     user_id: job.user_id,
-    event_type: "appointment_runner_manual_login_required",
+    event_type: "appointment_runner_manual_required",
     event_message:
-      "China USVisaScheduling runner paused for applicant-controlled official-site login.",
+      "China USVisaScheduling runner paused for manual review of an unsupported official-site condition.",
     metadata_redacted_json: handoff.metadata,
   });
   return "processed";
