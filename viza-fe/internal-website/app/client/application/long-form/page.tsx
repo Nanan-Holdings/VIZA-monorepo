@@ -1090,6 +1090,72 @@ type LoadedApplicantProfile = UniversalProfileSnapshot & {
   gender?: string | null;
 };
 
+const SGAC_NATIONALITY_PROFILE_ALIASES: Record<string, string> = {
+  chn: "CHINESE",
+  china: "CHINESE",
+  chinese: "CHINESE",
+  "people's republic of china": "CHINESE",
+  "people’s republic of china": "CHINESE",
+  prc: "CHINESE",
+  中国: "CHINESE",
+  中国籍: "CHINESE",
+};
+
+function normalizeComparableValue(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getFieldOptionValueMatch(field: WizardStep["fields"][number], rawValue: string): string | null {
+  const normalized = normalizeComparableValue(rawValue);
+  if (!normalized || !field.options) return null;
+
+  const aliasValue =
+    field.fieldName === "nationality"
+      ? SGAC_NATIONALITY_PROFILE_ALIASES[normalized]
+      : null;
+  const candidates = new Set([normalized]);
+  if (aliasValue) candidates.add(normalizeComparableValue(aliasValue));
+
+  for (const option of field.options) {
+    if (typeof option === "string") {
+      if (candidates.has(normalizeComparableValue(option))) return option;
+      continue;
+    }
+    const optionValue = option.value;
+    const optionComparables = [
+      option.value,
+      option.text,
+      option.label_en,
+      option.label_zh,
+      option.official_label,
+    ].filter((candidate): candidate is string => Boolean(candidate?.trim()));
+    if (optionComparables.some((candidate) => candidates.has(normalizeComparableValue(candidate)))) {
+      return optionValue;
+    }
+  }
+
+  return null;
+}
+
+function normalizeAnswersToFieldOptions(answers: Record<string, string>, steps: WizardStep[]) {
+  if (steps.length === 0) return answers;
+  const next = { ...answers };
+  for (const step of steps) {
+    for (const field of step.fields) {
+      const value = next[field.fieldName];
+      if (!value?.trim()) continue;
+      const matchedValue = getFieldOptionValueMatch(field, value);
+      if (matchedValue) next[field.fieldName] = matchedValue;
+    }
+  }
+  return next;
+}
+
 type LoadedApplication = {
   id?: string | null;
   country?: string | null;
@@ -1510,7 +1576,10 @@ export default function ApplicationPage() {
           const { answers } = await loadDynamicAnswers(application.id);
           ds160Answers = answers;
         }
-        const mergedDynamicAnswers = mergeUniversalProfileIntoAnswers(ds160Answers, profile);
+        const mergedDynamicAnswers = normalizeAnswersToFieldOptions(
+          mergeUniversalProfileIntoAnswers(ds160Answers, profile),
+          dbSteps,
+        );
         const profileFallback = profile;
 
         // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
@@ -1576,7 +1645,7 @@ export default function ApplicationPage() {
     } finally {
       setLoading(false);
     }
-  }, [explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, t]);
+  }, [dbSteps, explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, t]);
 
   useEffect(() => {
     if (!packageLoaded) return;
