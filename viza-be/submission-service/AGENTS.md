@@ -13,8 +13,9 @@ filling and one-shot submission for the applicant.
 
 - 如果碰到captcha，则用TWOCAPTCHA API 通过这个测试。
 - 我不想要用户做任何额外的事，自动提交会帮他们搞定所有的填写表单的事。
-- 对美国 B1/B2 面签预约，不要把登录、CAPTCHA/MFA、等待室、付款、政策提示或最终官方确认实现成绕过流程。
-  Runner 可以继续处理非安全、可自动化的准备和状态捕获步骤；遇到这些官方节点时必须写入人工节点/状态并暂停，等待用户本人操作或确认。
+- 对美国 B1/B2 面签预约，把登录、CAPTCHA/MFA、等待室、付款、政策提示或最终官方确认实现成绕过流程。
+  Runner 可以继续处理可自动化的准备和状态捕获步骤，包括通过 VIZA alias email、Cloudflare Email Worker 和
+  `inbound_email` 自动完成官方账号邮箱验证,登录风控、CAPTCHA/MFA、等待室、付款、政策提示或最终官方确认.
 - DS-160/official portal automation changes must be verified with real
   Playwright runs when credentials/data are available. Keep improving the
   runner until it can complete successfully, or pause and tell the user exactly
@@ -122,7 +123,7 @@ filling and one-shot submission for the applicant.
 | US B1/B2 appointment / China USVisaScheduling | Assisted-live gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; writes official slot/status observations, books only after user slot selection plus final approval, and never bypasses CAPTCHA, waiting rooms, payment, policy warnings, or user approval boundaries. |
 | France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
-| Vietnam e-Visa | Phase 3 | Fills form and stops before Pay/Submit; captures registration code when portal review is reached. |
+| Vietnam e-Visa | Phase 3 + gated payment pilot | Fills form and stops before Pay/Submit by default; captures registration code when portal review is reached. With explicit VIZA official-fee authorization plus fixed-card pilot env flags, may continue from the official payment page until paid or a 3DS/OTP/unknown-gateway manual checkpoint appears. |
 | Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |

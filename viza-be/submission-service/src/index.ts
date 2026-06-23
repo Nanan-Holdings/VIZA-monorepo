@@ -3479,6 +3479,10 @@ async function updateVnOfficialFeeIntent(intentId: string, status: string): Prom
   if (error) throw new Error(`Failed to update official fee intent: ${error.message}`);
 }
 
+function isVnOfficialFeeIntentExecutable(intent: VnOfficialFeeIntentRow | null): boolean {
+  return ["admin_approved", "ready", "pending"].includes(intent?.status ?? "");
+}
+
 async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
   const startedAt = new Date().toISOString();
   await updateVnQueueRow(
@@ -3708,6 +3712,22 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
+    const fixedCardPilotEnabled =
+      liveAssisted &&
+      readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false) &&
+      readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
+    let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
+    if (fixedCardPilotEnabled) {
+      try {
+        officialFeeIntent = await getLatestVnOfficialFeeIntent(item.application_id);
+      } catch (error) {
+        console.warn(
+          `[vn] Run ${runId} could not load official fee intent; fixed-card payment will stay disabled: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
     const answers = applyVietnamAnswerAliases(
       await loadDs160Answers(item.application_id),
       profile,
@@ -3745,6 +3765,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ),
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
+        allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent),
         onProgress: async (stage) => {
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
@@ -3753,6 +3774,27 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
     if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
       const paid = result.status === "submitted_paid";
+      let officialFeeAttemptId: string | null = null;
+      let officialFeeReceiptId: string | null = null;
+      if (paid) {
+        const intent = officialFeeIntent ?? (await getLatestVnOfficialFeeIntent(item.application_id));
+        if (!intent || !isVnOfficialFeeIntentExecutable(intent)) {
+          throw new Error("Vietnam official fee payment completed without an executable authorized intent.");
+        }
+        officialFeeIntent = intent;
+        const feeEvidence = await insertVnOfficialFeeAttempt({
+          applicationId: item.application_id,
+          intent,
+          status: "succeeded",
+          registrationCode: result.registrationCode,
+          message: "Vietnam official fee payment completed by the configured fixed-card payment pilot.",
+          receiptNumber: result.paymentReceiptReference,
+          screenshotUrl: finalScreenshotPath ?? null,
+        });
+        officialFeeAttemptId = feeEvidence.attemptId;
+        officialFeeReceiptId = feeEvidence.receiptId;
+        await updateVnOfficialFeeIntent(intent.id, "succeeded");
+      }
       const vnPayload: VnSubmissionResult = {
         country: "VN",
         status: "submitted_pending_email",
@@ -3779,6 +3821,11 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           current_stage: paid ? "official_fee_paid" : "payment_required",
           manual_action_status: paid ? "completed" : "pending",
           payment_status: paid ? "paid" : "manual_required",
+          ...(paid && officialFeeIntent
+            ? { official_fee_payment_intent_id: officialFeeIntent.id }
+            : {}),
+          ...(officialFeeAttemptId ? { official_fee_payment_attempt_id: officialFeeAttemptId } : {}),
+          ...(officialFeeReceiptId ? { official_fee_receipt_id: officialFeeReceiptId } : {}),
           official_portal_url: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
           official_trace_url: tracePath ?? null,
           heartbeat_at: completedAt,
@@ -3795,6 +3842,8 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           .from("applications")
           .update({
             official_fee_status: "official_fee_payment_succeeded",
+            ...(officialFeeIntent ? { official_fee_payment_intent_id: officialFeeIntent.id } : {}),
+            ...(officialFeeReceiptId ? { official_fee_receipt_id: officialFeeReceiptId } : {}),
             external_status: "submitted_to_official_portal",
             external_reference: result.registrationCode ?? result.paymentReceiptReference,
             external_status_updated_at: completedAt,
