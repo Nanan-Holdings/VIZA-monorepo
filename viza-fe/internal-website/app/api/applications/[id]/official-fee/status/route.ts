@@ -61,15 +61,36 @@ async function loadOwnedApplication(applicationId: string): Promise<
     return { application: null, error: NextResponse.json({ error: "Applicant profile not found" }, { status: 404 }) };
   }
 
+  let application: ApplicationRow | null = null;
   const { data, error } = await admin
     .from("applications")
     .select("id, applicant_id, country, visa_type, official_fee_status, official_fee_quote_id, official_fee_payment_intent_id, official_fee_receipt_id")
     .eq("id", applicationId)
     .maybeSingle();
   if (error) {
-    return { application: null, error: NextResponse.json({ error: error.message }, { status: 500 }) };
+    if (!isSchemaMissing(error)) {
+      return { application: null, error: NextResponse.json({ error: error.message }, { status: 500 }) };
+    }
+    const fallback = await admin
+      .from("applications")
+      .select("id, applicant_id, country, visa_type")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (fallback.error) {
+      return { application: null, error: NextResponse.json({ error: fallback.error.message }, { status: 500 }) };
+    }
+    application = fallback.data
+      ? {
+          ...(fallback.data as ApplicationRow),
+          official_fee_status: null,
+          official_fee_quote_id: null,
+          official_fee_payment_intent_id: null,
+          official_fee_receipt_id: null,
+        }
+      : null;
+  } else {
+    application = data as ApplicationRow | null;
   }
-  const application = data as ApplicationRow | null;
   if (!application) {
     return { application: null, error: NextResponse.json({ error: "Application not found" }, { status: 404 }) };
   }

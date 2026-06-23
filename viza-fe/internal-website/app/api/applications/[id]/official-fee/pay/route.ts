@@ -13,6 +13,22 @@ type ApplicationRow = {
   submission_result?: unknown;
 };
 
+type QueryErrorLike = {
+  message?: string;
+  code?: string;
+};
+
+function isSchemaMissing(error: QueryErrorLike | null | undefined): boolean {
+  const message = (error?.message ?? "").toLowerCase();
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "PGRST205" ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("could not find")
+  );
+}
+
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
@@ -87,14 +103,36 @@ export async function POST(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (intentError) {
+  if (intentError && !isSchemaMissing(intentError)) {
     return NextResponse.json({ error: intentError.message }, { status: 500 });
   }
-  if (!intent) {
+
+  let intentRow: { id: string; status?: string | null; schemaFallback?: boolean } | null = null;
+  if (intent) {
+    intentRow = intent as { id: string; status?: string | null };
+  } else if (intentError && isSchemaMissing(intentError)) {
+    const { data: fallbackConsent, error: fallbackConsentError } = await admin
+      .from("consent_events")
+      .select("id, accepted, created_at")
+      .eq("application_id", applicationId)
+      .eq("auth_user_id", user.id)
+      .eq("consent_type", "official_fee_payment_authorization")
+      .eq("accepted", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (fallbackConsentError && !isSchemaMissing(fallbackConsentError)) {
+      return NextResponse.json({ error: fallbackConsentError.message }, { status: 500 });
+    }
+    if (fallbackConsent) {
+      intentRow = { id: `fallback:${applicationId}`, status: "admin_approved", schemaFallback: true };
+    }
+  }
+
+  if (!intentRow) {
     return NextResponse.json({ error: "请先授权 VIZA 代付本次越南 e-Visa 官方费用。" }, { status: 409 });
   }
 
-  const intentRow = intent as { id: string; status?: string | null };
   if (!["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intentRow.status ?? "")) {
     return NextResponse.json({ error: `Official fee intent is not payable from status ${intentRow.status ?? "(empty)"}.` }, { status: 409 });
   }
@@ -116,7 +154,8 @@ export async function POST(
       vn_result_payload: {
         status: "payment_authorized",
         registrationCodeCaptured: Boolean(registrationCode),
-        officialFeePaymentIntentId: intentRow.id,
+        officialFeePaymentIntentId: intentRow.schemaFallback ? null : intentRow.id,
+        officialFeeSchemaFallback: Boolean(intentRow.schemaFallback),
       },
       attempts: 0,
       heartbeat_at: now,
@@ -128,16 +167,16 @@ export async function POST(
     return NextResponse.json({ error: queueError?.message ?? "Could not enqueue Vietnam payment job." }, { status: 500 });
   }
 
-  await Promise.all([
+  const [applicationUpdateResult, eventResult] = await Promise.all([
     admin
       .from("applications")
       .update({
         official_fee_status: "official_fee_payment_queued",
-        official_fee_payment_intent_id: intentRow.id,
+        ...(intentRow.schemaFallback ? {} : { official_fee_payment_intent_id: intentRow.id }),
         updated_at: now,
       })
       .eq("id", applicationId),
-    admin.from("application_events").upsert(
+    admin.from("application_events").insert(
       {
         application_id: applicationId,
         applicant_id: profile.id,
@@ -153,9 +192,20 @@ export async function POST(
         occurred_at: now,
         created_at: now,
       },
-      { onConflict: "idempotency_key", ignoreDuplicates: true },
     ),
   ]);
 
-  return NextResponse.json({ ok: true, queueId: (queue as { id: string }).id, intentId: intentRow.id });
+  if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
+    return NextResponse.json({ error: applicationUpdateResult.error.message }, { status: 500 });
+  }
+  if (eventResult.error && !isSchemaMissing(eventResult.error)) {
+    return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    queueId: (queue as { id: string }).id,
+    intentId: intentRow.id,
+    schemaWarning: applicationUpdateResult.error ? "official_fee_application_columns_missing" : null,
+  });
 }

@@ -30,9 +30,12 @@ reports, and workflow documentation for VIZA.
   and troubleshooting workflow for agents.
 - `AGENT_COMPLETION_CHECKLIST.md`: evidence checklist for database-backed and
   persistence-related completion claims.
+- `superpowers/plans/*`: implementation plans written before staged feature
+  work; keep them aligned with the current module guides and product scope.
 - `prd-ds160-ceac-runtime-validation.md`: CEAC automation requirements.
 - `us-appointment-assistant-portal-mapping.md`: U.S. B1/B2 appointment
-  assistant dry-run architecture, provider mapping, and compliance boundaries.
+  assistant provider mapping, China gated assisted-live scope, dry-run fallback,
+  and compliance boundaries.
 - `uk-visa-scope.md`, `uk-visa-gap-report.md`: UK form scope and gaps.
 - `schengen-visa-scope.md`, `schengen-visa-gap-report.md`: Schengen form
   scope and gaps.

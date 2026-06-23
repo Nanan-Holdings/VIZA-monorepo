@@ -615,18 +615,23 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(job.status).toBe("appointment_consent_received");
   });
 
-  it("queues China assisted-live jobs for the submission runner instead of running browser automation in agent-backend", async () => {
+  it("queues China assisted-live jobs for the submission runner without a manual login checkpoint", async () => {
     const { repository, orchestrator, job } = await createChinaAssistedLiveJob();
     const status = await orchestrator.runJob(job.id);
     expect(status.job?.status).toBe("appointment_login_required");
-    expect(status.pendingManualAction?.actionType).toBe("login");
-    expect(status.pendingManualAction?.instruction).toContain("VIZA appointment runner");
+    expect(status.job?.requiresUserAction).toBe(false);
+    expect(status.job?.currentManualAction).toBeNull();
+    expect(status.pendingManualAction).toBeNull();
     expect(repository.auditEvents.at(-1)?.metadataRedactedJson).toMatchObject({
       assisted_live_enabled: true,
       runner_service: "submission-service",
       provider: "usvisascheduling",
       applying_country_code: "CN",
+      supported_checkpoint_handling: true,
     });
+    expect(
+      JSON.stringify(repository.auditEvents.at(-1)?.metadataRedactedJson),
+    ).not.toContain("no_final_confirmation_click");
   });
 
   it("creates the dry-run email verification checkpoint on first run", async () => {

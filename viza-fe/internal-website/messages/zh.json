@@ -4717,12 +4717,12 @@
     "page": {
       "eyebrow": "美国面签预约助手",
       "title": "B1/B2 预约设置",
-      "subtitle": "DS-160 完成后，使用合规的中国美国签证预约助手继续预约准备。VIZA 可以协助准备和查看进度，但登录、CAPTCHA、付款、政策提示、选位和最终确认都会暂停等待您本人操作。"
+      "subtitle": "DS-160 完成后，使用中国 USVisaScheduling assisted-live 预约助手继续。VIZA 可处理支持的账号、CAPTCHA、政策、付款、名额读取和确认节点，但选位和最终预约批准必须明确完成。"
     },
     "loading": "正在加载预约助手...",
     "errorTitle": "预约助手需要处理",
-    "dryRunNoticeTitle": "人工边界内的 live 辅助",
-    "dryRunNotice": "中国首版流程不会绕过 CAPTCHA、MFA、等待室、频率限制、付款、政策提示或最终确认。VIZA 只执行用户触发的检查，并会在不可逆官方操作前暂停。",
+    "dryRunNoticeTitle": "受控 assisted-live",
+    "dryRunNotice": "中国首版流程只会在明确用户动作后运行。VIZA 可通过受控 runner 处理支持的官方节点，记录脱敏官方证据；不支持的官方阻塞会明确显示为需要人工处理。",
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
       "withCode": "预约请求暂时无法完成。参考代码：{code}。",
@@ -4757,15 +4757,15 @@
       "appointment_missing_ds160_confirmation": "需要 DS-160 编号",
       "appointment_missing_applying_post": "DS-160 缺少使领馆",
       "appointment_account_required": "需要预约账号",
-      "appointment_account_creation_started": "账号演练已开始",
+      "appointment_account_creation_started": "账号设置已开始",
       "appointment_email_verification_required": "邮箱验证节点",
       "appointment_login_required": "登录节点",
       "appointment_captcha_required": "CAPTCHA 节点",
-      "appointment_profile_fill_in_progress": "资料演练进行中",
-      "appointment_profile_filled": "资料演练完成",
+      "appointment_profile_fill_in_progress": "资料填写进行中",
+      "appointment_profile_filled": "资料填写完成",
       "appointment_ds160_linked": "DS-160 已关联",
       "appointment_payment_required": "付款节点",
-      "appointment_payment_in_progress": "付款演练进行中",
+      "appointment_payment_in_progress": "付款处理中",
       "appointment_payment_completed": "付款节点完成",
       "appointment_calendar_opened": "日历已打开",
       "appointment_slots_observed": "已发现名额",
@@ -4773,8 +4773,8 @@
       "appointment_slot_selection_required": "需要选择名额",
       "appointment_slot_selected": "已选择名额",
       "appointment_final_confirmation_required": "需要最终确认",
-      "appointment_booked": "Dry-run 已预约",
-      "appointment_confirmation_captured": "Dry-run 确认已记录",
+      "appointment_booked": "已请求预约",
+      "appointment_confirmation_captured": "官方确认已记录",
       "appointment_status_check_in_progress": "状态检查中",
       "appointment_status_checked": "状态已检查",
       "appointment_manual_required": "需要人工处理",
@@ -4793,7 +4793,7 @@
       "ds160Code": "DS-160 确认编号",
       "ds160CodeHint": "如果 VIZA 已在上一步保存 DS-160 Application ID，可留空。",
       "ds160CodePlaceholder": "例如：AA00BC1234",
-      "slotScenario": "Dry-run 名额场景",
+      "slotScenario": "测试名额场景",
       "slotScenarioSlots": "显示示例名额",
       "slotScenarioNoSlots": "显示暂无名额",
       "aliasNoticeTitle": "VIZA 别名邮箱",
@@ -4805,9 +4805,9 @@
     },
     "consent": {
       "title": "授权与边界",
-      "body1": "VIZA 可以协助整理 DS-160 后的中国美国签证预约步骤，但官方门户的决策与安全校验仍由您本人控制。",
-      "body2": "登录、CAPTCHA、网站政策确认、签证费支付、选位和最终确认都需要您本人完成。VIZA 会暂停并等待您的明确操作。",
-      "checkbox": "我理解 VIZA 可以辅助中国预约流程，并将本人处理官方门户安全校验、付款和最终预约确认。",
+      "body1": "VIZA 可以通过受控 USVisaScheduling runner 协助处理 DS-160 后的中国美国签证预约步骤。",
+      "body2": "VIZA 可处理支持的登录、别名邮箱验证、CAPTCHA、政策、付款、名额读取和确认节点。您仍需选择具体名额，并在官方预约确认前完成最终批准。",
+      "checkbox": "我授权 VIZA 为本申请运行中国 USVisaScheduling assisted-live 操作，并保留明确选位、最终 VIZA 批准和官方证据记录。",
       "recorded": "授权已记录",
       "security": "敏感输入会从助手日志中脱敏。"
     },
@@ -4815,7 +4815,7 @@
       "title": "实时助手",
       "noJob": "从这里开始预约：先确认左侧 DS-160 信息并授权。VIZA 会使用 DS-160 中已经保存的面签使领馆，再由后端获取当前可预约时段。",
       "startStepPreferences": "如页面未显示已保存编号，请填写 DS-160 确认编号。",
-      "startStepConsent": "勾选左侧授权确认，了解官方安全校验仍需本人处理。",
+      "startStepConsent": "勾选左侧授权确认，允许受控 assisted-live 处理。",
       "startStepRun": "点击“开始预约助手”，再点击“检查名额”查看后端获取的可选时间。",
       "consentHint": "请先勾选左侧授权确认后再开始。",
       "provider": "预约平台",
@@ -4841,19 +4841,19 @@
       "instructions": {
         "consent": "请阅读并接受授权说明。",
         "account_email_verification": "请输入邮箱中的验证码。VIZA 不会访问您的邮箱。",
-        "login": "如果官方门户要求登录，请您本人登录。VIZA runner 不会绕过登录、CAPTCHA、等待室或网站政策控制。",
-        "captcha": "请您本人完成 CAPTCHA。VIZA 不会代解或绕过 CAPTCHA。",
-        "payment": "请确认 dry-run 付款节点。本环境不会产生真实付款。",
-        "slot_selection": "请选择一个 dry-run 发现的预约名额。",
-        "final_confirmation": "请复核所选 dry-run 名额，并在记录模拟预约前明确确认。",
-        "site_policy_review": "请阅读网站政策提示。助手会保持暂停，等待您决定。"
+        "login": "Runner 遇到不支持自动处理的官方登录或风控节点，需要人工复核。",
+        "captcha": "Runner 遇到不支持自动处理的 CAPTCHA 或 MFA 节点，需要人工复核。",
+        "payment": "请复核官方付款节点。只有在 VIZA 已获授权时才继续。",
+        "slot_selection": "请选择一个已发现的预约名额。",
+        "final_confirmation": "请复核所选官方名额，并在 VIZA 请求预约前完成最终批准。",
+        "site_policy_review": "请复核不支持自动处理的官方网站状态。助手会暂停，等待用户或运营决定。"
       },
       "actions": {
         "consent": "确认已完成授权。",
         "account_email_verification": "请输入验证码。",
-        "login": "确认您本人已完成登录。",
-        "captcha": "确认您本人已完成 CAPTCHA。",
-        "payment": "确认您理解这里是 dry-run 付款节点。",
+        "login": "确认已复核该不支持自动处理的登录节点。",
+        "captcha": "确认已复核该不支持自动处理的 CAPTCHA/MFA 节点。",
+        "payment": "确认已复核官方付款节点。",
         "slot_selection": "请在下方选择名额。",
         "final_confirmation": "请使用下方最终确认控件。",
         "site_policy_review": "确认您已阅读政策提示，并希望手动继续。"
@@ -4862,7 +4862,7 @@
     "slots": {
       "title": "发现的名额",
       "empty": "后端尚未返回可预约时段。请先开始或继续助手，再由用户触发一次名额检查。",
-      "noSlots": "Dry-run 日历返回暂无名额。只有在您明确点击“检查名额”时才会再次检查。",
+      "noSlots": "官方日历返回暂无名额。只有在您明确点击“检查名额”时才会再次检查。",
       "choose": "选择",
       "selected": "已选择",
       "observedAt": "发现时间 {value}",
@@ -4873,17 +4873,17 @@
     },
     "final": {
       "title": "最终确认",
-      "requirement": "请先选择一个 dry-run 名额，再进行最终确认。",
+      "requirement": "请先选择一个已发现的官方名额，再进行最终确认。",
       "selected": "已选名额：{date} {time}。请复核后再确认。",
       "approve": "批准最终步骤",
       "approving": "正在确认...",
-      "book": "记录 dry-run 预约",
+      "book": "请求官方预约",
       "approvedBadge": "已批准"
     },
     "results": {
       "title": "结果",
-      "none": "尚未记录 dry-run 确认。",
-      "confirmationNumber": "模拟确认号",
+      "none": "尚未记录官方预约确认。",
+      "confirmationNumber": "官方确认号",
       "date": "预约日期",
       "time": "预约时间",
       "location": "地点",
@@ -4892,7 +4892,7 @@
     },
     "cancel": {
       "title": "取消预约助手？",
-      "description": "这会停止当前 dry-run 任务。如有需要，之后可以重新创建任务。",
+      "description": "这会停止当前预约辅助任务。如有需要，之后可以重新创建任务。",
       "keep": "继续保留",
       "confirm": "取消任务"
     },
@@ -4934,9 +4934,9 @@
     },
     "nextStepCard": {
       "title": "下一步：预约设置",
-      "body": "为 B1/B2 预约流程运行安全 dry-run，并在任何敏感门户步骤前保留人工确认节点。",
+      "body": "继续进入中国 USVisaScheduling assisted-live 预约设置，保留明确选位、最终批准和官方证据记录。",
       "button": "打开预约助手",
-      "badge": "Dry run"
+      "badge": "Assisted live"
     }
   }
 }

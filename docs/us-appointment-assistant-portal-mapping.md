@@ -1,15 +1,22 @@
 # U.S. B1/B2 Appointment Assistant Portal Mapping
 
-Last updated: 2026-06-05
+Last updated: 2026-06-23
 
 ## Scope
 
 This document records the implemented U.S. B1/B2 appointment assistant after
-DS-160 capture. The current product surface is intentionally dry-run first:
-it models account setup, email verification, DS-160 linking, fee/payment
-checkpoint, calendar/slot observation, explicit slot selection, final approval,
-mock booking, and status check without performing any real official-portal
-booking.
+DS-160 capture/submission. The current product surface is aggressive by design:
+it keeps dry-run metadata for unsupported posts, but China USVisaScheduling can
+run as gated assisted-live automation when explicitly enabled. In assisted-live
+mode the system can model or perform account setup, VIZA-alias email
+verification, DS-160 linking, fee/payment checkpoints where supported, calendar
+and slot observation, user slot selection, final VIZA approval, official booking,
+confirmation capture, and user-triggered status checks.
+
+For countries/posts outside the verified China USVisaScheduling path, the
+executable provider remains `dry_run` or manual-provider until the current
+official post URL, provider rules, legal/product approval, and runtime evidence
+are verified.
 
 ## Official Source Notes
 
@@ -42,6 +49,8 @@ booking.
   `viza-be/agent-backend/src/routes/us-appointment.routes.ts`
 - Backend service state machine:
   `viza-be/agent-backend/src/services/us-appointment/**`
+- Assisted-live runner:
+  `viza-be/submission-service/src/us-appointment/**`
 - Browser API client:
   `viza-fe/internal-website/lib/us-appointment/client.ts`
 - Applicant UI:
@@ -53,10 +62,21 @@ booking.
 
 ## Compliance Design
 
-- Implement CAPTCHA solving, MFA/email bypass, payment automation, proxy rotation,
-  browser fingerprinting, stealth mode, waiting-room bypass, or rate-limit
-  bypass is implemented.
-- Slot and status checks are user-triggered; no background polling loop exists.
+- China assisted-live requires explicit enablement:
+  `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`,
+  `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and
+  `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`.
+- The runner may automate VIZA-alias email verification through the Cloudflare
+  Email Worker -> `inbound_email` path, and may handle supported CAPTCHA/MFA,
+  waiting-room, payment, policy-prompt, and final-confirmation checkpoints only
+  inside the approved assisted-live gate.
+- The runner must not invent applicant data, hide official warnings, or claim a
+  booking without official evidence. Unsupported gates, unavailable payment
+  authorization, missing applicant facts, or portal outages must become
+  `manual_required` or failed outcomes with diagnostics.
+- Slot and status checks are user-triggered; background polling or repeated
+  official-site refreshes must stay behind explicit cooldowns and job state.
+- Official slot booking requires a user-selected slot plus final VIZA approval.
 
 ## Portal Mapping Table
 
@@ -66,7 +86,7 @@ booking.
 | Canada | Toronto / Vancouver / Ottawa / Montreal / Calgary / Quebec / Halifax | AIS / usvisa-info, subject to current post instructions | `ais_usvisa_info` metadata; executable provider is `dry_run` | Yes | Likely | Likely | Likely | Dry-run profile preparation, status modeling, manual checkpoint routing | Login, email/MFA/CAPTCHA, payment, calendar navigation, final confirmation | Provider and DS-160 matching rules can change by post; verify current Canada embassy guidance before live support. |
 | United Kingdom | London / Belfast | AIS / usvisa-info is likely, but must be verified from the current UK embassy page | `ais_usvisa_info` metadata; executable provider is `dry_run` | Yes | Likely | Likely | Likely | Dry-run profile preparation and manual checkpoint routing | Login, CAPTCHA/MFA, payment, appointment selection, final confirmation | Official UK usembassy.gov pages were not reliably crawlable in research; treat as needs verification. |
 | India | New Delhi / Mumbai / Chennai / Hyderabad / Kolkata | USVisaScheduling is the likely family for NIV appointment scheduling | `usvisascheduling` metadata; executable provider is `dry_run` | Yes | Likely | Likely | Likely | Dry-run DS-160/profile linking and slot scenario simulation | Portal account, email/MFA/CAPTCHA, MRV payment, biometric/interview selection, final confirmation | High demand and portal anti-abuse controls make any polling or automation especially risky. |
-| China | Beijing / Shanghai / Guangzhou / Shenyang / Wuhan | USVisaScheduling / USTravelDocs family needs current post verification | `usvisascheduling` metadata; executable provider is `dry_run` | Yes | Likely | Likely | Likely | Dry-run profile preparation, DS-160 linking, mock slot observation | Login, security checks, payment, slot selection, final confirmation | Local instructions and language variants must be verified from current official pages. |
+| China | Beijing / Shanghai / Guangzhou / Shenyang / Wuhan | USVisaScheduling / USTravelDocs family needs current post verification before each promotion | `usvisascheduling`; executable provider can be assisted-live when all gates are enabled | Yes | Likely; VIZA alias email path may automate account verification | Likely; supported CAPTCHA/MFA may be handled by the gated runner | Likely | Assisted-live account/profile setup, DS-160 linking, official slot observation, user-selected slot booking after final VIZA approval, confirmation/status capture | Unsupported risk gates, missing payment authorization, missing applicant data, or portal outages | Live path is limited to `CN/usvisascheduling` until new posts are verified with official evidence. |
 | Germany | Berlin / Frankfurt / Munich | USTravelDocs or local post-specific scheduling, needs verification | `ustraveldocs` metadata; executable provider is `dry_run` | Yes | Likely | Likely | Likely | Dry-run state transitions and user-guided checkpoints | Account/login, email/MFA/CAPTCHA, payment, slot selection, final confirmation | Code falls back to USTravelDocs metadata for countries outside AIS/USVisaScheduling lists; not a live-routing claim. |
 | Manual / embassy-specific | Any post with nonstandard instructions | Embassy-specific page or manual consular instructions | `manual_provider` or `embassy_specific_niv`; executable provider is `dry_run` unless future approved live mode exists | Depends | Depends | Depends | Depends | Intake, checklist, reminder, audit, and human handoff only | All official portal interactions | Use this whenever provider confidence is low or site policy prohibits automation. |
 
@@ -90,10 +110,12 @@ booking.
 
 ## Future Live-Mode Gate
 
-Live mode must remain disabled until all of the following are true:
+Any additional country/post live mode must remain disabled until all of the
+following are true:
 
 - Current official post URL and provider routing are verified.
-- Legal/product approval confirms the portal terms allow the planned assisted
-  behavior.
-- The runner continues at login, CAPTCHA, MFA/email, payment, waiting room, policy
-  warning, slot selection, and final confirmation checkpoints.
+- Legal/product approval confirms the planned assisted behavior.
+- The runner has explicit handling for login, CAPTCHA, MFA/email, payment,
+  waiting room, policy warning, slot selection, and final confirmation states.
+- The runner records redacted official evidence for slot observations,
+  bookings, confirmations, and status checks.

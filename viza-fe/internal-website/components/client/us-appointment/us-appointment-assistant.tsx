@@ -170,7 +170,7 @@ function buildManualInput(
     return { verificationCode: trimmed };
   }
   if (actionType === "payment") {
-    return { acknowledged: true, no_real_payment: true };
+    return { reviewedOfficialPaymentCheckpoint: true };
   }
   if (actionType === "captcha" || actionType === "login") {
     return { completedByUser: true };
@@ -324,7 +324,8 @@ export function USAppointmentAssistant({
         mode: "assisted_live",
         assistedLiveCountry: "CN",
         finalConfirmationRequired: true,
-        noSecurityBypass: true,
+        supportedCheckpointHandling: true,
+        unsupportedGatesRequireManualReview: true,
         acceptedAt: new Date().toISOString(),
       },
     });

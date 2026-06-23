@@ -42,8 +42,9 @@ applicant info, and help pages.
 - `travel-chat/page.tsx` and `travel-chat/travel-chat-client.tsx`: dedicated
   Travel AI route.
 - `applications/[applicationId]/us-appointment/page.tsx`: U.S. B1/B2
-  appointment assistant entry after DS-160 capture. It must remain dry-run
-  first with manual checkpoints for portal-sensitive actions.
+  appointment assistant entry after DS-160 capture/submission. It may use China
+  USVisaScheduling gated assisted-live from explicit user actions, while other
+  countries/posts remain dry-run or manual until verified.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 

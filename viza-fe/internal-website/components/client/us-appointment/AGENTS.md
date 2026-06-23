@@ -14,9 +14,11 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
 - Loading/progress UI must be bound only to an active appointment job. Terminal,
   failed, cancelled, or confirmed jobs should show status/results instead of an
   indefinite spinner.
-- Do implement or document bypasses for official login, CAPTCHA/MFA,
-  waiting rooms, policy prompts, payment controls, rate limits, or final
-  confirmation pages.
+- Do implement gated assisted-live handling for official login, supported
+  CAPTCHA/MFA, waiting rooms, policy prompts, payment controls, and final
+  confirmation pages only through the approved submission-service runner. Do
+  not hide unsupported gates; surface them as manual-required states with
+  redacted diagnostics.
 - The account email-verification path may be automated when it uses the VIZA
   alias email flow (`applicant_profiles.inbox_alias` -> Cloudflare Email
   Worker -> `inbound_email`) and stores only redacted checkpoint metadata.

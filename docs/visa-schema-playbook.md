@@ -779,8 +779,9 @@ Key files and what they do:
 | `selectors.ts` | CEAC-specific CSS selectors — splits CAPTCHA selectors into `solvableCaptchaSelectors` (image CAPTCHA → 2captcha) vs `blockingCaptchaSelectors` (reCAPTCHA / hCaptcha / Cloudflare → give up) |
 | `gates.ts` | `detectGate` / `assertNoGate` — classifies page state as blocked (GateDetectedError) or clear |
 | `orchestrator.ts` | `PAGE_FILL_MAP` — maps each of 18 CEAC pages to a `DS160_MAPPING_GROUPS` entry, fills fields in order |
-| `errors.ts` | `GateDetectedError` (CAPTCHA/block) vs `SessionBootstrapError` (browser/network). Drives queue-item classification: `ds160_blocked` vs `ds160_prefill_failed` |
-| `stop-at-sign.ts` | Pauses before signing — user handoff boundary (VIZA does not auto-sign and submit; the human finishes) |
+| `errors.ts` | `GateDetectedError` (CAPTCHA/block) vs `SessionBootstrapError` (browser/network). Drives queue-item classification such as `ds160_manual_required`, `ds160_submit_failed`, or submitted-result states |
+| `final-submit.ts` | Handles gated final sign/submit with applicant-authorized signature data and supported CAPTCHA solving |
+| `stop-at-sign.ts` | Legacy diagnostic/handoff helper only; production CEAC live-assisted submission continues through final sign/submit when gates pass |
 | `smoke.ts` | Probe script with `--solve-captcha` flag for manual telemetry runs |
 | `pages.ts` | Page-structure helpers (get all DS-160 content pages, detect page ID) |
 
@@ -794,10 +795,7 @@ doesn't work — the orchestrator's `fillPageFields` has a dedicated
 Every solve attempt is recorded in `ceac_result_payload.captchaSolve`.
 API keys and solved text are never logged to long-lived storage.
 
-**Stop-at-sign handoff** (US-025 scope): the orchestrator fills every
-field but never clicks submit. It stops at the "sign and submit"
-boundary so a human reviews and confirms. This is intentional — the
-automation is "prefill assistant", not "autonomous submission".
+**Final sign/submit** (current DS-160 scope): the orchestrator fills every field, reaches the sign/submit flow, enters applicant-authorized signature data, solves supported final CAPTCHA challenges, and submits when the live-assisted gate passes. `stop-at-sign.ts` remains a legacy diagnostic helper for dry-run or manual-required fallback.
 
 **When you'd need all this:** only if a future country requires
 government-portal submission automation AND that portal has a similar
@@ -918,10 +916,7 @@ The first page after Review is
 that does NOT have the passport-signature input or the final-submit
 button. Strict marker checks
 (`signatureFieldPresent && finalSubmitPresent`) will fail here. But
-this **is** the right terminal stop for `handoff_ready`: going
-beyond requires user attestation. The orchestrator's sign-and-submit
-branch treats heading + URL match as sufficient, even when strict
-markers are absent.
+this is the right checkpoint before final live-assisted submission: going beyond requires applicant-authorized signature data and any required CAPTCHA solve. The orchestrator's sign-and-submit branch treats heading + URL match as sufficient to begin the gated final-submit phase, even when strict markers are absent.
 
 **`isEditable()` matters in addition to `isVisible()`**
 Some CEAC fields (e.g. `social_media_identifier`) are present and
@@ -1727,7 +1722,7 @@ A green smoke run is **not** the same as a working runner. Verify
 all of these per smoke pass:
 
 - [ ] Final stdout JSON shows the expected terminal `outcome`
-      (e.g. `handoff_ready` for US, `prefilled` for France).
+      (e.g. `submitted` for US, `prefilled` for France).
 - [ ] `pagesWalked` length matches the expected page count for the
       portal (CEAC: 18; France: 6; AU: 20; VN: ~10).
 - [ ] `sectionCoverage.filled` covers every page with input fields;
@@ -1783,7 +1778,7 @@ Once smoke is green, wire the runner into `submission-service/src/index.ts`:
      applicant + visa_type.
    - Call `fill<Country>Application` with both.
    - Persist `<country>_result_payload` (mirror `ceac_result_payload`).
-   - Transition the queue row to `<country>_prefilled` /
+   - Transition the queue row to `<country>_submitted`, `<country>_prefilled`, or
      `<country>_prefill_failed` / `<country>_blocked` based on the
      run result + error classification.
 3. Wire callbacks (Resend email, in-app notification) on terminal

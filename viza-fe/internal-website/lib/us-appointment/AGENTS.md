@@ -11,8 +11,10 @@ Typed browser helpers for the U.S. B1/B2 appointment assistant API in
 
 - Use the applicant's Supabase access token only; never expose service-role
   keys, portal passwords, cookies, or payment details to the browser.
-- Do add bypass behavior for official login, CAPTCHA/MFA,
-  waiting rooms, policy prompts, payment, rate limits, or final confirmation.
+- Do expose only typed calls into the gated backend/submission-service runner
+  for official login, supported CAPTCHA/MFA, waiting rooms, policy prompts,
+  payment, rate limits, and final confirmation. Unsupported gates must surface
+  as redacted manual-required states, not as browser-side bypass behavior.
 - Account email verification may be represented as automated when the backend
   consumes the applicant's VIZA alias email from `inbound_email`; do not expose
   portal passwords, mailbox contents, or unredacted verification payloads to the
