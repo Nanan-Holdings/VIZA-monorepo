@@ -31,13 +31,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
 import {
@@ -76,14 +69,6 @@ type BusyAction =
   | "checkSlots"
   | "checkStatus"
   | "cancel";
-
-const CHINA_POSTS = [
-  "Beijing",
-  "Shanghai",
-  "Guangzhou",
-  "Shenyang",
-  "Wuhan",
-] as const;
 
 const TERMINAL_STATUSES = new Set<USAppointmentStatus>([
   "appointment_confirmation_captured",
@@ -244,11 +229,6 @@ export function USAppointmentAssistant({
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentRecorded, setConsentRecorded] = useState(false);
   const [ds160Code, setDs160Code] = useState("");
-  const [applyingPostCity, setApplyingPostCity] = useState("Beijing");
-  const [preferredDateStart, setPreferredDateStart] = useState("");
-  const [preferredDateEnd, setPreferredDateEnd] = useState("");
-  const [avoidDates, setAvoidDates] = useState("");
-  const [timePreference, setTimePreference] = useState("any");
   const [manualInput, setManualInput] = useState("");
 
   const job = snapshot?.job ?? null;
@@ -273,7 +253,6 @@ export function USAppointmentAssistant({
       setSnapshot(next);
       if (next.job) {
         setDs160Code((current) => current || next.job?.ds160ConfirmationCode || "");
-        setApplyingPostCity(next.job.applyingPostCity ?? "Beijing");
         setConsentRecorded(true);
         setConsentAccepted(true);
       }
@@ -368,20 +347,12 @@ export function USAppointmentAssistant({
         mode: "assisted_live",
         ds160ConfirmationCode: ds160Code.trim() || undefined,
         applyingCountryCode: "CN",
-        applyingPostCity,
         schedulingProvider: "usvisascheduling",
         userPreferencesJson: {
-          preferredDateStart: preferredDateStart.trim(),
-          preferredDateEnd: preferredDateEnd.trim(),
-          avoidDates: avoidDates
-            .split(/[,\n]/)
-            .map((value) => value.trim())
-            .filter(Boolean),
-          timePreference,
-          postCity: applyingPostCity,
           appointmentType: "interview",
           assistedLiveCountry: "CN",
           provider: "usvisascheduling",
+          slotSelectionSource: "backend_available_timings",
           usesVizaAliasEmail: true,
           finalConfirmationRequired: true,
         },
@@ -523,97 +494,11 @@ export function USAppointmentAssistant({
                   />
                 </BrandField>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <BrandField label={t("setup.applyingCountry")}>
-                    <Select
-                      value="CN"
-                      disabled={Boolean(job)}
-                      onValueChange={() => undefined}
-                    >
-                      <SelectTrigger className="h-12 rounded-lg border-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CN">{t("countries.cn")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </BrandField>
-
-                  <BrandField label={t("setup.postCity")}>
-                    <Select
-                      value={applyingPostCity}
-                      disabled={Boolean(job)}
-                      onValueChange={setApplyingPostCity}
-                    >
-                      <SelectTrigger className="h-12 rounded-lg border-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CHINA_POSTS.map((post) => (
-                          <SelectItem key={post} value={post}>
-                            {t(`posts.${post.toLowerCase()}`)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </BrandField>
-                </div>
-
                 <Alert className="border-amber-200 bg-amber-50 text-amber-900">
                   <ShieldCheck className="h-4 w-4" />
                   <AlertTitle>{t("setup.aliasNoticeTitle")}</AlertTitle>
                   <AlertDescription>{t("setup.aliasNotice")}</AlertDescription>
                 </Alert>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <BrandField label={t("setup.preferredDateStart")} htmlFor="date-start">
-                    <BrandInput
-                      id="date-start"
-                      type="date"
-                      value={preferredDateStart}
-                      onChange={(event) => setPreferredDateStart(event.target.value)}
-                      disabled={Boolean(job)}
-                    />
-                  </BrandField>
-                  <BrandField label={t("setup.preferredDateEnd")} htmlFor="date-end">
-                    <BrandInput
-                      id="date-end"
-                      type="date"
-                      value={preferredDateEnd}
-                      onChange={(event) => setPreferredDateEnd(event.target.value)}
-                      disabled={Boolean(job)}
-                    />
-                  </BrandField>
-                </div>
-
-                <BrandField label={t("setup.avoidDates")} htmlFor="avoid-dates">
-                  <BrandInput
-                    id="avoid-dates"
-                    value={avoidDates}
-                    onChange={(event) => setAvoidDates(event.target.value)}
-                    disabled={Boolean(job)}
-                    placeholder={t("setup.avoidDatesPlaceholder")}
-                  />
-                </BrandField>
-
-                <div className="grid gap-4 sm:grid-cols-1">
-                  <BrandField label={t("setup.timePreference")}>
-                    <Select
-                      value={timePreference}
-                      disabled={Boolean(job)}
-                      onValueChange={setTimePreference}
-                    >
-                      <SelectTrigger className="h-12 rounded-lg border-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">{t("setup.timeAny")}</SelectItem>
-                        <SelectItem value="morning">{t("setup.timeMorning")}</SelectItem>
-                        <SelectItem value="afternoon">{t("setup.timeAfternoon")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </BrandField>
-                </div>
 
                 {showCreate && (
                   <BrandActionButton
@@ -687,8 +572,30 @@ export function USAppointmentAssistant({
               </CardHeader>
               <CardContent className="space-y-4">
                 {!job ? (
-                  <div className="rounded-[8px] border border-dashed border-slate-300 bg-white p-5 text-sm text-muted-foreground">
-                    {t("panel.noJob")}
+                  <div className="space-y-4 rounded-[8px] border border-dashed border-slate-300 bg-white p-5">
+                    <div className="space-y-2 text-sm leading-6 text-muted-foreground">
+                      <p>{t("panel.noJob")}</p>
+                      <ol className="ml-4 list-decimal space-y-1">
+                        <li>{t("panel.startStepPreferences")}</li>
+                        <li>{t("panel.startStepConsent")}</li>
+                        <li>{t("panel.startStepRun")}</li>
+                      </ol>
+                    </div>
+                    <BrandActionButton
+                      onClick={handleCreateJob}
+                      loading={busyAction === "create"}
+                      loadingText={t("setup.creating")}
+                      disabled={isBusy || !consentAccepted}
+                      className="w-full"
+                    >
+                      <Play className="h-4 w-4" />
+                      {t("setup.createJob")}
+                    </BrandActionButton>
+                    {!consentAccepted && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("panel.consentHint")}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <>

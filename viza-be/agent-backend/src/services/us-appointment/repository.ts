@@ -25,6 +25,18 @@ import {
 
 type SupabaseObject = Record<string, unknown>;
 
+const DS160_APPOINTMENT_POST_FIELD_NAMES = [
+  "embassyLocation",
+  "embassy_location",
+  "embassyOrConsulate",
+  "embassy_or_consulate",
+  "interview_location",
+  "appointment_post_city",
+  "applying_post_city",
+] as const;
+
+const SIMPLIFIED_FORM_STATE_KEY = "__simplified_form_state";
+
 export interface InsertAppointmentAccountInput {
   userId: string;
   applicationId: string | null;
@@ -395,15 +407,76 @@ function mapStatusCheck(row: SupabaseObject): AppointmentStatusCheck {
   };
 }
 
+function readNestedString(value: unknown, path: readonly string[]): string | null {
+  let current = value;
+  for (const segment of path) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) return null;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return typeof current === "string" && current.trim() ? current.trim() : null;
+}
+
+function parseJsonObject(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function readPostCityFromSimplifiedState(value: unknown): string | null {
+  const parsed = parseJsonObject(value);
+  if (!parsed) return null;
+  return (
+    readNestedString(parsed, ["travel", "embassyLocation"]) ??
+    readNestedString(parsed, ["embassyLocation"]) ??
+    readNestedString(parsed, ["ds160", "embassyLocation"]) ??
+    readNestedString(parsed, ["application", "embassyLocation"])
+  );
+}
+
+async function readDs160AppointmentPostCity(applicationId: string): Promise<string | null> {
+  const fieldNames = [...DS160_APPOINTMENT_POST_FIELD_NAMES, SIMPLIFIED_FORM_STATE_KEY];
+  const { data, error } = await getSupabaseClient()
+    .from("visa_application_answers")
+    .select("field_name, value_text, value_json")
+    .eq("application_id", applicationId)
+    .in("field_name", fieldNames);
+
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as SupabaseObject[];
+
+  for (const fieldName of DS160_APPOINTMENT_POST_FIELD_NAMES) {
+    const row = rows.find((candidate) => candidate.field_name === fieldName);
+    const value = nullableString(row?.value_text) ?? nullableString(row?.value_json);
+    if (value?.trim()) return value.trim();
+  }
+
+  const simplifiedState = rows.find((row) => row.field_name === SIMPLIFIED_FORM_STATE_KEY);
+  return readPostCityFromSimplifiedState(
+    simplifiedState?.value_json ?? simplifiedState?.value_text,
+  );
+}
+
 export class SupabaseUSAppointmentRepository implements USAppointmentRepository {
   async getApplicationContext(applicationId: string): Promise<USAppointmentApplication | null> {
-    const { data, error } = await getSupabaseClient()
+    const [{ data, error }, ds160AppointmentPostCity] = await Promise.all([
+      getSupabaseClient()
       .from("applications")
       .select(
         "id, applicant_id, country, visa_type, status, payment_status, packet_status, automation_status, confirmation_number, ds160_application_id, ds160_retrieval_url, appointment_assistance_status, applicant_profiles!inner(auth_user_id)",
       )
       .eq("id", applicationId)
-      .maybeSingle();
+        .maybeSingle(),
+      readDs160AppointmentPostCity(applicationId),
+    ]);
 
     if (error) throw new Error(error.message);
     if (!data) return null;
@@ -423,6 +496,7 @@ export class SupabaseUSAppointmentRepository implements USAppointmentRepository 
       confirmationNumber: nullableString(row.confirmation_number),
       ds160ApplicationId: nullableString(row.ds160_application_id),
       ds160RetrievalUrl: nullableString(row.ds160_retrieval_url),
+      ds160AppointmentPostCity,
       appointmentAssistanceStatus: nullableString(row.appointment_assistance_status),
     };
   }

@@ -86,6 +86,11 @@ import {
 } from "./uk";
 import { fillVietnamApplication, type FillVietnamResult } from "./vietnam";
 import {
+  queryVietnamOfficialStatus,
+  toVietnamDob,
+  type VietnamOfficialStatus,
+} from "./vietnam/status-check";
+import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
   type VietnamProgressStage,
@@ -300,6 +305,85 @@ type VnOfficialStatusCheckRow = {
   user_id: string | null;
 };
 
+function mapVietnamOfficialStatusToResultStatus(status: VietnamOfficialStatus): string {
+  switch (status) {
+    case "approved":
+      return "approved";
+    case "rejected":
+      return "rejected";
+    case "needs_correction":
+      return "needs_attention";
+    case "payment_required":
+      return "payment_required";
+    case "processing":
+      return "pending_official_review";
+    case "needs_human":
+      return "needs_human";
+    case "unknown":
+      return "unknown";
+  }
+}
+
+function readAnswerValue(answers: Record<string, string>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = answers[key]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+async function enqueueDueVietnamOfficialStatusChecks(): Promise<number> {
+  const now = new Date();
+  const dueBefore = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();
+  const { data: apps, error } = await supabase
+    .from("applications")
+    .select("id, applicant_id, external_status, external_status_updated_at, official_fee_status, country, visa_type")
+    .or("country.eq.VN,country.ilike.vietnam,country.ilike.viet_nam")
+    .eq("official_fee_status", "official_fee_payment_succeeded")
+    .not("external_status", "in", "(approved,rejected)")
+    .or(`external_status_updated_at.is.null,external_status_updated_at.lt.${dueBefore}`)
+    .limit(10);
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("schema cache") || message.includes("official_fee_status")) return 0;
+    throw new Error(`Failed to load due Vietnam status checks: ${error.message}`);
+  }
+
+  let queued = 0;
+  for (const app of (apps ?? []) as Array<{ id: string; applicant_id: string }>) {
+    const { data: existing, error: existingError } = await supabase
+      .from("official_status_checks")
+      .select("id")
+      .eq("application_id", app.id)
+      .eq("country_code", "VN")
+      .in("status", ["queued", "running"])
+      .limit(1);
+    if (existingError) {
+      const message = existingError.message.toLowerCase();
+      if (message.includes("official_status_checks") || message.includes("schema cache")) return queued;
+      throw new Error(`Failed to load existing Vietnam status checks: ${existingError.message}`);
+    }
+    if ((existing ?? []).length > 0) continue;
+
+    const { error: insertError } = await supabase.from("official_status_checks").insert({
+      application_id: app.id,
+      user_id: null,
+      country_code: "VN",
+      provider: "vietnam_evisa",
+      status: "queued",
+      requested_by: "system",
+      raw_status_json: {
+        source: "scheduled_poll",
+        cadence_hours: 6,
+      },
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    });
+    if (!insertError) queued++;
+  }
+  return queued;
+}
+
 async function processQueuedVietnamOfficialStatusChecks(): Promise<number> {
   const { data, error } = await supabase
     .from("official_status_checks")
@@ -326,7 +410,7 @@ async function processQueuedVietnamOfficialStatusChecks(): Promise<number> {
 
     const { data: applicationData } = await supabase
       .from("applications")
-      .select("external_reference, external_status, official_fee_status, result_status")
+      .select("external_reference, external_status, official_fee_status, result_status, submission_result, applicant_id")
       .eq("id", row.application_id)
       .maybeSingle();
     const application = (applicationData ?? {}) as {
@@ -334,9 +418,85 @@ async function processQueuedVietnamOfficialStatusChecks(): Promise<number> {
       external_status?: string | null;
       official_fee_status?: string | null;
       result_status?: string | null;
+      submission_result?: unknown;
+      applicant_id?: string | null;
     };
-    const paid = application.official_fee_status === "official_fee_payment_succeeded";
-    const status = paid ? "pending_official_review" : "payment_required";
+    const registrationCode =
+      application.external_reference ??
+      readVnRegistrationCodeFromResult(application.submission_result);
+    const answers = await loadDs160Answers(row.application_id).catch(() => ({}));
+    const { data: profileData } = application.applicant_id
+      ? await supabase
+          .from("applicant_profiles")
+          .select("email, date_of_birth")
+          .eq("id", application.applicant_id)
+          .maybeSingle()
+      : { data: null };
+    const profile = (profileData ?? {}) as { email?: string | null; date_of_birth?: string | null };
+    const email = readAnswerValue(answers, [
+      "email_address",
+      "email",
+      "applicant_email",
+      "contact_email",
+    ]) ?? profile.email ?? null;
+    const dateOfBirth = readAnswerValue(answers, [
+      "date_of_birth",
+      "birth_date",
+      "dob",
+    ]) ?? profile.date_of_birth ?? null;
+
+    let officialStatus: VietnamOfficialStatus = "needs_human";
+    let resultStatus = "needs_human";
+    let rawStatusJson: Record<string, unknown> = {};
+    let officialReference = registrationCode ?? null;
+    let errorCode: string | null = null;
+    let errorMessage: string | null = null;
+
+    if (!registrationCode || !email || !dateOfBirth) {
+      errorCode = "missing_status_lookup_fields";
+      errorMessage = "Vietnam official status check requires registration code, email, and date of birth.";
+      rawStatusJson = {
+        registration_code_present: Boolean(registrationCode),
+        email_present: Boolean(email),
+        date_of_birth_present: Boolean(dateOfBirth),
+      };
+    } else {
+      try {
+        const diagnosticsDir = path.resolve("diag-out", "vn-status", row.id);
+        fs.mkdirSync(diagnosticsDir, { recursive: true });
+        const screenshotPath = path.join(diagnosticsDir, "status.png");
+        const result = await queryVietnamOfficialStatus({
+          registrationCode,
+          email,
+          dateOfBirth: toVietnamDob(dateOfBirth),
+          headless: readBooleanEnv("VN_STATUS_PLAYWRIGHT_HEADLESS", true),
+          searchUrl: process.env.VN_OFFICIAL_STATUS_URL ?? "https://evisa.gov.vn/e-visa/search",
+          screenshotPath,
+          timeoutMs: readNumberEnv("VN_STATUS_CHECK_TIMEOUT_MS", 180_000),
+        });
+        officialStatus = result.status;
+        resultStatus = mapVietnamOfficialStatusToResultStatus(result.status);
+        officialReference = result.registrationCode;
+        rawStatusJson = {
+          source: "vietnam_evisa_search",
+          summary: result.summary,
+          passport_last4: result.passportNumber ? result.passportNumber.slice(-4) : null,
+          visa_number: result.visaNumber,
+          denied_reason: result.deniedReason,
+          download_available: result.downloadAvailable,
+          screenshot_path: result.screenshotPath ?? null,
+        };
+      } catch (err) {
+        officialStatus = "needs_human";
+        resultStatus = "needs_human";
+        errorCode = "official_status_check_failed";
+        errorMessage = err instanceof Error ? err.message : String(err);
+        rawStatusJson = {
+          source: "vietnam_evisa_search",
+          error: errorMessage,
+        };
+      }
+    }
     const finishedAt = new Date().toISOString();
 
     await Promise.all([
@@ -344,23 +504,21 @@ async function processQueuedVietnamOfficialStatusChecks(): Promise<number> {
         .from("official_status_checks")
         .update({
           status: "completed",
-          official_reference: application.external_reference ?? null,
-          official_status: status,
-          result_status: application.result_status ?? null,
+          official_reference: officialReference,
+          official_status: officialStatus,
+          result_status: resultStatus,
           checked_at: finishedAt,
-          raw_status_json: {
-            source: "viza_db_checkpoint",
-            message: paid
-              ? "Payment is recorded in VIZA. Official portal review is pending a live status adapter."
-              : "Official fee payment has not been recorded as paid.",
-          },
+          raw_status_json: rawStatusJson,
+          error_code: errorCode,
+          error_message: errorMessage,
           updated_at: finishedAt,
         })
         .eq("id", row.id),
       supabase
         .from("applications")
         .update({
-          external_status: status,
+          external_status: officialStatus,
+          result_status: resultStatus,
           external_status_updated_at: finishedAt,
           updated_at: finishedAt,
         })
@@ -3063,7 +3221,7 @@ function buildVnQueuePayload(
     diagnostics: redactedVnDiagnostics(result),
   };
 
-  if (result.status === "submitted_pending_pay") {
+  if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
     return {
       ...base,
       registrationCodeCaptured: true,
@@ -3071,6 +3229,12 @@ function buildVnQueuePayload(
       fieldsFilled: result.fieldsFilled,
       fieldsSkipped: result.fieldsSkipped,
       fieldFallbacks: result.fieldFallbacks,
+      ...(result.status === "submitted_paid"
+        ? {
+            paymentReceiptReference: result.paymentReceiptReference,
+            redactedCard: result.redactedCard,
+          }
+        : {}),
     };
   }
   if (result.status === "action_required") {
@@ -3345,7 +3509,7 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
 
     if (!dryRunReceipt) {
       const message = autopayEnabled
-        ? "Vietnam official payment autopay is enabled, but no supported payment-gateway adapter is configured in this build. Operator payment is required."
+        ? "Vietnam official payment autopay is enabled, but queued payment resume is not implemented for the fixed-card pilot. Run the live Vietnam runner through the payment page or use operator payment."
         : "Vietnam official payment is authorized, but VN_OFFICIAL_PAYMENT_AUTOPAY is disabled. Operator payment is required.";
       const { attemptId } = await insertVnOfficialFeeAttempt({
         applicationId: item.application_id,
@@ -3587,45 +3751,62 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       },
     );
 
-    if (result.status === "submitted_pending_pay") {
+    if (result.status === "submitted_pending_pay" || result.status === "submitted_paid") {
+      const paid = result.status === "submitted_paid";
       const vnPayload: VnSubmissionResult = {
         country: "VN",
         status: "submitted_pending_email",
         mode: liveAssisted ? "live_assisted" : "dry_run",
         provider: liveAssisted ? "vietnam_evisa_live" : "vietnam_evisa_dry_run",
         portalUrl: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
-        checkpoint: "registration_code_visible",
-        registrationCode: result.registrationCode,
+        checkpoint: paid ? "official_fee_paid" : "registration_code_visible",
+        ...(result.registrationCode ? { registrationCode: result.registrationCode } : {}),
         submittedAtIso: result.submittedAtIso,
         noticeText: "Your e-visa PDF will be emailed within ~3 working days.",
-        paymentStatus: "manual_required",
+        paymentStatus: paid ? "paid" : "manual_required",
       };
-      await writeSubmissionResult(item.application_id, vnPayload, "needs_user_action");
+      await writeSubmissionResult(item.application_id, vnPayload, paid ? "completed" : "needs_user_action");
       const completedAt = new Date().toISOString();
       await updateVnQueueRow(
         item.id,
         {
-          status: "vn_prefilled",
+          status: paid ? "vn_payment_paid" : "vn_prefilled",
           mode: liveAssisted ? "live_assisted" : "dry_run",
           provider: liveAssisted ? "vietnam_evisa_live" : "vietnam_evisa_dry_run",
           vn_result_payload: buildVnQueuePayload(result, tracePath, finalScreenshotPath),
-          vn_registration_code_encrypted: encryptSecret(result.registrationCode),
-          official_status: "registration_code_captured",
-          current_stage: "payment_required",
-          manual_action_status: "pending",
-          payment_status: "manual_required",
+          ...(result.registrationCode ? { vn_registration_code_encrypted: encryptSecret(result.registrationCode) } : {}),
+          official_status: paid ? "payment_submitted" : "registration_code_captured",
+          current_stage: paid ? "official_fee_paid" : "payment_required",
+          manual_action_status: paid ? "completed" : "pending",
+          payment_status: paid ? "paid" : "manual_required",
           official_portal_url: process.env.VN_OFFICIAL_BASE_URL ?? "https://evisa.gov.vn/",
           official_trace_url: tracePath ?? null,
           heartbeat_at: completedAt,
           updated_at: completedAt,
         },
         {
-          status: "vn_prefilled",
+          status: paid ? "vn_payment_paid" : "vn_prefilled",
           last_error: null,
           updated_at: completedAt,
         },
       );
-      console.log(`[vn] Run ${runId} prefilled — registration code captured`);
+      if (paid) {
+        await supabase
+          .from("applications")
+          .update({
+            official_fee_status: "official_fee_payment_succeeded",
+            external_status: "submitted_to_official_portal",
+            external_reference: result.registrationCode ?? result.paymentReceiptReference,
+            external_status_updated_at: completedAt,
+            updated_at: completedAt,
+          })
+          .eq("id", item.application_id);
+      }
+      console.log(
+        paid
+          ? `[vn] Run ${runId} submitted and paid — receipt/reference captured`
+          : `[vn] Run ${runId} prefilled — registration code captured`,
+      );
       return;
     }
 
@@ -4586,6 +4767,10 @@ async function pollOnce(): Promise<void> {
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
   if (!targetJobId) {
     try {
+      const queuedStatusChecks = await enqueueDueVietnamOfficialStatusChecks();
+      if (queuedStatusChecks > 0) {
+        console.log(`[poll] Queued ${queuedStatusChecks} due Vietnam official status check(s).`);
+      }
       const processedStatusChecks = await processQueuedVietnamOfficialStatusChecks();
       if (processedStatusChecks > 0) {
         console.log(`[poll] Processed ${processedStatusChecks} Vietnam official status check(s).`);

@@ -166,7 +166,8 @@ function ClientLayoutContent({
   }, [isReportPage]);
   const searchParams = useSearchParams();
   const isAboutMeForm = pathname.startsWith("/client/about-me-form");
-  const isApplicationFlow = pathname.startsWith("/client/application");
+  const isApplicationFlow =
+    pathname === "/client/application" || pathname.startsWith("/client/application/");
 
   // Check session validity.
   // A per-tab id prevents new target=_blank tabs from inheriting another tab's

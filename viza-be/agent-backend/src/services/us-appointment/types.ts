@@ -96,6 +96,7 @@ export interface USAppointmentApplication {
   confirmationNumber: string | null;
   ds160ApplicationId: string | null;
   ds160RetrievalUrl: string | null;
+  ds160AppointmentPostCity: string | null;
   appointmentAssistanceStatus: string | null;
 }
 
@@ -272,7 +273,7 @@ export interface CreateAppointmentJobInput {
   mode?: USAppointmentMode;
   ds160ConfirmationCode?: string | null;
   applyingCountryCode: string;
-  applyingPostCity: string;
+  applyingPostCity?: string | null;
   schedulingProvider?: string | null;
   userPreferencesJson?: JsonObject;
   idempotencyKey?: string;

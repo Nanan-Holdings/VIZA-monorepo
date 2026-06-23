@@ -49,7 +49,7 @@ export function validateUSAppointmentPreconditions(input: {
   if (!input.applyingCountryCode?.trim() || !input.applyingPostCity?.trim()) {
     errors.push({
       code: "missing_applying_post",
-      message: "Applying country and embassy/consulate city are required.",
+      message: "The DS-160 application must include the interview embassy/consulate city before appointment assistance can start.",
     });
   }
 

@@ -38,6 +38,7 @@ import {
 } from "./status-data";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { LiveManualActionCard } from "./live-manual-action-card";
+import { OfficialStatusAutoPoller } from "./official-status-auto-poller";
 import { OfficialStatusRefreshButton } from "./official-status-refresh-button";
 
 type SearchParams = Promise<{
@@ -430,8 +431,18 @@ function DetailView({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   const isVietnam = application.country.toLowerCase() === "vietnam" || application.country.toUpperCase() === "VN";
+  const shouldPollOfficialStatus =
+    isVietnam &&
+    Boolean(application.id) &&
+    !["approved", "rejected"].includes((application.resultStatus ?? application.externalStatus ?? "").toLowerCase());
   return (
     <section className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5 lg:p-6">
+      {application.id && (
+        <OfficialStatusAutoPoller
+          applicationId={application.id}
+          enabled={shouldPollOfficialStatus}
+        />
+      )}
       <div className="space-y-5">
       {application.liveSubmission?.pendingManualAction && (
         <LiveManualActionCard

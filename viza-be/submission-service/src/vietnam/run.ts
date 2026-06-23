@@ -3,13 +3,9 @@
  *
  * Drives the evisa.gov.vn application form from the landing page through
  * the post-modal Vue SPA, fills every field present in
- * `VN_FIELD_MAPPINGS`, then HALTS before the Pay/Submit button. The
- * applicant completes payment manually on evisa.gov.vn using the captured
- * `registrationCode`; the actual e-visa PDF arrives via email ~3 working
- * days after payment is approved.
- *
- * Stops short of any irreversible action — the runner clicks "Next" /
- * "Save" only, never "Submit" or "Pay".
+ * `VN_FIELD_MAPPINGS`, then HALTS before the Pay/Submit button by default.
+ * A fixed-card pilot may continue through payment only when explicitly enabled
+ * by runtime secrets and the page is already at the payment checkpoint.
  */
 
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
@@ -29,6 +25,12 @@ import {
   type VnFieldType,
 } from "./field-mappings";
 import { fillDate, fillText, pickRadio, pickSelect, tickCheckbox, toDdMmYyyy } from "./fillers";
+import {
+  loadVietnamFixedCardFromEnv,
+  payVietnamPortalWithFixedCard,
+  redactVietnamFixedCard,
+  type RedactedVietnamFixedCard,
+} from "./fixed-card-payment";
 import {
   classifyVietnamPortalSnapshot,
   isAutoAcknowledgeableVietnamPortalState,
@@ -106,6 +108,17 @@ export type FillVietnamResult =
       runId?: string;
       registrationCode: string;
       submittedAtIso: string;
+      fieldsFilled: number;
+      fieldsSkipped: number;
+      fieldFallbacks: VnFieldFallbackRecord[];
+    }
+  | {
+      status: "submitted_paid";
+      runId?: string;
+      registrationCode: string | null;
+      submittedAtIso: string;
+      paymentReceiptReference: string;
+      redactedCard: RedactedVietnamFixedCard;
       fieldsFilled: number;
       fieldsSkipped: number;
       fieldFallbacks: VnFieldFallbackRecord[];
@@ -463,6 +476,34 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "payment_page_visible") {
       await emitProgress("payment_required");
+      const fixedCard = loadVietnamFixedCardFromEnv();
+      if (fixedCard) {
+        await emitProgress("payment_handoff");
+        const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
+        if (payment.status === "paid" && payment.receiptReference) {
+          return {
+            status: "submitted_paid",
+            runId,
+            registrationCode: registrationCode ?? null,
+            submittedAtIso: new Date().toISOString(),
+            paymentReceiptReference: payment.receiptReference,
+            redactedCard: payment.redactedCard ?? redactVietnamFixedCard(fixedCard),
+            fieldsFilled: filled,
+            fieldsSkipped: skipped,
+            fieldFallbacks,
+          };
+        }
+        return {
+          status: "action_required",
+          runId,
+          actionType: "payment_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
       return {
         status: "action_required",
         runId,

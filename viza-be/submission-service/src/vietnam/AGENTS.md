@@ -42,8 +42,12 @@ Important patterns to mirror in the Playwright runner:
 
 - The worker may solve official Vietnam CAPTCHA with TWOCAPTCHA when the portal
   presents one and `TWOCAPTCHA_API_KEY` is configured.
-- Stop at the payment/checkpoint page after registration/reference capture; do
-  not pay the official fee.
+- Stop at the payment/checkpoint page after registration/reference capture by
+  default. The only allowed exception is the Vietnam fixed-card pilot, and only
+  when `VN_OFFICIAL_PAYMENT_AUTOPAY=true`, `VN_FIXED_CARD_ENABLED=true`, the
+  worker is already on the official payment page, the user/admin authorization
+  exists, and no 3DS/OTP/unknown gateway step appears. Never commit card PAN,
+  CVV, OTP, 3DS data, or screenshots/logs containing them.
 - Preserve `validationErrors`, `fieldFallbacks`, CAPTCHA telemetry, trace, and
   final screenshot in the queue payload for frontend evidence and schema tuning.
 - Before marking the Vietnam flow verified, run the user-facing browser path:
