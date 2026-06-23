@@ -108,6 +108,20 @@ export interface StatusCheckInsert {
   error_message?: string | null;
 }
 
+export interface AppointmentPortalGate {
+  jobStatus: "appointment_manual_required" | "appointment_blocked_by_site_policy";
+  actionType:
+    | "login"
+    | "captcha"
+    | "payment"
+    | "site_policy_review"
+    | "final_confirmation";
+  instruction: string;
+  metadata: JsonObject;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 export interface USAppointmentRunnerRepository {
   listCandidateJobs(limit: number): Promise<USAppointmentJobRow[]>;
   hasPendingManualAction(jobId: string): Promise<boolean>;
@@ -140,6 +154,7 @@ export interface USAppointmentRunnerRepository {
 export interface USAppointmentPortalClient {
   prepareAppointmentFlow(job: USAppointmentJobRow): Promise<{
     readyForSlotCapture: boolean;
+    gate?: AppointmentPortalGate;
     errorCode?: string;
     errorMessage?: string;
   }>;
@@ -328,6 +343,45 @@ function buildFixtureStatusCheck(job: USAppointmentJobRow): StatusCheckInsert {
   };
 }
 
+async function persistManualGate(
+  job: USAppointmentJobRow,
+  repository: USAppointmentRunnerRepository,
+  gate: AppointmentPortalGate,
+): Promise<void> {
+  await repository.insertManualAction({
+    job_id: job.id,
+    application_id: job.application_id,
+    user_id: job.user_id,
+    action_type: gate.actionType,
+    status: "pending",
+    instruction: gate.instruction,
+    user_input_schema_json: null,
+    metadata_redacted_json: gate.metadata,
+  });
+  await repository.updateJobForManualAction({
+    jobId: job.id,
+    status: gate.jobStatus,
+    currentManualAction: gate.actionType,
+  });
+  await repository.updateApplicationAppointmentState({
+    applicationId: job.application_id,
+    status: gate.jobStatus,
+    jobId: job.id,
+  });
+  await repository.insertAuditEvent({
+    job_id: job.id,
+    application_id: job.application_id,
+    user_id: job.user_id,
+    event_type: "appointment_runner_manual_required",
+    event_message:
+      gate.errorMessage ?? "USVisaScheduling runner paused for manual review.",
+    metadata_redacted_json: {
+      ...gate.metadata,
+      error_code: gate.errorCode ?? null,
+    },
+  });
+}
+
 export class FixtureUSAppointmentPortalClient implements USAppointmentPortalClient {
   async prepareAppointmentFlow(job: USAppointmentJobRow): Promise<{
     readyForSlotCapture: boolean;
@@ -421,6 +475,10 @@ export async function processUSAppointmentJob(
     ].includes(job.status)) {
       const prepared = await client.prepareAppointmentFlow(job);
       if (!prepared.readyForSlotCapture) {
+        if (prepared.gate) {
+          await persistManualGate(job, repository, prepared.gate);
+          return "processed";
+        }
         if (prepared.errorCode || prepared.errorMessage) {
           await repository.updateJobStatus({
             jobId: job.id,
