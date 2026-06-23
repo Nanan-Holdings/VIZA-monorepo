@@ -26,9 +26,6 @@ and Travel AI planning.
 - Website internal automation state, external status ingestion, packet handoff,
   OCR metadata, consent, and notification support live in `agent-backend`.
 - Queue processing and browser automation live in `submission-service`.
-- Official portal automation may use CAPTCHA-solving integrations. For U.S. B1/B2
-  appointment scheduling, do bypass login, CAPTCHA/MFA, waiting rooms,
-  payment, policy prompts, or final official confirmation;
 - Travel generation and external travel APIs live in `travel-service`.
 - Frontend proxy/UI changes live in `viza-fe/internal-website`.
 
