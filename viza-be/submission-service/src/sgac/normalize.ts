@@ -56,7 +56,13 @@ export type SgacTransportPayload =
       transportNumber: string;
     }
   | {
-      mode: "land" | "sea";
+      mode: "land";
+      landTransportType?: string;
+      transportNumber: string;
+    }
+  | {
+      mode: "sea";
+      seaTransportType?: "cruise" | "commercial_vessel" | "ferry" | "private_craft";
       transportNumber: string;
     };
 
@@ -392,10 +398,18 @@ function looksLikeCommercialFlightNumber(split: { carrierCodeQuery: string; flig
   return /^[A-Z0-9]{2,3}$/.test(split.carrierCodeQuery) && /^\d+[A-Z]?$/.test(split.flightNo);
 }
 
+function normalizeSeaTransportType(raw: string): "cruise" | "commercial_vessel" | "ferry" | "private_craft" {
+  const key = normalizeKey(raw);
+  if (key.includes("commercial")) return "commercial_vessel";
+  if (key.includes("ferry")) return "ferry";
+  if (key.includes("private")) return "private_craft";
+  return "cruise";
+}
+
 function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTransportPayload {
   const mode = normalizeKey(required(read(payload, "mode_of_travel"), "mode_of_travel", "Mode of travel", missing));
-  const transportNumber = required(read(payload, "transport_number"), "transport_number", "Transport number", missing);
   if (mode === "air") {
+    const transportNumber = required(read(payload, "transport_number"), "transport_number", "Flight number", missing);
     const transportType = normalizeKey(read(payload, "air_transport_type") ?? "commercial");
     const split = splitFlightNumber(transportNumber);
     const isCommercial =
@@ -416,8 +430,23 @@ function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTran
       transportNumber,
     };
   }
-  if (mode === "sea") return { mode: "sea", transportNumber };
-  return { mode: "land", transportNumber };
+  if (mode === "sea") {
+    const seaTransportType = normalizeSeaTransportType(read(payload, "sea_transport_type") ?? "cruise");
+    const transportNumber =
+      seaTransportType === "cruise"
+        ? required(read(payload, "cruise_name") ?? read(payload, "transport_number"), "cruise_name", "Cruise name", missing)
+        : required(read(payload, "vessel_name") ?? read(payload, "transport_number"), "vessel_name", "Vessel name", missing);
+    return {
+      mode: "sea",
+      seaTransportType,
+      transportNumber,
+    };
+  }
+  return {
+    mode: "land",
+    landTransportType: normalizeKey(required(read(payload, "land_transport_type"), "land_transport_type", "Land transport type", missing)),
+    transportNumber: required(read(payload, "vehicle_number") ?? read(payload, "transport_number"), "vehicle_number", "Vehicle number", missing),
+  };
 }
 
 function buildAccommodation(payload: SubmissionPayload, missing: string[]): SgacAccommodationPayload {
@@ -508,7 +537,7 @@ export function normalizeSgacPortalPayload(
     phoneNumber: phone.phoneNumber,
     hasUsedDifferentName: boolYes(read(payload, "has_used_different_name_to_enter_singapore")),
     hasHealthSymptoms: boolYes(read(payload, "has_health_symptoms")),
-    hasYellowFeverTravelHistory: boolYes(read(payload, "recent_country_visit_history")),
+    hasYellowFeverTravelHistory: boolYes(read(payload, "recent_high_risk_region_visit_history") ?? read(payload, "recent_country_visit_history")),
     arrivalDate: formatDate(arrivalIso),
     departureDate: formatDate(departure),
     lastCityQuery:

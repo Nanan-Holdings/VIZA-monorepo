@@ -343,6 +343,28 @@ async function fillFirstVisible(page: Page, selectors: string[], value: string |
   return false;
 }
 
+async function clickIfVisible(page: Page, selector: string): Promise<boolean> {
+  const locator = page.locator(selector);
+  if ((await locator.count().catch(() => 0)) === 0) return false;
+  const first = locator.first();
+  if (!(await first.isVisible().catch(() => false))) return false;
+  await first.click({ timeout: 10_000 });
+  return true;
+}
+
+async function clickTransportChoice(page: Page, labels: string[], selectors: string[]): Promise<void> {
+  for (const selector of selectors) {
+    if (await clickIfVisible(page, selector)) return;
+  }
+  for (const label of labels) {
+    const control = page.getByText(new RegExp(`^\\s*${escapeRegex(label)}\\s*$`, "i")).last();
+    if (await control.isVisible().catch(() => false)) {
+      await control.click({ timeout: 10_000 });
+      return;
+    }
+  }
+}
+
 async function assertNoVisiblePortalErrors(page: Page, artifactDir: string, stage: string): Promise<void> {
   await page.waitForTimeout(800);
   const errors = page.locator(".error, .invalid-feedback, .text-danger, .alert-danger, .mat-error, [role='alert']");
@@ -538,11 +560,43 @@ async function fillTransport(page: Page, payload: SgacPortalPayload): Promise<vo
   }
   if (payload.transport.mode === "land") {
     await page.locator("#tptModeTypeInput_0_1").click();
+    const landTransportType = payload.transport.landTransportType;
+    if (landTransportType) {
+      await selectNgOption(
+        page,
+        "#tptTypeInput_0",
+        landTransportType,
+        landTransportType,
+        "Mode of Transport",
+      ).catch(async () => {
+        await clickTransportChoice(page, [landTransportType], []);
+      });
+    }
     await fillIfPresent(page, "#vehicleNoInput_0", payload.transport.transportNumber);
     await fillIfPresent(page, "#carPlateNoInput_0", payload.transport.transportNumber);
     return;
   }
   await page.locator("#tptModeTypeInput_0_2").click();
+  const seaType = payload.transport.seaTransportType ?? "cruise";
+  if (seaType === "cruise") {
+    await clickTransportChoice(page, ["CRUISE"], ["#tptTypeInput_0_0"]);
+    await selectNgOption(
+      page,
+      "#cruiseNameInput_0",
+      payload.transport.transportNumber,
+      payload.transport.transportNumber,
+      "Cruise Name",
+    ).catch(async () => {
+      await fillIfPresent(page, "#vesselNameInput_0", payload.transport.transportNumber);
+    });
+    return;
+  }
+  const seaTypeIndex = seaType === "commercial_vessel" ? "1" : seaType === "ferry" ? "2" : "3";
+  await clickTransportChoice(
+    page,
+    [seaType === "commercial_vessel" ? "COMMERCIAL VESSEL" : seaType === "ferry" ? "FERRY" : "PRIVATE CRAFT"],
+    [`#tptTypeInput_0_${seaTypeIndex}`],
+  );
   await fillIfPresent(page, "#vesselNameInput_0", payload.transport.transportNumber);
 }
 

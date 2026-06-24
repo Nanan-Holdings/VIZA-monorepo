@@ -86,6 +86,100 @@ test("normalizeSgacPortalPayload treats standard airline flight numbers as comme
   assert.equal(payload.transport.flightNo, "121");
 });
 
+test("normalizeSgacPortalPayload maps land transport branch into ICA vehicle fields", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        mode_of_travel: "land",
+        land_transport_type: "car",
+        vehicle_number: "SBA1234A",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.deepEqual(payload.transport, {
+    mode: "land",
+    landTransportType: "car",
+    transportNumber: "SBA1234A",
+  });
+});
+
+test("normalizeSgacPortalPayload maps sea cruise and vessel branches into ICA fields", () => {
+  const cruisePayload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        mode_of_travel: "sea",
+        sea_transport_type: "cruise",
+        cruise_name: "ADONIA",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+  assert.deepEqual(cruisePayload.transport, {
+    mode: "sea",
+    seaTransportType: "cruise",
+    transportNumber: "ADONIA",
+  });
+
+  const vesselPayload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        mode_of_travel: "sea",
+        sea_transport_type: "commercial_vessel",
+        vessel_name: "TEST VESSEL",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+  assert.deepEqual(vesselPayload.transport, {
+    mode: "sea",
+    seaTransportType: "commercial_vessel",
+    transportNumber: "TEST VESSEL",
+  });
+});
+
+test("normalizeSgacPortalPayload reads the ICA health follow-up shown after symptoms yes", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        has_health_symptoms: "yes",
+        recent_country_visit_history: "no",
+        recent_high_risk_region_visit_history: "yes",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.hasHealthSymptoms, true);
+  assert.equal(payload.hasYellowFeverTravelHistory, true);
+});
+
+test("normalizeSgacPortalPayload requires vehicle number for land arrivals", () => {
+  const input = basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      mode_of_travel: "land",
+      land_transport_type: "bus",
+      vehicle_number: "",
+      transport_number: "",
+    },
+  });
+
+  assert.throws(
+    () => normalizeSgacPortalPayload(input, { now: new Date("2026-06-12T08:00:00+08:00") }),
+    (error: unknown) => {
+      assert.ok(error instanceof SgacPortalValidationError);
+      assert.ok(error.missingFields.includes("vehicle_number"));
+      return true;
+    },
+  );
+});
+
 test("normalizeSgacPortalPayload prefers mobile_number and splits it for ICA phone fields", () => {
   const payload = normalizeSgacPortalPayload(
     basePayload({

@@ -68,6 +68,19 @@ async function migrateLegacyAnswers() {
     if (answers.mode_of_travel === "air" && !answers.air_transport_type) {
       set("air_transport_type", "commercial");
     }
+    if (answers.has_health_symptoms === "yes" && !answers.recent_high_risk_region_visit_history) {
+      set("recent_high_risk_region_visit_history", answers.recent_country_visit_history ?? "no");
+    }
+    if (answers.mode_of_travel === "land") {
+      if (!answers.land_transport_type) set("land_transport_type", "car");
+      if (!answers.vehicle_number) set("vehicle_number", answers.transport_number);
+    }
+    if (answers.mode_of_travel === "sea") {
+      const seaTransportType = answers.sea_transport_type ?? "cruise";
+      if (!answers.sea_transport_type) set("sea_transport_type", seaTransportType);
+      if (!answers.cruise_name && seaTransportType === "cruise") set("cruise_name", answers.transport_number);
+      if (!answers.vessel_name && seaTransportType !== "cruise") set("vessel_name", answers.transport_number);
+    }
     if (!answers.mobile_country_code && answers.mobile_number?.startsWith("+")) {
       const phone = splitInternationalPhone(answers.mobile_number);
       if (phone) {

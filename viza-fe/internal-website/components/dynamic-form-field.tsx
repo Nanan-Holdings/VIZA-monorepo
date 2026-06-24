@@ -36,7 +36,6 @@ import { resolveLocalizedOptions, resolveLocalizedPlaceholder } from "@/lib/bili
 import { cn } from "@/lib/utils";
 
 const SEARCHABLE_SELECT_MIN_OPTIONS = 12;
-const SEARCHABLE_SELECT_VISIBLE_LIMIT = 80;
 
 const SCHENGEN_MEMBER_ALPHA2_CODES = [
   "AT",
@@ -173,14 +172,10 @@ function SearchableSelectControl({
       return haystack.includes(normalizedQuery);
     });
   }, [normalizedQuery, options]);
-  const visibleOptions = matchedOptions.slice(0, SEARCHABLE_SELECT_VISIBLE_LIMIT);
   const searchPlaceholder = sideLocale === "zh"
     ? "搜索中文、英文或官方选项..."
     : "Search Chinese, English, or official option...";
   const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
-  const moreText = sideLocale === "zh"
-    ? `还有 ${matchedOptions.length - visibleOptions.length} 个匹配项，继续输入以缩小范围`
-    : `${matchedOptions.length - visibleOptions.length} more matches. Keep typing to narrow the list.`;
 
   return (
     <Popover
@@ -206,7 +201,7 @@ function SearchableSelectControl({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] max-h-[min(520px,calc(100vh-96px))] overflow-hidden p-0">
         <div className="border-b p-2">
           <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
             <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
@@ -219,11 +214,11 @@ function SearchableSelectControl({
             />
           </div>
         </div>
-        <div className="max-h-[320px] overflow-y-auto p-1">
-          {visibleOptions.length === 0 ? (
+        <div className="max-h-[min(440px,calc(100vh-176px))] overflow-y-auto p-1">
+          {matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (
-            visibleOptions.map((option) => (
+            matchedOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -245,11 +240,6 @@ function SearchableSelectControl({
               </button>
             ))
           )}
-          {matchedOptions.length > visibleOptions.length ? (
-            <div className="border-t px-3 py-2 text-[12px] text-gray-500">
-              {moreText}
-            </div>
-          ) : null}
         </div>
       </PopoverContent>
     </Popover>

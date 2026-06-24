@@ -36,6 +36,11 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "purpose_of_travel",
       "mode_of_travel",
       "transport_number",
+      "land_transport_type",
+      "vehicle_number",
+      "sea_transport_type",
+      "cruise_name",
+      "vessel_name",
       "accommodation_type",
       "email_address",
       "mobile_country_code",
@@ -82,6 +87,27 @@ describe("Singapore SG Arrival Card schema seed", () => {
       'field_name: "departure_date", label: "Date of Departure from Singapore", field_type: "date", required: true, step_number: 2, step_name: "Trip Information", display_order: 2',
     );
     expect(seedSource.match(/inline_group: "sgac_travel_dates"/g)?.length).toBe(2);
+  });
+
+  test("models ICA transport and health conditional branches", () => {
+    expect(seedSource).toContain('field_name: "recent_high_risk_region_visit_history"');
+    expect(seedSource).toContain('conditional_logic: showIf("has_health_symptoms === yes")');
+    expect(seedSource).toContain('field_name: "land_transport_type", label: "Mode of Transport", field_type: "select"');
+    expect(seedSource).toContain('options: LAND_TYPES');
+    expect(seedSource).toContain('field_name: "vehicle_number", label: "Vehicle Number", field_type: "text"');
+    expect(seedSource).toContain('field_name: "sea_transport_type", label: "Mode of Transport", field_type: "select"');
+    expect(seedSource).toContain('options: SEA_TYPES');
+    expect(seedSource).toContain('field_name: "cruise_name", label: "Cruise Name", field_type: "select"');
+    expect(seedSource).toContain('options: CRUISE_NAMES');
+    expect(seedSource).toContain('field_name: "vessel_name", label: "Vessel Name", field_type: "text"');
+  });
+
+  test("keeps residential accommodation required fields aligned with ICA", () => {
+    expect(seedSource).toContain('field_name: "accommodation_block_number", label: "Block Number", field_type: "text", required: true');
+    expect(seedSource).toContain('field_name: "accommodation_floor_number", label: "Floor Number", field_type: "text", required: true');
+    expect(seedSource).toContain('field_name: "accommodation_unit_number", label: "Unit Number", field_type: "text", required: true');
+    expect(seedSource).toContain('rules("楼层", { allow_does_not_apply: true');
+    expect(seedSource).toContain('rules("单位号", { allow_does_not_apply: true');
   });
 
   test("does not collect VIZA-only acknowledgements or non-ICA passport fields", () => {
@@ -150,5 +176,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("purpose_of_travel", "Religion")).toBe("宗教活动");
     expect(labelZh("purpose_of_travel", "Sports event")).toBe("体育赛事");
     expect(labelZh("purpose_of_travel", "To take up residence")).toBe("定居");
+    expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("酒店：MARINA BAY SANDS SINGAPORE");
+    expect(labelZh("cruise_name", "ADONIA")).toBe("邮轮：ADONIA");
   });
 });
