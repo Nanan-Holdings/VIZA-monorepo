@@ -96,6 +96,24 @@ const SG_ARRIVAL_CARD_TYPES = new Set([
   "SG_ARRIVAL_CARD",
 ]);
 
+const MALAYSIA_COUNTRY_ALIASES = new Set([
+  "MY",
+  "MALAYSIA",
+]);
+
+const MALAYSIA_MDAC_TYPES = new Set([
+  "MY_MDAC_ARRIVAL_CARD",
+]);
+
+const THAILAND_COUNTRY_ALIASES = new Set([
+  "TH",
+  "THAILAND",
+]);
+
+const THAILAND_TDAC_TYPES = new Set([
+  "TH_TDAC_ARRIVAL_CARD",
+]);
+
 export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "pending",
   "processing",
@@ -189,6 +207,37 @@ export function isSgArrivalCardApplication(
   return (
     SINGAPORE_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
     SG_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
+export function isMalaysiaMdacApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    MALAYSIA_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    MALAYSIA_MDAC_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
+export function isThailandTdacApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    THAILAND_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    THAILAND_TDAC_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
+export function isDigitalArrivalCardApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    isSgArrivalCardApplication(country, visaType) ||
+    isMalaysiaMdacApplication(country, visaType) ||
+    isThailandTdacApplication(country, visaType)
   );
 }
 

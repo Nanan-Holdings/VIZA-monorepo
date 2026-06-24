@@ -26,8 +26,10 @@ import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
 import {
   isDs160VisaType,
+  isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isSgArrivalCardApplication,
+  isThailandTdacApplication,
   isVietnamEVisaApplication,
   type SubmissionMode,
 } from "@/lib/submission-queue";
@@ -496,6 +498,55 @@ function GenericResultCard({
   );
 }
 
+function ArrivalCardPreparedResultCard({
+  country,
+  result,
+}: {
+  country: "malaysia" | "thailand";
+  result: GenericSubmissionResult;
+}) {
+  const isZh = isChineseLocale(useLocale());
+  const isMalaysia = country === "malaysia";
+  const productName = isMalaysia ? "Malaysia Digital Arrival Card (MDAC)" : "Thailand Digital Arrival Card (TDAC)";
+  const productNameZh = isMalaysia ? "马来西亚 MDAC 数字入境卡" : "泰国 TDAC 数字入境卡";
+  const officialUrl = isMalaysia
+    ? "https://imigresen-online.imi.gov.my/mdac/main"
+    : "https://tdac.immigration.go.th/";
+
+  return (
+    <Card className="rounded-xl border-input">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-3 text-foreground">
+            <ShieldCheck className="h-5 w-5 text-brand-500" />
+            {isZh ? `${productNameZh}资料已完成` : `${productName} details ready`}
+          </CardTitle>
+          <Badge variant="secondary">{isZh ? "待官方提交" : "Ready"}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {isZh
+            ? "你的答案已保存并完成本地校验。当前版本先完成资料准备；请在官方允许的提交窗口内通过官方渠道提交，后续可按 SGAC runner 模式接入自动提交。"
+            : "Your answers are saved and locally validated. This version prepares the arrival-card details; submit through the official channel during the allowed submission window. A real portal runner can be added next using the SGAC pattern."}
+        </p>
+        <div className="rounded-md border border-input bg-background px-3 py-2">
+          <div className="text-xs text-muted-foreground">{isZh ? "资料包状态" : "Pack status"}</div>
+          <div className="mt-0.5 font-mono text-sm text-foreground">
+            {result.confirmationNumber ?? "ARRIVAL-CARD-READY"}
+          </div>
+        </div>
+        <Button asChild className="w-full">
+          <a href={officialUrl} target="_blank" rel="noreferrer">
+            <ExternalLink className="mr-2 h-4 w-4" />
+            {isZh ? "打开官方提交渠道" : "Open official submission channel"}
+          </a>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function FranceResubmitPanel({
   isZh,
   busy,
@@ -871,6 +922,20 @@ function renderSubmissionResultCard(
   jobId: string | null = null,
 ) {
   if (!result) return <WaitingCard status="running" />;
+
+  if (
+    result.country === "GENERIC" &&
+    isMalaysiaMdacApplication(country, visaType)
+  ) {
+    return <ArrivalCardPreparedResultCard country="malaysia" result={result} />;
+  }
+
+  if (
+    result.country === "GENERIC" &&
+    isThailandTdacApplication(country, visaType)
+  ) {
+    return <ArrivalCardPreparedResultCard country="thailand" result={result} />;
+  }
 
   switch (result.country) {
     case "US":

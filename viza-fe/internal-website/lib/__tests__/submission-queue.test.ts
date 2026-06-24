@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
+  isDigitalArrivalCardApplication,
+  isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
+  isThailandTdacApplication,
   retryQueueInsertCanUseLegacyPayload,
   queueProviderForApplication,
   queueProviderForVisaType,
@@ -78,6 +81,18 @@ describe("queueStatusForVisaType", () => {
     expect(queueProviderForApplication("singapore", "SG_ARRIVAL_CARD", "dry_run")).toBe("sg_arrival_card_dry_run");
     expect(queueProviderForApplication("singapore", "SG_ARRIVAL_CARD", "live_assisted")).toBe("sg_arrival_card_live");
     expect(queueStatusForApplication("singapore", "SG_VISITOR_VISA", "live_assisted")).not.toBe("sgac_live_assisted_pending");
+  });
+
+  it("recognizes Malaysia MDAC and Thailand TDAC as standalone arrival cards without live queue routing", () => {
+    expect(isMalaysiaMdacApplication("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe(true);
+    expect(isThailandTdacApplication("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe(true);
+    expect(isDigitalArrivalCardApplication("MY", "MY_MDAC_ARRIVAL_CARD")).toBe(true);
+    expect(isDigitalArrivalCardApplication("TH", "TH_TDAC_ARRIVAL_CARD")).toBe(true);
+
+    expect(queueStatusForApplication("malaysia", "MY_MDAC_ARRIVAL_CARD", "live_assisted")).toBe("pending");
+    expect(queueProviderForApplication("thailand", "TH_TDAC_ARRIVAL_CARD", "live_assisted")).toBeNull();
+    expect(submitModeForPrimaryApplicationAction("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe("dry_run");
+    expect(submitModeForPrimaryApplicationAction("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("dry_run");
   });
 
   it("allows legacy queue inserts for live France and SGAC retry rows when Supabase cache lacks live columns", () => {
