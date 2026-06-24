@@ -30,6 +30,7 @@ import {
   payVietnamPortalWithFixedCard,
   redactVietnamFixedCard,
   type RedactedVietnamFixedCard,
+  type VietnamFixedCard,
 } from "./fixed-card-payment";
 import {
   classifyVietnamPortalSnapshot,
@@ -77,6 +78,8 @@ export interface FillVietnamOptions {
   portalAttempt?: number;
   /** True only after VIZA has a user/admin authorized official-fee intent for this application. */
   allowFixedCardPayment?: boolean;
+  /** One-time card captured from the local submission-service card-session endpoint. */
+  fixedCard?: VietnamFixedCard | null;
 }
 
 export type FillVietnamResult =
@@ -478,7 +481,9 @@ async function fillVietnamApplicationOnce(
     }
     if (stateAfterCaptcha === "payment_page_visible") {
       await emitProgress("payment_required");
-      const fixedCard = options.allowFixedCardPayment ? loadVietnamFixedCardFromEnv() : null;
+      const fixedCard = options.allowFixedCardPayment
+        ? options.fixedCard ?? loadVietnamFixedCardFromEnv()
+        : null;
       if (fixedCard) {
         await emitProgress("payment_handoff");
         const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });

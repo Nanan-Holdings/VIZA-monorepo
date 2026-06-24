@@ -80,12 +80,12 @@ const CRUISE_NAMES = [
   "SUPERSTAR GEMINI",
   "SUPERSTAR VIRGO",
   "VOYAGER OF THE SEAS",
-].map((name) => option(name, `邮轮：${name}`, name));
+].map((name) => officialOption("cruise")({ value: name, labelZh: name, labelEn: name }));
 const CITY_PORTS = SGAC_CITY_OPTIONS.map(officialOption("city"));
 const NATIONALITIES = SGAC_NATIONALITY_OPTIONS.map(officialOption("nationality"));
 const BIRTH_COUNTRIES = SGAC_BIRTH_COUNTRY_OPTIONS.map(officialOption("country"));
 const PURPOSES = SGAC_PURPOSE_OF_TRAVEL_OPTIONS.map(officialOption("purpose"));
-const HOTEL_NAMES = SGAC_HOTEL_NAME_OPTIONS.map((item) => option(item.value, `酒店：${item.labelEn}`, item.labelEn));
+const HOTEL_NAMES = SGAC_HOTEL_NAME_OPTIONS.map(officialOption("hotel"));
 const CARRIER_CODES = SGAC_CARRIER_CODE_OPTIONS.map((item) => option(item.value, item.labelZh.replace(/^选项：/, ""), item.labelEn));
 
 const showIf = (expression: string) => ({ showIf: expression });

@@ -239,13 +239,27 @@ async function submitSearch(page: Page): Promise<void> {
 }
 
 async function clickVisibleButtonByText(page: Page, labels: string[]): Promise<boolean> {
+  const startedAt = Date.now();
   for (const label of labels) {
-    const locator = page.locator(`button:has-text("${label}")`).first();
-    if (await locator.isVisible({ timeout: 1_500 }).catch(() => false)) {
-      await locator.click({ timeout: 10_000 });
-      await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
-      await page.waitForTimeout(2_000);
-      return true;
+    while (Date.now() - startedAt < 45_000) {
+      const bodyText = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+      const currentUrl = page.url();
+      if (/payment gateway|payment amount|card number|credit card|debit card|cvv|cvc|pay now|submit payment|transaction/i.test(bodyText) ||
+        /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(currentUrl)) {
+        return true;
+      }
+
+      const locator = page.locator(`button:has-text("${label}")`).first();
+      if (!(await locator.isVisible({ timeout: 1_000 }).catch(() => false))) {
+        break;
+      }
+      if (await locator.isEnabled({ timeout: 1_000 }).catch(() => false)) {
+        await locator.click({ timeout: 15_000 });
+        await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
+        await page.waitForTimeout(2_000);
+        return true;
+      }
+      await page.waitForTimeout(1_000);
     }
   }
   return false;
