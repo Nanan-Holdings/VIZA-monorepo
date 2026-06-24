@@ -72,8 +72,8 @@ function runHardRules(app: Record<string, unknown>, docs: string[]): {
         message: `Stay exceeds 60 days (B211A limit). Departure must be by ${maxDeparture.toISOString().split("T")[0]}`,
       });
     }
-    if (departureDate <= arrivalDate) {
-      errors.push({ field: "departureDate", message: "Departure date must be after arrival date" });
+    if (departureDate < arrivalDate) {
+      errors.push({ field: "departureDate", message: "Departure date cannot be earlier than arrival date" });
     }
   }
 
