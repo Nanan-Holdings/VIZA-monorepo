@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -177,8 +177,18 @@ function SearchableSelectControl({
     : "Search Chinese, English, or official option...";
   const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   return (
     <Popover
+      modal={open}
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
@@ -201,7 +211,15 @@ function SearchableSelectControl({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[--radix-popover-trigger-width] max-h-[min(520px,calc(100vh-96px))] overflow-hidden p-0">
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={24}
+        className="w-[--radix-popover-trigger-width] overflow-hidden p-0"
+        style={{ maxHeight: "min(520px, calc(100vh - 96px))" }}
+        onWheelCapture={(event) => event.stopPropagation()}
+        onTouchMoveCapture={(event) => event.stopPropagation()}
+      >
         <div className="border-b p-2">
           <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
             <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
@@ -214,7 +232,12 @@ function SearchableSelectControl({
             />
           </div>
         </div>
-        <div className="max-h-[min(440px,calc(100vh-176px))] overflow-y-auto p-1">
+        <div
+          className="overscroll-contain overflow-y-auto p-1"
+          style={{ maxHeight: "min(440px, calc(100vh - 176px))" }}
+          onWheelCapture={(event) => event.stopPropagation()}
+          onTouchMoveCapture={(event) => event.stopPropagation()}
+        >
           {matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (

@@ -3888,6 +3888,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       liveAssisted &&
       readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false) &&
       readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
+    const oneTimeFixedCard = fixedCardPilotEnabled ? consumeVietnamCardSession(item.application_id) : null;
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
     let officialFeeFallbackAuthorized = false;
     if (fixedCardPilotEnabled) {
@@ -3943,6 +3944,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
         ...(tracePath ? { tracePath } : {}),
         ...(finalScreenshotPath ? { finalScreenshotPath } : {}),
         allowFixedCardPayment: isVnOfficialFeeIntentExecutable(officialFeeIntent) || officialFeeFallbackAuthorized,
+        fixedCard: oneTimeFixedCard,
         onProgress: async (stage) => {
           await persistVietnamProgressStage(item.id, stage, currentVnProgressStage);
         },
