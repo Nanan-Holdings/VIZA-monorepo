@@ -148,8 +148,25 @@ describe("Singapore SG Arrival Card schema seed", () => {
 
     expect(labelZh("nationality", "BRITISH OVERSEAS TERRITORIES CITIZ")).toBe("英国海外领土公民");
     expect(labelZh("nationality", "BRITISH SUBJECT")).toBe("英国臣民");
+    expect(labelZh("nationality", "CAMBODIAN")).toBe("柬埔寨籍");
+    expect(labelZh("nationality", "CROATIAN")).toBe("克罗地亚籍");
+    expect(labelZh("nationality", "ESTONIAN")).toBe("爱沙尼亚籍");
+    expect(labelZh("nationality", "GEORGIAN")).toBe("格鲁吉亚籍");
     expect(labelZh("nationality", "KOSOVAR")).toBe("科索沃籍");
+    expect(labelZh("nationality", "KYRGYZSTAN")).toBe("吉尔吉斯斯坦籍");
+    expect(labelZh("nationality", "LITHUANIAN")).toBe("立陶宛籍");
+    expect(labelZh("nationality", "MACEDONIAN")).toBe("北马其顿籍");
+    expect(labelZh("nationality", "MICRONESIAN")).toBe("密克罗尼西亚籍");
+    expect(labelZh("nationality", "MONTENEGRIN")).toBe("黑山籍");
+    expect(labelZh("nationality", "REFUGEE (OTHER THAN XXB)")).toBe("难民（其他类别）");
+    expect(labelZh("nationality", "REFUGEE (XXB)")).toBe("难民（指定类别）");
+    expect(labelZh("nationality", "RUSSIAN")).toBe("俄罗斯籍");
+    expect(labelZh("nationality", "SAMOAN")).toBe("萨摩亚籍");
     expect(labelZh("nationality", "STATELESS")).toBe("无国籍");
+    expect(labelZh("nationality", "SWAZI")).toBe("斯威士兰籍");
+    expect(labelZh("nationality", "TAJIKISTANI")).toBe("塔吉克斯坦籍");
+    expect(labelZh("nationality", "UKRAINIAN")).toBe("乌克兰籍");
+    expect(labelZh("nationality", "YEMENI")).toBe("也门籍");
 
     expect(labelZh("place_of_birth_country", "CAMBODIA")).toBe("柬埔寨");
     expect(labelZh("place_of_birth_country", "RUSSIA")).toBe("俄罗斯");
@@ -178,14 +195,23 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("purpose_of_travel", "To take up residence")).toBe("定居");
     expect(labelZh("place_of_residence", "UNITED STATES, ARKANSAS, HOT SPRING")).toBe("美国，阿肯色州，温泉城");
     expect(labelZh("place_of_residence", "INDIA, WEST BENGAL, KOLKATA")).toBe("印度，西孟加拉邦，加尔各答");
+    expect(labelZh("place_of_residence", "AFGHANISTAN, OTHERS IN AFGHANISTAN, OTHERS IN AFGHANISTAN")).toBe("阿富汗，阿富汗其他地区，阿富汗其他地区");
+    expect(labelZh("place_of_residence", "ANGUILLA, OTHERS IN ANGUILLA, OTHERS IN ANGUILLA")).toBe("安圭拉，安圭拉其他地区，安圭拉其他地区");
+    expect(labelZh("place_of_residence", "ANTIGUA, OTHERS IN ANTIGUA, OTHERS IN ANTIGUA")).toBe("安提瓜，安提瓜其他地区，安提瓜其他地区");
+    expect(labelZh("place_of_residence", "BARBADOS, OTHERS IN BARNADOS, OTHERS IN BARBADOS")).toBe("巴巴多斯，巴巴多斯其他地区，巴巴多斯其他地区");
     expect(labelZh("last_city_or_port_before_singapore", "UNITED STATES, ARKANSAS, LITTLE ROCK")).toBe("美国，阿肯色州，小石城");
     expect(labelZh("next_city_or_port_after_singapore", "UNITED STATES, ARKANSAS, OTHERS IN ARKANSAS")).toBe("美国，阿肯色州，阿肯色州其他地区");
-    expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("酒店：新加坡滨海湾金沙");
-    expect(labelZh("accommodation_name", "IBIS SINGAPORE ON BENCOOLEN")).toBe("酒店：新加坡明古连路宜必思酒店");
-    expect(labelZh("accommodation_name", "VIBE HOTEL SINGAPORE ORCHARD")).toBe("酒店：新加坡乌节路维贝酒店");
-    expect(labelZh("cruise_name", "ADONIA")).toBe("邮轮：阿多尼亚");
-    expect(labelZh("cruise_name", "ADORA MEDITERRANEA")).toBe("邮轮：阿多拉地中海");
-    expect(labelZh("cruise_name", "QUANTUM OF THE SEAS")).toBe("邮轮：海洋量子号");
+    expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("新加坡滨海湾金沙");
+    expect(labelZh("accommodation_name", "IBIS SINGAPORE ON BENCOOLEN")).toBe("新加坡明古连路宜必思酒店");
+    expect(labelZh("accommodation_name", "VIBE HOTEL SINGAPORE ORCHARD")).toBe("新加坡乌节路维贝酒店");
+    expect(labelZh("cruise_name", "ADONIA")).toBe("阿多尼亚");
+    expect(labelZh("cruise_name", "ADORA MEDITERRANEA")).toBe("阿多拉地中海");
+    expect(labelZh("cruise_name", "QUANTUM OF THE SEAS")).toBe("海洋量子号");
+    expect(labelZh("carrier_code", "NQ")).toBe("日本航空（NQ）");
+    expect(labelZh("carrier_code", "NX")).toBe("澳门航空（NX）");
+    expect(labelZh("carrier_code", "PX")).toBe("新几内亚航空（PX）");
+    expect(labelZh("carrier_code", "AK")).toBe("亚洲航空（AK）");
+    expect(labelZh("carrier_code", "D7")).toBe("亚航长途（D7）");
 
     for (const fieldName of [
       "place_of_residence",
@@ -193,9 +219,12 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "next_city_or_port_after_singapore",
       "accommodation_name",
       "cruise_name",
+      "carrier_code",
     ]) {
       for (const option of optionsByField.get(fieldName) ?? []) {
-        expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-z]/);
+        expect(option.label_zh.replace(/（[A-Z0-9]{2}）/g, ""), `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-z]/);
+        expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/其他人|境内/);
+        expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/^选项：/);
       }
     }
   });

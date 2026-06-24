@@ -3,7 +3,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import type { SgacPortalPayload } from "./normalize";
-import { reportBadCaptcha, solveImageCaptcha } from "../captcha";
+import {
+  reportBadCaptcha,
+  solveImageCaptcha,
+  TwoCaptchaApiError,
+  TwoCaptchaNetworkError,
+  TwoCaptchaSolveTimeoutError,
+} from "../captcha";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
 
@@ -208,6 +214,28 @@ async function waitForSecurityVerificationTarget(page: Page, timeoutMs: number):
   return null;
 }
 
+function isRetryableCaptchaSolveError(error: unknown): boolean {
+  if (error instanceof TwoCaptchaApiError) {
+    return error.apiErrorCode === "ERROR_CAPTCHA_UNSOLVABLE" || error.apiErrorCode === "ERROR_BAD_DUPLICATES";
+  }
+  return error instanceof TwoCaptchaNetworkError || error instanceof TwoCaptchaSolveTimeoutError;
+}
+
+function captchaSolveErrorSummary(error: unknown): string {
+  if (error instanceof TwoCaptchaApiError) return error.apiErrorCode;
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+async function refreshSecurityCaptcha(dialog: Locator, page: Page): Promise<void> {
+  const tryAnotherText = dialog.getByText(/Try another text/i).last();
+  if (await tryAnotherText.isVisible().catch(() => false)) {
+    await tryAnotherText.click().catch(() => undefined);
+  } else {
+    await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
+  }
+}
+
 async function solveSecurityVerificationIfPresent(
   page: Page,
   artifactDir: string,
@@ -238,7 +266,23 @@ async function solveSecurityVerificationIfPresent(
     const { dialog, input: captchaInput } = target;
     await page.waitForTimeout(2_000);
     const captchaBuffer = await captureSecurityCaptchaImage(dialog);
-    const solve = await solveImageCaptcha(captchaBuffer, 120_000);
+    const solve = await solveImageCaptcha(captchaBuffer, 120_000, {
+      comment: "ICA SG Arrival Card security verification",
+    }).catch(async (error: unknown) => {
+      const summary = captchaSolveErrorSummary(error);
+      logs.push(`sgac_captcha_solver_error attempt=${attempt} ${summary}`);
+      await screenshot(page, artifactDir, `sgac-captcha-solver-error-${attempt}`).catch(() => "");
+      if (!isRetryableCaptchaSolveError(error)) {
+        throw new SgacPortalError(`ICA SGAC CAPTCHA solver failed: ${summary}`, {
+          code: "sgac_captcha_solver_failed",
+          portalSummary: await visibleBodySummary(page),
+        });
+      }
+      await refreshSecurityCaptcha(dialog, page);
+      await waitForSecurityVerificationTarget(page, 30_000);
+      return null;
+    });
+    if (!solve) continue;
     logs.push(`sgac_captcha_solved attempt=${attempt} solveId=${solve.solveId}`);
     await captchaInput.fill(solve.text.trim());
     await dialog.getByRole("button", { name: /^Submit$/i }).last().click({ timeout: 20_000 });
@@ -256,12 +300,7 @@ async function solveSecurityVerificationIfPresent(
       logs.push(`sgac_captcha_wrong_answer attempt=${attempt}`);
       await reportBadCaptcha(solve.solveId).catch(() => undefined);
       await screenshot(page, artifactDir, `sgac-captcha-wrong-answer-${attempt}`).catch(() => "");
-      const tryAnotherText = dialog.getByText(/Try another text/i).last();
-      if (await tryAnotherText.isVisible().catch(() => false)) {
-        await tryAnotherText.click().catch(() => undefined);
-      } else {
-        await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
-      }
+      await refreshSecurityCaptcha(dialog, page);
       await waitForSecurityVerificationTarget(page, 30_000);
       continue;
     }
@@ -269,17 +308,12 @@ async function solveSecurityVerificationIfPresent(
 
     logs.push(`sgac_captcha_retry_required attempt=${attempt}`);
     await screenshot(page, artifactDir, `sgac-captcha-retry-${attempt}`).catch(() => "");
-    const tryAnotherText = dialog.getByText(/Try another text/i).last();
-    if (await tryAnotherText.isVisible().catch(() => false)) {
-      await tryAnotherText.click().catch(() => undefined);
-    } else {
-      await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
-    }
+    await refreshSecurityCaptcha(dialog, page);
   }
 
   const shot = await screenshot(page, artifactDir, "sgac-captcha-failed");
-  throw new SgacPortalError("ICA SGAC security verification CAPTCHA could not be solved.", {
-    code: "sgac_captcha_failed",
+  throw new SgacPortalError("ICA SGAC security verification CAPTCHA could not be solved after refreshed retry attempts.", {
+    code: "sgac_captcha_unsolvable",
     screenshotPaths: [shot],
     portalSummary: await visibleBodySummary(page),
   });
@@ -397,6 +431,13 @@ async function collectVisiblePortalErrors(page: Page): Promise<string> {
     }
   }
   return errorText.map((item) => item.trim()).filter(Boolean).join(" | ");
+}
+
+function classifyPortalErrorCode(errorText: string): string {
+  if (/maximum allowable SGAC declaration count|maximum number of allowable .*trip declarations/i.test(errorText)) {
+    return "sgac_declaration_limit_reached";
+  }
+  return "sgac_portal_validation_error";
 }
 
 async function waitForReviewStep(page: Page, artifactDir: string): Promise<void> {
@@ -702,6 +743,14 @@ export async function runSgacPortalSubmission(
     ]);
     const body = await visibleBodySummary(page, 4000);
     screenshots.push(await screenshot(page, artifactDir, "sgac-confirmation"));
+    const finalPortalError = await collectVisiblePortalErrors(page);
+    if (finalPortalError) {
+      throw new SgacPortalError(`ICA SGAC returned an error after final submit: ${finalPortalError}`, {
+        code: classifyPortalErrorCode(finalPortalError),
+        screenshotPaths: screenshots,
+        portalSummary: body,
+      });
+    }
     if (!isConfirmationBody(body)) {
       throw new SgacPortalError("ICA SGAC final confirmation page was not reached after final submit.", {
         code: "sgac_confirmation_not_reached",

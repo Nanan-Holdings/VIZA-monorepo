@@ -99,4 +99,52 @@ describe("DynamicFormField localization", () => {
     fireEvent.change(input, { target: { value: "Phuong Ben Nghe" } });
     expect(onChange).toHaveBeenCalledWith("Phuong Ben Nghe");
   });
+
+  it("locks page scrolling while a searchable dropdown is open", () => {
+    const onChange = vi.fn();
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 240 });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 1264 });
+
+    const searchableField = field({
+      id: "residence",
+      fieldName: "place_of_residence",
+      label: "Place of Residence",
+      fieldType: "select",
+      placeholder: "Select residence",
+      options: Array.from({ length: 16 }, (_, index) => ({
+        value: `OPTION_${index}`,
+        label_zh: `选项 ${index}`,
+        label_en: `Option ${index}`,
+      })),
+    });
+
+    render(
+      <DynamicFormField
+        field={searchableField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.body.style.top).toBe("-240px");
+
+    const outsideWheel = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 1600,
+    });
+    document.body.dispatchEvent(outsideWheel);
+    expect(outsideWheel.defaultPrevented).toBe(true);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(scrollTo).toHaveBeenCalledWith(0, 240);
+    scrollTo.mockRestore();
+  });
 });
