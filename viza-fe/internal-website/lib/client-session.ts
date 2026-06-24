@@ -73,6 +73,29 @@ export async function clearClientSession(): Promise<void> {
   cookieStore.delete(COOKIE_NAME);
 }
 
+type ApplicantProfileSessionRow = {
+  id: string;
+  auth_user_id: string | null;
+};
+
+export function chooseApplicantProfileForAuthSession({
+  authUserId,
+  emailMatches,
+}: {
+  authUserId: string;
+  emailMatches: ApplicantProfileSessionRow[];
+}): { action: "link"; profileId: string } | { action: "conflict" } | { action: "create" } {
+  if (emailMatches.length === 0) return { action: "create" };
+  if (emailMatches.length > 1) return { action: "conflict" };
+
+  const [profile] = emailMatches;
+  if (!profile.auth_user_id || profile.auth_user_id === authUserId) {
+    return { action: "link", profileId: profile.id };
+  }
+
+  return { action: "conflict" };
+}
+
 /**
  * Get applicant session from Supabase Auth.
  * Finds or creates an applicant_profiles record for the authenticated user.
@@ -94,26 +117,56 @@ export async function getUserFromSupabaseSession(): Promise<ClientSession | null
 
     if (!profile) {
       // Try by email
-      const { data: profileByEmail } = await adminClient
+      const { data: profilesByEmail, error: profileByEmailError } = await adminClient
         .from("applicant_profiles")
-        .select("id")
-        .eq("email", user.email)
-        .maybeSingle();
+        .select("id, auth_user_id")
+        .ilike("email", user.email)
+        .limit(2);
 
-      if (profileByEmail) {
+      if (profileByEmailError) {
+        console.error("Error loading applicant profile by email:", profileByEmailError);
+        return null;
+      }
+
+      const resolution = chooseApplicantProfileForAuthSession({
+        authUserId: user.id,
+        emailMatches: (profilesByEmail ?? []) as ApplicantProfileSessionRow[],
+      });
+
+      if (resolution.action === "conflict") {
+        console.error("Applicant profile auth/email conflict; refusing to relink profile", {
+          authUserId: user.id,
+          email: user.email,
+        });
+        return null;
+      }
+
+      if (resolution.action === "link") {
         // Link auth_user_id
-        await adminClient
+        const { error: linkError } = await adminClient
           .from("applicant_profiles")
           .update({ auth_user_id: user.id })
-          .eq("id", profileByEmail.id);
-        profile = profileByEmail;
+          .eq("id", resolution.profileId);
+
+        if (linkError) {
+          console.error("Error linking applicant profile to auth user:", linkError);
+          return null;
+        }
+
+        profile = { id: resolution.profileId };
       } else {
         // Create new profile for first-time OTP login
-        const { data: newProfile } = await adminClient
+        const { data: newProfile, error: createError } = await adminClient
           .from("applicant_profiles")
           .insert({ auth_user_id: user.id, email: user.email, language_pref: "en" })
           .select("id")
           .single();
+
+        if (createError) {
+          console.error("Error creating applicant profile for auth session:", createError);
+          return null;
+        }
+
         profile = newProfile;
       }
     }
