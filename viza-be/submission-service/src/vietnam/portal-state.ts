@@ -87,9 +87,9 @@ export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): 
   ) {
     return "portal_error";
   }
-  if (snapshot.registrationCode) return "registration_code_visible";
-  if (snapshot.hasFinalSubmit) return "final_submit_visible";
   if (snapshot.hasPayment) return "payment_page_visible";
+  if (snapshot.hasFinalSubmit) return "final_submit_visible";
+  if (snapshot.registrationCode) return "registration_code_visible";
   if (snapshot.hasCaptcha) return "captcha_visible";
   if (
     (/\bnote\b\s+declaration instructions|confirmation of reading carefully instructions|confirm compliance with vietnamese laws/i.test(text) ||
@@ -178,7 +178,9 @@ export async function readVietnamPortalSnapshot(
       hasPayment:
         /\/(?:payment|pay)(?:\/|$)/i.test(location.pathname) ||
         buttons.some((text) => /^(pay|pay now|make payment|thanh toán|submit payment)$/i.test(text)) ||
-        /payment gateway\s*[:#-]|transaction\s*(?:reference|id)|card number|payment amount/i.test(normalizedText),
+        /payment gateway\s*[:#-]|transaction\s*(?:reference|id)|card number|payment amount/i.test(normalizedText) ||
+        (/payment[’']?s information/i.test(normalizedText) &&
+          /e-visa app no\.?|amount paid\s*\(usd\)|i agree to pay/i.test(normalizedText)),
       hasFinalSubmit:
         buttons.some((text) =>
           /^(submit|submit application|final submit|confirm submission|send application|nộp hồ sơ|gửi hồ sơ|xác nhận nộp)$/i.test(text),

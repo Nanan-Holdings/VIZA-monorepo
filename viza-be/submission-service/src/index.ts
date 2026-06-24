@@ -91,7 +91,7 @@ import {
   type VietnamOfficialStatus,
 } from "./vietnam/status-check";
 import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
-import { consumeVietnamCardSession } from "./vietnam/card-session";
+import { consumeVietnamCardSession } from "./vietnam/card-session.js";
 import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
@@ -3884,14 +3884,15 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
-    const fixedCardPilotEnabled =
-      liveAssisted &&
-      readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false) &&
-      readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
-    const oneTimeFixedCard = fixedCardPilotEnabled ? consumeVietnamCardSession(item.application_id) : null;
+    const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const oneTimeCardPaymentEnabled =
+      officialPaymentAutopayEnabled && readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false);
+    const envFixedCardPaymentEnabled =
+      officialPaymentAutopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
+    const oneTimeFixedCard = oneTimeCardPaymentEnabled ? consumeVietnamCardSession(item.application_id) : null;
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
     let officialFeeFallbackAuthorized = false;
-    if (fixedCardPilotEnabled) {
+    if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled) {
       try {
         officialFeeIntent = await getLatestVnOfficialFeeIntent(item.application_id);
       } catch (error) {
@@ -3905,6 +3906,13 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
           );
         }
       }
+    }
+    const queueAuthorizedOneTimeCard = Boolean(oneTimeFixedCard);
+    if (queueAuthorizedOneTimeCard) {
+      officialFeeFallbackAuthorized = true;
+      console.log(
+        `[vn] Run ${runId} using queue-scoped one-time card authorization for application=${item.application_id.slice(0, 4)}...${item.application_id.slice(-4)} payment_status=${item.payment_status ?? "(empty)"}`,
+      );
     }
     const answers = applyVietnamAnswerAliases(
       await loadDs160Answers(item.application_id),
