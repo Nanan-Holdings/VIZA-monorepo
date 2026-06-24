@@ -69,6 +69,13 @@ export function VnResultCard({
   const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
   const isFormCheckpoint = result.status === "official_form_reached";
   const isManualCheckpoint = Boolean(result.manualAction);
+  const manualInstruction = result.manualAction?.instructions ?? "";
+  const needsBankConfirmation =
+    result.manualAction?.type === "payment_required" &&
+    (
+      result.portalUrl?.includes("pay.vnpay.vn") ||
+      /3ds|otp|bank-app|bank authentication/i.test(manualInstruction)
+    );
   const title = paymentPaid
     ? (isZh ? "越南 e-Visa 已提交并完成官方付款" : "Vietnam e-Visa submitted and paid")
     : isPaymentCheckpoint
@@ -462,6 +469,13 @@ export function VnResultCard({
         {result.manualAction && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="text-xs font-medium text-amber-700">{isZh ? "需要人工操作" : "Manual action"}</div>
+            {needsBankConfirmation && (
+              <p className="rounded-md border border-amber-200 bg-white px-3 py-2 text-sm leading-relaxed text-amber-900">
+                {isZh
+                  ? "已到达 VNPAY / 银行 3DS 付款确认页。请在自动打开的官方付款浏览器窗口中完成 3DS、OTP 或银行 App 验证；不要使用下方旧链接重新打开，因为该付款页不能靠 URL 恢复。若官方付款窗口已关闭，请重新提交本次付款银行卡。"
+                  : "The VNPAY / bank 3DS confirmation page is open in the official browser window. Complete 3DS, OTP, or bank-app authentication there. Do not reopen the saved payment URL; that page cannot be restored by URL alone. If the window was closed, resubmit the one-time card."}
+              </p>
+            )}
             <p className="mt-2 text-sm text-foreground">{result.manualAction.instructions}</p>
             {manualAction?.screenshotUrl && (
               <div className="rounded-md border border-amber-200 bg-white px-3 py-2">
@@ -501,12 +515,18 @@ export function VnResultCard({
           </div>
         )}
 
-        <Button asChild className="w-full">
-          <a href={result.portalUrl ?? "https://evisa.gov.vn"} target="_blank" rel="noopener noreferrer">
-            {isZh ? "打开越南 e-Visa 官网" : "Open official Vietnam e-Visa portal"}
-            <ExternalLink className="ml-2 h-4 w-4" />
-          </a>
-        </Button>
+        {needsBankConfirmation ? (
+          <Button type="button" className="w-full" disabled>
+            {isZh ? "请在已打开的官方付款窗口完成验证" : "Complete verification in the open official payment window"}
+          </Button>
+        ) : (
+          <Button asChild className="w-full">
+            <a href={result.portalUrl ?? "https://evisa.gov.vn"} target="_blank" rel="noopener noreferrer">
+              {isZh ? "打开越南 e-Visa 官网" : "Open official Vietnam e-Visa portal"}
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
