@@ -983,6 +983,7 @@
       "applicationReceipt": "申请回执",
       "paymentReceipt": "付款回执",
       "packet": "已准备申请包",
+      "arrivalCardConfirmation": "SG Arrival Card 确认 PDF（可下载打印）",
       "approvedResult": "批准信 / 已签发签证 PDF",
       "rejectionLetter": "拒签信",
       "resultFile": "结果文件"
@@ -993,6 +994,7 @@
       "document_uploaded": "材料已上传",
       "packet_generated": "申请包已生成",
       "external_status_updated": "外部状态已更新",
+      "arrival_card_submitted": "SG Arrival Card 已成功提交",
       "result_received": "已收到结果",
       "notification_sent": "通知已发送"
     }

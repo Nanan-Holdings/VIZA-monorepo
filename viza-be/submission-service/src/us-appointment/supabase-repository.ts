@@ -18,6 +18,18 @@ function decryptOrPlaintext(value: string | null | undefined): string | null {
   return decryptSecret(value);
 }
 
+function firstWord(value: string | null | undefined): string | null {
+  const normalized = value?.trim().replace(/\s+/g, " ");
+  return normalized ? normalized.split(" ")[0] ?? null : null;
+}
+
+function remainingWords(value: string | null | undefined): string | null {
+  const normalized = value?.trim().replace(/\s+/g, " ");
+  if (!normalized) return null;
+  const parts = normalized.split(" ");
+  return parts.length > 1 ? parts.slice(1).join(" ") : null;
+}
+
 export class SupabaseUSAppointmentRunnerRepository
   implements USAppointmentRunnerRepository
 {
@@ -121,7 +133,42 @@ export class SupabaseUSAppointmentRunnerRepository
         : null,
     );
     if (!email || !password) return null;
-    return { email, password };
+
+    const { data: application } = await supabase
+      .from("applications")
+      .select("applicant_id")
+      .eq("id", job.application_id)
+      .maybeSingle();
+    const applicantId = typeof application?.applicant_id === "string"
+      ? application.applicant_id
+      : null;
+    const { data: profile } = applicantId
+      ? await supabase
+        .from("applicant_profiles")
+        .select("given_names_en, given_names, surname_en, surname, full_name_en, full_name")
+        .eq("id", applicantId)
+        .maybeSingle()
+      : { data: null };
+
+    const fullName = typeof profile?.full_name_en === "string"
+      ? profile.full_name_en
+      : typeof profile?.full_name === "string"
+        ? profile.full_name
+        : null;
+    return {
+      email,
+      password,
+      givenName:
+        (typeof profile?.given_names_en === "string" && profile.given_names_en.trim())
+        || (typeof profile?.given_names === "string" && profile.given_names.trim())
+        || remainingWords(fullName)
+        || "VIZA",
+      surname:
+        (typeof profile?.surname_en === "string" && profile.surname_en.trim())
+        || (typeof profile?.surname === "string" && profile.surname.trim())
+        || firstWord(fullName)
+        || "APPLICANT",
+    };
   }
 
   async updateJobStatus(input: {

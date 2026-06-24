@@ -56,6 +56,7 @@ export type StatusFileKey =
   | "applicationReceipt"
   | "paymentReceipt"
   | "packet"
+  | "arrivalCardConfirmation"
   | "approvedResult"
   | "rejectionLetter"
   | "resultFile";
@@ -202,6 +203,9 @@ interface ApplicationRow {
   external_status_updated_at: string | null;
   result_status: string | null;
   result_storage_path: string | null;
+  submission_result: unknown | null;
+  submission_result_status: string | null;
+  submission_result_updated_at: string | null;
   government_fee_cents: number | null;
   government_fee_currency: string | null;
   government_fee_mode: string | null;
@@ -209,6 +213,13 @@ interface ApplicationRow {
   official_fee_quote_id: string | null;
   official_fee_payment_intent_id: string | null;
   official_fee_receipt_id: string | null;
+}
+
+interface SubmissionResultColumnRow {
+  id: string;
+  submission_result: unknown | null;
+  submission_result_status: string | null;
+  submission_result_updated_at: string | null;
 }
 
 interface PaymentRow {
@@ -299,7 +310,12 @@ const ATTENTION_STATUSES = new Set(["failed", "error", "needs_attention", "block
 const EXTERNAL_ACTIVE_STATUSES = new Set(["submitted", "received", "in_review", "processing", "under_review"]);
 const APPROVED_RESULT_STATUSES = new Set(["approved", "issued", "granted"]);
 const REJECTED_RESULT_STATUSES = new Set(["rejected", "refused", "denied"]);
-const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results"]);
+const SUCCESS_SUBMISSION_RESULT_STATUSES = new Set(["completed", "complete", "submitted", "success", "done"]);
+const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
+const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
+const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
+const APPLICATION_STATUS_SELECT =
+  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode, official_fee_status, official_fee_quote_id, official_fee_payment_intent_id, official_fee_receipt_id";
 
 function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -312,6 +328,58 @@ function isAbsoluteUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function getStringValue(record: Record<string, unknown> | null, keys: string[]): string | null {
+  if (!record) return null;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getStringArrayValue(record: Record<string, unknown> | null, key: string): string[] {
+  if (!record) return [];
+  const value = record[key];
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function getSubmissionResult(application: ApplicationRow): Record<string, unknown> | null {
+  return isRecord(application.submission_result) ? application.submission_result : null;
+}
+
+function submissionResultIsSubmitted(application: ApplicationRow): boolean {
+  const result = getSubmissionResult(application);
+  const resultStatus = normalizeStatus(getStringValue(result, ["status"]));
+  const storedStatus = normalizeStatus(application.submission_result_status);
+  return (
+    result?.submitted === true ||
+    resultStatus === "submitted" ||
+    SUCCESS_SUBMISSION_RESULT_STATUSES.has(storedStatus)
+  );
+}
+
+function getSubmissionResultReference(application: ApplicationRow): string | null {
+  const result = getSubmissionResult(application);
+  return getStringValue(result, ["confirmationNumber", "referenceNumber", "applicationReference", "reference"]);
+}
+
+function getSubmissionResultPdfPaths(application: ApplicationRow): string[] {
+  const result = getSubmissionResult(application);
+  const paths = new Set<string>();
+  const primaryPath = getStringValue(result, ["confirmationPdfStoragePath", "printablePdfStoragePath", "artifactStoragePath"]);
+  if (primaryPath) paths.add(primaryPath);
+
+  const artifacts = isRecord(result?.artifacts) ? result.artifacts : null;
+  for (const path of getStringArrayValue(artifacts, "pdfs")) paths.add(path);
+
+  return [...paths];
 }
 
 function sortByNewest<T>(rows: T[], getDate: (row: T) => string | null | undefined): T[] {
@@ -350,6 +418,35 @@ async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsRes
   } catch {
     return { rows: [], failed: true };
   }
+}
+
+async function hydrateSubmissionResults(
+  adminClient: ReturnType<typeof createAdminClient>,
+  applications: ApplicationRow[],
+): Promise<{ applications: ApplicationRow[]; failed: boolean }> {
+  const applicationIds = applications.map((application) => application.id);
+  if (applicationIds.length === 0) return { applications, failed: false };
+
+  const { rows, failed } = await readRows<SubmissionResultColumnRow>(
+    adminClient
+      .from("applications")
+      .select("id, submission_result, submission_result_status, submission_result_updated_at")
+      .in("id", applicationIds),
+  );
+  const submissionResultsById = new Map(rows.map((row) => [row.id, row]));
+  return {
+    failed,
+    applications: applications.map((application) => {
+      const submissionResult = submissionResultsById.get(application.id);
+      if (!submissionResult) return application;
+      return {
+        ...application,
+        submission_result: submissionResult.submission_result,
+        submission_result_status: submissionResult.submission_result_status,
+        submission_result_updated_at: submissionResult.submission_result_updated_at,
+      };
+    }),
+  };
 }
 
 function getLatestPayment(rows: PaymentRow[]): PaymentRow | null {
@@ -470,6 +567,7 @@ function getHandoffState(
   packetComplete: boolean,
   liveSubmission: LiveSubmissionSummary | null,
 ): StatusStepState {
+  if (submissionResultIsSubmitted(application)) return "complete";
   if (liveSubmission?.state === "action_required" || liveSubmission?.state === "failed") return "attention";
   if (
     liveSubmission?.state === "pending" ||
@@ -494,13 +592,16 @@ function getResultState(
   liveSubmission: LiveSubmissionSummary | null,
 ): StatusStepState {
   const resultStatus = normalizeStatus(application.result_status);
+  const submissionResultStatus = normalizeStatus(application.submission_result_status);
   const rawStatus = normalizeStatus(application.status);
-  if (liveSubmission?.state === "failed") return "attention";
+  if (liveSubmission?.state === "failed" && !submissionResultIsSubmitted(application)) return "attention";
   if (
     liveSubmission?.state === "submitted" ||
     liveSubmission?.state === "completed" ||
     application.result_storage_path ||
+    submissionResultIsSubmitted(application) ||
     APPROVED_RESULT_STATUSES.has(resultStatus) ||
+    SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus) ||
     REJECTED_RESULT_STATUSES.has(resultStatus) ||
     APPROVED_RESULT_STATUSES.has(rawStatus) ||
     REJECTED_RESULT_STATUSES.has(rawStatus)
@@ -508,15 +609,17 @@ function getResultState(
     return "complete";
   }
   if (liveSubmission?.state === "pending" || liveSubmission?.state === "running") return "current";
-  if (ATTENTION_STATUSES.has(resultStatus)) return "attention";
+  if (ATTENTION_STATUSES.has(resultStatus) || ATTENTION_STATUSES.has(submissionResultStatus)) return "attention";
   return handoffComplete ? "current" : "upcoming";
 }
 
 function getOverallState(steps: StatusStep[], application: ApplicationRow | null): ClientStatusState {
   const rawStatus = normalizeStatus(application?.status);
   const resultStatus = normalizeStatus(application?.result_status);
+  const submissionResultStatus = normalizeStatus(application?.submission_result_status);
   if (APPROVED_RESULT_STATUSES.has(rawStatus) || APPROVED_RESULT_STATUSES.has(resultStatus)) return "approved";
   if (REJECTED_RESULT_STATUSES.has(rawStatus) || REJECTED_RESULT_STATUSES.has(resultStatus)) return "rejected";
+  if (application && (submissionResultIsSubmitted(application) || SUCCESS_SUBMISSION_RESULT_STATUSES.has(submissionResultStatus))) return "submitted";
   if (!application) return "not_started";
   if (steps.some((step) => step.state === "attention")) return "needs_attention";
 
@@ -534,6 +637,7 @@ function getOverallState(steps: StatusStep[], application: ApplicationRow | null
 function getProgressPercent(steps: StatusStep[], state: ClientStatusState): number {
   if (state === "approved" || state === "rejected") return 100;
   const complete = steps.filter((step) => step.state === "complete").length;
+  if (complete === STEP_ORDER.length) return 100;
   const active = steps.filter((step) => step.state === "current" || step.state === "attention").length;
   return Math.min(98, Math.round(((complete + active * 0.5) / STEP_ORDER.length) * 100));
 }
@@ -630,6 +734,17 @@ async function resolveStorageHref(adminClient: ReturnType<typeof createAdminClie
   return data.signedUrl;
 }
 
+async function resolveSubmissionArtifactHref(adminClient: ReturnType<typeof createAdminClient>, reference: string | null): Promise<string | null> {
+  if (!reference) return null;
+  if (isAbsoluteUrl(reference)) return reference;
+
+  const { bucket, path } = parseStoragePath(reference);
+  const artifactPath = bucket === "submission-artifacts" ? path : reference.replace(/^\/+/, "");
+  const { data, error } = await adminClient.storage.from("submission-artifacts").createSignedUrl(artifactPath, 60 * 60);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
 function buildNotificationSummary(rows: NotificationRow[]): StatusApplication["notifications"] {
   return {
     total: rows.length,
@@ -689,6 +804,15 @@ async function buildFiles({
       href: await resolveStorageHref(adminClient, application.result_storage_path),
       reference: application.result_storage_path,
       createdAt: application.updated_at,
+    });
+  }
+
+  for (const path of getSubmissionResultPdfPaths(application)) {
+    files.push({
+      key: application.visa_type === "SG_ARRIVAL_CARD" ? "arrivalCardConfirmation" : "resultFile",
+      href: await resolveSubmissionArtifactHref(adminClient, path),
+      reference: path,
+      createdAt: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
     });
   }
 
@@ -814,13 +938,16 @@ async function buildApplicationStatus({
   const latestPacket = getLatestPacket(packets);
   const documentCounts = getDocumentCounts(documents);
   const answerCount = getAnswerCount(answers);
+  const isArrivalCard = application.visa_type.endsWith("_ARRIVAL_CARD") || application.visa_type === "SG_ARRIVAL_CARD";
   const paymentState = getPaymentState(latestPayment);
   const paymentComplete = paymentState === "complete";
   const consentState = getConsentState(consents, signatures, paymentComplete);
   const consentComplete = consentState === "complete";
   const formState = getFormState(application, answerCount, consentComplete);
   const formStarted = answerCount > 0 || formState === "complete";
-  const applicationSubmitted = Boolean(application.submitted_at) || normalizeStatus(application.status) === "submitted";
+  const submissionResultReference = getSubmissionResultReference(application);
+  const submissionResultSubmitted = submissionResultIsSubmitted(application);
+  const applicationSubmitted = Boolean(application.submitted_at) || normalizeStatus(application.status) === "submitted" || submissionResultSubmitted;
   const documentState = getDocumentState(documentCounts, formStarted, applicationSubmitted);
   const documentsComplete = documentState === "complete";
   const packetState = getPacketState(application, latestPacket, documentsComplete);
@@ -878,12 +1005,20 @@ async function buildApplicationStatus({
     {
       key: "result",
       state: resultState,
-      updatedAt: liveSubmission?.liveSubmittedAt ?? application.updated_at,
-      statusValue: liveSubmission?.officialStatus ?? application.result_status ?? (APPROVED_RESULT_STATUSES.has(normalizeStatus(application.status)) || REJECTED_RESULT_STATUSES.has(normalizeStatus(application.status)) ? application.status : null),
+      updatedAt: liveSubmission?.liveSubmittedAt ?? application.submission_result_updated_at ?? application.updated_at,
+      statusValue: liveSubmission?.officialStatus ?? application.result_status ?? application.submission_result_status ?? (APPROVED_RESULT_STATUSES.has(normalizeStatus(application.status)) || REJECTED_RESULT_STATUSES.has(normalizeStatus(application.status)) ? application.status : null),
       metricValue: null,
     },
   ];
-  const overallState = getOverallState(initialSteps, application);
+  const resolvedSteps =
+    isArrivalCard && submissionResultSubmitted
+      ? initialSteps.map((step) => ({
+          ...step,
+          state: "complete" as const,
+          updatedAt: step.updatedAt ?? application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
+        }))
+      : initialSteps;
+  const overallState = getOverallState(resolvedSteps, application);
 
   const shell: StatusApplication = {
     ...base,
@@ -891,20 +1026,21 @@ async function buildApplicationStatus({
     packageId: application.visa_package_id,
     packageName: visaPackage?.name ?? null,
     state: overallState,
-    progressPercent: getProgressPercent(initialSteps, overallState),
+    progressPercent: getProgressPercent(resolvedSteps, overallState),
     createdAt: application.created_at,
     updatedAt: getLatestDate([
       application.updated_at,
       application.external_status_updated_at,
+      application.submission_result_updated_at,
       latestPacket?.updated_at,
       latestPayment?.updated_at,
     ]),
     submittedAt: application.submitted_at,
-    officialReference: liveSubmission?.officialReference ?? application.external_reference ?? application.confirmation_number,
-    officialReferenceKind: liveSubmission?.officialReference || application.external_reference ? "official" : application.confirmation_number ? "viza" : null,
+    officialReference: liveSubmission?.officialReference ?? application.external_reference ?? application.confirmation_number ?? submissionResultReference,
+    officialReferenceKind: liveSubmission?.officialReference || application.external_reference || submissionResultReference ? "official" : application.confirmation_number ? "viza" : null,
     rawApplicationStatus: application.status,
     externalStatus: liveSubmission?.status ?? application.external_status,
-    resultStatus: liveSubmission?.officialStatus ?? application.result_status,
+    resultStatus: liveSubmission?.officialStatus ?? application.result_status ?? application.submission_result_status,
     liveSubmission,
     governmentFee: {
       amountCents: application.government_fee_cents,
@@ -936,16 +1072,24 @@ async function buildApplicationStatus({
       storagePath: latestPacket?.storage_path ?? application.packet_storage_path,
     },
     notifications: buildNotificationSummary(notifications),
-    steps: initialSteps,
+    steps: resolvedSteps,
     actions: [],
     files,
-    events: sortByNewest(events, (row) => row.created_at)
+    events: sortByNewest(
+      [
+        ...(submissionResultSubmitted
+          ? [{ event_type: "arrival_card_submitted", created_at: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at }]
+          : []),
+        ...events,
+      ],
+      (row) => row.created_at,
+    )
       .slice(0, 3)
       .map((row) => ({ eventType: row.event_type, createdAt: row.created_at })),
   };
 
   const metricSteps = buildSteps(shell);
-  const resultFile = files.find((file) => ["approvedResult", "rejectionLetter", "resultFile"].includes(file.key)) ?? null;
+  const resultFile = files.find((file) => ["arrivalCardConfirmation", "approvedResult", "rejectionLetter", "resultFile"].includes(file.key)) ?? null;
   return {
     ...shell,
     steps: metricSteps,
@@ -971,13 +1115,28 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   const adminClient = createAdminClient();
   let partialData = false;
 
-  const { data: profileData } = await adminClient
-    .from("applicant_profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  const profile = profileData as ApplicantProfileRow | null;
+  const profileReads: Array<Promise<ReadRowsResult<ApplicantProfileRow>>> = [
+    readRows<ApplicantProfileRow>(
+      adminClient
+        .from("applicant_profiles")
+        .select("id")
+        .eq("auth_user_id", user.id),
+    ),
+  ];
+  if (user.email) {
+    profileReads.push(
+      readRows<ApplicantProfileRow>(
+        adminClient
+          .from("applicant_profiles")
+          .select("id")
+          .eq("email", user.email),
+      ),
+    );
+  }
+  const profileResults = await Promise.all(profileReads);
+  partialData = partialData || profileResults.some((result) => result.failed);
+  const profiles = dedupeById(profileResults.flatMap((result) => result.rows));
+  const profileIds = profiles.map((profile) => profile.id);
 
   const { rows: userPackageRows, failed: packagesFailed } = await readRows<UserPackageRow>(
     adminClient
@@ -998,21 +1157,92 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     .filter((row): row is { assignedAt: string | null; applicationId: string | null; status: string | null; package: VisaPackageRow } => Boolean(row.package));
 
   const packageIds = userPackages.map((row) => row.package.id);
+  const packageApplicationIds = userPackages
+    .map((row) => row.applicationId)
+    .filter((id): id is string => Boolean(id));
   let applications: ApplicationRow[] = [];
+  let sgacEmailLinkedApplicationIds = new Set<string>();
 
-  if (profile) {
+  if (profileIds.length > 0) {
     const { rows, failed } = await readRows<ApplicationRow>(
       adminClient
         .from("applications")
-        .select(
-          "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode, official_fee_status, official_fee_quote_id, official_fee_payment_intent_id, official_fee_receipt_id",
-        )
-        .eq("applicant_id", profile.id)
+        .select(APPLICATION_STATUS_SELECT)
+        .in("applicant_id", profileIds)
         .order("created_at", { ascending: false }),
     );
-    applications = rows;
+    applications = rows.map((row) => ({
+      ...row,
+      submission_result: null,
+      submission_result_status: null,
+      submission_result_updated_at: null,
+    }));
     partialData = partialData || failed;
   }
+
+  const missingPackageApplicationIds = packageApplicationIds.filter((id) => !applications.some((application) => application.id === id));
+  if (missingPackageApplicationIds.length > 0) {
+    const { rows: linkedRows, failed: linkedFailed } = await readRows<ApplicationRow>(
+      adminClient
+        .from("applications")
+        .select(APPLICATION_STATUS_SELECT)
+        .in("id", missingPackageApplicationIds),
+    );
+    partialData = partialData || linkedFailed;
+    applications = dedupeById([
+      ...applications,
+      ...linkedRows.map((row) => ({
+        ...row,
+        submission_result: null,
+        submission_result_status: null,
+        submission_result_updated_at: null,
+      })),
+    ]);
+  }
+
+  if (user.email) {
+    const { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed } = await readRows<AnswerRow>(
+      adminClient
+        .from("visa_application_answers")
+        .select("application_id, field_name, value_text, value_json")
+        .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
+        .eq("value_text", user.email),
+    );
+    partialData = partialData || sgacEmailAnswersFailed;
+    const sgacEmailApplicationIds = [
+      ...new Set(
+        sgacEmailAnswers
+          .map((row) => row.application_id)
+          .filter((id): id is string => Boolean(id) && !applications.some((application) => application.id === id)),
+      ),
+    ];
+    sgacEmailLinkedApplicationIds = new Set(sgacEmailApplicationIds);
+    if (sgacEmailApplicationIds.length > 0) {
+      const { rows: sgacEmailApplications, failed: sgacEmailApplicationsFailed } = await readRows<ApplicationRow>(
+        adminClient
+          .from("applications")
+          .select(APPLICATION_STATUS_SELECT)
+          .in("id", sgacEmailApplicationIds)
+          .eq("visa_type", SGAC_VISA_TYPE),
+      );
+      partialData = partialData || sgacEmailApplicationsFailed;
+      applications = dedupeById([
+        ...applications,
+        ...sgacEmailApplications.map((row) => ({
+          ...row,
+          submission_result: null,
+          submission_result_status: null,
+          submission_result_updated_at: null,
+        })),
+      ]);
+    }
+  }
+
+  const hydratedApplications = await hydrateSubmissionResults(adminClient, applications);
+  partialData = partialData || hydratedApplications.failed;
+  applications = hydratedApplications.applications.filter(
+    (application) => !sgacEmailLinkedApplicationIds.has(application.id) || submissionResultIsSubmitted(application),
+  );
 
   const applicationIds = applications.map((application) => application.id);
   let liveSubmissionByApplication = new Map<string, LiveSubmissionSummary>();
@@ -1028,13 +1258,13 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
 
   let payments: PaymentRow[] = [];
   const paymentReads: Array<Promise<ReadRowsResult<PaymentRow>>> = [];
-  if (profile) {
+  if (profileIds.length > 0) {
     paymentReads.push(
       readRows<PaymentRow>(
         adminClient
           .from("payment_records")
           .select("id, application_id, visa_package_id, status, amount_cents, currency, fee_type, receipt_url, created_at, updated_at")
-          .eq("applicant_id", profile.id),
+          .in("applicant_id", profileIds),
       ),
     );
   }

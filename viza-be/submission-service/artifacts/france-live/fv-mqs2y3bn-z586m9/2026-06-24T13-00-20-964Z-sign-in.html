@@ -1,0 +1,342 @@
+<!DOCTYPE html><html data-fr-scheme="system" data-fr-theme="light"><head><script>
+
+
+const kcContext = {
+    "social": {
+        /* class: org.keycloak.forms.login.freemarker.model.IdentityProviderBean */
+        "baseURI": {
+            "path": "\/",
+            "rawPath": "\/",
+            "rawSchemeSpecificPart": "\/?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&session_code=tNXIRlTI55aKRSQn_Z1KellFXu_B8m389a0ZGF0Qr1o",
+            "opaque": false,
+            "query": "client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&session_code=tNXIRlTI55aKRSQn_Z1KellFXu_B8m389a0ZGF0Qr1o",
+            "schemeSpecificPart": "\/?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&session_code=tNXIRlTI55aKRSQn_Z1KellFXu_B8m389a0ZGF0Qr1o",
+            "port": -1,
+            "absolute": false,
+            "rawQuery": "client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&session_code=tNXIRlTI55aKRSQn_Z1KellFXu_B8m389a0ZGF0Qr1o",
+        },
+        "providers": [
+        ],
+    },
+    "auth": {
+        /* class: org.keycloak.forms.login.freemarker.model.AuthenticationContextBean */
+        "showResetCredentials": false,
+        "authenticationSelections": [
+            {
+                "helpText": "auth-username-password-form-mae-help-text",
+                "displayName": "auth-username-password-form-mae-display-name",
+                "iconCssClass": "kcAuthenticatorDefaultClass",
+                "authExecId": "956d55c0-c1b6-461a-9715-f558e48db6f5",
+                /*authenticationExecution: Should not be exposed */
+            },
+        ],
+        "showUsername": false,
+        "showTryAnotherWayLink": false,
+        /*auth.attemptedUsername excluded*/
+    },
+    "locale": {
+        /* class: org.keycloak.theme.beans.LocaleBean */
+        "rtl": false,
+        "current": "English",
+        "supported": [
+            {
+                /* class: org.keycloak.theme.beans.LocaleBean$Locale */
+                "languageTag": "ar",
+                "label": "Arabic (العربية)",
+                "url": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&kc_locale=ar",
+            },
+            {
+                /* class: org.keycloak.theme.beans.LocaleBean$Locale */
+                "languageTag": "zh-CN",
+                "label": "Chinese (Simplified) (中文 (简体))",
+                "url": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&kc_locale=zh-CN",
+            },
+            {
+                /* class: org.keycloak.theme.beans.LocaleBean$Locale */
+                "languageTag": "en",
+                "label": "English",
+                "url": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&kc_locale=en",
+            },
+            {
+                /* class: org.keycloak.theme.beans.LocaleBean$Locale */
+                "languageTag": "fr",
+                "label": "French (Français)",
+                "url": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&kc_locale=fr",
+            },
+            {
+                /* class: org.keycloak.theme.beans.LocaleBean$Locale */
+                "languageTag": "ru",
+                "label": "Russian (русский)",
+                "url": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&kc_locale=ru",
+            },
+            {
+                /* class: org.keycloak.theme.beans.LocaleBean$Locale */
+                "languageTag": "es",
+                "label": "Spanish (Español)",
+                "url": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&kc_locale=es",
+            },
+        ],
+        "currentLanguageTag": "en",
+    },
+    "login": {
+        /* class: org.keycloak.forms.login.freemarker.model.LoginBean */
+    },
+    "pageId": "login",
+    "url": {
+        /* class: org.keycloak.forms.login.freemarker.model.UrlBean */
+        "oauthAction": "\/realms/usager/login-actions/authenticate",
+        "resourcesPath": "\/resources/gmfg4/login/DSFR",
+        "loginAction": "https://connect.france-visas.gouv.fr/realms/usager/login-actions/authenticate?session_code=tNXIRlTI55aKRSQn_Z1KellFXu_B8m389a0ZGF0Qr1o&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "loginUrl": "\/realms/usager/login-actions/authenticate?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "resourcesCommonPath": "\/resources/gmfg4/common/keycloak",
+        "firstBrokerLoginUrl": "\/realms/usager/login-actions/first-broker-login?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "registrationUrl": "\/realms/usager/login-actions/registration?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "logoutConfirmAction": "\/realms/usager/protocol/openid-connect/logout/logout-confirm?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "registrationAction": "https://connect.france-visas.gouv.fr/realms/usager/login-actions/authenticate?session_code=tNXIRlTI55aKRSQn_Z1KellFXu_B8m389a0ZGF0Qr1o&execution=956d55c0-c1b6-461a-9715-f558e48db6f5&client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "loginResetCredentialsUrl": "\/realms/usager/login-actions/reset-credentials?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0",
+        "ssoLoginInOtherTabsUrl": "\/realms/usager/login-actions/restart?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&skip_logout=true",
+        "resourcesUrl": "\/resources/gmfg4?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0/login/DSFR",
+        "loginRestartFlowUrl": "\/realms/usager/login-actions/restart?client_id=fv-fo-keycloak-web&tab_id=i6bEsTV9jkA&client_data=eyJydSI6Imh0dHBzOi8vYXBwbGljYXRpb24tZm9ybS5mcmFuY2UtdmlzYXMuZ291di5mci9mdi1mby1kZGUvbG9naW4vb2F1dGgyL2NvZGUva2V5Y2xvYWsiLCJydCI6ImNvZGUiLCJzdCI6IkNqZHI0NU5lTjhZYWxmWmVDNkt1T0JUMUMwVWNMbkJuRjhZamltWFVMcUU9In0&skip_logout=false",
+        "oauth2DeviceVerificationAction": "\/realms/usager/login-actions/authenticate",
+    },
+    "authenticationSession": {
+        /* class: org.keycloak.forms.login.freemarker.model.AuthenticationSessionBean */
+        "tabId": "i6bEsTV9jkA",
+        "authSessionId": "3mzllKdkYxphv31tCu_9EZN1",
+        "authSessionIdHash": "5x/HzxN/1Q/7tpNer5chKPtyLdapXXG00LHrFZ8GEiM",
+    },
+    "messagesPerField": {
+        /* class: org.keycloak.theme.beans.MessagesPerFieldBean */
+        "get": function (fieldName) { if(fieldName === 'firstName'){ return ''; } if(fieldName === 'lastName'){ return ''; } if(fieldName === 'email'){ return ''; } if(fieldName === 'username' || fieldName === 'password' ){ return ''; } if(fieldName === 'password-confirm'){ return ''; } if(fieldName === 'global'){ return ''; } if(fieldName === 'totp'){ return ''; } if(fieldName === 'userLabel'){ return ''; } if(fieldName === 'recoveryCodeInput'){ return ''; } if(fieldName === 'termsAccepted'){ return ''; } if(fieldName === 'captchaFormulaireExtInput'){ return ''; } if(fieldName === 'password-new'){ return ''; } },
+        "existsError": function (fieldName) { if(fieldName === 'firstName' ){ return false; }if(fieldName === 'lastName' ){ return false; }if(fieldName === 'email' ){ return false; }if(fieldName === 'username' || fieldName === 'password' ){ return false; } if(fieldName === 'password-confirm' ){ return false; }if(fieldName === 'global' ){ return false; }if(fieldName === 'totp' ){ return false; }if(fieldName === 'userLabel' ){ return false; }if(fieldName === 'recoveryCodeInput' ){ return false; }if(fieldName === 'termsAccepted' ){ return false; }if(fieldName === 'captchaFormulaireExtInput' ){ return false; }if(fieldName === 'password-new' ){ return false; }},
+    },
+    "templateName": "login.ftl",
+    "client": {
+        /* class: org.keycloak.forms.login.freemarker.model.ClientBean */
+        "clientId": "fv-fo-keycloak-web",
+        "description": "",
+        "baseUrl": "https://application-form.france-visas.gouv.fr/fv-fo-dde/accueil.xhtml",
+        "name": "Demande en ligne",
+        "attributes": {
+            "saml.multivalued.roles": "false",
+            "saml.force.post.binding": "false",
+            "frontchannel.logout.session.required": "true",
+            "post.logout.redirect.uris": "+",
+            "oauth2.device.authorization.grant.enabled": "false",
+            "backchannel.logout.revoke.offline.tokens": "false",
+            "use.refresh.tokens": "true",
+            "saml.server.signature.keyinfo.ext": "false",
+            "realm_client": "false",
+            "oidc.ciba.grant.enabled": "false",
+            "backchannel.logout.session.required": "true",
+            "backchannel.logout.url": "https://application-form.france-visas.gouv.fr/fv-fo-dde/logout",
+            "client_credentials.use_refresh_token": "false",
+            "require.pushed.authorization.requests": "false",
+            "saml.client.signature": "false",
+            "saml.allow.ecp.flow": "false",
+            "saml.assertion.signature": "false",
+            "id.token.as.detached.signature": "false",
+            "client.secret.creation.time": "1675323077",
+            "saml.encrypt": "false",
+            "frontchannel.logout.url": "https://application-form.france-visas.gouv.fr/fv-fo-dde/perform_logout",
+            "saml.server.signature": "false",
+            "exclude.session.state.from.auth.response": "false",
+            "tls-client-certificate-bound-access-tokens": "false",
+            "saml.artifact.binding": "false",
+            "saml_force_name_id_format": "false",
+            "acr.loa.map": "{}",
+            "tls.client.certificate.bound.access.tokens": "false",
+            "saml.authnstatement": "false",
+            "display.on.consent.screen": "false",
+            "token.response.type.bearer.lower-case": "false",
+            "saml.onetimeuse.condition": "false",
+        },
+    },
+    "passwordPolicies": {
+        /* class: org.keycloak.forms.login.freemarker.model.PasswordPoliciesBean */
+        "passwordHistory": 5,
+        "notEmail": false,
+        "lowerCase": 1,
+        "length": 12,
+        "notUsername": false,
+        "upperCase": 1,
+        "digits": 1,
+        "maxLength": 250,
+    },
+    "realm": {
+        /* class: org.keycloak.forms.login.freemarker.model.RealmBean */
+        "displayName": "usager",
+        "registrationAllowed": true,
+        "displayNameHtml": "<div class=\"kc-logo-text\"><span><\/span><\/div>",
+        "resetPasswordAllowed": true,
+        "resetCredentialsActionTokenLifespanMinutes": 15,
+        "password": true,
+        "actionTokenGeneratedByUserLifespanMinutes": 15,
+        "internationalizationEnabled": true,
+        "idpVerifyAccountLinkActionTokenLifespanMinutes": 15,
+        "verifyEmailActionTokenLifespanMinutes": 15,
+        "loginWithEmailAllowed": true,
+        "duplicateEmailsAllowed": false,
+        "editUsernameAllowed": false,
+        "name": "usager",
+        "rememberMe": false,
+        "registrationEmailAsUsername": true,
+        "identityFederationEnabled": false,
+    },
+    "darkMode": true,
+    "scripts": [
+    ],
+    "lang": "en",
+    "properties": {
+        "parent": "keycloak",
+        "DSFR_NOTICE_TITLE": "",
+        "styles": "css/login.css",
+        "DSFR_THEME_BRAND_TOP": "GOUVERNEMENT",
+        "DSFR_THEME_ENVIRONMENT_URL": "https://france-visas.gouv.fr",
+        "REGEX_PASSWORD_INVALID_CHARACTERS": "${env.REGEX_PASSWORD_INVALID_CHARACTERS:^[%&<>=|\"]*$}",
+        "stylesCommon": "vendor/patternfly-v4/patternfly.min.css vendor/patternfly-v3/css/patternfly.min.css vendor/patternfly-v3/css/patternfly-additions.min.css lib/pficon/pficon.css",
+        "DSFR_THEME_HOME_URL": "",
+        "DSFR_NOTICE_SEVERITY": "info",
+        "DSFR_NOTICE_DESCRIPTION": "",
+        "DSFR_THEME_SERVICE_TITLE": "France-Visas",
+        "DSFR_THEME_ENVIRONMENT_URL_MY_APPLICATIONS": "https://application-form.france-visas.gouv.fr/fv-fo-dde/accueil.xhtml",
+        "KEYCLOAKIFY_SPA_DEV_SERVER_PORT": "",
+        "DSFR_THEME_ENVIRONMENT_FULL_NAME": "",
+        "darkMode": "true",
+    },
+};
+kcContext.keycloakifyVersion = "11.15.3";
+kcContext.themeVersion = "100902.4.0";
+kcContext.themeType = "login";
+kcContext.themeName = "DSFR";
+kcContext.pageId = "login.ftl";
+kcContext.ftlTemplateFileName = "login.ftl";
+
+
+kcContext["x-keycloakify"] = {};
+
+kcContext["x-keycloakify"].resourcesPath = "/resources/gmfg4/login/DSFR";
+
+{
+    var messages = {};
+    kcContext["x-keycloakify"].messages = messages;
+}
+
+if( 
+    kcContext.url instanceof Object &&
+    typeof kcContext.url.resourcesPath === "string"
+){
+    kcContext.url.resourcesCommonPath = kcContext.url.resourcesPath + "/resources-common";
+}
+
+if( kcContext.messagesPerField ){
+    var existsError_singleFieldName = kcContext.messagesPerField.existsError;
+    kcContext.messagesPerField.existsError = function (){
+        for( let i = 0; i < arguments.length; i++ ){
+            if( existsError_singleFieldName(arguments[i]) ){
+                return true;
+            }
+        }
+        return false;
+    };
+    kcContext.messagesPerField.exists = function (fieldName) {
+        return kcContext.messagesPerField.get(fieldName) !== "";
+    };
+    kcContext.messagesPerField.printIfExists = function (fieldName, text) {
+        return kcContext.messagesPerField.exists(fieldName) ? text : undefined;
+    };
+    kcContext.messagesPerField.getFirstError = function () {
+        for( let i = 0; i < arguments.length; i++ ){
+            const fieldName = arguments[i];
+            if( kcContext.messagesPerField.existsError(fieldName) ){
+                return kcContext.messagesPerField.get(fieldName);
+            }
+        }
+    };
+}
+attributes_to_attributesByName: {
+    if( !kcContext.profile ){
+        break attributes_to_attributesByName;
+    }
+    if( !kcContext.profile.attributes ){
+        break attributes_to_attributesByName;
+    }
+    var attributes = kcContext.profile.attributes;
+    delete kcContext.profile.attributes;
+    kcContext.profile.attributesByName = {};
+    attributes.forEach(function(attribute){
+        kcContext.profile.attributesByName[attribute.name] = attribute;
+    });
+}
+
+redirect_to_dev_server: {
+
+    switch(kcContext.themeType){
+        case "login":
+            break redirect_to_dev_server;
+        case "account":
+            if( kcContext.pageId !== "index.ftl" ){
+                break redirect_to_dev_server;
+            }
+            break;
+        case "admin":
+            break;
+        default: 
+            break redirect_to_dev_server;
+    }
+
+    const devSeverPort = kcContext.properties.KEYCLOAKIFY_SPA_DEV_SERVER_PORT;
+
+    if( !devSeverPort ){
+        break redirect_to_dev_server;
+    }
+
+    const redirectUrl = new URL(window.location.href);
+
+    const keycloakServerPort = redirectUrl.port;
+
+    redirectUrl.port = devSeverPort;
+
+    delete kcContext.msgJSON;
+
+    console.log(kcContext);
+
+    redirectUrl.searchParams.set("kcContext", JSON.stringify(kcContext));
+    redirectUrl.searchParams.set("keycloakServerPort", keycloakServerPort);
+
+    window.location.href = redirectUrl.toString();
+
+}
+
+
+window.kcContext = kcContext;
+
+function decodeHtmlEntities(htmlStr){
+    var element = decodeHtmlEntities.element;
+    if (!element) {
+        element = document.createElement("textarea");
+        decodeHtmlEntities.element = element;
+    }
+    element.innerHTML = htmlStr;
+    return element.value;
+}
+
+
+</script>
+<base href="/resources/gmfg4/login/DSFR/dist/">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <script type="text/javascript" src="/ruxitagentjs_ICA7NVfqrux_10333260303165926.js" data-dtconfig="rid=RID_-1360923874|rpid=-1230717905|domain=france-visas.gouv.fr|reportUrl=/rb_19c31916-346c-4a95-b7f8-b5c964e4f345|app=5084385baa28882c|owasp=1|featureHash=ICA7NVfqrux|rdnt=1|uxrgce=1|cuc=zgire8gj|mel=100000|expw=1|dpvc=1|lastModification=1782207155458|postfix=zgire8gj|tp=500,50,0|srbbv=2|agentUri=/ruxitagentjs_ICA7NVfqrux_10333260303165926.js"></script><link rel="apple-touch-icon" href="/resources/gmfg4/login/DSFR/dist/assets/apple-touch-icon-DrfPSIlu.png">
+        <link rel="icon" href="/resources/gmfg4/login/DSFR/dist/assets/favicon-CduWKyBp.svg" type="image/svg+xml">
+        <link rel="shortcut icon" href="/resources/gmfg4/login/DSFR/dist/assets/favicon-BMkCb9zi.ico" type="image/x-icon">
+        <link rel="manifest" href="/resources/gmfg4/login/DSFR/dist/assets/manifest-Ysg1ohlc.webmanifest" crossorigin="use-credentials">
+        <script src="/resources/gmfg4/login/DSFR/dist/early-color-scheme.js"></script><style id="dsfr-root-color-scheme">:root { color-scheme: light; }</style><meta name="theme-color" content="#ffffff">
+      <script type="module" crossorigin="" src="/resources/gmfg4/login/DSFR/dist/assets/index-XPlSlS_e.js"></script>
+    <link rel="modulepreload" as="script" crossorigin="" href="/resources/gmfg4/login/DSFR/dist/assets/KcPage-Cf7oFwPy.js"><link rel="modulepreload" as="script" crossorigin="" href="/resources/gmfg4/login/DSFR/dist/assets/main-DK460krq.js"><link rel="stylesheet" crossorigin="" href="/resources/gmfg4/login/DSFR/dist/assets/main-sfs7219p.css"><link rel="modulepreload" as="script" crossorigin="" href="/resources/gmfg4/login/DSFR/dist/assets/Button-Biw1W1bX.js"><link rel="modulepreload" as="script" crossorigin="" href="/resources/gmfg4/login/DSFR/dist/assets/clsx-Cmsn2OG1.js"><link rel="modulepreload" as="script" crossorigin="" href="/resources/gmfg4/login/DSFR/dist/assets/getKcClsx-DTyGJu6V.js"></head>
+
+    <body>
+        <div id="root"></div>
+    
+
+</body></html>

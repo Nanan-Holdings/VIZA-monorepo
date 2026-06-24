@@ -897,6 +897,7 @@
       "applicationReceipt": "Application receipt",
       "paymentReceipt": "Payment receipt",
       "packet": "Prepared packet",
+      "arrivalCardConfirmation": "SG Arrival Card confirmation PDF (download or print)",
       "approvedResult": "Approval letter / issued visa PDF",
       "rejectionLetter": "Rejection letter",
       "resultFile": "Result file"
@@ -907,6 +908,7 @@
       "document_uploaded": "Document uploaded",
       "packet_generated": "Packet generated",
       "external_status_updated": "External status updated",
+      "arrival_card_submitted": "SG Arrival Card submitted successfully",
       "result_received": "Result received",
       "notification_sent": "Notification sent"
     }

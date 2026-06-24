@@ -81,6 +81,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isVietnamPaymentCheckpointResult(
+  result: SubmissionResult | null,
+): result is Extract<SubmissionResult, { country: "VN" }> {
+  if (!result || result.country !== "VN") return false;
+  return (
+    result.status === "stopped_at_pay" ||
+    result.checkpoint === "payment_page_visible" ||
+    result.manualAction?.type === "payment_required" ||
+    Boolean(result.registrationCode)
+  );
+}
+
+function isVietnamPaymentCheckpointError(error: string | null | undefined): boolean {
+  const normalized = (error ?? "").toLowerCase();
+  return (
+    normalized.includes("official vietnam e-visa portal reached payment") ||
+    normalized.includes("payment_page_visible")
+  );
+}
+
 function normalizeStatus(status: string | null | undefined): string {
   return (status ?? "").trim().toLowerCase();
 }
@@ -794,6 +814,47 @@ export function SubmissionStatusStep({
     snapshot?.queue,
     status,
   ]);
+
+  const vietnamPaymentCheckpointResult =
+    isVietnamPaymentCheckpointResult(effectiveResult)
+      ? effectiveResult
+      : isVietnamEVisaApplication(country, visaType) &&
+          isVietnamPaymentCheckpointError(retryError ?? effectiveError)
+        ? ({
+            country: "VN",
+            status: "stopped_at_pay",
+            mode: "live_assisted",
+            provider: "vietnam_evisa_live",
+            portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
+            checkpoint: "payment_page_visible",
+            manualAction: {
+              type: "payment_required",
+              status: "open",
+              instructions:
+                retryError ??
+                effectiveError ??
+                "The official Vietnam e-Visa portal reached payment. Authorize payment in VIZA before continuing.",
+            },
+            paymentStatus: "manual_required",
+          } as const)
+        : null;
+
+  if (
+    vietnamPaymentCheckpointResult &&
+    (failed || stalled || actionWithResult || completedWithResult)
+  ) {
+    return (
+      <div className="space-y-4">
+        {renderSubmissionResultCard(
+          applicationId,
+          country,
+          visaType,
+          vietnamPaymentCheckpointResult,
+          snapshot?.queue?.id ?? null,
+        )}
+      </div>
+    );
+  }
 
   if (failed) {
     return (
