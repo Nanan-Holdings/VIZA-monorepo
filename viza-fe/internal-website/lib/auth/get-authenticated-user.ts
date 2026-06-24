@@ -67,14 +67,14 @@ export async function getAuthenticatedUser(): Promise<{
 
   const { data: applicantProfile } = await adminClient
     .from("applicant_profiles")
-    .select("full_name, email, date_of_birth, gender")
+    .select("id, full_name, email, date_of_birth, gender")
     .eq("auth_user_id", authUser.id)
     .maybeSingle();
 
   if (!applicantProfile && !authUser.email) return null;
 
   return {
-    id: authUser.id,
+    id: applicantProfile?.id ?? authUser.id,
     name: applicantProfile?.full_name ?? authUser.user_metadata?.name ?? authUser.email ?? "Applicant",
     email: applicantProfile?.email ?? authUser.email ?? "",
     date_of_birth: applicantProfile?.date_of_birth ?? null,
@@ -84,6 +84,19 @@ export async function getAuthenticatedUser(): Promise<{
         ? "F"
         : null,
   };
+}
+
+export async function resolveAuthenticatedUserId({
+  authUserId,
+  userRowId,
+  applicantProfileId,
+}: {
+  authUserId: string;
+  userRowId?: string | null;
+  applicantProfileId?: string | null;
+}): Promise<string | null> {
+  void authUserId;
+  return userRowId ?? applicantProfileId ?? null;
 }
 
 /**
@@ -123,5 +136,9 @@ export async function getAuthenticatedUserId(): Promise<string | null> {
     .eq("auth_user_id", authUser.id)
     .maybeSingle();
 
-  return applicantProfile ? authUser.id : null;
+  return await resolveAuthenticatedUserId({
+    authUserId: authUser.id,
+    userRowId: null,
+    applicantProfileId: applicantProfile?.id ?? null,
+  });
 }
