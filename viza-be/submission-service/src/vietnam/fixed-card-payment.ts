@@ -40,6 +40,10 @@ const RECEIPT_PATTERNS = [
 
 const PAYMENT_CHALLENGE_PATTERN =
   /\b(3d secure|3ds|one[-\s]?time password|otp|verification code|bank app|authenticate|authentication required|securecode|verified by visa|mastercard identity check)\b/i;
+const OFFICIAL_APPLICATION_FORM_PATTERN =
+  /\b(viet nam e-visa application form|foreigner's images|personal information|requested information|passport information|identity card)\b/i;
+const PAYMENT_CONTEXT_PATTERN =
+  /\b(payment gateway|transaction|payment amount|card number|credit card|debit card|cvv|cvc|expiry|expiration|pay now|submit payment|thanh toán)\b/i;
 
 function envEnabled(value: string | undefined): boolean {
   return /^(1|true|yes|on)$/i.test((value ?? "").trim());
@@ -129,6 +133,13 @@ export function vietnamPaymentNeedsHuman(text: string): boolean {
   return PAYMENT_CHALLENGE_PATTERN.test(text);
 }
 
+function isLikelyPaymentGateway(pageUrl: string, bodyText: string): boolean {
+  if (OFFICIAL_APPLICATION_FORM_PATTERN.test(bodyText) && /\/e-visa\/foreigners\//i.test(pageUrl)) {
+    return false;
+  }
+  return PAYMENT_CONTEXT_PATTERN.test(bodyText) || /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(pageUrl);
+}
+
 async function fillFirstVisible(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
     const locator = page.locator(selector).first();
@@ -159,6 +170,35 @@ async function clickFirstVisible(page: Page, selectors: string[]): Promise<boole
   return false;
 }
 
+async function prepareVietcombankGatewayForCard(page: Page): Promise<void> {
+  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
+
+  const internationalCard = page.locator('text="International payment cards"').first();
+  if (await internationalCard.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await internationalCard.click({ timeout: 10_000 }).catch(async () => {
+      await page.locator('input[name="payment-method"]').last().check({ timeout: 5_000 });
+    });
+    await page.waitForTimeout(750);
+  }
+
+  const terms = page.locator('input[name="checkbox-terms"]').first();
+  if (await terms.isVisible({ timeout: 1_500 }).catch(() => false)) {
+    await terms.check({ timeout: 5_000 }).catch(async () => {
+      await page.locator('text="I have read and Agree to the Terms and Conditions"').first().click({ timeout: 5_000 });
+    });
+    await page.waitForTimeout(500);
+  }
+
+  const continueButton = page.locator('button:has-text("Continue")').first();
+  if (await continueButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await continueButton.click({ timeout: 10_000 });
+    await page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined);
+    await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+  }
+}
+
 export async function payVietnamPortalWithFixedCard(input: {
   page: Page;
   card: VietnamFixedCard;
@@ -166,6 +206,14 @@ export async function payVietnamPortalWithFixedCard(input: {
   const { page, card } = input;
   const redactedCard = redactVietnamFixedCard(card);
   const beforeText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (!isLikelyPaymentGateway(page.url(), beforeText)) {
+    return {
+      status: "needs_human",
+      receiptReference: null,
+      reason: "The current official page is not a payment gateway, so the card was not entered.",
+      redactedCard,
+    };
+  }
   if (vietnamPaymentNeedsHuman(beforeText)) {
     return {
       status: "needs_human",
@@ -174,12 +222,13 @@ export async function payVietnamPortalWithFixedCard(input: {
       redactedCard,
     };
   }
+  await prepareVietcombankGatewayForCard(page);
 
   const cardNumberFilled = await fillFirstVisible(page, [
     'input[autocomplete="cc-number"]',
     'input[name*="card" i][name*="number" i]',
     'input[id*="card" i][id*="number" i]',
-    'input[placeholder*="card" i]',
+    'input[aria-label*="card" i][aria-label*="number" i]',
   ], card.pan);
   if (!cardNumberFilled) {
     return {

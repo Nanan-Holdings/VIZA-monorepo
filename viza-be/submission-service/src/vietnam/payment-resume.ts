@@ -238,6 +238,86 @@ async function submitSearch(page: Page): Promise<void> {
   await page.waitForTimeout(1_500);
 }
 
+async function clickVisibleButtonByText(page: Page, labels: string[]): Promise<boolean> {
+  for (const label of labels) {
+    const locator = page.locator(`button:has-text("${label}")`).first();
+    if (await locator.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      await locator.click({ timeout: 10_000 });
+      await page.waitForLoadState("networkidle", { timeout: 45_000 }).catch(() => undefined);
+      await page.waitForTimeout(2_000);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function clickVisibleTextOrCheckbox(page: Page, labels: string[]): Promise<boolean> {
+  for (const label of labels) {
+    const labelLocator = page.locator(`label:has-text("${label}")`).first();
+    if (await labelLocator.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      await labelLocator.click({ timeout: 10_000 });
+      await page.waitForTimeout(750);
+      return true;
+    }
+    const textLocator = page.locator(`text="${label}"`).first();
+    if (await textLocator.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      await textLocator.click({ timeout: 10_000 });
+      await page.waitForTimeout(750);
+      return true;
+    }
+  }
+  const visibleCheckbox = page.locator('input[type="checkbox"]:visible').first();
+  if (await visibleCheckbox.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await visibleCheckbox.check({ timeout: 5_000 }).catch(async () => {
+      await visibleCheckbox.click({ timeout: 5_000 });
+    });
+    await page.waitForTimeout(750);
+    return true;
+  }
+  return false;
+}
+
+async function advanceOfficialFormToPayment(page: Page, timeoutMs: number): Promise<void> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const currentUrl = page.url();
+    if (/payment gateway|payment amount|card number|credit card|debit card|cvv|cvc|pay now|submit payment|transaction/i.test(bodyText) ||
+      /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(currentUrl)) {
+      return;
+    }
+    if (/additional completed|electronic document code/i.test(bodyText)) {
+      if (!(await clickVisibleButtonByText(page, ["Confirm", "OK"]))) {
+        throw new Error("Could not confirm the Vietnam additional-completed dialog.");
+      }
+      continue;
+    }
+    if (/payment’s information|payment's information|amount paid \(usd\)|i agree to pay/i.test(bodyText)) {
+      await clickVisibleTextOrCheckbox(page, ["I agree to pay"]);
+      if (!(await clickVisibleButtonByText(page, ["Payment", "Pay", "Continue"]))) {
+        throw new Error("Could not click the Vietnam official payment confirmation button.");
+      }
+      continue;
+    }
+    if (/review application form/i.test(bodyText) && /security code/i.test(bodyText)) {
+      await solveSearchCaptcha(page, timeoutMs);
+      if (!(await clickVisibleButtonByText(page, ["Next", "Continue", "Payment"]))) {
+        throw new Error("Could not advance from Vietnam review page to payment.");
+      }
+      continue;
+    }
+    if (/viet nam e-visa application form|fill out the application form/i.test(bodyText)) {
+      if (!(await clickVisibleButtonByText(page, ["Next", "Continue"]))) {
+        throw new Error("Could not advance from Vietnam application form to review.");
+      }
+      continue;
+    }
+    if (await clickPaymentEntry(page)) {
+      continue;
+    }
+    return;
+  }
+}
+
 async function clickPaymentEntry(page: Page): Promise<boolean> {
   const selectors = [
     'button:has-text("Pay")',
@@ -322,6 +402,7 @@ export async function resumeVietnamOfficialPayment(
         url: page.url(),
       };
     }
+    await advanceOfficialFormToPayment(page, input.timeoutMs ?? 120_000);
 
     const payment = await payVietnamPortalWithFixedCard({ page, card });
     return mapPaymentResult(payment, page);
