@@ -63,6 +63,7 @@ export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "nam
   if (sourceName.startsWith("information about the trip")) return "travel";
   if (sourceName.startsWith("trip details")) return "travel";
   if (sourceName.startsWith("trip information")) return "travel";
+  if (sourceName.startsWith("stay in malaysia") || sourceName.startsWith("stay in thailand")) return "travel";
   if (sourceName.startsWith("trip expenses") || sourceName.includes("expenses insurance")) return "travel";
   if (sourceName.startsWith("accompanying children")) return "travel";
   if (sourceName.startsWith("accommodation in schengen")) return "travel";
@@ -80,6 +81,8 @@ export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "nam
   if (sourceName.includes("work education training") || sourceName.includes("work and education")) return "workEducationTraining";
   if (sourceName.startsWith("occupation")) return "workEducationTraining";
   if (sourceName.startsWith("financial support")) return "travel";
+  if (sourceName.startsWith("health declaration")) return "securityAndBackground";
+  if (sourceName.startsWith("official submission checklist")) return "securityAndBackground";
   if (sourceName.startsWith("declaration")) return "securityAndBackground";
   if (sourceName.startsWith("security and background")) return "securityAndBackground";
   if (sourceName.startsWith("supporting documents") || sourceName.startsWith("upload documents")) return "documents";

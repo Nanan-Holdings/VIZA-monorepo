@@ -70,8 +70,11 @@ import {
 } from "@/lib/application-step-sections";
 import {
   isDs160VisaType,
+  isDigitalArrivalCardApplication,
+  isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isSgArrivalCardApplication,
+  isThailandTdacApplication,
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
@@ -126,6 +129,14 @@ const SGAC_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Official Submission Checklist": "官方提交确认",
 };
 
+const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  ...SGAC_DYNAMIC_STEP_NAME_ZH,
+  "Trip Information": "行程信息",
+  "Stay in Malaysia": "在马来西亚停留",
+  "Stay in Thailand": "在泰国停留",
+  "Health Declaration": "健康申报",
+};
+
 type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
@@ -165,8 +176,13 @@ function localizeDynamicStepName(
     translate: ReturnType<typeof useTranslations>;
   },
 ): string {
-  if (options.isZhInterface && options.visaType === "SG_ARRIVAL_CARD") {
-    return SGAC_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  if (
+    options.isZhInterface &&
+    (options.visaType === "SG_ARRIVAL_CARD" ||
+      options.visaType === "MY_MDAC_ARRIVAL_CARD" ||
+      options.visaType === "TH_TDAC_ARRIVAL_CARD")
+  ) {
+    return ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 
   const translationKey = getDynamicStepTranslationCandidates(stepName)
@@ -1350,9 +1366,9 @@ export default function ApplicationPage() {
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
-  const isSgacApplication = resolvedVisaType === "SG_ARRIVAL_CARD";
-  const showDocumentStep = !isSgacApplication;
-  const showTeamStep = !isCompanionFlow && !isSgacApplication;
+  const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
+  const showDocumentStep = !isArrivalCardApplication;
+  const showTeamStep = !isCompanionFlow && !isArrivalCardApplication;
   const STEPS: StepDef[] = STEP_KEYS
     .filter((key) => showTeamStep || key !== "team")
     .map((key, id) => ({
@@ -1368,6 +1384,9 @@ export default function ApplicationPage() {
     ["france", "fr", "法国"].includes(normalizedCountryForLive);
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
+  const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
+  const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
+  const isArrivalCardIntakeOnly = isMalaysiaMdac || isThailandTdac;
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -2268,7 +2287,7 @@ export default function ApplicationPage() {
 
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
 
-      if (!isJpTourist) {
+      if (!isJpTourist && !isArrivalCardIntakeOnly) {
         await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
@@ -2295,6 +2314,42 @@ export default function ApplicationPage() {
           submittedAt,
           submissionResultStatus: queueJob.submissionResultStatus,
           submissionResult: queueJob.submissionResult,
+          confirmationNumber: undefined,
+        }));
+      }
+
+      if (isArrivalCardIntakeOnly) {
+        const submittedAt = new Date().toISOString();
+        const countryLabel = isMalaysiaMdac ? "Malaysia MDAC" : "Thailand TDAC";
+        const countryCode = isMalaysiaMdac ? "MY" : "TH";
+        const arrivalCardResult: SubmissionResult = {
+          country: "GENERIC",
+          targetCountry: countryLabel,
+          visaType: resolvedVisaType,
+          status: "submitted_mock",
+          mode: "dry_run",
+          applicationId,
+          implementationStatus: "partial",
+          message: isZhInterface
+            ? `${countryLabel} 入境卡资料已保存并完成校验。请在官方允许的提交窗口内通过官方渠道提交；该资料包不会替代签证或入境许可。`
+            : `${countryLabel} arrival-card details have been saved and validated. Submit through the official channel when the official submission window allows it; this pack does not replace a visa or entry permission.`,
+          confirmationNumber: `${countryCode}-ARRIVAL-CARD-READY`,
+        };
+        const { error: submitError } = await supabase.from("applications").update({
+          status: "submitted",
+          submitted_at: submittedAt,
+          submission_result_status: "form_ready_for_agency",
+          submission_result: arrivalCardResult,
+          confirmation_number: null,
+          submission_result_updated_at: submittedAt,
+        }).eq("id", applicationId);
+        if (submitError) throw new Error(submitError.message);
+
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt,
+          submissionResultStatus: "form_ready_for_agency",
+          submissionResult: arrivalCardResult,
           confirmationNumber: undefined,
         }));
       }
