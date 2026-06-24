@@ -194,6 +194,10 @@ const WHEN_SGAC_AIR = {
   key: "answers.mode_of_travel",
   equals: "air",
 };
+const WHEN_SGAC_AIR_COMMERCIAL = {
+  key: "answers.air_transport_type",
+  equals: "commercial",
+};
 const WHEN_SGAC_OTHER_ACCOMMODATION = {
   key: "answers.accommodation_type",
   equals: "others",
@@ -201,6 +205,18 @@ const WHEN_SGAC_OTHER_ACCOMMODATION = {
 const WHEN_SGAC_RESIDENTIAL = {
   key: "answers.accommodation_type",
   equals: "residential",
+};
+const WHEN_SGAC_LAND = {
+  key: "answers.mode_of_travel",
+  equals: "land",
+};
+const WHEN_SGAC_SEA = {
+  key: "answers.mode_of_travel",
+  equals: "sea",
+};
+const WHEN_SGAC_SEA_CRUISE = {
+  key: "answers.sea_transport_type",
+  equals: "cruise",
 };
 
 const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
@@ -223,8 +239,12 @@ const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   sgacField("next_city_or_port_after_singapore", "Next city / port after Singapore", "trip"),
   sgacField("mode_of_travel", "Mode of travel", "trip"),
   sgacField("air_transport_type", "Type of air transport", "trip", WHEN_SGAC_AIR),
-  sgacField("carrier_name", "Airline", "trip", WHEN_SGAC_AIR),
-  sgacField("transport_number", "Transport number", "trip"),
+  sgacField("carrier_code", "Carrier code", "trip", WHEN_SGAC_AIR_COMMERCIAL),
+  sgacField("transport_number", "Flight number", "trip", WHEN_SGAC_AIR),
+  sgacField("land_transport_type", "Land transport type", "trip", WHEN_SGAC_LAND),
+  sgacField("vehicle_number", "Vehicle number", "trip", WHEN_SGAC_LAND),
+  sgacField("sea_transport_type", "Sea transport type", "trip", WHEN_SGAC_SEA),
+  sgacField("cruise_name", "Cruise name", "trip", WHEN_SGAC_SEA_CRUISE),
   sgacField("accommodation_type", "Accommodation type", "trip"),
   sgacField("accommodation_name", "Hotel name", "trip", WHEN_SGAC_HOTEL),
   sgacField("accommodation_other_type", "Other accommodation type", "trip", WHEN_SGAC_OTHER_ACCOMMODATION),
