@@ -161,7 +161,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("place_of_residence", "CHINA, BEIJING, BEIJING")).toBe("中国，北京，北京");
     expect(labelZh("place_of_residence", "CHINA, SHANGHAI, SHANGHAI")).toBe("中国，上海，上海");
     expect(labelZh("place_of_residence", "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR")).toBe("马来西亚，吉隆坡，吉隆坡");
-    expect(labelZh("place_of_residence", "RUSSIA, CENTRAL, MOSCOW")).toBe("俄罗斯，指定地区，莫斯科");
+    expect(labelZh("place_of_residence", "RUSSIA, CENTRAL, MOSCOW")).toBe("俄罗斯，中部，莫斯科");
     for (const value of [
       "AFGHANISTAN, KABUL, KABUL",
       "ALBANIA, TIRANA, TIRANA",
@@ -176,7 +176,27 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("purpose_of_travel", "Religion")).toBe("宗教活动");
     expect(labelZh("purpose_of_travel", "Sports event")).toBe("体育赛事");
     expect(labelZh("purpose_of_travel", "To take up residence")).toBe("定居");
-    expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("酒店：MARINA BAY SANDS SINGAPORE");
-    expect(labelZh("cruise_name", "ADONIA")).toBe("邮轮：ADONIA");
+    expect(labelZh("place_of_residence", "UNITED STATES, ARKANSAS, HOT SPRING")).toBe("美国，阿肯色州，温泉城");
+    expect(labelZh("place_of_residence", "INDIA, WEST BENGAL, KOLKATA")).toBe("印度，西孟加拉邦，加尔各答");
+    expect(labelZh("last_city_or_port_before_singapore", "UNITED STATES, ARKANSAS, LITTLE ROCK")).toBe("美国，阿肯色州，小石城");
+    expect(labelZh("next_city_or_port_after_singapore", "UNITED STATES, ARKANSAS, OTHERS IN ARKANSAS")).toBe("美国，阿肯色州，阿肯色州其他地区");
+    expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("酒店：新加坡滨海湾金沙");
+    expect(labelZh("accommodation_name", "IBIS SINGAPORE ON BENCOOLEN")).toBe("酒店：新加坡明古连路宜必思酒店");
+    expect(labelZh("accommodation_name", "VIBE HOTEL SINGAPORE ORCHARD")).toBe("酒店：新加坡乌节路维贝酒店");
+    expect(labelZh("cruise_name", "ADONIA")).toBe("邮轮：阿多尼亚");
+    expect(labelZh("cruise_name", "ADORA MEDITERRANEA")).toBe("邮轮：阿多拉地中海");
+    expect(labelZh("cruise_name", "QUANTUM OF THE SEAS")).toBe("邮轮：海洋量子号");
+
+    for (const fieldName of [
+      "place_of_residence",
+      "last_city_or_port_before_singapore",
+      "next_city_or_port_after_singapore",
+      "accommodation_name",
+      "cruise_name",
+    ]) {
+      for (const option of optionsByField.get(fieldName) ?? []) {
+        expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-z]/);
+      }
+    }
   });
 });

@@ -1,6 +1,23 @@
 import type { SgacOfficialOption } from "./official-options";
+import { readFileSync } from "node:fs";
 
-export type SgacOptionListKind = "city" | "country" | "nationality" | "purpose" | "literal";
+export type SgacOptionListKind = "city" | "country" | "nationality" | "purpose" | "hotel" | "cruise" | "literal";
+
+interface SgacZhTranslationCache {
+  city?: Record<string, string>;
+  hotel?: Record<string, string>;
+  cruise?: Record<string, string>;
+}
+
+function loadTranslationCache(): SgacZhTranslationCache {
+  try {
+    return JSON.parse(readFileSync(new URL("./option-translations.zh.json", import.meta.url), "utf8")) as SgacZhTranslationCache;
+  } catch {
+    return {};
+  }
+}
+
+const TRANSLATION_CACHE = loadTranslationCache();
 
 const COUNTRY_ZH_OVERRIDES: Record<string, string> = {
   ANTIGUA: "安提瓜",
@@ -86,7 +103,10 @@ const CITY_SEGMENT_ZH_OVERRIDES: Record<string, string> = {
   "ABU DHABI": "阿布扎比",
   ADELAIDE: "阿德莱德",
   AFGHANISTAN: "阿富汗",
+  AFRICA: "非洲",
   ALBERTA: "艾伯塔省",
+  ALBANIA: "阿尔巴尼亚",
+  ALGERIA: "阿尔及利亚",
   ALGIERS: "阿尔及尔",
   AMSTERDAM: "阿姆斯特丹",
   ANHUI: "安徽",
@@ -161,6 +181,7 @@ const CITY_SEGMENT_ZH_OVERRIDES: Record<string, string> = {
   HOUSTON: "休斯敦",
   HUBEI: "湖北",
   HUNAN: "湖南",
+  INDIA: "印度",
   "INNER MONGOLIA": "内蒙古",
   INCHEON: "仁川",
   ISTANBUL: "伊斯坦布尔",
@@ -246,6 +267,7 @@ const CITY_SEGMENT_ZH_OVERRIDES: Record<string, string> = {
   WENZHOU: "温州",
   WELLINGTON: "惠灵顿",
   "WESTERN AUSTRALIA": "西澳大利亚州",
+  "WEST BENGAL": "西孟加拉邦",
   WUHAN: "武汉",
   WUXI: "无锡",
   "XI AN": "西安",
@@ -261,6 +283,157 @@ const CITY_SEGMENT_ZH_OVERRIDES: Record<string, string> = {
   ZHEJIANG: "浙江",
   ZHENGZHOU: "郑州",
   ZURICH: "苏黎世",
+};
+
+const GENERIC_SEGMENT_ZH_OVERRIDES: Record<string, string> = {
+  CENTRAL: "中部",
+  EAST: "东部",
+  NORTH: "北部",
+  SOUTH: "南部",
+  WEST: "西部",
+  "NORTH EAST": "东北部",
+  "NORTH WEST": "西北部",
+  "SOUTH EAST": "东南部",
+  "SOUTH WEST": "西南部",
+  "SPECIFIED REGION": "指定地区",
+  "SPECIFIED CITY/PORT": "指定城市/港口",
+  "SPECIFIED CITY / PORT": "指定城市/港口",
+  "OTHERS": "其他地区",
+};
+
+const PROPER_NAME_WORD_ZH: Record<string, string> = {
+  "21": "二十一",
+  "338": "三三八",
+  "7": "七",
+  A: "雅",
+  ADONIA: "阿多尼亚",
+  ADORA: "爱多拉",
+  AEGEAN: "爱琴海",
+  AIDAAURA: "爱达奥拉",
+  AIDABELLA: "爱达贝拉",
+  AIDADIVA: "爱达迪娃",
+  AIDALUNA: "爱达露娜",
+  AIDAMAR: "爱达玛",
+  AIDANOVA: "爱达诺娃",
+  AIDAPERLA: "爱达佩拉",
+  AIDAPRIMA: "爱达普里玛",
+  AIDASOL: "爱达索尔",
+  AIDASTELLA: "爱达斯特拉",
+  ALBERT: "阿尔伯特",
+  AMETRINE: "紫黄晶",
+  ANTHEM: "圣歌",
+  AQUEEN: "皇后",
+  AZAMARA: "精致游轮",
+  BALESTIER: "马里士他",
+  BAY: "湾",
+  BENCOOLEN: "明古连",
+  BUGIS: "武吉士",
+  CARPENTER: "卡本特",
+  CELEBRITY: "精致",
+  CHANGI: "樟宜",
+  CHINATOWN: "牛车水",
+  CLARKE: "克拉码头",
+  COLLECTION: "精选",
+  CONRAD: "康莱德",
+  CRYSTAL: "水晶",
+  DESKER: "德斯克",
+  DIAMOND: "钻石",
+  DICKSON: "迪克森",
+  DREAM: "梦号",
+  EMERALD: "翡翠",
+  FARRER: "花拉",
+  FABER: "花柏山",
+  FULLERTON: "富丽敦",
+  GEMINI: "双子星",
+  GENTING: "云顶",
+  GOLD: "黄金",
+  HOSTEL: "旅舍",
+  HOTEL: "酒店",
+  IBIS: "宜必思",
+  IMPERIAL: "帝国",
+  INN: "旅馆",
+  JALAN: "惹兰",
+  JOO: "如切",
+  JOURNEY: "旅程号",
+  KATONG: "加东",
+  LAVENDER: "劳明达",
+  LILY: "百合",
+  MARINA: "滨海",
+  MARINER: "海洋水手号",
+  MEDITERRANEA: "地中海号",
+  MILLENNIUM: "千禧号",
+  MOUNT: "山",
+  NICE: "尼斯",
+  NOVENA: "诺维娜",
+  ODYSSEY: "奥德赛",
+  ON: "在",
+  ONE: "一号",
+  ORCHARD: "乌节",
+  OVATION: "赞礼号",
+  PARADISE: "天堂号",
+  PARK: "公园",
+  PARKROYAL: "宾乐雅",
+  PAYA: "巴耶",
+  PEARL: "珍珠",
+  PRINCESS: "公主号",
+  QUEST: "探索号",
+  QUAY: "码头",
+  QUANTUM: "量子号",
+  REGIS: "瑞吉",
+  RESORTS: "名胜",
+  ROYAL: "皇家",
+  RUBY: "红宝石",
+  SANDS: "金沙",
+  SAPPHIRE: "蓝宝石",
+  SEAS: "海洋",
+  SELEGIE: "实利基",
+  SENTOSA: "圣淘沙",
+  SINGAPORE: "新加坡",
+  SPECTRUM: "光谱号",
+  ST: "圣",
+  STYLES: "尚品",
+  SUPERSTAR: "丽星",
+  THE: "",
+  THOMSON: "汤申",
+  VALUE: "惠值",
+  VENUE: "薇纽",
+  VIBE: "维贝",
+  VICTORIA: "维多利亚",
+  VILLAGE: "悦乐",
+  VIRGO: "处女星",
+  VOYAGER: "航行者号",
+  WEST: "西部",
+  WONDERS: "奇迹",
+  WORLD: "世界",
+};
+
+const LETTER_ZH: Record<string, string> = {
+  A: "阿",
+  B: "比",
+  C: "克",
+  D: "德",
+  E: "伊",
+  F: "夫",
+  G: "格",
+  H: "赫",
+  I: "伊",
+  J: "杰",
+  K: "克",
+  L: "勒",
+  M: "姆",
+  N: "恩",
+  O: "欧",
+  P: "普",
+  Q: "丘",
+  R: "尔",
+  S: "斯",
+  T: "特",
+  U: "优",
+  V: "维",
+  W: "威",
+  X: "克斯",
+  Y: "伊",
+  Z: "泽",
 };
 
 function hasChinese(value: string): boolean {
@@ -280,6 +453,7 @@ function countryZh(value: string, fallback?: string): string | null {
 
 function citySegmentZh(value: string): string | null {
   const normalized = normalizeKey(value.replace(/\([^)]*\)/g, "").replace(/\bPROVINCE\b/g, ""));
+  if (GENERIC_SEGMENT_ZH_OVERRIDES[normalized]) return GENERIC_SEGMENT_ZH_OVERRIDES[normalized];
   return CITY_SEGMENT_ZH_OVERRIDES[normalized] ?? countryZh(normalized);
 }
 
@@ -298,10 +472,15 @@ function normalizeCitySegment(segment: string, firstCountryEn: string, firstCoun
 
   if (normalized === normalizeKey(firstCountryEn) && firstCountryZh) return firstCountryZh;
   if (hasChinese(trimmed)) return trimmed;
+  const transliterated = properNameBareZh(trimmed);
+  if (transliterated) return transliterated;
   return partIndex === 1 ? "指定地区" : "指定城市/港口";
 }
 
 function cityLabelZh(option: SgacOfficialOption): string {
+  const cached = TRANSLATION_CACHE.city?.[option.value]?.trim();
+  if (cached) return sanitizeCachedZh(cached);
+
   const officialParts = option.value.split(",").map((part) => part.trim()).filter(Boolean);
   if (officialParts.length === 0) return option.labelZh;
 
@@ -324,6 +503,69 @@ function purposeLabelZh(option: SgacOfficialOption): string {
   return PURPOSE_ZH_OVERRIDES[option.value] ?? option.labelZh;
 }
 
+function transliterateToken(token: string): string {
+  const normalized = normalizeKey(token.replace(/[^A-Z0-9]/g, ""));
+  if (!normalized) return "";
+  if (PROPER_NAME_WORD_ZH[normalized] !== undefined) return PROPER_NAME_WORD_ZH[normalized];
+  if (/^\d+$/.test(normalized)) return normalized;
+  return Array.from(normalized).map((char) => LETTER_ZH[char] ?? "").join("");
+}
+
+function properNameZh(value: string, prefix: string): string {
+  const cached = prefix === "酒店" ? TRANSLATION_CACHE.hotel?.[value]?.trim() : TRANSLATION_CACHE.cruise?.[value]?.trim();
+  if (cached) return `${prefix}：${sanitizeCachedZh(cached.replace(new RegExp(`^${prefix}[：:\\s]+`), ""))}`;
+
+  const normalized = normalizeKey(value);
+  const fullOverrides: Record<string, string> = {
+    "IBIS SINGAPORE ON BENCOOLEN": "宜必思新加坡明古连酒店",
+    "MARINA BAY SANDS SINGAPORE": "新加坡滨海湾金沙酒店",
+    "VIBE HOTEL SINGAPORE ORCHARD": "新加坡乌节维贝酒店",
+    "VALUE HOTEL - THOMSON": "汤申惠值酒店",
+    "VILLAGE HOTEL BUGIS": "武吉士悦乐酒店",
+    "VILLAGE HOTEL CHANGI": "樟宜悦乐酒店",
+    "VILLAGE HOTEL KATONG": "加东悦乐酒店",
+    "ADONIA": "阿多尼亚",
+    "ADORA MEDITERRANEA": "爱多拉地中海号",
+    "AEGEAN ODYSSEY": "爱琴海奥德赛号",
+    "AEGEAN PARADISE": "爱琴海天堂号",
+    "GENTING DREAM": "云顶梦号",
+    "MARINER OF THE SEAS": "海洋水手号",
+    "OVATION OF THE SEAS": "海洋赞礼号",
+    "QUANTUM OF THE SEAS": "海洋量子号",
+    "RESORTS WORLD ONE": "名胜世界壹号",
+    "SPECTRUM OF THE SEAS": "海洋光谱号",
+    "SUPERSTAR GEMINI": "丽星双子星号",
+    "SUPERSTAR VIRGO": "丽星处女星号",
+    "VOYAGER OF THE SEAS": "海洋航行者号",
+  };
+  if (fullOverrides[normalized]) return `${prefix}：${fullOverrides[normalized]}`;
+
+  const translated = normalized
+    .split(/[\s,@/()[\].&–-]+/)
+    .map(transliterateToken)
+    .filter(Boolean)
+    .join("");
+  return `${prefix}：${translated || "官方选项"}`;
+}
+
+function properNameBareZh(value: string): string {
+  const translated = normalizeKey(value)
+    .split(/[\s,@/()[\].&–-]+/)
+    .map(transliterateToken)
+    .filter(Boolean)
+    .join("");
+  return translated;
+}
+
+function sanitizeCachedZh(value: string): string {
+  return value
+    .replace(/,\s*/g, "，")
+    .replace(/[A-Za-z][A-Za-z0-9'.&/-]*(?:\s+[A-Za-z][A-Za-z0-9'.&/-]*)*/g, (match) => {
+      const translated = properNameBareZh(match);
+      return translated || match;
+    });
+}
+
 export function sgacOptionLabelZh(kind: SgacOptionListKind, option: SgacOfficialOption): string {
   switch (kind) {
     case "city":
@@ -334,6 +576,10 @@ export function sgacOptionLabelZh(kind: SgacOptionListKind, option: SgacOfficial
       return nationalityLabelZh(option);
     case "purpose":
       return purposeLabelZh(option);
+    case "hotel":
+      return properNameZh(option.value, "酒店");
+    case "cruise":
+      return properNameZh(option.value, "邮轮");
     case "literal":
       return option.labelZh;
   }

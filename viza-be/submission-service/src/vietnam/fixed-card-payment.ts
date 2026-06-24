@@ -182,16 +182,32 @@ async function prepareVietcombankGatewayForCard(page: Page): Promise<void> {
     await page.waitForTimeout(750);
   }
 
-  const terms = page.locator('input[name="checkbox-terms"]').first();
+  const terms = page.locator('input[name="checkbox-terms"], input[type="checkbox"]:visible').first();
   if (await terms.isVisible({ timeout: 1_500 }).catch(() => false)) {
     await terms.check({ timeout: 5_000 }).catch(async () => {
-      await page.locator('text="I have read and Agree to the Terms and Conditions"').first().click({ timeout: 5_000 });
+      await terms.click({ timeout: 5_000, force: true });
     });
+    await page.waitForTimeout(500);
+  }
+  const termsLabel = page.locator('text="I have read and Agree to the Terms and Conditions", text="Agree"').first();
+  if (await termsLabel.isVisible({ timeout: 1_500 }).catch(() => false)) {
+    const box = await termsLabel.boundingBox().catch(() => null);
+    if (box) {
+      await page.mouse.click(Math.max(1, box.x - 24), box.y + box.height / 2);
+    } else {
+      await termsLabel.click({ timeout: 5_000, force: true });
+    }
     await page.waitForTimeout(500);
   }
 
   const continueButton = page.locator('button:has-text("Continue")').first();
   if (await continueButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await continueButton.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (await continueButton.isEnabled({ timeout: 500 }).catch(() => false)) break;
+      await page.waitForTimeout(500);
+    }
+    if (!(await continueButton.isEnabled({ timeout: 500 }).catch(() => false))) return;
     await continueButton.click({ timeout: 10_000 });
     await page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined);
     await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
