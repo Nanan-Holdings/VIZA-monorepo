@@ -20,5 +20,19 @@ test("SGAC CAPTCHA solver does not require the ICA security title to reappear", 
     /getByText\(\s*\/Security Verification\/i\s*\)\.last\(\)\.waitFor/,
     "ICA can refresh the CAPTCHA without re-rendering the Security Verification title",
   );
-  assert.match(source, /waitForSecurityVerificationDialog/);
+  assert.match(source, /waitForSecurityVerificationTarget/);
+});
+
+test("SGAC CAPTCHA solver refreshes and retries transient 2captcha failures", () => {
+  const source = readFileSync(path.join(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /ERROR_CAPTCHA_UNSOLVABLE/);
+  assert.match(source, /refreshSecurityCaptcha/);
+  assert.match(source, /sgac_captcha_unsolvable/);
+});
+
+test("SGAC runner reports official declaration-limit errors explicitly", () => {
+  const source = readFileSync(path.join(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /maximum allowable SGAC declaration count/);
+  assert.match(source, /sgac_declaration_limit_reached/);
+  assert.match(source, /ICA SGAC returned an error after final submit/);
 });

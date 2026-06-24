@@ -1254,6 +1254,93 @@ export default function ApplicationPage() {
   const initialStepResolvedRef = useRef(false);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
   const navigationSaveInFlightRef = useRef(false);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const activeStepPanelRef = useRef<HTMLDivElement | null>(null);
+  const scrollClampFrameRef = useRef<number | null>(null);
+
+  const clampMainScrollToActivePanel = useCallback(() => {
+    const main = mainScrollRef.current;
+    const panel = activeStepPanelRef.current;
+    if (!main || !panel || main.scrollTop <= 0) return;
+
+    const mainRect = main.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const allowedBottomGap = 8;
+    const excessiveBlank = mainRect.bottom - allowedBottomGap - panelRect.bottom;
+
+    if (excessiveBlank > 0) {
+      main.scrollTop = Math.max(0, main.scrollTop - excessiveBlank);
+    }
+  }, []);
+
+  const handleMainScroll = useCallback(() => {
+    if (scrollClampFrameRef.current !== null) return;
+    scrollClampFrameRef.current = window.requestAnimationFrame(() => {
+      scrollClampFrameRef.current = null;
+      clampMainScrollToActivePanel();
+    });
+  }, [clampMainScrollToActivePanel]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollClampFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollClampFrameRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+
+    const syncPageScrollLock = () => {
+      if (mediaQuery.matches) {
+        document.documentElement.style.overflow = "hidden";
+        document.body.style.overflow = "hidden";
+        window.scrollTo({ top: 0 });
+      } else {
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        document.body.style.overflow = originalBodyOverflow;
+      }
+    };
+
+    const keepWindowAtTop = () => {
+      if (mediaQuery.matches && window.scrollY !== 0) {
+        window.scrollTo({ top: 0 });
+      }
+    };
+
+    syncPageScrollLock();
+    mediaQuery.addEventListener("change", syncPageScrollLock);
+    window.addEventListener("resize", syncPageScrollLock);
+    window.addEventListener("scroll", keepWindowAtTop, { passive: true });
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncPageScrollLock);
+      window.removeEventListener("resize", syncPageScrollLock);
+      window.removeEventListener("scroll", keepWindowAtTop);
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    const main = mainScrollRef.current;
+    const panel = activeStepPanelRef.current;
+    if (!main || !panel) return;
+
+    const observer = new ResizeObserver(handleMainScroll);
+    observer.observe(main);
+    observer.observe(panel);
+    window.addEventListener("resize", handleMainScroll);
+    handleMainScroll();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", handleMainScroll);
+    };
+  }, [currentStep, draftVersion, handleMainScroll]);
 
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
@@ -2457,7 +2544,13 @@ export default function ApplicationPage() {
       )}
 
       {/* Main content area */}
-      <main className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
+      <main
+        ref={mainScrollRef}
+        onScroll={handleMainScroll}
+        onWheelCapture={handleMainScroll}
+        onTouchMoveCapture={handleMainScroll}
+        className="min-w-0 flex-1 bg-[#fcfcfc] p-4 sm:p-6 md:p-8 lg:-mt-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
+      >
         <div
           className={cn(
             "mx-auto max-w-xl sm:max-w-2xl",
@@ -2505,7 +2598,11 @@ export default function ApplicationPage() {
               if (!isActive) return null;
 
               return (
-                <div key={step.id} className="flex flex-col gap-4">
+                <div
+                  key={step.id}
+                  ref={activeStepPanelRef}
+                  className="flex flex-col gap-4"
+                >
                   {/* Section heading - outside the panel */}
                   <h2 className="font-heading text-[20px] sm:text-[24px] md:text-[28px] font-medium text-[#3d3d3d] tracking-[-0.5px] sm:tracking-[-0.7px]">
                     {step.name}

@@ -1,7 +1,7 @@
 import type { SgacOfficialOption } from "./official-options";
 import { readFileSync } from "node:fs";
 
-export type SgacOptionListKind = "city" | "country" | "nationality" | "purpose" | "hotel" | "cruise" | "literal";
+export type SgacOptionListKind = "city" | "country" | "nationality" | "purpose" | "hotel" | "cruise" | "carrier" | "literal";
 
 interface SgacZhTranslationCache {
   city?: Record<string, string>;
@@ -85,18 +85,149 @@ const NATIONALITY_ZH_OVERRIDES: Record<string, string> = {
   "BRITISH OVERSEAS TERRITORIES CITIZ": "英国海外领土公民",
   "BRITISH PROTECTED PERSON": "受英国保护人士",
   "BRITISH SUBJECT": "英国臣民",
+  CAMBODIAN: "柬埔寨籍",
+  CROATIAN: "克罗地亚籍",
+  ESTONIAN: "爱沙尼亚籍",
+  GEORGIAN: "格鲁吉亚籍",
   KOSOVAR: "科索沃籍",
+  KYRGYZSTAN: "吉尔吉斯斯坦籍",
+  LITHUANIAN: "立陶宛籍",
+  MACEDONIAN: "北马其顿籍",
+  MICRONESIAN: "密克罗尼西亚籍",
+  MONTENEGRIN: "黑山籍",
   PALESTINIAN: "巴勒斯坦籍",
-  "REFUGEE (OTHER THAN XXB)": "难民（非 XXB）",
-  "REFUGEE (XXB)": "难民（XXB）",
+  "REFUGEE (OTHER THAN XXB)": "难民（其他类别）",
+  "REFUGEE (XXB)": "难民（指定类别）",
+  RUSSIAN: "俄罗斯籍",
+  SAMOAN: "萨摩亚籍",
+  SWAZI: "斯威士兰籍",
   STATELESS: "无国籍",
+  TAJIKISTANI: "塔吉克斯坦籍",
   TIMORESE: "东帝汶籍",
+  UKRAINIAN: "乌克兰籍",
+  YEMENI: "也门籍",
 };
 
 const PURPOSE_ZH_OVERRIDES: Record<string, string> = {
   Religion: "宗教活动",
   "Sports event": "体育赛事",
   "To take up residence": "定居",
+};
+
+const AIRLINE_NAME_ZH_OVERRIDES: Record<string, string> = {
+  "AERO DILI": "帝力航空",
+  "AIR CANADA": "加拿大航空",
+  "AIR CHINA": "中国国际航空",
+  "AIR EUROPA LINEAS AEREAS, S.A.": "欧罗巴航空",
+  "AIR FRANCE": "法国航空",
+  "AIR INDIA": "印度航空",
+  "AIR INDIA EXPRESS": "印度快运航空",
+  "AIR JAPAN": "日本航空",
+  "AIR MACAU": "澳门航空",
+  "AIR MAURITIUS": "毛里求斯航空",
+  "AIR NEW ZEALAND": "新西兰航空",
+  "AIR NIUGINI": "新几内亚航空",
+  "AIR SERBIA": "塞尔维亚航空",
+  "AIRASIA BERHAD": "亚洲航空",
+  "AIRASIA CAMBODIA": "柬埔寨亚洲航空",
+  "AIRASIA X BERHAD": "亚航长途",
+  AIRCALIN: "喀里多尼亚航空",
+  "ALASKA AIRLINES": "阿拉斯加航空",
+  "ALL NIPPON AIRWAYS": "全日空航空",
+  "AMERICAN AIRLINES": "美国航空",
+  "ATLAS AIR": "阿特拉斯航空",
+  "BANGKOK AIRWAYS": "曼谷航空",
+  "BATIK AIR": "巴迪航空",
+  "BATIK AIR MALAYSIA": "马来西亚巴迪航空",
+  "BRITISH AIRWAYS": "英国航空",
+  "CAMBODIA AIRWAYS": "柬埔寨航空",
+  "CAMBODIA ANGKOR AIR": "柬埔寨吴哥航空",
+  "CATHAY PACIFIC": "国泰航空",
+  "CEBU PACIFIC AIR": "宿务太平洋航空",
+  "ASIANA AIRLINES": "韩亚航空",
+  "BIMAN BANGLADESH AIRLINES": "孟加拉航空",
+  "CHINA AIRLINES": "中华航空",
+  "CHINA EASTERN AIRLINES": "中国东方航空",
+  "CHINA SOUTHERN AIRLINES": "中国南方航空",
+  "CHONGQING AIRLINES": "重庆航空",
+  "DELTA AIRLINES": "达美航空",
+  "DHL AIR UK": "英国敦豪航空",
+  "DRUK AIR": "不丹皇家航空",
+  EMIRATES: "阿联酋航空",
+  "ETHIOPIAN AIRLINES": "埃塞俄比亚航空",
+  "ETIHAD AIRWAYS": "阿提哈德航空",
+  "EVA AIRWAYS": "长荣航空",
+  "FIJI AIRWAYS": "斐济航空",
+  FINNAIR: "芬兰航空",
+  FIREFLY: "飞萤航空",
+  FLYNAS: "沙特飞鸟航空",
+  "GARUDA INDONESIA": "印尼鹰航",
+  "GUANGXI BEIBU GULF AIRLINES": "广西北部湾航空",
+  "HAINAN AIRLINES": "海南航空",
+  "HAWAIIAN AIRLINES": "夏威夷航空",
+  "HEBEI AIRLINES": "河北航空",
+  "IBERIA AIRLINES": "伊比利亚航空",
+  "ICELAND AIR": "冰岛航空",
+  INDIGO: "靛蓝航空",
+  "INDONESIA AIRASIA": "印度尼西亚亚洲航空",
+  "JAPAN AIRLINES": "日本航空",
+  "JD AIRLINES": "首都航空",
+  "JEJU AIR": "济州航空",
+  "JETBLUE AIRWAYS": "捷蓝航空",
+  "JETSTAR AIRWAYS INTERNATIONAL": "捷星航空",
+  "JUNEYAO AIRLINES": "吉祥航空",
+  "KALITTA AIR": "卡利塔航空",
+  "KENYA AIRWAYS": "肯尼亚航空",
+  "KLM-ROYAL DUTCH AIRLINES": "荷兰皇家航空",
+  "LION MENTARI AIRLINES": "狮子航空",
+  "LOT POLISH AIRLINES": "波兰航空",
+  "LUFTHANSA GERMAN AIRLINES": "汉莎航空",
+  "MALAYSIA AIRLINES": "马来西亚航空",
+  "MANDARIN AIRLINES": "华信航空",
+  "MIAT MONGOLIAN AIRLINES": "蒙古航空",
+  "MY JET XPRESS AIRLINES": "我的捷运航空",
+  "MYANMAR NATIONAL AIRLINES": "缅甸国家航空",
+  "OMAN AIR": "阿曼航空",
+  "PACIFIC AIRLINES": "太平洋航空",
+  "PHILIPPINE AIRLINES": "菲律宾航空",
+  "PHILIPPINES AIRASIA": "菲律宾亚洲航空",
+  "QANTAS AIRWAYS": "澳洲航空",
+  "QATAR AIRWAYS": "卡塔尔航空",
+  "ROYAL AIR MAROC": "摩洛哥皇家航空",
+  "ROYAL BRUNEI AIRLINES": "文莱皇家航空",
+  "ROYAL JORDANIAN": "约旦皇家航空",
+  "RWANDAIR": "卢旺达航空",
+  SAUDIA: "沙特阿拉伯航空",
+  SCOOT: "酷航",
+  "SHANDONG AIRLINES": "山东航空",
+  "SHANGHAI AIRLINES": "上海航空",
+  "SHENZHEN AIRLINES": "深圳航空",
+  "SICHUAN AIRLINES": "四川航空",
+  "SINGAPORE AIRLINES": "新加坡航空",
+  "SPRING AIRLINES": "春秋航空",
+  "SRILANKAN AIRLINES": "斯里兰卡航空",
+  "STARLUX AIRLINES": "星宇航空",
+  "SWISS INTERNATIONAL AIRLINES": "瑞士国际航空",
+  "T'WAY AIR": "德威航空",
+  "TAP PORTUGAL": "葡萄牙航空",
+  "THAI AIRASIA": "泰国亚洲航空",
+  "THAI AIRWAYS": "泰国国际航空",
+  "THAI LION AIR": "泰国狮子航空",
+  "THAI VIETJET AIR": "泰国越捷航空",
+  "TIANJIN AIRLINES": "天津航空",
+  TRANSNUSA: "印尼跨洋航空",
+  "TURKISH AIRLINES": "土耳其航空",
+  "UNITED AIRLINES": "美国联合航空",
+  "URUMQI AIR": "乌鲁木齐航空",
+  "US-BANGLA AIRLINES": "优速孟加拉航空",
+  "VIETJET AIR": "越捷航空",
+  "VIETNAM AIRLINES": "越南航空",
+  "VIRGIN AUSTRALIA": "维珍澳大利亚航空",
+  "WEST AIR": "西部航空",
+  WESTJET: "西捷航空",
+  "XIAMEN AIRLINES": "厦门航空",
+  "YTO CARGO AIRLINES": "圆通货运航空",
+  ZIPAIR: "日本捷普航空",
 };
 
 const CITY_SEGMENT_ZH_OVERRIDES: Record<string, string> = {
@@ -477,17 +608,40 @@ function normalizeCitySegment(segment: string, firstCountryEn: string, firstCoun
   return partIndex === 1 ? "指定地区" : "指定城市/港口";
 }
 
+function splitTranslatedParts(value: string): string[] {
+  return value.split(/[，,]/).map((part) => part.trim()).filter(Boolean);
+}
+
+function cityOtherRegionLabelZh(segment: string, firstCountryEn: string, firstCountryZh: string | null, cachedPart?: string): string {
+  const othersPrefix = "OTHERS IN ";
+  const normalized = normalizeKey(segment);
+  const placeEn = normalized.startsWith(othersPrefix) ? normalized.slice(othersPrefix.length) : normalized;
+  const cached = cachedPart ? sanitizeCachedZh(cachedPart) : "";
+  if (cached && /其他地区$/.test(cached)) return cached;
+
+  const placeZh =
+    citySegmentZh(placeEn) ??
+    (normalizeKey(placeEn) === normalizeKey(firstCountryEn) ? firstCountryZh : null) ??
+    firstCountryZh;
+  return `${placeZh ?? "该地"}其他地区`;
+}
+
 function cityLabelZh(option: SgacOfficialOption): string {
   const cached = TRANSLATION_CACHE.city?.[option.value]?.trim();
-  if (cached) return sanitizeCachedZh(cached);
-
   const officialParts = option.value.split(",").map((part) => part.trim()).filter(Boolean);
   if (officialParts.length === 0) return option.labelZh;
 
+  const cachedParts = cached ? splitTranslatedParts(sanitizeCachedZh(cached)) : [];
   const existingParts = option.labelZh.split("，").map((part) => part.trim());
   const firstCountryZh = countryZh(officialParts[0], existingParts[0]);
   return officialParts
-    .map((part, index) => index === 0 ? (firstCountryZh ?? "指定国家/地区") : normalizeCitySegment(part, officialParts[0], firstCountryZh, index))
+    .map((part, index) => {
+      if (index === 0) return firstCountryZh ?? cachedParts[0] ?? "指定国家/地区";
+      if (normalizeKey(part).startsWith("OTHERS IN ")) {
+        return cityOtherRegionLabelZh(part, officialParts[0], firstCountryZh, cachedParts[index]);
+      }
+      return cachedParts[index] ?? normalizeCitySegment(part, officialParts[0], firstCountryZh, index);
+    })
     .join("，");
 }
 
@@ -503,6 +657,16 @@ function purposeLabelZh(option: SgacOfficialOption): string {
   return PURPOSE_ZH_OVERRIDES[option.value] ?? option.labelZh;
 }
 
+function carrierLabelZh(option: SgacOfficialOption): string {
+  const officialLabel = option.labelEn || option.value;
+  const match = officialLabel.match(/^([A-Z0-9]{2})\s*-\s*(.+)$/);
+  const carrierCode = match?.[1] ?? option.value;
+  const officialName = normalizeKey(match?.[2] ?? officialLabel);
+  const translatedName = AIRLINE_NAME_ZH_OVERRIDES[officialName] ?? properNameBareZh(officialName);
+  if (!carrierCode) return translatedName || option.labelZh.replace(/^选项：/, "");
+  return `${translatedName || officialName}（${carrierCode}）`;
+}
+
 function transliterateToken(token: string): string {
   const normalized = normalizeKey(token.replace(/[^A-Z0-9]/g, ""));
   if (!normalized) return "";
@@ -513,7 +677,7 @@ function transliterateToken(token: string): string {
 
 function properNameZh(value: string, prefix: string): string {
   const cached = prefix === "酒店" ? TRANSLATION_CACHE.hotel?.[value]?.trim() : TRANSLATION_CACHE.cruise?.[value]?.trim();
-  if (cached) return `${prefix}：${sanitizeCachedZh(cached.replace(new RegExp(`^${prefix}[：:\\s]+`), ""))}`;
+  if (cached) return sanitizeCachedZh(cached.replace(new RegExp(`^${prefix}[：:\\s]+`), ""));
 
   const normalized = normalizeKey(value);
   const fullOverrides: Record<string, string> = {
@@ -538,14 +702,14 @@ function properNameZh(value: string, prefix: string): string {
     "SUPERSTAR VIRGO": "丽星处女星号",
     "VOYAGER OF THE SEAS": "海洋航行者号",
   };
-  if (fullOverrides[normalized]) return `${prefix}：${fullOverrides[normalized]}`;
+  if (fullOverrides[normalized]) return fullOverrides[normalized];
 
   const translated = normalized
     .split(/[\s,@/()[\].&–-]+/)
     .map(transliterateToken)
     .filter(Boolean)
     .join("");
-  return `${prefix}：${translated || "官方选项"}`;
+  return translated || "官方选项";
 }
 
 function properNameBareZh(value: string): string {
@@ -560,6 +724,11 @@ function properNameBareZh(value: string): string {
 function sanitizeCachedZh(value: string): string {
   return value
     .replace(/,\s*/g, "，")
+    .replace(/境内的其他人/g, "其他地区")
+    .replace(/境内的其他地区/g, "其他地区")
+    .replace(/的其他人/g, "其他地区")
+    .replace(/的其他地区/g, "其他地区")
+    .replace(/其他人/g, "其他地区")
     .replace(/[A-Za-z][A-Za-z0-9'.&/-]*(?:\s+[A-Za-z][A-Za-z0-9'.&/-]*)*/g, (match) => {
       const translated = properNameBareZh(match);
       return translated || match;
@@ -580,6 +749,8 @@ export function sgacOptionLabelZh(kind: SgacOptionListKind, option: SgacOfficial
       return properNameZh(option.value, "酒店");
     case "cruise":
       return properNameZh(option.value, "邮轮");
+    case "carrier":
+      return carrierLabelZh(option);
     case "literal":
       return option.labelZh;
   }

@@ -86,7 +86,7 @@ const NATIONALITIES = SGAC_NATIONALITY_OPTIONS.map(officialOption("nationality")
 const BIRTH_COUNTRIES = SGAC_BIRTH_COUNTRY_OPTIONS.map(officialOption("country"));
 const PURPOSES = SGAC_PURPOSE_OF_TRAVEL_OPTIONS.map(officialOption("purpose"));
 const HOTEL_NAMES = SGAC_HOTEL_NAME_OPTIONS.map(officialOption("hotel"));
-const CARRIER_CODES = SGAC_CARRIER_CODE_OPTIONS.map((item) => option(item.value, item.labelZh.replace(/^选项：/, ""), item.labelEn));
+const CARRIER_CODES = SGAC_CARRIER_CODE_OPTIONS.map(officialOption("carrier"));
 
 const showIf = (expression: string) => ({ showIf: expression });
 

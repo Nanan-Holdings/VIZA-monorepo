@@ -140,6 +140,13 @@ function isLikelyPaymentGateway(pageUrl: string, bodyText: string): boolean {
   return PAYMENT_CONTEXT_PATTERN.test(bodyText) || /\/(?:payment|pay|checkout|gateway)(?:\/|$|\?)/i.test(pageUrl);
 }
 
+function isOfficialVietnamPaymentInformationPage(bodyText: string): boolean {
+  return (
+    /payment[’']?s information/i.test(bodyText) &&
+    /e-visa app no\.?|amount paid\s*\(usd\)|i agree to pay/i.test(bodyText)
+  );
+}
+
 async function fillFirstVisible(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
     const locator = page.locator(selector).first();
@@ -170,6 +177,37 @@ async function clickFirstVisible(page: Page, selectors: string[]): Promise<boole
   return false;
 }
 
+async function advanceOfficialVietnamPaymentInformationPage(page: Page): Promise<boolean> {
+  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (!isOfficialVietnamPaymentInformationPage(bodyText)) return false;
+
+  const agreeCheckbox = page.locator('input[type="checkbox"]').first();
+  if (await agreeCheckbox.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await agreeCheckbox.check({ timeout: 5_000 }).catch(async () => {
+      await agreeCheckbox.click({ timeout: 5_000, force: true });
+    });
+  } else {
+    const agreeText = page.locator("text=/I agree to pay/i").first();
+    if (await agreeText.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await agreeText.click({ timeout: 5_000, force: true });
+    }
+  }
+
+  await page.waitForTimeout(500);
+  const paymentButton = page.locator('button:has-text("Payment"), input[type="button"][value*="Payment" i], input[type="submit"][value*="Payment" i]').first();
+  if (!(await paymentButton.isVisible({ timeout: 5_000 }).catch(() => false))) return false;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (await paymentButton.isEnabled({ timeout: 500 }).catch(() => false)) break;
+    await page.waitForTimeout(500);
+  }
+  if (!(await paymentButton.isEnabled({ timeout: 500 }).catch(() => false))) return false;
+  await paymentButton.click({ timeout: 10_000 });
+  await page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
+  return true;
+}
+
 async function prepareVietcombankGatewayForCard(page: Page): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
@@ -189,11 +227,11 @@ async function prepareVietcombankGatewayForCard(page: Page): Promise<void> {
     });
     await page.waitForTimeout(500);
   }
-  const termsLabel = page.locator('text="I have read and Agree to the Terms and Conditions", text="Agree"').first();
+  const termsLabel = page.locator('text=/I have read/i').first();
   if (await termsLabel.isVisible({ timeout: 1_500 }).catch(() => false)) {
     const box = await termsLabel.boundingBox().catch(() => null);
     if (box) {
-      await page.mouse.click(Math.max(1, box.x - 24), box.y + box.height / 2);
+      await page.mouse.click(Math.max(1, box.x - 20), box.y + box.height / 2);
     } else {
       await termsLabel.click({ timeout: 5_000, force: true });
     }
@@ -221,7 +259,19 @@ export async function payVietnamPortalWithFixedCard(input: {
 }): Promise<VietnamFixedCardPaymentResult> {
   const { page, card } = input;
   const redactedCard = redactVietnamFixedCard(card);
-  const beforeText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  let beforeText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (isOfficialVietnamPaymentInformationPage(beforeText)) {
+    const advanced = await advanceOfficialVietnamPaymentInformationPage(page);
+    if (!advanced) {
+      return {
+        status: "needs_human",
+        receiptReference: null,
+        reason: "Could not click I agree to pay / Payment on the official Vietnam payment information page.",
+        redactedCard,
+      };
+    }
+    beforeText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  }
   if (!isLikelyPaymentGateway(page.url(), beforeText)) {
     return {
       status: "needs_human",
@@ -239,9 +289,19 @@ export async function payVietnamPortalWithFixedCard(input: {
     };
   }
   await prepareVietcombankGatewayForCard(page);
+  const afterPreparationText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (/payment\s+failed.*recreate\s+profile|recreate\s+profile\s+and\s+retry\s+payment/i.test(afterPreparationText)) {
+    return {
+      status: "needs_human",
+      receiptReference: null,
+      reason: "The official portal returned 'payment failed, please recreate profile and retry payment'. This official-site failure requires a new profile run with a fresh one-time card session.",
+      redactedCard,
+    };
+  }
 
   const cardNumberFilled = await fillFirstVisible(page, [
     'input[autocomplete="cc-number"]',
+    'input[placeholder*="card number" i]',
     'input[name*="card" i][name*="number" i]',
     'input[id*="card" i][id*="number" i]',
     'input[aria-label*="card" i][aria-label*="number" i]',
@@ -257,13 +317,18 @@ export async function payVietnamPortalWithFixedCard(input: {
 
   await fillFirstVisible(page, [
     'input[autocomplete="cc-name"]',
+    'input[placeholder*="full name" i]',
     'input[name*="name" i]',
     'input[id*="name" i]',
   ], card.holderName);
   await fillFirstVisible(page, [
     'input[autocomplete="cc-exp"]',
+    'input[placeholder*="expiry" i]',
+    'input[placeholder*="expired" i]',
     'input[name*="expiry" i]',
+    'input[name*="expired" i]',
     'input[id*="expiry" i]',
+    'input[id*="expired" i]',
   ], `${card.expiryMonth}/${card.expiryYear.slice(-2)}`);
   await fillFirstVisible(page, [
     'input[name*="exp_month" i]',
@@ -277,11 +342,32 @@ export async function payVietnamPortalWithFixedCard(input: {
   ], card.expiryYear);
   await fillFirstVisible(page, [
     'input[autocomplete="cc-csc"]',
+    'input[placeholder*="cvc" i]',
+    'input[placeholder*="cvv" i]',
     'input[name*="cvv" i]',
     'input[id*="cvv" i]',
     'input[name*="cvc" i]',
     'input[id*="cvc" i]',
   ], card.cvv);
+  await fillFirstVisible(page, [
+    'input[autocomplete="email"]',
+    'input[placeholder*="email" i]',
+    'input[name*="email" i]',
+    'input[id*="email" i]',
+  ], process.env.VN_FIXED_CARD_EMAIL ?? "e1484122@u.nus.edu");
+  await fillFirstVisible(page, [
+    'input[placeholder*="province" i]',
+    'input[name*="province" i]',
+    'input[id*="province" i]',
+  ], process.env.VN_FIXED_CARD_PROVINCE ?? "Singapore");
+  await fillFirstVisible(page, [
+    'textarea[placeholder*="address" i]',
+    'input[placeholder*="address" i]',
+    'textarea[name*="address" i]',
+    'input[name*="address" i]',
+    'textarea[id*="address" i]',
+    'input[id*="address" i]',
+  ], process.env.VN_FIXED_CARD_ADDRESS ?? "Singapore");
 
   const submitted = await clickFirstVisible(page, [
     'button:has-text("Pay")',

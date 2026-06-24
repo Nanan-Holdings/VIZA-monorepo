@@ -411,6 +411,18 @@ async function fillVietnamApplicationOnce(
         const captchaOutcome = await solveVietnamImageCaptcha(page, Math.min(stepTimeoutMs, 120_000));
         captchaSolves.push(captchaOutcome);
         if (!captchaOutcome.solved) {
+          const recoverySnapshot = await readVietnamPortalSnapshot(
+            page,
+            failedRequests.length,
+            mainRequestFailed,
+          ).catch(() => null);
+          if (recoverySnapshot) {
+            lastSnapshot = recoverySnapshot;
+            stateAfterCaptcha = classifyVietnamPortalSnapshot(recoverySnapshot);
+            if (stateAfterCaptcha !== "captcha_visible") {
+              break;
+            }
+          }
           return {
             status: "action_required",
             runId,
@@ -423,7 +435,11 @@ async function fillVietnamApplicationOnce(
           };
         }
         await emitProgress("captcha_submitted");
-        await submitReviewCaptchaAndWait(page, stepTimeoutMs);
+        await withTimeout(
+          submitReviewCaptchaAndWait(page, stepTimeoutMs),
+          Math.min(stepTimeoutMs, 55_000),
+          undefined,
+        );
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
       }
@@ -439,6 +455,13 @@ async function fillVietnamApplicationOnce(
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
       }
+    }
+    if (
+      registrationCode &&
+      options.allowFixedCardPayment &&
+      stateAfterCaptcha !== "payment_page_visible"
+    ) {
+      stateAfterCaptcha = await continueVietnamSameSessionToPayment(page, stepTimeoutMs);
     }
     if (stateAfterCaptcha === "captcha_visible" && !registrationCode) {
       return {
@@ -559,6 +582,42 @@ async function fillVietnamApplicationOnce(
         url: page.url(),
         diagnostics: diagnostics(),
       };
+    }
+
+    const finalSnapshot = await readVietnamPortalSnapshot(page).catch(() => null);
+    const finalState = finalSnapshot ? classifyVietnamPortalSnapshot(finalSnapshot) : stateAfterCaptcha;
+    if (finalState === "payment_page_visible") {
+      await emitProgress("payment_required");
+      const fixedCard = options.allowFixedCardPayment
+        ? options.fixedCard ?? loadVietnamFixedCardFromEnv()
+        : null;
+      if (fixedCard) {
+        await emitProgress("payment_handoff");
+        const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
+        if (payment.status === "paid" && payment.receiptReference) {
+          return {
+            status: "submitted_paid",
+            runId,
+            registrationCode,
+            submittedAtIso: new Date().toISOString(),
+            paymentReceiptReference: payment.receiptReference,
+            redactedCard: payment.redactedCard ?? redactVietnamFixedCard(fixedCard),
+            fieldsFilled: filled,
+            fieldsSkipped: skipped,
+            fieldFallbacks,
+          };
+        }
+        return {
+          status: "action_required",
+          runId,
+          actionType: "payment_required",
+          checkpoint: "payment_page_visible",
+          instruction:
+            `The official Vietnam e-Visa portal reached payment, but fixed-card payment could not complete automatically: ${payment.reason ?? payment.status}`,
+          url: page.url(),
+          diagnostics: diagnostics(),
+        };
+      }
     }
 
     return {
@@ -1478,7 +1537,7 @@ async function captureRegistrationCode(page: Page): Promise<string | null> {
 
 async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number): Promise<boolean> {
   const hasNotice = await page
-    .locator("text=/DECLARATION COMPLETED|Electronic document code/i")
+    .locator("text=/DECLARATION COMPLETED|ADDITIONAL COMPLETED|Electronic document code/i")
     .first()
     .isVisible({ timeout: 3_000 })
     .catch(() => false);
@@ -1514,13 +1573,85 @@ async function confirmDeclarationCompletedNotice(page: Page, timeoutMs: number):
     .waitForFunction(
       () => {
         const body = document.body?.innerText ?? "";
-        return /payment|pay|phí|thanh toán|registration code|electronic document code/i.test(body);
+        return /payment|pay|phí|thanh toán|registration code|electronic document code|additional completed/i.test(body);
       },
       { timeout: Math.min(timeoutMs, 20_000) },
     )
     .catch(() => undefined);
   await page.waitForTimeout(2_000);
   return true;
+}
+
+async function continueVietnamSameSessionToPayment(
+  page: Page,
+  timeoutMs: number,
+): Promise<VietnamPortalStateId> {
+  const deadline = Date.now() + Math.min(timeoutMs, 90_000);
+  let lastState: VietnamPortalStateId = "registration_code_visible";
+  while (Date.now() < deadline) {
+    const snapshot = await readVietnamPortalSnapshot(page);
+    lastState = classifyVietnamPortalSnapshot(snapshot);
+    if (lastState === "payment_page_visible") return lastState;
+    if (lastState === "final_submit_visible") {
+      const clicked = await clickVietnamVisibleButton(page, [
+        "Payment",
+        "Pay",
+        "Confirm",
+        "Submit",
+        "Next",
+        "Continue",
+      ]);
+      if (!clicked) return lastState;
+      await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 45_000) }).catch(() => undefined);
+      await page.waitForTimeout(1_500);
+      continue;
+    }
+    const clicked = await clickVietnamVisibleButton(page, [
+      "Payment",
+      "Pay",
+      "Confirm",
+      "Next",
+      "Continue",
+      "OK",
+    ]);
+    if (!clicked) return lastState;
+    await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 45_000) }).catch(() => undefined);
+    await page.waitForTimeout(1_500);
+  }
+  return lastState;
+}
+
+async function clickVietnamVisibleButton(page: Page, labels: string[]): Promise<boolean> {
+  return page
+    .evaluate((buttonLabels) => {
+      const visible = (element: Element | null): element is HTMLElement => {
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const normalizedLabels = buttonLabels.map((label) => label.toLowerCase());
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>("button, [role='button'], a"))
+        .filter(visible)
+        .filter((element) => {
+          const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+          if (!text) return false;
+          return normalizedLabels.some((label) => text === label || text.includes(label));
+        })
+        .filter((element) => {
+          if (element instanceof HTMLButtonElement && element.disabled) return false;
+          if (element.getAttribute("aria-disabled") === "true") return false;
+          return !/\bdisabled\b/i.test(element.className.toString());
+        });
+      const target = candidates[candidates.length - 1];
+      if (!target) return false;
+      target.scrollIntoView({ block: "center" });
+      target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }));
+      target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, button: 0 }));
+      target.click();
+      return true;
+    }, labels)
+    .catch(() => false);
 }
 
 function serializeError(err: unknown): Record<string, unknown> {
