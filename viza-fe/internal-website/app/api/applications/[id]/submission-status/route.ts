@@ -90,6 +90,19 @@ function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
+function readPayloadString(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType");
+  return checkpoint === "payment_page_visible" || actionType === "payment_required";
+}
+
 function clampProgress(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -118,35 +131,44 @@ function extractFieldFallbacks(payload: unknown): unknown[] {
 
 function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
   const queueStatus = normalizeStatus(queue?.status);
-  if (!queue || queueStatus !== "vn_blocked") return null;
+  if (!queue || (queueStatus !== "vn_blocked" && !isVietnamPaymentCheckpointQueue(queue))) {
+    return null;
+  }
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   const actionType =
     typeof payload.actionType === "string" && payload.actionType.trim()
       ? payload.actionType.trim()
-      : "captcha_required";
+      : isVietnamPaymentCheckpointQueue(queue)
+        ? "payment_required"
+        : "captcha_required";
   const instruction =
     typeof payload.instruction === "string" && payload.instruction.trim()
       ? payload.instruction.trim()
-      : queue.error_message ?? queue.last_error ?? "Vietnam official portal needs action before VIZA can continue.";
+      : queue.error_message ??
+        queue.last_error ??
+        (actionType === "payment_required"
+          ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+          : "Vietnam official portal needs action before VIZA can continue.");
   const checkpoint =
     typeof payload.checkpoint === "string" && payload.checkpoint.trim()
       ? payload.checkpoint.trim()
-      : queue.current_stage ?? "captcha_submitted_blocked";
+      : queue.current_stage ??
+        (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
 
   return {
     country: "VN",
-    status: actionType,
+    status: actionType === "payment_required" ? "stopped_at_pay" : actionType,
     mode: "live_assisted",
     provider: "vietnam_evisa_live",
-    portalUrl: queue.official_portal_url ?? "https://evisa.gov.vn/e-visa/foreigners",
+    portalUrl: readPayloadString(payload, "url") ?? queue.official_portal_url ?? "https://evisa.gov.vn/e-visa/foreigners",
     checkpoint,
     manualAction: {
       type: actionType,
       status: "open",
       instructions: instruction,
     },
-    paymentStatus: "not_required",
+    paymentStatus: actionType === "payment_required" ? "manual_required" : "not_required",
     applicationCountry: application.country,
     applicationVisaType: application.visa_type,
     evidence,
@@ -386,6 +408,18 @@ export function deriveNonTerminalStatus(
   const currentStage = normalizeStatus(queue?.current_stage);
   const error = queueMessage;
 
+  if (isVietnamPaymentCheckpointQueue(queue)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page.",
+      error: queueMessage,
+    };
+  }
+
   if (queueDerived.status === "needs_user_action") {
     return {
       status: "needs_user_action",
@@ -540,7 +574,9 @@ export async function GET(
       result: queueResult ?? (activeQueueOverridesTerminal ? null : application.submission_result ?? null),
       error: derived.error,
       updatedAt,
-      applicationStatus: queueOverridesApplication
+      applicationStatus: queueResult
+        ? "action_required"
+        : queueOverridesApplication
         ? queue?.status === "sgac_live_assisted_scheduled"
           ? "scheduled"
           : queue?.status?.endsWith("_pending")

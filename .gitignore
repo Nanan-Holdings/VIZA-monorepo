@@ -135,3 +135,8 @@ viza-be/submission-service/vn-recon-out/
 viza-be/submission-service/vn-recon-out-minimal/
 viza-be/submission-service/vn-recon-out-v2/
 viza-be/submission-service/vn-recon-out-v3/
+
+# Runtime/browser automation artifacts
+/output/
+**/output/
+viza-be/submission-service/artifacts/
