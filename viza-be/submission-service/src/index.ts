@@ -3575,7 +3575,10 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
       const diagnosticsDir = path.resolve("diag-out", "vn-payment", item.id);
       fs.mkdirSync(diagnosticsDir, { recursive: true });
       const screenshotPath = path.join(diagnosticsDir, "payment-resume.png");
-      const cardSession = consumeVietnamCardSession(item.application_id);
+      const cardSession = await consumeVietnamCardSessionWithGrace(
+        item.application_id,
+        readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false),
+      );
       const payment = await resumeVietnamOfficialPayment({
         registrationCode,
         email,
@@ -3889,7 +3892,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       officialPaymentAutopayEnabled && readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false);
     const envFixedCardPaymentEnabled =
       officialPaymentAutopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
-    const oneTimeFixedCard = oneTimeCardPaymentEnabled ? consumeVietnamCardSession(item.application_id) : null;
+    const oneTimeFixedCard = await consumeVietnamCardSessionWithGrace(
+      item.application_id,
+      oneTimeCardPaymentEnabled,
+    );
     let officialFeeIntent: VnOfficialFeeIntentRow | null = null;
     let officialFeeFallbackAuthorized = false;
     if (oneTimeCardPaymentEnabled || envFixedCardPaymentEnabled) {
@@ -5172,6 +5178,25 @@ async function poll(): Promise<void> {
 const RUNNER_WORKER_ID = `submission-service-${process.pid}`;
 const runnerAbort = new AbortController();
 let runnerStarted = false;
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function consumeVietnamCardSessionWithGrace(
+  applicationId: string,
+  enabled: boolean,
+  waitMs = 15_000,
+): Promise<ReturnType<typeof consumeVietnamCardSession>> {
+  if (!enabled) return null;
+  const deadline = Date.now() + Math.max(0, waitMs);
+  let card = consumeVietnamCardSession(applicationId);
+  while (!card && Date.now() < deadline) {
+    await sleepMs(500);
+    card = consumeVietnamCardSession(applicationId);
+  }
+  return card;
+}
 
 function shutdownRunner(signal: string): void {
   console.log(`[main] ${signal} received — stopping runner_job consumer`);

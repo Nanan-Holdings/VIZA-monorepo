@@ -818,8 +818,8 @@ function validateAnswer(
 
   const arrival = parseDate(findAnswer(allAnswers, ARRIVAL_DATE_CANDIDATES));
   const departure = parseDate(findAnswer(allAnswers, DEPARTURE_DATE_CANDIDATES));
-  if (isDepartureDateField(field) && arrival && departure && departure <= arrival) {
-    error("离境日期必须晚于入境日期。", "Departure date must be after arrival date.");
+  if (isDepartureDateField(field) && arrival && departure && departure < arrival) {
+    error("离境日期不能早于入境日期。", "Departure date cannot be earlier than arrival date.");
   }
   if (isDocumentExpiryField(field) && arrival && expiry && expiry < arrival) {
     error("护照/旅行证件在入境前已过期。", "The passport or travel document expires before arrival.");

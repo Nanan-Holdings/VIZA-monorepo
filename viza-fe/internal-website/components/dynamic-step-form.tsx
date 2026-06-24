@@ -625,8 +625,8 @@ function getLocalFieldIssue(
   const isCurrentTravelDateField =
     isCurrentArrivalDateField(field, valueKey) ||
     isCurrentDepartureDateField(field, valueKey);
-  if (isCurrentTravelDateField && arrivalDate && departureDate && departureDate <= arrivalDate) {
-    return issue("error", isZh ? "离开日期必须晚于到达日期" : "Departure date must be after arrival date");
+  if (isCurrentTravelDateField && arrivalDate && departureDate && departureDate < arrivalDate) {
+    return issue("error", isZh ? "离开日期不能早于抵达日期" : "Departure date cannot be earlier than arrival date");
   }
   if (isCurrentDocumentExpiryField(field, valueKey) && arrivalDate && expiryDate && expiryDate < arrivalDate) {
     return issue("error", isZh ? "证件到期日在旅行日期之前" : "Document expires before the travel date");

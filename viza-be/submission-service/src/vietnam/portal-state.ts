@@ -61,7 +61,7 @@ export interface VietnamPortalSnapshot {
 }
 
 const REGISTRATION_CODE_PATTERN =
-  /(?:mã hồ sơ|ma ho so|registration\s*(?:code|number)|application\s*(?:code|number))[:\s#-]*([A-Z0-9]{8,})/i;
+  /(?:mã hồ sơ|ma ho so|registration\s*(?:code|number)|application\s*(?:code|number)|electronic\s+document\s+code)[:\s#-]*([A-Z0-9]{8,})/i;
 
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -151,8 +151,8 @@ export async function readVietnamPortalSnapshot(
       links.some((href) => /\/e-visa\/foreigners/i.test(href)) ||
       /for foreigners outside viet ?nam applying personally|apply now|e-visa for foreigners/i.test(combinedText);
     const registrationMatch = combinedText.match(
-      /(?:mã hồ sơ|ma ho so|registration\s*(?:code|number)|application\s*(?:code|number))[:\s#-]*([A-Z0-9]{8,})/i,
-    );
+      /(?:mã hồ sơ|ma ho so|registration\s*(?:code|number)|application\s*(?:code|number)|electronic\s+document\s+code)[:\s#-]*([A-Z0-9]{8,})/i,
+    ) ?? combinedText.match(/\b(E\d{6}[A-Z0-9]{8,})\b/i);
 
     return {
       bodyText,

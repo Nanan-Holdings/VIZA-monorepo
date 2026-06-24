@@ -768,7 +768,7 @@
       },
       "tripDates": {
         "duration": "[ES] Trip length: {days} days",
-        "invalid": "[ES] Departure date must be after arrival date."
+        "invalid": "[ES] Departure date cannot be earlier than arrival date."
       }
     },
     "us": {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { motion } from "motion/react";
-import { Loader2, CheckCircle2, Clock3, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, Clock3, Eye, EyeOff, ExternalLink, XCircle } from "lucide-react";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,6 +143,8 @@ export function WaitingCard({
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [cancelingScheduled, setCancelingScheduled] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const completeStatus = isCompletionStatus(status);
   const failedStatus = isFailedStatus(status);
   const waitingForUser = isWaitingForUserStatus(status);
@@ -252,6 +254,26 @@ export function WaitingCard({
       : "This progress updates with the background worker. If your action is needed, this card will switch to a checkpoint prompt.";
   })();
 
+  async function cancelScheduledSubmission() {
+    if (!applicationId || cancelingScheduled) return;
+    setCancelingScheduled(true);
+    setCancelError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/cancel-submission`, {
+        method: "POST",
+        cache: "no-store",
+      });
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(typeof body?.error === "string" ? body.error : `Cancel failed with ${response.status}`);
+      }
+      window.location.reload();
+    } catch (error) {
+      setCancelError(error instanceof Error ? error.message : String(error));
+      setCancelingScheduled(false);
+    }
+  }
+
   if (scheduledStatus) {
     return (
       <Card className="rounded-xl border-input">
@@ -277,6 +299,25 @@ export function WaitingCard({
             trackClassName="bg-muted"
             valueClassName="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700"
           />
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              disabled={!applicationId || cancelingScheduled}
+              onClick={() => {
+                void cancelScheduledSubmission();
+              }}
+            >
+              {cancelingScheduled ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
+              {isZh ? "取消提交" : "Cancel submission"}
+            </Button>
+            {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
+          </div>
         </CardContent>
       </Card>
     );
