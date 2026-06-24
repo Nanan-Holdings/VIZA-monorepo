@@ -6,10 +6,10 @@
     {
       "slug": "thailand-tourism-visa-exemption",
       "country": "thailand",
-      "visaType": "visa_exemption_or_tourist_visa",
+      "visaType": "TH_TDAC_ARRIVAL_CARD",
       "documentType": "requirements",
-      "title": "Thailand Tourist Entry and Visa Exemption",
-      "sourceUrl": "https://seoul.thaiembassy.org/en/publicservice/visa-exemption-scheme",
+      "title": "Thailand Digital Arrival Card (TDAC)",
+      "sourceUrl": "https://tdac.immigration.go.th/manual/en/index.html",
       "chunks": [
         {
           "id": "tha_tourism_basic_route_zh",
@@ -53,10 +53,10 @@
     {
       "slug": "thailand-form-requirements",
       "country": "thailand",
-      "visaType": "visa_exemption_or_tourist_visa",
+      "visaType": "TH_TDAC_ARRIVAL_CARD",
       "documentType": "form_requirements",
-      "title": "Thailand Application Form and Document Intake Requirements",
-      "sourceUrl": "https://www.thaievisa.go.th/",
+      "title": "Thailand TDAC Arrival Card Form Requirements",
+      "sourceUrl": "https://tdac.immigration.go.th/manual/en/index.html",
       "chunks": [
         {
           "id": "thailand_form_channel_and_scope",
@@ -68,7 +68,7 @@
             "workflow",
             "official-source"
           ],
-          "content": "Use the Royal Thai e-Visa system when a visa is required; visa-exempt travellers may not need a visa application form but still must meet entry checks. Official source URLs reviewed for this seed: https://www.thaievisa.go.th/ ; https://seoul.thaiembassy.org/en/publicservice/visa-exemption-scheme. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "Use the standalone TH_TDAC_ARRIVAL_CARD package for Thailand Digital Arrival Card preparation. Official source URLs reviewed for this seed: https://tdac.immigration.go.th/manual/en/index.html ; https://tdac.immigration.go.th/manual/en/faq.html. TDAC is not a Thai tourist visa or Thai e-Visa and must stay separate from visa-exemption or e-Visa workflows. Route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
         },
         {
           "id": "thailand_form_fields_to_collect",
@@ -80,7 +80,7 @@
             "field-mapping",
             "intake"
           ],
-          "content": "Thailand e-Visa intake should collect personal details, passport, residence, occupation, travel purpose, arrival/departure dates, itinerary, accommodation, inviter/host if any, previous Thai visa/travel history, and declarations."
+          "content": "Thailand TDAC intake should collect personal details, passport details, nationality, occupation, contact details, travel purpose, arrival/departure dates, mode of travel, flight/vehicle/vessel details, country or region boarded, port of arrival, accommodation/address in Thailand, health declaration details, and official declaration acknowledgements. Do not silently reuse Thai e-Visa fields for TDAC."
         },
         {
           "id": "thailand_supporting_documents_and_review",
@@ -92,7 +92,7 @@
             "upload",
             "review-before-submit"
           ],
-          "content": "Typical tourist visa evidence includes passport biodata page, photo, travel booking or itinerary, accommodation, financial evidence, proof of residence in the application country, and invitation/host evidence if relevant. Workflow guardrails: VIZA should first check visa exemption eligibility and stay length. For e-Visa cases, collect upload-ready documents and avoid promising entry because immigration checks still apply."
+          "content": "TDAC preparation evidence should focus on passport details, travel itinerary, arrival/departure dates, transport details, Thai accommodation/address, and health declaration information. Workflow guardrails: VIZA should keep TDAC separate from Thai tourist visa and e-Visa workflows and avoid promising entry because immigration checks still apply."
         }
       ]
     }
