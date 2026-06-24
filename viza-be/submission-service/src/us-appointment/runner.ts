@@ -21,6 +21,7 @@ export interface USAppointmentRunnerConfig {
   playwrightEnabled: boolean;
   playwrightHeadless: boolean;
   playwrightChannel: string | null;
+  playwrightCdpEndpoint: string | null;
   playwrightStorageStatePath: string | null;
   baseUrl: string;
 }
@@ -44,6 +45,8 @@ export interface USAppointmentJobRow {
 export interface AppointmentAccountCredentials {
   email: string;
   password: string;
+  givenName?: string | null;
+  surname?: string | null;
 }
 
 export interface ManualActionInsert {
@@ -119,11 +122,13 @@ export interface AppointmentPortalGate {
   jobStatus: "appointment_manual_required" | "appointment_blocked_by_site_policy";
   actionType:
     | "login"
+    | "account_email_verification"
     | "captcha"
     | "payment"
     | "site_policy_review"
     | "final_confirmation";
   instruction: string;
+  userInputSchemaJson?: JsonObject | null;
   metadata: JsonObject;
   errorCode?: string;
   errorMessage?: string;
@@ -228,6 +233,7 @@ export function loadUSAppointmentRunnerConfig(
     playwrightEnabled: env.US_APPOINTMENT_PLAYWRIGHT_ENABLED === "true",
     playwrightHeadless: env.US_APPOINTMENT_PLAYWRIGHT_HEADLESS !== "false",
     playwrightChannel: env.US_APPOINTMENT_PLAYWRIGHT_CHANNEL?.trim() || null,
+    playwrightCdpEndpoint: env.US_APPOINTMENT_CDP_ENDPOINT?.trim() || null,
     playwrightStorageStatePath: env.US_APPOINTMENT_STORAGE_STATE_PATH?.trim() || null,
     baseUrl: env.US_APPOINTMENT_BASE_URL ?? "https://www.usvisascheduling.com/",
   };
@@ -377,7 +383,7 @@ async function persistManualGate(
     action_type: gate.actionType,
     status: "pending",
     instruction: gate.instruction,
-    user_input_schema_json: null,
+    user_input_schema_json: gate.userInputSchemaJson ?? null,
     metadata_redacted_json: gate.metadata,
   });
   await repository.updateJobForManualAction({

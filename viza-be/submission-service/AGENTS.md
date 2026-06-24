@@ -111,6 +111,13 @@ filling and one-shot submission for the applicant.
   terminal unless `-FixedCard` is passed. The setup script may save only
   non-sensitive card metadata such as last4/expiry/holder in ignored local
   files. Full PAN and CVV must not be committed, logged, or stored in `.env`.
+- `scripts/start-us-appointment-user-chrome.ps1`: local helper that starts the
+  Chrome with a CDP port for the USVisaScheduling runner. If normal Chrome is
+  already running, it starts an isolated VIZA automation profile under
+  `output/chrome-profiles/us-appointment-cdp` so the user can keep using their
+  browser. Use `-RequireDefaultProfile` only when the runner must attach to the
+  user's default Chrome profile, and ask the user to close Chrome first instead
+  of killing their browser process.
 - `src/vietnam/card-session.ts` plus the health-server
   `POST /local/vietnam/card-session` endpoint: local-only one-time card handoff
   for frontend-entered Vietnam official-fee payments. It is enabled only by

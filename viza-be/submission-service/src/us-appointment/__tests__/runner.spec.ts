@@ -148,6 +148,20 @@ test("US appointment runner exposes 2captcha handoff metadata when configured", 
   assert.equal(handoff.metadata.captcha_solver_provider, "2captcha");
 });
 
+test("US appointment runner reads user Chrome CDP configuration", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
+    US_APPOINTMENT_PLAYWRIGHT_CHANNEL: "chrome",
+    US_APPOINTMENT_CDP_ENDPOINT: "http://127.0.0.1:9222",
+    US_APPOINTMENT_STORAGE_STATE_PATH: "output/playwright/usvisascheduling.json",
+  });
+
+  assert.equal(config.playwrightEnabled, true);
+  assert.equal(config.playwrightChannel, "chrome");
+  assert.equal(config.playwrightCdpEndpoint, "http://127.0.0.1:9222");
+  assert.equal(config.playwrightStorageStatePath, "output/playwright/usvisascheduling.json");
+});
+
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {
   const config = loadUSAppointmentRunnerConfig({
     US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
@@ -354,6 +368,81 @@ test("US appointment runner persists unsupported official-site gates as manual-r
   assert.equal(
     repository.auditEvents.at(-1)?.metadata_redacted_json.gate_type,
     "unsupported_captcha",
+  );
+});
+
+test("US appointment runner persists account email verification as an explicit checkpoint", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = {
+    email: "applicant@example.com",
+    password: "secret-password",
+  };
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return {
+        readyForSlotCapture: false,
+        gate: {
+          jobStatus: "appointment_manual_required",
+          actionType: "account_email_verification",
+          instruction: "Enter the official account email verification code.",
+          userInputSchemaJson: {
+            type: "object",
+            properties: {
+              emailCode: { type: "string" },
+            },
+            required: ["emailCode"],
+          },
+          metadata: {
+            gate_type: "account_email_verification",
+            provider: "usvisascheduling",
+            account_email: "[REDACTED]",
+          },
+          errorCode: "account_email_verification_required",
+          errorMessage: "USVisaScheduling requires an official account email verification code.",
+        },
+      };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_login_required",
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.manualActions.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "account_email_verification");
+  assert.deepEqual(
+    (repository.manualActions.at(-1) as { user_input_schema_json?: unknown }).user_input_schema_json,
+    {
+      type: "object",
+      properties: {
+        emailCode: { type: "string" },
+      },
+      required: ["emailCode"],
+    },
   );
 });
 
