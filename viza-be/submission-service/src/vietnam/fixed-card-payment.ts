@@ -229,12 +229,99 @@ async function advanceOfficialVietnamPaymentInformationPage(page: Page): Promise
 }
 
 async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): Promise<boolean> {
+  const brandCode: Record<VietnamCardBrand, string> = {
+    visa: "VISA",
+    mastercard: "MASTERCARD",
+    jcb: "JCB",
+    amex: "AMEX",
+  };
+  const selectedByBankCode = await page
+    .evaluate((code) => {
+      const triggerMouseClick = (element: HTMLElement): void => {
+        element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
+        element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      };
+      const triggerChange = (element: HTMLElement): void => {
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+
+      const radio = document.querySelector<HTMLInputElement>('input[name="payment-method"][value="INTERNATIONAL_CARD"]');
+      if (radio && !radio.checked) {
+        radio.checked = true;
+        triggerChange(radio);
+      }
+
+      const internationalHeader = Array.from(document.querySelectorAll<HTMLElement>("label, div, button"))
+        .filter((element) => /international payment cards/i.test(element.innerText || element.textContent || ""))
+        .sort((left, right) => {
+          const leftRect = left.getBoundingClientRect();
+          const rightRect = right.getBoundingClientRect();
+          return leftRect.width * leftRect.height - rightRect.width * rightRect.height;
+        })[0];
+      if (internationalHeader) {
+        triggerMouseClick(internationalHeader);
+      }
+
+      const accordion = document.querySelector<HTMLElement>("#accordionList3");
+      if (accordion) {
+        accordion.classList.add("show");
+        accordion.style.display = "";
+      }
+
+      const item = document.querySelector<HTMLElement>(`.list-bank-item[bank-code="${code}"]`);
+      if (!item) return false;
+      item.scrollIntoView({ block: "center", inline: "center" });
+      triggerMouseClick(item);
+
+      const terms = document.querySelector<HTMLInputElement>('input[name="checkbox-terms"]');
+      if (terms && !terms.checked) {
+        terms.checked = true;
+        triggerChange(terms);
+      }
+
+      const continueButton = document.querySelector<HTMLButtonElement>("#continueBtn");
+      return item.classList.contains("active") && !!continueButton && !/\bdisabled\b/i.test(continueButton.className || "");
+    }, brandCode[brand])
+    .catch(() => false);
+  if (selectedByBankCode) return true;
+
   const brandIndex: Record<VietnamCardBrand, number> = {
     visa: 0,
     mastercard: 1,
     jcb: 2,
     amex: 3,
   };
+
+  const groupItems = page.locator(".group-col-item");
+  const groupCount = await groupItems.count().catch(() => 0);
+  const largeBrandItems: Array<{ index: number; x: number; y: number; width: number; height: number }> = [];
+  for (let index = 0; index < groupCount; index += 1) {
+    const item = groupItems.nth(index);
+    const box = await item.boundingBox().catch(() => null);
+    if (!box) continue;
+    if (box.width >= 100 && box.width <= 260 && box.height >= 45 && box.height <= 130) {
+      largeBrandItems.push({ index, x: box.x, y: box.y, width: box.width, height: box.height });
+    }
+  }
+  largeBrandItems.sort((left, right) => {
+    const rowDelta = left.y - right.y;
+    if (Math.abs(rowDelta) > 20) return rowDelta;
+    return left.x - right.x;
+  });
+  if (largeBrandItems.length >= 4) {
+    const target = largeBrandItems[brandIndex[brand]];
+    if (target) {
+      await groupItems.nth(target.index).click({
+        timeout: 5_000,
+        force: true,
+        position: { x: target.width / 2, y: target.height / 2 },
+      });
+      return true;
+    }
+  }
+
   const targetPoint = await page
     .evaluate(
       ({ targetIndex }) => {
@@ -363,6 +450,66 @@ async function expandVietcombankInternationalCards(page: Page): Promise<boolean>
   return true;
 }
 
+async function ensureVietcombankTermsAccepted(page: Page): Promise<boolean> {
+  return page
+    .evaluate(() => {
+      const terms = document.querySelector<HTMLInputElement>('input[name="checkbox-terms"]');
+      if (!terms) return false;
+
+      const jquery = (window as typeof window & { $?: (selector: string) => { prop: (name: string, value: boolean) => { trigger: (event: string) => void } } }).$;
+      if (jquery) {
+        jquery('input[name="checkbox-terms"]').prop("checked", true).trigger("change");
+      } else if (!terms.checked) {
+        terms.checked = true;
+        terms.dispatchEvent(new Event("input", { bubbles: true }));
+        terms.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      const continueButton = document.querySelector<HTMLButtonElement>("#continueBtn");
+      return terms.checked && !!continueButton && !/\bdisabled\b/i.test(continueButton.className || "");
+    })
+    .catch(() => false);
+}
+
+async function submitVnpayInternationalCardForm(page: Page): Promise<boolean> {
+  const payButton = page.locator("#btnContinue, a.btnContinue").first();
+  if (!(await payButton.isVisible({ timeout: 1_500 }).catch(() => false))) return false;
+
+  await payButton.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
+  await payButton.click({ timeout: 10_000, force: true });
+  await page.waitForTimeout(1_000);
+
+  const agreeButton = page.locator("#btnAgree").first();
+  if (await agreeButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await agreeButton.click({ timeout: 10_000, force: true });
+  }
+  return true;
+}
+
+async function waitForVnpayPaymentSettlement(page: Page, timeoutMs = 300_000): Promise<void> {
+  await page
+    .waitForFunction(
+      () => {
+        const loadingVisible = Array.from(document.querySelectorAll<HTMLElement>(".loading, .loading-wrap, .modal-backdrop"))
+          .some((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && rect.width > 0 && rect.height > 0;
+          });
+        const bodyText = document.body?.innerText ?? "";
+        const url = window.location.href;
+        return (
+          !loadingVisible ||
+          !/\/MasterCard\/Transaction\/Index\.html/i.test(url) ||
+          /\b(3d secure|3ds|otp|one[-\s]?time password|authentication|required|transaction failed|payment failed|declined|receipt|reference|successful|success)\b/i.test(bodyText)
+        );
+      },
+      undefined,
+      { timeout: timeoutMs, polling: 1_000 },
+    )
+    .catch(() => undefined);
+}
+
 async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
@@ -386,15 +533,24 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
     await page.waitForTimeout(750);
   }
 
-  const terms = page.locator('input[name="checkbox-terms"], input[type="checkbox"]:visible').first();
-  if (await terms.isVisible({ timeout: 1_500 }).catch(() => false)) {
-    await terms.check({ timeout: 5_000 }).catch(async () => {
-      await terms.click({ timeout: 5_000, force: true });
-    });
-    await page.waitForTimeout(500);
+  let termsAccepted = await ensureVietcombankTermsAccepted(page);
+  if (!termsAccepted) {
+    const terms = page.locator('input[name="checkbox-terms"]').first();
+    if (await terms.count().catch(() => 0)) {
+      await terms.check({ timeout: 5_000, force: true }).catch(async () => {
+        await terms.evaluate((element) => {
+          const checkbox = element as HTMLInputElement;
+          checkbox.checked = true;
+          checkbox.dispatchEvent(new Event("input", { bubbles: true }));
+          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+      await page.waitForTimeout(500);
+    }
+    termsAccepted = await ensureVietcombankTermsAccepted(page);
   }
   const termsLabel = page.locator('text=/I have read/i').first();
-  if (await termsLabel.isVisible({ timeout: 1_500 }).catch(() => false)) {
+  if (!termsAccepted && await termsLabel.isVisible({ timeout: 1_500 }).catch(() => false)) {
     const box = await termsLabel.boundingBox().catch(() => null);
     if (box) {
       await page.mouse.click(Math.max(1, box.x - 20), box.y + box.height / 2);
@@ -402,10 +558,12 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
       await termsLabel.click({ timeout: 5_000, force: true });
     }
     await page.waitForTimeout(500);
+    await ensureVietcombankTermsAccepted(page);
   }
 
   const continueButton = page.locator('button:has-text("Continue")').first();
   if (await continueButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await ensureVietcombankTermsAccepted(page);
     await continueButton.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const className = await continueButton.getAttribute("class").catch(() => "");
@@ -554,7 +712,10 @@ export async function payVietnamPortalWithFixedCard(input: {
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
   await page.waitForTimeout(500);
 
-  const submitted = await clickFirstVisible(page, [
+  const submitted = await submitVnpayInternationalCardForm(page) || await clickFirstVisible(page, [
+    "#btnContinue",
+    "a.btnContinue",
+    'a:has-text("Pay")',
     'button:has-text("Pay")',
     'button:has-text("Pay now")',
     'button:has-text("Continue")',
@@ -580,13 +741,19 @@ export async function payVietnamPortalWithFixedCard(input: {
     };
   }
 
-  await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
+  await waitForVnpayPaymentSettlement(page);
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   const afterText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (vietnamPaymentNeedsHuman(afterText)) {
+  if (
+    vietnamPaymentNeedsHuman(afterText) ||
+    /(?:3ds|auth-notify|secure-devicefp|id-check|authentication)/i.test(page.url()) ||
+    /mobile banking app|authenticate payment|approve this transaction|complete your purchase/i.test(afterText)
+  ) {
     return {
       status: "needs_human",
       receiptReference: null,
-      reason: "Payment gateway requested 3DS/OTP/bank authentication after card submit.",
+      reason: "Payment gateway requested 3DS/OTP/bank-app authentication after card submit.",
       redactedCard,
     };
   }
