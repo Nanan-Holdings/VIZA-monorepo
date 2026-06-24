@@ -75,10 +75,11 @@ The current internal automation migrations are:
   fields and a compatibility live-session table for encrypted official
   identifiers. CAPTCHA and final Sign/Submit remain manual.
 - `0098_sg_arrival_card_package.sql`: Singapore SG Arrival Card package catalog
-  row for manual official-channel SGAC preparation. It is separate from
-  Singapore Visit Visa / SAVE and does not add official submission automation.
+  row. It is separate from Singapore Visit Visa / SAVE.
 - `0099_vietnam_payment_status_tracking.sql`: Vietnam official-fee queue links
   and redacted official status check history for applicant status refreshes.
+- `0100_mdac_tdac_arrival_card_packages.sql`: Malaysia MDAC and Thailand TDAC
+  package catalog rows. They are separate from eVisa/tourist visa workflows.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.

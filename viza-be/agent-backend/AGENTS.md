@@ -44,10 +44,11 @@ explicitly reintroduces another provider.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
-- Singapore SG Arrival Card seed:
-  `scripts/sgac/form-fields.ts` and `scripts/sgac/seed-form-fields.ts`, with
-  `scripts/seed-sg-arrival-card-form-fields.ts` retained as the command entry and focused coverage in
-  `src/tests/sg-arrival-card-schema.test.ts`.
+- Arrival-card seeds:
+  `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
+  `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for
+  `TH_TDAC_ARRIVAL_CARD`. Keep the top-level `scripts/seed-*-form-fields.ts`
+  files as command entries and keep country packages separate from visa flows.
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
 
