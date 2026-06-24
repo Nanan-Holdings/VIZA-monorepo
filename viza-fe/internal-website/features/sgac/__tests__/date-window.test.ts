@@ -40,17 +40,16 @@ describe("SGAC submission date window", () => {
     });
   });
 
-  test("requires departure date to be later than arrival date", () => {
+  test("allows same-day departure and rejects only dates before arrival", () => {
     expect(validateSgacTravelDates("2026-06-22", "2026-06-23")).toMatchObject({
       ok: true,
     });
     expect(validateSgacTravelDates("2026-06-22", "2026-06-22")).toMatchObject({
-      ok: false,
-      code: "departure_not_after_arrival",
+      ok: true,
     });
     expect(validateSgacTravelDates("2026-06-22", "2026-06-21")).toMatchObject({
       ok: false,
-      code: "departure_not_after_arrival",
+      code: "departure_before_arrival",
     });
   });
 });

@@ -440,6 +440,27 @@ async function fillVietnamApplicationOnce(
           Math.min(stepTimeoutMs, 55_000),
           undefined,
         );
+        const codeAfterCaptcha = await withTimeout(captureRegistrationCode(page), 8_000, null);
+        if (codeAfterCaptcha) {
+          console.log(`[vn] Run ${runId} captured registration code after review CAPTCHA.`);
+          const confirmed = await withTimeout(
+            confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+            Math.min(stepTimeoutMs, 30_000),
+            false,
+          );
+          if (confirmed) {
+            await page.waitForTimeout(1_000);
+          }
+        } else {
+          const confirmed = await withTimeout(
+            confirmDeclarationCompletedNotice(page, stepTimeoutMs),
+            Math.min(stepTimeoutMs, 10_000),
+            false,
+          );
+          if (confirmed) {
+            await page.waitForTimeout(1_000);
+          }
+        }
         lastSnapshot = await readVietnamPortalSnapshot(page, failedRequests.length, mainRequestFailed);
         stateAfterCaptcha = classifyVietnamPortalSnapshot(lastSnapshot);
       }
@@ -1452,8 +1473,10 @@ async function submitReviewCaptchaAndWait(page: Page, timeoutMs: number): Promis
       }, target);
     });
   }
-  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 45_000) }).catch(() => undefined);
-  await page.waitForTimeout(3_000);
+  // The Vietnam portal often keeps analytics/API requests open after the
+  // security-code submit. Waiting for networkidle can pin the worker at
+  // captcha_submitted even when the page has already advanced to payment.
+  await page.waitForTimeout(Math.min(timeoutMs, 5_000));
 }
 
 async function refreshVietnamReviewCaptcha(page: Page): Promise<void> {

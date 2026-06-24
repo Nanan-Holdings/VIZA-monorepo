@@ -147,13 +147,27 @@ function isOfficialVietnamPaymentInformationPage(bodyText: string): boolean {
   );
 }
 
+type VietnamCardBrand = "visa" | "mastercard" | "jcb" | "amex";
+
+function detectVietnamCardBrand(card: VietnamFixedCard): VietnamCardBrand {
+  if (/^4/.test(card.pan)) return "visa";
+  if (/^(5[1-5]|2[2-7])/.test(card.pan)) return "mastercard";
+  if (/^35/.test(card.pan)) return "jcb";
+  if (/^3[47]/.test(card.pan)) return "amex";
+  return "visa";
+}
+
 async function fillFirstVisible(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
-    const locator = page.locator(selector).first();
+    const locator = page.locator(selector);
     try {
-      if (await locator.isVisible({ timeout: 1_000 })) {
-        await locator.fill(value, { timeout: 5_000 });
-        return true;
+      const count = await locator.count();
+      for (let index = 0; index < count; index += 1) {
+        const candidate = locator.nth(index);
+        if (await candidate.isVisible({ timeout: 500 }).catch(() => false)) {
+          await candidate.fill(value, { timeout: 5_000 });
+          return true;
+        }
       }
     } catch {
       // Try the next selector; payment gateways vary by provider.
@@ -164,11 +178,17 @@ async function fillFirstVisible(page: Page, selectors: string[], value: string):
 
 async function clickFirstVisible(page: Page, selectors: string[]): Promise<boolean> {
   for (const selector of selectors) {
-    const locator = page.locator(selector).first();
+    const locator = page.locator(selector);
     try {
-      if (await locator.isVisible({ timeout: 1_000 })) {
-        await locator.click({ timeout: 5_000 });
-        return true;
+      const count = await locator.count();
+      for (let index = 0; index < count; index += 1) {
+        const candidate = locator.nth(index);
+        if (await candidate.isVisible({ timeout: 500 }).catch(() => false)) {
+          await candidate.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
+          if (!(await candidate.isEnabled({ timeout: 500 }).catch(() => true))) continue;
+          await candidate.click({ timeout: 5_000 });
+          return true;
+        }
       }
     } catch {
       // Try the next selector.
@@ -208,7 +228,124 @@ async function advanceOfficialVietnamPaymentInformationPage(page: Page): Promise
   return true;
 }
 
-async function prepareVietcombankGatewayForCard(page: Page): Promise<void> {
+async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): Promise<boolean> {
+  const brandIndex: Record<VietnamCardBrand, number> = {
+    visa: 0,
+    mastercard: 1,
+    jcb: 2,
+    amex: 3,
+  };
+  const aliases: Record<VietnamCardBrand, string[]> = {
+    visa: ["visa"],
+    mastercard: ["mastercard", "master card", "master", "mc"],
+    jcb: ["jcb"],
+    amex: ["amex", "american express", "american"],
+  };
+
+  return page
+    .evaluate(
+      ({ targetBrand, targetIndex, targetAliases }) => {
+        const isVisible = (element: Element): boolean => {
+          const htmlElement = element as HTMLElement;
+          const rect = htmlElement.getBoundingClientRect();
+          const style = window.getComputedStyle(htmlElement);
+          return (
+            rect.width > 20 &&
+            rect.height > 20 &&
+            style.visibility !== "hidden" &&
+            style.display !== "none" &&
+            style.pointerEvents !== "none"
+          );
+        };
+        const signature = (element: Element): string => {
+          const htmlElement = element as HTMLElement;
+          const imageText = Array.from(element.querySelectorAll("img"))
+            .map((image) => `${image.alt ?? ""} ${image.title ?? ""} ${image.getAttribute("src") ?? ""}`)
+            .join(" ");
+          return [
+            htmlElement.innerText,
+            htmlElement.getAttribute("aria-label"),
+            htmlElement.getAttribute("title"),
+            htmlElement.getAttribute("class"),
+            htmlElement.getAttribute("id"),
+            imageText,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+        };
+        const clickElement = (element: Element): boolean => {
+          const clickable =
+            element.closest('button, label, [role="button"], a, [class*="card" i], [class*="method" i], [class*="payment" i]') ??
+            element;
+          const htmlElement = clickable as HTMLElement;
+          htmlElement.scrollIntoView({ block: "center", inline: "center" });
+          const rect = htmlElement.getBoundingClientRect();
+          const options = {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          };
+          htmlElement.dispatchEvent(new MouseEvent("mousedown", options));
+          htmlElement.dispatchEvent(new MouseEvent("mouseup", options));
+          htmlElement.dispatchEvent(new MouseEvent("click", options));
+          return true;
+        };
+
+        const broadCandidates = Array.from(
+          document.querySelectorAll(
+            'button, [role="button"], label, input, img, a, [class*="card" i], [class*="method" i], [class*="payment" i]',
+          ),
+        ).filter(isVisible);
+        const withRects = broadCandidates
+          .map((element) => ({ element, rect: (element as HTMLElement).getBoundingClientRect(), text: signature(element) }))
+          .sort((left, right) => right.rect.width * right.rect.height - left.rect.width * left.rect.height);
+        for (const alias of targetAliases) {
+          const direct = withRects.find((candidate) => candidate.text.includes(alias));
+          if (direct) return clickElement(direct.element);
+        }
+
+        const headings = Array.from(document.querySelectorAll("body *")).filter((element) =>
+          /international payment cards/i.test((element as HTMLElement).innerText ?? ""),
+        );
+        const heading = headings
+          .filter(isVisible)
+          .sort((left, right) => {
+            const leftRect = (left as HTMLElement).getBoundingClientRect();
+            const rightRect = (right as HTMLElement).getBoundingClientRect();
+            return leftRect.width * leftRect.height - rightRect.width * rightRect.height;
+          })[0];
+        if (!heading) return false;
+
+        const headingRect = (heading as HTMLElement).getBoundingClientRect();
+        const sectionCandidates = broadCandidates
+          .map((element) => ({ element, rect: (element as HTMLElement).getBoundingClientRect(), text: signature(element) }))
+          .filter(({ rect, text }) => {
+            if (rect.top <= headingRect.top + 20) return false;
+            if (rect.top - headingRect.top > 420) return false;
+            if (/international payment cards|continue|terms|condition|invoice/.test(text)) return false;
+            return rect.width >= 40 && rect.height >= 30;
+          })
+          .sort((left, right) => {
+            const rowDelta = left.rect.top - right.rect.top;
+            if (Math.abs(rowDelta) > 20) return rowDelta;
+            return left.rect.left - right.rect.left;
+          });
+
+        const brandBoxes = sectionCandidates.filter(({ rect }) => rect.width >= 80 && rect.height >= 40);
+        const fallback = brandBoxes[targetIndex] ?? sectionCandidates[targetIndex];
+        if (!fallback) return false;
+        return clickElement(fallback.element);
+      },
+      { targetBrand: brand, targetIndex: brandIndex[brand], targetAliases: aliases[brand] },
+    )
+    .then(Boolean)
+    .catch(() => false);
+}
+
+async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
 
@@ -217,6 +354,12 @@ async function prepareVietcombankGatewayForCard(page: Page): Promise<void> {
     await internationalCard.click({ timeout: 10_000 }).catch(async () => {
       await page.locator('input[name="payment-method"]').last().check({ timeout: 5_000 });
     });
+    await page.waitForTimeout(750);
+  }
+
+  const brand = detectVietnamCardBrand(card);
+  const brandSelected = await selectVietcombankCardBrand(page, brand);
+  if (brandSelected) {
     await page.waitForTimeout(750);
   }
 
@@ -288,7 +431,7 @@ export async function payVietnamPortalWithFixedCard(input: {
       redactedCard,
     };
   }
-  await prepareVietcombankGatewayForCard(page);
+  await prepareVietcombankGatewayForCard(page, card);
   const afterPreparationText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (/payment\s+failed.*recreate\s+profile|recreate\s+profile\s+and\s+retry\s+payment/i.test(afterPreparationText)) {
     return {
@@ -369,12 +512,25 @@ export async function payVietnamPortalWithFixedCard(input: {
     'input[id*="address" i]',
   ], process.env.VN_FIXED_CARD_ADDRESS ?? "Singapore");
 
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => undefined);
+  await page.waitForTimeout(500);
+
   const submitted = await clickFirstVisible(page, [
     'button:has-text("Pay")',
     'button:has-text("Pay now")',
+    'button:has-text("Continue")',
+    'button:has-text("Confirm")',
+    'button:has-text("Submit")',
     'button:has-text("Submit Payment")',
     'button:has-text("Thanh toán")',
+    '[role="button"]:has-text("Pay")',
+    '[role="button"]:has-text("Continue")',
+    '[role="button"]:has-text("Confirm")',
+    '[role="button"]:has-text("Submit")',
     'input[type="submit"][value*="Pay" i]',
+    'input[type="button"][value*="Pay" i]',
+    'input[type="submit"][value*="Continue" i]',
+    'input[type="button"][value*="Continue" i]',
   ]);
   if (!submitted) {
     return {

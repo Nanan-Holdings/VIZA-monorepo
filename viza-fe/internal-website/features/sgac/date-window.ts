@@ -28,7 +28,7 @@ export type SgacSubmissionWindow =
 
 export type SgacTravelDateValidation =
   | { ok: true; arrivalDate: string; departureDate: string }
-  | { ok: false; code: "missing_date" | "invalid_date" | "departure_not_after_arrival"; message: string };
+  | { ok: false; code: "missing_date" | "invalid_date" | "departure_before_arrival"; message: string };
 
 function parseIsoDateOnly(value: string | null | undefined): number | null {
   const trimmed = value?.trim();
@@ -125,11 +125,11 @@ export function validateSgacTravelDates(
     };
   }
 
-  if (departureDay <= arrivalDay) {
+  if (departureDay < arrivalDay) {
     return {
       ok: false,
-      code: "departure_not_after_arrival",
-      message: "SGAC departure date must be later than arrival date.",
+      code: "departure_before_arrival",
+      message: "SGAC departure date cannot be earlier than arrival date.",
     };
   }
 

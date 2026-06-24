@@ -50,6 +50,7 @@ export type SubmissionQueueStatus =
   | "sgac_dry_run_failed"
   | "sgac_live_assisted_pending"
   | "sgac_live_assisted_scheduled"
+  | "sgac_live_assisted_cancelled"
   | "sgac_live_assisted_processing"
   | "sgac_live_assisted_failed"
   | "sgac_blocked"
@@ -146,6 +147,7 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "vn_live_assisted_failed",
   "sgac_dry_run_failed",
   "sgac_live_assisted_failed",
+  "sgac_live_assisted_cancelled",
   "sgac_blocked",
   "vn_prefill_failed",
   "vn_payment_failed",

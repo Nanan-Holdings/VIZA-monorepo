@@ -2160,7 +2160,7 @@
       },
       "tripDates": {
         "duration": "行程长度: {days} 天",
-        "invalid": "离境日期必须晚于抵达日期。"
+        "invalid": "离境日期不能早于抵达日期。"
       }
     },
     "us": {
