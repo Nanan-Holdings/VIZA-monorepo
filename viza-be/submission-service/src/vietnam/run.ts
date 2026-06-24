@@ -215,6 +215,7 @@ async function fillVietnamApplicationOnce(
   let browser: Browser | null = null;
   let context: BrowserContext | null = null;
   let traceStarted = false;
+  let keepBrowserOpenForHumanPayment = false;
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
   const fieldFallbacks: VnFieldFallbackRecord[] = [];
@@ -544,6 +545,7 @@ async function fillVietnamApplicationOnce(
             fieldFallbacks,
           };
         }
+        keepBrowserOpenForHumanPayment = !headless && payment.status === "needs_human";
         return {
           status: "action_required",
           runId,
@@ -628,6 +630,7 @@ async function fillVietnamApplicationOnce(
             fieldFallbacks,
           };
         }
+        keepBrowserOpenForHumanPayment = !headless && payment.status === "needs_human";
         return {
           status: "action_required",
           runId,
@@ -675,15 +678,21 @@ async function fillVietnamApplicationOnce(
         /* best-effort diagnostics */
       }
     }
-    try {
-      if (context) await context.close();
-    } catch {
-      /* best-effort */
-    }
-    try {
-      if (browser) await browser.close();
-    } catch {
-      /* best-effort */
+    if (keepBrowserOpenForHumanPayment) {
+      console.warn(
+        `[vn] Run ${runId ?? "(unknown)"} left the official payment browser open for 3DS/OTP/bank-app confirmation.`,
+      );
+    } else {
+      try {
+        if (context) await context.close();
+      } catch {
+        /* best-effort */
+      }
+      try {
+        if (browser) await browser.close();
+      } catch {
+        /* best-effort */
+      }
     }
   }
 }

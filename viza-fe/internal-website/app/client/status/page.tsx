@@ -46,6 +46,8 @@ type SearchParams = Promise<{
   packageId?: string | string[];
 }>;
 
+export const dynamic = "force-dynamic";
+
 const STEP_ICONS: Record<StatusStepKey, LucideIcon> = {
   payment: CreditCard,
   consent: ShieldCheck,

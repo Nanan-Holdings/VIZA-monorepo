@@ -162,6 +162,7 @@ export interface ClientStatusData {
 
 interface ApplicantProfileRow {
   id: string;
+  email: string | null;
 }
 
 interface VisaPackageRow {
@@ -315,7 +316,7 @@ const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 const APPLICATION_STATUS_SELECT =
-  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode, official_fee_status, official_fee_quote_id, official_fee_payment_intent_id, official_fee_receipt_id";
+  "id, applicant_id, country, visa_type, status, created_at, updated_at, submitted_at, confirmation_number, receipt_url, visa_package_id, packet_status, packet_storage_path, packet_ready_at, external_status, external_reference, external_status_updated_at, result_status, result_storage_path, government_fee_cents, government_fee_currency, government_fee_mode";
 
 function normalizeStatus(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -408,6 +409,19 @@ function unwrapVisaPackage(row: UserPackageRow): VisaPackageRow | null {
 
 function dedupeById<T extends { id: string }>(rows: T[]): T[] {
   return [...new Map(rows.map((row) => [row.id, row])).values()];
+}
+
+function withApplicationDefaults(row: ApplicationRow): ApplicationRow {
+  return {
+    ...row,
+    submission_result: row.submission_result ?? null,
+    submission_result_status: row.submission_result_status ?? null,
+    submission_result_updated_at: row.submission_result_updated_at ?? null,
+    official_fee_status: row.official_fee_status ?? null,
+    official_fee_quote_id: row.official_fee_quote_id ?? null,
+    official_fee_payment_intent_id: row.official_fee_payment_intent_id ?? null,
+    official_fee_receipt_id: row.official_fee_receipt_id ?? null,
+  };
 }
 
 async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsResult<T>> {
@@ -1119,8 +1133,14 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     readRows<ApplicantProfileRow>(
       adminClient
         .from("applicant_profiles")
-        .select("id")
+        .select("id, email")
         .eq("auth_user_id", user.id),
+    ),
+    readRows<ApplicantProfileRow>(
+      adminClient
+        .from("applicant_profiles")
+        .select("id, email")
+        .eq("id", user.id),
     ),
   ];
   if (user.email) {
@@ -1128,7 +1148,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       readRows<ApplicantProfileRow>(
         adminClient
           .from("applicant_profiles")
-          .select("id")
+          .select("id, email")
           .eq("email", user.email),
       ),
     );
@@ -1137,6 +1157,13 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   partialData = partialData || profileResults.some((result) => result.failed);
   const profiles = dedupeById(profileResults.flatMap((result) => result.rows));
   const profileIds = profiles.map((profile) => profile.id);
+  const ownerEmails = [
+    ...new Set(
+      [user.email, ...profiles.map((profile) => profile.email)]
+        .filter((email): email is string => Boolean(email))
+        .map((email) => email.trim().toLowerCase()),
+    ),
+  ];
 
   const { rows: userPackageRows, failed: packagesFailed } = await readRows<UserPackageRow>(
     adminClient
@@ -1171,12 +1198,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
         .in("applicant_id", profileIds)
         .order("created_at", { ascending: false }),
     );
-    applications = rows.map((row) => ({
-      ...row,
-      submission_result: null,
-      submission_result_status: null,
-      submission_result_updated_at: null,
-    }));
+    applications = rows.map(withApplicationDefaults);
     partialData = partialData || failed;
   }
 
@@ -1191,22 +1213,17 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     partialData = partialData || linkedFailed;
     applications = dedupeById([
       ...applications,
-      ...linkedRows.map((row) => ({
-        ...row,
-        submission_result: null,
-        submission_result_status: null,
-        submission_result_updated_at: null,
-      })),
+      ...linkedRows.map(withApplicationDefaults),
     ]);
   }
 
-  if (user.email) {
+  if (ownerEmails.length > 0) {
     const { rows: sgacEmailAnswers, failed: sgacEmailAnswersFailed } = await readRows<AnswerRow>(
       adminClient
         .from("visa_application_answers")
         .select("application_id, field_name, value_text, value_json")
         .in("field_name", SGAC_OWNER_EMAIL_FIELD_NAMES)
-        .eq("value_text", user.email),
+        .in("value_text", ownerEmails),
     );
     partialData = partialData || sgacEmailAnswersFailed;
     const sgacEmailApplicationIds = [
@@ -1228,12 +1245,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       partialData = partialData || sgacEmailApplicationsFailed;
       applications = dedupeById([
         ...applications,
-        ...sgacEmailApplications.map((row) => ({
-          ...row,
-          submission_result: null,
-          submission_result_status: null,
-          submission_result_updated_at: null,
-        })),
+        ...sgacEmailApplications.map(withApplicationDefaults),
       ]);
     }
   }
