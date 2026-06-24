@@ -6,10 +6,10 @@
     {
       "slug": "malaysia-visa-exemption-evisa-mdac",
       "country": "malaysia",
-      "visaType": "visa_exemption_or_evisa_tourism",
+      "visaType": "MY_MDAC_ARRIVAL_CARD",
       "documentType": "requirements",
-      "title": "Malaysia Tourist Entry, eVISA, and MDAC",
-      "sourceUrl": "https://www.imi.gov.my/index.php/en/main-services/visa/",
+      "title": "Malaysia Digital Arrival Card (MDAC)",
+      "sourceUrl": "https://www.imi.gov.my/index.php/en/pengumuman/malaysia-digital-arrival-card-mdac/",
       "chunks": [
         {
           "id": "mys_china_tourism_basic_route_zh",
@@ -54,10 +54,10 @@
     {
       "slug": "malaysia-form-requirements",
       "country": "malaysia",
-      "visaType": "visa_exemption_or_evisa_tourism",
+      "visaType": "MY_MDAC_ARRIVAL_CARD",
       "documentType": "form_requirements",
-      "title": "Malaysia Application Form and Document Intake Requirements",
-      "sourceUrl": "https://malaysiavisa.imi.gov.my/evisa/evisa.jsp",
+      "title": "Malaysia MDAC Arrival Card Form Requirements",
+      "sourceUrl": "https://imigresen-online.imi.gov.my/mdac/main",
       "chunks": [
         {
           "id": "malaysia_form_channel_and_scope",
@@ -69,7 +69,7 @@
             "workflow",
             "official-source"
           ],
-          "content": "Use Malaysia eVISA where required/eligible and complete MDAC where applicable before arrival. Official source URLs reviewed for this seed: https://malaysiavisa.imi.gov.my/evisa/evisa.jsp ; https://www.imi.gov.my/index.php/en/main-services/visa/. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "Use the standalone MY_MDAC_ARRIVAL_CARD package for Malaysia Digital Arrival Card preparation. Official source URLs reviewed for this seed: https://www.imi.gov.my/index.php/en/pengumuman/malaysia-digital-arrival-card-mdac/ ; https://imigresen-online.imi.gov.my/mdac/main. MDAC is not a Malaysia eVISA and must stay separate from visa-exemption or eVISA workflows. Route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
         },
         {
           "id": "malaysia_form_fields_to_collect",
@@ -81,7 +81,7 @@
             "field-mapping",
             "intake"
           ],
-          "content": "Malaysia eVISA/entry intake should collect identity, passport, nationality and residence, contact details, travel dates, entry/exit points, accommodation, purpose, prior Malaysia travel/visa history, and MDAC arrival details."
+          "content": "Malaysia MDAC intake should collect identity, passport, nationality, date of birth, sex, contact details, arrival/departure dates, mode of travel, transport number, last embarkation country/region, point of entry, purpose of visit, accommodation type, Malaysia address, and official declaration acknowledgements. Do not silently reuse Malaysia eVISA fields for MDAC."
         },
         {
           "id": "malaysia_supporting_documents_and_review",
@@ -93,7 +93,7 @@
             "upload",
             "review-before-submit"
           ],
-          "content": "Common evidence includes passport biodata page, compliant photo, return/onward ticket, accommodation booking, bank statement or funds evidence when required, birth certificate/consent for minors where relevant, and any previous visa or residence evidence. Workflow guardrails: VIZA should distinguish visa-exemption, eVISA and MDAC. MDAC is not a visa and should be tracked as a separate pre-arrival declaration."
+          "content": "MDAC preparation evidence should focus on passport details, travel itinerary, transport number, accommodation or Malaysia address, and contact details. Workflow guardrails: VIZA should distinguish visa-exemption, eVISA and MDAC. MDAC is not a visa and should be tracked as a separate pre-arrival declaration."
         }
       ]
     }

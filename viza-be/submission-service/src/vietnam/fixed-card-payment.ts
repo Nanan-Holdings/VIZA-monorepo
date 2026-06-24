@@ -235,16 +235,9 @@ async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): 
     jcb: 2,
     amex: 3,
   };
-  const aliases: Record<VietnamCardBrand, string[]> = {
-    visa: ["visa"],
-    mastercard: ["mastercard", "master card", "master", "mc"],
-    jcb: ["jcb"],
-    amex: ["amex", "american express", "american"],
-  };
-
-  return page
+  const targetPoint = await page
     .evaluate(
-      ({ targetBrand, targetIndex, targetAliases }) => {
+      ({ targetIndex }) => {
         const isVisible = (element: Element): boolean => {
           const htmlElement = element as HTMLElement;
           const rect = htmlElement.getBoundingClientRect();
@@ -274,38 +267,26 @@ async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): 
             .join(" ")
             .toLowerCase();
         };
-        const clickElement = (element: Element): boolean => {
+        const centerPoint = (element: Element): { x: number; y: number } => {
           const clickable =
-            element.closest('button, label, [role="button"], a, [class*="card" i], [class*="method" i], [class*="payment" i]') ??
+            element.closest(
+              '.group-col-item, [class*="group-col" i], button, label, [role="button"], a, [class*="card" i], [class*="method" i], [class*="payment" i]',
+            ) ??
             element;
           const htmlElement = clickable as HTMLElement;
           htmlElement.scrollIntoView({ block: "center", inline: "center" });
           const rect = htmlElement.getBoundingClientRect();
-          const options = {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
           };
-          htmlElement.dispatchEvent(new MouseEvent("mousedown", options));
-          htmlElement.dispatchEvent(new MouseEvent("mouseup", options));
-          htmlElement.dispatchEvent(new MouseEvent("click", options));
-          return true;
         };
 
         const broadCandidates = Array.from(
           document.querySelectorAll(
-            'button, [role="button"], label, input, img, a, [class*="card" i], [class*="method" i], [class*="payment" i]',
+            'button, [role="button"], label, input, img, a, .group-col-item, [class*="group-col" i], [class*="card" i], [class*="method" i], [class*="payment" i]',
           ),
         ).filter(isVisible);
-        const withRects = broadCandidates
-          .map((element) => ({ element, rect: (element as HTMLElement).getBoundingClientRect(), text: signature(element) }))
-          .sort((left, right) => right.rect.width * right.rect.height - left.rect.width * left.rect.height);
-        for (const alias of targetAliases) {
-          const direct = withRects.find((candidate) => candidate.text.includes(alias));
-          if (direct) return clickElement(direct.element);
-        }
 
         const headings = Array.from(document.querySelectorAll("body *")).filter((element) =>
           /international payment cards/i.test((element as HTMLElement).innerText ?? ""),
@@ -334,15 +315,52 @@ async function selectVietcombankCardBrand(page: Page, brand: VietnamCardBrand): 
             return left.rect.left - right.rect.left;
           });
 
-        const brandBoxes = sectionCandidates.filter(({ rect }) => rect.width >= 80 && rect.height >= 40);
-        const fallback = brandBoxes[targetIndex] ?? sectionCandidates[targetIndex];
-        if (!fallback) return false;
-        return clickElement(fallback.element);
+        const brandBoxes = sectionCandidates
+          .filter(({ rect }) => rect.width >= 120 && rect.height >= 55)
+          .filter(({ text }) => !/supported payment apps|domestic payment cards|international payment cards/i.test(text));
+        if (brandBoxes.length >= 4) {
+          const fallback = brandBoxes[targetIndex];
+          if (fallback) return centerPoint(fallback.element);
+        }
+
+        return false;
       },
-      { targetBrand: brand, targetIndex: brandIndex[brand], targetAliases: aliases[brand] },
+      { targetIndex: brandIndex[brand] },
     )
-    .then(Boolean)
     .catch(() => false);
+
+  if (!targetPoint || targetPoint === true) return false;
+  await page.mouse.click(targetPoint.x, targetPoint.y);
+  return true;
+}
+
+async function expandVietcombankInternationalCards(page: Page): Promise<boolean> {
+  const targetPoint = await page
+    .evaluate(() => {
+      const visible = (element: Element | null): element is HTMLElement => {
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 20 && rect.height > 20;
+      };
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>(".ubox, .group-col, .group-col-item, label, div, button"))
+        .filter(visible)
+        .filter((element) => /international payment cards/i.test(element.innerText || element.textContent || ""))
+        .sort((left, right) => {
+          const leftRect = left.getBoundingClientRect();
+          const rightRect = right.getBoundingClientRect();
+          return rightRect.width * rightRect.height - leftRect.width * leftRect.height;
+        });
+      const target = candidates[0];
+      if (!target) return false;
+      target.scrollIntoView({ block: "center", inline: "center" });
+      const rect = target.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })
+    .catch(() => false);
+  if (!targetPoint || targetPoint === true) return false;
+  await page.mouse.click(targetPoint.x, targetPoint.y);
+  return true;
 }
 
 async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
@@ -358,7 +376,12 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
   }
 
   const brand = detectVietnamCardBrand(card);
-  const brandSelected = await selectVietcombankCardBrand(page, brand);
+  let brandSelected = await selectVietcombankCardBrand(page, brand);
+  if (!brandSelected) {
+    await expandVietcombankInternationalCards(page);
+    await page.waitForTimeout(750);
+    brandSelected = await selectVietcombankCardBrand(page, brand);
+  }
   if (brandSelected) {
     await page.waitForTimeout(750);
   }
@@ -385,11 +408,27 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
   if (await continueButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await continueButton.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      if (await continueButton.isEnabled({ timeout: 500 }).catch(() => false)) break;
+      const className = await continueButton.getAttribute("class").catch(() => "");
+      if (!/\bdisabled\b/i.test(className ?? "") && await continueButton.isEnabled({ timeout: 500 }).catch(() => false)) break;
       await page.waitForTimeout(500);
     }
-    if (!(await continueButton.isEnabled({ timeout: 500 }).catch(() => false))) return;
-    await continueButton.click({ timeout: 10_000 });
+    const className = await continueButton.getAttribute("class").catch(() => "");
+    if (/\bdisabled\b/i.test(className ?? "") || !(await continueButton.isEnabled({ timeout: 500 }).catch(() => false))) return;
+    const clicked = await continueButton.click({ timeout: 10_000 }).then(() => true).catch(async () => {
+      return page
+        .evaluate(() => {
+          const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+            .find((candidate) => /continue/i.test(candidate.innerText || candidate.textContent || ""));
+          if (!button || /\bdisabled\b/i.test(button.className || "") || button.disabled) return false;
+          button.scrollIntoView({ block: "center", inline: "center" });
+          button.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+          button.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
+          button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+          return true;
+        })
+        .catch(() => false);
+    });
+    if (!clicked) return;
     await page.waitForLoadState("domcontentloaded", { timeout: 60_000 }).catch(() => undefined);
     await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);

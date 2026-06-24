@@ -14,7 +14,9 @@ main destination catalog until the country workflow has been reviewed.
 - Arrival cards are not visas. User-facing copy and linked routes must keep the
   arrival-card package separate from eVisa, visit visa, and pass workflows.
 - Do not add official-site automation, CAPTCHA handling, payment, or final
-  official submission from these routes.
+  official submission directly from these routes. If a country later gets an
+  official runner, keep it in `viza-be/submission-service` and have the form
+  package call it through the submission queue/API.
 - Preserve the application form's bilingual dynamic-form contract by routing to
   a dedicated `visa_form_fields` package.
 
