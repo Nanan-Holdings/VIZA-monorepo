@@ -229,12 +229,13 @@ export async function POST(
 
   const now = new Date().toISOString();
   const registrationCode = readRegistrationCode(application.submission_result);
+  const queueStatus = registrationCode ? "vn_payment_pending" : "vn_live_assisted_pending";
   const { data: queue, error: queueError } = await admin
     .from("submission_queue")
     .insert({
       application_id: applicationId,
       user_id: user.id,
-      status: "vn_payment_pending",
+      status: queueStatus,
       mode: "live_assisted",
       provider: "vietnam_evisa_live",
       current_stage: "payment_authorized",
@@ -286,6 +287,7 @@ export async function POST(
         metadata: {
           intent_id: intentRow.id,
           queue_id: (queue as { id: string }).id,
+          queue_status: queueStatus,
           one_time_card_session: true,
           redacted_card: cardSession.redactedCard,
         },
@@ -305,6 +307,7 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     queueId: (queue as { id: string }).id,
+    queueStatus,
     intentId: intentRow.id,
     cardSession: {
       expiresAtIso: cardSession.expiresAtIso,

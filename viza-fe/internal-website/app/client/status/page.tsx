@@ -115,6 +115,7 @@ const FILE_ICONS: Record<StatusFileKey, LucideIcon> = {
   applicationReceipt: Receipt,
   paymentReceipt: Receipt,
   packet: Package,
+  arrivalCardConfirmation: FileCheck2,
   approvedResult: FileCheck2,
   rejectionLetter: FileText,
   resultFile: FileText,
@@ -126,6 +127,7 @@ const KNOWN_EVENT_KEYS = new Set([
   "document_uploaded",
   "packet_generated",
   "external_status_updated",
+  "arrival_card_submitted",
   "result_received",
   "notification_sent",
 ]);
@@ -402,6 +404,10 @@ function FileRow({ file, locale, t }: { file: StatusFile; locale: string; t: Awa
   );
 }
 
+function isArrivalCardApplication(application: StatusApplication): boolean {
+  return application.visaType.endsWith("_ARRIVAL_CARD");
+}
+
 function EmptyState({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
   return (
     <section className="rounded-[8px] border border-dashed border-[#cbd8ea] bg-white px-6 py-14 text-center shadow-sm">
@@ -431,6 +437,12 @@ function DetailView({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   const isVietnam = application.country.toLowerCase() === "vietnam" || application.country.toUpperCase() === "VN";
+  const isSubmittedArrivalCard =
+    isArrivalCardApplication(application) &&
+    application.id !== null &&
+    application.state === "submitted" &&
+    application.files.some((file) => file.key === "arrivalCardConfirmation");
+  const confirmationFile = application.files.find((file) => file.key === "arrivalCardConfirmation") ?? null;
   const shouldPollOfficialStatus =
     isVietnam &&
     Boolean(application.id) &&
@@ -498,6 +510,31 @@ function DetailView({
         />
       </section>
 
+      {isSubmittedArrivalCard ? (
+        <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{locale.startsWith("zh") ? "申请记录" : "Submission record"}</h2>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <DetailMetric
+              label={locale.startsWith("zh") ? "申请记录" : "Submitted at"}
+              value={formatDateTime(application.submittedAt ?? application.updatedAt, locale)}
+            />
+            <DetailMetric
+              label={locale.startsWith("zh") ? "申请编号" : "Confirmation number"}
+              value={application.officialReference ?? "-"}
+            />
+          </div>
+          <div className="mt-4">
+            {confirmationFile ? (
+              <FileRow file={confirmationFile} locale={locale} t={t} />
+            ) : (
+              <div className="rounded-[8px] border border-dashed border-[#dce5f0] bg-white p-5 text-[14px] text-[#66758a]">
+                {t("filesEmpty")}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : (
+      <>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <section className="space-y-3">
           <div>
@@ -586,6 +623,8 @@ function DetailView({
           </div>
         )}
       </section>
+      </>
+      )}
       </div>
     </section>
   );
@@ -674,9 +713,15 @@ export default async function ClientStatusPage({ searchParams }: { searchParams?
 
   const selectedApplicationId = getParam(params.applicationId);
   const selectedPackageId = getParam(params.packageId);
+  const defaultSubmittedArrivalCard = data.applications.find(
+    (application) =>
+      isArrivalCardApplication(application) &&
+      application.files.some((file) => file.key === "arrivalCardConfirmation"),
+  );
   const selectedApplication =
     data.applications.find((application) => application.id && application.id === selectedApplicationId) ??
     data.applications.find((application) => application.packageId && application.packageId === selectedPackageId) ??
+    defaultSubmittedArrivalCard ??
     data.applications[0] ??
     null;
 
