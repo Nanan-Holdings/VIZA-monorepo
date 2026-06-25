@@ -77,6 +77,10 @@ filling and one-shot submission for the applicant.
 - `src/country-submissions/**`: safe provider registry, schema/dry-run
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.
+- `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC and
+  TDAC can use a configured Browser API/CDP endpoint such as Bright Data
+  Scraping Browser before falling back to local Chromium. Never log endpoint
+  credentials.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live

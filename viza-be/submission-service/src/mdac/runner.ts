@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { chromium, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { MDAC_OFFICIAL_PORTAL_URL, type MdacPortalPayload } from "./normalize";
 
 export interface MdacPortalSubmissionResult {
@@ -410,8 +411,13 @@ export async function runMdacPortalSubmission(
 ): Promise<MdacPortalSubmissionResult> {
   const logs: string[] = [`mdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  const browser = await chromium.launch({ headless: options.headless ?? true });
-  const page = await browser.newPage({ acceptDownloads: true });
+  const browserSession = await createArrivalCardBrowserSession({
+    prefix: "MDAC",
+    headless: options.headless,
+  });
+  const page = browserSession.page;
+  logs.push(`mdac_browser_provider=${browserSession.provider}`);
+  logs.push(...browserSession.diagnostics);
 
   try {
     await installMdacSliderInstrumentation(page);
@@ -465,7 +471,7 @@ export async function runMdacPortalSubmission(
 
     return buildMdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, [], logs);
   } finally {
-    await browser.close();
+    await browserSession.close();
   }
 }
 
