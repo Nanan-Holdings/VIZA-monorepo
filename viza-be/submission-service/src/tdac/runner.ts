@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { chromium, type Page } from "@playwright/test";
+import { solveCaptcha } from "../captcha";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 
 export interface TdacPortalSubmissionResult {
@@ -37,6 +38,178 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   return filePath;
 }
 
+interface TurnstileParams {
+  sitekey: string | null;
+  action: string | null;
+  cData: string | null;
+  chlPageData: string | null;
+  pageUrl: string;
+  userAgent: string;
+}
+
+async function installTurnstileHook(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as typeof window & {
+      turnstile?: { render?: (container: unknown, options?: Record<string, unknown>) => unknown };
+      __vizaTurnstileHooked?: boolean;
+      __vizaTurnstileParams?: Record<string, unknown>;
+      __vizaTurnstileCallback?: (token: string) => void;
+    };
+    const timer = window.setInterval(() => {
+      if (!w.turnstile?.render || w.__vizaTurnstileHooked) return;
+      const originalRender = w.turnstile.render.bind(w.turnstile);
+      w.turnstile.render = (container: unknown, options: Record<string, unknown> = {}) => {
+        w.__vizaTurnstileParams = {
+          sitekey: options.sitekey,
+          cData: options.cData,
+          chlPageData: options.chlPageData,
+          action: options.action,
+          pageUrl: window.location.href,
+          userAgent: navigator.userAgent,
+        };
+        if (typeof options.callback === "function") {
+          w.__vizaTurnstileCallback = options.callback as (token: string) => void;
+        }
+        return originalRender(container, options);
+      };
+      w.__vizaTurnstileHooked = true;
+      window.clearInterval(timer);
+    }, 10);
+  });
+}
+
+async function readTurnstileParams(page: Page): Promise<TurnstileParams> {
+  return page.evaluate(() => {
+    const w = window as typeof window & {
+      __vizaTurnstileParams?: Record<string, unknown>;
+    };
+    const captured = w.__vizaTurnstileParams ?? {};
+    const elementSitekey = document.querySelector("[data-sitekey]")?.getAttribute("data-sitekey");
+    const iframeSitekey = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe"))
+      .map((iframe) => {
+        try {
+          const url = new URL(iframe.src);
+          return url.searchParams.get("sitekey") ?? url.searchParams.get("k");
+        } catch {
+          return null;
+        }
+      })
+      .find((value): value is string => Boolean(value));
+    const capturedSitekey = typeof captured.sitekey === "string" && captured.sitekey.trim()
+      ? captured.sitekey
+      : null;
+    const capturedAction = typeof captured.action === "string" && captured.action.trim()
+      ? captured.action
+      : null;
+    const capturedCData = typeof captured.cData === "string" && captured.cData.trim()
+      ? captured.cData
+      : null;
+    const capturedChlPageData = typeof captured.chlPageData === "string" && captured.chlPageData.trim()
+      ? captured.chlPageData
+      : null;
+    const capturedPageUrl = typeof captured.pageUrl === "string" && captured.pageUrl.trim()
+      ? captured.pageUrl
+      : null;
+    const capturedUserAgent = typeof captured.userAgent === "string" && captured.userAgent.trim()
+      ? captured.userAgent
+      : null;
+
+    return {
+      sitekey: capturedSitekey ?? elementSitekey ?? iframeSitekey ?? null,
+      action: capturedAction,
+      cData: capturedCData,
+      chlPageData: capturedChlPageData,
+      pageUrl: capturedPageUrl ?? window.location.href,
+      userAgent: capturedUserAgent ?? navigator.userAgent,
+    };
+  });
+}
+
+async function waitForTurnstileParams(page: Page, timeoutMs = 15_000): Promise<TurnstileParams> {
+  const started = Date.now();
+  let latest = await readTurnstileParams(page);
+  while (!latest.sitekey && Date.now() - started < timeoutMs) {
+    await page.waitForTimeout(250);
+    latest = await readTurnstileParams(page);
+  }
+  return latest;
+}
+
+async function applyTurnstileToken(page: Page, token: string): Promise<void> {
+  await page.evaluate((captchaToken) => {
+    const w = window as typeof window & {
+      __vizaTurnstileCallback?: (token: string) => void;
+    };
+    const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='g-recaptcha-response'], textarea[name='g-recaptcha-response']",
+    );
+    fields.forEach((field) => {
+      field.value = captchaToken;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    if (typeof w.__vizaTurnstileCallback === "function") {
+      w.__vizaTurnstileCallback(captchaToken);
+    }
+  }, token);
+}
+
+async function arrivalButtonEnabled(page: Page): Promise<boolean> {
+  const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
+  return !(await arrivalButton.isDisabled().catch(() => true));
+}
+
+async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Promise<boolean> {
+  const candidateFrames = page.locator("iframe[src*='challenges.cloudflare.com'], iframe[title*='Cloudflare']");
+  const count = await candidateFrames.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const frameElement = candidateFrames.nth(index);
+    const frame = await frameElement.contentFrame().catch(() => null);
+    if (!frame) continue;
+
+    const checkbox = frame.locator("input[type='checkbox'], label, [role='checkbox']").first();
+    if ((await checkbox.count().catch(() => 0)) === 0) continue;
+
+    try {
+      logs.push(`tdac_turnstile_checkbox_click_attempt frame=${index}`);
+      await checkbox.click({ timeout: 10_000 });
+      await page.waitForTimeout(7_000);
+      await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+      if (await arrivalButtonEnabled(page)) {
+        logs.push("tdac_turnstile_checkbox_click_enabled_arrival_button");
+        return true;
+      }
+    } catch (error) {
+      logs.push(`tdac_turnstile_checkbox_click_failed ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return false;
+}
+
+async function solveTurnstileIfPresent(page: Page, logs: string[]): Promise<boolean> {
+  if (await clickTurnstileCheckboxIfVisible(page, logs)) return true;
+
+  const params = await waitForTurnstileParams(page);
+  if (!params.sitekey) return false;
+
+  logs.push("tdac_turnstile_solve_started");
+  const solve = await solveCaptcha({
+    type: "turnstile",
+    siteKey: params.sitekey,
+    pageUrl: params.pageUrl,
+    action: params.action ?? undefined,
+    cdata: params.cData ?? undefined,
+    pageData: params.chlPageData ?? undefined,
+    userAgent: params.userAgent,
+    timeoutMs: 120_000,
+  });
+  await applyTurnstileToken(page, solve.text);
+  logs.push(`tdac_turnstile_solved durationMs=${solve.durationMs} solveId=${solve.solveId}`);
+  await page.waitForTimeout(3_000);
+  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+  return true;
+}
+
 function extractReference(text: string): string | null {
   const candidates = [
     /(?:reference|arrival card|application|registration)\s*(?:no\.?|number|id)?\s*[:#-]?\s*([A-Z0-9-]{6,})/i,
@@ -59,6 +232,7 @@ export async function runTdacPortalSubmission(
   const page = await browser.newPage({ acceptDownloads: true });
 
   try {
+    await installTurnstileHook(page);
     await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForTimeout(8_000);
     screenshots.push(await saveScreenshot(page, "landing", logs));
@@ -73,15 +247,21 @@ export async function runTdacPortalSubmission(
       });
     }
     if (await arrivalButton.isDisabled().catch(() => false)) {
-      const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-      throw new TdacPortalError(
-        "Official TDAC Arrival Card button is disabled by the portal; the runner cannot start a new submission in this browser session.",
-        {
-          code: "tdac_arrival_button_disabled",
-          screenshotPaths: screenshots,
-          portalSummary: text.slice(0, 500),
-        },
-      );
+      screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
+      await solveTurnstileIfPresent(page, logs);
+      await page.waitForTimeout(3_000);
+      screenshots.push(await saveScreenshot(page, "turnstile-after-solve", logs));
+      if (await arrivalButton.isDisabled().catch(() => false)) {
+        const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+        throw new TdacPortalError(
+          "Official TDAC Arrival Card button remained disabled after Turnstile solve.",
+          {
+            code: "tdac_arrival_button_disabled_after_captcha",
+            screenshotPaths: screenshots,
+            portalSummary: text.slice(0, 500),
+          },
+        );
+      }
     }
 
     await arrivalButton.click({ timeout: 15_000 });

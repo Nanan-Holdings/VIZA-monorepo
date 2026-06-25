@@ -17,6 +17,8 @@
     "imap:smoke": "ts-node scripts/imap-smoke.ts",
     "inbox:smoke": "ts-node scripts/inbox-smoke.ts",
     "au:smoke": "ts-node scripts/run-au-smoke.ts",
+    "mdac:smoke": "tsx scripts/run-mdac-smoke.ts",
+    "tdac:smoke": "tsx scripts/run-tdac-smoke.ts",
     "vn:smoke": "ts-node scripts/run-vn-smoke.ts",
     "vn:card:setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-vn-card-profile.ps1",
     "vn:autopay:dev": "powershell -ExecutionPolicy Bypass -File scripts/start-vn-autopay-dev.ps1",
