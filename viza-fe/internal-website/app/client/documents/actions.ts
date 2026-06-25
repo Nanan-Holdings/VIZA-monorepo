@@ -287,7 +287,7 @@ const VIETNAM_E_VISA_REQUIREMENTS: DocumentRequirement[] = [
     documentType: "passport_copy",
     labelEn: "Passport data page image",
     labelZh: "护照资料页图片",
-    description: "Clear image of the passport bio-data page used for the Vietnam e-Visa application.",
+    description: "Clear passport bio-data page image under 2MB, with a detectable face for Vietnam e-Visa matching.",
     required: true,
     sortOrder: 10,
     accept: [".jpg", ".jpeg", ".png", ".webp"],
@@ -298,10 +298,10 @@ const VIETNAM_E_VISA_REQUIREMENTS: DocumentRequirement[] = [
     documentType: "photo",
     labelEn: "Portrait photo",
     labelZh: "本人证件照片",
-    description: "Recent portrait photo suitable for the Vietnam e-Visa portal upload.",
+    description: "Recent front-facing portrait photo under 2MB that matches the passport data page face.",
     required: true,
     sortOrder: 20,
-    accept: [".jpg", ".jpeg", ".png"],
+    accept: [".jpg", ".jpeg", ".png", ".webp"],
     source: "fallback",
   },
   {
@@ -1142,6 +1142,9 @@ export interface RecordDocumentUploadInput {
 
 const APPLICATION_DOCUMENTS_BUCKET = "application-documents";
 const APPLICATION_DOCUMENTS_MAX_BYTES = 50 * 1024 * 1024;
+const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const VIETNAM_OFFICIAL_IMAGE_DOCUMENT_TYPES = new Set(["passport_copy", "photo"]);
+const VIETNAM_OFFICIAL_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function getFormDataString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
@@ -1218,6 +1221,25 @@ export async function ensureApplicationDocumentsBucket(): Promise<DocumentMutati
   }
 }
 
+function validateVietnamOfficialImageUpload(input: {
+  application: ApplicationRow;
+  documentType: string;
+  file: File;
+}): string | null {
+  if (!isVietnamEVisaDocumentApplication(input.application)) return null;
+  if (!VIETNAM_OFFICIAL_IMAGE_DOCUMENT_TYPES.has(input.documentType)) return null;
+
+  if (input.file.size > VIETNAM_OFFICIAL_IMAGE_MAX_BYTES) {
+    return "越南 e-Visa 官网要求证件照和护照资料页图片小于 2MB。请压缩后重新上传。";
+  }
+
+  if (input.file.type && !VIETNAM_OFFICIAL_IMAGE_MIME_TYPES.has(input.file.type)) {
+    return "越南 e-Visa 官网只接受 JPG/JPEG/PNG/WEBP 图片。请上传清晰的证件照或护照资料页图片。";
+  }
+
+  return null;
+}
+
 export type UploadApplicationDocumentResult =
   | { ok: true; storagePath: string; filename: string }
   | {
@@ -1248,6 +1270,11 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
 
     const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    const vietnamImageUploadError = validateVietnamOfficialImageUpload({ application, documentType, file });
+    if (vietnamImageUploadError) {
+      return { ok: false, code: "invalid_request", error: vietnamImageUploadError };
+    }
 
     const adminClient = createAdminClient();
     const bucketError = await ensureApplicationDocumentsBucketWithAdmin(adminClient);

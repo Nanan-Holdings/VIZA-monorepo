@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isSgArrivalCardApplication } from "@/lib/submission-queue";
+import { isDigitalArrivalCardApplication } from "@/lib/submission-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,18 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "sgac_live_assisted_scheduled",
   "sgac_live_assisted_pending",
   "sgac_dry_run_pending",
+  "mdac_live_assisted_pending",
+  "mdac_dry_run_pending",
+  "tdac_live_assisted_pending",
+  "tdac_dry_run_pending",
 ] as const;
+
+function cancelledStatusForVisaType(visaType: string | null): string {
+  const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+  if (normalized === "MY_MDAC_ARRIVAL_CARD") return "mdac_live_assisted_cancelled";
+  if (normalized === "TH_TDAC_ARRIVAL_CARD") return "tdac_live_assisted_cancelled";
+  return "sgac_live_assisted_cancelled";
+}
 
 export async function POST(
   _request: Request,
@@ -73,9 +84,9 @@ export async function POST(
   if (application.applicant_id !== (profile as { id: string }).id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!isSgArrivalCardApplication(application.country, application.visa_type)) {
+  if (!isDigitalArrivalCardApplication(application.country, application.visa_type)) {
     return NextResponse.json(
-      { error: "Cancellation is only available for SG Arrival Card submissions." },
+      { error: "Cancellation is only available for digital arrival card submissions." },
       { status: 400 },
     );
   }
@@ -99,19 +110,20 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "No cancelable SG Arrival Card submission was found. It may already be processing or completed.",
+          "No cancelable digital arrival card submission was found. It may already be processing or completed.",
       },
       { status: 409 },
     );
   }
 
   const now = new Date().toISOString();
+  const cancelledStatus = cancelledStatusForVisaType(application.visa_type);
   const { error: queueUpdateError } = await admin
     .from("submission_queue")
     .update({
-      status: "sgac_live_assisted_cancelled",
+      status: cancelledStatus,
       current_stage: "cancelled_by_user",
-      last_error: "Cancelled by user before ICA submission window.",
+      last_error: "Cancelled by user before official arrival card submission.",
       updated_at: now,
     })
     .eq("id", queue.id)

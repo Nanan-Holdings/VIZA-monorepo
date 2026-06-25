@@ -52,6 +52,7 @@ import {
   getCountrySubmissionProvider,
   runDryRunSubmission,
 } from "./country-submissions";
+import type { SubmissionPayload } from "./country-submissions/types";
 import { pollAndRun } from "./queue/worker";
 import { runnerJobHandler } from "./queue/handler";
 import { validateEnv } from "./config/validate-env";
@@ -65,6 +66,7 @@ import type {
   UsSubmissionResult,
   VnSubmissionResult,
   SgArrivalCardSubmissionResult,
+  DigitalArrivalCardSubmissionResult,
 } from "./submission-result";
 import {
   fillFranceVisasApplication,
@@ -141,6 +143,18 @@ import {
   SgacPortalValidationError,
 } from "./sgac";
 import { evaluateSgacSubmissionWindow } from "./sgac/date-window";
+import {
+  MDAC_OFFICIAL_PORTAL_URL,
+  MdacPortalValidationError,
+  normalizeMdacPortalPayload,
+} from "./mdac/normalize";
+import { MdacPortalError, runMdacPortalSubmission } from "./mdac/runner";
+import {
+  TDAC_OFFICIAL_PORTAL_URL,
+  TdacPortalValidationError,
+  normalizeTdacPortalPayload,
+} from "./tdac/normalize";
+import { TdacPortalError, runTdacPortalSubmission } from "./tdac/runner";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -180,6 +194,14 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "sgac_dry_run_processing",
   "sgac_live_assisted_pending",
   "sgac_live_assisted_processing",
+  "mdac_dry_run_pending",
+  "mdac_dry_run_processing",
+  "mdac_live_assisted_pending",
+  "mdac_live_assisted_processing",
+  "tdac_dry_run_pending",
+  "tdac_dry_run_processing",
+  "tdac_live_assisted_pending",
+  "tdac_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "au_prefill_pending",
@@ -191,7 +213,13 @@ function isSubmissionDryRunMode(): boolean {
 }
 
 function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
-  return item.mode === "dry_run" || item.status.startsWith("vn_dry_run_") || item.status.startsWith("sgac_dry_run_");
+  return (
+    item.mode === "dry_run" ||
+    item.status.startsWith("vn_dry_run_") ||
+    item.status.startsWith("sgac_dry_run_") ||
+    item.status.startsWith("mdac_dry_run_") ||
+    item.status.startsWith("tdac_dry_run_")
+  );
 }
 
 function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
@@ -202,9 +230,13 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("france_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
     item.status.startsWith("sgac_live_assisted_") ||
+    item.status.startsWith("mdac_live_assisted_") ||
+    item.status.startsWith("tdac_live_assisted_") ||
     item.provider === "france_visas_live" ||
     item.provider === "vietnam_evisa_live" ||
     item.provider === "sg_arrival_card_live" ||
+    item.provider === "malaysia_mdac_live" ||
+    item.provider === "thailand_tdac_live" ||
     item.provider === "ceac_proof"
   );
 }
@@ -247,6 +279,10 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "sgac_dry_run_pending",
       "sgac_live_assisted_scheduled",
       "sgac_live_assisted_pending",
+      "mdac_dry_run_pending",
+      "mdac_live_assisted_pending",
+      "tdac_dry_run_pending",
+      "tdac_live_assisted_pending",
       "vn_prefill_pending",
       "au_prefill_pending",
     ])
@@ -259,7 +295,11 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
 function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "sgac_live_assisted_scheduled") return 0;
   if (item.status === "sgac_live_assisted_pending") return 0;
+  if (item.status === "mdac_live_assisted_pending") return 0;
+  if (item.status === "tdac_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
+  if (item.status === "mdac_dry_run_pending") return 1;
+  if (item.status === "tdac_dry_run_pending") return 1;
   if (item.status === "vn_live_assisted_pending") return 2;
   if (item.status === "vn_dry_run_pending") return 3;
   return 10;
@@ -295,6 +335,14 @@ function isVnJob(item: SubmissionQueueItem): boolean {
 
 function isSgacJob(item: SubmissionQueueItem): boolean {
   return item.status === "sgac_live_assisted_pending" || item.status === "sgac_live_assisted_scheduled";
+}
+
+function isMdacJob(item: SubmissionQueueItem): boolean {
+  return item.status === "mdac_live_assisted_pending" || item.provider === "malaysia_mdac_live";
+}
+
+function isTdacJob(item: SubmissionQueueItem): boolean {
+  return item.status === "tdac_live_assisted_pending" || item.provider === "thailand_tdac_live";
 }
 
 function isAuJob(item: SubmissionQueueItem): boolean {
@@ -543,6 +591,10 @@ const VIETNAM_EVISA_TYPES = new Set([
 
 const SINGAPORE_COUNTRY_ALIASES = new Set(["SG", "SINGAPORE"]);
 const SG_ARRIVAL_CARD_TYPES = new Set(["SG_ARRIVAL_CARD"]);
+const MALAYSIA_COUNTRY_ALIASES = new Set(["MY", "MALAYSIA"]);
+const MY_MDAC_TYPES = new Set(["MY_MDAC_ARRIVAL_CARD"]);
+const THAILAND_COUNTRY_ALIASES = new Set(["TH", "THAILAND"]);
+const TH_TDAC_TYPES = new Set(["TH_TDAC_ARRIVAL_CARD"]);
 
 type QueueRoutingApplication = Pick<Application, "id" | "country" | "visa_type">;
 
@@ -566,6 +618,22 @@ function isSgArrivalCardApplicationMetadata(application: QueueRoutingApplication
   );
 }
 
+function isMalaysiaMdacApplicationMetadata(application: QueueRoutingApplication | null): boolean {
+  if (!application) return false;
+  return (
+    MALAYSIA_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country)) &&
+    MY_MDAC_TYPES.has(normalizeQueueRoutingValue(application.visa_type))
+  );
+}
+
+function isThailandTdacApplicationMetadata(application: QueueRoutingApplication | null): boolean {
+  if (!application) return false;
+  return (
+    THAILAND_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country)) &&
+    TH_TDAC_TYPES.has(normalizeQueueRoutingValue(application.visa_type))
+  );
+}
+
 function isSgArrivalCardQueueItem(
   item: SubmissionQueueItem,
   application: QueueRoutingApplication | null = null,
@@ -575,6 +643,30 @@ function isSgArrivalCardQueueItem(
     item.provider === "sg_arrival_card_dry_run" ||
     item.provider === "sg_arrival_card_live" ||
     isSgArrivalCardApplicationMetadata(application)
+  );
+}
+
+function isMdacQueueItem(
+  item: SubmissionQueueItem,
+  application: QueueRoutingApplication | null = null,
+): boolean {
+  return (
+    item.status.startsWith("mdac_") ||
+    item.provider === "malaysia_mdac_dry_run" ||
+    item.provider === "malaysia_mdac_live" ||
+    isMalaysiaMdacApplicationMetadata(application)
+  );
+}
+
+function isTdacQueueItem(
+  item: SubmissionQueueItem,
+  application: QueueRoutingApplication | null = null,
+): boolean {
+  return (
+    item.status.startsWith("tdac_") ||
+    item.provider === "thailand_tdac_dry_run" ||
+    item.provider === "thailand_tdac_live" ||
+    isThailandTdacApplicationMetadata(application)
   );
 }
 
@@ -682,6 +774,60 @@ async function normalizeSgacQueueItem(item: SubmissionQueueItem): Promise<Submis
   console.warn(
     `[sgac] Normalized queue ${redactIdentifier(item.id)} from status=${item.status} mode=${item.mode ?? "(null)"} provider=${item.provider ?? "(null)"} to ${expectedStatus}`,
   );
+  return {
+    ...item,
+    status: expectedStatus,
+    mode: expectedMode,
+    provider: expectedProvider,
+    heartbeat_at: now,
+    updated_at: now,
+  };
+}
+
+async function normalizeDigitalArrivalCardQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
+  const application = await loadQueueRoutingApplication(item.application_id);
+  const isMdac = isMdacQueueItem(item, application);
+  const isTdac = isTdacQueueItem(item, application);
+  if (!isMdac && !isTdac) return item;
+
+  const liveRequested = isLiveAssistedQueueItem(item);
+  const expectedStatus: SubmissionQueueItem["status"] = isMdac
+    ? liveRequested
+      ? "mdac_live_assisted_pending"
+      : "mdac_dry_run_pending"
+    : liveRequested
+      ? "tdac_live_assisted_pending"
+      : "tdac_dry_run_pending";
+  const expectedProvider = isMdac
+    ? liveRequested
+      ? "malaysia_mdac_live"
+      : "malaysia_mdac_dry_run"
+    : liveRequested
+      ? "thailand_tdac_live"
+      : "thailand_tdac_dry_run";
+  const expectedMode = liveRequested ? "live_assisted" : "dry_run";
+
+  if (item.status === expectedStatus && item.provider === expectedProvider && item.mode === expectedMode) {
+    return item;
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("submission_queue")
+    .update({
+      status: expectedStatus,
+      mode: expectedMode,
+      provider: expectedProvider,
+      current_stage: "queued",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  if (error) {
+    console.error(`[arrival-card] Failed to normalize queue ${redactIdentifier(item.id)}: ${error.message}`);
+    return item;
+  }
+
   return {
     ...item,
     status: expectedStatus,
@@ -1008,6 +1154,12 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("sgac_live_assisted_")) return "sgac_live_assisted_failed";
   if (status.startsWith("sgac_dry_run_")) return "sgac_dry_run_failed";
   if (status.startsWith("sgac_")) return "sgac_blocked";
+  if (status.startsWith("mdac_live_assisted_")) return "mdac_live_assisted_failed";
+  if (status.startsWith("mdac_dry_run_")) return "mdac_dry_run_failed";
+  if (status.startsWith("mdac_")) return "mdac_blocked";
+  if (status.startsWith("tdac_live_assisted_")) return "tdac_live_assisted_failed";
+  if (status.startsWith("tdac_dry_run_")) return "tdac_dry_run_failed";
+  if (status.startsWith("tdac_")) return "tdac_blocked";
   if (status.startsWith("au_")) return "au_prefill_failed";
   return "failed";
 }
@@ -4563,6 +4715,38 @@ async function enqueueSgacLiveAfterDryRun(
   return row?.id ?? null;
 }
 
+async function enqueueDigitalArrivalCardLiveAfterDryRun(
+  item: SubmissionQueueItem,
+  code: ArrivalCardCode,
+): Promise<string | null> {
+  const now = new Date().toISOString();
+  const isMdac = code === "MDAC";
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .insert({
+      application_id: item.application_id,
+      status: isMdac ? "mdac_live_assisted_pending" : "tdac_live_assisted_pending",
+      mode: "live_assisted",
+      provider: isMdac ? "malaysia_mdac_live" : "thailand_tdac_live",
+      attempts: 0,
+      last_error: null,
+      current_stage: "queued_after_dry_run",
+      heartbeat_at: now,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`${code} dry-run passed but live submission could not be queued: ${error.message}`);
+  }
+
+  await setSubmissionStatus(item.application_id, "waiting");
+  const row = data as { id?: string | null } | null;
+  return row?.id ?? null;
+}
+
 async function promoteSgacScheduledIfDue(item: SubmissionQueueItem): Promise<SubmissionQueueItem | null> {
   if (item.status !== "sgac_live_assisted_scheduled") return item;
   const answers = await loadDs160Answers(item.application_id);
@@ -4904,6 +5088,278 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
   }
 }
 
+type ArrivalCardCode = "MDAC" | "TDAC";
+
+function arrivalCardPayloadSummary(payload: SubmissionPayload): DigitalArrivalCardSubmissionResult["payloadSummary"] {
+  const accommodationAddress =
+    payload.countrySpecific.address_in_malaysia ??
+    payload.countrySpecific.address_in_thailand ??
+    payload.trip.accommodationAddress ??
+    "";
+  return {
+    arrivalDate: payload.trip.arrivalDate ?? null,
+    departureDate: payload.trip.departureDate ?? null,
+    modeOfTravel: payload.countrySpecific.mode_of_travel ?? null,
+    transportNumber:
+      payload.countrySpecific.transport_number ??
+      payload.countrySpecific.flight_number ??
+      payload.countrySpecific.vehicle_or_vessel_number ??
+      null,
+    accommodationAddressProvided: Boolean(accommodationAddress.trim()),
+  };
+}
+
+async function uploadArrivalCardArtifacts(input: {
+  authUserId: string | null;
+  applicationId: string;
+  country: "MY" | "TH";
+  kind: string;
+  ext: "png" | "pdf";
+  contentType: string;
+  paths: string[];
+}): Promise<string[]> {
+  if (!input.authUserId) return input.paths;
+  const uploaded: string[] = [];
+  for (const filePath of input.paths) {
+    try {
+      uploaded.push(
+        await uploadArtifact({
+          authUserId: input.authUserId,
+          applicationId: input.applicationId,
+          country: input.country,
+          kind: input.kind,
+          ext: input.ext,
+          contentType: input.contentType,
+          filePath,
+        }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[arrival-card] Failed to upload ${input.kind} artifact: ${message}`);
+      uploaded.push(filePath);
+    }
+  }
+  return uploaded;
+}
+
+async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code: ArrivalCardCode): Promise<void> {
+  const isMdac = code === "MDAC";
+  const country = isMdac ? "MY" : "TH";
+  const visaType = isMdac ? "MY_MDAC_ARRIVAL_CARD" : "TH_TDAC_ARRIVAL_CARD";
+  const providerName = isMdac ? "malaysia_mdac_live" : "thailand_tdac_live";
+  const processingStatus: SubmissionQueueItem["status"] = isMdac
+    ? "mdac_live_assisted_processing"
+    : "tdac_live_assisted_processing";
+  const failedStatus: SubmissionQueueItem["status"] = isMdac
+    ? "mdac_live_assisted_failed"
+    : "tdac_live_assisted_failed";
+  const portalUrl = isMdac ? MDAC_OFFICIAL_PORTAL_URL : TDAC_OFFICIAL_PORTAL_URL;
+
+  console.log(
+    `[${code.toLowerCase()}] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: processingStatus,
+      current_stage: "mapping_answers",
+      heartbeat_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
+
+  let artifactOwnerId: string | null = null;
+  let payloadSummary: DigitalArrivalCardSubmissionResult["payloadSummary"] | undefined;
+
+  async function writeFailure(input: {
+    status: DigitalArrivalCardSubmissionResult["status"];
+    code: string;
+    message: string;
+    portalSummary: string;
+    missingFields?: string[];
+    screenshotPaths?: string[];
+  }): Promise<void> {
+    const screenshotArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country,
+      kind: `${code.toLowerCase()}-screenshot`,
+      ext: "png",
+      contentType: "image/png",
+      paths: input.screenshotPaths ?? [],
+    });
+    const result: DigitalArrivalCardSubmissionResult = {
+      country,
+      visaType,
+      status: input.status,
+      mode: "live_assisted",
+      provider: providerName,
+      applicationId: item.application_id,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl,
+      portalResponseSummary: input.portalSummary,
+      errorDetails: {
+        code: input.code,
+        message: input.message,
+        missingFields: input.missingFields,
+      },
+      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: [], traces: [] },
+      payloadSummary,
+    };
+    await writeSubmissionResult(item.application_id, result, "failed");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: failedStatus,
+        attempts: item.attempts + 1,
+        last_error: input.message,
+        error_code: input.code,
+        error_message: input.message,
+        current_stage: input.status === "validation_failed" ? "validation_failed" : "official_portal_failed",
+        live_screenshot_url: screenshotArtifacts[0] ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  }
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    artifactOwnerId = profile.auth_user_id ?? null;
+    const countryMatches = isMdac
+      ? MALAYSIA_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country))
+      : THAILAND_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country));
+    if (!countryMatches || application.visa_type !== visaType) {
+      throw new Error(
+        `${code} live submission requires ${visaType}; got country=${application.country} visa_type=${application.visa_type}`,
+      );
+    }
+
+    const answers = await loadDs160Answers(item.application_id);
+    const arrivalCardApplication = buildCountrySubmissionApplication(profile, application, answers);
+    const provider = getCountrySubmissionProvider(application.country, application.visa_type);
+    if (!provider || provider.countryCode !== country) {
+      throw new Error(`${code} country submission provider is not registered.`);
+    }
+
+    const validation = provider.validate(arrivalCardApplication);
+    const payload = provider.mapToSubmissionPayload(arrivalCardApplication, {
+      dryRun: false,
+      idempotencyKey: `${code.toLowerCase()}-live:${item.id}`,
+    });
+    payloadSummary = arrivalCardPayloadSummary(payload);
+
+    if (!validation.ok) {
+      await writeFailure({
+        status: "validation_failed",
+        code: `${code.toLowerCase()}_validation_failed`,
+        message: `${code} live validation failed: missing ${validation.missingRequiredFields.join(", ")}.`,
+        portalSummary: `${code} was not submitted because required VIZA form data is missing.`,
+        missingFields: validation.missingRequiredFields,
+      });
+      return;
+    }
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: isMdac ? "running_mdac_portal" : "running_tdac_portal",
+        official_portal_url: portalUrl,
+        heartbeat_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    const portalResult = isMdac
+      ? await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
+          headless: process.env.MDAC_PLAYWRIGHT_HEADLESS !== "false",
+          stopBeforeSubmit: process.env.MDAC_STOP_BEFORE_SUBMIT === "1",
+        })
+      : await runTdacPortalSubmission(normalizeTdacPortalPayload(payload), {
+          headless: process.env.TDAC_PLAYWRIGHT_HEADLESS !== "false",
+          stopBeforeSubmit: process.env.TDAC_STOP_BEFORE_SUBMIT === "1",
+        });
+
+    const screenshotArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country,
+      kind: `${code.toLowerCase()}-screenshot`,
+      ext: "png",
+      contentType: "image/png",
+      paths: portalResult.screenshots,
+    });
+    const pdfArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country,
+      kind: `${code.toLowerCase()}-confirmation-pdf`,
+      ext: "pdf",
+      contentType: "application/pdf",
+      paths: portalResult.pdfs,
+    });
+    const result: DigitalArrivalCardSubmissionResult = {
+      country,
+      visaType,
+      status: portalResult.submitted ? "submitted" : "official_portal_error",
+      mode: "live_assisted",
+      provider: providerName,
+      applicationId: item.application_id,
+      submitted: portalResult.submitted,
+      confirmationNumber: portalResult.confirmationNumber ?? null,
+      referenceNumber: portalResult.referenceNumber ?? null,
+      portalUrl: portalResult.portalUrl,
+      portalResponseSummary: portalResult.portalResponseSummary,
+      confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
+      artifacts: { screenshots: screenshotArtifacts, pdfs: pdfArtifacts, logs: portalResult.logs, traces: [] },
+      payloadSummary,
+    };
+    await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: portalResult.submitted ? "done" : failedStatus,
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: portalResult.submitted ? "submitted" : "official_portal_error",
+        official_portal_url: portalResult.portalUrl,
+        official_confirmation_number_encrypted: portalResult.confirmationNumber
+          ? encryptSecret(portalResult.confirmationNumber)
+          : null,
+        live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
+        live_screenshot_url: screenshotArtifacts[0] ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const validationError = err instanceof MdacPortalValidationError || err instanceof TdacPortalValidationError;
+    const portalError = err instanceof MdacPortalError || err instanceof TdacPortalError;
+    await writeFailure({
+      status: validationError ? "validation_failed" : "official_portal_error",
+      code: validationError
+        ? err.code
+        : portalError
+          ? err.code
+          : `${code.toLowerCase()}_live_worker_error`,
+      message: errorMsg,
+      portalSummary:
+        portalError && err.portalSummary
+          ? err.portalSummary
+          : validationError
+            ? `${code} was not submitted because VIZA could not map all required data into the official portal payload.`
+            : `${code} submission failed before an official confirmation could be captured.`,
+      missingFields: validationError ? err.missingFields : undefined,
+      screenshotPaths: portalError ? err.screenshotPaths : [],
+    });
+    console.error(`[${code.toLowerCase()}] Live submission failed: ${errorMsg}`);
+  }
+}
+
 async function processDryRunItem(
   item: SubmissionQueueItem,
   source: "global_dry_run" | "legacy_fallback" | "ds160_default_dry_run",
@@ -4915,7 +5371,14 @@ async function processDryRunItem(
   await supabase
     .from("submission_queue")
     .update({
-      status: item.status === "sgac_dry_run_pending" ? "sgac_dry_run_processing" : "processing",
+      status:
+        item.status === "sgac_dry_run_pending"
+          ? "sgac_dry_run_processing"
+          : item.status === "mdac_dry_run_pending"
+            ? "mdac_dry_run_processing"
+            : item.status === "tdac_dry_run_pending"
+              ? "tdac_dry_run_processing"
+              : "processing",
       updated_at: new Date().toISOString(),
     })
     .eq("id", item.id);
@@ -4941,6 +5404,8 @@ async function processDryRunItem(
       isSgArrivalCardQueueItem(item, application) &&
       item.status.startsWith("sgac_dry_run_") &&
       result.status === "submitted_mock";
+    const isMdacDryRun = isMdacQueueItem(item, application) && item.status.startsWith("mdac_dry_run_");
+    const isTdacDryRun = isTdacQueueItem(item, application) && item.status.startsWith("tdac_dry_run_");
     const validationFailed =
       result.status === "unsupported" &&
       result.message.startsWith("Dry-run validation failed:");
@@ -4953,6 +5418,12 @@ async function processDryRunItem(
       const liveJobId = await enqueueSgacLiveAfterDryRun(item, answers);
       console.log(
         `[sgac] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
+      );
+    } else if (result.status === "submitted_mock" && (isMdacDryRun || isTdacDryRun)) {
+      const code = isMdacDryRun ? "MDAC" : "TDAC";
+      const liveJobId = await enqueueDigitalArrivalCardLiveAfterDryRun(item, code);
+      console.log(
+        `[${code.toLowerCase()}] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
       );
     } else {
       await writeSubmissionResult(item.application_id, result, resultStatus);
@@ -5084,7 +5555,9 @@ async function pollOnce(): Promise<void> {
 
   // Process sequentially to avoid parallel browser sessions overwhelming the host
   for (const rawItem of items) {
-    const item = await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem));
+    const item = await normalizeDigitalArrivalCardQueueItem(
+      await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem)),
+    );
     if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160ProofJob(item)) {
@@ -5155,6 +5628,10 @@ async function pollOnce(): Promise<void> {
       if (dueItem) {
         await processSgacLiveItem(dueItem);
       }
+    } else if (isMdacJob(item)) {
+      await processDigitalArrivalCardLiveItem(item, "MDAC");
+    } else if (isTdacJob(item)) {
+      await processDigitalArrivalCardLiveItem(item, "TDAC");
     } else if (isAuJob(item)) {
       await processAuItem(item);
     } else {

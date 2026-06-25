@@ -80,6 +80,12 @@ The current internal automation migrations are:
   and redacted official status check history for applicant status refreshes.
 - `0100_mdac_tdac_arrival_card_packages.sql`: Malaysia MDAC and Thailand TDAC
   package catalog rows. They are separate from eVisa/tourist visa workflows.
+- `0101_vn_evisa_official_form_parity.sql`: Vietnam e-Visa official portal
+  form parity fields, conditional tables, ward/commune metadata hooks, and
+  official date/expense/insurance validation rules.
+- `0102_vn_evisa_photo_face_rules.sql`: Vietnam e-Visa photo/passport upload
+  metadata, 2MB official image limits, face-match hints, and passport expiry
+  validity relative to the e-Visa start date.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.

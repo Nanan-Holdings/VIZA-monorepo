@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import {
   getClientStatusData,
   hasClientSession,
+  isArrivalCardVisaType,
   type ClientStatusData,
   type ClientStatusState,
   type CountryApplicationRecord,
@@ -211,16 +212,43 @@ function formatEvent(event: StatusEvent, t: Awaited<ReturnType<typeof getTransla
   return humanize(event.eventType);
 }
 
+function getArrivalCardStateLabel(state: ClientStatusState, locale: string): string | null {
+  if (!locale.startsWith("zh")) {
+    if (state === "in_progress" || state === "needs_payment" || state === "needs_consent") return "Details in preparation";
+    if (state === "packet_pending" || state === "external_pending") return "Waiting for official submission";
+    if (state === "submitted") return "Submitted or queued";
+    return null;
+  }
+
+  if (state === "in_progress" || state === "needs_payment" || state === "needs_consent") return "资料准备中";
+  if (state === "packet_pending" || state === "external_pending") return "等待官网提交";
+  if (state === "submitted") return "已提交或等待中";
+  return null;
+}
+
+function getStatusBadgeLabel(
+  target: Pick<StatusApplication, "state" | "visaType" | "applicationRecords"> | Pick<CountryApplicationRecord, "state" | "visaType">,
+  locale: string,
+): string | null {
+  if (isArrivalCardVisaType(target.visaType)) return getArrivalCardStateLabel(target.state, locale);
+  if ("applicationRecords" in target && target.applicationRecords.some((record) => isArrivalCardVisaType(record.visaType))) {
+    return getArrivalCardStateLabel(target.state, locale);
+  }
+  return null;
+}
+
 function StatusBadge({
   state,
+  label,
   t,
 }: {
   state: ClientStatusState;
+  label?: string | null;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
     <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", APPLICATION_TONE[state])}>
-      {t(`states.${state}`)}
+      {label ?? t(`states.${state}`)}
     </span>
   );
 }
@@ -272,7 +300,7 @@ function ApplicationCard({
             </p>
           </div>
         </div>
-        <StatusBadge state={application.state} t={t} />
+        <StatusBadge state={application.state} label={getStatusBadgeLabel(application, locale)} t={t} />
       </div>
 
       <SmoothProgressBar
@@ -438,7 +466,7 @@ function CountryApplicationRecordRow({
             <p className="truncate font-heading text-[16px] font-medium text-[#26364a]">
               {locale.startsWith("zh") ? record.visaTypeLabelZh : record.visaTypeLabel}
             </p>
-            <StatusBadge state={record.state} t={t} />
+            <StatusBadge state={record.state} label={getStatusBadgeLabel(record, locale)} t={t} />
           </div>
           <SmoothProgressBar
             displayedProgress={record.progressPercent}
@@ -595,7 +623,7 @@ function DetailView({
                 <h2 className="font-heading text-[28px] font-medium leading-tight text-[#26364a] sm:text-[34px]">
                   {locale.startsWith("zh") ? application.countryNameZh : application.countryName}
                 </h2>
-                <StatusBadge state={application.state} t={t} />
+                <StatusBadge state={application.state} label={getStatusBadgeLabel(application, locale)} t={t} />
               </div>
               <p className="mt-2 text-[15px] font-medium text-[#66758a]">
                 {locale.startsWith("zh") ? application.visaTypeLabelZh : application.visaTypeLabel}
