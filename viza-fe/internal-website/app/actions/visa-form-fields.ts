@@ -12,6 +12,7 @@ import {
   shouldUseRagVisitorIntakeFallback,
 } from "@/lib/rag-visitor-intake-form";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
+import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -69,7 +70,10 @@ export async function getVisaFormSteps(
       stepMap.get(step)!.fields.push(normalizeBilingualFormField(dbRowToFormField(row)));
     }
 
-    return Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber);
+    const steps = Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber);
+    return schemaVisaType === "VN_E_VISA"
+      ? normalizeBilingualWizardSteps(augmentVietnamEVisaOfficialParitySteps(steps))
+      : steps;
   } catch (err) {
     console.error("[getVisaFormSteps] Unexpected error:", err);
     return [];
