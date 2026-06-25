@@ -3542,6 +3542,17 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
         throw error;
       }
     }
+    const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
+    const directOneTimeCardAuthorized =
+      autopayEnabled &&
+      readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false) &&
+      item.payment_status === "authorized";
+    if (!intent && !fallbackAuthorized && directOneTimeCardAuthorized) {
+      fallbackAuthorized = true;
+      console.log(
+        `[vn] Payment queue ${item.id} proceeding with queue-scoped one-time card authorization without an official-fee intent.`,
+      );
+    }
     if (!intent && !fallbackAuthorized) {
       throw new Error("No authorized official_fee_payment_intent found for Vietnam payment.");
     }
@@ -3550,7 +3561,6 @@ async function processVnPaymentItem(item: SubmissionQueueItem): Promise<void> {
     }
 
     const registrationCode = await loadVnRegistrationCode(item.application_id, item);
-    const autopayEnabled = readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
     const dryRunReceipt = readBooleanEnv("VN_OFFICIAL_PAYMENT_DRY_RUN_RECEIPT", false);
     const now = new Date().toISOString();
 
