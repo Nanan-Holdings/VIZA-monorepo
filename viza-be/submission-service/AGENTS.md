@@ -98,6 +98,14 @@ filling and one-shot submission for the applicant.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.
+- `src/mdac/**`: Malaysia MDAC arrival-card runner. Normalizes
+  `MY_MDAC_ARRIVAL_CARD` answers only, keeps MDAC separate from Malaysia eVisa,
+  dispatches through the official MDAC portal, and captures confirmation/error
+  evidence artifacts.
+- `src/tdac/**`: Thailand TDAC arrival-card runner. Normalizes
+  `TH_TDAC_ARRIVAL_CARD` answers only, keeps TDAC separate from Thailand eVisa,
+  dispatches through the official TDAC portal, and captures confirmation/error
+  evidence artifacts.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
@@ -125,6 +133,10 @@ filling and one-shot submission for the applicant.
   and CVV in process memory with a short TTL, and deletes the card when the
   payment worker consumes it. Do not persist these values to DB, queue payloads,
   logs, traces, `.env`, AGENTS, or profile records.
+- Vietnam runner note/acknowledgement handling must never auto-check
+  "Agree to create account by email" or similar account-creation checkboxes.
+  It may auto-check required official declarations needed to continue the
+  e-Visa flow, but account creation by email must remain unchecked.
 - `src/alert.ts`: Resend failure alerts.
 - `src/supabase.ts`: Supabase service client.
 
@@ -147,6 +159,8 @@ filling and one-shot submission for the applicant.
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 + gated payment pilot | Fills form and stops before Pay/Submit by default; captures registration code when portal review is reached. With explicit VIZA official-fee authorization plus fixed-card pilot env flags, may continue from the official payment page until paid or a 3DS/OTP/unknown-gateway manual checkpoint appears. |
 | Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
+| Malaysia MDAC | Live runner scaffold | Dry-run validates `MY_MDAC_ARRIVAL_CARD`; live worker dispatches to the official MDAC portal and records exact portal block/error evidence until a complete official form path is available in the current network/session. |
+| Thailand TDAC | Live runner scaffold | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal and records exact portal block/error evidence until a complete official form path is available in the current network/session. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |

@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { compareFaces } from "@/lib/face/match";
 import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
 import {
   isDs160VisaType,
+  isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
+  isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
+  isThailandTdacApplication,
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
@@ -81,6 +85,16 @@ type VietnamMissingField = {
   labelZh: string;
   labelEn: string;
 };
+
+type VietnamDocumentValidationResult =
+  | { ok: true; faceScore: number }
+  | { ok: false; status: number; code: string; message: string; missingFields?: VietnamMissingField[] };
+
+const APPLICATION_DOCUMENTS_BUCKET = "application-documents";
+const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE || 0.7);
+const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
+const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 
 const VIETNAM_REQUIRED_FIELDS: VietnamRequirement[] = [
   { key: "surname", labelZh: "姓氏 / Surname", labelEn: "Surname" },
@@ -207,6 +221,14 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
   if (isSgArrivalCardApplication(country, visaType)) {
     return process.env.SGAC_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
+  }
+  if (isMalaysiaMdacApplication(country, visaType)) {
+    return process.env.MDAC_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_MDAC_LIVE_SUBMISSION_ENABLED !== "false";
+  }
+  if (isThailandTdacApplication(country, visaType)) {
+    return process.env.TDAC_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
 }
@@ -373,6 +395,74 @@ function normalizeRequirementValue(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "_");
 }
 
+function parseVietnamAnswerDate(value: string | null | undefined): Date | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? new Date(`${trimmed}T00:00:00Z`) : null;
+  if (isoDate && !Number.isNaN(isoDate.getTime())) return isoDate;
+
+  const ddMmYyyy = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (ddMmYyyy) {
+    const day = Number(ddMmYyyy[1]);
+    const month = Number(ddMmYyyy[2]);
+    const year = Number(ddMmYyyy[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    ) {
+      return date;
+    }
+  }
+
+  return null;
+}
+
+function addUtcDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+function collectVietnamAnswerValidationIssues(answers: Record<string, string>): VietnamMissingField[] {
+  const issues: VietnamMissingField[] = [];
+  const visaValidFrom = parseVietnamAnswerDate(answers.visa_valid_from);
+  const visaValidTo = parseVietnamAnswerDate(answers.visa_valid_to);
+  const passportExpiry = parseVietnamAnswerDate(answers.passport_expiry_date);
+
+  if (visaValidFrom) {
+    const today = new Date();
+    const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    if (visaValidFrom < todayUtc) {
+      issues.push({
+        field: "visa_valid_from",
+        labelZh: "签证生效日期不能早于今天",
+        labelEn: "E-visa valid from cannot be earlier than today",
+      });
+    }
+  }
+
+  if (visaValidFrom && visaValidTo && visaValidTo < visaValidFrom) {
+    issues.push({
+      field: "visa_valid_to",
+      labelZh: "签证结束日期不能早于生效日期",
+      labelEn: "E-visa valid to cannot be earlier than valid from",
+    });
+  }
+
+  if (visaValidFrom && passportExpiry && passportExpiry < addUtcDays(visaValidFrom, 30)) {
+    issues.push({
+      field: "passport_expiry_date",
+      labelZh: "护照到期日必须至少晚于签证生效日 30 天",
+      labelEn: "Passport expiry must be at least 30 days after the e-Visa start date",
+    });
+  }
+
+  return issues;
+}
+
 function applyVietnamRetryAliases(
   answers: Record<string, string>,
   profile: ProfileForRetry,
@@ -484,7 +574,7 @@ async function validateVietnamRetryAnswers(input: {
 
   applyVietnamRetryAliases(answers, input.profile, input.application);
 
-  return VIETNAM_REQUIRED_FIELDS
+  const missing = VIETNAM_REQUIRED_FIELDS
     .filter((field) => {
       if (!field.condition) return true;
       return normalizeRequirementValue(answers[field.condition.key]) === normalizeRequirementValue(field.condition.equals);
@@ -495,6 +585,7 @@ async function validateVietnamRetryAnswers(input: {
       labelZh: field.labelZh,
       labelEn: field.labelEn,
     }));
+  return [...missing, ...collectVietnamAnswerValidationIssues(answers)];
 }
 
 function vietnamValidationMessage(mode: SubmissionMode, missing: VietnamMissingField[]): string {
@@ -502,6 +593,171 @@ function vietnamValidationMessage(mode: SubmissionMode, missing: VietnamMissingF
   const labels = missing.slice(0, 12).map((field) => field.labelZh).join(", ");
   const suffix = missing.length > 12 ? `, +${missing.length - 12} more` : "";
   return `${prefix}: missing ${labels}${suffix}. 请先返回表单补全这些越南 e-Visa 必填信息。`;
+}
+
+function vietnamImageValidationMessage(message: string): string {
+  return `${message} 请先返回材料上传区重新上传越南 e-Visa 所需的证件照和护照资料页。`;
+}
+
+async function loadLatestDocumentByType(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  documentTypes: readonly string[],
+): Promise<{ storagePath: string; documentType: string } | null> {
+  const { data, error } = await admin
+    .from("application_documents")
+    .select("storage_path, document_type")
+    .eq("application_id", applicationId)
+    .in("document_type", [...documentTypes])
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.storage_path || typeof data.storage_path !== "string") return null;
+  return {
+    storagePath: data.storage_path,
+    documentType: typeof data.document_type === "string" ? data.document_type : documentTypes[0] ?? "document",
+  };
+}
+
+async function downloadVietnamDocumentBuffer(
+  admin: ReturnType<typeof createAdminClient>,
+  storagePath: string,
+): Promise<{ buffer: Buffer; size: number; contentType: string | null } | { error: string }> {
+  const { data: blob, error } = await admin.storage.from(APPLICATION_DOCUMENTS_BUCKET).download(storagePath);
+  if (error || !blob) return { error: error?.message || "Document download failed" };
+  return {
+    buffer: Buffer.from(await blob.arrayBuffer()),
+    size: blob.size,
+    contentType: blob.type || null,
+  };
+}
+
+function vietnamFaceMatchThreshold(): number {
+  return Number.isFinite(VIETNAM_FACE_MATCH_MIN_SCORE) && VIETNAM_FACE_MATCH_MIN_SCORE > 0
+    ? Math.min(1, VIETNAM_FACE_MATCH_MIN_SCORE)
+    : 0.7;
+}
+
+async function validateVietnamDocumentsAndFaceMatch(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  application: ApplicationForRetry;
+}): Promise<VietnamDocumentValidationResult> {
+  const passport = await loadLatestDocumentByType(
+    input.admin,
+    input.application.id,
+    VIETNAM_PASSPORT_DOCUMENT_TYPES,
+  );
+  const portrait = await loadLatestDocumentByType(
+    input.admin,
+    input.application.id,
+    VIETNAM_PORTRAIT_DOCUMENT_TYPES,
+  );
+
+  const missingFields: VietnamMissingField[] = [];
+  if (!passport) {
+    missingFields.push({
+      field: "passport_copy",
+      labelZh: "护照资料页图片",
+      labelEn: "Passport data page image",
+    });
+  }
+  if (!portrait) {
+    missingFields.push({
+      field: "photo",
+      labelZh: "本人证件照片",
+      labelEn: "Portrait photo",
+    });
+  }
+  if (missingFields.length > 0) {
+    return {
+      ok: false,
+      status: 422,
+      code: "vietnam_documents_missing",
+      message: vietnamValidationMessage("live_assisted", missingFields),
+      missingFields,
+    };
+  }
+
+  const passportDocument = passport;
+  const portraitDocument = portrait;
+  if (!passportDocument || !portraitDocument) {
+    return {
+      ok: false,
+      status: 422,
+      code: "vietnam_documents_missing",
+      message: vietnamValidationMessage("live_assisted", missingFields),
+      missingFields,
+    };
+  }
+
+  const passportDownload = await downloadVietnamDocumentBuffer(input.admin, passportDocument.storagePath);
+  if ("error" in passportDownload) {
+    return {
+      ok: false,
+      status: 422,
+      code: "vietnam_passport_image_unavailable",
+      message: vietnamImageValidationMessage(`护照资料页图片无法读取：${passportDownload.error}`),
+    };
+  }
+  const portraitDownload = await downloadVietnamDocumentBuffer(input.admin, portraitDocument.storagePath);
+  if ("error" in portraitDownload) {
+    return {
+      ok: false,
+      status: 422,
+      code: "vietnam_portrait_image_unavailable",
+      message: vietnamImageValidationMessage(`本人证件照片无法读取：${portraitDownload.error}`),
+    };
+  }
+
+  if (passportDownload.size > VIETNAM_OFFICIAL_IMAGE_MAX_BYTES || portraitDownload.size > VIETNAM_OFFICIAL_IMAGE_MAX_BYTES) {
+    return {
+      ok: false,
+      status: 422,
+      code: "vietnam_image_too_large",
+      message: vietnamImageValidationMessage("越南 e-Visa 官网要求证件照和护照资料页图片都小于 2MB。"),
+    };
+  }
+
+  let faceResult: Awaited<ReturnType<typeof compareFaces>>;
+  try {
+    faceResult = await compareFaces(passportDownload.buffer, portraitDownload.buffer);
+  } catch (error) {
+    return {
+      ok: false,
+      status: 503,
+      code: "vietnam_face_match_unavailable",
+      message:
+        error instanceof Error
+          ? `证件照与护照页人脸匹配暂时不可用：${error.message}`
+          : "证件照与护照页人脸匹配暂时不可用。",
+    };
+  }
+
+  const threshold = vietnamFaceMatchThreshold();
+  await input.admin.from("face_match_audit").insert({
+    applicant_id: input.application.applicant_id,
+    application_id: input.application.id,
+    provider: faceResult.provider,
+    score: faceResult.score.toFixed(4),
+    threshold: threshold.toFixed(4),
+    decision: faceResult.score >= threshold ? "auto_approve" : "reject",
+    passport_storage_path: passportDocument.storagePath,
+    applicant_storage_path: portraitDocument.storagePath,
+  }).then(() => undefined);
+
+  if (faceResult.score < threshold) {
+    return {
+      ok: false,
+      status: 422,
+      code: "vietnam_face_match_failed",
+      message: vietnamImageValidationMessage(
+        `证件照与护照资料页人脸相似度为 ${(faceResult.score * 100).toFixed(1)}%，低于 ${(threshold * 100).toFixed(0)}% 的最低要求。`,
+      ),
+    };
+  }
+
+  return { ok: true, faceScore: faceResult.score };
 }
 
 async function insertRetryQueueRow(
@@ -769,7 +1025,7 @@ export async function POST(
       isDs160VisaType(ownedApplication.visa_type) ||
       isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type) ||
-      isSgArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type);
+      isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
         { error: "Live assisted retry is not supported for this visa type." },
@@ -811,6 +1067,21 @@ export async function POST(
             missingFields: missing,
           },
           { status: 422 },
+        );
+      }
+
+      const documentValidation = await validateVietnamDocumentsAndFaceMatch({
+        admin,
+        application: ownedApplication,
+      });
+      if (!documentValidation.ok) {
+        return NextResponse.json(
+          {
+            error: documentValidation.message,
+            code: documentValidation.code,
+            missingFields: documentValidation.missingFields,
+          },
+          { status: documentValidation.status },
         );
       }
     }

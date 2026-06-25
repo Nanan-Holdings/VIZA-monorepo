@@ -54,6 +54,14 @@ const PLAN: MigrationPlanItem[] = [
     fileName: "20260625_vietnam_payment_status_tracking.sql",
     purpose: "Vietnam official-fee queue links and official status check history",
   },
+  {
+    fileName: "20260625_vn_evisa_official_form_parity.sql",
+    purpose: "Vietnam e-Visa official portal form parity fields, conditional tables, and date rules",
+  },
+  {
+    fileName: "20260625_vn_evisa_photo_face_rules.sql",
+    purpose: "Vietnam e-Visa official photo size, face-match, and passport validity guardrails",
+  },
 ];
 
 function isDirectRun(): boolean {

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, ExternalLink, FlaskConical, Loader2, RotateCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, FlaskConical, Loader2, RotateCw, ShieldCheck } from "lucide-react";
 import type {
+  DigitalArrivalCardSubmissionResult,
+  GenericEvisaSubmissionResult,
   GenericSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
@@ -90,6 +92,99 @@ function isVietnamPaymentCheckpointResult(
     result.checkpoint === "payment_page_visible" ||
     result.manualAction?.type === "payment_required" ||
     Boolean(result.registrationCode)
+  );
+}
+
+function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSubmissionResult }) {
+  const isZh = isChineseLocale(useLocale());
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const successful = result.submitted && result.status === "submitted";
+  const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
+  const pdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
+  const countryLabel = result.country === "MY" ? "MDAC" : "TDAC";
+  const pdfUrl = pdfPath
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`)}`
+    : null;
+
+  const downloadPdf = useCallback(async () => {
+    if (!pdfUrl) return;
+    setDownloadingPdf(true);
+    setDownloadError(null);
+    try {
+      const response = await fetch(pdfUrl, { credentials: "include" });
+      if (!response.ok) throw new Error(`PDF download failed with ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [countryLabel, pdfUrl, referenceNumber, result.applicationId]);
+
+  return (
+    <Card className="rounded-lg border-input">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-3">
+          {successful ? (
+            <ShieldCheck className="h-6 w-6 text-emerald-600" />
+          ) : (
+            <AlertTriangle className="h-6 w-6 text-amber-600" />
+          )}
+          {successful
+            ? isZh ? `${countryLabel} 提交成功` : `${countryLabel} submitted`
+            : isZh ? `${countryLabel} 未完成` : `${countryLabel} not completed`}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {referenceNumber ? (
+          <div className="border-l-2 border-emerald-600 pl-3">
+            <div className="text-xs text-muted-foreground">{isZh ? "申请编号 / 参考号" : "Reference number"}</div>
+            <div className="mt-1 font-mono text-lg font-semibold">{referenceNumber}</div>
+          </div>
+        ) : null}
+        <p className="text-sm text-muted-foreground">
+          {successful
+            ? result.portalResponseSummary
+            : result.errorDetails?.message || result.portalResponseSummary}
+        </p>
+        {pdfUrl ? (
+          <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
+            {downloadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isZh ? "下载确认文件" : "Download confirmation"}
+          </Button>
+        ) : null}
+        {downloadError ? <p className="text-sm text-red-700">{downloadError}</p> : null}
+        <Button asChild variant="ghost" className="w-full">
+          <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
+            {isZh ? "打开官方入境卡网站" : "Open official arrival card website"}
+            <ExternalLink className="ml-2 h-4 w-4" />
+          </a>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function isDigitalArrivalCardResult(result: SubmissionResult): result is DigitalArrivalCardSubmissionResult {
+  return (
+    (result.country === "MY" && "visaType" in result && result.visaType === "MY_MDAC_ARRIVAL_CARD") ||
+    (result.country === "TH" && "visaType" in result && result.visaType === "TH_TDAC_ARRIVAL_CARD")
+  );
+}
+
+function isGenericEvisaResult(result: SubmissionResult): result is GenericEvisaSubmissionResult {
+  return (
+    ["ID", "EG", "SA", "MY", "TH", "AE", "CA", "TR", "IT", "IN"].includes(result.country) &&
+    !isDigitalArrivalCardResult(result)
   );
 }
 
@@ -1037,6 +1132,13 @@ function renderSubmissionResultCard(
     case "SA":
     case "MY":
     case "TH":
+      if ("visaType" in result && (
+        result.visaType === "MY_MDAC_ARRIVAL_CARD" ||
+        result.visaType === "TH_TDAC_ARRIVAL_CARD"
+      )) {
+        return <DigitalArrivalCardResultCard result={result} />;
+      }
+      return <GenericEvisaResultCard applicationId={applicationId} result={result} />;
     case "AE":
     case "CA":
     case "TR":

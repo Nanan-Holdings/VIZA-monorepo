@@ -255,6 +255,91 @@ const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   sgacField("has_health_symptoms", "Health symptoms declaration", "security"),
 ];
 
+function arrivalCardField(
+  key: string,
+  label: string,
+  category: FieldCategory,
+  condition?: FieldRequirement["condition"],
+): FieldRequirement {
+  return { key: `answers.${key}`, label, category, required: true, condition };
+}
+
+const WHEN_MDAC_HOTEL = {
+  key: "answers.accommodation_type",
+  equals: "hotel",
+};
+const WHEN_MDAC_RESIDENTIAL = {
+  key: "answers.accommodation_type",
+  equals: "residential",
+};
+
+const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("full_name", "Full name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("email_address", "Email", "contact"),
+  arrivalCardField("mobile_country_code", "Mobile country code", "contact"),
+  arrivalCardField("mobile_number", "Phone", "contact"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("departure_date", "Departure date", "trip"),
+  arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
+  arrivalCardField("transport_number", "Flight / vehicle / vessel number", "trip"),
+  arrivalCardField("last_embarkation_country", "Last embarkation country", "trip"),
+  arrivalCardField("port_of_entry", "Point of entry", "trip"),
+  arrivalCardField("purpose_of_visit", "Purpose of visit", "trip"),
+  arrivalCardField("accommodation_type", "Accommodation type", "trip"),
+  arrivalCardField("accommodation_name", "Hotel / host name", "trip", WHEN_MDAC_HOTEL),
+  arrivalCardField("accommodation_name", "Host name", "trip", WHEN_MDAC_RESIDENTIAL),
+  arrivalCardField("address_in_malaysia", "Address in Malaysia", "trip"),
+  arrivalCardField("city", "City", "trip"),
+  arrivalCardField("state", "State", "trip"),
+  arrivalCardField("postcode", "Postcode", "trip"),
+  arrivalCardField("final_declaration", "Final declaration", "security"),
+];
+
+const WHEN_TDAC_AIR = {
+  key: "answers.mode_of_travel",
+  equals: "air",
+};
+const WHEN_TDAC_LAND = {
+  key: "answers.mode_of_travel",
+  equals: "land",
+};
+const WHEN_TDAC_SEA = {
+  key: "answers.mode_of_travel",
+  equals: "sea",
+};
+
+const TDAC_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("full_name", "Full name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("email_address", "Email", "contact"),
+  arrivalCardField("mobile_number", "Phone", "contact"),
+  arrivalCardField("occupation", "Occupation", "personal"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("departure_date", "Departure date", "trip"),
+  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
+  arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
+  arrivalCardField("flight_number", "Flight number", "trip", WHEN_TDAC_AIR),
+  arrivalCardField("vehicle_or_vessel_number", "Vehicle / vessel number", "trip", WHEN_TDAC_LAND),
+  arrivalCardField("vehicle_or_vessel_number", "Vehicle / vessel number", "trip", WHEN_TDAC_SEA),
+  arrivalCardField("country_boarded", "Country/region where boarded", "trip"),
+  arrivalCardField("port_of_arrival", "Port of arrival", "trip"),
+  arrivalCardField("accommodation_type", "Accommodation type", "trip"),
+  arrivalCardField("address_in_thailand", "Address in Thailand", "trip"),
+  arrivalCardField("province", "Province", "trip"),
+  arrivalCardField("district", "District", "trip"),
+  arrivalCardField("countries_visited_last_14_days", "Countries visited within 14 days", "security"),
+  arrivalCardField("has_health_symptoms", "Health symptoms declaration", "security"),
+  arrivalCardField("final_declaration", "Final declaration", "security"),
+];
+
 const CONFIGS: ProviderConfig[] = [
   {
     countryCode: "US",
@@ -477,6 +562,44 @@ const CONFIGS: ProviderConfig[] = [
     includeAllAnswersInPayload: true,
     dryRunConfirmationPrefix: "DRYRUN-SGAC",
     notes: "Dry-run validates SGAC traveller, trip, contact, and health declaration data. Live assisted submission uses the ICA SGAC portal runner and stays separate from SG_VISITOR_VISA.",
+  },
+  {
+    countryCode: "MY",
+    countryAliases: ["my", "malaysia"],
+    displayName: "Malaysia MDAC",
+    supportedVisaTypes: ["MY_MDAC_ARRIVAL_CARD"],
+    implementationStatus: "implemented",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/index.ts", "src/mdac/**"],
+    schemaFiles: ["../agent-backend/scripts/seed-my-mdac-arrival-card-form-fields.ts", "../agent-backend/scripts/my-mdac/**"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/mdac/normalize.ts"],
+    automationFiles: ["src/mdac/runner.ts"],
+    requiredFields: MDAC_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-MDAC",
+    notes: "Dry-run validates Malaysia MDAC traveller, trip, contact, and accommodation data. Live assisted submission uses only the official Malaysian Immigration MDAC portal and stays separate from MY_TOURIST_E_VISA.",
+  },
+  {
+    countryCode: "TH",
+    countryAliases: ["th", "thailand"],
+    displayName: "Thailand TDAC",
+    supportedVisaTypes: ["TH_TDAC_ARRIVAL_CARD"],
+    implementationStatus: "implemented",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/index.ts", "src/tdac/**"],
+    schemaFiles: ["../agent-backend/scripts/seed-th-tdac-arrival-card-form-fields.ts", "../agent-backend/scripts/th-tdac/**"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/tdac/normalize.ts"],
+    automationFiles: ["src/tdac/runner.ts"],
+    requiredFields: TDAC_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-TDAC",
+    notes: "Dry-run validates Thailand TDAC traveller, trip, accommodation, and health declaration data. Live assisted submission uses only the official Thai Immigration TDAC portal and stays separate from TH_TOURIST_E_VISA.",
   },
   {
     countryCode: "SG",

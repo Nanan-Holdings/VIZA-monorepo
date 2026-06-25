@@ -54,6 +54,22 @@ export type SubmissionQueueStatus =
   | "sgac_live_assisted_processing"
   | "sgac_live_assisted_failed"
   | "sgac_blocked"
+  | "mdac_dry_run_pending"
+  | "mdac_dry_run_processing"
+  | "mdac_dry_run_failed"
+  | "mdac_live_assisted_pending"
+  | "mdac_live_assisted_processing"
+  | "mdac_live_assisted_failed"
+  | "mdac_live_assisted_cancelled"
+  | "mdac_blocked"
+  | "tdac_dry_run_pending"
+  | "tdac_dry_run_processing"
+  | "tdac_dry_run_failed"
+  | "tdac_live_assisted_pending"
+  | "tdac_live_assisted_processing"
+  | "tdac_live_assisted_failed"
+  | "tdac_live_assisted_cancelled"
+  | "tdac_blocked"
   | "au_prefill_pending"
   | "au_prefill_processing"
   | "au_prefilled"
@@ -139,6 +155,14 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "sgac_live_assisted_scheduled",
   "sgac_live_assisted_pending",
   "sgac_live_assisted_processing",
+  "mdac_dry_run_pending",
+  "mdac_dry_run_processing",
+  "mdac_live_assisted_pending",
+  "mdac_live_assisted_processing",
+  "tdac_dry_run_pending",
+  "tdac_dry_run_processing",
+  "tdac_live_assisted_pending",
+  "tdac_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "vn_payment_pending",
@@ -167,6 +191,14 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "sgac_live_assisted_failed",
   "sgac_live_assisted_cancelled",
   "sgac_blocked",
+  "mdac_dry_run_failed",
+  "mdac_live_assisted_failed",
+  "mdac_live_assisted_cancelled",
+  "mdac_blocked",
+  "tdac_dry_run_failed",
+  "tdac_live_assisted_failed",
+  "tdac_live_assisted_cancelled",
+  "tdac_blocked",
   "vn_prefill_failed",
   "vn_payment_failed",
   "vn_blocked",
@@ -263,6 +295,10 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
       return "vn_dry_run_pending";
     case "SG_ARRIVAL_CARD":
       return "sgac_dry_run_pending";
+    case "MY_MDAC_ARRIVAL_CARD":
+      return "mdac_dry_run_pending";
+    case "TH_TDAC_ARRIVAL_CARD":
+      return "tdac_dry_run_pending";
     case "AU_VISITOR_600":
       return "au_prefill_pending";
     default:
@@ -294,6 +330,12 @@ export function queueStatusForApplication(
   if (isSgArrivalCardApplication(country, visaType)) {
     return mode === "live_assisted" ? "sgac_live_assisted_pending" : "sgac_dry_run_pending";
   }
+  if (isMalaysiaMdacApplication(country, visaType)) {
+    return mode === "live_assisted" ? "mdac_live_assisted_pending" : "mdac_dry_run_pending";
+  }
+  if (isThailandTdacApplication(country, visaType)) {
+    return mode === "live_assisted" ? "tdac_live_assisted_pending" : "tdac_dry_run_pending";
+  }
 
   return queueStatusForSubmissionMode(visaType, mode);
 }
@@ -311,6 +353,12 @@ export function queueProviderForVisaType(
   if (SG_ARRIVAL_CARD_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted" ? "sg_arrival_card_live" : "sg_arrival_card_dry_run";
   }
+  if (MALAYSIA_MDAC_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "malaysia_mdac_live" : "malaysia_mdac_dry_run";
+  }
+  if (THAILAND_TDAC_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "thailand_tdac_live" : "thailand_tdac_dry_run";
+  }
   return null;
 }
 
@@ -325,6 +373,12 @@ export function queueProviderForApplication(
   if (isSgArrivalCardApplication(country, visaType)) {
     return mode === "live_assisted" ? "sg_arrival_card_live" : "sg_arrival_card_dry_run";
   }
+  if (isMalaysiaMdacApplication(country, visaType)) {
+    return mode === "live_assisted" ? "malaysia_mdac_live" : "malaysia_mdac_dry_run";
+  }
+  if (isThailandTdacApplication(country, visaType)) {
+    return mode === "live_assisted" ? "thailand_tdac_live" : "thailand_tdac_dry_run";
+  }
   return queueProviderForVisaType(visaType, mode);
 }
 
@@ -336,7 +390,7 @@ export function submissionQueueRequiresServerEnqueue(
   return (
     mode === "live_assisted" ||
     isVietnamEVisaApplication(country, visaType) ||
-    isSgArrivalCardApplication(country, visaType)
+    isDigitalArrivalCardApplication(country, visaType)
   );
 }
 
@@ -367,7 +421,9 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "vn_live_assisted_pending" ||
     input.queueStatus === "france_live_assisted_pending" ||
     input.queueStatus === "sgac_live_assisted_pending" ||
-    input.queueStatus === "sgac_live_assisted_scheduled"
+    input.queueStatus === "sgac_live_assisted_scheduled" ||
+    input.queueStatus === "mdac_live_assisted_pending" ||
+    input.queueStatus === "tdac_live_assisted_pending"
   );
 }
 
@@ -375,7 +431,7 @@ export function submitModeForPrimaryApplicationAction(
   country: string | null | undefined,
   visaType: string | null | undefined,
 ): SubmissionMode {
-  if (isVietnamEVisaApplication(country, visaType) || isSgArrivalCardApplication(country, visaType)) {
+  if (isVietnamEVisaApplication(country, visaType) || isDigitalArrivalCardApplication(country, visaType)) {
     return "live_assisted";
   }
   return "dry_run";

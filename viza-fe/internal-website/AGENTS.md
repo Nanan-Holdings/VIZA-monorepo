@@ -96,6 +96,19 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
+- Vietnam official e-Visa form parity migration under
+  `supabase/migrations/20260625_vn_evisa_official_form_parity.sql`; it keeps
+  the DB-driven VIZA form aligned with official conditional questions, tables,
+  date constraints, expense/insurance details, and ward/commune dependencies.
+- Vietnam e-Visa photo and face-match rules live in
+  `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
+  `app/client/documents/actions.ts`, `app/actions/face-match.ts`,
+  `app/api/applications/[id]/retry-submission/route.ts`, and
+  `lib/face/match.ts`. The official upload gate requires portrait and passport
+  data-page images under 2MB with detectable matching faces; use
+  `FACE_MATCH_PROVIDER=openai_vision` plus `OPENAI_API_KEY` or
+  `FACE_MATCH_OPENAI_API_KEY` for OpenAI vision matching, and tune
+  `VN_FACE_MATCH_MIN_SCORE` only with evidence.
 - France-Visas generated official account lookup for the applicant result UI
   is exposed server-side through
   `app/api/applications/[id]/france-visas-account/route.ts`; keep credential
@@ -202,6 +215,7 @@ Smoke URLs:
 - `lib/application-tab-completion.ts`
 - `lib/application-step-sections.ts`
 - `lib/birthplace-options.ts`
+- `lib/vietnam-administrative-units.ts`
 - `lib/visa-form-schema-aliases.ts`
 - `lib/__tests__/universal-profile-prefill.test.ts`
 - `lib/us-appointment/*`

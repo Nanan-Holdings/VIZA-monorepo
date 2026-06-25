@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { compareFaces, decideFromScore, DEFAULT_FACE_MATCH_THRESHOLD } from "@/lib/face/match";
 
 const STORAGE_BUCKET = "application-documents";
+const PASSPORT_FACE_MATCH_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
+const APPLICANT_FACE_MATCH_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 
 export interface FaceMatchActionResult {
   ok: boolean;
@@ -13,15 +15,17 @@ export interface FaceMatchActionResult {
   reason?: string;
 }
 
-async function downloadDoc(applicationId: string, docType: string) {
+async function downloadDoc(applicationId: string, docTypes: readonly string[]) {
   const adminClient = createAdminClient();
   const { data: doc } = await adminClient
     .from("application_documents")
     .select("storage_path")
     .eq("application_id", applicationId)
-    .eq("document_type", docType)
+    .in("document_type", [...docTypes])
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
     .maybeSingle();
-  if (!doc?.storage_path) return { error: `No ${docType} uploaded` };
+  if (!doc?.storage_path) return { error: `No ${docTypes[0] ?? "document"} uploaded` };
   const { data: blob, error } = await adminClient.storage
     .from(STORAGE_BUCKET)
     .download(doc.storage_path);
@@ -53,9 +57,9 @@ export async function runFaceMatch(applicationId: string): Promise<FaceMatchActi
     return { ok: false, reason: "Unauthorized" };
   }
 
-  const passport = await downloadDoc(applicationId, "passport_scan");
+  const passport = await downloadDoc(applicationId, PASSPORT_FACE_MATCH_DOCUMENT_TYPES);
   if ("error" in passport) return { ok: false, reason: passport.error };
-  const applicantPhoto = await downloadDoc(applicationId, "applicant_photo");
+  const applicantPhoto = await downloadDoc(applicationId, APPLICANT_FACE_MATCH_DOCUMENT_TYPES);
   if ("error" in applicantPhoto) return { ok: false, reason: applicantPhoto.error };
 
   const result = await compareFaces(passport.buffer, applicantPhoto.buffer);

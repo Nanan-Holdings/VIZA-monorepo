@@ -96,6 +96,22 @@ function usesSchengenMemberStateList(field: VisaFormFieldRow): boolean {
   return /schengen member state/i.test(field.label);
 }
 
+function extractYearFromDateValue(value: string): string {
+  const trimmed = value.trim();
+  const yearOnly = trimmed.match(/^(\d{4})$/);
+  const iso = trimmed.match(/^(\d{4})[-/.]\d{1,2}[-/.]\d{1,2}$/);
+  const official = trimmed.match(/^\d{1,2}[-/.]\d{1,2}[-/.](\d{4})$/);
+  const chinese = trimmed.match(/^(\d{4})年\d{1,2}月\d{1,2}日$/);
+
+  return yearOnly?.[1] ?? iso?.[1] ?? official?.[1] ?? chinese?.[1] ?? "";
+}
+
+type DateFieldRules = {
+  allow_do_not_know?: boolean;
+  allow_does_not_apply?: boolean;
+  allow_year_only?: boolean;
+};
+
 interface DynamicFormFieldProps {
   field: VisaFormFieldRow;
   value: string;
@@ -449,15 +465,21 @@ export function DynamicFormField({
   const localizedPlaceholder = resolveLocalizedPlaceholder(field, sideLocale) ?? placeholder ?? undefined;
   const doNotKnowLabel = sideLocale === "zh" ? t("dynamicField.doNotKnow") : "Do not know";
   const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
+  const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
 
   switch (fieldType) {
     case "date": {
-      const dateRules = (field.validationRules as { allow_do_not_know?: boolean; allow_does_not_apply?: boolean } | null);
+      const dateRules = (field.validationRules as DateFieldRules | null);
       const dateAllowDoNotKnow = dateRules?.allow_do_not_know;
       const dateAllowDoesNotApply = dateRules?.allow_does_not_apply;
+      const dateAllowYearOnly = Boolean(dateRules?.allow_year_only);
       const dateIsDoNotKnow = value === "DO_NOT_KNOW";
       const dateIsDoesNotApply = value === "DOES_NOT_APPLY";
+      const currentDateMode = dateModeByField[field.fieldName] ?? (/^\d{4}$/.test(value.trim()) ? "year" : "full");
+      const dateIsYearOnly = dateAllowYearOnly && currentDateMode === "year";
       const dateHasSideCheckbox = dateAllowDoNotKnow || dateAllowDoesNotApply;
+      const fullDateLabel = sideLocale === "zh" ? "完整日期" : "Full";
+      const yearOnlyLabel = sideLocale === "zh" ? "只知道年份" : "Only year is known";
       const datePickerNode = !dateIsDoNotKnow && !dateIsDoesNotApply ? (
         <DatePicker
           value={value}
@@ -471,6 +493,18 @@ export function DynamicFormField({
           {dateIsDoNotKnow ? doNotKnowLabel : doesNotApplyLabel}
         </div>
       );
+      const dateInputNode = dateIsYearOnly ? (
+        <InputGroup className={whiteControlClass}>
+          <InputGroupInput
+            value={value}
+            onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 4))}
+            placeholder="YYYY"
+            inputMode="numeric"
+            pattern="[0-9]{4}"
+            disabled={disabled}
+          />
+        </InputGroup>
+      ) : datePickerNode;
       const sideCheckbox = dateAllowDoNotKnow ? (
         <label className="flex shrink-0 items-center gap-2 cursor-pointer text-[13px] text-gray-500 whitespace-nowrap">
           <Checkbox
@@ -491,13 +525,41 @@ export function DynamicFormField({
 
       return (
         <FieldWrapper label={label} required={required}>
+          {dateAllowYearOnly && !dateIsDoNotKnow && !dateIsDoesNotApply && (
+            <div className="mb-1 flex flex-wrap items-center gap-4 text-[13px] text-gray-700">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  className="h-4 w-4 accent-[#004080]"
+                  checked={!dateIsYearOnly}
+                  onChange={() => {
+                    setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "full" }));
+                    if (/^\d{4}$/.test(value.trim())) onChange("");
+                  }}
+                />
+                {fullDateLabel}
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  className="h-4 w-4 accent-[#004080]"
+                  checked={dateIsYearOnly}
+                  onChange={() => {
+                    setDateModeByField((prev) => ({ ...prev, [field.fieldName]: "year" }));
+                    onChange(extractYearFromDateValue(value));
+                  }}
+                />
+                {yearOnlyLabel}
+              </label>
+            </div>
+          )}
           {dateHasSideCheckbox ? (
             <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">{datePickerNode}</div>
+              <div className="flex-1 min-w-0">{dateInputNode}</div>
               {sideCheckbox}
             </div>
           ) : (
-            datePickerNode
+            dateInputNode
           )}
         </FieldWrapper>
       );
