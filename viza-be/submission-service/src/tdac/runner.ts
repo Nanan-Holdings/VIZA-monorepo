@@ -163,8 +163,8 @@ async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Prom
   const candidateFrames = page.locator("iframe[src*='challenges.cloudflare.com'], iframe[title*='Cloudflare']");
   const count = await candidateFrames.count().catch(() => 0);
   for (let index = 0; index < count; index += 1) {
-    const frameElement = candidateFrames.nth(index);
-    const frame = await frameElement.contentFrame().catch(() => null);
+    const frameElement = await candidateFrames.nth(index).elementHandle().catch(() => null);
+    const frame = await frameElement?.contentFrame().catch(() => null);
     if (!frame) continue;
 
     const checkbox = frame.locator("input[type='checkbox'], label, [role='checkbox']").first();
