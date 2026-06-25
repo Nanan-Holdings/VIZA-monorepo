@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
-import { type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
+import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import {
   getChinesePlaceholder,
   getEnglishPlaceholder,
@@ -25,6 +25,7 @@ import {
   type RealtimeTranslationStatus,
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
+import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -329,6 +330,14 @@ function parseFlexibleDate(value?: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function isYearOnlyDateValue(value: string): boolean {
+  return /^\d{4}$/.test(value.trim());
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
@@ -543,6 +552,13 @@ function getLocalFieldIssue(
   const rules = field.validationRules as {
     maxLength?: number;
     pattern?: string;
+    allow_year_only?: boolean;
+    min_date?: "today";
+    not_before_today?: boolean;
+    not_before_field?: string;
+    after_or_equal_field?: string;
+    min_days_after_field?: string;
+    min_days_after_field_days?: number;
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
@@ -582,9 +598,18 @@ function getLocalFieldIssue(
     if (!optionMatch) return issue("error", isZh ? "请选择题目提供的选项" : "Choose one of the provided options");
   }
 
-  const currentDate = field.fieldType === "date" ? parseFlexibleDate(trimmed) : null;
-  if (field.fieldType === "date" && trimmed && !currentDate) {
+  const isYearOnly = field.fieldType === "date" && Boolean(rules?.allow_year_only) && isYearOnlyDateValue(trimmed);
+  const currentDate = field.fieldType === "date" && !isYearOnly ? parseFlexibleDate(trimmed) : null;
+  if (field.fieldType === "date" && trimmed && !currentDate && !isYearOnly) {
     return issue("error", isZh ? "日期格式不符合要求" : "Date format does not match the requirement");
+  }
+
+  if (
+    isYearOnly &&
+    (valueKey.toLowerCase().includes("birth") || field.fieldName.toLowerCase().includes("birth")) &&
+    Number(trimmed) > new Date().getFullYear()
+  ) {
+    return issue("error", isZh ? "出生年份不能晚于今年" : "Year of birth cannot be later than this year");
   }
 
   if (
@@ -593,6 +618,43 @@ function getLocalFieldIssue(
     currentDate > new Date()
   ) {
     return issue("error", isZh ? "出生日期不能晚于今天" : "Date of birth cannot be later than today");
+  }
+
+  if (currentDate && (rules?.min_date === "today" || rules?.not_before_today)) {
+    const today = startOfDay(new Date());
+    if (startOfDay(currentDate) < today) {
+      return issue("error", isZh ? "日期不能早于今天" : "Date cannot be earlier than today");
+    }
+  }
+
+  const compareFieldName = rules?.not_before_field ?? rules?.after_or_equal_field;
+  if (currentDate && compareFieldName) {
+    const repeatSuffix = getRepeatInstanceSuffix(valueKey);
+    const compareValue = values[`${compareFieldName}${repeatSuffix}`] ?? values[compareFieldName];
+    const compareDate = parseFlexibleDate(compareValue);
+    if (compareDate && startOfDay(currentDate) < startOfDay(compareDate)) {
+      return issue("error", isZh ? "结束日期不能早于开始日期" : "End date cannot be earlier than the start date");
+    }
+  }
+
+  if (currentDate && rules?.min_days_after_field) {
+    const repeatSuffix = getRepeatInstanceSuffix(valueKey);
+    const compareValue =
+      values[`${rules.min_days_after_field}${repeatSuffix}`] ?? values[rules.min_days_after_field];
+    const compareDate = parseFlexibleDate(compareValue);
+    const requiredDays = Math.max(0, rules.min_days_after_field_days ?? 0);
+    if (compareDate) {
+      const minimumDate = startOfDay(new Date(compareDate));
+      minimumDate.setDate(minimumDate.getDate() + requiredDays);
+      if (startOfDay(currentDate) < minimumDate) {
+        return issue(
+          "error",
+          isZh
+            ? `日期必须至少晚于关联日期 ${requiredDays} 天`
+            : `Date must be at least ${requiredDays} days after the related date`,
+        );
+      }
+    }
   }
 
   const repeatSuffix = getRepeatInstanceSuffix(valueKey);
@@ -711,6 +773,86 @@ function normalizeCountrySlug(value?: string | null): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function normalizeOptionKey(value?: string | null): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getDynamicDependentOptions(
+  field: VisaFormFieldRow,
+  values: Record<string, string>,
+): VisaFormFieldOption[] | null {
+  const rules = field.validationRules as {
+    dependent_options_key?: string;
+    dependent_on?: string;
+    dependsOn?: string;
+  } | null;
+  const parentFieldName = rules?.dependent_on ?? rules?.dependsOn;
+  if (!parentFieldName || rules?.dependent_options_key !== "vietnam_wards_by_province") return null;
+
+  const parentValue = values[parentFieldName];
+  const provinceKey = normalizeOptionKey(parentValue);
+  if (!provinceKey) return [];
+
+  const wards = VIETNAM_WARDS_BY_PROVINCE[provinceKey as keyof typeof VIETNAM_WARDS_BY_PROVINCE];
+  return wards ? [...wards] : [];
+}
+
+function isVietnamBorderGateField(field: VisaFormFieldRow): boolean {
+  const key = field.fieldName.toLowerCase();
+  return key.includes("border_gate") || key.includes("port_of_entry") || key.includes("port_of_exit");
+}
+
+function localizeVietnamBorderGateText(text: string): string {
+  return text
+    .replace(/\bInt\b/gi, "国际")
+    .replace(/\bInternational\b/gi, "国际")
+    .replace(/\bAirport\b/gi, "机场")
+    .replace(/\bSeaport\b/gi, "海港")
+    .replace(/\bLandport\b/gi, "陆路口岸")
+    .replace(/\bBorder Gate\b/gi, "边境口岸")
+    .replace(/\bRailway Station\b/gi, "火车站")
+    .replace(/\bHa Noi\b/gi, "河内")
+    .replace(/\bHo Chi Minh City\b/gi, "胡志明市")
+    .replace(/\bDa Nang\b/gi, "岘港")
+    .replace(/\bHai Phong\b/gi, "海防")
+    .replace(/\bCan Tho\b/gi, "芹苴")
+    .replace(/\bPhu Quoc\b/gi, "富国")
+    .replace(/\bNha Trang\b/gi, "芽庄")
+    .replace(/\bHue\b/gi, "顺化")
+    .replace(/\bCat Bi\b/gi, "吉碑")
+    .replace(/\bNoi Bai\b/gi, "内排")
+    .replace(/\bTan Son Nhat\b/gi, "新山一")
+    .replace(/\bCam Ranh\b/gi, "金兰")
+    .replace(/\bPhu Bai\b/gi, "富牌")
+    .replace(/\bBo Y\b/gi, "波伊")
+    .replace(/\bCau Treo\b/gi, "桥悬")
+    .replace(/\bCha Lo\b/gi, "茶罗")
+    .replace(/\bLao Bao\b/gi, "老保")
+    .replace(/\bMoc Bai\b/gi, "木牌")
+    .replace(/\bHuu Nghi\b/gi, "友谊")
+    .replace(/\bMong Cai\b/gi, "芒街");
+}
+
+function localizeVietnamBorderGateOptions(options: VisaFormFieldRow["options"]): VisaFormFieldRow["options"] {
+  if (!options) return options;
+  return options.map((option) => {
+    if (typeof option === "string") {
+      return { value: option, text: option, label_zh: localizeVietnamBorderGateText(option), label_en: option };
+    }
+    const sourceText = option.text ?? option.label_en ?? option.official_label ?? option.value;
+    return {
+      ...option,
+      label_zh: localizeVietnamBorderGateText(sourceText),
+    };
+  });
 }
 
 function getDefaultFieldValue(
@@ -1075,6 +1217,8 @@ export function DynamicStepForm({
           if (f.fieldName === parentFieldName) return false;
           const showIf = (f.conditionalLogic as { showIf?: string } | null)?.showIf;
           if (showIf && showIf.includes(parentFieldName)) return true;
+          const rules = f.validationRules as { dependent_on?: string; dependsOn?: string } | null;
+          if (rules?.dependent_on === parentFieldName || rules?.dependsOn === parentFieldName) return true;
           if (!f.conditionalLogic) {
             const withYes = { ...values, [parentFieldName]: "yes" };
             const withNo = { ...values, [parentFieldName]: "" };
@@ -1101,6 +1245,11 @@ export function DynamicStepForm({
         const depField = step.fields.find((f) => f.fieldName === dep);
         if (depField && !evaluateShowIf(depField, next, step.fields)) {
           next[dep] = "";
+        } else if (depField) {
+          const rules = depField.validationRules as { dependent_on?: string; dependsOn?: string } | null;
+          if (rules?.dependent_on === fieldName || rules?.dependsOn === fieldName) {
+            next[dep] = "";
+          }
         }
       }
 
@@ -1350,8 +1499,15 @@ export function DynamicStepForm({
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
+    const dynamicOptions = getDynamicDependentOptions(field, values);
+    if (dynamicOptions) {
+      fieldOptions = dynamicOptions;
+    }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);
+    }
+    if (isVietnamBorderGateField(field)) {
+      fieldOptions = localizeVietnamBorderGateOptions(fieldOptions);
     }
 
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);

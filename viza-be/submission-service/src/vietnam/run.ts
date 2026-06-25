@@ -8,7 +8,7 @@
  * by runtime secrets and the page is already at the payment checkpoint.
  */
 
-import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
@@ -1115,6 +1115,28 @@ async function clickVietnamApplyEntry(page: Page): Promise<boolean> {
   return true;
 }
 
+function isForbiddenVietnamAutoCheckboxText(text: string): boolean {
+  return /agree\s+to\s+create\s+account\s+by\s+email|create\s+account\s+by\s+email/i.test(text);
+}
+
+async function readCheckboxContextText(input: Locator): Promise<string> {
+  return input
+    .evaluate((element) => {
+      const label = element.closest("label") ?? element.closest(".ant-checkbox-wrapper") ?? element.parentElement;
+      return [
+        element.getAttribute("aria-label"),
+        element.getAttribute("name"),
+        element.getAttribute("id"),
+        label?.textContent,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+    })
+    .catch(() => "");
+}
+
 async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
   await page
     .evaluate(() => {
@@ -1133,12 +1155,32 @@ async function acknowledgeVietnamNoteModal(page: Page): Promise<boolean> {
     .evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).checked))
     .catch(() => [] as boolean[]);
   for (const index of uncheckedVietnamDeclarationIndexes(checkedStates)) {
-    await checkboxInputs.nth(index).check({ force: true }).catch(() => undefined);
+    const checkbox = checkboxInputs.nth(index);
+    const contextText = await readCheckboxContextText(checkbox);
+    if (isForbiddenVietnamAutoCheckboxText(contextText)) continue;
+    await checkbox.check({ force: true }).catch(() => undefined);
   }
   const allChecked =
     (await checkboxInputs.count()) >= 2 &&
     (await checkboxInputs
-      .evaluateAll((inputs) => inputs.every((input) => (input as HTMLInputElement).checked))
+      .evaluateAll((inputs) =>
+        inputs.every((input) => {
+          const htmlInput = input as HTMLInputElement;
+          const label = input.closest("label") ?? input.closest(".ant-checkbox-wrapper") ?? input.parentElement;
+          const contextText = [
+            input.getAttribute("aria-label"),
+            input.getAttribute("name"),
+            input.getAttribute("id"),
+            label?.textContent,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          if (/agree\s+to\s+create\s+account\s+by\s+email|create\s+account\s+by\s+email/i.test(contextText)) {
+            return true;
+          }
+          return htmlInput.checked;
+        }),
+      )
       .catch(() => false));
   if (!allChecked) return false;
 

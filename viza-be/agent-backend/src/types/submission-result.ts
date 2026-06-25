@@ -34,6 +34,7 @@ export type SubmissionResult =
   | UkSubmissionResult
   | VnSubmissionResult
   | SgArrivalCardSubmissionResult
+  | DigitalArrivalCardSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
   | GenericSubmissionResult;
@@ -195,6 +196,39 @@ export interface SgArrivalCardSubmissionResult {
   payloadSummary?: {
     purposeOfTravel?: string | null;
     arrivalDate?: string | null;
+    modeOfTravel?: string | null;
+    transportNumber?: string | null;
+    accommodationAddressProvided: boolean;
+  };
+}
+
+export interface DigitalArrivalCardSubmissionResult {
+  country: "MY" | "TH";
+  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD";
+  status: "submitted" | "validation_failed" | "official_portal_error";
+  mode: "live_assisted";
+  provider: "malaysia_mdac_live" | "thailand_tdac_live";
+  applicationId: string;
+  submitted: boolean;
+  confirmationNumber?: string | null;
+  referenceNumber?: string | null;
+  portalUrl: string;
+  portalResponseSummary: string;
+  confirmationPdfStoragePath?: string | null;
+  errorDetails?: {
+    code: string;
+    message: string;
+    missingFields?: string[];
+  };
+  artifacts?: {
+    screenshots?: string[];
+    pdfs?: string[];
+    logs?: string[];
+    traces?: string[];
+  };
+  payloadSummary?: {
+    arrivalDate?: string | null;
+    departureDate?: string | null;
     modeOfTravel?: string | null;
     transportNumber?: string | null;
     accommodationAddressProvided: boolean;

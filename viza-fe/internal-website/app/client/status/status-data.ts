@@ -334,6 +334,7 @@ const REJECTED_RESULT_STATUSES = new Set(["rejected", "refused", "denied"]);
 const SUCCESS_SUBMISSION_RESULT_STATUSES = new Set(["completed", "complete", "submitted", "success", "done"]);
 const ARRIVAL_CARD_READY_RESULT_STATUSES = new Set(["form_ready_for_agency"]);
 const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
+const ARRIVAL_CARD_VISA_TYPES = new Set([SGAC_VISA_TYPE, "MY_MDAC_ARRIVAL_CARD", "TH_TDAC_ARRIVAL_CARD"]);
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 const APPLICATION_STATUS_SELECT =
@@ -387,10 +388,13 @@ function submissionResultIsSubmitted(application: ApplicationRow): boolean {
   );
 }
 
+export function isArrivalCardVisaType(visaType: string | null | undefined): boolean {
+  const normalizedVisaType = getFormVisaType(visaType ?? "");
+  return ARRIVAL_CARD_VISA_TYPES.has(normalizedVisaType) || normalizedVisaType.endsWith("_ARRIVAL_CARD");
+}
+
 function arrivalCardResultIsReady(application: ApplicationRow): boolean {
-  const visaType = getFormVisaType(application.visa_type);
-  const isArrivalCard = visaType.endsWith("_ARRIVAL_CARD") || visaType === SGAC_VISA_TYPE;
-  return isArrivalCard && ARRIVAL_CARD_READY_RESULT_STATUSES.has(normalizeStatus(application.submission_result_status));
+  return isArrivalCardVisaType(application.visa_type) && ARRIVAL_CARD_READY_RESULT_STATUSES.has(normalizeStatus(application.submission_result_status));
 }
 
 function getSubmissionResultReference(application: ApplicationRow): string | null {
@@ -487,7 +491,7 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
     visaType: application.visaType,
     visaTypeLabel: application.visaTypeLabel,
     visaTypeLabelZh: application.visaTypeLabelZh,
-    state: application.state,
+    state: getArrivalCardDisplayState(application),
     progressPercent: application.progressPercent,
     createdAt: application.createdAt,
     updatedAt: application.updatedAt,
@@ -498,12 +502,30 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
   };
 }
 
+function getArrivalCardDisplayState(application: Pick<StatusApplication, "visaType" | "state" | "officialReference" | "submittedAt" | "files">): ClientStatusState {
+  if (!isArrivalCardVisaType(application.visaType)) return application.state;
+  if (
+    application.state === "submitted" ||
+    application.state === "approved" ||
+    application.officialReference ||
+    application.submittedAt ||
+    application.files.some((file) => file.key === "arrivalCardConfirmation")
+  ) {
+    return "submitted";
+  }
+  if (application.state === "needs_payment" || application.state === "needs_consent") return "in_progress";
+  return application.state;
+}
+
 function getCountryGroupState(records: CountryApplicationRecord[]): ClientStatusState {
   const latest = records[0];
   if (!latest) return "not_started";
   if (records.some((record) => record.state === "needs_attention" || record.state === "rejected")) {
     return records.find((record) => record.state === "needs_attention" || record.state === "rejected")?.state ?? latest.state;
   }
+  const arrivalCardRecords = records.filter((record) => isArrivalCardVisaType(record.visaType));
+  if (arrivalCardRecords.some((record) => record.state === "submitted" || record.state === "approved")) return "submitted";
+  if (arrivalCardRecords.length > 0 && (latest.state === "needs_payment" || latest.state === "needs_consent")) return "in_progress";
   return latest.state;
 }
 
