@@ -1132,19 +1132,24 @@ function renderSubmissionResultCard(
     case "SA":
     case "MY":
     case "TH":
-      if ("visaType" in result && (
-        result.visaType === "MY_MDAC_ARRIVAL_CARD" ||
-        result.visaType === "TH_TDAC_ARRIVAL_CARD"
-      )) {
+      if (isDigitalArrivalCardResult(result)) {
         return <DigitalArrivalCardResultCard result={result} />;
       }
-      return <GenericEvisaResultCard applicationId={applicationId} result={result} />;
+      return isGenericEvisaResult(result) ? (
+        <GenericEvisaResultCard applicationId={applicationId} result={result} />
+      ) : (
+        <WaitingCard status="running" />
+      );
     case "AE":
     case "CA":
     case "TR":
     case "IT":
     case "IN":
-      return <GenericEvisaResultCard applicationId={applicationId} result={result} />;
+      return isGenericEvisaResult(result) ? (
+        <GenericEvisaResultCard applicationId={applicationId} result={result} />
+      ) : (
+        <WaitingCard status="running" />
+      );
     default:
       return <WaitingCard status="running" />;
   }

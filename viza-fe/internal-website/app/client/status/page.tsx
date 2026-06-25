@@ -226,14 +226,35 @@ function getArrivalCardStateLabel(state: ClientStatusState, locale: string): str
   return null;
 }
 
+function isArrivalCardStatusTarget(target: {
+  country?: string | null;
+  visaType?: string | null;
+  visaTypeLabel?: string | null;
+  visaTypeLabelZh?: string | null;
+  applicationRecords?: Array<Pick<CountryApplicationRecord, "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh">>;
+}): boolean {
+  if (isArrivalCardVisaType(target.visaType)) return true;
+  if (target.applicationRecords?.some((record) => isArrivalCardStatusTarget(record))) return true;
+  const haystack = [target.country, target.visaTypeLabel, target.visaTypeLabelZh]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+  return (
+    haystack.includes("arrival card") ||
+    haystack.includes("sgac") ||
+    haystack.includes("mdac") ||
+    haystack.includes("tdac") ||
+    haystack.includes("入境卡")
+  );
+}
+
 function getStatusBadgeLabel(
-  target: Pick<StatusApplication, "state" | "visaType" | "applicationRecords"> | Pick<CountryApplicationRecord, "state" | "visaType">,
+  target:
+    | Pick<StatusApplication, "state" | "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh" | "applicationRecords">
+    | Pick<CountryApplicationRecord, "state" | "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh">,
   locale: string,
 ): string | null {
-  if (isArrivalCardVisaType(target.visaType)) return getArrivalCardStateLabel(target.state, locale);
-  if ("applicationRecords" in target && target.applicationRecords.some((record) => isArrivalCardVisaType(record.visaType))) {
-    return getArrivalCardStateLabel(target.state, locale);
-  }
+  if (isArrivalCardStatusTarget(target)) return getArrivalCardStateLabel(target.state, locale);
   return null;
 }
 
@@ -246,8 +267,12 @@ function StatusBadge({
   label?: string | null;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
+  const toneState =
+    label && (state === "needs_payment" || state === "needs_consent")
+      ? "in_progress"
+      : state;
   return (
-    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", APPLICATION_TONE[state])}>
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", APPLICATION_TONE[toneState])}>
       {label ?? t(`states.${state}`)}
     </span>
   );

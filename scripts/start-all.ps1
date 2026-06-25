@@ -7,6 +7,8 @@ param(
   [int]$StartupTimeoutSeconds = 120,
   [string]$PortalPath = "/client/login",
   [switch]$WithDb,
+  [switch]$SkipVizaMigrations,
+  [switch]$RequireVizaMigrations,
   [switch]$Reset,
   [switch]$Stop,
   [switch]$NoOpen
@@ -530,6 +532,47 @@ function Start-DatabaseServices {
   Write-Warn "No docker compose file or Supabase local config found. No database service was started."
 }
 
+function Invoke-VizaRequiredMigrations {
+  if ($SkipVizaMigrations) {
+    Write-Warn "Skipping targeted VIZA migrations because -SkipVizaMigrations was provided."
+    return
+  }
+
+  Write-Step "Applying targeted VIZA Supabase migrations..."
+  Write-Info "Command: cd viza-fe\\internal-website; npm run db:migrate:viza -- --apply"
+
+  $migrationLog = Join-Path $runLogDir "viza-migrations.out.log"
+  Push-Location $frontendDir
+  try {
+    & npm run db:migrate:viza -- --apply *> $migrationLog
+    if ($LASTEXITCODE -eq 0) {
+      Write-Ok "Targeted VIZA migrations applied."
+      Write-Info "  log: $migrationLog"
+      return
+    }
+
+    $message = "Targeted VIZA migrations failed with exit code $LASTEXITCODE. Check $migrationLog"
+    if ($RequireVizaMigrations) {
+      throw $message
+    }
+
+    Write-Warn $message
+    Write-Warn "Continuing startup. Re-run with -RequireVizaMigrations to fail fast, or run npm run db:migrate:viza -- --apply after database/DNS is reachable."
+  } catch {
+    if ($RequireVizaMigrations) {
+      throw
+    }
+
+    Write-Warn "Targeted VIZA migrations could not run: $($_.Exception.Message)"
+    Write-Warn "Continuing startup; DB-driven form metadata may be stale until migrations apply."
+  } finally {
+    Pop-Location
+    if (Test-Path -LiteralPath $migrationLog -PathType Leaf) {
+      Write-Info "  migration output: $migrationLog"
+    }
+  }
+}
+
 function Assert-ServiceInputs {
   Assert-Directory -Path $frontendDir
   Assert-Directory -Path $marketingDir
@@ -587,6 +630,7 @@ New-Item -ItemType Directory -Force -Path $runLogDir | Out-Null
 
 Assert-ServiceInputs
 Start-DatabaseServices
+Invoke-VizaRequiredMigrations
 
 $frontendAlreadyRunning = Assert-PortAvailableOrExpected `
   -Name "frontend" `
