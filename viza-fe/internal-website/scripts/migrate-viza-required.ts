@@ -46,6 +46,14 @@ const PLAN: MigrationPlanItem[] = [
     fileName: "20260610_submission_manual_action_bridge.sql",
     purpose: "Generic submission manual action, review snapshot, and review diff bridge",
   },
+  {
+    fileName: "20260625_official_fee_payment.sql",
+    purpose: "Official fee quote, intent, attempt, receipt, and reconciliation tables",
+  },
+  {
+    fileName: "20260625_vietnam_payment_status_tracking.sql",
+    purpose: "Vietnam official-fee queue links and official status check history",
+  },
 ];
 
 function isDirectRun(): boolean {

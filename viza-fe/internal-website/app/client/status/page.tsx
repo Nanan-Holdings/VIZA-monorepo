@@ -27,6 +27,7 @@ import {
   hasClientSession,
   type ClientStatusData,
   type ClientStatusState,
+  type CountryApplicationRecord,
   type StatusAction,
   type StatusApplication,
   type StatusEvent,
@@ -44,6 +45,8 @@ import { OfficialStatusRefreshButton } from "./official-status-refresh-button";
 type SearchParams = Promise<{
   applicationId?: string | string[];
   packageId?: string | string[];
+  country?: string | string[];
+  view?: string | string[];
 }>;
 
 export const dynamic = "force-dynamic";
@@ -140,12 +143,14 @@ function getParam(value: string | string[] | undefined): string | null {
 }
 
 function getSelectionHref(application: StatusApplication): string {
+  if (application.applicationRecords.length > 0) return `/client/status?country=${encodeURIComponent(application.countryKey)}`;
   if (application.id) return `/client/status?applicationId=${encodeURIComponent(application.id)}`;
   if (application.packageId) return `/client/status?packageId=${encodeURIComponent(application.packageId)}`;
   return "/client/status";
 }
 
 function getSelectionKey(application: StatusApplication): string {
+  if (application.applicationRecords.length > 0) return `country:${application.countryKey}`;
   return application.id ? `app:${application.id}` : `package:${application.packageId ?? application.key}`;
 }
 
@@ -406,8 +411,118 @@ function FileRow({ file, locale, t }: { file: StatusFile; locale: string; t: Awa
   );
 }
 
-function isArrivalCardApplication(application: StatusApplication): boolean {
-  return application.visaType.endsWith("_ARRIVAL_CARD");
+function CountryApplicationRecordRow({
+  record,
+  locale,
+  t,
+}: {
+  record: CountryApplicationRecord;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <div className="rounded-[8px] border border-[#edf1f6] bg-white p-4">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-center">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DetailMetric
+            label={locale.startsWith("zh") ? "申请记录" : "Submitted at"}
+            value={formatDateTime(record.updatedAt ?? record.submittedAt ?? record.createdAt, locale)}
+          />
+          <DetailMetric
+            label={locale.startsWith("zh") ? "申请编号" : "Reference number"}
+            value={record.confirmationNumber ?? "-"}
+          />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-heading text-[16px] font-medium text-[#26364a]">
+              {locale.startsWith("zh") ? record.visaTypeLabelZh : record.visaTypeLabel}
+            </p>
+            <StatusBadge state={record.state} t={t} />
+          </div>
+          <SmoothProgressBar
+            displayedProgress={record.progressPercent}
+            label={t("progress")}
+            className="mt-3"
+          />
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
+          <Link
+            href={record.detailHref}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-brand-600"
+          >
+            {locale.startsWith("zh") ? "点击查看详情" : "View details"}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          {record.file?.href ? (
+            <a
+              href={record.file.href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+            >
+              {locale.startsWith("zh") ? "下载确认文件" : "Download confirmation"}
+              <Download className="h-4 w-4" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CountryApplicationRecords({
+  application,
+  locale,
+  t,
+}: {
+  application: StatusApplication;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const visibleRecords = application.applicationRecords.slice(0, 3);
+  const hiddenRecords = application.applicationRecords.slice(3);
+
+  return (
+    <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+          {locale.startsWith("zh") ? "申请记录" : "Submission records"}
+        </h2>
+        <p className="text-[13px] font-medium text-[#66758a]">
+          {locale.startsWith("zh")
+            ? `共 ${application.applicationRecords.length} 条`
+            : `${application.applicationRecords.length} total`}
+        </p>
+      </div>
+
+      {application.applicationRecords.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {visibleRecords.map((record) => (
+            <CountryApplicationRecordRow key={record.id} record={record} locale={locale} t={t} />
+          ))}
+          {hiddenRecords.length > 0 && (
+            <details className="rounded-[8px] border border-[#edf1f6] bg-[#fbfdff] p-3">
+              <summary className="cursor-pointer list-none rounded-[8px] px-2 py-2 text-[14px] font-semibold text-brand-500 transition hover:bg-brand-50">
+                {locale.startsWith("zh")
+                  ? `查看其余 ${hiddenRecords.length} 条申请记录`
+                  : `Show ${hiddenRecords.length} more submission records`}
+              </summary>
+              <div className="mt-3 space-y-3">
+                {hiddenRecords.map((record) => (
+                  <CountryApplicationRecordRow key={record.id} record={record} locale={locale} t={t} />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-[8px] border border-dashed border-[#dce5f0] bg-white p-5 text-[14px] text-[#66758a]">
+          {t("filesEmpty")}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function EmptyState({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
@@ -439,12 +554,7 @@ function DetailView({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   const isVietnam = application.country.toLowerCase() === "vietnam" || application.country.toUpperCase() === "VN";
-  const isSubmittedArrivalCard =
-    isArrivalCardApplication(application) &&
-    application.id !== null &&
-    application.state === "submitted" &&
-    application.files.some((file) => file.key === "arrivalCardConfirmation");
-  const confirmationFile = application.files.find((file) => file.key === "arrivalCardConfirmation") ?? null;
+  const isCountryGroup = application.applicationRecords.length > 0;
   const shouldPollOfficialStatus =
     isVietnam &&
     Boolean(application.id) &&
@@ -490,7 +600,7 @@ function DetailView({
               <p className="mt-2 text-[15px] font-medium text-[#66758a]">
                 {locale.startsWith("zh") ? application.visaTypeLabelZh : application.visaTypeLabel}
               </p>
-              {application.officialReference && (
+              {application.officialReference && !isCountryGroup && (
                 <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#dce5f0] bg-[#fbfdff] px-3 py-1.5 text-[13px] font-semibold text-[#3d4b5f]">
                   <Landmark className="h-4 w-4 text-brand-500" />
                   {application.officialReferenceKind === "official" ? t("officialReference") : t("vizaReference")}: {application.officialReference}
@@ -498,11 +608,13 @@ function DetailView({
               )}
             </div>
           </div>
+          {!isCountryGroup && (
           <div className="flex flex-wrap gap-2">
             {application.actions.map((action) => (
               <ActionLink key={`${action.key}-${action.href}`} action={action} t={t} />
             ))}
           </div>
+          )}
         </div>
 
         <SmoothProgressBar
@@ -512,29 +624,8 @@ function DetailView({
         />
       </section>
 
-      {isSubmittedArrivalCard ? (
-        <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{locale.startsWith("zh") ? "申请记录" : "Submission record"}</h2>
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <DetailMetric
-              label={locale.startsWith("zh") ? "申请记录" : "Submitted at"}
-              value={formatDateTime(application.submittedAt ?? application.updatedAt, locale)}
-            />
-            <DetailMetric
-              label={locale.startsWith("zh") ? "申请编号" : "Confirmation number"}
-              value={application.officialReference ?? "-"}
-            />
-          </div>
-          <div className="mt-4">
-            {confirmationFile ? (
-              <FileRow file={confirmationFile} locale={locale} t={t} />
-            ) : (
-              <div className="rounded-[8px] border border-dashed border-[#dce5f0] bg-white p-5 text-[14px] text-[#66758a]">
-                {t("filesEmpty")}
-              </div>
-            )}
-          </div>
-        </section>
+      {isCountryGroup ? (
+        <CountryApplicationRecords application={application} locale={locale} t={t} />
       ) : (
       <>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
@@ -643,7 +734,14 @@ function Dashboard({
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
-  const fileCount = data.applications.reduce((count, application) => count + application.files.length, 0);
+  const fileCount = data.applications.reduce(
+    (count, application) =>
+      count +
+      (application.applicationRecords.length > 0
+        ? application.applicationRecords.filter((record) => Boolean(record.file)).length
+        : application.files.length),
+    0,
+  );
   const nextActionCount = data.applications.reduce((count, application) => count + application.actions.filter((action) => action.primary).length, 0);
   const averageProgress = data.applications.length > 0
     ? Math.round(data.applications.reduce((sum, application) => sum + application.progressPercent, 0) / data.applications.length)
@@ -688,7 +786,7 @@ function Dashboard({
                 <ApplicationCard
                   key={getSelectionKey(application)}
                   application={application}
-                  selected={selectedApplication ? getSelectionKey(application) === getSelectionKey(selectedApplication) : false}
+                  selected={selectedApplication ? application.countryKey === selectedApplication.countryKey : false}
                   locale={locale}
                   t={t}
                 />
@@ -715,15 +813,19 @@ export default async function ClientStatusPage({ searchParams }: { searchParams?
 
   const selectedApplicationId = getParam(params.applicationId);
   const selectedPackageId = getParam(params.packageId);
-  const defaultSubmittedArrivalCard = data.applications.find(
-    (application) =>
-      isArrivalCardApplication(application) &&
-      application.files.some((file) => file.key === "arrivalCardConfirmation"),
-  );
+  const selectedCountry = getParam(params.country);
+  const detailView = getParam(params.view) === "detail";
+  const detailApplication =
+    detailView
+      ? data.detailApplications.find((application) => application.id && application.id === selectedApplicationId) ??
+        data.detailApplications.find((application) => application.packageId && application.packageId === selectedPackageId) ??
+        null
+      : null;
   const selectedApplication =
-    data.applications.find((application) => application.id && application.id === selectedApplicationId) ??
-    data.applications.find((application) => application.packageId && application.packageId === selectedPackageId) ??
-    defaultSubmittedArrivalCard ??
+    detailApplication ??
+    data.applications.find((application) => application.countryKey === selectedCountry) ??
+    data.applications.find((application) => application.applicationRecords.some((record) => record.id === selectedApplicationId)) ??
+    data.applications.find((application) => application.applicationRecords.some((record) => record.packageId === selectedPackageId)) ??
     data.applications[0] ??
     null;
 

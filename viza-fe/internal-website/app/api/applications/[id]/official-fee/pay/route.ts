@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const VN_OFFICIAL_FEE_AMOUNT = 25;
+const VN_OFFICIAL_FEE_CURRENCY = "USD";
+const VN_OFFICIAL_FEE_SOURCE_URL = "https://evisa.gov.vn/";
+
 type ProfileRow = { id: string };
 type ApplicationRow = {
   id: string;
@@ -11,6 +15,8 @@ type ApplicationRow = {
   country: string | null;
   visa_type: string | null;
   submission_result?: unknown;
+  government_fee_cents?: number | null;
+  government_fee_currency?: string | null;
 };
 
 type QueryErrorLike = {
@@ -39,6 +45,260 @@ function isSchemaMissing(error: QueryErrorLike | null | undefined): boolean {
 function isDuplicateKey(error: QueryErrorLike | null | undefined): boolean {
   const message = (error?.message ?? "").toLowerCase();
   return error?.code === "23505" || message.includes("duplicate key value");
+}
+
+async function recordFallbackOfficialFeeConsent(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  application: ApplicationRow;
+  applicationId: string;
+  profileId: string;
+  userId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const now = new Date().toISOString();
+  const amount = input.application.government_fee_cents
+    ? input.application.government_fee_cents / 100
+    : VN_OFFICIAL_FEE_AMOUNT;
+  const currency = input.application.government_fee_currency ?? VN_OFFICIAL_FEE_CURRENCY;
+  const fallbackQuoteId = `fallback:${input.applicationId}`;
+  const consentScope = {
+    official_fee: {
+      quote_id: fallbackQuoteId,
+      official_fee_amount: amount,
+      official_fee_currency: currency,
+      authorized_to_pay_on_behalf: true,
+      schema_fallback: true,
+      consent_snapshot: {
+        ui_language: "zh",
+        accepted_text: "我授权 VIZA 使用本次一次性银行卡信息代我向越南 e-Visa 官网支付本次官方签证费。",
+      },
+      accepted_at: now,
+    },
+  };
+
+  const [consentResult, eventResult] = await Promise.all([
+    input.admin.from("consent_events").insert(
+      {
+        application_id: input.applicationId,
+        applicant_id: input.profileId,
+        auth_user_id: input.userId,
+        consent_type: "official_fee_payment_authorization",
+        version: "2026-06-official-fee-v1",
+        accepted: true,
+        consent_scope: consentScope,
+        source: "client_confirmation_tab_payment",
+        idempotency_key: `official-fee-consent-fallback:${input.applicationId}:${input.userId}`,
+        created_at: now,
+      },
+    ),
+    input.admin.from("application_events").insert(
+      {
+        application_id: input.applicationId,
+        applicant_id: input.profileId,
+        auth_user_id: input.userId,
+        event_type: "official_fee_authorized",
+        actor_type: "user",
+        actor_id: input.userId,
+        source: "official_fee",
+        visibility: "staff",
+        idempotency_key: `official-fee-authorized-fallback:${input.applicationId}`,
+        message: "User authorized VIZA to pay the Vietnam e-Visa official fee from the payment card form. Official-fee tables were missing; recorded fallback consent only.",
+        metadata: { quote_id: fallbackQuoteId, amount, currency, schema_fallback: true },
+        occurred_at: now,
+        created_at: now,
+      },
+    ),
+  ]);
+
+  if (consentResult.error && !isSchemaMissing(consentResult.error) && !isDuplicateKey(consentResult.error)) {
+    return { ok: false, error: consentResult.error.message };
+  }
+  if (eventResult.error && !isSchemaMissing(eventResult.error) && !isDuplicateKey(eventResult.error)) {
+    return { ok: false, error: eventResult.error.message };
+  }
+  return { ok: true };
+}
+
+async function createOfficialFeeIntentFromPaymentRequest(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  application: ApplicationRow;
+  applicationId: string;
+  profileId: string;
+  userId: string;
+}): Promise<
+  | { ok: true; intentRow: { id: string; status?: string | null; schemaFallback?: boolean } }
+  | { ok: false; error: string; status?: number }
+> {
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const amount = input.application.government_fee_cents
+    ? input.application.government_fee_cents / 100
+    : VN_OFFICIAL_FEE_AMOUNT;
+  const currency = input.application.government_fee_currency ?? VN_OFFICIAL_FEE_CURRENCY;
+
+  const { data: existingQuote, error: existingQuoteError } = await input.admin
+    .from("official_fee_quotes")
+    .select("*")
+    .eq("application_id", input.applicationId)
+    .neq("quote_status", "expired")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingQuoteError) {
+    return { ok: false, error: existingQuoteError.message, status: 500 };
+  }
+
+  const quote = existingQuote
+    ? existingQuote
+    : (
+        await input.admin
+          .from("official_fee_quotes")
+          .insert({
+            application_id: input.applicationId,
+            user_id: input.userId,
+            country_code: "VN",
+            visa_type: input.application.visa_type,
+            official_fee_amount: amount,
+            official_fee_currency: currency,
+            total_charge_amount: amount,
+            total_charge_currency: currency,
+            fee_source: "vietnam_evisa_official_payment_page",
+            fee_source_url: VN_OFFICIAL_FEE_SOURCE_URL,
+            fee_breakdown_json: {
+              source: "vietnam_evisa_official_payment_page",
+              amount,
+              currency,
+              authorized_to_pay_on_behalf: true,
+            },
+            quote_status: "created",
+            expires_at: expiresAt,
+            created_at: now,
+            updated_at: now,
+          })
+          .select("*")
+          .single()
+      ).data;
+  if (!quote) {
+    return { ok: false, error: "Could not create official fee quote.", status: 500 };
+  }
+
+  const quoteId = String((quote as { id: unknown }).id);
+  const consentScope = {
+    official_fee: {
+      quote_id: quoteId,
+      official_fee_amount: amount,
+      official_fee_currency: currency,
+      authorized_to_pay_on_behalf: true,
+      consent_snapshot: {
+        ui_language: "zh",
+        accepted_text: "我授权 VIZA 使用本次一次性银行卡信息代我向越南 e-Visa 官网支付本次官方签证费。",
+      },
+      accepted_at: now,
+    },
+  };
+
+  const { error: consentError } = await input.admin.from("consent_events").insert(
+    {
+      application_id: input.applicationId,
+      applicant_id: input.profileId,
+      auth_user_id: input.userId,
+      consent_type: "official_fee_payment_authorization",
+      version: "2026-06-official-fee-v1",
+      accepted: true,
+      consent_scope: consentScope,
+      source: "client_confirmation_tab_payment",
+      idempotency_key: `official-fee-consent:${input.applicationId}:${quoteId}:${input.userId}`,
+      created_at: now,
+    },
+  );
+  if (consentError && !isDuplicateKey(consentError)) {
+    return { ok: false, error: consentError.message, status: 500 };
+  }
+
+  const { data: existingIntent, error: existingIntentError } = await input.admin
+    .from("official_fee_payment_intents")
+    .select("*")
+    .eq("application_id", input.applicationId)
+    .eq("fee_quote_id", quoteId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingIntentError) {
+    return { ok: false, error: existingIntentError.message, status: 500 };
+  }
+  if (existingIntent) {
+    return { ok: true, intentRow: existingIntent as { id: string; status?: string | null } };
+  }
+
+  const idempotencyKey = `official-fee:${input.applicationId}:${quoteId}:manual:company_advance`;
+  const { data: insertedIntent, error: insertIntentError } = await input.admin
+    .from("official_fee_payment_intents")
+    .insert({
+      application_id: input.applicationId,
+      user_id: input.userId,
+      fee_quote_id: quoteId,
+      country_code: "VN",
+      provider: "vietnam_evisa_official_fee",
+      mode: process.env.VN_OFFICIAL_PAYMENT_AUTOPAY === "true" ? "live" : "manual",
+      official_fee_amount: amount,
+      official_fee_currency: currency,
+      target_payee: "Vietnam e-Visa official portal",
+      target_site: VN_OFFICIAL_FEE_SOURCE_URL,
+      payment_method_type: "one_time_user_card",
+      status: "admin_approved",
+      idempotency_key: idempotencyKey,
+      requires_admin_approval: false,
+      admin_approved_at: now,
+      user_consented_at: now,
+      user_consent_snapshot_json: consentScope.official_fee,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("*")
+    .single();
+  if (insertIntentError && isDuplicateKey(insertIntentError)) {
+    const { data: duplicateIntent, error: duplicateIntentError } = await input.admin
+      .from("official_fee_payment_intents")
+      .select("*")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    if (duplicateIntentError || !duplicateIntent) {
+      return {
+        ok: false,
+        error: duplicateIntentError?.message ?? "Could not load duplicate official fee payment intent.",
+        status: 500,
+      };
+    }
+    return { ok: true, intentRow: duplicateIntent as { id: string; status?: string | null } };
+  }
+  if (insertIntentError || !insertedIntent) {
+    return { ok: false, error: insertIntentError?.message ?? "Could not create official fee payment intent.", status: 500 };
+  }
+
+  await Promise.all([
+    input.admin
+      .from("official_fee_quotes")
+      .update({ quote_status: "consented", updated_at: now })
+      .eq("id", quoteId),
+    input.admin.from("application_events").insert(
+      {
+        application_id: input.applicationId,
+        applicant_id: input.profileId,
+        auth_user_id: input.userId,
+        event_type: "official_fee_authorized",
+        actor_type: "user",
+        actor_id: input.userId,
+        source: "official_fee",
+        visibility: "staff",
+        idempotency_key: `official-fee-authorized:${input.applicationId}:${quoteId}`,
+        message: "User authorized VIZA to pay the Vietnam e-Visa official fee from the payment card form.",
+        metadata: { quote_id: quoteId, intent_id: (insertedIntent as { id: string }).id, amount, currency },
+        occurred_at: now,
+        created_at: now,
+      },
+    ),
+  ]);
+
+  return { ok: true, intentRow: insertedIntent as { id: string; status?: string | null } };
 }
 
 function normalize(value: string | null | undefined): string {
@@ -153,7 +413,7 @@ export async function POST(
 
   const { data: applicationData, error: applicationError } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, submission_result")
+    .select("id, applicant_id, country, visa_type, submission_result, government_fee_cents, government_fee_currency")
     .eq("id", applicationId)
     .maybeSingle();
   if (applicationError) {
@@ -200,11 +460,33 @@ export async function POST(
     }
     if (fallbackConsent) {
       intentRow = { id: `fallback:${applicationId}`, status: "admin_approved", schemaFallback: true };
+    } else {
+      const fallbackConsentResult = await recordFallbackOfficialFeeConsent({
+        admin,
+        application,
+        applicationId,
+        profileId: profile.id,
+        userId: user.id,
+      });
+      if (!fallbackConsentResult.ok) {
+        return NextResponse.json({ error: fallbackConsentResult.error }, { status: 500 });
+      }
+      intentRow = { id: `fallback:${applicationId}`, status: "admin_approved", schemaFallback: true };
     }
   }
 
   if (!intentRow) {
-    return NextResponse.json({ error: "请先授权 VIZA 代付本次越南 e-Visa 官方费用。" }, { status: 409 });
+    const createdIntent = await createOfficialFeeIntentFromPaymentRequest({
+      admin,
+      application,
+      applicationId,
+      profileId: profile.id,
+      userId: user.id,
+    });
+    if (!createdIntent.ok) {
+      return NextResponse.json({ error: createdIntent.error }, { status: createdIntent.status ?? 500 });
+    }
+    intentRow = createdIntent.intentRow;
   }
 
   if (!["admin_approved", "ready", "manual_review", "failed", "pending"].includes(intentRow.status ?? "")) {

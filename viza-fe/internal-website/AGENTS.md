@@ -91,6 +91,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   including the generic `submission_manual_actions` bridge for official-site
   checkpoints, and the SQL Editor bundle under
   `supabase/manual/viza_required_schema.sql`.
+- Vietnam official-fee payment migrations under
+  `supabase/migrations/20260625_official_fee_payment.sql` and
+  `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
+  create the quote/intent/attempt/receipt tables and queue/status columns used
+  by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
 - France-Visas generated official account lookup for the applicant result UI
   is exposed server-side through
   `app/api/applications/[id]/france-visas-account/route.ts`; keep credential
