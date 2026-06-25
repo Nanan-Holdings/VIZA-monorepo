@@ -152,8 +152,11 @@ Use SGAC as the template before building Malaysia MDAC or Thailand TDAC.
 - Start with a DB-driven form and isolated
   `/client/arrival-cards/malaysia` route.
 - Mirror the official MDAC fields, timing window, exemptions, and dropdowns.
-- Only add a real MDAC runner after the official form inventory and required
-  options have been captured and tested.
+- The submission-service live dispatch should use
+  `viza-be/submission-service/src/mdac/normalize.ts` and `runner.ts`, return
+  structured `DigitalArrivalCardSubmissionResult`, and save official block,
+  error, screenshot, and PDF evidence. Do not report success unless the
+  official MDAC portal confirmation is reached.
 
 ## Thailand TDAC Target Shape
 
@@ -163,8 +166,11 @@ Use SGAC as the template before building Malaysia MDAC or Thailand TDAC.
   `/client/arrival-cards/thailand` route.
 - Mirror the official TDAC manual/form fields, health declarations, travel
   method branches, accommodation branches, and timing window.
-- Only add a real TDAC runner after official options and conditional branches
-  are captured and tested.
+- The submission-service live dispatch should use
+  `viza-be/submission-service/src/tdac/normalize.ts` and `runner.ts`, return
+  structured `DigitalArrivalCardSubmissionResult`, and save official block,
+  error, screenshot, and PDF evidence. Do not report success unless the
+  official TDAC portal confirmation is reached.
 
 ## Guardrails
 

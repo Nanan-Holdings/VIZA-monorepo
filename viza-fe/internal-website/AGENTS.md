@@ -100,6 +100,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vn_evisa_official_form_parity.sql`; it keeps
   the DB-driven VIZA form aligned with official conditional questions, tables,
   date constraints, expense/insurance details, and ward/commune dependencies.
+  `lib/vietnam-evisa-form-parity.ts` mirrors the same official parity metadata
+  as a runtime safety net when the local database has not applied the migration
+  yet; keep it in sync with the migration and avoid duplicating fields.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,

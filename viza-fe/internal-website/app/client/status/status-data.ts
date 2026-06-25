@@ -389,8 +389,29 @@ function submissionResultIsSubmitted(application: ApplicationRow): boolean {
 }
 
 export function isArrivalCardVisaType(visaType: string | null | undefined): boolean {
-  const normalizedVisaType = getFormVisaType(visaType ?? "");
-  return ARRIVAL_CARD_VISA_TYPES.has(normalizedVisaType) || normalizedVisaType.endsWith("_ARRIVAL_CARD");
+  const normalizedVisaType = getFormVisaType(visaType ?? "").trim();
+  const upperVisaType = normalizedVisaType.toUpperCase();
+  return ARRIVAL_CARD_VISA_TYPES.has(upperVisaType) || upperVisaType.endsWith("_ARRIVAL_CARD");
+}
+
+function isArrivalCardStatusTarget(target: {
+  country?: string | null;
+  visaType?: string | null;
+  visaTypeLabel?: string | null;
+  visaTypeLabelZh?: string | null;
+}): boolean {
+  if (isArrivalCardVisaType(target.visaType)) return true;
+  const haystack = [target.country, target.visaTypeLabel, target.visaTypeLabelZh]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+  return (
+    haystack.includes("arrival card") ||
+    haystack.includes("sgac") ||
+    haystack.includes("mdac") ||
+    haystack.includes("tdac") ||
+    haystack.includes("入境卡")
+  );
 }
 
 function arrivalCardResultIsReady(application: ApplicationRow): boolean {
@@ -502,8 +523,13 @@ function toCountryApplicationRecord(application: StatusApplication): CountryAppl
   };
 }
 
-function getArrivalCardDisplayState(application: Pick<StatusApplication, "visaType" | "state" | "officialReference" | "submittedAt" | "files">): ClientStatusState {
-  if (!isArrivalCardVisaType(application.visaType)) return application.state;
+function getArrivalCardDisplayState(
+  application: Pick<
+    StatusApplication,
+    "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh" | "state" | "officialReference" | "submittedAt" | "files"
+  >,
+): ClientStatusState {
+  if (!isArrivalCardStatusTarget(application)) return application.state;
   if (
     application.state === "submitted" ||
     application.state === "approved" ||
@@ -523,7 +549,7 @@ function getCountryGroupState(records: CountryApplicationRecord[]): ClientStatus
   if (records.some((record) => record.state === "needs_attention" || record.state === "rejected")) {
     return records.find((record) => record.state === "needs_attention" || record.state === "rejected")?.state ?? latest.state;
   }
-  const arrivalCardRecords = records.filter((record) => isArrivalCardVisaType(record.visaType));
+  const arrivalCardRecords = records.filter((record) => isArrivalCardStatusTarget(record));
   if (arrivalCardRecords.some((record) => record.state === "submitted" || record.state === "approved")) return "submitted";
   if (arrivalCardRecords.length > 0 && (latest.state === "needs_payment" || latest.state === "needs_consent")) return "in_progress";
   return latest.state;
@@ -1104,7 +1130,12 @@ async function buildApplicationStatus({
   const latestPacket = getLatestPacket(packets);
   const documentCounts = getDocumentCounts(documents);
   const answerCount = getAnswerCount(answers);
-  const isArrivalCard = application.visa_type.endsWith("_ARRIVAL_CARD") || application.visa_type === "SG_ARRIVAL_CARD";
+  const isArrivalCard = isArrivalCardStatusTarget({
+    country: application.country,
+    visaType: application.visa_type,
+    visaTypeLabel: base.visaTypeLabel,
+    visaTypeLabelZh: base.visaTypeLabelZh,
+  });
   const paymentState = getPaymentState(latestPayment);
   const paymentComplete = paymentState === "complete";
   const consentState = getConsentState(consents, signatures, paymentComplete);
@@ -1176,14 +1207,33 @@ async function buildApplicationStatus({
       metricValue: null,
     },
   ];
-  const resolvedSteps =
-    isArrivalCard && submissionResultSubmitted
-      ? initialSteps.map((step) => ({
-          ...step,
-          state: "complete" as const,
-          updatedAt: step.updatedAt ?? application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
-        }))
-      : initialSteps;
+  const arrivalCardSteps = isArrivalCard
+    ? initialSteps.map((step) => {
+        if (submissionResultSubmitted) {
+          return {
+            ...step,
+            state: "complete" as const,
+            updatedAt: step.updatedAt ?? application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
+          };
+        }
+        if (step.key === "payment" || step.key === "consent" || step.key === "documents" || step.key === "packet") {
+          return {
+            ...step,
+            state: "complete" as const,
+            updatedAt: step.updatedAt ?? application.updated_at,
+          };
+        }
+        if (step.key === "handoff" && formState === "complete") {
+          return {
+            ...step,
+            state: "current" as const,
+            updatedAt: step.updatedAt ?? application.updated_at,
+          };
+        }
+        return step;
+      })
+    : null;
+  const resolvedSteps = arrivalCardSteps ?? initialSteps;
   const overallState = getOverallState(resolvedSteps, application);
 
   const shell: StatusApplication = {
