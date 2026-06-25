@@ -419,7 +419,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       this.connectedToUserBrowser = true;
       this.context = this.browser.contexts()[0] ?? await this.browser.newContext();
       this.page = await this.context.newPage();
-      await this.installTurnstileHook(this.page);
+      if (this.shouldInstallTurnstileHook()) {
+        await this.installTurnstileHook(this.page);
+      }
       return this.page;
     }
     this.browser = await chromium.launch({
@@ -432,8 +434,14 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       : undefined;
     this.context = await this.browser.newContext({ storageState });
     this.page = await this.context.newPage();
-    await this.installTurnstileHook(this.page);
+    if (this.shouldInstallTurnstileHook()) {
+      await this.installTurnstileHook(this.page);
+    }
     return this.page;
+  }
+
+  private shouldInstallTurnstileHook(): boolean {
+    return !/brd\.superproxy\.io/i.test(this.config.playwrightCdpEndpoint ?? "");
   }
 
   private async saveStorageState(): Promise<void> {
@@ -479,6 +487,31 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   private async openPortal(page: Page): Promise<void> {
     await page.goto(this.config.baseUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await this.waitForPortalNavigationSettle(page);
+  }
+
+  private async waitForPortalNavigationSettle(page: Page): Promise<void> {
+    const started = Date.now();
+    while (Date.now() - started < 90_000) {
+      const [currentUrl, title, bodyText, loginVisible] = await Promise.all([
+        Promise.resolve(page.url()),
+        page.title().catch(() => ""),
+        page.locator("body").innerText({ timeout: 3_000 }).catch(() => ""),
+        this.isLoginVisible(page).catch(() => false),
+      ]);
+      const normalized = normalizeVisibleText(`${title} ${bodyText}`);
+      const isCloudflareTransit =
+        /__cf_chl_rt_tk/.test(currentUrl)
+        || /just a moment|loading|请稍候|正在验证|cloudflare|verify you are human|安全验证/i.test(normalized)
+        || normalizeVisibleText(bodyText).length === 0;
+      const reachedOfficialAuth =
+        loginVisible
+        || /b2clogin|signin|login|authorize/i.test(currentUrl)
+        || /apply for a u\.s\. visa|user details|sign in/i.test(normalized);
+      if (reachedOfficialAuth && !/__cf_chl_rt_tk/.test(currentUrl)) return;
+      if (!isCloudflareTransit) return;
+      await page.waitForTimeout(2_000);
+    }
   }
 
   private async isLoginVisible(page: Page): Promise<boolean> {

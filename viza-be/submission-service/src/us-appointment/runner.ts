@@ -233,7 +233,10 @@ export function loadUSAppointmentRunnerConfig(
     playwrightEnabled: env.US_APPOINTMENT_PLAYWRIGHT_ENABLED === "true",
     playwrightHeadless: env.US_APPOINTMENT_PLAYWRIGHT_HEADLESS !== "false",
     playwrightChannel: env.US_APPOINTMENT_PLAYWRIGHT_CHANNEL?.trim() || null,
-    playwrightCdpEndpoint: env.US_APPOINTMENT_CDP_ENDPOINT?.trim() || null,
+    playwrightCdpEndpoint:
+      env.US_APPOINTMENT_CDP_ENDPOINT?.trim()
+      || env.BRIGHTDATA_BROWSER_API_ENDPOINT?.trim()
+      || null,
     playwrightStorageStatePath: env.US_APPOINTMENT_STORAGE_STATE_PATH?.trim() || null,
     baseUrl: env.US_APPOINTMENT_BASE_URL ?? "https://www.usvisascheduling.com/",
   };
@@ -267,6 +270,7 @@ export function isEligibleUSAppointmentJob(
     "appointment_account_required",
     "appointment_login_required",
     "appointment_payment_completed",
+    "appointment_no_slots_available",
     "appointment_booked",
     "appointment_status_check_in_progress",
   ].includes(job.status)) return false;
@@ -585,7 +589,7 @@ export async function processUSAppointmentJob(
       }
     }
 
-    if (job.status === "appointment_payment_completed") {
+    if (["appointment_payment_completed", "appointment_no_slots_available"].includes(job.status)) {
       client = portalClient ?? await createDefaultPortalClient(job, config);
       const slots = await client.observeSlots(job);
     await repository.insertSlots(slots);

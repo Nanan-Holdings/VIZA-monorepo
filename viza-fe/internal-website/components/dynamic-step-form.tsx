@@ -805,21 +805,91 @@ function getDynamicDependentOptions(
   return wards ? [...wards] : [];
 }
 
+function localizeVietnamAdministrativeUnitText(text: string): string {
+  return text
+    .replace(/^PHUONG\s+/i, "坊 ")
+    .replace(/^PHUONG\b/i, "坊")
+    .replace(/^PHƯỜNG\s+/i, "坊 ")
+    .replace(/^PHƯỜNG\b/i, "坊")
+    .replace(/^XA\s+/i, "公社 ")
+    .replace(/^XA\b/i, "公社")
+    .replace(/^XÃ\s+/i, "公社 ")
+    .replace(/^XÃ\b/i, "公社")
+    .replace(/^THI TRAN\s+/i, "市镇 ")
+    .replace(/^THI TRAN\b/i, "市镇")
+    .replace(/^THỊ TRẤN\s+/i, "市镇 ")
+    .replace(/^THỊ TRẤN\b/i, "市镇")
+    .replace(/\bWARD\b/gi, "坊")
+    .replace(/\bCOMMUNE\b/gi, "公社")
+    .replace(/\bTOWN\b/gi, "市镇")
+    .replace(/\bDISTRICT\b/gi, "县")
+    .replace(/\bCITY\b/gi, "市")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function localizeVietnamWardOptions(options: VisaFormFieldOption[]): VisaFormFieldOption[] {
+  return options.map((option) => {
+    if (typeof option === "string") {
+      return {
+        value: option,
+        text: option,
+        label_en: option,
+        label_zh: localizeVietnamAdministrativeUnitText(option),
+      };
+    }
+
+    const sourceText = option.text ?? option.label_en ?? option.official_label ?? option.value;
+    const sourceZh = typeof option.label_zh === "string" ? option.label_zh.trim() : "";
+    return {
+      ...option,
+      label_zh: sourceZh && sourceZh !== "坊/社"
+        ? localizeVietnamAdministrativeUnitText(sourceZh)
+        : localizeVietnamAdministrativeUnitText(sourceText),
+    };
+  });
+}
+
 function isVietnamBorderGateField(field: VisaFormFieldRow): boolean {
   const key = field.fieldName.toLowerCase();
   return key.includes("border_gate") || key.includes("port_of_entry") || key.includes("port_of_exit");
 }
 
+const VIETNAM_BORDER_GATE_ZH: Record<string, string> = {
+  bo_y_landport: "波伊陆路口岸",
+  cam_pha_seaport: "锦普海港",
+  cat_bi_int_airport_hai_phong: "吉碑国际机场（海防）",
+  cau_treo_landport: "桥悬陆路口岸",
+  cha_lo_landport: "茶罗陆路口岸",
+  chan_may_seaport: "真美海港",
+  da_nang_seaport: "岘港海港",
+  hanoi_noi_bai_int_airport: "河内内排国际机场",
+  ho_chi_minh_tan_son_nhat_int_airport: "胡志明市新山一国际机场",
+  lao_bao_landport: "老保陆路口岸",
+  moc_bai_landport: "木牌陆路口岸",
+  mong_cai_landport: "芒街陆路口岸",
+  nha_trang_cam_ranh_int_airport: "芽庄金兰国际机场",
+  phu_bai_int_airport_hue: "富牌国际机场（顺化）",
+  phu_quoc_int_airport: "富国国际机场",
+  vung_tau_seaport: "头顿海港",
+};
+
 function localizeVietnamBorderGateText(text: string): string {
   return text
-    .replace(/\bInt\b/gi, "国际")
+    .replace(/\bInternational Border Gate\b/gi, "国际边境口岸")
+    .replace(/\bBorder Gate\b/gi, "边境口岸")
+    .replace(/\bInt\.?\b/gi, "国际")
     .replace(/\bInternational\b/gi, "国际")
     .replace(/\bAirport\b/gi, "机场")
     .replace(/\bSeaport\b/gi, "海港")
+    .replace(/\bSea Port\b/gi, "海港")
     .replace(/\bLandport\b/gi, "陆路口岸")
-    .replace(/\bBorder Gate\b/gi, "边境口岸")
+    .replace(/\bLand Port\b/gi, "陆路口岸")
+    .replace(/\bPort\b/gi, "口岸")
     .replace(/\bRailway Station\b/gi, "火车站")
+    .replace(/\bprovince\b/gi, "省")
     .replace(/\bHa Noi\b/gi, "河内")
+    .replace(/\bHanoi\b/gi, "河内")
     .replace(/\bHo Chi Minh City\b/gi, "胡志明市")
     .replace(/\bDa Nang\b/gi, "岘港")
     .replace(/\bHai Phong\b/gi, "海防")
@@ -838,19 +908,24 @@ function localizeVietnamBorderGateText(text: string): string {
     .replace(/\bLao Bao\b/gi, "老保")
     .replace(/\bMoc Bai\b/gi, "木牌")
     .replace(/\bHuu Nghi\b/gi, "友谊")
-    .replace(/\bMong Cai\b/gi, "芒街");
+    .replace(/\bMong Cai\b/gi, "芒街")
+    .replace(/\s+,/g, ",")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function localizeVietnamBorderGateOptions(options: VisaFormFieldRow["options"]): VisaFormFieldRow["options"] {
   if (!options) return options;
   return options.map((option) => {
     if (typeof option === "string") {
-      return { value: option, text: option, label_zh: localizeVietnamBorderGateText(option), label_en: option };
+      const key = normalizeOptionKey(option);
+      return { value: option, text: option, label_zh: VIETNAM_BORDER_GATE_ZH[key] ?? localizeVietnamBorderGateText(option), label_en: option };
     }
     const sourceText = option.text ?? option.label_en ?? option.official_label ?? option.value;
+    const key = normalizeOptionKey(option.value ?? sourceText);
     return {
       ...option,
-      label_zh: localizeVietnamBorderGateText(sourceText),
+      label_zh: VIETNAM_BORDER_GATE_ZH[key] ?? localizeVietnamBorderGateText(sourceText),
     };
   });
 }
@@ -1501,7 +1576,9 @@ export function DynamicStepForm({
     let fieldOptions = field.options;
     const dynamicOptions = getDynamicDependentOptions(field, values);
     if (dynamicOptions) {
-      fieldOptions = dynamicOptions;
+      fieldOptions = field.fieldName === "intended_ward_commune"
+        ? localizeVietnamWardOptions(dynamicOptions)
+        : dynamicOptions;
     }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);

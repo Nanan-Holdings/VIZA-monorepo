@@ -45,6 +45,7 @@ export class SupabaseUSAppointmentRunnerRepository
         "appointment_account_required",
         "appointment_login_required",
         "appointment_payment_completed",
+        "appointment_no_slots_available",
         "appointment_booked",
         "appointment_status_check_in_progress",
       ])

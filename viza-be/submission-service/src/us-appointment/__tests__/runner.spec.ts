@@ -162,6 +162,16 @@ test("US appointment runner reads user Chrome CDP configuration", () => {
   assert.equal(config.playwrightStorageStatePath, "output/playwright/usvisascheduling.json");
 });
 
+test("US appointment runner can read Bright Data Browser API endpoint", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
+    BRIGHTDATA_BROWSER_API_ENDPOINT: "wss://user:pass@brd.superproxy.io:9222",
+  });
+
+  assert.equal(config.playwrightEnabled, true);
+  assert.equal(config.playwrightCdpEndpoint, "wss://user:pass@brd.superproxy.io:9222");
+});
+
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {
   const config = loadUSAppointmentRunnerConfig({
     US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
@@ -475,6 +485,36 @@ test("US appointment runner writes observed slots from a portal fixture", async 
   assert.equal(repository.slots.length, 1);
   assert.equal(repository.slots[0]?.appointment_date, "2026-08-18");
   assert.equal(repository.slots[0]?.metadata_redacted_json.externalSlotId, "[REDACTED]");
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_slot_selection_required");
+});
+
+test("US appointment runner rechecks slots after a no-slots result", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_no_slots_available",
+      user_preferences_json: {
+        portalFixture: {
+          slots: [
+            {
+              date: "2026-10-03",
+              time: "11:00",
+              location: "U.S. Embassy Beijing",
+              externalSlotId: "slot-2",
+            },
+          ],
+        },
+      },
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.slots.length, 1);
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_slot_selection_required");
 });
 

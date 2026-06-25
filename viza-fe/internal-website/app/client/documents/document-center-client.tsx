@@ -38,6 +38,7 @@ import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
+import { runFaceMatch, type FaceMatchActionResult } from "@/app/actions/face-match";
 import {
   loadDocumentCenterData,
   type ApplicationDocument,
@@ -86,7 +87,7 @@ interface TravelSupportCandidate {
 }
 
 type BusyTarget = {
-  type: "upload" | "travel" | "refresh";
+  type: "upload" | "travel" | "refresh" | "face_match";
   key: string;
 } | null;
 
@@ -260,6 +261,18 @@ function formatChecklistSource(
   const labels = isZh ? CHECKLIST_SOURCE_LABELS_ZH : CHECKLIST_SOURCE_LABELS_EN;
   if (!source) return labels.fallback;
   return labels[source] ?? labels.fallback;
+}
+
+function isVietnamEVisaApplication(application: DocumentApplication | null): boolean {
+  if (!application) return false;
+  return (
+    application.country.toLowerCase() === "vietnam" &&
+    ["evisa_tourism", "vn_e_visa"].includes(application.visaType.toLowerCase())
+  );
+}
+
+function isVietnamOfficialImageRequirement(requirement: DocumentRequirement): boolean {
+  return requirement.documentType === "photo" || isPassportRequirement(requirement);
 }
 
 function formatUploadError(error: unknown, isZh: boolean): string {
@@ -735,6 +748,104 @@ function RequirementRow({
   );
 }
 
+function VietnamPhotoComparisonPanel({
+  passportView,
+  photoView,
+  faceMatch,
+  busy,
+  onRun,
+  isZh,
+}: {
+  passportView: DocumentViewState | null;
+  photoView: DocumentViewState | null;
+  faceMatch: FaceMatchActionResult | null;
+  busy: boolean;
+  onRun: () => void;
+  isZh: boolean;
+}) {
+  const hasPassport = Boolean(passportView?.document);
+  const hasPhoto = Boolean(photoView?.document);
+  const scorePercent = typeof faceMatch?.score === "number"
+    ? Math.round(faceMatch.score * 10000) / 100
+    : null;
+  const decisionLabel = faceMatch?.decision
+    ? faceMatch.decision === "auto_approve"
+      ? isZh ? "相似度通过" : "Match passed"
+      : faceMatch.decision === "staff_review"
+        ? isZh ? "需要人工复核" : "Staff review needed"
+        : isZh ? "相似度过低" : "Match too low"
+    : isZh ? "待检测" : "Not checked";
+  const decisionClass = faceMatch?.decision === "auto_approve"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : faceMatch?.decision
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : "border-border bg-white text-muted-foreground";
+
+  return (
+    <section className="space-y-4 rounded-lg border border-cyan-200 bg-cyan-50/50 p-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-normal text-cyan-800">
+            {isZh ? "越南官网照片对照" : "Vietnam official photo comparison"}
+          </p>
+          <h2 className="text-xl font-semibold text-foreground">
+            {isZh ? "证件照与护照人脸相似度" : "Portrait and passport face match"}
+          </h2>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            <li>{isZh ? "证件照和护照资料页均必须为 JPG/JPEG/PNG，单个文件小于 2MB。" : "Portrait and passport bio page must be JPG/JPEG/PNG and under 2MB each."}</li>
+            <li>{isZh ? "证件照需近期 4x6cm、正脸、白底、无遮挡、无帽子和墨镜。" : "Portrait should be recent 4x6cm, front-facing, white background, unobstructed, no hat or sunglasses."}</li>
+            <li>{isZh ? "护照资料页需清晰、无缺角，并能检测到人脸。" : "Passport bio page must be clear, uncropped, and contain a detectable face."}</li>
+          </ul>
+        </div>
+        <div className={cn("rounded-lg border px-4 py-3 text-sm font-semibold", decisionClass)}>
+          <div>{decisionLabel}</div>
+          <div className="mt-1 text-2xl">
+            {scorePercent === null ? "--" : `${scorePercent}%`}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border border-border bg-white p-4">
+          <p className="text-sm font-semibold">{isZh ? "本人证件照" : "Portrait photo"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasPhoto
+              ? isZh ? "已上传，可用于对照。" : "Uploaded and ready for comparison."
+              : isZh ? "请先上传本人证件照。" : "Upload the portrait photo first."}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-white p-4">
+          <p className="text-sm font-semibold">{isZh ? "护照资料页" : "Passport bio page"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {hasPassport
+              ? isZh ? "已上传，可用于对照。" : "Uploaded and ready for comparison."
+              : isZh ? "请先上传护照资料页。" : "Upload the passport bio page first."}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-white p-4">
+          <p className="text-sm font-semibold">{isZh ? "VIZA 检测" : "VIZA check"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {faceMatch?.ok
+              ? isZh ? "检测结果已生成，会作为提交前材料证据。" : "Comparison result generated and saved as pre-submission evidence."
+              : faceMatch?.reason ?? (isZh ? "上传两项材料后生成相似度。" : "Generate similarity after both files are uploaded.")}
+          </p>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onRun}
+        disabled={busy || !hasPassport || !hasPhoto}
+        className="w-full bg-white"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
+        {isZh ? "生成相似度" : "Generate similarity"}
+      </Button>
+    </section>
+  );
+}
+
 function TravelAiPickerDialog({
   open,
   onOpenChange,
@@ -900,6 +1011,7 @@ export function DocumentCenterClient({
     TravelSupportCandidate[]
   >([]);
   const [travelPickerOpen, setTravelPickerOpen] = useState(false);
+  const [faceMatch, setFaceMatch] = useState<FaceMatchActionResult | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -923,6 +1035,11 @@ export function DocumentCenterClient({
     documentViews.find(
       (view) => isTravelItineraryRequirement(view.requirement)
     ) ?? null;
+  const isVietnamEVisa = isVietnamEVisaApplication(selectedApplication);
+  const passportView =
+    documentViews.find((view) => isPassportRequirement(view.requirement)) ?? null;
+  const photoView =
+    documentViews.find((view) => view.requirement.documentType === "photo") ?? null;
   const totalRequired = requiredViews.length;
   const readyRequired = requiredViews.filter(
     (view) => view.status.ready
@@ -1020,7 +1137,40 @@ export function DocumentCenterClient({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (
+      isVietnamEVisa &&
+      isVietnamOfficialImageRequirement(requirement) &&
+      file.size > 2 * 1024 * 1024
+    ) {
+      setError(isZh
+        ? "越南 e-Visa 官网要求本人证件照和护照资料页图片小于 2MB，请压缩后重新上传。"
+        : "Vietnam e-Visa requires the portrait and passport image files to be under 2MB. Please compress and upload again.");
+      return;
+    }
     await uploadFile(requirement, file);
+  }
+
+  async function handleRunFaceMatch() {
+    if (!selectedApplication) return;
+    setBusyTarget({ type: "face_match", key: selectedApplication.id });
+    setError(null);
+    try {
+      const result = await runFaceMatch(selectedApplication.id);
+      setFaceMatch(result);
+      if (!result.ok) {
+        setError(result.reason ?? (isZh ? "相似度检测失败。" : "Face match failed."));
+      }
+    } catch (faceError) {
+      setError(
+        faceError instanceof Error
+          ? faceError.message
+          : isZh
+            ? "相似度检测失败。"
+            : "Face match failed."
+      );
+    } finally {
+      setBusyTarget(null);
+    }
   }
 
   async function buildTravelAiPdf(candidate: TravelSupportCandidate): Promise<File> {
@@ -1327,6 +1477,17 @@ export function DocumentCenterClient({
       </section>
 
       <div className="space-y-6">
+          {isVietnamEVisa && (
+            <VietnamPhotoComparisonPanel
+              passportView={passportView}
+              photoView={photoView}
+              faceMatch={faceMatch}
+              busy={busyTarget?.type === "face_match"}
+              onRun={handleRunFaceMatch}
+              isZh={isZh}
+            />
+          )}
+
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">

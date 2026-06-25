@@ -24,6 +24,14 @@ interface DatePickerProps {
   displayLocale?: string
 }
 
+function parseDatePickerValue(value?: string): Date | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed || !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return undefined
+
+  const date = new Date(`${trimmed}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? undefined : date
+}
+
 export function DatePicker({
   value,
   onChange,
@@ -37,7 +45,8 @@ export function DatePicker({
   const dateFnsLocale = resolvedLocale === "zh" ? zhCN : enUS
 
   // Parse YYYY-MM-DD string to Date in local time (avoid timezone offset)
-  const date = value ? new Date(value + "T00:00:00") : undefined
+  const date = parseDatePickerValue(value)
+  const rawDisplayValue = value?.trim()
 
   // Locale-aware default placeholder
   const resolvedPlaceholder = placeholder ?? (resolvedLocale === "zh" ? "请选择日期" : "Pick a date")
@@ -55,7 +64,11 @@ export function DatePicker({
           )}
         >
           <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-          {date ? format(date, "PPP", { locale: dateFnsLocale }) : <span>{resolvedPlaceholder}</span>}
+          {date
+            ? format(date, "PPP", { locale: dateFnsLocale })
+            : rawDisplayValue
+              ? rawDisplayValue
+              : <span>{resolvedPlaceholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
