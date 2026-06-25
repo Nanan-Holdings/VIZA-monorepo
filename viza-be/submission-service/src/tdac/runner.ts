@@ -1,8 +1,9 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { chromium, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 import { solveCaptcha } from "../captcha";
+import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 
 export interface TdacPortalSubmissionResult {
@@ -159,28 +160,68 @@ async function arrivalButtonEnabled(page: Page): Promise<boolean> {
   return !(await arrivalButton.isDisabled().catch(() => true));
 }
 
+async function waitForArrivalButtonEnabled(page: Page, timeoutMs: number): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (await arrivalButtonEnabled(page)) return true;
+    await page.waitForTimeout(2_000);
+  }
+  return arrivalButtonEnabled(page);
+}
+
+async function solveWithBrowserApiCaptchaCdp(page: Page, logs: string[]): Promise<void> {
+  try {
+    logs.push("tdac_brightdata_captcha_solve_started");
+    const session = await page.context().newCDPSession(page);
+    const sendBrightDataCommand = session.send as unknown as (
+      method: string,
+      params?: Record<string, unknown>,
+    ) => Promise<unknown>;
+    const result = await sendBrightDataCommand("Captcha.solve", { detectTimeout: 30_000 });
+    logs.push(`tdac_brightdata_captcha_solve_result ${JSON.stringify(result)}`);
+  } catch (error) {
+    logs.push(`tdac_brightdata_captcha_solve_failed ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Promise<boolean> {
   const candidateFrames = page.locator("iframe[src*='challenges.cloudflare.com'], iframe[title*='Cloudflare']");
   const count = await candidateFrames.count().catch(() => 0);
   for (let index = 0; index < count; index += 1) {
     const frameElement = await candidateFrames.nth(index).elementHandle().catch(() => null);
     const frame = await frameElement?.contentFrame().catch(() => null);
-    if (!frame) continue;
 
-    const checkbox = frame.locator("input[type='checkbox'], label, [role='checkbox']").first();
-    if ((await checkbox.count().catch(() => 0)) === 0) continue;
+    if (frame) {
+      const checkbox = frame.locator("input[type='checkbox'], label, [role='checkbox']").first();
+      if ((await checkbox.count().catch(() => 0)) > 0) {
+        try {
+          logs.push(`tdac_turnstile_checkbox_click_attempt frame=${index}`);
+          await checkbox.click({ timeout: 10_000 });
+          await page.waitForTimeout(7_000);
+          await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+          if (await arrivalButtonEnabled(page)) {
+            logs.push("tdac_turnstile_checkbox_click_enabled_arrival_button");
+            return true;
+          }
+        } catch (error) {
+          logs.push(`tdac_turnstile_checkbox_click_failed ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
 
+    const box = await candidateFrames.nth(index).boundingBox().catch(() => null);
+    if (!box) continue;
     try {
-      logs.push(`tdac_turnstile_checkbox_click_attempt frame=${index}`);
-      await checkbox.click({ timeout: 10_000 });
-      await page.waitForTimeout(7_000);
+      logs.push(`tdac_turnstile_iframe_coordinate_click_attempt frame=${index}`);
+      await page.mouse.click(box.x + 24, box.y + box.height / 2);
+      await page.waitForTimeout(10_000);
       await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
       if (await arrivalButtonEnabled(page)) {
-        logs.push("tdac_turnstile_checkbox_click_enabled_arrival_button");
+        logs.push("tdac_turnstile_iframe_coordinate_click_enabled_arrival_button");
         return true;
       }
     } catch (error) {
-      logs.push(`tdac_turnstile_checkbox_click_failed ${error instanceof Error ? error.message : String(error)}`);
+      logs.push(`tdac_turnstile_iframe_coordinate_click_failed ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   return false;
@@ -228,11 +269,20 @@ export async function runTdacPortalSubmission(
 ): Promise<TdacPortalSubmissionResult> {
   const logs: string[] = [`tdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  const browser = await chromium.launch({ headless: options.headless ?? true });
-  const page = await browser.newPage({ acceptDownloads: true });
+  const browserSession = await createArrivalCardBrowserSession({
+    prefix: "TDAC",
+    headless: options.headless,
+  });
+  const page = browserSession.page;
+  logs.push(`tdac_browser_provider=${browserSession.provider}`);
+  logs.push(...browserSession.diagnostics);
 
   try {
-    await installTurnstileHook(page);
+    if (!browserSession.nativeCloudflareUnblock) {
+      await installTurnstileHook(page);
+    } else {
+      logs.push("tdac_brightdata_native_cloudflare_unblock_enabled");
+    }
     await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForTimeout(8_000);
     screenshots.push(await saveScreenshot(page, "landing", logs));
@@ -248,17 +298,32 @@ export async function runTdacPortalSubmission(
     }
     if (await arrivalButton.isDisabled().catch(() => false)) {
       screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
-      await solveTurnstileIfPresent(page, logs);
+      if (browserSession.nativeCloudflareUnblock) {
+        await solveWithBrowserApiCaptchaCdp(page, logs);
+        logs.push("tdac_waiting_for_browser_api_cloudflare_clearance");
+        await waitForArrivalButtonEnabled(page, 120_000);
+      } else {
+        await solveTurnstileIfPresent(page, logs);
+      }
       await page.waitForTimeout(3_000);
       screenshots.push(await saveScreenshot(page, "turnstile-after-solve", logs));
       if (await arrivalButton.isDisabled().catch(() => false)) {
         const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+        const remoteBrowserFailure = browserSession.diagnostics.find((line) =>
+          line.startsWith("tdac_remote_browser_api_failed"),
+        );
+        const message = remoteBrowserFailure
+          ? "Official TDAC Arrival Card button remained disabled after Cloudflare Turnstile verification. The configured Browser API endpoint could not be used; verify the Browser API zone is active, credentials are current, and any IP allowlist permits this workstation."
+          : "Official TDAC Arrival Card button remained disabled after Turnstile solve.";
         throw new TdacPortalError(
-          "Official TDAC Arrival Card button remained disabled after Turnstile solve.",
+          message,
           {
             code: "tdac_arrival_button_disabled_after_captcha",
             screenshotPaths: screenshots,
-            portalSummary: text.slice(0, 500),
+            portalSummary: [
+              remoteBrowserFailure,
+              text.slice(0, 500),
+            ].filter(Boolean).join("\n\n"),
           },
         );
       }
@@ -286,7 +351,7 @@ export async function runTdacPortalSubmission(
       },
     );
   } finally {
-    await browser.close();
+    await browserSession.close();
   }
 }
 

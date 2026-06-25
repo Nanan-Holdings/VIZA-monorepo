@@ -77,6 +77,10 @@ fall back to a visa schema/RAG package when an arrival-card package is missing.
    - Use the repository CAPTCHA solver only when an official CAPTCHA is present
      and the user has authorized real submission. Surface unsolved CAPTCHA and
      portal errors precisely.
+   - For official portals protected by Cloudflare or government WAFs, use an
+     authorized Browser API/CDP endpoint such as Bright Data Scraping Browser
+     before local browser fallback. Do not fake clearance, do not hide endpoint
+     connection failures, and never log Browser API credentials.
    - Save official screenshots, logs, traces, and confirmation PDFs to Supabase
      Storage. Download the official PDF when the portal provides one; avoid
      printing blank browser pages as evidence.
