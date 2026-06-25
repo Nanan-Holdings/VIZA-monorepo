@@ -87,8 +87,26 @@ export interface StatusEvent {
   createdAt: string | null;
 }
 
+export interface CountryApplicationRecord {
+  id: string;
+  packageId: string | null;
+  country: string;
+  visaType: string;
+  visaTypeLabel: string;
+  visaTypeLabelZh: string;
+  state: ClientStatusState;
+  progressPercent: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+  submittedAt: string | null;
+  confirmationNumber: string | null;
+  file: StatusFile | null;
+  detailHref: string;
+}
+
 export interface StatusApplication {
   key: string;
+  countryKey: string;
   id: string | null;
   packageId: string | null;
   country: string;
@@ -153,10 +171,12 @@ export interface StatusApplication {
   actions: StatusAction[];
   files: StatusFile[];
   events: StatusEvent[];
+  applicationRecords: CountryApplicationRecord[];
 }
 
 export interface ClientStatusData {
   applications: StatusApplication[];
+  detailApplications: StatusApplication[];
   partialData: boolean;
 }
 
@@ -312,6 +332,7 @@ const EXTERNAL_ACTIVE_STATUSES = new Set(["submitted", "received", "in_review", 
 const APPROVED_RESULT_STATUSES = new Set(["approved", "issued", "granted"]);
 const REJECTED_RESULT_STATUSES = new Set(["rejected", "refused", "denied"]);
 const SUCCESS_SUBMISSION_RESULT_STATUSES = new Set(["completed", "complete", "submitted", "success", "done"]);
+const ARRIVAL_CARD_READY_RESULT_STATUSES = new Set(["form_ready_for_agency"]);
 const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
@@ -364,6 +385,12 @@ function submissionResultIsSubmitted(application: ApplicationRow): boolean {
     resultStatus === "submitted" ||
     SUCCESS_SUBMISSION_RESULT_STATUSES.has(storedStatus)
   );
+}
+
+function arrivalCardResultIsReady(application: ApplicationRow): boolean {
+  const visaType = getFormVisaType(application.visa_type);
+  const isArrivalCard = visaType.endsWith("_ARRIVAL_CARD") || visaType === SGAC_VISA_TYPE;
+  return isArrivalCard && ARRIVAL_CARD_READY_RESULT_STATUSES.has(normalizeStatus(application.submission_result_status));
 }
 
 function getSubmissionResultReference(application: ApplicationRow): string | null {
@@ -422,6 +449,104 @@ function withApplicationDefaults(row: ApplicationRow): ApplicationRow {
     official_fee_payment_intent_id: row.official_fee_payment_intent_id ?? null,
     official_fee_receipt_id: row.official_fee_receipt_id ?? null,
   };
+}
+
+function getApplicationTime(application: StatusApplication): number {
+  return new Date(application.updatedAt ?? application.submittedAt ?? application.createdAt ?? 0).getTime();
+}
+
+function normalizeCountryGroupKey(country: string): string {
+  return country.trim().toLowerCase();
+}
+
+function getCountryApplicationRecordTime(record: CountryApplicationRecord): number {
+  return new Date(record.updatedAt ?? record.submittedAt ?? record.createdAt ?? record.file?.createdAt ?? 0).getTime();
+}
+
+function getPrimaryResultFile(application: StatusApplication): StatusFile | null {
+  return (
+    application.files.find((file) => file.key === "arrivalCardConfirmation") ??
+    application.files.find((file) => file.key === "approvedResult") ??
+    application.files.find((file) => file.key === "resultFile") ??
+    application.files.find((file) => file.key === "rejectionLetter") ??
+    null
+  );
+}
+
+function toCountryApplicationRecord(application: StatusApplication): CountryApplicationRecord {
+  const detailHref = application.id
+    ? `/client/status?applicationId=${encodeURIComponent(application.id)}&view=detail`
+    : application.packageId
+      ? `/client/status?packageId=${encodeURIComponent(application.packageId)}&view=detail`
+      : `/client/status?country=${encodeURIComponent(application.countryKey)}&view=detail`;
+
+  return {
+    id: application.id ?? application.key,
+    packageId: application.packageId,
+    country: application.country,
+    visaType: application.visaType,
+    visaTypeLabel: application.visaTypeLabel,
+    visaTypeLabelZh: application.visaTypeLabelZh,
+    state: application.state,
+    progressPercent: application.progressPercent,
+    createdAt: application.createdAt,
+    updatedAt: application.updatedAt,
+    submittedAt: application.submittedAt ?? application.updatedAt,
+    confirmationNumber: application.officialReference,
+    file: getPrimaryResultFile(application),
+    detailHref,
+  };
+}
+
+function getCountryGroupState(records: CountryApplicationRecord[]): ClientStatusState {
+  const latest = records[0];
+  if (!latest) return "not_started";
+  if (records.some((record) => record.state === "needs_attention" || record.state === "rejected")) {
+    return records.find((record) => record.state === "needs_attention" || record.state === "rejected")?.state ?? latest.state;
+  }
+  return latest.state;
+}
+
+function groupCountryApplications(applications: StatusApplication[]): StatusApplication[] {
+  const grouped = new Map<string, StatusApplication[]>();
+
+  for (const application of applications) {
+    const key = application.countryKey;
+    grouped.set(key, [...(grouped.get(key) ?? []), application]);
+  }
+
+  return [...grouped.values()]
+    .map((groupApplications) => {
+      const sortedApplications = [...groupApplications].sort((a, b) => getApplicationTime(b) - getApplicationTime(a));
+      const representative = sortedApplications[0];
+      const records = sortedApplications
+        .map(toCountryApplicationRecord)
+        .sort((a, b) => getCountryApplicationRecordTime(b) - getCountryApplicationRecordTime(a));
+      const state = getCountryGroupState(records);
+
+      return {
+        ...representative,
+        key: `country:${representative.countryKey}`,
+        id: null,
+        packageId: null,
+        state,
+        progressPercent:
+          records.length > 0
+            ? Math.round(records.reduce((sum, record) => sum + record.progressPercent, 0) / records.length)
+            : representative.progressPercent,
+        updatedAt: getLatestDate(records.map((record) => record.updatedAt ?? record.submittedAt ?? record.createdAt)),
+        officialReference: null,
+        officialReferenceKind: null,
+        liveSubmission: null,
+        actions: [],
+        files: records.map((record) => record.file).filter((file): file is StatusFile => Boolean(file)),
+        events: [],
+        applicationRecords: records,
+        visaTypeLabel: records.length === 1 ? representative.visaTypeLabel : `${records.length} application records`,
+        visaTypeLabelZh: records.length === 1 ? representative.visaTypeLabelZh : `${records.length} 条申请记录`,
+      };
+    })
+    .sort((a, b) => getApplicationTime(b) - getApplicationTime(a));
 }
 
 async function readRows<T>(query: PromiseLike<QueryResult>): Promise<ReadRowsResult<T>> {
@@ -508,12 +633,16 @@ function getLatestDate(values: Array<string | null | undefined>): string | null 
 
 function buildPackageBase(country: string, visaType: string) {
   const normalizedVisaType = getFormVisaType(visaType);
+  const countryName = getDestinationDisplayName(country);
+  const countryNameZh = getDestinationDisplayNameZh(country);
+  const countryKey = normalizeCountryGroupKey(countryNameZh || countryName || country);
   return {
     key: getVisaDestinationKey(country, normalizedVisaType),
+    countryKey,
     country,
     visaType: normalizedVisaType,
-    countryName: getDestinationDisplayName(country),
-    countryNameZh: getDestinationDisplayNameZh(country),
+    countryName,
+    countryNameZh,
     countryFlag: getDestinationFlag(country),
     visaTypeLabel: getVisaTypeDisplayName(normalizedVisaType),
     visaTypeLabelZh: getVisaTypeDisplayNameZh(normalizedVisaType),
@@ -910,6 +1039,7 @@ function buildPackageOnlyApplication(userPackage: {
     actions: [],
     files: [],
     events: [],
+    applicationRecords: [],
   };
 
   const metricSteps = buildSteps(shell);
@@ -960,7 +1090,7 @@ async function buildApplicationStatus({
   const formState = getFormState(application, answerCount, consentComplete);
   const formStarted = answerCount > 0 || formState === "complete";
   const submissionResultReference = getSubmissionResultReference(application);
-  const submissionResultSubmitted = submissionResultIsSubmitted(application);
+  const submissionResultSubmitted = submissionResultIsSubmitted(application) || arrivalCardResultIsReady(application);
   const applicationSubmitted = Boolean(application.submitted_at) || normalizeStatus(application.status) === "submitted" || submissionResultSubmitted;
   const documentState = getDocumentState(documentCounts, formStarted, applicationSubmitted);
   const documentsComplete = documentState === "complete";
@@ -1100,6 +1230,7 @@ async function buildApplicationStatus({
     )
       .slice(0, 3)
       .map((row) => ({ eventType: row.event_type, createdAt: row.created_at })),
+    applicationRecords: [],
   };
 
   const metricSteps = buildSteps(shell);
@@ -1124,7 +1255,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { applications: [], partialData: false };
+  if (!user) return { applications: [], detailApplications: [], partialData: false };
 
   const adminClient = createAdminClient();
   let partialData = false;
@@ -1448,5 +1579,9 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     return bTime - aTime;
   });
 
-  return { applications: statusApplications, partialData };
+  return {
+    applications: groupCountryApplications(statusApplications),
+    detailApplications: statusApplications,
+    partialData,
+  };
 }

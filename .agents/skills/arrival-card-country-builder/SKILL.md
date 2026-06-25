@@ -89,6 +89,24 @@ fall back to a visa schema/RAG package when an arrival-card package is missing.
    - Update nearest `AGENTS.md` files whenever adding routes, seeds, or skill
      modules.
 
+8. **Expose status and evidence**
+   - The client status center must group the left-side navigation by country,
+     not by individual application or visa type. A country should appear once,
+     even when the user has multiple submissions or both visa and arrival-card
+     products for that country.
+   - Put per-application/per-submission state inside that country's detail
+     panel as application records. Default to showing the newest three records
+     first, with an explicit expansion affordance for older records.
+   - Each record should show the submitted/updated time, current status,
+     progress, official/reference number when available, and a confirmation PDF
+     download when available.
+   - Each record must include a `View details` / `点击查看详情` action that opens a
+     single-application detail view. The detail view should not keep rendering
+     the grouped record list.
+   - Keep SGAC, MDAC, TDAC, and visa package records display-grouped by country
+     only at the status UI layer; do not merge their package identity, schemas,
+     runners, or RAG sources.
+
 ## SGAC Production Pattern
 
 Use SGAC as the template before building Malaysia MDAC or Thailand TDAC.
@@ -123,6 +141,9 @@ Use SGAC as the template before building Malaysia MDAC or Thailand TDAC.
   - Future-window applications should queue and offer cancellation.
   - Success evidence should be the official confirmation/PDF and reference
     number, not a generic screenshot or blank printed page.
+  - Status UI should show one Singapore tab with SGAC submissions as records,
+    each with details and confirmation PDF download, instead of one left-side
+    tab per SGAC application.
 
 ## Malaysia MDAC Target Shape
 
