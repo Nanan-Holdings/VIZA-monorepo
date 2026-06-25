@@ -471,6 +471,8 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
           return {
             ...mergeRules(field, {
               label_zh: "是否拥有多个国籍？",
+              label_en: "Do you have multiple nationalities?",
+              official_label_en: "Do you have multiple nationalities?",
               helper_zh: "如拥有多个国籍，请选择“是”并逐项补充。",
               helper_en: "Select Yes if you currently hold more than one nationality.",
             }),
