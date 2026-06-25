@@ -83,16 +83,26 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForApplication("singapore", "SG_VISITOR_VISA", "live_assisted")).not.toBe("sgac_live_assisted_pending");
   });
 
-  it("recognizes Malaysia MDAC and Thailand TDAC as standalone arrival cards without live queue routing", () => {
+  it("routes Malaysia MDAC and Thailand TDAC standalone arrival cards to live official runners", () => {
     expect(isMalaysiaMdacApplication("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe(true);
     expect(isThailandTdacApplication("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe(true);
     expect(isDigitalArrivalCardApplication("MY", "MY_MDAC_ARRIVAL_CARD")).toBe(true);
     expect(isDigitalArrivalCardApplication("TH", "TH_TDAC_ARRIVAL_CARD")).toBe(true);
 
-    expect(queueStatusForApplication("malaysia", "MY_MDAC_ARRIVAL_CARD", "live_assisted")).toBe("pending");
-    expect(queueProviderForApplication("thailand", "TH_TDAC_ARRIVAL_CARD", "live_assisted")).toBeNull();
-    expect(submitModeForPrimaryApplicationAction("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe("dry_run");
-    expect(submitModeForPrimaryApplicationAction("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("dry_run");
+    expect(queueStatusForApplication("malaysia", "MY_MDAC_ARRIVAL_CARD", "live_assisted")).toBe(
+      "mdac_live_assisted_pending",
+    );
+    expect(queueStatusForApplication("thailand", "TH_TDAC_ARRIVAL_CARD", "live_assisted")).toBe(
+      "tdac_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("malaysia", "MY_MDAC_ARRIVAL_CARD", "live_assisted")).toBe(
+      "malaysia_mdac_live",
+    );
+    expect(queueProviderForApplication("thailand", "TH_TDAC_ARRIVAL_CARD", "live_assisted")).toBe(
+      "thailand_tdac_live",
+    );
+    expect(submitModeForPrimaryApplicationAction("malaysia", "MY_MDAC_ARRIVAL_CARD")).toBe("live_assisted");
+    expect(submitModeForPrimaryApplicationAction("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("live_assisted");
   });
 
   it("allows legacy queue inserts for live France and SGAC retry rows when Supabase cache lacks live columns", () => {

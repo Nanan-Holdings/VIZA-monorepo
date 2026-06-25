@@ -110,9 +110,10 @@ filling and one-shot submission for the applicant.
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
-  `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`: local live smoke
-  entry points for official portal reach/fill validation. SGAC smoke stops
-  before final submit unless run with `--submit` and real applicant data.
+  `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`,
+  `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
+  entry points for official portal reach/fill validation. Arrival-card smokes
+  stop before final submit unless run with `--submit` and real applicant data.
 - `scripts/setup-vn-card-profile.ps1` and `scripts/start-vn-autopay-dev.ps1`:
   local-only Vietnam official-fee payment helpers. The dev start script enables
   one-time frontend card sessions by default and reads no card values in the
@@ -159,8 +160,8 @@ filling and one-shot submission for the applicant.
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 + gated payment pilot | Fills form and stops before Pay/Submit by default; captures registration code when portal review is reached. With explicit VIZA official-fee authorization plus fixed-card pilot env flags, may continue from the official payment page until paid or a 3DS/OTP/unknown-gateway manual checkpoint appears. |
 | Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
-| Malaysia MDAC | Live runner scaffold | Dry-run validates `MY_MDAC_ARRIVAL_CARD`; live worker dispatches to the official MDAC portal and records exact portal block/error evidence until a complete official form path is available in the current network/session. |
-| Thailand TDAC | Live runner scaffold | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal and records exact portal block/error evidence until a complete official form path is available in the current network/session. |
+| Malaysia MDAC | Live dispatch + portal evidence | Dry-run validates `MY_MDAC_ARRIVAL_CARD`; live worker dispatches to the official MDAC portal and records exact portal block/error evidence. Current official-form completion depends on MDAC portal reachability from the runner network/session. |
+| Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
@@ -203,6 +204,9 @@ npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
 npm run au:smoke
 # Public Vietnam form; stops before Pay/Submit:
 npm run vn:smoke
+# Public arrival-card forms; stop before final Submit unless --submit is passed:
+npx tsx scripts/run-mdac-smoke.ts
+npx tsx scripts/run-tdac-smoke.ts
 # UK recon/pre-auth walk:
 npx ts-node scripts/walk-uk-portal.ts
 ```
