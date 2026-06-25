@@ -40,6 +40,22 @@ function createField(patch: FieldPatch): VisaFormFieldRow {
   };
 }
 
+function applyFieldPatch(field: VisaFormFieldRow, patch: FieldPatch): VisaFormFieldRow {
+  return {
+    ...field,
+    ...patch,
+    id: field.id,
+    visaType: field.visaType,
+    fieldName: field.fieldName,
+    validationRules: {
+      ...(field.validationRules ?? {}),
+      ...(patch.validationRules ?? {}),
+    },
+    options: patch.options ?? field.options,
+    conditionalLogic: patch.conditionalLogic ?? field.conditionalLogic,
+  };
+}
+
 const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
   {
     fieldName: "has_other_passports_used_for_vietnam",
@@ -62,7 +78,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 12,
+    displayOrder: 11.1,
     placeholder: "Enter passport",
     validationRules: {
       label_zh: "曾用于入境越南的其他护照号码",
@@ -80,7 +96,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 13,
+    displayOrder: 11.2,
     placeholder: "Enter full name",
     validationRules: {
       label_zh: "其他护照上的姓名",
@@ -98,7 +114,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 14,
+    displayOrder: 11.3,
     placeholder: "DD/MM/YYYY",
     validationRules: {
       label_zh: "出生日期",
@@ -116,7 +132,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 15,
+    displayOrder: 11.4,
     placeholder: "Choose nationality",
     validationRules: {
       label_zh: "国籍",
@@ -134,7 +150,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 20,
+    displayOrder: 19.1,
     placeholder: "Enter act of violation",
     validationRules: {
       label_zh: "违法行为",
@@ -152,7 +168,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 21,
+    displayOrder: 19.2,
     placeholder: "DD/MM/YYYY",
     validationRules: {
       label_zh: "违法时间",
@@ -169,7 +185,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 22,
+    displayOrder: 19.3,
     placeholder: "Enter form of sanction",
     validationRules: {
       label_zh: "处罚形式",
@@ -187,7 +203,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 1,
     stepName: "Personal Information",
-    displayOrder: 23,
+    displayOrder: 19.4,
     placeholder: "Enter authority imposed sanction",
     validationRules: {
       label_zh: "作出处罚的机关",
@@ -205,7 +221,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 3,
     stepName: "Passport Information",
-    displayOrder: 4,
+    displayOrder: 3.1,
     placeholder: "Enter specify others type",
     validationRules: { label_zh: "如选择“其他”，请说明", maxLength: 120 },
     conditionalLogic: { showIf: "passport_type in [other, others]" },
@@ -217,7 +233,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 11,
+    displayOrder: 17,
     options: YES_NO_OPTIONS,
     validationRules: { label_zh: "入境越南后计划联系的机构、组织或个人？" },
   },
@@ -228,7 +244,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 12,
+    displayOrder: 17.1,
     placeholder: "Enter name of hosting organization",
     validationRules: {
       label_zh: "接待机构/组织/个人名称",
@@ -246,7 +262,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 13,
+    displayOrder: 17.2,
     placeholder: "Enter telephone number",
     validationRules: {
       label_zh: "联系电话",
@@ -264,7 +280,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 14,
+    displayOrder: 17.3,
     placeholder: "Enter address",
     validationRules: {
       label_zh: "地址",
@@ -282,7 +298,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 15,
+    displayOrder: 17.4,
     placeholder: "Enter purpose",
     validationRules: {
       label_zh: "联系目的",
@@ -300,7 +316,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 17,
+    displayOrder: 16.1,
     placeholder: "DD/MM/YYYY",
     validationRules: {
       label_zh: "上次赴越开始日期",
@@ -317,7 +333,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 18,
+    displayOrder: 16.2,
     placeholder: "DD/MM/YYYY",
     validationRules: {
       label_zh: "上次赴越结束日期",
@@ -335,7 +351,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 6,
     stepName: "Trip Information",
-    displayOrder: 19,
+    displayOrder: 16.3,
     placeholder: "Enter purpose",
     validationRules: {
       label_zh: "上次赴越目的",
@@ -372,7 +388,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 8,
     stepName: "Travel Expenses and Insurance",
-    displayOrder: 3,
+    displayOrder: 2.1,
     placeholder: "Enter specify",
     validationRules: { label_zh: "保险说明", maxLength: 200 },
     conditionalLogic: { showIf: "bought_travel_insurance === yes" },
@@ -384,7 +400,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 8,
     stepName: "Travel Expenses and Insurance",
-    displayOrder: 5,
+    displayOrder: 4.1,
     placeholder: "Choose one",
     options: [
       { value: "cash", text: "Cash", label_zh: "现金", label_en: "Cash" },
@@ -401,7 +417,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 8,
     stepName: "Travel Expenses and Insurance",
-    displayOrder: 6,
+    displayOrder: 4.2,
     placeholder: "Enter name of Company/Agency",
     validationRules: { label_zh: "承担费用的公司/机构名称", maxLength: 200 },
     conditionalLogic: { showIf: "expense_coverage === company" },
@@ -413,7 +429,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 8,
     stepName: "Travel Expenses and Insurance",
-    displayOrder: 7,
+    displayOrder: 4.3,
     placeholder: "Enter address",
     validationRules: { label_zh: "公司/机构地址", maxLength: 300 },
     conditionalLogic: { showIf: "expense_coverage === company" },
@@ -425,12 +441,67 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     required: true,
     stepNumber: 8,
     stepName: "Travel Expenses and Insurance",
-    displayOrder: 8,
+    displayOrder: 4.4,
     placeholder: "Enter telephone number",
     validationRules: { label_zh: "公司/机构电话", maxLength: 40 },
     conditionalLogic: { showIf: "expense_coverage === company" },
   },
 ];
+
+const LEGACY_PARITY_PATCHES: FieldPatch[] = [
+  {
+    fieldName: "visited_vietnam_in_last_year",
+    label: "Have you ever been to Viet Nam in the last 01 year?",
+    displayOrder: 16,
+    options: YES_NO_OPTIONS,
+    validationRules: { label_zh: "过去一年是否曾到访越南？" },
+  },
+  {
+    fieldName: "has_contact_in_vietnam",
+    displayOrder: 17,
+  },
+  {
+    fieldName: "has_relatives",
+    label: "Do you have relatives currently residing in Viet Nam?",
+    displayOrder: 18,
+    options: YES_NO_OPTIONS,
+    validationRules: { label_zh: "是否有亲属目前居住在越南？" },
+  },
+  {
+    fieldName: "relative_full_name",
+    displayOrder: 18.1,
+    validationRules: { repeatable: true, repeat_group: "vietnam_relatives", max_items: 5, label_zh: "亲属姓名" },
+    conditionalLogic: { showIf: "has_relatives === yes" },
+  },
+  {
+    fieldName: "relative_date_of_birth",
+    displayOrder: 18.2,
+    validationRules: { repeatable: true, repeat_group: "vietnam_relatives", max_items: 5, label_zh: "亲属出生日期" },
+    conditionalLogic: { showIf: "has_relatives === yes" },
+  },
+  {
+    fieldName: "relative_nationality",
+    displayOrder: 18.3,
+    validationRules: { repeatable: true, repeat_group: "vietnam_relatives", max_items: 5, label_zh: "亲属国籍" },
+    conditionalLogic: { showIf: "has_relatives === yes" },
+  },
+  {
+    fieldName: "relative_relationship",
+    displayOrder: 18.4,
+    validationRules: { repeatable: true, repeat_group: "vietnam_relatives", max_items: 5, label_zh: "亲属关系" },
+    conditionalLogic: { showIf: "has_relatives === yes" },
+  },
+  {
+    fieldName: "relative_residential_address",
+    displayOrder: 18.5,
+    validationRules: { repeatable: true, repeat_group: "vietnam_relatives", max_items: 5, label_zh: "亲属在越南住址" },
+    conditionalLogic: { showIf: "has_relatives === yes" },
+  },
+];
+
+const PARITY_PATCH_BY_FIELD_NAME = new Map(
+  [...OFFICIAL_PARITY_FIELDS, ...LEGACY_PARITY_PATCHES].map((patch) => [patch.fieldName, patch]),
+);
 
 export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): WizardStep[] {
   const stepMap = new Map<number, WizardStep>();
@@ -441,35 +512,37 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
       ...step,
       fields: step.fields.map((field) => {
         fieldNames.add(field.fieldName);
+        const parityPatch = PARITY_PATCH_BY_FIELD_NAME.get(field.fieldName);
+        const patchedField = parityPatch ? applyFieldPatch(field, parityPatch) : field;
 
-        if (field.fieldName === "date_of_birth") {
-          return mergeRules(field, { allow_year_only: true });
+        if (patchedField.fieldName === "date_of_birth") {
+          return mergeRules(patchedField, { allow_year_only: true });
         }
-        if (field.fieldName === "visa_valid_from") {
-          return mergeRules(field, { min_date: "today" });
+        if (patchedField.fieldName === "visa_valid_from") {
+          return mergeRules(patchedField, { min_date: "today" });
         }
-        if (field.fieldName === "visa_valid_to") {
-          return mergeRules(field, { not_before_field: "visa_valid_from" });
+        if (patchedField.fieldName === "visa_valid_to") {
+          return mergeRules(patchedField, { not_before_field: "visa_valid_from" });
         }
-        if (field.fieldName === "passport_expiry_date") {
-          return mergeRules(field, {
+        if (patchedField.fieldName === "passport_expiry_date") {
+          return mergeRules(patchedField, {
             min_after_field: "visa_valid_to",
             min_after_days: 30,
             helper_zh: "官方要求护照有效期至少晚于签证有效期结束日 30 天。",
           });
         }
-        if (field.fieldName === "intended_ward_commune") {
+        if (patchedField.fieldName === "intended_ward_commune") {
           return {
-            ...mergeRules(field, {
+            ...mergeRules(patchedField, {
               dependent_on: "intended_province_city",
               dependent_options_key: "vietnam_wards_by_province",
             }),
             options: [],
           };
         }
-        if (field.fieldName === "has_multiple_nationalities") {
+        if (patchedField.fieldName === "has_multiple_nationalities") {
           return {
-            ...mergeRules(field, {
+            ...mergeRules(patchedField, {
               label_zh: "是否拥有多个国籍？",
               label_en: "Do you have multiple nationalities?",
               official_label_en: "Do you have multiple nationalities?",
@@ -480,9 +553,9 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
             displayOrder: 17,
           };
         }
-        if (field.fieldName === "other_nationality") {
+        if (patchedField.fieldName === "other_nationality") {
           return {
-            ...mergeRules(field, {
+            ...mergeRules(patchedField, {
               repeatable: true,
               repeat_group: "multiple_nationalities",
               max_items: 5,
@@ -492,34 +565,34 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
             conditionalLogic: { showIf: "has_multiple_nationalities === yes" },
           };
         }
-        if (field.fieldName === "has_violated_vietnam_laws") {
+        if (patchedField.fieldName === "has_violated_vietnam_laws") {
           return {
-            ...field,
+            ...patchedField,
             displayOrder: 19,
           };
         }
-        if (field.fieldName === "violation_of_vietnam_laws_details") {
+        if (patchedField.fieldName === "violation_of_vietnam_laws_details") {
           return {
-            ...mergeRules(field, { label_zh: "越南违法记录说明（旧字段）" }),
+            ...mergeRules(patchedField, { label_zh: "越南违法记录说明（旧字段）" }),
             required: false,
             conditionalLogic: { showIf: "has_violated_vietnam_laws === legacy_textarea" },
           };
         }
-        if (field.fieldName === "visited_vietnam_purpose_detail") {
+        if (patchedField.fieldName === "visited_vietnam_purpose_detail") {
           return {
-            ...mergeRules(field, { label_zh: "过去一年访问越南说明（旧字段）" }),
+            ...mergeRules(patchedField, { label_zh: "过去一年访问越南说明（旧字段）" }),
             required: false,
             conditionalLogic: { showIf: "visited_vietnam_in_last_year === legacy_textarea" },
           };
         }
-        if (field.fieldName === "bought_travel_insurance") {
-          return { ...field, displayOrder: 2 };
+        if (patchedField.fieldName === "bought_travel_insurance") {
+          return { ...patchedField, displayOrder: 2 };
         }
-        if (field.fieldName === "expense_coverage") {
-          return { ...field, displayOrder: 4 };
+        if (patchedField.fieldName === "expense_coverage") {
+          return { ...patchedField, displayOrder: 4 };
         }
 
-        return field;
+        return patchedField;
       }),
     });
   }
