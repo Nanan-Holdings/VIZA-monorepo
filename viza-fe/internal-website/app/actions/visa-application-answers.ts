@@ -2,6 +2,11 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  resolveApplicantProfileForAuthUser,
+  type ApplicantProfileIdentityRow,
+  type ApplicantProfileIdentityStore,
+} from "@/lib/applicant-profile-identity";
 import { auditPiiRead } from "@/lib/legal/audit-pii";
 import { buildUniversalProfileAnswerPatch, type UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 import { getCanonicalVisaDestinationCountry, getFormVisaType } from "@/lib/visa-destinations";
@@ -18,6 +23,8 @@ interface UniversalProfileSaveInput extends UniversalProfileSnapshot {
 type UniversalProfileSaveField = keyof UniversalProfileSaveInput;
 type SeedableUniversalProfile = UniversalProfileSnapshot & {
   id?: string | null;
+  auth_user_id?: string | null;
+  email?: string | null;
   updated_at?: string | null;
 };
 type SupabaseErrorLike = { code?: string; message?: string } | null;
@@ -189,6 +196,62 @@ async function loadApplicationOwnerProfile(
     profile: fallbackResult.data,
     error: fallbackResult.error?.message,
   };
+}
+
+function createApplicantProfileIdentityStore(
+  adminClient: ReturnType<typeof createAdminClient>,
+): ApplicantProfileIdentityStore<SeedableUniversalProfile & ApplicantProfileIdentityRow> {
+  return {
+    async findByAuthUserId(authUserId) {
+      const { data, error } = await adminClient
+        .from("applicant_profiles")
+        .select("*")
+        .eq("auth_user_id", authUserId)
+        .maybeSingle();
+
+      return {
+        profile: (data as (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ?? null,
+        error: error?.message,
+      };
+    },
+    async findByEmail(email) {
+      const { data, error } = await adminClient
+        .from("applicant_profiles")
+        .select("*")
+        .ilike("email", email)
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+
+      return {
+        profile: (data as (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ?? null,
+        error: error?.message,
+      };
+    },
+    async bindProfileToAuthUser(profileId, authUserId) {
+      const { data, error } = await adminClient
+        .from("applicant_profiles")
+        .update({ auth_user_id: authUserId, updated_at: new Date().toISOString() })
+        .eq("id", profileId)
+        .select("*")
+        .single();
+
+      return {
+        profile: (data as (SeedableUniversalProfile & ApplicantProfileIdentityRow) | null) ?? null,
+        error: error?.message,
+      };
+    },
+  };
+}
+
+async function loadCurrentApplicantProfile(
+  adminClient: ReturnType<typeof createAdminClient>,
+  user: { id: string; email?: string | null },
+) {
+  return resolveApplicantProfileForAuthUser(
+    createApplicantProfileIdentityStore(adminClient),
+    user,
+  );
 }
 
 function ownsApplication(
@@ -400,13 +463,9 @@ export async function saveUniversalProfileWithSharedAnswers(
     if (!user) return { error: "Not authenticated" };
 
     const adminClient = createAdminClient();
-    const { data: existingProfile, error: existingProfileError } = await adminClient
-      .from("applicant_profiles")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
+    const existingProfileResult = await loadCurrentApplicantProfile(adminClient, user);
 
-    if (existingProfileError) return { error: existingProfileError.message };
+    if (existingProfileResult.error) return { error: existingProfileResult.error };
 
     const clearedFields = new Set(input.clearedFields ?? []);
     const profilePatch: Record<string, string | null> = {
@@ -424,7 +483,7 @@ export async function saveUniversalProfileWithSharedAnswers(
       }
     }
 
-    if (!existingProfile && !("email" in profilePatch)) {
+    if (!existingProfileResult.profile && !("email" in profilePatch)) {
       profilePatch.email = user.email ?? null;
     }
 
@@ -471,13 +530,9 @@ export async function ensureDraftApplication(
 
     const adminClient = createAdminClient();
 
-    const { data: profileData } = await adminClient
-      .from("applicant_profiles")
-      .select("*")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    const profile = profileData as SeedableUniversalProfile | null;
+    const profileResult = await loadCurrentApplicantProfile(adminClient, user);
+    if (profileResult.error) return { error: profileResult.error };
+    const profile = profileResult.profile;
     if (!profile?.id) return { error: "Profile not found" };
 
     const { data: activePackage } = await adminClient
@@ -537,6 +592,54 @@ export async function ensureDraftApplication(
     return { applicationId: newApp.id, created: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create application" };
+  }
+}
+
+export async function loadApplicationFormContext(
+  country: string,
+  visaType: string,
+  options: { preferExplicit?: boolean } = {},
+): Promise<{
+  profile?: SeedableUniversalProfile;
+  application?: Record<string, unknown> | null;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
+
+    const adminClient = createAdminClient();
+    const profileResult = await loadCurrentApplicantProfile(adminClient, user);
+    if (profileResult.error) return { error: profileResult.error };
+    const profile = profileResult.profile;
+    if (!profile?.id) return { error: "Profile not found" };
+
+    const { data: applicationRows, error } = await adminClient
+      .from("applications")
+      .select("*")
+      .eq("applicant_id", profile.id)
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    if (error) return { error: error.message };
+
+    const resolvedVisaType = getFormVisaType(visaType);
+    const applications = (applicationRows ?? []) as Record<string, unknown>[];
+    const application =
+      applications.find(
+        (row) =>
+          String(row.country).toLowerCase() === country.toLowerCase() &&
+          getFormVisaType(String(row.visa_type)).toLowerCase() === resolvedVisaType.toLowerCase(),
+      ) ??
+      (options.preferExplicit ? null : applications[0] ?? null);
+
+    return {
+      profile,
+      application,
+    };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to load application context" };
   }
 }
 

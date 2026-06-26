@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Download, ExternalLink, FlaskConical, Loader2, RotateCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
 import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
@@ -98,11 +98,18 @@ function isVietnamPaymentCheckpointResult(
 function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [startingAgain, setStartingAgain] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const successful = result.submitted && result.status === "submitted";
   const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
-  const pdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
+  const hasOfficialPdfDownload =
+    result.country === "TH" &&
+    Boolean(result.artifacts?.logs?.some((log) => log.includes("tdac_pdf_downloaded")));
+  const pdfPath = hasOfficialPdfDownload
+    ? result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null
+    : null;
   const countryLabel = result.country === "MY" ? "MDAC" : "TDAC";
+  const countryParam = result.country === "MY" ? "malaysia" : "thailand";
   const pdfUrl = pdfPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`)}`
     : null;
@@ -130,6 +137,24 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
     }
   }, [countryLabel, pdfUrl, referenceNumber, result.applicationId]);
 
+  const startAgain = useCallback(async () => {
+    setStartingAgain(true);
+    setDownloadError(null);
+    try {
+      const response = await fetch(`/api/applications/${result.applicationId}/arrival-card-new-application`, {
+        method: "POST",
+      });
+      const body = (await response.json().catch(() => null)) as { applicationId?: string; error?: string } | null;
+      if (!response.ok || !body?.applicationId) {
+        throw new Error(body?.error || `Could not create a new application (${response.status})`);
+      }
+      window.location.href = `/client/application/long-form?country=${countryParam}&visaType=${result.visaType}&applicationId=${encodeURIComponent(body.applicationId)}`;
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : String(error));
+      setStartingAgain(false);
+    }
+  }, [countryParam, result.applicationId, result.visaType]);
+
   return (
     <Card className="rounded-lg border-input">
       <CardHeader>
@@ -156,11 +181,28 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
             ? result.portalResponseSummary
             : result.errorDetails?.message || result.portalResponseSummary}
         </p>
-        {pdfUrl ? (
-          <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
-            {downloadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {isZh ? "下载确认文件" : "Download confirmation"}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {pdfUrl ? (
+            <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
+              {downloadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              {isZh ? "下载确认文件" : "Download confirmation"}
+            </Button>
+          ) : null}
+          <Button type="button" variant={pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
+            {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            {isZh ? "再次提交" : `Submit another ${countryLabel}`}
           </Button>
+        </div>
+        {!pdfUrl && successful ? (
+          <p className="text-xs text-muted-foreground">
+            {result.country === "MY"
+              ? isZh
+                ? "马来西亚 MDAC 官网当前只返回提交确认，不提供可下载确认 PDF。"
+                : "The Malaysia MDAC portal currently returns a submission confirmation but does not provide an official downloadable PDF."
+              : isZh
+                ? "当前没有可下载的官方确认 PDF。"
+                : "No official downloadable confirmation PDF is available for this submission."}
+          </p>
         ) : null}
         {downloadError ? <p className="text-sm text-red-700">{downloadError}</p> : null}
         <Button asChild variant="ghost" className="w-full">
@@ -220,7 +262,19 @@ function visualStatusFromApplication(status: SubmissionResultStatus | null): Sub
   return "completed";
 }
 
-function fallbackProgressForStatus(status: SubmissionVisualStatus): number {
+function isArrivalCardTarget(country: string | null | undefined, visaType: string | null | undefined): boolean {
+  return (
+    isSgArrivalCardApplication(country, visaType) ||
+    isMalaysiaMdacApplication(country, visaType) ||
+    isThailandTdacApplication(country, visaType)
+  );
+}
+
+function fallbackProgressForStatus(
+  status: SubmissionVisualStatus,
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): number {
   switch (status) {
     case "scheduled":
       return 0;
@@ -232,6 +286,7 @@ function fallbackProgressForStatus(status: SubmissionVisualStatus): number {
     case "running":
       return 67;
     case "queued":
+      if (isArrivalCardTarget(country, visaType)) return 52;
       return 12;
     case "failed":
       return 0;
@@ -675,6 +730,18 @@ function ArrivalCardPreparedResultCard({
     }
   }, [applicationId, queuedSubmission, submitting, visaType]);
 
+  if (queuedSubmission) {
+    return (
+      <SubmissionStatusStep
+        applicationId={applicationId}
+        country={country}
+        visaType={visaType}
+        status="waiting"
+        result={null}
+      />
+    );
+  }
+
   return (
     <Card className="rounded-xl border-input">
       <CardHeader>
@@ -692,37 +759,6 @@ function ArrivalCardPreparedResultCard({
             ? "你的答案已保存并完成本地校验。点击提交后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度、官方编号和确认文件。"
             : "Your answers are saved and locally validated. Click Submit to create a real official-site submission job. VIZA will fill the official form and show progress, the official reference, and confirmation evidence here."}
         </p>
-        {queuedSubmission ? (
-          <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-brand-700">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {isZh ? "自动提交任务已启动" : "Automated submission started"}
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              {isZh
-                ? "submission-service 已收到任务，正在接入官方门户。提交成功后，状态页会显示官方编号和可下载的确认 PDF。"
-                : "submission-service has received the job and is opening the official portal. Once it succeeds, the status page will show the official reference and downloadable confirmation PDF."}
-            </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-              <div className="h-full w-1/3 rounded-full bg-brand-500" />
-            </div>
-            <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-              <div className="rounded border border-brand-100 bg-white px-2 py-1.5">
-                <span className="text-muted-foreground">{isZh ? "任务编号" : "Job ID"}</span>
-                <div className="mt-0.5 truncate font-mono text-foreground">{queuedSubmission.jobId ?? "-"}</div>
-              </div>
-              <div className="rounded border border-brand-100 bg-white px-2 py-1.5">
-                <span className="text-muted-foreground">{isZh ? "队列状态" : "Queue status"}</span>
-                <div className="mt-0.5 truncate font-mono text-foreground">{queuedSubmission.queueStatus ?? "-"}</div>
-              </div>
-            </div>
-            <Button type="button" asChild variant="outline" className="mt-3 w-full">
-              <a href={applicationId ? `/client/status?applicationId=${encodeURIComponent(applicationId)}&view=detail` : "/client/status"}>
-                {isZh ? "查看状态与确认文件" : "View status and confirmation evidence"}
-              </a>
-            </Button>
-          </div>
-        ) : null}
         <div className="rounded-md border border-input bg-background px-3 py-2">
           <div className="text-xs text-muted-foreground">{isZh ? "资料包状态" : "Pack status"}</div>
           <div className="mt-0.5 font-mono text-sm text-foreground">
@@ -828,17 +864,45 @@ export function SubmissionStatusStep({
           visaType: snapshot?.visaType ?? visaType,
         }),
       });
+      const body = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        jobId?: unknown;
+        queueStatus?: unknown;
+        provider?: unknown;
+      } | null;
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
         const message = typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`;
         setRetryError(message);
         throw new Error(message);
       }
-      setSnapshot(null);
+      const now = new Date().toISOString();
+      setSnapshot({
+        status: "queued",
+        stage: "preparing",
+        progress: fallbackProgressForStatus("queued", snapshot?.country ?? country, snapshot?.visaType ?? visaType),
+        message: isZh ? "自动提交任务已启动。" : "Automated submission has started.",
+        result: null,
+        error: null,
+        updatedAt: now,
+        applicationStatus: "waiting",
+        country: snapshot?.country ?? country,
+        visaType: snapshot?.visaType ?? visaType,
+        queue: {
+          id: typeof body?.jobId === "string" ? body.jobId : "",
+          status: typeof body?.queueStatus === "string" ? body.queueStatus : "pending",
+          mode,
+          provider: typeof body?.provider === "string" ? body.provider : null,
+          currentStage: null,
+          heartbeatAt: null,
+          fieldFallbacks: [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
     } finally {
       setResubmitting(false);
     }
-  }, [applicationId, country, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
+  }, [applicationId, country, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
 
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
@@ -867,7 +931,7 @@ export function SubmissionStatusStep({
             ? "completed"
             : "confirming_result");
   const effectiveProgress =
-    snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus);
+    snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
   const effectiveResult = terminalPropsAvailable ? result : snapshot?.result ?? result;
   const effectiveError = extractError(effectiveResult, snapshot?.error);
   const effectiveApplicationStatus = terminalPropsAvailable

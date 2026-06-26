@@ -234,6 +234,7 @@ Smoke URLs:
 - `lib/translation/*`
 - `lib/passport/*`
 - `lib/submission-queue.ts`
+- `lib/applicant-profile-identity.ts`
 - `lib/ds160-proof.ts`
 - `lib/__tests__/ds160-proof.spec.ts`
 - `lib/legal/*`
