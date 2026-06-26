@@ -1166,6 +1166,11 @@ function translateVietnamesePlaceName(text: string): string {
   if (phrase) return phrase;
 
   const tokens = normalized.split(/\s+/).filter(Boolean);
+  const leadingNumber = tokens[0]?.match(/^\d+$/)?.[0];
+  if (leadingNumber && tokens.length > 1) {
+    return `${translateVietnamesePlaceName(tokens.slice(1).join(" "))}第${leadingNumber}`;
+  }
+
   const translated: string[] = [];
   for (let index = 0; index < tokens.length; index += 1) {
     const three = tokens.slice(index, index + 3).join(" ");
@@ -1191,13 +1196,25 @@ function translateVietnameseLatinFragments(text: string): string {
   );
 }
 
+function normalizeVietnamUnitSuffixOrder(text: string): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  const prefixMatch = trimmed.match(/^(坊|公社|市镇)\s*(.+)$/);
+  if (prefixMatch) return `${prefixMatch[2]}${prefixMatch[1]}`;
+  return trimmed;
+}
+
 function localizeVietnamAdministrativeUnitText(text: string): string {
   const trimmed = text.replace(/\s+/g, " ").trim();
+  const localizedPrefixMatch = trimmed.match(/^(坊|公社|市镇)\s+(.+)$/);
+  if (localizedPrefixMatch) {
+    return normalizeVietnamUnitSuffixOrder(`${translateVietnamesePlaceName(localizedPrefixMatch[2])}${localizedPrefixMatch[1]}`);
+  }
+
   const prefixMatch = trimmed.match(/^(?:PHUONG|PHƯỜNG|XA|XÃ|THI TRAN|THỊ TRẤN)\s+(.+)$/i);
   if (prefixMatch) {
     const prefix = normalizeVietnameseLatin(trimmed.split(/\s+/).slice(0, trimmed.toUpperCase().startsWith("THI") || trimmed.toUpperCase().startsWith("THỊ") ? 2 : 1).join(" "));
     const unit = prefix === "xa" ? "公社" : prefix === "thi tran" ? "市镇" : "坊";
-    return `${translateVietnamesePlaceName(prefixMatch[1])}${unit}`;
+    return normalizeVietnamUnitSuffixOrder(`${translateVietnamesePlaceName(prefixMatch[1])}${unit}`);
   }
 
   const suffixMatch = trimmed.match(/^(.+?)\s+(WARD|COMMUNE|TOWN|DISTRICT|CITY)$/i);
@@ -1209,10 +1226,10 @@ function localizeVietnamAdministrativeUnitText(text: string): string {
       district: "县",
       city: "市",
     };
-    return `${translateVietnamesePlaceName(suffixMatch[1])}${unitBySuffix[suffixMatch[2].toLowerCase()] ?? ""}`;
+    return normalizeVietnamUnitSuffixOrder(`${translateVietnamesePlaceName(suffixMatch[1])}${unitBySuffix[suffixMatch[2].toLowerCase()] ?? ""}`);
   }
 
-  return translateVietnameseLatinFragments(trimmed);
+  return normalizeVietnamUnitSuffixOrder(translateVietnameseLatinFragments(trimmed));
 }
 
 function localizeVietnamWardOptions(options: VisaFormFieldOption[]): VisaFormFieldOption[] {
@@ -1226,13 +1243,15 @@ function localizeVietnamWardOptions(options: VisaFormFieldOption[]): VisaFormFie
       };
     }
 
-    const sourceText = option.text ?? option.label_en ?? option.official_label ?? option.value;
+    const sourceText = option.official_label ?? option.label_en ?? option.text ?? option.value;
     const sourceZh = typeof option.label_zh === "string" ? option.label_zh.trim() : "";
+    const localizedZh = sourceZh && sourceZh !== "坊/社"
+      ? localizeVietnamAdministrativeUnitText(sourceZh)
+      : localizeVietnamAdministrativeUnitText(sourceText);
     return {
       ...option,
-      label_zh: sourceZh && sourceZh !== "坊/社"
-        ? localizeVietnamAdministrativeUnitText(sourceZh)
-        : localizeVietnamAdministrativeUnitText(sourceText),
+      text: localizedZh,
+      label_zh: localizedZh,
     };
   });
 }

@@ -339,9 +339,9 @@ function SearchableSelectControl({
           {matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (
-            matchedOptions.map((option) => (
+            matchedOptions.map((option, index) => (
               <button
-                key={option.value}
+                key={`${option.value}-${option.text}-${index}`}
                 type="button"
                 className={cn(
                   "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",

@@ -632,9 +632,6 @@ function ArrivalCardPreparedResultCard({
   const isMalaysia = country === "malaysia";
   const productName = isMalaysia ? "Malaysia Digital Arrival Card (MDAC)" : "Thailand Digital Arrival Card (TDAC)";
   const productNameZh = isMalaysia ? "马来西亚 MDAC 数字入境卡" : "泰国 TDAC 数字入境卡";
-  const officialUrl = isMalaysia
-    ? "https://imigresen-online.imi.gov.my/mdac/main"
-    : "https://tdac.immigration.go.th/";
   const submitLive = useCallback(async () => {
     if (!applicationId || submitting) return;
     setSubmitting(true);
@@ -645,7 +642,6 @@ function ArrivalCardPreparedResultCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "live_assisted",
-          country,
           visaType,
         }),
       });
@@ -662,7 +658,7 @@ function ArrivalCardPreparedResultCard({
       setSubmitError(error instanceof Error ? error.message : String(error));
       setSubmitting(false);
     }
-  }, [applicationId, country, submitting, visaType]);
+  }, [applicationId, submitting, visaType]);
 
   return (
     <Card className="rounded-xl border-input">
@@ -696,12 +692,6 @@ function ArrivalCardPreparedResultCard({
           {submitting ? (isZh ? "正在提交" : "Submitting") : (isZh ? "提交" : "Submit")}
         </Button>
         {submitError ? <p className="text-sm text-red-700">{submitError}</p> : null}
-        <Button asChild variant="ghost" className="w-full">
-          <a href={officialUrl} target="_blank" rel="noreferrer">
-            <ExternalLink className="mr-2 h-4 w-4" />
-            {isZh ? "打开官方提交渠道" : "Open official submission channel"}
-          </a>
-        </Button>
       </CardContent>
     </Card>
   );
