@@ -240,12 +240,20 @@ function officialMdacStateAlias(state: string): string {
 }
 
 function mdacAddressLine1(payload: MdacPortalPayload): string {
-  const base = payload.addressInMalaysia || payload.accommodationName;
+  const base = payload.addressInMalaysia;
   if (base.trim().split(/\s+/).length >= 3) return base;
   return [base, payload.city, officialMdacStateAlias(payload.state)]
     .filter(Boolean)
     .join(" ")
     .trim();
+}
+
+function mdacAddressLine2(payload: MdacPortalPayload): string {
+  const parts = payload.addressInMalaysia
+    .split(/\r?\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.slice(1).join(" ").slice(0, 120);
 }
 
 async function fillInput(page: Page, selector: string, value: string, logs: string[]): Promise<void> {
@@ -322,7 +330,7 @@ async function fillMdacRegistrationForm(page: Page, payload: MdacPortalPayload, 
   await fillInput(page, "#passNo", payload.passportNumber, logs);
   await fillInput(page, "#dob", formatDmy(payload.dateOfBirth), logs);
   await selectOptionByTextOrValue(page, "#nationality", payload.nationality, logs);
-  await selectOptionByTextOrValue(page, "#pob", payload.nationality, logs);
+  await selectOptionByTextOrValue(page, "#pob", payload.placeOfBirth, logs);
   await selectOptionByTextOrValue(page, "#sex", payload.sex, logs);
   await fillInput(page, "#passExpDte", formatDmy(payload.passportExpiryDate), logs);
   await fillInput(page, "#email", payload.emailAddress, logs);
@@ -336,7 +344,7 @@ async function fillMdacRegistrationForm(page: Page, payload: MdacPortalPayload, 
   await selectOptionByTextOrValue(page, "#embark", payload.lastEmbarkationCountry, logs);
   await selectOptionByTextOrValue(page, "#accommodationStay", payload.accommodationType, logs);
   await fillInput(page, "#accommodationAddress1", mdacAddressLine1(payload), logs);
-  await fillInput(page, "#accommodationAddress2", payload.accommodationName, logs);
+  await fillInput(page, "#accommodationAddress2", mdacAddressLine2(payload), logs);
   await selectOptionByTextOrValue(page, "#accommodationState", officialMdacStateAlias(payload.state), logs);
   await fillInput(page, "#accommodationPostcode", payload.postcode, logs);
   await page.waitForTimeout(1_500);

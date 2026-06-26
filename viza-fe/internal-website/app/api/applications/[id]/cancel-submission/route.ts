@@ -23,8 +23,10 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "sgac_live_assisted_scheduled",
   "sgac_live_assisted_pending",
   "sgac_dry_run_pending",
+  "mdac_live_assisted_scheduled",
   "mdac_live_assisted_pending",
   "mdac_dry_run_pending",
+  "tdac_live_assisted_scheduled",
   "tdac_live_assisted_pending",
   "tdac_dry_run_pending",
 ] as const;

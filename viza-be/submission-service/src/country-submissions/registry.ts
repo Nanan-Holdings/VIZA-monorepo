@@ -264,20 +264,12 @@ function arrivalCardField(
   return { key: `answers.${key}`, label, category, required: true, condition };
 }
 
-const WHEN_MDAC_HOTEL = {
-  key: "answers.accommodation_type",
-  equals: "hotel",
-};
-const WHEN_MDAC_RESIDENTIAL = {
-  key: "answers.accommodation_type",
-  equals: "residential",
-};
-
 const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("full_name", "Full name", "personal"),
   arrivalCardField("date_of_birth", "Date of birth", "personal"),
   arrivalCardField("sex", "Sex", "personal"),
   arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("place_of_birth", "Place of birth", "personal"),
   arrivalCardField("passport_number", "Passport number", "passport"),
   arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
   arrivalCardField("email_address", "Email", "contact"),
@@ -291,13 +283,10 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("port_of_entry", "Point of entry", "trip"),
   arrivalCardField("purpose_of_visit", "Purpose of visit", "trip"),
   arrivalCardField("accommodation_type", "Accommodation type", "trip"),
-  arrivalCardField("accommodation_name", "Hotel / host name", "trip", WHEN_MDAC_HOTEL),
-  arrivalCardField("accommodation_name", "Host name", "trip", WHEN_MDAC_RESIDENTIAL),
   arrivalCardField("address_in_malaysia", "Address in Malaysia", "trip"),
   arrivalCardField("city", "City", "trip"),
   arrivalCardField("state", "State", "trip"),
   arrivalCardField("postcode", "Postcode", "trip"),
-  arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
 const WHEN_TDAC_AIR = {

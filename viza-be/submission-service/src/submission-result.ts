@@ -225,7 +225,7 @@ export interface SgArrivalCardSubmissionResult {
 export interface DigitalArrivalCardSubmissionResult {
   country: "MY" | "TH";
   visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD";
-  status: "submitted" | "validation_failed" | "official_portal_error";
+  status: "submitted" | "scheduled" | "validation_failed" | "official_portal_error";
   mode: "live_assisted";
   provider: "malaysia_mdac_live" | "thailand_tdac_live";
   applicationId: string;

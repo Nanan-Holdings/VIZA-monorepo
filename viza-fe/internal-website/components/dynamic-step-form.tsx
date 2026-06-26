@@ -505,6 +505,171 @@ function normaliseFieldOptions(
   });
 }
 
+function getRawFieldOptions(
+  options: VisaFormFieldRow["options"],
+): Array<{ value: string; text: string; labelZh: string; labelEn: string; officialLabel: string }> {
+  if (!options) return [];
+  return options.map((option) => {
+    if (typeof option === "string") {
+      return { value: option, text: option, labelZh: option, labelEn: option, officialLabel: option };
+    }
+    return {
+      value: option.value,
+      text: option.text ?? "",
+      labelZh: option.label_zh ?? "",
+      labelEn: option.label_en ?? "",
+      officialLabel: option.official_label ?? "",
+    };
+  });
+}
+
+function normalizeComparableOptionValue(value?: string | null): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^(?:option|选项)\s*[:：]\s*/i, "")
+    .replace(/^[a-z]{2,3}\s*[:：-]\s*/i, "")
+    .replace(/[^a-z0-9\u3400-\u9fff]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const COUNTRY_VALUE_ALIASES: Record<string, string> = {
+  china: "CHN",
+  chinese: "CHN",
+  prc: "CHN",
+  people_s_republic_of_china: "CHN",
+  peoples_republic_of_china: "CHN",
+  中国: "CHN",
+  中华人民共和国: "CHN",
+  singapore: "SGP",
+  新加坡: "SGP",
+  malaysia: "MYS",
+  马来西亚: "MYS",
+  thailand: "THA",
+  泰国: "THA",
+  united_states: "USA",
+  united_states_of_america: "USA",
+  america: "USA",
+  usa: "USA",
+  美国: "USA",
+};
+
+function findCanonicalOptionValue(
+  options: VisaFormFieldRow["options"],
+  rawValue: string | null | undefined,
+): string | null {
+  const trimmed = rawValue?.trim();
+  if (!trimmed) return null;
+
+  const normalized = normalizeComparableOptionValue(trimmed);
+  const aliasedCountryValue = COUNTRY_VALUE_ALIASES[normalized];
+  const rawOptions = getRawFieldOptions(options);
+  const directAliasMatch = aliasedCountryValue
+    ? rawOptions.find((option) => option.value.toLowerCase() === aliasedCountryValue.toLowerCase())
+    : null;
+  if (directAliasMatch) return directAliasMatch.value;
+
+  for (const option of rawOptions) {
+    const candidates = [option.value, option.text, option.labelZh, option.labelEn, option.officialLabel]
+      .map(normalizeComparableOptionValue)
+      .filter(Boolean);
+    if (candidates.includes(normalized)) return option.value;
+  }
+
+  return null;
+}
+
+function parsePhoneParts(rawPhone: string | null | undefined) {
+  const value = rawPhone?.trim();
+  if (!value) return { countryCode: "", localNumber: "" };
+  const plusMatch = value.match(/^\+(\d{1,4})[\s-]*(.*)$/);
+  if (plusMatch) {
+    return {
+      countryCode: plusMatch[1] ?? "",
+      localNumber: (plusMatch[2] ?? "").replace(/[^\d\s-]/g, "").trim(),
+    };
+  }
+  return { countryCode: "", localNumber: value.replace(/[^\d\s-]/g, "").trim() };
+}
+
+function normalizeTdacStepValues(
+  fields: VisaFormFieldRow[],
+  values: Record<string, string>,
+  visaType?: string,
+): Record<string, string> {
+  if (visaType !== "TH_TDAC_ARRIVAL_CARD") return values;
+
+  const next = { ...values };
+  const fieldByName = new Map(fields.map((field) => [field.fieldName, field]));
+
+  const normalizeOptionField = (fieldName: string, fallbackKeys: string[] = []) => {
+    const field = fieldByName.get(fieldName);
+    if (!field?.options) return;
+    const currentValue = next[fieldName]?.trim();
+    const fallbackValue = fallbackKeys.map((key) => next[key]?.trim()).find(Boolean);
+    const canonical = findCanonicalOptionValue(field.options, currentValue || fallbackValue);
+    if (canonical) next[fieldName] = canonical;
+  };
+
+  normalizeOptionField("nationality", [
+    "nationality_country",
+    "country_of_nationality",
+    "current_nationality",
+    "passport_issuing_country",
+  ]);
+  normalizeOptionField("country_territory_of_residence", [
+    "country_of_residence",
+    "residence_country",
+    "home_country",
+    "nationality",
+    "nationality_country",
+  ]);
+  normalizeOptionField("country_boarded", ["country_territory_of_residence", "nationality"]);
+  normalizeOptionField("arrival_mode_of_travel");
+  normalizeOptionField("arrival_mode_of_transport");
+  normalizeOptionField("departure_mode_of_travel");
+  normalizeOptionField("departure_mode_of_transport");
+  normalizeOptionField("purpose_of_travel");
+  normalizeOptionField("accommodation_type");
+  normalizeOptionField("province");
+  normalizeOptionField("district_area");
+  normalizeOptionField("subdistrict_subarea");
+
+  const genderField = fieldByName.get("gender");
+  if (genderField?.options) {
+    const normalizedGender = normalizeComparableOptionValue(next.gender);
+    const genderAlias =
+      normalizedGender === "f" || normalizedGender === "female" || normalizedGender === "女"
+        ? "female"
+        : normalizedGender === "m" || normalizedGender === "male" || normalizedGender === "男"
+          ? "male"
+          : normalizedGender === "undefined" || normalizedGender === "other" || normalizedGender === "x"
+            ? "undefined"
+            : null;
+    const canonical = findCanonicalOptionValue(genderField.options, genderAlias ?? next.gender);
+    if (canonical) next.gender = canonical;
+  }
+
+  const sourcePhone = next.phone || next.phone_number || next.primary_phone_number || next.mobile_phone || next.telephone_number;
+  const parsedPhone = parsePhoneParts(sourcePhone);
+  if (!next.phone_country_code?.trim() && parsedPhone.countryCode) {
+    next.phone_country_code = parsedPhone.countryCode;
+  }
+  if (next.phone_number?.trim()) {
+    const parsedCurrentPhone = parsePhoneParts(next.phone_number);
+    next.phone_number = parsedCurrentPhone.localNumber || next.phone_number.replace(/[^\d\s-]/g, "").trim();
+    if (!next.phone_country_code?.trim() && parsedCurrentPhone.countryCode) {
+      next.phone_country_code = parsedCurrentPhone.countryCode;
+    }
+  } else if (parsedPhone.localNumber) {
+    next.phone_number = parsedPhone.localNumber;
+  }
+
+  return next;
+}
+
 function isCheckedCheckboxValue(value: string): boolean {
   const normalised = value.trim().toLowerCase();
   return normalised === "true" || normalised === "yes" || normalised === "1" || normalised === "on";
@@ -586,14 +751,19 @@ function getLocalFieldIssue(
   }
 
   if (
-    (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
+    (field.fieldType === "select" || field.fieldType === "multi_select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
     trimmed &&
     options.length > 0
   ) {
-    const optionMatch = options.some(
-      (option) =>
-        option.value.toLowerCase() === trimmed.toLowerCase() ||
-        option.text.toLowerCase() === trimmed.toLowerCase(),
+    const selectedValues = field.fieldType === "multi_select"
+      ? trimmed.split(",").map((part) => part.trim()).filter(Boolean)
+      : [trimmed];
+    const optionMatch = selectedValues.every((selectedValue) =>
+      options.some(
+        (option) =>
+          option.value.toLowerCase() === selectedValue.toLowerCase() ||
+          option.text.toLowerCase() === selectedValue.toLowerCase(),
+      ),
     );
     if (!optionMatch) return issue("error", isZh ? "请选择题目提供的选项" : "Choose one of the provided options");
   }
@@ -793,11 +963,26 @@ function getDynamicDependentOptions(
     dependent_options_key?: string;
     dependent_on?: string;
     dependsOn?: string;
+    dependent_options?: Record<string, VisaFormFieldOption[]>;
   } | null;
   const parentFieldName = rules?.dependent_on ?? rules?.dependsOn;
-  if (!parentFieldName || rules?.dependent_options_key !== "vietnam_wards_by_province") return null;
+  if (!parentFieldName) return null;
 
   const parentValue = values[parentFieldName];
+  if (rules?.dependent_options && typeof rules.dependent_options === "object") {
+    if (!parentValue) return [];
+    const directOptions = rules.dependent_options[parentValue];
+    const normalizedOptions = rules.dependent_options[normalizeOptionKey(parentValue)];
+    const dynamicOptions = Array.isArray(directOptions)
+      ? directOptions
+      : Array.isArray(normalizedOptions)
+        ? normalizedOptions
+        : null;
+    return dynamicOptions ? [...dynamicOptions] : [];
+  }
+
+  if (rules?.dependent_options_key !== "vietnam_wards_by_province") return null;
+
   const provinceKey = normalizeOptionKey(parentValue);
   if (!provinceKey) return [];
 
@@ -1495,11 +1680,12 @@ export function DynamicStepForm({
         }
       }
     }
-    return init;
+    return normalizeTdacStepValues(step.fields, init, visaType);
   });
 
   const [textPairs, setTextPairs] = useState<Record<string, BilingualTextValue>>(() => {
     const init: Record<string, BilingualTextValue> = {};
+    const normalizedPrefill = normalizeTdacStepValues(step.fields, { ...prefill }, visaType);
     for (const field of step.fields) {
       if (!isTextLikeField(field)) continue;
       const group = getRepeatGroup(field);
@@ -1507,10 +1693,10 @@ export function DynamicStepForm({
         const count = groupCounts[group] ?? 1;
         for (let i = 0; i < count; i++) {
           const key = instanceKey(field.fieldName, i);
-          init[key] = getBilingualPrefillText(key, prefill, prefill[key]);
+          init[key] = getBilingualPrefillText(key, normalizedPrefill, normalizedPrefill[key]);
         }
       } else {
-        init[field.fieldName] = getBilingualPrefillText(field.fieldName, prefill, prefill[field.fieldName]);
+        init[field.fieldName] = getBilingualPrefillText(field.fieldName, normalizedPrefill, normalizedPrefill[field.fieldName]);
       }
     }
     return init;
@@ -1630,6 +1816,32 @@ export function DynamicStepForm({
       }
     }
 
+    const normalizedNextValues = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    for (const [key, value] of Object.entries(normalizedNextValues)) {
+      if (nextValues[key] !== value) {
+        nextValues[key] = value;
+        valuesChanged = true;
+      }
+    }
+    for (const field of step.fields) {
+      if (!isTextLikeField(field)) continue;
+      const group = getRepeatGroup(field);
+      const keys = group
+        ? Array.from({ length: groupCountsRef.current[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
+        : [field.fieldName];
+      for (const key of keys) {
+        const normalizedValue = normalizedNextValues[key]?.trim();
+        if (!normalizedValue) continue;
+        const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
+        const previousValue = previousPrefill[key] ?? "";
+        const currentValue = valuesRef.current[key] ?? "";
+        const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
+        if (pairWasEdited) continue;
+        nextTextPairs[key] = getBilingualPrefillText(key, normalizedNextValues, normalizedValue);
+        textPairsChanged = true;
+      }
+    }
+
     previousPrefillRef.current = prefill;
     if (valuesChanged) {
       valuesRef.current = nextValues;
@@ -1639,7 +1851,7 @@ export function DynamicStepForm({
       textPairsRef.current = nextTextPairs;
       setTextPairs(nextTextPairs);
     }
-  }, [prefill, step.fields]);
+  }, [prefill, step.fields, visaType]);
 
   useEffect(() => {
     onDraftChangeRef.current?.(filterCurrentStepValues(step.fields, values, groupCounts));

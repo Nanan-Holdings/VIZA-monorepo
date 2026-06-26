@@ -17,7 +17,7 @@ export interface VisaFormFieldRow {
   visaType: string;
   fieldName: string;
   label: string;
-  fieldType: "text" | "select" | "date" | "file" | "radio" | "checkbox" | "textarea" | "country";
+  fieldType: "text" | "select" | "multi_select" | "date" | "file" | "radio" | "checkbox" | "textarea" | "country";
   required: boolean;
   stepNumber: number;
   stepName: string | null;

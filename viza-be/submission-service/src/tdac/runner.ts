@@ -275,16 +275,72 @@ function dateParts(isoDate: string): { year: string; month: string; day: string;
   };
 }
 
-function splitTravellerName(fullName: string): { familyName: string; firstName: string; middleName: string } {
-  const parts = fullName.trim().toUpperCase().split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) {
-    return { familyName: parts[0] ?? "NA", firstName: "NA", middleName: "NA" };
-  }
-  return {
-    familyName: parts[0],
-    firstName: parts.slice(1).join(" "),
-    middleName: "NA",
+function officialCountryPattern(value: string): RegExp {
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return /$a/;
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b|${escaped.replace(/\s+/g, "\\s+")}`, "i");
+}
+
+function tdacGenderLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.startsWith("f")) return "FEMALE";
+  if (normalized.startsWith("m")) return "MALE";
+  return "UNDEFINED";
+}
+
+function tdacTravelModeLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "land") return "LAND";
+  if (normalized === "sea") return "SEA";
+  return "AIR";
+}
+
+function tdacTransportLabel(value: string): RegExp {
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, RegExp> = {
+    commercial_flight: /COMMERCIAL\s+FLIGHT/i,
+    private_cargo_airline: /PRIVATE\/CARGO\s+AIRLINE/i,
+    bus: /^BUS$/i,
+    car: /^CAR$/i,
+    lorry: /^LORRY$/i,
+    motorcycle: /^MOTORCYCLE$/i,
+    rail: /^RAIL$/i,
+    van: /^VAN$/i,
+    cruise: /^CRUISE$/i,
+    commercial_vessel: /COMMERCIAL\s+VESSEL/i,
+    others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
   };
+  return labels[normalized] ?? new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+}
+
+function tdacPurposeLabel(value: string): RegExp {
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, RegExp> = {
+    holiday: /^HOLIDAY$/i,
+    business: /^BUSINESS$/i,
+    education: /^EDUCATION$/i,
+    employment: /^EMPLOYMENT$/i,
+    meeting: /^MEETING$/i,
+    medical: /^MEDICAL$/i,
+    return_resident: /RETURN\s+RESIDENT/i,
+    transit: /^TRANSIT$/i,
+    others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
+  };
+  return labels[normalized] ?? new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+}
+
+function tdacAccommodationLabel(value: string): RegExp {
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, RegExp> = {
+    hotel: /^HOTEL$/i,
+    youth_hostel: /YOUTH\s+HOSTEL/i,
+    guest_house: /GUEST\s+HOUSE/i,
+    friends_house: /FRIEND'S\s+HOUSE/i,
+    apartment: /^APARTMENT$/i,
+    others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
+  };
+  return labels[normalized] ?? new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 }
 
 async function fillInput(page: Page, selector: string, value: string, logs: string[]): Promise<void> {
@@ -307,6 +363,25 @@ async function forceSetInput(page: Page, selector: string, value: string, logs: 
     input.dispatchEvent(new Event("blur", { bubbles: true }));
   }, value);
   logs.push(`tdac_force_filled ${selector}`);
+}
+
+async function fillMaterialDateInput(page: Page, selector: string, value: string, logs: string[]): Promise<void> {
+  const field = page.locator(selector).first();
+  await field.waitFor({ state: "attached", timeout: 30_000 });
+  await field.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement;
+    input.removeAttribute("disabled");
+
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    valueSetter?.call(input, nextValue);
+    input.setAttribute("value", nextValue);
+
+    for (const eventName of ["input", "change", "dateInput", "dateChange", "blur"]) {
+      input.dispatchEvent(new Event(eventName, { bubbles: true }));
+    }
+  }, value);
+  await page.waitForTimeout(300);
+  logs.push(`tdac_date_filled ${selector}`);
 }
 
 async function waitForEnabled(page: Page, selector: string, logs: string[], timeout = 60_000): Promise<void> {
@@ -357,6 +432,52 @@ async function selectAutocomplete(
   }
   await page.waitForTimeout(500);
   logs.push(`tdac_selected ${selector}=${value}`);
+}
+
+async function selectOfficialAutocomplete(
+  page: Page,
+  selector: string,
+  value: string,
+  logs: string[],
+  label: string,
+  optionText: RegExp | string = value,
+): Promise<void> {
+  const field = page.locator(selector).first();
+  await field.waitFor({ state: "visible", timeout: 30_000 });
+  await waitForEnabled(page, selector, logs, 30_000).catch(() => {
+    throw new TdacPortalError(
+      `Official TDAC ${label} field stayed disabled before selecting "${value}". Check the parent official dropdown value first.`,
+      {
+        code: "tdac_official_dependent_dropdown_disabled",
+        portalSummary: `${label}: ${value}`,
+      },
+    );
+  });
+  await field.click({ timeout: 10_000 }).catch(() => undefined);
+  await field.press(process.platform === "darwin" ? "Meta+A" : "Control+A").catch(() => undefined);
+  await field.fill(value, { timeout: 15_000 });
+  await page.waitForTimeout(800);
+  const option = typeof optionText === "string"
+    ? page.locator("mat-option, .mat-mdc-option, [role='option']").filter({ hasText: optionText }).first()
+    : page.locator("mat-option, .mat-mdc-option, [role='option']").filter({ hasText: optionText }).first();
+  if (!(await option.isVisible({ timeout: 8_000 }).catch(() => false))) {
+    const visibleOptions = await page.locator("mat-option, .mat-mdc-option, [role='option']")
+      .evaluateAll((elements) => elements
+        .map((element) => element.textContent?.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .slice(0, 12))
+      .catch(() => []);
+    throw new TdacPortalError(
+      `Official TDAC dropdown option not found for ${label}: "${value}". Please use a value from the official TDAC dropdown list.`,
+      {
+        code: "tdac_official_dropdown_option_not_found",
+        portalSummary: `${label}: ${value}; visible options: ${visibleOptions.join(" | ") || "none"}`,
+      },
+    );
+  }
+  await option.click({ timeout: 10_000 });
+  await page.waitForTimeout(500);
+  logs.push(`tdac_selected_official ${selector}=${value}`);
 }
 
 async function selectMatSelect(
@@ -634,25 +755,25 @@ async function prepareTdacFinalSubmit(page: Page, payload: TdacPortalPayload, lo
 }
 
 async function fillTdacPersonalStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
-  const name = splitTravellerName(payload.fullName);
   const dob = dateParts(payload.dateOfBirth);
-  await fillInput(page, "#mat-input-0", name.familyName, logs);
-  await fillInput(page, "#mat-input-1", name.firstName, logs);
-  await fillInput(page, "#mat-input-2", name.middleName || "NA", logs);
+  await fillInput(page, "#mat-input-0", payload.familyName.toUpperCase(), logs);
+  await fillInput(page, "#mat-input-1", payload.firstName.toUpperCase(), logs);
+  await fillInput(page, "#mat-input-2", (payload.middleName || "").toUpperCase(), logs);
   await fillInput(page, "#mat-input-3", payload.passportNumber.toUpperCase(), logs);
-  const nationality = payload.nationality.toUpperCase() === "CHINA" ? "CHINESE" : payload.nationality.toUpperCase();
-  await selectAutocomplete(page, "#mat-input-25", nationality, logs);
+  await selectAutocomplete(page, "#mat-input-25", payload.nationality.toUpperCase(), logs, officialCountryPattern(payload.nationality));
   await selectAutocomplete(page, "#mat-input-18", dob.year, logs);
   await selectAutocomplete(page, "#mat-input-19", dob.month, logs);
   await selectAutocomplete(page, "#mat-input-20", dob.day, logs);
   await fillInput(page, "#mat-input-4", payload.occupation.toUpperCase(), logs);
-  await clickRadioByText(page, payload.sex, logs);
-  await fillInput(page, "#mat-input-5", "-", logs);
-  await selectAutocomplete(page, "#mat-input-26", "CHN", logs, /CHN\s*:\s*CHINA/i);
+  await clickRadioByText(page, tdacGenderLabel(payload.gender), logs);
+  if (payload.visaNumber) {
+    await fillInput(page, "#mat-input-5", payload.visaNumber.toUpperCase(), logs);
+  }
+  await selectAutocomplete(page, "#mat-input-26", payload.residenceCountry.toUpperCase(), logs, officialCountryPattern(payload.residenceCountry));
   await waitForEnabled(page, "#mat-input-27", logs);
-  await selectAutocomplete(page, "#mat-input-27", "CHANGSHA", logs, /CHANGSHA|HUNAN|CHINA/i);
-  await fillInput(page, "#mat-input-6", "86", logs);
-  await fillInput(page, "#mat-input-7", payload.mobileNumber.replace(/^\+?86/, ""), logs);
+  await selectAutocomplete(page, "#mat-input-27", payload.residenceCity.toUpperCase(), logs, officialCountryPattern(payload.residenceCity));
+  await fillInput(page, "#mat-input-6", payload.phoneCountryCode.replace(/\D/g, ""), logs);
+  await fillInput(page, "#mat-input-7", payload.phoneNumber.replace(/\D/g, ""), logs);
   await saveScreenshot(page, "personal-before-continue", logs);
   await clickFirstEnabledButton(page, /^Continue$/i, logs);
 }
@@ -660,38 +781,49 @@ async function fillTdacPersonalStep(page: Page, payload: TdacPortalPayload, logs
 async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
   const arrival = dateParts(payload.arrivalDate);
   const departure = dateParts(payload.departureDate);
-  const sameDayArrivalDeparture = payload.arrivalDate === payload.departureDate;
   await page.waitForTimeout(2_000);
-  await fillInput(page, "#mat-input-8", arrival.slashDate, logs);
-  await selectAutocomplete(page, "#mat-input-28", "SGP", logs, /SGP\s*:\s*SINGAPORE|SINGAPORE/i);
-  await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", /Holiday|Sightseeing|Leisure/i, logs);
-  await clickRadioByText(page, "AIR", logs, 0);
-  await selectMatSelect(page, "mat-select[formcontrolname='tranModeId']", /COMMERCIAL\s+FLIGHT/i, logs);
-  await fillInput(page, "#mat-input-11", payload.transportNumber.toUpperCase(), logs);
-  if (sameDayArrivalDeparture) {
+  await fillMaterialDateInput(page, "#mat-input-8", arrival.slashDate, logs);
+  await selectAutocomplete(page, "#mat-input-28", payload.countryBoarded.toUpperCase(), logs, officialCountryPattern(payload.countryBoarded));
+  await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
+  if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
+    await fillInput(page, "#mat-input-10", payload.purposeOfTravelOther.toUpperCase(), logs).catch(() => undefined);
+  }
+  await clickRadioByText(page, tdacTravelModeLabel(payload.arrivalModeOfTravel), logs, 0);
+  await selectMatSelect(page, "mat-select[formcontrolname='tranModeId']", tdacTransportLabel(payload.arrivalModeOfTransport), logs);
+  if (payload.arrivalModeOfTransport === "others" && payload.arrivalTransportOther) {
+    await fillInput(page, "#mat-input-10", payload.arrivalTransportOther.toUpperCase(), logs).catch(() => undefined);
+  }
+  await fillInput(page, "#mat-input-11", payload.arrivalTransportNumber.toUpperCase(), logs);
+  if (payload.isTransitTraveler) {
     await checkTransitPassenger(page, logs);
   }
-  await fillInput(page, "#mat-input-12", departure.slashDate, logs);
-  await clickRadioByText(page, "AIR", logs, 1);
-  await selectMatSelect(page, "mat-select[formcontrolname='deptTranModeId']", /COMMERCIAL\s+FLIGHT/i, logs);
-  await fillInput(page, "#mat-input-14", payload.transportNumber.toUpperCase(), logs);
+  await fillMaterialDateInput(page, "#mat-input-12", departure.slashDate, logs);
+  await clickRadioByText(page, tdacTravelModeLabel(payload.departureModeOfTravel), logs, 1);
+  await selectMatSelect(page, "mat-select[formcontrolname='deptTranModeId']", tdacTransportLabel(payload.departureModeOfTransport), logs);
+  if (payload.departureModeOfTransport === "others" && payload.departureTransportOther) {
+    await fillInput(page, "#mat-input-13", payload.departureTransportOther.toUpperCase(), logs).catch(() => undefined);
+  }
+  await fillInput(page, "#mat-input-14", payload.departureTransportNumber.toUpperCase(), logs);
   await page.keyboard.press("Tab").catch(() => undefined);
   await saveScreenshot(page, "trip-before-accommodation", logs);
   const accommodationEnabled = await waitForMatSelectEnabled(page, "mat-select[formcontrolname='accTypeId']", logs, 5_000)
     .then(() => true)
     .catch(() => false);
-  if (accommodationEnabled && !sameDayArrivalDeparture) {
-    const province = payload.province.toUpperCase();
-    const district = payload.district.toUpperCase();
+  if (accommodationEnabled && !payload.isTransitTraveler) {
+    const province = (payload.province || "").toUpperCase();
+    const district = (payload.district || "").toUpperCase();
     const subDistrict = (payload.subDistrict || "LUMPHINI").toUpperCase();
     const postalCode = payload.postalCode || "10330";
-    await selectMatSelect(page, "mat-select[formcontrolname='accTypeId']", /HOTEL/i, logs);
-    await selectAutocomplete(page, "#mat-input-29", province, logs, new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectAutocomplete(page, "#mat-input-30", district, logs, new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectAutocomplete(page, "#mat-input-31", subDistrict, logs, new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await selectMatSelect(page, "mat-select[formcontrolname='accTypeId']", tdacAccommodationLabel(payload.accommodationType || "hotel"), logs);
+    if (payload.accommodationType === "others" && payload.accommodationTypeOther) {
+      await fillInput(page, "#mat-input-15", payload.accommodationTypeOther.toUpperCase(), logs).catch(() => undefined);
+    }
+    await selectOfficialAutocomplete(page, "#mat-input-29", province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await selectOfficialAutocomplete(page, "#mat-input-30", district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await selectOfficialAutocomplete(page, "#mat-input-31", subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
     await forceSetInput(page, "#mat-input-16", postalCode, logs);
-    await forceSetInput(page, "#mat-input-17", payload.addressInThailand, logs);
-  } else if (sameDayArrivalDeparture) {
+    await forceSetInput(page, "#mat-input-17", payload.addressInThailand || "", logs);
+  } else if (payload.isTransitTraveler) {
     logs.push("tdac_same_day_transit_skip_accommodation");
   } else {
     logs.push("tdac_accommodation_disabled_by_portal_skip");
@@ -701,7 +833,9 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
 
 async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
   await page.waitForTimeout(1_000);
-  await selectAutocomplete(page, "#mat-mdc-chip-list-input-0", "CHN", logs, /CHN\s*:\s*CHINA|CHINA/i);
+  for (const country of payload.countriesVisitedLast14Days) {
+    await selectAutocomplete(page, "#mat-mdc-chip-list-input-0", country.toUpperCase(), logs, officialCountryPattern(country));
+  }
   await clickFirstEnabledButton(page, /^Preview$/i, logs);
 }
 
