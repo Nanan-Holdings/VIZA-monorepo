@@ -33,6 +33,7 @@ import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
   saveDynamicAnswers,
   ensureDraftApplication,
+  loadApplicationFormContext,
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
@@ -1026,6 +1027,9 @@ interface SubmissionQueueJobInput {
 type SubmissionQueueJobResult = {
   scheduled: boolean;
   scheduledFor: string | null;
+  jobId: string | null;
+  queueStatus: string | null;
+  provider: string | null;
   submissionResultStatus: SubmissionResultStatus;
   submissionResult: SubmissionResult | null;
 };
@@ -1068,11 +1072,17 @@ async function insertSubmissionQueueJob(
     const payload = (await response.json().catch(() => null)) as {
       scheduled?: boolean;
       scheduledFor?: string | null;
+      jobId?: unknown;
+      queueStatus?: unknown;
+      provider?: unknown;
       result?: SubmissionResult | null;
     } | null;
     return {
       scheduled: Boolean(payload?.scheduled),
       scheduledFor: payload?.scheduledFor ?? null,
+      jobId: typeof payload?.jobId === "string" ? payload.jobId : null,
+      queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : null,
+      provider: typeof payload?.provider === "string" ? payload.provider : null,
       submissionResultStatus: payload?.scheduled ? "scheduled" : "waiting",
       submissionResult: payload?.scheduled ? payload.result ?? null : null,
     };
@@ -1095,6 +1105,9 @@ async function insertSubmissionQueueJob(
     return {
       scheduled: false,
       scheduledFor: null,
+      jobId: null,
+      queueStatus: status,
+      provider,
       submissionResultStatus: "waiting",
       submissionResult: null,
     };
@@ -1104,7 +1117,10 @@ async function insertSubmissionQueueJob(
     isMissingSubmissionModeColumnError(error) &&
     (input.mode === "dry_run" ||
       status === "ds160_live_assisted_pending" ||
-      status === "vn_live_assisted_pending");
+      status === "vn_live_assisted_pending" ||
+      status === "sgac_live_assisted_pending" ||
+      status === "mdac_live_assisted_pending" ||
+      status === "tdac_live_assisted_pending");
   if (!canUseLegacyPayload) {
     throw new Error(error.message);
   }
@@ -1119,6 +1135,9 @@ async function insertSubmissionQueueJob(
   return {
     scheduled: false,
     scheduledFor: null,
+    jobId: null,
+    queueStatus: status,
+    provider,
     submissionResultStatus: "waiting",
     submissionResult: null,
   };
@@ -1681,29 +1700,15 @@ export default function ApplicationPage() {
         profile = context.profile as LoadedApplicantProfile;
         application = context.application as LoadedApplication;
       } else {
-        const { data: ownerProfile } = await supabase
-          .from("applicant_profiles")
-          .select("*")
-          .eq("auth_user_id", user.id)
-          .maybeSingle();
-
-        profile = (ownerProfile as LoadedApplicantProfile | null) ?? null;
-
-        const { data: applicationRows } = await supabase
-          .from("applications")
-          .select("*")
-          .eq("applicant_id", profile?.id ?? "")
-          .order("updated_at", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false });
-
-        const applications = (applicationRows ?? []) as LoadedApplication[];
-        application =
-          applications.find(
-            (row) =>
-              String(row.country).toLowerCase() === resolvedCountry.toLowerCase() &&
-              getFormVisaType(String(row.visa_type)).toLowerCase() === getFormVisaType(resolvedVisaType).toLowerCase(),
-          ) ??
-          (preferExplicitPackage ? null : applications[0] ?? null);
+        const context = await loadApplicationFormContext(resolvedCountry, resolvedVisaType, {
+          preferExplicit: preferExplicitPackage,
+        });
+        if (context.error) {
+          setError(context.error);
+          return;
+        }
+        profile = (context.profile as LoadedApplicantProfile | null) ?? null;
+        application = (context.application as LoadedApplication | null) ?? null;
       }
 
       if (profile) {
@@ -1764,7 +1769,13 @@ export default function ApplicationPage() {
         }));
 
         if (!initialStepResolvedRef.current) {
-          setCurrentStep(0);
+          const shouldOpenConfirmation = shouldShowSubmissionStatusStep({
+            submittedAt: application?.submitted_at ?? null,
+            submissionResultStatus:
+              (application?.submission_result_status as SubmissionResultStatus | null) ?? null,
+            submissionResult: (application?.submission_result as SubmissionResult | null) ?? null,
+          });
+          setCurrentStep(shouldOpenConfirmation ? statusStepIndex : 0);
           initialStepResolvedRef.current = true;
         }
 
@@ -1782,7 +1793,7 @@ export default function ApplicationPage() {
     } finally {
       setLoading(false);
     }
-  }, [dbSteps, explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, t]);
+  }, [dbSteps, explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
 
   useEffect(() => {
     if (!packageLoaded) return;
@@ -2277,6 +2288,24 @@ export default function ApplicationPage() {
     setSaving(true);
     setSubmittingMode(mode);
     setError(null);
+    const shouldShowArrivalSubmissionImmediately =
+      mode === "live_assisted" &&
+      isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
+    const previousSubmissionState = {
+      submittedAt: appState.submittedAt,
+      submissionResultStatus: appState.submissionResultStatus,
+      submissionResult: appState.submissionResult,
+    };
+    if (shouldShowArrivalSubmissionImmediately) {
+      const submittedAt = new Date().toISOString();
+      setAppState((prev) => ({
+        ...prev,
+        submittedAt: prev.submittedAt ?? submittedAt,
+        submissionResultStatus: prev.submissionResultStatus ?? "waiting",
+        submissionResult: prev.submissionResult ?? null,
+      }));
+      setCurrentStep(statusStepIndex);
+    }
     try {
       if (mode === "live_assisted" && !liveAssistedTarget) {
         throw new Error(isZhInterface ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.");
@@ -2376,6 +2405,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
       setCurrentStep(statusStepIndex);
     } catch (err) {
+      if (shouldShowArrivalSubmissionImmediately) {
+        setAppState((prev) => ({
+          ...prev,
+          ...previousSubmissionState,
+        }));
+      }
       setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
     } finally {
       setSaving(false);

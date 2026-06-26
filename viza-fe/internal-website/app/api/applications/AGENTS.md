@@ -30,6 +30,7 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`

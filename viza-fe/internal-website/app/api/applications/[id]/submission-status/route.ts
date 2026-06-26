@@ -336,7 +336,11 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
   }
 
-  if (queueStatus === "done" || queueStatus.endsWith("_prefilled")) {
+  if (queueStatus === "done") {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
+  if (queueStatus.endsWith("_prefilled")) {
     return { status: "running", stage: "confirming_result", progress: 92 };
   }
 
@@ -369,6 +373,13 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     queueStatus === "france_live_assisted_pending" ||
     queueStatus.endsWith("_pending")
   ) {
+    if (
+      queueStatus === "sgac_live_assisted_pending" ||
+      queueStatus === "mdac_live_assisted_pending" ||
+      queueStatus === "tdac_live_assisted_pending"
+    ) {
+      return { status: "queued", stage: "preparing", progress: 52 };
+    }
     return { status: "queued", stage: "preparing", progress: 12 };
   }
 

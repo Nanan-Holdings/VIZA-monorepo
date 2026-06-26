@@ -423,7 +423,16 @@ function getSubmissionResultReference(application: ApplicationRow): string | nul
   return getStringValue(result, ["confirmationNumber", "referenceNumber", "applicationReference", "reference"]);
 }
 
+function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
+  if (application.visa_type === "MY_MDAC_ARRIVAL_CARD") return false;
+  if (application.visa_type !== "TH_TDAC_ARRIVAL_CARD") return true;
+  const result = getSubmissionResult(application);
+  const artifacts = isRecord(result?.artifacts) ? result.artifacts : null;
+  return getStringArrayValue(artifacts, "logs").some((log) => log.includes("tdac_pdf_downloaded"));
+}
+
 function getSubmissionResultPdfPaths(application: ApplicationRow): string[] {
+  if (!hasOfficialArrivalCardPdf(application)) return [];
   const result = getSubmissionResult(application);
   const paths = new Set<string>();
   const primaryPath = getStringValue(result, ["confirmationPdfStoragePath", "printablePdfStoragePath", "artifactStoragePath"]);
@@ -550,8 +559,13 @@ function getCountryGroupState(records: CountryApplicationRecord[]): ClientStatus
     return records.find((record) => record.state === "needs_attention" || record.state === "rejected")?.state ?? latest.state;
   }
   const arrivalCardRecords = records.filter((record) => isArrivalCardStatusTarget(record));
-  if (arrivalCardRecords.some((record) => record.state === "submitted" || record.state === "approved")) return "submitted";
-  if (arrivalCardRecords.length > 0 && (latest.state === "needs_payment" || latest.state === "needs_consent")) return "in_progress";
+  if (arrivalCardRecords.length > 0) {
+    const latestArrivalCardRecord = arrivalCardRecords[0];
+    if (latestArrivalCardRecord.state === "needs_payment" || latestArrivalCardRecord.state === "needs_consent") {
+      return "in_progress";
+    }
+    return latestArrivalCardRecord.state;
+  }
   return latest.state;
 }
 
@@ -571,6 +585,12 @@ function groupCountryApplications(applications: StatusApplication[]): StatusAppl
         .map(toCountryApplicationRecord)
         .sort((a, b) => getCountryApplicationRecordTime(b) - getCountryApplicationRecordTime(a));
       const state = getCountryGroupState(records);
+      const hasArrivalCardRecords = records.some((record) => isArrivalCardStatusTarget(record));
+      const progressPercent = hasArrivalCardRecords
+        ? records[0]?.progressPercent ?? representative.progressPercent
+        : records.length > 0
+          ? Math.round(records.reduce((sum, record) => sum + record.progressPercent, 0) / records.length)
+          : representative.progressPercent;
 
       return {
         ...representative,
@@ -578,10 +598,7 @@ function groupCountryApplications(applications: StatusApplication[]): StatusAppl
         id: null,
         packageId: null,
         state,
-        progressPercent:
-          records.length > 0
-            ? Math.round(records.reduce((sum, record) => sum + record.progressPercent, 0) / records.length)
-            : representative.progressPercent,
+        progressPercent,
         updatedAt: getLatestDate(records.map((record) => record.updatedAt ?? record.submittedAt ?? record.createdAt)),
         officialReference: null,
         officialReferenceKind: null,
@@ -865,6 +882,15 @@ function buildActions(
 
   if (!application) {
     actions.push({ key: "startApplication", href: applicationHref, primary: true });
+    return actions;
+  }
+
+  if (isArrivalCardStatusTarget(packageBase)) {
+    if (resultFile?.href) {
+      actions.push({ key: "downloadResult", href: resultFile.href, primary: true });
+    } else {
+      actions.push({ key: "continueForm", href: applicationHref, primary: true });
+    }
     return actions;
   }
 
