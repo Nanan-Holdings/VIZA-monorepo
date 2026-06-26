@@ -16,6 +16,7 @@ export interface MdacPortalPayload {
   passportNumber: string;
   passportExpiryDate: string;
   nationality: string;
+  placeOfBirth: string;
   dateOfBirth: string;
   sex: string;
   emailAddress: string;
@@ -29,7 +30,6 @@ export interface MdacPortalPayload {
   portOfEntry: string;
   purposeOfVisit: string;
   accommodationType: string;
-  accommodationName: string;
   addressInMalaysia: string;
   city: string;
   state: string;
@@ -83,6 +83,7 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
       missing,
     ),
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "answers.nationality", missing),
+    placeOfBirth: requireText(answers, "place_of_birth", missing),
     dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "answers.date_of_birth", missing),
     sex: requireFirstText([answers.sex, payload.personal.gender], "answers.sex", missing),
     emailAddress: requireFirstText([answers.email_address, payload.personal.email], "answers.email_address", missing),
@@ -96,7 +97,6 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
     portOfEntry: requireText(answers, "port_of_entry", missing),
     purposeOfVisit: requireText(answers, "purpose_of_visit", missing),
     accommodationType: requireText(answers, "accommodation_type", missing),
-    accommodationName: requireText(answers, "accommodation_name", missing),
     addressInMalaysia: requireText(answers, "address_in_malaysia", missing),
     city: requireText(answers, "city", missing),
     state: requireText(answers, "state", missing),

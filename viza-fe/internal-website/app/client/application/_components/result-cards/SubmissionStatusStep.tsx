@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Clock, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
 import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
@@ -101,6 +101,7 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const [startingAgain, setStartingAgain] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const successful = result.submitted && result.status === "submitted";
+  const scheduled = result.status === "scheduled";
   const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
   const hasOfficialPdfDownload =
     result.country === "TH" &&
@@ -161,11 +162,15 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
         <CardTitle className="flex items-center gap-3">
           {successful ? (
             <ShieldCheck className="h-6 w-6 text-emerald-600" />
+          ) : scheduled ? (
+            <Clock className="h-6 w-6 text-blue-700" />
           ) : (
             <AlertTriangle className="h-6 w-6 text-amber-600" />
           )}
           {successful
             ? isZh ? `${countryLabel} 提交成功` : `${countryLabel} submitted`
+            : scheduled
+              ? isZh ? `${countryLabel} 已排队，等待自动提交` : `${countryLabel} scheduled for automatic submission`
             : isZh ? `${countryLabel} 未完成` : `${countryLabel} not completed`}
         </CardTitle>
       </CardHeader>
@@ -179,6 +184,8 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
         <p className="text-sm text-muted-foreground">
           {successful
             ? result.portalResponseSummary
+            : scheduled
+              ? result.portalResponseSummary
             : result.errorDetails?.message || result.portalResponseSummary}
         </p>
         <div className="grid gap-3 sm:grid-cols-2">

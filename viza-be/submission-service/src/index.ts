@@ -200,6 +200,7 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "mdac_live_assisted_processing",
   "tdac_dry_run_pending",
   "tdac_dry_run_processing",
+  "tdac_live_assisted_scheduled",
   "tdac_live_assisted_pending",
   "tdac_live_assisted_processing",
   "vn_prefill_pending",
@@ -280,8 +281,10 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "sgac_live_assisted_scheduled",
       "sgac_live_assisted_pending",
       "mdac_dry_run_pending",
+      "mdac_live_assisted_scheduled",
       "mdac_live_assisted_pending",
       "tdac_dry_run_pending",
+      "tdac_live_assisted_scheduled",
       "tdac_live_assisted_pending",
       "vn_prefill_pending",
       "au_prefill_pending",
@@ -295,7 +298,9 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
 function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "sgac_live_assisted_scheduled") return 0;
   if (item.status === "sgac_live_assisted_pending") return 0;
+  if (item.status === "mdac_live_assisted_scheduled") return 0;
   if (item.status === "mdac_live_assisted_pending") return 0;
+  if (item.status === "tdac_live_assisted_scheduled") return 0;
   if (item.status === "tdac_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
   if (item.status === "mdac_dry_run_pending") return 1;
@@ -338,11 +343,19 @@ function isSgacJob(item: SubmissionQueueItem): boolean {
 }
 
 function isMdacJob(item: SubmissionQueueItem): boolean {
-  return item.status === "mdac_live_assisted_pending" || item.provider === "malaysia_mdac_live";
+  return (
+    item.status === "mdac_live_assisted_pending" ||
+    item.status === "mdac_live_assisted_scheduled" ||
+    item.provider === "malaysia_mdac_live"
+  );
 }
 
 function isTdacJob(item: SubmissionQueueItem): boolean {
-  return item.status === "tdac_live_assisted_pending" || item.provider === "thailand_tdac_live";
+  return (
+    item.status === "tdac_live_assisted_pending" ||
+    item.status === "tdac_live_assisted_scheduled" ||
+    item.provider === "thailand_tdac_live"
+  );
 }
 
 function isAuJob(item: SubmissionQueueItem): boolean {
@@ -789,6 +802,8 @@ async function normalizeDigitalArrivalCardQueueItem(item: SubmissionQueueItem): 
   const isMdac = isMdacQueueItem(item, application);
   const isTdac = isTdacQueueItem(item, application);
   if (!isMdac && !isTdac) return item;
+  if (isMdac && item.status === "mdac_live_assisted_scheduled") return item;
+  if (isTdac && item.status === "tdac_live_assisted_scheduled") return item;
 
   const liveRequested = isLiveAssistedQueueItem(item);
   const expectedStatus: SubmissionQueueItem["status"] = isMdac
@@ -4672,6 +4687,68 @@ function buildScheduledSgacResult(input: {
   };
 }
 
+function buildScheduledMdacResult(input: {
+  applicationId: string;
+  arrivalDate: string | null | undefined;
+  departureDate?: string | null | undefined;
+  earliestSubmissionDate: string;
+}): DigitalArrivalCardSubmissionResult & { scheduledFor: string } {
+  return {
+    country: "MY",
+    visaType: "MY_MDAC_ARRIVAL_CARD",
+    status: "scheduled",
+    mode: "live_assisted",
+    provider: "malaysia_mdac_live",
+    applicationId: input.applicationId,
+    submitted: false,
+    confirmationNumber: null,
+    referenceNumber: null,
+    portalUrl: MDAC_OFFICIAL_PORTAL_URL,
+    portalResponseSummary:
+      `Malaysia MDAC accepts submissions within three days before arrival. This application is scheduled for ${input.earliestSubmissionDate}.`,
+    scheduledFor: input.earliestSubmissionDate,
+    artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+    payloadSummary: {
+      arrivalDate: input.arrivalDate ?? null,
+      departureDate: input.departureDate ?? null,
+      modeOfTravel: null,
+      transportNumber: null,
+      accommodationAddressProvided: false,
+    },
+  };
+}
+
+function buildScheduledTdacResult(input: {
+  applicationId: string;
+  arrivalDate: string | null | undefined;
+  departureDate?: string | null | undefined;
+  earliestSubmissionDate: string;
+}): DigitalArrivalCardSubmissionResult & { scheduledFor: string } {
+  return {
+    country: "TH",
+    visaType: "TH_TDAC_ARRIVAL_CARD",
+    status: "scheduled",
+    mode: "live_assisted",
+    provider: "thailand_tdac_live",
+    applicationId: input.applicationId,
+    submitted: false,
+    confirmationNumber: null,
+    referenceNumber: null,
+    portalUrl: TDAC_OFFICIAL_PORTAL_URL,
+    portalResponseSummary:
+      `Thailand TDAC accepts submissions within three days before arrival. This application is scheduled for ${input.earliestSubmissionDate}.`,
+    scheduledFor: input.earliestSubmissionDate,
+    artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+    payloadSummary: {
+      arrivalDate: input.arrivalDate ?? null,
+      departureDate: input.departureDate ?? null,
+      modeOfTravel: null,
+      transportNumber: null,
+      accommodationAddressProvided: false,
+    },
+  };
+}
+
 async function enqueueSgacLiveAfterDryRun(
   item: SubmissionQueueItem,
   answers: Record<string, string>,
@@ -4720,20 +4797,39 @@ async function enqueueSgacLiveAfterDryRun(
 async function enqueueDigitalArrivalCardLiveAfterDryRun(
   item: SubmissionQueueItem,
   code: ArrivalCardCode,
+  answers: Record<string, string>,
 ): Promise<string | null> {
   const now = new Date().toISOString();
   const isMdac = code === "MDAC";
+  const window = evaluateSgacSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+  if (window.status === "past") {
+    throw new Error(`${code} arrival date is already in the past. Please update the travel dates before submitting.`);
+  }
+  if (window.status === "invalid") {
+    throw new Error(`${code} arrival date must use YYYY-MM-DD.`);
+  }
+  const scheduled = window.status === "scheduled";
   const { data, error } = await supabase
     .from("submission_queue")
     .insert({
       application_id: item.application_id,
-      status: isMdac ? "mdac_live_assisted_pending" : "tdac_live_assisted_pending",
+      status: isMdac
+        ? scheduled
+          ? "mdac_live_assisted_scheduled"
+          : "mdac_live_assisted_pending"
+        : scheduled
+          ? "tdac_live_assisted_scheduled"
+          : "tdac_live_assisted_pending",
       mode: "live_assisted",
       provider: isMdac ? "malaysia_mdac_live" : "thailand_tdac_live",
       attempts: 0,
       last_error: null,
-      current_stage: "queued_after_dry_run",
-      heartbeat_at: now,
+      current_stage: scheduled
+        ? isMdac
+          ? "scheduled_for_mdac_window"
+          : "scheduled_for_tdac_window"
+        : "queued_after_dry_run",
+      heartbeat_at: scheduled ? null : now,
       created_at: now,
       updated_at: now,
     })
@@ -4744,7 +4840,27 @@ async function enqueueDigitalArrivalCardLiveAfterDryRun(
     throw new Error(`${code} dry-run passed but live submission could not be queued: ${error.message}`);
   }
 
-  await setSubmissionStatus(item.application_id, "waiting");
+  if (scheduled) {
+    await writeSubmissionResult(
+      item.application_id,
+      isMdac
+        ? buildScheduledMdacResult({
+            applicationId: item.application_id,
+            arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
+            departureDate: answers.departure_date ?? answers.intended_departure_date,
+            earliestSubmissionDate: window.earliestSubmissionDate,
+          })
+        : buildScheduledTdacResult({
+            applicationId: item.application_id,
+            arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
+            departureDate: answers.departure_date ?? answers.intended_departure_date,
+            earliestSubmissionDate: window.earliestSubmissionDate,
+          }),
+      "scheduled",
+    );
+  } else {
+    await setSubmissionStatus(item.application_id, "waiting");
+  }
   const row = data as { id?: string | null } | null;
   return row?.id ?? null;
 }
@@ -4807,6 +4923,134 @@ async function promoteSgacScheduledIfDue(item: SubmissionQueueItem): Promise<Sub
     ...item,
     status: "sgac_live_assisted_pending",
     current_stage: "ica_window_open",
+    heartbeat_at: now,
+    updated_at: now,
+  };
+}
+
+async function promoteMdacScheduledIfDue(item: SubmissionQueueItem): Promise<SubmissionQueueItem | null> {
+  if (item.status !== "mdac_live_assisted_scheduled") return item;
+  const answers = await loadDs160Answers(item.application_id);
+  const window = evaluateSgacSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+  if (window.status === "scheduled") {
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: "scheduled_for_mdac_window",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await writeSubmissionResult(
+      item.application_id,
+      buildScheduledMdacResult({
+        applicationId: item.application_id,
+        arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
+        departureDate: answers.departure_date ?? answers.intended_departure_date,
+        earliestSubmissionDate: window.earliestSubmissionDate,
+      }),
+      "scheduled",
+    );
+    return null;
+  }
+
+  if (window.status === "past" || window.status === "invalid") {
+    const message = window.status === "past"
+      ? "MDAC scheduled submission missed the official submission window because the arrival date is in the past."
+      : "MDAC scheduled submission cannot run because the arrival date is invalid.";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "mdac_live_assisted_failed",
+        last_error: message,
+        error_code: `mdac_arrival_date_${window.status}`,
+        error_message: message,
+        current_stage: "validation_failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, message);
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "mdac_live_assisted_pending",
+      current_stage: "mdac_window_open",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "waiting");
+  return {
+    ...item,
+    status: "mdac_live_assisted_pending",
+    current_stage: "mdac_window_open",
+    heartbeat_at: now,
+    updated_at: now,
+  };
+}
+
+async function promoteTdacScheduledIfDue(item: SubmissionQueueItem): Promise<SubmissionQueueItem | null> {
+  if (item.status !== "tdac_live_assisted_scheduled") return item;
+  const answers = await loadDs160Answers(item.application_id);
+  const window = evaluateSgacSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+  if (window.status === "scheduled") {
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: "scheduled_for_tdac_window",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await writeSubmissionResult(
+      item.application_id,
+      buildScheduledTdacResult({
+        applicationId: item.application_id,
+        arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
+        departureDate: answers.departure_date ?? answers.intended_departure_date,
+        earliestSubmissionDate: window.earliestSubmissionDate,
+      }),
+      "scheduled",
+    );
+    return null;
+  }
+
+  if (window.status === "past" || window.status === "invalid") {
+    const message = window.status === "past"
+      ? "TDAC scheduled submission missed the official submission window because the arrival date is in the past."
+      : "TDAC scheduled submission cannot run because the arrival date is invalid.";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "tdac_live_assisted_failed",
+        last_error: message,
+        error_code: `tdac_arrival_date_${window.status}`,
+        error_message: message,
+        current_stage: "validation_failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, message);
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "tdac_live_assisted_pending",
+      current_stage: "tdac_window_open",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "waiting");
+  return {
+    ...item,
+    status: "tdac_live_assisted_pending",
+    current_stage: "tdac_window_open",
     heartbeat_at: now,
     updated_at: now,
   };
@@ -5423,7 +5667,7 @@ async function processDryRunItem(
       );
     } else if (result.status === "submitted_mock" && (isMdacDryRun || isTdacDryRun)) {
       const code = isMdacDryRun ? "MDAC" : "TDAC";
-      const liveJobId = await enqueueDigitalArrivalCardLiveAfterDryRun(item, code);
+      const liveJobId = await enqueueDigitalArrivalCardLiveAfterDryRun(item, code, answers);
       console.log(
         `[${code.toLowerCase()}] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
       );
@@ -5631,9 +5875,15 @@ async function pollOnce(): Promise<void> {
         await processSgacLiveItem(dueItem);
       }
     } else if (isMdacJob(item)) {
-      await processDigitalArrivalCardLiveItem(item, "MDAC");
+      const dueItem = await promoteMdacScheduledIfDue(item);
+      if (dueItem) {
+        await processDigitalArrivalCardLiveItem(dueItem, "MDAC");
+      }
     } else if (isTdacJob(item)) {
-      await processDigitalArrivalCardLiveItem(item, "TDAC");
+      const dueItem = await promoteTdacScheduledIfDue(item);
+      if (dueItem) {
+        await processDigitalArrivalCardLiveItem(dueItem, "TDAC");
+      }
     } else if (isAuJob(item)) {
       await processAuItem(item);
     } else {

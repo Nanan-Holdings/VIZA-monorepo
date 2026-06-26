@@ -58,6 +58,7 @@ export type SubmissionQueueStatus =
   | "mdac_dry_run_processing"
   | "mdac_dry_run_failed"
   | "mdac_live_assisted_pending"
+  | "mdac_live_assisted_scheduled"
   | "mdac_live_assisted_processing"
   | "mdac_live_assisted_failed"
   | "mdac_live_assisted_cancelled"
@@ -66,6 +67,7 @@ export type SubmissionQueueStatus =
   | "tdac_dry_run_processing"
   | "tdac_dry_run_failed"
   | "tdac_live_assisted_pending"
+  | "tdac_live_assisted_scheduled"
   | "tdac_live_assisted_processing"
   | "tdac_live_assisted_failed"
   | "tdac_live_assisted_cancelled"
@@ -158,10 +160,12 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "mdac_dry_run_pending",
   "mdac_dry_run_processing",
   "mdac_live_assisted_pending",
+  "mdac_live_assisted_scheduled",
   "mdac_live_assisted_processing",
   "tdac_dry_run_pending",
   "tdac_dry_run_processing",
   "tdac_live_assisted_pending",
+  "tdac_live_assisted_scheduled",
   "tdac_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
@@ -423,7 +427,9 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "sgac_live_assisted_pending" ||
     input.queueStatus === "sgac_live_assisted_scheduled" ||
     input.queueStatus === "mdac_live_assisted_pending" ||
-    input.queueStatus === "tdac_live_assisted_pending"
+    input.queueStatus === "mdac_live_assisted_scheduled" ||
+    input.queueStatus === "tdac_live_assisted_pending" ||
+    input.queueStatus === "tdac_live_assisted_scheduled"
   );
 }
 
