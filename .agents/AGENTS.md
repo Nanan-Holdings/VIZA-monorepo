@@ -13,6 +13,8 @@ runtime application code.
 - `skills/brand-style-guide`: VIZA brand and voice rules.
 - `skills/arrival-card-country-builder`: reusable workflow for adding
   country-specific digital arrival-card packages and preview routes.
+- `skills/browser-api-cloudflare-runner`: authorized Browser API/CDP workflow
+  for Cloudflare- or WAF-protected official portal runners.
 - `skills/supabase`: Supabase workflow, MCP, CLI, security, and verification
   guidance.
 - `skills/supabase-postgres-best-practices`: Postgres schema, query,
