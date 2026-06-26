@@ -83,6 +83,7 @@ export async function restoreFvSession(
   const { browser, context, page } = await launchFvBrowser({
     headless: options.headless ?? true,
     storageState: options.storageState,
+    acceptDownloads: true,
   });
 
   try {
@@ -132,6 +133,7 @@ export async function signInWithPassword(
   const timeoutMs = options.timeoutMs ?? 60_000;
   const handles = await launchFvBrowser({
     headless: options.headless ?? true,
+    acceptDownloads: true,
   });
   const { browser, context, page } = handles;
 

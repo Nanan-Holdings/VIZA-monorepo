@@ -833,6 +833,27 @@ function getProgressPercent(steps: StatusStep[], state: ClientStatusState): numb
   return Math.min(98, Math.round(((complete + active * 0.5) / STEP_ORDER.length) * 100));
 }
 
+function getArrivalCardProgressPercent({
+  liveSubmission,
+  state,
+  fallback,
+  submissionResultSubmitted,
+}: {
+  liveSubmission: LiveSubmissionSummary | null;
+  state: ClientStatusState;
+  fallback: number;
+  submissionResultSubmitted: boolean;
+}): number {
+  if (submissionResultSubmitted || liveSubmission?.state === "submitted" || liveSubmission?.state === "completed") {
+    return 100;
+  }
+  if (liveSubmission?.state === "running") return 72;
+  if (liveSubmission?.state === "pending") return 52;
+  if (liveSubmission?.state === "action_required" || liveSubmission?.state === "failed") return Math.max(52, fallback);
+  if (state === "external_pending" || state === "submitted") return Math.max(52, fallback);
+  return Math.max(36, fallback);
+}
+
 function buildActions(
   application: ApplicationRow | null,
   packageBase: { country: string; visaType: string },
@@ -1000,7 +1021,7 @@ async function buildFiles({
 
   for (const path of getSubmissionResultPdfPaths(application)) {
     files.push({
-      key: application.visa_type === "SG_ARRIVAL_CARD" ? "arrivalCardConfirmation" : "resultFile",
+      key: isArrivalCardVisaType(application.visa_type) ? "arrivalCardConfirmation" : "resultFile",
       href: await resolveSubmissionArtifactHref(adminClient, path),
       reference: path,
       createdAt: application.submission_result_updated_at ?? application.submitted_at ?? application.updated_at,
@@ -1235,6 +1256,14 @@ async function buildApplicationStatus({
     : null;
   const resolvedSteps = arrivalCardSteps ?? initialSteps;
   const overallState = getOverallState(resolvedSteps, application);
+  const progressPercent = isArrivalCard
+    ? getArrivalCardProgressPercent({
+        liveSubmission,
+        state: overallState,
+        fallback: getProgressPercent(resolvedSteps, overallState),
+        submissionResultSubmitted,
+      })
+    : getProgressPercent(resolvedSteps, overallState);
 
   const shell: StatusApplication = {
     ...base,
@@ -1242,7 +1271,7 @@ async function buildApplicationStatus({
     packageId: application.visa_package_id,
     packageName: visaPackage?.name ?? null,
     state: overallState,
-    progressPercent: getProgressPercent(resolvedSteps, overallState),
+    progressPercent,
     createdAt: application.created_at,
     updatedAt: getLatestDate([
       application.updated_at,

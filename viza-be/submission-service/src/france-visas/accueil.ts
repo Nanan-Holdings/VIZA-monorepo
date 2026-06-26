@@ -193,6 +193,14 @@ export async function finalizeAndDownloadPdf(
 export interface ContinueConfirmedApplicationResult {
   clickedDeclare: boolean;
   clickedContinue: boolean;
+  clickedImportantYes?: boolean;
+  clickedRateContinue?: boolean;
+  clickedVisaCenterCertification?: boolean;
+  clickedSubmitToVisaCenter?: boolean;
+  clickedFinalComplete?: boolean;
+  finalPdfPath?: string | null;
+  feeText?: string | null;
+  visaCenterText?: string | null;
   resultingUrl: string;
 }
 
@@ -203,17 +211,24 @@ export interface ContinueConfirmedApplicationOptions {
 
 /**
  * France-Visas shows a declaration checkbox + Continue button for confirmed
- * applications on accueil. When the applicant/operator has explicitly opted
- * into the post-confirmation action, tick the declaration in the matching
- * application group and click Continue. This helper stops after that click;
- * later payment/appointment pages are intentionally left to their own guards.
+ * applications on accueil. Once the applicant has explicitly requested a real
+ * submission, continue through the official post-confirmation handoff:
+ *
+ *   accueil declaration → Important information Yes → Applicable rate Continue
+ *   → visa-center certification → Submit to the visa center → final PDF
+ *   download → Complete.
+ *
+ * The fee page is informational. The final page still tells the applicant what
+ * to bring/pay at the visa center; no online payment or appointment-slot
+ * selection is attempted here.
  */
 export async function continueConfirmedApplication(
   page: Page,
   options: ContinueConfirmedApplicationOptions = {},
 ): Promise<ContinueConfirmedApplicationResult> {
   const timeoutMs = options.timeoutMs ?? 30_000;
-  const result = await page.evaluate(`(() => {
+  const handoffTimeoutMs = Math.min(timeoutMs, 60_000);
+  const target = await page.evaluate(`(() => {
     const applicationReference = ${JSON.stringify(options.applicationReference ?? null).replace(/</g, "\\u003c")};
     const visible = (el) => el.offsetParent !== null;
     const textOf = (el) => ((el.value || el.textContent || "") + "").trim().replace(/\\s+/g, " ");
@@ -234,21 +249,342 @@ export async function continueConfirmedApplication(
       .filter((el) => visible(el))
       .find((el) => /^continue$|^continuer$/i.test(textOf(el)));
     if (!continueButton) {
-      return { clickedDeclare, clickedContinue: false };
+      return { clickedDeclare, continueButtonId: null };
     }
-    continueButton.click();
-    return { clickedDeclare, clickedContinue: true };
-  })()`) as { clickedDeclare: boolean; clickedContinue: boolean };
+    if (!continueButton.id) continueButton.id = "viza-fv-post-confirm-continue";
+    return { clickedDeclare, continueButtonId: continueButton.id };
+  })()`) as { clickedDeclare: boolean; continueButtonId: string | null };
 
-  if (result.clickedContinue) {
-    await page.waitForLoadState("domcontentloaded", { timeout: timeoutMs }).catch(() => undefined);
-    await waitForPage(page, "accueil", { timeoutMs: 2_000 }).catch(() => undefined);
+  if (target.clickedDeclare) {
+    await waitForPageSettled(page, handoffTimeoutMs);
+  }
+
+  const clickedContinue = target.continueButtonId
+    ? await clickElementByIdWhenEnabled(page, target.continueButtonId, handoffTimeoutMs)
+    : false;
+  if (!clickedContinue) {
+    throw new NavigationError("France-Visas declaration Continue button was not found or could not be clicked", {
+      url: page.url(),
+    });
+  }
+  await waitForFranceHandoffPhase(page, handoffTimeoutMs);
+
+  let phase = await detectFranceHandoffPhase(page);
+  const clickedImportantYes = phase === "important_information"
+    ? await clickVisibleControlByText(page, [/^yes$/i, /^oui$/i], handoffTimeoutMs)
+    : false;
+  if (clickedImportantYes) {
+    await waitForFranceHandoffPhase(page, handoffTimeoutMs);
+  }
+
+  phase = await detectFranceHandoffPhase(page);
+  const feeText = await readTextAround(page, [/The application fee you must pay is/i, /frais de dossier/i]);
+  const clickedRateContinue = phase === "applicable_rate"
+    ? await clickVisibleControlByText(page, [/^continue$/i, /^continuer$/i], handoffTimeoutMs)
+    : false;
+  if (clickedRateContinue) {
+    await waitForFranceHandoffPhase(page, handoffTimeoutMs);
+  }
+
+  phase = await detectFranceHandoffPhase(page);
+  const clickedVisaCenterCertification = phase === "appointment"
+    ? await checkVisibleCheckboxNearText(
+        page,
+        [/By checking this box/i, /I made contact with my visa center/i, /en cochant cette case/i],
+        handoffTimeoutMs,
+      )
+    : false;
+  const clickedSubmitToVisaCenter = phase === "appointment"
+    ? await clickVisibleControlByText(
+        page,
+        [/^submit to the visa center$/i, /soumettre.*centre/i],
+        handoffTimeoutMs,
+      )
+    : false;
+  if (clickedSubmitToVisaCenter) {
+    await waitForFranceHandoffPhase(page, handoffTimeoutMs);
+  }
+
+  phase = await detectFranceHandoffPhase(page);
+  if (phase !== "what_next") {
+    throw new NavigationError("France-Visas post-confirmation handoff did not reach the final What next page", {
+      url: page.url(),
+      details: {
+        phase,
+        clickedImportantYes,
+        clickedRateContinue,
+        clickedVisaCenterCertification,
+        clickedSubmitToVisaCenter,
+      },
+    });
+  }
+  const visaCenterText = await readTextAround(page, [/Your visa center/i, /Center\s+/i, /centre de visas/i]);
+  const finalPdfPath = await downloadFinalApplicationPdf(page, {
+    applicationReference: options.applicationReference ?? "france-visas",
+    outputDir: undefined,
+    timeoutMs: handoffTimeoutMs,
+  });
+  const clickedFinalComplete = await clickVisibleControlByText(page, [/^complete$/i, /^terminer$/i], handoffTimeoutMs);
+  if (!clickedFinalComplete) {
+    throw new NavigationError("France-Visas final Complete button was not found or could not be clicked", {
+      url: page.url(),
+    });
+  }
+  if (clickedFinalComplete) {
+    await page.waitForLoadState("domcontentloaded", { timeout: handoffTimeoutMs }).catch(() => undefined);
   }
 
   return {
-    ...result,
+    clickedDeclare: target.clickedDeclare,
+    clickedContinue,
+    clickedImportantYes,
+    clickedRateContinue,
+    clickedVisaCenterCertification,
+    clickedSubmitToVisaCenter,
+    clickedFinalComplete,
+    finalPdfPath,
+    feeText,
+    visaCenterText,
     resultingUrl: page.url(),
   };
+}
+
+type FranceHandoffPhase =
+  | "important_information"
+  | "applicable_rate"
+  | "appointment"
+  | "what_next"
+  | "unknown";
+
+async function detectFranceHandoffPhase(page: Page): Promise<FranceHandoffPhase> {
+  return page.evaluate(() => {
+    const text = (document.body?.innerText ?? "").replace(/\s+/g, " ");
+    if (/What next\?|Original of the request form|Payment\s*\/\s*Biometrics/i.test(text)) {
+      return "what_next";
+    }
+    if (/Appointment\s*:\s*Making appointment|Submit to the visa center|By checking this box|Rendez-vous/i.test(text)) {
+      return "appointment";
+    }
+    if (/Applicable rate|The application fee you must pay is|Tarif applicable|frais de dossier/i.test(text)) {
+      return "applicable_rate";
+    }
+    if (/Important information|Have you checked, for each of your applications|Informations importantes/i.test(text)) {
+      return "important_information";
+    }
+    return "unknown";
+  });
+}
+
+async function waitForFranceHandoffPhase(page: Page, timeoutMs: number): Promise<FranceHandoffPhase> {
+  await page.waitForFunction(
+    () => {
+      const text = (document.body?.innerText ?? "").replace(/\s+/g, " ");
+      return /Important information|Have you checked, for each of your applications|Informations importantes|Applicable rate|The application fee you must pay is|Tarif applicable|frais de dossier|Appointment\s*:\s*Making appointment|Submit to the visa center|By checking this box|Rendez-vous|What next\?|Original of the request form|Payment\s*\/\s*Biometrics/i.test(text);
+    },
+    undefined,
+    { timeout: timeoutMs },
+  );
+  return detectFranceHandoffPhase(page);
+}
+
+async function clickVisibleControlByText(page: Page, patterns: RegExp[], timeoutMs: number): Promise<boolean> {
+  const sources = patterns.map((pattern) => ({ source: pattern.source, flags: pattern.flags }));
+  await page
+    .waitForFunction(
+      (items) => {
+        const visible = (el: Element) => {
+          const element = el as HTMLElement;
+          return Boolean(element.offsetParent) && !element.hasAttribute("disabled") && element.getAttribute("aria-disabled") !== "true";
+        };
+        const textOf = (el: Element) => {
+          const input = el as HTMLInputElement;
+          return ((input.value || el.textContent || "") + "").trim().replace(/\s+/g, " ");
+        };
+        return Array.from(document.querySelectorAll("button, input[type='submit'], input[type='button'], a"))
+          .filter(visible)
+          .some((el) => items.some((item) => new RegExp(item.source, item.flags).test(textOf(el))));
+      },
+      sources,
+      { timeout: Math.min(timeoutMs, 20_000) },
+    )
+    .catch(() => undefined);
+
+  const clicked = await page.evaluate((items) => {
+    const visible = (el: Element) => {
+      const element = el as HTMLElement;
+      return Boolean(element.offsetParent) && !element.hasAttribute("disabled") && element.getAttribute("aria-disabled") !== "true";
+    };
+    const textOf = (el: Element) => {
+      const input = el as HTMLInputElement;
+      return ((input.value || el.textContent || "") + "").trim().replace(/\s+/g, " ");
+    };
+    const target = Array.from(document.querySelectorAll("button, input[type='submit'], input[type='button'], a"))
+      .filter(visible)
+      .find((el) => items.some((item) => new RegExp(item.source, item.flags).test(textOf(el))));
+    if (!target) return false;
+    (target as HTMLElement).click();
+    return true;
+  }, sources);
+  if (clicked) {
+    await waitForPageSettled(page, timeoutMs);
+  }
+  return clicked;
+}
+
+async function clickElementByIdWhenEnabled(page: Page, id: string, timeoutMs: number): Promise<boolean> {
+  await page
+    .waitForFunction(
+      (targetId) => {
+        const el = document.getElementById(targetId);
+        if (!el) return false;
+        const element = el as HTMLElement;
+        const input = el as HTMLInputElement;
+        return Boolean(element.offsetParent) &&
+          !input.disabled &&
+          el.getAttribute("aria-disabled") !== "true" &&
+          !el.classList.contains("ui-state-disabled");
+      },
+      id,
+      { timeout: Math.min(timeoutMs, 20_000) },
+    )
+    .catch(() => undefined);
+
+  const clicked = await page.evaluate((targetId) => {
+    const el = document.getElementById(targetId);
+    if (!el) return false;
+    const element = el as HTMLElement;
+    const input = el as HTMLInputElement;
+    if (
+      !element.offsetParent ||
+      input.disabled ||
+      el.getAttribute("aria-disabled") === "true" ||
+      el.classList.contains("ui-state-disabled")
+    ) {
+      return false;
+    }
+    element.click();
+    return true;
+  }, id);
+  if (clicked) {
+    await waitForPageSettled(page, timeoutMs);
+  }
+  return clicked;
+}
+
+async function checkVisibleCheckboxNearText(page: Page, patterns: RegExp[], timeoutMs: number): Promise<boolean> {
+  const sources = patterns.map((pattern) => ({ source: pattern.source, flags: pattern.flags }));
+  await page
+    .waitForFunction(
+      (items) => {
+        const text = document.body?.innerText ?? "";
+        return items.some((item) => new RegExp(item.source, item.flags).test(text));
+      },
+      sources,
+      { timeout: Math.min(timeoutMs, 20_000) },
+    )
+    .catch(() => undefined);
+
+  const clicked = await page.evaluate((items) => {
+    const visible = (el: Element) => Boolean((el as HTMLElement).offsetParent);
+    const roots = Array.from(document.querySelectorAll("label, fieldset, div, section, article, form"))
+      .filter((el) => visible(el) && items.some((item) => new RegExp(item.source, item.flags).test(el.textContent ?? "")))
+      .sort((a, b) => (a.textContent ?? "").length - (b.textContent ?? "").length);
+    for (const root of roots) {
+      const checkbox = Array.from(root.querySelectorAll("input[type='checkbox']"))
+        .find((el) => visible(el)) as HTMLInputElement | undefined;
+      if (checkbox) {
+        if (!checkbox.checked) checkbox.click();
+        return true;
+      }
+    }
+    const checkbox = Array.from(document.querySelectorAll("input[type='checkbox']"))
+      .filter((el) => visible(el))
+      .find((el) => !(el as HTMLInputElement).checked) as HTMLInputElement | undefined;
+    if (!checkbox) return false;
+    checkbox.click();
+    return true;
+  }, sources);
+  if (clicked) {
+    await waitForPageSettled(page, timeoutMs);
+  }
+  return clicked;
+}
+
+async function downloadFinalApplicationPdf(
+  page: Page,
+  options: { applicationReference: string; outputDir?: string; timeoutMs: number },
+): Promise<string> {
+  const outputDir = options.outputDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "fv-final-pdf-"));
+  fs.mkdirSync(outputDir, { recursive: true });
+  const safeReference = options.applicationReference.replace(/[^A-Za-z0-9_-]/g, "_");
+  const targetPath = path.join(outputDir, `france_visas_final_${safeReference}.pdf`);
+
+  const downloadPromise = page.waitForEvent("download", { timeout: options.timeoutMs });
+  const clicked = await page.evaluate(() => {
+    const visible = (el: Element) => Boolean((el as HTMLElement).offsetParent);
+    const textOf = (el: Element) => {
+      const input = el as HTMLInputElement;
+      return [
+        input.value || "",
+        el.textContent || "",
+        el.getAttribute("title") || "",
+        el.getAttribute("aria-label") || "",
+        el.getAttribute("href") || "",
+        el.getAttribute("id") || "",
+        el.getAttribute("class") || "",
+      ].join(" ").trim().replace(/\s+/g, " ");
+    };
+    const controls = Array.from(document.querySelectorAll("a, button, input[type='button'], input[type='submit']"))
+      .filter(visible)
+      .filter((el) => !/^(complete|terminer|back|retour)$/i.test(textOf(el)));
+    const explicit = controls.find((el) => /pdf|print|download|document|formulaire|imprimer|télécharger/i.test(textOf(el)));
+    const iconOnly = controls
+      .filter((el) => (el.textContent || "").trim().length === 0 || /pdf|file|document/i.test(el.innerHTML))
+      .sort((a, b) => {
+        const ar = (a as HTMLElement).getBoundingClientRect();
+        const br = (b as HTMLElement).getBoundingClientRect();
+        return (br.right + br.top) - (ar.right + ar.top);
+      })[0];
+    const target = explicit || iconOnly;
+    if (!target) return false;
+    (target as HTMLElement).click();
+    return true;
+  });
+  if (!clicked) {
+    await downloadPromise.catch(() => undefined);
+    throw new NavigationError("Could not locate the final France-Visas PDF download control", { url: page.url() });
+  }
+  let download: Download;
+  try {
+    download = await downloadPromise;
+  } catch (err) {
+    throw new NavigationError("Final France-Visas PDF download did not start", {
+      url: page.url(),
+      details: { cause: err instanceof Error ? err.message : String(err) },
+    });
+  }
+  await download.saveAs(targetPath);
+  return targetPath;
+}
+
+async function readTextAround(page: Page, patterns: RegExp[]): Promise<string | null> {
+  const sources = patterns.map((pattern) => ({ source: pattern.source, flags: pattern.flags }));
+  return page.evaluate((items) => {
+    const text = (document.body?.innerText ?? "").replace(/\s+/g, " ").trim();
+    for (const item of items) {
+      const re = new RegExp(item.source, item.flags);
+      const match = re.exec(text);
+      if (match?.index != null) {
+        return text.slice(match.index, match.index + 500);
+      }
+    }
+    return null;
+  }, sources);
+}
+
+async function waitForPageSettled(page: Page, timeoutMs: number): Promise<void> {
+  await page.waitForLoadState("domcontentloaded", { timeout: Math.min(timeoutMs, 15_000) }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 10_000) }).catch(() => undefined);
 }
 
 interface InProgressPdfTarget {

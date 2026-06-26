@@ -51,10 +51,16 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const liveAssisted = result.mode === "live_assisted" || result.status === "final_review_required";
+  const liveAssisted =
+    result.mode === "live_assisted" ||
+    result.status === "final_review_required" ||
+    result.status === "submitted";
   const officialConfirmed =
+    result.status === "submitted" ||
+    result.officialStatus === "lodged_at_visa_centre" ||
     result.officialStatus === "official_record_confirmed" ||
     Boolean(result.applicationReference && liveAssisted && !result.manualAction);
+  const lodgedAtVisaCentre = result.status === "submitted" || result.officialStatus === "lodged_at_visa_centre";
   const badgeLabel = officialConfirmed
     ? (isZh ? "提交成功" : "Submitted")
     : liveAssisted
@@ -259,12 +265,18 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
           <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-emerald-800">
               <ShieldCheck className="h-4 w-4" />
-              {isZh ? "官网记录已确认" : "Official record confirmed"}
+              {lodgedAtVisaCentre
+                ? (isZh ? "已递交到签证中心" : "Submitted to the visa center")
+                : (isZh ? "官网记录已确认" : "Official record confirmed")}
             </div>
             <p className="mt-2 text-sm leading-relaxed text-emerald-950">
-              {isZh
-                ? "VIZA 已在 France-Visas 官网创建并确认这份申请。请使用上方官方编号作为核验证据；如官网后续要求付款、预约或打印签署，请继续按官网提示完成。"
-                : "VIZA created and confirmed this application on France-Visas. Use the official reference above as evidence; continue with any payment, appointment, print, or signature steps shown by the portal."}
+              {lodgedAtVisaCentre
+                ? (isZh
+                    ? "VIZA 已在 France-Visas 官网勾选声明、确认费用、提交到签证中心并完成最后一步。请使用上方完整官方编号和下方 PDF 作为提交证据；线下付款、采集生物信息或递交材料仍以签证中心要求为准。"
+                    : "VIZA checked the declaration, confirmed the fee page, submitted the file to the visa center, and completed the final France-Visas step. Use the full reference above and the PDF below as evidence; offline payment, biometrics, or document handoff remain subject to the visa center.")
+                : (isZh
+                    ? "VIZA 已在 France-Visas 官网创建并确认这份申请。请使用上方官方编号作为核验证据；如官网后续要求付款、预约或打印签署，请继续按官网提示完成。"
+                    : "VIZA created and confirmed this application on France-Visas. Use the official reference above as evidence; continue with any payment, appointment, print, or signature steps shown by the portal.")}
             </p>
           </div>
         )}
