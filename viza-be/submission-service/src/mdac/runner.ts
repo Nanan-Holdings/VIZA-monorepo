@@ -38,29 +38,6 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   return filePath;
 }
 
-async function saveConfirmationPdf(page: Page, logs: string[]): Promise<string | null> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-mdac-confirmation-pdf-"));
-  const filePath = path.join(dir, `mdac-confirmation-${Date.now()}.pdf`);
-  try {
-    await page.pdf({
-      path: filePath,
-      format: "A4",
-      printBackground: true,
-      margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
-    });
-    const size = fs.statSync(filePath).size;
-    if (size < 8_000) {
-      logs.push(`mdac_confirmation_page_pdf_too_small bytes=${size}`);
-      return null;
-    }
-    logs.push(`mdac_confirmation_page_pdf_saved ${filePath} bytes=${size}`);
-    return filePath;
-  } catch (error) {
-    logs.push(`mdac_confirmation_page_pdf_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-    return null;
-  }
-}
-
 async function installMdacSliderInstrumentation(page: Page): Promise<void> {
   await page.route("**/mdac/js/longbow.slidercaptcha.js", async (route) => {
     const response = await route.fetch();
@@ -492,9 +469,8 @@ export async function runMdacPortalSubmission(
       });
     }
 
-    const pdfs = [];
-    const confirmationPdf = await saveConfirmationPdf(page, logs);
-    if (confirmationPdf) pdfs.push(confirmationPdf);
+    const pdfs: string[] = [];
+    logs.push("mdac_official_pdf_unavailable");
 
     return buildMdacSuccessFromPortalText(payload, portalText, page.url(), screenshots, pdfs, logs);
   } finally {

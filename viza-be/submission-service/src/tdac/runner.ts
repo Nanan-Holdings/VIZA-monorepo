@@ -39,35 +39,6 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   return filePath;
 }
 
-async function saveConfirmationPagePdf(page: Page, logs: string[]): Promise<string | null> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-confirmation-pdf-"));
-  const filePath = path.join(dir, `tdac-confirmation-${Date.now()}.pdf`);
-  try {
-    await page.emulateMedia({ media: "screen" }).catch(() => undefined);
-    await page.pdf({
-      path: filePath,
-      format: "A4",
-      printBackground: true,
-      margin: {
-        top: "12mm",
-        right: "10mm",
-        bottom: "12mm",
-        left: "10mm",
-      },
-    });
-    const size = fs.statSync(filePath).size;
-    if (size < 10_000) {
-      logs.push(`tdac_confirmation_page_pdf_too_small bytes=${size}`);
-      return null;
-    }
-    logs.push(`tdac_confirmation_page_pdf_saved ${filePath} bytes=${size}`);
-    return filePath;
-  } catch (error) {
-    logs.push(`tdac_confirmation_page_pdf_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-    return null;
-  }
-}
-
 interface TurnstileParams {
   sitekey: string | null;
   action: string | null;
@@ -595,16 +566,6 @@ async function waitForTdacSubmissionOutcome(page: Page, screenshots: string[], l
 
 async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<string[]> {
   const pdfs: string[] = [];
-  let confirmationPagePdf: string | null | undefined;
-  const addConfirmationPagePdfFallback = async () => {
-    if (confirmationPagePdf === undefined) {
-      confirmationPagePdf = await saveConfirmationPagePdf(page, logs);
-    }
-    if (confirmationPagePdf && !pdfs.includes(confirmationPagePdf)) {
-      pdfs.push(confirmationPagePdf);
-    }
-  };
-
   const saveDownload = async (download: Download | null): Promise<string | null> => {
     if (!download) return null;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-pdf-"));
@@ -612,7 +573,12 @@ async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<s
     const safeName = suggested.toLowerCase().endsWith(".pdf") ? suggested : `${suggested}.pdf`;
     const filePath = path.join(dir, safeName.replace(/[<>:"/\\|?*]+/g, "-"));
     try {
-      await download.saveAs(filePath);
+      const downloadedPath = await download.path().catch(() => null);
+      if (downloadedPath) {
+        await fs.promises.copyFile(downloadedPath, filePath);
+      } else {
+        await download.saveAs(filePath);
+      }
       logs.push(`tdac_pdf_downloaded ${filePath}`);
       return filePath;
     } catch (error) {
@@ -624,10 +590,8 @@ async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<s
   const trigger = page.locator("a, button", { hasText: /download|pdf|print/i }).first();
   if (!(await trigger.isVisible({ timeout: 5_000 }).catch(() => false))) {
     logs.push("tdac_pdf_download_not_visible");
-    await addConfirmationPagePdfFallback();
     return pdfs;
   }
-  confirmationPagePdf = await saveConfirmationPagePdf(page, logs);
 
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 10_000 }).catch(() => null),
@@ -652,9 +616,6 @@ async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<s
     }
   }
   if (pdfs.length === 0) logs.push("tdac_pdf_download_unavailable_after_success");
-  if (pdfs.length === 0) {
-    await addConfirmationPagePdfFallback();
-  }
   return pdfs;
 }
 

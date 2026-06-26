@@ -15,5 +15,12 @@ export async function POST(
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  return NextResponse.json({ applicationId: result.applicationId }, { status: result.status });
+  return NextResponse.json(
+    {
+      applicationId: result.applicationId,
+      country: result.country,
+      visaType: result.visaType,
+    },
+    { status: result.status },
+  );
 }
