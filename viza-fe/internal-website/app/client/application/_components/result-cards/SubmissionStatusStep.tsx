@@ -266,7 +266,9 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isDs160VisaType(visaType) ||
     (isFranceCountry(country) && isFranceVisasVisaType(visaType)) ||
     isVietnamEVisaApplication(country, visaType) ||
-    isSgArrivalCardApplication(country, visaType)
+    isSgArrivalCardApplication(country, visaType) ||
+    isMalaysiaMdacApplication(country, visaType) ||
+    isThailandTdacApplication(country, visaType)
   );
 }
 
@@ -614,19 +616,53 @@ function GenericResultCard({
 }
 
 function ArrivalCardPreparedResultCard({
+  applicationId,
   country,
+  visaType,
   result,
 }: {
+  applicationId: string | null;
   country: "malaysia" | "thailand";
+  visaType: string | null;
   result: GenericSubmissionResult;
 }) {
   const isZh = isChineseLocale(useLocale());
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const isMalaysia = country === "malaysia";
   const productName = isMalaysia ? "Malaysia Digital Arrival Card (MDAC)" : "Thailand Digital Arrival Card (TDAC)";
   const productNameZh = isMalaysia ? "马来西亚 MDAC 数字入境卡" : "泰国 TDAC 数字入境卡";
   const officialUrl = isMalaysia
     ? "https://imigresen-online.imi.gov.my/mdac/main"
     : "https://tdac.immigration.go.th/";
+  const submitLive = useCallback(async () => {
+    if (!applicationId || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "live_assisted",
+          country,
+          visaType,
+        }),
+      });
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : `retry-submission returned ${response.status}`,
+        );
+      }
+      window.location.reload();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : String(error));
+      setSubmitting(false);
+    }
+  }, [applicationId, country, submitting, visaType]);
 
   return (
     <Card className="rounded-xl border-input">
@@ -636,14 +672,14 @@ function ArrivalCardPreparedResultCard({
             <ShieldCheck className="h-5 w-5 text-brand-500" />
             {isZh ? `${productNameZh}资料已完成` : `${productName} details ready`}
           </CardTitle>
-          <Badge variant="secondary">{isZh ? "待官方提交" : "Ready"}</Badge>
+          <Badge variant="secondary">{isZh ? "可提交" : "Ready to submit"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {isZh
-            ? "你的答案已保存并完成本地校验。当前版本先完成资料准备；请在官方允许的提交窗口内通过官方渠道提交，后续可按 SGAC runner 模式接入自动提交。"
-            : "Your answers are saved and locally validated. This version prepares the arrival-card details; submit through the official channel during the allowed submission window. A real portal runner can be added next using the SGAC pattern."}
+            ? "你的答案已保存并完成本地校验。点击提交后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度、官方编号和确认文件。"
+            : "Your answers are saved and locally validated. Click Submit to create a real official-site submission job. VIZA will fill the official form and show progress, the official reference, and confirmation evidence here."}
         </p>
         <div className="rounded-md border border-input bg-background px-3 py-2">
           <div className="text-xs text-muted-foreground">{isZh ? "资料包状态" : "Pack status"}</div>
@@ -651,7 +687,16 @@ function ArrivalCardPreparedResultCard({
             {result.confirmationNumber ?? "ARRIVAL-CARD-READY"}
           </div>
         </div>
-        <Button asChild className="w-full">
+        <Button type="button" className="w-full" onClick={submitLive} disabled={!applicationId || submitting}>
+          {submitting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <ShieldCheck className="mr-2 h-4 w-4" />
+          )}
+          {submitting ? (isZh ? "正在提交" : "Submitting") : (isZh ? "提交" : "Submit")}
+        </Button>
+        {submitError ? <p className="text-sm text-red-700">{submitError}</p> : null}
+        <Button asChild variant="ghost" className="w-full">
           <a href={officialUrl} target="_blank" rel="noreferrer">
             <ExternalLink className="mr-2 h-4 w-4" />
             {isZh ? "打开官方提交渠道" : "Open official submission channel"}
@@ -806,10 +851,18 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
+  const isMdacSubmission = isMalaysiaMdacApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
+  const isTdacSubmission = isThailandTdacApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
   const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
-    : isSgacSubmission || isDs160Submission
+    : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission
     ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
     : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
       ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
@@ -1083,14 +1136,28 @@ function renderSubmissionResultCard(
     result.country === "GENERIC" &&
     isMalaysiaMdacApplication(country, visaType)
   ) {
-    return <ArrivalCardPreparedResultCard country="malaysia" result={result} />;
+    return (
+      <ArrivalCardPreparedResultCard
+        applicationId={applicationId}
+        country="malaysia"
+        visaType={visaType}
+        result={result}
+      />
+    );
   }
 
   if (
     result.country === "GENERIC" &&
     isThailandTdacApplication(country, visaType)
   ) {
-    return <ArrivalCardPreparedResultCard country="thailand" result={result} />;
+    return (
+      <ArrivalCardPreparedResultCard
+        applicationId={applicationId}
+        country="thailand"
+        visaType={visaType}
+        result={result}
+      />
+    );
   }
 
   switch (result.country) {

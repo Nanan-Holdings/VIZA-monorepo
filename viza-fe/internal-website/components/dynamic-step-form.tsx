@@ -805,27 +805,414 @@ function getDynamicDependentOptions(
   return wards ? [...wards] : [];
 }
 
-function localizeVietnamAdministrativeUnitText(text: string): string {
+const VIETNAMESE_PLACE_TOKEN_ZH: Record<string, string> = {
+  a: "阿",
+  ai: "爱",
+  am: "庵",
+  an: "安",
+  anh: "英",
+  ba: "巴",
+  bac: "北",
+  bach: "白",
+  bai: "拜",
+  ban: "板",
+  bang: "邦",
+  bao: "保",
+  bay: "贝",
+  be: "贝",
+  ben: "边",
+  bi: "比",
+  bien: "边",
+  binh: "平",
+  bo: "波",
+  bong: "蓬",
+  bu: "布",
+  buon: "邦",
+  ca: "卡",
+  cai: "盖",
+  cam: "金",
+  can: "根",
+  cang: "港",
+  cao: "高",
+  cat: "吉",
+  cau: "桥",
+  cay: "盖",
+  cha: "茶",
+  chai: "柴",
+  chau: "朱",
+  chi: "芝",
+  chieng: "呈",
+  cho: "佐",
+  chu: "朱",
+  chua: "朱阿",
+  chuc: "竹",
+  chuong: "章",
+  con: "昆",
+  cong: "公",
+  co: "古",
+  cu: "居",
+  cua: "古阿",
+  cuu: "九",
+  da: "大",
+  dac: "得",
+  dak: "得",
+  dam: "潭",
+  dan: "丹",
+  dang: "登",
+  danh: "名",
+  dao: "岛",
+  dat: "达",
+  dau: "油",
+  dien: "奠",
+  dieu: "调",
+  dinh: "定",
+  do: "都",
+  doc: "督",
+  dong: "同",
+  du: "游",
+  duc: "德",
+  duong: "阳",
+  gia: "嘉",
+  giang: "江",
+  gion: "戎",
+  go: "丘",
+  ha: "河",
+  hai: "海",
+  ham: "咸",
+  han: "汉",
+  hang: "行",
+  hao: "豪",
+  hau: "后",
+  hien: "显",
+  hiep: "协",
+  hieu: "孝",
+  hoa: "和",
+  hoai: "怀",
+  hoan: "欢",
+  hoang: "黄",
+  hoi: "会",
+  hon: "鸿",
+  hong: "鸿",
+  huong: "香",
+  huu: "友",
+  khanh: "庆",
+  khiem: "谦",
+  khoai: "快",
+  khuong: "强",
+  kien: "坚",
+  kiet: "杰",
+  kim: "金",
+  ky: "奇",
+  la: "拉",
+  lai: "来",
+  lak: "勒",
+  lam: "林",
+  lang: "郎",
+  lao: "老",
+  lat: "叻",
+  le: "黎",
+  lien: "莲",
+  linh: "灵",
+  loc: "禄",
+  loi: "利",
+  long: "隆",
+  lu: "卢",
+  luc: "勒",
+  luong: "良",
+  ly: "里",
+  mai: "梅",
+  minh: "明",
+  mo: "摩",
+  moc: "木",
+  mon: "门",
+  my: "美",
+  nam: "南",
+  nga: "娥",
+  ngai: "义",
+  nghi: "宜",
+  nghia: "义",
+  ngoc: "玉",
+  ngo: "吴",
+  nguyen: "阮",
+  nha: "芽",
+  nhon: "仁",
+  ninh: "宁",
+  noi: "内",
+  nuoc: "渃",
+  o: "乌",
+  pa: "巴",
+  phan: "潘",
+  phat: "发",
+  phi: "菲",
+  phong: "丰",
+  phu: "富",
+  phuc: "福",
+  phung: "冯",
+  phuoc: "福",
+  phuong: "坊",
+  quang: "广",
+  quan: "关",
+  quy: "归",
+  quyet: "决",
+  rach: "沥",
+  rai: "来",
+  rang: "朗",
+  ranh: "兰",
+  ro: "罗",
+  sa: "沙",
+  sam: "三",
+  sen: "莲",
+  se: "些",
+  son: "山",
+  song: "江",
+  so: "所",
+  suoi: "溪",
+  tam: "三",
+  tan: "新",
+  tay: "西",
+  te: "祭",
+  thach: "石",
+  thai: "太",
+  thang: "胜",
+  thanh: "清",
+  thao: "洮",
+  thap: "塔",
+  thien: "天",
+  thieu: "绍",
+  thinh: "盛",
+  tho: "寿",
+  thoi: "泰",
+  thong: "通",
+  thu: "守",
+  thuan: "顺",
+  thuong: "上",
+  thuy: "水",
+  tien: "前",
+  tinh: "静",
+  to: "苏",
+  trai: "寨",
+  tram: "站",
+  tran: "镇",
+  trang: "庄",
+  trao: "朝",
+  treo: "悬",
+  tri: "治",
+  truc: "竹",
+  trung: "中",
+  truong: "长",
+  tu: "慈",
+  tuy: "绥",
+  tuyen: "宣",
+  uong: "汪",
+  van: "文",
+  vien: "园",
+  viet: "越",
+  vinh: "永",
+  vu: "武",
+  vung: "头顿",
+  xa: "社",
+  xuan: "春",
+  xuyen: "川",
+  yen: "安",
+};
+
+const VIETNAMESE_PLACE_PHRASE_ZH: Record<string, string> = {
+  "bao loc": "保禄",
+  "ba ria": "巴地",
+  "bac giang": "北江",
+  "bac kan": "北干",
+  "bac lieu": "薄寮",
+  "bac ninh": "北宁",
+  "ben luc": "边沥",
+  "ben tre": "槟椥",
+  "binh duong": "平阳",
+  "binh dinh": "平定",
+  "binh phuoc": "平福",
+  "binh thuan": "平顺",
+  "buon ma thuot": "邦美蜀",
+  "ca mau": "金瓯",
+  "cam ly": "甘里",
+  "cam ranh": "金兰",
+  "can tho": "芹苴",
+  "cat bi": "吉碑",
+  "chau doc": "朱笃",
+  "chi lang": "芝陵",
+  "da lat": "大叻",
+  "da nang": "岘港",
+  "dak lak": "得乐",
+  "dak nong": "得农",
+  "dien bien": "奠边",
+  "dong nai": "同奈",
+  "dong thap": "同塔",
+  "gia lai": "嘉莱",
+  "ha giang": "河江",
+  "ha nam": "河南",
+  "ha noi": "河内",
+  "ha tien": "河仙",
+  "ha tinh": "河静",
+  "hai duong": "海阳",
+  "hai phong": "海防",
+  "hau giang": "后江",
+  "hoa binh": "和平",
+  "ho chi minh": "胡志明",
+  "hoi an": "会安",
+  "khanh hoa": "庆和",
+  "kien giang": "坚江",
+  "kon tum": "昆嵩",
+  "la gi": "罗夷",
+  "lai chau": "莱州",
+  "lam dong": "林同",
+  "lam vien": "林园",
+  "lang biang": "郎边",
+  "lang son": "谅山",
+  "lao bao": "老保",
+  "lao cai": "老街",
+  "long an": "隆安",
+  "long xuyen": "龙川",
+  "nam can": "南根",
+  "nam dinh": "南定",
+  "nam giang": "南江",
+  "nha trang": "芽庄",
+  "nghe an": "乂安",
+  "nghi son": "宜山",
+  "ninh binh": "宁平",
+  "ninh chu": "宁楚",
+  "ninh thuan": "宁顺",
+  "noi bai": "内排",
+  "phu bai": "富牌",
+  "phu cat": "富吉",
+  "phu quoc": "富国",
+  "phu tho": "富寿",
+  "phu yen": "富安",
+  "quang binh": "广平",
+  "quang nam": "广南",
+  "quang ngai": "广义",
+  "quang ninh": "广宁",
+  "quang tri": "广治",
+  "rach gia": "迪石",
+  "soc trang": "朔庄",
+  "son la": "山罗",
+  "tan son nhat": "新山一",
+  "tay ninh": "西宁",
+  "thai binh": "太平",
+  "thai nguyen": "太原",
+  "thanh hoa": "清化",
+  "thua thien hue": "承天顺化",
+  "tien giang": "前江",
+  "tra vinh": "茶荣",
+  "tuyen quang": "宣光",
+  "vinh long": "永隆",
+  "vinh phuc": "永福",
+  "vung tau": "头顿",
+  "yen bai": "安沛",
+};
+
+const LATIN_FALLBACK_SYLLABLE_ZH: Record<string, string> = {
+  a: "阿",
+  b: "布",
+  c: "克",
+  d: "德",
+  e: "埃",
+  f: "弗",
+  g: "格",
+  h: "河",
+  i: "伊",
+  j: "杰",
+  k: "克",
+  l: "勒",
+  m: "姆",
+  n: "恩",
+  o: "奥",
+  p: "普",
+  q: "广",
+  r: "尔",
+  s: "斯",
+  t: "特",
+  u: "乌",
+  v: "文",
+  w: "文",
+  x: "西",
+  y: "伊",
+  z: "泽",
+};
+
+function normalizeVietnameseLatin(text: string): string {
   return text
-    .replace(/^PHUONG\s+/i, "坊 ")
-    .replace(/^PHUONG\b/i, "坊")
-    .replace(/^PHƯỜNG\s+/i, "坊 ")
-    .replace(/^PHƯỜNG\b/i, "坊")
-    .replace(/^XA\s+/i, "公社 ")
-    .replace(/^XA\b/i, "公社")
-    .replace(/^XÃ\s+/i, "公社 ")
-    .replace(/^XÃ\b/i, "公社")
-    .replace(/^THI TRAN\s+/i, "市镇 ")
-    .replace(/^THI TRAN\b/i, "市镇")
-    .replace(/^THỊ TRẤN\s+/i, "市镇 ")
-    .replace(/^THỊ TRẤN\b/i, "市镇")
-    .replace(/\bWARD\b/gi, "坊")
-    .replace(/\bCOMMUNE\b/gi, "公社")
-    .replace(/\bTOWN\b/gi, "市镇")
-    .replace(/\bDISTRICT\b/gi, "县")
-    .replace(/\bCITY\b/gi, "市")
-    .replace(/\s+/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/Đ/g, "D")
+    .replace(/đ/g, "d")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function translateVietnameseLatinToken(token: string): string {
+  if (/^\d+$/.test(token)) return `第${token}`;
+  const normalized = normalizeVietnameseLatin(token);
+  if (!normalized) return "";
+  const known = VIETNAMESE_PLACE_TOKEN_ZH[normalized];
+  if (known) return known;
+  return normalized
+    .split("")
+    .map((char) => LATIN_FALLBACK_SYLLABLE_ZH[char] ?? "")
+    .join("");
+}
+
+function translateVietnamesePlaceName(text: string): string {
+  const normalized = normalizeVietnameseLatin(text);
+  if (!normalized) return text;
+  const phrase = VIETNAMESE_PLACE_PHRASE_ZH[normalized];
+  if (phrase) return phrase;
+
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const translated: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const three = tokens.slice(index, index + 3).join(" ");
+    const two = tokens.slice(index, index + 2).join(" ");
+    if (VIETNAMESE_PLACE_PHRASE_ZH[three]) {
+      translated.push(VIETNAMESE_PLACE_PHRASE_ZH[three]);
+      index += 2;
+      continue;
+    }
+    if (VIETNAMESE_PLACE_PHRASE_ZH[two]) {
+      translated.push(VIETNAMESE_PLACE_PHRASE_ZH[two]);
+      index += 1;
+      continue;
+    }
+    translated.push(translateVietnameseLatinToken(tokens[index]));
+  }
+  return translated.join("");
+}
+
+function translateVietnameseLatinFragments(text: string): string {
+  return text.replace(/[A-Za-zÀ-ỹĐđ][A-Za-zÀ-ỹĐđ0-9'’.-]*(?:\s+[A-Za-zÀ-ỹĐđ0-9'’.-]+)*/g, (match) =>
+    translateVietnamesePlaceName(match),
+  );
+}
+
+function localizeVietnamAdministrativeUnitText(text: string): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  const prefixMatch = trimmed.match(/^(?:PHUONG|PHƯỜNG|XA|XÃ|THI TRAN|THỊ TRẤN)\s+(.+)$/i);
+  if (prefixMatch) {
+    const prefix = normalizeVietnameseLatin(trimmed.split(/\s+/).slice(0, trimmed.toUpperCase().startsWith("THI") || trimmed.toUpperCase().startsWith("THỊ") ? 2 : 1).join(" "));
+    const unit = prefix === "xa" ? "公社" : prefix === "thi tran" ? "市镇" : "坊";
+    return `${translateVietnamesePlaceName(prefixMatch[1])}${unit}`;
+  }
+
+  const suffixMatch = trimmed.match(/^(.+?)\s+(WARD|COMMUNE|TOWN|DISTRICT|CITY)$/i);
+  if (suffixMatch) {
+    const unitBySuffix: Record<string, string> = {
+      ward: "坊",
+      commune: "公社",
+      town: "市镇",
+      district: "县",
+      city: "市",
+    };
+    return `${translateVietnamesePlaceName(suffixMatch[1])}${unitBySuffix[suffixMatch[2].toLowerCase()] ?? ""}`;
+  }
+
+  return translateVietnameseLatinFragments(trimmed);
 }
 
 function localizeVietnamWardOptions(options: VisaFormFieldOption[]): VisaFormFieldOption[] {
@@ -875,7 +1262,7 @@ const VIETNAM_BORDER_GATE_ZH: Record<string, string> = {
 };
 
 function localizeVietnamBorderGateText(text: string): string {
-  return text
+  const partiallyLocalized = text
     .replace(/\bInternational Border Gate\b/gi, "国际边境口岸")
     .replace(/\bBorder Gate\b/gi, "边境口岸")
     .replace(/\bInt\.?\b/gi, "国际")
@@ -912,6 +1299,7 @@ function localizeVietnamBorderGateText(text: string): string {
     .replace(/\s+,/g, ",")
     .replace(/\s+/g, " ")
     .trim();
+  return translateVietnameseLatinFragments(partiallyLocalized);
 }
 
 function localizeVietnamBorderGateOptions(options: VisaFormFieldRow["options"]): VisaFormFieldRow["options"] {

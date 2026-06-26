@@ -112,7 +112,13 @@ const VN_LIVE_ASSISTED_ENABLED =
 const SGAC_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
 
-type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | null;
+const MDAC_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_MDAC_LIVE_SUBMISSION_ENABLED !== "false";
+
+const TDAC_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
+
+type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | null;
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -828,6 +834,8 @@ function FinalConfirmationPanel({
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
   const isSgac = liveAssistedTarget === "sgac";
+  const isMdac = liveAssistedTarget === "mdac";
+  const isTdac = liveAssistedTarget === "tdac";
   const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
@@ -844,6 +852,14 @@ function FinalConfirmationPanel({
             ? (isZh
                 ? "本地 SG Arrival Card live handoff 已关闭。请确认 SGAC_LIVE_SUBMISSION_ENABLED。"
                 : "SG Arrival Card live handoff is disabled locally. Check SGAC_LIVE_SUBMISSION_ENABLED.")
+            : isMdac
+              ? (isZh
+                  ? "本地 Malaysia MDAC live handoff 已关闭。请确认 MDAC_LIVE_SUBMISSION_ENABLED。"
+                  : "Malaysia MDAC live handoff is disabled locally. Check MDAC_LIVE_SUBMISSION_ENABLED.")
+              : isTdac
+                ? (isZh
+                    ? "本地 Thailand TDAC live handoff 已关闭。请确认 TDAC_LIVE_SUBMISSION_ENABLED。"
+                    : "Thailand TDAC live handoff is disabled locally. Check TDAC_LIVE_SUBMISSION_ENABLED.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -870,6 +886,14 @@ function FinalConfirmationPanel({
         ? (isZh
             ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
             : "Submitting creates an SG Arrival Card official-submission task. This page shows the submission in progress and, when the backend succeeds, displays submitted=true, the confirmation/reference number, and the ICA response summary.")
+        : isMdac
+          ? (isZh
+              ? "提交后会创建 Malaysia MDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
+              : "Submitting creates a Malaysia MDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
+          : isTdac
+            ? (isZh
+                ? "提交后会创建 Thailand TDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
+                : "Submitting creates a Thailand TDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
       : (isZh
           ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
           : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
@@ -1386,7 +1410,6 @@ export default function ApplicationPage() {
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
-  const isArrivalCardIntakeOnly = isMalaysiaMdac || isThailandTdac;
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -1395,7 +1418,11 @@ export default function ApplicationPage() {
         ? "vietnam"
         : isSgArrivalCard
           ? "sgac"
-        : null;
+          : isMalaysiaMdac
+            ? "mdac"
+            : isThailandTdac
+              ? "tdac"
+              : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
     : liveAssistedTarget === "france"
@@ -1404,6 +1431,10 @@ export default function ApplicationPage() {
         ? VN_LIVE_ASSISTED_ENABLED
         : liveAssistedTarget === "sgac"
           ? SGAC_LIVE_ASSISTED_ENABLED
+          : liveAssistedTarget === "mdac"
+            ? MDAC_LIVE_ASSISTED_ENABLED
+            : liveAssistedTarget === "tdac"
+              ? TDAC_LIVE_ASSISTED_ENABLED
           : false;
 
   useEffect(() => {
@@ -2287,7 +2318,7 @@ export default function ApplicationPage() {
 
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
 
-      if (!isJpTourist && !isArrivalCardIntakeOnly) {
+      if (!isJpTourist) {
         await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
         // Standard automated-submission countries enqueue a job for the
         // submission-service worker to drive the per-country portal.
@@ -2314,42 +2345,6 @@ export default function ApplicationPage() {
           submittedAt,
           submissionResultStatus: queueJob.submissionResultStatus,
           submissionResult: queueJob.submissionResult,
-          confirmationNumber: undefined,
-        }));
-      }
-
-      if (isArrivalCardIntakeOnly) {
-        const submittedAt = new Date().toISOString();
-        const countryLabel = isMalaysiaMdac ? "Malaysia MDAC" : "Thailand TDAC";
-        const countryCode = isMalaysiaMdac ? "MY" : "TH";
-        const arrivalCardResult: SubmissionResult = {
-          country: "GENERIC",
-          targetCountry: countryLabel,
-          visaType: resolvedVisaType,
-          status: "submitted_mock",
-          mode: "dry_run",
-          applicationId,
-          implementationStatus: "partial",
-          message: isZhInterface
-            ? `${countryLabel} 入境卡资料已保存并完成校验。请在官方允许的提交窗口内通过官方渠道提交；该资料包不会替代签证或入境许可。`
-            : `${countryLabel} arrival-card details have been saved and validated. Submit through the official channel when the official submission window allows it; this pack does not replace a visa or entry permission.`,
-          confirmationNumber: `${countryCode}-ARRIVAL-CARD-READY`,
-        };
-        const { error: submitError } = await supabase.from("applications").update({
-          status: "submitted",
-          submitted_at: submittedAt,
-          submission_result_status: "form_ready_for_agency",
-          submission_result: arrivalCardResult,
-          confirmation_number: null,
-          submission_result_updated_at: submittedAt,
-        }).eq("id", applicationId);
-        if (submitError) throw new Error(submitError.message);
-
-        setAppState((prev) => ({
-          ...prev,
-          submittedAt,
-          submissionResultStatus: "form_ready_for_agency",
-          submissionResult: arrivalCardResult,
           confirmationNumber: undefined,
         }));
       }
