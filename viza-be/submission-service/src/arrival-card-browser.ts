@@ -30,13 +30,18 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
 }
 
 export function resolveArrivalCardBrowserEndpoint(prefix: "MDAC" | "TDAC"): string | null {
-  return firstConfiguredEndpoint([
+  const envNames = [
     `${prefix}_BROWSER_API_ENDPOINT`,
     `${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`,
-    "BRIGHTDATA_BROWSER_WS",
-    "BRIGHTDATA_BROWSER_API_ENDPOINT",
-    "SBR_WS_ENDPOINT",
-  ]);
+  ];
+  if (prefix === "TDAC" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
+    envNames.push(
+      "BRIGHTDATA_BROWSER_WS",
+      "BRIGHTDATA_BROWSER_API_ENDPOINT",
+      "SBR_WS_ENDPOINT",
+    );
+  }
+  return firstConfiguredEndpoint(envNames);
 }
 
 function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
@@ -51,11 +56,19 @@ export async function createArrivalCardBrowserSession(options: {
   const endpoint = resolveArrivalCardBrowserEndpoint(options.prefix);
   if (endpoint) {
     let browser: Browser | null = null;
-    try {
-      browser = await chromium.connectOverCDP(endpoint);
-    } catch (error) {
-      const cause = error instanceof Error ? error.message.split("\n")[0] : String(error);
-      diagnostics.push(`${options.prefix.toLowerCase()}_remote_browser_api_failed ${cause}`);
+    const maxAttempts = Number(process.env[`${options.prefix}_BROWSER_API_CONNECT_ATTEMPTS`] ?? "3");
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        browser = await chromium.connectOverCDP(endpoint, { timeout: 45_000 });
+        diagnostics.push(`${options.prefix.toLowerCase()}_remote_browser_api_connected attempt=${attempt}`);
+        break;
+      } catch (error) {
+        const cause = error instanceof Error ? error.message.split("\n")[0] : String(error);
+        diagnostics.push(`${options.prefix.toLowerCase()}_remote_browser_api_failed attempt=${attempt} ${cause}`);
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 2_000 * attempt));
+        }
+      }
     }
     if (browser) {
       const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
