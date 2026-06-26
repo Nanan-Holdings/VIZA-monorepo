@@ -5,6 +5,7 @@ type BrowserContextOptions = NonNullable<Parameters<Browser["newContext"]>[0]>;
 export interface FvBrowserOptions {
   headless?: boolean;
   storageState?: BrowserContextOptions["storageState"];
+  acceptDownloads?: boolean;
 }
 
 export interface FvBrowserHandles {
@@ -22,6 +23,7 @@ export async function launchFvBrowser(
   });
   const context = await browser.newContext({
     ...(options.storageState ? { storageState: options.storageState } : {}),
+    acceptDownloads: options.acceptDownloads ?? true,
     viewport: { width: 1440, height: 900 },
     locale: "en-US",
     timezoneId: "Europe/Paris",

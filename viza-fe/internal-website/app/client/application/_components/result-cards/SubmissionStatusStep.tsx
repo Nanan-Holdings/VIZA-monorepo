@@ -629,11 +629,16 @@ function ArrivalCardPreparedResultCard({
   const isZh = isChineseLocale(useLocale());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [queuedSubmission, setQueuedSubmission] = useState<{
+    jobId: string | null;
+    queueStatus: string | null;
+    provider: string | null;
+  } | null>(null);
   const isMalaysia = country === "malaysia";
   const productName = isMalaysia ? "Malaysia Digital Arrival Card (MDAC)" : "Thailand Digital Arrival Card (TDAC)";
   const productNameZh = isMalaysia ? "马来西亚 MDAC 数字入境卡" : "泰国 TDAC 数字入境卡";
   const submitLive = useCallback(async () => {
-    if (!applicationId || submitting) return;
+    if (!applicationId || submitting || queuedSubmission) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -645,7 +650,12 @@ function ArrivalCardPreparedResultCard({
           visaType,
         }),
       });
-      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      const body = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        jobId?: unknown;
+        queueStatus?: unknown;
+        provider?: unknown;
+      } | null;
       if (!response.ok) {
         throw new Error(
           typeof body?.error === "string"
@@ -653,12 +663,17 @@ function ArrivalCardPreparedResultCard({
             : `retry-submission returned ${response.status}`,
         );
       }
-      window.location.reload();
+      setQueuedSubmission({
+        jobId: typeof body?.jobId === "string" ? body.jobId : null,
+        queueStatus: typeof body?.queueStatus === "string" ? body.queueStatus : null,
+        provider: typeof body?.provider === "string" ? body.provider : null,
+      });
+      setSubmitting(false);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : String(error));
       setSubmitting(false);
     }
-  }, [applicationId, submitting, visaType]);
+  }, [applicationId, queuedSubmission, submitting, visaType]);
 
   return (
     <Card className="rounded-xl border-input">
@@ -677,13 +692,44 @@ function ArrivalCardPreparedResultCard({
             ? "你的答案已保存并完成本地校验。点击提交后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度、官方编号和确认文件。"
             : "Your answers are saved and locally validated. Click Submit to create a real official-site submission job. VIZA will fill the official form and show progress, the official reference, and confirmation evidence here."}
         </p>
+        {queuedSubmission ? (
+          <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-brand-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {isZh ? "自动提交任务已启动" : "Automated submission started"}
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {isZh
+                ? "submission-service 已收到任务，正在接入官方门户。提交成功后，状态页会显示官方编号和可下载的确认 PDF。"
+                : "submission-service has received the job and is opening the official portal. Once it succeeds, the status page will show the official reference and downloadable confirmation PDF."}
+            </p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+              <div className="h-full w-1/3 rounded-full bg-brand-500" />
+            </div>
+            <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+              <div className="rounded border border-brand-100 bg-white px-2 py-1.5">
+                <span className="text-muted-foreground">{isZh ? "任务编号" : "Job ID"}</span>
+                <div className="mt-0.5 truncate font-mono text-foreground">{queuedSubmission.jobId ?? "-"}</div>
+              </div>
+              <div className="rounded border border-brand-100 bg-white px-2 py-1.5">
+                <span className="text-muted-foreground">{isZh ? "队列状态" : "Queue status"}</span>
+                <div className="mt-0.5 truncate font-mono text-foreground">{queuedSubmission.queueStatus ?? "-"}</div>
+              </div>
+            </div>
+            <Button type="button" asChild variant="outline" className="mt-3 w-full">
+              <a href={applicationId ? `/client/status?applicationId=${encodeURIComponent(applicationId)}&view=detail` : "/client/status"}>
+                {isZh ? "查看状态与确认文件" : "View status and confirmation evidence"}
+              </a>
+            </Button>
+          </div>
+        ) : null}
         <div className="rounded-md border border-input bg-background px-3 py-2">
           <div className="text-xs text-muted-foreground">{isZh ? "资料包状态" : "Pack status"}</div>
           <div className="mt-0.5 font-mono text-sm text-foreground">
             {result.confirmationNumber ?? "ARRIVAL-CARD-READY"}
           </div>
         </div>
-        <Button type="button" className="w-full" onClick={submitLive} disabled={!applicationId || submitting}>
+        <Button type="button" className="w-full" onClick={submitLive} disabled={!applicationId || submitting || Boolean(queuedSubmission)}>
           {submitting ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (

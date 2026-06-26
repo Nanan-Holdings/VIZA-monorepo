@@ -103,6 +103,14 @@ export type FillFranceVisasResult =
       postConfirmationContinue?: {
         clickedDeclare: boolean;
         clickedContinue: boolean;
+        clickedImportantYes?: boolean;
+        clickedRateContinue?: boolean;
+        clickedVisaCenterCertification?: boolean;
+        clickedSubmitToVisaCenter?: boolean;
+        clickedFinalComplete?: boolean;
+        finalPdfPath?: string | null;
+        feeText?: string | null;
+        visaCenterText?: string | null;
         resultingUrl: string;
       };
     }
@@ -240,8 +248,14 @@ export async function fillFranceVisasApplication(
     if (postConfirmationContinue) {
       logRun(
         runId,
-        `post-confirmation continue clicked=${postConfirmationContinue.clickedContinue ? "yes" : "no"}`,
+        `post-confirmation complete declare=${postConfirmationContinue.clickedDeclare ? "yes" : "already"} ` +
+          `continue=${postConfirmationContinue.clickedContinue ? "yes" : "no"} ` +
+          `visaCenter=${postConfirmationContinue.clickedSubmitToVisaCenter ? "yes" : "no"} ` +
+          `complete=${postConfirmationContinue.clickedFinalComplete ? "yes" : "no"}`,
       );
+      if (postConfirmationContinue.finalPdfPath) {
+        pdfPath = postConfirmationContinue.finalPdfPath;
+      }
     }
 
     return {

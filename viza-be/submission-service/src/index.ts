@@ -2811,10 +2811,12 @@ async function processFvItem(
       const officialReferenceCipher = liveAssisted && officialReference
         ? encryptSecret(officialReference)
         : null;
+      const lodgedAtVisaCentre =
+        liveAssisted && result.postConfirmationContinue?.clickedSubmitToVisaCenter === true;
 
       await updateSubmissionQueueCompat(item.id, {
           status: "fv_prefilled",
-          current_stage: liveAssisted ? "submitted" : "prefilled",
+          current_stage: lodgedAtVisaCentre ? "submitted_to_visa_center" : liveAssisted ? "submitted" : "prefilled",
           heartbeat_at: new Date().toISOString(),
           last_error: null,
           error_code: null,
@@ -2826,33 +2828,33 @@ async function processFvItem(
           official_application_reference_encrypted: officialReferenceCipher,
           review_diff_status: liveAssisted ? "not_run" : "not_run",
           manual_action_status: liveAssisted ? "completed" : null,
-          payment_status: "manual_required",
-          appointment_status: "manual_required",
-          official_status: liveAssisted ? "official_record_confirmed" : "draft_prefilled",
+          payment_status: liveAssisted ? "manual_required" : "manual_required",
+          appointment_status: lodgedAtVisaCentre ? "booked" : "manual_required",
+          official_status: lodgedAtVisaCentre
+            ? "lodged_at_visa_centre"
+            : liveAssisted ? "official_record_confirmed" : "draft_prefilled",
           fv_application_reference: liveAssisted ? null : result.applicationReference,
           fv_pdf_storage_path: pdfStoragePath,
           updated_at: new Date().toISOString(),
         });
 
-      // User-facing FrSubmissionResult. France-Visas requires payment to
-      // lock an actual appointment slot, so we surface `stopped_at_pay`
-      // with the application reference + downloadable summary PDF — the
-      // applicant still needs to book/pay externally on connect.france-visas.gouv.fr.
-      // The `appointment` field stays absent until the appointment-booking
-      // runner extension lands.
+      // User-facing FrSubmissionResult. In live mode the runner continues
+      // through the France-Visas visa-center handoff when the official page
+      // exposes it, then surfaces the full reference plus downloadable PDF as
+      // proof. Offline payment/biometrics still happen at the visa center.
       const frPayload: FrSubmissionResult = {
         country: "FR",
-        status: liveAssisted ? "final_review_required" : "stopped_at_pay",
+        status: lodgedAtVisaCentre ? "submitted" : liveAssisted ? "final_review_required" : "stopped_at_pay",
         mode: liveAssisted ? "live_assisted" : "dry_run",
         provider: liveAssisted ? "france_visas_live" : "france_visas_dry_run",
-        applicationReference: liveAssisted && officialReference
-          ? redactOfficialReference(officialReference)
-          : officialReference,
+        applicationReference: officialReference,
         reviewDiffStatus: liveAssisted ? "not_run" : undefined,
         manualAction: undefined,
         paymentStatus: "manual_required",
-        appointmentStatus: "manual_required",
-        officialStatus: liveAssisted ? "official_record_confirmed" : "draft_prefilled",
+        appointmentStatus: lodgedAtVisaCentre ? "booked" : "manual_required",
+        officialStatus: lodgedAtVisaCentre
+          ? "lodged_at_visa_centre"
+          : liveAssisted ? "official_record_confirmed" : "draft_prefilled",
         fieldFallbacks: result.fieldFallbacks,
         postConfirmationContinue: result.postConfirmationContinue,
         ...(pdfStoragePath ? { printablePdfStoragePath: pdfStoragePath } : {}),

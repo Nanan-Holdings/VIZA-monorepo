@@ -143,6 +143,24 @@ function getParam(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
+function normalizeCountryParam(value: string | null): string | null {
+  if (!value) return null;
+  const decoded = decodeURIComponent(value).trim().toLowerCase();
+  if (!decoded) return null;
+  const aliases: Record<string, string> = {
+    malaysia: "马来西亚",
+    my: "马来西亚",
+    马来西亚: "马来西亚",
+    thailand: "泰国",
+    th: "泰国",
+    泰国: "泰国",
+    singapore: "新加坡",
+    sg: "新加坡",
+    新加坡: "新加坡",
+  };
+  return aliases[decoded] ?? decoded;
+}
+
 function getSelectionHref(application: StatusApplication): string {
   if (application.applicationRecords.length > 0) return `/client/status?country=${encodeURIComponent(application.countryKey)}`;
   if (application.id) return `/client/status?applicationId=${encodeURIComponent(application.id)}`;
@@ -866,7 +884,7 @@ export default async function ClientStatusPage({ searchParams }: { searchParams?
 
   const selectedApplicationId = getParam(params.applicationId);
   const selectedPackageId = getParam(params.packageId);
-  const selectedCountry = getParam(params.country);
+  const selectedCountry = normalizeCountryParam(getParam(params.country));
   const detailView = getParam(params.view) === "detail";
   const detailApplication =
     detailView
@@ -876,7 +894,7 @@ export default async function ClientStatusPage({ searchParams }: { searchParams?
       : null;
   const selectedApplication =
     detailApplication ??
-    data.applications.find((application) => application.countryKey === selectedCountry) ??
+    data.applications.find((application) => normalizeCountryParam(application.countryKey) === selectedCountry) ??
     data.applications.find((application) => application.applicationRecords.some((record) => record.id === selectedApplicationId)) ??
     data.applications.find((application) => application.applicationRecords.some((record) => record.packageId === selectedPackageId)) ??
     data.applications[0] ??

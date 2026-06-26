@@ -95,6 +95,8 @@ const LIVE_PROVIDERS = new Set([
   "vietnam_evisa_live",
   "france_visas_live",
   "ceac_live",
+  "malaysia_mdac_live",
+  "thailand_tdac_live",
 ]);
 
 const LIVE_PENDING_STATUSES = new Set([
@@ -104,6 +106,8 @@ const LIVE_PENDING_STATUSES = new Set([
   "ds160_live_assisted_pending",
   "fv_prefill_pending",
   "france_live_assisted_pending",
+  "mdac_live_assisted_pending",
+  "tdac_live_assisted_pending",
 ]);
 
 const LIVE_RUNNING_STATUSES = new Set([
@@ -113,6 +117,8 @@ const LIVE_RUNNING_STATUSES = new Set([
   "vn_live_running",
   "france_live_official_portal_opened",
   "ds160_live_running",
+  "mdac_live_assisted_processing",
+  "tdac_live_assisted_processing",
 ]);
 
 const LIVE_ACTION_STATUSES = new Set([
@@ -122,6 +128,8 @@ const LIVE_ACTION_STATUSES = new Set([
   "vn_blocked",
   "ds160_blocked",
   "france_blocked",
+  "mdac_live_assisted_blocked",
+  "tdac_live_assisted_blocked",
 ]);
 
 const LIVE_SUBMITTED_STATUSES = new Set([
@@ -131,6 +139,8 @@ const LIVE_SUBMITTED_STATUSES = new Set([
   "vn_submitted",
   "ds160_submitted",
   "france_submitted",
+  "mdac_live_assisted_submitted",
+  "tdac_live_assisted_submitted",
 ]);
 
 const LIVE_FAILED_STATUSES = new Set([
@@ -141,14 +151,21 @@ const LIVE_FAILED_STATUSES = new Set([
   "vn_failed",
   "ds160_failed",
   "france_failed",
+  "mdac_live_assisted_failed",
+  "tdac_live_assisted_failed",
+  "mdac_live_assisted_cancelled",
+  "tdac_live_assisted_cancelled",
 ]);
 
 const LIVE_COMPLETED_STATUSES = new Set([
+  "done",
   "complete",
   "completed",
   "approved",
   "issued",
   "granted",
+  "mdac_live_assisted_completed",
+  "tdac_live_assisted_completed",
 ]);
 
 function normalizeStatus(value: string | null | undefined): string {

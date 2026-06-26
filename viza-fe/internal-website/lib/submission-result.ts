@@ -18,6 +18,9 @@
  *   - appointment_held       FR: appointment slot tentatively held pre-payment
  *   - final_review_required FR: official draft created; applicant/operator
  *                            must review before final validation/payment
+ *   - submitted              FR: application lodged through the France-Visas
+ *                            visa-center handoff; offline payment/biometrics
+ *                            may still be due at the visa center
  *   - submitted_mock         Dry-run only: internal lifecycle completed without
  *                            touching an official portal
  *   - unsupported            Controlled unsupported-country state
@@ -82,7 +85,7 @@ export interface UsSubmissionResult {
 
 export interface FrSubmissionResult {
   country: "FR";
-  status: "appointment_held" | "stopped_at_pay" | "final_review_required";
+  status: "appointment_held" | "stopped_at_pay" | "final_review_required" | "submitted";
   mode?: "dry_run" | "live_assisted";
   provider?: "france_visas_dry_run" | "france_visas_live";
   applicationReference: string;
@@ -128,6 +131,14 @@ export interface FrSubmissionResult {
   postConfirmationContinue?: {
     clickedDeclare: boolean;
     clickedContinue: boolean;
+    clickedImportantYes?: boolean;
+    clickedRateContinue?: boolean;
+    clickedVisaCenterCertification?: boolean;
+    clickedSubmitToVisaCenter?: boolean;
+    clickedFinalComplete?: boolean;
+    finalPdfPath?: string | null;
+    feeText?: string | null;
+    visaCenterText?: string | null;
     resultingUrl: string;
   };
 }
