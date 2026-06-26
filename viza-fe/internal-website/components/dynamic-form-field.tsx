@@ -367,6 +367,162 @@ function SearchableSelectControl({
   );
 }
 
+function parseMultiSelectValue(value: string): string[] {
+  return value.split(",").map((part) => part.trim()).filter(Boolean);
+}
+
+function SearchableMultiSelectControl({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  whiteControlClass,
+  sideLocale,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; text: string }>;
+  placeholder: string;
+  disabled: boolean;
+  whiteControlClass: string;
+  sideLocale: "zh" | "en";
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selectedValues = useMemo(() => parseMultiSelectValue(value), [value]);
+  const selectedSet = useMemo(() => new Set(selectedValues.map((item) => item.toLowerCase())), [selectedValues]);
+  const selectedOptions = options.filter((option) => selectedSet.has(option.value.toLowerCase()));
+  const normalizedQuery = normalizeSearchText(query);
+  const matchedOptions = useMemo(() => {
+    if (!normalizedQuery) return options;
+    return options.filter((option) => normalizeSearchText(`${option.text} ${option.value}`).includes(normalizedQuery));
+  }, [normalizedQuery, options]);
+  const searchPlaceholder = sideLocale === "zh"
+    ? "搜索中文、英文或官方选项..."
+    : "Search Chinese, English, or official option...";
+  const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
+  const summary = selectedOptions.length > 0
+    ? selectedOptions.slice(0, 2).map((option) => option.text).join(", ") + (selectedOptions.length > 2 ? ` +${selectedOptions.length - 2}` : "")
+    : placeholder;
+
+  useEffect(() => {
+    if (!open) return;
+    const { documentElement, body } = document;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    documentElement.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+    };
+  }, [open]);
+
+  const toggleValue = (nextValue: string) => {
+    const normalized = nextValue.toLowerCase();
+    const nextValues = selectedSet.has(normalized)
+      ? selectedValues.filter((item) => item.toLowerCase() !== normalized)
+      : [...selectedValues, nextValue];
+    onChange(nextValues.join(","));
+  };
+
+  return (
+    <Popover
+      modal={open}
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) setQuery("");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={cn(
+            "flex min-h-12 w-full items-center justify-between rounded-lg border border-[#e8e8e8] px-3 py-2 text-left text-[15px] focus:outline-none focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E]",
+            whiteControlClass,
+            disabled ? "cursor-not-allowed opacity-70" : "hover:bg-gray-50",
+          )}
+        >
+          <span className={cn("line-clamp-2", selectedOptions.length === 0 && "text-muted-foreground")}>
+            {summary}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={24}
+        className="w-[--radix-popover-trigger-width] overflow-hidden p-0"
+        style={{ maxHeight: "min(560px, calc(100vh - 96px))" }}
+        onWheelCapture={(event) => event.stopPropagation()}
+        onTouchMoveCapture={(event) => event.stopPropagation()}
+      >
+        <div className="border-b p-2">
+          <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
+            <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-gray-400"
+              autoFocus
+            />
+          </div>
+          {selectedOptions.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {selectedOptions.slice(0, 6).map((option) => (
+                <button
+                  type="button"
+                  key={option.value}
+                  className="rounded-full bg-[#edf4fb] px-2 py-1 text-xs text-[#03346E]"
+                  onClick={() => toggleValue(option.value)}
+                >
+                  {option.text}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div
+          className="overscroll-contain overflow-y-auto p-1"
+          style={{ maxHeight: "min(440px, calc(100vh - 210px))" }}
+          onWheelCapture={(event) => event.stopPropagation()}
+          onTouchMoveCapture={(event) => event.stopPropagation()}
+        >
+          {matchedOptions.length === 0 ? (
+            <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
+          ) : (
+            matchedOptions.map((option, index) => {
+              const checked = selectedSet.has(option.value.toLowerCase());
+              return (
+                <button
+                  key={`${option.value}-${option.text}-${index}`}
+                  type="button"
+                  className={cn(
+                    "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",
+                    checked ? "bg-gray-100" : "",
+                  )}
+                  onClick={() => toggleValue(option.value)}
+                >
+                  <Check
+                    className={cn("h-4 w-4 shrink-0 text-[#03346E]", checked ? "opacity-100" : "opacity-0")}
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 break-words">{option.text}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function parseSsnSegments(raw: string): [string, string, string] {
   const digits = raw.replace(/\D/g, "").slice(0, 9);
   return [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5, 9)];
@@ -645,6 +801,23 @@ export function DynamicFormField({
               ))}
             </SelectContent>
           </Select>
+        </FieldWrapper>
+      );
+    }
+
+    case "multi_select": {
+      const opts = normaliseOptions(options, sideLocale);
+      return (
+        <FieldWrapper label={label} required={required}>
+          <SearchableMultiSelectControl
+            value={value}
+            onChange={onChange}
+            options={opts}
+            placeholder={localizedPlaceholder ?? selectFallback}
+            disabled={disabled}
+            whiteControlClass={whiteControlClass}
+            sideLocale={sideLocale}
+          />
         </FieldWrapper>
       );
     }

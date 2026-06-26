@@ -932,6 +932,168 @@ async function decideSgacLiveSchedule(input: {
   };
 }
 
+async function decideMdacLiveSchedule(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  application: ApplicationForRetry;
+  now: string;
+}): Promise<SgacScheduleDecision> {
+  const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
+  if (dates.error) {
+    return { action: "reject", status: 500, code: "mdac_date_load_failed", message: dates.error };
+  }
+
+  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  if (!travelDates.ok) {
+    return {
+      action: "reject",
+      status: 422,
+      code: `mdac_${travelDates.code}`,
+      message: travelDates.message.replaceAll("SGAC", "MDAC"),
+    };
+  }
+
+  const window = evaluateSgacSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  if (window.status === "invalid") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "mdac_invalid_arrival_date",
+      message: "MDAC arrival date must use YYYY-MM-DD.",
+    };
+  }
+  if (window.status === "past") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "mdac_arrival_date_past",
+      message: "MDAC arrival date is already in the past. Please update the travel dates before submitting.",
+    };
+  }
+  if (window.status === "scheduled") {
+    const result = {
+      country: "MY",
+      visaType: "MY_MDAC_ARRIVAL_CARD",
+      status: "scheduled",
+      mode: "live_assisted",
+      provider: "malaysia_mdac_live",
+      applicationId: input.applicationId,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: "https://imigresen-online.imi.gov.my/mdac/main",
+      portalResponseSummary:
+        `Malaysia MDAC accepts submissions within three days before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+      scheduledFor: window.earliestSubmissionDate,
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: {
+        arrivalDate: travelDates.arrivalDate,
+        departureDate: travelDates.departureDate,
+        modeOfTravel: null,
+        transportNumber: null,
+        accommodationAddressProvided: false,
+      },
+    };
+    return {
+      action: "schedule",
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      earliestSubmissionDate: window.earliestSubmissionDate,
+      daysUntilOpen: window.daysUntilOpen,
+      result,
+    };
+  }
+
+  return {
+    action: "submit",
+    arrivalDate: travelDates.arrivalDate,
+    departureDate: travelDates.departureDate,
+  };
+}
+
+async function decideTdacLiveSchedule(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  application: ApplicationForRetry;
+  now: string;
+}): Promise<SgacScheduleDecision> {
+  const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
+  if (dates.error) {
+    return { action: "reject", status: 500, code: "tdac_date_load_failed", message: dates.error };
+  }
+
+  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  if (!travelDates.ok) {
+    return {
+      action: "reject",
+      status: 422,
+      code: `tdac_${travelDates.code}`,
+      message: travelDates.message.replaceAll("SGAC", "TDAC"),
+    };
+  }
+
+  const window = evaluateSgacSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  if (window.status === "invalid") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "tdac_invalid_arrival_date",
+      message: "TDAC arrival date must use YYYY-MM-DD.",
+    };
+  }
+  if (window.status === "past") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "tdac_arrival_date_past",
+      message: "TDAC arrival date is already in the past. Please update the travel dates before submitting.",
+    };
+  }
+  if (window.status === "scheduled") {
+    const result = {
+      country: "TH",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      status: "scheduled",
+      mode: "live_assisted",
+      provider: "thailand_tdac_live",
+      applicationId: input.applicationId,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: "https://tdac.immigration.go.th",
+      portalResponseSummary:
+        `Thailand TDAC accepts submissions within three days before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+      scheduledFor: window.earliestSubmissionDate,
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: {
+        arrivalDate: travelDates.arrivalDate,
+        departureDate: travelDates.departureDate,
+        modeOfTravel: null,
+        transportNumber: null,
+        accommodationAddressProvided: false,
+      },
+    };
+    return {
+      action: "schedule",
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      earliestSubmissionDate: window.earliestSubmissionDate,
+      daysUntilOpen: window.daysUntilOpen,
+      result,
+    };
+  }
+
+  return {
+    action: "submit",
+    arrivalDate: travelDates.arrivalDate,
+    departureDate: travelDates.departureDate,
+  };
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -1119,6 +1281,50 @@ export async function POST(
         scheduledFor = scheduleDecision.earliestSubmissionDate;
       }
     }
+    if (isMalaysiaMdacApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const scheduleDecision = await decideMdacLiveSchedule({
+        admin,
+        applicationId,
+        application: ownedApplication,
+        now,
+      });
+      if (scheduleDecision.action === "reject") {
+        return NextResponse.json(
+          {
+            error: scheduleDecision.message,
+            code: scheduleDecision.code,
+          },
+          { status: scheduleDecision.status },
+        );
+      }
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "mdac_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
+      }
+    }
+    if (isThailandTdacApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const scheduleDecision = await decideTdacLiveSchedule({
+        admin,
+        applicationId,
+        application: ownedApplication,
+        now,
+      });
+      if (scheduleDecision.action === "reject") {
+        return NextResponse.json(
+          {
+            error: scheduleDecision.message,
+            code: scheduleDecision.code,
+          },
+          { status: scheduleDecision.status },
+        );
+      }
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "tdac_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
+      }
+    }
   }
 
   const { error: supersedeError } = await admin
@@ -1140,7 +1346,14 @@ export async function POST(
     mode,
     provider,
     now,
-    currentStage: queueStatus === "sgac_live_assisted_scheduled" ? "scheduled_for_ica_window" : null,
+    currentStage:
+      queueStatus === "sgac_live_assisted_scheduled"
+        ? "scheduled_for_ica_window"
+        : queueStatus === "mdac_live_assisted_scheduled"
+          ? "scheduled_for_mdac_window"
+          : queueStatus === "tdac_live_assisted_scheduled"
+            ? "scheduled_for_tdac_window"
+            : null,
   });
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
