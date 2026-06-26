@@ -715,7 +715,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   private scheduleControl(page: Page) {
     return page
-      .locator("a:has-text('Appointment'), a:has-text('Schedule'), button:has-text('Schedule'), text=/预约|日历/")
+      .locator("a:has-text('Appointment'), a:has-text('Schedule'), button:has-text('Schedule'), button:has-text('Appointment'), a:has-text('预约'), button:has-text('预约'), a:has-text('日历'), button:has-text('日历')")
       .first();
   }
 

@@ -31,6 +31,8 @@ export interface TdacPortalPayload {
   addressInThailand: string;
   province: string;
   district: string;
+  subDistrict?: string;
+  postalCode?: string;
   countriesVisitedLast14Days: string;
   hasHealthSymptoms: string;
 }
@@ -98,6 +100,8 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     addressInThailand: requireText(answers, "address_in_thailand", missing),
     province: requireText(answers, "province", missing),
     district: requireText(answers, "district", missing),
+    subDistrict: text(answers.sub_district),
+    postalCode: text(answers.postal_code),
     countriesVisitedLast14Days: requireText(answers, "countries_visited_last_14_days", missing),
     hasHealthSymptoms: requireText(answers, "has_health_symptoms", missing),
   };
