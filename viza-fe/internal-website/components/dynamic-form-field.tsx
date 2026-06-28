@@ -140,7 +140,7 @@ function normaliseOptions(
   const localizedOptions = resolveLocalizedOptions(opts, side);
   if (!localizedOptions || !Array.isArray(localizedOptions)) return [];
   return localizedOptions.map((o) => {
-    if (typeof o === "string") return { value: o, text: o };
+    if (typeof o === "string") return { value: o, text: cleanOptionDisplayText(o) };
     if (typeof o === "object" && o !== null) {
       const obj = o as { value?: string; text?: string; label_en?: string; label_zh?: string; official_label?: string };
       const text = side === "zh"
@@ -148,11 +148,15 @@ function normaliseOptions(
         : obj.label_en ?? obj.text ?? obj.official_label ?? obj.value ?? "";
       return {
         value: obj.value ?? "",
-        text,
+        text: cleanOptionDisplayText(text),
       };
     }
-    return { value: String(o), text: String(o) };
+    return { value: String(o), text: cleanOptionDisplayText(String(o)) };
   });
+}
+
+function cleanOptionDisplayText(text: string): string {
+  return text.replace(/^(?:选项|Option)\s*[:：]\s*/i, "").trim();
 }
 
 function normalizeSearchText(value: string): string {
@@ -414,11 +418,83 @@ function SearchableMultiSelectControl({
     const { documentElement, body } = document;
     const previousHtmlOverflow = documentElement.style.overflow;
     const previousBodyOverflow = body.style.overflow;
+    const previousBodyPosition = body.style.position;
+    const previousBodyTop = body.style.top;
+    const previousBodyLeft = body.style.left;
+    const previousBodyRight = body.style.right;
+    const previousBodyWidth = body.style.width;
+    const previousBodyPaddingRight = body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
+    lockedScrollYRef.current = window.scrollY;
+
     documentElement.style.overflow = "hidden";
     body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${lockedScrollYRef.current}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+
+    const canScrollList = (deltaY: number): boolean => {
+      const list = listRef.current;
+      if (!list) return false;
+      const maxScrollTop = list.scrollHeight - list.clientHeight;
+      if (maxScrollTop <= 0) return false;
+      if (deltaY < 0) return list.scrollTop > 0;
+      if (deltaY > 0) return list.scrollTop < maxScrollTop - 1;
+      return true;
+    };
+
+    const isWithinList = (target: EventTarget | null): boolean => {
+      return target instanceof Node && Boolean(listRef.current?.contains(target));
+    };
+
+    const preventPageScroll = (event: WheelEvent) => {
+      if (isWithinList(event.target) && canScrollList(event.deltaY)) return;
+      event.preventDefault();
+    };
+
+    const rememberTouchStart = (event: TouchEvent) => {
+      touchStartYRef.current = event.touches[0]?.clientY ?? null;
+    };
+
+    const preventTouchPageScroll = (event: TouchEvent) => {
+      const nextY = event.touches[0]?.clientY ?? null;
+      const startY = touchStartYRef.current;
+      const deltaY = startY === null || nextY === null ? 0 : startY - nextY;
+      if (isWithinList(event.target) && canScrollList(deltaY)) {
+        touchStartYRef.current = nextY;
+        return;
+      }
+      event.preventDefault();
+    };
+
+    const pinWindowScroll = () => {
+      if (window.scrollY !== lockedScrollYRef.current) {
+        window.scrollTo(0, lockedScrollYRef.current);
+      }
+    };
+
+    document.addEventListener("wheel", preventPageScroll, { capture: true, passive: false });
+    document.addEventListener("touchstart", rememberTouchStart, { capture: true, passive: true });
+    document.addEventListener("touchmove", preventTouchPageScroll, { capture: true, passive: false });
+    window.addEventListener("scroll", pinWindowScroll, { passive: true });
+
     return () => {
+      document.removeEventListener("wheel", preventPageScroll, { capture: true });
+      document.removeEventListener("touchstart", rememberTouchStart, { capture: true });
+      document.removeEventListener("touchmove", preventTouchPageScroll, { capture: true });
+      window.removeEventListener("scroll", pinWindowScroll);
       documentElement.style.overflow = previousHtmlOverflow;
       body.style.overflow = previousBodyOverflow;
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.left = previousBodyLeft;
+      body.style.right = previousBodyRight;
+      body.style.width = previousBodyWidth;
+      body.style.paddingRight = previousBodyPaddingRight;
+      window.scrollTo(0, lockedScrollYRef.current);
     };
   }, [open]);
 
@@ -491,6 +567,7 @@ function SearchableMultiSelectControl({
           ) : null}
         </div>
         <div
+          ref={listRef}
           className="overscroll-contain overflow-y-auto p-1"
           style={{ maxHeight: "min(440px, calc(100vh - 210px))" }}
           onWheelCapture={(event) => event.stopPropagation()}
