@@ -231,6 +231,10 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
     return process.env.TDAC_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
   }
+  if (isPhilippinesEtravelApplication(country, visaType)) {
+    return process.env.PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  }
   return false;
 }
 
