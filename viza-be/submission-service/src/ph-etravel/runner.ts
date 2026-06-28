@@ -70,7 +70,17 @@ export async function runPhEtravelPortalSubmission(
   logs.push(...browserSession.diagnostics);
 
   try {
-    await page.goto(PH_ETRAVEL_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.goto(PH_ETRAVEL_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      const code = /access denied|blocked|policy|proxy_error|forbidden/i.test(message)
+        ? "ph_etravel_official_portal_blocked"
+        : "ph_etravel_official_portal_navigation_failed";
+      throw new PhEtravelPortalError("Official Philippines eTravel portal could not be reached by the runner.", {
+        code,
+        screenshotPaths: screenshots,
+        portalSummary: message.slice(0, 700),
+      });
+    });
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch((error) => {
       logs.push(`ph_etravel_networkidle_timeout ${error instanceof Error ? error.message : String(error)}`);
     });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
+import { AlertCircle, CreditCard, Loader2, Check, ChevronDown, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useLocale, useTranslations } from "next-intl";
@@ -124,6 +124,13 @@ const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
 
 type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | "phetravel" | null;
+
+interface VietnamOneTimePaymentCard {
+  pan: string;
+  expiry: string;
+  cvv: string;
+  holderName: string;
+}
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -821,8 +828,12 @@ function FinalConfirmationPanel({
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
   onEdit: StepClickHandler;
-  onSubmit: (mode: SubmissionMode) => void | Promise<void>;
+  onSubmit: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => void | Promise<void>;
 }) {
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardHolderName, setCardHolderName] = useState("");
   const groupedMissing = useMemo(() => {
     const groups = new Map<number, { stepName: string; fields: MissingApplicationField[] }>();
     for (const item of missingFields) {
@@ -846,9 +857,20 @@ function FinalConfirmationPanel({
   const isMdac = liveAssistedTarget === "mdac";
   const isTdac = liveAssistedTarget === "tdac";
   const isPhEtravel = liveAssistedTarget === "phetravel";
-  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget;
+  const vietnamCardReady =
+    !isVietnam ||
+    (
+      cardNumber.replace(/\D/g, "").length >= 12 &&
+      cardExpiry.trim().length >= 4 &&
+      cardCvv.replace(/\D/g, "").length >= 3
+    );
+  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !vietnamCardReady;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
+    : isVietnam && !vietnamCardReady
+      ? (isZh
+          ? "请先填写本次官方付款使用的银行卡号、有效期和 CVV。"
+          : "Enter the one-time official payment card number, expiry, and CVV before submitting.")
     : !liveAssistedEnabled
       ? isFrance
         ? (isZh
@@ -881,6 +903,14 @@ function FinalConfirmationPanel({
 
   const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
   const submitDisabled = hasLiveAssistedTarget ? liveDisabled : baseDisabled;
+  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = isVietnam
+    ? {
+        pan: cardNumber,
+        expiry: cardExpiry,
+        cvv: cardCvv,
+        holderName: cardHolderName,
+      }
+    : undefined;
   const submitCopy = isZh
     ? hasLiveAssistedTarget
       ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
@@ -973,11 +1003,83 @@ function FinalConfirmationPanel({
         </div>
       )}
 
+      {isVietnam && (
+        <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5">
+          <div className="flex items-start gap-3">
+            <CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-semibold text-[#0b2545]">
+                {isZh ? "本次官方付款银行卡" : "One-time official payment card"}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
+                {isZh
+                  ? "越南 e-Visa 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。"
+                  : "Vietnam e-Visa submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-xs text-gray-600">{isZh ? "银行卡号" : "Card number"}</span>
+              <input
+                value={cardNumber}
+                onChange={(event) => setCardNumber(event.target.value)}
+                autoComplete="cc-number"
+                inputMode="numeric"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-gray-600">{isZh ? "有效期" : "Expiry"}</span>
+              <input
+                value={cardExpiry}
+                onChange={(event) => setCardExpiry(event.target.value)}
+                autoComplete="cc-exp"
+                inputMode="numeric"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder="MM/YY"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-gray-600">CVV</span>
+              <input
+                value={cardCvv}
+                onChange={(event) => setCardCvv(event.target.value)}
+                autoComplete="cc-csc"
+                inputMode="numeric"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder="CVV"
+              />
+            </label>
+            <label className="space-y-1 sm:col-span-2">
+              <span className="text-xs text-gray-600">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
+              <input
+                value={cardHolderName}
+                onChange={(event) => setCardHolderName(event.target.value)}
+                autoComplete="cc-name"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-[#03346E]"
+                placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
+              />
+            </label>
+          </div>
+          {!vietnamCardReady && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {isZh
+                ? "请填写银行卡号、有效期和 CVV 后再提交。"
+                : "Enter the card number, expiry, and CVV before submitting."}
+            </p>
+          )}
+        </div>
+      )}
+
       <button
         type="button"
         disabled={submitDisabled}
         onClick={() => {
-          void onSubmit(submitMode);
+          void Promise.resolve(onSubmit(submitMode, vietnamPaymentCard)).finally(() => {
+            if (isVietnam) setCardCvv("");
+          });
         }}
         className={cn(
           "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
@@ -1155,6 +1257,50 @@ async function insertSubmissionQueueJob(
     jobId: null,
     queueStatus: status,
     provider,
+    submissionResultStatus: "waiting",
+    submissionResult: null,
+  };
+}
+
+async function insertVietnamSubmissionQueueJobWithCard(
+  applicationId: string,
+  card: VietnamOneTimePaymentCard | undefined,
+): Promise<SubmissionQueueJobResult> {
+  if (!card?.pan.trim() || !card.expiry.trim() || !card.cvv.trim()) {
+    throw new Error("请输入本次付款使用的银行卡号、有效期和 CVV。VIZA 不会保存这些信息。");
+  }
+
+  const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      card: {
+        pan: card.pan,
+        expiry: card.expiry,
+        cvv: card.cvv,
+        holderName: card.holderName,
+      },
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    error?: unknown;
+    queueId?: unknown;
+    queueStatus?: unknown;
+  } | null;
+  if (!response.ok) {
+    throw new Error(
+      typeof payload?.error === "string"
+        ? payload.error
+        : `Vietnam official-fee queue creation failed with ${response.status}`,
+    );
+  }
+
+  return {
+    scheduled: false,
+    scheduledFor: null,
+    jobId: typeof payload?.queueId === "string" ? payload.queueId : null,
+    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_live_assisted_pending",
+    provider: "vietnam_evisa_live",
     submissionResultStatus: "waiting",
     submissionResult: null,
   };
@@ -2306,7 +2452,10 @@ export default function ApplicationPage() {
   );
 
   // ── Dynamic-mode review complete handler ────────────────────────────
-  const handleDynamicReviewComplete = async (mode: SubmissionMode = "dry_run") => {
+  const handleDynamicReviewComplete = async (
+    mode: SubmissionMode = "dry_run",
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+  ) => {
     setSaving(true);
     setSubmittingMode(mode);
     setError(null);
@@ -2370,16 +2519,20 @@ export default function ApplicationPage() {
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
 
       if (!isJpTourist) {
-        await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-        // Standard automated-submission countries enqueue a job for the
-        // submission-service worker to drive the per-country portal.
-        const queueJob = await insertSubmissionQueueJob(supabase, {
-          applicationId,
-          country: resolvedCountry,
-          visaType: resolvedVisaType,
-          mode,
-          createdAt: new Date().toISOString(),
-        });
+        const queueJob = mode === "live_assisted" && isVietnamEVisa
+          ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
+          : await (async () => {
+              await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
+              // Standard automated-submission countries enqueue a job for the
+              // submission-service worker to drive the per-country portal.
+              return insertSubmissionQueueJob(supabase, {
+                applicationId,
+                country: resolvedCountry,
+                visaType: resolvedVisaType,
+                mode,
+                createdAt: new Date().toISOString(),
+              });
+            })();
         const submittedAt = new Date().toISOString();
         const { error: submitError } = await supabase.from("applications").update({
           status: "submitted",
@@ -2440,7 +2593,10 @@ export default function ApplicationPage() {
     }
   };
 
-  const handleReviewComplete = async (mode: SubmissionMode = "dry_run") => {
+  const handleReviewComplete = async (
+    mode: SubmissionMode = "dry_run",
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+  ) => {
     setSaving(true);
     setSubmittingMode(mode);
     setError(null);
@@ -2485,14 +2641,18 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
-      const queueJob = await insertSubmissionQueueJob(supabase, {
-        applicationId,
-        country: resolvedCountry,
-        visaType: resolvedVisaType,
-        mode,
-        createdAt: new Date().toISOString(),
-      });
+      const queueJob = mode === "live_assisted" && isVietnamEVisa
+        ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
+        : await (async () => {
+            await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
+            return insertSubmissionQueueJob(supabase, {
+              applicationId,
+              country: resolvedCountry,
+              visaType: resolvedVisaType,
+              mode,
+              createdAt: new Date().toISOString(),
+            });
+          })();
 
       const submittedAt = new Date().toISOString();
       const { error: submitError } = await supabase.from("applications").update({

@@ -282,6 +282,29 @@ function officialCountryPattern(value: string): RegExp {
   return new RegExp(`\\b${escaped}\\b|${escaped.replace(/\s+/g, "\\s+")}`, "i");
 }
 
+function tdacCountrySearchValue(value: string): string {
+  const normalized = value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+  const aliases: Record<string, string> = {
+    CHINA: "CHN",
+    "PEOPLE S REPUBLIC OF CHINA": "CHN",
+    KOREA: "KOR",
+    "KOREA REPUBLIC OF": "KOR",
+    "REPUBLIC OF KOREA": "KOR",
+    "SOUTH KOREA": "KOR",
+    "UNITED STATES": "USA",
+    "UNITED STATES OF AMERICA": "USA",
+    AMERICA: "USA",
+    MALAYSIA: "MYS",
+    SINGAPORE: "SGP",
+    THAILAND: "THA",
+  };
+  const codeMatch = normalized.match(/^[A-Z]{3}\b/);
+  return aliases[normalized] ?? codeMatch?.[0] ?? value.toUpperCase();
+}
+
 function tdacGenderLabel(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (normalized.startsWith("f")) return "FEMALE";
@@ -760,7 +783,8 @@ async function fillTdacPersonalStep(page: Page, payload: TdacPortalPayload, logs
   await fillInput(page, "#mat-input-1", payload.firstName.toUpperCase(), logs);
   await fillInput(page, "#mat-input-2", (payload.middleName || "").toUpperCase(), logs);
   await fillInput(page, "#mat-input-3", payload.passportNumber.toUpperCase(), logs);
-  await selectAutocomplete(page, "#mat-input-25", payload.nationality.toUpperCase(), logs, officialCountryPattern(payload.nationality));
+  const nationalitySearch = tdacCountrySearchValue(payload.nationality);
+  await selectAutocomplete(page, "#mat-input-25", nationalitySearch, logs, officialCountryPattern(nationalitySearch));
   await selectAutocomplete(page, "#mat-input-18", dob.year, logs);
   await selectAutocomplete(page, "#mat-input-19", dob.month, logs);
   await selectAutocomplete(page, "#mat-input-20", dob.day, logs);
@@ -769,9 +793,10 @@ async function fillTdacPersonalStep(page: Page, payload: TdacPortalPayload, logs
   if (payload.visaNumber) {
     await fillInput(page, "#mat-input-5", payload.visaNumber.toUpperCase(), logs);
   }
-  await selectAutocomplete(page, "#mat-input-26", payload.residenceCountry.toUpperCase(), logs, officialCountryPattern(payload.residenceCountry));
+  const residenceCountrySearch = tdacCountrySearchValue(payload.residenceCountry);
+  await selectAutocomplete(page, "#mat-input-26", residenceCountrySearch, logs, officialCountryPattern(residenceCountrySearch));
   await waitForEnabled(page, "#mat-input-27", logs);
-  await selectAutocomplete(page, "#mat-input-27", payload.residenceCity.toUpperCase(), logs, officialCountryPattern(payload.residenceCity));
+  await fillInput(page, "#mat-input-27", payload.residenceCity.toUpperCase(), logs);
   await fillInput(page, "#mat-input-6", payload.phoneCountryCode.replace(/\D/g, ""), logs);
   await fillInput(page, "#mat-input-7", payload.phoneNumber.replace(/\D/g, ""), logs);
   await saveScreenshot(page, "personal-before-continue", logs);
@@ -783,7 +808,8 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
   const departure = dateParts(payload.departureDate);
   await page.waitForTimeout(2_000);
   await fillMaterialDateInput(page, "#mat-input-8", arrival.slashDate, logs);
-  await selectAutocomplete(page, "#mat-input-28", payload.countryBoarded.toUpperCase(), logs, officialCountryPattern(payload.countryBoarded));
+  const countryBoardedSearch = tdacCountrySearchValue(payload.countryBoarded);
+  await selectAutocomplete(page, "#mat-input-28", countryBoardedSearch, logs, officialCountryPattern(countryBoardedSearch));
   await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
   if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
     await fillInput(page, "#mat-input-10", payload.purposeOfTravelOther.toUpperCase(), logs).catch(() => undefined);
@@ -834,7 +860,8 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
 async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
   await page.waitForTimeout(1_000);
   for (const country of payload.countriesVisitedLast14Days) {
-    await selectAutocomplete(page, "#mat-mdc-chip-list-input-0", country.toUpperCase(), logs, officialCountryPattern(country));
+    const countrySearch = tdacCountrySearchValue(country);
+    await selectAutocomplete(page, "#mat-mdc-chip-list-input-0", countrySearch, logs, officialCountryPattern(countrySearch));
   }
   await clickFirstEnabledButton(page, /^Preview$/i, logs);
 }
