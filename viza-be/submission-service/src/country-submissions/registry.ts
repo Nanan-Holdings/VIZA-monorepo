@@ -454,9 +454,9 @@ const CONFIGS: ProviderConfig[] = [
     routeStatus: "submission_queue_dispatched",
     serviceFiles: ["src/uk/**"],
     schemaFiles: ["../agent-backend/scripts/seed-uk-standard-visitor-form-fields.ts"],
-    mapperFiles: ["src/uk/field-mappings.ts"],
+    mapperFiles: ["src/uk/field-mappings.ts", "src/uk/normalize.ts"],
     automationFiles: ["src/uk/orchestrator.ts", "src/uk/resume.ts"],
-    notes: "Pre-auth/resume scaffold only; post-auth selectors are not fully mapped.",
+    notes: "Resume flow fills all 44 post-auth pages and halts at the declaration/£135 pay boundary; wizard answers are translated by normalizeUkAnswers before fill.",
   },
   {
     countryCode: "ID",
