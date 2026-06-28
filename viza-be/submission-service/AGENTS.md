@@ -79,8 +79,12 @@ filling and one-shot submission for the applicant.
   submission capability audits.
 - `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC and
   TDAC can use a configured Browser API/CDP endpoint such as Bright Data
-  Scraping Browser before falling back to local Chromium. Never log endpoint
-  credentials.
+  Scraping Browser before falling back to local Chromium. PH eTravel defaults
+  away from global Bright Data endpoints because generic zones may block
+  government sites; use `PH_ETRAVEL_BROWSER_API_ENDPOINT`, local
+  `PH_ETRAVEL_CDP_ENDPOINT`, or explicitly set
+  `PH_ETRAVEL_USE_GLOBAL_BROWSER_API=true` after verifying policy access. Never
+  log endpoint credentials.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
@@ -136,6 +140,10 @@ filling and one-shot submission for the applicant.
   browser. Use `-RequireDefaultProfile` only when the runner must attach to the
   user's default Chrome profile, and ask the user to close Chrome first instead
   of killing their browser process.
+- `scripts/start-ph-etravel-user-chrome.ps1`: local helper that starts Chrome
+  with a CDP port for Philippines eTravel. It defaults to an isolated VIZA
+  automation profile under `output/chrome-profiles/ph-etravel-cdp` and prints
+  the `PH_ETRAVEL_CDP_ENDPOINT` value for smoke/worker runs.
 - `src/vietnam/card-session.ts` plus the health-server
   `POST /local/vietnam/card-session` endpoint: local-only one-time card handoff
   for frontend-entered Vietnam official-fee payments. It is enabled only by
@@ -217,6 +225,7 @@ npm run vn:smoke
 # Public arrival-card forms; stop before final Submit unless --submit is passed:
 npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts
+npm run ph-etravel:chrome
 npx tsx scripts/run-ph-etravel-smoke.ts
 # UK recon/pre-auth walk:
 npx ts-node scripts/walk-uk-portal.ts

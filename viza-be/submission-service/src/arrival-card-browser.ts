@@ -1,6 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
-export type ArrivalCardBrowserProvider = "local" | "remote-browser-api";
+export type ArrivalCardBrowserProvider = "local" | "local-cdp" | "remote-browser-api";
 
 export interface ArrivalCardBrowserSession {
   browser: Browser;
@@ -36,7 +36,7 @@ export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPref
     `${prefix}_BROWSER_API_ENDPOINT`,
     `${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`,
   ];
-  if (prefix === "TDAC" || prefix === "PH_ETRAVEL" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
+  if (prefix === "TDAC" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
     envNames.push(
       "BRIGHTDATA_BROWSER_WS",
       "BRIGHTDATA_BROWSER_API_ENDPOINT",
@@ -46,6 +46,13 @@ export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPref
   return firstConfiguredEndpoint(envNames);
 }
 
+export function resolveArrivalCardLocalCdpEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
+  return firstConfiguredEndpoint([
+    `${prefix}_CDP_ENDPOINT`,
+    `${prefix}_CHROME_CDP_ENDPOINT`,
+  ]);
+}
+
 function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
   return /brd\.superproxy\.io/i.test(endpoint ?? "");
 }
@@ -53,9 +60,10 @@ function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
 export async function createArrivalCardBrowserSession(options: {
   prefix: ArrivalCardBrowserPrefix;
   headless?: boolean;
+  forceLocal?: boolean;
 }): Promise<ArrivalCardBrowserSession> {
   const diagnostics: string[] = [];
-  const endpoint = resolveArrivalCardBrowserEndpoint(options.prefix);
+  const endpoint = options.forceLocal ? null : resolveArrivalCardBrowserEndpoint(options.prefix);
   if (endpoint) {
     let browser: Browser | null = null;
     const maxAttempts = Number(process.env[`${options.prefix}_BROWSER_API_CONNECT_ATTEMPTS`] ?? "3");
@@ -85,6 +93,25 @@ export async function createArrivalCardBrowserSession(options: {
         close: () => browser.close(),
       };
     }
+  }
+
+  const cdpEndpoint = resolveArrivalCardLocalCdpEndpoint(options.prefix);
+  if (cdpEndpoint) {
+    const browser = await chromium.connectOverCDP(cdpEndpoint, { timeout: 45_000 });
+    const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
+    const page = await context.newPage();
+    return {
+      browser,
+      context,
+      page,
+      provider: "local-cdp",
+      nativeCloudflareUnblock: false,
+      diagnostics: [
+        ...diagnostics,
+        `${options.prefix.toLowerCase()}_local_cdp_connected`,
+      ],
+      close: () => browser.close(),
+    };
   }
 
   const channel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim()

@@ -497,15 +497,19 @@ function normaliseFieldOptions(
   const localizedOptions = resolveLocalizedOptions(options, side);
   if (!localizedOptions) return [];
   return localizedOptions.map((option) => {
-    if (typeof option === "string") return { value: option, text: option };
+    if (typeof option === "string") return { value: option, text: cleanOptionDisplayText(option) };
     const text = side === "zh"
       ? option.label_zh ?? option.text ?? option.label_en ?? option.official_label ?? option.value
       : option.label_en ?? option.text ?? option.official_label ?? option.value;
     return {
       value: option.value,
-      text,
+      text: cleanOptionDisplayText(text),
     };
   });
+}
+
+function cleanOptionDisplayText(text: string): string {
+  return text.replace(/^(?:选项|Option)\s*[:：]\s*/i, "").trim();
 }
 
 function getRawFieldOptions(
@@ -913,10 +917,10 @@ function isPurposeOfTripField(field: VisaFormFieldRow): boolean {
 }
 
 function getOptionValueAndText(option: NonNullable<VisaFormFieldRow["options"]>[number]): { value: string; text: string } {
-  if (typeof option === "string") return { value: option, text: option };
+  if (typeof option === "string") return { value: option, text: cleanOptionDisplayText(option) };
   return {
     value: option.value ?? "",
-    text: option.text ?? option.label_en ?? option.label_zh ?? option.official_label ?? option.value ?? "",
+    text: cleanOptionDisplayText(option.text ?? option.label_en ?? option.label_zh ?? option.official_label ?? option.value ?? ""),
   };
 }
 

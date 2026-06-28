@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 import "dotenv/config";
-import { runPhEtravelPortalSubmission } from "../src/ph-etravel/runner";
+import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "../src/ph-etravel/runner";
 import type { PhEtravelPortalPayload } from "../src/ph-etravel/normalize";
 
 function isoDatePlus(days: number): string {
@@ -65,6 +65,20 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
+  if (
+    stopBeforeSubmit &&
+    error instanceof PhEtravelPortalError &&
+    error.code === "ph_etravel_stopped_before_submit"
+  ) {
+    console.log(JSON.stringify({
+      status: "stopped_before_submit",
+      code: error.code,
+      screenshots: error.screenshotPaths,
+      portalSummary: error.portalSummary,
+    }, null, 2));
+    return;
+  }
+
   console.error(error instanceof Error ? error.stack ?? error.message : String(error));
   if (typeof error === "object" && error !== null) {
     const details = error as { code?: string; screenshotPaths?: string[]; portalSummary?: string };
