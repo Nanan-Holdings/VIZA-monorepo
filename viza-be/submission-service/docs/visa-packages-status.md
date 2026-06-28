@@ -25,7 +25,7 @@ Tracks the development phase of each visa package across two axes:
 | France Schengen | 4 | 12 steps | Full + optional finalize | Yes — `applicationReference` (FRA-format) + optional CERFA PDF | None — production |
 | Australia (Subclass 600) | 3 | 13 steps | 20-page form walk, stops at Review | TRN captured, no post-sign callback | Post-sign submission + callback |
 | Vietnam (e-visa) | 3 | 12 steps | Full fill, stops before Pay | `registrationCode` captured pre-pay | External payment + email-PDF capture loop |
-| UK (Standard Visitor) | 2 | 11 steps | Pre-auth only — language→country→VAC→start→registration | No | Post-auth form selectors not yet mapped |
+| UK (Standard Visitor) | 3 | 11 steps | Resume flow fills all 44 post-auth pages, halts at declaration/£135 pay | Reference captured at declaration, no post-pay callback | Account provisioning at scale + wizard field coverage + applicant pay handoff |
 | Italy-VFS-CN (Schengen) | 1 | Reuses Schengen wizard | Selectors + errors only — no `run.ts` | No | Orchestrator + live walk deferred |
 | Egypt | 0–1 | None | Phase-A read-only recon helper | No | Wizard + authenticated automation (needs preregistered account) |
 | Indonesia | 0 | None | None — scope/gap/recon docs only | No | Wizard + backend module |
@@ -59,11 +59,11 @@ Tracks the development phase of each visa package across two axes:
 - Backend: `viza-be/submission-service/src/vietnam/run.ts` — `fillVietnamApplication()` drives Vue SPA, fills every `VN_FIELD_MAPPINGS` entry, deliberately halts before Pay/Submit. Returns `FillVietnamResult { status: "scaffolded_pending_walk" | "submitted_pending_pay", registrationCode?, submittedAtIso?, fieldsFilled, fieldsSkipped }`.
 - Gap: external-payment loop. E-visa PDF arrives by email ~3 working days after payment — needs ingestion job. Reports: `docs/vietnam-visa-gap-report.md`, `docs/vietnam-visa-qa-report-2026-04-24.md`.
 
-### UK — Standard Visitor — Phase 2
+### UK — Standard Visitor — Phase 3
 
 - Wizard: `viza-fe/internal-website/components/client/wizards/uk/config.ts` — 11 steps (purpose, personal, passport, contact, ukvi, trip_dates, uk_address, employment, history, funding, declaration). 180-day max stay; UKVI account check; criminal/terrorism/visa-refusal declarations.
-- Backend: `viza-be/submission-service/src/uk/orchestrator.ts` — walks language → country → VAC → visa-type-start → registration, stops at registration page. Returns `UkOrchestrateResult { handoffReady: false, reason: "Post-auth selectors not yet mapped" }`. Field selectors harvested via `uk/form-recon.ts` but not integrated.
-- Gap: post-auth 222-field form mapping + submit. Reports: `docs/uk-visa-gap-report.md`, `docs/uk-standard-visitor-walk-report.md`, `docs/uk-visa-recon-2026-04-24.json`, `docs/uk-visa-recon-2026-04-25.json`, `docs/prd-uk-package-assignment.md`.
+- Backend: `src/uk/resume.ts` `resumeUkApplication()` signs into the saved-application (email+password) resume URL, walks all 44 post-auth pages via `page-bindings.ts` fillers (incl. `immigrationStatus`), ticks Documents + Declaration acknowledgements, and halts before `/pay` (`status: "stopped_at_pay"`). `src/uk/normalize.ts` `normalizeUkAnswers()` translates the wizard answer shape → the seed wire-shape the fillers consume (mirrors `france-visas/normalize.ts`); wired into `runUkHalt` (`src/queue/halt-runners.ts`). `src/uk/orchestrator.ts` remains the pre-auth prover (language → country → VAC → start → registration). Account provisioning: `src/uk/register.ts` fills the email+password "save your answers" page and captures the emailed resume link into `uk_accounts` (gated by `UK_REGISTER_COMMIT`).
+- Gap: declaration + £135 Worldpay are intentionally left to the applicant (legal attestation + their card) — surface the resume link + reference in the client UI; widen wizard field coverage so fewer pages are left blank for review; account provisioning throughput. Reports: `docs/uk-auto-submit-plan.md`, `docs/uk-visa-gap-report.md`, `docs/uk-standard-visitor-walk-report.md`, `docs/uk-visa-recon-2026-04-25.json`.
 
 ### Italy-VFS-CN (Schengen via VFS Global) — Phase 1
 

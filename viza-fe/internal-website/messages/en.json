@@ -1296,6 +1296,11 @@
           "title": "Travel & visa history",
           "subtitle": "Past UK visits and any prior visa refusals."
         },
+        "background": {
+          "label": "Visit details",
+          "title": "Your visit & connections",
+          "subtitle": "What you'll do in the UK and who you're connected to."
+        },
         "funding": {
           "label": "Funds",
           "title": "Trip funding",
@@ -1320,6 +1325,7 @@
         "ukAddress": "UK address",
         "employment": "Employment",
         "history": "History",
+        "background": "Visit details",
         "funding": "Funds",
         "declaration": "Declarations"
       },
@@ -1383,6 +1389,11 @@
         "hasBeenRefusedUkVisa": "Have you ever been refused a UK visa?",
         "ukRefusalExplanation": "Briefly explain the refusal",
         "hasBeenRefusedOtherVisa": "Have you been refused a visa for any other country?",
+        "visitActivitiesDescription": "What do you plan to do during your visit?",
+        "hasFamilyInUk": "Do you have any family in the UK?",
+        "hasFinancialDependants": "Does anyone depend on you financially?",
+        "travellingInOrganisedGroup": "Are you travelling as part of an organised group?",
+        "travellingWithNonPartner": "Are you travelling with someone who isn't your partner or dependant?",
         "fundingSource": "Trip funding source",
         "sponsorName": "Sponsor name",
         "sponsorNamePlaceholder": "Full legal name",
