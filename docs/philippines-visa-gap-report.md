@@ -1,91 +1,41 @@
-# Philippines 9(a) + eTravel Gap Report — v1
+# Philippines Visa + eTravel Gap Report - v2
 
-**Version:** 1.0
-**Status:** v1 schema shipped
-**Created:** 2026-04-29
-
----
+**Version:** 2.0  
+**Status:** Split package model implemented  
+**Updated:** 2026-06-28
 
 ## 1. Coverage Summary
 
-`PH_TEMPORARY_VISITOR_VISA` registered with:
+`PH_TEMPORARY_VISITOR_VISA` remains the Philippines 9(a) visa package.
 
-- 8 logical steps
-- ~75 fields
-- 11+ conditional gates, 3 repeat groups
-- 4 submission variants (eTravel-only, 9(a) single, 9(a) multi-6mo,
-  9(a) multi-1y)
+`PH_ETRAVEL_ARRIVAL_CARD` is a new standalone arrival-card package with dedicated schema seed, frontend entry route, queue statuses, 72-hour scheduling, cancellation support, RAG guidance, and submission-service normalization/runner scaffold.
 
-PH-specific: 4-variant routing, comprehensive PH port-of-entry list,
-mandatory flight-number field (eTravel requirement).
-
----
-
-## 2. Schema vs. Live-Portal Parity Status
+## 2. Current eTravel Status
 
 | Concern | Status |
-|---------|--------|
-| Field labels match BI/DFA + eTravel guidance | ✅ |
-| Field labels match live eTravel | ⚠️ Pending live QA (easy) |
-| 9(a) field set matches consular paper form | ⚠️ Pending QA |
-| Date format | ✅ DD/MM/YYYY |
-| Document upload | ❌ Out-of-schema |
-| Submission automation | ❌ Out-of-scope v1 (eTravel strong candidate) |
+| --- | --- |
+| Separate package from 9(a) visa | Complete |
+| Form seed and bilingual labels | Complete |
+| Frontend arrival-card route | Complete |
+| Queue/provider/cancel statuses | Complete |
+| 72-hour scheduled window | Complete |
+| Submission-service normalize test | Complete |
+| Official portal runner | Scaffolded; defaults to stop-before-submit and refuses fake success |
+| Final-submit selector mapping | Open |
+| Official QR/reference artifact capture | Required before marking live success |
 
----
+## 3. Open Items
 
-## 3. Conditional-Logic Status
+1. Complete official eTravel selector mapping through final confirmation.
+2. Validate CAPTCHA/WAF behavior with Browser API/CDP or TWOCAPTCHA if encountered.
+3. Run real-data `--submit` only when the applicant details are available and the operator intends final official submission.
+4. Preserve QR/reference, final page screenshot/download, and portal response summary after success.
 
-`===` only.
+## 4. Reviewer Checklist
 
----
-
-## 4. Document Uploads
-
-- Passport biographic page
-- Recent photograph (passport-size)
-- Hotel / itinerary
-- Return ticket
-- Financial proof
-- Sponsor invitation letter (where applicable)
-
----
-
-## 5. Submission Automation
-
-eTravel: publicly accessible, strong Playwright runner candidate.
-9(a): paper-only, automation = PDF render mirroring JP_TOURIST.
-
----
-
-## 6. Top Open Items
-
-1. **eTravel live-portal QA pass** — easy.
-2. **eTravel Playwright runner** — high ROI.
-3. **9(a) PDF render** — mirror JP_TOURIST pipeline.
-
----
-
-## 7. Reviewer Checklist
-
-- [ ] Seed run: `Done: N rows seeded (N defined)` matches
-- [ ] `npm run type-check` passes
-- [ ] Migration `0037_ph_temporary_visitor_visa_package.sql` applies
-- [ ] All 8 steps render via `DynamicStepForm`
-- [ ] All 4 visa_type_requested variants visible
-
----
-
-## 8. Open Items / Future Work
-
-| Item | Priority | Effort |
-|------|----------|--------|
-| eTravel live-portal QA pass | High | XS |
-| eTravel Playwright runner | High | M |
-| 9(a) PDF render | Med | L |
-| `PH_SRRV` package | Low | L |
-| `PH_9G_PRE_ARRANGED_EMPLOYEE` | Low | L |
-
----
-
-**Maintainer:** Edward Zehua Zhang
+- [ ] Agent backend type-check/lint pass.
+- [ ] Frontend type-check/lint pass.
+- [ ] Submission service type-check pass.
+- [ ] PH eTravel normalize test passes.
+- [ ] Frontend `/client/arrival-cards/philippines` redirects to long-form with `PH_ETRAVEL_ARRIVAL_CARD`.
+- [ ] Live submit is not marked successful without official QR/reference evidence.

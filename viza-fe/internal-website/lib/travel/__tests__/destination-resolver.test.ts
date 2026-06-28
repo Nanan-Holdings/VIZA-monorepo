@@ -206,4 +206,40 @@ describe("travel destination resolver", () => {
       );
     }
   });
+
+  it("keeps origin cities out of destination candidates and extracts trip slots", () => {
+    const prompt =
+      "我想去洛杉矶玩3天，预算60000，从长沙出发，2个人，帮我规划一下旅行计划";
+    const intent = parseTravelIntent(prompt);
+
+    expect(intent.destinations.map((destination) => destination.canonicalName)).toEqual([
+      "Los Angeles",
+    ]);
+    expect(intent.duration?.minDays).toBe(3);
+    expect(intent.travelers).toBe(2);
+    expect(intent.budget).toBe(60000);
+
+    const resolution = resolveLocalDestinationText(prompt);
+    expect(resolution.status).toBe("resolved");
+    if (resolution.status === "resolved") {
+      expect(
+        resolution.destinations.map((destination) => destination.canonicalName)
+      ).toEqual(["Los Angeles"]);
+      const payload = buildTravelCandidatePayload(
+        resolution.destinations,
+        prompt
+      );
+      expect(payload).toMatchObject({
+        cities: ["Los Angeles"],
+        travel_days: 3,
+        travelers: 2,
+        budget: 60000,
+        origin_country: "China",
+        origin_city: "Changsha",
+        return_country: "China",
+        return_city: "Changsha",
+        destination_confirmed: true,
+      });
+    }
+  });
 });

@@ -74,6 +74,7 @@ import {
   isDigitalArrivalCardApplication,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
+  isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
   isVietnamEVisaApplication,
@@ -119,7 +120,10 @@ const MDAC_LIVE_ASSISTED_ENABLED =
 const TDAC_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_TDAC_LIVE_SUBMISSION_ENABLED !== "false";
 
-type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | null;
+const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+
+type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | "phetravel" | null;
 
 interface VisibleDynamicStep {
   step: WizardStep;
@@ -142,6 +146,9 @@ const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Stay in Malaysia": "在马来西亚停留",
   "Stay in Thailand": "在泰国停留",
   "Health Declaration": "健康申报",
+  "eTravel Scope": "eTravel 范围",
+  "Customs Declaration": "海关申报",
+  "Declaration": "声明确认",
 };
 
 type StepSectionKey = ApplicationStepSectionKey;
@@ -187,7 +194,8 @@ function localizeDynamicStepName(
     options.isZhInterface &&
     (options.visaType === "SG_ARRIVAL_CARD" ||
       options.visaType === "MY_MDAC_ARRIVAL_CARD" ||
-      options.visaType === "TH_TDAC_ARRIVAL_CARD")
+      options.visaType === "TH_TDAC_ARRIVAL_CARD" ||
+      options.visaType === "PH_ETRAVEL_ARRIVAL_CARD")
   ) {
     return ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
@@ -837,6 +845,7 @@ function FinalConfirmationPanel({
   const isSgac = liveAssistedTarget === "sgac";
   const isMdac = liveAssistedTarget === "mdac";
   const isTdac = liveAssistedTarget === "tdac";
+  const isPhEtravel = liveAssistedTarget === "phetravel";
   const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
@@ -861,6 +870,10 @@ function FinalConfirmationPanel({
                 ? (isZh
                     ? "本地 Thailand TDAC live handoff 已关闭。请确认 TDAC_LIVE_SUBMISSION_ENABLED。"
                     : "Thailand TDAC live handoff is disabled locally. Check TDAC_LIVE_SUBMISSION_ENABLED.")
+                : isPhEtravel
+                  ? (isZh
+                      ? "本地 Philippines eTravel live handoff 已关闭。请确认 PH_ETRAVEL_LIVE_SUBMISSION_ENABLED。"
+                      : "Philippines eTravel live handoff is disabled locally. Check PH_ETRAVEL_LIVE_SUBMISSION_ENABLED.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -895,9 +908,13 @@ function FinalConfirmationPanel({
             ? (isZh
                 ? "提交后会创建 Thailand TDAC 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方参考号和确认文件。"
                 : "Submitting creates a Thailand TDAC official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official reference, and confirmation evidence.")
-      : (isZh
-          ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
-          : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
+            : isPhEtravel
+              ? (isZh
+                  ? "提交后会创建 Philippines eTravel 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方 QR / 参考号和确认证据。"
+                  : "Submitting creates a Philippines eTravel official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official QR/reference, and confirmation evidence.")
+              : (isZh
+                  ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
+                  : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
 
   return (
     <div className="space-y-6">
@@ -1429,6 +1446,7 @@ export default function ApplicationPage() {
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
+  const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -1441,6 +1459,8 @@ export default function ApplicationPage() {
             ? "mdac"
             : isThailandTdac
               ? "tdac"
+              : isPhilippinesEtravel
+                ? "phetravel"
               : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
@@ -1454,6 +1474,8 @@ export default function ApplicationPage() {
             ? MDAC_LIVE_ASSISTED_ENABLED
             : liveAssistedTarget === "tdac"
               ? TDAC_LIVE_ASSISTED_ENABLED
+              : liveAssistedTarget === "phetravel"
+                ? PH_ETRAVEL_LIVE_ASSISTED_ENABLED
           : false;
 
   useEffect(() => {

@@ -105,6 +105,26 @@ describe("queueStatusForVisaType", () => {
     expect(submitModeForPrimaryApplicationAction("thailand", "TH_TDAC_ARRIVAL_CARD")).toBe("live_assisted");
   });
 
+  it("routes Philippines eTravel standalone arrival cards to live official runners", () => {
+    expect(isDigitalArrivalCardApplication("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe(true);
+    expect(queueStatusForApplication("philippines", "PH_ETRAVEL_ARRIVAL_CARD", "dry_run")).toBe(
+      "phetravel_dry_run_pending",
+    );
+    expect(queueStatusForApplication("PH", "PH_ETRAVEL_ARRIVAL_CARD", "live_assisted")).toBe(
+      "phetravel_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("philippines", "PH_ETRAVEL_ARRIVAL_CARD", "dry_run")).toBe(
+      "philippines_etravel_dry_run",
+    );
+    expect(queueProviderForApplication("philippines", "PH_ETRAVEL_ARRIVAL_CARD", "live_assisted")).toBe(
+      "philippines_etravel_live",
+    );
+    expect(submitModeForPrimaryApplicationAction("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("live_assisted");
+    expect(queueStatusForApplication("philippines", "PH_TEMPORARY_VISITOR_VISA", "live_assisted")).not.toBe(
+      "phetravel_live_assisted_pending",
+    );
+  });
+
   it("allows legacy queue inserts for live France and SGAC retry rows when Supabase cache lacks live columns", () => {
     const schemaCacheError = {
       code: "PGRST204",

@@ -110,6 +110,11 @@ filling and one-shot submission for the applicant.
   `TH_TDAC_ARRIVAL_CARD` answers only, keeps TDAC separate from Thailand eVisa,
   dispatches through the official TDAC portal, and captures confirmation/error
   evidence artifacts.
+- `src/ph-etravel/**`: Philippines eTravel arrival-card runner. Normalizes
+  `PH_ETRAVEL_ARRIVAL_CARD` answers only, keeps eTravel separate from
+  `PH_TEMPORARY_VISITOR_VISA`, respects the 72-hour official window, defaults
+  smoke/live runs to stop-before-submit, and must capture QR/reference evidence
+  before marking success.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
@@ -166,6 +171,7 @@ filling and one-shot submission for the applicant.
 | Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
 | Malaysia MDAC | Live dispatch + portal evidence | Dry-run validates `MY_MDAC_ARRIVAL_CARD`; live worker dispatches to the official MDAC portal and records exact portal block/error evidence. Current official-form completion depends on MDAC portal reachability from the runner network/session. |
 | Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
+| Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
@@ -211,6 +217,7 @@ npm run vn:smoke
 # Public arrival-card forms; stop before final Submit unless --submit is passed:
 npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts
+npx tsx scripts/run-ph-etravel-smoke.ts
 # UK recon/pre-auth walk:
 npx ts-node scripts/walk-uk-portal.ts
 ```

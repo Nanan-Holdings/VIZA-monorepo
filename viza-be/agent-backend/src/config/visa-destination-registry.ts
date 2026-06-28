@@ -134,7 +134,9 @@ export const VISA_DESTINATION_REGISTRY: Record<
   netherlands: destination('netherlands', 'Netherlands', ['荷兰', 'netherlands', 'holland', 'amsterdam', '阿姆斯特丹'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   new_zealand: destination('new_zealand', 'New Zealand', ['新西兰', 'new zealand', 'auckland', 'queenstown', '奥克兰', '皇后镇'], 'visitor_visa'),
   norway: destination('norway', 'Norway', ['挪威', 'norway', 'oslo', 'bergen', '奥斯陆', '卑尔根'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
-  philippines: destination('philippines', 'Philippines', ['菲律宾', 'philippines', 'manila', 'cebu', '马尼拉', '宿务'], 'visa_free_14_days_or_evisa'),
+  philippines: destination('philippines', 'Philippines', ['菲律宾', 'philippines', 'manila', 'cebu', '马尼拉', '宿务', 'etravel', 'philippines etravel', 'philippines arrival card'], 'PH_ETRAVEL_ARRIVAL_CARD', {
+    supportedVisaTypes: ['PH_ETRAVEL_ARRIVAL_CARD', 'PH_TEMPORARY_VISITOR_VISA', 'visa_free_14_days_or_evisa'],
+  }),
   poland: destination('poland', 'Poland', ['波兰', 'poland', 'warsaw', 'krakow', '华沙', '克拉科夫'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   portugal: destination('portugal', 'Portugal', ['葡萄牙', 'portugal', 'lisbon', 'porto', '里斯本', '波尔图'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   qatar: destination('qatar', 'Qatar', ['卡塔尔', 'qatar', 'doha', '多哈', 'hayya'], 'hayya_a1_tourist_visa'),

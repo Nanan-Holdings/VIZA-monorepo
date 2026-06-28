@@ -90,4 +90,30 @@ describe("travel negative command handling", () => {
       "invalid_or_unrelated"
     );
   });
+
+  it("chat API parses a full Chinese planning prompt without turning origin into a destination", async () => {
+    const response = await postTravelChat(
+      travelChatRequest(
+        "我想去洛杉矶玩3天，预算60000，从长沙出发，2个人，帮我规划一下旅行计划"
+      )
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.cards.map((card: { city?: string }) => card.city)).toEqual([
+      "Los Angeles",
+    ]);
+    expect(payload.quick_replies).toEqual([]);
+    expect(payload.candidate_payload).toMatchObject({
+      cities: ["Los Angeles"],
+      travel_days: 3,
+      travelers: 2,
+      budget: 60000,
+      origin_country: "China",
+      origin_city: "Changsha",
+      return_country: "China",
+      return_city: "Changsha",
+      destination_confirmed: true,
+    });
+  });
 });

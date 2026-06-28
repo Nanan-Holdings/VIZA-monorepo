@@ -18,6 +18,7 @@
     "inbox:smoke": "ts-node scripts/inbox-smoke.ts",
     "au:smoke": "ts-node scripts/run-au-smoke.ts",
     "mdac:smoke": "tsx scripts/run-mdac-smoke.ts",
+    "ph-etravel:smoke": "tsx scripts/run-ph-etravel-smoke.ts",
     "tdac:smoke": "tsx scripts/run-tdac-smoke.ts",
     "vn:smoke": "ts-node scripts/run-vn-smoke.ts",
     "vn:card:setup": "powershell -ExecutionPolicy Bypass -File scripts/setup-vn-card-profile.ps1",

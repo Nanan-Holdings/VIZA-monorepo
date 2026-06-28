@@ -13,6 +13,10 @@ const ARRIVAL_CARD_CONFIG = {
     country: "thailand",
     errorName: "Thailand TDAC",
   },
+  PH_ETRAVEL_ARRIVAL_CARD: {
+    country: "philippines",
+    errorName: "Philippines eTravel",
+  },
 } as const;
 
 const REUSABLE_ANSWER_KEYS = [

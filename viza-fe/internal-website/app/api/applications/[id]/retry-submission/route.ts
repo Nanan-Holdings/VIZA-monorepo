@@ -11,6 +11,7 @@ import {
   isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
   isMalaysiaMdacApplication,
+  isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
   isVietnamEVisaApplication,
@@ -1094,6 +1095,87 @@ async function decideTdacLiveSchedule(input: {
   };
 }
 
+async function decidePhEtravelLiveSchedule(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  applicationId: string;
+  application: ApplicationForRetry;
+  now: string;
+}): Promise<SgacScheduleDecision> {
+  const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
+  if (dates.error) {
+    return { action: "reject", status: 500, code: "phetravel_date_load_failed", message: dates.error };
+  }
+
+  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  if (!travelDates.ok) {
+    return {
+      action: "reject",
+      status: 422,
+      code: `phetravel_${travelDates.code}`,
+      message: travelDates.message.replaceAll("SGAC", "Philippines eTravel"),
+    };
+  }
+
+  const window = evaluateSgacSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  if (window.status === "invalid") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "phetravel_invalid_arrival_date",
+      message: "Philippines eTravel arrival date must use YYYY-MM-DD.",
+    };
+  }
+  if (window.status === "past") {
+    return {
+      action: "reject",
+      status: 422,
+      code: "phetravel_arrival_date_past",
+      message: "Philippines eTravel arrival date is already in the past. Please update the travel dates before submitting.",
+    };
+  }
+  if (window.status === "scheduled") {
+    const result = {
+      country: "PH",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      status: "scheduled",
+      mode: "live_assisted",
+      provider: "philippines_etravel_live",
+      applicationId: input.applicationId,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: "https://etravel.gov.ph",
+      portalResponseSummary:
+        `Philippines eTravel accepts submissions within 72 hours before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+      scheduledFor: window.earliestSubmissionDate,
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: {
+        arrivalDate: travelDates.arrivalDate,
+        departureDate: travelDates.departureDate,
+        modeOfTravel: null,
+        transportNumber: null,
+        accommodationAddressProvided: false,
+      },
+    };
+    return {
+      action: "schedule",
+      arrivalDate: travelDates.arrivalDate,
+      departureDate: travelDates.departureDate,
+      earliestSubmissionDate: window.earliestSubmissionDate,
+      daysUntilOpen: window.daysUntilOpen,
+      result,
+    };
+  }
+
+  return {
+    action: "submit",
+    arrivalDate: travelDates.arrivalDate,
+    departureDate: travelDates.departureDate,
+  };
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -1325,6 +1407,28 @@ export async function POST(
         scheduledFor = scheduleDecision.earliestSubmissionDate;
       }
     }
+    if (isPhilippinesEtravelApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const scheduleDecision = await decidePhEtravelLiveSchedule({
+        admin,
+        applicationId,
+        application: ownedApplication,
+        now,
+      });
+      if (scheduleDecision.action === "reject") {
+        return NextResponse.json(
+          {
+            error: scheduleDecision.message,
+            code: scheduleDecision.code,
+          },
+          { status: scheduleDecision.status },
+        );
+      }
+      if (scheduleDecision.action === "schedule") {
+        queueStatus = "phetravel_live_assisted_scheduled";
+        scheduledResult = scheduleDecision.result;
+        scheduledFor = scheduleDecision.earliestSubmissionDate;
+      }
+    }
   }
 
   const { error: supersedeError } = await admin
@@ -1353,6 +1457,8 @@ export async function POST(
           ? "scheduled_for_mdac_window"
           : queueStatus === "tdac_live_assisted_scheduled"
             ? "scheduled_for_tdac_window"
+            : queueStatus === "phetravel_live_assisted_scheduled"
+              ? "scheduled_for_phetravel_window"
             : null,
   });
   if (queueResult.error) {

@@ -278,6 +278,13 @@ function isVietnamOfficialImageRequirement(requirement: DocumentRequirement): bo
 function formatUploadError(error: unknown, isZh: boolean): string {
   const message = error instanceof Error ? error.message : "";
   const normalized = message.toLowerCase();
+  const userFixableUploadMessage =
+    message.includes("上传的图片需要修改：") ||
+    message.includes("证件照环节：") ||
+    message.includes("护照资料页环节：") ||
+    message.includes("越南 e-Visa 官网");
+
+  if (userFixableUploadMessage) return message.trim();
 
   if (normalized.includes("bucket") && normalized.includes("not found")) {
     return isZh
@@ -305,6 +312,26 @@ function formatUploadError(error: unknown, isZh: boolean): string {
   return isZh
     ? "上传失败：请稍后重试，或打开控制台查看详细错误信息。"
     : "Upload failed. Please try again later or check the console for details.";
+}
+
+function FormattedErrorText({ error }: { error: string }) {
+  const lines = error
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length <= 1) return <span>{error}</span>;
+
+  return (
+    <div className="space-y-2">
+      <p className="font-medium">{lines[0]}</p>
+      <ul className="list-disc space-y-1 pl-5">
+        {lines.slice(1).map((line) => (
+          <li key={line}>{line.replace(/^-\s*/u, "")}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function isRejectedStatus(status: string): boolean {
@@ -1410,7 +1437,7 @@ export function DocumentCenterClient({
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <div className="flex items-start gap-2">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{error}</span>
+            <FormattedErrorText error={error} />
           </div>
         </div>
       )}

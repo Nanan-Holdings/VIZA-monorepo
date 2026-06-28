@@ -143,9 +143,12 @@ function normaliseOptions(
     if (typeof o === "string") return { value: o, text: o };
     if (typeof o === "object" && o !== null) {
       const obj = o as { value?: string; text?: string; label_en?: string; label_zh?: string; official_label?: string };
+      const text = side === "zh"
+        ? obj.label_zh ?? obj.text ?? obj.label_en ?? obj.official_label ?? obj.value ?? ""
+        : obj.label_en ?? obj.text ?? obj.official_label ?? obj.value ?? "";
       return {
         value: obj.value ?? "",
-        text: obj.text ?? (side === "zh" ? obj.label_zh : obj.label_en) ?? obj.official_label ?? obj.value ?? "",
+        text,
       };
     }
     return { value: String(o), text: String(o) };

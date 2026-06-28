@@ -72,6 +72,15 @@ export type SubmissionQueueStatus =
   | "tdac_live_assisted_failed"
   | "tdac_live_assisted_cancelled"
   | "tdac_blocked"
+  | "phetravel_dry_run_pending"
+  | "phetravel_dry_run_processing"
+  | "phetravel_dry_run_failed"
+  | "phetravel_live_assisted_pending"
+  | "phetravel_live_assisted_scheduled"
+  | "phetravel_live_assisted_processing"
+  | "phetravel_live_assisted_failed"
+  | "phetravel_live_assisted_cancelled"
+  | "phetravel_blocked"
   | "au_prefill_pending"
   | "au_prefill_processing"
   | "au_prefilled"
@@ -132,6 +141,15 @@ const THAILAND_TDAC_TYPES = new Set([
   "TH_TDAC_ARRIVAL_CARD",
 ]);
 
+const PHILIPPINES_COUNTRY_ALIASES = new Set([
+  "PH",
+  "PHILIPPINES",
+]);
+
+const PHILIPPINES_ETRAVEL_TYPES = new Set([
+  "PH_ETRAVEL_ARRIVAL_CARD",
+]);
+
 export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "pending",
   "processing",
@@ -167,6 +185,11 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "tdac_live_assisted_pending",
   "tdac_live_assisted_scheduled",
   "tdac_live_assisted_processing",
+  "phetravel_dry_run_pending",
+  "phetravel_dry_run_processing",
+  "phetravel_live_assisted_pending",
+  "phetravel_live_assisted_scheduled",
+  "phetravel_live_assisted_processing",
   "vn_prefill_pending",
   "vn_prefill_processing",
   "vn_payment_pending",
@@ -203,6 +226,10 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "tdac_live_assisted_failed",
   "tdac_live_assisted_cancelled",
   "tdac_blocked",
+  "phetravel_dry_run_failed",
+  "phetravel_live_assisted_failed",
+  "phetravel_live_assisted_cancelled",
+  "phetravel_blocked",
   "vn_prefill_failed",
   "vn_payment_failed",
   "vn_blocked",
@@ -266,6 +293,16 @@ export function isThailandTdacApplication(
   );
 }
 
+export function isPhilippinesEtravelApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    PHILIPPINES_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    PHILIPPINES_ETRAVEL_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
 export function isDigitalArrivalCardApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
@@ -273,7 +310,8 @@ export function isDigitalArrivalCardApplication(
   return (
     isSgArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
-    isThailandTdacApplication(country, visaType)
+    isThailandTdacApplication(country, visaType) ||
+    isPhilippinesEtravelApplication(country, visaType)
   );
 }
 
@@ -303,6 +341,8 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
       return "mdac_dry_run_pending";
     case "TH_TDAC_ARRIVAL_CARD":
       return "tdac_dry_run_pending";
+    case "PH_ETRAVEL_ARRIVAL_CARD":
+      return "phetravel_dry_run_pending";
     case "AU_VISITOR_600":
       return "au_prefill_pending";
     default:
@@ -340,6 +380,9 @@ export function queueStatusForApplication(
   if (isThailandTdacApplication(country, visaType)) {
     return mode === "live_assisted" ? "tdac_live_assisted_pending" : "tdac_dry_run_pending";
   }
+  if (isPhilippinesEtravelApplication(country, visaType)) {
+    return mode === "live_assisted" ? "phetravel_live_assisted_pending" : "phetravel_dry_run_pending";
+  }
 
   return queueStatusForSubmissionMode(visaType, mode);
 }
@@ -363,6 +406,9 @@ export function queueProviderForVisaType(
   if (THAILAND_TDAC_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted" ? "thailand_tdac_live" : "thailand_tdac_dry_run";
   }
+  if (PHILIPPINES_ETRAVEL_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
+  }
   return null;
 }
 
@@ -382,6 +428,9 @@ export function queueProviderForApplication(
   }
   if (isThailandTdacApplication(country, visaType)) {
     return mode === "live_assisted" ? "thailand_tdac_live" : "thailand_tdac_dry_run";
+  }
+  if (isPhilippinesEtravelApplication(country, visaType)) {
+    return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
   }
   return queueProviderForVisaType(visaType, mode);
 }
@@ -429,7 +478,9 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "mdac_live_assisted_pending" ||
     input.queueStatus === "mdac_live_assisted_scheduled" ||
     input.queueStatus === "tdac_live_assisted_pending" ||
-    input.queueStatus === "tdac_live_assisted_scheduled"
+    input.queueStatus === "tdac_live_assisted_scheduled" ||
+    input.queueStatus === "phetravel_live_assisted_pending" ||
+    input.queueStatus === "phetravel_live_assisted_scheduled"
   );
 }
 
