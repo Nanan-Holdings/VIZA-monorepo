@@ -397,6 +397,9 @@ function SearchableMultiSelectControl({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const lockedScrollYRef = useRef(0);
+  const touchStartYRef = useRef<number | null>(null);
   const selectedValues = useMemo(() => parseMultiSelectValue(value), [value]);
   const selectedSet = useMemo(() => new Set(selectedValues.map((item) => item.toLowerCase())), [selectedValues]);
   const selectedOptions = options.filter((option) => selectedSet.has(option.value.toLowerCase()));

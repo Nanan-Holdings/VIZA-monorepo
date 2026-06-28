@@ -117,8 +117,12 @@ filling and one-shot submission for the applicant.
 - `src/ph-etravel/**`: Philippines eTravel arrival-card runner. Normalizes
   `PH_ETRAVEL_ARRIVAL_CARD` answers only, keeps eTravel separate from
   `PH_TEMPORARY_VISITOR_VISA`, respects the 72-hour official window, defaults
-  smoke/live runs to stop-before-submit, and must capture QR/reference evidence
-  before marking success.
+  smoke/live runs to stop-before-submit, clicks into the official eTravel login
+  path when live submission is explicitly enabled, and must capture
+  QR/reference evidence before marking success. Local VIZA portal credentials
+  are not official eTravel credentials; use `PH_ETRAVEL_ACCOUNT_EMAIL` /
+  `PH_ETRAVEL_ACCOUNT_PASSWORD` or a local `PH_ETRAVEL_CDP_ENDPOINT` session
+  that is already authorized for the official portal.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
