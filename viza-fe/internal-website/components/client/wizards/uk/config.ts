@@ -96,6 +96,18 @@ const HISTORY_FIELDS: GenericField[] = [
   { kind: "yesno", key: "has_been_refused_other_visa", labelKey: "fields.hasBeenRefusedOtherVisa" },
 ];
 
+// Extra UKVI questions the gov.uk form asks that aren't covered elsewhere.
+// Field keys deliberately match the seed field_names the submission-service
+// page-bindings fillers consume, so normalizeUkAnswers passes them straight
+// through (familyInUk, hasDependants, travellingWithOtherPeople, …).
+const BACKGROUND_FIELDS: GenericField[] = [
+  { kind: "textarea", key: "visit_activities_description", labelKey: "fields.visitActivitiesDescription" },
+  { kind: "yesno", key: "has_family_in_uk", labelKey: "fields.hasFamilyInUk" },
+  { kind: "yesno", key: "has_financial_dependants", labelKey: "fields.hasFinancialDependants" },
+  { kind: "yesno", key: "travelling_in_organised_group", labelKey: "fields.travellingInOrganisedGroup" },
+  { kind: "yesno", key: "travelling_with_non_partner", labelKey: "fields.travellingWithNonPartner" },
+];
+
 // Bespoke step inputs ---------------------------------------------------------
 
 const PURPOSE_OPTIONS: PurposeOption[] = [
@@ -165,6 +177,7 @@ const STEP_FIELD_MAP: Record<string, GenericField[]> = {
   uk_address: UK_ADDRESS_FIELDS,
   employment: EMPLOYMENT_FIELDS,
   history: HISTORY_FIELDS,
+  background: BACKGROUND_FIELDS,
 };
 
 function camelCase(s: string): string {
@@ -186,6 +199,7 @@ function reviewSections(form: UkForm): WizardReviewSection[] {
     { titleKey: "review.ukAddress", editStepKey: "uk_address", rows: fieldRows(form, UK_ADDRESS_FIELDS.map((f) => f.key)) },
     { titleKey: "review.employment", editStepKey: "employment", rows: fieldRows(form, EMPLOYMENT_FIELDS.map((f) => f.key)) },
     { titleKey: "review.history", editStepKey: "history", rows: fieldRows(form, HISTORY_FIELDS.map((f) => f.key)) },
+    { titleKey: "review.background", editStepKey: "background", rows: fieldRows(form, BACKGROUND_FIELDS.map((f) => f.key)) },
     { titleKey: "review.funding", editStepKey: "funding", rows: fieldRows(form, FUNDING_KEYS) },
     { titleKey: "review.declaration", editStepKey: "declaration", rows: fieldRows(form, DECLARATION_KEYS) },
   ];
@@ -280,6 +294,7 @@ export const ukConfig: WizardConfig<UkForm> = {
     genericStep("uk_address", "uk_address"),
     genericStep("employment", "employment"),
     genericStep("history", "history"),
+    genericStep("background", "background"),
     {
       key: "funding",
       titleKey: "steps.funding.label",
