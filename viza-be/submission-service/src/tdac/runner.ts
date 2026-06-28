@@ -526,6 +526,64 @@ async function selectMatSelect(
   logs.push(`tdac_selected_mat ${selector}`);
 }
 
+async function fillVisibleInputNearMatSelect(
+  page: Page,
+  selector: string,
+  value: string,
+  logs: string[],
+  label: string,
+): Promise<void> {
+  await page.locator(selector).first().waitFor({ state: "attached", timeout: 10_000 });
+  const filled = await page.evaluate(
+    ({ targetSelector, nextValue }) => {
+      const select = document.querySelector<HTMLElement>(targetSelector);
+      if (!select) return false;
+      const selectRect = select.getBoundingClientRect();
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea"));
+      const candidates = inputs
+        .filter((input) => {
+          const rect = input.getBoundingClientRect();
+          const style = window.getComputedStyle(input);
+          const type = input instanceof HTMLInputElement ? input.type : "textarea";
+          if (type === "hidden") return false;
+          if (input.disabled || input.readOnly) return false;
+          if (style.visibility === "hidden" || style.display === "none" || style.pointerEvents === "none") return false;
+          if (rect.width <= 0 || rect.height <= 0) return false;
+          if (rect.top < selectRect.top - 24 || rect.top > selectRect.bottom + 96) return false;
+          if (rect.left < selectRect.left - 8) return false;
+          return true;
+        })
+        .sort((left, right) => {
+          const leftRect = left.getBoundingClientRect();
+          const rightRect = right.getBoundingClientRect();
+          const leftDistance = Math.abs(leftRect.top - selectRect.top) + Math.max(0, leftRect.left - selectRect.right);
+          const rightDistance = Math.abs(rightRect.top - selectRect.top) + Math.max(0, rightRect.left - selectRect.right);
+          return leftDistance - rightDistance;
+        });
+      const input = candidates[0];
+      if (!input) return false;
+      input.focus();
+      const setter = input instanceof HTMLInputElement
+        ? Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+        : Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(input, nextValue);
+      input.setAttribute("value", nextValue);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.dispatchEvent(new Event("blur", { bubbles: true }));
+      return true;
+    },
+    { targetSelector: selector, nextValue: value },
+  );
+  if (!filled) {
+    throw new TdacPortalError(`Official TDAC ${label} "Others" detail field was not available after selecting Others.`, {
+      code: "tdac_other_detail_field_not_found",
+      portalSummary: `${label}: ${value}`,
+    });
+  }
+  logs.push(`tdac_filled_near_mat_select ${label}`);
+}
+
 async function clickRadioByText(page: Page, text: string, logs: string[], occurrence = 0): Promise<void> {
   const escapedText = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const selectors = [
@@ -812,12 +870,24 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
   await selectAutocomplete(page, "#mat-input-28", countryBoardedSearch, logs, officialCountryPattern(countryBoardedSearch));
   await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
   if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
-    await fillInput(page, "#mat-input-10", payload.purposeOfTravelOther.toUpperCase(), logs).catch(() => undefined);
+    await fillVisibleInputNearMatSelect(
+      page,
+      "mat-select[formcontrolname='traPurposeId']",
+      payload.purposeOfTravelOther.toUpperCase(),
+      logs,
+      "purpose_of_travel_other",
+    );
   }
   await clickRadioByText(page, tdacTravelModeLabel(payload.arrivalModeOfTravel), logs, 0);
   await selectMatSelect(page, "mat-select[formcontrolname='tranModeId']", tdacTransportLabel(payload.arrivalModeOfTransport), logs);
   if (payload.arrivalModeOfTransport === "others" && payload.arrivalTransportOther) {
-    await fillInput(page, "#mat-input-10", payload.arrivalTransportOther.toUpperCase(), logs).catch(() => undefined);
+    await fillVisibleInputNearMatSelect(
+      page,
+      "mat-select[formcontrolname='tranModeId']",
+      payload.arrivalTransportOther.toUpperCase(),
+      logs,
+      "arrival_transport_other",
+    );
   }
   await fillInput(page, "#mat-input-11", payload.arrivalTransportNumber.toUpperCase(), logs);
   if (payload.isTransitTraveler) {
@@ -827,7 +897,13 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
   await clickRadioByText(page, tdacTravelModeLabel(payload.departureModeOfTravel), logs, 1);
   await selectMatSelect(page, "mat-select[formcontrolname='deptTranModeId']", tdacTransportLabel(payload.departureModeOfTransport), logs);
   if (payload.departureModeOfTransport === "others" && payload.departureTransportOther) {
-    await fillInput(page, "#mat-input-13", payload.departureTransportOther.toUpperCase(), logs).catch(() => undefined);
+    await fillVisibleInputNearMatSelect(
+      page,
+      "mat-select[formcontrolname='deptTranModeId']",
+      payload.departureTransportOther.toUpperCase(),
+      logs,
+      "departure_transport_other",
+    );
   }
   await fillInput(page, "#mat-input-14", payload.departureTransportNumber.toUpperCase(), logs);
   await page.keyboard.press("Tab").catch(() => undefined);
@@ -842,7 +918,13 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
     const postalCode = payload.postalCode || "10330";
     await selectMatSelect(page, "mat-select[formcontrolname='accTypeId']", tdacAccommodationLabel(payload.accommodationType || "hotel"), logs);
     if (payload.accommodationType === "others" && payload.accommodationTypeOther) {
-      await fillInput(page, "#mat-input-15", payload.accommodationTypeOther.toUpperCase(), logs).catch(() => undefined);
+      await fillVisibleInputNearMatSelect(
+        page,
+        "mat-select[formcontrolname='accTypeId']",
+        payload.accommodationTypeOther.toUpperCase(),
+        logs,
+        "accommodation_type_other",
+      );
     }
     await selectOfficialAutocomplete(page, "#mat-input-29", province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
     await selectOfficialAutocomplete(page, "#mat-input-30", district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
