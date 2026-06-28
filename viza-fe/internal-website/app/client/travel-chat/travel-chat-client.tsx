@@ -2736,6 +2736,18 @@ function createHiddenCandidatePayloadMessage(
   };
 }
 
+function candidatePayloadHasSpecificTripSlots(
+  payload: Record<string, unknown>
+): boolean {
+  return (
+    typeof payload.travel_days === "number" ||
+    typeof payload.travelers === "number" ||
+    typeof payload.budget === "number" ||
+    typeof payload.origin_city === "string" ||
+    typeof payload.origin_country === "string"
+  );
+}
+
 function normalizeCityKey(city: string): string {
   const key = normalizePlaceLookupKey(city);
   return (
@@ -5070,10 +5082,31 @@ export function TravelChatClient({
             result,
             interfaceLocale
           );
+          const followUpMessage = (() => {
+            if (!hiddenCandidateMessage) return null;
+            const stateWithCandidate = buildTravelStateFromMessages(
+              toChatLikeMessages([...nextMessages, hiddenCandidateMessage])
+            );
+            if (toTravelPayload(stateWithCandidate)) return null;
+            const field = nextMissingField(stateWithCandidate);
+            if (!field) return null;
+            return {
+              id: createMessageId(),
+              role: "assistant" as const,
+              parts: [
+                {
+                  type: "text" as const,
+                  text: getFieldQuestionForState(stateWithCandidate, field),
+                },
+                { type: "planner_form" as const },
+              ],
+            };
+          })();
           setSessionMessages(sessionId, (prev) => [
             ...prev,
             ...(hiddenCandidateMessage ? [hiddenCandidateMessage] : []),
             assistantMessage,
+            ...(followUpMessage ? [followUpMessage] : []),
           ]);
           return;
         }
@@ -6423,6 +6456,10 @@ export function TravelChatClient({
                                         isGeneratedCard ||
                                         card.image_status === "placeholder" ||
                                         missingFields.length > 0;
+                                      const showDestinationAction =
+                                        !candidatePayloadHasSpecificTripSlots(
+                                          card.payload
+                                        );
                                       return (
                                         <div
                                           className="group overflow-hidden rounded-xl border border-white/80 bg-white text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-0.5"
@@ -6491,19 +6528,21 @@ export function TravelChatClient({
                                                     : "Completing images and attraction data"}
                                               </p>
                                             ) : null}
-                                            <Button
-                                              className="w-full bg-[#03346E] text-white hover:bg-[#022b5d]"
-                                              disabled={status !== "ready"}
-                                              onClick={() =>
-                                                handleDestinationCardAction(
-                                                  card
-                                                )
-                                              }
-                                              size="sm"
-                                              type="button"
-                                            >
-                                              {actionLabel}
-                                            </Button>
+                                            {showDestinationAction ? (
+                                              <Button
+                                                className="w-full bg-[#03346E] text-white hover:bg-[#022b5d]"
+                                                disabled={status !== "ready"}
+                                                onClick={() =>
+                                                  handleDestinationCardAction(
+                                                    card
+                                                  )
+                                                }
+                                                size="sm"
+                                                type="button"
+                                              >
+                                                {actionLabel}
+                                              </Button>
+                                            ) : null}
                                           </div>
                                         </div>
                                       );
