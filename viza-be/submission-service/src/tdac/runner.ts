@@ -374,6 +374,38 @@ async function fillInput(page: Page, selector: string, value: string, logs: stri
   logs.push(`tdac_filled ${selector}`);
 }
 
+async function firstVisibleSelector(page: Page, selectors: string[], timeoutMs = 30_000): Promise<string> {
+  const startedAt = Date.now();
+  let diagnostics: string[] = [];
+  while (Date.now() - startedAt < timeoutMs) {
+    diagnostics = [];
+    for (const selector of selectors) {
+      const locator = page.locator(selector);
+      const count = await locator.count().catch(() => 0);
+      let visibleCount = 0;
+      for (let index = 0; index < count; index += 1) {
+        if (await locator.nth(index).isVisible().catch(() => false)) visibleCount += 1;
+      }
+      diagnostics.push(`${selector}:count=${count}:visible=${visibleCount}`);
+      if (visibleCount > 0) return selector;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`TDAC visible selector not found. Tried ${diagnostics.join(" | ") || selectors.join(" | ")}`);
+}
+
+async function fillInputAny(page: Page, selectors: string[], value: string, logs: string[], label: string): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await fillInput(page, selector, value, logs);
+  logs.push(`tdac_filled_any ${label} selector=${selector}`);
+}
+
+async function forceSetInputAny(page: Page, selectors: string[], value: string, logs: string[], label: string): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await forceSetInput(page, selector, value, logs);
+  logs.push(`tdac_force_filled_any ${label} selector=${selector}`);
+}
+
 async function forceSetInput(page: Page, selector: string, value: string, logs: string[]): Promise<void> {
   const field = page.locator(selector).first();
   await field.waitFor({ state: "attached", timeout: 30_000 });
@@ -457,6 +489,19 @@ async function selectAutocomplete(
   logs.push(`tdac_selected ${selector}=${value}`);
 }
 
+async function selectAutocompleteAny(
+  page: Page,
+  selectors: string[],
+  value: string,
+  logs: string[],
+  label: string,
+  optionText: RegExp | string = value,
+): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await selectAutocomplete(page, selector, value, logs, optionText);
+  logs.push(`tdac_selected_any ${label} selector=${selector}`);
+}
+
 async function selectOfficialAutocomplete(
   page: Page,
   selector: string,
@@ -501,6 +546,19 @@ async function selectOfficialAutocomplete(
   await option.click({ timeout: 10_000 });
   await page.waitForTimeout(500);
   logs.push(`tdac_selected_official ${selector}=${value}`);
+}
+
+async function selectOfficialAutocompleteAny(
+  page: Page,
+  selectors: string[],
+  value: string,
+  logs: string[],
+  label: string,
+  optionText: RegExp | string = value,
+): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await selectOfficialAutocomplete(page, selector, value, logs, label, optionText);
+  logs.push(`tdac_selected_official_any ${label} selector=${selector}`);
 }
 
 async function selectMatSelect(
@@ -837,26 +895,25 @@ async function prepareTdacFinalSubmit(page: Page, payload: TdacPortalPayload, lo
 
 async function fillTdacPersonalStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
   const dob = dateParts(payload.dateOfBirth);
-  await fillInput(page, "#mat-input-0", payload.familyName.toUpperCase(), logs);
-  await fillInput(page, "#mat-input-1", payload.firstName.toUpperCase(), logs);
-  await fillInput(page, "#mat-input-2", (payload.middleName || "").toUpperCase(), logs);
-  await fillInput(page, "#mat-input-3", payload.passportNumber.toUpperCase(), logs);
+  await fillInputAny(page, ["input[formcontrolname='familyName']", "#mat-input-0"], payload.familyName.toUpperCase(), logs, "family_name");
+  await fillInputAny(page, ["input[formcontrolname='firstName']", "#mat-input-1"], payload.firstName.toUpperCase(), logs, "first_name");
+  await fillInputAny(page, ["input[formcontrolname='middleName']", "#mat-input-2"], (payload.middleName || "").toUpperCase(), logs, "middle_name");
+  await fillInputAny(page, ["input[formcontrolname='passportNo']", "input[formcontrolname='passportNumber']", "#mat-input-3"], payload.passportNumber.toUpperCase(), logs, "passport_number");
   const nationalitySearch = tdacCountrySearchValue(payload.nationality);
-  await selectAutocomplete(page, "#mat-input-25", nationalitySearch, logs, officialCountryPattern(nationalitySearch));
-  await selectAutocomplete(page, "#mat-input-18", dob.year, logs);
-  await selectAutocomplete(page, "#mat-input-19", dob.month, logs);
-  await selectAutocomplete(page, "#mat-input-20", dob.day, logs);
-  await fillInput(page, "#mat-input-4", payload.occupation.toUpperCase(), logs);
+  await selectAutocompleteAny(page, ["input[formcontrolname='nationality']", "#mat-input-25"], nationalitySearch, logs, "nationality", officialCountryPattern(nationalitySearch));
+  await selectAutocompleteAny(page, ["input[formcontrolname='birthYear']", "#mat-input-18"], dob.year, logs, "birth_year");
+  await selectAutocompleteAny(page, ["input[formcontrolname='birthMonth']", "#mat-input-19"], dob.month, logs, "birth_month");
+  await selectAutocompleteAny(page, ["input[formcontrolname='birthDay']", "#mat-input-20"], dob.day, logs, "birth_day");
+  await fillInputAny(page, ["input[formcontrolname='occupation']", "#mat-input-4"], payload.occupation.toUpperCase(), logs, "occupation");
   await clickRadioByText(page, tdacGenderLabel(payload.gender), logs);
   if (payload.visaNumber) {
-    await fillInput(page, "#mat-input-5", payload.visaNumber.toUpperCase(), logs);
+    await fillInputAny(page, ["input[formcontrolname='visaNo']", "input[formcontrolname='visaNumber']", "#mat-input-5"], payload.visaNumber.toUpperCase(), logs, "visa_number");
   }
   const residenceCountrySearch = tdacCountrySearchValue(payload.residenceCountry);
-  await selectAutocomplete(page, "#mat-input-26", residenceCountrySearch, logs, officialCountryPattern(residenceCountrySearch));
-  await waitForEnabled(page, "#mat-input-27", logs);
-  await fillInput(page, "#mat-input-27", payload.residenceCity.toUpperCase(), logs);
-  await fillInput(page, "#mat-input-6", payload.phoneCountryCode.replace(/\D/g, ""), logs);
-  await fillInput(page, "#mat-input-7", payload.phoneNumber.replace(/\D/g, ""), logs);
+  await selectAutocompleteAny(page, ["input[formcontrolname='countryOfResidence']", "input[formcontrolname='residenceCountry']", "#mat-input-26"], residenceCountrySearch, logs, "residence_country", officialCountryPattern(residenceCountrySearch));
+  await fillInputAny(page, ["input[formcontrolname='cityStateOfResidence']", "input[formcontrolname='residenceCity']", "#mat-input-27"], payload.residenceCity.toUpperCase(), logs, "residence_city");
+  await fillInputAny(page, ["input[formcontrolname='telCode']", "input[formcontrolname='phoneCountryCode']", "#mat-input-6"], payload.phoneCountryCode.replace(/\D/g, ""), logs, "phone_country_code");
+  await fillInputAny(page, ["input[formcontrolname='telNo']", "input[formcontrolname='phoneNumber']", "#mat-input-7"], payload.phoneNumber.replace(/\D/g, ""), logs, "phone_number");
   await saveScreenshot(page, "personal-before-continue", logs);
   await clickFirstEnabledButton(page, /^Continue$/i, logs);
 }
@@ -865,9 +922,9 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
   const arrival = dateParts(payload.arrivalDate);
   const departure = dateParts(payload.departureDate);
   await page.waitForTimeout(2_000);
-  await fillMaterialDateInput(page, "#mat-input-8", arrival.slashDate, logs);
+  await fillMaterialDateInput(page, "input[formcontrolname='arrDate']", arrival.slashDate, logs);
   const countryBoardedSearch = tdacCountrySearchValue(payload.countryBoarded);
-  await selectAutocomplete(page, "#mat-input-28", countryBoardedSearch, logs, officialCountryPattern(countryBoardedSearch));
+  await selectAutocompleteAny(page, ["input[formcontrolname='countryBoarded']", "input[formcontrolname='countryTerritoryBoarded']", "#mat-input-28"], countryBoardedSearch, logs, "country_boarded", officialCountryPattern(countryBoardedSearch));
   await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
   if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
     await fillVisibleInputNearMatSelect(
@@ -889,11 +946,11 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
       "arrival_transport_other",
     );
   }
-  await fillInput(page, "#mat-input-11", payload.arrivalTransportNumber.toUpperCase(), logs);
+  await fillInputAny(page, ["input[formcontrolname='arrFlightNo']", "input[formcontrolname='arrVehicleNo']", "input[formcontrolname='arrivalTransportNo']", "#mat-input-11"], payload.arrivalTransportNumber.toUpperCase(), logs, "arrival_transport_number");
   if (payload.isTransitTraveler) {
     await checkTransitPassenger(page, logs);
   }
-  await fillMaterialDateInput(page, "#mat-input-12", departure.slashDate, logs);
+  await fillMaterialDateInput(page, "input[formcontrolname='deptDate']", departure.slashDate, logs);
   await clickRadioByText(page, tdacTravelModeLabel(payload.departureModeOfTravel), logs, 1);
   await selectMatSelect(page, "mat-select[formcontrolname='deptTranModeId']", tdacTransportLabel(payload.departureModeOfTransport), logs);
   if (payload.departureModeOfTransport === "others" && payload.departureTransportOther) {
@@ -905,7 +962,7 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
       "departure_transport_other",
     );
   }
-  await fillInput(page, "#mat-input-14", payload.departureTransportNumber.toUpperCase(), logs);
+  await fillInputAny(page, ["input[formcontrolname='deptFlightNo']", "input[formcontrolname='deptVehicleNo']", "input[formcontrolname='departureTransportNo']", "#mat-input-14"], payload.departureTransportNumber.toUpperCase(), logs, "departure_transport_number");
   await page.keyboard.press("Tab").catch(() => undefined);
   await saveScreenshot(page, "trip-before-accommodation", logs);
   const accommodationEnabled = await waitForMatSelectEnabled(page, "mat-select[formcontrolname='accTypeId']", logs, 5_000)
@@ -926,11 +983,11 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
         "accommodation_type_other",
       );
     }
-    await selectOfficialAutocomplete(page, "#mat-input-29", province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectOfficialAutocomplete(page, "#mat-input-30", district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectOfficialAutocomplete(page, "#mat-input-31", subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await forceSetInput(page, "#mat-input-16", postalCode, logs);
-    await forceSetInput(page, "#mat-input-17", payload.addressInThailand || "", logs);
+    await selectOfficialAutocompleteAny(page, ["input[formcontrolname='province']", "#mat-input-29"], province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await selectOfficialAutocompleteAny(page, ["input[formcontrolname='district']", "input[formcontrolname='area']", "#mat-input-30"], district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await selectOfficialAutocompleteAny(page, ["input[formcontrolname='subDistrict']", "input[formcontrolname='subArea']", "#mat-input-31"], subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await forceSetInputAny(page, ["input[formcontrolname='postCode']", "input[formcontrolname='postalCode']", "#mat-input-16"], postalCode, logs, "postal_code");
+    await forceSetInputAny(page, ["textarea[formcontrolname='address']", "input[formcontrolname='address']", "#mat-input-17"], payload.addressInThailand || "", logs, "address_in_thailand");
   } else if (payload.isTransitTraveler) {
     logs.push("tdac_same_day_transit_skip_accommodation");
   } else {
@@ -943,7 +1000,7 @@ async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: 
   await page.waitForTimeout(1_000);
   for (const country of payload.countriesVisitedLast14Days) {
     const countrySearch = tdacCountrySearchValue(country);
-    await selectAutocomplete(page, "#mat-mdc-chip-list-input-0", countrySearch, logs, officialCountryPattern(countrySearch));
+    await selectAutocompleteAny(page, ["input[matchipinputfor]", "#mat-mdc-chip-list-input-0"], countrySearch, logs, "countries_visited_last_14_days", officialCountryPattern(countrySearch));
   }
   await clickFirstEnabledButton(page, /^Preview$/i, logs);
 }
@@ -1025,7 +1082,8 @@ export async function runTdacPortalSubmission(
     });
     await page.waitForTimeout(3_000);
     const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
-    let personalFormReady = await page.locator("#mat-input-0").first().isVisible({ timeout: 5_000 }).catch(() => false);
+    const personalFormSelectors = "input[formcontrolname='familyName'], #mat-input-0";
+    let personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 5_000 }).catch(() => false);
     for (let attempt = 1; !personalFormReady && attempt <= 3; attempt += 1) {
       logs.push(`tdac_open_add_route_attempt=${attempt}`);
       await page.goto(addRoute, {
@@ -1034,10 +1092,10 @@ export async function runTdacPortalSubmission(
       }).catch((error) => {
         logs.push(`tdac_direct_add_route_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
       });
-      personalFormReady = await page.locator("#mat-input-0").first().isVisible({ timeout: 45_000 }).catch(() => false);
+      personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 45_000 }).catch(() => false);
       if (!personalFormReady) {
         await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => undefined);
-        personalFormReady = await page.locator("#mat-input-0").first().isVisible({ timeout: 30_000 }).catch(() => false);
+        personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 30_000 }).catch(() => false);
       }
     }
     screenshots.push(await saveScreenshot(page, "after-entry", logs));

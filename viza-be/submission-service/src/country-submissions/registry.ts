@@ -280,7 +280,6 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
   arrivalCardField("transport_number", "Flight / vehicle / vessel number", "trip"),
   arrivalCardField("last_embarkation_country", "Last embarkation country", "trip"),
-  arrivalCardField("port_of_entry", "Point of entry", "trip"),
   arrivalCardField("purpose_of_visit", "Purpose of visit", "trip"),
   arrivalCardField("accommodation_type", "Accommodation type", "trip"),
   arrivalCardField("address_in_malaysia", "Address in Malaysia", "trip"),
@@ -290,43 +289,74 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
 ];
 
 const WHEN_TDAC_AIR = {
-  key: "answers.mode_of_travel",
+  key: "answers.arrival_mode_of_travel",
   equals: "air",
 };
 const WHEN_TDAC_LAND = {
-  key: "answers.mode_of_travel",
+  key: "answers.arrival_mode_of_travel",
   equals: "land",
 };
 const WHEN_TDAC_SEA = {
-  key: "answers.mode_of_travel",
+  key: "answers.arrival_mode_of_travel",
   equals: "sea",
+};
+const WHEN_TDAC_NOT_TRANSIT = {
+  key: "answers.is_transit_traveler",
+  notEquals: true,
+};
+const WHEN_TDAC_PURPOSE_OTHER = {
+  key: "answers.purpose_of_travel",
+  equals: "others",
+};
+const WHEN_TDAC_ARRIVAL_TRANSPORT_OTHER = {
+  key: "answers.arrival_mode_of_transport",
+  equals: "others",
+};
+const WHEN_TDAC_DEPARTURE_TRANSPORT_OTHER = {
+  key: "answers.departure_mode_of_transport",
+  equals: "others",
+};
+const WHEN_TDAC_ACCOMMODATION_OTHER = {
+  key: "answers.accommodation_type",
+  equals: "others",
 };
 
 const TDAC_REQUIRED_FIELDS: FieldRequirement[] = [
-  arrivalCardField("full_name", "Full name", "personal"),
+  arrivalCardField("family_name", "Family name", "personal"),
+  arrivalCardField("first_name", "First name", "personal"),
   arrivalCardField("date_of_birth", "Date of birth", "personal"),
-  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("gender", "Gender", "personal"),
   arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("country_territory_of_residence", "Country/territory of residence", "personal"),
+  arrivalCardField("city_state_of_residence", "City/state of residence", "personal"),
   arrivalCardField("passport_number", "Passport number", "passport"),
   arrivalCardField("email_address", "Email", "contact"),
-  arrivalCardField("mobile_number", "Phone", "contact"),
+  arrivalCardField("phone_country_code", "Phone country code", "contact"),
+  arrivalCardField("phone_number", "Phone", "contact"),
   arrivalCardField("occupation", "Occupation", "personal"),
   arrivalCardField("arrival_date", "Arrival date", "trip"),
   arrivalCardField("departure_date", "Departure date", "trip"),
-  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
-  arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
-  arrivalCardField("flight_number", "Flight number", "trip", WHEN_TDAC_AIR),
-  arrivalCardField("vehicle_or_vessel_number", "Vehicle / vessel number", "trip", WHEN_TDAC_LAND),
-  arrivalCardField("vehicle_or_vessel_number", "Vehicle / vessel number", "trip", WHEN_TDAC_SEA),
   arrivalCardField("country_boarded", "Country/region where boarded", "trip"),
-  arrivalCardField("port_of_arrival", "Port of arrival", "trip"),
-  arrivalCardField("accommodation_type", "Accommodation type", "trip"),
-  arrivalCardField("address_in_thailand", "Address in Thailand", "trip"),
-  arrivalCardField("province", "Province", "trip"),
-  arrivalCardField("district", "District", "trip"),
+  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
+  arrivalCardField("purpose_of_travel_other", "Other purpose of travel", "trip", WHEN_TDAC_PURPOSE_OTHER),
+  arrivalCardField("arrival_mode_of_travel", "Arrival mode of travel", "trip"),
+  arrivalCardField("arrival_mode_of_transport", "Arrival mode of transport", "trip"),
+  arrivalCardField("arrival_transport_other", "Other arrival transport", "trip", WHEN_TDAC_ARRIVAL_TRANSPORT_OTHER),
+  arrivalCardField("arrival_transport_number", "Arrival flight / vehicle / vessel number", "trip", WHEN_TDAC_AIR),
+  arrivalCardField("arrival_transport_number", "Arrival flight / vehicle / vessel number", "trip", WHEN_TDAC_LAND),
+  arrivalCardField("arrival_transport_number", "Arrival flight / vehicle / vessel number", "trip", WHEN_TDAC_SEA),
+  arrivalCardField("departure_mode_of_travel", "Departure mode of travel", "trip"),
+  arrivalCardField("departure_mode_of_transport", "Departure mode of transport", "trip"),
+  arrivalCardField("departure_transport_other", "Other departure transport", "trip", WHEN_TDAC_DEPARTURE_TRANSPORT_OTHER),
+  arrivalCardField("departure_transport_number", "Departure flight / vehicle / vessel number", "trip"),
+  arrivalCardField("accommodation_type", "Accommodation type", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("accommodation_type_other", "Other accommodation type", "trip", WHEN_TDAC_ACCOMMODATION_OTHER),
+  arrivalCardField("address_in_thailand", "Address in Thailand", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("province", "Province", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("district", "District", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("sub_district", "Sub-district", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("postcode", "Post code", "trip", WHEN_TDAC_NOT_TRANSIT),
   arrivalCardField("countries_visited_last_14_days", "Countries visited within 14 days", "security"),
-  arrivalCardField("has_health_symptoms", "Health symptoms declaration", "security"),
-  arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
 const PH_ETRAVEL_REQUIRED_FIELDS: FieldRequirement[] = [
@@ -761,11 +791,13 @@ function normalizeToken(value: string): string {
 
 function readAnswer(application: CountrySubmissionApplication, key: string): string | null {
   const value = application.answers?.[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
 }
 
-function normalizeRequirementValue(value: string): string {
-  const normalized = normalizeToken(value);
+function normalizeRequirementValue(value: string | boolean): string {
+  const normalized = normalizeToken(String(value));
   if (["1", "true", "on", "agree", "i_agree", "y"].includes(normalized)) return "yes";
   if (["0", "false", "off", "disagree", "n"].includes(normalized)) return "no";
   return normalized;
@@ -778,6 +810,14 @@ function readStringValue(value: unknown): string | null {
 }
 
 function readValueByKey(application: CountrySubmissionApplication, key: string): string | null {
+  if (key === "answers.is_transit_traveler") {
+    const explicit = readAnswer(application, "is_transit_traveler");
+    if (explicit) return explicit;
+    const arrivalDate = readAnswer(application, "arrival_date") ?? readStringValue(application.trip?.arrivalDate);
+    const departureDate = readAnswer(application, "departure_date") ?? readStringValue(application.trip?.departureDate);
+    if (arrivalDate && departureDate && arrivalDate === departureDate) return "true";
+  }
+
   const [scope, ...path] = key.split(".");
   const field = path.join(".");
   if (scope === "profile" && field) {
@@ -815,9 +855,17 @@ function shouldValidateRequirement(
 ): boolean {
   if (!requirement.condition) return true;
   const actual = readValueByKey(application, requirement.condition.key);
-  return actual
-    ? normalizeRequirementValue(actual) === normalizeRequirementValue(requirement.condition.equals)
-    : false;
+  if (requirement.condition.equals !== undefined) {
+    return actual
+      ? normalizeRequirementValue(actual) === normalizeRequirementValue(requirement.condition.equals)
+      : false;
+  }
+  if (requirement.condition.notEquals !== undefined) {
+    return actual
+      ? normalizeRequirementValue(actual) !== normalizeRequirementValue(requirement.condition.notEquals)
+      : true;
+  }
+  return true;
 }
 
 function validateRequiredFields(
@@ -859,7 +907,7 @@ function buildCountrySpecificPayload(
       normalizedKey.includes("overstay") ||
       normalizedKey.includes("refused_visa")
     ) {
-      output[key] = value;
+      output[key] = String(value);
     }
   }
   return output;
