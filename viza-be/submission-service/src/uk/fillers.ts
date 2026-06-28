@@ -181,18 +181,47 @@ export async function ukSelectOption(
 
 /**
  * Set a country-autocomplete pair: underlying `<select id="<base>">` + the
- * visible `<input id="<base>_ui">`. Sets both for visual parity.
+ * visible `<input id="<base>_ui">`.
+ *
+ * The gov.uk country `<select>` carries ISO-3 alpha values (e.g. "CHN") with
+ * full-name display text (e.g. "China"). Callers may pass either form, so we
+ * try selecting by option VALUE first (ISO-3 codes from the wizard) and fall
+ * back to matching by visible LABEL. The `_ui` autocomplete display is then
+ * synced from whichever option actually got selected — keeping the visible
+ * text correct even when the caller passed a code.
  */
 export async function ukSelectCountry(
   page: Page,
   baseId: string,
-  visibleLabel: string,
+  codeOrLabel: string,
 ): Promise<void> {
-  if (!visibleLabel) return;
-  await ukSelectOption(page, baseId, visibleLabel);
+  if (!codeOrLabel) return;
+  const sel = page.locator(`#${cssEscape(baseId)}`).first();
+  if ((await sel.count()) === 0) return;
+
+  // Try ISO-3 value first (e.g. "CHN"), then visible label (e.g. "China").
+  let selected = await sel
+    .selectOption(codeOrLabel.toUpperCase(), { timeout: SHORT_TIMEOUT })
+    .then(() => true)
+    .catch(() => false);
+  if (!selected) {
+    selected = await sel
+      .selectOption({ label: codeOrLabel }, { timeout: SHORT_TIMEOUT })
+      .then(() => true)
+      .catch(() => false);
+  }
+  if (!selected) return;
+  await settle(page);
+
+  // Sync the visible autocomplete input from the chosen option's text.
   const uiId = `${baseId}_ui`;
   if ((await page.locator(`#${cssEscape(uiId)}`).count()) > 0) {
-    await ukFillText(page, uiId, visibleLabel);
+    const display = await sel
+      .locator("option:checked")
+      .first()
+      .textContent()
+      .catch(() => null);
+    await ukFillText(page, uiId, (display ?? codeOrLabel).trim());
   }
 }
 

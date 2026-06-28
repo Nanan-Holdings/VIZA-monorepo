@@ -19,7 +19,11 @@ import {
   isSuccessResult,
   isFailureResult,
 } from "../ceac/index.js";
-import { resumeUkApplication } from "../uk/index.js";
+import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from "../uk/index.js";
+import { registerUkAccount } from "../uk/register.js";
+import { writeSubmissionResult } from "../result-writer.js";
+import { encryptSecret } from "../secret-cipher.js";
+import type { UkSubmissionResult } from "../submission-result.js";
 import {
   fillFranceVisasApplication,
   buildAnswerMap,
@@ -153,12 +157,45 @@ export const runUsHalt: RunOne = async (applicationId, jobId) => {
 
 export const runUkHalt: RunOne = async (applicationId, jobId) => {
   const runId = jobId ?? applicationId;
-  const { applicantId } = await loadProfileAndApp(applicationId);
-  const answers = await loadFieldAnswers(applicationId);
+  const { applicantId, profile } = await loadProfileAndApp(applicationId);
+  const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
 
-  const account = await loadUkAccount(applicantId);
+  // Translate the wizard's answer shape → the seed wire-shape the
+  // page-bindings fillers consume (mirrors runFranceHalt + normalizeFvAnswers).
+  let answers: Record<string, string>;
+  try {
+    answers = normalizeUkAnswers({ answers: answerMap, profile });
+  } catch (err) {
+    if (err instanceof UkNormalizationError) {
+      throw new NeedsHumanError(`uk: ${err.message}`);
+    }
+    throw err;
+  }
+
+  let account = await loadUkAccount(applicantId);
   if (!account) {
-    throw new NeedsHumanError("uk: no uk_accounts row provisioned for applicant");
+    // No saved-application (email+password) provisioned yet → register one on
+    // gov.uk: fills the "Enter an email address and password to save your
+    // answers" page and captures the emailed unique resume link into
+    // uk_accounts. Real account creation stays gated behind UK_REGISTER_COMMIT,
+    // so this is safe to reach in QA without creating live accounts.
+    const reg = await registerUkAccount({
+      applicantId,
+      biometricsCountryIso3: profile.nationality ?? undefined,
+      runId,
+    });
+    if (reg.status === "stopped_before_commit") {
+      throw new NeedsHumanError(
+        "uk: account provisioning is gated — set UK_REGISTER_COMMIT=1 to create the UKVI saved-application account",
+      );
+    }
+    if (reg.status !== "registered") {
+      throw new RetryableRunnerError(`uk: account registration failed (${reg.reason})`);
+    }
+    account = await loadUkAccount(applicantId);
+    if (!account) {
+      throw new RetryableRunnerError("uk: account registered but uk_accounts row not yet readable");
+    }
   }
   const result = await resumeUkApplication(
     {
@@ -169,15 +206,27 @@ export const runUkHalt: RunOne = async (applicationId, jobId) => {
     },
     { headless: true, runId },
   );
-  switch (result.status) {
-    case "stopped_at_pay":
-    case "halted_before_pay":
-      return HALTED(result.status);
-    case "failed":
-      throw new RetryableRunnerError(`uk failed at ${result.failedAt}`);
-    default:
-      throw new Error(`unexpected uk status: ${(result as { status: string }).status}`);
+  if (result.status === "stopped_at_pay" || result.status === "halted_before_pay") {
+    // Persist the portal handoff so the client UkResultCard can show the
+    // applicant their resume link, login, and (if captured) the application
+    // reference — they finish the declaration + £135 payment themselves.
+    const ukPayload: UkSubmissionResult = {
+      country: "UK",
+      status: "stopped_at_pay",
+      portalUrl: result.portalUrl,
+      portalUsername: result.portalUsername,
+      generatedPasswordCipher: encryptSecret(account.password),
+      ...(result.status === "stopped_at_pay" && result.applicationReference
+        ? { applicationReference: result.applicationReference }
+        : {}),
+    };
+    await writeSubmissionResult(applicationId, ukPayload, "stopped_at_pay");
+    return HALTED(result.status);
   }
+  if (result.status === "failed") {
+    throw new RetryableRunnerError(`uk failed at ${result.failedAt}`);
+  }
+  throw new Error(`unexpected uk status: ${(result as { status: string }).status}`);
 };
 
 /* ---------------------------- France ---------------------------- */

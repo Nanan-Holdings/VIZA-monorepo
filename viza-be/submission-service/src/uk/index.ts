@@ -42,11 +42,18 @@ export {
   UkGateDetectedError,
   UkFieldNotMappedError,
   UkWidgetFillError,
+  UkNormalizationError,
   isUkGateError,
   serializeUkError,
   type UkErrorCode,
   type UkErrorContext,
 } from "./errors";
+
+export {
+  normalizeUkAnswers,
+  type UkAnswerMap,
+  type UkNormalizeInput,
+} from "./normalize";
 
 export {
   detectGate,
