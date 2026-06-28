@@ -60,6 +60,78 @@ function hasQrEvidence(pageText: string): boolean {
   return /qr\s*code|scan\s+this|eTravel\s+QR|border\s+control|reference/i.test(pageText);
 }
 
+async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["locator"]>>): Promise<boolean> {
+  for (const locator of locators) {
+    const target = locator.first();
+    if (await target.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await target.click({ timeout: 10_000 });
+      return true;
+    }
+  }
+  return false;
+}
+
+async function reachAuthenticatedPhEtravelSession(page: Page, logs: string[], screenshots: string[]): Promise<void> {
+  const signedInAlready = /dashboard|new travel declaration|etravel registration|personal information/i.test(await bodyText(page));
+  if (signedInAlready && !/enter email address|password|create an account/i.test(await bodyText(page))) {
+    logs.push("ph_etravel_existing_session_detected");
+    return;
+  }
+
+  const clickedSignIn = await clickFirstAvailable(page, [
+    page.getByRole("button", { name: /click here to sign in/i }),
+    page.getByRole("link", { name: /^sign in$/i }),
+    page.locator("button, a").filter({ hasText: /sign in/i }),
+  ]);
+  if (clickedSignIn) {
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_500);
+  }
+
+  const loginText = await bodyText(page);
+  if (!/enter email address|password|create an account|sign in to etravel/i.test(loginText)) {
+    logs.push("ph_etravel_login_not_required_after_signin_click");
+    return;
+  }
+
+  const email = process.env.PH_ETRAVEL_ACCOUNT_EMAIL?.trim();
+  const password = process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim();
+  if (!email || !password) {
+    screenshots.push(await saveScreenshot(page, "official-account-required", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel now requires an eTravel/eGovPH account before the arrival-card form can be opened.",
+      {
+        code: "ph_etravel_official_account_required",
+        screenshotPaths: screenshots,
+        portalSummary: loginText.slice(0, 700),
+      },
+    );
+  }
+
+  await page.locator("input[type='email'], input[name*='email' i], input[placeholder*='Email' i]").first().fill(email, { timeout: 15_000 });
+  await page.locator("input[type='password'], input[name*='password' i], input[placeholder*='Password' i]").first().fill(password, { timeout: 15_000 });
+  await clickFirstAvailable(page, [
+    page.getByRole("button", { name: /sign in to etravel|sign in|login/i }),
+    page.locator("button").filter({ hasText: /sign in|login/i }),
+  ]);
+  await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+
+  const afterLoginText = await bodyText(page);
+  if (/invalid|incorrect|verification|otp|one-time|enter code|captcha|turnstile/i.test(afterLoginText)) {
+    screenshots.push(await saveScreenshot(page, "official-login-blocked", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel account login needs additional verification before automation can continue.",
+      {
+        code: "ph_etravel_official_login_verification_required",
+        screenshotPaths: screenshots,
+        portalSummary: afterLoginText.slice(0, 700),
+      },
+    );
+  }
+  logs.push("ph_etravel_official_account_login_attempted");
+}
+
 export async function runPhEtravelPortalSubmission(
   payload: PhEtravelPortalPayload,
   options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
@@ -123,6 +195,9 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         },
       );
     }
+
+    await reachAuthenticatedPhEtravelSession(page, logs, screenshots);
+    screenshots.push(await saveScreenshot(page, "after-auth", logs));
 
     throw new PhEtravelPortalError(
       "Philippines eTravel official form selector mapping is incomplete; live submit is blocked until the portal flow is mapped end to end.",
