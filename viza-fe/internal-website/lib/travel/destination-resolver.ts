@@ -77,6 +77,12 @@ export type LazyTravelDestinationCard = {
 
 export type DestinationTripHints = {
   travelDays?: number;
+  travelers?: number;
+  budget?: number;
+  originCountry?: string;
+  originCity?: string;
+  returnCountry?: string;
+  returnCity?: string;
   finalNote?: string;
   preferences: string[];
 };
@@ -127,8 +133,8 @@ export type TravelIntentParseResult = {
   destinations: TravelIntentDestinationCandidate[];
   duration: TravelIntentDuration | null;
   dates: null;
-  travelers: null;
-  budget: null;
+  travelers: number | null;
+  budget: number | null;
   preferences: string[];
   needsClarification: boolean;
   clarificationQuestion: string | null;
@@ -1348,6 +1354,54 @@ function removeDurationText(value: string): string {
     .replace(/weekend|周末/gi, " ");
 }
 
+function extractPositiveIntegerFromMatch(match: RegExpMatchArray | null): number | null {
+  const rawValue = match?.[1]?.replace(/[,，]/g, "");
+  if (!rawValue) return null;
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function extractTravelers(value: string): number | null {
+  const raw = value.trim();
+  return (
+    extractPositiveIntegerFromMatch(raw.match(/(\d{1,3})\s*(?:个人|人|位|名|travellers?|travelers?|people|adults?)/i)) ??
+    extractPositiveIntegerFromMatch(raw.match(/(?:人数|出行人数|旅行人数|旅客)\s*(?:是|为|:|：)?\s*(\d{1,3})/i))
+  );
+}
+
+function extractBudget(value: string): number | null {
+  const raw = value.trim();
+  const match =
+    raw.match(/(?:预算|budget)\s*(?:是|为|:|：)?\s*(?:rmb|cny|¥|人民币)?\s*(\d{2,9}(?:[,，]\d{3})*)/i) ??
+    raw.match(/(?:rmb|cny|¥|人民币)\s*(\d{2,9}(?:[,，]\d{3})*)\s*(?:预算)?/i);
+  return extractPositiveIntegerFromMatch(match);
+}
+
+function extractOriginLabel(value: string): string | null {
+  const raw = value.trim();
+  const patterns = [
+    /(?:从|由)\s*([^，,；;。.!！？?]{1,30}?)(?:出发|起飞|出行)/u,
+    /(?:从|由)\s*([^，,；;。.!！？?到去前往]{1,30}?)(?=\s*(?:到|去|前往))/u,
+    /(?:出发地|出发城市|起点)\s*(?:是|为|:|：)?\s*([^，,；;。.!！？?]{1,30})/u,
+  ];
+
+  for (const pattern of patterns) {
+    const label = raw.match(pattern)?.[1]?.trim();
+    if (label) return removeDurationText(label).trim();
+  }
+
+  return null;
+}
+
+function removeOriginText(value: string): string {
+  return value
+    .replace(/(?:从|由)\s*[^，,；;。.!！？?]{1,30}?(?:出发|起飞|出行)/gu, " ")
+    .replace(/(?:从|由)\s*[^，,；;。.!！？?到去前往]{1,30}?(?=\s*(?:到|去|前往))/gu, " ")
+    .replace(/(?:出发地|出发城市|起点)\s*(?:是|为|:|：)?\s*[^，,；;。.!！？?]{1,30}/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function normalizeUserUtterance(value: string): string {
   return value
     .trim()
@@ -1592,7 +1646,7 @@ export function extractDestinationCandidates(
   if (isTravelCommandIntent(intent)) return [];
   if (intent === "invalid_or_unrelated") return [];
 
-  const normalizedInput = normalizeUserUtterance(message);
+  const normalizedInput = removeOriginText(normalizeUserUtterance(message));
   if (
     intent === "ask_question" &&
     !DESTINATION_CONTEXT_PATTERNS.some((pattern) => pattern.test(normalizedInput))
@@ -1635,6 +1689,8 @@ export function parseTravelIntent(
   const normalizedInput = normalizeUserUtterance(message);
   let intent = classifyTravelIntent(normalizedInput);
   const duration = extractTravelDuration(normalizedInput);
+  const travelers = extractTravelers(normalizedInput);
+  const budget = extractBudget(normalizedInput);
   const preferences = extractDestinationTripHints(normalizedInput).preferences;
   const destinations = extractDestinationCandidates(message, locale);
   if (intent === "unknown" && destinations.length > 0) {
@@ -1657,8 +1713,8 @@ export function parseTravelIntent(
     destinations,
     duration,
     dates: null,
-    travelers: null,
-    budget: null,
+    travelers,
+    budget,
     preferences,
     needsClarification: Boolean(clarification),
     clarificationQuestion: clarification?.question ?? null,
@@ -1947,9 +2003,28 @@ function countryDefaultDestinationForQuery(
   );
 }
 
+function resolveOriginDestination(rawText: string): TravelDestinationSearchResult | null {
+  const originLabel = extractOriginLabel(rawText);
+  if (!originLabel) return null;
+
+  const mentioned = findMentionedDestinations(originLabel)[0];
+  if (mentioned) return mentioned;
+
+  const canonical = canonicalizeDestination(originLabel);
+  if (!canonical.canonicalName) return null;
+  return (
+    ALL_LOCAL_DESTINATIONS.find(
+      (destination) => destination.canonicalName === canonical.canonicalName
+    ) ?? null
+  );
+}
+
 export function extractDestinationTripHints(rawText: string): DestinationTripHints {
   const preferences: string[] = [];
   const duration = extractTravelDuration(rawText);
+  const travelers = extractTravelers(rawText);
+  const budget = extractBudget(rawText);
+  const origin = resolveOriginDestination(rawText);
   const travelDays = duration?.maxDays;
   const normalized = rawText.toLowerCase();
 
@@ -1981,6 +2056,12 @@ export function extractDestinationTripHints(rawText: string): DestinationTripHin
 
   return {
     travelDays: normalizedTravelDays,
+    travelers: travelers ?? undefined,
+    budget: budget ?? undefined,
+    originCountry: origin?.countryName ?? undefined,
+    originCity: origin?.city ?? origin?.displayName ?? undefined,
+    returnCountry: origin?.countryName ?? undefined,
+    returnCity: origin?.city ?? origin?.displayName ?? undefined,
     finalNote:
       preferences.length > 0
         ? `User preferences from chat: ${Array.from(new Set(preferences)).join(", ")}.`
@@ -2058,6 +2139,7 @@ export function buildTravelCandidatePayload(
     countries: countries.length > 0 ? countries : first ? [first.displayName] : [],
     cities,
     travel_order: cities,
+    destination_confirmed: cities.length > 0,
   };
 
   if (tripHints.travelDays) {
@@ -2073,6 +2155,21 @@ export function buildTravelCandidatePayload(
 
   if (tripHints.finalNote) {
     payload.final_note = tripHints.finalNote;
+  }
+
+  if (tripHints.travelers) {
+    payload.travelers = tripHints.travelers;
+  }
+
+  if (tripHints.budget) {
+    payload.budget = tripHints.budget;
+  }
+
+  if (tripHints.originCountry && tripHints.originCity) {
+    payload.origin_country = tripHints.originCountry;
+    payload.origin_city = tripHints.originCity;
+    payload.return_country = tripHints.returnCountry ?? tripHints.originCountry;
+    payload.return_city = tripHints.returnCity ?? tripHints.originCity;
   }
 
   return payload;

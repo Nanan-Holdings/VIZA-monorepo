@@ -19,9 +19,16 @@ export interface FieldGuidanceBody {
   title: string;
   summary: string;
   examples: string[];
+  optionExplanations?: FieldGuidanceOptionExplanation[];
   hints: string[];
   officialWarnings: string[];
   formatHints: string[];
+}
+
+export interface FieldGuidanceOptionExplanation {
+  value: string;
+  label: string;
+  description: string;
 }
 
 export interface FieldGuidanceValidation {

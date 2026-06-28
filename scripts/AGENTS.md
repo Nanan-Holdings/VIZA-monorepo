@@ -24,8 +24,12 @@ smoke-test helpers for the VIZA monorepo.
   root, including the internal website, marketing website, agent backend,
   submission worker, travel service, optional database services, logs, health
   checks, targeted VIZA Supabase migrations, automatic portal opening, and
-  stop support. Use `-SkipVizaMigrations` to skip migration apply during local
-  startup or `-RequireVizaMigrations` when stale DB metadata must fail fast.
+  stop support. It starts the submission worker with the local-only Vietnam
+  one-time card-session endpoint enabled and points the frontend at the same
+  submission-service port; card numbers and CVV must still never be written to
+  scripts, env files, logs, or committed files. Use `-SkipVizaMigrations` to
+  skip migration apply during local startup or `-RequireVizaMigrations` when
+  stale DB metadata must fail fast.
 - `start-viza-dev.ps1`: starts the internal website with backend services.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the
