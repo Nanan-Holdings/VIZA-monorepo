@@ -202,6 +202,39 @@ function SectionList({
   );
 }
 
+function OptionExplanationList({
+  title,
+  items,
+}: {
+  title: string;
+  items: NonNullable<FieldGuidanceResponse["guidance"]["optionExplanations"]>;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h4 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#697386]">
+        {title}
+      </h4>
+      <div className="flex min-w-0 flex-col gap-2">
+        {items.map((item) => (
+          <div
+            key={`${item.value}-${item.label}`}
+            className="min-w-0 rounded-lg border border-[#e8e8e8] bg-white p-3 text-[13px]"
+          >
+            <div className="break-words font-medium text-[#1f2937]">
+              {normalizePlainTextContent(item.label)}
+            </div>
+            <p className="mt-1 min-w-0 break-words leading-5 text-[#4b5563]">
+              {renderPlainText(item.description)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function FieldGuidancePanel({
   country,
   visaType,
@@ -224,6 +257,7 @@ export function FieldGuidancePanel({
       loading: isZh ? "AI 正在读取题目要求..." : "AI is reading the field requirements...",
       retry: isZh ? "重试" : "Retry",
       examples: isZh ? "示例" : "Examples",
+      optionExplanations: isZh ? "选项说明" : "Option explanations",
       hints: isZh ? "填写提示" : "Hints",
       warnings: isZh ? "官方注意事项" : "Official warnings",
       format: isZh ? "格式" : "Format",
@@ -414,6 +448,10 @@ export function FieldGuidancePanel({
 
             <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <SectionList title={labels.examples} items={data.guidance.examples} compact />
+              <OptionExplanationList
+                title={labels.optionExplanations}
+                items={data.guidance.optionExplanations ?? []}
+              />
               <SectionList title={labels.format} items={data.guidance.formatHints} compact />
               <SectionList title={labels.hints} items={data.guidance.hints} />
               <SectionList title={labels.warnings} items={data.guidance.officialWarnings} />
