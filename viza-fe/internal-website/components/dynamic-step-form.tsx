@@ -641,8 +641,8 @@ function normalizeTdacStepValues(
   normalizeOptionField("purpose_of_travel");
   normalizeOptionField("accommodation_type");
   normalizeOptionField("province");
-  normalizeOptionField("district_area");
-  normalizeOptionField("subdistrict_subarea");
+  normalizeOptionField("district");
+  normalizeOptionField("sub_district");
 
   const genderField = fieldByName.get("gender");
   if (genderField?.options) {

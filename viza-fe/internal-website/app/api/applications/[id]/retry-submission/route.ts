@@ -964,7 +964,7 @@ async function decideMdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "mdac_invalid_arrival_date",
-      message: "MDAC arrival date must use YYYY-MM-DD.",
+      message: "MDAC 抵达日期必须使用 YYYY-MM-DD 格式。",
     };
   }
   if (window.status === "past") {
@@ -972,7 +972,7 @@ async function decideMdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "mdac_arrival_date_past",
-      message: "MDAC arrival date is already in the past. Please update the travel dates before submitting.",
+      message: "MDAC 抵达日期不能早于今天。请更新旅行日期后再提交。",
     };
   }
   if (window.status === "scheduled") {
@@ -988,7 +988,7 @@ async function decideMdacLiveSchedule(input: {
       referenceNumber: null,
       portalUrl: "https://imigresen-online.imi.gov.my/mdac/main",
       portalResponseSummary:
-        `Malaysia MDAC accepts submissions within three days before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `MDAC 只允许在抵达前三天内提交。此申请已排队，将在 ${window.earliestSubmissionDate} 自动提交。`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,
@@ -1045,7 +1045,7 @@ async function decideTdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "tdac_invalid_arrival_date",
-      message: "TDAC arrival date must use YYYY-MM-DD.",
+      message: "TDAC 抵达日期必须使用 YYYY-MM-DD 格式。",
     };
   }
   if (window.status === "past") {
@@ -1053,7 +1053,7 @@ async function decideTdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "tdac_arrival_date_past",
-      message: "TDAC arrival date is already in the past. Please update the travel dates before submitting.",
+      message: "TDAC 抵达日期不能早于今天。请更新旅行日期后再提交。",
     };
   }
   if (window.status === "scheduled") {
@@ -1069,7 +1069,7 @@ async function decideTdacLiveSchedule(input: {
       referenceNumber: null,
       portalUrl: "https://tdac.immigration.go.th",
       portalResponseSummary:
-        `Thailand TDAC accepts submissions within three days before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `TDAC 只允许在抵达前三天内提交。此申请已排队，将在 ${window.earliestSubmissionDate} 自动提交。`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,

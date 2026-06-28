@@ -234,10 +234,13 @@ function officialMdacCountryAliases(country: string): string[] {
   const aliases: Record<string, string[]> = {
     CHINA: ["CHN", "CHN CHINA"],
     "PEOPLE S REPUBLIC OF CHINA": ["CHN", "CHN CHINA", "CHINA"],
-    KOREA: ["KOR", "KOR KOREA"],
-    "KOREA REPUBLIC OF": ["KOR", "KOR KOREA", "REPUBLIC OF KOREA", "SOUTH KOREA"],
-    "REPUBLIC OF KOREA": ["KOR", "KOR KOREA", "KOREA REPUBLIC OF", "SOUTH KOREA"],
-    "SOUTH KOREA": ["KOR", "KOR KOREA", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA"],
+    KOR: ["KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    KOREA: ["KOR", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "KOREA REPUBLIC OF": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "KOREA REPUBLIC": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "REPUBLIC OF KOREA": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "SOUTH KOREA"],
+    "KOREA OF REPUBLIC": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "SOUTH KOREA": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA"],
     "UNITED STATES": ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES OF AMERICA"],
     "UNITED STATES OF AMERICA": ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES"],
     AMERICA: ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES OF AMERICA"],
@@ -312,44 +315,65 @@ async function selectOptionByTextOrValue(
 ): Promise<void> {
   const select = page.locator(selector).first();
   await select.waitFor({ state: "visible", timeout: 30_000 });
+  await page.waitForFunction(
+    (targetSelector) => {
+      const selectElement = document.querySelector(targetSelector) as HTMLSelectElement | null;
+      return Boolean(selectElement && selectElement.options.length > 1);
+    },
+    selector,
+    { timeout: 30_000 },
+  ).catch((error) => {
+    logs.push(`mdac_select_options_wait_timeout ${selector} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+  });
   const desiredValues = options.byDialCode
     ? uniqueValues([wanted, ...(options.aliases ?? [])].map((value) => value.replace(/\D/g, "")))
     : uniqueValues([wanted, ...(options.aliases ?? [])].map(normalizeForMatch));
-  const match = await select.evaluate(
-    (element, args) => {
-      const selectElement = element as HTMLSelectElement;
-      const candidates = Array.from(selectElement.options);
-      const desiredValues = args.desiredValues;
-      const option = candidates.find((candidate) => {
-        if (!candidate.value) return false;
-        if (args.byDialCode) {
-          const optionValueDigits = candidate.value.replace(/\D/g, "");
-          const optionLabelDigits = (candidate.textContent ?? "").replace(/\D/g, "");
-          return desiredValues.includes(optionValueDigits) || desiredValues.includes(optionLabelDigits);
-        }
-        const label = (candidate.textContent ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
-        const value = candidate.value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
-        return desiredValues.some((desiredValue) =>
-          value === desiredValue ||
-          label === desiredValue ||
-          label.includes(desiredValue) ||
-          (desiredValue.length === 3 && value.startsWith(desiredValue))
-        );
-      });
-      return option ? { value: option.value, label: option.textContent ?? "" } : null;
-    },
-    { desiredValues, byDialCode: options.byDialCode === true },
-  );
+  let match: { value: string; label: string } | null = null;
+  for (let attempt = 0; attempt < 5 && !match; attempt += 1) {
+    match = await select.evaluate(
+      (element, args) => {
+        const selectElement = element as HTMLSelectElement;
+        const candidates = Array.from(selectElement.options);
+        const desiredValues = args.desiredValues;
+        const option = candidates.find((candidate) => {
+          if (!candidate.value) return false;
+          if (args.byDialCode) {
+            const optionValueDigits = candidate.value.replace(/\D/g, "");
+            const optionLabelDigits = (candidate.textContent ?? "").replace(/\D/g, "");
+            return desiredValues.includes(optionValueDigits) || desiredValues.includes(optionLabelDigits);
+          }
+          const label = (candidate.textContent ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+          const value = candidate.value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+          return desiredValues.some((desiredValue) => {
+            if (!desiredValue) return false;
+            if (value === desiredValue || label === desiredValue) return true;
+            if (desiredValue.length === 3 && (value === desiredValue || label.split(/\s+/)[0] === desiredValue)) return true;
+            if (desiredValue.length === 3 && candidate.value.toUpperCase() === desiredValue) return true;
+            if (label.includes(desiredValue)) return true;
+            if (desiredValue.length === 3) {
+              return value.startsWith(desiredValue) || label.startsWith(desiredValue);
+            }
+            return false;
+          });
+        });
+        return option ? { value: option.value, label: option.textContent ?? "" } : null;
+      },
+      { desiredValues, byDialCode: options.byDialCode === true },
+    );
+    if (!match) {
+      await page.waitForTimeout(1_000);
+    }
+  }
 
   if (!match) {
     const sample = await select.evaluate((element) =>
       Array.from((element as HTMLSelectElement).options)
-        .slice(0, 20)
+        .slice(0, 60)
         .map((option) => option.textContent?.trim())
         .filter(Boolean)
         .join(" | "),
     );
-    throw new MdacPortalError(`MDAC dropdown option not found for ${selector}: "${wanted}".`, {
+    throw new MdacPortalError(`MDAC dropdown option not found for ${selector}: "${wanted}". Desired aliases: ${desiredValues.join(", ")}.`, {
       code: "mdac_dropdown_option_not_found",
       portalSummary: sample,
     });
