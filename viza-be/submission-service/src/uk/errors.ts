@@ -15,7 +15,8 @@ export type UkErrorCode =
   | "SESSION_BOOTSTRAP_FAILED"
   | "GATE_DETECTED"
   | "FIELD_NOT_MAPPED"
-  | "WIDGET_FILL_FAILED";
+  | "WIDGET_FILL_FAILED"
+  | "NORMALIZATION_FAILED";
 
 export interface UkErrorContext {
   expected?: UkPageId | UkPageId[];
@@ -105,6 +106,20 @@ export class UkWidgetFillError extends UkError {
   constructor(message: string, context: UkErrorContext = {}) {
     super("WIDGET_FILL_FAILED", message, context);
     this.name = "UkWidgetFillError";
+  }
+}
+
+/** Raised by normalizeUkAnswers when a present answer value can't be
+ *  confidently translated into the seed wire-shape the page-bindings
+ *  fillers consume (e.g. an unrecognized sex/marital enum, or a required
+ *  identity field is missing). Mirrors France-Visas' NormalizationError so
+ *  runUkHalt can map it to NeedsHumanError rather than submit garbage. */
+export class UkNormalizationError extends UkError {
+  readonly field: string;
+  constructor(field: string, message: string, context: UkErrorContext = {}) {
+    super("NORMALIZATION_FAILED", `[${field}] ${message}`, { ...context, fieldName: field });
+    this.name = "UkNormalizationError";
+    this.field = field;
   }
 }
 
