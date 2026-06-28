@@ -47,8 +47,10 @@ export function UkResultCard({ applicationId, result }: UkResultCardProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          We registered your UKVI account and pre-filled your application. Use
-          these credentials to log back in and pay the visa fee on apply-uk-visa.service.gov.uk.
+          We registered your UKVI account and pre-filled your whole application.
+          Log back in with these credentials to review your answers, accept the
+          declaration, and pay the £135 visa fee on apply-uk-visa.service.gov.uk —
+          these final steps must be completed by you.
         </p>
 
         <div className="rounded-md border border-input bg-background px-3 py-2">
@@ -81,7 +83,7 @@ export function UkResultCard({ applicationId, result }: UkResultCardProps) {
 
         <Button asChild className="w-full">
           <a href={result.portalUrl} target="_blank" rel="noopener noreferrer">
-            Open UKVI portal
+            Review &amp; pay on UKVI portal
             <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>

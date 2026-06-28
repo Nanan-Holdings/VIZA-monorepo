@@ -2494,6 +2494,11 @@
           "title": "出行 & 签证历史",
           "subtitle": "过往赴英记录及签证拒签情况。"
         },
+        "background": {
+          "label": "访问详情",
+          "title": "您的访问与关系",
+          "subtitle": "在英国的活动安排，以及与英国的关联。"
+        },
         "funding": {
           "label": "资金",
           "title": "行程经费",
@@ -2518,6 +2523,7 @@
         "ukAddress": "英国住址",
         "employment": "职业",
         "history": "历史",
+        "background": "访问详情",
         "funding": "资金",
         "declaration": "声明"
       },
@@ -2581,6 +2587,11 @@
         "hasBeenRefusedUkVisa": "是否曾被拒签英国签证?",
         "ukRefusalExplanation": "请简述拒签情况",
         "hasBeenRefusedOtherVisa": "是否被任何其他国家拒签过?",
+        "visitActivitiesDescription": "您在英国期间计划做什么?",
+        "hasFamilyInUk": "您在英国是否有家人?",
+        "hasFinancialDependants": "是否有人经济上依赖您?",
+        "travellingInOrganisedGroup": "您是否随有组织的团队出行?",
+        "travellingWithNonPartner": "您是否与非配偶/受抚养人的他人同行?",
         "fundingSource": "行程资金来源",
         "sponsorName": "担保人姓名",
         "sponsorNamePlaceholder": "完整法定姓名",
