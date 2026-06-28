@@ -1015,15 +1015,10 @@ function deriveChineseOptionLabel(option: VisaFormFieldOption): string {
   const translated = getChineseOptionText(rawText);
   if (translated && hasCjk(translated) && translated !== rawText) return translated;
 
-  if (/visa/i.test(rawText)) return `签证选项：${countryNameToChinese(rawText)}`;
-  if (/passport/i.test(rawText)) return `护照/旅行证件选项：${countryNameToChinese(rawText)}`;
-  if (/entry/i.test(rawText)) return `入境选项：${countryNameToChinese(rawText)}`;
-  if (/visit/i.test(rawText)) return `访问选项：${countryNameToChinese(rawText)}`;
-
   const fromValue = fieldNameToChinese(value);
   if (fromValue && !isVagueChineseLabel(fromValue)) return fromValue;
 
-  return `选项：${countryNameToChinese(rawText || value)}`;
+  return countryNameToChinese(rawText || value);
 }
 
 function deriveEnglishOptionLabel(option: VisaFormFieldOption): string {

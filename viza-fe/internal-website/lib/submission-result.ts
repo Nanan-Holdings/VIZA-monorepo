@@ -229,11 +229,11 @@ export interface SgArrivalCardSubmissionResult {
 }
 
 export interface DigitalArrivalCardSubmissionResult {
-  country: "MY" | "TH";
-  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD";
+  country: "MY" | "TH" | "PH";
+  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD";
   status: "submitted" | "scheduled" | "validation_failed" | "official_portal_error";
   mode: "live_assisted";
-  provider: "malaysia_mdac_live" | "thailand_tdac_live";
+  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live";
   applicationId: string;
   submitted: boolean;
   confirmationNumber?: string | null;

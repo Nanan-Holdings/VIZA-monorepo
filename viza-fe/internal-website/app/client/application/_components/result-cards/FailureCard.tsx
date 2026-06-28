@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { SubmissionMode } from "@/lib/submission-queue";
+import { translateOfficialImagePortalError } from "@/lib/document-image-validation";
 
 interface FailureCardProps {
   applicationId?: string;
@@ -86,6 +87,26 @@ function isWorkerPickupError(errorMessage?: string): boolean {
     normalized.includes("submission job stalled");
 }
 
+function FormattedFailureText({ message }: { message: string }) {
+  const lines = message
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length <= 1) return <p>{message}</p>;
+
+  return (
+    <div className="space-y-2">
+      <p className="font-medium">{lines[0]}</p>
+      <ul className="list-disc space-y-1 pl-5">
+        {lines.slice(1).map((line) => (
+          <li key={line}>{line.replace(/^-\s*/u, "")}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * FailureCard — renders when applications.submission_result_status === 'failed'.
  * Surfaces the error and offers a retry that requeues the application.
@@ -103,6 +124,7 @@ export function FailureCard({
   const [showPassword, setShowPassword] = useState(false);
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
+  const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
@@ -165,7 +187,11 @@ export function FailureCard({
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
-        {validationError ? (
+        {officialImageError ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
+            <FormattedFailureText message={officialImageError} />
+          </div>
+        ) : validationError ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
             <p className="font-medium">{validationError.title}</p>
             <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">

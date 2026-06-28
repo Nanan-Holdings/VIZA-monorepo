@@ -1,3 +1,5 @@
+import { TDAC_COUNTRY_OPTIONS } from "../th-tdac/official-options";
+
 export type MdacOption = {
   value: string;
   text: string;
@@ -18,6 +20,15 @@ export const mdacOption = (
   label_en: labelEn,
   official_label: officialLabel,
 });
+
+export const MY_MDAC_COUNTRIES = TDAC_COUNTRY_OPTIONS.map((option) =>
+  mdacOption(
+    option.value,
+    option.label_zh,
+    option.label_en.replace(" : ", " - "),
+    option.official_label.replace(" : ", " - "),
+  ),
+);
 
 export const MY_MDAC_STATES = [
   mdacOption("01", "柔佛", "JOHOR"),

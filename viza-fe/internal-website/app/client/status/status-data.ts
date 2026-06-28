@@ -334,7 +334,7 @@ const REJECTED_RESULT_STATUSES = new Set(["rejected", "refused", "denied"]);
 const SUCCESS_SUBMISSION_RESULT_STATUSES = new Set(["completed", "complete", "submitted", "success", "done"]);
 const ARRIVAL_CARD_READY_RESULT_STATUSES = new Set(["form_ready_for_agency"]);
 const SGAC_VISA_TYPE = "SG_ARRIVAL_CARD";
-const ARRIVAL_CARD_VISA_TYPES = new Set([SGAC_VISA_TYPE, "MY_MDAC_ARRIVAL_CARD", "TH_TDAC_ARRIVAL_CARD"]);
+const ARRIVAL_CARD_VISA_TYPES = new Set([SGAC_VISA_TYPE, "MY_MDAC_ARRIVAL_CARD", "TH_TDAC_ARRIVAL_CARD", "PH_ETRAVEL_ARRIVAL_CARD"]);
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
 const STORAGE_BUCKETS = new Set(["application-documents", "application-results", "application-packets", "visa-results", "submission-artifacts"]);
 const APPLICATION_STATUS_SELECT =
@@ -425,6 +425,7 @@ function getSubmissionResultReference(application: ApplicationRow): string | nul
 
 function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
   if (application.visa_type === "MY_MDAC_ARRIVAL_CARD") return false;
+  if (application.visa_type === "PH_ETRAVEL_ARRIVAL_CARD") return false;
   if (application.visa_type !== "TH_TDAC_ARRIVAL_CARD") return true;
   const result = getSubmissionResult(application);
   const artifacts = isRecord(result?.artifacts) ? result.artifacts : null;

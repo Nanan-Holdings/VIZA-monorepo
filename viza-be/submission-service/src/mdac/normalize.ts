@@ -27,7 +27,6 @@ export interface MdacPortalPayload {
   modeOfTravel: string;
   transportNumber: string;
   lastEmbarkationCountry: string;
-  portOfEntry: string;
   purposeOfVisit: string;
   accommodationType: string;
   addressInMalaysia: string;
@@ -94,7 +93,6 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
     modeOfTravel: requireText(answers, "mode_of_travel", missing),
     transportNumber: requireText(answers, "transport_number", missing),
     lastEmbarkationCountry: requireText(answers, "last_embarkation_country", missing),
-    portOfEntry: requireText(answers, "port_of_entry", missing),
     purposeOfVisit: requireText(answers, "purpose_of_visit", missing),
     accommodationType: requireText(answers, "accommodation_type", missing),
     addressInMalaysia: requireText(answers, "address_in_malaysia", missing),

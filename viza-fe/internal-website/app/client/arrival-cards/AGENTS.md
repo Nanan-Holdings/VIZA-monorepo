@@ -13,6 +13,9 @@ main destination catalog until the country workflow has been reviewed.
 
 - Arrival cards are not visas. User-facing copy and linked routes must keep the
   arrival-card package separate from eVisa, visit visa, and pass workflows.
+- Philippines eTravel uses `PH_ETRAVEL_ARRIVAL_CARD` via
+  `arrival-cards/philippines/page.tsx`; do not route it through
+  `PH_TEMPORARY_VISITOR_VISA`.
 - Do not add official-site automation, CAPTCHA handling, payment, or final
   official submission directly from these routes. If a country later gets an
   official runner, keep it in `viza-be/submission-service` and have the form

@@ -498,9 +498,12 @@ function normaliseFieldOptions(
   if (!localizedOptions) return [];
   return localizedOptions.map((option) => {
     if (typeof option === "string") return { value: option, text: option };
+    const text = side === "zh"
+      ? option.label_zh ?? option.text ?? option.label_en ?? option.official_label ?? option.value
+      : option.label_en ?? option.text ?? option.official_label ?? option.value;
     return {
       value: option.value,
-      text: option.text ?? (side === "zh" ? option.label_zh : option.label_en) ?? option.official_label ?? option.value,
+      text,
     };
   });
 }

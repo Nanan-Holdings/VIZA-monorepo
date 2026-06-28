@@ -19,6 +19,20 @@ import {
   resolveVisaFormSchemaVisaType,
   visaFormSchemaVisaTypesMatch,
 } from "@/lib/visa-form-schema-aliases";
+import {
+  PassportOcrProviderError,
+  extractPassportOcr,
+} from "@/app/api/passport-ocr/provider";
+import type {
+  PassportOcrProviderResult,
+  SupportedPassportMimeType,
+} from "@/app/api/passport-ocr/types";
+import {
+  buildOfficialImageValidationMessage,
+  validateOfficialDocumentImage,
+  type DocumentImageSignals,
+  type OfficialDocumentImageSlot,
+} from "@/lib/document-image-validation";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -1145,6 +1159,11 @@ const APPLICATION_DOCUMENTS_MAX_BYTES = 50 * 1024 * 1024;
 const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const VIETNAM_OFFICIAL_IMAGE_DOCUMENT_TYPES = new Set(["passport_copy", "photo"]);
 const VIETNAM_OFFICIAL_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const VIETNAM_OFFICIAL_IMAGE_OCR_MIME_TYPES = new Set<SupportedPassportMimeType>([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 function getFormDataString(formData: FormData, key: string): string | null {
   const value = formData.get(key);
@@ -1221,23 +1240,94 @@ export async function ensureApplicationDocumentsBucket(): Promise<DocumentMutati
   }
 }
 
-function validateVietnamOfficialImageUpload(input: {
+function getVietnamOfficialImageSlot(documentType: string): OfficialDocumentImageSlot | null {
+  if (documentType === "photo") return "portrait_photo";
+  if (documentType === "passport_copy") return "passport_data_page";
+  return null;
+}
+
+function isSupportedVietnamOfficialImageOcrMimeType(mimeType: string): mimeType is SupportedPassportMimeType {
+  return VIETNAM_OFFICIAL_IMAGE_OCR_MIME_TYPES.has(mimeType as SupportedPassportMimeType);
+}
+
+function countPassportOcrFields(result: PassportOcrProviderResult): number {
+  return Object.values(result.fields).filter((field) => Boolean(field.value?.trim())).length;
+}
+
+function passportOcrText(result: PassportOcrProviderResult): string {
+  return Object.values(result.fields)
+    .map((field) => field.value?.trim())
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
+}
+
+async function readVietnamOfficialImageSignals(input: {
+  file: File;
+  runPassportOcr: boolean;
+}): Promise<DocumentImageSignals> {
+  const mimeType = input.file.type.toLowerCase();
+  const bytes = Buffer.from(await input.file.arrayBuffer());
+  const signals: DocumentImageSignals = {
+    mimeType,
+    sizeBytes: input.file.size,
+  };
+
+  try {
+    const sharp = (await import("sharp")).default;
+    const metadata = await sharp(bytes).metadata();
+    signals.width = metadata.width ?? null;
+    signals.height = metadata.height ?? null;
+  } catch {
+    signals.width = null;
+    signals.height = null;
+  }
+
+  if (!input.runPassportOcr || !isSupportedVietnamOfficialImageOcrMimeType(mimeType)) {
+    return signals;
+  }
+
+  try {
+    const result = await extractPassportOcr({
+      bytes,
+      filename: input.file.name || "upload",
+      mimeType,
+    });
+    signals.readablePassport = result.isReadable;
+    signals.passportFieldCount = countPassportOcrFields(result);
+    signals.ocrText = passportOcrText(result);
+  } catch (error) {
+    if (error instanceof PassportOcrProviderError && error.code === "unreadable") {
+      signals.readablePassport = false;
+      signals.passportFieldCount = 0;
+    }
+  }
+
+  return signals;
+}
+
+async function validateVietnamOfficialImageUpload(input: {
   application: ApplicationRow;
   documentType: string;
   file: File;
-}): string | null {
+}): Promise<string | null> {
   if (!isVietnamEVisaDocumentApplication(input.application)) return null;
   if (!VIETNAM_OFFICIAL_IMAGE_DOCUMENT_TYPES.has(input.documentType)) return null;
 
-  if (input.file.size > VIETNAM_OFFICIAL_IMAGE_MAX_BYTES) {
-    return "越南 e-Visa 官网要求证件照和护照资料页图片小于 2MB。请压缩后重新上传。";
-  }
+  const expected = getVietnamOfficialImageSlot(input.documentType);
+  if (!expected) return null;
+  const mimeType = input.file.type.toLowerCase();
+  const runPassportOcr =
+    input.file.size <= VIETNAM_OFFICIAL_IMAGE_MAX_BYTES &&
+    isSupportedVietnamOfficialImageOcrMimeType(mimeType);
+  const signals = await readVietnamOfficialImageSignals({ file: input.file, runPassportOcr });
+  const validation = validateOfficialDocumentImage({
+    expected,
+    signals,
+    maxBytes: VIETNAM_OFFICIAL_IMAGE_MAX_BYTES,
+    allowedMimeTypes: VIETNAM_OFFICIAL_IMAGE_MIME_TYPES,
+  });
 
-  if (input.file.type && !VIETNAM_OFFICIAL_IMAGE_MIME_TYPES.has(input.file.type)) {
-    return "越南 e-Visa 官网只接受 JPG/JPEG/PNG/WEBP 图片。请上传清晰的证件照或护照资料页图片。";
-  }
-
-  return null;
+  return validation.ok ? null : buildOfficialImageValidationMessage(validation.issues, "zh");
 }
 
 export type UploadApplicationDocumentResult =
@@ -1271,7 +1361,7 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
     const application = await getOwnedApplication(applicationId, contextResult.context.applicantId);
     if (!application) return { ok: false, code: "not_found", error: "Application not found" };
 
-    const vietnamImageUploadError = validateVietnamOfficialImageUpload({ application, documentType, file });
+    const vietnamImageUploadError = await validateVietnamOfficialImageUpload({ application, documentType, file });
     if (vietnamImageUploadError) {
       return { ok: false, code: "invalid_request", error: vietnamImageUploadError };
     }

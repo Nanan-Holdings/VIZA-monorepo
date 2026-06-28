@@ -109,8 +109,14 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const pdfPath = hasOfficialPdfDownload
     ? result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null
     : null;
-  const countryLabel = result.country === "MY" ? "MDAC" : "TDAC";
-  const countryParam = result.country === "MY" ? "malaysia" : "thailand";
+  const arrivalCardMeta =
+    result.country === "MY"
+      ? { label: "MDAC", countryParam: "malaysia" }
+      : result.country === "TH"
+        ? { label: "TDAC", countryParam: "thailand" }
+        : { label: "eTravel", countryParam: "philippines" };
+  const countryLabel = arrivalCardMeta.label;
+  const countryParam = arrivalCardMeta.countryParam;
   const pdfUrl = pdfPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`)}`
     : null;
@@ -206,6 +212,10 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
               ? isZh
                 ? "马来西亚 MDAC 官网当前只返回提交确认，不提供可下载确认 PDF。"
                 : "The Malaysia MDAC portal currently returns a submission confirmation but does not provide an official downloadable PDF."
+              : result.country === "PH"
+                ? isZh
+                  ? "菲律宾 eTravel 通常返回 QR code / 参考号；当前没有可下载的官方 PDF。"
+                  : "The Philippines eTravel portal usually returns a QR code/reference; no official downloadable PDF is available for this submission."
               : isZh
                 ? "当前没有可下载的官方确认 PDF。"
                 : "No official downloadable confirmation PDF is available for this submission."}
@@ -226,7 +236,8 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
 function isDigitalArrivalCardResult(result: SubmissionResult): result is DigitalArrivalCardSubmissionResult {
   return (
     (result.country === "MY" && "visaType" in result && result.visaType === "MY_MDAC_ARRIVAL_CARD") ||
-    (result.country === "TH" && "visaType" in result && result.visaType === "TH_TDAC_ARRIVAL_CARD")
+    (result.country === "TH" && "visaType" in result && result.visaType === "TH_TDAC_ARRIVAL_CARD") ||
+    (result.country === "PH" && "visaType" in result && result.visaType === "PH_ETRAVEL_ARRIVAL_CARD")
   );
 }
 

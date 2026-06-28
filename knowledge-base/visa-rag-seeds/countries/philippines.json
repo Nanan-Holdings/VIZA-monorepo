@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-18",
+  "version": "2026-06-28",
   "country": "philippines",
   "notes": "Country-level VIZA RAG seed for philippines. This file is the source of truth for this country's visitor/tourism visa knowledge and is designed to evolve alongside the country-specific form-filling workflow.",
   "documents": [
@@ -55,14 +55,14 @@
     {
       "slug": "philippines-form-requirements",
       "country": "philippines",
-      "visaType": "visa_free_14_days_or_evisa",
+      "visaType": "PH_ETRAVEL_ARRIVAL_CARD",
       "documentType": "form_requirements",
-      "title": "Philippines Application Form and Document Intake Requirements",
+      "title": "Philippines eTravel Arrival Card Intake Requirements",
       "sourceUrl": "https://etravel.gov.ph/",
       "chunks": [
         {
           "id": "philippines_form_channel_and_scope",
-          "title": "Philippines application channel and form scope",
+          "title": "Philippines eTravel channel and form scope",
           "tags": [
             "philippines",
             "application-form",
@@ -70,11 +70,11 @@
             "workflow",
             "official-source"
           ],
-          "content": "Philippines eTravel plus visa/eVisa or visa-free visitor workflow Official source URLs reviewed for this seed: https://etravel.gov.ph/ ; https://www.pna.gov.ph/articles/1267062. This RAG chunk is for visitor/tourism-oriented intake and form-filling preparation; route work, study, residence, immigration, journalism or other regulated purposes to a separate country workflow."
+          "content": "Philippines eTravel is a standalone arrival/departure declaration package, not a 9(a) Temporary Visitor Visa field group. Official source URLs reviewed for this seed: https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions ; https://www.pna.gov.ph/articles/1267062. eTravel registration is free, normally allowed within 72 hours before arrival or departure in the Philippines, and produces an eTravel QR code/reference for boarding and border-health processing. Keep visa/eVisa eligibility and 9(a) consular visa advice in separate Philippines visa packages."
         },
         {
           "id": "philippines_form_fields_to_collect",
-          "title": "Philippines fields to collect before filling the form",
+          "title": "Philippines eTravel fields to collect before filling the form",
           "tags": [
             "philippines",
             "application-form",
@@ -82,11 +82,11 @@
             "field-mapping",
             "intake"
           ],
-          "content": "identity, passport, nationality, travel dates, flight details, accommodation, purpose, health/customs and eTravel arrival data"
+          "content": "Collect only the official eTravel declaration data needed for the standalone arrival-card package: personal identity, passport, nationality, country of birth/residence, occupation, contact details, arrival/departure dates, travel type, transport type, flight or vessel details, origin country, port of entry, Philippines address, purpose of travel, health symptoms declaration, baggage/customs declarations, currency declaration, and final traveller declaration."
         },
         {
           "id": "philippines_supporting_documents_and_review",
-          "title": "Philippines supporting documents and review checklist",
+          "title": "Philippines eTravel evidence and review checklist",
           "tags": [
             "philippines",
             "documents",
@@ -94,7 +94,7 @@
             "upload",
             "review-before-submit"
           ],
-          "content": "passport, return/onward ticket, hotel/accommodation, eTravel confirmation and visa/eVisa documents if the trip is not visa-free Workflow guardrails: VIZA should separate eligibility check, form filling, document upload, payment and post-approval travel/entry checks. Do not guarantee entry; border authorities make the final decision."
+          "content": "Before submission, review passport data, flight or vessel details, Philippines address, health answers, customs/baggage answers, currency declaration, and final declaration. After successful official submission, preserve the eTravel QR code, reference number, official confirmation page screenshot/download, and portal response summary. Do not treat a normal portal screenshot as success. Do not guarantee entry; Philippine border, health, customs, and immigration authorities make the final decision."
         }
       ]
     }
