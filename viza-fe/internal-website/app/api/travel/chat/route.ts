@@ -21,6 +21,26 @@ type TravelAgentChatResponse = {
   };
 };
 
+type TravelSlotParseResult = {
+  action: "update_fields" | "choose_destination" | "ask_clarification" | "ignore";
+  confidence: number;
+  should_create_destination_card: boolean;
+  destination_query: string | null;
+  fields: {
+    travel_days?: number | null;
+    travelers?: number | null;
+    budget?: number | null;
+    departure_date?: string | null;
+    date_flexibility?: string | null;
+    origin_country?: string | null;
+    origin_city?: string | null;
+    return_country?: string | null;
+    return_city?: string | null;
+  };
+  reply_zh?: string | null;
+  reply_en?: string | null;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -48,6 +68,404 @@ function latestUserText(payload: unknown): string {
   }
 
   return "";
+}
+
+function latestTravelState(payload: unknown): Record<string, unknown> {
+  if (!isRecord(payload) || !isRecord(payload.state)) return {};
+  return payload.state;
+}
+
+function payloadLocale(payload: unknown): "zh" | "en" {
+  if (!isRecord(payload)) return "zh";
+  return payload.locale === "en" ? "en" : "zh";
+}
+
+function hasExistingTripContext(state: Record<string, unknown>): boolean {
+  return (
+    (Array.isArray(state.cities) && state.cities.length > 0) ||
+    (Array.isArray(state.countries) && state.countries.length > 0) ||
+    typeof state.country === "string" ||
+    typeof state.city === "string"
+  );
+}
+
+function extractOpenAIText(payload: unknown): string {
+  if (!isRecord(payload)) return "";
+  if (typeof payload.output_text === "string") return payload.output_text;
+  if (!Array.isArray(payload.output)) return "";
+
+  return payload.output
+    .flatMap((item) => {
+      if (!isRecord(item) || !Array.isArray(item.content)) return [];
+      return item.content.map((content) => {
+        if (!isRecord(content)) return "";
+        if (typeof content.text === "string") return content.text;
+        if (typeof content.output_text === "string") return content.output_text;
+        return "";
+      });
+    })
+    .join("")
+    .trim();
+}
+
+function parseChineseSmallNumber(value: string): number | null {
+  const normalized = value.trim();
+  if (/^\d+$/.test(normalized)) return Number(normalized);
+  const numbers: Record<string, number> = {
+    一: 1,
+    二: 2,
+    两: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10,
+  };
+  return numbers[normalized] ?? null;
+}
+
+function extractTravelersFromText(text: string): number | null {
+  const match = text.match(
+    /(?:一共|总共|共|合计)?\s*([0-9]{1,3}|[一二两三四五六七八九十])\s*(?:个)?(?:人|位|名|travellers?|travelers?|people|adults?)/i
+  );
+  if (!match?.[1]) return null;
+  const value = parseChineseSmallNumber(match[1]);
+  if (!value || value < 1 || value > 99) return null;
+  return value;
+}
+
+function extractBudgetFromText(text: string): number | null {
+  const normalized = text.replace(/[,，]/g, "");
+  const budgetMatch = normalized.match(
+    /(?:预算|budget|花费|费用|大概|一共|总共)?\s*(?:是|为|:|：)?\s*(?:人民币|rmb|cny|¥)?\s*([0-9]{2,9})(?:\s*(万))?\s*(?:人民币|rmb|cny|元|块|¥)?/i
+  );
+  if (!budgetMatch?.[1]) return null;
+  const hasBudgetCue = /(预算|budget|花费|费用|人民币|rmb|cny|元|块|¥)/i.test(
+    normalized
+  );
+  if (!hasBudgetCue) return null;
+  const value = Number(budgetMatch[1]) * (budgetMatch[2] ? 10000 : 1);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function extractTravelDaysFromText(text: string): number | null {
+  const match = text.match(/([0-9]{1,2}|[一二两三四五六七八九十])\s*(?:天|日|days?)/i);
+  if (!match?.[1]) return null;
+  const value = parseChineseSmallNumber(match[1]);
+  if (!value || value < 1 || value > 60) return null;
+  return value;
+}
+
+function extractDepartureDateFromText(text: string): string | null {
+  const isoMatch = text.match(/\b(20\d{2}-\d{1,2}-\d{1,2})\b/);
+  if (isoMatch?.[1]) return isoMatch[1];
+  const monthDayMatch = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|号)/);
+  if (!monthDayMatch) return null;
+  const month = monthDayMatch[1].padStart(2, "0");
+  const day = monthDayMatch[2].padStart(2, "0");
+  return `2026-${month}-${day}`;
+}
+
+function hasParsedFields(result: TravelSlotParseResult): boolean {
+  return Object.values(result.fields).some(
+    (value) => value !== null && value !== undefined && value !== ""
+  );
+}
+
+function parseTravelSlotsFallback(
+  userText: string,
+  state: Record<string, unknown>
+): TravelSlotParseResult | null {
+  const travelers = extractTravelersFromText(userText);
+  const budget = extractBudgetFromText(userText);
+  const travelDays = extractTravelDaysFromText(userText);
+  const departureDate = extractDepartureDateFromText(userText);
+  const fields: TravelSlotParseResult["fields"] = {
+    travelers,
+    budget,
+    travel_days: travelDays,
+    departure_date: departureDate,
+  };
+  const result: TravelSlotParseResult = {
+    action: "update_fields",
+    confidence: 0.74,
+    should_create_destination_card: false,
+    destination_query: null,
+    fields,
+  };
+  if (!hasParsedFields(result)) return null;
+
+  const hasFieldCue = /(预算|budget|人民币|rmb|cny|元|块|人|位|名|出发|返回|日期|时间|天)/i.test(
+    userText
+  );
+  const hasDestinationCue = /(想去|我要去|计划去|目的地|城市|国家|travel to|go to|visit)/i.test(
+    userText
+  );
+  if (hasFieldCue && (!hasDestinationCue || hasExistingTripContext(state))) {
+    return result;
+  }
+
+  return null;
+}
+
+function sanitizeOpenAISlotResult(value: unknown): TravelSlotParseResult | null {
+  if (!isRecord(value) || !isRecord(value.fields)) return null;
+  const action = value.action;
+  if (
+    action !== "update_fields" &&
+    action !== "choose_destination" &&
+    action !== "ask_clarification" &&
+    action !== "ignore"
+  ) {
+    return null;
+  }
+
+  const fields: TravelSlotParseResult["fields"] = {};
+  for (const key of [
+    "travel_days",
+    "travelers",
+    "budget",
+  ] as const) {
+    const fieldValue = value.fields[key];
+    if (typeof fieldValue === "number" && Number.isFinite(fieldValue)) {
+      fields[key] = fieldValue;
+    }
+  }
+  for (const key of [
+    "departure_date",
+    "date_flexibility",
+    "origin_country",
+    "origin_city",
+    "return_country",
+    "return_city",
+  ] as const) {
+    const fieldValue = value.fields[key];
+    if (typeof fieldValue === "string" || fieldValue === null) {
+      fields[key] = fieldValue;
+    }
+  }
+
+  return {
+    action,
+    confidence:
+      typeof value.confidence === "number" && Number.isFinite(value.confidence)
+        ? value.confidence
+        : 0,
+    should_create_destination_card: value.should_create_destination_card === true,
+    destination_query:
+      typeof value.destination_query === "string"
+        ? value.destination_query
+        : null,
+    fields,
+    reply_zh: typeof value.reply_zh === "string" ? value.reply_zh : null,
+    reply_en: typeof value.reply_en === "string" ? value.reply_en : null,
+  };
+}
+
+async function parseTravelSlotsWithOpenAI(
+  userText: string,
+  state: Record<string, unknown>,
+  locale: "zh" | "en"
+): Promise<TravelSlotParseResult | null> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model:
+        process.env.TRAVEL_SLOT_OPENAI_MODEL?.trim() ||
+        process.env.OPENAI_MODEL?.trim() ||
+        "gpt-4o-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "You parse every travel-chat user utterance into structured trip fields and decide the next routing action. Extract only explicitly stated facts. If the utterance only supplies missing fields such as travelers, budget, dates, origin, or return city, set action=update_fields and should_create_destination_card=false. Never turn a field phrase like '一共2个人' or '预算60000rmb' into a destination. If the utterance requests a destination lookup, set action=choose_destination and include destination_query. If uncertain, ask_clarification.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            locale,
+            current_state: state,
+            latest_user_message: userText,
+          }),
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "travel_slot_parse",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "action",
+              "confidence",
+              "should_create_destination_card",
+              "destination_query",
+              "fields",
+              "reply_zh",
+              "reply_en",
+            ],
+            properties: {
+              action: {
+                type: "string",
+                enum: [
+                  "update_fields",
+                  "choose_destination",
+                  "ask_clarification",
+                  "ignore",
+                ],
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              should_create_destination_card: { type: "boolean" },
+              destination_query: { type: ["string", "null"] },
+              fields: {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "travel_days",
+                  "travelers",
+                  "budget",
+                  "departure_date",
+                  "date_flexibility",
+                  "origin_country",
+                  "origin_city",
+                  "return_country",
+                  "return_city",
+                ],
+                properties: {
+                  travel_days: { type: ["number", "null"] },
+                  travelers: { type: ["number", "null"] },
+                  budget: { type: ["number", "null"] },
+                  departure_date: { type: ["string", "null"] },
+                  date_flexibility: { type: ["string", "null"] },
+                  origin_country: { type: ["string", "null"] },
+                  origin_city: { type: ["string", "null"] },
+                  return_country: { type: ["string", "null"] },
+                  return_city: { type: ["string", "null"] },
+                },
+              },
+              reply_zh: { type: ["string", "null"] },
+              reply_en: { type: ["string", "null"] },
+            },
+          },
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) return null;
+  const raw = await response.json();
+  const text = extractOpenAIText(raw);
+  if (!text) return null;
+  try {
+    return sanitizeOpenAISlotResult(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
+function fieldSummary(
+  fields: TravelSlotParseResult["fields"],
+  locale: "zh" | "en"
+): string {
+  const parts: string[] = [];
+  if (typeof fields.travel_days === "number") {
+    parts.push(locale === "zh" ? `${fields.travel_days} 天` : `${fields.travel_days} days`);
+  }
+  if (typeof fields.travelers === "number") {
+    parts.push(locale === "zh" ? `${fields.travelers} 人` : `${fields.travelers} people`);
+  }
+  if (typeof fields.budget === "number") {
+    parts.push(locale === "zh" ? `预算 ${fields.budget} RMB` : `budget RMB ${fields.budget}`);
+  }
+  if (fields.departure_date) {
+    parts.push(locale === "zh" ? `出发日期 ${fields.departure_date}` : `departure ${fields.departure_date}`);
+  }
+  if (fields.origin_city) {
+    parts.push(locale === "zh" ? `从 ${fields.origin_city} 出发` : `from ${fields.origin_city}`);
+  }
+  return parts.join(locale === "zh" ? "，" : ", ");
+}
+
+function buildSlotUpdateResponse(
+  parsed: TravelSlotParseResult,
+  locale: "zh" | "en"
+): TravelAgentChatResponse | null {
+  if (!hasParsedFields(parsed)) return null;
+  if (parsed.action === "choose_destination" && parsed.should_create_destination_card) {
+    return null;
+  }
+  if (parsed.action !== "update_fields" && parsed.action !== "ask_clarification") {
+    return null;
+  }
+
+  const summary = fieldSummary(parsed.fields, locale);
+  return {
+    reply:
+      parsed.action === "ask_clarification"
+        ? locale === "zh"
+          ? parsed.reply_zh || "我需要再确认一下这些旅行信息。"
+          : parsed.reply_en || "I need to confirm these trip details."
+        : locale === "zh"
+        ? `已记录：${summary}。`
+        : `Got it: ${summary}.`,
+    mode: "collect_slots",
+    quick_replies: [],
+    cards: [],
+    candidate_payload: Object.fromEntries(
+      Object.entries(parsed.fields).filter(
+        ([, value]) => value !== null && value !== undefined && value !== ""
+      )
+    ),
+    sources: [
+      {
+        id: "travel_slot_parser",
+        title: "Structured travel slot parser",
+        type: "parser",
+      },
+    ],
+  };
+}
+
+async function buildImmediateSlotParserResponse(
+  payload: unknown
+): Promise<TravelAgentChatResponse | null> {
+  const userText = latestUserText(payload);
+  if (!userText || /加入计划|add to plan/i.test(userText)) return null;
+
+  const state = latestTravelState(payload);
+  const locale = payloadLocale(payload);
+  const parsed =
+    (await parseTravelSlotsWithOpenAI(userText, state, locale).catch(
+      () => null
+    )) ?? parseTravelSlotsFallback(userText, state);
+  if (!parsed) return null;
+  if (
+    parsed.action === "update_fields" &&
+    looksLikeDestinationDraftText(userText)
+  ) {
+    const destinationResolution = resolveLocalDestinationText(userText);
+    if (
+      destinationResolution.status === "resolved" ||
+      destinationResolution.status === "ambiguous"
+    ) {
+      return null;
+    }
+  }
+
+  return buildSlotUpdateResponse(parsed, locale);
 }
 
 function destinationKey(card: TravelDestinationCard): string {
@@ -542,6 +960,11 @@ function looksLikeDestinationDraftText(value: string): boolean {
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
+    const slotParserResponse = await buildImmediateSlotParserResponse(payload);
+    if (slotParserResponse) {
+      return Response.json(slotParserResponse, { status: 200 });
+    }
+
     const immediateResponse = buildImmediateLocalFirstResponse(payload);
     if (immediateResponse) {
       return Response.json(immediateResponse, { status: 200 });

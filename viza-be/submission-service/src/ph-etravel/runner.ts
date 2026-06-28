@@ -31,6 +31,11 @@ export class PhEtravelPortalError extends Error {
   }
 }
 
+export function isPhEtravelRemotePolicyBlockMessage(message: string): boolean {
+  return /bright\s*data|proxy_error|classified\s+as\s+government|residential.*policy/i.test(message) &&
+    /access denied|blocked|policy|government|proxy_error/i.test(message);
+}
+
 async function saveScreenshot(page: Page, name: string, logs: string[]): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-ph-etravel-"));
   const filePath = path.join(dir, `${name}-${Date.now()}.png`);
@@ -59,11 +64,20 @@ export async function runPhEtravelPortalSubmission(
   payload: PhEtravelPortalPayload,
   options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
 ): Promise<PhEtravelPortalSubmissionResult> {
+  return runPhEtravelPortalSubmissionWithBrowser(payload, options, false);
+}
+
+async function runPhEtravelPortalSubmissionWithBrowser(
+  payload: PhEtravelPortalPayload,
+  options: { headless?: boolean; stopBeforeSubmit?: boolean },
+  forceLocal: boolean,
+): Promise<PhEtravelPortalSubmissionResult> {
   const logs: string[] = [`ph_etravel_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
   const browserSession = await createArrivalCardBrowserSession({
     prefix: "PH_ETRAVEL",
     headless: options.headless,
+    forceLocal,
   });
   const page = browserSession.page;
   logs.push(`ph_etravel_browser_provider=${browserSession.provider}`);
@@ -118,6 +132,18 @@ export async function runPhEtravelPortalSubmission(
         portalSummary: landingText.slice(0, 700),
       },
     );
+  } catch (error) {
+    if (
+      !forceLocal &&
+      browserSession.provider === "remote-browser-api" &&
+      error instanceof PhEtravelPortalError &&
+      error.code === "ph_etravel_official_portal_blocked" &&
+      isPhEtravelRemotePolicyBlockMessage(error.portalSummary ?? error.message)
+    ) {
+      logs.push("ph_etravel_remote_policy_blocked_fallback_to_local");
+      return runPhEtravelPortalSubmissionWithBrowser(payload, options, true);
+    }
+    throw error;
   } finally {
     await browserSession.close();
   }
