@@ -1,4 +1,5 @@
 import {
+  type FieldGuidanceOptionExplanation,
   type FieldGuidanceRequest,
   type FieldGuidanceResponse,
   type FieldGuidanceSource,
@@ -84,6 +85,121 @@ function normalizeOptions(
       };
     })
     .filter((option) => option.value || option.text);
+}
+
+function normalizedOptionText(option: { value: string; text: string }): string {
+  return `${option.value} ${option.text}`.toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function explainKnownOption(
+  request: FieldGuidanceRequest,
+  option: { value: string; text: string },
+): string | null {
+  const locale = getLocale(request);
+  const fieldName = request.field.fieldName.toLowerCase();
+  const fieldLabel = request.field.label.toLowerCase();
+  const optionText = normalizedOptionText(option);
+  const isPassportType =
+    (fieldName.includes("passport") || fieldLabel.includes("passport") || fieldLabel.includes("护照")) &&
+    (fieldName.includes("type") ||
+      fieldName.includes("document") ||
+      fieldLabel.includes("类型") ||
+      fieldLabel.includes("种类"));
+
+  if (isPassportType) {
+    if (/\b(regular|ordinary|normal)\b|普通/.test(optionText)) {
+      return locale === "zh"
+        ? "大多数个人旅游、探亲、商务或学习出行使用的普通个人护照。"
+        : "The standard personal passport used for most tourism, family visits, business, or study travel.";
+    }
+    if (/diplomatic|外交/.test(optionText)) {
+      return locale === "zh"
+        ? "通常由外交人员或代表政府执行外交公务的人员持有。"
+        : "Usually held by diplomats or people traveling on diplomatic government duties.";
+    }
+    if (/official|service|公务|公務/.test(optionText)) {
+      return locale === "zh"
+        ? "通常用于政府人员或公职人员执行公务出行，不是普通个人护照。"
+        : "Usually used by government or public officials traveling on official duty, not ordinary personal travel.";
+    }
+    if (/other|其他|其它/.test(optionText)) {
+      return locale === "zh"
+        ? "仅在你的旅行证件不属于普通、外交或公务护照时选择，并准备按官方要求补充说明。"
+        : "Use only when your travel document is not regular, diplomatic, or official; be ready to explain it if required.";
+    }
+  }
+
+  if (/^y(es)?$|是|有|true/.test(optionText)) {
+    return locale === "zh"
+      ? "表示你的情况符合这个问题描述；选择前请确认后续字段也能支持这个答案。"
+      : "Means the statement applies to you; confirm later fields also support this answer.";
+  }
+  if (/^no?$|否|没有|false/.test(optionText)) {
+    return locale === "zh"
+      ? "表示你的情况不符合这个问题描述；如不确定，请先核对证件或官方材料。"
+      : "Means the statement does not apply to you; check your documents or official materials if unsure.";
+  }
+  if (/\bfemale\b|女/.test(optionText)) {
+    return locale === "zh"
+      ? "选择证件或官方表单上显示为女性的情况。"
+      : "Use when the document or official form shows female.";
+  }
+  if (/\bmale\b|男/.test(optionText)) {
+    return locale === "zh"
+      ? "选择证件或官方表单上显示为男性的情况。"
+      : "Use when the document or official form shows male.";
+  }
+
+  return null;
+}
+
+function explainGenericOption(
+  request: FieldGuidanceRequest,
+  option: { value: string; text: string },
+): string {
+  const locale = getLocale(request);
+  const label = option.text || option.value;
+  if (request.field.fieldType === "multi_select" || request.field.fieldType === "checkbox") {
+    return locale === "zh"
+      ? `如果“${label}”符合你的实际情况或材料内容，就勾选；不符合则不要选择。`
+      : `Select "${label}" only if it matches your situation or supporting documents.`;
+  }
+  return locale === "zh"
+    ? `选择“${label}”表示该字段答案就是这一项；具体含义以当前题目和官方表单语境为准。`
+    : `Choose "${label}" when this is the correct answer for the field; interpret it in the current official-form context.`;
+}
+
+function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOptionExplanation[] {
+  if (!["select", "radio", "multi_select", "checkbox"].includes(request.field.fieldType)) return [];
+  const options = normalizeOptions(request.field.options, getLocale(request));
+  if (options.length === 0) return [];
+
+  return options.map((option) => ({
+    value: option.value || option.text,
+    label: option.text || option.value,
+    description: explainKnownOption(request, option) ?? explainGenericOption(request, option),
+  }));
+}
+
+function withOptionExplanations(
+  request: FieldGuidanceRequest,
+  response: FieldGuidanceResponse,
+): FieldGuidanceResponse {
+  const existing = response.guidance.optionExplanations?.filter(
+    (item) => item.label.trim() && item.description.trim(),
+  );
+  if (existing && existing.length > 0) return response;
+
+  const optionExplanations = buildOptionExplanations(request);
+  if (optionExplanations.length === 0) return response;
+
+  return {
+    ...response,
+    guidance: {
+      ...response.guidance,
+      optionExplanations,
+    },
+  };
 }
 
 function stripMarkdown(content: string): string {
@@ -208,6 +324,7 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
           ? "AI 暂时不可用，以下是本地填写规则。请先按当前字段、官方选项和证件信息填写。"
           : "AI guidance is temporarily unavailable, so VIZA is showing local rule-based guidance for this field.",
       examples,
+      optionExplanations: buildOptionExplanations(request),
       hints: [
         locale === "zh"
           ? "中文侧和英文侧会互相同步；如自动生成结果不符合证件，请直接修改另一侧。"
@@ -269,6 +386,28 @@ function asStringArray(value: unknown, fallback: string[], limit: number): strin
   return items.length > 0 ? items : fallback;
 }
 
+function parseOptionExplanations(
+  value: unknown,
+  fallback: FieldGuidanceOptionExplanation[],
+): FieldGuidanceOptionExplanation[] {
+  if (!Array.isArray(value)) return fallback;
+  const items = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const option = item as Record<string, unknown>;
+      const label = asString(option.label);
+      const description = asString(option.description);
+      if (!label || !description) return null;
+      return {
+        value: asString(option.value) ?? label,
+        label,
+        description,
+      };
+    })
+    .filter((item): item is FieldGuidanceOptionExplanation => Boolean(item));
+  return items.length > 0 ? items : fallback;
+}
+
 function normalizeConfidence(value: unknown): FieldGuidanceResponse["confidence"] {
   return value === "high" || value === "medium" || value === "low" ? value : "medium";
 }
@@ -289,6 +428,7 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
   const question = request.question?.trim();
   const localRules = {
     examples: base.guidance.examples,
+    optionExplanations: base.guidance.optionExplanations ?? [],
     hints: base.guidance.hints,
     officialWarnings: base.guidance.officialWarnings,
     formatHints: base.guidance.formatHints,
@@ -343,6 +483,19 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
               properties: {
                 summary: { type: "string" },
                 examples: { type: "array", items: { type: "string" } },
+                optionExplanations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      value: { type: "string" },
+                      label: { type: "string" },
+                      description: { type: "string" },
+                    },
+                    required: ["value", "label", "description"],
+                  },
+                },
                 hints: { type: "array", items: { type: "string" } },
                 officialWarnings: { type: "array", items: { type: "string" } },
                 formatHints: { type: "array", items: { type: "string" } },
@@ -352,6 +505,7 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
               required: [
                 "summary",
                 "examples",
+                "optionExplanations",
                 "hints",
                 "officialWarnings",
                 "formatHints",
@@ -385,6 +539,10 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
             ? "请根据当前字段、官方选项和证件信息核对填写。"
             : "Check this field against the current options and your official documents.",
         examples: asStringArray(parsed.examples, base.guidance.examples, 4),
+        optionExplanations: parseOptionExplanations(
+          parsed.optionExplanations,
+          base.guidance.optionExplanations ?? [],
+        ),
         hints: asStringArray(parsed.hints, base.guidance.hints, 5),
         officialWarnings: asStringArray(parsed.officialWarnings, base.guidance.officialWarnings, 4),
         formatHints: asStringArray(parsed.formatHints, base.guidance.formatHints, 4),
@@ -397,7 +555,7 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
       cached: false,
     };
 
-    return sanitizeChineseResponse(request, guidance);
+    return sanitizeChineseResponse(request, withOptionExplanations(request, guidance));
   } catch {
     return null;
   } finally {
@@ -423,6 +581,13 @@ function sanitizeChineseResponse(
       summary: isLikelyNonChineseSentence(payload.guidance.summary)
         ? fallbackSummary
         : payload.guidance.summary,
+      optionExplanations: withOptionExplanations(request, payload).guidance.optionExplanations?.map((item) => ({
+        ...item,
+        description: isLikelyNonChineseSentence(item.description)
+          ? buildOptionExplanations(request).find((fallbackItem) => fallbackItem.value === item.value)?.description ??
+            item.description
+          : item.description,
+      })),
       hints: keepChineseItems(payload.guidance.hints, fallback.guidance.hints),
       officialWarnings: keepChineseItems(payload.guidance.officialWarnings, fallback.guidance.officialWarnings),
       formatHints: keepChineseItems(payload.guidance.formatHints, fallback.guidance.formatHints),
@@ -456,7 +621,7 @@ async function forwardToBackend(requestBody: FieldGuidanceRequest): Promise<Fiel
 
     const payload = (await response.json()) as FieldGuidanceResponse;
     if (payload.reply) payload.reply = stripMarkdown(payload.reply);
-    return sanitizeChineseResponse(requestBody, payload);
+    return sanitizeChineseResponse(requestBody, withOptionExplanations(requestBody, payload));
   } finally {
     clearTimeout(timeout);
   }
@@ -480,7 +645,7 @@ export async function POST(request: Request) {
   try {
     const guidance = await forwardToBackend(requestBody);
     if (guidance.aiUsed) {
-      return Response.json(guidance);
+      return Response.json(withOptionExplanations(requestBody, guidance));
     }
 
     const directGuidance = await generateDirectOpenAiGuidance(requestBody);
@@ -488,7 +653,7 @@ export async function POST(request: Request) {
       return Response.json(directGuidance);
     }
 
-    return Response.json(guidance);
+    return Response.json(withOptionExplanations(requestBody, guidance));
   } catch (error) {
     const directGuidance = await generateDirectOpenAiGuidance(requestBody);
     if (directGuidance) {
@@ -496,6 +661,6 @@ export async function POST(request: Request) {
     }
 
     const reason = error instanceof Error ? error.message : "AI guidance service unavailable.";
-    return Response.json(makeFallbackGuidance(requestBody, reason));
+    return Response.json(withOptionExplanations(requestBody, makeFallbackGuidance(requestBody, reason)));
   }
 }
