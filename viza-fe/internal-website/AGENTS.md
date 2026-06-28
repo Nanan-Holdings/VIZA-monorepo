@@ -215,6 +215,7 @@ Smoke URLs:
 - `hooks/use-smooth-progress.ts`
 - `lib/supabase/*`
 - `lib/document-upload-client.ts`
+- `lib/document-image-validation.ts`
 - `lib/application-tab-completion.ts`
 - `lib/application-step-sections.ts`
 - `lib/birthplace-options.ts`

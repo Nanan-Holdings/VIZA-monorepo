@@ -29,12 +29,14 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
   return null;
 }
 
-export function resolveArrivalCardBrowserEndpoint(prefix: "MDAC" | "TDAC"): string | null {
+export type ArrivalCardBrowserPrefix = "MDAC" | "TDAC" | "PH_ETRAVEL";
+
+export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [
     `${prefix}_BROWSER_API_ENDPOINT`,
     `${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`,
   ];
-  if (prefix === "TDAC" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
+  if (prefix === "TDAC" || prefix === "PH_ETRAVEL" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
     envNames.push(
       "BRIGHTDATA_BROWSER_WS",
       "BRIGHTDATA_BROWSER_API_ENDPOINT",
@@ -49,7 +51,7 @@ function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
 }
 
 export async function createArrivalCardBrowserSession(options: {
-  prefix: "MDAC" | "TDAC";
+  prefix: ArrivalCardBrowserPrefix;
   headless?: boolean;
 }): Promise<ArrivalCardBrowserSession> {
   const diagnostics: string[] = [];
@@ -86,11 +88,11 @@ export async function createArrivalCardBrowserSession(options: {
   }
 
   const channel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim()
-    || (["MDAC", "TDAC"].includes(options.prefix) ? "chrome" : undefined);
+    || (["MDAC", "TDAC", "PH_ETRAVEL"].includes(options.prefix) ? "chrome" : undefined);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
   const headless = explicitHeadless
     ? explicitHeadless !== "false"
-    : ["MDAC", "TDAC"].includes(options.prefix)
+    : ["MDAC", "TDAC", "PH_ETRAVEL"].includes(options.prefix)
       ? false
       : options.headless ?? true;
   const browser = await chromium.launch({ channel, headless });

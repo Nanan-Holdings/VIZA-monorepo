@@ -29,12 +29,16 @@ const CANCELABLE_SGAC_QUEUE_STATUSES = [
   "tdac_live_assisted_scheduled",
   "tdac_live_assisted_pending",
   "tdac_dry_run_pending",
+  "phetravel_live_assisted_scheduled",
+  "phetravel_live_assisted_pending",
+  "phetravel_dry_run_pending",
 ] as const;
 
 function cancelledStatusForVisaType(visaType: string | null): string {
   const normalized = (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
   if (normalized === "MY_MDAC_ARRIVAL_CARD") return "mdac_live_assisted_cancelled";
   if (normalized === "TH_TDAC_ARRIVAL_CARD") return "tdac_live_assisted_cancelled";
+  if (normalized === "PH_ETRAVEL_ARRIVAL_CARD") return "phetravel_live_assisted_cancelled";
   return "sgac_live_assisted_cancelled";
 }
 

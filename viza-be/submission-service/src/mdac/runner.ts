@@ -225,6 +225,35 @@ function normalizeForMatch(value: string): string {
     .trim();
 }
 
+function uniqueValues(values: string[]): string[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function officialMdacCountryAliases(country: string): string[] {
+  const normalized = normalizeForMatch(country);
+  const aliases: Record<string, string[]> = {
+    CHINA: ["CHN", "CHN CHINA"],
+    "PEOPLE S REPUBLIC OF CHINA": ["CHN", "CHN CHINA", "CHINA"],
+    KOREA: ["KOR", "KOR KOREA"],
+    "KOREA REPUBLIC OF": ["KOR", "KOR KOREA", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "REPUBLIC OF KOREA": ["KOR", "KOR KOREA", "KOREA REPUBLIC OF", "SOUTH KOREA"],
+    "SOUTH KOREA": ["KOR", "KOR KOREA", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA"],
+    "UNITED STATES": ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES OF AMERICA"],
+    "UNITED STATES OF AMERICA": ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES"],
+    AMERICA: ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES OF AMERICA"],
+    MALAYSIA: ["MYS", "MYS MALAYSIA"],
+    SINGAPORE: ["SGP", "SGP SINGAPORE"],
+    THAILAND: ["THA", "THA THAILAND"],
+  };
+  const codeMatch = normalized.match(/^[A-Z]{3}\b/);
+  return uniqueValues([
+    country,
+    normalized,
+    codeMatch?.[0] ?? "",
+    ...(aliases[normalized] ?? []),
+  ]);
+}
+
 function officialMdacStateAlias(state: string): string {
   const normalized = normalizeForMatch(state);
   const aliases: Record<string, string> = {
@@ -279,30 +308,37 @@ async function selectOptionByTextOrValue(
   selector: string,
   wanted: string,
   logs: string[],
-  options: { byDialCode?: boolean } = {},
+  options: { byDialCode?: boolean; aliases?: string[] } = {},
 ): Promise<void> {
   const select = page.locator(selector).first();
   await select.waitFor({ state: "visible", timeout: 30_000 });
-  const desired = options.byDialCode ? wanted.replace(/\D/g, "") : normalizeForMatch(wanted);
+  const desiredValues = options.byDialCode
+    ? uniqueValues([wanted, ...(options.aliases ?? [])].map((value) => value.replace(/\D/g, "")))
+    : uniqueValues([wanted, ...(options.aliases ?? [])].map(normalizeForMatch));
   const match = await select.evaluate(
     (element, args) => {
       const selectElement = element as HTMLSelectElement;
       const candidates = Array.from(selectElement.options);
-      const desiredValue = args.desired;
+      const desiredValues = args.desiredValues;
       const option = candidates.find((candidate) => {
         if (!candidate.value) return false;
         if (args.byDialCode) {
           const optionValueDigits = candidate.value.replace(/\D/g, "");
           const optionLabelDigits = (candidate.textContent ?? "").replace(/\D/g, "");
-          return optionValueDigits === desiredValue || optionLabelDigits === desiredValue;
+          return desiredValues.includes(optionValueDigits) || desiredValues.includes(optionLabelDigits);
         }
         const label = (candidate.textContent ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
         const value = candidate.value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
-        return value === desiredValue || label === desiredValue || label.includes(desiredValue);
+        return desiredValues.some((desiredValue) =>
+          value === desiredValue ||
+          label === desiredValue ||
+          label.includes(desiredValue) ||
+          (desiredValue.length === 3 && value.startsWith(desiredValue))
+        );
       });
       return option ? { value: option.value, label: option.textContent ?? "" } : null;
     },
-    { desired, byDialCode: options.byDialCode === true },
+    { desiredValues, byDialCode: options.byDialCode === true },
   );
 
   if (!match) {
@@ -329,8 +365,12 @@ async function fillMdacRegistrationForm(page: Page, payload: MdacPortalPayload, 
   await fillInput(page, "#name", payload.fullName, logs);
   await fillInput(page, "#passNo", payload.passportNumber, logs);
   await fillInput(page, "#dob", formatDmy(payload.dateOfBirth), logs);
-  await selectOptionByTextOrValue(page, "#nationality", payload.nationality, logs);
-  await selectOptionByTextOrValue(page, "#pob", payload.placeOfBirth, logs);
+  await selectOptionByTextOrValue(page, "#nationality", payload.nationality, logs, {
+    aliases: officialMdacCountryAliases(payload.nationality),
+  });
+  await selectOptionByTextOrValue(page, "#pob", payload.placeOfBirth, logs, {
+    aliases: officialMdacCountryAliases(payload.placeOfBirth),
+  });
   await selectOptionByTextOrValue(page, "#sex", payload.sex, logs);
   await fillInput(page, "#passExpDte", formatDmy(payload.passportExpiryDate), logs);
   await fillInput(page, "#email", payload.emailAddress, logs);
@@ -341,7 +381,9 @@ async function fillMdacRegistrationForm(page: Page, payload: MdacPortalPayload, 
   await fillInput(page, "#depDt", formatDmy(payload.departureDate), logs);
   await fillInput(page, "#vesselNm", payload.transportNumber, logs);
   await selectOptionByTextOrValue(page, "#trvlMode", payload.modeOfTravel, logs);
-  await selectOptionByTextOrValue(page, "#embark", payload.lastEmbarkationCountry, logs);
+  await selectOptionByTextOrValue(page, "#embark", payload.lastEmbarkationCountry, logs, {
+    aliases: officialMdacCountryAliases(payload.lastEmbarkationCountry),
+  });
   await selectOptionByTextOrValue(page, "#accommodationStay", payload.accommodationType, logs);
   await fillInput(page, "#accommodationAddress1", mdacAddressLine1(payload), logs);
   await fillInput(page, "#accommodationAddress2", mdacAddressLine2(payload), logs);
