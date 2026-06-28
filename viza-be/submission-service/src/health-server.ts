@@ -114,6 +114,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleVietnamCardSession(req, res);
       return;
     }
+    if (req.method === "GET" && url === "/local/vietnam/card-session") {
+      if (!envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isLocalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
     sendJson(res, 404, { error: "not_found" });
   });
 

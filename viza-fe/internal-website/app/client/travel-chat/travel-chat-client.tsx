@@ -2623,6 +2623,10 @@ function coerceTravelFormCandidatePayload(
   const travelDays = normalizeCandidatePositiveInteger(payload.travel_days);
   const travelers = normalizeCandidatePositiveInteger(payload.travelers);
   const budget = normalizeCandidatePositiveInteger(payload.budget);
+  const originCountry = normalizeCandidateString(payload.origin_country);
+  const originCity = normalizeCandidateString(payload.origin_city);
+  const returnCountry = normalizeCandidateString(payload.return_country);
+  const returnCity = normalizeCandidateString(payload.return_city);
   const finalNote = normalizeCandidateString(payload.final_note);
 
   if (seedCountry) {
@@ -2654,6 +2658,13 @@ function coerceTravelFormCandidatePayload(
   if (travelDays) result.travel_days = travelDays;
   if (travelers) result.travelers = travelers;
   if (budget) result.budget = budget;
+  if (originCountry) result.origin_country = originCountry;
+  if (originCity) result.origin_city = originCity;
+  if (returnCountry) result.return_country = returnCountry;
+  if (returnCity) result.return_city = returnCity;
+  if (typeof payload.destination_confirmed === "boolean") {
+    result.destination_confirmed = payload.destination_confirmed;
+  }
   if (finalNote) result.final_note = finalNote;
 
   return result;
@@ -2685,8 +2696,44 @@ function withLocalCandidateDisplay(
   if (payload.travel_order?.length) {
     display.travel_order = payload.travel_order.map(getLocalDisplayName);
   }
+  if (payload.origin_country) {
+    display.origin_country = getLocalDisplayName(payload.origin_country);
+  }
+  if (payload.origin_city) {
+    display.origin_city = getLocalDisplayName(payload.origin_city);
+  }
+  if (payload.return_country) {
+    display.return_country = getLocalDisplayName(payload.return_country);
+  }
+  if (payload.return_city) {
+    display.return_city = getLocalDisplayName(payload.return_city);
+  }
 
   return Object.keys(display).length > 0 ? { ...payload, display } : payload;
+}
+
+function createHiddenCandidatePayloadMessage(
+  response: TravelAgentChatResponse
+): TravelChatMessage | null {
+  if (!response.candidate_payload) return null;
+
+  const payload = withLocalCandidateDisplay(
+    coerceTravelFormCandidatePayload(response.candidate_payload)
+  );
+  const hasDestination =
+    (payload.cities?.length ?? 0) > 0 || (payload.countries?.length ?? 0) > 0;
+  if (!hasDestination) return null;
+
+  return {
+    id: createMessageId(),
+    role: "user",
+    parts: [
+      {
+        type: "text",
+        text: `<!--${FORM_PAYLOAD_PREFIX}${JSON.stringify(payload)}-->`,
+      },
+    ],
+  };
 }
 
 function normalizeCityKey(city: string): string {
@@ -5017,9 +5064,16 @@ export function TravelChatClient({
           }
 
           const result = (await response.json()) as TravelAgentChatResponse;
+          const hiddenCandidateMessage =
+            createHiddenCandidatePayloadMessage(result);
+          const assistantMessage = createAssistantMessageFromAgentResponse(
+            result,
+            interfaceLocale
+          );
           setSessionMessages(sessionId, (prev) => [
             ...prev,
-            createAssistantMessageFromAgentResponse(result, interfaceLocale),
+            ...(hiddenCandidateMessage ? [hiddenCandidateMessage] : []),
+            assistantMessage,
           ]);
           return;
         }

@@ -109,6 +109,16 @@ function buildResolvedDestinationCards(
   });
 }
 
+function hasSpecificTripSlots(candidatePayload: Record<string, unknown>): boolean {
+  return (
+    typeof candidatePayload.travel_days === "number" ||
+    typeof candidatePayload.travelers === "number" ||
+    typeof candidatePayload.budget === "number" ||
+    typeof candidatePayload.origin_city === "string" ||
+    typeof candidatePayload.origin_country === "string"
+  );
+}
+
 function withTravelPipelineDebug(
   response: TravelAgentChatResponse,
   resolution: DestinationResolution
@@ -253,6 +263,7 @@ function enrichTravelChatResponse(
       resolution.destinations,
       userText
     );
+    const shouldSuppressJoinReplies = hasSpecificTripSlots(candidatePayload);
     const hasMatchingBackendCard = response.cards?.some((card) =>
       resolution.destinations.some((destination) =>
         cardMatchesDestination(card, destination)
@@ -268,7 +279,9 @@ function enrichTravelChatResponse(
           ? response.reply
           : `我已经识别到目的地：${resolvedNames}。我会先用已解析的目的地、天数和偏好继续规划；如果坐标或资料缺失，会用占位图和后续补全流程兜底。`,
         mode: response.mode === "welcome" ? "destination_detail" : response.mode,
-        quick_replies: hasMatchingBackendCard
+        quick_replies: shouldSuppressJoinReplies
+          ? []
+          : hasMatchingBackendCard
           ? response.quick_replies
           : resolution.destinations.slice(0, 3).map((destination) => ({
               label: `加入计划：${destination.displayName}`,
@@ -394,6 +407,7 @@ function buildImmediateLocalFirstResponse(
       resolution.destinations,
       userText
     );
+    const shouldSuppressJoinReplies = hasSpecificTripSlots(candidatePayload);
     const resolvedNames = resolution.destinations
       .map((destination) => destination.displayName)
       .join("、");
@@ -401,10 +415,12 @@ function buildImmediateLocalFirstResponse(
       {
         reply: `我已经从本地目的地库识别到：${resolvedNames}。先展示本地已验证资料；缺失图片或景点时会进入补全流程，未验证图片会保持占位图。`,
         mode: "destination_detail",
-        quick_replies: resolution.destinations.slice(0, 3).map((destination) => ({
-          label: `加入计划：${destination.displayName}`,
-          value: `加入计划：${destination.displayName}`,
-        })),
+        quick_replies: shouldSuppressJoinReplies
+          ? []
+          : resolution.destinations.slice(0, 3).map((destination) => ({
+              label: `加入计划：${destination.displayName}`,
+              value: `加入计划：${destination.displayName}`,
+            })),
         cards: buildResolvedDestinationCards(
           undefined,
           resolution.destinations,

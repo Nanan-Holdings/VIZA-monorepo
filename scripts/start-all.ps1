@@ -679,9 +679,9 @@ if (!$submissionAlreadyRunning) {
   if ($submissionProcess) {
     Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
   } else {
-    $submissionCommand = "`$env:PORT = '$SubmissionPort'; npm run dev"
+    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
     $started += Start-ManagedProcess `
-      -Name "submission-service worker" `
+      -Name "submission-service worker with Vietnam autopay" `
       -SafeName "submission-service" `
       -WorkingDirectory $submissionServiceDir `
       -Command $submissionCommand
@@ -710,7 +710,7 @@ if (!$marketingAlreadyRunning) {
 }
 
 if (!$frontendAlreadyRunning) {
-  $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; npm run dev -- -p $FrontendPort"
+  $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; `$env:SUBMISSION_SERVICE_LOCAL_URL = 'http://127.0.0.1:$SubmissionPort'; `$env:NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_VN_SUBMISSION_MODE = 'live_assisted'; npm run dev -- -p $FrontendPort"
   $started += Start-ManagedProcess `
     -Name "frontend" `
     -SafeName "frontend" `
@@ -724,6 +724,7 @@ foreach ($process in $started) {
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds
@@ -742,6 +743,7 @@ Write-Host "Marketing web:       http://127.0.0.1:$MarketingPort/" -ForegroundCo
 Write-Host "Admin login:         http://127.0.0.1:$FrontendPort/admin/login" -ForegroundColor Green
 Write-Host "Agent backend:       http://127.0.0.1:$AgentPort/health" -ForegroundColor Green
 Write-Host "Submission service:  http://127.0.0.1:$SubmissionPort/health" -ForegroundColor Green
+Write-Host "VN card handoff:     http://127.0.0.1:$SubmissionPort/local/vietnam/card-session" -ForegroundColor Green
 Write-Host "VIZA agent socket:   http://127.0.0.1:$AgentPort/visa" -ForegroundColor Green
 Write-Host "Travel service docs: http://127.0.0.1:$TravelPort/docs" -ForegroundColor Green
 Write-Host "Travel proxy health: http://127.0.0.1:$FrontendPort/api/travel/health" -ForegroundColor Green

@@ -25,6 +25,7 @@ const baseResponse: FieldGuidanceResponse = {
     title: "Passport number",
     summary: "Enter the passport number exactly as shown on the passport.",
     examples: ["PA1234567"],
+    optionExplanations: [],
     hints: ["Use the official document value."],
     officialWarnings: [],
     formatHints: [],
@@ -147,5 +148,37 @@ describe("FieldGuidancePanel shortcuts", () => {
     expect(screen.getByText("填表前字段清单。适用国家/地区：印度尼西亚；签证类型：B211A 旅游签证。")).toBeInTheDocument();
     expect(screen.queryByText(/Source URL/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Document type/i)).not.toBeInTheDocument();
+  });
+
+  it("renders option explanations for select fields", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...baseResponse,
+        guidance: {
+          ...baseResponse.guidance,
+          title: "护照类型填写帮助",
+          optionExplanations: [
+            {
+              value: "ordinary",
+              label: "普通护照",
+              description: "大多数个人旅游、探亲、商务出行使用的普通个人护照。",
+            },
+            {
+              value: "diplomatic",
+              label: "外交护照",
+              description: "通常由外交人员或执行外交公务的人员持有。",
+            },
+          ],
+        },
+      }),
+    } as Response);
+
+    renderPanel();
+
+    expect(await screen.findByText("选项说明")).toBeInTheDocument();
+    expect(screen.getByText("普通护照")).toBeInTheDocument();
+    expect(screen.getByText("大多数个人旅游、探亲、商务出行使用的普通个人护照。")).toBeInTheDocument();
+    expect(screen.getByText("外交护照")).toBeInTheDocument();
   });
 });
