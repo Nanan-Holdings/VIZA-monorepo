@@ -3,10 +3,14 @@
 Scope: `viza-be/submission-service/src/indonesia/**`.
 
 This module owns Indonesia C1 Tourist eVisa and B1 e-VoA live-assisted queue
-normalization and official-portal orchestration.
+normalization and official-portal orchestration through the Indonesia
+Directorate General of Immigration eVisa portal.
 
 - Keep C1 (`indonesia_c1_live`) and B1 e-VoA (`indonesia_b1_evoa_live`)
   separate at provider/status boundaries.
+- Route both C1 and B1 to `https://evisa.imigrasi.go.id/` by default. Treat
+  VFS Indonesia e-VoA as fallback recon only, not the primary B1 runner.
+- Keep portal probing/classification in `runner.ts` and `portal-state.ts`.
 - Never log official account passwords, portal OTPs, card data, CAPTCHA tokens,
   or full applicant document paths.
 - Use VIZA-managed inbox aliases through `ensureApplicantInboxAlias`; do not

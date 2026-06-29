@@ -263,6 +263,7 @@ export const phEtravelAccounts = pgTable("ph_etravel_accounts", {
 	applicantId: uuid("applicant_id").notNull(),
 	email: text("email").notNull(),
 	passwordEncrypted: text("password_encrypted"),
+	mpinEncrypted: text("mpin_encrypted"),
 	status: text("status").default("pending_registration").notNull(),
 	storageStateJson: jsonb("storage_state_json"),
 	lastAuthenticatedAt: timestamp("last_authenticated_at", { withTimezone: true }),

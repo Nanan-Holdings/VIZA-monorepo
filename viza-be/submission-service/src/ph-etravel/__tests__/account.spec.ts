@@ -8,11 +8,13 @@ test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
       id: "acct_existing",
       email: "appl-existing@haggstorm.com",
       password: "saved-password",
+      mpin: "123456",
       status: "verified",
       storageState: null,
     },
     aliasEmail: "appl-new@haggstorm.com",
     generatedPassword: "new-password",
+    generatedMpin: "654321",
   });
 
   assert.deepEqual(plan, {
@@ -20,6 +22,30 @@ test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
     accountId: "acct_existing",
     email: "appl-existing@haggstorm.com",
     password: "saved-password",
+    mpin: "123456",
+  });
+});
+
+test("choosePhEtravelAccountPlan creates a new account when the saved account has no MPIN", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_existing",
+      email: "appl-existing@haggstorm.com",
+      password: "saved-password",
+      mpin: null,
+      status: "verified",
+      storageState: null,
+    },
+    aliasEmail: "APPL-NEW+PH@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    email: "appl-new+ph@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
   });
 });
 
@@ -28,12 +54,14 @@ test("choosePhEtravelAccountPlan creates an alias account when none exists", () 
     existingAccount: null,
     aliasEmail: "APPL-NEW@HAGGSTORM.COM",
     generatedPassword: "new-password",
+    generatedMpin: "654321",
   });
 
   assert.deepEqual(plan, {
     mode: "create_new",
     email: "appl-new@haggstorm.com",
     password: "new-password",
+    mpin: "654321",
   });
 });
 

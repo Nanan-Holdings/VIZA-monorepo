@@ -505,7 +505,7 @@ const CONFIGS: ProviderConfig[] = [
     ],
     mapperFiles: ["src/indonesia/index.ts"],
     automationFiles: ["src/indonesia/**"],
-    notes: "Live assisted queue dispatch exists for C1 official eVisa and B1 VFS e-VoA. The worker prepares the VIZA-managed alias email automatically and stops only for payment authorization or portal recon/action gates.",
+    notes: "Live assisted queue dispatch exists for C1 official eVisa and B1 official e-VoA through evisa.imigrasi.go.id. The worker prepares the VIZA-managed alias email automatically and stops only for payment authorization or portal recon/action gates; VFS e-VoA is fallback recon only.",
   },
   {
     countryCode: "EG",

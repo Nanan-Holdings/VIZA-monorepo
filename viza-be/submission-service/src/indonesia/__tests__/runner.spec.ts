@@ -34,7 +34,7 @@ test("normalizes Indonesia C1 tourist answers to the official eVisa portal", () 
   assert.equal(normalized.officialReference, "REF-C1");
 });
 
-test("normalizes Indonesia B1 e-VoA answers to the VFS e-VoA portal", () => {
+test("normalizes Indonesia B1 e-VoA answers to the official eVisa portal", () => {
   const normalized = normalizeIndonesiaAnswers({
     applicationId: "app-b1",
     visaType: "ID_B1_EVOA",
