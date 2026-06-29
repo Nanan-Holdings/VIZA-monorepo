@@ -714,8 +714,8 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
     id: "indonesia",
     name: "Indonesia",
     nameZh: "印度尼西亚",
-    description: "Choose between Indonesia C1 tourist eVisa and B1 e-VoA application forms.",
-    descriptionZh: "选择办理印尼 C1 旅游电子签证或 B1 电子落地签，并加载对应申请表。",
+    description: "Choose the Indonesia visa category you want to apply for, then load the matching form.",
+    descriptionZh: "选择要申请的印尼签证类别，并加载对应申请表。",
     flag: "🇮🇩",
     countries: ["indonesia"],
   },
@@ -834,19 +834,20 @@ function destinationIdsForCountries(countries: string[]): string[] {
 
 function regionGroupToDestination(group: VisaDestinationRegionGroup): PopularVisaDestination {
   const destinations = getVisaDestinationsForRegion(group.id);
+  const isIndonesiaGroup = group.id === "indonesia";
   return {
     id: `region-${group.id}`,
     country: group.id,
     countryName: group.name,
     countryNameZh: group.nameZh,
     visaType: "REGION_GROUP",
-    visaName: "Browse destination forms",
-    visaNameZh: "浏览分区签证表单",
+    visaName: isIndonesiaGroup ? "Choose visa category" : "Browse destination forms",
+    visaNameZh: isIndonesiaGroup ? "选择签证类别" : "浏览分区签证表单",
     description: group.description,
     descriptionZh: group.descriptionZh,
     flag: group.flag,
     region: group.name,
-    supportLabel: "Destination region",
+    supportLabel: isIndonesiaGroup ? "Visa categories" : "Destination region",
     kind: "group",
     href: group.href,
     countryCount: destinations.length,

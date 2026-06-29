@@ -492,7 +492,7 @@ const CONFIGS: ProviderConfig[] = [
     countryCode: "ID",
     countryAliases: ["id", "indonesia"],
     displayName: "Indonesia e-Visa",
-    supportedVisaTypes: ["B211A", "ID_C1_TOURIST"],
+    supportedVisaTypes: ["B211A", "ID_C1_TOURIST", "ID_B1_EVOA"],
     implementationStatus: "dry_run_only",
     dryRunAvailable: true,
     sandboxAvailable: false,
@@ -502,7 +502,7 @@ const CONFIGS: ProviderConfig[] = [
     schemaFiles: ["../agent-backend/scripts/seed-id-c1-tourist-form-fields.ts"],
     mapperFiles: ["src/form-mappings.ts"],
     automationFiles: [],
-    notes: "Legacy default filler existed but clicked final submit; now dry-run/unsupported unless explicitly enabled.",
+    notes: "Legacy default filler existed but clicked final submit; now dry-run/unsupported unless explicitly enabled. B1 e-VoA must use a dedicated VFS runner with VIZA alias-email verification before live submit.",
   },
   {
     countryCode: "EG",
