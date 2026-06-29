@@ -60,11 +60,12 @@ async function main(): Promise<void> {
 main().catch((error) => {
   console.error(error instanceof Error ? error.stack ?? error.message : String(error));
   if (typeof error === "object" && error !== null) {
-    const details = error as { code?: string; screenshotPaths?: string[]; portalSummary?: string };
+    const details = error as { code?: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] };
     console.error(JSON.stringify({
       code: details.code,
       screenshots: details.screenshotPaths,
       portalSummary: details.portalSummary,
+      logs: details.logs,
     }, null, 2));
   }
   process.exit(1);

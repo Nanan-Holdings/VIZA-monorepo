@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { type Download, type Page } from "@playwright/test";
+import { type CDPSession, type Download, type Page } from "@playwright/test";
 import { solveCaptcha } from "../captcha";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
@@ -21,22 +21,35 @@ export class TdacPortalError extends Error {
   readonly screenshotPaths: string[];
   readonly portalSummary?: string;
   readonly code: string;
+  readonly logs: string[];
 
-  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string }) {
+  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] }) {
     super(message);
     this.name = "TdacPortalError";
     this.code = options.code;
-    this.screenshotPaths = options.screenshotPaths ?? [];
+    this.screenshotPaths = (options.screenshotPaths ?? []).filter(Boolean);
     this.portalSummary = options.portalSummary;
+    this.logs = options.logs ?? [];
   }
+}
+
+function isRemoteBrowserPolicyBlock(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /classified as Government and blocked by Bright Data|proxy_error|network-access#residential-proxy-network-policy/i.test(message);
 }
 
 async function saveScreenshot(page: Page, name: string, logs: string[]): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-"));
   const filePath = path.join(dir, `${name}-${Date.now()}.png`);
-  await page.screenshot({ path: filePath, fullPage: true });
-  logs.push(`tdac_screenshot ${filePath}`);
-  return filePath;
+  try {
+    await page.screenshot({ path: filePath, fullPage: true });
+    logs.push(`tdac_screenshot ${filePath}`);
+    return filePath;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`tdac_screenshot_failed ${name} ${message}`);
+    return "";
+  }
 }
 
 interface TurnstileParams {
@@ -169,19 +182,235 @@ async function waitForArrivalButtonEnabled(page: Page, timeoutMs: number): Promi
   return arrivalButtonEnabled(page);
 }
 
-async function solveWithBrowserApiCaptchaCdp(page: Page, logs: string[]): Promise<void> {
+async function solveWithBrowserApiCaptchaCdp(page: Page, logs: string[], stage: string): Promise<boolean> {
+  const hasChallenge = await page
+    .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], iframe[title*='Cloudflare']")
+    .first()
+    .count()
+    .catch(() => 0);
+  if (hasChallenge === 0) {
+    logs.push(`tdac_brightdata_captcha_solve_skipped_no_challenge stage=${stage}`);
+    return false;
+  }
+
+  let session: CDPSession | null = null;
   try {
-    logs.push("tdac_brightdata_captcha_solve_started");
-    const session = await page.context().newCDPSession(page);
-    const sendBrightDataCommand = session.send as unknown as (
+    logs.push(`tdac_brightdata_captcha_solve_started stage=${stage}`);
+    session = await page.context().newCDPSession(page);
+    const sendBrightDataCommand = session.send.bind(session) as unknown as (
       method: string,
       params?: Record<string, unknown>,
     ) => Promise<unknown>;
-    const result = await sendBrightDataCommand("Captcha.solve", { detectTimeout: 30_000 });
-    logs.push(`tdac_brightdata_captcha_solve_result ${JSON.stringify(result)}`);
+    await sendBrightDataCommand("Captcha.setAutoSolve", { autoSolve: true }).catch(() => undefined);
+    const result = await sendBrightDataCommand("Captcha.solve", {
+      detectTimeout: 90_000,
+      options: [{ type: "cf_turnstile" }, { type: "turnstile" }],
+    }).catch(async (solveError) => {
+      logs.push(
+        `tdac_brightdata_captcha_solve_command_failed stage=${stage} ${
+          solveError instanceof Error ? solveError.message.split("\n")[0] : String(solveError)
+        }`,
+      );
+      return sendBrightDataCommand("Captcha.waitForSolve", { detectTimeout: 90_000 });
+    });
+    const status = typeof result === "object" && result && "status" in result
+      ? String((result as { status?: unknown }).status ?? "unknown")
+      : "unknown";
+    logs.push(`tdac_brightdata_captcha_solve_status stage=${stage} status=${status}`);
+    await page.waitForTimeout(5_000);
+    return /solve_finished|finished|success|solved/i.test(status) && !/failed|invalid/i.test(status);
   } catch (error) {
-    logs.push(`tdac_brightdata_captcha_solve_failed ${error instanceof Error ? error.message : String(error)}`);
+    logs.push(`tdac_brightdata_captcha_solve_failed stage=${stage} ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  } finally {
+    await session?.detach().catch(() => undefined);
   }
+}
+
+async function waitForTdacCloudflareClearance(page: Page, logs: string[], timeoutMs: number): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (await arrivalButtonEnabled(page)) {
+      logs.push("tdac_cloudflare_clearance_button_enabled");
+      return true;
+    }
+    await page.waitForTimeout(2_000);
+  }
+
+  const state = await page.evaluate(() => {
+    const text = document.body?.innerText?.replace(/\s+/g, " ").slice(0, 240) ?? "";
+    const hasChallenge = Boolean(
+      document.querySelector("iframe[src*='challenges.cloudflare.com'], input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']"),
+    );
+    const hasArrivalButton = Array.from(document.querySelectorAll("button"))
+      .some((button) => /Arrival Card/i.test(button.textContent ?? ""));
+    return { hasChallenge, hasArrivalButton, text };
+  }).catch(() => ({ hasChallenge: true, hasArrivalButton: false, text: "" }));
+  logs.push(
+    `tdac_cloudflare_clearance_timeout hasChallenge=${state.hasChallenge} hasArrivalButton=${state.hasArrivalButton} text=${state.text}`,
+  );
+  return false;
+}
+
+async function waitForTdacPersonalForm(page: Page, timeoutMs: number): Promise<boolean> {
+  const selectors = "input[formcontrolname='familyName'], #mat-input-0";
+  return page.locator(selectors).first().waitFor({ state: "visible", timeout: timeoutMs }).then(() => true).catch(() => false);
+}
+
+async function waitForTdacLandingUnblocked(page: Page, logs: string[], timeoutMs = 120_000): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const state = await page.evaluate(() => {
+      const text = document.body?.innerText?.replace(/\s+/g, " ").trim() ?? "";
+      const hasArrivalButton = Array.from(document.querySelectorAll("button"))
+        .some((button) => /Arrival Card/i.test(button.textContent ?? "") && !(button as HTMLButtonElement).disabled);
+      const hasCloudflareChallenge = Boolean(
+        document.querySelector("iframe[src*='challenges.cloudflare.com'], input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']"),
+      );
+      const hasCloudflareSuccessOverlay = /Success!\s*CLOUDFLARE|CLOUDFLARE\s*Privacy|验证成功\s*故障排除/i.test(text);
+      const hasBusyBackdrop = Boolean(
+        document.querySelector(".cdk-overlay-backdrop, .ngx-spinner-overlay, .loading, .spinner, [class*='spinner']"),
+      );
+      return {
+        hasArrivalButton,
+        hasCloudflareChallenge,
+        hasCloudflareSuccessOverlay,
+        hasBusyBackdrop,
+        text: text.slice(0, 240),
+      };
+    }).catch(() => ({
+      hasArrivalButton: false,
+      hasCloudflareChallenge: true,
+      hasCloudflareSuccessOverlay: true,
+      hasBusyBackdrop: true,
+      text: "",
+    }));
+
+    if (
+      state.hasArrivalButton
+      && !state.hasCloudflareChallenge
+      && !state.hasCloudflareSuccessOverlay
+      && !state.hasBusyBackdrop
+    ) {
+      logs.push("tdac_landing_unblocked_ready");
+      return true;
+    }
+
+    await page.waitForTimeout(1_500);
+  }
+
+  logs.push("tdac_landing_unblocked_timeout_continue");
+  return false;
+}
+
+async function dismissCloudflareSuccessArtifacts(page: Page, logs: string[]): Promise<void> {
+  const dismissed = await page.evaluate(() => {
+    const bodyText = document.body?.innerText?.replace(/\s+/g, " ") ?? "";
+    const hasSolvedWidget = /Success!\s*CLOUDFLARE|CLOUDFLARE\s*Privacy|验证成功\s*故障排除/i.test(bodyText);
+    const hasEnabledArrivalButton = Array.from(document.querySelectorAll("button"))
+      .some((button) => /Arrival Card/i.test(button.textContent ?? "") && !(button as HTMLButtonElement).disabled);
+
+    if (!hasSolvedWidget || !hasEnabledArrivalButton) {
+      return 0;
+    }
+
+    let count = 0;
+    const selectors = [
+      "iframe[src*='challenges.cloudflare.com']",
+      "input[name='cf-turnstile-response']",
+      "textarea[name='cf-turnstile-response']",
+      ".cf-turnstile",
+      ".cdk-overlay-backdrop",
+      ".ngx-spinner-overlay",
+    ];
+
+    for (const selector of selectors) {
+      document.querySelectorAll(selector).forEach((element) => {
+        const removable = element.closest("div") ?? element;
+        (removable as HTMLElement).style.setProperty("display", "none", "important");
+        (removable as HTMLElement).style.setProperty("pointer-events", "none", "important");
+        count += 1;
+      });
+    }
+
+    document.querySelectorAll("div, iframe").forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      const text = element.textContent?.replace(/\s+/g, " ") ?? "";
+      const style = window.getComputedStyle(element);
+      const zIndex = Number.parseInt(style.zIndex || "0", 10);
+      const looksLikeSolvedWidget = /Success!\s*CLOUDFLARE|CLOUDFLARE\s*Privacy|验证成功\s*故障排除/i.test(text);
+      const coversCenter = rect.width > 200 && rect.height > 50 && rect.left < window.innerWidth / 2 && rect.right > window.innerWidth / 2;
+      if (looksLikeSolvedWidget || (coversCenter && zIndex >= 0 && /fixed|absolute/i.test(style.position))) {
+        (element as HTMLElement).style.setProperty("display", "none", "important");
+        (element as HTMLElement).style.setProperty("pointer-events", "none", "important");
+        count += 1;
+      }
+    });
+
+    document.body.style.removeProperty("overflow");
+    document.documentElement.style.removeProperty("overflow");
+    return count;
+  }).catch(() => 0);
+
+  if (dismissed > 0) {
+    logs.push(`tdac_cloudflare_success_artifacts_dismissed=${dismissed}`);
+    await page.waitForTimeout(1_000);
+  }
+}
+
+async function openTdacAddRoute(page: Page, logs: string[], screenshots: string[]): Promise<boolean> {
+  const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
+  const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
+  const arrivalButtonCount = await arrivalButton.count().catch(() => 0);
+
+  if (arrivalButtonCount > 0 && !(await arrivalButton.isDisabled().catch(() => true))) {
+    logs.push("tdac_open_add_route_via_arrival_button");
+    await waitForTdacLandingUnblocked(page, logs, 10_000);
+    await dismissCloudflareSuccessArtifacts(page, logs);
+    await arrivalButton.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+    await arrivalButton.click({ timeout: 15_000, force: true }).catch(async (error) => {
+      logs.push(`tdac_arrival_button_playwright_click_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      await arrivalButton.evaluate((button) => {
+        (button as HTMLButtonElement).click();
+      });
+    });
+    if (await waitForTdacPersonalForm(page, 60_000)) return true;
+    await dismissCloudflareSuccessArtifacts(page, logs);
+    if (await waitForTdacPersonalForm(page, 30_000)) return true;
+    screenshots.push(await saveScreenshot(page, "after-arrival-button-click-no-form", logs));
+  }
+
+  logs.push("tdac_open_add_route_hash_current_page");
+  await dismissCloudflareSuccessArtifacts(page, logs);
+  await page.evaluate(() => {
+    window.location.hash = "/tac/arrival-card/add";
+  }).catch((error) => {
+    logs.push(`tdac_current_hash_navigation_failed ${error instanceof Error ? error.message : String(error)}`);
+  });
+  if (await waitForTdacPersonalForm(page, 60_000)) return true;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    logs.push(`tdac_open_add_route_hash_attempt=${attempt}`);
+    await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch((error) => {
+      logs.push(`tdac_home_reload_before_hash_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    });
+    await page.waitForTimeout(2_000 * attempt);
+    await page.evaluate(() => {
+      window.location.hash = "/tac/arrival-card/add";
+    }).catch((error) => {
+      throw new Error(`tdac_hash_navigation_failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    if (await waitForTdacPersonalForm(page, 60_000)) return true;
+
+    logs.push(`tdac_open_add_route_direct_attempt=${attempt}`);
+    await page.goto(addRoute, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch((error) => {
+      logs.push(`tdac_direct_add_route_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    });
+    if (await waitForTdacPersonalForm(page, 60_000)) return true;
+    screenshots.push(await saveScreenshot(page, `after-add-route-attempt-${attempt}`, logs));
+  }
+
+  return false;
 }
 
 async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Promise<boolean> {
@@ -1193,23 +1422,51 @@ export async function runTdacPortalSubmission(
 ): Promise<TdacPortalSubmissionResult> {
   const logs: string[] = [`tdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  const browserSession = await createArrivalCardBrowserSession({
+  let browserSession = await createArrivalCardBrowserSession({
     prefix: "TDAC",
     headless: options.headless,
   });
-  const page = browserSession.page;
+  let page = browserSession.page;
   logs.push(`tdac_browser_provider=${browserSession.provider}`);
   logs.push(...browserSession.diagnostics);
 
   try {
-    if (!browserSession.nativeCloudflareUnblock) {
-      await installTurnstileHook(page);
-    } else {
-      logs.push("tdac_brightdata_native_cloudflare_unblock_enabled");
+    const prepareBrowserPage = async () => {
+      if (!browserSession.nativeCloudflareUnblock) {
+        await installTurnstileHook(page);
+      } else {
+        logs.push("tdac_brightdata_native_cloudflare_unblock_enabled");
+      }
+    };
+    const gotoOfficialPortal = async (): Promise<boolean> => {
+      let policyBlocked = false;
+      await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 120_000 }).catch((error) => {
+        if (isRemoteBrowserPolicyBlock(error)) {
+          policyBlocked = true;
+          logs.push("tdac_remote_browser_api_policy_blocked");
+          return;
+        }
+        logs.push(`tdac_goto_domcontentloaded_timeout_continue ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      });
+      return policyBlocked;
+    };
+
+    await prepareBrowserPage();
+    const policyBlocked = await gotoOfficialPortal();
+    if (policyBlocked && browserSession.provider === "remote-browser-api") {
+      await browserSession.close().catch(() => undefined);
+      logs.push("tdac_remote_browser_api_policy_blocked_fallback_local_chrome");
+      browserSession = await createArrivalCardBrowserSession({
+        prefix: "TDAC",
+        headless: options.headless,
+        forceLocal: true,
+      });
+      page = browserSession.page;
+      logs.push(`tdac_browser_provider=${browserSession.provider}`);
+      logs.push(...browserSession.diagnostics);
+      await prepareBrowserPage();
+      await gotoOfficialPortal();
     }
-    await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 120_000 }).catch((error) => {
-      logs.push(`tdac_goto_domcontentloaded_timeout_continue ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-    });
     await page.waitForTimeout(8_000);
     await page.locator("button", { hasText: /arrival card/i }).first().waitFor({
       state: "visible",
@@ -1217,8 +1474,6 @@ export async function runTdacPortalSubmission(
     }).catch(() => undefined);
     screenshots.push(await saveScreenshot(page, "landing", logs));
 
-    const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
-    const personalFormSelectors = "input[formcontrolname='familyName'], #mat-input-0";
     const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
     const arrivalButtonCount = await arrivalButton.count();
     if (arrivalButtonCount === 0) {
@@ -1227,9 +1482,27 @@ export async function runTdacPortalSubmission(
     } else if (await arrivalButton.isDisabled().catch(() => false)) {
       screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
       if (browserSession.nativeCloudflareUnblock) {
-        await solveWithBrowserApiCaptchaCdp(page, logs);
+        const solved = await solveWithBrowserApiCaptchaCdp(page, logs, "initial");
+        logs.push(`tdac_browser_api_captcha_solved=${solved}`);
         logs.push("tdac_waiting_for_browser_api_cloudflare_clearance");
-        await waitForArrivalButtonEnabled(page, 120_000);
+        let enabledAfterNativeSolve = await waitForTdacCloudflareClearance(page, logs, 60_000);
+        if (!enabledAfterNativeSolve) {
+          logs.push("tdac_browser_api_captcha_native_solve_did_not_enable_button_try_checkbox");
+          await clickTurnstileCheckboxIfVisible(page, logs);
+          const solvedAfterClick = await solveWithBrowserApiCaptchaCdp(page, logs, "after_checkbox");
+          logs.push(`tdac_browser_api_captcha_solved_after_checkbox=${solvedAfterClick}`);
+          enabledAfterNativeSolve = await waitForTdacCloudflareClearance(page, logs, 120_000);
+        }
+        if (!enabledAfterNativeSolve) {
+          screenshots.push(await saveScreenshot(page, "cloudflare-not-cleared", logs));
+          const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+          throw new TdacPortalError("TDAC Cloudflare challenge was not cleared by Browser API.", {
+            code: "tdac_cloudflare_not_cleared",
+            screenshotPaths: screenshots,
+            portalSummary: text.slice(0, 500),
+            logs,
+          });
+        }
       } else {
         await solveTurnstileIfPresent(page, logs);
       }
@@ -1248,27 +1521,7 @@ export async function runTdacPortalSubmission(
       }
     }
 
-    if (arrivalButtonCount > 0) {
-      await arrivalButton.click({ timeout: 15_000 }).catch((error) => {
-        logs.push(`tdac_arrival_click_continue_to_route ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-      });
-      await page.waitForTimeout(3_000);
-    }
-    let personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 5_000 }).catch(() => false);
-    for (let attempt = 1; !personalFormReady && attempt <= 3; attempt += 1) {
-      logs.push(`tdac_open_add_route_attempt=${attempt}`);
-      await page.goto(addRoute, {
-        waitUntil: "domcontentloaded",
-        timeout: 90_000,
-      }).catch((error) => {
-        logs.push(`tdac_direct_add_route_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-      });
-      personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 45_000 }).catch(() => false);
-      if (!personalFormReady) {
-        await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => undefined);
-        personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 30_000 }).catch(() => false);
-      }
-    }
+    const personalFormReady = await openTdacAddRoute(page, logs, screenshots);
     screenshots.push(await saveScreenshot(page, "after-entry", logs));
     if (!personalFormReady) {
       const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
@@ -1276,6 +1529,7 @@ export async function runTdacPortalSubmission(
         code: "tdac_form_not_loaded",
         screenshotPaths: screenshots,
         portalSummary: text.slice(0, 500),
+        logs,
       });
     }
 
@@ -1297,6 +1551,7 @@ export async function runTdacPortalSubmission(
         code: "tdac_stopped_before_submit",
         screenshotPaths: screenshots,
         portalSummary: currentText.slice(0, 500),
+        logs,
       });
     }
 
