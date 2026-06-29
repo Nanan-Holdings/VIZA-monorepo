@@ -85,6 +85,28 @@ async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["
   return false;
 }
 
+async function clickFirstEnabledAvailable(
+  page: Page,
+  locators: Array<ReturnType<Page["locator"]>>,
+  timeoutMs = 240_000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const locator of locators) {
+      const target = locator.first();
+      if (
+        await target.isVisible({ timeout: 1_000 }).catch(() => false) &&
+        await target.isEnabled({ timeout: 1_000 }).catch(() => false)
+      ) {
+        await target.click({ timeout: 10_000 });
+        return true;
+      }
+    }
+    await page.waitForTimeout(2_000);
+  }
+  return false;
+}
+
 async function installTurnstileCapture(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const win = window as typeof window & {
@@ -366,10 +388,21 @@ async function completeEgovEmailVerification(
       ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
     await fillOtpInputs(page, otp);
-    await clickFirstAvailable(page, [
+    const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
       page.getByRole("button", { name: /verify|continue|next|submit/i }),
       page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
     ]);
+    if (!clickedOtpContinue) {
+      screenshots.push(await saveScreenshot(page, "egov-email-otp-continue-disabled", logs));
+      throw new PhEtravelPortalError(
+        "Official Philippines eGovPH email OTP page did not enable the continue button before timeout.",
+        {
+          code: "ph_etravel_otp_continue_disabled",
+          screenshotPaths: screenshots,
+          portalSummary: (await bodyText(page)).slice(0, 700),
+        },
+      );
+    }
     logs.push("ph_etravel_egov_email_otp_consumed");
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(3_000);
@@ -439,10 +472,21 @@ async function maybeCreatePhEtravelAccount(
   if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
     await fillOtpInputs(page, otp);
-    await clickFirstAvailable(page, [
+    const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
       page.getByRole("button", { name: /verify|continue|next|submit/i }),
       page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
     ]);
+    if (!clickedOtpContinue) {
+      screenshots.push(await saveScreenshot(page, "registration-email-otp-continue-disabled", logs));
+      throw new PhEtravelPortalError(
+        "Official Philippines eTravel registration OTP page did not enable the continue button before timeout.",
+        {
+          code: "ph_etravel_registration_otp_continue_disabled",
+          screenshotPaths: screenshots,
+          portalSummary: (await bodyText(page)).slice(0, 700),
+        },
+      );
+    }
     logs.push("ph_etravel_email_otp_consumed");
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);

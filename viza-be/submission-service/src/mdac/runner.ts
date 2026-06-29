@@ -479,6 +479,100 @@ function isMdacConfirmationText(text: string): boolean {
   return /successfully|submission\s+successful|registration\s+successful|thank\s+you|berjaya/i.test(text);
 }
 
+async function getMdacOfficialInvalidFields(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const labelFor = (element: Element): string => {
+      const input = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+      const id = input.id ? `#${input.id}` : "";
+      const explicitLabel = input.id
+        ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent?.trim()
+        : "";
+      const rowLabel = input.closest(".form-group, .row, tr, p")?.textContent?.split(":")[0]?.trim();
+      return (explicitLabel || rowLabel || input.name || input.id || id || "Unknown field").replace(/\s+/g, " ");
+    };
+
+    return Array.from(document.querySelectorAll("input, select, textarea"))
+      .filter((element) => {
+        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        if (control.disabled || control.type === "hidden" || !control.willValidate) return false;
+        return !control.checkValidity();
+      })
+      .map((element) => {
+        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        const message = control.validationMessage || "invalid value";
+        return `${labelFor(element)}: ${message}`;
+      });
+  });
+}
+
+async function assertMdacOfficialFormValid(page: Page, screenshots: string[], logs: string[], stage: string): Promise<void> {
+  const invalidFields = await getMdacOfficialInvalidFields(page).catch((error) => {
+    logs.push(`mdac_validity_check_failed ${stage} ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  });
+  if (invalidFields.length === 0) return;
+
+  screenshots.push(await saveScreenshot(page, `official-invalid-${stage}`, logs));
+  throw new MdacPortalError(`Official Malaysia MDAC form validation failed: ${invalidFields.join("; ")}`, {
+    code: "mdac_official_form_validation_failed",
+    screenshotPaths: screenshots,
+    portalSummary: invalidFields.join("\n"),
+  });
+}
+
+async function submitMdacRegistrationForm(page: Page, screenshots: string[], logs: string[]): Promise<void> {
+  await assertMdacOfficialFormValid(page, screenshots, logs, "before-submit");
+
+  const beforeUrl = page.url();
+  let dialogMessage: string | null = null;
+  page.once("dialog", async (dialog) => {
+    dialogMessage = dialog.message();
+    logs.push(`mdac_dialog ${dialog.type()} ${dialogMessage}`);
+    await dialog.accept().catch((error) => {
+      logs.push(`mdac_dialog_accept_failed ${error instanceof Error ? error.message : String(error)}`);
+    });
+  });
+
+  const submit = page.locator("#submit").first();
+  await submit.waitFor({ state: "visible", timeout: 15_000 });
+  await submit.scrollIntoViewIfNeeded().catch(() => undefined);
+  await page.waitForTimeout(500);
+  const disabled = await submit.isDisabled().catch(() => true);
+  if (disabled) {
+    throw new MdacPortalError("Official Malaysia MDAC submit button is still disabled after slider verification.", {
+      code: "mdac_submit_button_disabled",
+      screenshotPaths: screenshots,
+    });
+  }
+
+  await submit.click({ timeout: 10_000 }).catch(async (error) => {
+    logs.push(`mdac_submit_click_retry ${error instanceof Error ? error.message : String(error)}`);
+    await submit.evaluate((element) => (element as HTMLElement).click());
+  });
+
+  await Promise.race([
+    page.waitForURL((url) => url.toString() !== beforeUrl, { timeout: 20_000 }),
+    page.waitForFunction(
+      () => {
+        const text = document.body?.innerText ?? "";
+        return /successfully|submission\s+successful|registration\s+successful|thank\s+you|berjaya/i.test(text);
+      },
+      undefined,
+      { timeout: 20_000 },
+    ),
+  ]).catch((error) => {
+    logs.push(`mdac_submit_wait_no_transition ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+  });
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+
+  if (dialogMessage) {
+    await assertMdacOfficialFormValid(page, screenshots, logs, "after-dialog");
+  }
+}
+
 export async function runMdacPortalSubmission(
   payload: MdacPortalPayload,
   options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
@@ -528,14 +622,12 @@ export async function runMdacPortalSubmission(
 
     await solveMdacSliderCaptcha(page, logs);
     screenshots.push(await saveScreenshot(page, "after-slider", logs));
-    await page.locator("#submit, input[name='submitRegistration'], input[type='submit']").first().click({ timeout: 15_000 });
-    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(3_000);
+    await submitMdacRegistrationForm(page, screenshots, logs);
     screenshots.push(await saveScreenshot(page, "after-submit", logs));
 
     const portalText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => currentText);
     if (!isMdacConfirmationText(portalText)) {
+      await assertMdacOfficialFormValid(page, screenshots, logs, "after-submit");
       throw new MdacPortalError("Official Malaysia MDAC portal did not return a recognizable confirmation.", {
         code: "mdac_confirmation_not_reached",
         screenshotPaths: screenshots,
