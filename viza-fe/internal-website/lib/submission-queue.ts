@@ -72,6 +72,14 @@ export type SubmissionQueueStatus =
   | "tdac_live_assisted_failed"
   | "tdac_live_assisted_cancelled"
   | "tdac_blocked"
+  | "id_c1_live_assisted_pending"
+  | "id_c1_live_assisted_processing"
+  | "id_c1_live_assisted_failed"
+  | "id_c1_blocked"
+  | "id_b1_evoa_live_assisted_pending"
+  | "id_b1_evoa_live_assisted_processing"
+  | "id_b1_evoa_live_assisted_failed"
+  | "id_b1_evoa_blocked"
   | "phetravel_dry_run_pending"
   | "phetravel_dry_run_processing"
   | "phetravel_dry_run_failed"
@@ -150,6 +158,23 @@ const PHILIPPINES_ETRAVEL_TYPES = new Set([
   "PH_ETRAVEL_ARRIVAL_CARD",
 ]);
 
+const INDONESIA_COUNTRY_ALIASES = new Set([
+  "ID",
+  "INDONESIA",
+]);
+
+const INDONESIA_C1_TYPES = new Set([
+  "ID_C1_TOURIST",
+  "C1_TOURIST",
+  "B211A",
+]);
+
+const INDONESIA_B1_EVOA_TYPES = new Set([
+  "ID_B1_EVOA",
+  "B1_EVOA",
+  "EVOA",
+]);
+
 export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "pending",
   "processing",
@@ -185,6 +210,10 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "tdac_live_assisted_pending",
   "tdac_live_assisted_scheduled",
   "tdac_live_assisted_processing",
+  "id_c1_live_assisted_pending",
+  "id_c1_live_assisted_processing",
+  "id_b1_evoa_live_assisted_pending",
+  "id_b1_evoa_live_assisted_processing",
   "phetravel_dry_run_pending",
   "phetravel_dry_run_processing",
   "phetravel_live_assisted_pending",
@@ -226,6 +255,10 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "tdac_live_assisted_failed",
   "tdac_live_assisted_cancelled",
   "tdac_blocked",
+  "id_c1_live_assisted_failed",
+  "id_c1_blocked",
+  "id_b1_evoa_live_assisted_failed",
+  "id_b1_evoa_blocked",
   "phetravel_dry_run_failed",
   "phetravel_live_assisted_failed",
   "phetravel_live_assisted_cancelled",
@@ -300,6 +333,17 @@ export function isPhilippinesEtravelApplication(
   return (
     PHILIPPINES_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
     PHILIPPINES_ETRAVEL_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
+export function isIndonesiaEVisaApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  const normalizedVisaType = normalizeVisaType(visaType);
+  return (
+    INDONESIA_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    (INDONESIA_C1_TYPES.has(normalizedVisaType) || INDONESIA_B1_EVOA_TYPES.has(normalizedVisaType))
   );
 }
 
@@ -383,6 +427,11 @@ export function queueStatusForApplication(
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return mode === "live_assisted" ? "phetravel_live_assisted_pending" : "phetravel_dry_run_pending";
   }
+  if (isIndonesiaEVisaApplication(country, visaType) && mode === "live_assisted") {
+    return INDONESIA_B1_EVOA_TYPES.has(normalizeVisaType(visaType))
+      ? "id_b1_evoa_live_assisted_pending"
+      : "id_c1_live_assisted_pending";
+  }
 
   return queueStatusForSubmissionMode(visaType, mode);
 }
@@ -432,6 +481,11 @@ export function queueProviderForApplication(
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
   }
+  if (isIndonesiaEVisaApplication(country, visaType) && mode === "live_assisted") {
+    return INDONESIA_B1_EVOA_TYPES.has(normalizeVisaType(visaType))
+      ? "indonesia_b1_evoa_live"
+      : "indonesia_c1_live";
+  }
   return queueProviderForVisaType(visaType, mode);
 }
 
@@ -443,7 +497,8 @@ export function submissionQueueRequiresServerEnqueue(
   return (
     mode === "live_assisted" ||
     isVietnamEVisaApplication(country, visaType) ||
-    isDigitalArrivalCardApplication(country, visaType)
+    isDigitalArrivalCardApplication(country, visaType) ||
+    isIndonesiaEVisaApplication(country, visaType)
   );
 }
 
@@ -479,6 +534,8 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "mdac_live_assisted_scheduled" ||
     input.queueStatus === "tdac_live_assisted_pending" ||
     input.queueStatus === "tdac_live_assisted_scheduled" ||
+    input.queueStatus === "id_c1_live_assisted_pending" ||
+    input.queueStatus === "id_b1_evoa_live_assisted_pending" ||
     input.queueStatus === "phetravel_live_assisted_pending" ||
     input.queueStatus === "phetravel_live_assisted_scheduled"
   );
@@ -488,7 +545,11 @@ export function submitModeForPrimaryApplicationAction(
   country: string | null | undefined,
   visaType: string | null | undefined,
 ): SubmissionMode {
-  if (isVietnamEVisaApplication(country, visaType) || isDigitalArrivalCardApplication(country, visaType)) {
+  if (
+    isVietnamEVisaApplication(country, visaType) ||
+    isDigitalArrivalCardApplication(country, visaType) ||
+    isIndonesiaEVisaApplication(country, visaType)
+  ) {
     return "live_assisted";
   }
   return "dry_run";

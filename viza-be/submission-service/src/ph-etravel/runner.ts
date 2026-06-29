@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { PH_ETRAVEL_REFERENCE_PATTERNS } from "./official-options";
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
+import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
 
 export interface PhEtravelPortalSubmissionResult {
   submitted: boolean;
@@ -29,6 +30,16 @@ export class PhEtravelPortalError extends Error {
     this.screenshotPaths = options.screenshotPaths ?? [];
     this.portalSummary = options.portalSummary;
   }
+}
+
+export interface PhEtravelRunnerOptions {
+  headless?: boolean;
+  stopBeforeSubmit?: boolean;
+  applicantId?: string;
+  officialAccountEmail?: string;
+  officialAccountPassword?: string | null;
+  mailbox?: PhEtravelMailboxProvider;
+  emailVerificationTimeoutMs?: number;
 }
 
 export function isPhEtravelRemotePolicyBlockMessage(message: string): boolean {
@@ -71,7 +82,12 @@ async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["
   return false;
 }
 
-async function reachAuthenticatedPhEtravelSession(page: Page, logs: string[], screenshots: string[]): Promise<void> {
+async function reachAuthenticatedPhEtravelSession(
+  page: Page,
+  options: PhEtravelRunnerOptions,
+  logs: string[],
+  screenshots: string[],
+): Promise<void> {
   const signedInAlready = /dashboard|new travel declaration|etravel registration|personal information/i.test(await bodyText(page));
   if (signedInAlready && !/enter email address|password|create an account/i.test(await bodyText(page))) {
     logs.push("ph_etravel_existing_session_detected");
@@ -94,8 +110,8 @@ async function reachAuthenticatedPhEtravelSession(page: Page, logs: string[], sc
     return;
   }
 
-  const email = process.env.PH_ETRAVEL_ACCOUNT_EMAIL?.trim();
-  const password = process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim();
+  const email = options.officialAccountEmail?.trim() || process.env.PH_ETRAVEL_ACCOUNT_EMAIL?.trim();
+  const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim();
   if (!email || !password) {
     screenshots.push(await saveScreenshot(page, "official-account-required", logs));
     throw new PhEtravelPortalError(
@@ -132,16 +148,108 @@ async function reachAuthenticatedPhEtravelSession(page: Page, logs: string[], sc
   logs.push("ph_etravel_official_account_login_attempted");
 }
 
+async function maybeCreatePhEtravelAccount(
+  page: Page,
+  payload: PhEtravelPortalPayload,
+  options: PhEtravelRunnerOptions,
+  logs: string[],
+  screenshots: string[],
+): Promise<boolean> {
+  const accountEmail = options.officialAccountEmail?.trim();
+  const applicantId = options.applicantId?.trim();
+  if (!accountEmail || !applicantId) return false;
+
+  const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
+  const since = new Date().toISOString();
+  const clickedCreate = await clickFirstAvailable(page, [
+    page.getByText(/create an account/i),
+    page.getByRole("link", { name: /create an account/i }),
+    page.locator("button, a").filter({ hasText: /create an account/i }),
+  ]);
+  if (!clickedCreate) return false;
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(1_500);
+  await page.locator("input[type='email'], input[name*='email' i], input[placeholder*='Email' i]").first().fill(accountEmail, { timeout: 15_000 });
+  await clickFirstAvailable(page, [
+    page.getByRole("button", { name: /continue|next|submit|send/i }),
+    page.locator("button").filter({ hasText: /continue|next|submit|send/i }),
+  ]);
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
+
+  let currentText = await bodyText(page);
+  if (/already\s+(?:registered|exists)|account\s+already/i.test(currentText)) {
+    logs.push("ph_etravel_alias_account_already_exists");
+    return false;
+  }
+
+  const timeoutMs = options.emailVerificationTimeoutMs
+    ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+  if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
+    const otp = await mailbox.waitForOtp({ timeoutMs, since });
+    await page.locator("input[type='text'], input[type='tel'], input[name*='code' i], input[placeholder*='code' i], input[placeholder*='OTP' i]").first().fill(otp, { timeout: 15_000 });
+    await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /verify|continue|next|submit/i }),
+      page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
+    ]);
+    logs.push("ph_etravel_email_otp_consumed");
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    currentText = await bodyText(page);
+  } else if (!/password|set password|create password/i.test(currentText)) {
+    const url = await mailbox.waitForVerificationLink({ timeoutMs, since }).catch(() => null);
+    if (url) {
+      await page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: 45_000 });
+      logs.push("ph_etravel_email_verification_link_opened");
+      await page.waitForTimeout(2_000);
+      currentText = await bodyText(page);
+    }
+  }
+
+  if (/password|set password|create password/i.test(currentText)) {
+    const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim() || payload.passportNumber;
+    await page.locator("input[type='password']").nth(0).fill(password, { timeout: 15_000 });
+    const confirmPassword = page.locator("input[type='password']").nth(1);
+    if (await confirmPassword.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await confirmPassword.fill(password, { timeout: 15_000 });
+    }
+    await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /continue|next|submit|create|register/i }),
+      page.locator("button").filter({ hasText: /continue|next|submit|create|register/i }),
+    ]);
+    logs.push("ph_etravel_alias_account_password_submitted");
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    currentText = await bodyText(page);
+  }
+
+  if (/mobile|phone|sms|app|captcha|turnstile|invalid|failed/i.test(currentText)) {
+    screenshots.push(await saveScreenshot(page, "official-registration-blocked", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel account registration needs a non-email verification step before automation can continue.",
+      {
+        code: "ph_etravel_official_registration_verification_required",
+        screenshotPaths: screenshots,
+        portalSummary: currentText.slice(0, 700),
+      },
+    );
+  }
+
+  logs.push("ph_etravel_alias_account_registration_attempted");
+  return true;
+}
+
 export async function runPhEtravelPortalSubmission(
   payload: PhEtravelPortalPayload,
-  options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
+  options: PhEtravelRunnerOptions = {},
 ): Promise<PhEtravelPortalSubmissionResult> {
   return runPhEtravelPortalSubmissionWithBrowser(payload, options, false);
 }
 
 async function runPhEtravelPortalSubmissionWithBrowser(
   payload: PhEtravelPortalPayload,
-  options: { headless?: boolean; stopBeforeSubmit?: boolean },
+  options: PhEtravelRunnerOptions,
   forceLocal: boolean,
 ): Promise<PhEtravelPortalSubmissionResult> {
   const logs: string[] = [`ph_etravel_start application=${payload.applicationId}`];
@@ -196,7 +304,16 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
     }
 
-    await reachAuthenticatedPhEtravelSession(page, logs, screenshots);
+    try {
+      await reachAuthenticatedPhEtravelSession(page, options, logs, screenshots);
+    } catch (error) {
+      if (error instanceof PhEtravelPortalError && error.code === "ph_etravel_official_account_required") {
+        const created = await maybeCreatePhEtravelAccount(page, payload, options, logs, screenshots);
+        if (!created) throw error;
+      } else {
+        throw error;
+      }
+    }
     screenshots.push(await saveScreenshot(page, "after-auth", logs));
 
     throw new PhEtravelPortalError(

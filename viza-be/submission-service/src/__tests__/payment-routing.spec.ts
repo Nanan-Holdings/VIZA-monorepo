@@ -56,6 +56,7 @@ const PRICING_PACKAGES: Array<{ country: string; visaType: string }> = [
   { country: "australia", visaType: "AU_VISITOR_600" },
   { country: "japan", visaType: "JP_TOURIST" },
   { country: "indonesia", visaType: "ID_C1_TOURIST" },
+  { country: "indonesia", visaType: "ID_B1_EVOA" },
   { country: "south_korea", visaType: "KR_C39_SHORT_TERM_VISIT" },
   { country: "thailand", visaType: "TH_TOURIST_E_VISA" },
   { country: "malaysia", visaType: "MY_TOURIST_E_VISA" },

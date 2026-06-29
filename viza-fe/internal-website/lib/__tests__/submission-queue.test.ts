@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
+  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
@@ -64,13 +65,33 @@ describe("queueStatusForVisaType", () => {
   it("requires server-side queue creation for Vietnam e-visa in both modes", () => {
     expect(submissionQueueRequiresServerEnqueue("vietnam", "evisa_tourism", "dry_run")).toBe(true);
     expect(submissionQueueRequiresServerEnqueue("vietnam", "evisa_tourism", "live_assisted")).toBe(true);
-    expect(submissionQueueRequiresServerEnqueue("indonesia", "B211A", "dry_run")).toBe(false);
+    expect(submissionQueueRequiresServerEnqueue("indonesia", "B211A", "dry_run")).toBe(true);
   });
 
   it("uses live official mode for the one-click Vietnam submit action", () => {
     expect(submitModeForPrimaryApplicationAction("vietnam", "evisa_tourism")).toBe("live_assisted");
     expect(submitModeForPrimaryApplicationAction("VN", "VN_E_VISA")).toBe("live_assisted");
-    expect(submitModeForPrimaryApplicationAction("indonesia", "B211A")).toBe("dry_run");
+    expect(submitModeForPrimaryApplicationAction("indonesia", "B211A")).toBe("live_assisted");
+  });
+
+  it("routes Indonesia C1 and B1 e-visa applications to separate live providers", () => {
+    expect(isIndonesiaEVisaApplication("indonesia", "ID_C1_TOURIST")).toBe(true);
+    expect(isIndonesiaEVisaApplication("ID", "ID_B1_EVOA")).toBe(true);
+    expect(queueStatusForApplication("indonesia", "ID_C1_TOURIST", "live_assisted")).toBe(
+      "id_c1_live_assisted_pending",
+    );
+    expect(queueStatusForApplication("indonesia", "ID_B1_EVOA", "live_assisted")).toBe(
+      "id_b1_evoa_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("indonesia", "ID_C1_TOURIST", "live_assisted")).toBe(
+      "indonesia_c1_live",
+    );
+    expect(queueProviderForApplication("indonesia", "ID_B1_EVOA", "live_assisted")).toBe(
+      "indonesia_b1_evoa_live",
+    );
+    expect(queueStatusForApplication("singapore", "ID_C1_TOURIST", "live_assisted")).not.toBe(
+      "id_c1_live_assisted_pending",
+    );
   });
 
   it("routes SG Arrival Card to its own queue and never to Singapore visitor visa", () => {
@@ -142,6 +163,14 @@ describe("queueStatusForVisaType", () => {
     expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
       mode: "live_assisted",
       queueStatus: "sgac_live_assisted_scheduled",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "id_c1_live_assisted_pending",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "id_b1_evoa_live_assisted_pending",
     })).toBe(true);
   });
 });

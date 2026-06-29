@@ -10,6 +10,7 @@ import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
+  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
@@ -234,6 +235,10 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return process.env.PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  }
+  if (isIndonesiaEVisaApplication(country, visaType)) {
+    return process.env.INDONESIA_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
 }
@@ -1273,7 +1278,8 @@ export async function POST(
       isDs160VisaType(ownedApplication.visa_type) ||
       isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type) ||
-      isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type);
+      isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isIndonesiaEVisaApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
         { error: "Live assisted retry is not supported for this visa type." },

@@ -162,6 +162,12 @@ import {
 } from "./ph-etravel/normalize";
 import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
+import {
+  choosePhEtravelAccountPlan,
+  loadPhEtravelAccount,
+  upsertPhEtravelAccount,
+} from "./ph-etravel/account";
+import { runIndonesiaLiveSubmission } from "./indonesia";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -210,6 +216,10 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "tdac_live_assisted_scheduled",
   "tdac_live_assisted_pending",
   "tdac_live_assisted_processing",
+  "id_c1_live_assisted_pending",
+  "id_c1_live_assisted_processing",
+  "id_b1_evoa_live_assisted_pending",
+  "id_b1_evoa_live_assisted_processing",
   "phetravel_dry_run_pending",
   "phetravel_dry_run_processing",
   "phetravel_live_assisted_scheduled",
@@ -246,12 +256,16 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("sgac_live_assisted_") ||
     item.status.startsWith("mdac_live_assisted_") ||
     item.status.startsWith("tdac_live_assisted_") ||
+    item.status.startsWith("id_c1_live_assisted_") ||
+    item.status.startsWith("id_b1_evoa_live_assisted_") ||
     item.status.startsWith("phetravel_live_assisted_") ||
     item.provider === "france_visas_live" ||
     item.provider === "vietnam_evisa_live" ||
     item.provider === "sg_arrival_card_live" ||
     item.provider === "malaysia_mdac_live" ||
     item.provider === "thailand_tdac_live" ||
+    item.provider === "indonesia_c1_live" ||
+    item.provider === "indonesia_b1_evoa_live" ||
     item.provider === "philippines_etravel_live" ||
     item.provider === "ceac_proof"
   );
@@ -301,6 +315,8 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "tdac_dry_run_pending",
       "tdac_live_assisted_scheduled",
       "tdac_live_assisted_pending",
+      "id_c1_live_assisted_pending",
+      "id_b1_evoa_live_assisted_pending",
       "phetravel_dry_run_pending",
       "phetravel_live_assisted_scheduled",
       "phetravel_live_assisted_pending",
@@ -320,6 +336,8 @@ function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "mdac_live_assisted_pending") return 0;
   if (item.status === "tdac_live_assisted_scheduled") return 0;
   if (item.status === "tdac_live_assisted_pending") return 0;
+  if (item.status === "id_c1_live_assisted_pending") return 0;
+  if (item.status === "id_b1_evoa_live_assisted_pending") return 0;
   if (item.status === "phetravel_live_assisted_scheduled") return 0;
   if (item.status === "phetravel_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
@@ -384,6 +402,15 @@ function isPhEtravelJob(item: SubmissionQueueItem): boolean {
     item.status === "phetravel_live_assisted_pending" ||
     item.status === "phetravel_live_assisted_scheduled" ||
     item.provider === "philippines_etravel_live"
+  );
+}
+
+function isIndonesiaJob(item: SubmissionQueueItem): boolean {
+  return (
+    item.status === "id_c1_live_assisted_pending" ||
+    item.status === "id_b1_evoa_live_assisted_pending" ||
+    item.provider === "indonesia_c1_live" ||
+    item.provider === "indonesia_b1_evoa_live"
   );
 }
 
@@ -1236,6 +1263,8 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("tdac_live_assisted_")) return "tdac_live_assisted_failed";
   if (status.startsWith("tdac_dry_run_")) return "tdac_dry_run_failed";
   if (status.startsWith("tdac_")) return "tdac_blocked";
+  if (status.startsWith("id_c1_live_assisted_")) return "id_c1_live_assisted_failed";
+  if (status.startsWith("id_b1_evoa_live_assisted_")) return "id_b1_evoa_live_assisted_failed";
   if (status.startsWith("phetravel_live_assisted_")) return "phetravel_live_assisted_failed";
   if (status.startsWith("phetravel_dry_run_")) return "phetravel_dry_run_failed";
   if (status.startsWith("phetravel_")) return "phetravel_blocked";
@@ -5712,6 +5741,32 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       })
       .eq("id", item.id);
 
+    let phAccountPlan: ReturnType<typeof choosePhEtravelAccountPlan> | null = null;
+    if (!isMdac && !isTdac) {
+      const existingPhAccount = await loadPhEtravelAccount(profile.id);
+      const alias = existingPhAccount ? null : await ensureApplicantInboxAlias(profile.id);
+      phAccountPlan = choosePhEtravelAccountPlan({
+        existingAccount: existingPhAccount,
+        aliasEmail: alias?.alias ?? "",
+        generatedPassword: `VizaPH-${randomBytes(9).toString("base64url")}9!`,
+      });
+      if (phAccountPlan.mode === "create_new") {
+        await upsertPhEtravelAccount({
+          applicantId: profile.id,
+          email: phAccountPlan.email,
+          password: phAccountPlan.password,
+          status: "pending_registration",
+        });
+      }
+      await supabase
+        .from("submission_queue")
+        .update({
+          official_account_email_encrypted: encryptSecret(phAccountPlan.email),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+    }
+
     const portalResult = isMdac
       ? await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
           headless: process.env.MDAC_PLAYWRIGHT_HEADLESS !== "false",
@@ -5725,7 +5780,20 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         : await runPhEtravelPortalSubmission(normalizePhEtravelPortalPayload(payload), {
             headless: process.env.PH_ETRAVEL_PLAYWRIGHT_HEADLESS !== "false",
             stopBeforeSubmit: process.env.PH_ETRAVEL_STOP_BEFORE_SUBMIT !== "0",
+            applicantId: profile.id,
+            officialAccountEmail: phAccountPlan?.email,
+            officialAccountPassword: phAccountPlan?.password,
           });
+
+    if (phAccountPlan) {
+      await upsertPhEtravelAccount({
+        applicantId: profile.id,
+        email: phAccountPlan.email,
+        password: phAccountPlan.password,
+        status: portalResult.submitted ? "submitted" : "authenticated",
+        lastAuthenticatedAt: new Date().toISOString(),
+      });
+    }
 
     const screenshotArtifacts = await uploadArrivalCardArtifacts({
       authUserId: artifactOwnerId,
@@ -5801,6 +5869,100 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       screenshotPaths: portalError ? err.screenshotPaths : [],
     });
     console.error(`[${logCode}] Live submission failed: ${errorMsg}`);
+  }
+}
+
+async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
+  const isB1 = item.status.startsWith("id_b1_evoa_") || item.provider === "indonesia_b1_evoa_live";
+  const provider = isB1 ? "indonesia_b1_evoa_live" : "indonesia_c1_live";
+  const processingStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_live_assisted_processing"
+    : "id_c1_live_assisted_processing";
+  const pendingStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_live_assisted_pending"
+    : "id_c1_live_assisted_pending";
+  const failedStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_live_assisted_failed"
+    : "id_c1_live_assisted_failed";
+
+  console.log(
+    `[indonesia] Processing ${provider} application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: processingStatus,
+      provider,
+      current_stage: "preparing_managed_alias",
+      heartbeat_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    const answers = await loadDs160Answers(item.application_id);
+    const alias = await ensureApplicantInboxAlias(profile.id);
+    const visaType = isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST";
+    const result = await runIndonesiaLiveSubmission({
+      applicationId: item.application_id,
+      visaType: application.visa_type || visaType,
+      answers: {
+        ...answers,
+        email: alias.alias,
+        email_address: alias.alias,
+      },
+      managedAccountAvailable: true,
+      managedAccountEmail: alias.alias,
+      paymentAuthorized: false,
+    });
+
+    const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";
+    await writeSubmissionResult(item.application_id, result, resultStatus);
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: result.status === "action_required" ? "action_required" : failedStatus,
+        provider,
+        last_error: null,
+        error_code: result.actionType ?? null,
+        error_message: result.message,
+        current_stage: result.actionType ?? "indonesia_live_action_required",
+        official_portal_url: isB1
+          ? "https://indonesiavoa.vfsevisa.id/"
+          : "https://evisa.imigrasi.go.id/",
+        official_account_email_encrypted: encryptSecret(alias.alias),
+        manual_action_status: result.status === "action_required" ? "pending" : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    console.log(
+      `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,
+    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const newAttempts = item.attempts + 1;
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? failedStatus : pendingStatus;
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: newStatus,
+        attempts: newAttempts,
+        last_error: errorMsg,
+        error_code: "indonesia_live_worker_error",
+        error_message: errorMsg,
+        current_stage: "failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    if (newAttempts >= MAX_ATTEMPTS) {
+      await markSubmissionFailed(item.application_id, errorMsg);
+      await sendFailureAlert(item.application_id, `[ID] ${errorMsg}`);
+    }
+    console.error(`[indonesia] ${provider} failed for application=${redactIdentifier(item.application_id)}:`, errorMsg);
   }
 }
 
@@ -6090,6 +6252,8 @@ async function pollOnce(): Promise<void> {
       if (dueItem) {
         await processDigitalArrivalCardLiveItem(dueItem, "PH_ETRAVEL");
       }
+    } else if (isIndonesiaJob(item)) {
+      await processIndonesiaItem(item);
     } else if (isAuJob(item)) {
       await processAuItem(item);
     } else {

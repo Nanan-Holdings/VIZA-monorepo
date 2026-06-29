@@ -136,6 +136,14 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeChannel: "viza_passthrough",
   },
   {
+    country: "indonesia",
+    visaType: "ID_B1_EVOA",
+    agencyFeeCents: AGENCY_USD,
+    govtFeeCents: 5000,
+    currency: "USD",
+    govtFeeChannel: "viza_passthrough",
+  },
+  {
     country: "south_korea",
     visaType: "KR_C39_SHORT_TERM_VISIT",
     agencyFeeCents: AGENCY_USD,

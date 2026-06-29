@@ -114,6 +114,8 @@ test("registry: every provider declares implementation and dry-run metadata", ()
 test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("canada", "CA_TRV")?.countryCode, "CA");
   assert.equal(getCountrySubmissionProvider("germany", "EU_SCHENGEN_C_SHORT_STAY")?.countryCode, "SCHENGEN");
+  assert.equal(getCountrySubmissionProvider("indonesia", "ID_C1_TOURIST")?.countryCode, "ID");
+  assert.equal(getCountrySubmissionProvider("indonesia", "ID_B1_EVOA")?.countryCode, "ID");
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
 });
 
@@ -339,12 +341,18 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
     },
     answers: {
       purpose_of_travel: "holiday",
+      place_of_birth_country: "Singapore",
       place_of_residence: "CHINA, BEIJING, BEIJING",
+      mobile_country_code: "65",
+      has_used_different_name_to_enter_singapore: "no",
       last_city_or_port_before_singapore: "Kuala Lumpur",
       next_city_or_port_after_singapore: "Bangkok",
       mode_of_travel: "air",
+      air_transport_type: "commercial",
+      carrier_code: "SQ",
       transport_number: "SQ317",
       accommodation_type: "others",
+      accommodation_other_type: "friends",
       recent_country_visit_history: "none",
       has_health_symptoms: "no",
       health_declaration: "yes",

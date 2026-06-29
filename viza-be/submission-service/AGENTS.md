@@ -122,7 +122,11 @@ filling and one-shot submission for the applicant.
   QR/reference evidence before marking success. Local VIZA portal credentials
   are not official eTravel credentials; use `PH_ETRAVEL_ACCOUNT_EMAIL` /
   `PH_ETRAVEL_ACCOUNT_PASSWORD` or a local `PH_ETRAVEL_CDP_ENDPOINT` session
-  that is already authorized for the official portal.
+  that is already authorized for the official portal. When no official account
+  is configured, live PH eTravel may create/verify an official account using the
+  applicant's VIZA inbox alias and the Cloudflare Email Worker ->
+  `inbound_email` path; non-email steps such as SMS, app approval, CAPTCHA, or
+  MFA must stop with a structured checkpoint instead of being hidden.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
