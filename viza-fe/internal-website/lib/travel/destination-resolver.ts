@@ -1224,6 +1224,56 @@ const COUNTRY_DEFAULT_DESTINATIONS: Record<string, string> = {
   日本: "Tokyo",
 };
 
+const COUNTRY_SCOPE_ALIASES: Record<
+  string,
+  { countryName: string; countryCode: string | null }
+> = {
+  us: { countryName: "United States", countryCode: "US" },
+  usa: { countryName: "United States", countryCode: "US" },
+  america: { countryName: "United States", countryCode: "US" },
+  "united states": { countryName: "United States", countryCode: "US" },
+  "united states of america": { countryName: "United States", countryCode: "US" },
+  美国: { countryName: "United States", countryCode: "US" },
+  美國: { countryName: "United States", countryCode: "US" },
+  japan: { countryName: "Japan", countryCode: "JP" },
+  jp: { countryName: "Japan", countryCode: "JP" },
+  日本: { countryName: "Japan", countryCode: "JP" },
+  china: { countryName: "China", countryCode: "CN" },
+  中国: { countryName: "China", countryCode: "CN" },
+  中國: { countryName: "China", countryCode: "CN" },
+  australia: { countryName: "Australia", countryCode: "AU" },
+  澳大利亚: { countryName: "Australia", countryCode: "AU" },
+  澳洲: { countryName: "Australia", countryCode: "AU" },
+  france: { countryName: "France", countryCode: "FR" },
+  法国: { countryName: "France", countryCode: "FR" },
+  法國: { countryName: "France", countryCode: "FR" },
+  uk: { countryName: "United Kingdom", countryCode: "GB" },
+  "united kingdom": { countryName: "United Kingdom", countryCode: "GB" },
+  britain: { countryName: "United Kingdom", countryCode: "GB" },
+  英国: { countryName: "United Kingdom", countryCode: "GB" },
+  英國: { countryName: "United Kingdom", countryCode: "GB" },
+  thailand: { countryName: "Thailand", countryCode: "TH" },
+  泰国: { countryName: "Thailand", countryCode: "TH" },
+  泰國: { countryName: "Thailand", countryCode: "TH" },
+  indonesia: { countryName: "Indonesia", countryCode: "ID" },
+  印尼: { countryName: "Indonesia", countryCode: "ID" },
+  "united arab emirates": {
+    countryName: "United Arab Emirates",
+    countryCode: "AE",
+  },
+  uae: { countryName: "United Arab Emirates", countryCode: "AE" },
+  阿联酋: { countryName: "United Arab Emirates", countryCode: "AE" },
+  阿聯酋: { countryName: "United Arab Emirates", countryCode: "AE" },
+  canada: { countryName: "Canada", countryCode: "CA" },
+  加拿大: { countryName: "Canada", countryCode: "CA" },
+  italy: { countryName: "Italy", countryCode: "IT" },
+  意大利: { countryName: "Italy", countryCode: "IT" },
+  spain: { countryName: "Spain", countryCode: "ES" },
+  西班牙: { countryName: "Spain", countryCode: "ES" },
+  norway: { countryName: "Norway", countryCode: "NO" },
+  挪威: { countryName: "Norway", countryCode: "NO" },
+};
+
 function toNumber(value: string | number | null | undefined): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value === "string") {
@@ -2003,6 +2053,67 @@ function countryDefaultDestinationForQuery(
   );
 }
 
+function countryAliasForQuery(
+  query: string
+): { countryName: string; countryCode: string | null } | null {
+  const normalizedQuery = normalizeDestinationText(query);
+  const manual = COUNTRY_SCOPE_ALIASES[normalizedQuery];
+  if (manual) return manual;
+
+  const countryDestination = ALL_LOCAL_DESTINATIONS.find((destination) => {
+    if (!destination.countryName) return false;
+    return (
+      normalizeDestinationText(destination.countryName) === normalizedQuery ||
+      destination.countryCode?.toLowerCase() === normalizedQuery
+    );
+  });
+  if (!countryDestination?.countryName) return null;
+  return {
+    countryName: countryDestination.countryName,
+    countryCode: countryDestination.countryCode,
+  };
+}
+
+export function countryScopeForText(value: string): {
+  countryName: string;
+  countryCode: string | null;
+  label: string;
+  suggestedCities: TravelDestinationSearchResult[];
+} | null {
+  const label = extractDestinationIntentLabel(removeOriginText(value));
+  if (!label) return null;
+
+  const country = countryAliasForQuery(label);
+  if (!country) return null;
+
+  const normalizedLabel = normalizeDestinationText(label);
+  const exactCity = ALL_LOCAL_DESTINATIONS.find((destination) => {
+    if (destination.placeType !== "city") return false;
+    const names = [
+      destination.canonicalName,
+      destination.displayName,
+      destination.nameZh ?? "",
+      ...(destination.aliases ?? []),
+    ].map(normalizeDestinationText);
+    return names.includes(normalizedLabel);
+  });
+  if (exactCity) return null;
+
+  const suggestedCities = ALL_LOCAL_DESTINATIONS.filter(
+    (destination) =>
+      destination.placeType === "city" &&
+      destination.countryName === country.countryName
+  )
+    .sort((left, right) => right.popularityScore - left.popularityScore)
+    .slice(0, 4);
+
+  return {
+    ...country,
+    label,
+    suggestedCities,
+  };
+}
+
 function resolveOriginDestination(rawText: string): TravelDestinationSearchResult | null {
   const originLabel = extractOriginLabel(rawText);
   if (!originLabel) return null;
@@ -2403,6 +2514,25 @@ export function resolveLocalDestinationText(rawText: string): DestinationResolut
         resolverResult: "ambiguous",
         localDb: "local_index_hit",
         fallbackReason: "awaiting_destination_clarification",
+        cardSourceStatus: "none",
+      }),
+    };
+  }
+
+  const countryScope = countryScopeForText(query);
+  if (countryScope) {
+    return {
+      status: "unresolved",
+      query,
+      message: "Country scope requires a city before creating a destination card.",
+      tripHints,
+      cards: [],
+      debugTrace: createPipelineDebug({
+        rawInput: rawText,
+        intent,
+        resolverResult: "unresolved",
+        localDb: "local_index_hit",
+        fallbackReason: "country_scope_requires_city",
         cardSourceStatus: "none",
       }),
     };

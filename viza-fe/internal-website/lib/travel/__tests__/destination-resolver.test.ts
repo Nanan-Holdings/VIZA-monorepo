@@ -129,23 +129,20 @@ describe("travel destination resolver", () => {
   it("normalizes quick reply intent before creating destination cards", () => {
     expect(extractDestinationIntentLabel("我想去日本")).toBe("日本");
     expect(extractDestinationIntentLabel("想去欧洲")).toBe("欧洲");
+  });
 
+  it("does not create destination cards for country-only prompts", () => {
     const japan = resolveLocalDestinationText("我想去日本");
-    expect(japan.status).toBe("resolved");
-    if (japan.status === "resolved") {
-      const card = toTravelDestinationChatCard(japan.destinations[0], "我想去日本");
-      expect(card.title).not.toBe("我想去日本");
-      expect(card.city).toBe("Tokyo");
-      expect(card.country).toBe("Japan");
-    }
+    expect(japan.status).toBe("unresolved");
+    expect(japan.cards).toEqual([]);
+    expect(japan.debugTrace?.fallbackReason).toBe("country_scope_requires_city");
 
-    const europe = resolveLocalDestinationText("想去欧洲");
-    expect(europe.status).toBe("resolved");
-    if (europe.status === "resolved") {
-      const card = toTravelDestinationChatCard(europe.destinations[0], "想去欧洲");
-      expect(card.title).not.toBe("想去欧洲");
-      expect(card.title).toBe("Europe Classic Route");
-    }
+    const unitedStates = resolveLocalDestinationText("我想要去美国");
+    expect(unitedStates.status).toBe("unresolved");
+    expect(unitedStates.cards).toEqual([]);
+    expect(unitedStates.debugTrace?.fallbackReason).toBe(
+      "country_scope_requires_city"
+    );
   });
 
   it("resolves high-confidence aliases without temporary cards", () => {

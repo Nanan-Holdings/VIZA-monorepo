@@ -18,6 +18,7 @@ export type PopularVisaDestination = {
 };
 
 export type VisaDestinationRegionId =
+  | "indonesia"
   | "north-america"
   | "south-america"
   | "middle-east"
@@ -279,14 +280,29 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     country: "indonesia",
     countryName: "Indonesia",
     countryNameZh: "印度尼西亚",
-    visaType: "B211A",
-    visaName: "B211A Tourist Visa",
-    visaNameZh: "B211A 旅游签证",
-    description: "Single-entry visitor visa for tourism and short stays.",
-    descriptionZh: "适合旅游和短期停留的单次入境访问签证。",
+    visaType: "ID_C1_TOURIST",
+    visaName: "C1 Tourist Single Entry eVisa",
+    visaNameZh: "C1 单次入境旅游电子签证",
+    description: "Official Indonesia eVisa tourist route for single-entry short stays.",
+    descriptionZh: "通过印尼官方 eVisa 门户办理的单次入境短期旅游签证。",
     flag: "🇮🇩",
     region: "Asia",
-    supportLabel: "B211A form",
+    supportLabel: "Indonesia eVisa",
+    searchAliases: ["Indonesia C1", "B211A", "Tourist Single Entry", "evisa.imigrasi.go.id"],
+  }),
+  destination({
+    country: "indonesia",
+    countryName: "Indonesia",
+    countryNameZh: "印度尼西亚",
+    visaType: "ID_B1_EVOA",
+    visaName: "B1 e-VoA",
+    visaNameZh: "B1 电子落地签",
+    description: "VFS Indonesia e-VoA intake for eligible short tourist arrivals.",
+    descriptionZh: "适合符合条件旅客短期旅游入境的 VFS 印尼电子落地签资料采集。",
+    flag: "🇮🇩",
+    region: "Asia",
+    supportLabel: "Indonesia e-VoA",
+    searchAliases: ["Indonesia B1", "e-VoA", "eVOA", "Visa on Arrival", "VFS Indonesia"],
   }),
   destination({
     country: "ireland",
@@ -695,6 +711,15 @@ export const SCHENGEN_GROUP_DESTINATION: PopularVisaDestination = {
 
 const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destinationIds" | "href"> & { countries: string[] }> = [
   {
+    id: "indonesia",
+    name: "Indonesia",
+    nameZh: "印度尼西亚",
+    description: "Choose between Indonesia C1 tourist eVisa and B1 e-VoA application forms.",
+    descriptionZh: "选择办理印尼 C1 旅游电子签证或 B1 电子落地签，并加载对应申请表。",
+    flag: "🇮🇩",
+    countries: ["indonesia"],
+  },
+  {
     id: "north-america",
     name: "North America",
     nameZh: "北美",
@@ -848,19 +873,25 @@ export const VISA_DESTINATION_REGION_GROUPS: VisaDestinationRegionGroup[] = DEST
   href: group.id === "schengen" ? "/client/destinations/schengen" : `/client/destinations/${group.id}`,
 }));
 
+const INDONESIA_DESTINATION_GROUP = VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === "indonesia");
+
 export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
-  "united_states",
-  "united_kingdom",
-  "france",
-  "japan",
-  "canada",
-  "australia",
+  ...(INDONESIA_DESTINATION_GROUP ? [regionGroupToDestination(INDONESIA_DESTINATION_GROUP)] : []),
+  ...[
+    "united_states",
+    "united_kingdom",
+    "france",
+    "japan",
+    "canada",
+    "australia",
+  ].map((country) => SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => destinationItem.country === country)),
 ]
-  .map((country) => SELECTABLE_VISA_DESTINATIONS.find((destinationItem) => destinationItem.country === country))
   .filter((destinationItem): destinationItem is PopularVisaDestination => Boolean(destinationItem));
 
 export const DESTINATION_REGION_GROUP_DESTINATIONS: PopularVisaDestination[] =
-  VISA_DESTINATION_REGION_GROUPS.map(regionGroupToDestination);
+  VISA_DESTINATION_REGION_GROUPS
+    .filter((group) => group.id !== "indonesia")
+    .map(regionGroupToDestination);
 
 export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
   ...FEATURED_VISA_DESTINATIONS,
@@ -869,6 +900,7 @@ export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
 
 export const SEARCHABLE_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
   ...SELECTABLE_VISA_DESTINATIONS,
+  ...(INDONESIA_DESTINATION_GROUP ? [regionGroupToDestination(INDONESIA_DESTINATION_GROUP)] : []),
   ...DESTINATION_REGION_GROUP_DESTINATIONS,
 ]);
 
@@ -896,7 +928,8 @@ const COUNTRY_NAMES_ZH = new Map(
 const VISA_TYPE_LABELS: Record<string, string> = {
   tourist_b211a: "Tourist Visa B211A",
   B211A: "Tourist Visa B211A",
-  ID_C1_TOURIST: "C1/B211A Tourist Visa",
+  ID_C1_TOURIST: "C1 Tourist Single Entry eVisa",
+  ID_B1_EVOA: "B1 e-VoA",
   B1_B2: "DS-160 Visitor Visa",
   DS160: "DS-160 Visitor Visa",
   UK_STANDARD_VISITOR: "UK Standard Visitor Visa",
@@ -942,7 +975,8 @@ const VISA_TYPE_LABELS: Record<string, string> = {
 const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   tourist_b211a: "B211A 旅游签证",
   B211A: "B211A 旅游签证",
-  ID_C1_TOURIST: "C1/B211A 旅游签证",
+  ID_C1_TOURIST: "C1 单次入境旅游电子签证",
+  ID_B1_EVOA: "B1 电子落地签",
   B1_B2: "B1/B2 访客签证",
   DS160: "B1/B2 访客签证",
   UK_STANDARD_VISITOR: "英国标准访客签证",
