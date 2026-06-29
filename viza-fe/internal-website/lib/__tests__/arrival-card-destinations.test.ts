@@ -44,4 +44,19 @@ describe("arrival card destination labels", () => {
     expect(thailand?.visaType).toBe("TH_TDAC_ARRIVAL_CARD");
     expect(thailand?.visaNameZh).toBe("TDAC 数字入境卡");
   });
+
+  test("Philippines search card opens the standalone eTravel arrival card", () => {
+    expect(getVisaTypeDisplayName("PH_ETRAVEL_ARRIVAL_CARD")).toBe("Philippines eTravel Arrival Card");
+    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_ARRIVAL_CARD")).toBe("eTravel 入境卡");
+    expect(getVisaPackageTitle("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe(
+      "Philippines Philippines eTravel Arrival Card",
+    );
+    expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾eTravel 入境卡");
+
+    const philippines = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "philippines");
+    expect(philippines?.visaType).toBe("PH_ETRAVEL_ARRIVAL_CARD");
+    expect(philippines?.visaNameZh).toBe("eTravel 入境卡");
+    expect(isCountryLaunched("philippines")).toBe(true);
+    expect(isCountryLaunched("ph")).toBe(true);
+  });
 });

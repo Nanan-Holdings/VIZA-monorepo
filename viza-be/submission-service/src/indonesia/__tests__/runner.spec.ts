@@ -95,6 +95,30 @@ test("classifies Indonesia portal login and registration gates", () => {
     }),
     "login_required",
   );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/visa-selection`,
+      title: "The Official eVisa website for Indonesia",
+      text: "Passport/Country/Region The main purpose of my visit to Indonesia is I want to explore & choose a visa",
+    }),
+    "visa_selection_visible",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}front/login?menu-token=redacted`,
+      title: "The Official eVisa website for Indonesia",
+      text: "Track Your Application Email Password",
+    }),
+    "login_required",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}front/register/wna`,
+      title: "The Official Indonesian e-Visa Website | Register",
+      text: "Fill out the form to register an account Biography Passport Page Account Information",
+    }),
+    "account_registration_form_visible",
+  );
 });
 
 test("maps portal states to actionable automation checkpoints", () => {
@@ -105,6 +129,18 @@ test("maps portal states to actionable automation checkpoints", () => {
   assert.equal(
     actionForIndonesiaPortalState("application_form_visible").actionType,
     "official_form_reached",
+  );
+  assert.equal(
+    actionForIndonesiaPortalState("visa_selection_visible").actionType,
+    "official_visa_selection_reached",
+  );
+  assert.equal(
+    actionForIndonesiaPortalState("official_application_started").actionType,
+    "official_application_started",
+  );
+  assert.equal(
+    actionForIndonesiaPortalState("account_registration_form_visible").actionType,
+    "official_account_registration_form_reached",
   );
   assert.equal(
     actionForIndonesiaPortalState("payment_required").actionType,

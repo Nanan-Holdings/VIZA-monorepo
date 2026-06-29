@@ -85,5 +85,5 @@ export const MY_MDAC_FORM_FIELDS: MyMdacFieldDef[] = [
       official: true,
     }),
   },
-  { field_name: "postcode", label: "Postcode", field_type: "text", required: true, step_number: 3, step_name: "Stay in Malaysia", display_order: 5, validation_rules: rules("邮政编码", { official: true }) },
+  { field_name: "postcode", label: "Postcode", field_type: "text", required: true, step_number: 3, step_name: "Stay in Malaysia", display_order: 5, validation_rules: rules("邮政编码", { pattern: "^[0-9]{5}$", minLength: 5, maxLength: 5, official: true }) },
 ];
