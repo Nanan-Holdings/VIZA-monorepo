@@ -261,6 +261,7 @@ export interface PhEtravelAccount {
   applicant_id: string;
   email: string;
   password_encrypted: string | null;
+  mpin_encrypted: string | null;
   status: string;
   storage_state_json: Record<string, unknown> | null;
   last_authenticated_at: string | null;

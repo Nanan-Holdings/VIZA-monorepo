@@ -5,6 +5,7 @@ export interface PhEtravelAccountRow {
   applicant_id: string;
   email: string;
   password_encrypted: string | null;
+  mpin_encrypted: string | null;
   status: string | null;
   storage_state_json: Record<string, unknown> | null;
   last_authenticated_at: string | null;
@@ -16,6 +17,7 @@ export interface PhEtravelAccountCredentials {
   id: string;
   email: string;
   password: string | null;
+  mpin: string | null;
   status: string;
   storageState: Record<string, unknown> | null;
 }
@@ -24,11 +26,13 @@ export interface PhEtravelAccountPlan {
   mode: "reuse_existing" | "create_new";
   email: string;
   password: string | null;
+  mpin: string | null;
   accountId?: string;
 }
 
 const VAULT_EMAIL_KEY = "ph_etravel.account.email";
 const VAULT_PASSWORD_KEY = "ph_etravel.account.password";
+const VAULT_MPIN_KEY = "ph_etravel.account.mpin";
 const VAULT_STATUS_KEY = "ph_etravel.account.status";
 
 export function isMissingPhEtravelAccountsTableError(error: unknown): boolean {
@@ -43,13 +47,15 @@ export function choosePhEtravelAccountPlan(input: {
   existingAccount?: PhEtravelAccountCredentials | null;
   aliasEmail: string;
   generatedPassword: string;
+  generatedMpin: string;
 }): PhEtravelAccountPlan {
-  if (input.existingAccount?.email) {
+  if (input.existingAccount?.email && input.existingAccount.mpin) {
     return {
       mode: "reuse_existing",
       accountId: input.existingAccount.id,
       email: input.existingAccount.email,
       password: input.existingAccount.password,
+      mpin: input.existingAccount.mpin,
     };
   }
 
@@ -57,6 +63,7 @@ export function choosePhEtravelAccountPlan(input: {
     mode: "create_new",
     email: input.aliasEmail.toLowerCase(),
     password: input.generatedPassword,
+    mpin: input.generatedMpin,
   };
 }
 
@@ -65,6 +72,7 @@ export function normalizePhEtravelAccount(row: PhEtravelAccountRow): PhEtravelAc
     id: row.id,
     email: row.email,
     password: row.password_encrypted ? decryptSecret(row.password_encrypted) : null,
+    mpin: row.mpin_encrypted ? decryptSecret(row.mpin_encrypted) : null,
     status: row.status ?? "created",
     storageState: row.storage_state_json,
   };
@@ -74,7 +82,7 @@ export async function loadPhEtravelAccount(applicantId: string): Promise<PhEtrav
   const { supabase } = await import("../supabase");
   const { data, error } = await supabase
     .from("ph_etravel_accounts")
-    .select("id, applicant_id, email, password_encrypted, status, storage_state_json, last_authenticated_at, created_at, updated_at")
+    .select("id, applicant_id, email, password_encrypted, mpin_encrypted, status, storage_state_json, last_authenticated_at, created_at, updated_at")
     .eq("applicant_id", applicantId)
     .order("last_authenticated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -96,11 +104,13 @@ async function loadPhEtravelAccountFromVault(applicantId: string): Promise<PhEtr
   const email = await applicantVault.get(applicantId, VAULT_EMAIL_KEY, opts);
   if (!email) return null;
   const password = await applicantVault.get(applicantId, VAULT_PASSWORD_KEY, opts);
+  const mpin = await applicantVault.get(applicantId, VAULT_MPIN_KEY, opts);
   const status = await applicantVault.get(applicantId, VAULT_STATUS_KEY, opts);
   return {
     id: `vault:${applicantId}`,
     email,
     password,
+    mpin,
     status: status ?? "created",
     storageState: null,
   };
@@ -110,6 +120,7 @@ export async function upsertPhEtravelAccount(input: {
   applicantId: string;
   email: string;
   password: string | null;
+  mpin?: string | null;
   status: string;
   storageState?: Record<string, unknown> | null;
   lastAuthenticatedAt?: string | null;
@@ -122,12 +133,13 @@ export async function upsertPhEtravelAccount(input: {
       applicant_id: input.applicantId,
       email: input.email.toLowerCase(),
       password_encrypted: input.password ? encryptSecret(input.password) : null,
+      mpin_encrypted: input.mpin ? encryptSecret(input.mpin) : null,
       status: input.status,
       storage_state_json: input.storageState ?? null,
       last_authenticated_at: input.lastAuthenticatedAt ?? null,
       updated_at: now,
     }, { onConflict: "applicant_id,email" })
-    .select("id, applicant_id, email, password_encrypted, status, storage_state_json, last_authenticated_at, created_at, updated_at")
+    .select("id, applicant_id, email, password_encrypted, mpin_encrypted, status, storage_state_json, last_authenticated_at, created_at, updated_at")
     .single();
 
   if (error) {
@@ -143,6 +155,7 @@ async function upsertPhEtravelAccountInVault(input: {
   applicantId: string;
   email: string;
   password: string | null;
+  mpin?: string | null;
   status: string;
 }): Promise<PhEtravelAccountCredentials> {
   const { applicantVault } = await import("../applicant-vault");
@@ -154,11 +167,15 @@ async function upsertPhEtravelAccountInVault(input: {
   if (input.password) {
     await applicantVault.set(input.applicantId, VAULT_PASSWORD_KEY, input.password, opts);
   }
+  if (input.mpin) {
+    await applicantVault.set(input.applicantId, VAULT_MPIN_KEY, input.mpin, opts);
+  }
   await applicantVault.set(input.applicantId, VAULT_STATUS_KEY, input.status, opts);
   return {
     id: `vault:${input.applicantId}`,
     email: input.email.toLowerCase(),
     password: input.password,
+    mpin: input.mpin ?? null,
     status: input.status,
     storageState: null,
   };

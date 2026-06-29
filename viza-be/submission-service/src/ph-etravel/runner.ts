@@ -38,6 +38,7 @@ export interface PhEtravelRunnerOptions {
   applicantId?: string;
   officialAccountEmail?: string;
   officialAccountPassword?: string | null;
+  officialAccountMpin?: string | null;
   mailbox?: PhEtravelMailboxProvider;
   emailVerificationTimeoutMs?: number;
 }
@@ -130,6 +131,36 @@ async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
   return fillLastVisibleInput(page, "input:not([type='hidden'])", otp);
 }
 
+async function fillMpinPrompt(
+  page: Page,
+  options: PhEtravelRunnerOptions,
+  logs: string[],
+  screenshots: string[],
+): Promise<string> {
+  const mpin = options.officialAccountMpin?.trim();
+  if (!mpin || !/^\d{6}$/.test(mpin)) {
+    screenshots.push(await saveScreenshot(page, "official-mpin-required", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel/eGovPH account requires a 6-digit MPIN before automation can continue.",
+      {
+        code: "ph_etravel_official_mpin_required",
+        screenshotPaths: screenshots,
+        portalSummary: (await bodyText(page)).slice(0, 700),
+      },
+    );
+  }
+
+  await fillOtpInputs(page, mpin);
+  await clickFirstAvailable(page, [
+    page.getByRole("button", { name: /next|continue|submit|confirm/i }),
+    page.locator("button").filter({ hasText: /next|continue|submit|confirm/i }),
+  ]);
+  logs.push("ph_etravel_egov_mpin_submitted");
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+  return bodyText(page);
+}
+
 async function reachAuthenticatedPhEtravelSession(
   page: Page,
   options: PhEtravelRunnerOptions,
@@ -194,6 +225,9 @@ async function reachAuthenticatedPhEtravelSession(
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(3_000);
     afterLoginText = await bodyText(page);
+  }
+  if (/mpin|6[-\s]?digit passcode|enter your passcode/i.test(afterLoginText)) {
+    afterLoginText = await fillMpinPrompt(page, options, logs, screenshots);
   }
   if (/invalid|incorrect|otp|one-time|enter code|captcha|turnstile|verification failed/i.test(afterLoginText)) {
     screenshots.push(await saveScreenshot(page, "official-login-blocked", logs));
@@ -338,6 +372,10 @@ async function maybeCreatePhEtravelAccount(
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     currentText = await bodyText(page);
+  }
+
+  if (/mpin|6[-\s]?digit passcode|enter your passcode/i.test(currentText)) {
+    currentText = await fillMpinPrompt(page, options, logs, screenshots);
   }
 
   if (/mobile|phone|sms|app|captcha|turnstile|invalid|failed/i.test(currentText)) {

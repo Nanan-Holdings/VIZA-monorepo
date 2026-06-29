@@ -92,19 +92,66 @@ export interface PhEtravelMailboxProvider {
   waitForVerificationLink(params: { timeoutMs: number; since?: string }): Promise<URL>;
 }
 
-export function createPhEtravelMailboxProvider(applicantId: string): PhEtravelMailboxProvider {
+async function waitForMessageToAddress(
+  address: string,
+  predicate: (row: InboundMessage) => boolean,
+  timeoutMs: number,
+  opts: { since?: string; pollIntervalMs?: number } = {},
+): Promise<InboundMessage> {
+  const { supabase } = await import("../supabase");
+  const pollIntervalMs = opts.pollIntervalMs ?? 5_000;
+  const since = opts.since ?? new Date(Date.now() - 60_000).toISOString();
+  const deadline = Date.now() + timeoutMs;
+  const normalizedAddress = address.toLowerCase();
+
+  while (Date.now() < deadline) {
+    const { data, error } = await supabase
+      .from("inbound_email")
+      .select("id, to_addr, from_addr, subject, message_id, text, html, headers, raw_size, r2_key, spam_score, received_at, processed")
+      .eq("to_addr", normalizedAddress)
+      .gte("received_at", since)
+      .eq("processed", false)
+      .order("received_at", { ascending: true })
+      .limit(20);
+    if (error) throw new Error(`PH eTravel mailbox poll failed: ${error.message}`);
+    for (const row of (data ?? []) as InboundMessage[]) {
+      if (!predicate(row)) continue;
+      const { error: markError } = await supabase
+        .from("inbound_email")
+        .update({ processed: true, processed_at: new Date().toISOString() })
+        .eq("id", row.id);
+      if (markError) throw new Error(`PH eTravel mailbox markProcessed failed: ${markError.message}`);
+      return row;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new Error(`PH eTravel mailbox timeout after ${timeoutMs}ms for ${normalizedAddress}`);
+}
+
+export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddress?: string): PhEtravelMailboxProvider {
+  const waitForOfficialMessage = async (
+    predicate: (row: InboundMessage) => boolean,
+    timeoutMs: number,
+    since?: string,
+  ): Promise<InboundMessage> => {
+    if (mailboxAddress?.trim()) {
+      return waitForMessageToAddress(mailboxAddress, predicate, timeoutMs, { since });
+    }
+    const { inbox } = await import("../inbox/wait-for-message");
+    return inbox.waitForMessage(applicantId, predicate, timeoutMs, { since });
+  };
+
   return {
     async waitForOtp(params) {
-      const { inbox } = await import("../inbox/wait-for-message");
-      const message = await inbox.waitForMessage(
-        applicantId,
+      const message = await waitForOfficialMessage(
         (row) => {
           const senderMatches = /etravel|egov|gov\.ph/i.test(row.from_addr ?? "");
           const subjectMatches = /etravel|egov|verification|otp|code/i.test(row.subject ?? "");
           return (senderMatches || subjectMatches) && extractPhEtravelOtpFromMessage(row) !== null;
         },
         params.timeoutMs,
-        { since: params.since },
+        params.since,
       );
       const otp = extractPhEtravelOtpFromMessage(message);
       if (!otp) throw new Error("Philippines eTravel email matched but no OTP was found.");
@@ -112,16 +159,14 @@ export function createPhEtravelMailboxProvider(applicantId: string): PhEtravelMa
     },
 
     async waitForVerificationLink(params) {
-      const { inbox } = await import("../inbox/wait-for-message");
-      const message = await inbox.waitForMessage(
-        applicantId,
+      const message = await waitForOfficialMessage(
         (row) => {
           const senderMatches = /etravel|egov|gov\.ph/i.test(row.from_addr ?? "");
           const subjectMatches = /etravel|egov|verification|confirm|activate/i.test(row.subject ?? "");
           return (senderMatches || subjectMatches) && extractPhEtravelVerificationUrlFromMessage(row) !== null;
         },
         params.timeoutMs,
-        { since: params.since },
+        params.since,
       );
       const url = extractPhEtravelVerificationUrlFromMessage(message);
       if (!url) throw new Error("Philippines eTravel email matched but no verification URL was found.");

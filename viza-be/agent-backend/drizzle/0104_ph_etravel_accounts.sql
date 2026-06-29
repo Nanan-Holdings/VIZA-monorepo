@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS ph_etravel_accounts (
   applicant_id UUID NOT NULL REFERENCES applicant_profiles(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   password_encrypted TEXT,
+  mpin_encrypted TEXT,
   status TEXT NOT NULL DEFAULT 'pending_registration',
   storage_state_json JSONB,
   last_authenticated_at TIMESTAMPTZ,

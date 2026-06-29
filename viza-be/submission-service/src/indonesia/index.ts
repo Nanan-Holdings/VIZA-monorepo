@@ -2,7 +2,9 @@ import type { GenericSubmissionResult } from "../submission-result";
 import { probeIndonesiaPortal } from "./runner";
 
 export const INDONESIA_C1_PORTAL_URL = "https://evisa.imigrasi.go.id/";
-export const INDONESIA_B1_EVOA_PORTAL_URL = "https://indonesiavoa.vfsevisa.id/";
+export const INDONESIA_B1_EVOA_PORTAL_URL = INDONESIA_C1_PORTAL_URL;
+export const INDONESIA_B1_EVOA_VFS_FALLBACK_PORTAL_URL =
+  "https://indonesiavoa.vfsevisa.id/";
 
 export type IndonesiaPackageKey = "c1" | "b1_evoa";
 export type IndonesiaProvider = "indonesia_c1_live" | "indonesia_b1_evoa_live";

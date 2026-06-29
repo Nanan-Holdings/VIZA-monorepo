@@ -167,7 +167,8 @@ import {
   loadPhEtravelAccount,
   upsertPhEtravelAccount,
 } from "./ph-etravel/account";
-import { runIndonesiaLiveSubmission } from "./indonesia";
+import { createPhEtravelMailboxProvider } from "./ph-etravel/mailbox-provider";
+import { INDONESIA_C1_PORTAL_URL, runIndonesiaLiveSubmission } from "./indonesia";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -3592,6 +3593,17 @@ async function createVietnamManualAction(
   }
 }
 
+function generatePhEtravelMpin(): string {
+  const value = randomBytes(4).readUInt32BE(0) % 1_000_000;
+  return value.toString().padStart(6, "0");
+}
+
+function derivePhEtravelAccountEmail(baseAlias: string): string {
+  const [localPart, domain] = baseAlias.toLowerCase().split("@");
+  if (!localPart || !domain) return baseAlias.toLowerCase();
+  return `${localPart}-ph${randomBytes(3).toString("hex")}@${domain}`;
+}
+
 type VnOfficialFeeIntentRow = {
   id: string;
   user_id: string;
@@ -5744,17 +5756,19 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     let phAccountPlan: ReturnType<typeof choosePhEtravelAccountPlan> | null = null;
     if (!isMdac && !isTdac) {
       const existingPhAccount = await loadPhEtravelAccount(profile.id);
-      const alias = existingPhAccount ? null : await ensureApplicantInboxAlias(profile.id);
+      const alias = existingPhAccount?.mpin ? null : await ensureApplicantInboxAlias(profile.id);
       phAccountPlan = choosePhEtravelAccountPlan({
         existingAccount: existingPhAccount,
-        aliasEmail: alias?.alias ?? "",
+        aliasEmail: alias ? derivePhEtravelAccountEmail(alias.alias) : "",
         generatedPassword: `VizaPH-${randomBytes(9).toString("base64url")}9!`,
+        generatedMpin: generatePhEtravelMpin(),
       });
       if (phAccountPlan.mode === "create_new") {
         await upsertPhEtravelAccount({
           applicantId: profile.id,
           email: phAccountPlan.email,
           password: phAccountPlan.password,
+          mpin: phAccountPlan.mpin,
           status: "pending_registration",
         });
       }
@@ -5783,6 +5797,10 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
             applicantId: profile.id,
             officialAccountEmail: phAccountPlan?.email,
             officialAccountPassword: phAccountPlan?.password,
+            officialAccountMpin: phAccountPlan?.mpin,
+            mailbox: phAccountPlan
+              ? createPhEtravelMailboxProvider(profile.id, phAccountPlan.email)
+              : undefined,
           });
 
     if (phAccountPlan) {
@@ -5790,6 +5808,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         applicantId: profile.id,
         email: phAccountPlan.email,
         password: phAccountPlan.password,
+        mpin: phAccountPlan.mpin,
         status: portalResult.submitted ? "submitted" : "authenticated",
         lastAuthenticatedAt: new Date().toISOString(),
       });
@@ -5931,9 +5950,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         error_code: result.actionType ?? null,
         error_message: result.message,
         current_stage: result.actionType ?? "indonesia_live_action_required",
-        official_portal_url: isB1
-          ? "https://indonesiavoa.vfsevisa.id/"
-          : "https://evisa.imigrasi.go.id/",
+        official_portal_url: INDONESIA_C1_PORTAL_URL,
         official_account_email_encrypted: encryptSecret(alias.alias),
         manual_action_status: result.status === "action_required" ? "pending" : null,
         updated_at: new Date().toISOString(),
