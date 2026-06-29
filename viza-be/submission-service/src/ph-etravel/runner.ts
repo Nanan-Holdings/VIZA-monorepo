@@ -115,7 +115,7 @@ async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["
   for (const locator of locators) {
     const target = locator.first();
     if (await target.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await target.click({ timeout: 10_000 });
+      await target.click({ timeout: 10_000, force: true });
       return true;
     }
   }
@@ -135,7 +135,7 @@ async function clickFirstEnabledAvailable(
         await target.isVisible({ timeout: 1_000 }).catch(() => false) &&
         await target.isEnabled({ timeout: 1_000 }).catch(() => false)
       ) {
-        await target.click({ timeout: 10_000 });
+        await target.click({ timeout: 10_000, force: true });
         return true;
       }
     }
@@ -292,7 +292,7 @@ async function clickTurnstileProtectedContinue(
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     lastText = await bodyText(page);
-    if (!/verification failed|troubleshooting|cloudflare|turnstile/i.test(lastText)) {
+    if (!/verification failed|troubleshooting|cloudflare|turnstile|验证失败|故障排除/i.test(lastText)) {
       return lastText;
     }
     logs.push(`ph_etravel_turnstile_continue_failed attempt=${attempt}`);
@@ -366,6 +366,70 @@ async function fillVisibleTextField(page: Page, label: string, value: string): P
   return false;
 }
 
+async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobileNumber: string): Promise<boolean> {
+  const normalized = mobileNumber.replace(/[^\d]/g, "");
+  const countryCode = mobileCountryCode.replace(/[^\d]/g, "");
+  const fullInternationalNumber = `${countryCode ? `+${countryCode}` : ""}${normalized}`;
+  if (!normalized) return false;
+  await page.evaluate(({ value, fullValue }) => {
+    const textNodes = Array.from(document.querySelectorAll("label, div, span, p"))
+      .filter((node) => /mobile number/i.test(node.textContent ?? ""));
+    for (const node of textNodes) {
+      let scope: Element | null = node;
+      for (let depth = 0; depth < 5 && scope; depth += 1) {
+        const inputs = Array.from(scope.querySelectorAll<HTMLInputElement>("input:not([type='hidden'])"));
+        const targets = inputs.filter((input) => !input.disabled && input.type !== "hidden");
+        for (const target of targets) {
+          target.focus();
+          target.value = target.getAttribute("type") === "tel" ? fullValue : value;
+          target.dispatchEvent(new InputEvent("input", { bubbles: true, data: target.value, inputType: "insertText" }));
+          target.dispatchEvent(new Event("change", { bubbles: true }));
+          target.blur();
+        }
+        scope = scope.parentElement;
+      }
+    }
+  }, { value: normalized, fullValue: fullInternationalNumber }).catch(() => undefined);
+
+  const mobileLabel = page.getByText(/mobile number/i).last();
+  if (await mobileLabel.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    const box = await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll("label, div, span, p"))
+        .filter((node) => /mobile number/i.test(node.textContent ?? ""));
+      for (const node of nodes) {
+        let scope: Element | null = node;
+        for (let depth = 0; depth < 6 && scope; depth += 1) {
+          const rect = scope.getBoundingClientRect();
+          if (rect.width > 220 && rect.height > 45) {
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+          }
+          scope = scope.parentElement;
+        }
+      }
+      return null;
+    }).catch(() => null);
+    if (box) {
+      await page.mouse.click(box.x + 42, box.y + box.height * 0.62);
+      await page.waitForTimeout(500);
+      await page.keyboard.type("China", { delay: 30 }).catch(() => undefined);
+      await page.waitForTimeout(500);
+      await clickFirstAvailable(page, [
+        page.getByText(/^China$/i),
+        page.locator("[role='option'], li, button, div, p").filter({ hasText: /^China$/i }),
+      ]);
+      await page.waitForTimeout(500);
+      await page.mouse.click(box.x + box.width * 0.62, box.y + box.height * 0.62);
+    } else {
+      await mobileLabel.click({ timeout: 10_000, force: true });
+    }
+    await page.keyboard.press("Control+A").catch(() => undefined);
+    await page.keyboard.type(fullInternationalNumber, { delay: 30 });
+    await page.waitForTimeout(300);
+    return true;
+  }
+  return false;
+}
+
 async function chooseDropdownOption(
   page: Page,
   triggerText: RegExp,
@@ -389,17 +453,21 @@ async function chooseDropdownOption(
 
   const trigger = page.locator("button, [role='button'], [role='combobox'], div, input").filter({ hasText: triggerText }).last();
   if (await trigger.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await trigger.click({ timeout: 10_000 });
+    await trigger.click({ timeout: 10_000, force: true });
   } else {
     const label = page.getByText(triggerText).last();
     if (!await label.isVisible({ timeout: 2_000 }).catch(() => false)) return false;
-    await label.click({ timeout: 10_000 });
+    await label.click({ timeout: 10_000, force: true });
   }
   await page.waitForTimeout(500);
   if (typedText) {
     await page.keyboard.press("Control+A").catch(() => undefined);
     await page.keyboard.type(typedText, { delay: 30 }).catch(() => undefined);
     await page.waitForTimeout(700);
+  }
+  const selectedText = await bodyText(page);
+  if (typedText && new RegExp(`\\b${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(selectedText)) {
+    return true;
   }
   const clicked = await clickFirstAvailable(page, [
     page.getByRole("option", { name: optionText }),
@@ -521,10 +589,12 @@ async function completeEgovPersonalInformationOnboarding(
     firstName: await fillVisibleTextField(page, "First Name", name.firstName),
     lastName: await fillVisibleTextField(page, "Last Name", name.lastName || name.firstName),
     birthDate: await fillVisibleTextField(page, "Birth Date", formatUsDate(payload.dateOfBirth)),
-    mobile: await fillVisibleTextField(page, "Mobile Number", payload.mobileNumber),
+    mobile: await fillMobileNumberField(page, payload.mobileCountryCode, payload.mobileNumber),
     passportNumber: await fillVisibleTextField(page, "Passport Number", payload.passportNumber),
     passportIssueDate: await fillVisibleTextField(page, "Passport Issued Date", formatUsDate(payload.passportIssueDate)),
   };
+  await page.keyboard.press("Escape").catch(() => undefined);
+  await page.waitForTimeout(300);
   const sexText = /^m|male/i.test(payload.sex) ? "Male" : /^f|female/i.test(payload.sex) ? "Female" : payload.sex;
   const choseSex = await chooseDropdownOption(page, /^sex$/i, sexOptionPattern(payload.sex), sexText);
   const choseCitizenship = await chooseDropdownOption(
@@ -551,6 +621,8 @@ async function completeEgovPersonalInformationOnboarding(
     occupationOptionPattern(payload.occupation),
     /software|engineer|developer|programmer|it|technology/i.test(payload.occupation) ? "Professional" : payload.occupation,
   );
+  await page.keyboard.press("Escape").catch(() => undefined);
+  await page.waitForTimeout(500);
 
   if (
     !filled.firstName ||
@@ -801,7 +873,7 @@ async function maybeCreatePhEtravelAccount(
     logs.push("ph_etravel_alias_account_already_exists");
     return false;
   }
-  if (/verification failed|troubleshooting|cloudflare|turnstile/i.test(currentText)) {
+  if (/verification failed|troubleshooting|cloudflare|turnstile|验证失败|故障排除/i.test(currentText)) {
     screenshots.push(await saveScreenshot(page, "registration-turnstile-failed", logs));
     throw new PhEtravelPortalError(
       "Official Philippines eTravel registration Turnstile could not be solved by the configured Browser API.",
