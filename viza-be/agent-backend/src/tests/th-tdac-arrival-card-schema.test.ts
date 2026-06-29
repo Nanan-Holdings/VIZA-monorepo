@@ -95,4 +95,32 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     expect(field("sub_district")?.validation_rules).toMatchObject({ dependent_on: "district" });
     expect(field("countries_visited_last_14_days")?.field_type).toBe("multi_select");
   });
+
+  test("uses Chinese step titles in the seeded TDAC wizard", () => {
+    expect(new Set(TH_TDAC_FORM_FIELDS.map((item) => item.step_name))).toEqual(
+      new Set(["旅客信息", "抵达和离境信息", "住宿信息", "健康申报"]),
+    );
+  });
+
+  test("requires accommodation fields only for non-transit travellers", () => {
+    for (const name of [
+      "accommodation_type",
+      "province",
+      "district",
+      "sub_district",
+      "postcode",
+      "address_in_thailand",
+    ]) {
+      expect(field(name)?.required, name).toBe(true);
+      expect(field(name)?.conditional_logic, name).toMatchObject({ showIf: "is_transit_traveler !== yes" });
+    }
+
+    expect(field("accommodation_type_other")?.conditional_logic).toMatchObject({
+      showIf: "is_transit_traveler !== yes && accommodation_type === others",
+    });
+    expect(field("is_transit_traveler")?.validation_rules).toMatchObject({
+      auto_when_arrival_departure_same_day: true,
+      locked_unless_arrival_departure_same_day: true,
+    });
+  });
 });

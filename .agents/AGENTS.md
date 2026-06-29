@@ -19,6 +19,9 @@ runtime application code.
   guidance.
 - `skills/supabase-postgres-best-practices`: Postgres schema, query,
   connection, RLS, and performance guidance.
+- `skills/vietnam-evisa-form-parity`: Vietnam e-Visa official form parity,
+  bilingual dropdown localization, official validation mirroring, and
+  submission/payment checkpoint verification workflow.
 
 ## Conventions
 
