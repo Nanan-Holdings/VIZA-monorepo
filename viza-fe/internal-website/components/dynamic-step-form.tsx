@@ -619,7 +619,7 @@ function isSameCalendarDayValue(left?: string, right?: string): boolean {
 
 function normalizeTdacTransitValue(values: Record<string, string>): Record<string, string> {
   const sameDayTransit = isSameCalendarDayValue(values.arrival_date, values.departure_date);
-  const next = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
+  const next: Record<string, string> = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
   if (sameDayTransit) {
     for (const fieldName of TDAC_ACCOMMODATION_VALUE_KEYS) {
       next[fieldName] = "";

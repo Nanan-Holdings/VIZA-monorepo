@@ -2,9 +2,8 @@ import type { InboundMessage } from "../inbox/wait-for-message";
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
 const OTP_PATTERNS = [
+  /\bemail\s+code\D{0,40}(\d{4,8})\b/i,
   /\b(?:verification|security|one[-\s]?time|otp|code)\D{0,40}(\d{4,8})\b/i,
-  /\b(\d{6})\b/,
-  /\b(\d{4})\b/,
 ];
 
 function decodeHtml(value: string): string {
@@ -25,17 +24,29 @@ function decodeQuotedPrintable(value: string): string {
   return value
     .replace(/=\r?\n/g, "")
     .replace(/=3D/gi, "=")
-    .replace(/=26/gi, "&");
+    .replace(/=26/gi, "&")
+    .replace(/(?<![A-Za-z])=([0-9A-F]{2})/gi, (_, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
+    );
 }
 
 function messageHaystacks(message: Pick<InboundMessage, "html" | "text" | "subject">): string[] {
+  const decodedHtml = message.html ? decodeHtml(decodeQuotedPrintable(message.html)) : "";
+  const decodedText = message.text ? decodeQuotedPrintable(message.text) : "";
   return [
     message.subject ?? "",
-    message.html ?? "",
-    message.html ? decodeHtml(message.html) : "",
-    message.html ? decodeQuotedPrintable(message.html) : "",
+    decodedText,
+    decodedHtml,
     message.text ?? "",
+  ].filter(Boolean);
+}
+
+function messageUrlHaystacks(message: Pick<InboundMessage, "html" | "text" | "subject">): string[] {
+  return [
+    message.subject ?? "",
     message.text ? decodeQuotedPrintable(message.text) : "",
+    message.html ? decodeQuotedPrintable(message.html) : "",
+    message.html ? decodeHtml(decodeQuotedPrintable(message.html)) : "",
   ].filter(Boolean);
 }
 
@@ -61,7 +72,7 @@ export function extractPhEtravelOtpFromMessage(message: Pick<InboundMessage, "ht
 export function extractPhEtravelVerificationUrlFromMessage(
   message: Pick<InboundMessage, "html" | "text" | "subject">,
 ): URL | null {
-  for (const haystack of messageHaystacks(message)) {
+  for (const haystack of messageUrlHaystacks(message)) {
     const matches = haystack.match(URL_PATTERN) ?? [];
     for (const match of matches) {
       const candidate = normalizeCandidateUrl(match);

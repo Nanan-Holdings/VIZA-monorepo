@@ -5916,7 +5916,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       },
       managedAccountAvailable: true,
       managedAccountEmail: alias.alias,
-      paymentAuthorized: false,
+      probeOfficialPortal: true,
+      portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
     });
 
     const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";

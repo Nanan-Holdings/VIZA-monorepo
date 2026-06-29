@@ -110,6 +110,26 @@ async function fillLastVisibleInput(page: Page, selector: string, value: string)
   return false;
 }
 
+async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
+  const digits = otp.trim().split("");
+  const inputs = page.locator("input:not([type='hidden'])");
+  const count = await inputs.count().catch(() => 0);
+  const visibleIndexes: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    if (await inputs.nth(index).isVisible({ timeout: 500 }).catch(() => false)) {
+      visibleIndexes.push(index);
+    }
+  }
+  if (visibleIndexes.length >= digits.length) {
+    const otpIndexes = visibleIndexes.slice(-digits.length);
+    for (let index = 0; index < digits.length; index += 1) {
+      await inputs.nth(otpIndexes[index]).fill(digits[index], { timeout: 10_000 });
+    }
+    return true;
+  }
+  return fillLastVisibleInput(page, "input:not([type='hidden'])", otp);
+}
+
 async function reachAuthenticatedPhEtravelSession(
   page: Page,
   options: PhEtravelRunnerOptions,
@@ -165,7 +185,17 @@ async function reachAuthenticatedPhEtravelSession(
   if (/mobile number|use email/i.test(afterLoginText)) {
     afterLoginText = await completeEgovEmailVerification(page, options, email, logs, screenshots);
   }
-  if (/invalid|incorrect|verification|otp|one-time|enter code|captcha|turnstile/i.test(afterLoginText)) {
+  if (/important account security notice/i.test(afterLoginText)) {
+    await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /next|continue/i }),
+      page.locator("button").filter({ hasText: /next|continue/i }),
+    ]);
+    logs.push("ph_etravel_egov_security_notice_acknowledged");
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(3_000);
+    afterLoginText = await bodyText(page);
+  }
+  if (/invalid|incorrect|otp|one-time|enter code|captcha|turnstile|verification failed/i.test(afterLoginText)) {
     screenshots.push(await saveScreenshot(page, "official-login-blocked", logs));
     throw new PhEtravelPortalError(
       "Official Philippines eTravel account login needs additional verification before automation can continue.",
@@ -217,7 +247,7 @@ async function completeEgovEmailVerification(
     const timeoutMs = options.emailVerificationTimeoutMs
       ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
-    await page.locator("input[type='text'], input[type='tel'], input[name*='code' i], input[placeholder*='code' i], input[placeholder*='OTP' i]").first().fill(otp, { timeout: 15_000 });
+    await fillOtpInputs(page, otp);
     await clickFirstAvailable(page, [
       page.getByRole("button", { name: /verify|continue|next|submit/i }),
       page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
@@ -274,7 +304,7 @@ async function maybeCreatePhEtravelAccount(
     ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
   if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
-    await page.locator("input[type='text'], input[type='tel'], input[name*='code' i], input[placeholder*='code' i], input[placeholder*='OTP' i]").first().fill(otp, { timeout: 15_000 });
+    await fillOtpInputs(page, otp);
     await clickFirstAvailable(page, [
       page.getByRole("button", { name: /verify|continue|next|submit/i }),
       page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
