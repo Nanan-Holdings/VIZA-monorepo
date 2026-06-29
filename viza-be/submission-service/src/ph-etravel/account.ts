@@ -49,6 +49,16 @@ export function choosePhEtravelAccountPlan(input: {
   generatedPassword: string;
   generatedMpin: string;
 }): PhEtravelAccountPlan {
+  if (input.existingAccount?.email && input.existingAccount.status === "pending_registration") {
+    return {
+      mode: "create_new",
+      accountId: input.existingAccount.id,
+      email: input.existingAccount.email,
+      password: input.existingAccount.password ?? input.generatedPassword,
+      mpin: input.existingAccount.mpin ?? input.generatedMpin,
+    };
+  }
+
   if (input.existingAccount?.email && input.existingAccount.mpin) {
     return {
       mode: "reuse_existing",

@@ -150,6 +150,8 @@ const SGAC_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   ...SGAC_DYNAMIC_STEP_NAME_ZH,
   "Trip Information": "行程信息",
+  "Arrival and Departure Information": "抵达和离境信息",
+  "Accommodation Information": "住宿信息",
   "Stay in Malaysia": "在马来西亚停留",
   "Stay in Thailand": "在泰国停留",
   "Health Declaration": "健康申报",

@@ -5798,6 +5798,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
             officialAccountEmail: phAccountPlan?.email,
             officialAccountPassword: phAccountPlan?.password,
             officialAccountMpin: phAccountPlan?.mpin,
+            forceAccountRegistration: phAccountPlan?.mode === "create_new",
             mailbox: phAccountPlan
               ? createPhEtravelMailboxProvider(profile.id, phAccountPlan.email)
               : undefined,

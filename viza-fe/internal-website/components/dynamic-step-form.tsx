@@ -611,6 +611,8 @@ const TDAC_ACCOMMODATION_VALUE_KEYS = [
   "address_in_thailand",
 ];
 
+const TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS = new Set(TDAC_ACCOMMODATION_VALUE_KEYS);
+
 function isSameCalendarDayValue(left?: string, right?: string): boolean {
   const leftDate = parseFlexibleDate(left);
   const rightDate = parseFlexibleDate(right);
@@ -2187,10 +2189,22 @@ export function DynamicStepForm({
       if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
       return evaluateShowIf(f, values, step.fields);
     });
+  const isTdacSameDayTransit = visaType === "TH_TDAC_ARRIVAL_CARD"
+    && isSameCalendarDayValue(values.arrival_date, values.departure_date);
+  const isRequiredField = (field: VisaFormFieldRow): boolean => {
+    if (
+      visaType === "TH_TDAC_ARRIVAL_CARD" &&
+      !isTdacSameDayTransit &&
+      TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS.has(field.fieldName)
+    ) {
+      return true;
+    }
+    return field.required;
+  };
 
   // Required validation: only check visible fields (and all instances of repeat groups)
   const requiredFilled = visibleFields
-    .filter((f) => f.required)
+    .filter((f) => isRequiredField(f))
     // Annex-I-style starred fields: required_unless exempts the field when its
     // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
     // skip fields 21/22/30/31/32 of the Schengen form).
@@ -2253,6 +2267,7 @@ export function DynamicStepForm({
         ...field,
         fieldName: `${valueKey}-${side}`,
         label: getLocalizedFieldLabel(field, side),
+        required: isRequiredField(field),
         placeholder: getLocalizedPlaceholder(
           field,
           side,
