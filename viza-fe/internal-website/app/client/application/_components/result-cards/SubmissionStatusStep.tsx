@@ -33,6 +33,7 @@ import {
   isSgArrivalCardApplication,
   isThailandTdacApplication,
   isVietnamEVisaApplication,
+  isIndonesiaEVisaApplication,
   type SubmissionMode,
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
@@ -358,6 +359,7 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isDs160VisaType(visaType) ||
     (isFranceCountry(country) && isFranceVisasVisaType(visaType)) ||
     isVietnamEVisaApplication(country, visaType) ||
+    isIndonesiaEVisaApplication(country, visaType) ||
     isSgArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType)
@@ -398,6 +400,10 @@ function GenericResultCard({
     result.mode === "live_assisted" &&
     isFranceCountry(applicationCountry ?? result.targetCountry) &&
     isFranceVisasVisaType(applicationVisaType ?? result.visaType);
+  const isIndonesiaAction =
+    actionRequired &&
+    result.mode === "live_assisted" &&
+    isIndonesiaEVisaApplication(applicationCountry ?? result.targetCountry, applicationVisaType ?? result.visaType);
   const officialManualAction = isDs160Action || isFranceAction;
   const franceLiveEnabled =
     process.env.NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED === "true" &&
@@ -414,15 +420,22 @@ function GenericResultCard({
     franceLiveEnabled &&
     isFranceCountry(applicationCountry) &&
     isFranceVisasVisaType(applicationVisaType ?? result.visaType);
-  const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : null;
+  const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
+  const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
-  const title = actionRequired
-    ? (isZh ? "需要人工操作" : "Manual action required")
+  const title = isIndonesiaAction
+    ? result.actionType === "official_fee_payment_required"
+      ? (isZh ? "等待官方费用授权" : "Waiting for official-fee authorization")
+      : (isZh ? "印尼自动申请正在准备" : "Indonesia automated application is preparing")
+    : actionRequired
+      ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
       : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
-  const badge = actionRequired
-    ? (isZh ? "需操作" : "Action required")
+  const badge = isIndonesiaAction
+    ? (isZh ? "自动处理中" : "Automating")
+    : actionRequired
+      ? (isZh ? "需操作" : "Action required")
     : unsupported
       ? (isZh ? "暂不支持" : "Unsupported")
       : "Dry run";
@@ -478,7 +491,7 @@ function GenericResultCard({
   const startLiveAssisted = async () => {
     if (!applicationId || startingLive || !liveTarget) return;
 
-    if (liveTarget !== "ds160") {
+    if (liveTarget !== "ds160" && liveTarget !== "indonesia") {
       const confirmed = window.confirm(
         isZh
           ? "这会创建 live_assisted 队列任务，并可用 VIZA 邮箱 alias 注册 France-Visas 账号；注册页图片验证码会使用 2captcha 处理。确认继续？"
@@ -583,6 +596,10 @@ function GenericResultCard({
                   ? (isZh
                       ? "点击提交后，系统会使用已保存的表单和照片在 CEAC 官方 DS-160 完成真实提交。页面会显示提交进度，成功后展示 DS-160 编号和提交证据。"
                       : "Submit will use the saved form and photo to file the DS-160 on CEAC. Progress appears here, followed by the DS-160 number and evidence.")
+                  : liveTarget === "indonesia"
+                    ? (isZh
+                        ? "VIZA 会继续用托管的印尼官网账号和专属邮箱 alias 推进申请。邮箱验证由 email worker 自动读取；遇到 3DS、OTP 或官方风控时才会暂停。"
+                        : "VIZA will continue with the managed Indonesia portal account and dedicated email alias. Email verification is handled by the email worker; only 3DS, OTP, or official risk gates pause the run.")
                   : (isZh
                       ? "这是旧的 dry-run 结果。可以从这里启动 France-Visas 官网辅助填写；如需新账号，VIZA 会用专属邮箱 alias 注册并用 2captcha 处理注册页图片验证码。"
                       : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; if a new account is needed, VIZA will use a dedicated email alias and 2captcha for the registration image CAPTCHA.")}
@@ -603,6 +620,8 @@ function GenericResultCard({
                 ? (isZh ? "正在提交" : "Submitting")
                 : liveTarget === "ds160"
                   ? (isZh ? "提交" : "Submit")
+                  : liveTarget === "indonesia"
+                    ? (isZh ? "继续自动申请" : "Continue automated application")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
             </Button>
           </div>

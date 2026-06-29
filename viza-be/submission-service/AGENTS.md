@@ -126,7 +126,10 @@ filling and one-shot submission for the applicant.
   is configured, live PH eTravel may create/verify an official account using the
   applicant's VIZA inbox alias and the Cloudflare Email Worker ->
   `inbound_email` path; non-email steps such as SMS, app approval, CAPTCHA, or
-  MFA must stop with a structured checkpoint instead of being hidden.
+  MFA must stop with a structured checkpoint instead of being hidden. Reuse
+  `ph_etravel_accounts` by applicant before creating a new official account;
+  do not mint a fresh inbox-alias account when a prior PH eTravel account row
+  exists.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.

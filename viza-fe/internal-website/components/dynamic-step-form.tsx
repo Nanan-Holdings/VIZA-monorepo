@@ -601,6 +601,33 @@ function parsePhoneParts(rawPhone: string | null | undefined) {
   return { countryCode: "", localNumber: value.replace(/[^\d\s-]/g, "").trim() };
 }
 
+const TDAC_ACCOMMODATION_VALUE_KEYS = [
+  "accommodation_type",
+  "accommodation_type_other",
+  "province",
+  "district",
+  "sub_district",
+  "postcode",
+  "address_in_thailand",
+];
+
+function isSameCalendarDayValue(left?: string, right?: string): boolean {
+  const leftDate = parseFlexibleDate(left);
+  const rightDate = parseFlexibleDate(right);
+  return Boolean(leftDate && rightDate && startOfDay(leftDate).getTime() === startOfDay(rightDate).getTime());
+}
+
+function normalizeTdacTransitValue(values: Record<string, string>): Record<string, string> {
+  const sameDayTransit = isSameCalendarDayValue(values.arrival_date, values.departure_date);
+  const next = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
+  if (sameDayTransit) {
+    for (const fieldName of TDAC_ACCOMMODATION_VALUE_KEYS) {
+      next[fieldName] = "";
+    }
+  }
+  return next;
+}
+
 function normalizeTdacStepValues(
   fields: VisaFormFieldRow[],
   values: Record<string, string>,
@@ -674,7 +701,7 @@ function normalizeTdacStepValues(
     next.phone_number = parsedPhone.localNumber;
   }
 
-  return next;
+  return normalizeTdacTransitValue(next);
 }
 
 function isCheckedCheckboxValue(value: string): boolean {
@@ -1970,8 +1997,9 @@ export function DynamicStepForm({
         }
       }
 
-      valuesRef.current = next;
-      return next;
+      const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
+      valuesRef.current = normalizedNext;
+      return normalizedNext;
     });
   };
 
@@ -2214,6 +2242,8 @@ export function DynamicStepForm({
     }
 
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
+    const tdacTransitCheckboxLocked =
+      visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
     const isTextLike = isTextLikeField(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
@@ -2244,7 +2274,7 @@ export function DynamicStepForm({
             handleChange(valueKey, nextValue);
           }}
           forceWhiteBackground={forceWhiteBackground}
-          disabled={lt24Disabled}
+          disabled={lt24Disabled || tdacTransitCheckboxLocked}
           displayLocale={side}
         />
       );

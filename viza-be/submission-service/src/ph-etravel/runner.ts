@@ -82,6 +82,34 @@ async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["
   return false;
 }
 
+async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
+  for (const selector of selectors) {
+    const inputs = page.locator(selector);
+    const count = await inputs.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const input = inputs.nth(index);
+      if (await input.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        await input.fill(value, { timeout: 15_000 });
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+async function fillLastVisibleInput(page: Page, selector: string, value: string): Promise<boolean> {
+  const inputs = page.locator(selector);
+  const count = await inputs.count().catch(() => 0);
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const input = inputs.nth(index);
+    if (await input.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await input.fill(value, { timeout: 15_000 });
+      return true;
+    }
+  }
+  return false;
+}
+
 async function reachAuthenticatedPhEtravelSession(
   page: Page,
   options: PhEtravelRunnerOptions,
@@ -133,7 +161,10 @@ async function reachAuthenticatedPhEtravelSession(
   await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
 
-  const afterLoginText = await bodyText(page);
+  let afterLoginText = await bodyText(page);
+  if (/mobile number|use email/i.test(afterLoginText)) {
+    afterLoginText = await completeEgovEmailVerification(page, options, email, logs, screenshots);
+  }
   if (/invalid|incorrect|verification|otp|one-time|enter code|captcha|turnstile/i.test(afterLoginText)) {
     screenshots.push(await saveScreenshot(page, "official-login-blocked", logs));
     throw new PhEtravelPortalError(
@@ -146,6 +177,61 @@ async function reachAuthenticatedPhEtravelSession(
     );
   }
   logs.push("ph_etravel_official_account_login_attempted");
+}
+
+async function completeEgovEmailVerification(
+  page: Page,
+  options: PhEtravelRunnerOptions,
+  accountEmail: string,
+  logs: string[],
+  screenshots: string[],
+): Promise<string> {
+  const applicantId = options.applicantId?.trim();
+  if (!applicantId) {
+    return bodyText(page);
+  }
+  const clickedUseEmail = await clickFirstAvailable(page, [
+    page.getByText(/use email/i),
+    page.getByRole("button", { name: /use email/i }),
+    page.locator("button, a").filter({ hasText: /use email/i }),
+  ]);
+  if (!clickedUseEmail) return bodyText(page);
+
+  const since = new Date().toISOString();
+  await page.waitForTimeout(1_000);
+  await fillFirstVisibleInput(page, [
+    "input[type='email']",
+    "input[name*='email' i]",
+    "input[placeholder*='Email' i]",
+  ], accountEmail);
+  await fillLastVisibleInput(page, "input:not([type='hidden'])", accountEmail);
+  await clickFirstAvailable(page, [
+    page.getByRole("button", { name: /next|continue|send|submit/i }),
+    page.locator("button").filter({ hasText: /next|continue|send|submit/i }),
+  ]);
+  await page.waitForTimeout(2_000);
+
+  let text = await bodyText(page);
+  if (/otp|code|verification|one[-\s]?time/i.test(text)) {
+    const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
+    const timeoutMs = options.emailVerificationTimeoutMs
+      ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+    const otp = await mailbox.waitForOtp({ timeoutMs, since });
+    await page.locator("input[type='text'], input[type='tel'], input[name*='code' i], input[placeholder*='code' i], input[placeholder*='OTP' i]").first().fill(otp, { timeout: 15_000 });
+    await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /verify|continue|next|submit/i }),
+      page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
+    ]);
+    logs.push("ph_etravel_egov_email_otp_consumed");
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(3_000);
+    text = await bodyText(page);
+  }
+
+  if (/mobile number|sms|app|captcha|turnstile|verification failed/i.test(text)) {
+    screenshots.push(await saveScreenshot(page, "egov-email-verification-blocked", logs));
+  }
+  return text;
 }
 
 async function maybeCreatePhEtravelAccount(

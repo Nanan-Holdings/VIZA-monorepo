@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { choosePhEtravelAccountPlan } from "../account";
+import { choosePhEtravelAccountPlan, isMissingPhEtravelAccountsTableError } from "../account";
 
 test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
   const plan = choosePhEtravelAccountPlan({
@@ -35,4 +35,15 @@ test("choosePhEtravelAccountPlan creates an alias account when none exists", () 
     email: "appl-new@haggstorm.com",
     password: "new-password",
   });
+});
+
+test("isMissingPhEtravelAccountsTableError detects missing PostgREST table errors", () => {
+  assert.equal(isMissingPhEtravelAccountsTableError({
+    code: "PGRST205",
+    message: "Could not find the table 'public.ph_etravel_accounts' in the schema cache",
+  }), true);
+  assert.equal(isMissingPhEtravelAccountsTableError({
+    code: "42501",
+    message: "permission denied",
+  }), false);
 });

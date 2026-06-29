@@ -86,6 +86,8 @@ The current internal automation migrations are:
 - `0102_vn_evisa_photo_face_rules.sql`: Vietnam e-Visa photo/passport upload
   metadata, 2MB official image limits, face-match hints, and passport expiry
   validity relative to the e-Visa start date.
+- `0104_ph_etravel_accounts.sql`: Philippines eTravel/eGovPH official account
+  records, reused per applicant before creating a new VIZA inbox-alias account.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.
