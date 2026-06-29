@@ -157,6 +157,29 @@ describe("travel negative command handling", () => {
     expect(JSON.stringify(payload)).not.toContain("一共2个人");
   });
 
+  it("chat API asks for a city instead of creating a card for country-only prompts", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+
+    const response = await postTravelChat(
+      travelChatRequest("我想要去美国", { locale: "zh" })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.cards).toEqual([]);
+    expect(payload.quick_replies).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: expect.stringContaining("加入计划") }),
+      ])
+    );
+    expect(payload.reply).toContain("城市");
+    expect(payload.candidate_payload).toMatchObject({
+      countries: ["United States"],
+      destination_confirmed: false,
+    });
+    expect(JSON.stringify(payload)).not.toContain('"city":"美国"');
+  });
+
   it("chat API keeps destination flow when OpenAI classifies a full destination prompt as fields only", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-key");
     vi.stubGlobal(

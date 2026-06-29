@@ -1,6 +1,8 @@
 import { forwardJsonToTravelBackend } from "@/lib/travel/backend";
 import {
   buildTravelCandidatePayload,
+  countryScopeForText,
+  extractDestinationTripHints,
   resolveLocalDestinationText,
   toTravelDestinationChatCard,
   type DestinationResolution,
@@ -466,6 +468,56 @@ async function buildImmediateSlotParserResponse(
   }
 
   return buildSlotUpdateResponse(parsed, locale);
+}
+
+function buildImmediateCountryScopeResponse(
+  payload: unknown
+): TravelAgentChatResponse | null {
+  const userText = latestUserText(payload);
+  if (!userText || /加入计划|add to plan/i.test(userText)) return null;
+
+  const scope = countryScopeForText(userText);
+  if (!scope) return null;
+
+  const locale = payloadLocale(payload);
+  const tripHints = extractDestinationTripHints(userText);
+  const candidatePayload: Record<string, unknown> = {
+    countries: [scope.countryName],
+    destination_confirmed: false,
+  };
+  if (tripHints.travelDays) candidatePayload.travel_days = tripHints.travelDays;
+  if (tripHints.travelers) candidatePayload.travelers = tripHints.travelers;
+  if (tripHints.budget) candidatePayload.budget = tripHints.budget;
+  if (tripHints.originCountry) candidatePayload.origin_country = tripHints.originCountry;
+  if (tripHints.originCity) candidatePayload.origin_city = tripHints.originCity;
+  if (tripHints.returnCountry) candidatePayload.return_country = tripHints.returnCountry;
+  if (tripHints.returnCity) candidatePayload.return_city = tripHints.returnCity;
+
+  const cityNames = scope.suggestedCities
+    .slice(0, 4)
+    .map((city) => city.displayName);
+  const quickReplies = cityNames.map((city) => ({
+    label: city,
+    value: locale === "zh" ? `我想去${city}` : `I want to go to ${city}`,
+  }));
+
+  return {
+    reply:
+      locale === "zh"
+        ? `已记录国家范围：${scope.countryName}。旅行地点需要精确到城市，请告诉我想去哪个城市。`
+        : `Got the country: ${scope.countryName}. Travel destinations need a city, so please choose or tell me a city.`,
+    mode: "collect_slots",
+    quick_replies: quickReplies,
+    cards: [],
+    candidate_payload: candidatePayload,
+    sources: [
+      {
+        id: "country_scope_city_required",
+        title: "Country scope requires city selection",
+        type: "parser",
+      },
+    ],
+  };
 }
 
 function destinationKey(card: TravelDestinationCard): string {
@@ -960,6 +1012,11 @@ function looksLikeDestinationDraftText(value: string): boolean {
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
+    const countryScopeResponse = buildImmediateCountryScopeResponse(payload);
+    if (countryScopeResponse) {
+      return Response.json(countryScopeResponse, { status: 200 });
+    }
+
     const slotParserResponse = await buildImmediateSlotParserResponse(payload);
     if (slotParserResponse) {
       return Response.json(slotParserResponse, { status: 200 });
