@@ -49,6 +49,30 @@ test("choosePhEtravelAccountPlan creates a new account when the saved account ha
   });
 });
 
+test("choosePhEtravelAccountPlan continues pending account registration", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "vault:applicant",
+      email: "appl-existing-ph123456@haggstorm.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "pending_registration",
+      storageState: null,
+    },
+    aliasEmail: "appl-new@haggstorm.com",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    accountId: "vault:applicant",
+    email: "appl-existing-ph123456@haggstorm.com",
+    password: "saved-password",
+    mpin: "123456",
+  });
+});
+
 test("choosePhEtravelAccountPlan creates an alias account when none exists", () => {
   const plan = choosePhEtravelAccountPlan({
     existingAccount: null,

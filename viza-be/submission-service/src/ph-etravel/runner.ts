@@ -3,6 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import type { Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
+import { solveCaptcha } from "../captcha";
 import { PH_ETRAVEL_REFERENCE_PATTERNS } from "./official-options";
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
 import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
@@ -39,6 +40,7 @@ export interface PhEtravelRunnerOptions {
   officialAccountEmail?: string;
   officialAccountPassword?: string | null;
   officialAccountMpin?: string | null;
+  forceAccountRegistration?: boolean;
   mailbox?: PhEtravelMailboxProvider;
   emailVerificationTimeoutMs?: number;
 }
@@ -83,6 +85,82 @@ async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["
   return false;
 }
 
+async function installTurnstileCapture(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const win = window as typeof window & {
+      __vizaTurnstileHooked?: boolean;
+      __vizaTurnstile?: Record<string, unknown>;
+      __vizaTurnstileCallback?: (token: string) => void;
+      turnstile?: { render?: (container: unknown, options?: Record<string, unknown>) => unknown };
+    };
+    const hook = () => {
+      if (!win.turnstile?.render || win.__vizaTurnstileHooked) return;
+      const originalRender = win.turnstile.render.bind(win.turnstile);
+      win.turnstile.render = (container: unknown, options: Record<string, unknown> = {}) => {
+        win.__vizaTurnstile = {
+          sitekey: options.sitekey,
+          action: options.action,
+          cData: options.cData ?? options.cdata,
+          chlPageData: options.chlPageData ?? options.pagedata,
+        };
+        if (typeof options.callback === "function") {
+          win.__vizaTurnstileCallback = options.callback as (token: string) => void;
+        }
+        return originalRender(container, options);
+      };
+      win.__vizaTurnstileHooked = true;
+    };
+    hook();
+    const timer = window.setInterval(() => {
+      hook();
+      if (win.__vizaTurnstileHooked) window.clearInterval(timer);
+    }, 50);
+  });
+}
+
+async function solveTurnstileIfPresent(page: Page, logs: string[]): Promise<boolean> {
+  const hiddenResponse = page.locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']").first();
+  const hasResponseField = await hiddenResponse.count().catch(() => 0);
+  if (hasResponseField === 0) return false;
+
+  const captured = await page.waitForFunction(() => {
+    const win = window as typeof window & { __vizaTurnstile?: Record<string, unknown> };
+    return win.__vizaTurnstile?.sitekey ? win.__vizaTurnstile : null;
+  }, null, { timeout: 15_000 }).then((handle) => handle.jsonValue()).catch(() => null);
+  const siteKey = typeof captured === "object" && captured && "sitekey" in captured
+    ? String((captured as { sitekey?: unknown }).sitekey ?? "")
+    : "";
+  if (!siteKey) return false;
+
+  const userAgent = await page.evaluate(() => navigator.userAgent).catch(() => undefined);
+  const solved = await solveCaptcha({
+    type: "turnstile",
+    siteKey,
+    pageUrl: page.url(),
+    action: typeof (captured as { action?: unknown }).action === "string" ? (captured as { action: string }).action : undefined,
+    cdata: typeof (captured as { cData?: unknown }).cData === "string" ? (captured as { cData: string }).cData : undefined,
+    pageData: typeof (captured as { chlPageData?: unknown }).chlPageData === "string" ? (captured as { chlPageData: string }).chlPageData : undefined,
+    userAgent,
+    timeoutMs: Number(process.env.PH_ETRAVEL_TURNSTILE_TIMEOUT_MS ?? "180000"),
+  });
+
+  await page.evaluate((captchaToken) => {
+    const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']",
+    );
+    for (const field of Array.from(fields)) {
+      field.value = captchaToken;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const win = window as typeof window & { __vizaTurnstileCallback?: (token: string) => void };
+    win.__vizaTurnstileCallback?.(captchaToken);
+  }, solved.text);
+  logs.push(`ph_etravel_turnstile_solved solveId=${solved.solveId ? "[redacted]" : "unknown"}`);
+  await page.waitForTimeout(1_000);
+  return true;
+}
+
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
     const inputs = page.locator(selector);
@@ -123,8 +201,14 @@ async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
   }
   if (visibleIndexes.length >= digits.length) {
     const otpIndexes = visibleIndexes.slice(-digits.length);
+    await inputs.nth(otpIndexes[0]).click({ timeout: 10_000 });
+    await page.keyboard.type(otp.trim(), { delay: 40 });
+    await page.waitForTimeout(300);
     for (let index = 0; index < digits.length; index += 1) {
-      await inputs.nth(otpIndexes[index]).fill(digits[index], { timeout: 10_000 });
+      const value = await inputs.nth(otpIndexes[index]).inputValue({ timeout: 1_000 }).catch(() => "");
+      if (value !== digits[index]) {
+        await inputs.nth(otpIndexes[index]).fill(digits[index], { timeout: 10_000 });
+      }
     }
     return true;
   }
@@ -309,6 +393,16 @@ async function maybeCreatePhEtravelAccount(
   const applicantId = options.applicantId?.trim();
   if (!accountEmail || !applicantId) return false;
 
+  if (!/create an account/i.test(await bodyText(page))) {
+    await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /click here to sign in/i }),
+      page.getByRole("link", { name: /^sign in$/i }),
+      page.locator("button, a").filter({ hasText: /sign in/i }),
+    ]);
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_500);
+  }
+
   const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
   const since = new Date().toISOString();
   const clickedCreate = await clickFirstAvailable(page, [
@@ -320,7 +414,13 @@ async function maybeCreatePhEtravelAccount(
 
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(1_500);
-  await page.locator("input[type='email'], input[name*='email' i], input[placeholder*='Email' i]").first().fill(accountEmail, { timeout: 15_000 });
+  await fillFirstVisibleInput(page, [
+    "input[type='email']",
+    "input[name*='email' i]",
+    "input[placeholder*='Email' i]",
+    "input:not([type='hidden'])",
+  ], accountEmail);
+  await solveTurnstileIfPresent(page, logs);
   await clickFirstAvailable(page, [
     page.getByRole("button", { name: /continue|next|submit|send/i }),
     page.locator("button").filter({ hasText: /continue|next|submit|send/i }),
@@ -418,6 +518,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
   logs.push(...browserSession.diagnostics);
 
   try {
+    await installTurnstileCapture(page);
     await page.goto(PH_ETRAVEL_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
       const code = /access denied|blocked|policy|proxy_error|forbidden/i.test(message)
@@ -459,7 +560,17 @@ async function runPhEtravelPortalSubmissionWithBrowser(
     }
 
     try {
-      await reachAuthenticatedPhEtravelSession(page, options, logs, screenshots);
+      let handledRegistration = false;
+      if (options.forceAccountRegistration) {
+        const created = await maybeCreatePhEtravelAccount(page, payload, options, logs, screenshots);
+        if (created) {
+          await reachAuthenticatedPhEtravelSession(page, options, logs, screenshots);
+          handledRegistration = true;
+        }
+      }
+      if (!handledRegistration) {
+        await reachAuthenticatedPhEtravelSession(page, options, logs, screenshots);
+      }
     } catch (error) {
       if (error instanceof PhEtravelPortalError && error.code === "ph_etravel_official_account_required") {
         const created = await maybeCreatePhEtravelAccount(page, payload, options, logs, screenshots);
@@ -488,6 +599,15 @@ async function runPhEtravelPortalSubmissionWithBrowser(
     ) {
       logs.push("ph_etravel_remote_policy_blocked_fallback_to_local");
       return runPhEtravelPortalSubmissionWithBrowser(payload, options, true);
+    }
+    if (!(error instanceof PhEtravelPortalError)) {
+      screenshots.push(await saveScreenshot(page, "unexpected-error", logs).catch(() => ""));
+      const message = error instanceof Error ? error.message : String(error);
+      throw new PhEtravelPortalError(message, {
+        code: "ph_etravel_unexpected_portal_error",
+        screenshotPaths: screenshots.filter(Boolean),
+        portalSummary: (await bodyText(page)).slice(0, 700),
+      });
     }
     throw error;
   } finally {

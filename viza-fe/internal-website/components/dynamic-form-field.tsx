@@ -230,9 +230,7 @@ function SearchableSelectControl({
         sideOffset={6}
         collisionPadding={24}
         className="w-[--radix-popover-trigger-width] overflow-hidden p-0"
-        style={{ maxHeight: "min(360px, calc(100vh - 160px))" }}
-        onWheelCapture={(event) => event.stopPropagation()}
-        onTouchMoveCapture={(event) => event.stopPropagation()}
+        style={{ maxHeight: "min(300px, calc(100vh - 180px))" }}
       >
         <div className="border-b p-2">
           <div className="flex h-10 items-center gap-2 rounded-md border border-[#e8e8e8] px-3">
@@ -247,10 +245,8 @@ function SearchableSelectControl({
           </div>
         </div>
         <div
-          className="overscroll-contain overflow-y-auto p-1"
-          style={{ maxHeight: "min(280px, calc(100vh - 250px))" }}
-          onWheelCapture={(event) => event.stopPropagation()}
-          onTouchMoveCapture={(event) => event.stopPropagation()}
+          className="overscroll-auto overflow-y-auto p-1"
+          style={{ maxHeight: "min(220px, calc(100vh - 270px))" }}
         >
           {matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
