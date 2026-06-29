@@ -1035,16 +1035,14 @@ export async function runTdacPortalSubmission(
     }).catch(() => undefined);
     screenshots.push(await saveScreenshot(page, "landing", logs));
 
+    const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
+    const personalFormSelectors = "input[formcontrolname='familyName'], #mat-input-0";
     const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
-    if ((await arrivalButton.count()) === 0) {
+    const arrivalButtonCount = await arrivalButton.count();
+    if (arrivalButtonCount === 0) {
       const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-      throw new TdacPortalError("Official TDAC Arrival Card button was not found on the portal landing page.", {
-        code: "tdac_arrival_button_not_found",
-        screenshotPaths: screenshots,
-        portalSummary: text.slice(0, 500),
-      });
-    }
-    if (await arrivalButton.isDisabled().catch(() => false)) {
+      logs.push(`tdac_arrival_button_not_found_continue_to_add_route ${text.slice(0, 500).replace(/\s+/g, " ")}`);
+    } else if (await arrivalButton.isDisabled().catch(() => false)) {
       screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
       if (browserSession.nativeCloudflareUnblock) {
         await solveWithBrowserApiCaptchaCdp(page, logs);
@@ -1077,12 +1075,12 @@ export async function runTdacPortalSubmission(
       }
     }
 
-    await arrivalButton.click({ timeout: 15_000 }).catch((error) => {
-      logs.push(`tdac_arrival_click_continue_to_route ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-    });
-    await page.waitForTimeout(3_000);
-    const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
-    const personalFormSelectors = "input[formcontrolname='familyName'], #mat-input-0";
+    if (arrivalButtonCount > 0) {
+      await arrivalButton.click({ timeout: 15_000 }).catch((error) => {
+        logs.push(`tdac_arrival_click_continue_to_route ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      });
+      await page.waitForTimeout(3_000);
+    }
     let personalFormReady = await page.locator(personalFormSelectors).first().isVisible({ timeout: 5_000 }).catch(() => false);
     for (let attempt = 1; !personalFormReady && attempt <= 3; attempt += 1) {
       logs.push(`tdac_open_add_route_attempt=${attempt}`);

@@ -258,6 +258,18 @@ export const auAccounts = pgTable("au_accounts", {
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+export const phEtravelAccounts = pgTable("ph_etravel_accounts", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	email: text("email").notNull(),
+	passwordEncrypted: text("password_encrypted"),
+	status: text("status").default("pending_registration").notNull(),
+	storageStateJson: jsonb("storage_state_json"),
+	lastAuthenticatedAt: timestamp("last_authenticated_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 export const submissionQueue = pgTable("submission_queue", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),

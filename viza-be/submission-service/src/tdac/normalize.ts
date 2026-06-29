@@ -79,10 +79,6 @@ function splitFullName(fullName: string): { familyName: string; firstName: strin
   };
 }
 
-function booleanAnswer(value: unknown): boolean {
-  return ["true", "yes", "1", "on"].includes(text(value).toLowerCase());
-}
-
 function listAnswer(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(text).filter(Boolean);
   return text(value)
@@ -105,7 +101,7 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
   const arrivalDate = requireFirstText([answers.arrival_date, payload.trip.arrivalDate], "answers.arrival_date", missing);
   const departureDate = requireFirstText([answers.departure_date, payload.trip.departureDate], "answers.departure_date", missing);
   const sameDayTransit = arrivalDate === departureDate;
-  const isTransitTraveler = sameDayTransit || booleanAnswer(answers.is_transit_traveler);
+  const isTransitTraveler = sameDayTransit;
 
   const arrivalModeOfTravel = requireFirstText(
     [answers.arrival_mode_of_travel, answers.mode_of_travel],
@@ -143,11 +139,15 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
   const accommodationType = firstText([answers.accommodation_type]);
   const province = firstText([answers.province]);
   const district = firstText([answers.district]);
+  const subDistrict = firstText([answers.sub_district, answers.subdistrict]);
+  const postalCode = firstText([answers.postcode, answers.postal_code]);
   const addressInThailand = firstText([answers.address_in_thailand]);
   if (!isTransitTraveler) {
     if (!accommodationType) missing.push("answers.accommodation_type");
     if (!province) missing.push("answers.province");
     if (!district) missing.push("answers.district");
+    if (!subDistrict) missing.push("answers.sub_district");
+    if (!postalCode) missing.push("answers.postcode");
     if (!addressInThailand) missing.push("answers.address_in_thailand");
   }
 
@@ -190,8 +190,8 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     addressInThailand,
     province,
     district,
-    subDistrict: firstText([answers.sub_district, answers.subdistrict]),
-    postalCode: firstText([answers.postcode, answers.postal_code]),
+    subDistrict,
+    postalCode,
     countriesVisitedLast14Days,
   };
 

@@ -256,6 +256,18 @@ export interface FvAccount {
   updated_at: string;
 }
 
+export interface PhEtravelAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string | null;
+  status: string;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ApplicantProfile {
   id: string;
   auth_user_id: string;
