@@ -1764,10 +1764,11 @@ export function DynamicStepForm({
   });
 
   const restoreSnapshot = (snapshot: FormHistorySnapshot) => {
-    valuesRef.current = snapshot.values;
+    const normalizedValues = normalizeTdacStepValues(step.fields, snapshot.values, visaType);
+    valuesRef.current = normalizedValues;
     textPairsRef.current = snapshot.textPairs;
     groupCountsRef.current = snapshot.groupCounts;
-    setValues(snapshot.values);
+    setValues(normalizedValues);
     setTextPairs(snapshot.textPairs);
     setGroupCounts(snapshot.groupCounts);
   };
