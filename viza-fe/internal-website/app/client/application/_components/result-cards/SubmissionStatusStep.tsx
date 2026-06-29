@@ -341,7 +341,35 @@ function localizeActionText(value: string | null | undefined, isZh: boolean): st
 
   const normalized = value.trim();
   if (normalized === "managed_account_required") {
-    return "需要 VIZA 托管官网账号";
+    return "VIZA 正在后台准备托管官网账号";
+  }
+
+  if (normalized === "managed_account_alias_unavailable") {
+    return "正在准备专属邮箱 alias";
+  }
+
+  if (normalized === "official_fee_payment_required") {
+    return "等待官方费用授权";
+  }
+
+  if (normalized === "live_portal_recon_required") {
+    return "等待官网自动化验证";
+  }
+
+  if (normalized === "official_account_automation_required") {
+    return "正在自动处理官网账号";
+  }
+
+  if (normalized === "official_form_reached") {
+    return "已进入官网表单";
+  }
+
+  if (normalized === "captcha_required") {
+    return "正在处理官网验证码";
+  }
+
+  if (normalized === "official_portal_error") {
+    return "官网访问异常";
   }
 
   if (

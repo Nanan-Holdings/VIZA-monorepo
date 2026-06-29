@@ -1,4 +1,5 @@
 import type { GenericSubmissionResult } from "../submission-result";
+import { probeIndonesiaPortal } from "./runner";
 
 export const INDONESIA_C1_PORTAL_URL = "https://evisa.imigrasi.go.id/";
 export const INDONESIA_B1_EVOA_PORTAL_URL = "https://indonesiavoa.vfsevisa.id/";
@@ -36,6 +37,8 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   managedAccountAvailable: boolean;
   managedAccountEmail?: string | null;
   paymentAuthorized?: boolean;
+  probeOfficialPortal?: boolean;
+  portalProbeHeadless?: boolean;
 }
 
 function normalizeVisaType(visaType: string): string {
@@ -183,7 +186,7 @@ export async function runIndonesiaLiveSubmission(
     };
   }
 
-  if (!input.paymentAuthorized) {
+  if (!input.paymentAuthorized && !input.probeOfficialPortal) {
     return {
       country: "GENERIC",
       targetCountry: "ID",
@@ -197,6 +200,27 @@ export async function runIndonesiaLiveSubmission(
       implementationStatus: "partial",
       message:
         "Indonesia live submission is ready for official portal execution, but official-fee payment authorization is not attached yet.",
+    };
+  }
+
+  if (input.probeOfficialPortal) {
+    const probe = await probeIndonesiaPortal({
+      portalUrl: normalized.portalUrl,
+      provider: normalized.provider,
+      headless: input.portalProbeHeadless ?? true,
+    });
+    return {
+      country: "GENERIC",
+      targetCountry: "ID",
+      visaType: normalized.visaType,
+      status: "action_required",
+      mode: "live_assisted",
+      applicationId: input.applicationId,
+      actionType: probe.actionType,
+      actionInstructions: probe.instruction,
+      implementationStatus: probe.implementationStatus,
+      message:
+        `${normalized.provider} reached Indonesia official portal state ${probe.state} at ${probe.url}.`,
     };
   }
 
