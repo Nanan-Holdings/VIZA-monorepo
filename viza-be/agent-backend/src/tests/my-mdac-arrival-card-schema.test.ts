@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { MY_MDAC_FORM_FIELDS } from "../../scripts/my-mdac/form-fields";
+import { MY_MDAC_COUNTRIES } from "../../scripts/my-mdac/official-options";
 
 const seedSource = readFileSync(
   new URL("../../scripts/my-mdac/form-fields.ts", import.meta.url),
@@ -58,5 +59,18 @@ describe("Malaysia MDAC arrival-card schema seed", () => {
         expect.objectContaining({ label_en: "KABONG", label_zh: "加邦" }),
       ]),
     );
+  });
+
+  test("uses a complete MDAC country list for pre-arrival embarkation", () => {
+    const lastEmbarkationCountry = MY_MDAC_FORM_FIELDS.find(
+      (field) => field.field_name === "last_embarkation_country",
+    );
+    const countryValues = new Set(MY_MDAC_COUNTRIES.map((option) => option.value));
+    const fieldValues = new Set((lastEmbarkationCountry?.options ?? []).map((option) => option.value));
+
+    expect(MY_MDAC_COUNTRIES.length).toBeGreaterThanOrEqual(240);
+    expect(fieldValues.size).toBe(MY_MDAC_COUNTRIES.length);
+    expect(Array.from(countryValues)).toEqual(expect.arrayContaining(["CHN", "KOR", "MYS", "SGP", "THA", "USA"]));
+    expect(Array.from(fieldValues)).toEqual(expect.arrayContaining(["CHN", "KOR", "MYS", "SGP", "THA", "USA"]));
   });
 });

@@ -158,6 +158,19 @@ const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Declaration": "声明确认",
 };
 
+const INDONESIA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  Traveller: "旅客信息",
+  "Traveller Information": "旅客信息",
+  Passport: "护照",
+  "Passport Details": "护照",
+  Contact: "联系方式",
+  "Contact Information": "联系方式",
+  Trip: "行程",
+  "Trip Information": "行程",
+  Declarations: "声明确认",
+  Declaration: "声明确认",
+};
+
 type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
@@ -205,6 +218,13 @@ function localizeDynamicStepName(
       options.visaType === "PH_ETRAVEL_ARRIVAL_CARD")
   ) {
     return ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
+  if (
+    options.isZhInterface &&
+    (options.visaType === "ID_C1_TOURIST" || options.visaType === "ID_B1_EVOA")
+  ) {
+    return INDONESIA_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 
   const translationKey = getDynamicStepTranslationCandidates(stepName)

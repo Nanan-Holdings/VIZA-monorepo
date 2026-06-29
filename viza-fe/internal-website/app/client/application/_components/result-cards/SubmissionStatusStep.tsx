@@ -334,6 +334,25 @@ function isFranceCountry(country: string | null | undefined): boolean {
   return normalized === "france" || normalized === "fr" || normalized === "法国";
 }
 
+function localizeActionText(value: string | null | undefined, isZh: boolean): string | null {
+  if (!value) return null;
+  if (!isZh) return value;
+
+  const normalized = value.trim();
+  if (normalized === "managed_account_required") {
+    return "需要 VIZA 托管官网账号";
+  }
+
+  if (
+    /managed Indonesia eVisa account/i.test(normalized) ||
+    /VIZA-managed Indonesia official portal account/i.test(normalized)
+  ) {
+    return "VIZA 会使用托管的印尼官网账号和专属邮箱 alias 继续申请。当前需要先完成官网账号准备；邮箱验证应由 email worker 自动读取并继续，不需要用户手动处理。";
+  }
+
+  return value;
+}
+
 function supportsLiveRetry(country: string | null | undefined, visaType: string | null | undefined): boolean {
   return (
     isDs160VisaType(visaType) ||
@@ -412,7 +431,10 @@ function GenericResultCard({
         ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
         : "Automated submission is not available for this country yet. We can still organize documents and prepare the draft.")
     : actionRequired
-      ? (result.actionInstructions ?? result.message)
+      ? (localizeActionText(result.actionInstructions, isZh) ??
+          localizeActionText(result.message, isZh) ??
+          result.actionInstructions ??
+          result.message)
       : result.message;
 
   useEffect(() => {
@@ -537,7 +559,7 @@ function GenericResultCard({
         </p>
 
         <div className="rounded-md border border-input bg-background px-3 py-2">
-          <div className="text-xs text-muted-foreground">Country / visa type</div>
+          <div className="text-xs text-muted-foreground">{isZh ? "国家 / 签证类型" : "Country / visa type"}</div>
           <div className="mt-0.5 font-mono text-sm text-foreground">
             {result.targetCountry} / {result.visaType}
           </div>
@@ -596,7 +618,7 @@ function GenericResultCard({
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
             <div className="text-xs text-amber-700">{isZh ? "检查点" : "Checkpoint"}</div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
-              {result.actionType}
+              {localizeActionText(result.actionType, isZh) ?? result.actionType}
             </div>
           </div>
         )}
@@ -612,7 +634,9 @@ function GenericResultCard({
                     : (isZh ? "需要你完成 CEAC 官网验证" : "CEAC official verification required")}
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-amber-900">
-                  {manualAction?.instruction ??
+                  {localizeActionText(manualAction?.instruction, isZh) ??
+                    localizeActionText(result.actionInstructions, isZh) ??
+                    manualAction?.instruction ??
                     result.actionInstructions ??
                     (isFranceAction
                       ? (isZh
