@@ -95,11 +95,13 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     );
   }
 
-  const answers = payload.countrySpecific;
+  const answers = payload.countrySpecific ?? {};
+  const personal = payload.personal ?? {};
+  const trip = payload.trip ?? {};
   const missing: string[] = [];
-  const splitName = splitFullName(firstText([answers.full_name, payload.personal.fullName]));
-  const arrivalDate = requireFirstText([answers.arrival_date, payload.trip.arrivalDate], "answers.arrival_date", missing);
-  const departureDate = requireFirstText([answers.departure_date, payload.trip.departureDate], "answers.departure_date", missing);
+  const splitName = splitFullName(firstText([answers.full_name, personal.fullName]));
+  const arrivalDate = requireFirstText([answers.arrival_date, trip.arrivalDate], "answers.arrival_date", missing);
+  const departureDate = requireFirstText([answers.departure_date, trip.departureDate], "answers.departure_date", missing);
   const sameDayTransit = arrivalDate === departureDate;
   const isTransitTraveler = sameDayTransit;
 
@@ -156,21 +158,21 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     familyName: requireFirstText([answers.family_name, splitName.familyName], "answers.family_name", missing),
     firstName: requireFirstText([answers.first_name, splitName.firstName], "answers.first_name", missing),
     middleName: firstText([answers.middle_name, splitName.middleName]),
-    passportNumber: requireFirstText([answers.passport_number, payload.personal.passportNumber], "answers.passport_number", missing),
-    nationality: requireFirstText([answers.nationality, payload.personal.nationality], "answers.nationality", missing),
-    dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "answers.date_of_birth", missing),
-    gender: requireFirstText([answers.gender, answers.sex, payload.personal.gender], "answers.gender", missing),
-    occupation: requireFirstText([answers.occupation, payload.personal.occupation], "answers.occupation", missing),
+    passportNumber: requireFirstText([answers.passport_number, personal.passportNumber], "answers.passport_number", missing),
+    nationality: requireFirstText([answers.nationality, personal.nationality], "answers.nationality", missing),
+    dateOfBirth: requireFirstText([answers.date_of_birth, personal.dateOfBirth], "answers.date_of_birth", missing),
+    gender: requireFirstText([answers.gender, answers.sex, personal.gender], "answers.gender", missing),
+    occupation: requireFirstText([answers.occupation, personal.occupation], "answers.occupation", missing),
     visaNumber: firstText([answers.visa_number]),
     residenceCountry: requireFirstText(
-      [answers.country_territory_of_residence, payload.personal.nationality],
+      [answers.country_territory_of_residence, personal.nationality],
       "answers.country_territory_of_residence",
       missing,
     ),
     residenceCity: requireFirstText([answers.city_state_of_residence], "answers.city_state_of_residence", missing),
     phoneCountryCode: requireFirstText([answers.phone_country_code], "answers.phone_country_code", missing),
-    phoneNumber: requireFirstText([answers.phone_number, answers.mobile_number, payload.personal.phone], "answers.phone_number", missing),
-    emailAddress: requireFirstText([answers.email_address, payload.personal.email], "answers.email_address", missing),
+    phoneNumber: requireFirstText([answers.phone_number, answers.mobile_number, personal.phone], "answers.phone_number", missing),
+    emailAddress: requireFirstText([answers.email_address, personal.email], "answers.email_address", missing),
     arrivalDate,
     departureDate,
     countryBoarded: requireFirstText([answers.country_boarded], "answers.country_boarded", missing),

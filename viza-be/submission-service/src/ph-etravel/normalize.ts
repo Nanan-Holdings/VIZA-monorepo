@@ -17,7 +17,9 @@ export interface PhEtravelPortalPayload {
   applicationId: string;
   fullName: string;
   passportNumber: string;
+  passportIssueDate: string;
   passportExpiryDate: string;
+  passportIssuingAuthority: string;
   nationality: string;
   countryOfBirth: string;
   countryOfResidence: string;
@@ -141,9 +143,23 @@ export function normalizePhEtravelPortalPayload(
       "passport_number",
       missing,
     ),
+    passportIssueDate: requireFirstText(
+      [answers.passport_issue_date, payload.personal.passportIssueDate],
+      "passport_issue_date",
+      missing,
+    ),
     passportExpiryDate: requireFirstText(
       [answers.passport_expiry_date, payload.personal.passportExpiryDate],
       "passport_expiry_date",
+      missing,
+    ),
+    passportIssuingAuthority: requireFirstText(
+      [
+        answers.passport_issuing_authority,
+        answers.passport_issuing_country,
+        payload.personal.passportIssuingCountry,
+      ],
+      "passport_issuing_authority",
       missing,
     ),
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "nationality", missing),

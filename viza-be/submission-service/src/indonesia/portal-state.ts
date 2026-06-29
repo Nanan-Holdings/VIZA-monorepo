@@ -26,6 +26,7 @@ export function classifyIndonesiaPortalSnapshot(
   snapshot: IndonesiaPortalSnapshot,
 ): IndonesiaPortalStateId {
   const text = normalizeText(`${snapshot.title ?? ""} ${snapshot.text ?? ""} ${snapshot.url}`);
+  const url = normalizeText(snapshot.url);
 
   if (!text) return "unknown";
   if (
@@ -34,6 +35,17 @@ export function classifyIndonesiaPortalSnapshot(
     (text.includes("biography passport page") && text.includes("account information"))
   ) {
     return "account_registration_form_visible";
+  }
+  if (text.includes("/step_1")) {
+    return "official_application_started";
+  }
+  if (
+    text.includes("application_add") ||
+    text.includes("/step_2") ||
+    text.includes("/step_3") ||
+    text.includes("/step_4")
+  ) {
+    return "application_form_visible";
   }
   if (
     text.includes("visa-selection") ||
@@ -44,14 +56,8 @@ export function classifyIndonesiaPortalSnapshot(
     return "visa_selection_visible";
   }
   if (
-    text.includes("application_add") ||
-    text.includes("/step_1")
-  ) {
-    return "official_application_started";
-  }
-  if (
-    text.includes("front/login") ||
-    text.includes("/login")
+    url.includes("front/login") ||
+    url.includes("/login")
   ) {
     return "login_required";
   }
@@ -74,24 +80,7 @@ export function classifyIndonesiaPortalSnapshot(
     return "captcha_required";
   }
   if (
-    text.includes("register") ||
-    text.includes("create account") ||
-    text.includes("sign up") ||
-    text.includes("verification email")
-  ) {
-    return "registration_required";
-  }
-  if (
-    text.includes("front/login") ||
-    text.includes("/login") ||
-    text.includes("login") ||
-    text.includes("log in") ||
-    text.includes("sign in") ||
-    (text.includes("email") && text.includes("password"))
-  ) {
-    return "login_required";
-  }
-  if (
+    text.includes("waiting for payment") ||
     text.includes("pay now") ||
     text.includes("proceed to payment") ||
     text.includes("make payment") ||
@@ -100,6 +89,23 @@ export function classifyIndonesiaPortalSnapshot(
     text.includes("debit card")
   ) {
     return "payment_required";
+  }
+  if (
+    text.includes("register") ||
+    text.includes("create account") ||
+    text.includes("sign up") ||
+    text.includes("verification email")
+  ) {
+    return "registration_required";
+  }
+  if (
+    url.includes("front/login") ||
+    url.includes("/login") ||
+    (text.includes("login") && text.includes("password")) ||
+    (text.includes("log in") && text.includes("password")) ||
+    (text.includes("email") && text.includes("password"))
+  ) {
+    return "login_required";
   }
   if (
     text.includes("approved") ||

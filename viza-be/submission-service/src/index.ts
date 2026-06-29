@@ -1073,6 +1073,64 @@ function firstLocalDocumentPath(
   return undefined;
 }
 
+async function loadReusableApplicantDocuments(
+  applicantId: string,
+  currentApplicationId: string,
+  currentDocuments: ApplicationDocument[],
+): Promise<ApplicationDocument[]> {
+  const documentsById = new Map<string, ApplicationDocument>();
+  for (const doc of currentDocuments) {
+    documentsById.set(doc.id, doc);
+  }
+
+  const { data: applications, error: appError } = await supabase
+    .from("applications")
+    .select("id")
+    .eq("applicant_id", applicantId);
+  if (appError) {
+    console.warn(`[indonesia] Could not load sibling applications for reusable documents: ${appError.message}`);
+    return Array.from(documentsById.values());
+  }
+
+  const applicationIds = ((applications ?? []) as Array<{ id: string }>)
+    .map((row) => row.id)
+    .filter((id) => id && id !== currentApplicationId);
+  if (applicationIds.length === 0) return Array.from(documentsById.values());
+
+  const { data: siblingDocs, error: docsError } = await supabase
+    .from("application_documents")
+    .select("*")
+    .in("application_id", applicationIds);
+  if (docsError) {
+    console.warn(`[indonesia] Could not load reusable applicant documents: ${docsError.message}`);
+    return Array.from(documentsById.values());
+  }
+
+  for (const doc of (siblingDocs ?? []) as Array<ApplicationDocument & { filename?: string | null }>) {
+    documentsById.set(doc.id, {
+      ...doc,
+      file_name: doc.file_name ?? doc.filename ?? null,
+    });
+  }
+  return Array.from(documentsById.values());
+}
+
+function firstLocalDocumentPathMatching(
+  localDocPaths: Map<string, string>,
+  patterns: readonly RegExp[],
+): string | undefined {
+  const matches = Array.from(localDocPaths.entries()).filter(([documentType]) =>
+    patterns.some((pattern) => pattern.test(documentType)),
+  );
+  const imageMatch = matches.find(([, localPath]) =>
+    /\.(?:jpe?g|png|webp)$/i.test(localPath),
+  );
+  if (imageMatch) return imageMatch[1];
+  const nonPdfMatch = matches.find(([, localPath]) => !/\.pdf$/i.test(localPath));
+  if (nonPdfMatch) return nonPdfMatch[1];
+  return matches[0]?.[1];
+}
+
 // ─── Playwright form filler ──────────────────────────────────────────────────
 
 async function fillField(
@@ -5354,7 +5412,7 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
   }
 
   try {
-    const { profile, application } = await loadApplicantData(item.application_id);
+    const { profile, application, documents } = await loadApplicantData(item.application_id);
     artifactOwnerId = profile.auth_user_id ?? null;
     const answers = await loadDs160Answers(item.application_id);
     const sgacApplication = buildCountrySubmissionApplication(profile, application, answers);
@@ -5658,6 +5716,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     portalSummary: string;
     missingFields?: string[];
     screenshotPaths?: string[];
+    logs?: string[];
   }): Promise<void> {
     const screenshotArtifacts = await uploadArrivalCardArtifacts({
       authUserId: artifactOwnerId,
@@ -5685,7 +5744,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         message: input.message,
         missingFields: input.missingFields,
       },
-      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: [], traces: [] },
+      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: input.logs ?? [], traces: [] },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, "failed");
@@ -5887,6 +5946,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
             : `${code} submission failed before an official confirmation could be captured.`,
       missingFields: validationError ? err.missingFields : undefined,
       screenshotPaths: portalError ? err.screenshotPaths : [],
+      logs: err instanceof PhEtravelPortalError ? err.logs : [],
     });
     console.error(`[${logCode}] Live submission failed: ${errorMsg}`);
   }
@@ -5922,9 +5982,56 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   await setSubmissionStatus(item.application_id, "processing");
 
   try {
-    const { profile, application } = await loadApplicantData(item.application_id);
+    const { profile, application, documents } = await loadApplicantData(item.application_id);
     const answers = await loadDs160Answers(item.application_id);
     const alias = await ensureApplicantInboxAlias(profile.id);
+    const reusableDocuments = await loadReusableApplicantDocuments(
+      profile.id,
+      item.application_id,
+      documents,
+    );
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-id-${item.application_id}-`));
+    const localDocPaths = await downloadDocuments(reusableDocuments, tempDir);
+    const passportImagePath = firstLocalDocumentPathMatching(localDocPaths, [
+      /passport.*(copy|bio|data|scan|page|image)?/i,
+      /(copy|bio|data|scan).*passport/i,
+    ]);
+    const photoImagePath = firstLocalDocumentPathMatching(localDocPaths, [
+      /(^|_)(photo|portrait|visa_photo|applicant_photo|personal_photo)(_|$)/i,
+      /passport.*photo/i,
+    ]);
+    const returnTicketPath = firstLocalDocumentPathMatching(localDocPaths, [
+      /(return|onward).*ticket/i,
+      /(flight|travel).*itinerary/i,
+      /travel_itinerary/i,
+      /itinerary/i,
+      /flight/i,
+    ]);
+    const passportSupportPath = firstLocalDocumentPathMatching(localDocPaths, [
+      /passport.*pdf/i,
+      /passport_bio_page/i,
+      /passport_copy/i,
+    ]);
+    const vaultOpts = {
+      actor: "submission-service:indonesia",
+      correlationId: item.id,
+    };
+    const existingPortalPassword = await applicantVault.get(
+      profile.id,
+      "indonesia.portal.password",
+      vaultOpts,
+    );
+    const portalPassword = existingPortalPassword ?? generateFvPortalPassword();
+    if (!existingPortalPassword) {
+      await applicantVault.set(profile.id, "indonesia.portal.password", portalPassword, {
+        ...vaultOpts,
+        note: "VIZA-managed Indonesia eVisa portal password",
+      });
+    }
+    await applicantVault.set(profile.id, "indonesia.portal.email", alias.alias, {
+      ...vaultOpts,
+      note: "VIZA-managed Indonesia eVisa portal alias email",
+    });
     const visaType = isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST";
     const result = await runIndonesiaLiveSubmission({
       applicationId: item.application_id,
@@ -5936,13 +6043,34 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       },
       managedAccountAvailable: true,
       managedAccountEmail: alias.alias,
+      managedAccountPassword: portalPassword,
+      applicantId: profile.id,
+      passportImagePath,
+      photoImagePath,
+      returnTicketPath,
+      passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
+        ? passportSupportPath
+        : undefined,
+      profile: {
+        fullName: profile.full_name,
+        gender: profile.gender,
+        dateOfBirth: profile.date_of_birth,
+        placeOfBirth: profile.place_of_birth,
+        nationality: profile.nationality,
+        passportNumber: profile.passport_number,
+        passportIssueDate: profile.passport_issue_date,
+        passportExpiryDate: profile.passport_expiry_date,
+        passportIssuingCountry: profile.issuing_country,
+        passportIssuingAuthority: profile.issuing_authority,
+        phone: profile.phone,
+      },
       probeOfficialPortal: true,
       portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
     });
 
     const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";
     await writeSubmissionResult(item.application_id, result, resultStatus);
-    await supabase
+    const { error: queueUpdateError } = await supabase
       .from("submission_queue")
       .update({
         status: result.status === "action_required" ? "action_required" : failedStatus,
@@ -5952,11 +6080,13 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         error_message: result.message,
         current_stage: result.actionType ?? "indonesia_live_action_required",
         official_portal_url: INDONESIA_C1_PORTAL_URL,
-        official_account_email_encrypted: encryptSecret(alias.alias),
         manual_action_status: result.status === "action_required" ? "pending" : null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
+    if (queueUpdateError) {
+      throw new Error(`Failed to update Indonesia submission queue: ${queueUpdateError.message}`);
+    }
 
     console.log(
       `[indonesia] ${provider} prepared managed alias for application=${redactIdentifier(item.application_id)}; action=${result.actionType ?? result.status}`,

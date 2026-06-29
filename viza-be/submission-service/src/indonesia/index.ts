@@ -39,6 +39,25 @@ export interface NormalizedIndonesiaSubmission {
 export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   managedAccountAvailable: boolean;
   managedAccountEmail?: string | null;
+  managedAccountPassword?: string | null;
+  applicantId?: string | null;
+  passportImagePath?: string | null;
+  photoImagePath?: string | null;
+  returnTicketPath?: string | null;
+  passportSupportPath?: string | null;
+  profile?: {
+    fullName?: string | null;
+    gender?: string | null;
+    dateOfBirth?: string | null;
+    placeOfBirth?: string | null;
+    nationality?: string | null;
+    passportNumber?: string | null;
+    passportIssueDate?: string | null;
+    passportExpiryDate?: string | null;
+    passportIssuingCountry?: string | null;
+    passportIssuingAuthority?: string | null;
+    phone?: string | null;
+  };
   paymentAuthorized?: boolean;
   probeOfficialPortal?: boolean;
   portalProbeHeadless?: boolean;
@@ -178,6 +197,7 @@ export async function runIndonesiaLiveSubmission(
 ): Promise<GenericSubmissionResult> {
   const normalized = normalizeIndonesiaAnswers(input);
   const managedEmail = clean(input.managedAccountEmail);
+  const managedPassword = clean(input.managedAccountPassword);
 
   if (!input.managedAccountAvailable || !managedEmail) {
     return {
@@ -219,6 +239,49 @@ export async function runIndonesiaLiveSubmission(
       provider: normalized.provider,
       visaType: normalized.visaType,
       passportCountry: normalized.passportCountry,
+      applicantId: input.applicantId,
+      accountEmail: managedEmail,
+      accountPassword: managedPassword,
+      registration: {
+        fullName: normalized.fullName ?? input.profile?.fullName,
+        gender: readFirst(input.answers, ["gender", "sex"]) ?? input.profile?.gender,
+        birthPlace: readFirst(input.answers, ["birth_place", "place_of_birth"]) ?? input.profile?.placeOfBirth,
+        dateOfBirth: readFirst(input.answers, ["date_of_birth", "birth_date", "birthday"]) ?? input.profile?.dateOfBirth,
+        phoneCodeCountry: normalized.passportCountry ?? input.profile?.passportIssuingCountry ?? input.profile?.nationality,
+        mobilePhone: normalized.mobileNumber ?? input.profile?.phone,
+        motherName: normalized.motherFullName,
+        passportNumber: normalized.passportNumber ?? input.profile?.passportNumber,
+        passportCountry: normalized.passportCountry ?? input.profile?.passportIssuingCountry ?? input.profile?.nationality,
+        passportIssueDate: readFirst(input.answers, ["passport_issue_date", "passport_issuance_date"]) ?? input.profile?.passportIssueDate,
+        passportExpiryDate: readFirst(input.answers, ["passport_expiry_date", "passport_expiration_date"]) ?? input.profile?.passportExpiryDate,
+        passportIssuePlace: readFirst(input.answers, ["passport_place_of_issue", "passport_issuance_city", "passport_issuing_authority"]) ?? input.profile?.passportIssuingAuthority,
+        passportImagePath: input.passportImagePath,
+        photoImagePath: input.photoImagePath,
+      },
+      application: {
+        fullName: normalized.fullName ?? input.profile?.fullName,
+        gender: readFirst(input.answers, ["gender", "sex"]) ?? input.profile?.gender,
+        birthPlace: readFirst(input.answers, ["birth_place", "place_of_birth", "city_of_birth", "birth_city"]) ?? input.profile?.placeOfBirth,
+        dateOfBirth: readFirst(input.answers, ["date_of_birth", "birth_date", "birthday", "dob"]) ?? input.profile?.dateOfBirth,
+        mobilePhone: normalized.mobileNumber ?? input.profile?.phone,
+        passportNumber: normalized.passportNumber ?? input.profile?.passportNumber,
+        passportCountry: normalized.passportCountry ?? input.profile?.passportIssuingCountry ?? input.profile?.nationality,
+        passportIssueDate: readFirst(input.answers, ["passport_issue_date", "passport_issuance_date", "date_of_issue", "passport_date_of_issue"]) ?? input.profile?.passportIssueDate,
+        passportExpiryDate: readFirst(input.answers, ["passport_expiry_date", "passport_expiration_date", "valid_until", "passport_date_of_expiry"]) ?? input.profile?.passportExpiryDate,
+        passportIssuePlace: readFirst(input.answers, ["passport_place_of_issue", "passport_issuance_city", "passport_issuing_authority"]) ?? input.profile?.passportIssuingAuthority,
+        residenceType: readFirst(input.answers, ["residence_type", "accommodation_type", "stay_type"]) ?? "HOTEL",
+        addressInIndonesia: normalized.accommodationAddress ?? readFirst(input.answers, ["address_in_indonesia", "us_address_street1", "us_address_street"]),
+        postalCode: readFirst(input.answers, ["postal_code", "indonesia_postal_code"]),
+        province: readFirst(input.answers, ["province", "province_name", "indonesia_province"]),
+        city: normalized.accommodationName?.match(/jakarta/i) ? "JAKARTA" : readFirst(input.answers, ["city", "city_name", "accommodation_city_or_district", "indonesia_city"]),
+        district: readFirst(input.answers, ["district", "district_name", "indonesia_district"]),
+        village: readFirst(input.answers, ["village", "village_name", "indonesia_village"]),
+        email: managedEmail,
+        passportImagePath: input.passportImagePath,
+        photoImagePath: input.photoImagePath,
+        returnTicketPath: input.returnTicketPath,
+        passportSupportPath: input.passportSupportPath,
+      },
       headless: input.portalProbeHeadless ?? true,
     });
     return {
