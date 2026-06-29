@@ -26,6 +26,7 @@ export interface NormalizedIndonesiaSubmission {
   fullName: string | null;
   motherFullName: string | null;
   passportNumber: string | null;
+  passportCountry: string | null;
   email: string | null;
   mobileNumber: string | null;
   arrivalDate: string | null;
@@ -125,6 +126,13 @@ export function normalizeIndonesiaAnswers(
       "travel_document_number",
       "passport_no",
     ]),
+    passportCountry: readFirst(answers, [
+      "passport_country",
+      "passport_issuing_country",
+      "nationality",
+      "citizenship",
+      "country_of_citizenship",
+    ]),
     email: readFirst(answers, [
       "email",
       "email_address",
@@ -209,6 +217,8 @@ export async function runIndonesiaLiveSubmission(
     const probe = await probeIndonesiaPortal({
       portalUrl: normalized.portalUrl,
       provider: normalized.provider,
+      visaType: normalized.visaType,
+      passportCountry: normalized.passportCountry,
       headless: input.portalProbeHeadless ?? true,
     });
     return {
