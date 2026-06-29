@@ -23,13 +23,15 @@ export class PhEtravelPortalError extends Error {
   readonly screenshotPaths: string[];
   readonly portalSummary?: string;
   readonly code: string;
+  logs: string[];
 
-  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string }) {
+  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] }) {
     super(message);
     this.name = "PhEtravelPortalError";
     this.code = options.code;
     this.screenshotPaths = options.screenshotPaths ?? [];
     this.portalSummary = options.portalSummary;
+    this.logs = options.logs ?? [];
   }
 }
 
@@ -72,6 +74,41 @@ function extractReference(text: string): string | null {
 
 function hasQrEvidence(pageText: string): boolean {
   return /qr\s*code|scan\s+this|eTravel\s+QR|border\s+control|reference/i.test(pageText);
+}
+
+function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { firstName: parts[0] ?? fullName.trim(), lastName: "" };
+  return {
+    firstName: parts.slice(0, -1).join(" "),
+    lastName: parts[parts.length - 1],
+  };
+}
+
+function formatUsDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  if (!year || !month || !day) return isoDate;
+  return `${month}/${day}/${year}`;
+}
+
+function countryOptionPattern(value: string): RegExp {
+  const normalized = value.trim();
+  if (/china|chinese|cn|chn/i.test(normalized)) return /china|chinese/i;
+  if (/singapore|sg|sgp/i.test(normalized)) return /singapore/i;
+  return new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+}
+
+function sexOptionPattern(value: string): RegExp {
+  if (/^m|male/i.test(value)) return /^male$/i;
+  if (/^f|female/i.test(value)) return /^female$/i;
+  return new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+}
+
+function occupationOptionPattern(value: string): RegExp {
+  if (/software|engineer|developer|programmer|it|technology/i.test(value)) {
+    return /software|engineer|information technology|it|professional/i;
+  }
+  return new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 }
 
 async function clickFirstAvailable(page: Page, locators: Array<ReturnType<Page["locator"]>>): Promise<boolean> {
@@ -140,10 +177,57 @@ async function installTurnstileCapture(page: Page): Promise<void> {
   });
 }
 
-async function solveTurnstileIfPresent(page: Page, logs: string[]): Promise<boolean> {
+async function solveTurnstileWithBrowserApi(page: Page, logs: string[]): Promise<boolean> {
+  const hasResponseField = await page
+    .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
+    .first()
+    .count()
+    .catch(() => 0);
+  if (hasResponseField === 0) return false;
+
+  const client = await page.context().newCDPSession(page);
+  try {
+    const sendCustom = client.send as unknown as (
+      method: string,
+      params?: Record<string, unknown>,
+    ) => Promise<unknown>;
+    await sendCustom("Captcha.setAutoSolve", { autoSolve: true }).catch(() => undefined);
+    const result = await sendCustom("Captcha.solve", { detectTimeout: 30_000 }).catch(async () =>
+      sendCustom("Captcha.waitForSolve", {}),
+    );
+    const status = typeof result === "object" && result && "status" in result
+      ? String((result as { status?: unknown }).status ?? "unknown")
+      : "unknown";
+    logs.push(`ph_etravel_browser_api_captcha_solve status=${status}`);
+    await page.waitForTimeout(2_000);
+    return /solve_finished|finished|success|solved/i.test(status) && !/failed|invalid/i.test(status);
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`ph_etravel_browser_api_captcha_solve_failed ${message}`);
+    return false;
+  } finally {
+    await client.detach().catch(() => undefined);
+  }
+}
+
+async function solveTurnstileIfPresent(page: Page, logs: string[], nativeCloudflareUnblock = false): Promise<boolean> {
   const hiddenResponse = page.locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']").first();
   const hasResponseField = await hiddenResponse.count().catch(() => 0);
   if (hasResponseField === 0) return false;
+
+  if (nativeCloudflareUnblock) {
+    const solvedByBrowserApi = await solveTurnstileWithBrowserApi(page, logs);
+    if (solvedByBrowserApi) {
+      const tokenReady = await page.waitForFunction(() => {
+        const field = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']",
+        );
+        return Boolean(field?.value?.trim());
+      }, null, { timeout: 10_000 }).then(() => true).catch(() => false);
+      logs.push(`ph_etravel_browser_api_captcha_token_ready=${tokenReady}`);
+      return tokenReady;
+    }
+  }
 
   const captured = await page.waitForFunction(() => {
     const win = window as typeof window & { __vizaTurnstile?: Record<string, unknown> };
@@ -183,6 +267,42 @@ async function solveTurnstileIfPresent(page: Page, logs: string[]): Promise<bool
   return true;
 }
 
+async function clickTurnstileProtectedContinue(
+  page: Page,
+  logs: string[],
+  nativeCloudflareUnblock: boolean,
+  locators: Array<ReturnType<Page["locator"]>>,
+): Promise<string> {
+  let lastText = await bodyText(page);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const hasChallenge = await page
+      .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
+      .first()
+      .count()
+      .catch(() => 0);
+    if (hasChallenge > 0) {
+      const solved = await solveTurnstileIfPresent(page, logs, nativeCloudflareUnblock);
+      logs.push(`ph_etravel_turnstile_before_continue attempt=${attempt} solved=${solved}`);
+      if (!solved) {
+        lastText = await bodyText(page);
+        continue;
+      }
+    }
+    await clickFirstAvailable(page, locators);
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    lastText = await bodyText(page);
+    if (!/verification failed|troubleshooting|cloudflare|turnstile/i.test(lastText)) {
+      return lastText;
+    }
+    logs.push(`ph_etravel_turnstile_continue_failed attempt=${attempt}`);
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    lastText = await bodyText(page);
+  }
+  return lastText;
+}
+
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
     const inputs = page.locator(selector);
@@ -209,6 +329,112 @@ async function fillLastVisibleInput(page: Page, selector: string, value: string)
     }
   }
   return false;
+}
+
+async function fillVisibleByPlaceholder(page: Page, pattern: RegExp, value: string): Promise<boolean> {
+  const inputs = page.locator("input, textarea");
+  const count = await inputs.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const input = inputs.nth(index);
+    if (!await input.isVisible({ timeout: 500 }).catch(() => false)) continue;
+    const placeholder = await input.getAttribute("placeholder").catch(() => null);
+    if (!placeholder || !pattern.test(placeholder)) continue;
+    await input.fill(value, { timeout: 15_000 });
+    return true;
+  }
+  return false;
+}
+
+async function fillVisibleTextField(page: Page, label: string, value: string): Promise<boolean> {
+  const labelPattern = new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  const byLabel = page.getByLabel(labelPattern).first();
+  if (await byLabel.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await byLabel.fill(value, { timeout: 15_000 });
+    return true;
+  }
+
+  if (await fillVisibleByPlaceholder(page, labelPattern, value)) return true;
+
+  const byFollowingLabel = page
+    .locator(`xpath=//*[self::label or self::div or self::span or self::p][contains(normalize-space(.), '${label}')]/following::input[not(@type='hidden')][1]`)
+    .first();
+  if (await byFollowingLabel.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await byFollowingLabel.fill(value, { timeout: 15_000 });
+    return true;
+  }
+
+  return false;
+}
+
+async function chooseDropdownOption(
+  page: Page,
+  triggerText: RegExp,
+  optionText: RegExp,
+  typedText?: string,
+): Promise<boolean> {
+  const nativeSelect = page.locator("select").filter({ hasText: triggerText }).first();
+  if (await nativeSelect.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    const optionValue = await nativeSelect.evaluate((select, pattern) => {
+      const regex = new RegExp(pattern.source, pattern.flags);
+      const option = Array.from((select as HTMLSelectElement).options).find((candidate) =>
+        regex.test(candidate.label) || regex.test(candidate.textContent ?? ""),
+      );
+      return option?.value ?? null;
+    }, { source: optionText.source, flags: optionText.flags }).catch(() => null);
+    if (optionValue) {
+      const selected = await nativeSelect.selectOption(optionValue, { timeout: 5_000 }).catch(() => null);
+      if (selected) return true;
+    }
+  }
+
+  const trigger = page.locator("button, [role='button'], [role='combobox'], div, input").filter({ hasText: triggerText }).last();
+  if (await trigger.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await trigger.click({ timeout: 10_000 });
+  } else {
+    const label = page.getByText(triggerText).last();
+    if (!await label.isVisible({ timeout: 2_000 }).catch(() => false)) return false;
+    await label.click({ timeout: 10_000 });
+  }
+  await page.waitForTimeout(500);
+  if (typedText) {
+    await page.keyboard.press("Control+A").catch(() => undefined);
+    await page.keyboard.type(typedText, { delay: 30 }).catch(() => undefined);
+    await page.waitForTimeout(700);
+  }
+  const clicked = await clickFirstAvailable(page, [
+    page.getByRole("option", { name: optionText }),
+    page.locator(".ant-select-item-option, .select__option, [data-slot='select-item']").filter({ hasText: optionText }),
+    typedText ? page.getByText(new RegExp(`^${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")) : page.locator("__never__"),
+    page.locator("[role='option'], li, button, div").filter({ hasText: optionText }),
+  ]);
+  if (clicked) {
+    await page.waitForTimeout(700);
+    return true;
+  }
+
+  if (!typedText) return false;
+  await page.keyboard.press("Enter").catch(() => undefined);
+  await page.waitForTimeout(700);
+  return true;
+}
+
+async function fillMpinInputs(page: Page, mpin: string): Promise<boolean> {
+  const digits = mpin.trim().split("");
+  const inputs = page.locator("input:not([type='hidden'])");
+  const count = await inputs.count().catch(() => 0);
+  const visibleIndexes: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    if (await inputs.nth(index).isVisible({ timeout: 500 }).catch(() => false)) {
+      visibleIndexes.push(index);
+    }
+  }
+  if (visibleIndexes.length >= digits.length * 2) {
+    for (let offset = 0; offset < digits.length * 2; offset += 1) {
+      await inputs.nth(visibleIndexes[offset]).fill(digits[offset % digits.length], { timeout: 10_000 });
+    }
+    return true;
+  }
+  return fillOtpInputs(page, mpin);
 }
 
 async function fillOtpInputs(page: Page, otp: string): Promise<boolean> {
@@ -256,7 +482,12 @@ async function fillMpinPrompt(
     );
   }
 
-  await fillOtpInputs(page, mpin);
+  const text = await bodyText(page);
+  if (/create|set|confirm|re[-\s]?enter/i.test(text)) {
+    await fillMpinInputs(page, mpin);
+  } else {
+    await fillOtpInputs(page, mpin);
+  }
   await clickFirstAvailable(page, [
     page.getByRole("button", { name: /next|continue|submit|confirm/i }),
     page.locator("button").filter({ hasText: /next|continue|submit|confirm/i }),
@@ -267,14 +498,121 @@ async function fillMpinPrompt(
   return bodyText(page);
 }
 
+async function completeEgovPersonalInformationOnboarding(
+  page: Page,
+  payload: PhEtravelPortalPayload,
+  options: PhEtravelRunnerOptions,
+  logs: string[],
+  screenshots: string[],
+): Promise<string> {
+  let text = await bodyText(page);
+  if (!/onboarding|personal information|foreign passport holder|first name|citizenship/i.test(text)) {
+    return text;
+  }
+
+  logs.push("ph_etravel_egov_onboarding_personal_information_detected");
+  await clickFirstAvailable(page, [
+    page.getByText(/foreign passport holder/i),
+    page.locator("button, label, div").filter({ hasText: /foreign passport holder/i }),
+  ]);
+
+  const name = splitFullName(payload.fullName);
+  const filled = {
+    firstName: await fillVisibleTextField(page, "First Name", name.firstName),
+    lastName: await fillVisibleTextField(page, "Last Name", name.lastName || name.firstName),
+    birthDate: await fillVisibleTextField(page, "Birth Date", formatUsDate(payload.dateOfBirth)),
+    mobile: await fillVisibleTextField(page, "Mobile Number", payload.mobileNumber),
+    passportNumber: await fillVisibleTextField(page, "Passport Number", payload.passportNumber),
+    passportIssueDate: await fillVisibleTextField(page, "Passport Issued Date", formatUsDate(payload.passportIssueDate)),
+  };
+  const sexText = /^m|male/i.test(payload.sex) ? "Male" : /^f|female/i.test(payload.sex) ? "Female" : payload.sex;
+  const choseSex = await chooseDropdownOption(page, /^sex$/i, sexOptionPattern(payload.sex), sexText);
+  const choseCitizenship = await chooseDropdownOption(
+    page,
+    /citizenship/i,
+    countryOptionPattern(payload.nationality),
+    payload.nationality,
+  );
+  const choseCountryOfBirth = await chooseDropdownOption(
+    page,
+    /country of birth/i,
+    countryOptionPattern(payload.countryOfBirth),
+    payload.countryOfBirth,
+  );
+  const chosePassportIssuingAuthority = await chooseDropdownOption(
+    page,
+    /passport issuing authority/i,
+    countryOptionPattern(payload.passportIssuingAuthority),
+    payload.passportIssuingAuthority,
+  );
+  const choseOccupation = await chooseDropdownOption(
+    page,
+    /occupation/i,
+    occupationOptionPattern(payload.occupation),
+    /software|engineer|developer|programmer|it|technology/i.test(payload.occupation) ? "Professional" : payload.occupation,
+  );
+
+  if (
+    !filled.firstName ||
+    !filled.lastName ||
+    !filled.birthDate ||
+    !filled.mobile ||
+    !filled.passportNumber ||
+    !filled.passportIssueDate ||
+    !choseSex ||
+    !choseCitizenship ||
+    !choseCountryOfBirth ||
+    !chosePassportIssuingAuthority ||
+    !choseOccupation
+  ) {
+    screenshots.push(await saveScreenshot(page, "egov-onboarding-personal-info-incomplete", logs));
+    throw new PhEtravelPortalError(
+      "Official eGovPH onboarding personal-information page could not be filled completely.",
+      {
+        code: "ph_etravel_egov_onboarding_mapping_incomplete",
+        screenshotPaths: screenshots,
+        portalSummary: (await bodyText(page)).slice(0, 700),
+      },
+    );
+  }
+
+  const clickedContinue = await clickFirstEnabledAvailable(page, [
+    page.getByRole("button", { name: /continue|next|submit|save/i }),
+    page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
+  ], 60_000);
+  if (!clickedContinue) {
+    screenshots.push(await saveScreenshot(page, "egov-onboarding-continue-disabled", logs));
+    throw new PhEtravelPortalError(
+      "Official eGovPH onboarding page did not enable continue after personal information was filled.",
+      {
+        code: "ph_etravel_egov_onboarding_continue_disabled",
+        screenshotPaths: screenshots,
+        portalSummary: (await bodyText(page)).slice(0, 700),
+      },
+    );
+  }
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+  text = await bodyText(page);
+  if (/mpin|6[-\s]?digit passcode|enter your passcode|create.*passcode|set.*passcode/i.test(text)) {
+    text = await fillMpinPrompt(page, options, logs, screenshots);
+  }
+  logs.push("ph_etravel_egov_onboarding_personal_information_submitted");
+  return text;
+}
+
 async function reachAuthenticatedPhEtravelSession(
   page: Page,
+  payload: PhEtravelPortalPayload,
   options: PhEtravelRunnerOptions,
   logs: string[],
   screenshots: string[],
 ): Promise<void> {
-  const signedInAlready = /dashboard|new travel declaration|etravel registration|personal information/i.test(await bodyText(page));
-  if (signedInAlready && !/enter email address|password|create an account/i.test(await bodyText(page))) {
+  const initialText = await bodyText(page);
+  const signedInAlready = /dashboard|new travel declaration|etravel registration|personal information/i.test(initialText);
+  if (signedInAlready && !/enter email address|password|create an account/i.test(initialText)) {
+    await completeEgovPersonalInformationOnboarding(page, payload, options, logs, screenshots);
     logs.push("ph_etravel_existing_session_detected");
     return;
   }
@@ -335,6 +673,7 @@ async function reachAuthenticatedPhEtravelSession(
   if (/mpin|6[-\s]?digit passcode|enter your passcode/i.test(afterLoginText)) {
     afterLoginText = await fillMpinPrompt(page, options, logs, screenshots);
   }
+  afterLoginText = await completeEgovPersonalInformationOnboarding(page, payload, options, logs, screenshots);
   if (/invalid|incorrect|otp|one-time|enter code|captcha|turnstile|verification failed/i.test(afterLoginText)) {
     screenshots.push(await saveScreenshot(page, "official-login-blocked", logs));
     throw new PhEtravelPortalError(
@@ -421,6 +760,7 @@ async function maybeCreatePhEtravelAccount(
   options: PhEtravelRunnerOptions,
   logs: string[],
   screenshots: string[],
+  nativeCloudflareUnblock = false,
 ): Promise<boolean> {
   const accountEmail = options.officialAccountEmail?.trim();
   const applicantId = options.applicantId?.trim();
@@ -453,18 +793,24 @@ async function maybeCreatePhEtravelAccount(
     "input[placeholder*='Email' i]",
     "input:not([type='hidden'])",
   ], accountEmail);
-  await solveTurnstileIfPresent(page, logs);
-  await clickFirstAvailable(page, [
+  let currentText = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
     page.getByRole("button", { name: /continue|next|submit|send/i }),
     page.locator("button").filter({ hasText: /continue|next|submit|send/i }),
   ]);
-  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-  await page.waitForTimeout(2_000);
-
-  let currentText = await bodyText(page);
   if (/already\s+(?:registered|exists)|account\s+already/i.test(currentText)) {
     logs.push("ph_etravel_alias_account_already_exists");
     return false;
+  }
+  if (/verification failed|troubleshooting|cloudflare|turnstile/i.test(currentText)) {
+    screenshots.push(await saveScreenshot(page, "registration-turnstile-failed", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel registration Turnstile could not be solved by the configured Browser API.",
+      {
+        code: "ph_etravel_registration_turnstile_blocked",
+        screenshotPaths: screenshots,
+        portalSummary: currentText.slice(0, 700),
+      },
+    );
   }
 
   const timeoutMs = options.emailVerificationTimeoutMs
@@ -472,6 +818,7 @@ async function maybeCreatePhEtravelAccount(
   if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
     const otp = await mailbox.waitForOtp({ timeoutMs, since });
     await fillOtpInputs(page, otp);
+    await solveTurnstileIfPresent(page, logs, nativeCloudflareUnblock);
     const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
       page.getByRole("button", { name: /verify|continue|next|submit/i }),
       page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
@@ -521,8 +868,9 @@ async function maybeCreatePhEtravelAccount(
   if (/mpin|6[-\s]?digit passcode|enter your passcode/i.test(currentText)) {
     currentText = await fillMpinPrompt(page, options, logs, screenshots);
   }
+  currentText = await completeEgovPersonalInformationOnboarding(page, payload, options, logs, screenshots);
 
-  if (/mobile|phone|sms|app|captcha|turnstile|invalid|failed/i.test(currentText)) {
+  if (/sms|authenticator|egovph app|captcha|turnstile|invalid|failed/i.test(currentText)) {
     screenshots.push(await saveScreenshot(page, "official-registration-blocked", logs));
     throw new PhEtravelPortalError(
       "Official Philippines eTravel account registration needs a non-email verification step before automation can continue.",
@@ -606,18 +954,32 @@ async function runPhEtravelPortalSubmissionWithBrowser(
     try {
       let handledRegistration = false;
       if (options.forceAccountRegistration) {
-        const created = await maybeCreatePhEtravelAccount(page, payload, options, logs, screenshots);
+        const created = await maybeCreatePhEtravelAccount(
+          page,
+          payload,
+          options,
+          logs,
+          screenshots,
+          browserSession.nativeCloudflareUnblock,
+        );
         if (created) {
-          await reachAuthenticatedPhEtravelSession(page, options, logs, screenshots);
+          await reachAuthenticatedPhEtravelSession(page, payload, options, logs, screenshots);
           handledRegistration = true;
         }
       }
       if (!handledRegistration) {
-        await reachAuthenticatedPhEtravelSession(page, options, logs, screenshots);
+        await reachAuthenticatedPhEtravelSession(page, payload, options, logs, screenshots);
       }
     } catch (error) {
       if (error instanceof PhEtravelPortalError && error.code === "ph_etravel_official_account_required") {
-        const created = await maybeCreatePhEtravelAccount(page, payload, options, logs, screenshots);
+        const created = await maybeCreatePhEtravelAccount(
+          page,
+          payload,
+          options,
+          logs,
+          screenshots,
+          browserSession.nativeCloudflareUnblock,
+        );
         if (!created) throw error;
       } else {
         throw error;
@@ -653,6 +1015,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         portalSummary: (await bodyText(page)).slice(0, 700),
       });
     }
+    error.logs = logs;
     throw error;
   } finally {
     await browserSession.close();
