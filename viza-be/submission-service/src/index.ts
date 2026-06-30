@@ -181,7 +181,11 @@ import {
   upsertPhEtravelAccount,
 } from "./ph-etravel/account";
 import { createPhEtravelMailboxProvider } from "./ph-etravel/mailbox-provider";
-import { INDONESIA_C1_PORTAL_URL, runIndonesiaLiveSubmission } from "./indonesia";
+import {
+  INDONESIA_B1_EVOA_PORTAL_URL,
+  INDONESIA_C1_PORTAL_URL,
+  runIndonesiaLiveSubmission,
+} from "./indonesia";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -5184,9 +5188,15 @@ async function enqueueDigitalArrivalCardLiveAfterDryRun(
   const now = new Date().toISOString();
   const isMdac = code === "MDAC";
   const isTdac = code === "TDAC";
+  const arrivalDateAnswer = code === "PH_ETRAVEL"
+    ? answers.flight_arrival_date ?? answers.arrival_date ?? answers.intended_arrival_date
+    : answers.arrival_date ?? answers.intended_arrival_date;
+  const departureDateAnswer = code === "PH_ETRAVEL"
+    ? answers.flight_departure_date ?? answers.departure_date ?? answers.intended_departure_date
+    : answers.departure_date ?? answers.intended_departure_date;
   const window = code === "PH_ETRAVEL"
-    ? evaluatePhEtravelSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date)
-    : evaluateSgacSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+    ? evaluatePhEtravelSubmissionWindow(arrivalDateAnswer)
+    : evaluateSgacSubmissionWindow(arrivalDateAnswer);
   if (window.status === "past") {
     throw new Error(`${code} arrival date is already in the past. Please update the travel dates before submitting.`);
   }
@@ -5255,8 +5265,8 @@ async function enqueueDigitalArrivalCardLiveAfterDryRun(
             })
           : buildScheduledPhEtravelResult({
               applicationId: item.application_id,
-              arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
-              departureDate: answers.departure_date ?? answers.intended_departure_date,
+              arrivalDate: arrivalDateAnswer,
+              departureDate: departureDateAnswer,
               earliestSubmissionDate: window.earliestSubmissionDate,
             }),
       "scheduled",
@@ -5462,7 +5472,9 @@ async function promoteTdacScheduledIfDue(item: SubmissionQueueItem): Promise<Sub
 async function promotePhEtravelScheduledIfDue(item: SubmissionQueueItem): Promise<SubmissionQueueItem | null> {
   if (item.status !== "phetravel_live_assisted_scheduled") return item;
   const answers = await loadDs160Answers(item.application_id);
-  const window = evaluatePhEtravelSubmissionWindow(answers.arrival_date ?? answers.intended_arrival_date);
+  const arrivalDateAnswer = answers.flight_arrival_date ?? answers.arrival_date ?? answers.intended_arrival_date;
+  const departureDateAnswer = answers.flight_departure_date ?? answers.departure_date ?? answers.intended_departure_date;
+  const window = evaluatePhEtravelSubmissionWindow(arrivalDateAnswer);
   if (window.status === "scheduled") {
     await supabase
       .from("submission_queue")
@@ -5475,8 +5487,8 @@ async function promotePhEtravelScheduledIfDue(item: SubmissionQueueItem): Promis
       item.application_id,
       buildScheduledPhEtravelResult({
         applicationId: item.application_id,
-        arrivalDate: answers.arrival_date ?? answers.intended_arrival_date,
-        departureDate: answers.departure_date ?? answers.intended_departure_date,
+        arrivalDate: arrivalDateAnswer,
+        departureDate: departureDateAnswer,
         earliestSubmissionDate: window.earliestSubmissionDate,
       }),
       "scheduled",
@@ -6403,13 +6415,16 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         ? "action_required"
         : failedStatus;
     const currentStage = result.actionType === "official_fee_payment_required" ? "payment_page_visible" : result.actionType ?? "indonesia_live_action_required";
+    const portalUrl =
+      result.portalUrl ??
+      (isB1 ? INDONESIA_B1_EVOA_PORTAL_URL : INDONESIA_C1_PORTAL_URL);
 
     const queuePayload = {
       actionType: result.actionType ?? null,
       actionInstructions: result.actionInstructions ?? null,
       checkpoint: currentStage,
       message: result.message,
-      url: INDONESIA_C1_PORTAL_URL,
+      url: portalUrl,
       implementationStatus: result.implementationStatus,
       evidence: { provider: provider, message: result.message },
     };
@@ -6426,7 +6441,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         error_code: result.actionType ?? null,
         error_message: result.message,
         current_stage: shouldKeepAsActionRequired ? currentStage : (isPaymentAuthorizationRequired ? "payment_page_visible" : currentStage),
-        official_portal_url: INDONESIA_C1_PORTAL_URL,
+        official_portal_url: portalUrl,
         manual_action_status: result.status === "action_required" ? "pending" : null,
         vn_result_payload: queuePayload,
         updated_at: new Date().toISOString(),

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildUniversalProfileAnswerPatch } from "@/lib/universal-profile-prefill";
+import {
+  buildMalaysiaMdacUniversalProfileAnswerPatch,
+  buildUniversalProfileAnswerPatch,
+} from "@/lib/universal-profile-prefill";
 
 describe("universal profile prefill", () => {
   it("maps reusable profile fields to creation-time application answers", () => {
@@ -64,5 +67,17 @@ describe("universal profile prefill", () => {
     });
 
     expect(patch).toEqual({});
+  });
+
+  it("maps MDAC place of birth to the official alpha-3 birth country value", () => {
+    const patch = buildMalaysiaMdacUniversalProfileAnswerPatch({
+      birth_country: "China",
+      birth_city_en: "Changsha",
+      place_of_birth: "China | Hunan | Changsha",
+    });
+
+    expect(patch).toEqual({
+      place_of_birth: "CHN",
+    });
   });
 });

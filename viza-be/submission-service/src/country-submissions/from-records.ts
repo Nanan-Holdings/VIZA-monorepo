@@ -45,6 +45,18 @@ function splitProfileName(fullName: string | null | undefined): {
   };
 }
 
+function splitTdacFullName(fullName: string | null | undefined): {
+  familyName: string | null;
+  firstName: string | null;
+} {
+  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
+  if (parts.length === 0) return { familyName: null, firstName: null };
+  return {
+    familyName: parts[0] ?? null,
+    firstName: parts[1] ?? null,
+  };
+}
+
 function dayDiffInclusive(start: string | null | undefined, end: string | null | undefined): string | null {
   if (!start || !end) return null;
   const startTime = Date.parse(start);
@@ -89,8 +101,103 @@ function normalizeVietnamTravelDates(
 function phoneCountryCode(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
-  const match = trimmed.match(/^\s*\+(\d{1,4})(?:\D|$)/);
-  return match?.[1] ?? null;
+  const digits = trimmed.replace(/[^\d+]/g, "");
+  if (!digits.startsWith("+")) return null;
+  const number = digits.slice(1);
+  const knownCodes = [
+    "1",
+    "7",
+    "20",
+    "27",
+    "30",
+    "31",
+    "32",
+    "33",
+    "34",
+    "36",
+    "39",
+    "40",
+    "41",
+    "44",
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "52",
+    "55",
+    "60",
+    "61",
+    "62",
+    "63",
+    "64",
+    "65",
+    "66",
+    "81",
+    "82",
+    "84",
+    "86",
+    "90",
+    "91",
+    "92",
+    "93",
+    "94",
+    "95",
+    "98",
+    "212",
+    "213",
+    "216",
+    "218",
+    "234",
+    "251",
+    "254",
+    "255",
+    "256",
+    "351",
+    "352",
+    "353",
+    "354",
+    "355",
+    "356",
+    "357",
+    "358",
+    "359",
+    "370",
+    "371",
+    "372",
+    "373",
+    "374",
+    "375",
+    "376",
+    "377",
+    "380",
+    "381",
+    "382",
+    "385",
+    "386",
+    "387",
+    "389",
+    "420",
+    "421",
+    "852",
+    "853",
+    "855",
+    "856",
+    "880",
+    "886",
+    "971",
+    "972",
+    "973",
+    "974",
+    "975",
+    "976",
+    "977",
+    "994",
+    "995",
+    "996",
+    "998",
+  ];
+  return knownCodes.find((code) => number.startsWith(code)) ?? null;
 }
 
 export function applyVietnamAnswerAliases(
@@ -214,7 +321,7 @@ export function applyThailandTdacAnswerAliases(
   profile: ApplicantProfile,
   application: Application,
 ): Record<string, string> {
-  const profileName = splitProfileName(profile.full_name);
+  const tdacName = splitTdacFullName(firstValue([answers.full_name, answers.full_name_en, profile.full_name]));
   const phone = firstValue([
     answers.phone,
     answers.phone_number,
@@ -223,13 +330,21 @@ export function applyThailandTdacAnswerAliases(
     answers.primary_phone_number,
     profile.phone,
   ]);
+  const phoneForCountryCode = firstValue([
+    answers.phone,
+    answers.mobile_phone,
+    answers.primary_phone_number,
+    profile.phone,
+    answers.phone_number,
+    answers.mobile_number,
+  ]);
 
-  setIfMissing(answers, "family_name", [answers.surname, answers.last_name, profileName.surname]);
+  setIfMissing(answers, "family_name", [answers.surname, answers.last_name, tdacName.familyName]);
   setIfMissing(answers, "first_name", [
     answers.given_names,
     answers.givenNames,
     answers.given_name,
-    profileName.givenNames,
+    tdacName.firstName,
   ]);
   setIfMissing(answers, "date_of_birth", [answers.dob, answers.birth_date, profile.date_of_birth]);
   setIfMissing(answers, "gender", [answers.sex, profile.gender]);
@@ -246,7 +361,7 @@ export function applyThailandTdacAnswerAliases(
   setIfMissing(answers, "phone_country_code", [
     answers.mobile_country_code,
     answers.country_calling_code,
-    phoneCountryCode(phone),
+    phoneCountryCode(phoneForCountryCode),
   ]);
   setIfMissing(answers, "phone_number", [phone]);
   setIfMissing(answers, "occupation", [

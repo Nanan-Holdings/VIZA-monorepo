@@ -305,6 +305,72 @@ test("from-records: maps common Vietnam fields into runner-required aliases", ()
   assert.equal(answers.expense_coverage, "personal");
 });
 
+test("from-records: maps Thailand TDAC profile and alias fields into runner-required answers", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "CHEN HONGYU",
+    date_of_birth: "2006-07-27",
+    place_of_birth: "Changsha",
+    gender: "male",
+    nationality: "CHN",
+    occupation: "Software Engineer",
+    address: "Changsha, Hunan, China",
+    passport_number: "EM7429107",
+    passport_issue_date: "2024-06-25",
+    passport_expiry_date: "2034-06-24",
+    issuing_country: "CHN",
+    issuing_authority: "China",
+    email: "test.viza.user@example.com",
+    phone: "+8613312345678",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "thailand",
+    visa_type: "TH_TDAC_ARRIVAL_CARD",
+    status: "submitted",
+    arrival_date: "2026-10-01",
+    departure_date: "2026-10-10",
+    port_of_entry: null,
+    purpose: "tourism",
+    accommodation_name: null,
+    accommodation_address: "1 Test Hotel Road, Bangkok",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: "test-package",
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const tdacApplication = buildCountrySubmissionApplication(profile, application, {
+    city_state_of_residence: "TIBET",
+    phone_number: "13312345678",
+    arrival_mode_of_travel: "air",
+    arrival_mode_of_transport: "commercial_flight",
+    arrival_transport_number: "SQ221",
+    departure_mode_of_travel: "air",
+    departure_mode_of_transport: "commercial_flight",
+    departure_transport_number: "SQ222",
+    countries_visited_last_14_days: "CHN",
+    accommodation_type: "guest_house",
+    province: "bangkok",
+    address_in_thailand: "1 Test Hotel Road, Bangkok",
+  });
+  const provider = getCountrySubmissionProvider("thailand", "TH_TDAC_ARRIVAL_CARD");
+  assert.ok(provider);
+  const answers = tdacApplication.answers ?? {};
+
+  assert.equal(answers.family_name, "CHEN");
+  assert.equal(answers.first_name, "HONGYU");
+  assert.equal(answers.country_territory_of_residence, "CHN");
+  assert.equal(answers.phone_country_code, "86");
+  assert.equal(answers.occupation, "Software Engineer");
+  assert.equal(provider.validate(tdacApplication).ok, true);
+});
+
 test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {
   const provider = getCountrySubmissionProvider("vietnam", "VN_E_VISA");
   assert.ok(provider);

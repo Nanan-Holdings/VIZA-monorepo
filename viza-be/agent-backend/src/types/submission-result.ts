@@ -286,6 +286,7 @@ export interface GenericSubmissionResult {
   mode: "dry_run" | "live_assisted";
   applicationId: string;
   confirmationNumber?: string;
+  portalUrl?: string;
   actionType?: string;
   actionInstructions?: string;
   implementationStatus:
