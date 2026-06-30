@@ -39,6 +39,7 @@ export interface PhEtravelRunnerOptions {
   headless?: boolean;
   stopBeforeSubmit?: boolean;
   applicantId?: string;
+  profilePhotoPath?: string;
   officialAccountEmail?: string;
   officialAccountPassword?: string | null;
   officialAccountMpin?: string | null;
@@ -481,6 +482,53 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
   return false;
 }
 
+async function uploadEgovProfilePhoto(
+  page: Page,
+  photoPath: string | undefined,
+  logs: string[],
+): Promise<boolean> {
+  if (!photoPath || !fs.existsSync(photoPath)) return false;
+
+  const trySetInputFiles = async (): Promise<boolean> => {
+    const inputs = page.locator("input[type='file']");
+    const count = await inputs.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      await inputs.nth(index).setInputFiles(photoPath, { timeout: 15_000 }).catch(() => undefined);
+      await page.waitForTimeout(2_000);
+      const uploaded = await page
+        .locator("img[src], [class*='preview' i], [class*='uploadcare--file_status_uploaded' i]")
+        .count()
+        .catch(() => 0);
+      if (uploaded > 0) return true;
+    }
+    return count > 0;
+  };
+
+  if (await trySetInputFiles()) {
+    logs.push("ph_etravel_egov_profile_photo_uploaded");
+    return true;
+  }
+
+  await clickFirstAvailable(page, [
+    page.getByText(/take a photo|upload a file|click to select|select/i).first(),
+    page.locator("button, div, label").filter({ hasText: /take a photo|upload a file|click to select|select/i }).first(),
+  ]);
+  await page.waitForTimeout(1_500);
+  if (!await trySetInputFiles()) return false;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const clicked = await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /done|add|upload|select|choose|confirm|save/i }),
+      page.locator("button").filter({ hasText: /done|add|upload|select|choose|confirm|save/i }),
+    ]);
+    if (!clicked) break;
+    await page.waitForTimeout(1_500);
+  }
+
+  logs.push("ph_etravel_egov_profile_photo_uploaded");
+  return true;
+}
+
 async function chooseReactSelectByHiddenName(
   page: Page,
   hiddenName: string,
@@ -512,7 +560,8 @@ async function chooseReactSelectByHiddenName(
   if (expectedValue.test(value)) return true;
 
   const visibleText = await bodyText(page);
-  return expectedValue.test(visibleText);
+  const selectedTextPattern = new RegExp(`\\b${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  return selectedTextPattern.test(visibleText);
 }
 
 async function chooseHeadlessComboboxByInputName(
@@ -586,6 +635,74 @@ async function chooseDropdownOption(
   await page.keyboard.press("Enter").catch(() => undefined);
   await page.waitForTimeout(700);
   return true;
+}
+
+async function completeEgovPermanentResidenceOnboarding(
+  page: Page,
+  payload: PhEtravelPortalPayload,
+  logs: string[],
+  screenshots: string[],
+): Promise<string> {
+  let text = await bodyText(page);
+  if (!/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
+    return text;
+  }
+
+  logs.push("ph_etravel_egov_onboarding_residence_detected");
+  const countryText = /china|chinese|cn|chn/i.test(payload.countryOfResidence) ? "China" : payload.countryOfResidence;
+  const choseCountry = await chooseDropdownOption(page, /^country$/i, countryOptionPattern(payload.countryOfResidence), countryText);
+  const address = payload.residenceAddress || payload.countryOfResidence;
+  const filledAddress = await fillVisibleByPlaceholder(page, /no\.?\/bldg|city|state|province|address/i, address)
+    || await fillVisibleTextField(page, "No./Bldg./City/State/Province", address);
+
+  if (!choseCountry || !filledAddress) {
+    logs.push(`ph_etravel_egov_residence_precheck_incomplete ${JSON.stringify({ choseCountry, filledAddress })}`);
+  }
+
+  const clickedContinue = await clickFirstEnabledAvailable(page, [
+    page.getByRole("button", { name: /continue|next|submit|save/i }),
+    page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
+  ], 60_000);
+  if (!clickedContinue) {
+    screenshots.push(await saveScreenshot(page, "egov-residence-continue-disabled", logs));
+    throw new PhEtravelPortalError(
+      "Official eGovPH permanent-residence onboarding did not enable continue after address information was filled.",
+      {
+        code: "ph_etravel_egov_residence_continue_disabled",
+        screenshotPaths: screenshots,
+        portalSummary: text.slice(0, 700),
+      },
+    );
+  }
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
+  text = await bodyText(page);
+  if (/permanent country of residence|please make sure to fill out all required fields/i.test(text)) {
+    screenshots.push(await saveScreenshot(page, "egov-residence-still-required", logs));
+    await saveHtmlSnapshot(page, "egov-residence-still-required", logs);
+    throw new PhEtravelPortalError(
+      "Official eGovPH onboarding still shows required permanent-residence fields after automation clicked Next.",
+      {
+        code: "ph_etravel_egov_residence_required_fields_remaining",
+        screenshotPaths: screenshots,
+        portalSummary: text.slice(0, 700),
+      },
+    );
+  }
+
+  if (/onboarding summary|kindly double check/i.test(text)) {
+    await clickFirstEnabledAvailable(page, [
+      page.getByRole("button", { name: /continue|next|submit|save/i }),
+      page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
+    ], 60_000);
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    text = await bodyText(page);
+  }
+
+  logs.push("ph_etravel_egov_onboarding_residence_submitted");
+  return text;
 }
 
 async function fillMpinInputs(page: Page, mpin: string): Promise<boolean> {
@@ -676,11 +793,15 @@ async function completeEgovPersonalInformationOnboarding(
   screenshots: string[],
 ): Promise<string> {
   let text = await bodyText(page);
+  if (/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
+    return completeEgovPermanentResidenceOnboarding(page, payload, logs, screenshots);
+  }
   if (!/onboarding|personal information|foreign passport holder|first name|citizenship/i.test(text)) {
     return text;
   }
 
   logs.push("ph_etravel_egov_onboarding_personal_information_detected");
+  const uploadedPhoto = await uploadEgovProfilePhoto(page, options.profilePhotoPath, logs);
   await clickFirstAvailable(page, [
     page.getByText(/foreign passport holder/i),
     page.locator("button, label, div").filter({ hasText: /foreign passport holder/i }),
@@ -734,6 +855,7 @@ async function completeEgovPersonalInformationOnboarding(
     !filled.mobile ||
     !filled.passportNumber ||
     !filled.passportIssueDate ||
+    !uploadedPhoto ||
     !choseSex ||
     !choseCitizenship ||
     !choseCountryOfBirth ||
@@ -747,6 +869,7 @@ async function completeEgovPersonalInformationOnboarding(
       choseCountryOfBirth,
       chosePassportIssuingAuthority,
       choseOccupation,
+      uploadedPhoto,
     })}`);
   }
 
@@ -769,7 +892,10 @@ async function completeEgovPersonalInformationOnboarding(
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
   text = await bodyText(page);
-  if (/onboarding|personal information|required|fill out all required fields/i.test(text)) {
+  if (/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
+    text = await completeEgovPermanentResidenceOnboarding(page, payload, logs, screenshots);
+  }
+  if (/personal information|required|fill out all required fields/i.test(text) && /onboarding|personal information/i.test(text)) {
     screenshots.push(await saveScreenshot(page, "egov-onboarding-still-required", logs));
     await saveHtmlSnapshot(page, "egov-onboarding-still-required", logs);
     throw new PhEtravelPortalError(

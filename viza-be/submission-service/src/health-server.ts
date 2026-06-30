@@ -1,4 +1,5 @@
 import * as http from "node:http";
+import { putIndonesiaCardSession } from "./indonesia/card-session.js";
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
 
@@ -85,6 +86,36 @@ async function handleVietnamCardSession(req: http.IncomingMessage, res: http.Ser
   }
 }
 
+async function handleIndonesiaCardSession(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req)) as Record<string, unknown>;
+    const card = body.card && typeof body.card === "object" && !Array.isArray(body.card)
+      ? (body.card as Record<string, unknown>)
+      : {};
+    const session = putIndonesiaCardSession({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      card: {
+        pan: typeof card.pan === "string" ? card.pan : null,
+        expiry: typeof card.expiry === "string" ? card.expiry : null,
+        cvv: typeof card.cvv === "string" ? card.cvv : null,
+        holderName: typeof card.holderName === "string" ? card.holderName : null,
+      },
+    });
+    sendJson(res, 200, { ok: true, ...session });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
@@ -114,8 +145,24 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleVietnamCardSession(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/local/indonesia/card-session") {
+      void handleIndonesiaCardSession(req, res);
+      return;
+    }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {
       if (!envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isLocalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
+    if (req.method === "GET" && url === "/local/indonesia/card-session") {
+      if (!envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) {
         sendJson(res, 404, { error: "not_found" });
         return;
       }
@@ -130,9 +177,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
   });
 
   server.listen(port, () => {
-    const extra = envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)
-      ? ", /local/vietnam/card-session"
-      : "";
+    const endpoints: string[] = [];
+    if (envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/vietnam/card-session");
+    if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
+    const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);
   });
   return server;
