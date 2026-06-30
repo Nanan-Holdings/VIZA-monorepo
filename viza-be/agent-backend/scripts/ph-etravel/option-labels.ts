@@ -6,6 +6,12 @@ export type PhEtravelOptionListKind =
   | "sex"
   | "purpose"
   | "port_of_entry"
+  | "occupation"
+  | "suffix"
+  | "traveller_type"
+  | "destination_type"
+  | "airline"
+  | "flight_number"
   | "yes_no";
 
 export function phEtravelOptionLabelZh(_kind: PhEtravelOptionListKind, option: PhEtravelOption): string {

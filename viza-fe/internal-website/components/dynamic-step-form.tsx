@@ -611,7 +611,11 @@ const TDAC_ACCOMMODATION_VALUE_KEYS = [
   "address_in_thailand",
 ];
 
-const TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS = new Set(TDAC_ACCOMMODATION_VALUE_KEYS);
+const TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS = new Set([
+  "accommodation_type",
+  "province",
+  "address_in_thailand",
+]);
 
 function isSameCalendarDayValue(left?: string, right?: string): boolean {
   const leftDate = parseFlexibleDate(left);

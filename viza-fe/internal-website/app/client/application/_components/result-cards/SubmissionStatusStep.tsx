@@ -104,12 +104,16 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const successful = result.submitted && result.status === "submitted";
   const scheduled = result.status === "scheduled";
   const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
+  const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const hasOfficialPdfDownload =
     result.country === "TH" &&
-    Boolean(result.artifacts?.logs?.some((log) => log.includes("tdac_pdf_downloaded")));
-  const pdfPath = hasOfficialPdfDownload
-    ? result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null
-    : null;
+    Boolean(storedPdfPath) &&
+    Boolean(
+      result.artifacts?.logs?.some((log) =>
+        log.includes("tdac_pdf_downloaded") || log.includes("tdac_confirmation_page_pdf_saved"),
+      ),
+    );
+  const pdfPath = hasOfficialPdfDownload ? storedPdfPath : null;
   const arrivalCardMeta =
     result.country === "MY"
       ? { label: "MDAC", countryParam: "malaysia" }

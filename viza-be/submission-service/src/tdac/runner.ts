@@ -522,6 +522,30 @@ function tdacCountrySearchValue(value: string): string {
   return aliases[normalized] ?? codeMatch?.[0] ?? value.toUpperCase();
 }
 
+function tdacCountrySearchCandidates(value: string): string[] {
+  const primary = tdacCountrySearchValue(value);
+  const normalized = value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+  const candidateMap: Record<string, string[]> = {
+    CHN: ["CHN", "PEOPLE'S REPUBLIC OF CHINA", "CHINA"],
+    CHINA: ["CHN", "PEOPLE'S REPUBLIC OF CHINA", "CHINA"],
+    "PEOPLE S REPUBLIC OF CHINA": ["CHN", "PEOPLE'S REPUBLIC OF CHINA", "CHINA"],
+    SGP: ["SGP", "THE REPUBLIC OF SINGAPORE", "SINGAPORE"],
+    SINGAPORE: ["SGP", "THE REPUBLIC OF SINGAPORE", "SINGAPORE"],
+    THA: ["THA", "THAILAND"],
+    THAILAND: ["THA", "THAILAND"],
+    USA: ["USA", "UNITED STATES OF AMERICA", "UNITED STATES"],
+    "UNITED STATES": ["USA", "UNITED STATES OF AMERICA", "UNITED STATES"],
+    "UNITED STATES OF AMERICA": ["USA", "UNITED STATES OF AMERICA", "UNITED STATES"],
+    MYS: ["MYS", "MALAYSIA"],
+    MALAYSIA: ["MYS", "MALAYSIA"],
+  };
+  return Array.from(new Set([primary, ...(candidateMap[normalized] ?? candidateMap[primary] ?? []), value.toUpperCase()]))
+    .filter(Boolean);
+}
+
 function tdacNationalitySearchValue(value: string): string {
   const normalized = value
     .toUpperCase()
@@ -837,6 +861,41 @@ async function selectOfficialAutocompleteAny(
     optionText,
   );
   logs.push(`tdac_selected_official_any ${label} selector=${selector}`);
+}
+
+async function selectOfficialAutocompleteAnyCandidateValues(
+  page: Page,
+  selectors: string[],
+  values: string[],
+  logs: string[],
+  label: string,
+  allowNoVisibleOptions = false,
+): Promise<void> {
+  let lastError: unknown = null;
+  for (const value of values) {
+    try {
+      await selectOfficialAutocompleteAny(
+        page,
+        selectors,
+        value,
+        logs,
+        label,
+        allowNoVisibleOptions,
+        officialCountryPattern(value),
+      );
+      logs.push(`tdac_selected_official_candidate ${label}=${value}`);
+      return;
+    } catch (error) {
+      lastError = error;
+      logs.push(
+        `tdac_official_candidate_failed ${label}=${value} ${
+          error instanceof Error ? error.message.split("\n")[0] : String(error)
+        }`,
+      );
+    }
+  }
+  if (lastError instanceof Error) throw lastError;
+  throw new Error(`Official TDAC ${label} candidate selection failed.`);
 }
 
 async function clickVisibleOption(
@@ -1404,15 +1463,13 @@ async function fillTdacTripStep(
   const departure = dateParts(payload.departureDate);
   await page.waitForTimeout(2_000);
   await fillMaterialDateInput(page, "input[formcontrolname='arrDate']", arrival.slashDate, logs);
-  const countryBoardedSearch = tdacCountrySearchValue(payload.countryBoarded);
-  await selectOfficialAutocompleteAny(
+  await selectOfficialAutocompleteAnyCandidateValues(
     page,
     ["input[formcontrolname='countryBoarded']", "input[formcontrolname='countryTerritoryBoarded']", "#mat-input-28"],
-    countryBoardedSearch,
+    tdacCountrySearchCandidates(payload.countryBoarded),
     logs,
     "country_boarded",
     false,
-    officialCountryPattern(countryBoardedSearch),
   );
   await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
   if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
@@ -1528,8 +1585,13 @@ async function fillTdacTripStep(
 async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
   await page.waitForTimeout(1_000);
   for (const country of payload.countriesVisitedLast14Days) {
-    const countrySearch = tdacCountrySearchValue(country);
-    await selectAutocompleteAny(page, ["input[matchipinputfor]", "#mat-mdc-chip-list-input-0"], countrySearch, logs, "countries_visited_last_14_days", officialCountryPattern(countrySearch));
+    await selectOfficialAutocompleteAnyCandidateValues(
+      page,
+      ["input[matchipinputfor]", "#mat-mdc-chip-list-input-0"],
+      tdacCountrySearchCandidates(country),
+      logs,
+      "countries_visited_last_14_days",
+    );
   }
   await clickFirstEnabledButton(page, /^Preview$/i, logs);
 }
