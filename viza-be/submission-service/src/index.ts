@@ -118,6 +118,10 @@ import {
   AuAccount,
   VisaApplicationAnswer,
 } from "./types";
+import {
+  readSubmissionQueueConcurrency,
+  runSubmissionQueueBatch,
+} from "./queue-scheduler";
 import type { AuSubmissionResult } from "./submission-result";
 import {
   loadDs160SubmissionConfig,
@@ -6255,6 +6259,104 @@ async function processItem(item: SubmissionQueueItem): Promise<void> {
   }
 }
 
+async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<void> {
+  const item = await normalizeDigitalArrivalCardQueueItem(
+    await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem)),
+  );
+  if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
+    await processDryRunItem(item, "global_dry_run");
+  } else if (isDs160ProofJob(item)) {
+    const ds160Config = loadDs160SubmissionConfig();
+    const liveStartError = validateDs160LiveStart(ds160Config);
+    if (liveStartError) {
+      await supabase
+        .from("submission_queue")
+        .update({
+          status: "ds160_proof_failed",
+          attempts: item.attempts + 1,
+          last_error: liveStartError,
+          error_code: "ds160_proof_config_blocked",
+          error_message: liveStartError,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      return;
+    }
+    await processDs160ProofItem(item, ds160Config);
+  } else if (isDs160Job(item)) {
+    const liveRequested = isDs160LiveAssistedQueueItem(item);
+    if (!liveRequested) {
+      await processDryRunItem(item, "ds160_default_dry_run");
+      return;
+    }
+
+    const ds160Config = loadDs160SubmissionConfig();
+    if (ds160Config.mode !== "live_assisted") {
+      await processDs160LiveConfigBlockedItem(
+        item,
+        "DS-160 live assisted was requested, but DS160_SUBMISSION_MODE is not live_assisted.",
+      );
+      return;
+    }
+
+    const liveStartError = validateDs160LiveStart(ds160Config);
+    if (liveStartError) {
+      await processDs160LiveConfigBlockedItem(item, liveStartError);
+      return;
+    }
+
+    await processDs160Item(item, ds160Config);
+  } else if (isFvJob(item)) {
+    const franceConfig = loadFranceSubmissionConfig();
+    if (!isLiveAssistedQueueItem(item)) {
+      await processDryRunItem(item, "global_dry_run");
+      return;
+    }
+
+    const liveStartError = validateFranceLiveStart(franceConfig);
+    if (liveStartError) {
+      await processFvConfigBlockedItem(item, liveStartError);
+      return;
+    }
+
+    await processFvItem(item, franceConfig);
+  } else if (isUkJob(item)) {
+    await processUkItem(item);
+  } else if (isVnJob(item)) {
+    if (item.status === "vn_payment_pending") {
+      await processVnPaymentItem(item);
+    } else {
+      await processVnItem(item);
+    }
+  } else if (isSgacJob(item)) {
+    const dueItem = await promoteSgacScheduledIfDue(item);
+    if (dueItem) {
+      await processSgacLiveItem(dueItem);
+    }
+  } else if (isMdacJob(item)) {
+    const dueItem = await promoteMdacScheduledIfDue(item);
+    if (dueItem) {
+      await processDigitalArrivalCardLiveItem(dueItem, "MDAC");
+    }
+  } else if (isTdacJob(item)) {
+    const dueItem = await promoteTdacScheduledIfDue(item);
+    if (dueItem) {
+      await processDigitalArrivalCardLiveItem(dueItem, "TDAC");
+    }
+  } else if (isPhEtravelJob(item)) {
+    const dueItem = await promotePhEtravelScheduledIfDue(item);
+    if (dueItem) {
+      await processDigitalArrivalCardLiveItem(dueItem, "PH_ETRAVEL");
+    }
+  } else if (isIndonesiaJob(item)) {
+    await processIndonesiaItem(item);
+  } else if (isAuJob(item)) {
+    await processAuItem(item);
+  } else {
+    await processItem(item);
+  }
+}
+
 async function pollOnce(): Promise<void> {
   console.log("[poll] Checking submission_queue for pending items...");
   const targetJobId = process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim();
@@ -6311,104 +6413,9 @@ async function pollOnce(): Promise<void> {
 
   console.log(`[poll] Found ${items.length} pending item(s).`);
 
-  // Process sequentially to avoid parallel browser sessions overwhelming the host
-  for (const rawItem of items) {
-    const item = await normalizeDigitalArrivalCardQueueItem(
-      await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem)),
-    );
-    if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
-      await processDryRunItem(item, "global_dry_run");
-    } else if (isDs160ProofJob(item)) {
-      const ds160Config = loadDs160SubmissionConfig();
-      const liveStartError = validateDs160LiveStart(ds160Config);
-      if (liveStartError) {
-        await supabase
-          .from("submission_queue")
-          .update({
-            status: "ds160_proof_failed",
-            attempts: item.attempts + 1,
-            last_error: liveStartError,
-            error_code: "ds160_proof_config_blocked",
-            error_message: liveStartError,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", item.id);
-        continue;
-      }
-      await processDs160ProofItem(item, ds160Config);
-    } else if (isDs160Job(item)) {
-      const liveRequested = isDs160LiveAssistedQueueItem(item);
-      if (!liveRequested) {
-        await processDryRunItem(item, "ds160_default_dry_run");
-        continue;
-      }
-
-      const ds160Config = loadDs160SubmissionConfig();
-      if (ds160Config.mode !== "live_assisted") {
-        await processDs160LiveConfigBlockedItem(
-          item,
-          "DS-160 live assisted was requested, but DS160_SUBMISSION_MODE is not live_assisted.",
-        );
-        continue;
-      }
-
-      const liveStartError = validateDs160LiveStart(ds160Config);
-      if (liveStartError) {
-        await processDs160LiveConfigBlockedItem(item, liveStartError);
-        continue;
-      }
-
-      await processDs160Item(item, ds160Config);
-    } else if (isFvJob(item)) {
-      const franceConfig = loadFranceSubmissionConfig();
-      if (!isLiveAssistedQueueItem(item)) {
-        await processDryRunItem(item, "global_dry_run");
-        continue;
-      }
-
-      const liveStartError = validateFranceLiveStart(franceConfig);
-      if (liveStartError) {
-        await processFvConfigBlockedItem(item, liveStartError);
-        continue;
-      }
-
-      await processFvItem(item, franceConfig);
-    } else if (isUkJob(item)) {
-      await processUkItem(item);
-    } else if (isVnJob(item)) {
-      if (item.status === "vn_payment_pending") {
-        await processVnPaymentItem(item);
-      } else {
-        await processVnItem(item);
-      }
-    } else if (isSgacJob(item)) {
-      const dueItem = await promoteSgacScheduledIfDue(item);
-      if (dueItem) {
-        await processSgacLiveItem(dueItem);
-      }
-    } else if (isMdacJob(item)) {
-      const dueItem = await promoteMdacScheduledIfDue(item);
-      if (dueItem) {
-        await processDigitalArrivalCardLiveItem(dueItem, "MDAC");
-      }
-    } else if (isTdacJob(item)) {
-      const dueItem = await promoteTdacScheduledIfDue(item);
-      if (dueItem) {
-        await processDigitalArrivalCardLiveItem(dueItem, "TDAC");
-      }
-    } else if (isPhEtravelJob(item)) {
-      const dueItem = await promotePhEtravelScheduledIfDue(item);
-      if (dueItem) {
-        await processDigitalArrivalCardLiveItem(dueItem, "PH_ETRAVEL");
-      }
-    } else if (isIndonesiaJob(item)) {
-      await processIndonesiaItem(item);
-    } else if (isAuJob(item)) {
-      await processAuItem(item);
-    } else {
-      await processItem(item);
-    }
-  }
+  const concurrency = targetJobId ? 1 : readSubmissionQueueConcurrency(process.env);
+  console.log(`[poll] Processing pending item(s) with concurrency=${concurrency}.`);
+  await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
 
   if (!targetJobId) {
     await markStaleQueueItemsTimedOut();

@@ -295,7 +295,7 @@ export async function runIndonesiaLiveSubmission(
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
       message:
-        `${normalized.provider} reached Indonesia official portal state ${probe.state} at ${probe.url}.`,
+        `${normalized.provider} reached Indonesia official portal state ${probe.state} at ${probe.url}. Diagnostics: ${probe.diagnostics.slice(-8).join("; ") || "none"}.`,
     };
   }
 
