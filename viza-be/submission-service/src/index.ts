@@ -77,7 +77,11 @@ import {
   NormalizationError,
   type NormalizeInput,
 } from "./france-visas";
-import { ensureApplicantInboxAlias } from "./inbox/alias";
+import {
+  ensureApplicantInboxAlias,
+  ensureApplicantInboxAliasForDomain,
+  generateApplicantInboxAlias,
+} from "./inbox/alias";
 import { createSupabaseMailboxProvider } from "./france-visas/mailbox-provider";
 import {
   startUkSession,
@@ -3717,6 +3721,75 @@ async function createVietnamManualAction(
   }
 }
 
+const DEFAULT_INDONESIA_ALIAS_DOMAIN = "haggstorm.com";
+
+function parseAliasDomain(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+  const at = normalized.lastIndexOf("@");
+  if (at < 0 || at === normalized.length - 1) return null;
+  return normalized.slice(at + 1);
+}
+
+function normalizeAliasDomain(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^\./, "")
+    .replace(/^@/, "");
+}
+
+function parseIndonesiaManagedAliasDomains(currentDomain: string | null): string[] {
+  const domains: string[] = [];
+  const envValue = process.env.INDONESIA_MANAGED_ALIAS_DOMAINS;
+  const legacyValue = process.env.INDONESIA_MANAGED_ALIAS_DOMAIN;
+
+  const collect = (value: string | undefined) => {
+    if (!value) return;
+    value
+      .split(/[,\s;|]+/)
+      .map((domain) => normalizeAliasDomain(domain))
+      .filter(Boolean)
+      .forEach((domain) => {
+        if (!domains.includes(domain)) {
+          domains.push(domain);
+        }
+      });
+  };
+
+  collect(envValue);
+  if (domains.length === 0) {
+    collect(legacyValue);
+  }
+  if (domains.length === 0) {
+    domains.push(DEFAULT_INDONESIA_ALIAS_DOMAIN);
+  }
+
+  const normalizedCurrent = normalizeAliasDomain(currentDomain ?? "");
+  if (normalizedCurrent && !domains.includes(normalizedCurrent)) {
+    domains.unshift(normalizedCurrent);
+  }
+  return domains;
+}
+
+function isManagedIndonesiaAliasEmail(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return /^appl-[0-9a-z]{26}@/.test(normalized);
+}
+
+function shouldRotateIndonesiaAlias(result: { status?: string; actionType?: string | null; message?: string; actionInstructions?: string | null }, managedEmail: string): boolean {
+  if (!managedEmail || !isManagedIndonesiaAliasEmail(managedEmail)) return false;
+  if (result.status !== "action_required") return false;
+  if (result.actionType !== "official_account_registration_form_reached") return false;
+  const haystack = `${result.actionType ?? ""} ${result.message ?? ""} ${result.actionInstructions ?? ""}`.toLowerCase();
+  return (
+    /indonesia_account_email_verification_not_found_yet/.test(haystack) ||
+    /silahkan\s+periksa\s+kembali\s+email/.test(haystack) ||
+    /check\s+your\s+email/.test(haystack) ||
+    /indonesia_account_registration_errors/.test(haystack)
+  );
+}
+
 function generatePhEtravelMpin(): string {
   const value = randomBytes(4).readUInt32BE(0) % 1_000_000;
   return value.toString().padStart(6, "0");
@@ -6069,9 +6142,22 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   await setSubmissionStatus(item.application_id, "processing");
 
   try {
+    const vaultOpts = {
+      actor: "submission-service:indonesia",
+      correlationId: item.id,
+    };
     const { profile, application, documents } = await loadApplicantData(item.application_id);
     const answers = await loadDs160Answers(item.application_id);
-    const alias = await ensureApplicantInboxAlias(profile.id);
+    const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
+    const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
+    const preparedPortalAccount =
+      Boolean(managedVaultEmail) &&
+      Boolean(managedVaultPassword) &&
+      !managedVaultEmail?.match(/^appl-/i);
+
+    const existingAliasDomain = parseAliasDomain(managedVaultEmail);
+    const aliasDomains = parseIndonesiaManagedAliasDomains(existingAliasDomain);
+
     const reusableDocuments = await loadReusableApplicantDocuments(
       profile.id,
       item.application_id,
@@ -6099,61 +6185,122 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       /passport_bio_page/i,
       /passport_copy/i,
     ]);
-    const vaultOpts = {
-      actor: "submission-service:indonesia",
-      correlationId: item.id,
-    };
-    const existingPortalPassword = await applicantVault.get(
-      profile.id,
-      "indonesia.portal.password",
-      vaultOpts,
-    );
-    const portalPassword = existingPortalPassword ?? generateFvPortalPassword();
-    if (!existingPortalPassword) {
-      await applicantVault.set(profile.id, "indonesia.portal.password", portalPassword, {
+    const vaultPortalPassword = managedVaultPassword ?? generateFvPortalPassword();
+    if (!managedVaultPassword) {
+      await applicantVault.set(profile.id, "indonesia.portal.password", vaultPortalPassword, {
         ...vaultOpts,
         note: "VIZA-managed Indonesia eVisa portal password",
       });
     }
-    await applicantVault.set(profile.id, "indonesia.portal.email", alias.alias, {
-      ...vaultOpts,
-      note: "VIZA-managed Indonesia eVisa portal alias email",
-    });
-    const visaType = isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST";
-    const result = await runIndonesiaLiveSubmission({
+
+    let result: GenericSubmissionResult = {
+      country: "GENERIC",
+      targetCountry: "ID",
+      visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
+      status: "action_required",
+      mode: "live_assisted",
       applicationId: item.application_id,
-      visaType: application.visa_type || visaType,
-      answers: {
-        ...answers,
-        email: alias.alias,
-        email_address: alias.alias,
-      },
-      managedAccountAvailable: true,
-      managedAccountEmail: alias.alias,
-      managedAccountPassword: portalPassword,
-      applicantId: profile.id,
-      passportImagePath,
-      photoImagePath,
-      returnTicketPath,
-      passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
-        ? passportSupportPath
-        : undefined,
-      profile: {
-        fullName: profile.full_name,
-        gender: profile.gender,
-        dateOfBirth: profile.date_of_birth,
-        placeOfBirth: profile.place_of_birth,
-        nationality: profile.nationality,
-        passportNumber: profile.passport_number,
-        passportIssueDate: profile.passport_issue_date,
-        passportExpiryDate: profile.passport_expiry_date,
-        passportIssuingCountry: profile.issuing_country,
-        passportIssuingAuthority: profile.issuing_authority,
-        phone: profile.phone,
-      },
-      probeOfficialPortal: true,
-      portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
-    });
+      actionType: "live_portal_recon_required",
+      actionInstructions: "Preparing Indonesia managed account before portal recon.",
+      implementationStatus: "partial",
+      message: "Indonesia managed account prep not started.",
+    };
+
+    if (preparedPortalAccount) {
+      const existingPortalEmail = managedVaultEmail!;
+      result = await runIndonesiaLiveSubmission({
+        applicationId: item.application_id,
+        visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+        answers: {
+          ...answers,
+          email: existingPortalEmail,
+          email_address: existingPortalEmail,
+        },
+        managedAccountAvailable: true,
+        managedAccountEmail: existingPortalEmail,
+        managedAccountPassword: vaultPortalPassword,
+        applicantId: profile.id,
+        passportImagePath,
+        photoImagePath,
+        returnTicketPath,
+        passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
+          ? passportSupportPath
+          : undefined,
+        profile: {
+          fullName: profile.full_name,
+          gender: profile.gender,
+          dateOfBirth: profile.date_of_birth,
+          placeOfBirth: profile.place_of_birth,
+          nationality: profile.nationality,
+          passportNumber: profile.passport_number,
+          passportIssueDate: profile.passport_issue_date,
+          passportExpiryDate: profile.passport_expiry_date,
+          passportIssuingCountry: profile.issuing_country,
+          passportIssuingAuthority: profile.issuing_authority,
+          phone: profile.phone,
+        },
+        probeOfficialPortal: true,
+        portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
+      });
+    } else {
+      for (let attempt = 0; attempt < aliasDomains.length; attempt += 1) {
+        const alias = await ensureApplicantInboxAliasForDomain(profile.id, aliasDomains[attempt], supabase);
+        const managedAliasEmail = alias.alias;
+
+        await applicantVault.set(profile.id, "indonesia.portal.email", managedAliasEmail, {
+          ...vaultOpts,
+          note: "VIZA-managed Indonesia eVisa portal alias email",
+        });
+
+        result = await runIndonesiaLiveSubmission({
+          applicationId: item.application_id,
+          visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
+          answers: {
+            ...answers,
+            email: managedAliasEmail,
+            email_address: managedAliasEmail,
+          },
+          managedAccountAvailable: true,
+          managedAccountEmail: managedAliasEmail,
+          managedAccountPassword: vaultPortalPassword,
+          applicantId: profile.id,
+          passportImagePath,
+          photoImagePath,
+          returnTicketPath,
+          passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
+            ? passportSupportPath
+            : undefined,
+          profile: {
+            fullName: profile.full_name,
+            gender: profile.gender,
+            dateOfBirth: profile.date_of_birth,
+            placeOfBirth: profile.place_of_birth,
+            nationality: profile.nationality,
+            passportNumber: profile.passport_number,
+            passportIssueDate: profile.passport_issue_date,
+            passportExpiryDate: profile.passport_expiry_date,
+            passportIssuingCountry: profile.issuing_country,
+            passportIssuingAuthority: profile.issuing_authority,
+            phone: profile.phone,
+          },
+          probeOfficialPortal: true,
+          portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
+        });
+
+        if (
+          result.status === "action_required" &&
+          result.implementationStatus === "partial" &&
+          shouldRotateIndonesiaAlias(result, managedAliasEmail) &&
+          attempt + 1 < aliasDomains.length
+        ) {
+          console.log(
+            `[indonesia] ${provider} email check failed for ${redactIdentifier(managedAliasEmail)}; rotating domain`,
+          );
+          continue;
+        }
+        break;
+      }
+    }
 
     const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";
     await writeSubmissionResult(item.application_id, result, resultStatus);
