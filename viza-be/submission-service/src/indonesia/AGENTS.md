@@ -20,3 +20,7 @@ Directorate General of Immigration eVisa portal.
   portal gates, or official portal layout drift. Do not fabricate a submitted
   status.
 - Preserve screenshots/PDF/evidence artifacts outside Git.
+- `card-session.ts` owns the local-only one-time card handoff for Indonesia
+  official-fee payment continuation. It must stay in process memory, consume
+  PAN/CVV once, return only redacted metadata, and never persist card data to
+  DB, logs, traces, env files, or applicant vault records.

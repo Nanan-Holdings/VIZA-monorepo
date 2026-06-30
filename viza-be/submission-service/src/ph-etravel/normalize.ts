@@ -23,6 +23,7 @@ export interface PhEtravelPortalPayload {
   nationality: string;
   countryOfBirth: string;
   countryOfResidence: string;
+  residenceAddress: string | null;
   occupation: string;
   dateOfBirth: string;
   sex: string;
@@ -165,6 +166,13 @@ export function normalizePhEtravelPortalPayload(
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "nationality", missing),
     countryOfBirth: requireFirstText([answers.country_of_birth], "country_of_birth", missing),
     countryOfResidence: requireFirstText([answers.country_of_residence], "country_of_residence", missing),
+    residenceAddress: firstText([
+      answers.residential_address,
+      answers.home_address,
+      answers.home_address_line1,
+      answers.address,
+      payload.personal.address,
+    ]) || null,
     occupation: requireFirstText([answers.occupation, payload.personal.occupation], "occupation", missing),
     dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "date_of_birth", missing),
     sex: requireFirstText([answers.sex, payload.personal.gender], "sex", missing),

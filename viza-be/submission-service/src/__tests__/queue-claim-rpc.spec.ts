@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { claimPendingSubmissionQueueItems } from "../submission-queue-claim";
+import {
+  claimPendingSubmissionQueueItems,
+  isSubmissionQueueClaimRpcUnavailableError,
+} from "../submission-queue-claim";
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..", "..");
 const migrationPath = path.join(
@@ -72,4 +75,27 @@ test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and le
     p_target_job_id: null,
     p_max_attempts: 3,
   });
+});
+
+test("isSubmissionQueueClaimRpcUnavailableError recognizes schema-cache and missing-function errors", () => {
+  assert.equal(
+    isSubmissionQueueClaimRpcUnavailableError(
+      new Error("Could not find the function public.claim_submission_queue_batch in the schema cache"),
+    ),
+    true,
+  );
+  assert.equal(
+    isSubmissionQueueClaimRpcUnavailableError({
+      code: "PGRST202",
+      message: "Could not find the function claim_submission_queue_batch",
+    }),
+    true,
+  );
+  assert.equal(
+    isSubmissionQueueClaimRpcUnavailableError(
+      new Error("function public.claim_submission_queue_batch(text, integer) does not exist"),
+    ),
+    true,
+  );
+  assert.equal(isSubmissionQueueClaimRpcUnavailableError(new Error("permission denied")), false);
 });

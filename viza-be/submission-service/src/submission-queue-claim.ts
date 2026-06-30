@@ -9,6 +9,7 @@ export interface SubmissionQueueClaimOptions {
 }
 
 interface RpcError {
+  code?: string;
   message: string;
 }
 
@@ -42,6 +43,21 @@ export async function claimPendingSubmissionQueueItems(
   }
 
   return (Array.isArray(data) ? data : []) as SubmissionQueueItem[];
+}
+
+export function isSubmissionQueueClaimRpcUnavailableError(error: unknown): boolean {
+  const maybeRecord = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const code = typeof maybeRecord.code === "string" ? maybeRecord.code : "";
+  const message = error instanceof Error ? error.message : String(maybeRecord.message ?? error);
+
+  return (
+    code === "PGRST202" ||
+    /claim_submission_queue_batch/i.test(message) &&
+      (/schema cache/i.test(message) ||
+        /could not find/i.test(message) ||
+        /does not exist/i.test(message) ||
+        /unknown function/i.test(message))
+  );
 }
 
 export function claimBatchLimitForConcurrency(concurrency: number): number {

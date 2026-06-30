@@ -125,6 +125,7 @@ import {
 import {
   claimBatchLimitForConcurrency,
   claimPendingSubmissionQueueItems,
+  isSubmissionQueueClaimRpcUnavailableError,
 } from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
 import {
@@ -324,7 +325,7 @@ async function fetchPendingItems(input: {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!/claim_submission_queue_batch|schema cache|could not find the function/i.test(message)) {
+    if (!isSubmissionQueueClaimRpcUnavailableError(error)) {
       throw error;
     }
     console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
@@ -1145,6 +1146,55 @@ function firstLocalDocumentPathMatching(
   const nonPdfMatch = matches.find(([, localPath]) => !/\.pdf$/i.test(localPath));
   if (nonPdfMatch) return nonPdfMatch[1];
   return matches[0]?.[1];
+}
+
+async function downloadLatestUserPhotoDocument(
+  authUserId: string | null | undefined,
+  tempDir: string,
+): Promise<string | undefined> {
+  if (!authUserId) return undefined;
+
+  const { data: folders, error: folderError } = await supabase.storage
+    .from("application-documents")
+    .list(authUserId, { limit: 100 });
+  if (folderError) {
+    console.warn(`[phetravel] Could not list user photo folders: ${folderError.message}`);
+    return undefined;
+  }
+
+  const candidates: Array<{ path: string; createdAt: string }> = [];
+  for (const folder of folders ?? []) {
+    if (folder.metadata?.size) continue;
+    const { data: files, error: fileError } = await supabase.storage
+      .from("application-documents")
+      .list(`${authUserId}/${folder.name}/photo`, { limit: 20 });
+    if (fileError) continue;
+    for (const file of files ?? []) {
+      if (!/\.(?:jpe?g|png|webp)$/i.test(file.name)) continue;
+      candidates.push({
+        path: `${authUserId}/${folder.name}/photo/${file.name}`,
+        createdAt: file.created_at ?? file.updated_at ?? "",
+      });
+    }
+  }
+
+  candidates.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  const latest = candidates[0];
+  if (!latest) return undefined;
+
+  const { data, error } = await supabase.storage
+    .from("application-documents")
+    .download(latest.path);
+  if (error || !data) {
+    console.warn(`[phetravel] Could not download reusable user photo: ${error?.message}`);
+    return undefined;
+  }
+
+  const ext = path.extname(latest.path) || ".jpg";
+  const localPath = path.join(tempDir, `ph-etravel-profile-photo${ext}`);
+  fs.writeFileSync(localPath, Buffer.from(await data.arrayBuffer()));
+  console.log("[phetravel] Reusing latest user photo for eGovPH profile onboarding.");
+  return localPath;
 }
 
 // ─── Playwright form filler ──────────────────────────────────────────────────
@@ -2840,7 +2890,7 @@ async function processFvItem(
 
   try {
     await writeFvStage("loading_application_data");
-    const { profile, application } = await loadApplicantData(item.application_id);
+    const { profile, application, documents } = await loadApplicantData(item.application_id);
     await writeFvStage("loading_answers");
     const rawAnswers = await loadRawAnswers(item.application_id);
     const answerMap = buildAnswerMap(rawAnswers);
@@ -5780,7 +5830,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
   }
 
   try {
-    const { profile, application } = await loadApplicantData(item.application_id);
+    const { profile, application, documents } = await loadApplicantData(item.application_id);
     artifactOwnerId = profile.auth_user_id ?? null;
     const countryMatches = isMdac
       ? MALAYSIA_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country))
@@ -5816,6 +5866,26 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         missingFields: validation.missingRequiredFields,
       });
       return;
+    }
+
+    let phProfilePhotoPath: string | undefined;
+    if (!isMdac && !isTdac) {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-ph-etravel-docs-${item.application_id}-`));
+      const reusableDocuments = await loadReusableApplicantDocuments(
+        profile.id,
+        item.application_id,
+        documents,
+      );
+      const localDocPaths = await downloadDocuments(reusableDocuments, tempDir);
+      phProfilePhotoPath = firstLocalDocumentPathMatching(localDocPaths, [
+        /(^|_)(photo|portrait|visa_photo|applicant_photo|personal_photo)(_|$)/i,
+        /passport.*photo/i,
+      ]);
+      if (phProfilePhotoPath) {
+        console.log("[phetravel] Using application photo for eGovPH profile onboarding.");
+      } else {
+        phProfilePhotoPath = await downloadLatestUserPhotoDocument(profile.auth_user_id, tempDir);
+      }
     }
 
     await supabase
@@ -5870,6 +5940,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
             headless: process.env.PH_ETRAVEL_PLAYWRIGHT_HEADLESS !== "false",
             stopBeforeSubmit: process.env.PH_ETRAVEL_STOP_BEFORE_SUBMIT === "1",
             applicantId: profile.id,
+            profilePhotoPath: phProfilePhotoPath,
             officialAccountEmail: phAccountPlan?.email,
             officialAccountPassword: phAccountPlan?.password,
             officialAccountMpin: phAccountPlan?.mpin,
