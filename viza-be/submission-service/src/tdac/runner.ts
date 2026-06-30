@@ -492,6 +492,21 @@ function tdacOfficialOptionSearchValue(value: string): string {
     .toUpperCase();
 }
 
+const TDAC_CHINA_CITY_TO_PROVINCE_ALIASES: Record<string, string> = {
+  CHANGSHA: "HUNAN",
+};
+
+function resolveTdacResidenceCityForCountry(residenceCountry: string, residenceCity: string): string {
+  const normalizedCity = tdacOfficialOptionSearchValue(residenceCity);
+  if (!normalizedCity) return residenceCity;
+  const normalizedCountry = residenceCountry.trim().toUpperCase();
+  if (normalizedCountry === "CHINA" || normalizedCountry === "CHN") {
+    const alias = TDAC_CHINA_CITY_TO_PROVINCE_ALIASES[normalizeTdacDropdownText(normalizedCity)];
+    return alias ?? normalizedCity;
+  }
+  return normalizedCity;
+}
+
 function tdacGenderLabel(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (normalized.startsWith("f")) return "FEMALE";
@@ -752,15 +767,14 @@ async function clickVisibleOption(
   timeoutMs = 20_000,
 ): Promise<void> {
   const startedAt = Date.now();
-  const matches = (text: string): boolean => (typeof optionText === "string"
-    ? text.includes(optionText)
-    : optionText.test(text));
+  const matches = (text: string): boolean => tdacOptionMatches(optionText, text);
   let visibleOptions: string[] = [];
+  let optionCount = 0;
   while (Date.now() - startedAt < timeoutMs) {
     const options = page.locator("mat-option, .mat-mdc-option, [role='option']");
-    const count = await options.count().catch(() => 0);
+    optionCount = await options.count().catch(() => 0);
     visibleOptions = [];
-    for (let index = 0; index < count; index += 1) {
+    for (let index = 0; index < optionCount; index += 1) {
       const option = options.nth(index);
       if (!(await option.isVisible().catch(() => false))) continue;
       const text = (await option.innerText().catch(() => "")).replace(/\s+/g, " ").trim();
@@ -773,7 +787,7 @@ async function clickVisibleOption(
     }
     await page.waitForTimeout(250);
   }
-  throw new Error(`TDAC dropdown option not found for ${label}: ${optionText}; visibleOptions=${JSON.stringify(visibleOptions.slice(0, 40))}`);
+  throw new Error(`TDAC dropdown option not found for ${label}: ${optionText}; optionCount=${optionCount}; visibleOptions=${JSON.stringify(visibleOptions.slice(0, 40))}`);
 }
 
 async function selectMatSelect(
@@ -1267,7 +1281,7 @@ async function fillTdacPersonalStep(
   }
   const residenceCountrySearch = tdacCountrySearchValue(payload.residenceCountry);
   await selectOfficialAutocompleteAny(page, ["input[formcontrolname='countryOfResidence']", "input[formcontrolname='residenceCountry']", "#mat-input-26"], residenceCountrySearch, logs, "residence_country", officialCountryPattern(residenceCountrySearch));
-  const residenceRegionSearch = tdacOfficialOptionSearchValue(payload.residenceCity);
+  const residenceRegionSearch = resolveTdacResidenceCityForCountry(residenceCountrySearch, payload.residenceCity);
   await selectOfficialAutocompleteAny(
     page,
     ["input[formcontrolname='cityStateOfResidence']", "input[formcontrolname='residenceCity']", "#mat-input-27"],

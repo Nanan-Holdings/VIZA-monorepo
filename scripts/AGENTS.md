@@ -30,6 +30,9 @@ smoke-test helpers for the VIZA monorepo.
   scripts, env files, logs, or committed files. Use `-SkipVizaMigrations` to
   skip migration apply during local startup or `-RequireVizaMigrations` when
   stale DB metadata must fail fast.
+- `restart-all.ps1`: one-shot emergency restart wrapper that forwards flags to
+  `start-all.ps1` with `-Reset` (stop all matching started processes and start
+  fresh).
 - `start-viza-dev.ps1`: starts the internal website with backend services.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the

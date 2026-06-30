@@ -3801,6 +3801,51 @@ function derivePhEtravelAccountEmail(baseAlias: string): string {
   return `${localPart}-ph${randomBytes(3).toString("hex")}@${domain}`;
 }
 
+const PH_ETRAVEL_RETRYABLE_ACCOUNT_ERROR_CODES = new Set([
+  "ph_etravel_official_account_required",
+  "ph_etravel_official_login_verification_required",
+  "ph_etravel_official_registration_verification_required",
+  "ph_etravel_registration_turnstile_blocked",
+  "ph_etravel_registration_otp_continue_disabled",
+  "ph_etravel_otp_continue_disabled",
+]);
+
+function isRetryablePhEtravelPortalError(error: unknown): error is PhEtravelPortalError {
+  if (!(error instanceof PhEtravelPortalError)) return false;
+  return PH_ETRAVEL_RETRYABLE_ACCOUNT_ERROR_CODES.has(error.code);
+}
+
+async function loadOrCreatePhEtravelAccountPlan(input: {
+  applicantId: string;
+  forceCreateNew?: boolean;
+  existingAccount?: ReturnType<typeof loadPhEtravelAccount> extends Promise<infer T> ? T : never;
+}): Promise<ReturnType<typeof choosePhEtravelAccountPlan>> {
+  const alias = await ensureApplicantInboxAlias(input.applicantId);
+  const aliasEmail = derivePhEtravelAccountEmail(alias.alias);
+  const generatedPassword = `VizaPH-${randomBytes(9).toString("base64url")}9!`;
+  const generatedMpin = generatePhEtravelMpin();
+
+  return choosePhEtravelAccountPlan({
+    existingAccount: input.forceCreateNew ? null : input.existingAccount,
+    aliasEmail,
+    generatedPassword,
+    generatedMpin,
+  });
+}
+
+async function markPhEtravelPlanFailed(input: {
+  applicantId: string;
+  plan: ReturnType<typeof choosePhEtravelAccountPlan>;
+}): Promise<void> {
+  await upsertPhEtravelAccount({
+    applicantId: input.applicantId,
+    email: input.plan.email,
+    password: input.plan.password,
+    mpin: input.plan.mpin,
+    status: "failed",
+  });
+}
+
 type VnOfficialFeeIntentRow = {
   id: string;
   user_id: string;
@@ -5972,15 +6017,26 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       .eq("id", item.id);
 
     let phAccountPlan: ReturnType<typeof choosePhEtravelAccountPlan> | null = null;
-    if (!isMdac && !isTdac) {
-      const existingPhAccount = await loadPhEtravelAccount(profile.id);
-      const alias = existingPhAccount?.mpin ? null : await ensureApplicantInboxAlias(profile.id);
-      phAccountPlan = choosePhEtravelAccountPlan({
-        existingAccount: existingPhAccount,
-        aliasEmail: alias ? derivePhEtravelAccountEmail(alias.alias) : "",
-        generatedPassword: `VizaPH-${randomBytes(9).toString("base64url")}9!`,
-        generatedMpin: generatePhEtravelMpin(),
+    let portalResult: typeof resultMdac | typeof resultTdac | typeof resultPh;
+    if (isMdac) {
+      const resultMdac = await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
+        headless: process.env.MDAC_PLAYWRIGHT_HEADLESS !== "false",
+        stopBeforeSubmit: process.env.MDAC_STOP_BEFORE_SUBMIT === "1",
       });
+      portalResult = resultMdac;
+    } else if (isTdac) {
+      const resultTdac = await runTdacPortalSubmission(normalizeTdacPortalPayload(payload), {
+        headless: process.env.TDAC_PLAYWRIGHT_HEADLESS !== "false",
+        stopBeforeSubmit: process.env.TDAC_STOP_BEFORE_SUBMIT === "1",
+      });
+      portalResult = resultTdac;
+    } else {
+      const existingPhAccount = await loadPhEtravelAccount(profile.id);
+      phAccountPlan = await loadOrCreatePhEtravelAccountPlan({
+        applicantId: profile.id,
+        existingAccount: existingPhAccount,
+      });
+
       if (phAccountPlan.mode === "create_new") {
         await upsertPhEtravelAccount({
           applicantId: profile.id,
@@ -5997,39 +6053,58 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
-    }
 
-    const portalResult = isMdac
-      ? await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
-          headless: process.env.MDAC_PLAYWRIGHT_HEADLESS !== "false",
-          stopBeforeSubmit: process.env.MDAC_STOP_BEFORE_SUBMIT === "1",
-        })
-      : isTdac
-        ? await runTdacPortalSubmission(normalizeTdacPortalPayload(payload), {
-            headless: process.env.TDAC_PLAYWRIGHT_HEADLESS !== "false",
-            stopBeforeSubmit: process.env.TDAC_STOP_BEFORE_SUBMIT === "1",
-          })
-        : await runPhEtravelPortalSubmission(normalizePhEtravelPortalPayload(payload), {
+      let phAttempts = 0;
+      let resultPh: Awaited<ReturnType<typeof runPhEtravelPortalSubmission>>;
+      while (true) {
+        try {
+          resultPh = await runPhEtravelPortalSubmission(normalizePhEtravelPortalPayload(payload), {
             headless: process.env.PH_ETRAVEL_PLAYWRIGHT_HEADLESS !== "false",
             stopBeforeSubmit: process.env.PH_ETRAVEL_STOP_BEFORE_SUBMIT === "1",
             applicantId: profile.id,
             profilePhotoPath: phProfilePhotoPath,
-            officialAccountEmail: phAccountPlan?.email,
-            officialAccountPassword: phAccountPlan?.password,
-            officialAccountMpin: phAccountPlan?.mpin,
-            forceAccountRegistration: phAccountPlan?.mode === "create_new",
-            mailbox: phAccountPlan
-              ? createPhEtravelMailboxProvider(profile.id, phAccountPlan.email)
-              : undefined,
+            officialAccountEmail: phAccountPlan.email,
+            officialAccountPassword: phAccountPlan.password,
+            officialAccountMpin: phAccountPlan.mpin,
+            forceAccountRegistration: phAccountPlan.mode === "create_new",
+            mailbox: createPhEtravelMailboxProvider(profile.id, phAccountPlan.email),
           });
-
-    if (phAccountPlan) {
+          break;
+        } catch (error) {
+          if (!isRetryablePhEtravelPortalError(error) || phAttempts >= 1) {
+            throw error;
+          }
+          phAttempts += 1;
+          await markPhEtravelPlanFailed({ applicantId: profile.id, plan: phAccountPlan });
+          phAccountPlan = await loadOrCreatePhEtravelAccountPlan({
+            applicantId: profile.id,
+            forceCreateNew: true,
+          });
+          if (phAccountPlan.mode === "create_new") {
+            await upsertPhEtravelAccount({
+              applicantId: profile.id,
+              email: phAccountPlan.email,
+              password: phAccountPlan.password,
+              mpin: phAccountPlan.mpin,
+              status: "pending_registration",
+            });
+          }
+          await supabase
+            .from("submission_queue")
+            .update({
+              official_account_email_encrypted: encryptSecret(phAccountPlan.email),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", item.id);
+        }
+      }
+      portalResult = resultPh!;
       await upsertPhEtravelAccount({
         applicantId: profile.id,
         email: phAccountPlan.email,
         password: phAccountPlan.password,
         mpin: phAccountPlan.mpin,
-        status: portalResult.submitted ? "submitted" : "authenticated",
+        status: resultPh.submitted ? "submitted" : "authenticated",
         lastAuthenticatedAt: new Date().toISOString(),
       });
     }
