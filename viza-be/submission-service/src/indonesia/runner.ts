@@ -450,7 +450,14 @@ async function fillForeignerAccountRegistration(
     diagnostics.push("indonesia_account_registration_missing_credentials_or_profile");
     return false;
   }
-  if (!/\/front\/register\/wna/i.test(page.url())) return false;
+  if (!/\/front\/register\/wna/i.test(page.url())) {
+    const formVisible = await page
+      .locator("#document_travel_id, #attachment, #full_name, #username, #confirm_email")
+      .first()
+      .isVisible({ timeout: 2_000 })
+      .catch(() => false);
+    if (!formVisible) return false;
+  }
 
   const registration = input.registration;
   await selectNativeOptionByText(page, "#document_travel_id", /^Passport$/i).catch(() => undefined);
@@ -734,72 +741,48 @@ export async function probeIndonesiaPortal(
     let text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
     let url = page.url();
     let state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    if (state === "landing_visible") {
-      const applyControl = page
-        .getByRole("link", { name: /^apply$/i })
-        .or(page.getByRole("button", { name: /^apply$/i }))
-        .first();
-      if (await applyControl.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await applyControl.click({ timeout: 10_000 });
-        await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-        await page.waitForTimeout(1500);
-        title = await page.title().catch(() => null);
-        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-        url = page.url();
-        state = classifyIndonesiaPortalSnapshot({ url, title, text });
+    for (let step = 0; step < 10; step += 1) {
+      const beforeUrl = url;
+      const beforeState = state;
+      let advanced = false;
+
+      if (state === "landing_visible") {
+        const applyControl = page
+          .getByRole("link", { name: /^apply$/i })
+          .or(page.getByRole("button", { name: /^apply$/i }))
+          .first();
+        if (await applyControl.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await applyControl.click({ timeout: 10_000 });
+          await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+          await page.waitForTimeout(1500);
+          advanced = true;
+        }
+      } else if (state === "visa_selection_visible" || url.includes("/web/visa-selection")) {
+        await continueFromVisaSelection(page, input, session.diagnostics);
+        advanced = true;
+      } else if (state === "login_required" || state === "registration_required") {
+        advanced = await continueFromAccountGate(page, session.diagnostics);
+      } else if (state === "account_registration_form_visible") {
+        advanced = await fillForeignerAccountRegistration(page, input, session.diagnostics);
+      } else if (/\/step_1\b/i.test(url)) {
+        advanced = await continueFromApplicationStepOne(page, input, session.diagnostics);
+      } else if (/\/step_2\b/i.test(url)) {
+        advanced = await continueFromApplicationStepTwo(page, input, session.diagnostics);
+      } else if (/\/step_3\b/i.test(url)) {
+        advanced = await continueFromApplicationStepThree(page, session.diagnostics);
+      } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
+        advanced = await continueFromApplicationList(page, session.diagnostics);
       }
-    }
-    if (state === "visa_selection_visible" || url.includes("/web/visa-selection")) {
-      await continueFromVisaSelection(page, input, session.diagnostics);
-      title = await page.title().catch(() => null);
-      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-      url = page.url();
-      state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    }
-    if (/\/step_1\b/i.test(url)) {
-      await continueFromApplicationStepOne(page, input, session.diagnostics);
-      title = await page.title().catch(() => null);
-      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-      url = page.url();
-      state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    }
-    if (/\/step_2\b/i.test(url)) {
-      await continueFromApplicationStepTwo(page, input, session.diagnostics);
-      title = await page.title().catch(() => null);
-      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-      url = page.url();
-      state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    }
-    if (/\/step_3\b/i.test(url)) {
-      await continueFromApplicationStepThree(page, session.diagnostics);
-      title = await page.title().catch(() => null);
-      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-      url = page.url();
-      state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    }
-    if (/\/web\/applications\/.+\/list\b/i.test(url)) {
-      await continueFromApplicationList(page, session.diagnostics);
-      title = await page.title().catch(() => null);
-      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-      url = page.url();
-      state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    }
-    if (state === "login_required" || state === "registration_required") {
-      const advanced = await continueFromAccountGate(page, session.diagnostics);
+
       if (advanced) {
         title = await page.title().catch(() => null);
         text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
         url = page.url();
         state = classifyIndonesiaPortalSnapshot({ url, title, text });
       }
-    }
-    if (state === "account_registration_form_visible") {
-      const filled = await fillForeignerAccountRegistration(page, input, session.diagnostics);
-      if (filled) {
-        title = await page.title().catch(() => null);
-        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-        url = page.url();
-        state = classifyIndonesiaPortalSnapshot({ url, title, text });
+
+      if (!advanced || (beforeUrl === url && beforeState === state)) {
+        break;
       }
     }
     const action = actionForIndonesiaPortalState(state);

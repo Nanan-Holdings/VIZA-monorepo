@@ -96,6 +96,20 @@
             "review-before-submit"
           ],
           "content": "Core Schengen evidence includes signed visa application form, passport/travel document valid beyond the planned Schengen exit, photo, travel medical insurance, proof of purpose, itinerary/transport, accommodation or host invitation, evidence of financial means, evidence of intention to return, residence/jurisdiction proof, fee, and biometrics where required. Workflow guardrails: VIZA should determine the competent Schengen state before filling forms. For multi-country trips, compute longest stay or first entry if equal; collect day split and accommodation per country. Do not submit or sign declarations without explicit user confirmation."
+        },
+        {
+          "id": "standard_passport_identity_field_rules",
+          "title": "Standard passport identity-field answer rules",
+          "tags": [
+            "standard-fields",
+            "passport",
+            "issuing-authority",
+            "passport-type",
+            "identity-document",
+            "field-guidance",
+            "official-source"
+          ],
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
         }
       ]
     }

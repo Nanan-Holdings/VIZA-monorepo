@@ -49,6 +49,12 @@ filling and one-shot submission for the applicant.
   button, watching queue pickup/progress in the UI, and preserving the official
   portal trace/screenshot plus DB result evidence. If this browser-click test
   cannot be completed, report the exact blocker.
+- For any official portal blocked by Cloudflare, Turnstile, or a government
+  WAF, follow the local `browser-api-cloudflare-runner` skill first. Prefer a
+  country-specific Browser API/CDP endpoint, then an explicitly allowed global
+  Browser API endpoint, and never silently treat a failed Browser API connection
+  as success. Keep endpoint credentials out of logs and preserve official
+  block/clearance evidence.
 
 ## Key Flows
 
@@ -77,14 +83,16 @@ filling and one-shot submission for the applicant.
 - `src/country-submissions/**`: safe provider registry, schema/dry-run
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.
-- `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC and
-  TDAC can use a configured Browser API/CDP endpoint such as Bright Data
-  Scraping Browser before falling back to local Chromium. PH eTravel defaults
-  away from global Bright Data endpoints because generic zones may block
-  government sites; use `PH_ETRAVEL_BROWSER_API_ENDPOINT`, local
-  `PH_ETRAVEL_CDP_ENDPOINT`, or explicitly set
-  `PH_ETRAVEL_USE_GLOBAL_BROWSER_API=true` after verifying policy access. Never
-  log endpoint credentials.
+- `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC,
+  TDAC, and PH eTravel can use a configured Browser API/CDP endpoint such as
+  Bright Data Scraping Browser before local Chromium. PH eTravel is
+  Cloudflare-protected and now accepts the global `BRIGHTDATA_BROWSER_API_*`
+  endpoint by default when no PH-specific endpoint is configured; when a
+  Browser API endpoint is configured, PH eTravel must not silently fall back to
+  local Chromium on connection failure. Use `PH_ETRAVEL_BROWSER_API_ENDPOINT`
+  for a country-specific endpoint, `PH_ETRAVEL_CDP_ENDPOINT` for an already
+  authorized local session, or `PH_ETRAVEL_REQUIRE_BROWSER_API=false` only when
+  intentionally debugging local fallback. Never log endpoint credentials.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live

@@ -6,6 +6,14 @@ Each file in `countries/*.json` owns one country's visitor/tourism visa knowledg
 
 Every country seed should include exactly one `documentType: "form_requirements"` document. This document is the bridge between RAG and future form automation: it describes the official application channel, the form fields VIZA should collect before filling, the supporting documents/uploads to prepare, and review/submission guardrails.
 
+Each `form_requirements` document should also carry the shared
+`standard_passport_identity_field_rules` chunk. Field-level copilot retrieval
+uses this chunk for standard-answer questions such as passport issuing
+authority, place of issue, passport type, nationality, passport dates, and
+other identity fields where the correct answer must come from the passport,
+official identity document, MRZ, or official dropdown options rather than a
+free-form guess.
+
 ## Ingestion
 
 Run from `viza-be/agent-backend`:

@@ -109,6 +109,7 @@ interface EvalCounters {
 const MARKDOWN_PATTERN = /```|`|\*\*|__|\[[^\]]+\]\([^)]+\)|(^|\s)#{1,6}\s/m;
 const BAD_TEXT_PATTERN = /\bundefined\b|\bnull\b|<script\b|<\/?[a-z][\s\S]*>/i;
 const CONCURRENCY = Number(process.env.FIELD_GUIDANCE_EVAL_CONCURRENCY ?? 16);
+const SYNTHETIC_ONLY = process.env.FIELD_GUIDANCE_EVAL_SYNTHETIC_ONLY === "1";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -294,6 +295,36 @@ function buildPhotoSpecificCases(fields: DbFieldRow[]): EvalCase[] {
       question: "Is this photo field ready?",
     },
   ]);
+}
+
+function buildStandardIdentityFieldCases(): EvalCase[] {
+  const field: DbFieldRow = {
+    id: "synthetic-passport-issuing-authority",
+    visa_type: "B211A",
+    field_name: "passport_issuing_authority",
+    label: "护照签发机关/签发地点",
+    field_type: "text",
+    required: true,
+    step_number: 99,
+    step_name: "Passport",
+    display_order: 2,
+    placeholder: "e.g., Government of Indonesia",
+    validation_rules: { maxLength: 60 },
+    options: null,
+    conditional_logic: null,
+  };
+
+  return [
+    {
+      name: "standard:chinese-passport-issuing-authority-city-question",
+      locale: "zh",
+      field,
+      answer: "",
+      allAnswers: baseAnswers(field, ""),
+      question: "我在重庆拿的护照 该填什么",
+      expectedSeverity: "warning",
+    },
+  ];
 }
 
 function buildInvalidCases(fields: DbFieldRow[]): EvalCase[] {
@@ -585,6 +616,28 @@ function validateResponse(response: GuidanceResponse, testCase: EvalCase, failur
         details: { replyLength, reply: response.reply?.slice(0, 240) },
       });
     }
+
+    if (testCase.name === "standard:chinese-passport-issuing-authority-city-question") {
+      const reply = response.reply ?? "";
+      if (/重庆市公安局|Chongqing Public Security Bureau/i.test(reply)) {
+        failures.push({
+          caseName: testCase.name,
+          visaType: testCase.field.visa_type,
+          fieldName: testCase.field.field_name,
+          message: "Reply incorrectly infers the issuing authority from the pickup city",
+          details: reply.slice(0, 400),
+        });
+      }
+      if (!/护照|passport|Authority|签发机关/.test(reply)) {
+        failures.push({
+          caseName: testCase.name,
+          visaType: testCase.field.visa_type,
+          fieldName: testCase.field.field_name,
+          message: "Reply does not tell the user to use the passport authority text",
+          details: reply.slice(0, 400),
+        });
+      }
+    }
   }
 
   if (!["high", "medium", "low"].includes(response.confidence ?? "")) {
@@ -634,11 +687,15 @@ async function main(): Promise<void> {
     query = query.in("visa_type", selectedVisaTypes);
   }
 
-  const { data, error } = await query;
+  const { data, error } = SYNTHETIC_ONLY
+    ? { data: [], error: null }
+    : await query;
   if (error) throw new Error(`Failed to load visa_form_fields: ${error.message}`);
 
   const dbFields = (data ?? []) as DbFieldRow[];
-  if (dbFields.length === 0) throw new Error("No visa_form_fields rows found for evaluation.");
+  if (dbFields.length === 0 && !SYNTHETIC_ONLY) {
+    throw new Error("No visa_form_fields rows found for evaluation.");
+  }
   const photoFields = buildSyntheticPhotoFields();
   const fields = [...dbFields, ...photoFields];
 
@@ -657,9 +714,10 @@ async function main(): Promise<void> {
 
   const guidanceCases = buildGuidanceCases(fields);
   const invalidCases = buildInvalidCases(fields);
-  const crossFieldCases = buildCrossFieldCases(fields);
+  const crossFieldCases = SYNTHETIC_ONLY ? [] : buildCrossFieldCases(fields);
   const photoCases = buildPhotoSpecificCases(photoFields);
-  const cases = [...guidanceCases, ...invalidCases, ...crossFieldCases, ...photoCases];
+  const standardIdentityCases = buildStandardIdentityFieldCases();
+  const cases = [...guidanceCases, ...invalidCases, ...crossFieldCases, ...photoCases, ...standardIdentityCases];
   counters.guidanceCases = guidanceCases.length;
   counters.invalidCases = invalidCases.length + photoCases.length;
   counters.crossFieldCases = crossFieldCases.length;

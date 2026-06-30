@@ -19,7 +19,16 @@ const DIRECT_OPENAI_MODEL =
   process.env.OPENAI_FIELD_GUIDANCE_MODEL ??
   process.env.OPENAI_CHAT_MODEL ??
   process.env.OPENAI_MODEL ??
-  "gpt-4o-mini";
+  "gpt-5.5";
+
+const STANDARD_IDENTITY_FIELD_CONTEXT = [
+  "Standard identity-field RAG for visa form copilot:",
+  "Passport number, name, date of birth, sex, nationality, passport issue date, passport expiry date, issuing country, issuing authority, place of issue, and passport type are standard-answer fields.",
+  "For these fields, the answer must come from the passport biodata page, MRZ, official document, or the official dropdown options. Do not infer a value from the application country, pickup city, residence city, travel plan, or translation memory.",
+  "For passport issuing authority / issuing authority / 签发机关 / 签发地点字段: first ask the user to check the exact Authority or Issuing authority text printed on the passport. If the user has a Chinese ordinary passport, newer passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, copy that printed text exactly.",
+  "If the user says they obtained the passport in a city such as Chongqing, do not answer that the issuing authority is Chongqing Public Security Bureau unless the passport itself prints that wording. A pickup or application city may be relevant only to a separate place-of-issue field, and even then the passport text controls.",
+  "For passport type / document type, ordinary personal tourist passports are usually Ordinary / Regular / Normal passport. Diplomatic, official, service, special, travel document, refugee, or other should be selected only when the passport or travel document explicitly says so.",
+].join("\n");
 
 type FieldOption = {
   value?: string;
@@ -89,6 +98,51 @@ function normalizeOptions(
 
 function normalizedOptionText(option: { value: string; text: string }): string {
   return `${option.value} ${option.text}`.toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function fieldSearchText(request: FieldGuidanceRequest): string {
+  const field = request.field;
+  return `${field.fieldName} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
+}
+
+function isStandardIdentityField(request: FieldGuidanceRequest): boolean {
+  const searchText = fieldSearchText(request);
+  return [
+    "passport",
+    "travel document",
+    "document type",
+    "document number",
+    "issuing authority",
+    "place of issue",
+    "authority",
+    "nationality",
+    "sex",
+    "gender",
+    "date of birth",
+    "birth date",
+    "surname",
+    "given name",
+    "family name",
+    "签发",
+    "签发机关",
+    "签发地点",
+    "护照",
+    "旅行证件",
+    "国籍",
+    "性别",
+    "出生日期",
+  ].some((needle) => searchText.includes(needle));
+}
+
+function isPassportIssuingAuthorityField(request: FieldGuidanceRequest): boolean {
+  const searchText = fieldSearchText(request);
+  return [
+    "passport_issuing_authority",
+    "issuing authority",
+    "authority",
+    "签发机关",
+    "签发地点",
+  ].some((needle) => searchText.includes(needle));
 }
 
 function explainKnownOption(
@@ -283,6 +337,18 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
   const examples =
     selectedExamples.length > 0
       ? selectedExamples
+      : isPassportIssuingAuthorityField(request)
+        ? locale === "zh"
+          ? [
+              "National Immigration Administration, PRC",
+              "MPS Exit & Entry Administration",
+              "按护照资料页 Authority/签发机关原文填写",
+            ]
+          : [
+              "National Immigration Administration, PRC",
+              "MPS Exit & Entry Administration",
+              "Use the exact Authority wording printed on the passport",
+            ]
       : fieldType === "date" || fieldName.includes("date")
         ? locale === "zh"
           ? ["按页面日期选择器填写，例如 09/03/1996。"]
@@ -320,12 +386,23 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
     guidance: {
       title: locale === "zh" ? `${label} 填写帮助` : `${label} guidance`,
       summary:
-        locale === "zh"
+        isPassportIssuingAuthorityField(request)
+          ? locale === "zh"
+            ? "请按护照资料页上的 Authority/签发机关原文填写，不要根据领取城市或办理城市推断。"
+            : "Copy the Authority or issuing authority exactly as printed on the passport biodata page; do not infer it from the pickup or application city."
+        : locale === "zh"
           ? "AI 暂时不可用，以下是本地填写规则。请先按当前字段、官方选项和证件信息填写。"
           : "AI guidance is temporarily unavailable, so VIZA is showing local rule-based guidance for this field.",
       examples,
       optionExplanations: buildOptionExplanations(request),
       hints: [
+        ...(isStandardIdentityField(request)
+          ? [
+              locale === "zh"
+                ? "这是标准证件字段，请优先照抄护照资料页、机读区或官方下拉选项。"
+                : "This is a standard identity-document field; copy the passport biodata page, MRZ, or official dropdown option where possible.",
+            ]
+          : []),
         locale === "zh"
           ? "中文侧和英文侧会互相同步；如自动生成结果不符合证件，请直接修改另一侧。"
           : "The Chinese and English sides sync with each other. Edit the other side if the generated value does not match your document.",
@@ -340,7 +417,11 @@ function makeFallbackGuidance(request: FieldGuidanceRequest, reason: string): Fi
         : [locale === "zh" ? "当前字段格式可继续核对。" : "This field can be reviewed before continuing."],
     },
     reply: request.question
-      ? locale === "zh"
+      ? isPassportIssuingAuthorityField(request)
+        ? locale === "zh"
+          ? "这个字段不要按办理城市推断。请看护照资料页上的“签发机关/Authority”原文：如果写的是“中华人民共和国国家移民管理局”或 “National Immigration Administration, PRC”，就照这个填写；如果旧护照写的是“公安部出入境管理局”或 “MPS Exit & Entry Administration”，也照护照原文填写。只有单独问“签发地点/Place of issue”且护照上对应位置写重庆时，才填重庆或 CHONGQING。"
+          : "Do not infer this from the city where the passport was collected. Copy the printed Authority or Issuing authority from the passport biodata page. Use Chongqing only for a separate place-of-issue field if the passport itself shows that place."
+      : locale === "zh"
         ? `关于“${label}”：请优先匹配你的护照或官方文件。若该字段是下拉题，选择最接近的官方选项；如果没有合适选项，再使用页面提供的自定义或其他选项。`
         : `For ${label}, match your passport or official document first. If this is a dropdown, choose the closest official option; use the custom or other option only when no option fits.`
       : undefined,
@@ -444,6 +525,9 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     `Current value: ${currentValue}`,
     options ? `Official options:\n${options}` : "Official options: none",
     `Local rules to consider:\n${JSON.stringify(localRules)}`,
+    isStandardIdentityField(request)
+      ? `Standard identity-field RAG:\n${STANDARD_IDENTITY_FIELD_CONTEXT}`
+      : "Standard identity-field RAG: not applicable",
     question ? `User follow-up question: ${question}` : "No follow-up question yet.",
   ].join("\n\n");
 }
@@ -469,8 +553,8 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
         max_output_tokens: 900,
         instructions:
           locale === "zh"
-            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项和用户当前答案提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
-            : "You are the VIZA form field copilot. Use only the current field metadata, official options, and current answer. Do not invent official requirements; when unsure, say to follow the official form and documents. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
+            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准，不得根据领取城市推断签发机关。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
+            : "You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document; never infer an issuing authority from a pickup city. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
         input: buildDirectOpenAiPrompt(request, base),
         text: {
           format: {
