@@ -243,9 +243,14 @@ Backend:
 
 - `field-guidance.routes.ts` builds deterministic fallback guidance from field metadata.
 - It calls `retrieveVisaKnowledge()` when retrieval is enabled.
-- It optionally calls Anthropic when `ANTHROPIC_API_KEY` is available.
+- It optionally calls OpenAI when `OPENAI_API_KEY` is available.
 - It strips Markdown from generated text before returning it.
 - It uses an in-memory cache keyed by visa type, field name, and locale.
+- For standard-answer identity fields such as passport issuing authority,
+  place of issue, passport type, nationality, and passport dates, it injects
+  standard passport-field RAG and must prefer the passport biodata page, MRZ,
+  official identity document, or official dropdown options over free-form
+  inference.
 
 RAG retrieval:
 
@@ -265,6 +270,8 @@ Each country seed should contain:
 - official or authorized source URLs
 - requirements/process chunks
 - exactly one `documentType: "form_requirements"` document
+- the shared `standard_passport_identity_field_rules` chunk inside that
+  `form_requirements` document
 - photo requirements when available, usually through the photo ingestion script
 
 The shared runtime store is:

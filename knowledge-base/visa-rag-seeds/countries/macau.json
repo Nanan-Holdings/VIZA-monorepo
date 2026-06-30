@@ -14,13 +14,25 @@
         {
           "id": "mo_visit_scope",
           "title": "Macau visitor authorization scope",
-          "tags": ["macau", "macao", "visitor", "entry-authorization", "visa"],
+          "tags": [
+            "macau",
+            "macao",
+            "visitor",
+            "entry-authorization",
+            "visa"
+          ],
           "content": "Macau SAR entry rules distinguish visa or prior authorization requirements, visa exemption, and authorization to enter and stay at a checkpoint. Macao Government Tourism Office states that all visitors must hold a passport or valid travel document for travel to Macao and points users to the Macao Immigration Services of the Public Security Police Force for visa and entry permit exemption details. Visitors who are not exempt may need a visa, prior authorization to enter, or authorization upon arrival depending on nationality and circumstances."
         },
         {
           "id": "mo_visit_documents",
           "title": "Macau visitor document basics",
-          "tags": ["macau", "documents", "passport", "funds", "itinerary"],
+          "tags": [
+            "macau",
+            "documents",
+            "passport",
+            "funds",
+            "itinerary"
+          ],
           "content": "Macau visitor intake should collect passport or travel document details, nationality, residence, travel purpose, intended entry date and duration, accommodation or host, itinerary, return or onward travel, financial means, and background declarations. Macao SAR Government Portal guidance notes that passports and travel documents accepted for immigration control should generally be valid for at least 90 days beyond the intended stay in Macao. VIZA should avoid blanket statements because visa exemption and visa-on-arrival treatment depend on nationality."
         }
       ]
@@ -36,13 +48,23 @@
         {
           "id": "mo_visit_application_channels",
           "title": "Macau application and arrival channels",
-          "tags": ["macau", "application", "arrival", "prior-authorization"],
+          "tags": [
+            "macau",
+            "application",
+            "arrival",
+            "prior-authorization"
+          ],
           "content": "Macau SAR Government Portal describes prior authorization to enter and authorization to enter and stay. Persons who are not exempt from visa or prior authorization, and who do not wish to apply for authorization at the checkpoint, may ask a legal agent to apply to the Residence and Stay Affairs Department before travel if no Chinese diplomatic mission or other representative office is available in their residence location. Some travellers may instead obtain authorization to enter and stay at the checkpoint upon arrival."
         },
         {
           "id": "mo_visit_review_guardrails",
           "title": "Macau review guardrails",
-          "tags": ["macau", "review", "guardrails", "public-security-police"],
+          "tags": [
+            "macau",
+            "review",
+            "guardrails",
+            "public-security-police"
+          ],
           "content": "Macau visitor answers should truthfully match the actual travel purpose. Public Security Police Force guidance notes that non-residents with a visa or prior authorization have declared their purpose of entry in the application, and declaring a different non-tourism-equivalent purpose on arrival can affect entry. VIZA should route non-visitor purposes such as work, residence, study, or long-term stay away from MO_VISIT_VISA."
         }
       ]
@@ -58,14 +80,38 @@
         {
           "id": "mo_form_supported_route",
           "title": "Macau supported VIZA form route",
-          "tags": ["macau", "form-requirements", "MO_VISIT_VISA", "application-redirect"],
+          "tags": [
+            "macau",
+            "form-requirements",
+            "MO_VISIT_VISA",
+            "application-redirect"
+          ],
           "content": "VIZA supports Macau Visit Visa as country macau and visaType MO_VISIT_VISA. When the user asks to apply for Macau visitor entry authorization, send an application_redirect block to /client/application?country=macau&visaType=MO_VISIT_VISA. Do not collect detailed application fields inside chat."
         },
         {
           "id": "mo_form_fields_and_documents",
           "title": "Macau fields and document preparation",
-          "tags": ["macau", "field-mapping", "documents", "form-prep"],
+          "tags": [
+            "macau",
+            "field-mapping",
+            "documents",
+            "form-prep"
+          ],
           "content": "The MO_VISIT_VISA form schema collects applicant identity, other names, nationality, passport and other travel documents, marital and contact details, Macau travel purpose, entry date, duration, accommodation, host details, prior Macau visits, refusals, criminal or deportation declarations, and document preparation such as passport bio page, photo, itinerary, accommodation, return ticket, funds, and host evidence where relevant."
+        },
+        {
+          "id": "standard_passport_identity_field_rules",
+          "title": "Standard passport identity-field answer rules",
+          "tags": [
+            "standard-fields",
+            "passport",
+            "issuing-authority",
+            "passport-type",
+            "identity-document",
+            "field-guidance",
+            "official-source"
+          ],
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
         }
       ]
     }
