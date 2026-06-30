@@ -99,6 +99,9 @@ export interface SubmissionQueueItem {
     | "au_prefill_failed"
     | "au_blocked";
   attempts: number;
+  locked_by?: string | null;
+  locked_at?: string | null;
+  locked_until?: string | null;
   mode?: "dry_run" | "live_assisted" | string | null;
   provider?: string | null;
   last_error: string | null;

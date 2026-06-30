@@ -169,9 +169,10 @@ test("runner batch serializes the same application across providers", async () =
   assert.deepEqual(started, ["a", "b"]);
 });
 
-test("readSubmissionQueueConcurrency defaults to two and allows serial fallback", () => {
-  assert.equal(readSubmissionQueueConcurrency({}), 2);
+test("readSubmissionQueueConcurrency defaults to the current local maximum and clamps unsafe values", () => {
+  assert.equal(readSubmissionQueueConcurrency({}), 10);
   assert.equal(readSubmissionQueueConcurrency({ SUBMISSION_SERVICE_MAX_CONCURRENCY: "4" }), 4);
+  assert.equal(readSubmissionQueueConcurrency({ SUBMISSION_SERVICE_MAX_CONCURRENCY: "50" }), 10);
   assert.equal(readSubmissionQueueConcurrency({ SUBMISSION_SERVICE_MAX_CONCURRENCY: "0" }), 1);
   assert.equal(readSubmissionQueueConcurrency({ SUBMISSION_SERVICE_MAX_CONCURRENCY: "nope" }), 1);
 });

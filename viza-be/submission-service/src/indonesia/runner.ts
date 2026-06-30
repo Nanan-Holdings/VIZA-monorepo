@@ -220,14 +220,6 @@ async function clickIfPresent(page: Page, selector: string): Promise<boolean> {
   return true;
 }
 
-async function clickIfAttached(page: Page, selector: string): Promise<boolean> {
-  const control = page.locator(selector).first();
-  if ((await control.count().catch(() => 0)) === 0) return false;
-  await control.click({ timeout: 10_000, force: true }).catch(() => undefined);
-  await page.waitForTimeout(1_500);
-  return true;
-}
-
 async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promise<void> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const swal = page.locator(".swal2-confirm").first();
@@ -321,6 +313,14 @@ async function makeImagePdf(page: Page, imagePath: string | null | undefined, di
 function digitsOnly(value: string | null | undefined): string | null {
   const valueDigits = clean(value)?.replace(/[^\d]/g, "");
   return valueDigits || null;
+}
+
+function officialSafeText(value: string | null | undefined, fallback: string | null = null): string | null {
+  const source = clean(value) ?? fallback;
+  if (!source) return null;
+  const lastCompositePart = source.split("|").map((part) => part.trim()).filter(Boolean).pop() ?? source;
+  const sanitized = lastCompositePart.replace(/[^a-zA-Z0-9., ]+/g, " ").replace(/\s+/g, " ").trim();
+  return sanitized || fallback;
 }
 
 async function setDateValue(page: Page, selector: string, value: string | null | undefined): Promise<boolean> {
@@ -487,22 +487,20 @@ async function fillForeignerAccountRegistration(
   await selectNativeOptionByText(page, "#document_travel_id", /^Passport$/i).catch(() => undefined);
   await setFilesIfPresent(page, "#attachment", registration.passportImagePath);
   await setFilesIfPresent(page, "#initial_file", registration.passportImagePath);
-  await clickIfAttached(page, "a.btn-upload-biodata");
   await waitForHiddenValue(page, "#path_attachment", diagnostics, "indonesia_account_passport_upload");
   await setFilesIfPresent(page, "#picture", registration.photoImagePath);
-  await clickIfAttached(page, "a.btn-upload");
   await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_account_photo_upload");
 
-  await fillIfPresent(page, "#full_name", registration.fullName);
+  await fillIfPresent(page, "#full_name", officialSafeText(registration.fullName));
   const gender = page.locator(genderSelector(registration.gender)).first();
   if (await gender.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await gender.check({ timeout: 5_000 }).catch(() => undefined);
   }
-  await fillIfPresent(page, "#birth_place", registration.birthPlace);
+  await fillIfPresent(page, "#birth_place", officialSafeText(registration.birthPlace));
   await fillIfPresent(page, "#birthday", toIndonesiaDate(registration.dateOfBirth));
   const phoneCountry = normalizeCountryLabel(registration.phoneCodeCountry ?? registration.passportCountry);
   await selectNativeOptionByText(page, "#phone_code", new RegExp(phoneCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).catch(() => undefined);
-  await fillIfPresent(page, "#mobile_phone", registration.mobilePhone);
+  await fillIfPresent(page, "#mobile_phone", digitsOnly(registration.mobilePhone));
   await fillIfPresent(page, "#mother", registration.motherName ?? "UNKNOWN");
   await fillIfPresent(page, "#number", registration.passportNumber);
   await selectNativeOptionByText(
@@ -510,9 +508,11 @@ async function fillForeignerAccountRegistration(
     "#country_id",
     new RegExp(`^${normalizeCountryLabel(registration.passportCountry).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
   ).catch(() => undefined);
+  await page.locator("#number").first().dispatchEvent("blur").catch(() => undefined);
+  await page.waitForTimeout(2_000);
   await fillIfPresent(page, "#release_date", toIndonesiaDate(registration.passportIssueDate));
   await fillIfPresent(page, "#expired_date", toIndonesiaDate(registration.passportExpiryDate));
-  await fillIfPresent(page, "#release_place", registration.passportIssuePlace ?? registration.passportCountry);
+  await fillIfPresent(page, "#release_place", officialSafeText(registration.passportIssuePlace ?? registration.passportCountry, "CHINA"));
   await fillIfPresent(page, "#username", input.accountEmail);
   await fillIfPresent(page, "#confirm_email", input.accountEmail);
   await fillIfPresent(page, "#password", input.accountPassword);

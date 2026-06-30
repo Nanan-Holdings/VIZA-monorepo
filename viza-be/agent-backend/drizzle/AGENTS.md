@@ -91,6 +91,9 @@ The current internal automation migrations are:
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.
+- `0105_submission_queue_claim_locks.sql`: legacy `submission_queue` claim
+  leases and service-role RPC using `FOR UPDATE SKIP LOCKED` for horizontally
+  scaled submission-service workers.
 
 ## Guardrails
 
