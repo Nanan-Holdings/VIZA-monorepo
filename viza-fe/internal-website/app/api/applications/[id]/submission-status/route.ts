@@ -103,6 +103,34 @@ function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   return checkpoint === "payment_page_visible" || actionType === "payment_required";
 }
 
+function isIndonesiaPaymentCheckpointQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const queueStatus = normalizeStatus(queue.status);
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType");
+  return (
+    queueStatus.startsWith("id_c1_payment_") ||
+    queueStatus.startsWith("id_b1_evoa_payment_") ||
+    checkpoint === "payment_page_visible" ||
+    actionType === "official_fee_payment_required"
+  );
+}
+
+function normalizeVisaType(visaType: string | null | undefined): string {
+  return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
+function isIndonesiaB1Evoa(visaType: string | null | undefined): boolean {
+  return normalizeVisaType(visaType) === "ID_B1_EVOA";
+}
+
+function indonesiaProviderForQueue(queue: QueueRow | null, application: ApplicationForStatus): string {
+  if (queue?.provider && queue.provider !== "vietnam_evisa_live") return queue.provider;
+  if (isIndonesiaB1Evoa(application.visa_type)) return "indonesia_b1_evoa_live";
+  return "indonesia_c1_live";
+}
+
 function clampProgress(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -131,14 +159,22 @@ function extractFieldFallbacks(payload: unknown): unknown[] {
 
 function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
   const queueStatus = normalizeStatus(queue?.status);
-  if (!queue || (queueStatus !== "vn_blocked" && !isVietnamPaymentCheckpointQueue(queue))) {
+  const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue);
+  if (
+    !queue ||
+    !(
+      queueStatus === "vn_blocked" ||
+      isVietnamPaymentCheckpointQueue(queue) ||
+      isIndonesiaPayment
+    )
+  ) {
     return null;
   }
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   const actionType =
     typeof payload.actionType === "string" && payload.actionType.trim()
       ? payload.actionType.trim()
-      : isVietnamPaymentCheckpointQueue(queue)
+      : isVietnamPaymentCheckpointQueue(queue) || isIndonesiaPayment
         ? "payment_required"
         : "captcha_required";
   const instruction =
@@ -147,31 +183,46 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       : queue.error_message ??
         queue.last_error ??
         (actionType === "payment_required"
-          ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
-          : "Vietnam official portal needs action before VIZA can continue.");
-  const checkpoint =
-    typeof payload.checkpoint === "string" && payload.checkpoint.trim()
-      ? payload.checkpoint.trim()
-      : queue.current_stage ??
-        (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
-  const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
+        ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+        : "Vietnam official portal needs action before VIZA can continue.");
+    const checkpoint =
+      typeof payload.checkpoint === "string" && payload.checkpoint.trim()
+        ? payload.checkpoint.trim()
+        : queue.current_stage ??
+          (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
+    const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
+  const instructionText = isVietnamPaymentCheckpointQueue(queue)
+    ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+    : isIndonesiaPayment
+      ? "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
+      : "The official portal needs action before VIZA can continue.";
+  const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
-  return {
-    country: "VN",
-    status: actionType === "payment_required" ? "stopped_at_pay" : actionType,
-    mode: "live_assisted",
-    provider: "vietnam_evisa_live",
-    portalUrl: readPayloadString(payload, "url") ?? queue.official_portal_url ?? "https://evisa.gov.vn/e-visa/foreigners",
-    checkpoint,
-    manualAction: {
-      type: actionType,
-      status: "open",
-      instructions: instruction,
-    },
-    paymentStatus: actionType === "payment_required" ? "manual_required" : "not_required",
-    applicationCountry: application.country,
-    applicationVisaType: application.visa_type,
-    evidence,
+    return {
+      country: isIndonesiaPayment ? "ID" : "VN",
+      status: actionType === "payment_required" || actionType === "official_fee_payment_required"
+        ? "stopped_at_pay"
+        : actionType,
+      mode: "live_assisted",
+      provider: isIndonesiaPayment
+        ? indonesiaProviderForQueue(queue, application)
+        : "vietnam_evisa_live",
+      portalUrl:
+        isIndonesiaPayment
+          ? resolvedPortalUrl ?? "https://evisa.imigrasi.go.id"
+          : resolvedPortalUrl ?? "https://evisa.gov.vn/e-visa/foreigners",
+      checkpoint,
+      manualAction: {
+        type: actionType,
+        status: "open",
+        instructions: isIndonesiaPayment ? instructionText : instruction,
+      },
+      paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required"
+        ? "manual_required"
+        : "not_required",
+      applicationCountry: application.country,
+      applicationVisaType: application.visa_type,
+      evidence,
   };
 }
 

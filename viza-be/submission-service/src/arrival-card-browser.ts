@@ -64,7 +64,7 @@ function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
 function requiresRemoteBrowserApi(prefix: ArrivalCardBrowserPrefix, endpoint: string | null): boolean {
   const explicit = process.env[`${prefix}_REQUIRE_BROWSER_API`]?.trim();
   if (explicit) return explicit !== "false";
-  return prefix === "PH_ETRAVEL" && Boolean(endpoint);
+  return (prefix === "PH_ETRAVEL" || prefix === "TDAC") && Boolean(endpoint);
 }
 
 export async function createArrivalCardBrowserSession(options: {
