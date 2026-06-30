@@ -207,6 +207,7 @@ export async function runIndonesiaLiveSubmission(
       status: "action_required",
       mode: "live_assisted",
       applicationId: input.applicationId,
+      portalUrl: normalized.portalUrl,
       actionType: "managed_account_alias_unavailable",
       actionInstructions:
         "VIZA could not prepare a managed Indonesia portal alias email for this applicant. Retry after the applicant profile inbox alias is available.",
@@ -224,6 +225,7 @@ export async function runIndonesiaLiveSubmission(
       status: "action_required",
       mode: "live_assisted",
       applicationId: input.applicationId,
+      portalUrl: normalized.portalUrl,
       actionType: "official_fee_payment_required",
       actionInstructions:
         "VIZA prepared the managed official portal email. Provide an authorized official-fee card session before continuing to the Indonesia portal payment step.",
@@ -291,6 +293,7 @@ export async function runIndonesiaLiveSubmission(
       status: "action_required",
       mode: "live_assisted",
       applicationId: input.applicationId,
+      portalUrl: probe.url,
       actionType: probe.actionType,
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
@@ -306,6 +309,7 @@ export async function runIndonesiaLiveSubmission(
     status: "action_required",
     mode: "live_assisted",
     applicationId: input.applicationId,
+    portalUrl: normalized.portalUrl,
     actionType: "live_portal_recon_required",
     actionInstructions:
       `Continue in ${normalized.portalUrl} with the VIZA-managed account. Stop at 3DS/OTP, unknown payment gateway, or official anti-automation gate.`,

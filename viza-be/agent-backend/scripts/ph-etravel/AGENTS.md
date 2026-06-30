@@ -4,11 +4,13 @@ Scope: Philippines `PH_ETRAVEL_ARRIVAL_CARD` form schema only.
 
 - Keep eTravel separate from `PH_TEMPORARY_VISITOR_VISA`; eTravel is an arrival
   declaration, not a Philippines 9(a) visa.
-- `form-fields.ts` is the official eTravel-aligned DB seed inventory for v1
-  arriving foreign passengers.
+- `form-fields.ts` is the official eTravel-aligned DB seed inventory for
+  arrival-focused traveller, passport, residence, transport, destination,
+  health, customs, family-member, and declaration-signature fields.
 - `official-options.ts` owns runner-facing official option values. Chinese
   labels are display-only and must not replace official English values.
 - `seed-form-fields.ts` replaces all `PH_ETRAVEL_ARRIVAL_CARD` rows
   idempotently.
-- Keep family-member, departing Filipino, crew, cruise-specialized, and 9(a)
-  visa fields out of this seed unless a future task explicitly expands scope.
+- Keep 9(a) visa fields out of this seed. Departure-, crew-, sea-, and
+  family-member branches may be represented only when they mirror official
+  eTravel controls and keep runner-facing values in official English.

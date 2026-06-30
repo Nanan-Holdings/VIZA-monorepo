@@ -1,4 +1,12 @@
+import { countries } from "country-data-list";
 import { toChineseSourceValue, toOfficialEnglishValue } from "@/lib/ds160-translations";
+
+interface CountryRecord {
+  alpha2: string;
+  alpha3: string;
+  name: string;
+  status: string;
+}
 
 export interface UniversalProfileSnapshot {
   full_name?: string | null;
@@ -99,6 +107,37 @@ function splitLegacyBirthplace(value: string | null | undefined) {
   }
 
   return { country: "", provinceOrState: "", city: "" };
+}
+
+function normalizeCountryAlpha3(value: string | null | undefined) {
+  const normalized = clean(value);
+  if (!normalized) return null;
+  const lookup = normalized.toLowerCase();
+  const match = (countries.all as CountryRecord[]).find((country) => {
+    if (country.status === "deleted") return false;
+    return (
+      country.alpha2.toLowerCase() === lookup ||
+      country.alpha3.toLowerCase() === lookup ||
+      country.name.toLowerCase() === lookup
+    );
+  });
+  return match?.alpha3 ?? normalized;
+}
+
+function profileBirthCountry(profile: UniversalProfileSnapshot) {
+  const legacyBirthplace = splitLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
+  return profile.birth_country || legacyBirthplace.country;
+}
+
+export function buildMalaysiaMdacUniversalProfileAnswerPatch(
+  profile: UniversalProfileSnapshot | null | undefined,
+): Record<string, string> {
+  if (!profile) return {};
+  const birthCountryAlpha3 = normalizeCountryAlpha3(profileBirthCountry(profile));
+  if (!birthCountryAlpha3) return {};
+  return {
+    place_of_birth: birthCountryAlpha3,
+  };
 }
 
 export function splitUniversalFullName(fullName: string | null | undefined) {
