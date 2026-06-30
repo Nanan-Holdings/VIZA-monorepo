@@ -218,8 +218,8 @@ function formatDmy(isoDate: string): string {
   return `${day}/${month}/${year}`;
 }
 
-function normalizeForMatch(value: string): string {
-  return value
+function normalizeForMatch(value: string | null | undefined): string {
+  return (value ?? "")
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
@@ -229,7 +229,7 @@ function uniqueValues(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
-function officialMdacCountryAliases(country: string): string[] {
+function officialMdacCountryAliases(country: string | null | undefined): string[] {
   const normalized = normalizeForMatch(country);
   const aliases: Record<string, string[]> = {
     CHINA: ["CHN", "CHN CHINA"],
@@ -250,7 +250,7 @@ function officialMdacCountryAliases(country: string): string[] {
   };
   const codeMatch = normalized.match(/^[A-Z]{3}\b/);
   return uniqueValues([
-    country,
+    country ?? "",
     normalized,
     codeMatch?.[0] ?? "",
     ...(aliases[normalized] ?? []),

@@ -146,6 +146,70 @@ const cityOfBirthStep: WizardStep = {
   ],
 };
 
+const optionalPostcodeStep: WizardStep = {
+  stepNumber: 3,
+  stepName: "Accommodation Information",
+  fields: [
+    {
+      id: "field-postcode",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      fieldName: "postcode",
+      label: "Post Code",
+      fieldType: "text",
+      required: false,
+      stepNumber: 3,
+      stepName: "Accommodation Information",
+      displayOrder: 1,
+      placeholder: "Enter post code",
+      validationRules: { pattern: "^[0-9]{5}$" },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
+const tdacResidenceStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Traveller Information",
+  fields: [
+    {
+      id: "field-residence-country",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      fieldName: "country_territory_of_residence",
+      label: "Country/Territory of Residence",
+      fieldType: "select",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 1,
+      placeholder: "Select...",
+      validationRules: null,
+      options: [{ value: "CHN", text: "China", label_en: "China", label_zh: "中国" }],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-residence-city-state",
+      visaType: "TH_TDAC_ARRIVAL_CARD",
+      fieldName: "city_state_of_residence",
+      label: "City/State of Residence",
+      fieldType: "select",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 2,
+      placeholder: "Select...",
+      validationRules: {
+        dependent_on: "country_territory_of_residence",
+        dependent_options: {
+          CHN: [{ value: "HUNAN", text: "HUNAN", label_en: "HUNAN", label_zh: "湖南" }],
+        },
+      },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const documentDateConsistencyStep: WizardStep = {
   stepNumber: 3,
   stepName: "Travel Document & Identity",
@@ -448,6 +512,30 @@ describe("DynamicStepForm copilot format", () => {
     expect(onComplete).toHaveBeenCalledWith({ place_of_birth: "Changsha" });
   });
 
+  it("normalizes TDAC residence prefill into official dependent option values", () => {
+    const onComplete = vi.fn();
+    render(
+      <DynamicStepForm
+        step={tdacResidenceStep}
+        prefill={{
+          nationality: "China",
+          city_state_of_residence: "Hunan",
+          city_state_of_residence_zh: "湖南",
+          city_state_of_residence_en: "Hunan",
+        }}
+        onComplete={onComplete}
+        visaType="TH_TDAC_ARRIVAL_CARD"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+
+    expect(onComplete).toHaveBeenCalledWith({
+      country_territory_of_residence: "CHN",
+      city_state_of_residence: "HUNAN",
+    });
+  });
+
   it("uses the server translation fallback when local sync leaves Chinese in the English field", async () => {
     const onComplete = vi.fn();
     const fetchMock = vi.fn(async () => new Response(
@@ -495,6 +583,30 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
     expect(onComplete).toHaveBeenCalledWith({ city_of_birth: "Hengqin, Zhuhai" });
+  });
+
+  it("allows an optional formatted text field to pass after the user clears the old value", () => {
+    const onComplete = vi.fn();
+    render(
+      <DynamicStepForm
+        step={optionalPostcodeStep}
+        prefill={{ postcode: "ABCDE", postcode_zh: "ABCDE", postcode_en: "ABCDE" }}
+        onComplete={onComplete}
+        visaType="TH_TDAC_ARRIVAL_CARD"
+      />,
+    );
+
+    expect(screen.getByText("格式不符合要求")).toBeInTheDocument();
+
+    const textboxes = screen.getAllByRole("textbox");
+    expect(textboxes).toHaveLength(2);
+    fireEvent.change(textboxes[0]!, { target: { value: "" } });
+    fireEvent.change(textboxes[1]!, { target: { value: "" } });
+
+    expect(screen.queryByText("格式不符合要求")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+
+    expect(onComplete).toHaveBeenCalledWith({ postcode: "" });
   });
 
   it("shows document date-order errors only on the expiry field", () => {

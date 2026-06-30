@@ -17,6 +17,7 @@ const payload: MdacPortalPayload = {
   passportNumber: "EM7429107",
   passportExpiryDate: "2031-01-01",
   nationality: "CHINA",
+  placeOfBirth: "CHINA",
   dateOfBirth: "2006-07-27",
   sex: "MALE",
   emailAddress: "e1484122@u.nus.edu",

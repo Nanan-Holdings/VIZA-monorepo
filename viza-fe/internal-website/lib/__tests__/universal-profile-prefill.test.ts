@@ -49,6 +49,9 @@ describe("universal profile prefill", () => {
       country_of_birth: "China",
       sex: "male",
       nationality_country: "China",
+      city_state_of_residence: "Hunan",
+      city_state_of_residence_zh: "湖南",
+      city_state_of_residence_en: "Hunan",
       passport_number: "E12345678",
       passport_issuance_date: "2024-01-01",
       passport_expiration_date: "2034-01-01",
@@ -78,6 +81,20 @@ describe("universal profile prefill", () => {
 
     expect(patch).toEqual({
       place_of_birth: "CHN",
+    });
+  });
+
+  it("maps reusable residence details to TDAC residence fields", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      nationality: "China",
+      birth_province_or_state_zh: "湖南",
+      birth_province_or_state_en: "Hunan",
+    });
+
+    expect(patch).toMatchObject({
+      city_state_of_residence: "Hunan",
+      city_state_of_residence_zh: "湖南",
+      city_state_of_residence_en: "Hunan",
     });
   });
 });
