@@ -138,4 +138,34 @@ describe("DynamicFormField localization", () => {
     document.body.dispatchEvent(outsideWheel);
     expect(outsideWheel.defaultPrevented).toBe(false);
   });
+
+  it("shows optional fields and enforces maxLength hints in Chinese", () => {
+    const onChange = vi.fn();
+    const addressField = field({
+      id: "address",
+      fieldName: "address_in_thailand",
+      label: "泰国地址 / Address",
+      fieldType: "textarea",
+      required: false,
+      validationRules: { maxLength: 215 },
+    });
+
+    render(
+      <DynamicFormField
+        field={addressField}
+        value="ABC"
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    expect(screen.getByText("选填")).toBeInTheDocument();
+    expect(screen.getByText("最多 215 个字符，当前 3/215")).toBeInTheDocument();
+
+    const textarea = screen.getByRole("textbox");
+    expect(textarea).toHaveAttribute("maxLength", "215");
+
+    fireEvent.change(textarea, { target: { value: "A".repeat(240) } });
+    expect(onChange).toHaveBeenCalledWith("A".repeat(215));
+  });
 });
