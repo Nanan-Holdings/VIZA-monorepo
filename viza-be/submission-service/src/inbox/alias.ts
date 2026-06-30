@@ -1,6 +1,6 @@
 import { supabase } from "../supabase";
 
-const ALIAS_DOMAIN = "haggstorm.com";
+const DEFAULT_ALIAS_DOMAIN = "haggstorm.com";
 const ULID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 type InboxAliasClient = Pick<typeof supabase, "from">;
@@ -14,7 +14,12 @@ function randomByte(): number {
   return Math.floor(Math.random() * 256);
 }
 
-export function generateApplicantInboxAlias(now = Date.now()): string {
+function normalizeAliasDomain(value: string): string {
+  const candidate = value.trim().toLowerCase();
+  return candidate.startsWith("@") ? candidate.slice(1) : candidate;
+}
+
+export function generateApplicantInboxAlias(now = Date.now(), domain = DEFAULT_ALIAS_DOMAIN): string {
   let timePart = "";
   let t = now;
   for (let i = 0; i < 10; i += 1) {
@@ -27,12 +32,13 @@ export function generateApplicantInboxAlias(now = Date.now()): string {
     randPart += ULID_ALPHABET[randomByte() % 32];
   }
 
-  return `appl-${(timePart + randPart).toLowerCase()}@${ALIAS_DOMAIN}`;
+  return `appl-${(timePart + randPart).toLowerCase()}@${normalizeAliasDomain(domain)}`;
 }
 
 export async function ensureApplicantInboxAlias(
   applicantId: string,
   client: InboxAliasClient = supabase,
+  domain = DEFAULT_ALIAS_DOMAIN,
 ): Promise<EnsureApplicantInboxAliasResult> {
   const { data: existing, error: readError } = await client
     .from("applicant_profiles")
@@ -51,7 +57,7 @@ export async function ensureApplicantInboxAlias(
   }
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const alias = generateApplicantInboxAlias();
+    const alias = generateApplicantInboxAlias(Date.now(), domain);
     const { data: updated, error: writeError } = await client
       .from("applicant_profiles")
       .update({ inbox_alias: alias })
@@ -70,4 +76,31 @@ export async function ensureApplicantInboxAlias(
   }
 
   throw new Error(`ensureApplicantInboxAlias exhausted retries for ${applicantId}`);
+}
+
+export async function ensureApplicantInboxAliasForDomain(
+  applicantId: string,
+  domain: string,
+  client: InboxAliasClient = supabase,
+): Promise<EnsureApplicantInboxAliasResult> {
+  const normalizedDomain = normalizeAliasDomain(domain);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const localNow = Date.now() + attempt;
+    const alias = generateApplicantInboxAlias(localNow, normalizedDomain);
+    const { data: updated, error: writeError } = await client
+      .from("applicant_profiles")
+      .update({ inbox_alias: alias })
+      .eq("id", applicantId)
+      .select("inbox_alias")
+      .maybeSingle();
+
+    if (writeError && writeError.code !== "23505") {
+      throw new Error(`ensureApplicantInboxAliasForDomain write failed: ${writeError.message}`);
+    }
+    if (!writeError && updated?.inbox_alias) {
+      return { alias: String(updated.inbox_alias).toLowerCase(), created: true };
+    }
+  }
+
+  throw new Error(`ensureApplicantInboxAliasForDomain exhausted retries for ${applicantId}`);
 }
