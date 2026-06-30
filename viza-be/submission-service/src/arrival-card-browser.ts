@@ -133,11 +133,7 @@ export async function createArrivalCardBrowserSession(options: {
   const channel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim()
     || (["MDAC", "TDAC", "PH_ETRAVEL"].includes(options.prefix) ? "chrome" : undefined);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
-  const headless = explicitHeadless
-    ? explicitHeadless !== "false"
-    : ["MDAC", "TDAC", "PH_ETRAVEL"].includes(options.prefix)
-      ? false
-      : options.headless ?? true;
+  const headless = options.headless ?? (explicitHeadless ? explicitHeadless !== "false" : true);
   const browser = await chromium.launch({ channel, headless });
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();

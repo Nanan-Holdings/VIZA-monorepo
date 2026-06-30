@@ -86,6 +86,13 @@ function normalizeVietnamTravelDates(
   }
 }
 
+function phoneCountryCode(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/^\s*\+(\d{1,4})(?:\D|$)/);
+  return match?.[1] ?? null;
+}
+
 export function applyVietnamAnswerAliases(
   answers: Record<string, string>,
   profile: ApplicantProfile,
@@ -202,6 +209,83 @@ export function applyVietnamAnswerAliases(
   return answers;
 }
 
+export function applyThailandTdacAnswerAliases(
+  answers: Record<string, string>,
+  profile: ApplicantProfile,
+  application: Application,
+): Record<string, string> {
+  const profileName = splitProfileName(profile.full_name);
+  const phone = firstValue([
+    answers.phone,
+    answers.phone_number,
+    answers.mobile_number,
+    answers.mobile_phone,
+    answers.primary_phone_number,
+    profile.phone,
+  ]);
+
+  setIfMissing(answers, "family_name", [answers.surname, answers.last_name, profileName.surname]);
+  setIfMissing(answers, "first_name", [
+    answers.given_names,
+    answers.givenNames,
+    answers.given_name,
+    profileName.givenNames,
+  ]);
+  setIfMissing(answers, "date_of_birth", [answers.dob, answers.birth_date, profile.date_of_birth]);
+  setIfMissing(answers, "gender", [answers.sex, profile.gender]);
+  setIfMissing(answers, "nationality", [answers.nationality_country, answers.current_nationality, profile.nationality]);
+  setIfMissing(answers, "country_territory_of_residence", [
+    answers.country_of_residence,
+    answers.residence_country,
+    answers.home_country,
+    answers.nationality,
+    profile.nationality,
+  ]);
+  setIfMissing(answers, "passport_number", [answers.travel_document_number, profile.passport_number]);
+  setIfMissing(answers, "email_address", [answers.email, answers.contact_email, profile.email]);
+  setIfMissing(answers, "phone_country_code", [
+    answers.mobile_country_code,
+    answers.country_calling_code,
+    phoneCountryCode(phone),
+  ]);
+  setIfMissing(answers, "phone_number", [phone]);
+  setIfMissing(answers, "occupation", [
+    answers.current_occupation,
+    answers.primary_occupation,
+    answers.current_profession,
+    profile.occupation,
+  ]);
+  setIfMissing(answers, "arrival_date", [
+    answers.intended_arrival_date,
+    answers.planned_arrival_date,
+    answers.trip_start_date,
+    application.arrival_date,
+  ]);
+  setIfMissing(answers, "departure_date", [
+    answers.intended_departure_date,
+    answers.planned_departure_date,
+    answers.trip_end_date,
+    application.departure_date,
+  ]);
+  setIfMissing(answers, "country_boarded", [
+    answers.departure_country,
+    answers.country_territory_of_residence,
+    answers.nationality,
+  ]);
+  setIfMissing(answers, "purpose_of_travel", [
+    answers.purpose_of_visit,
+    answers.purpose_of_trip,
+    application.purpose,
+  ]);
+  setIfMissing(answers, "address_in_thailand", [
+    answers.accommodation_address,
+    answers.hotel_address,
+    application.accommodation_address,
+  ]);
+
+  return answers;
+}
+
 export function buildCountrySubmissionApplication(
   profile: ApplicantProfile,
   application: Application,
@@ -218,6 +302,12 @@ export function buildCountrySubmissionApplication(
     normalizedVisaType === "vietnam_e_visa";
   if (isVietnamApplication) {
     applyVietnamAnswerAliases(normalizedAnswers, profile, application);
+  }
+  const isThailandTdac =
+    (normalizedCountry === "th" || normalizedCountry === "thailand") &&
+    normalizedVisaType === "th_tdac_arrival_card";
+  if (isThailandTdac) {
+    applyThailandTdacAnswerAliases(normalizedAnswers, profile, application);
   }
   const isSgArrivalCard =
     (normalizedCountry === "sg" || normalizedCountry === "singapore") &&

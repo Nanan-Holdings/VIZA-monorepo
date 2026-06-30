@@ -6033,7 +6033,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     };
     if (isMdac) {
       const resultMdac = await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
-        headless: process.env.MDAC_PLAYWRIGHT_HEADLESS !== "false",
+        headless: readBooleanEnv("MDAC_WORKER_PLAYWRIGHT_HEADLESS", true),
         stopBeforeSubmit: process.env.MDAC_STOP_BEFORE_SUBMIT === "1",
       });
       portalResult = resultMdac;
