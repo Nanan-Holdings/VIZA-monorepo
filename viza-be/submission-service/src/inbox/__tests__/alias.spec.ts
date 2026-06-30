@@ -16,6 +16,20 @@ function fakeClient(initial: FakeProfile, options: { collisionOnce?: boolean } =
     },
     from(table: string) {
       assert.equal(table, "applicant_profiles");
+
+      const applyCollisionOrValue = (inboxMustBeNull = false): { data: FakeProfile | null; error: { code: string; message: string } | null } => {
+        if (options.collisionOnce && !collided) {
+          collided = true;
+          return { data: null, error: { code: "23505", message: "duplicate" } };
+        }
+
+        if (inboxMustBeNull && profile.inbox_alias !== null) {
+          return { data: null, error: null };
+        }
+
+        return { data: profile, error: null };
+      };
+
       return {
         select() {
           return {
@@ -29,6 +43,25 @@ function fakeClient(initial: FakeProfile, options: { collisionOnce?: boolean } =
           };
         },
         update(update: Partial<FakeProfile>) {
+          const resultWithUpdate = (inboxMustBeNull: boolean) => {
+            const existing = profile;
+            const { data, error } = applyCollisionOrValue(inboxMustBeNull);
+
+            if (error) {
+              return { data: null, error };
+            }
+
+            if (!error && data === null) {
+              return { data: null, error: null };
+            }
+
+            const nextProfile = { ...profile, ...update };
+            if (existing !== nextProfile) {
+              profile = nextProfile;
+            }
+            return { data: profile, error: null };
+          };
+
           return {
             eq() {
               return {
@@ -37,17 +70,16 @@ function fakeClient(initial: FakeProfile, options: { collisionOnce?: boolean } =
                     select() {
                       return {
                         async maybeSingle() {
-                          if (options.collisionOnce && !collided) {
-                            collided = true;
-                            return { data: null, error: { code: "23505", message: "duplicate" } };
-                          }
-                          if (profile.inbox_alias !== null) {
-                            return { data: null, error: null };
-                          }
-                          profile = { ...profile, ...update };
-                          return { data: profile, error: null };
+                          return resultWithUpdate(true);
                         },
                       };
+                    },
+                  };
+                },
+                select() {
+                  return {
+                    async maybeSingle() {
+                      return resultWithUpdate(false);
                     },
                   };
                 },
@@ -78,6 +110,24 @@ describe("applicant inbox alias", () => {
 
     assert.equal(result.created, true);
     assert.match(result.alias, /^appl-[0-9a-z]{26}@haggstorm\.com$/);
+  });
+
+  it("supports custom domain for generated alias", async () => {
+    const { generateApplicantInboxAlias } = await import("../alias");
+
+    const alias = generateApplicantInboxAlias(1_700_000_000_000, "Test-Example.COM");
+
+    assert.equal(alias.endsWith("@test-example.com"), true);
+  });
+
+  it("overwrites inbox_alias with a requested domain", async () => {
+    const { ensureApplicantInboxAliasForDomain } = await import("../alias");
+    const client = fakeClient({ inbox_alias: null });
+
+    const result = await ensureApplicantInboxAliasForDomain("profile-1", "example.org", client as never);
+
+    assert.match(result.alias, /^appl-[0-9a-z]{26}@example\.org$/);
+    assert.equal(client.profile.inbox_alias, result.alias);
   });
 
   it("retries on unique collisions", async () => {

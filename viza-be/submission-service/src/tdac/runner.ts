@@ -401,6 +401,42 @@ function officialCountryPattern(value: string): RegExp {
   return new RegExp(`\\b${escaped}\\b|${escaped.replace(/\s+/g, "\\s+")}`, "i");
 }
 
+function normalizeTdacDropdownText(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}0-9]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tdacDropdownMatchText(target: string, option: string): boolean {
+  const normalizedTarget = normalizeTdacDropdownText(target);
+  const normalizedOption = normalizeTdacDropdownText(option);
+  if (!normalizedTarget || !normalizedOption) return false;
+  if (normalizedOption === normalizedTarget) return true;
+  if (normalizedOption.includes(normalizedTarget)) return true;
+  if (normalizedTarget.includes(normalizedOption)) return true;
+
+  const targetNoSpace = normalizedTarget.replace(/\s+/g, "");
+  const optionNoSpace = normalizedOption.replace(/\s+/g, "");
+  if (targetNoSpace.length >= 4 && optionNoSpace.includes(targetNoSpace)) return true;
+
+  const targetTokens = normalizedTarget.split(" ").filter(Boolean);
+  const optionTokens = new Set(normalizedOption.split(" ").filter(Boolean));
+  return targetTokens.every((token) => optionTokens.has(token));
+}
+
+function tdacOptionMatches(optionText: RegExp | string, optionValue: string): boolean {
+  if (typeof optionText === "string") {
+    if (optionValue.includes(optionText)) return true;
+    return tdacDropdownMatchText(optionText, optionValue);
+  }
+  const normalizedOption = normalizeTdacDropdownText(optionValue);
+  return optionText.test(optionValue) || optionText.test(normalizedOption);
+}
+
 function tdacCountrySearchValue(value: string): string {
   const normalized = value
     .toUpperCase()

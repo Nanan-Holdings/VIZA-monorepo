@@ -1,3 +1,5 @@
+import { TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_GENERATED } from "./tdac-residence-regions.generated";
+
 export interface TdacOption {
   value: string;
   text: string;
@@ -77,7 +79,7 @@ const countryOption = ([alpha3, alpha2]: readonly [string, string]): TdacOption 
   return option(alpha3, countryLabel("zh", alpha2), labelEn, labelEn);
 };
 
-const TDAC_COUNTRY_CODE_PAIRS = `
+export const TDAC_COUNTRY_CODE_PAIRS = `
 ABW:AW AFG:AF AGO:AO AIA:AI ALA:AX ALB:AL AND:AD ARE:AE ARG:AR ARM:AM ASM:AS ATA:AQ ATF:TF ATG:AG AUS:AU AUT:AT AZE:AZ
 BDI:BI BEL:BE BEN:BJ BES:BQ BFA:BF BGD:BD BGR:BG BHR:BH BHS:BS BIH:BA BLM:BL BLR:BY BLZ:BZ BMU:BM BOL:BO BRA:BR BRB:BB BRN:BN BTN:BT BVT:BV BWA:BW
 CAF:CF CAN:CA CCK:CC CHE:CH CHL:CL CHN:CN CIV:CI CMR:CM COD:CD COG:CG COK:CK COL:CO COM:KM CPV:CV CRI:CR CUB:CU CUW:CW CXR:CX CYM:KY CYP:CY CZE:CZ
@@ -182,7 +184,7 @@ export const TDAC_PROVINCE_OPTIONS = [
 
 const residenceRegion = (labelEn: string, labelZh = labelEn): TdacOption => option(labelEn, labelZh, labelEn, labelEn);
 
-export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption[]> = {
+const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL: Record<string, TdacOption[]> = {
   CHN: [
     residenceRegion("ANHUI", "安徽"),
     residenceRegion("BEIJING", "北京"),
@@ -299,6 +301,11 @@ export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption
     residenceRegion("WISCONSIN", "威斯康星州"),
     residenceRegion("WYOMING", "怀俄明州"),
   ],
+};
+
+export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption[]> = {
+  ...TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_GENERATED,
+  ...TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL,
 };
 
 export const TDAC_DISTRICT_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {

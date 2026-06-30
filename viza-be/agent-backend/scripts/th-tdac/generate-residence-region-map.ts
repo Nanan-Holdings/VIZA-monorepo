@@ -1,0 +1,176 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { TDAC_COUNTRY_CODE_PAIRS, type TdacOption } from "./official-options";
+
+type CountriesNowCountry = {
+  name: string;
+  iso3?: string;
+  states: Array<{ name: string; state_code?: string }>;
+};
+
+type CountriesNowResponse = {
+  error: boolean;
+  msg?: string;
+  data: Array<{ name: string; states: Array<{ name: string; state_code?: string }> }>;
+};
+
+const ENDPOINT = "https://countriesnow.space/api/v0.1/countries/states";
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const TARGET = join(SCRIPT_DIR, "tdac-residence-regions.generated.ts");
+
+const normalise = (value: string): string =>
+  value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s\-_]+/g, " ")
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+
+const normaliseValue = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_");
+
+const regionDisplayNames = {
+  zh: new Intl.DisplayNames(["zh-CN"], { type: "region" }),
+  en: new Intl.DisplayNames(["en"], { type: "region" }),
+};
+
+const regionName = (alpha2: string): string =>
+  (regionDisplayNames.en.of(alpha2) ?? alpha2)
+    .trim()
+    .replace(/\([^)]*\)/g, "")
+    .trim();
+
+const normalizeCountryPairs = (
+  raw: readonly unknown[] | string,
+): Array<{
+  alpha3: string;
+  alpha2: string;
+  labelEn: string;
+  labelZh: string;
+}> => {
+  const entries =
+    typeof raw === "string"
+      ? raw
+          .trim()
+          .split(/\s+/)
+          .map((pair) => {
+            const [alpha3 = "", alpha2 = ""] = pair.split(":");
+            return [alpha3, alpha2] as const;
+          })
+      : [...raw]
+          .map((item): readonly [string, string] => {
+            if (Array.isArray(item) && item.length >= 2) {
+              const [alpha3, alpha2] = item;
+              return [String(alpha3), String(alpha2)];
+            }
+            const pair = typeof item === "string" ? item : String(item);
+            const [alpha3 = "", alpha2 = ""] = pair.split(":");
+            return [alpha3, alpha2];
+          });
+
+  return entries.map(([alpha3, alpha2]) => {
+    const cleanedAlpha3 = alpha3?.trim().toUpperCase();
+    const cleanedAlpha2 = alpha2?.trim().toUpperCase();
+    return {
+      alpha3: cleanedAlpha3,
+      alpha2: cleanedAlpha2,
+      labelEn: regionName(cleanedAlpha2),
+      labelZh: (regionDisplayNames.zh.of(cleanedAlpha2) ?? cleanedAlpha2).trim(),
+    };
+  });
+};
+
+const knownCountries = normalizeCountryPairs(TDAC_COUNTRY_CODE_PAIRS);
+
+async function main() {
+  const response = await fetch(ENDPOINT);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch countries/state data: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = (await response.json()) as CountriesNowResponse;
+  if (payload.error) {
+    throw new Error(`countriesnow API error: ${payload.msg ?? "unknown"}`);
+  }
+
+  const apiIndex = new Map<string, CountriesNowCountry>(
+    payload.data.map((item) => [normalise(item.name), { ...item }]),
+  );
+
+  const generated: Record<string, TdacOption[]> = {};
+  const missingCountries: string[] = [];
+
+  for (const country of knownCountries) {
+    const key = normalise(country.labelEn);
+    const directMatch = apiIndex.get(key);
+
+    let matched: CountriesNowCountry | undefined = directMatch;
+    if (!matched) {
+      const aliases = [
+        normalise(country.labelEn.replace(" and ", " ")),
+        normalise(country.labelEn.replace(/[\s-]+/g, " ").replace(" of", "")),
+        normalise(country.labelEn.replace(" ,", ",")),
+      ];
+      for (const alias of aliases) {
+        matched = apiIndex.get(alias);
+        if (matched) break;
+      }
+    }
+
+    if (!matched) {
+      const fallback = payload.data.find((item) => normalise(item.name).includes(key) || key.includes(normalise(item.name)));
+      matched = fallback;
+    }
+
+    const states = matched?.states ?? [];
+
+    generated[country.alpha3] = states
+      .map((state) => {
+        const normalisedValue = normaliseValue(state.name);
+        const value = normalisedValue || state.state_code?.toLowerCase() || state.name.toLowerCase();
+        const labelEn = state.name.toUpperCase();
+        return {
+          value,
+          text: labelEn,
+          label_zh: state.name,
+          label_en: labelEn,
+          official_label: labelEn,
+        };
+      })
+      .sort((a, b) => a.label_en.localeCompare(b.label_en));
+
+    if (!matched) {
+      missingCountries.push(`${country.alpha3}:${country.labelEn}`);
+    }
+  }
+
+  if (missingCountries.length > 0) {
+    console.warn(`[th-tdac] no state list for ${missingCountries.length} countries`);
+    console.warn(missingCountries.slice(0, 40).join(", "));
+  }
+
+  const fileBody = `
+// generated by scripts/th-tdac/generate-residence-region-map.ts
+import { type TdacOption } from "./official-options";
+
+export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_GENERATED: Record<string, TdacOption[]> = ${JSON.stringify(
+    generated,
+    null,
+    2,
+  )};
+`;
+
+  mkdirSync(dirname(TARGET), { recursive: true });
+  writeFileSync(TARGET, fileBody);
+  console.log(`Generated ${Object.keys(generated).length} country residence-region lists -> ${TARGET}`);
+}
+
+void main();
