@@ -1223,7 +1223,12 @@ async function markApplicationSubmissionQueued(
       submission_result_updated_at: input.submittedAt,
     })
     .eq("id", input.applicationId)
-    .not("submission_result_status", "in", `(${TERMINAL_SUBMISSION_RESULT_STATUSES.join(",")})`)
+    .or(
+      [
+        "submission_result_status.is.null",
+        `submission_result_status.not.in.(${TERMINAL_SUBMISSION_RESULT_STATUSES.join(",")})`,
+      ].join(","),
+    )
     .select(selectColumns)
     .maybeSingle();
   if (updateError) throw new Error(updateError.message);
@@ -2643,22 +2648,18 @@ export default function ApplicationPage() {
               });
             })();
         const submittedAt = new Date().toISOString();
-        const { error: submitError } = await supabase.from("applications").update({
-          status: "submitted",
-          submitted_at: submittedAt,
-          submission_result_status: queueJob.submissionResultStatus,
-          submission_result: queueJob.submissionResult,
-          confirmation_number: null,
-          submission_result_updated_at: submittedAt,
-        }).eq("id", applicationId);
-        if (submitError) throw new Error(submitError.message);
+        const submissionState = await markApplicationSubmissionQueued(supabase, {
+          applicationId,
+          submittedAt,
+          queueJob,
+        });
 
         setAppState((prev) => ({
           ...prev,
-          submittedAt,
-          submissionResultStatus: queueJob.submissionResultStatus,
-          submissionResult: queueJob.submissionResult,
-          confirmationNumber: undefined,
+          submittedAt: submissionState.submittedAt,
+          submissionResultStatus: submissionState.submissionResultStatus,
+          submissionResult: submissionState.submissionResult,
+          confirmationNumber: submissionState.confirmationNumber,
         }));
       }
 
@@ -2764,22 +2765,18 @@ export default function ApplicationPage() {
           })();
 
       const submittedAt = new Date().toISOString();
-      const { error: submitError } = await supabase.from("applications").update({
-        status: "submitted",
-        submitted_at: submittedAt,
-        submission_result_status: queueJob.submissionResultStatus,
-        submission_result: queueJob.submissionResult,
-        confirmation_number: null,
-        submission_result_updated_at: submittedAt,
-      }).eq("id", applicationId);
-      if (submitError) throw new Error(submitError.message);
+      const submissionState = await markApplicationSubmissionQueued(supabase, {
+        applicationId,
+        submittedAt,
+        queueJob,
+      });
 
       setAppState((prev) => ({
         ...prev,
-        submittedAt,
-        submissionResultStatus: queueJob.submissionResultStatus,
-        submissionResult: queueJob.submissionResult,
-        confirmationNumber: undefined,
+        submittedAt: submissionState.submittedAt,
+        submissionResultStatus: submissionState.submissionResultStatus,
+        submissionResult: submissionState.submissionResult,
+        confirmationNumber: submissionState.confirmationNumber,
       }));
       setSubmitMissingFields([]);
       setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));

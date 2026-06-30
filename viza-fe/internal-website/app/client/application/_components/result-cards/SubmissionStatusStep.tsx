@@ -1197,6 +1197,22 @@ export function SubmissionStatusStep({
     );
   }
 
+  if (resubmitting) {
+    return (
+      <div className="space-y-4">
+        <WaitingCard
+          status="queued"
+          stage="preparing"
+          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
+          message={isZh ? "自动提交任务正在启动。" : "Starting the automated submission job."}
+          applicationId={applicationId}
+          country={country}
+          visaType={visaType}
+        />
+      </div>
+    );
+  }
+
   if (failed) {
     return (
       <div className="space-y-4">

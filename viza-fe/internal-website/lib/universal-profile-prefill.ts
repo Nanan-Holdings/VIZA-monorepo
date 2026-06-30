@@ -37,6 +37,27 @@ export interface UniversalProfileSnapshot {
   address?: string | null;
   address_zh?: string | null;
   address_en?: string | null;
+  residence_country?: string | null;
+  country_of_residence?: string | null;
+  home_country?: string | null;
+  residence_city?: string | null;
+  residence_city_zh?: string | null;
+  residence_city_en?: string | null;
+  residence_state?: string | null;
+  residence_state_zh?: string | null;
+  residence_state_en?: string | null;
+  residence_province_or_state?: string | null;
+  residence_province_or_state_zh?: string | null;
+  residence_province_or_state_en?: string | null;
+  home_address_city?: string | null;
+  home_address_city_zh?: string | null;
+  home_address_city_en?: string | null;
+  home_address_state?: string | null;
+  home_address_state_zh?: string | null;
+  home_address_state_en?: string | null;
+  home_address_postcode?: string | null;
+  postal_code?: string | null;
+  postcode?: string | null;
   passport_number?: string | null;
   passport_issue_date?: string | null;
   passport_expiry_date?: string | null;
@@ -287,6 +308,60 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
     profile.address,
     profile.address_zh,
     profile.address_en,
+  );
+  setAnswer(
+    out,
+    [
+      "country_territory_of_residence",
+      "country_of_residence",
+      "residence_country",
+      "home_country",
+      "home_address_country",
+      "residential_address_country",
+    ],
+    profile.residence_country || profile.country_of_residence || profile.home_country,
+  );
+  setBilingualAnswerFromParts(
+    out,
+    [
+      "city_state_of_residence",
+      "residence_city_state",
+      "residence_state",
+      "residence_province",
+      "home_address_state",
+      "home_address_city",
+      "residential_address_state",
+      "residential_address_city",
+    ],
+    profile.residence_state ||
+      profile.residence_province_or_state ||
+      profile.residence_city ||
+      profile.home_address_state ||
+      profile.home_address_city ||
+      profile.birth_province_or_state ||
+      legacyBirthplace.provinceOrState ||
+      legacyBirthplace.city,
+    profile.residence_state_zh ||
+      profile.residence_province_or_state_zh ||
+      profile.residence_city_zh ||
+      profile.home_address_state_zh ||
+      profile.home_address_city_zh ||
+      profile.birth_province_or_state_zh ||
+      legacyBirthplaceZh.provinceOrState ||
+      legacyBirthplaceZh.city,
+    profile.residence_state_en ||
+      profile.residence_province_or_state_en ||
+      profile.residence_city_en ||
+      profile.home_address_state_en ||
+      profile.home_address_city_en ||
+      profile.birth_province_or_state_en ||
+      legacyBirthplace.provinceOrState ||
+      legacyBirthplace.city,
+  );
+  setAnswer(
+    out,
+    ["postcode", "post_code", "postal_code", "home_address_postcode", "residential_address_postcode"],
+    profile.postcode || profile.postal_code || profile.home_address_postcode,
   );
   setAnswer(out, ["passport_number", "passportNumber", "travel_document_number"], profile.passport_number);
   setAnswer(
