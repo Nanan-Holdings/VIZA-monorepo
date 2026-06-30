@@ -407,6 +407,22 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "completed", stage: "completed", progress: 100 };
   }
 
+  if (
+    queueStatus === "id_c1_payment_pending" ||
+    queueStatus === "id_c1_payment_processing" ||
+    queueStatus === "id_b1_evoa_payment_pending" ||
+    queueStatus === "id_b1_evoa_payment_processing"
+  ) {
+    return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+  }
+
+  if (
+    queueStatus === "id_c1_payment_paid" ||
+    queueStatus === "id_b1_evoa_payment_paid"
+  ) {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
   if (queueStatus === "processing" || queueStatus === "france_live_processing") {
     return { status: "running", stage: "mapping_answers", progress: 34 };
   }
@@ -474,6 +490,18 @@ export function deriveNonTerminalStatus(
       message:
         queueMessage ??
         "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page.",
+      error: queueMessage,
+    };
+  }
+
+  if (isIndonesiaPaymentCheckpointQueue(queue)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page.",
       error: queueMessage,
     };
   }
