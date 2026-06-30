@@ -718,6 +718,20 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (/waiting for payment/i.test(text)) {
     diagnostics.push("indonesia_application_list_waiting_for_payment");
+    const paymentControl = page
+      .getByRole("link", { name: /pay|payment|checkout|proceed/i })
+      .or(page.getByRole("button", { name: /pay|payment|checkout|proceed/i }))
+      .or(page.locator('a[href*="pay"], a[href*="payment"], button[id*="pay"], button[class*="pay"]'))
+      .first();
+    if (await paymentControl.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await paymentControl.click({ timeout: 10_000 });
+      await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+      await page.waitForTimeout(3_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
+      diagnostics.push("indonesia_application_payment_control_clicked");
+    } else {
+      diagnostics.push("indonesia_application_payment_control_not_found");
+    }
     return true;
   }
   const submit = page.locator("#btn-save").first();

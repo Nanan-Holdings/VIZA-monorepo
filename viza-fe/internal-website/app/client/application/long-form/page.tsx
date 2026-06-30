@@ -43,6 +43,7 @@ import type {
   SubmissionResultStatus,
 } from "@/lib/submission-result";
 import {
+  buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
   mergeUniversalProfileIntoAnswers,
   splitUniversalFullName,
@@ -1400,6 +1401,21 @@ function normalizeAnswersToFieldOptions(answers: Record<string, string>, steps: 
   return next;
 }
 
+function applyCountrySpecificUniversalProfileAnswers(input: {
+  answers: Record<string, string>;
+  existingAnswers: Record<string, string>;
+  profile: UniversalProfileSnapshot;
+  country: string | null | undefined;
+  visaType: string | null | undefined;
+}) {
+  if (!isMalaysiaMdacApplication(input.country, input.visaType)) return input.answers;
+  if (input.existingAnswers.place_of_birth?.trim()) return input.answers;
+  return {
+    ...input.answers,
+    ...buildMalaysiaMdacUniversalProfileAnswerPatch(input.profile),
+  };
+}
+
 type LoadedApplication = {
   id?: string | null;
   country?: string | null;
@@ -1908,10 +1924,14 @@ export default function ApplicationPage() {
           const { answers } = await loadDynamicAnswers(application.id);
           ds160Answers = answers;
         }
-        const mergedDynamicAnswers = normalizeAnswersToFieldOptions(
-          mergeUniversalProfileIntoAnswers(ds160Answers, profile),
-          dbSteps,
-        );
+        const universalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
+          answers: mergeUniversalProfileIntoAnswers(ds160Answers, profile),
+          existingAnswers: ds160Answers,
+          profile,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
+        });
+        const mergedDynamicAnswers = normalizeAnswersToFieldOptions(universalDynamicAnswers, dbSteps);
         const profileFallback = profile;
 
         // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application

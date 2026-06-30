@@ -1396,7 +1396,12 @@ function renderSubmissionResultCard(
         return <DigitalArrivalCardResultCard result={result} />;
       }
       return isGenericEvisaResult(result) ? (
-        <GenericEvisaResultCard applicationId={applicationId} result={result} />
+        <GenericEvisaResultCard
+          applicationId={applicationId}
+          applicationCountry={country}
+          applicationVisaType={visaType}
+          result={result}
+        />
       ) : (
         <WaitingCard status="running" />
       );
@@ -1406,7 +1411,12 @@ function renderSubmissionResultCard(
     case "IT":
     case "IN":
       return isGenericEvisaResult(result) ? (
-        <GenericEvisaResultCard applicationId={applicationId} result={result} />
+        <GenericEvisaResultCard
+          applicationId={applicationId}
+          applicationCountry={country}
+          applicationVisaType={visaType}
+          result={result}
+        />
       ) : (
         <WaitingCard status="running" />
       );

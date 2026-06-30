@@ -53,6 +53,8 @@ export interface GenericEvisaSubmissionResult {
   status: "submitted" | "stopped_at_pay" | "form_ready_for_agency";
   /** Portal reference / registration code, when captured. */
   reference?: string;
+  /** Official portal URL, including payment/resume URL when the runner reached a handoff page. */
+  portalUrl?: string;
   /** submission-artifacts bucket path for the e-visa / confirmation PDF. */
   artifactStoragePath?: string;
 }
@@ -301,6 +303,7 @@ export interface GenericSubmissionResult {
   mode: "dry_run" | "live_assisted";
   applicationId: string;
   confirmationNumber?: string;
+  portalUrl?: string;
   actionType?: string;
   actionInstructions?: string;
   implementationStatus:
