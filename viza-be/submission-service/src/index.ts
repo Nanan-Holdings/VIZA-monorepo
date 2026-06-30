@@ -122,6 +122,10 @@ import {
   readSubmissionQueueConcurrency,
   runSubmissionQueueBatch,
 } from "./queue-scheduler";
+import {
+  claimBatchLimitForConcurrency,
+  claimPendingSubmissionQueueItems,
+} from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
 import {
   loadDs160SubmissionConfig,
@@ -179,6 +183,15 @@ const POLL_INTERVAL_MS = Number.parseInt(
   10,
 );
 const MAX_ATTEMPTS = 3;
+const SUBMISSION_QUEUE_WORKER_ID =
+  process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() || `submission-service-${process.pid}`;
+const parsedSubmissionQueueLeaseSeconds = Number.parseInt(
+  process.env.SUBMISSION_SERVICE_QUEUE_LEASE_SECONDS ?? "900",
+  10,
+);
+const SUBMISSION_QUEUE_LEASE_SECONDS = Number.isFinite(parsedSubmissionQueueLeaseSeconds)
+  ? Math.max(60, parsedSubmissionQueueLeaseSeconds)
+  : 900;
 const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_QUEUE_STALE_MS ?? String(10 * 60 * 1000),
   10,
@@ -296,42 +309,41 @@ function createRunId(prefix: string): string {
 
 // ─── Supabase data loaders ───────────────────────────────────────────────────
 
-async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
-  const { data, error } = await supabase
-    .from("submission_queue")
-    .select("*")
-    .in("status", [
-      "pending",
-      "ds160_prefill_pending",
-      "ds160_live_assisted_pending",
-      "ds160_proof_pending",
-      "fv_prefill_pending",
-      "france_live_assisted_pending",
-      "uk_prefill_pending",
-      "vn_dry_run_pending",
-      "vn_live_assisted_pending",
-      "vn_payment_pending",
-      "sgac_dry_run_pending",
-      "sgac_live_assisted_scheduled",
-      "sgac_live_assisted_pending",
-      "mdac_dry_run_pending",
-      "mdac_live_assisted_scheduled",
-      "mdac_live_assisted_pending",
-      "tdac_dry_run_pending",
-      "tdac_live_assisted_scheduled",
-      "tdac_live_assisted_pending",
-      "id_c1_live_assisted_pending",
-      "id_b1_evoa_live_assisted_pending",
-      "phetravel_dry_run_pending",
-      "phetravel_live_assisted_scheduled",
-      "phetravel_live_assisted_pending",
-      "vn_prefill_pending",
-      "au_prefill_pending",
-    ])
-    .lt("attempts", MAX_ATTEMPTS);
-
-  if (error) throw new Error(`Failed to fetch submission_queue: ${error.message}`);
-  return (data ?? []).sort((left, right) => queuePriority(left) - queuePriority(right));
+async function fetchPendingItems(input: {
+  concurrency: number;
+  targetJobId?: string | null;
+}): Promise<SubmissionQueueItem[]> {
+  let items: SubmissionQueueItem[];
+  try {
+    items = await claimPendingSubmissionQueueItems(supabase, {
+      workerId: SUBMISSION_QUEUE_WORKER_ID,
+      limit: input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency),
+      leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+      targetJobId: input.targetJobId ?? null,
+      maxAttempts: MAX_ATTEMPTS,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/claim_submission_queue_batch|schema cache|could not find the function/i.test(message)) {
+      throw error;
+    }
+    console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
+    const query = supabase
+      .from("submission_queue")
+      .select("*")
+      .in("status", STALE_QUEUE_STATUSES.filter((status) => status.endsWith("_pending") || status === "pending"))
+      .lt("attempts", MAX_ATTEMPTS)
+      .order("created_at", { ascending: true })
+      .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
+    const { data, error: selectError } = input.targetJobId
+      ? await query.eq("id", input.targetJobId)
+      : await query;
+    if (selectError) {
+      throw new Error(`Failed fallback submission_queue select: ${selectError.message}`);
+    }
+    items = (data ?? []) as SubmissionQueueItem[];
+  }
+  return items.sort((left, right) => queuePriority(left) - queuePriority(right));
 }
 
 function queuePriority(item: SubmissionQueueItem): number {
@@ -6387,11 +6399,12 @@ async function pollOnce(): Promise<void> {
     console.error("[poll] US appointment runner failed:", err);
   }
 
+  const concurrency = targetJobId ? 1 : readSubmissionQueueConcurrency(process.env);
   let items: SubmissionQueueItem[];
   try {
-    items = await fetchPendingItems();
+    items = await fetchPendingItems({ concurrency, targetJobId });
   } catch (err) {
-    console.error("[poll] Failed to fetch queue:", err);
+    console.error("[poll] Failed to claim queue:", err);
     return;
   }
 
@@ -6403,17 +6416,13 @@ async function pollOnce(): Promise<void> {
     return;
   }
 
-  if (targetJobId) {
-    items = items.filter((item) => item.id === targetJobId);
-    if (items.length === 0) {
-      console.log(`[poll] No pending items matched target job ${redactIdentifier(targetJobId)}.`);
-      return;
-    }
+  if (targetJobId && items.length === 0) {
+    console.log(`[poll] No claimable pending item matched target job ${redactIdentifier(targetJobId)}.`);
+    return;
   }
 
   console.log(`[poll] Found ${items.length} pending item(s).`);
 
-  const concurrency = targetJobId ? 1 : readSubmissionQueueConcurrency(process.env);
   console.log(`[poll] Processing pending item(s) with concurrency=${concurrency}.`);
   await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
 

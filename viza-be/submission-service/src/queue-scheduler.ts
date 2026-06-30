@@ -11,6 +11,9 @@ export interface SubmissionQueueBatchOptions {
 
 type SubmissionQueueHandler = (item: SubmissionQueueItem) => Promise<void>;
 
+export const DEFAULT_SUBMISSION_QUEUE_CONCURRENCY = 10;
+export const MAX_SUBMISSION_QUEUE_CONCURRENCY = 10;
+
 function normalizedProvider(item: SubmissionQueueItem): string {
   if (item.provider?.trim()) return item.provider.trim();
   if (item.status.startsWith("ds160_")) return "ceac_ds160";
@@ -112,9 +115,9 @@ export async function runSubmissionQueueBatch(
 
 export function readSubmissionQueueConcurrency(env: NodeJS.ProcessEnv): number {
   const raw = env.SUBMISSION_SERVICE_MAX_CONCURRENCY?.trim();
-  if (!raw) return 2;
+  if (!raw) return DEFAULT_SUBMISSION_QUEUE_CONCURRENCY;
 
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 1) return 1;
-  return Math.floor(parsed);
+  return Math.min(Math.floor(parsed), MAX_SUBMISSION_QUEUE_CONCURRENCY);
 }

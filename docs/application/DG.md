@@ -272,6 +272,9 @@ Each country seed should contain:
 - exactly one `documentType: "form_requirements"` document
 - the shared `standard_passport_identity_field_rules` chunk inside that
   `form_requirements` document
+- the source-crawled `official_field_answer_norms` chunk inside that
+  `form_requirements` document when official/authorized source pages contain
+  field-answer evidence
 - photo requirements when available, usually through the photo ingestion script
 
 The shared runtime store is:
@@ -286,6 +289,7 @@ npm run ingest:all-visa-rag
 npm run ingest:country-visa-rag -- --country japan
 npm run ingest:country-visa-rag -- --countries japan,us,indonesia
 npm run ingest:photo-requirements-rag
+npm run enrich:field-answer-norms-rag -- --all
 ```
 
 ## Adding A New Country Form

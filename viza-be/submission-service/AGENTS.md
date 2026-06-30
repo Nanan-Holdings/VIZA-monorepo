@@ -62,7 +62,14 @@ filling and one-shot submission for the applicant.
   per-country dispatch, retry/failure handling, queue status transitions.
 - `src/queue-scheduler.ts`: local submission queue concurrency scheduler.
   Allows different account/country/provider work to run in parallel while
-  serializing the same application and the same user/provider lane.
+  serializing the same application and the same user/provider lane. The current
+  single-runner local maximum is 10 via `SUBMISSION_SERVICE_MAX_CONCURRENCY`;
+  wider product-scale concurrency uses `src/submission-queue-claim.ts` and
+  migration `0105_submission_queue_claim_locks.sql` for DB-level leases.
+- `src/submission-queue-claim.ts`: service-role RPC wrapper around
+  `claim_submission_queue_batch`, which atomically claims legacy
+  `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
+  submission-service runners can run safely.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
@@ -287,8 +294,10 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
 - `viza-be/submission-service/src/queue-scheduler.ts`
+- `viza-be/submission-service/src/submission-queue-claim.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
 - `viza-be/submission-service/src/__tests__/queue-scheduler.spec.ts`
+- `viza-be/submission-service/src/__tests__/queue-claim-rpc.spec.ts`
 - `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
