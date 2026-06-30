@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deriveNonTerminalStatus } from "./route";
 
 describe("deriveNonTerminalStatus", () => {
-  it("keeps stale pending live submission rows queued instead of surfacing a stalled error", () => {
+  it("marks stale pending live submission rows stalled when the worker has not picked them up", () => {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
     const status = deriveNonTerminalStatus(
@@ -35,9 +35,9 @@ describe("deriveNonTerminalStatus", () => {
       },
     );
 
-    expect(status.status).toBe("queued");
-    expect(status.stage).toBe("preparing");
-    expect(status.progress).toBe(12);
-    expect(status.error).toBeNull();
+    expect(status.status).toBe("stalled");
+    expect(status.stage).toBe("confirming_result");
+    expect(status.progress).toBe(99);
+    expect(status.message).toContain("worker has not picked it up");
   });
 });

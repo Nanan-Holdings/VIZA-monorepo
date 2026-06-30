@@ -386,10 +386,6 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   return { status: "running", stage: "confirming_result", progress: 92 };
 }
 
-function isPendingQueueStatus(queueStatus: string): boolean {
-  return queueStatus === "pending" || queueStatus.endsWith("_pending");
-}
-
 function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
   const queueStatus = normalizeStatus(queue.status);
@@ -459,7 +455,6 @@ export function deriveNonTerminalStatus(
 
   if (
     (queueDerived.status === "queued" || queueDerived.status === "running") &&
-    !isPendingQueueStatus(queueStatus) &&
     isStale(updatedAt)
   ) {
     return {

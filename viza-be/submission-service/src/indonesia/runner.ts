@@ -379,6 +379,22 @@ async function waitForHiddenValue(page: Page, selector: string, diagnostics: str
   return ready;
 }
 
+async function captureRegistrationArtifact(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<void> {
+  const applicationId = (input.applicantId ?? input.application?.passportNumber ?? "unknown")
+    .replace(/[^a-zA-Z0-9_-]/g, "_");
+  const dir = path.resolve("diag-out", "indonesia-c1-registration", applicationId);
+  fs.mkdirSync(dir, { recursive: true });
+  const htmlPath = path.join(dir, "registration.html");
+  const screenshotPath = path.join(dir, "registration.png");
+  fs.writeFileSync(htmlPath, await page.content().catch(() => ""));
+  await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => undefined);
+  diagnostics.push(`indonesia_account_registration_artifact ${dir}`);
+}
+
 async function waitForIndonesiaVerificationLink(applicantId: string): Promise<URL | null> {
   const { inbox } = await import("../inbox/wait-for-message");
   const message = await inbox.waitForMessage(
@@ -542,6 +558,23 @@ async function fillForeignerAccountRegistration(
       .catch(() => []);
     if (visibleErrors.length > 0) {
       diagnostics.push(`indonesia_account_registration_errors ${visibleErrors.join(" | ").slice(0, 300)}`);
+    }
+    const invalidControls = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>(".is-invalid"))
+          .map((element) => {
+            const input = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+            return input.id || input.getAttribute("name") || element.className || element.tagName;
+          })
+          .filter(Boolean)
+          .slice(0, 12),
+      )
+      .catch(() => []);
+    if (invalidControls.length > 0) {
+      diagnostics.push(`indonesia_account_registration_invalid_controls ${invalidControls.join(", ")}`);
+    }
+    if (/\/front\/register\/wna/i.test(page.url())) {
+      await captureRegistrationArtifact(page, input, diagnostics);
     }
   }
 
