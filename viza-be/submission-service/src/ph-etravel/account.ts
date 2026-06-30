@@ -58,7 +58,7 @@ export function choosePhEtravelAccountPlan(input: {
 }): PhEtravelAccountPlan {
   const existingAccount = input.existingAccount;
   const existingStatus = existingAccount?.status?.trim().toLowerCase() ?? "";
-  const hasReusabilityMpin = existingAccount?.email && existingAccount.mpin && !PH_ETRAVEL_NON_REUSABLE_ACCOUNT_STATUSES.has(existingStatus);
+  const hasReusableCredentials = existingAccount?.email && existingAccount.password && !PH_ETRAVEL_NON_REUSABLE_ACCOUNT_STATUSES.has(existingStatus);
   if (existingAccount?.email && existingAccount.status === "pending_registration") {
     return {
       mode: "create_new",
@@ -69,7 +69,7 @@ export function choosePhEtravelAccountPlan(input: {
     };
   }
 
-  if (hasReusabilityMpin) {
+  if (hasReusableCredentials) {
     return {
       mode: "reuse_existing",
       accountId: existingAccount.id,

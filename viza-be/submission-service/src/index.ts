@@ -279,7 +279,9 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("sgac_live_assisted_") ||
     item.status.startsWith("mdac_live_assisted_") ||
     item.status.startsWith("tdac_live_assisted_") ||
+    item.status.startsWith("id_c1_payment_") ||
     item.status.startsWith("id_c1_live_assisted_") ||
+    item.status.startsWith("id_b1_evoa_payment_") ||
     item.status.startsWith("id_b1_evoa_live_assisted_") ||
     item.status.startsWith("phetravel_live_assisted_") ||
     item.provider === "france_visas_live" ||
@@ -1393,7 +1395,9 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("tdac_dry_run_")) return "tdac_dry_run_failed";
   if (status.startsWith("tdac_")) return "tdac_blocked";
   if (status.startsWith("id_c1_live_assisted_")) return "id_c1_live_assisted_failed";
+  if (status.startsWith("id_c1_payment_")) return "id_c1_payment_failed";
   if (status.startsWith("id_b1_evoa_live_assisted_")) return "id_b1_evoa_live_assisted_failed";
+  if (status.startsWith("id_b1_evoa_payment_")) return "id_b1_evoa_payment_failed";
   if (status.startsWith("phetravel_live_assisted_")) return "phetravel_live_assisted_failed";
   if (status.startsWith("phetravel_dry_run_")) return "phetravel_dry_run_failed";
   if (status.startsWith("phetravel_")) return "phetravel_blocked";
@@ -6208,6 +6212,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   const failedStatus: SubmissionQueueItem["status"] = isB1
     ? "id_b1_evoa_live_assisted_failed"
     : "id_c1_live_assisted_failed";
+  const paymentPendingStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_payment_pending"
+    : "id_c1_payment_pending";
 
   console.log(
     `[indonesia] Processing ${provider} application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
@@ -6386,19 +6393,42 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       }
     }
 
+    const isPaymentAuthorizationRequired =
+      result.status === "action_required" && result.actionType === "official_fee_payment_required";
+
     const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";
+    const nextQueueStatus = isPaymentAuthorizationRequired
+      ? paymentPendingStatus
+      : result.status === "action_required"
+        ? "action_required"
+        : failedStatus;
+    const currentStage = result.actionType === "official_fee_payment_required" ? "payment_page_visible" : result.actionType ?? "indonesia_live_action_required";
+
+    const queuePayload = {
+      actionType: result.actionType ?? null,
+      actionInstructions: result.actionInstructions ?? null,
+      checkpoint: currentStage,
+      message: result.message,
+      url: INDONESIA_C1_PORTAL_URL,
+      implementationStatus: result.implementationStatus,
+      evidence: { provider: provider, message: result.message },
+    };
+
+    const shouldKeepAsActionRequired = result.status === "action_required" && !isPaymentAuthorizationRequired;
+
     await writeSubmissionResult(item.application_id, result, resultStatus);
     const { error: queueUpdateError } = await supabase
       .from("submission_queue")
       .update({
-        status: result.status === "action_required" ? "action_required" : failedStatus,
+        status: nextQueueStatus,
         provider,
         last_error: null,
         error_code: result.actionType ?? null,
         error_message: result.message,
-        current_stage: result.actionType ?? "indonesia_live_action_required",
+        current_stage: shouldKeepAsActionRequired ? currentStage : (isPaymentAuthorizationRequired ? "payment_page_visible" : currentStage),
         official_portal_url: INDONESIA_C1_PORTAL_URL,
         manual_action_status: result.status === "action_required" ? "pending" : null,
+        vn_result_payload: queuePayload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);

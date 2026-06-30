@@ -116,23 +116,75 @@ async function solveWithBrowserApiCaptchaCdp(page: Page, logs: string[], stage: 
       params?: Record<string, unknown>,
     ) => Promise<unknown>;
     await sendBrightDataCommand("Captcha.setAutoSolve", { autoSolve: true }).catch(() => undefined);
-    const result = await sendBrightDataCommand("Captcha.solve", {
-      detectTimeout: 90_000,
-      options: [{ type: "cf_turnstile" }, { type: "turnstile" }],
-    }).catch(async (solveError) => {
-      logs.push(
-        `tdac_brightdata_captcha_solve_command_failed stage=${stage} ${
-          solveError instanceof Error ? solveError.message.split("\n")[0] : String(solveError)
-        }`,
-      );
-      return sendBrightDataCommand("Captcha.waitForSolve", { detectTimeout: 90_000 });
-    });
+    const trySolve = async (params: Record<string, unknown>): Promise<unknown | null> => {
+      try {
+        return await sendBrightDataCommand("Captcha.solve", params);
+      } catch (error) {
+        logs.push(
+          `tdac_brightdata_captcha_solve_command_failed stage=${stage} params=${JSON.stringify(params)} ${
+            error instanceof Error ? error.message.split("\n")[0] : String(error)
+          }`,
+        );
+        return null;
+      }
+    };
+
+    const solveParams: Array<Record<string, unknown>> = [
+      { detectTimeout: 90_000, options: [{ type: "cf_turnstile" }, { type: "turnstile" }] },
+      { detectTimeout: 90_000 },
+    ];
+
+    let result: unknown | null = null;
+    for (const params of solveParams) {
+      result = await trySolve(params);
+      if (result) break;
+      await page.waitForTimeout(1_000);
+    }
+
+    if (!result) {
+      result = await sendBrightDataCommand("Captcha.waitForSolve", { detectTimeout: 90_000 }).catch(async (waitError) => {
+        logs.push(
+          `tdac_brightdata_captcha_wait_failed stage=${stage} ${
+            waitError instanceof Error ? waitError.message.split("\n")[0] : String(waitError)
+          }`,
+        );
+        return null;
+      });
+    }
     const status = typeof result === "object" && result && "status" in result
       ? String((result as { status?: unknown }).status ?? "unknown")
       : "unknown";
     logs.push(`tdac_brightdata_captcha_solve_status stage=${stage} status=${status}`);
-    await page.waitForTimeout(5_000);
-    return /solve_finished|finished|success|solved/i.test(status) && !/failed|invalid/i.test(status);
+    const tokenValue = await page
+      .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
+      .first()
+      .inputValue()
+      .catch(() => "")
+      .then((value) => value.trim())
+      .catch(() => "");
+    if (tokenValue) {
+      logs.push(`tdac_brightdata_captcha_token_present stage=${stage}`);
+      return true;
+    }
+
+    const solvedByStatus = /solve_finished|finished|success|solved/i.test(status) && !/failed|invalid/i.test(status);
+    if (solvedByStatus) {
+      await page.waitForTimeout(2_000);
+      const tokenAfterWait = await page
+        .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
+        .first()
+        .inputValue()
+        .catch(() => "")
+        .then((value) => value.trim())
+        .catch(() => "");
+      if (tokenAfterWait) {
+        logs.push(`tdac_brightdata_captcha_token_present_after_wait stage=${stage}`);
+        return true;
+      }
+    }
+
+    await page.waitForTimeout(3_000);
+    return false;
   } catch (error) {
     logs.push(`tdac_brightdata_captcha_solve_failed stage=${stage} ${error instanceof Error ? error.message : String(error)}`);
     return false;

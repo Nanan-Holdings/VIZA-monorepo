@@ -26,7 +26,7 @@ test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
   });
 });
 
-test("choosePhEtravelAccountPlan creates a new account when the saved account has no MPIN", () => {
+test("choosePhEtravelAccountPlan reuses an existing account even when mpin is missing", () => {
   const plan = choosePhEtravelAccountPlan({
     existingAccount: {
       id: "acct_existing",
@@ -42,10 +42,11 @@ test("choosePhEtravelAccountPlan creates a new account when the saved account ha
   });
 
   assert.deepEqual(plan, {
-    mode: "create_new",
-    email: "appl-new+ph@haggstorm.com",
-    password: "new-password",
-    mpin: "654321",
+    mode: "reuse_existing",
+    accountId: "acct_existing",
+    email: "appl-existing@haggstorm.com",
+    password: "saved-password",
+    mpin: null,
   });
 });
 

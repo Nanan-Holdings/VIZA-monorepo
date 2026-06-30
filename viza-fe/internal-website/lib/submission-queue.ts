@@ -74,10 +74,18 @@ export type SubmissionQueueStatus =
   | "tdac_blocked"
   | "id_c1_live_assisted_pending"
   | "id_c1_live_assisted_processing"
+  | "id_c1_payment_pending"
+  | "id_c1_payment_processing"
+  | "id_c1_payment_paid"
+  | "id_c1_payment_failed"
   | "id_c1_live_assisted_failed"
   | "id_c1_blocked"
   | "id_b1_evoa_live_assisted_pending"
   | "id_b1_evoa_live_assisted_processing"
+  | "id_b1_evoa_payment_pending"
+  | "id_b1_evoa_payment_processing"
+  | "id_b1_evoa_payment_paid"
+  | "id_b1_evoa_payment_failed"
   | "id_b1_evoa_live_assisted_failed"
   | "id_b1_evoa_blocked"
   | "phetravel_dry_run_pending"
@@ -212,8 +220,12 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "tdac_live_assisted_processing",
   "id_c1_live_assisted_pending",
   "id_c1_live_assisted_processing",
+  "id_c1_payment_pending",
+  "id_c1_payment_processing",
   "id_b1_evoa_live_assisted_pending",
   "id_b1_evoa_live_assisted_processing",
+  "id_b1_evoa_payment_pending",
+  "id_b1_evoa_payment_processing",
   "phetravel_dry_run_pending",
   "phetravel_dry_run_processing",
   "phetravel_live_assisted_pending",
@@ -256,8 +268,16 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "tdac_live_assisted_cancelled",
   "tdac_blocked",
   "id_c1_live_assisted_failed",
+  "id_c1_payment_pending",
+  "id_c1_payment_processing",
+  "id_c1_payment_paid",
+  "id_c1_payment_failed",
   "id_c1_blocked",
   "id_b1_evoa_live_assisted_failed",
+  "id_b1_evoa_payment_pending",
+  "id_b1_evoa_payment_processing",
+  "id_b1_evoa_payment_paid",
+  "id_b1_evoa_payment_failed",
   "id_b1_evoa_blocked",
   "phetravel_dry_run_failed",
   "phetravel_live_assisted_failed",
@@ -536,6 +556,14 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "tdac_live_assisted_scheduled" ||
     input.queueStatus === "id_c1_live_assisted_pending" ||
     input.queueStatus === "id_b1_evoa_live_assisted_pending" ||
+    input.queueStatus === "id_c1_payment_pending" ||
+    input.queueStatus === "id_b1_evoa_payment_pending" ||
+    input.queueStatus === "id_c1_payment_processing" ||
+    input.queueStatus === "id_b1_evoa_payment_processing" ||
+    input.queueStatus === "id_c1_payment_paid" ||
+    input.queueStatus === "id_b1_evoa_payment_paid" ||
+    input.queueStatus === "id_c1_payment_failed" ||
+    input.queueStatus === "id_b1_evoa_payment_failed" ||
     input.queueStatus === "phetravel_live_assisted_pending" ||
     input.queueStatus === "phetravel_live_assisted_scheduled"
   );
