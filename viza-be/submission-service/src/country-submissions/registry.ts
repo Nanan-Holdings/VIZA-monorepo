@@ -353,9 +353,6 @@ const TDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("accommodation_type_other", "Other accommodation type", "trip", WHEN_TDAC_ACCOMMODATION_OTHER),
   arrivalCardField("address_in_thailand", "Address in Thailand", "trip", WHEN_TDAC_NOT_TRANSIT),
   arrivalCardField("province", "Province", "trip", WHEN_TDAC_NOT_TRANSIT),
-  arrivalCardField("district", "District", "trip", WHEN_TDAC_NOT_TRANSIT),
-  arrivalCardField("sub_district", "Sub-district", "trip", WHEN_TDAC_NOT_TRANSIT),
-  arrivalCardField("postcode", "Post code", "trip", WHEN_TDAC_NOT_TRANSIT),
   arrivalCardField("countries_visited_last_14_days", "Countries visited within 14 days", "security"),
 ];
 

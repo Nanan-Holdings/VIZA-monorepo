@@ -83,7 +83,11 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     );
     expect(field("arrival_mode_of_transport")?.validation_rules?.dependent_options).toMatchObject({
       air: expect.any(Array),
-      land: expect.any(Array),
+      land: [
+        expect.objectContaining({ value: "car", label_zh: "汽车", label_en: "CAR" }),
+        expect.objectContaining({ value: "train", label_zh: "火车", label_en: "TRAIN" }),
+        expect.objectContaining({ value: "others", label_zh: "其他（请说明）", label_en: "OTHERS (PLEASE SPECIFY)" }),
+      ],
       sea: expect.any(Array),
     });
     expect(field("departure_mode_of_transport")?.validation_rules?.dependent_options).toMatchObject({
@@ -94,6 +98,13 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     expect(field("district")?.validation_rules).toMatchObject({ dependent_on: "province" });
     expect(field("sub_district")?.validation_rules).toMatchObject({ dependent_on: "district" });
     expect(field("countries_visited_last_14_days")?.field_type).toBe("multi_select");
+    expect(field("city_state_of_residence")?.field_type).toBe("select");
+    expect(field("city_state_of_residence")?.validation_rules).toMatchObject({
+      dependent_on: "country_territory_of_residence",
+    });
+    expect(field("nationality")?.options?.length).toBeGreaterThan(200);
+    expect(field("province")?.options?.length).toBe(77);
+    expect(field("address_in_thailand")?.validation_rules).toMatchObject({ maxLength: 215 });
   });
 
   test("uses Chinese step titles in the seeded TDAC wizard", () => {
@@ -103,15 +114,13 @@ describe("Thailand TDAC arrival-card schema seed", () => {
   });
 
   test("requires accommodation fields only for non-transit travellers", () => {
-    for (const name of [
-      "accommodation_type",
-      "province",
-      "district",
-      "sub_district",
-      "postcode",
-      "address_in_thailand",
-    ]) {
+    for (const name of ["accommodation_type", "province", "address_in_thailand"]) {
       expect(field(name)?.required, name).toBe(true);
+      expect(field(name)?.conditional_logic, name).toMatchObject({ showIf: "is_transit_traveler !== yes" });
+    }
+
+    for (const name of ["district", "sub_district", "postcode"]) {
+      expect(field(name)?.required, name).toBe(false);
       expect(field(name)?.conditional_logic, name).toMatchObject({ showIf: "is_transit_traveler !== yes" });
     }
 
