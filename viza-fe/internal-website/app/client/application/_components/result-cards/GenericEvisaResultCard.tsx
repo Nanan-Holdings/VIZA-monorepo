@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Mail, ShieldCheck } from "lucide-react";
+import { Download, ExternalLink, Mail, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export function GenericEvisaResultCard({
   applicationId: string | null;
   result: GenericEvisaSubmissionResult;
 }) {
+  const portalUrl = (result as GenericEvisaSubmissionResult & { portalUrl?: string }).portalUrl;
   const country = COUNTRY_LABEL[result.country] ?? result.country;
   const hasArtifact = Boolean(result.artifactStoragePath);
 
@@ -72,6 +73,12 @@ export function GenericEvisaResultCard({
           <Button asChild className="w-full">
             <a href={`/api/applications/${applicationId}/evisa-artifact`}>
               <Download className="mr-2 h-4 w-4" /> Download document
+            </a>
+          </Button>
+        ) : result.status === "stopped_at_pay" && portalUrl ? (
+          <Button asChild className="w-full">
+            <a href={portalUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="mr-2 h-4 w-4" /> Continue to official payment page
             </a>
           </Button>
         ) : (
