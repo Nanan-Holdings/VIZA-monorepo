@@ -73,6 +73,23 @@ async function bodyText(page: Page): Promise<string> {
   return page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
 }
 
+async function firstSuccessful<T>(promises: Array<Promise<T>>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let pending = promises.length;
+    const errors: unknown[] = [];
+    for (const promise of promises) {
+      promise.then(resolve).catch((error: unknown) => {
+        errors.push(error);
+        pending -= 1;
+        if (pending === 0) {
+          const firstError = errors[0];
+          reject(firstError instanceof Error ? firstError : new Error(String(firstError)));
+        }
+      });
+    }
+  });
+}
+
 function extractReference(text: string): string | null {
   for (const pattern of PH_ETRAVEL_REFERENCE_PATTERNS) {
     const match = text.match(pattern);
@@ -1128,25 +1145,36 @@ async function maybeCreatePhEtravelAccount(
   const timeoutMs = options.emailVerificationTimeoutMs
     ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
   if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
-    const otp = await mailbox.waitForOtp({ timeoutMs, since });
-    await fillOtpInputs(page, otp);
-    await solveTurnstileIfPresent(page, logs, nativeCloudflareUnblock);
-    const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
-      page.getByRole("button", { name: /verify|continue|next|submit/i }),
-      page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
+    type EmailVerificationResult =
+      | { kind: "otp"; otp: string }
+      | { kind: "url"; url: URL };
+    const emailVerification = await firstSuccessful<EmailVerificationResult>([
+      mailbox.waitForOtp({ timeoutMs, since }).then((otp) => ({ kind: "otp" as const, otp })),
+      mailbox.waitForVerificationLink({ timeoutMs, since }).then((url) => ({ kind: "url" as const, url })),
     ]);
-    if (!clickedOtpContinue) {
-      screenshots.push(await saveScreenshot(page, "registration-email-otp-continue-disabled", logs));
-      throw new PhEtravelPortalError(
-        "Official Philippines eTravel registration OTP page did not enable the continue button before timeout.",
-        {
-          code: "ph_etravel_registration_otp_continue_disabled",
-          screenshotPaths: screenshots,
-          portalSummary: (await bodyText(page)).slice(0, 700),
-        },
-      );
+    if (emailVerification.kind === "url") {
+      await page.goto(emailVerification.url.toString(), { waitUntil: "domcontentloaded", timeout: 45_000 });
+      logs.push("ph_etravel_email_verification_link_opened");
+    } else {
+      await fillOtpInputs(page, emailVerification.otp);
+      await solveTurnstileIfPresent(page, logs, nativeCloudflareUnblock);
+      const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
+        page.getByRole("button", { name: /verify|continue|next|submit/i }),
+        page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
+      ]);
+      if (!clickedOtpContinue) {
+        screenshots.push(await saveScreenshot(page, "registration-email-otp-continue-disabled", logs));
+        throw new PhEtravelPortalError(
+          "Official Philippines eTravel registration OTP page did not enable the continue button before timeout.",
+          {
+            code: "ph_etravel_registration_otp_continue_disabled",
+            screenshotPaths: screenshots,
+            portalSummary: (await bodyText(page)).slice(0, 700),
+          },
+        );
+      }
+      logs.push("ph_etravel_email_otp_consumed");
     }
-    logs.push("ph_etravel_email_otp_consumed");
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     currentText = await bodyText(page);

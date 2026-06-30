@@ -448,6 +448,14 @@ function tdacNationalitySearchValue(value: string): string {
   return aliases[normalized] ?? value.toUpperCase();
 }
 
+function tdacOfficialOptionSearchValue(value: string): string {
+  return value
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
 function tdacGenderLabel(value: string): string {
   const normalized = value.trim().toLowerCase();
   if (normalized.startsWith("f")) return "FEMALE";
@@ -467,16 +475,10 @@ function tdacTransportLabel(value: string): RegExp {
   const labels: Record<string, RegExp> = {
     commercial_flight: /COMMERCIAL\s+FLIGHT/i,
     private_cargo_airline: /PRIVATE\/CARGO\s+AIRLINE/i,
-    bus: /^BUS$/i,
     car: /^CAR$/i,
-    lorry: /^LORRY$/i,
-    motorcycle: /^MOTORCYCLE$/i,
-    rail: /^RAIL$/i,
-    van: /^VAN$/i,
+    train: /^TRAIN$/i,
     cruise: /^CRUISE$/i,
     commercial_vessel: /COMMERCIAL\s+VESSEL/i,
-    ferry: /^FERRY$/i,
-    private_craft: /PRIVATE\s+CRAFT/i,
     others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
   };
   return labels[normalized] ?? new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -1229,7 +1231,15 @@ async function fillTdacPersonalStep(
   }
   const residenceCountrySearch = tdacCountrySearchValue(payload.residenceCountry);
   await selectOfficialAutocompleteAny(page, ["input[formcontrolname='countryOfResidence']", "input[formcontrolname='residenceCountry']", "#mat-input-26"], residenceCountrySearch, logs, "residence_country", officialCountryPattern(residenceCountrySearch));
-  await fillInputAny(page, ["input[formcontrolname='cityStateOfResidence']", "input[formcontrolname='residenceCity']", "#mat-input-27"], payload.residenceCity.toUpperCase(), logs, "residence_city");
+  const residenceRegionSearch = tdacOfficialOptionSearchValue(payload.residenceCity);
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='cityStateOfResidence']", "input[formcontrolname='residenceCity']", "#mat-input-27"],
+    residenceRegionSearch,
+    logs,
+    "residence_city",
+    new RegExp(residenceRegionSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+  );
   await fillInputAny(page, ["input[formcontrolname='telCode']", "input[formcontrolname='phoneCountryCode']", "#mat-input-6"], payload.phoneCountryCode.replace(/\D/g, ""), logs, "phone_country_code");
   await fillInputAny(page, ["input[formcontrolname='telNo']", "input[formcontrolname='phoneNumber']", "#mat-input-7"], payload.phoneNumber.replace(/\D/g, ""), logs, "phone_number");
   await assertTdacOfficialFormValid(page, screenshots, logs, "personal-continue");
@@ -1294,10 +1304,10 @@ async function fillTdacTripStep(
     .then(() => true)
     .catch(() => false);
   if (accommodationEnabled && !payload.isTransitTraveler) {
-    const province = (payload.province || "").toUpperCase();
-    const district = (payload.district || "").toUpperCase();
-    const subDistrict = (payload.subDistrict || "LUMPHINI").toUpperCase();
-    const postalCode = payload.postalCode || "10330";
+    const province = tdacOfficialOptionSearchValue(payload.province || "");
+    const district = tdacOfficialOptionSearchValue(payload.district || "");
+    const subDistrict = tdacOfficialOptionSearchValue(payload.subDistrict || "");
+    const postalCode = payload.postalCode || "";
     await selectMatSelect(page, "mat-select[formcontrolname='accTypeId']", tdacAccommodationLabel(payload.accommodationType || "hotel"), logs);
     if (payload.accommodationType === "others" && payload.accommodationTypeOther) {
       await fillVisibleInputNearMatSelect(
@@ -1309,9 +1319,15 @@ async function fillTdacTripStep(
       );
     }
     await selectOfficialAutocompleteAny(page, ["input[formcontrolname='province']", "#mat-input-29"], province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectOfficialAutocompleteAny(page, ["input[formcontrolname='district']", "input[formcontrolname='area']", "#mat-input-30"], district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectOfficialAutocompleteAny(page, ["input[formcontrolname='subDistrict']", "input[formcontrolname='subArea']", "#mat-input-31"], subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await forceSetInputAny(page, ["input[formcontrolname='postCode']", "input[formcontrolname='postalCode']", "#mat-input-16"], postalCode, logs, "postal_code");
+    if (district) {
+      await selectOfficialAutocompleteAny(page, ["input[formcontrolname='district']", "input[formcontrolname='area']", "#mat-input-30"], district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    }
+    if (subDistrict) {
+      await selectOfficialAutocompleteAny(page, ["input[formcontrolname='subDistrict']", "input[formcontrolname='subArea']", "#mat-input-31"], subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    }
+    if (postalCode) {
+      await forceSetInputAny(page, ["input[formcontrolname='postCode']", "input[formcontrolname='postalCode']", "#mat-input-16"], postalCode, logs, "postal_code");
+    }
     await forceSetInputAny(page, ["textarea[formcontrolname='address']", "input[formcontrolname='address']", "#mat-input-17"], payload.addressInThailand || "", logs, "address_in_thailand");
   } else if (payload.isTransitTraveler) {
     logs.push("tdac_same_day_transit_skip_accommodation");
@@ -1322,7 +1338,7 @@ async function fillTdacTripStep(
       {
         code: "tdac_accommodation_section_unavailable",
         screenshotPaths: screenshots,
-        portalSummary: "Non-transit TDAC submissions require accommodation_type, address_in_thailand, province, district, sub_district, and postcode.",
+        portalSummary: "Non-transit TDAC submissions require accommodation_type, address_in_thailand, and province.",
       },
     );
   }
