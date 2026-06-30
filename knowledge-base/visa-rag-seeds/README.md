@@ -14,6 +14,13 @@ other identity fields where the correct answer must come from the passport,
 official identity document, MRZ, or official dropdown options rather than a
 free-form guess.
 
+Country seeds may also carry an `official_field_answer_norms` chunk inside the
+same `form_requirements` document. Generate or refresh this chunk with
+`npm run enrich:field-answer-norms-rag` from `viza-be/agent-backend`; the script
+crawls the official or authorized URLs already present in the seed, extracts
+field-answer evidence, filters common webpage noise, and writes only
+source-backed filling norms.
+
 ## Ingestion
 
 Run from `viza-be/agent-backend`:

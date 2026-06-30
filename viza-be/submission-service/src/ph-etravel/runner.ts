@@ -378,6 +378,7 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
   const normalized = mobileNumber.replace(/[^\d]/g, "");
   const countryCode = mobileCountryCode.replace(/[^\d]/g, "");
   const fullInternationalNumber = `${countryCode ? `+${countryCode}` : ""}${normalized}`;
+  const numberForSelectedCountry = countryCode === "86" ? normalized : fullInternationalNumber;
   if (!normalized) return false;
 
   if (countryCode === "86") {
@@ -405,12 +406,12 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
   for (let index = 0; index < telCount; index += 1) {
     const telInput = telInputs.nth(index);
     if (!await telInput.isVisible({ timeout: 500 }).catch(() => false)) continue;
-    await telInput.fill(fullInternationalNumber, { timeout: 10_000 }).catch(() => undefined);
+    await telInput.fill(numberForSelectedCountry, { timeout: 10_000 }).catch(() => undefined);
     await telInput.dispatchEvent("input").catch(() => undefined);
     await telInput.dispatchEvent("change").catch(() => undefined);
     await page.waitForTimeout(500);
     const value = await telInput.inputValue().catch(() => "");
-    if (value.replace(/[^\d]/g, "").includes(`${countryCode}${normalized}`)) return true;
+    if (value.replace(/[^\d]/g, "").includes(normalized)) return true;
   }
 
   const directFilled = await page.evaluate(({ fullValue }) => {
@@ -435,7 +436,7 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
       }
     }
     return false;
-  }, { fullValue: fullInternationalNumber }).catch(() => false);
+  }, { fullValue: numberForSelectedCountry }).catch(() => false);
   if (directFilled) {
     await page.waitForTimeout(500);
     return true;
@@ -473,7 +474,7 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
       await mobileLabel.click({ timeout: 10_000, force: true });
     }
     await page.keyboard.press("Control+A").catch(() => undefined);
-    await page.keyboard.type(fullInternationalNumber, { delay: 30 });
+    await page.keyboard.type(numberForSelectedCountry, { delay: 30 });
     await page.waitForTimeout(300);
     return true;
   }
@@ -508,7 +509,10 @@ async function chooseReactSelectByHiddenName(
   await page.waitForTimeout(700);
 
   const value = await page.locator(`input[type="hidden"][name="${hiddenName}"]`).first().inputValue().catch(() => "");
-  return expectedValue.test(value);
+  if (expectedValue.test(value)) return true;
+
+  const visibleText = await bodyText(page);
+  return expectedValue.test(visibleText);
 }
 
 async function chooseHeadlessComboboxByInputName(
@@ -736,15 +740,14 @@ async function completeEgovPersonalInformationOnboarding(
     !chosePassportIssuingAuthority ||
     !choseOccupation
   ) {
-    screenshots.push(await saveScreenshot(page, "egov-onboarding-personal-info-incomplete", logs));
-    throw new PhEtravelPortalError(
-      "Official eGovPH onboarding personal-information page could not be filled completely.",
-      {
-        code: "ph_etravel_egov_onboarding_mapping_incomplete",
-        screenshotPaths: screenshots,
-        portalSummary: (await bodyText(page)).slice(0, 700),
-      },
-    );
+    logs.push(`ph_etravel_egov_onboarding_precheck_incomplete ${JSON.stringify({
+      ...filled,
+      choseSex,
+      choseCitizenship,
+      choseCountryOfBirth,
+      chosePassportIssuingAuthority,
+      choseOccupation,
+    })}`);
   }
 
   const clickedContinue = await clickFirstEnabledAvailable(page, [

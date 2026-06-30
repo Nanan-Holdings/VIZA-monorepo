@@ -113,6 +113,7 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/config/visa-destination-registry.ts`
 - `src/routes/*`
 - `scripts/ingest-country-visa-rag.ts`
+- `scripts/enrich-field-answer-norms-rag.ts`
 - `scripts/ingest-photo-requirements-rag.ts`
 - `scripts/import-geonames-destinations.ts`
 - `scripts/import-geonames-aliases.ts`
