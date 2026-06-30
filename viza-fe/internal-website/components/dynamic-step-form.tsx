@@ -646,10 +646,25 @@ function normalizeTdacStepValues(
 
   const normalizeOptionField = (fieldName: string, fallbackKeys: string[] = []) => {
     const field = fieldByName.get(fieldName);
-    if (!field?.options) return;
+    if (!field) return;
     const currentValue = next[fieldName]?.trim();
     const fallbackValue = fallbackKeys.map((key) => next[key]?.trim()).find(Boolean);
-    const canonical = findCanonicalOptionValue(field.options, currentValue || fallbackValue);
+    let options = field.options;
+    const rules = field.validationRules as {
+      dependent_on?: string;
+      dependsOn?: string;
+      dependent_options?: Record<string, VisaFormFieldOption[]>;
+    } | null;
+    const parentFieldName = rules?.dependent_on ?? rules?.dependsOn;
+    const parentValue = parentFieldName ? next[parentFieldName]?.trim() : "";
+    if ((!options || options.length === 0) && rules?.dependent_options && parentValue) {
+      options =
+        rules.dependent_options[parentValue] ??
+        rules.dependent_options[normalizeOptionKey(parentValue)] ??
+        null;
+    }
+    if (!options || options.length === 0) return;
+    const canonical = findCanonicalOptionValue(options, currentValue || fallbackValue);
     if (canonical) next[fieldName] = canonical;
   };
 
@@ -665,6 +680,18 @@ function normalizeTdacStepValues(
     "home_country",
     "nationality",
     "nationality_country",
+  ]);
+  normalizeOptionField("city_state_of_residence", [
+    "residence_city_state",
+    "residence_state",
+    "residence_province",
+    "home_address_state",
+    "home_address_city",
+    "residential_address_state",
+    "residential_address_city",
+    "birth_province",
+    "state_of_birth",
+    "birth_state",
   ]);
   normalizeOptionField("country_boarded", ["country_territory_of_residence", "nationality"]);
   normalizeOptionField("arrival_mode_of_travel");
@@ -2033,7 +2060,7 @@ export function DynamicStepForm({
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
 
-    const officialValue = nextPair.en || nextPair.zh || currentPair.en || currentPair.zh;
+    const officialValue = nextPair.en || nextPair.zh;
     handleChange(fieldName, officialValue, { recordUndo: false });
   };
 
