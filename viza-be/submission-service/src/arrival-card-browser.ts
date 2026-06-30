@@ -36,7 +36,11 @@ export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPref
     `${prefix}_BROWSER_API_ENDPOINT`,
     `${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`,
   ];
-  if (prefix === "TDAC" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
+  if (
+    prefix === "TDAC" ||
+    prefix === "PH_ETRAVEL" ||
+    process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true"
+  ) {
     envNames.push(
       "BRIGHTDATA_BROWSER_WS",
       "BRIGHTDATA_BROWSER_API_ENDPOINT",
@@ -57,6 +61,12 @@ function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
   return /brd\.superproxy\.io/i.test(endpoint ?? "");
 }
 
+function requiresRemoteBrowserApi(prefix: ArrivalCardBrowserPrefix, endpoint: string | null): boolean {
+  const explicit = process.env[`${prefix}_REQUIRE_BROWSER_API`]?.trim();
+  if (explicit) return explicit !== "false";
+  return prefix === "PH_ETRAVEL" && Boolean(endpoint);
+}
+
 export async function createArrivalCardBrowserSession(options: {
   prefix: ArrivalCardBrowserPrefix;
   headless?: boolean;
@@ -64,6 +74,7 @@ export async function createArrivalCardBrowserSession(options: {
 }): Promise<ArrivalCardBrowserSession> {
   const diagnostics: string[] = [];
   const endpoint = options.forceLocal ? null : resolveArrivalCardBrowserEndpoint(options.prefix);
+  const requireRemoteBrowserApi = !options.forceLocal && requiresRemoteBrowserApi(options.prefix, endpoint);
   if (endpoint) {
     let browser: Browser | null = null;
     const maxAttempts = Number(process.env[`${options.prefix}_BROWSER_API_CONNECT_ATTEMPTS`] ?? "3");
@@ -92,6 +103,11 @@ export async function createArrivalCardBrowserSession(options: {
         diagnostics,
         close: () => browser.close(),
       };
+    }
+    if (requireRemoteBrowserApi) {
+      throw new ArrivalCardBrowserError(
+        `${options.prefix} Browser API endpoint was configured but could not be reached; refusing to fall back to local browser for a Cloudflare-protected portal.`,
+      );
     }
   }
 

@@ -14,13 +14,25 @@
         {
           "id": "hk_visit_transit_scope",
           "title": "Hong Kong visit or transit route scope",
-          "tags": ["hong-kong", "visit", "transit", "eligibility", "visitor"],
+          "tags": [
+            "hong-kong",
+            "visit",
+            "transit",
+            "eligibility",
+            "visitor"
+          ],
           "content": "Hong Kong Immigration Department guidance covers visa or entry permit applications for visitors and transit passengers who are not visa-free or who need permission beyond their visa-free conditions. A visit/transit application may be considered when the applicant meets normal immigration requirements, holds a valid travel document with returnability to their country of residence or citizenship, has no security or criminal concern, and is unlikely to become a burden on Hong Kong. Visitors are generally not allowed to take up paid or unpaid employment, establish or join a business, or enter school as students."
         },
         {
           "id": "hk_visit_transit_documents",
           "title": "Hong Kong supporting evidence",
-          "tags": ["hong-kong", "documents", "passport", "funds", "itinerary"],
+          "tags": [
+            "hong-kong",
+            "documents",
+            "passport",
+            "funds",
+            "itinerary"
+          ],
           "content": "The Hong Kong visit/transit workflow should collect passport and identity details, current residence, travel purpose, proposed entry date and duration, itinerary, accommodation or host information, return or onward travel, financial support, prior Hong Kong visits, and any refusal or background declarations. If there is a local sponsor or host, collect sponsor identity, address, contact details, relationship, and support evidence. VIZA should distinguish visa-free travel, pre-arrival registration where relevant, and visit visa/entry permit filing."
         }
       ]
@@ -36,13 +48,25 @@
         {
           "id": "hk_visit_transit_application_channels",
           "title": "Hong Kong application channels",
-          "tags": ["hong-kong", "application", "online", "e-visa", "immigration-department"],
+          "tags": [
+            "hong-kong",
+            "application",
+            "online",
+            "e-visa",
+            "immigration-department"
+          ],
           "content": "Hong Kong Immigration Department provides visit/transit application forms, including ID 1003A for the applicant. Hong Kong also operates electronic services for visa applications and e-Visa arrangements, allowing eligible applicants to submit applications online through ImmD website, GovHK, or the ImmD mobile application. Some applicants may apply directly to the Hong Kong Immigration Department by post, through a local sponsor, or through relevant Chinese diplomatic or consular channels depending on nationality and location."
         },
         {
           "id": "hk_visit_transit_review_guardrails",
           "title": "Hong Kong review guardrails",
-          "tags": ["hong-kong", "review", "submission", "e-visa", "guardrails"],
+          "tags": [
+            "hong-kong",
+            "review",
+            "submission",
+            "e-visa",
+            "guardrails"
+          ],
           "content": "VIZA should explain that Hong Kong visit/transit approval depends on individual merits and immigration control. Do not promise visa-free eligibility without passport-specific checking. Before handoff to the application page, give a rough idea of likely needs: valid travel document, purpose and itinerary, accommodation or sponsor details, funds, return/onward travel, and background declarations. Detailed field collection belongs in the HK_VISIT_VISA form page."
         }
       ]
@@ -58,14 +82,38 @@
         {
           "id": "hk_form_supported_route",
           "title": "Hong Kong supported VIZA form route",
-          "tags": ["hong-kong", "form-requirements", "HK_VISIT_VISA", "application-redirect"],
+          "tags": [
+            "hong-kong",
+            "form-requirements",
+            "HK_VISIT_VISA",
+            "application-redirect"
+          ],
           "content": "VIZA supports Hong Kong Visit Visa as country hong_kong and visaType HK_VISIT_VISA. When the user asks to apply for a Hong Kong visitor or transit route, send an application_redirect block to /client/application?country=hong_kong&visaType=HK_VISIT_VISA. Do not collect detailed application fields inside chat."
         },
         {
           "id": "hk_form_fields_and_documents",
           "title": "Hong Kong fields and document preparation",
-          "tags": ["hong-kong", "field-mapping", "documents", "form-prep"],
+          "tags": [
+            "hong-kong",
+            "field-mapping",
+            "documents",
+            "form-prep"
+          ],
           "content": "The HK_VISIT_VISA form schema is aligned to Hong Kong Immigration Department visitor forms and collects applicant identity, other names, nationality, passport and other travel documents, marital and contact details, Hong Kong travel purpose, entry date, duration, accommodation, host or sponsor details, prior Hong Kong travel, visa refusals, criminal or deportation history, and supporting document preparation such as passport bio page, photo, itinerary, accommodation, return ticket, funds, and sponsor evidence where relevant."
+        },
+        {
+          "id": "standard_passport_identity_field_rules",
+          "title": "Standard passport identity-field answer rules",
+          "tags": [
+            "standard-fields",
+            "passport",
+            "issuing-authority",
+            "passport-type",
+            "identity-document",
+            "field-guidance",
+            "official-source"
+          ],
+          "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
         }
       ]
     }

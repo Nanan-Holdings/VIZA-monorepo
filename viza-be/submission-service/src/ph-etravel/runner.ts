@@ -60,6 +60,14 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   return filePath;
 }
 
+async function saveHtmlSnapshot(page: Page, name: string, logs: string[]): Promise<string> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-ph-etravel-html-"));
+  const filePath = path.join(dir, `${name}-${Date.now()}.html`);
+  fs.writeFileSync(filePath, await page.content(), "utf8");
+  logs.push(`ph_etravel_html_snapshot ${filePath}`);
+  return filePath;
+}
+
 async function bodyText(page: Page): Promise<string> {
   return page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
 }
@@ -371,25 +379,33 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
   const countryCode = mobileCountryCode.replace(/[^\d]/g, "");
   const fullInternationalNumber = `${countryCode ? `+${countryCode}` : ""}${normalized}`;
   if (!normalized) return false;
-  await page.evaluate(({ value, fullValue }) => {
+  const directFilled = await page.evaluate(({ fullValue }) => {
     const textNodes = Array.from(document.querySelectorAll("label, div, span, p"))
       .filter((node) => /mobile number/i.test(node.textContent ?? ""));
+    const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
     for (const node of textNodes) {
       let scope: Element | null = node;
       for (let depth = 0; depth < 5 && scope; depth += 1) {
-        const inputs = Array.from(scope.querySelectorAll<HTMLInputElement>("input:not([type='hidden'])"));
-        const targets = inputs.filter((input) => !input.disabled && input.type !== "hidden");
-        for (const target of targets) {
+        const targets = Array.from(scope.querySelectorAll<HTMLInputElement>("input[type='tel'], input:not([type='hidden'])"))
+          .filter((input) => !input.disabled && input.type !== "hidden");
+        for (const target of targets.reverse()) {
           target.focus();
-          target.value = target.getAttribute("type") === "tel" ? fullValue : value;
+          setValue?.call(target, fullValue);
+          if (target.value !== fullValue) target.value = fullValue;
           target.dispatchEvent(new InputEvent("input", { bubbles: true, data: target.value, inputType: "insertText" }));
           target.dispatchEvent(new Event("change", { bubbles: true }));
           target.blur();
+          if (target.value === fullValue) return true;
         }
         scope = scope.parentElement;
       }
     }
-  }, { value: normalized, fullValue: fullInternationalNumber }).catch(() => undefined);
+    return false;
+  }, { fullValue: fullInternationalNumber }).catch(() => false);
+  if (directFilled) {
+    await page.waitForTimeout(500);
+    return true;
+  }
 
   const mobileLabel = page.getByText(/mobile number/i).last();
   if (await mobileLabel.isVisible({ timeout: 1_000 }).catch(() => false)) {
@@ -430,6 +446,37 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
   return false;
 }
 
+async function chooseReactSelectByHiddenName(
+  page: Page,
+  hiddenName: string,
+  typedText: string,
+  expectedValue: RegExp,
+): Promise<boolean> {
+  const opened = await page.evaluate((name) => {
+    const hidden = document.querySelector<HTMLInputElement>(`input[type="hidden"][name="${name}"]`);
+    const root = hidden?.parentElement;
+    const input = root?.querySelector<HTMLInputElement>("input[role='combobox']");
+    input?.focus();
+    input?.click();
+    return Boolean(input);
+  }, hiddenName).catch(() => false);
+  if (!opened) return false;
+
+  await page.keyboard.press("Control+A").catch(() => undefined);
+  await page.keyboard.type(typedText, { delay: 30 });
+  await page.waitForTimeout(700);
+  await clickFirstAvailable(page, [
+    page.getByRole("option", { name: new RegExp(`^${typedText}$`, "i") }),
+    page.getByText(new RegExp(`^${typedText}$`, "i")),
+    page.locator("[role='option'], div, p").filter({ hasText: new RegExp(`^${typedText}$`, "i") }),
+  ]);
+  await page.keyboard.press("Enter").catch(() => undefined);
+  await page.waitForTimeout(700);
+
+  const value = await page.locator(`input[type="hidden"][name="${hiddenName}"]`).first().inputValue().catch(() => "");
+  return expectedValue.test(value);
+}
+
 async function chooseDropdownOption(
   page: Page,
   triggerText: RegExp,
@@ -464,10 +511,6 @@ async function chooseDropdownOption(
     await page.keyboard.press("Control+A").catch(() => undefined);
     await page.keyboard.type(typedText, { delay: 30 }).catch(() => undefined);
     await page.waitForTimeout(700);
-  }
-  const selectedText = await bodyText(page);
-  if (typedText && new RegExp(`\\b${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(selectedText)) {
-    return true;
   }
   const clicked = await clickFirstAvailable(page, [
     page.getByRole("option", { name: optionText }),
@@ -595,8 +638,8 @@ async function completeEgovPersonalInformationOnboarding(
   };
   await page.keyboard.press("Escape").catch(() => undefined);
   await page.waitForTimeout(300);
-  const sexText = /^m|male/i.test(payload.sex) ? "Male" : /^f|female/i.test(payload.sex) ? "Female" : payload.sex;
-  const choseSex = await chooseDropdownOption(page, /^sex$/i, sexOptionPattern(payload.sex), sexText);
+  const sexText = /^m|male/i.test(payload.sex) ? "MALE" : /^f|female/i.test(payload.sex) ? "FEMALE" : payload.sex.toUpperCase();
+  const choseSex = await chooseReactSelectByHiddenName(page, "gender", sexText, sexOptionPattern(payload.sex));
   const choseCitizenship = await chooseDropdownOption(
     page,
     /citizenship/i,
@@ -667,6 +710,18 @@ async function completeEgovPersonalInformationOnboarding(
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
   text = await bodyText(page);
+  if (/onboarding|personal information|required|fill out all required fields/i.test(text)) {
+    screenshots.push(await saveScreenshot(page, "egov-onboarding-still-required", logs));
+    await saveHtmlSnapshot(page, "egov-onboarding-still-required", logs);
+    throw new PhEtravelPortalError(
+      "Official eGovPH onboarding still shows required personal-information fields after automation clicked Next.",
+      {
+        code: "ph_etravel_egov_onboarding_required_fields_remaining",
+        screenshotPaths: screenshots,
+        portalSummary: text.slice(0, 700),
+      },
+    );
+  }
   if (/mpin|6[-\s]?digit passcode|enter your passcode|create.*passcode|set.*passcode/i.test(text)) {
     text = await fillMpinPrompt(page, options, logs, screenshots);
   }
@@ -1073,6 +1128,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       browserSession.provider === "remote-browser-api" &&
       error instanceof PhEtravelPortalError &&
       error.code === "ph_etravel_official_portal_blocked" &&
+      process.env.PH_ETRAVEL_REQUIRE_BROWSER_API?.trim() === "false" &&
       isPhEtravelRemotePolicyBlockMessage(error.portalSummary ?? error.message)
     ) {
       logs.push("ph_etravel_remote_policy_blocked_fallback_to_local");

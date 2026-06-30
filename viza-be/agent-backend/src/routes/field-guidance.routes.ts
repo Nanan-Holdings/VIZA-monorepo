@@ -20,10 +20,27 @@ const OPENAI_FIELD_GUIDANCE_MODEL =
   process.env.OPENAI_FIELD_GUIDANCE_MODEL ||
   process.env.OPENAI_CHAT_MODEL ||
   process.env.OPENAI_MODEL ||
-  "gpt-4o-mini";
+  "gpt-5.5";
 const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1";
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
 const MAX_HISTORY_MESSAGES = 8;
+
+const STANDARD_IDENTITY_FIELD_SOURCE: SourceBody = {
+  title: "Standard passport identity-field guidance",
+  url: "https://www.nia.gov.cn/n741440/n741547/c1295795/content.html",
+  excerpt:
+    "Use the exact wording printed on the passport biodata page for passport identity fields. For Chinese ordinary passports, the issuing authority shown on the passport is the source of truth; newer passports may show the National Immigration Administration, PRC, while older valid passports may show MPS Exit & Entry Administration. Do not infer the issuing authority from the pickup city.",
+};
+
+const STANDARD_IDENTITY_FIELD_CONTEXT = [
+  "Standard identity-field RAG for visa form copilot:",
+  "Passport number, name, date of birth, sex, nationality, passport issue date, passport expiry date, issuing country, issuing authority, place of issue, and passport type are standard-answer fields.",
+  "For these fields, the answer must come from the passport biodata page, MRZ, official document, or the official dropdown options. Do not infer a value from the application country, pickup city, residence city, travel plan, or translation memory.",
+  "For passport issuing authority / issuing authority / 签发机关 / 签发地点字段: first ask the user to check the exact 'Authority' or 'Issuing authority' text printed on the passport. If the user has a Chinese ordinary passport, newer passports may show 'National Immigration Administration, PRC' / '中华人民共和国国家移民管理局'; older valid passports may show 'MPS Exit & Entry Administration' / '公安部出入境管理局'. If the passport prints a different authority, copy that printed text exactly.",
+  "If the user says they obtained the passport in a city such as Chongqing, do not answer that the issuing authority is Chongqing Public Security Bureau unless the passport itself prints that wording. A pickup or application city may be relevant only to a separate place-of-issue field, and even then the passport text controls.",
+  "For passport type / document type, ordinary personal tourist passports are usually Ordinary / Regular / Normal passport. Diplomatic, official, service, special, travel document, refugee, or other should be selected only when the passport or travel document explicitly says so.",
+  "For country and nationality fields, use the official country/region option offered by the form. For dates, use the date printed on the passport and the format required by the form.",
+].join("\n");
 
 type FieldType =
   | "text"
@@ -281,6 +298,19 @@ function deterministicExamples(field: FieldGuidanceField, locale: "zh" | "en"): 
       ? ["近期白色或浅色背景证件照", "清晰正面 JPG/JPEG 签证照片"]
       : ["Recent photo with a white or light background", "Clear front-facing JPG/JPEG visa photo"];
   }
+  if (isPassportIssuingAuthorityField(field)) {
+    return locale === "zh"
+      ? [
+          "National Immigration Administration, PRC",
+          "MPS Exit & Entry Administration",
+          "按护照资料页 Authority/签发机关原文填写",
+        ]
+      : [
+          "National Immigration Administration, PRC",
+          "MPS Exit & Entry Administration",
+          "Use the exact Authority wording printed on the passport",
+        ];
+  }
   if (options.length > 0) {
     return options.slice(0, 3).map((option) => option.text || option.value);
   }
@@ -340,6 +370,19 @@ function deterministicHints(field: FieldGuidanceField, locale: "zh" | "en"): str
         : `Use the placeholder as a guide: ${field.placeholder}`
     );
   }
+  if (isPassportIssuingAuthorityField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "请直接查看护照资料页的 Authority/签发机关，不要根据领取城市或户籍地推断。"
+        : "Check the Authority or issuing authority printed on the passport biodata page; do not infer it from the pickup city or household-registration location."
+    );
+  } else if (isStandardIdentityField(field)) {
+    hints.push(
+      locale === "zh"
+        ? "这是标准证件字段，请优先照抄护照资料页、机读区或官方下拉选项。"
+        : "This is a standard identity-document field; copy the passport biodata page, MRZ, or official dropdown option where possible."
+    );
+  }
   if (format) {
     hints.push(
       locale === "zh"
@@ -387,6 +430,13 @@ function deterministicWarnings(field: FieldGuidanceField, locale: "zh" | "en"): 
       locale === "zh"
         ? "姓名和护照号码必须与护照机读区或资料页一致。"
         : "Names and passport numbers must match the passport bio page or MRZ."
+    );
+  }
+  if (isPassportIssuingAuthorityField(field)) {
+    warnings.push(
+      locale === "zh"
+        ? "不要把“在重庆领取/办理”直接写成“重庆市公安局”或 Chongqing Public Security Bureau，除非护照签发机关栏就是这样印的。"
+        : "Do not write Chongqing Public Security Bureau merely because the passport was collected or applied for in Chongqing, unless the passport authority field prints that wording."
     );
   }
   if (includesAny(combined, ["birth", "nationality", "country"])) {
@@ -667,6 +717,77 @@ function fieldSearchText(field: FieldGuidanceField): string {
   return `${field.fieldName} ${field.label} ${field.stepName ?? ""}`.toLowerCase();
 }
 
+function isStandardIdentityField(field: FieldGuidanceField): boolean {
+  const searchText = fieldSearchText(field);
+  return includesAny(searchText, [
+    "passport",
+    "travel document",
+    "document type",
+    "document number",
+    "issuing authority",
+    "place of issue",
+    "authority",
+    "nationality",
+    "sex",
+    "gender",
+    "date of birth",
+    "birth date",
+    "surname",
+    "given name",
+    "family name",
+    "签发",
+    "签发机关",
+    "签发地点",
+    "护照",
+    "旅行证件",
+    "国籍",
+    "性别",
+    "出生日期",
+    "姓",
+    "名",
+  ]);
+}
+
+function isPassportIssuingAuthorityField(field: FieldGuidanceField): boolean {
+  const searchText = fieldSearchText(field);
+  return includesAny(searchText, [
+    "passport_issuing_authority",
+    "issuing authority",
+    "authority",
+    "签发机关",
+    "签发地点",
+  ]);
+}
+
+function standardIdentityContextFor(field: FieldGuidanceField): string {
+  return isStandardIdentityField(field) ? STANDARD_IDENTITY_FIELD_CONTEXT : "";
+}
+
+function standardIdentitySourceFor(field: FieldGuidanceField): SourceBody[] {
+  return isStandardIdentityField(field) ? [STANDARD_IDENTITY_FIELD_SOURCE] : [];
+}
+
+function standardIdentityQuestionFallback(
+  reqBody: FieldGuidanceRequest,
+  field: FieldGuidanceField,
+  locale: "zh" | "en"
+): string | null {
+  if (!isPassportIssuingAuthorityField(field)) return null;
+
+  const questionText = `${reqBody.question ?? ""} ${reqBody.answer ?? ""}`;
+  const mentionsChinaPassport = /中国|china|chinese|重庆|chongqing/i.test(questionText);
+
+  if (locale === "zh") {
+    return mentionsChinaPassport
+      ? "这个字段不要按办理城市推断。请看护照资料页上的“签发机关/Authority”原文：如果写的是“中华人民共和国国家移民管理局”或 “National Immigration Administration, PRC”，就照这个填写；如果旧护照写的是“公安部出入境管理局”或 “MPS Exit & Entry Administration”，也照护照原文填写。只有单独问“签发地点/Place of issue”且护照上对应位置写重庆时，才填重庆或 CHONGQING。"
+      : "请按护照资料页上的“签发机关/Authority”原文填写，不要根据办理城市、居住地或翻译猜测。若证件上已有英文或罗马拼写，以证件原文为准。";
+  }
+
+  return mentionsChinaPassport
+    ? "Do not infer this from the city where the passport was collected. Check the passport biodata page and copy the printed Authority or Issuing authority wording. For a Chinese ordinary passport, use the printed wording such as National Immigration Administration, PRC or, on some older valid passports, MPS Exit & Entry Administration. Use Chongqing only for a separate place-of-issue field if the passport itself shows that place."
+    : "Copy the Authority or Issuing authority exactly as printed on the passport biodata page. Do not infer it from the pickup city, residence city, or travel destination.";
+}
+
 function isDocumentExpiryField(field: FieldGuidanceField): boolean {
   if (!fieldKeyMatchesAny(field.fieldName, DOCUMENT_EXPIRY_DATE_CANDIDATES)) return false;
 
@@ -865,17 +986,21 @@ async function generateAiGuidance(
   }
 
   const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+  const standardContext = standardIdentityContextFor(field);
   const context = chunks
     .slice(0, 5)
     .map((chunk, index) => `Source ${index + 1}: ${chunk.content.slice(0, 1200)}`)
+    .join("\n\n");
+  const relevantContext = [standardContext ? `Standard field source:\n${standardContext}` : null, context]
+    .filter(Boolean)
     .join("\n\n");
 
   try {
     const message = await client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_output_tokens: 700,
-      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
-      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${context || "No source context found."}`,
+      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document, and never infer an issuing authority from a pickup city. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
+      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${relevantContext || "No source context found."}`,
       text: {
         format: {
           type: "json_schema",
@@ -926,9 +1051,10 @@ async function generateQuestionReply(
   chunks: VisaKnowledgeChunk[]
 ): Promise<{ reply: string; aiUsed: boolean }> {
   const fallback =
-    locale === "zh"
+    standardIdentityQuestionFallback(reqBody, field, locale) ??
+    (locale === "zh"
       ? `关于“${field.label}”：${guidance.summary} 可以参考示例：${guidance.examples.slice(0, 2).join("；")}。${validation.messages[0] ?? ""}`
-      : `For "${field.label}": ${guidance.summary} Examples: ${guidance.examples.slice(0, 2).join("; ")}. ${validation.messages[0] ?? ""}`;
+      : `For "${field.label}": ${guidance.summary} Examples: ${guidance.examples.slice(0, 2).join("; ")}. ${validation.messages[0] ?? ""}`);
   const scopedFallback = stripOutOfScopeFormReferences(fallback, reqBody);
 
   if (!OPENAI_API_KEY || OPENAI_API_KEY === "your_openai_api_key_here") {
@@ -936,9 +1062,13 @@ async function generateQuestionReply(
   }
 
   const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+  const standardContext = standardIdentityContextFor(field);
   const context = chunks
     .slice(0, 3)
     .map((chunk, index) => `Source ${index + 1}: ${chunk.content.slice(0, 900)}`)
+    .join("\n\n");
+  const relevantContext = [standardContext ? `Standard field source:\n${standardContext}` : null, context]
+    .filter(Boolean)
     .join("\n\n");
   const conversation = history.map((message) => ({
     role: message.role,
@@ -952,12 +1082,12 @@ async function generateQuestionReply(
       messages: [
         {
           role: "system",
-          content: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
+          content: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. For standard identity/passport fields, the passport or official document text is the answer; never infer a passport issuing authority from the pickup city, residence city, or application country. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
         },
         ...conversation,
         {
           role: "user",
-          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant context:\n${context || "No source context found."}`,
+          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant context:\n${relevantContext || "No source context found."}`,
         },
       ],
     });
@@ -997,6 +1127,9 @@ async function getStaticGuidance(
     isPhotoField(field)
       ? "visa photo photograph passport photo digital image upload requirements size background file format"
       : null,
+    isStandardIdentityField(field)
+      ? "standard passport identity field authority issuing authority place of issue passport type document type nationality exact wording biodata page MRZ"
+      : null,
     "visa application form field requirements examples warnings",
   ]
     .filter(Boolean)
@@ -1027,7 +1160,7 @@ async function getStaticGuidance(
       merged.officialWarnings.length > 0 ? merged.officialWarnings : base.officialWarnings,
     formatHints: merged.formatHints.length > 0 ? merged.formatHints : base.formatHints,
   }, reqBody);
-  const sources = mapSources(knowledge.chunks);
+  const sources = [...standardIdentitySourceFor(field), ...mapSources(knowledge.chunks)];
   const confidence = ai
     ? (asString(ai.confidence) === "high" || asString(ai.confidence) === "medium"
         ? (asString(ai.confidence) as Confidence)

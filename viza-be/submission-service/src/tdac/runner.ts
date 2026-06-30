@@ -2,7 +2,6 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { type CDPSession, type Download, type Page } from "@playwright/test";
-import { solveCaptcha } from "../captcha";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 
@@ -52,15 +51,6 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   }
 }
 
-interface TurnstileParams {
-  sitekey: string | null;
-  action: string | null;
-  cData: string | null;
-  chlPageData: string | null;
-  pageUrl: string;
-  userAgent: string;
-}
-
 async function installTurnstileHook(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const w = window as typeof window & {
@@ -90,82 +80,6 @@ async function installTurnstileHook(page: Page): Promise<void> {
       window.clearInterval(timer);
     }, 10);
   });
-}
-
-async function readTurnstileParams(page: Page): Promise<TurnstileParams> {
-  return page.evaluate(() => {
-    const w = window as typeof window & {
-      __vizaTurnstileParams?: Record<string, unknown>;
-    };
-    const captured = w.__vizaTurnstileParams ?? {};
-    const elementSitekey = document.querySelector("[data-sitekey]")?.getAttribute("data-sitekey");
-    const iframeSitekey = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe"))
-      .map((iframe) => {
-        try {
-          const url = new URL(iframe.src);
-          return url.searchParams.get("sitekey") ?? url.searchParams.get("k");
-        } catch {
-          return null;
-        }
-      })
-      .find((value): value is string => Boolean(value));
-    const capturedSitekey = typeof captured.sitekey === "string" && captured.sitekey.trim()
-      ? captured.sitekey
-      : null;
-    const capturedAction = typeof captured.action === "string" && captured.action.trim()
-      ? captured.action
-      : null;
-    const capturedCData = typeof captured.cData === "string" && captured.cData.trim()
-      ? captured.cData
-      : null;
-    const capturedChlPageData = typeof captured.chlPageData === "string" && captured.chlPageData.trim()
-      ? captured.chlPageData
-      : null;
-    const capturedPageUrl = typeof captured.pageUrl === "string" && captured.pageUrl.trim()
-      ? captured.pageUrl
-      : null;
-    const capturedUserAgent = typeof captured.userAgent === "string" && captured.userAgent.trim()
-      ? captured.userAgent
-      : null;
-
-    return {
-      sitekey: capturedSitekey ?? elementSitekey ?? iframeSitekey ?? null,
-      action: capturedAction,
-      cData: capturedCData,
-      chlPageData: capturedChlPageData,
-      pageUrl: capturedPageUrl ?? window.location.href,
-      userAgent: capturedUserAgent ?? navigator.userAgent,
-    };
-  });
-}
-
-async function waitForTurnstileParams(page: Page, timeoutMs = 15_000): Promise<TurnstileParams> {
-  const started = Date.now();
-  let latest = await readTurnstileParams(page);
-  while (!latest.sitekey && Date.now() - started < timeoutMs) {
-    await page.waitForTimeout(250);
-    latest = await readTurnstileParams(page);
-  }
-  return latest;
-}
-
-async function applyTurnstileToken(page: Page, token: string): Promise<void> {
-  await page.evaluate((captchaToken) => {
-    const w = window as typeof window & {
-      __vizaTurnstileCallback?: (token: string) => void;
-    };
-    const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='g-recaptcha-response'], textarea[name='g-recaptcha-response']",
-    );
-    fields.forEach((field) => {
-      field.value = captchaToken;
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-      field.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    if (typeof w.__vizaTurnstileCallback === "function") {
-      w.__vizaTurnstileCallback(captchaToken);
-    }
-  }, token);
 }
 
 async function arrivalButtonEnabled(page: Page): Promise<boolean> {
@@ -454,30 +368,6 @@ async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Prom
     }
   }
   return false;
-}
-
-async function solveTurnstileIfPresent(page: Page, logs: string[]): Promise<boolean> {
-  if (await clickTurnstileCheckboxIfVisible(page, logs)) return true;
-
-  const params = await waitForTurnstileParams(page);
-  if (!params.sitekey) return false;
-
-  logs.push("tdac_turnstile_solve_started");
-  const solve = await solveCaptcha({
-    type: "turnstile",
-    siteKey: params.sitekey,
-    pageUrl: params.pageUrl,
-    action: params.action ?? undefined,
-    cdata: params.cData ?? undefined,
-    pageData: params.chlPageData ?? undefined,
-    userAgent: params.userAgent,
-    timeoutMs: 120_000,
-  });
-  await applyTurnstileToken(page, solve.text);
-  logs.push(`tdac_turnstile_solved durationMs=${solve.durationMs} solveId=${solve.solveId}`);
-  await page.waitForTimeout(3_000);
-  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
-  return true;
 }
 
 function extractReference(text: string): string | null {
@@ -1216,25 +1106,54 @@ async function waitForTdacSubmissionOutcome(page: Page, screenshots: string[], l
 
 async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<string[]> {
   const pdfs: string[] = [];
+  const makeFilePath = (fileName: string): string => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-pdf-"));
+    return path.join(dir, fileName.replace(/[<>:"/\\|?*]+/g, "-"));
+  };
+
+  const saveConfirmationPagePdf = async (): Promise<string | null> => {
+    const filePath = makeFilePath(`tdac-confirmation-page-${Date.now()}.pdf`);
+    try {
+      await page.pdf({
+        path: filePath,
+        format: "A4",
+        printBackground: true,
+      });
+      const stat = await fs.promises.stat(filePath);
+      if (stat.size < 10_000) {
+        logs.push(`tdac_confirmation_page_pdf_too_small bytes=${stat.size}`);
+        return null;
+      }
+      logs.push(`tdac_confirmation_page_pdf_saved ${filePath} bytes=${stat.size}`);
+      return filePath;
+    } catch (error) {
+      logs.push(`tdac_confirmation_page_pdf_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      return null;
+    }
+  };
+
   const saveDownload = async (download: Download | null): Promise<string | null> => {
     if (!download) return null;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-pdf-"));
     const suggested = download.suggestedFilename() || `tdac-confirmation-${Date.now()}.pdf`;
     const safeName = suggested.toLowerCase().endsWith(".pdf") ? suggested : `${suggested}.pdf`;
-    const filePath = path.join(dir, safeName.replace(/[<>:"/\\|?*]+/g, "-"));
+    const filePath = makeFilePath(safeName);
     try {
-      const downloadedPath = await download.path().catch(() => null);
-      if (downloadedPath) {
-        await fs.promises.copyFile(downloadedPath, filePath);
-      } else {
-        await download.saveAs(filePath);
-      }
+      await download.saveAs(filePath);
       logs.push(`tdac_pdf_downloaded ${filePath}`);
       return filePath;
     } catch (error) {
-      logs.push(`tdac_pdf_save_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-      return null;
+      logs.push(`tdac_pdf_saveas_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
     }
+    try {
+      const downloadedPath = await download.path().catch(() => null);
+      if (!downloadedPath) return null;
+      await fs.promises.copyFile(downloadedPath, filePath);
+      logs.push(`tdac_pdf_downloaded ${filePath}`);
+      return filePath;
+    } catch (error) {
+      logs.push(`tdac_pdf_copy_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    }
+    return null;
   };
 
   const trigger = page.locator("a, button", { hasText: /download|pdf|print/i }).first();
@@ -1264,6 +1183,10 @@ async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<s
       const savedPath = await saveDownload(modalDownload);
       if (savedPath) pdfs.push(savedPath);
     }
+  }
+  if (pdfs.length === 0) {
+    const fallbackPath = await saveConfirmationPagePdf();
+    if (fallbackPath) pdfs.push(fallbackPath);
   }
   if (pdfs.length === 0) logs.push("tdac_pdf_download_unavailable_after_success");
   return pdfs;
@@ -1452,20 +1375,46 @@ export async function runTdacPortalSubmission(
     };
 
     await prepareBrowserPage();
-    const policyBlocked = await gotoOfficialPortal();
+    let policyBlocked = await gotoOfficialPortal();
     if (policyBlocked && browserSession.provider === "remote-browser-api") {
+      await page.waitForTimeout(5_000);
+      const loadedDespiteGotoError = await page.locator("button", { hasText: /arrival card/i }).first().count().then((count) => count > 0).catch(() => false);
+      if (loadedDespiteGotoError) {
+        logs.push("tdac_remote_browser_api_policy_blocked_but_landing_loaded");
+        policyBlocked = false;
+      }
+    }
+    for (let retry = 1; policyBlocked && browserSession.provider === "remote-browser-api" && retry <= 2; retry += 1) {
+      screenshots.push(await saveScreenshot(page, `browser-api-policy-blocked-retry-${retry}`, logs));
       await browserSession.close().catch(() => undefined);
-      logs.push("tdac_remote_browser_api_policy_blocked_fallback_local_chrome");
+      logs.push(`tdac_remote_browser_api_policy_blocked_retry_browser_api attempt=${retry}`);
       browserSession = await createArrivalCardBrowserSession({
         prefix: "TDAC",
         headless: options.headless,
-        forceLocal: true,
       });
       page = browserSession.page;
       logs.push(`tdac_browser_provider=${browserSession.provider}`);
       logs.push(...browserSession.diagnostics);
       await prepareBrowserPage();
-      await gotoOfficialPortal();
+      policyBlocked = await gotoOfficialPortal();
+      if (policyBlocked) {
+        await page.waitForTimeout(5_000);
+        const loadedDespiteRetryError = await page.locator("button", { hasText: /arrival card/i }).first().count().then((count) => count > 0).catch(() => false);
+        if (loadedDespiteRetryError) {
+          logs.push(`tdac_remote_browser_api_policy_blocked_but_landing_loaded retry=${retry}`);
+          policyBlocked = false;
+        }
+      }
+    }
+    if (policyBlocked) {
+      screenshots.push(await saveScreenshot(page, "browser-api-policy-blocked-final", logs));
+      const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+      throw new TdacPortalError("TDAC Browser API provider blocked the official portal.", {
+        code: "tdac_browser_api_provider_blocked",
+        screenshotPaths: screenshots,
+        portalSummary: text.slice(0, 500),
+        logs,
+      });
     }
     await page.waitForTimeout(8_000);
     await page.locator("button", { hasText: /arrival card/i }).first().waitFor({
@@ -1504,7 +1453,13 @@ export async function runTdacPortalSubmission(
           });
         }
       } else {
-        await solveTurnstileIfPresent(page, logs);
+        const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+        throw new TdacPortalError("TDAC Cloudflare challenge requires Browser API clearance; 2captcha is disabled for TDAC.", {
+          code: "tdac_browser_api_required",
+          screenshotPaths: screenshots,
+          portalSummary: text.slice(0, 500),
+          logs,
+        });
       }
       await page.waitForTimeout(3_000);
       screenshots.push(await saveScreenshot(page, "turnstile-after-solve", logs));
