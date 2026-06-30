@@ -240,7 +240,13 @@ async function solveTurnstileWithBrowserApi(page: Page, logs: string[]): Promise
 async function solveTurnstileIfPresent(page: Page, logs: string[], nativeCloudflareUnblock = false): Promise<boolean> {
   const hiddenResponse = page.locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']").first();
   const hasResponseField = await hiddenResponse.count().catch(() => 0);
-  if (hasResponseField === 0) return false;
+  const hasChallengeSurface = hasResponseField > 0 || await page
+    .locator("iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
+    .first()
+    .count()
+    .then((count) => count > 0)
+    .catch(() => false);
+  if (!hasChallengeSurface) return false;
 
   if (nativeCloudflareUnblock) {
     const solvedByBrowserApi = await solveTurnstileWithBrowserApi(page, logs);
@@ -303,7 +309,7 @@ async function clickTurnstileProtectedContinue(
   let lastText = await bodyText(page);
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const hasChallenge = await page
-      .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
+      .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
       .first()
       .count()
       .catch(() => 0);

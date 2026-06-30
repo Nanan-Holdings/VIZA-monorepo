@@ -9,6 +9,7 @@ import {
 const titles: Record<ApplicationStepSectionKey, string> = {
   personal: "个人信息",
   travel: "行程信息",
+  stay: "停留信息",
   travelCompanions: "同行人员",
   previousTravel: "过往旅行",
   addressAndPhone: "联系信息",
@@ -37,6 +38,23 @@ describe("application step sections", () => {
   it("classifies SGAC traveller and trip steps without collapsing them into review", () => {
     expect(getApplicationStepSectionKey(step(0, "Traveller Information"))).toBe("personal");
     expect(getApplicationStepSectionKey(step(1, "Trip Information"))).toBe("travel");
+  });
+
+  it("keeps Malaysia MDAC trip and stay steps as separate sidebar sections", () => {
+    const sections = buildApplicationStepSections([
+      step(0, "Traveller Information"),
+      step(1, "Trip Information"),
+      step(2, "Stay in Malaysia"),
+      step(3, "Review"),
+    ], titles);
+
+    expect(sections.map((section) => section.key)).toEqual([
+      "personal",
+      "travel",
+      "stay",
+      "review",
+    ]);
+    expect(sections.find((section) => section.key === "stay")?.title).toBe("停留信息");
   });
 
   it("classifies Chinese arrival-card steps as independent sidebar sections", () => {

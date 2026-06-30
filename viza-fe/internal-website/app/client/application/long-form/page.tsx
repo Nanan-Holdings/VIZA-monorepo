@@ -1176,6 +1176,20 @@ type SubmissionQueueJobResult = {
   submissionResult: SubmissionResult | null;
 };
 
+type ApplicationSubmissionState = {
+  submittedAt: string | undefined;
+  submissionResultStatus: SubmissionResultStatus | null;
+  submissionResult: SubmissionResult | null;
+  confirmationNumber: string | undefined;
+};
+
+const TERMINAL_SUBMISSION_RESULT_STATUSES = [
+  "completed",
+  "submitted",
+  "submitted_mock",
+  "form_ready_for_agency",
+] as const;
+
 function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
   const message = (error.message ?? "").toLowerCase();
   return (
@@ -1187,6 +1201,52 @@ function isMissingSubmissionModeColumnError(error: { message?: string; code?: st
     message.includes("could not find the 'mode' column") ||
     message.includes("could not find the 'provider' column")
   );
+}
+
+async function markApplicationSubmissionQueued(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    applicationId: string;
+    submittedAt: string;
+    queueJob: SubmissionQueueJobResult;
+  },
+): Promise<ApplicationSubmissionState> {
+  const selectColumns = "submitted_at, submission_result_status, submission_result, confirmation_number";
+  const { data: updatedApplication, error: updateError } = await supabase
+    .from("applications")
+    .update({
+      status: "submitted",
+      submitted_at: input.submittedAt,
+      submission_result_status: input.queueJob.submissionResultStatus,
+      submission_result: input.queueJob.submissionResult,
+      confirmation_number: null,
+      submission_result_updated_at: input.submittedAt,
+    })
+    .eq("id", input.applicationId)
+    .not("submission_result_status", "in", `(${TERMINAL_SUBMISSION_RESULT_STATUSES.join(",")})`)
+    .select(selectColumns)
+    .maybeSingle();
+  if (updateError) throw new Error(updateError.message);
+
+  const application = updatedApplication ?? (await supabase
+    .from("applications")
+    .select(selectColumns)
+    .eq("id", input.applicationId)
+    .maybeSingle()).data;
+
+  return {
+    submittedAt: application?.submitted_at ?? input.submittedAt,
+    submissionResultStatus:
+      (application?.submission_result_status as SubmissionResultStatus | null | undefined) ??
+      input.queueJob.submissionResultStatus,
+    submissionResult:
+      (application?.submission_result as SubmissionResult | null | undefined) ??
+      input.queueJob.submissionResult,
+    confirmationNumber:
+      typeof application?.confirmation_number === "string" && application.confirmation_number.trim()
+        ? application.confirmation_number
+        : undefined,
+  };
 }
 
 async function insertSubmissionQueueJob(
@@ -1410,9 +1470,15 @@ function applyCountrySpecificUniversalProfileAnswers(input: {
 }) {
   if (!isMalaysiaMdacApplication(input.country, input.visaType)) return input.answers;
   if (input.existingAnswers.place_of_birth?.trim()) return input.answers;
+  const profilePatch = buildMalaysiaMdacUniversalProfileAnswerPatch(input.profile);
+  const stringPatch = Object.fromEntries(
+    Object.entries(profilePatch).filter((entry): entry is [string, string] =>
+      typeof entry[1] === "string",
+    ),
+  );
   return {
     ...input.answers,
-    ...buildMalaysiaMdacUniversalProfileAnswerPatch(input.profile),
+    ...stringPatch,
   };
 }
 
@@ -1807,6 +1873,7 @@ export default function ApplicationPage() {
   const dynamicSectionTitles = {
     personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
     travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
+    stay: tApp.has("dynamicSections.stay") ? tApp("dynamicSections.stay" as never) : isZhInterface ? "停留信息" : "Stay",
     travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
     previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
     addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",

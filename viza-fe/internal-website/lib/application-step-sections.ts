@@ -1,6 +1,7 @@
 export type ApplicationStepSectionKey =
   | "personal"
   | "travel"
+  | "stay"
   | "travelCompanions"
   | "previousTravel"
   | "addressAndPhone"
@@ -84,7 +85,8 @@ export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "nam
   if (sourceName.startsWith("information about the trip")) return "travel";
   if (sourceName.startsWith("trip details")) return "travel";
   if (sourceName.startsWith("trip information")) return "travel";
-  if (sourceName.startsWith("stay in malaysia") || sourceName.startsWith("stay in thailand")) return "travel";
+  if (sourceName.startsWith("stay in malaysia")) return "stay";
+  if (sourceName.startsWith("stay in thailand")) return "stay";
   if (sourceName.startsWith("trip expenses") || sourceName.includes("expenses insurance")) return "travel";
   if (sourceName.startsWith("accompanying children")) return "travel";
   if (sourceName.startsWith("accommodation in schengen")) return "travel";

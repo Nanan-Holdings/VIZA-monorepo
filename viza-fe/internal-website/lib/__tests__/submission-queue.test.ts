@@ -6,6 +6,7 @@ import {
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
+  RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   retryQueueInsertCanUseLegacyPayload,
   queueProviderForApplication,
   queueProviderForVisaType,
@@ -144,6 +145,14 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForApplication("philippines", "PH_TEMPORARY_VISITOR_VISA", "live_assisted")).not.toBe(
       "phetravel_live_assisted_pending",
     );
+  });
+
+  it("does not let retry supersede active processing arrival-card jobs", () => {
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).toContain("tdac_live_assisted_pending");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).toContain("tdac_live_assisted_failed");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).not.toContain("tdac_live_assisted_processing");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).not.toContain("mdac_live_assisted_processing");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).not.toContain("sgac_live_assisted_processing");
   });
 
   it("allows legacy queue inserts for live France and SGAC retry rows when Supabase cache lacks live columns", () => {
