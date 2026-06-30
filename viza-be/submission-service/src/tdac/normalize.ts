@@ -147,9 +147,6 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
   if (!isTransitTraveler) {
     if (!accommodationType) missing.push("answers.accommodation_type");
     if (!province) missing.push("answers.province");
-    if (!district) missing.push("answers.district");
-    if (!subDistrict) missing.push("answers.sub_district");
-    if (!postalCode) missing.push("answers.postcode");
     if (!addressInThailand) missing.push("answers.address_in_thailand");
   }
 
@@ -202,6 +199,9 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
   if (fields.departureModeOfTransport === "others" && !fields.departureTransportOther) missing.push("answers.departure_transport_other");
   if (!fields.isTransitTraveler && fields.accommodationType === "others" && !fields.accommodationTypeOther) {
     missing.push("answers.accommodation_type_other");
+  }
+  if (fields.addressInThailand && fields.addressInThailand.length > 215) {
+    missing.push("answers.address_in_thailand(max_215)");
   }
 
   if (missing.length > 0) {

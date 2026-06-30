@@ -384,7 +384,7 @@ async function captureRegistrationArtifact(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<void> {
-  const applicationId = (input.applicantId ?? input.application?.passportNumber ?? "unknown")
+  const applicationId = String(input.applicantId ?? input.application?.passportNumber ?? "unknown")
     .replace(/[^a-zA-Z0-9_-]/g, "_");
   const dir = path.resolve("diag-out", "indonesia-c1-registration", applicationId);
   fs.mkdirSync(dir, { recursive: true });
