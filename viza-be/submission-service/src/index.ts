@@ -3818,7 +3818,7 @@ function isRetryablePhEtravelPortalError(error: unknown): error is PhEtravelPort
 async function loadOrCreatePhEtravelAccountPlan(input: {
   applicantId: string;
   forceCreateNew?: boolean;
-  existingAccount?: ReturnType<typeof loadPhEtravelAccount> extends Promise<infer T> ? T : never;
+  existingAccount?: Awaited<ReturnType<typeof loadPhEtravelAccount>>;
 }): Promise<ReturnType<typeof choosePhEtravelAccountPlan>> {
   const alias = await ensureApplicantInboxAlias(input.applicantId);
   const aliasEmail = derivePhEtravelAccountEmail(alias.alias);
@@ -6017,7 +6017,16 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       .eq("id", item.id);
 
     let phAccountPlan: ReturnType<typeof choosePhEtravelAccountPlan> | null = null;
-    let portalResult: typeof resultMdac | typeof resultTdac | typeof resultPh;
+    let portalResult: {
+      submitted: boolean;
+      confirmationNumber?: string | null;
+      referenceNumber?: string | null;
+      portalUrl: string;
+      portalResponseSummary: string;
+      screenshots: string[];
+      pdfs: string[];
+      logs: string[];
+    };
     if (isMdac) {
       const resultMdac = await runMdacPortalSubmission(normalizeMdacPortalPayload(payload), {
         headless: process.env.MDAC_PLAYWRIGHT_HEADLESS !== "false",

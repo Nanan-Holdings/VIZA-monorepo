@@ -13,6 +13,7 @@ import {
 } from "@/lib/rag-visitor-intake-form";
 import { resolveVisaFormSchemaVisaType } from "@/lib/visa-form-schema-aliases";
 import { augmentVietnamEVisaOfficialParitySteps } from "@/lib/vietnam-evisa-form-parity";
+import { augmentThailandTouristEVisaSteps } from "@/lib/thailand-tourist-evisa-form-overrides";
 
 const STEP_NAMES: Record<number, string> = {
   1: "Visa Selection",
@@ -71,9 +72,17 @@ export async function getVisaFormSteps(
     }
 
     const steps = Array.from(stepMap.values()).sort((a, b) => a.stepNumber - b.stepNumber);
-    return schemaVisaType === "VN_E_VISA"
-      ? normalizeBilingualWizardSteps(augmentVietnamEVisaOfficialParitySteps(steps))
+    const vietnamPatched = schemaVisaType === "VN_E_VISA"
+      ? augmentVietnamEVisaOfficialParitySteps(steps)
       : steps;
+    const patchedSteps =
+      schemaVisaType === "TH_TOURIST_E_VISA"
+        ? augmentThailandTouristEVisaSteps(vietnamPatched)
+        : vietnamPatched;
+
+    return schemaVisaType === "VN_E_VISA"
+      ? normalizeBilingualWizardSteps(patchedSteps)
+      : patchedSteps;
   } catch (err) {
     console.error("[getVisaFormSteps] Unexpected error:", err);
     return [];
