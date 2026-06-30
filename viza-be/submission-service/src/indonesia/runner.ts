@@ -220,6 +220,14 @@ async function clickIfPresent(page: Page, selector: string): Promise<boolean> {
   return true;
 }
 
+async function clickIfAttached(page: Page, selector: string): Promise<boolean> {
+  const control = page.locator(selector).first();
+  if ((await control.count().catch(() => 0)) === 0) return false;
+  await control.click({ timeout: 10_000, force: true }).catch(() => undefined);
+  await page.waitForTimeout(1_500);
+  return true;
+}
+
 async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promise<void> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const swal = page.locator(".swal2-confirm").first();
@@ -355,6 +363,22 @@ async function fillPostalCodeAndWaitForAddress(page: Page, postalCode: string | 
   return true;
 }
 
+async function waitForHiddenValue(page: Page, selector: string, diagnostics: string[], label: string): Promise<boolean> {
+  const ready = await page
+    .waitForFunction(
+      (css) => {
+        const input = document.querySelector<HTMLInputElement>(css);
+        return Boolean(input?.value?.trim());
+      },
+      selector,
+      { timeout: 35_000, polling: 500 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  diagnostics.push(`${label}_${ready ? "ready" : "not_ready"}`);
+  return ready;
+}
+
 async function waitForIndonesiaVerificationLink(applicantId: string): Promise<URL | null> {
   const { inbox } = await import("../inbox/wait-for-message");
   const message = await inbox.waitForMessage(
@@ -463,9 +487,11 @@ async function fillForeignerAccountRegistration(
   await selectNativeOptionByText(page, "#document_travel_id", /^Passport$/i).catch(() => undefined);
   await setFilesIfPresent(page, "#attachment", registration.passportImagePath);
   await setFilesIfPresent(page, "#initial_file", registration.passportImagePath);
+  await clickIfAttached(page, "a.btn-upload-biodata");
+  await waitForHiddenValue(page, "#path_attachment", diagnostics, "indonesia_account_passport_upload");
   await setFilesIfPresent(page, "#picture", registration.photoImagePath);
-  await clickIfPresent(page, "a.btn-upload-biodata");
-  await clickIfPresent(page, "a.btn-upload");
+  await clickIfAttached(page, "a.btn-upload");
+  await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_account_photo_upload");
 
   await fillIfPresent(page, "#full_name", registration.fullName);
   const gender = page.locator(genderSelector(registration.gender)).first();
@@ -477,7 +503,7 @@ async function fillForeignerAccountRegistration(
   const phoneCountry = normalizeCountryLabel(registration.phoneCodeCountry ?? registration.passportCountry);
   await selectNativeOptionByText(page, "#phone_code", new RegExp(phoneCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).catch(() => undefined);
   await fillIfPresent(page, "#mobile_phone", registration.mobilePhone);
-  await fillIfPresent(page, "#mother", registration.motherName);
+  await fillIfPresent(page, "#mother", registration.motherName ?? "UNKNOWN");
   await fillIfPresent(page, "#number", registration.passportNumber);
   await selectNativeOptionByText(
     page,
@@ -501,6 +527,22 @@ async function fillForeignerAccountRegistration(
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
     diagnostics.push("indonesia_account_registration_submitted");
+    const visibleErrors = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>(".invalid-feedback, .text-danger, .alert, .swal2-container, .error"))
+          .filter((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+          })
+          .map((element) => (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .slice(0, 6),
+      )
+      .catch(() => []);
+    if (visibleErrors.length > 0) {
+      diagnostics.push(`indonesia_account_registration_errors ${visibleErrors.join(" | ").slice(0, 300)}`);
+    }
   }
 
   if (input.applicantId) {

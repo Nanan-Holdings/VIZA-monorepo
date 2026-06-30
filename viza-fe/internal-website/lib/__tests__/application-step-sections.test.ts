@@ -39,6 +39,26 @@ describe("application step sections", () => {
     expect(getApplicationStepSectionKey(step(1, "Trip Information"))).toBe("travel");
   });
 
+  it("classifies Chinese arrival-card steps as independent sidebar sections", () => {
+    const sections = buildApplicationStepSections([
+      step(0, "旅客信息"),
+      step(1, "抵达和离境信息"),
+      step(2, "住宿信息"),
+      step(3, "健康申报"),
+      step(4, "审核申请"),
+    ], titles);
+
+    expect(sections).toHaveLength(5);
+    expect(sections.map((section) => section.key)).toEqual([
+      "personal",
+      "travel",
+      "addressAndPhone",
+      "securityAndBackground",
+      "review",
+    ]);
+    expect(sections.every((section) => section.steps.length === 1)).toBe(true);
+  });
+
   it("classifies Vietnam e-visa source steps without collapsing them into review", () => {
     expect(getApplicationStepSectionKey(step(1, "Required Information"))).toBe("personal");
     expect(getApplicationStepSectionKey(step(2, "Requested Information"))).toBe("travel");

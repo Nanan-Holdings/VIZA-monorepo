@@ -379,6 +379,40 @@ async function fillMobileNumberField(page: Page, mobileCountryCode: string, mobi
   const countryCode = mobileCountryCode.replace(/[^\d]/g, "");
   const fullInternationalNumber = `${countryCode ? `+${countryCode}` : ""}${normalized}`;
   if (!normalized) return false;
+
+  if (countryCode === "86") {
+    const flag = page.locator(".react-tel-input .selected-flag").first();
+    if (await flag.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await flag.click({ timeout: 10_000, force: true });
+      await page.waitForTimeout(500);
+      const searchBox = page.locator(".react-tel-input .search-box").first();
+      if (await searchBox.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        await searchBox.fill("China", { timeout: 5_000 });
+      } else {
+        await page.keyboard.type("China", { delay: 30 }).catch(() => undefined);
+      }
+      await page.waitForTimeout(500);
+      await clickFirstAvailable(page, [
+        page.locator(".react-tel-input .country-list .country").filter({ hasText: /China/i }),
+        page.locator(".react-tel-input li").filter({ hasText: /China/i }),
+      ]);
+      await page.waitForTimeout(500);
+    }
+  }
+
+  const telInputs = page.locator("input[type='tel']");
+  const telCount = await telInputs.count().catch(() => 0);
+  for (let index = 0; index < telCount; index += 1) {
+    const telInput = telInputs.nth(index);
+    if (!await telInput.isVisible({ timeout: 500 }).catch(() => false)) continue;
+    await telInput.fill(fullInternationalNumber, { timeout: 10_000 }).catch(() => undefined);
+    await telInput.dispatchEvent("input").catch(() => undefined);
+    await telInput.dispatchEvent("change").catch(() => undefined);
+    await page.waitForTimeout(500);
+    const value = await telInput.inputValue().catch(() => "");
+    if (value.replace(/[^\d]/g, "").includes(`${countryCode}${normalized}`)) return true;
+  }
+
   const directFilled = await page.evaluate(({ fullValue }) => {
     const textNodes = Array.from(document.querySelectorAll("label, div, span, p"))
       .filter((node) => /mobile number/i.test(node.textContent ?? ""));
@@ -475,6 +509,27 @@ async function chooseReactSelectByHiddenName(
 
   const value = await page.locator(`input[type="hidden"][name="${hiddenName}"]`).first().inputValue().catch(() => "");
   return expectedValue.test(value);
+}
+
+async function chooseHeadlessComboboxByInputName(
+  page: Page,
+  inputName: string,
+  typedText: string,
+  expectedText: RegExp,
+): Promise<boolean> {
+  const input = page.locator(`input[name="${inputName}"]`).first();
+  if (!await input.isVisible({ timeout: 2_000 }).catch(() => false)) return false;
+  await input.click({ timeout: 10_000, force: true });
+  await input.fill(typedText, { timeout: 10_000 });
+  await page.waitForTimeout(700);
+  await clickFirstAvailable(page, [
+    page.locator("[role='option'], li, button, div, p").filter({ hasText: expectedText }),
+    page.getByText(expectedText),
+  ]);
+  await page.keyboard.press("Enter").catch(() => undefined);
+  await page.waitForTimeout(700);
+  const value = await input.inputValue().catch(() => "");
+  return expectedText.test(value);
 }
 
 async function chooseDropdownOption(
@@ -640,11 +695,12 @@ async function completeEgovPersonalInformationOnboarding(
   await page.waitForTimeout(300);
   const sexText = /^m|male/i.test(payload.sex) ? "MALE" : /^f|female/i.test(payload.sex) ? "FEMALE" : payload.sex.toUpperCase();
   const choseSex = await chooseReactSelectByHiddenName(page, "gender", sexText, sexOptionPattern(payload.sex));
-  const choseCitizenship = await chooseDropdownOption(
+  const citizenshipText = /china|chinese|cn|chn/i.test(payload.nationality) ? "Chinese" : payload.nationality;
+  const choseCitizenship = await chooseHeadlessComboboxByInputName(
     page,
-    /citizenship/i,
+    "nationality_country_code",
+    citizenshipText,
     countryOptionPattern(payload.nationality),
-    payload.nationality,
   );
   const choseCountryOfBirth = await chooseDropdownOption(
     page,
