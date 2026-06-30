@@ -7,6 +7,10 @@ import {
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
 import {
+  evaluatePhEtravelSubmissionWindow,
+  validatePhEtravelFlightDates,
+} from "@/features/ph-etravel/date-window";
+import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
@@ -841,9 +845,11 @@ async function readSgacDateAnswers(
     .eq("application_id", applicationId)
     .in("field_name", [
       "arrival_date",
+      "flight_arrival_date",
       "intended_arrival_date",
       "planned_arrival_date",
       "departure_date",
+      "flight_departure_date",
       "intended_departure_date",
       "planned_departure_date",
     ]);
@@ -859,12 +865,14 @@ async function readSgacDateAnswers(
 
   return {
     arrivalDate: firstText([
+      answers.flight_arrival_date,
       answers.arrival_date,
       answers.intended_arrival_date,
       answers.planned_arrival_date,
       application.arrival_date,
     ]),
     departureDate: firstText([
+      answers.flight_departure_date,
       answers.departure_date,
       answers.intended_departure_date,
       answers.planned_departure_date,
@@ -1128,17 +1136,17 @@ async function decidePhEtravelLiveSchedule(input: {
     return { action: "reject", status: 500, code: "phetravel_date_load_failed", message: dates.error };
   }
 
-  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  const travelDates = validatePhEtravelFlightDates(dates.departureDate, dates.arrivalDate);
   if (!travelDates.ok) {
     return {
       action: "reject",
       status: 422,
       code: `phetravel_${travelDates.code}`,
-      message: travelDates.message.replaceAll("SGAC", "Philippines eTravel"),
+      message: travelDates.message,
     };
   }
 
-  const window = evaluateSgacSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  const window = evaluatePhEtravelSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
   if (window.status === "invalid") {
     return {
       action: "reject",

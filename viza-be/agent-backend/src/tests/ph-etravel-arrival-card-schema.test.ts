@@ -28,22 +28,33 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
     const fieldNames = new Set(extractFieldNames());
 
     for (const requiredField of [
-      "full_name",
+      "registration_for",
+      "first_name",
       "passport_number",
+      "passport_issuing_authority",
       "passport_expiry_date",
       "nationality",
       "country_of_birth",
       "country_of_residence",
-      "arrival_date",
+      "residence_address_line1",
+      "occupation",
+      "flight_arrival_date",
+      "flight_departure_date",
       "travel_type",
       "transport_type",
+      "traveller_type",
+      "airline_name",
       "flight_number",
+      "airport_of_origin",
       "port_of_entry",
-      "philippines_address",
-      "has_health_symptoms",
-      "has_checked_baggage",
-      "has_dutiable_goods",
-      "has_currency_over_threshold",
+      "destination_type",
+      "has_recent_travel_history_30d",
+      "has_exposure_to_sick_person_30d",
+      "has_been_sick_30d",
+      "has_accompanied_family_members",
+      "checked_baggage_count",
+      "handcarry_baggage_count",
+      "customs_signature_file",
       "final_declaration",
     ]) {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
@@ -54,10 +65,14 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
     const optionsByField = new Map(PH_ETRAVEL_FORM_FIELDS.map((field) => [field.field_name, field.options ?? []]));
 
     expect(optionsByField.get("travel_type")?.some((option) => option.value === "ARRIVAL")).toBe(true);
+    expect(optionsByField.get("travel_type")?.some((option) => option.value === "DEPARTURE")).toBe(true);
     expect(optionsByField.get("transport_type")?.some((option) => option.value === "AIR")).toBe(true);
+    expect(optionsByField.get("occupation")?.some((option) => option.value === "STUDENT_MINOR")).toBe(true);
+    expect(optionsByField.get("traveller_type")?.some((option) => option.value === "AIRCRAFT_PASSENGER")).toBe(true);
+    expect(optionsByField.get("airline_name")?.some((option) => option.value === "SKYJET_AIRLINES")).toBe(true);
     expect(optionsByField.get("port_of_entry")?.some((option) => option.value === "NINOY AQUINO INTERNATIONAL AIRPORT")).toBe(true);
 
-    for (const fieldName of ["travel_type", "transport_type", "port_of_entry"]) {
+    for (const fieldName of ["travel_type", "transport_type", "occupation", "traveller_type", "airline_name", "port_of_entry"]) {
       for (const option of optionsByField.get(fieldName) ?? []) {
         expect(option.label_en || option.text).toBeTruthy();
         expect(option.label_zh, `${fieldName}: ${option.value}`).toMatch(/[\u3400-\u9fff]/);
