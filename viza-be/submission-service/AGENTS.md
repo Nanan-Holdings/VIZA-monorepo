@@ -60,6 +60,9 @@ filling and one-shot submission for the applicant.
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
+- `src/queue-scheduler.ts`: local submission queue concurrency scheduler.
+  Allows different account/country/provider work to run in parallel while
+  serializing the same application and the same user/provider lane.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
@@ -283,7 +286,9 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/queue-scheduler.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
+- `viza-be/submission-service/src/__tests__/queue-scheduler.spec.ts`
 - `viza-be/submission-service/src/country-submissions/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`

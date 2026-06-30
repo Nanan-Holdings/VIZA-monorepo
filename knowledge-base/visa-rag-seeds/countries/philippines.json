@@ -109,6 +109,18 @@
             "official-source"
           ],
           "content": "Standard-answer identity fields must be answered from the applicant's passport biodata page, MRZ, official identity document, or the official dropdown options. This applies to passport number, name, date of birth, sex, nationality, issuing country, issue date, expiry date, issuing authority, place of issue, and passport/document type. For issuing authority or place-of-issue questions, do not infer the answer from the pickup city, residence city, application country, or travel destination; copy the exact Authority / Issuing authority / Place of issue wording printed on the passport if present. For Chinese ordinary passports, newer valid passports may show National Immigration Administration, PRC / 中华人民共和国国家移民管理局; older valid passports may show MPS Exit & Entry Administration / 公安部出入境管理局. If the passport prints a different authority, use the passport text. For passport type, select Ordinary / Regular / Normal only for ordinary personal passports; select Diplomatic, Official, Service, Special, Travel document, Refugee, or Other only when the document explicitly indicates that type. Official sources reviewed for this standard field rule include China National Immigration Administration certificate-issuing-authority notices and the Passport Law of the People's Republic of China; the passport biodata page remains the final source for the applicant's individual answer."
+        },
+        {
+          "id": "official_field_answer_norms",
+          "title": "Official-source field answer norms",
+          "tags": [
+            "field-guidance",
+            "answer-norms",
+            "official-source",
+            "form-requirements",
+            "philippines"
+          ],
+          "content": "Official-source field answer norms for philippines.\nUse these norms only as filling guidance; if a live official form, passport, or uploaded document shows a more specific value, that document controls the answer.\n\nCrawled source URLs: https://www.pna.gov.ph/articles/1267062 ; https://etravel.gov.ph/ ; https://customs.etravel.gov.ph/frequently-asked-questions\n\nPassport and identity fields:\n- To open my profile, go to the eTravel etravel.gov.ph/search and enter your reference number and date of birth then press the CONTINUE button as shown in the blue box below.\n\nIssue, expiry, and validity fields:\n- Only the verified QR Code by BOQ upon your arrival at the airport/seaport is valid for your travel.\n\nTravel plan and port fields:\n- You may only register within 72 hours prior to your arrival or departure in the Philippines.\n- Travelers are enjoined to present their eTravel QR code to flight boarding.\n- You may only register within 3 days (or 72 hours) prior to your arrival in the Philippines.\n\nAccommodation, host, and address fields:\n- You will not be allowed by the Hotel to check out unless you are able to show valid Quarantine Certificate from BOQ.\n\nAnswering rule: for closed-list fields, prefer the exact official option label/value. For document-backed fields, copy the passport, official identity document, application account, itinerary, invitation, accommodation, insurance, funds, or uploaded support document rather than guessing from a city, country, or prior answer."
         }
       ]
     }

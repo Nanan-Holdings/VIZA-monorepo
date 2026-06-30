@@ -52,7 +52,28 @@ export function getDynamicStepTranslationCandidates(stepName: string): string[] 
 }
 
 export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "name" | "sourceName">): ApplicationStepSectionKey {
-  const sourceName = normalizeStepName(step.sourceName ?? step.name);
+  const rawSourceName = (step.sourceName ?? step.name).trim();
+  const sourceName = normalizeStepName(rawSourceName);
+
+  if (rawSourceName.includes("旅客信息") || rawSourceName.includes("个人信息")) return "personal";
+  if (rawSourceName.includes("护照信息") || rawSourceName.includes("旅行证件")) return "passport";
+  if (
+    rawSourceName.includes("抵达") ||
+    rawSourceName.includes("离境") ||
+    rawSourceName.includes("行程信息") ||
+    rawSourceName.includes("旅行信息") ||
+    rawSourceName.includes("停留信息")
+  ) return "travel";
+  if (
+    rawSourceName.includes("住宿信息") ||
+    rawSourceName.includes("联系信息") ||
+    rawSourceName.includes("居住")
+  ) return "addressAndPhone";
+  if (rawSourceName.includes("健康申报") || rawSourceName.includes("声明")) return "securityAndBackground";
+  if (rawSourceName.includes("支持材料") || rawSourceName.includes("材料")) return "documents";
+  if (rawSourceName.includes("团队") || rawSourceName.includes("同行")) return "team";
+  if (rawSourceName.includes("确认")) return "confirmation";
+  if (rawSourceName.includes("审核")) return "review";
 
   if (sourceName.startsWith("required information")) return "personal";
   if (sourceName.startsWith("personal information")) return "personal";

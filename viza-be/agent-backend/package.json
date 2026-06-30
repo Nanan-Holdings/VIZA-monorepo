@@ -26,6 +26,7 @@
 		"ingest:country-visa-rag": "tsx scripts/ingest-country-visa-rag.ts",
 		"ingest:all-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --all",
 		"ingest:photo-requirements-rag": "tsx scripts/ingest-photo-requirements-rag.ts",
+		"enrich:field-answer-norms-rag": "tsx scripts/enrich-field-answer-norms-rag.ts",
 		"ingest:indonesia-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --country indonesia",
 		"ingest:us-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --country us",
 		"ingest:supported-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --all",
