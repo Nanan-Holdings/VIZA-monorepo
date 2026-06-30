@@ -44,6 +44,7 @@ export interface PhEtravelRunnerOptions {
   officialAccountPassword?: string | null;
   officialAccountMpin?: string | null;
   forceAccountRegistration?: boolean;
+  forceLocalBrowser?: boolean;
   mailbox?: PhEtravelMailboxProvider;
   emailVerificationTimeoutMs?: number;
 }
@@ -1243,7 +1244,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
   const browserSession = await createArrivalCardBrowserSession({
     prefix: "PH_ETRAVEL",
     headless: options.headless,
-    forceLocal,
+    forceLocal: options.forceLocalBrowser ? true : forceLocal,
   });
   const page = browserSession.page;
   logs.push(`ph_etravel_browser_provider=${browserSession.provider}`);

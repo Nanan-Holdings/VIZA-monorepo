@@ -30,6 +30,13 @@ export interface PhEtravelAccountPlan {
   accountId?: string;
 }
 
+const PH_ETRAVEL_NON_REUSABLE_ACCOUNT_STATUSES = new Set([
+  "pending_registration",
+  "failed",
+  "verification_required",
+  "blocked",
+]);
+
 const VAULT_EMAIL_KEY = "ph_etravel.account.email";
 const VAULT_PASSWORD_KEY = "ph_etravel.account.password";
 const VAULT_MPIN_KEY = "ph_etravel.account.mpin";
@@ -49,23 +56,26 @@ export function choosePhEtravelAccountPlan(input: {
   generatedPassword: string;
   generatedMpin: string;
 }): PhEtravelAccountPlan {
-  if (input.existingAccount?.email && input.existingAccount.status === "pending_registration") {
+  const existingAccount = input.existingAccount;
+  const existingStatus = existingAccount?.status?.trim().toLowerCase() ?? "";
+  const hasReusabilityMpin = existingAccount?.email && existingAccount.mpin && !PH_ETRAVEL_NON_REUSABLE_ACCOUNT_STATUSES.has(existingStatus);
+  if (existingAccount?.email && existingAccount.status === "pending_registration") {
     return {
       mode: "create_new",
-      accountId: input.existingAccount.id,
-      email: input.existingAccount.email,
-      password: input.existingAccount.password ?? input.generatedPassword,
-      mpin: input.existingAccount.mpin ?? input.generatedMpin,
+      accountId: existingAccount.id,
+      email: existingAccount.email,
+      password: existingAccount.password ?? input.generatedPassword,
+      mpin: existingAccount.mpin ?? input.generatedMpin,
     };
   }
 
-  if (input.existingAccount?.email && input.existingAccount.mpin) {
+  if (hasReusabilityMpin) {
     return {
       mode: "reuse_existing",
-      accountId: input.existingAccount.id,
-      email: input.existingAccount.email,
-      password: input.existingAccount.password,
-      mpin: input.existingAccount.mpin,
+      accountId: existingAccount.id,
+      email: existingAccount.email,
+      password: existingAccount.password,
+      mpin: existingAccount.mpin,
     };
   }
 

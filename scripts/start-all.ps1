@@ -243,6 +243,25 @@ function Find-RunningProcessByPath {
     Select-Object -First 1
 }
 
+function Stop-ProcessesByPath {
+  param([string]$Path)
+
+  $fullPath = [System.IO.Path]::GetFullPath($Path).ToLowerInvariant()
+  $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.CommandLine -and $_.CommandLine.ToLowerInvariant().Contains($fullPath)
+    }
+
+  if (!$processes -or $processes.Count -eq 0) {
+    return
+  }
+
+  foreach ($process in $processes) {
+    Write-Warn "Stopping lingering process tree from path match: PID $($process.ProcessId)"
+    & cmd.exe /c "taskkill /PID $($process.ProcessId) /T /F >nul 2>nul"
+  }
+}
+
 function Stop-StartedProcesses {
   if (!(Test-Path -LiteralPath $runLogDir -PathType Container)) {
     Write-Warn "No start-all log directory found. Nothing to stop."
@@ -620,6 +639,11 @@ if ($Stop) {
 
 if ($Reset) {
   Stop-StartedProcesses
+  Stop-ProcessesByPath -Path $agentBackendDir
+  Stop-ProcessesByPath -Path $submissionServiceDir
+  Stop-ProcessesByPath -Path $travelServiceDir
+  Stop-ProcessesByPath -Path $marketingDir
+  Stop-ProcessesByPath -Path $frontendDir
   Start-Sleep -Seconds 2
 }
 
@@ -662,6 +686,14 @@ $submissionAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $submissionServiceDir `
   -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
   -ExpectedContent @('"status":"ok"')
+
+if ($Reset) {
+  $agentAlreadyRunning = $false
+  $marketingAlreadyRunning = $false
+  $travelAlreadyRunning = $false
+  $submissionAlreadyRunning = $false
+  $frontendAlreadyRunning = $false
+}
 
 $started = @()
 

@@ -89,6 +89,29 @@ test("choosePhEtravelAccountPlan creates an alias account when none exists", () 
   });
 });
 
+test("choosePhEtravelAccountPlan creates a new account after a failed prior account", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_existing",
+      email: "appl-existing@haggstorm.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "failed",
+      storageState: null,
+    },
+    aliasEmail: "APPL-NEW@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    email: "appl-new@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
+  });
+});
+
 test("isMissingPhEtravelAccountsTableError detects missing PostgREST table errors", () => {
   assert.equal(isMissingPhEtravelAccountsTableError({
     code: "PGRST205",

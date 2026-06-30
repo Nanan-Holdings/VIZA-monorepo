@@ -397,6 +397,10 @@ function dateParts(isoDate: string): { year: string; month: string; day: string;
 function officialCountryPattern(value: string): RegExp {
   const normalized = value.trim().toUpperCase();
   if (!normalized) return /$a/;
+  if (/^[A-Z]{3}$/i.test(normalized)) {
+    const escapedCode = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${escapedCode}\\s*:`, "i");
+  }
   const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\b|${escaped.replace(/\s+/g, "\\s+")}`, "i");
 }
@@ -443,18 +447,24 @@ function tdacCountrySearchValue(value: string): string {
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
   const aliases: Record<string, string> = {
-    CHINA: "CHINA",
-    "PEOPLE S REPUBLIC OF CHINA": "CHINA",
+    CHINA: "CHN",
+    "PEOPLE'S REPUBLIC OF CHINA": "CHN",
+    "PEOPLE S REPUBLIC OF CHINA": "CHN",
     KOREA: "REPUBLIC OF KOREA",
     "KOREA REPUBLIC OF": "REPUBLIC OF KOREA",
     "REPUBLIC OF KOREA": "REPUBLIC OF KOREA",
     "SOUTH KOREA": "REPUBLIC OF KOREA",
-    "UNITED STATES": "UNITED STATES",
-    "UNITED STATES OF AMERICA": "UNITED STATES",
-    AMERICA: "UNITED STATES",
-    MALAYSIA: "MALAYSIA",
-    SINGAPORE: "SINGAPORE",
-    THAILAND: "THAILAND",
+    "UNITED STATES": "USA",
+    "UNITED STATES OF AMERICA": "USA",
+    AMERICA: "USA",
+    USA: "USA",
+    MALAYSIA: "MYS",
+    MAL: "MYS",
+    MYS: "MYS",
+    SINGAPORE: "SGP",
+    SGP: "SGP",
+    THAILAND: "THA",
+    THA: "THA",
   };
   const codeMatch = normalized.match(/^[A-Z]{3}\b/);
   return aliases[normalized] ?? codeMatch?.[0] ?? value.toUpperCase();
@@ -706,6 +716,7 @@ async function selectOfficialAutocomplete(
   value: string,
   logs: string[],
   label: string,
+  allowNoVisibleOptions = false,
   optionText: RegExp | string = value,
 ): Promise<void> {
   const field = page.locator(selector).first();
@@ -726,19 +737,27 @@ async function selectOfficialAutocomplete(
   await field.press("ArrowDown").catch(() => undefined);
   await page.waitForTimeout(800);
   try {
-    await clickVisibleOption(page, optionText, logs, label, 8_000);
+    await clickVisibleOption(page, optionText, logs, label, 20_000);
   } catch {
+    const fieldValue = await field.inputValue().catch(() => "");
+    const fieldEnabled = !(await field.isDisabled().catch(() => true));
     const visibleOptions = await page.locator("mat-option, .mat-mdc-option, [role='option']")
       .evaluateAll((elements) => elements
         .map((element) => element.textContent?.replace(/\s+/g, " ").trim())
         .filter(Boolean)
         .slice(0, 12))
       .catch(() => []);
+    const extraSummary = `fieldValue=${fieldValue || "<empty>"}; enabled=${fieldEnabled}`;
+    if (allowNoVisibleOptions) {
+      logs.push(`tdac_official_select_official_fallback_no_options ${label}: ${value}`);
+      await field.press("Tab").catch(() => undefined);
+      return;
+    }
     throw new TdacPortalError(
       `Official TDAC dropdown option not found for ${label}: "${value}". Please use a value from the official TDAC dropdown list.`,
       {
         code: "tdac_official_dropdown_option_not_found",
-        portalSummary: `${label}: ${value}; visible options: ${visibleOptions.join(" | ") || "none"}`,
+        portalSummary: `${label}: ${value}; ${extraSummary}; visible options: ${visibleOptions.join(" | ") || "none"}`,
       },
     );
   }
@@ -752,10 +771,19 @@ async function selectOfficialAutocompleteAny(
   value: string,
   logs: string[],
   label: string,
+  allowNoVisibleOptions = false,
   optionText: RegExp | string = value,
 ): Promise<void> {
   const selector = await firstVisibleSelector(page, selectors);
-  await selectOfficialAutocomplete(page, selector, value, logs, label, optionText);
+  await selectOfficialAutocomplete(
+    page,
+    selector,
+    value,
+    logs,
+    label,
+    allowNoVisibleOptions,
+    optionText,
+  );
   logs.push(`tdac_selected_official_any ${label} selector=${selector}`);
 }
 
@@ -1270,7 +1298,15 @@ async function fillTdacPersonalStep(
   await fillInputAny(page, ["input[formcontrolname='middleName']", "#mat-input-2"], (payload.middleName || "").toUpperCase(), logs, "middle_name");
   await fillInputAny(page, ["input[formcontrolname='passportNo']", "input[formcontrolname='passportNumber']", "#mat-input-3"], payload.passportNumber.toUpperCase(), logs, "passport_number");
   const nationalitySearch = tdacNationalitySearchValue(payload.nationality);
-  await selectOfficialAutocompleteAny(page, ["input[formcontrolname='nationality']", "#mat-input-25"], nationalitySearch, logs, "nationality", officialCountryPattern(nationalitySearch));
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='nationality']", "#mat-input-25"],
+    nationalitySearch,
+    logs,
+    "nationality",
+    false,
+    officialCountryPattern(nationalitySearch),
+  );
   await selectAutocompleteAny(page, ["input[formcontrolname='birthYear']", "#mat-input-18"], dob.year, logs, "birth_year");
   await selectAutocompleteAny(page, ["input[formcontrolname='birthMonth']", "#mat-input-19"], dob.month, logs, "birth_month");
   await selectAutocompleteAny(page, ["input[formcontrolname='birthDay']", "#mat-input-20"], dob.day, logs, "birth_day");
@@ -1280,7 +1316,15 @@ async function fillTdacPersonalStep(
     await fillInputAny(page, ["input[formcontrolname='visaNo']", "input[formcontrolname='visaNumber']", "#mat-input-5"], payload.visaNumber.toUpperCase(), logs, "visa_number");
   }
   const residenceCountrySearch = tdacCountrySearchValue(payload.residenceCountry);
-  await selectOfficialAutocompleteAny(page, ["input[formcontrolname='countryOfResidence']", "input[formcontrolname='residenceCountry']", "#mat-input-26"], residenceCountrySearch, logs, "residence_country", officialCountryPattern(residenceCountrySearch));
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='countryOfResidence']", "input[formcontrolname='residenceCountry']", "#mat-input-26"],
+    residenceCountrySearch,
+    logs,
+    "residence_country",
+    false,
+    officialCountryPattern(residenceCountrySearch),
+  );
   const residenceRegionSearch = resolveTdacResidenceCityForCountry(residenceCountrySearch, payload.residenceCity);
   await selectOfficialAutocompleteAny(
     page,
@@ -1288,6 +1332,7 @@ async function fillTdacPersonalStep(
     residenceRegionSearch,
     logs,
     "residence_city",
+    true,
     new RegExp(residenceRegionSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
   await fillInputAny(page, ["input[formcontrolname='telCode']", "input[formcontrolname='phoneCountryCode']", "#mat-input-6"], payload.phoneCountryCode.replace(/\D/g, ""), logs, "phone_country_code");
@@ -1308,7 +1353,15 @@ async function fillTdacTripStep(
   await page.waitForTimeout(2_000);
   await fillMaterialDateInput(page, "input[formcontrolname='arrDate']", arrival.slashDate, logs);
   const countryBoardedSearch = tdacCountrySearchValue(payload.countryBoarded);
-  await selectOfficialAutocompleteAny(page, ["input[formcontrolname='countryBoarded']", "input[formcontrolname='countryTerritoryBoarded']", "#mat-input-28"], countryBoardedSearch, logs, "country_boarded", officialCountryPattern(countryBoardedSearch));
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='countryBoarded']", "input[formcontrolname='countryTerritoryBoarded']", "#mat-input-28"],
+    countryBoardedSearch,
+    logs,
+    "country_boarded",
+    false,
+    officialCountryPattern(countryBoardedSearch),
+  );
   await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
   if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
     await fillVisibleInputNearMatSelect(
@@ -1368,12 +1421,36 @@ async function fillTdacTripStep(
         "accommodation_type_other",
       );
     }
-    await selectOfficialAutocompleteAny(page, ["input[formcontrolname='province']", "#mat-input-29"], province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    await selectOfficialAutocompleteAny(
+      page,
+      ["input[formcontrolname='province']", "#mat-input-29"],
+      province,
+      logs,
+      "Province",
+      false,
+      new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    );
     if (district) {
-      await selectOfficialAutocompleteAny(page, ["input[formcontrolname='district']", "input[formcontrolname='area']", "#mat-input-30"], district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+      await selectOfficialAutocompleteAny(
+        page,
+        ["input[formcontrolname='district']", "input[formcontrolname='area']", "#mat-input-30"],
+        district,
+        logs,
+        "District",
+        true,
+        new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      );
     }
     if (subDistrict) {
-      await selectOfficialAutocompleteAny(page, ["input[formcontrolname='subDistrict']", "input[formcontrolname='subArea']", "#mat-input-31"], subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+      await selectOfficialAutocompleteAny(
+        page,
+        ["input[formcontrolname='subDistrict']", "input[formcontrolname='subArea']", "#mat-input-31"],
+        subDistrict,
+        logs,
+        "Subdistrict",
+        true,
+        new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      );
     }
     if (postalCode) {
       await forceSetInputAny(page, ["input[formcontrolname='postCode']", "input[formcontrolname='postalCode']", "#mat-input-16"], postalCode, logs, "postal_code");
