@@ -29,6 +29,8 @@ type ApplicationForRetry = {
   applicant_id: string;
   country: string | null;
   visa_type: string | null;
+  submission_result_status: string | null;
+  submission_result: unknown | null;
   arrival_date: string | null;
   departure_date: string | null;
   purpose: string | null;
@@ -183,6 +185,17 @@ function isFranceCountry(country: string | null): boolean {
 
 function normalizeComparable(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasCompletedOfficialSubmission(application: ApplicationForRetry): boolean {
+  const normalizedStatus = normalizeComparable(application.submission_result_status);
+  if (["completed", "complete", "submitted", "success", "done"].includes(normalizedStatus)) return true;
+  const result = application.submission_result;
+  return isRecord(result) && result.submitted === true;
 }
 
 function requestedValueMatchesApplication(
@@ -1220,7 +1233,9 @@ export async function POST(
 
   const { data: application, error: applicationError } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, arrival_date, departure_date, purpose, accommodation_name, accommodation_address")
+    .select(
+      "id, applicant_id, country, visa_type, submission_result_status, submission_result, arrival_date, departure_date, purpose, accommodation_name, accommodation_address",
+    )
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -1257,6 +1272,23 @@ export async function POST(
       { error: "Requested visa type does not match the application visa type." },
       { status: 400 },
     );
+  }
+
+  if (hasCompletedOfficialSubmission(ownedApplication)) {
+    return NextResponse.json({
+      ok: true,
+      applicationId,
+      jobId: null,
+      queueStatus: null,
+      mode,
+      provider: queueProviderForApplication(
+        ownedApplication.country,
+        ownedApplication.visa_type,
+        mode,
+      ),
+      alreadySubmitted: true,
+      result: ownedApplication.submission_result,
+    });
   }
 
   let queueStatus = queueStatusForApplication(
