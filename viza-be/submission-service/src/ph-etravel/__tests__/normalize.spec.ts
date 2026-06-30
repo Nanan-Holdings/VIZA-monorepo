@@ -20,7 +20,9 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       dateOfBirth: "1990-01-01",
       gender: "female",
       nationality: "China",
+      passportIssueDate: "2020-01-01",
       passportNumber: "E12345678",
+      passportIssuingCountry: "China",
       passportExpiryDate: "2030-12-31",
       email: "test@example.com",
       phone: "+86 13800138000",
@@ -125,4 +127,42 @@ test("normalizePhEtravelPortalPayload rejects arrivals outside the official 72-h
       return true;
     },
   );
+});
+
+test("normalizePhEtravelPortalPayload normalizes slash dates to ISO dates", () => {
+  const payload = normalizePhEtravelPortalPayload(
+    basePayload({
+      personal: {
+        ...basePayload().personal,
+        phone: "0086 13800138000",
+      },
+      trip: {
+        ...basePayload().trip,
+        arrivalDate: "06/20/2026",
+      },
+    }),
+    { now: new Date("2026-06-20T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.arrivalDate, "2026-06-20");
+});
+
+test("normalizePhEtravelPortalPayload derives mobile code and number from personal phone", () => {
+  const payload = normalizePhEtravelPortalPayload(
+    basePayload({
+      personal: {
+        ...basePayload().personal,
+        phone: "+86 13800138000",
+      },
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        mobile_country_code: "",
+        mobile_number: "",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.mobileCountryCode, "+86");
+  assert.equal(payload.mobileNumber, "13800138000");
 });

@@ -50,11 +50,10 @@ filling and one-shot submission for the applicant.
   portal trace/screenshot plus DB result evidence. If this browser-click test
   cannot be completed, report the exact blocker.
 - For any official portal blocked by Cloudflare, Turnstile, or a government
-  WAF, follow the local `browser-api-cloudflare-runner` skill first. Prefer a
-  country-specific Browser API/CDP endpoint, then an explicitly allowed global
-  Browser API endpoint, and never silently treat a failed Browser API connection
-  as success. Keep endpoint credentials out of logs and preserve official
-  block/clearance evidence.
+  WAF, follow the local `browser-api-cloudflare-runner` skill first. 所有
+  Cloudflare/Turnstile/WAF 的场景优先按该 skill 执行：优先国家级 Browser
+  API/CDP，其次是显式允许的全局 Browser API。不得静默降级，必须保留官方阻断与
+  放行证据。端点凭证不得入日志。
 
 ## Key Flows
 

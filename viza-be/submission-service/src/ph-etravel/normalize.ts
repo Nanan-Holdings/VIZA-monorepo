@@ -67,6 +67,67 @@ function firstText(values: unknown[]): string {
   return "";
 }
 
+function normalizeIsoDate(value: unknown): string {
+  const raw = text(value);
+  if (!raw) return "";
+
+  const compact = raw.replace(/\s+/g, " ").trim();
+  const directMatch = compact.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$/);
+  if (directMatch) {
+    const [, year, month, day] = directMatch;
+    const normalized = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const date = new Date(`${normalized}T00:00:00.000Z`);
+    if (
+      date.getUTCFullYear() === Number(year) &&
+      date.getUTCMonth() === Number(month) - 1 &&
+      date.getUTCDate() === Number(day)
+    ) {
+      return normalized;
+    }
+    return "";
+  }
+
+  const slashMatch = compact.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T].*)?$/);
+  if (slashMatch) {
+    const [, month, day, year] = slashMatch;
+    const normalized = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const date = new Date(`${normalized}T00:00:00.000Z`);
+    if (
+      date.getUTCFullYear() === Number(year) &&
+      date.getUTCMonth() === Number(month) - 1 &&
+      date.getUTCDate() === Number(day)
+    ) {
+      return normalized;
+    }
+    return "";
+  }
+
+  const altMatch = compact.match(/^(\d{1,2})-(\d{1,2})-(\d{4})(?:[ T].*)?$/);
+  if (altMatch) {
+    const [, month, day, year] = altMatch;
+    const normalized = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const date = new Date(`${normalized}T00:00:00.000Z`);
+    if (
+      date.getUTCFullYear() === Number(year) &&
+      date.getUTCMonth() === Number(month) - 1 &&
+      date.getUTCDate() === Number(day)
+    ) {
+      return normalized;
+    }
+  }
+
+  return "";
+}
+
+function firstIsoDate(values: unknown[], key: string, missing: string[]): string {
+  for (const value of values) {
+    const normalized = normalizeIsoDate(value);
+    if (normalized) return normalized;
+  }
+  missing.push(key);
+  return "";
+}
+
 function requireFirstText(values: unknown[], key: string, missing: string[]): string {
   const normalized = firstText(values);
   if (!normalized) missing.push(key);
@@ -80,12 +141,24 @@ function boolAnswer(value: unknown): boolean {
 
 function dialCodeFromPhone(value: unknown): string {
   const normalized = text(value);
-  const match = normalized.match(/^\s*(\+\d{1,4})\b/);
-  return match?.[1] ?? "";
+  if (!normalized) return "";
+  const plusMatch = normalized.match(/^\s*(\+\d{1,4})(?:\D|$)/);
+  if (plusMatch) return plusMatch[1];
+
+  const noSignDigits = normalized.replace(/\D/g, "");
+  const zeroPrefixMatch = noSignDigits.match(/^00(\d{1,4})/);
+  if (zeroPrefixMatch) {
+    return `+${zeroPrefixMatch[1]}`;
+  }
+  return "";
 }
 
 function phoneWithoutDialCode(value: unknown): string {
-  return text(value).replace(/^\+\d{1,4}\s*/, "").trim();
+  const raw = text(value);
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  const countryCode = dialCodeFromPhone(value).replace("+", "");
+  return countryCode && digits.startsWith(countryCode) ? digits.slice(countryCode.length) : digits;
 }
 
 function optionalCount(value: unknown, enabled: boolean): string | null {
@@ -112,7 +185,7 @@ export function normalizePhEtravelPortalPayload(
 
   const answers = payload.countrySpecific;
   const missing: string[] = [];
-  const arrivalDate = requireFirstText([answers.arrival_date, payload.trip.arrivalDate], "arrival_date", missing);
+  const arrivalDate = firstIsoDate([answers.arrival_date, payload.trip.arrivalDate], "arrival_date", missing);
   const window = evaluatePhEtravelSubmissionWindow(arrivalDate, options.now);
   if (window.status !== "open") {
     const reason = window.status === "scheduled"
@@ -197,7 +270,7 @@ export function normalizePhEtravelPortalPayload(
     airlineOrVesselName: firstText([answers.airline_or_vessel_name]) || null,
     portOfEntry: requireFirstText([answers.port_of_entry], "port_of_entry", missing),
     arrivalDate,
-    departureDate: requireFirstText([answers.departure_date, payload.trip.departureDate], "departure_date", missing),
+    departureDate: firstIsoDate([answers.departure_date, payload.trip.departureDate], "departure_date", missing),
     originCountry: requireFirstText(
       [answers.origin_country, answers.country_of_residence, payload.personal.nationality],
       "origin_country",
