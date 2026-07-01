@@ -157,6 +157,26 @@ export interface AppointmentStatusSnapshot {
   dryRunNotice: string | null;
 }
 
+export interface RevealedAppointmentAccount {
+  id: string;
+  portal: string;
+  accountEmail: string;
+  accountPassword: string;
+  accountStatus: string;
+  emailVerified: boolean;
+  securityQuestions: Array<{
+    label: string;
+    answer: string;
+  }>;
+  prefill: {
+    ds160ConfirmationCode: string | null;
+    applyingPostCity: string | null;
+    source: "viza_application";
+  };
+  notice: string;
+  revealedAt: string;
+}
+
 export interface AppointmentApiResponse<T> {
   error: boolean;
   data?: T;

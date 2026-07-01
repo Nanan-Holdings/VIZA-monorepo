@@ -3,6 +3,8 @@ export interface KoreaKvacRunInput {
   jobId: string;
   selectedSlotId: string | null;
   centerCode: string;
+  smsCodeProvided?: boolean;
+  finalBookingApproved?: boolean;
 }
 
 export interface KoreaKvacSlot {
@@ -29,7 +31,12 @@ export type KoreaKvacDryRunResult =
 
 export interface KoreaKvacLiveGateResult {
   status: "manual_required";
-  manualActionType: "site_policy_review" | "appointment_slot_selection_required" | "sms_verification_required";
+  manualActionType:
+    | "site_policy_review"
+    | "appointment_slot_selection_required"
+    | "sms_verification_required"
+    | "final_booking_approval_required"
+    | "official_confirmation_capture_required";
   message: string;
   expiresAt?: string;
   userInputSchema?: {
@@ -107,18 +114,43 @@ export async function runKoreaKvacLive(
     };
   }
 
+  if (!input.smsCodeProvided) {
+    return {
+      status: "manual_required",
+      manualActionType: "sms_verification_required",
+      message:
+        "Korea KVAC live booking must pause at the official SMS verification step. Ask the applicant to enter the SMS code within the portal timeout; do not log or persist the raw code.",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      userInputSchema: {
+        type: "object",
+        required: ["smsCode"],
+        properties: {
+          smsCode: { type: "string", minLength: 4, maxLength: 8, pattern: "^[0-9]+$" },
+        },
+      },
+    };
+  }
+
+  if (!input.finalBookingApproved) {
+    return {
+      status: "manual_required",
+      manualActionType: "final_booking_approval_required",
+      message:
+        "The SMS checkpoint is satisfied. Pause before the final official KVAC booking click and ask the applicant to approve the exact slot and center.",
+      userInputSchema: {
+        type: "object",
+        required: ["approved"],
+        properties: {
+          approved: { type: "boolean", const: true },
+        },
+      },
+    };
+  }
+
   return {
     status: "manual_required",
-    manualActionType: "sms_verification_required",
+    manualActionType: "official_confirmation_capture_required",
     message:
-      "Korea KVAC live booking must pause at the official SMS verification step. Ask the applicant to enter the SMS code within the portal timeout; do not log or persist the raw code.",
-    expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    userInputSchema: {
-      type: "object",
-      required: ["smsCode"],
-      properties: {
-        smsCode: { type: "string", minLength: 4, maxLength: 8, pattern: "^[0-9]+$" },
-      },
-    },
+      "The applicant approved the final official booking click. Continue only in a validated per-center Playwright session and persist the official confirmation number plus screenshot/PDF before reporting success.",
   };
 }

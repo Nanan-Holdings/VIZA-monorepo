@@ -39,6 +39,7 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/kr-annex17-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/korea-appointment-proof-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`

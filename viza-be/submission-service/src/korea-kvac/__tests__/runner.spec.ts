@@ -85,3 +85,45 @@ test("Korea KVAC live runner exposes SMS verification checkpoint", async () => {
     else process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = previous;
   }
 });
+
+test("Korea KVAC live runner requires final approval after SMS checkpoint", async () => {
+  const previous = process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED;
+  process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = "true";
+  try {
+    const result = await runKoreaKvacLive({
+      applicationId: "app-1",
+      jobId: "job-1",
+      selectedSlotId: "slot-1",
+      centerCode: "shanghai",
+      smsCodeProvided: true,
+    });
+
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.manualActionType, "final_booking_approval_required");
+    assert.deepEqual(result.userInputSchema?.required, ["approved"]);
+  } finally {
+    if (previous === undefined) delete process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED;
+    else process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = previous;
+  }
+});
+
+test("Korea KVAC live runner requires official confirmation capture before success", async () => {
+  const previous = process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED;
+  process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = "true";
+  try {
+    const result = await runKoreaKvacLive({
+      applicationId: "app-1",
+      jobId: "job-1",
+      selectedSlotId: "slot-1",
+      centerCode: "shanghai",
+      smsCodeProvided: true,
+      finalBookingApproved: true,
+    });
+
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.manualActionType, "official_confirmation_capture_required");
+  } finally {
+    if (previous === undefined) delete process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED;
+    else process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = previous;
+  }
+});

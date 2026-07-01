@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import type {
   AppointmentApiResponse,
   AppointmentAssistanceJob,
+  RevealedAppointmentAccount,
   AppointmentStatusSnapshot,
   JsonObject,
   USAppointmentMode,
@@ -92,6 +93,14 @@ export function getAppointmentStatus(
 ): Promise<AppointmentStatusSnapshot> {
   return requestUSAppointment<AppointmentStatusSnapshot>(
     `/api/applications/${applicationId}/us-appointment/status`,
+  );
+}
+
+export function revealAppointmentAccount(
+  applicationId: string,
+): Promise<RevealedAppointmentAccount> {
+  return requestUSAppointment<RevealedAppointmentAccount>(
+    `/api/applications/${applicationId}/us-appointment/account`,
   );
 }
 

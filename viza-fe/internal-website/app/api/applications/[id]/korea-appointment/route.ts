@@ -4,7 +4,14 @@ import { getClientSessionWithFallback } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveKvacCenter, type KvacRoutingInput } from "@/lib/korea-c39/kvac-routing";
 
-type Action = "start-slot-search" | "select-slot" | "confirm-booking" | "request-live-booking" | "submit-sms-code" | "refresh-status";
+type Action =
+  | "start-slot-search"
+  | "select-slot"
+  | "confirm-booking"
+  | "request-live-booking"
+  | "submit-sms-code"
+  | "approve-final-booking"
+  | "refresh-status";
 
 interface AppointmentJobRow {
   id: string;
@@ -375,10 +382,51 @@ export async function POST(
         suffix: smsCode.slice(-2),
       },
     }).eq("id", manualAction.id);
+    const { data: slot, error: slotErr } = await auth.admin
+      .from("appointment_slots")
+      .select("id, appointment_date, appointment_time, appointment_location")
+      .eq("job_id", job.id)
+      .in("status", ["user_selected", "selected"])
+      .order("observed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (slotErr) throw new Error(slotErr.message);
+    const { data: finalAction, error: finalActionErr } = await auth.admin
+      .from("appointment_manual_actions")
+      .insert({
+        job_id: job.id,
+        application_id: id,
+        user_id: auth.profile.id,
+        action_type: "final_booking_approval_required",
+        status: "pending",
+        instruction:
+          "Review the official KVAC booking details before the worker clicks the final booking button. VIZA will only capture proof after the official portal returns a confirmation.",
+        user_input_schema_json: {
+          type: "object",
+          required: ["approved"],
+          properties: {
+            approved: { type: "boolean", const: true },
+          },
+        },
+        metadata_redacted_json: {
+          centerCode: routing.recommended.code,
+          selectedSlotId: slot?.id ?? null,
+          selectedSlot: slot
+            ? {
+                appointment_date: slot.appointment_date,
+                appointment_time: slot.appointment_time,
+                appointment_location: slot.appointment_location,
+              }
+            : null,
+        },
+      })
+      .select("id")
+      .single();
+    if (finalActionErr || !finalAction) throw new Error(finalActionErr?.message ?? "Could not create final booking approval checkpoint.");
     await auth.admin.from("appointment_assistance_jobs").update({
-      status: "sms_verification_submitted",
-      requires_user_action: false,
-      current_manual_action: null,
+      status: "final_booking_approval_required",
+      requires_user_action: true,
+      current_manual_action: finalAction.id,
       updated_at: new Date().toISOString(),
     }).eq("id", job.id);
     await auth.admin.from("appointment_audit_events").insert({
@@ -388,6 +436,46 @@ export async function POST(
       event_type: "sms_verification_submitted",
       event_message: "User submitted Korea KVAC SMS verification code. Code content was not logged.",
       metadata_redacted_json: { codeLength: smsCode.length, codeSuffix: smsCode.slice(-2) },
+    });
+    return NextResponse.json(await readSnapshot(auth.admin, id));
+  }
+
+  if (action === "approve-final-booking") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Start live booking first" }, { status: 400 });
+    const { data: manualAction, error: manualErr } = await auth.admin
+      .from("appointment_manual_actions")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("action_type", "final_booking_approval_required")
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (manualErr) throw new Error(manualErr.message);
+    if (!manualAction) return NextResponse.json({ error: "No pending final booking approval checkpoint" }, { status: 400 });
+
+    await auth.admin.from("appointment_manual_actions").update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      user_input_redacted_json: {
+        approved: true,
+        approvedAt: new Date().toISOString(),
+      },
+    }).eq("id", manualAction.id);
+    await auth.admin.from("appointment_assistance_jobs").update({
+      status: "final_booking_approved",
+      requires_user_action: false,
+      current_manual_action: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", job.id);
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "final_booking_approved",
+      event_message: "User approved Korea KVAC final booking click. Worker may proceed to the official final confirmation step.",
+      metadata_redacted_json: { centerCode: routing.recommended.code },
     });
     return NextResponse.json(await readSnapshot(auth.admin, id));
   }
