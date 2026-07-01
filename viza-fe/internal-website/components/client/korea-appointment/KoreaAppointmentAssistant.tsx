@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarCheck, CheckCircle2, Download, Loader2, MapPin, RefreshCw } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Download, Loader2, MapPin, MessageSquareText, RefreshCw } from "lucide-react";
 import { useLocale } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,13 @@ interface Snapshot {
     };
   };
   job: { id: string; status: string } | null;
+  manualAction: {
+    id: string;
+    action_type: string;
+    status: string;
+    instruction: string | null;
+    expires_at: string | null;
+  } | null;
   slots: Array<{
     id: string;
     appointment_date: string | null;
@@ -36,11 +43,11 @@ interface Snapshot {
   } | null;
 }
 
-async function requestSnapshot(applicationId: string, action?: string, slotId?: string): Promise<Snapshot> {
+async function requestSnapshot(applicationId: string, action?: string, slotId?: string, smsCode?: string): Promise<Snapshot> {
   const response = await fetch(`/api/applications/${applicationId}/korea-appointment`, {
     method: action ? "POST" : "GET",
     headers: { "Content-Type": "application/json" },
-    body: action ? JSON.stringify({ action, slotId }) : undefined,
+    body: action ? JSON.stringify({ action, slotId, smsCode }) : undefined,
     cache: "no-store",
   });
   const body = (await response.json().catch(() => null)) as Snapshot | { error?: string } | null;
@@ -53,16 +60,21 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState<string | null>(null);
+  const [smsCode, setSmsCode] = useState("");
   const selectedSlot = useMemo(
     () => snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null,
     [snapshot?.slots],
   );
+  const waitingForSms = snapshot?.manualAction?.action_type === "sms_verification_required";
+  const smsSubmitted = snapshot?.job?.status === "sms_verification_submitted";
+  const smsManualAction = waitingForSms ? snapshot?.manualAction : null;
 
-  const run = useCallback(async (action?: string, slotId?: string) => {
+  const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
     setError(null);
     try {
-      setSnapshot(await requestSnapshot(applicationId, action, slotId));
+      setSnapshot(await requestSnapshot(applicationId, action, slotId, nextSmsCode));
+      if (action === "submit-sms-code") setSmsCode("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -192,6 +204,70 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <AlertTitle>{isZh ? "预约已确认" : "Appointment confirmed"}</AlertTitle>
               <AlertDescription>
                 {snapshot.confirmation.confirmation_number} · {snapshot.confirmation.appointment_date} {snapshot.confirmation.appointment_time}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-[8px]">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquareText className="h-5 w-5 text-brand-500" />
+            {isZh ? "真实预约短信验证" : "Live booking SMS verification"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm leading-6 text-muted-foreground">
+            {isZh
+              ? "KVAC 手机验证码不能绕过。真实预约时，worker 会在官方页面发起短信验证并暂停；你在 5 分钟内输入验证码后，worker 才继续。验证码不会明文写入日志或数据库。"
+              : "KVAC SMS verification cannot be bypassed. During live booking, the worker pauses after triggering the official SMS; enter the code within 5 minutes so it can continue. The code is not stored in plaintext logs or database rows."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => void run("request-live-booking")}
+              disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation) || waitingForSms || smsSubmitted}
+            >
+              {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+              {isZh ? "进入真实预约验证" : "Start live verification"}
+            </Button>
+          </div>
+          {smsManualAction ? (
+            <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
+              <div className="text-sm font-medium text-foreground">
+                {isZh ? "正在等待短信验证码" : "Waiting for SMS code"}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {smsManualAction.expires_at
+                  ? isZh ? `有效期至 ${new Date(smsManualAction.expires_at).toLocaleTimeString()}` : `Expires at ${new Date(smsManualAction.expires_at).toLocaleTimeString()}`
+                  : isZh ? "请尽快输入。" : "Enter it as soon as it arrives."}
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={smsCode}
+                  onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="h-10 rounded-[8px] border px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder={isZh ? "输入短信验证码" : "SMS code"}
+                />
+                <Button
+                  onClick={() => void run("submit-sms-code", undefined, smsCode)}
+                  disabled={Boolean(busy) || !/^\d{4,8}$/.test(smsCode)}
+                >
+                  {busy === "submit-sms-code" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                  {isZh ? "提交验证码" : "Submit code"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {smsSubmitted ? (
+            <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>{isZh ? "验证码已提交" : "SMS code submitted"}</AlertTitle>
+              <AlertDescription>
+                {isZh ? "worker 可以继续官方预约流程；如果官方页面再次要求验证，会再次暂停。" : "The worker can resume the official booking flow; if the portal asks again, it will pause again."}
               </AlertDescription>
             </Alert>
           ) : null}

@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { resolveKvacCenter, type KvacRoutingInput } from "@/lib/korea-c39/kvac-routing";
 
-type Action = "start-slot-search" | "select-slot" | "confirm-booking" | "refresh-status";
+type Action = "start-slot-search" | "select-slot" | "confirm-booking" | "request-live-booking" | "submit-sms-code" | "refresh-status";
 
 interface AppointmentJobRow {
   id: string;
@@ -18,26 +18,34 @@ interface AppointmentJobRow {
   updated_at: string | null;
 }
 
+interface AppointmentManualActionRow {
+  id: string;
+  job_id: string | null;
+  action_type: string;
+  status: string;
+  instruction: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+}
+
 type ApplicationAuthResult =
   | { ok: false; response: Response }
   | {
       ok: true;
       admin: ReturnType<typeof createAdminClient>;
-      user: { id: string };
       profile: { id: string };
       application: { id: string; applicant_id: string; visa_type: string; country: string | null };
     };
 
 async function requireApplication(applicationId: string): Promise<ApplicationAuthResult> {
   const admin = createAdminClient();
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
+  const session = await getClientSessionWithFallback();
+  if (!session) return { ok: false, response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
 
   const { data: profile } = await admin
     .from("applicant_profiles")
     .select("id")
-    .eq("auth_user_id", user.id)
+    .eq("id", session.userId)
     .maybeSingle();
   if (!profile) return { ok: false, response: NextResponse.json({ error: "Profile not found" }, { status: 404 }) };
 
@@ -51,7 +59,7 @@ async function requireApplication(applicationId: string): Promise<ApplicationAut
   if (application.visa_type !== "KR_C39_SHORT_TERM_VISIT") {
     return { ok: false, response: NextResponse.json({ error: "Korea appointment only supports KR_C39_SHORT_TERM_VISIT" }, { status: 400 }) };
   }
-  return { ok: true, admin, user: { id: user.id }, profile, application };
+  return { ok: true, admin, profile, application };
 }
 
 async function latestJob(admin: ReturnType<typeof createAdminClient>, applicationId: string) {
@@ -70,9 +78,13 @@ async function latestJob(admin: ReturnType<typeof createAdminClient>, applicatio
 async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string) {
   const job = await latestJob(admin, applicationId);
   const routing = resolveKvacCenter({});
-  if (!job) return { routing, job: null, slots: [], confirmation: null };
+  if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null };
 
-  const [{ data: slots, error: slotsErr }, { data: confirmation, error: confirmationErr }] = await Promise.all([
+  const [
+    { data: slots, error: slotsErr },
+    { data: confirmation, error: confirmationErr },
+    { data: manualAction, error: manualActionErr },
+  ] = await Promise.all([
     admin
       .from("appointment_slots")
       .select("*")
@@ -86,10 +98,19 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    admin
+      .from("appointment_manual_actions")
+      .select("id, job_id, action_type, status, instruction, expires_at, created_at")
+      .eq("job_id", job.id)
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (slotsErr) throw new Error(slotsErr.message);
   if (confirmationErr) throw new Error(confirmationErr.message);
-  return { routing, job, slots: slots ?? [], confirmation: confirmation ?? null };
+  if (manualActionErr) throw new Error(manualActionErr.message);
+  return { routing, job, slots: slots ?? [], confirmation: confirmation ?? null, manualAction: (manualAction as AppointmentManualActionRow | null) ?? null };
 }
 
 function dryRunSlots(centerCode: string) {
@@ -137,6 +158,7 @@ export async function POST(
   const body = (await req.json().catch(() => ({}))) as {
     action?: Action;
     slotId?: string;
+    smsCode?: string;
     routingInput?: KvacRoutingInput;
   };
   const action = body.action;
@@ -153,7 +175,7 @@ export async function POST(
         .from("appointment_assistance_jobs")
         .insert({
           application_id: id,
-          user_id: auth.user.id,
+          user_id: auth.profile.id,
           country_code: "KR",
           visa_type: "KR_C39_SHORT_TERM_VISIT",
           applying_country_code: "CN",
@@ -221,7 +243,7 @@ export async function POST(
       .insert({
         job_id: job.id,
         application_id: id,
-        user_id: auth.user.id,
+        user_id: auth.profile.id,
         country_code: "KR",
         visa_type: "KR_C39_SHORT_TERM_VISIT",
         appointment_date: slot.appointment_date,
@@ -242,6 +264,131 @@ export async function POST(
       appointment_assistance_status: "appointment_booked",
       appointment_confirmation_id: confirmation.id,
     }).eq("id", id);
+    return NextResponse.json(await readSnapshot(auth.admin, id));
+  }
+
+  if (action === "request-live-booking") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Start slot search first" }, { status: 400 });
+    if (job.status === "sms_verification_submitted") {
+      return NextResponse.json(await readSnapshot(auth.admin, id));
+    }
+    const { data: existingManualAction, error: existingManualErr } = await auth.admin
+      .from("appointment_manual_actions")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("action_type", "sms_verification_required")
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingManualErr) throw new Error(existingManualErr.message);
+    if (existingManualAction) {
+      return NextResponse.json(await readSnapshot(auth.admin, id));
+    }
+    const { data: slot, error: slotErr } = await auth.admin
+      .from("appointment_slots")
+      .select("id, appointment_date, appointment_time, appointment_location")
+      .eq("job_id", job.id)
+      .in("status", ["user_selected", "selected"])
+      .order("observed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (slotErr) throw new Error(slotErr.message);
+    if (!slot) return NextResponse.json({ error: "Select a slot before starting live booking" }, { status: 400 });
+
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const { data: manualAction, error: manualErr } = await auth.admin
+      .from("appointment_manual_actions")
+      .insert({
+        job_id: job.id,
+        application_id: id,
+        user_id: auth.profile.id,
+        action_type: "sms_verification_required",
+        status: "pending",
+        instruction: "KVAC sent or is about to send an SMS verification code. Enter the code within 5 minutes so the worker can continue in the same official portal session.",
+        user_input_schema_json: {
+          type: "object",
+          required: ["smsCode"],
+          properties: {
+            smsCode: { type: "string", minLength: 4, maxLength: 8, pattern: "^[0-9]+$" },
+          },
+        },
+        expires_at: expiresAt,
+        metadata_redacted_json: {
+          centerCode: routing.recommended.code,
+          selectedSlotId: slot.id,
+          selectedSlot: {
+            appointment_date: slot.appointment_date,
+            appointment_time: slot.appointment_time,
+            appointment_location: slot.appointment_location,
+          },
+        },
+      })
+      .select("id")
+      .single();
+    if (manualErr || !manualAction) throw new Error(manualErr?.message ?? "Could not create SMS verification checkpoint.");
+    await auth.admin.from("appointment_assistance_jobs").update({
+      mode: "live_assisted",
+      status: "sms_verification_required",
+      requires_user_action: true,
+      current_manual_action: manualAction.id,
+      updated_at: new Date().toISOString(),
+    }).eq("id", job.id);
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "sms_verification_required",
+      event_message: "Korea KVAC live assisted booking is waiting for user-provided SMS code.",
+      metadata_redacted_json: { centerCode: routing.recommended.code },
+    });
+    return NextResponse.json(await readSnapshot(auth.admin, id));
+  }
+
+  if (action === "submit-sms-code") {
+    const smsCode = body.smsCode?.trim() ?? "";
+    if (!/^\d{4,8}$/.test(smsCode)) return NextResponse.json({ error: "SMS code must be 4 to 8 digits" }, { status: 400 });
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Start live booking first" }, { status: 400 });
+    const { data: manualAction, error: manualErr } = await auth.admin
+      .from("appointment_manual_actions")
+      .select("id, expires_at")
+      .eq("job_id", job.id)
+      .eq("action_type", "sms_verification_required")
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (manualErr) throw new Error(manualErr.message);
+    if (!manualAction) return NextResponse.json({ error: "No pending SMS verification checkpoint" }, { status: 400 });
+    if (manualAction.expires_at && new Date(manualAction.expires_at).getTime() < Date.now()) {
+      await auth.admin.from("appointment_manual_actions").update({ status: "expired" }).eq("id", manualAction.id);
+      return NextResponse.json({ error: "SMS verification checkpoint expired" }, { status: 409 });
+    }
+    await auth.admin.from("appointment_manual_actions").update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      user_input_redacted_json: {
+        smsCode: "[REDACTED]",
+        length: smsCode.length,
+        suffix: smsCode.slice(-2),
+      },
+    }).eq("id", manualAction.id);
+    await auth.admin.from("appointment_assistance_jobs").update({
+      status: "sms_verification_submitted",
+      requires_user_action: false,
+      current_manual_action: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", job.id);
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "sms_verification_submitted",
+      event_message: "User submitted Korea KVAC SMS verification code. Code content was not logged.",
+      metadata_redacted_json: { codeLength: smsCode.length, codeSuffix: smsCode.slice(-2) },
+    });
     return NextResponse.json(await readSnapshot(auth.admin, id));
   }
 

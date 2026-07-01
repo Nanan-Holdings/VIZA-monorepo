@@ -250,6 +250,7 @@ export async function runIndonesiaLiveSubmission(
       portalUrl: normalized.portalUrl,
       provider: normalized.provider,
       visaType: normalized.visaType,
+      applicationId: input.applicationId,
       passportCountry: normalized.passportCountry,
       applicantId: input.applicantId,
       accountEmail: managedEmail,

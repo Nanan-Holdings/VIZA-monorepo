@@ -11,6 +11,7 @@ export interface IndonesiaPortalProbeInput {
   portalUrl: string;
   provider: "indonesia_c1_live" | "indonesia_b1_evoa_live";
   visaType?: "ID_C1_TOURIST" | "ID_B1_EVOA";
+  applicationId?: string | null;
   passportCountry?: string | null;
   applicantId?: string | null;
   accountEmail?: string | null;
@@ -85,6 +86,14 @@ export interface IndonesiaApplicationFormInput {
   photoImagePath?: string | null;
   returnTicketPath?: string | null;
   passportSupportPath?: string | null;
+}
+
+interface IndonesiaInboundEmailRow {
+  id: string;
+  subject: string | null;
+  text: string | null;
+  html: string | null;
+  received_at: string;
 }
 
 function normalizeCountryLabel(value: string | null | undefined): string {
@@ -646,6 +655,103 @@ async function continueFromApplicationStepOne(
   return false;
 }
 
+function isExistingApplicationWarningText(value: string): boolean {
+  return /currently\s+the\s+foreigner\s+has\s+a\s+visa\s+application/i.test(value) ||
+    /application\s+that\s+is\s+being\s+verified/i.test(value);
+}
+
+function isReusableIndonesiaApplicationUrl(value: string | null | undefined): value is string {
+  const cleanUrl = clean(value);
+  if (!cleanUrl) return false;
+  if (!/^https:\/\/evisa\.imigrasi\.go\.id\//i.test(cleanUrl)) return false;
+  if (/\/application_add\//i.test(cleanUrl)) return false;
+  return /\/web\/applications\/.+\/list\b/i.test(cleanUrl) ||
+    /pay|payment|checkout/i.test(cleanUrl);
+}
+
+function collectIndonesiaPortalUrls(value: unknown, urls: string[] = []): string[] {
+  if (typeof value === "string") {
+    if (isReusableIndonesiaApplicationUrl(value)) urls.push(value);
+    return urls;
+  }
+  if (!value || typeof value !== "object") return urls;
+  if (Array.isArray(value)) {
+    for (const item of value) collectIndonesiaPortalUrls(item, urls);
+    return urls;
+  }
+  for (const item of Object.values(value as Record<string, unknown>)) {
+    collectIndonesiaPortalUrls(item, urls);
+  }
+  return urls;
+}
+
+async function findSavedIndonesiaApplicationUrl(
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<string | null> {
+  const applicationId = clean(input.applicationId);
+  if (!applicationId) {
+    diagnostics.push("indonesia_existing_application_missing_viza_application_id");
+    return null;
+  }
+  const { supabase } = await import("../supabase");
+  const candidates: string[] = [];
+
+  const queue = await supabase
+    .from("submission_queue")
+    .select("official_portal_url, vn_result_payload, updated_at")
+    .eq("application_id", applicationId)
+    .in("provider", ["indonesia_c1_live", "indonesia_b1_evoa_live"])
+    .order("updated_at", { ascending: false })
+    .limit(20);
+  if (queue.error) {
+    diagnostics.push(`indonesia_existing_application_queue_lookup_failed ${queue.error.message}`);
+  } else {
+    for (const row of (queue.data ?? []) as Array<Record<string, unknown>>) {
+      collectIndonesiaPortalUrls(row.official_portal_url, candidates);
+      collectIndonesiaPortalUrls(row.vn_result_payload, candidates);
+    }
+  }
+
+  const application = await supabase
+    .from("applications")
+    .select("submission_result, updated_at")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (application.error) {
+    diagnostics.push(`indonesia_existing_application_result_lookup_failed ${application.error.message}`);
+  } else {
+    collectIndonesiaPortalUrls((application.data as Record<string, unknown> | null)?.submission_result, candidates);
+  }
+
+  const unique = Array.from(new Set(candidates)).filter(isReusableIndonesiaApplicationUrl);
+  if (unique.length === 0) {
+    diagnostics.push("indonesia_existing_application_no_saved_portal_url");
+    return null;
+  }
+  return unique[0];
+}
+
+async function redirectToSavedIndonesiaApplication(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<void> {
+  const savedUrl = await findSavedIndonesiaApplicationUrl(input, diagnostics);
+  if (!savedUrl) {
+    throw new Error(
+      `Indonesia official portal reports an existing visa application, but VIZA has no saved reusable official application URL for application ${input.applicationId ?? "(unknown)"}.`,
+    );
+  }
+  diagnostics.push("indonesia_existing_application_redirecting_to_saved_url");
+  await page.goto(savedUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: input.timeoutMs ?? 60_000,
+  });
+  await page.waitForTimeout(3_000);
+  await dismissIndonesiaDialogs(page, diagnostics);
+}
+
 async function continueFromApplicationStepTwo(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -698,6 +804,12 @@ async function continueFromApplicationStepTwo(
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
     await dismissIndonesiaDialogs(page, diagnostics);
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const allDiagnostics = diagnostics.join(" ");
+    if (isExistingApplicationWarningText(`${bodyText} ${allDiagnostics}`)) {
+      diagnostics.push("indonesia_step_2_existing_application_warning_detected");
+      await redirectToSavedIndonesiaApplication(page, input, diagnostics);
+    }
     diagnostics.push("indonesia_step_2_submitted");
   }
   return true;
@@ -771,6 +883,149 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
     return true;
   }
   diagnostics.push("indonesia_application_list_submit_clicked");
+  return true;
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)));
+}
+
+function extractIndonesiaOtpCode(row: IndonesiaInboundEmailRow): string | null {
+  const htmlText = decodeHtmlEntities(row.html ?? "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+  const haystack = `${row.subject ?? ""} ${row.text ?? ""} ${htmlText}`
+    .replace(/=\s+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const afterCodePrompt =
+    haystack.match(/code\s+(?:below|di bawah ini)[^A-Z0-9]{0,120}([A-Z0-9]{4,8})/i)?.[1] ??
+    haystack.match(/login process\.\s*([A-Z0-9]{4,8})/i)?.[1] ??
+    haystack.match(/proses login\.\s*([A-Z0-9]{4,8})/i)?.[1] ??
+    null;
+  if (afterCodePrompt && /[A-Z]/i.test(afterCodePrompt) && /\d/.test(afterCodePrompt)) {
+    return afterCodePrompt.toUpperCase();
+  }
+  const candidates = haystack.match(/\b[A-Z0-9]{6}\b/gi) ?? [];
+  const candidate = candidates.find((value) => /[A-Z]/i.test(value) && /\d/.test(value));
+  return candidate?.toUpperCase() ?? null;
+}
+
+async function waitForIndonesiaOtpCode(
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<string | null> {
+  const alias = clean(input.accountEmail)?.toLowerCase();
+  if (!alias) {
+    diagnostics.push("indonesia_otp_alias_missing");
+    return null;
+  }
+  const { supabase } = await import("../supabase");
+  const timeoutMs = Number(process.env.INDONESIA_EMAIL_OTP_TIMEOUT_MS ?? "90000");
+  const since = new Date(Date.now() - Number(process.env.INDONESIA_EMAIL_OTP_LOOKBACK_MS ?? "900000")).toISOString();
+  const deadline = Date.now() + Math.max(10_000, timeoutMs);
+
+  while (Date.now() < deadline) {
+    const { data, error } = await supabase
+      .from("inbound_email")
+      .select("id, subject, text, html, received_at")
+      .eq("to_addr", alias)
+      .ilike("subject", "%OTP%")
+      .gte("received_at", since)
+      .order("received_at", { ascending: false })
+      .limit(8);
+    if (error) {
+      diagnostics.push(`indonesia_otp_email_lookup_failed ${error.message}`);
+      return null;
+    }
+
+    for (const row of (data ?? []) as IndonesiaInboundEmailRow[]) {
+      const code = extractIndonesiaOtpCode(row);
+      if (!code) continue;
+      try {
+        await supabase
+          .from("inbound_email")
+          .update({ processed: true, processed_at: new Date().toISOString() })
+          .eq("id", row.id);
+      } catch {
+        // Marking the email processed is best-effort; the OTP can still be used once.
+      }
+      diagnostics.push(`indonesia_otp_email_consumed received_at=${row.received_at}`);
+      return code;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+  }
+
+  diagnostics.push("indonesia_otp_email_not_found");
+  return null;
+}
+
+async function continueFromIndonesiaOtpPage(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (!/enter otp code|otp code/i.test(text)) return false;
+  if (!/evisa\.imigrasi\.go\.id/i.test(page.url())) return false;
+
+  const code = await waitForIndonesiaOtpCode(input, diagnostics);
+  if (!code) return false;
+
+  const filled = await page.evaluate((otp) => {
+    const controls = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
+      .filter((input) => {
+        const style = window.getComputedStyle(input);
+        const rect = input.getBoundingClientRect();
+        return !input.disabled &&
+          input.type !== "hidden" &&
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      });
+    const oneCharInputs = controls.filter((input) => input.maxLength === 1 || input.getAttribute("maxlength") === "1");
+    const targets = oneCharInputs.length >= otp.length ? oneCharInputs : controls;
+    if (targets.length >= otp.length) {
+      for (let index = 0; index < otp.length; index += 1) {
+        targets[index].focus();
+        targets[index].value = otp[index];
+        targets[index].dispatchEvent(new Event("input", { bubbles: true }));
+        targets[index].dispatchEvent(new Event("change", { bubbles: true }));
+        targets[index].dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: otp[index] }));
+      }
+      return true;
+    }
+    const first = targets[0];
+    if (!first) return false;
+    first.focus();
+    first.value = otp;
+    first.dispatchEvent(new Event("input", { bubbles: true }));
+    first.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }, code);
+  if (!filled) {
+    diagnostics.push("indonesia_otp_inputs_not_found");
+    return false;
+  }
+
+  const submit = page.getByRole("button", { name: /^submit$/i }).or(page.locator("#btn-submit, button[type='submit']")).first();
+  if (await submit.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await submit.click({ timeout: 10_000 });
+  } else {
+    await page.keyboard.press("Enter").catch(() => undefined);
+  }
+  await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+  await dismissIndonesiaDialogs(page, diagnostics);
+  diagnostics.push("indonesia_otp_filled_and_submitted");
   return true;
 }
 
@@ -946,6 +1201,8 @@ export async function probeIndonesiaPortal(
         advanced = await continueFromApplicationStepThree(page, session.diagnostics);
       } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
         advanced = await continueFromApplicationList(page, session.diagnostics);
+      } else if (state === "payment_required") {
+        advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
       } else if (state === "official_application_started" || state === "application_form_visible") {
         advanced =
           await continueFromApplicationStepOne(page, input, session.diagnostics) ||

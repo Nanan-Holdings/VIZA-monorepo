@@ -29,8 +29,14 @@ export type KoreaKvacDryRunResult =
 
 export interface KoreaKvacLiveGateResult {
   status: "manual_required";
-  manualActionType: "site_policy_review";
+  manualActionType: "site_policy_review" | "appointment_slot_selection_required" | "sms_verification_required";
   message: string;
+  expiresAt?: string;
+  userInputSchema?: {
+    type: "object";
+    required: string[];
+    properties: Record<string, unknown>;
+  };
 }
 
 function dryRunSlots(centerCode: string): KoreaKvacSlot[] {
@@ -93,10 +99,26 @@ export async function runKoreaKvacLive(
     };
   }
 
+  if (!input.selectedSlotId) {
+    return {
+      status: "manual_required",
+      manualActionType: "appointment_slot_selection_required",
+      message: "Korea KVAC live booking requires the applicant to choose an observed appointment slot before the worker books.",
+    };
+  }
+
   return {
     status: "manual_required",
-    manualActionType: "site_policy_review",
+    manualActionType: "sms_verification_required",
     message:
-      "Korea KVAC live booking gate is enabled, but per-center Playwright selectors are not promoted in this build. Preserve official evidence and complete selector validation before marking live success.",
+      "Korea KVAC live booking must pause at the official SMS verification step. Ask the applicant to enter the SMS code within the portal timeout; do not log or persist the raw code.",
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    userInputSchema: {
+      type: "object",
+      required: ["smsCode"],
+      properties: {
+        smsCode: { type: "string", minLength: 4, maxLength: 8, pattern: "^[0-9]+$" },
+      },
+    },
   };
 }
