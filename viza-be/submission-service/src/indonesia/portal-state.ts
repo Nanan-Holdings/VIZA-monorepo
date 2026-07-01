@@ -59,6 +59,15 @@ export function classifyIndonesiaPortalSnapshot(
     return "visa_selection_visible";
   }
   if (
+    text.includes("enter otp") ||
+    text.includes("otp code") ||
+    text.includes("one time password") ||
+    text.includes("authentication code") ||
+    text.includes("3ds")
+  ) {
+    return "payment_required";
+  }
+  if (
     url.includes("front/login") ||
     url.includes("/login")
   ) {
@@ -94,11 +103,7 @@ export function classifyIndonesiaPortalSnapshot(
     text.includes("checkout") ||
     text.includes("credit card") ||
     text.includes("debit card") ||
-    text.includes("enter otp") ||
-    text.includes("otp code") ||
-    text.includes("one time password") ||
-    text.includes("authentication code") ||
-    text.includes("3ds")
+    text.includes("one time password")
   ) {
     return "payment_required";
   }

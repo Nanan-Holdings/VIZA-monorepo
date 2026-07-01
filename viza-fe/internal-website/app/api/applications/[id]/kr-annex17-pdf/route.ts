@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
-import { renderKoreaC39Annex17 } from "@/lib/korea-c39/render-annex17";
+import { validateAnnex17Answers, renderKoreaC39Annex17 } from "@/lib/korea-c39/render-annex17";
 
 export async function GET(
   _req: Request,
@@ -39,6 +39,14 @@ export async function GET(
   for (const row of rows ?? []) {
     if (!row.value_text || row.field_name.startsWith("__")) continue;
     answers[row.field_name] = row.value_text;
+  }
+
+  const missingFields = validateAnnex17Answers(answers);
+  if (missingFields.length > 0) {
+    return NextResponse.json(
+      { error: "Missing required Korea Annex-17 fields", missingFields },
+      { status: 422 },
+    );
   }
 
   const pdfBytes = await renderKoreaC39Annex17(answers);

@@ -16,7 +16,10 @@ import {
   type USAppointmentRunnerRepository,
   type AppointmentAccountCredentials,
 } from "../runner";
-import { classifyUSVisaSchedulingGateText } from "../usvisascheduling-portal";
+import {
+  classifyUSVisaSchedulingGateText,
+  US_VISA_SCHEDULING_SELECTORS,
+} from "../usvisascheduling-portal";
 
 const baseJob: USAppointmentJobRow = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -170,6 +173,34 @@ test("US appointment runner can read Bright Data Browser API endpoint", () => {
 
   assert.equal(config.playwrightEnabled, true);
   assert.equal(config.playwrightCdpEndpoint, "wss://user:pass@brd.superproxy.io:9222");
+});
+
+test("US appointment runner prefers US-specific Browser API endpoint", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
+    US_APPOINTMENT_BROWSER_API_ENDPOINT: "wss://us-user:pass@brd.superproxy.io:9222",
+    BRIGHTDATA_BROWSER_API_ENDPOINT: "wss://global-user:pass@brd.superproxy.io:9222",
+  });
+
+  assert.equal(config.playwrightEnabled, true);
+  assert.equal(config.playwrightCdpEndpoint, "wss://us-user:pass@brd.superproxy.io:9222");
+});
+
+test("US appointment runner defaults to human-paced 80-120ms typing", () => {
+  const config = loadUSAppointmentRunnerConfig({});
+
+  assert.equal(config.typingDelayMinMs, 80);
+  assert.equal(config.typingDelayMaxMs, 120);
+});
+
+test("USVisaScheduling selectors avoid mixed text-engine comma lists", () => {
+  for (const [name, selector] of Object.entries(US_VISA_SCHEDULING_SELECTORS)) {
+    assert.equal(
+      selector.includes(", text="),
+      false,
+      `${name} mixes Playwright text selectors into a CSS selector list`,
+    );
+  }
 });
 
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {

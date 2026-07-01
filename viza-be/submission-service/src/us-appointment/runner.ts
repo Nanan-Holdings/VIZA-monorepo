@@ -24,6 +24,8 @@ export interface USAppointmentRunnerConfig {
   playwrightCdpEndpoint: string | null;
   playwrightStorageStatePath: string | null;
   baseUrl: string;
+  typingDelayMinMs: number;
+  typingDelayMaxMs: number;
 }
 
 export interface USAppointmentJobRow {
@@ -210,6 +212,15 @@ function readPositiveInt(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function normalizeTypingDelayRange(minMs: number, maxMs: number): {
+  typingDelayMinMs: number;
+  typingDelayMaxMs: number;
+} {
+  return minMs <= maxMs
+    ? { typingDelayMinMs: minMs, typingDelayMaxMs: maxMs }
+    : { typingDelayMinMs: maxMs, typingDelayMaxMs: minMs };
+}
+
 export function loadUSAppointmentRunnerConfig(
   env: Record<string, string | undefined> = process.env,
 ): USAppointmentRunnerConfig {
@@ -234,11 +245,16 @@ export function loadUSAppointmentRunnerConfig(
     playwrightHeadless: env.US_APPOINTMENT_PLAYWRIGHT_HEADLESS !== "false",
     playwrightChannel: env.US_APPOINTMENT_PLAYWRIGHT_CHANNEL?.trim() || null,
     playwrightCdpEndpoint:
-      env.US_APPOINTMENT_CDP_ENDPOINT?.trim()
+      env.US_APPOINTMENT_BROWSER_API_ENDPOINT?.trim()
+      || env.US_APPOINTMENT_CDP_ENDPOINT?.trim()
       || env.BRIGHTDATA_BROWSER_API_ENDPOINT?.trim()
       || null,
     playwrightStorageStatePath: env.US_APPOINTMENT_STORAGE_STATE_PATH?.trim() || null,
     baseUrl: env.US_APPOINTMENT_BASE_URL ?? "https://www.usvisascheduling.com/",
+    ...normalizeTypingDelayRange(
+      readPositiveInt(env.US_APPOINTMENT_TYPING_DELAY_MIN_MS, 80),
+      readPositiveInt(env.US_APPOINTMENT_TYPING_DELAY_MAX_MS, 120),
+    ),
   };
 }
 

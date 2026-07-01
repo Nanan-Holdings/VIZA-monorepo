@@ -8,6 +8,39 @@ interface RenderOptions {
   routing?: KvacRoutingInput;
 }
 
+export type Annex17RequiredField =
+  | "family_name"
+  | "given_names"
+  | "date_of_birth"
+  | "sex"
+  | "nationality"
+  | "passport_number"
+  | "passport_issue_date"
+  | "passport_expiry_date"
+  | "email_address"
+  | "mobile_phone"
+  | "purpose_of_visit"
+  | "intended_date_of_entry"
+  | "intended_period_of_stay"
+  | "address_in_korea";
+
+const REQUIRED_FIELDS: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ["family_name", ["family_name", "surname", "last_name"]],
+  ["given_names", ["given_names", "given_name", "first_name"]],
+  ["date_of_birth", ["date_of_birth", "dob"]],
+  ["sex", ["sex", "gender"]],
+  ["nationality", ["nationality"]],
+  ["passport_number", ["passport_number"]],
+  ["passport_issue_date", ["passport_issue_date"]],
+  ["passport_expiry_date", ["passport_expiry_date", "passport_expiration_date"]],
+  ["email_address", ["email_address", "email"]],
+  ["mobile_phone", ["mobile_phone", "mobile_number", "telephone_number"]],
+  ["purpose_of_visit", ["purpose_of_visit"]],
+  ["intended_date_of_entry", ["intended_date_of_entry", "arrival_date"]],
+  ["intended_period_of_stay", ["intended_period_of_stay", "intended_length_of_stay"]],
+  ["address_in_korea", ["address_in_korea", "accommodation_address"]],
+];
+
 const FIELD_ORDER = [
   ["Full name", ["family_name", "surname", "last_name"], ["given_names", "given_name", "first_name"]],
   ["Date of birth", ["date_of_birth", "dob"]],
@@ -33,13 +66,52 @@ function answer(answers: KoreaAnswerMap, keys: readonly string[]): string {
 }
 
 function sanitize(value: string): string {
-  return value.replace(/[^\x20-\x7e]/g, "?");
+  const replacements: Record<string, string> = {
+    "，": ",",
+    "。": ".",
+    "“": "\"",
+    "”": "\"",
+    "‘": "'",
+    "’": "'",
+    "（": "(",
+    "）": ")",
+    "—": "-",
+    "–": "-",
+    "—": "-",
+    "…": "...",
+  };
+  let output = "";
+  for (const ch of value) {
+    if (replacements[ch]) {
+      output += replacements[ch];
+      continue;
+    }
+    const cp = ch.codePointAt(0) ?? 0;
+    output += cp <= 0x7e && cp >= 0x20 ? ch : "?";
+  }
+  return output;
+}
+
+export function validateAnnex17Answers(answers: KoreaAnswerMap): Annex17RequiredField[] {
+  const missing: Annex17RequiredField[] = [];
+  for (const [canonical, aliases] of REQUIRED_FIELDS) {
+    if (answer(answers, aliases) === "") {
+      missing.push(canonical as Annex17RequiredField);
+    }
+  }
+  return missing;
 }
 
 export async function renderKoreaC39Annex17(
   answers: KoreaAnswerMap,
   options: RenderOptions = {},
 ): Promise<Uint8Array> {
+  const missingFields = validateAnnex17Answers(answers);
+  if (missingFields.length > 0) {
+    const normalized = missingFields.join(", ");
+    throw new Error(`Missing required Korea Annex-17 fields: ${normalized}`);
+  }
+
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);

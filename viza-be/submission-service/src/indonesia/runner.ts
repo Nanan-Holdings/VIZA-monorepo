@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { solveCaptcha } from "../captcha";
 import {
   actionForIndonesiaPortalState,
   classifyIndonesiaPortalSnapshot,
@@ -116,6 +117,160 @@ function normalizeCountryLabel(value: string | null | undefined): string {
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+async function solveIndonesiaRecaptchaIfPresent(
+  page: Page,
+  diagnostics: string[],
+  stage: string,
+): Promise<boolean> {
+  await page
+    .locator("iframe[src*='recaptcha'], [data-sitekey], .g-recaptcha, textarea[name='g-recaptcha-response']")
+    .first()
+    .waitFor({ state: "attached", timeout: 8_000 })
+    .catch(() => undefined);
+  const captcha = await page
+    .evaluate(() => {
+      const widget = document.querySelector<HTMLElement>("[data-sitekey], .g-recaptcha");
+      const iframe = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe[src*='recaptcha']")).find((frame) =>
+        /\/recaptcha\/api2\/anchor|google\.com\/recaptcha/i.test(frame.src),
+      );
+      const iframeSiteKey = iframe ? new URL(iframe.src, window.location.href).searchParams.get("k") : null;
+      const siteKey = widget?.getAttribute("data-sitekey") || iframeSiteKey;
+      const visibleCheckbox = Boolean(
+        widget || iframe || document.querySelector("textarea[name='g-recaptcha-response'], #g-recaptcha-response"),
+      );
+      return { siteKey, visibleCheckbox };
+    })
+    .catch(() => ({ siteKey: null, visibleCheckbox: false }));
+
+  if (!captcha.visibleCheckbox) return false;
+  if (!captcha.siteKey) {
+    diagnostics.push(`indonesia_recaptcha_${stage}_missing_sitekey`);
+    return false;
+  }
+  if (!process.env.TWOCAPTCHA_API_KEY?.trim()) {
+    diagnostics.push(`indonesia_recaptcha_${stage}_missing_twocaptcha_key`);
+    return false;
+  }
+
+  diagnostics.push(`indonesia_recaptcha_${stage}_solve_started`);
+  const timeoutMs = Number.parseInt(process.env.INDONESIA_RECAPTCHA_TIMEOUT_MS ?? "180000", 10);
+  const solved = await solveCaptcha({
+    type: "recaptcha-v2",
+    siteKey: captcha.siteKey,
+    pageUrl: page.url(),
+    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 180_000,
+  });
+  const token = solved.text.trim();
+  if (!token) {
+    diagnostics.push(`indonesia_recaptcha_${stage}_empty_token`);
+    return false;
+  }
+
+  await page.evaluate((captchaToken) => {
+    const ensureResponseField = (): HTMLTextAreaElement => {
+      const existing = document.querySelector<HTMLTextAreaElement>("textarea[name='g-recaptcha-response']");
+      if (existing) return existing;
+      const created = document.createElement("textarea");
+      created.name = "g-recaptcha-response";
+      created.id = "g-recaptcha-response";
+      created.style.display = "none";
+      const form = document.querySelector("form") ?? document.body;
+      form.appendChild(created);
+      return created;
+    };
+
+    const response = ensureResponseField();
+    response.value = captchaToken;
+    response.innerHTML = captchaToken;
+    response.dispatchEvent(new Event("input", { bubbles: true }));
+    response.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const visitCallbacks = (value: unknown, seen: Set<unknown>, callbacks: Array<(token: string) => void>) => {
+      if (!value || seen.has(value)) return;
+      if (typeof value !== "object") return;
+      seen.add(value);
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        if (key === "callback" && typeof child === "function") {
+          callbacks.push(child as (token: string) => void);
+        } else {
+          visitCallbacks(child, seen, callbacks);
+        }
+      }
+    };
+
+    const recaptchaWindow = window as Window & {
+      ___grecaptcha_cfg?: { clients?: Record<string, unknown> };
+      grecaptcha?: Record<string, unknown>;
+    };
+    const callbacks: Array<(token: string) => void> = [];
+    for (const client of Object.values(recaptchaWindow.___grecaptcha_cfg?.clients ?? {})) {
+      visitCallbacks(client, new Set<unknown>(), callbacks);
+    }
+    for (const callback of callbacks) {
+      try {
+        callback(captchaToken);
+      } catch {
+        // Continue; some recaptcha clients keep non-widget callbacks in the tree.
+      }
+    }
+    if (recaptchaWindow.grecaptcha && typeof recaptchaWindow.grecaptcha === "object") {
+      recaptchaWindow.grecaptcha.getResponse = () => captchaToken;
+      recaptchaWindow.grecaptcha.execute = () => Promise.resolve(captchaToken);
+    }
+    for (const button of Array.from(document.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
+      "button[type='submit'], input[type='submit'], button.btn-send, .btn-send",
+    ))) {
+      button.disabled = false;
+      button.removeAttribute("disabled");
+    }
+  }, token);
+  diagnostics.push(`indonesia_recaptcha_${stage}_token_injected solveId=${solved.solveId ?? "unknown"}`);
+  return true;
+}
+
+async function clickIndonesiaLoginSubmit(page: Page): Promise<boolean> {
+  const loginButton = page
+    .locator("button[type='submit'], input[type='submit'], button.btn-send, .btn-send, button.btn-primary, .btn-primary")
+    .or(page.getByRole("button", { name: /login|log in|sign in|masuk|submit|lanjut|continue/i }))
+    .or(page.getByRole("link", { name: /login|log in|sign in|masuk|submit|lanjut|continue/i }))
+    .first();
+  if (await loginButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    const clicked = await loginButton.click({ timeout: 15_000 }).then(() => true).catch(() => false);
+    if (clicked) return true;
+  }
+
+  return page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => [
+        element.textContent ?? "",
+        (element as HTMLInputElement).value ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+        element.getAttribute("id") ?? "",
+        element.getAttribute("class") ?? "",
+      ].join(" ").toLowerCase();
+      const controls = Array.from(document.querySelectorAll<HTMLElement>(
+        "button, input[type='submit'], input[type='button'], a.btn, [role='button']",
+      )).filter(visible);
+      const target = controls.find((control) => /login|log in|sign in|masuk|submit|lanjut|continue/i.test(describe(control))) ??
+        controls.find((control) => (control as HTMLButtonElement).type === "submit") ??
+        controls[0];
+      if (!target) return false;
+      target.scrollIntoView({ block: "center", inline: "center" });
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return true;
+    })
+    .catch(() => false);
 }
 
 function toIndonesiaDate(value: string | null | undefined): string | null {
@@ -485,6 +640,38 @@ async function waitForAnyHiddenValue(
   return ready;
 }
 
+async function syncUploadHiddenFallback(
+  page: Page,
+  fileSelectors: string[],
+  hiddenSelectors: string[],
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const changed = await page
+    .evaluate(({ nextFileSelectors, nextHiddenSelectors }) => {
+      const fileInputs = nextFileSelectors
+        .map((selector) => document.querySelector<HTMLInputElement>(selector))
+        .filter((input): input is HTMLInputElement => Boolean(input));
+      const fileName = fileInputs
+        .map((input) => input.files?.[0]?.name || input.value.split(/[/\\]/).pop() || "")
+        .find((value) => value.trim());
+      if (!fileName) return 0;
+      let count = 0;
+      for (const selector of nextHiddenSelectors) {
+        const input = document.querySelector<HTMLInputElement>(selector);
+        if (!input || input.value.trim()) continue;
+        input.value = fileName;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        count += 1;
+      }
+      return count;
+    }, { nextFileSelectors: fileSelectors, nextHiddenSelectors: hiddenSelectors })
+    .catch(() => 0);
+  diagnostics.push(`${label}_hidden_fallback_${changed > 0 ? `set_${changed}` : "skipped"}`);
+  return changed > 0;
+}
+
 async function captureRegistrationArtifact(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -689,40 +876,55 @@ async function continueFromAccountLogin(
     .catch(() => false);
   if (!filled) return false;
 
-  const clicked = await page
-    .evaluate(() => {
-      const visible = (element: Element): boolean => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0;
-      };
-      const describe = (element: Element): string => [
-        element.textContent ?? "",
-        (element as HTMLInputElement).value ?? "",
-        element.getAttribute("aria-label") ?? "",
-        element.getAttribute("title") ?? "",
-        element.getAttribute("id") ?? "",
-        element.getAttribute("class") ?? "",
-      ].join(" ").toLowerCase();
-      const controls = Array.from(document.querySelectorAll<HTMLElement>(
-        "button, input[type='submit'], input[type='button'], a.btn, [role='button']",
-      )).filter(visible);
-      const target = controls.find((control) => /login|log in|sign in|masuk|submit|lanjut|continue/i.test(describe(control))) ??
-        controls.find((control) => (control as HTMLButtonElement).type === "submit") ??
-        controls[0];
-      if (!target) return false;
-      target.scrollIntoView({ block: "center", inline: "center" });
-      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-      return true;
-    })
-    .catch(() => false);
+  await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "login").catch((error: unknown) => {
+    diagnostics.push(`indonesia_recaptcha_login_failed ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  });
+
+  let clicked = await clickIndonesiaLoginSubmit(page);
   if (!clicked) return false;
 
   await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
+  if (/\/front\/login/i.test(page.url())) {
+    const solvedRetryCaptcha = await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "login_retry").catch((error: unknown) => {
+      diagnostics.push(`indonesia_recaptcha_login_retry_failed ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    });
+    if (solvedRetryCaptcha) {
+      clicked = await clickIndonesiaLoginSubmit(page);
+      if (clicked) {
+        await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+        await page.waitForTimeout(3_000);
+        if (!/\/front\/login/i.test(page.url())) {
+          diagnostics.push("indonesia_account_login_submitted_after_recaptcha_retry");
+          return true;
+        }
+      }
+    }
+    const visibleMessages = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>(".invalid-feedback, .text-danger, .alert, .swal2-container, .error, .help-block"))
+          .filter((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+          })
+          .map((element) => (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .slice(0, 6),
+      )
+      .catch(() => []);
+    if (visibleMessages.length > 0) {
+      diagnostics.push(`indonesia_account_login_messages ${visibleMessages.join(" | ").slice(0, 300)}`);
+    }
+    if (visibleMessages.some((message) => /authenticated failed|invalid|incorrect|failed/i.test(message))) {
+      diagnostics.push("indonesia_account_login_failed_try_registration");
+      return false;
+    }
+    diagnostics.push("indonesia_account_login_still_on_login_try_registration");
+    return false;
+  }
   diagnostics.push("indonesia_account_login_submitted");
   return true;
 }
@@ -735,11 +937,30 @@ async function continueFromAccountGate(
   if (await continueFromAccountLogin(page, input, diagnostics)) {
     return true;
   }
-  const createAccountLink = page.getByRole("link", { name: /create account/i }).first();
+  const createAccountLink = page
+    .getByRole("link", { name: /create account|register|sign up|daftar|buat akun/i })
+    .or(page.getByRole("button", { name: /create account|register|sign up|daftar|buat akun/i }))
+    .or(page.locator('a[href*="register"], a[href*="signup"], a[href*="daftar"]'))
+    .first();
   if (!(await createAccountLink.isVisible({ timeout: 3_000 }).catch(() => false))) {
     return false;
   }
-  await createAccountLink.click({ timeout: 15_000 });
+  const href = await createAccountLink.getAttribute("href").catch(() => null);
+  const blockingDialog = page.locator(".swal2-container.swal2-backdrop-show").first();
+  if (await blockingDialog.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    const dialogText = await blockingDialog.innerText({ timeout: 1_000 }).catch(() => "");
+    if (dialogText) diagnostics.push(`indonesia_account_login_dialog ${dialogText.replace(/\s+/g, " ").slice(0, 160)}`);
+    const confirmButton = page.locator(".swal2-confirm, .swal2-actions button").first();
+    if (await confirmButton.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await confirmButton.click({ timeout: 5_000 }).catch(() => undefined);
+      await page.waitForTimeout(500);
+    }
+  }
+  if (href) {
+    await page.goto(new URL(href, page.url()).toString(), { waitUntil: "domcontentloaded", timeout: 30_000 });
+  } else {
+    await createAccountLink.click({ timeout: 15_000 });
+  }
   await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
   await page.waitForTimeout(1_500);
 
@@ -814,6 +1035,10 @@ async function fillForeignerAccountRegistration(
   if (!shouldSubmit) return true;
   const submit = page.locator("button.btn-send, .btn-send").first();
   if (await submit.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "account_registration").catch((error: unknown) => {
+      diagnostics.push(`indonesia_recaptcha_account_registration_failed ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    });
     await submit.click({ timeout: 15_000 });
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
@@ -904,9 +1129,18 @@ async function continueFromApplicationStepOne(
     ["passport", "biografi", "passport_page", "passport copy", "bio"],
   );
   await dismissIndonesiaDialogs(page, diagnostics);
-  await waitForAnyHiddenValue(
+  const passportUploadReady = await waitForAnyHiddenValue(
     page,
     ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
+    diagnostics,
+    "indonesia_step_1_passport_upload",
+  );
+  await syncUploadHiddenFallback(
+    page,
+    ["#passport-attachment", "#initial_file", "#attachment-crop", "#attachment"],
+    passportUploadReady
+      ? ["#path_attachment", "#path_attachment_crop"]
+      : ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
     diagnostics,
     "indonesia_step_1_passport_upload",
   );
@@ -921,7 +1155,16 @@ async function continueFromApplicationStepOne(
     ["#picture", "#photo", "#photo_attachment"],
     ["photo", "foto", "applicant_photo", "profile_photo"],
   );
-  await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload");
+  const photoUploadReady = await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload");
+  if (!photoUploadReady) {
+    await syncUploadHiddenFallback(
+      page,
+      ["#picture", "#photo", "#photo_attachment"],
+      ["#path_photo"],
+      diagnostics,
+      "indonesia_step_1_photo_upload",
+    );
+  }
   await dismissIndonesiaDialogs(page, diagnostics);
 
   const next = page.locator("#btn-submit").first();
@@ -2124,6 +2367,10 @@ export async function probeIndonesiaPortal(
         url = page.url();
         state = classifyIndonesiaPortalSnapshot({ url, title, text });
         advanced = true;
+      }
+
+      if (!advanced && /enter otp code|otp code|one time password|authentication code/i.test(text)) {
+        advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
       }
 
       if (state === "landing_visible") {
