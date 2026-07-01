@@ -110,12 +110,20 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               : "VIZA observes KVAC slots first. The backend books only after you choose a slot, then saves confirmation evidence."}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <a href={`/api/applications/${applicationId}/kr-annex17-pdf`} target="_blank" rel="noopener noreferrer">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <a href="https://www.visa.go.kr/openPage.do?MENU_ID=10204" target="_blank" rel="noopener noreferrer">
+              <Download className="mr-2 h-4 w-4" />
+              {isZh ? "官方 e-Form" : "Official e-Form"}
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href={`/api/applications/${applicationId}/kr-annex17-pdf`} target="_blank" rel="noopener noreferrer">
             <Download className="mr-2 h-4 w-4" />
-            {isZh ? "下载申请表" : "Download form"}
-          </a>
-        </Button>
+              {isZh ? "备用 Annex-17" : "Fallback Annex-17"}
+            </a>
+          </Button>
+        </div>
       </div>
 
       {error ? (

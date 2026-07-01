@@ -151,12 +151,14 @@ comments.
   approval explicit in VIZA. Supported login/CAPTCHA/MFA/email/policy
   checkpoints belong in the gated runner with redacted official evidence and
   manual-required fallback.
-- Korea C-3-9 paper/KVAC flow lives under
+- Korea C-3-9 official e-Form/KVAC flow lives under
+  `app/api/applications/[id]/korea-official-eform/**`,
   `app/api/applications/[id]/kr-annex17-pdf/**`,
   `app/api/applications/[id]/korea-appointment/**`,
   `app/client/applications/[applicationId]/korea-appointment/**`,
   `components/client/korea-appointment/**`, and `lib/korea-c39/**`.
-  It generates a printable Annex-17 packet, resolves the recommended China
+  It prioritizes Korea Visa Portal barcode e-Form generation/download, keeps
+  the printable Annex-17 packet as a fallback, resolves the recommended China
   KVAC center, and records dry-run appointment slot selection/confirmation in
   the existing `appointment_*` tables. Real KVAC portal booking must remain
   gated behind the submission-service runner and explicit user-selected slot.

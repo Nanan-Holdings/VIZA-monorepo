@@ -46,9 +46,9 @@ applicant info, and help pages.
   USVisaScheduling gated assisted-live from explicit user actions, while other
   countries/posts remain dry-run or manual until verified.
 - `applications/[applicationId]/korea-appointment/page.tsx`: Korea C-3-9 KVAC
-  appointment assistant entry after Annex-17 packet generation. It reads the
-  recommended China KVAC center, lets users choose observed slots, and records
-  dry-run booking confirmation only after explicit slot selection.
+  appointment assistant entry after official e-Form/fallback packet generation.
+  It reads the recommended China KVAC center, lets users choose observed slots,
+  and records dry-run booking confirmation only after explicit slot selection.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 
@@ -71,8 +71,9 @@ applicant info, and help pages.
   `components/client/us-appointment/AGENTS.md`; browser API helpers are governed
   by `lib/us-appointment/AGENTS.md`.
 - Korea appointment component internals live in
-  `components/client/korea-appointment/**`; KVAC routing and PDF helpers live
-  in `lib/korea-c39/**`.
+  `components/client/korea-appointment/**`; official e-Form status lives under
+  `app/api/applications/[id]/korea-official-eform/**`; KVAC routing and fallback
+  PDF helpers live in `lib/korea-c39/**`.
 - Do not bypass `proxy.ts` or the client shell session checks when adding new
   authenticated routes.
 - Use `getAuthenticatedUserId()` for user identity when impersonation support

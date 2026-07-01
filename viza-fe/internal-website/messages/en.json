@@ -4742,6 +4742,27 @@
       "recorded": "Consent recorded",
       "security": "Sensitive inputs are redacted from assistant logs."
     },
+    "account": {
+      "title": "Official appointment account",
+      "email": "Account email",
+      "password": "Account password",
+      "status": "Account status",
+      "notCreated": "Not created yet",
+      "revealTitle": "Explicit reveal",
+      "revealBody": "The email, password, and security answers are decrypted only after you click reveal. Normal status polling never carries the password.",
+      "reveal": "Reveal official account",
+      "show": "Show",
+      "hide": "Hide",
+      "securityAnswer": "Security answer {index}",
+      "prefillDs160": "DS-160 code",
+      "prefillPost": "Interview post",
+      "missing": "Missing",
+      "autofillTitle": "Automation uses these frontend records",
+      "autofillDs160": "The DS-160 confirmation and interview post are read from the current application.",
+      "autofillProfile": "Passport, name, contact, and profile details should be completed in the application/universal profile; the runner reads them from Supabase.",
+      "autofillSlots": "The runner writes official calendar timings into the slot list below. You only choose the time.",
+      "autofillEvidence": "After booking, VIZA tracks status and displays official confirmation numbers, screenshots, or PDFs when captured."
+    },
     "panel": {
       "title": "Live assistant",
       "noJob": "Start here: confirm the DS-160 information on the left and authorize VIZA to create a job. VIZA will use the DS-160 interview post already on file, then fetch current available timings from the backend.",

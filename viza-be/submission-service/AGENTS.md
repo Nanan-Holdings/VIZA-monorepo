@@ -147,6 +147,9 @@ filling and one-shot submission for the applicant.
   `ph_etravel_accounts` by applicant before creating a new official account;
   do not mint a fresh inbox-alias account when a prior PH eTravel account row
   exists.
+- `src/korea-eform/**`: Korea Visa Portal official e-Form/barcode PDF runner
+  scaffold. Live automation must be explicitly env-gated and must not mark
+  success until the official portal-generated PDF is captured in storage.
 - `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
   observes deterministic slots and books only after a user-selected slot. Live
   KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
@@ -216,7 +219,7 @@ filling and one-shot submission for the applicant.
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
-| Korea C-3-9 | PDF + appointment dry-run scaffold | Frontend generates Annex-17 PDF and KVAC guidance; `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live KVAC portal booking remains gated pending per-center selector validation. |
+| Korea C-3-9 | Official e-Form + appointment scaffold | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback; `src/korea-eform/**` models official e-Form checkpoints and `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live portal completion remains gated pending per-center/post selector validation and official PDF capture. |
 
 ## Ownership Boundaries
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
@@ -304,6 +307,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/__tests__/queue-scheduler.spec.ts`
 - `viza-be/submission-service/src/__tests__/queue-claim-rpc.spec.ts`
 - `viza-be/submission-service/src/country-submissions/*`
+- `viza-be/submission-service/src/korea-eform/*`
 - `viza-be/submission-service/src/korea-kvac/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
