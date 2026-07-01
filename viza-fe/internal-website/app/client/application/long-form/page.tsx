@@ -2716,21 +2716,27 @@ export default function ApplicationPage() {
       }
       if (isKrC39) {
         const submittedAt = new Date().toISOString();
+        const krResult: SubmissionResult = {
+          country: "KR",
+          status: "form_ready_for_kvac",
+          applicationId,
+          annex17PdfUrl: `/api/applications/${applicationId}/kr-annex17-pdf`,
+          officialEformPortalUrl: "https://www.visa.go.kr/openPage.do?MENU_ID=10204",
+          officialEformStatus: "not_started",
+        };
         const { error: submitError } = await supabase.from("applications").update({
           status: "submitted",
           submitted_at: submittedAt,
+          submission_result_status: "form_ready_for_kvac",
+          submission_result: krResult,
+          submission_result_updated_at: submittedAt,
         }).eq("id", applicationId);
         if (submitError) throw new Error(submitError.message);
         setAppState((prev) => ({
           ...prev,
           submittedAt,
           submissionResultStatus: "form_ready_for_kvac",
-          submissionResult: {
-            country: "KR",
-            status: "form_ready_for_kvac",
-            applicationId,
-            annex17PdfUrl: `/api/applications/${applicationId}/kr-annex17-pdf`,
-          },
+          submissionResult: krResult,
         }));
       }
       setSubmitMissingFields([]);

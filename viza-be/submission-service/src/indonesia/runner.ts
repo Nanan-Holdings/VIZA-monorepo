@@ -1709,7 +1709,11 @@ function isReusableIndonesiaApplicationUrl(value: string | null | undefined): va
 
 function collectIndonesiaPortalUrls(value: unknown, urls: string[] = []): string[] {
   if (typeof value === "string") {
-    if (isReusableIndonesiaApplicationUrl(value)) urls.push(value);
+    const embedded = value.match(/https:\/\/evisa\.imigrasi\.go\.id\/[^\s"'<>]+/gi) ?? [];
+    for (const candidate of embedded.length > 0 ? embedded : [value]) {
+      const normalized = candidate.replace(/[).,;]+$/g, "");
+      if (isReusableIndonesiaApplicationUrl(normalized)) urls.push(normalized);
+    }
     return urls;
   }
   if (!value || typeof value !== "object") return urls;
@@ -1750,7 +1754,7 @@ async function findSavedIndonesiaApplicationUrl(
 
   const queue = await supabase
     .from("submission_queue")
-    .select("official_portal_url, vn_result_payload, updated_at")
+    .select("official_portal_url, vn_result_payload, error_message, last_error, updated_at")
     .eq("application_id", applicationId)
     .in("provider", ["indonesia_c1_live", "indonesia_b1_evoa_live"])
     .order("updated_at", { ascending: false })
@@ -1761,6 +1765,8 @@ async function findSavedIndonesiaApplicationUrl(
     for (const row of (queue.data ?? []) as Array<Record<string, unknown>>) {
       collectIndonesiaPortalUrls(row.official_portal_url, candidates);
       collectIndonesiaPortalUrls(row.vn_result_payload, candidates);
+      collectIndonesiaPortalUrls(row.error_message, candidates);
+      collectIndonesiaPortalUrls(row.last_error, candidates);
     }
   }
 
