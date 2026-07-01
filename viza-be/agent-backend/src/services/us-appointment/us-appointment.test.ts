@@ -646,6 +646,20 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
       event.eventType === "appointment_account_auto_provisioned")).toBe(true);
   });
 
+  it("reveals VIZA-created appointment account credentials after explicit user action", async () => {
+    const repository = new InMemoryUSAppointmentRepository();
+    const { orchestrator } = createUSAppointmentServices(repository);
+    const revealed = await orchestrator.revealAccount(APPLICATION_ID, USER_ID);
+
+    expect(repository.accounts).toHaveLength(1);
+    expect(revealed.accountEmail).toBe("appl-existing@haggstorm.com");
+    expect(revealed.accountPassword).toMatch(/^Viza-/);
+    expect(revealed.securityQuestions).toHaveLength(3);
+    expect(revealed.securityQuestions.every((item) => item.answer === "VIZA")).toBe(true);
+    expect(revealed.prefill.ds160ConfirmationCode).toBe("AA00DRYRUN1");
+    expect(revealed.prefill.applyingPostCity).toBe("Beijing");
+  });
+
   it("auto-provisions and links an account when an older assisted-live job is continued", async () => {
     const repository = new InMemoryUSAppointmentRepository();
     repository.inboxAlias = null;

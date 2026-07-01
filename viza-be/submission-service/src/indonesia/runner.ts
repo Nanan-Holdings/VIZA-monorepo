@@ -1169,7 +1169,12 @@ export async function probeIndonesiaPortal(
   const session = await createIndonesiaProbeSession(input);
   try {
     const page = session.page;
-    await page.goto(input.portalUrl, {
+    const savedApplicationUrl = await findSavedIndonesiaApplicationUrl(input, session.diagnostics);
+    const startUrl = savedApplicationUrl ?? input.portalUrl;
+    if (savedApplicationUrl) {
+      session.diagnostics.push("indonesia_starting_from_saved_application_url");
+    }
+    await page.goto(startUrl, {
       waitUntil: "domcontentloaded",
       timeout: input.timeoutMs ?? 60_000,
     });

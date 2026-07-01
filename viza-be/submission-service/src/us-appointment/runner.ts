@@ -710,6 +710,35 @@ export async function processUSAppointmentJob(
     });
       return "processed";
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const actionType = /login|username|password|sign in|credential/i.test(message)
+      ? "login"
+      : "site_policy_review";
+    await persistManualGate(job, repository, {
+      jobStatus: "appointment_manual_required",
+      actionType,
+      instruction:
+        actionType === "login"
+          ? "USVisaScheduling login could not be completed automatically. Review the official login page before slot observation continues."
+          : "USVisaScheduling could not be prepared for slot observation. Review the official page before continuing.",
+      metadata: {
+        gate_type:
+          actionType === "login"
+            ? "login_automation_failed"
+            : "appointment_prepare_failed",
+        provider: "usvisascheduling",
+      },
+      errorCode:
+        actionType === "login"
+          ? "login_automation_failed"
+          : "appointment_prepare_failed",
+      errorMessage:
+        actionType === "login"
+          ? "USVisaScheduling login could not be completed automatically."
+          : "USVisaScheduling could not be prepared for slot observation.",
+    });
+    return "processed";
   } finally {
     if (!portalClient) await client?.close?.();
   }

@@ -631,6 +631,48 @@ test("US appointment runner does not report no-slots when slot recheck is gated"
   assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
 });
 
+test("US appointment runner records a login gate when portal login automation throws", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      throw new Error("password input was not editable on the official login page");
+    },
+    async observeSlots() {
+      throw new Error("observeSlots should not run after login automation failure.");
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_no_slots_available",
+      user_preferences_json: {},
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.manualActions.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
+});
+
 test("US appointment runner writes confirmation after final approved booking fixture", async () => {
   const repository = new InMemoryRunnerRepository();
   repository.selectedSlot = {
