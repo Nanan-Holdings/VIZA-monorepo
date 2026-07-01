@@ -1,5 +1,5 @@
 import type { GenericSubmissionResult } from "../submission-result";
-import { probeIndonesiaPortal } from "./runner";
+import { probeIndonesiaPortal, type IndonesiaPortalProbeResult } from "./runner";
 
 export const INDONESIA_C1_PORTAL_URL = "https://evisa.imigrasi.go.id/";
 export const INDONESIA_B1_EVOA_PORTAL_URL = INDONESIA_C1_PORTAL_URL;
@@ -61,6 +61,16 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   paymentAuthorized?: boolean;
   probeOfficialPortal?: boolean;
   portalProbeHeadless?: boolean;
+  userPaymentHandoff?: {
+    enabled?: boolean;
+    waitTimeoutMs?: number;
+    onWaitingForUser?: (snapshot: {
+      url: string;
+      title: string | null;
+      state: IndonesiaPortalProbeResult["state"];
+      diagnostics: string[];
+    }) => Promise<void>;
+  };
 }
 
 function normalizeVisaType(visaType: string): string {
@@ -285,6 +295,7 @@ export async function runIndonesiaLiveSubmission(
         passportSupportPath: input.passportSupportPath,
       },
       headless: input.portalProbeHeadless ?? true,
+      userPaymentHandoff: input.userPaymentHandoff,
     });
     return {
       country: "GENERIC",

@@ -190,11 +190,13 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
         ? payload.checkpoint.trim()
         : queue.current_stage ??
           (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
-    const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
+  const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
   const instructionText = isVietnamPaymentCheckpointQueue(queue)
     ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
     : isIndonesiaPayment
-      ? "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
+      ? checkpoint === "user_payment_required"
+        ? "The official Indonesia payment window is open. Complete card payment and OTP verification in that visible official browser window."
+        : "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
       : "The official portal needs action before VIZA can continue.";
   const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 

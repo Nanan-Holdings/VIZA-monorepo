@@ -119,6 +119,14 @@ test("classifies Indonesia portal login and registration gates", () => {
     }),
     "account_registration_form_visible",
   );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}payment/otp`,
+      title: "Enter OTP Code",
+      text: "Enter OTP Code OTP Code Submit",
+    }),
+    "payment_required",
+  );
 });
 
 test("maps portal states to actionable automation checkpoints", () => {
