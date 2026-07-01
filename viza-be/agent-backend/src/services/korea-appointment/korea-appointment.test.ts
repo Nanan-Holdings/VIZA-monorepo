@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDryRunKoreaAppointmentService,
+  type KoreaAppointmentJob,
+  type KoreaAppointmentSlot,
   type KoreaAppointmentRepository,
 } from "./KoreaAppointmentService";
 
 function createRepository(): KoreaAppointmentRepository {
-  const jobs = new Map<string, any>();
-  const slots = new Map<string, any>();
+  const jobs = new Map<string, KoreaAppointmentJob>();
+  const slots = new Map<string, KoreaAppointmentSlot>();
 
   return {
     async getApplication(applicationId) {

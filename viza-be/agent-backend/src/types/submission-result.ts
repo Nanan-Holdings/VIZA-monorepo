@@ -40,6 +40,7 @@ export type SubmissionResult =
   | DigitalArrivalCardSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
+  | KrSubmissionResult
   | GenericSubmissionResult;
 
 export interface UsSubmissionResult {
@@ -278,6 +279,21 @@ export interface JpSubmissionResult {
   formAPdfUrl: string;
 }
 
+export interface KrSubmissionResult {
+  country: "KR";
+  status: "form_ready_for_kvac";
+  applicationId: string;
+  annex17PdfUrl: string;
+  recommendedCenter?: {
+    code: string;
+    nameEn: string;
+    nameZh: string;
+    bookingUrl: string;
+    addressZh: string;
+  };
+  appointmentStatus?: string | null;
+}
+
 export interface GenericSubmissionResult {
   country: "GENERIC";
   targetCountry: string;
@@ -315,4 +331,5 @@ export type SubmissionResultStatus =
   | "stopped_at_review"
   | "final_review_required"
   | "form_ready_for_agency"
+  | "form_ready_for_kvac"
   | "failed";

@@ -19,6 +19,10 @@ ports directly.
 - Keep official submission automation out of these routes. Status routes may
   read queue/application state, but runner execution remains in
   `viza-be/submission-service`.
+- Korea C-3-9 routes may render the filled Annex-17 PDF and record KVAC
+  appointment dry-run state in existing `appointment_*` tables. They must not
+  drive the real KVAC website; live official-site booking belongs in the gated
+  submission-service Korea runner after per-center validation.
 
 ## Related Files
 
@@ -33,6 +37,8 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/kr-annex17-pdf/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`
