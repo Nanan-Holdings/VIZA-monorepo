@@ -4828,6 +4828,27 @@
       "recorded": "授权已记录",
       "security": "敏感输入会从助手日志中脱敏。"
     },
+    "account": {
+      "title": "官方预约账号",
+      "email": "账号邮箱",
+      "password": "账号密码",
+      "status": "账号状态",
+      "notCreated": "尚未创建",
+      "revealTitle": "显式显示",
+      "revealBody": "账号、密码和安全问题答案只会在您点击显示时从服务端解密返回；普通状态轮询不会携带密码。",
+      "reveal": "显示官方账号",
+      "show": "显示",
+      "hide": "隐藏",
+      "securityAnswer": "安全问题答案 {index}",
+      "prefillDs160": "DS-160 编号",
+      "prefillPost": "面签使领馆",
+      "missing": "待补充",
+      "autofillTitle": "自动化会使用这些前端资料",
+      "autofillDs160": "DS-160 确认编号和面签使领馆从当前申请读取。",
+      "autofillProfile": "护照、姓名、联系方式等资料应提前在申请表/通用资料中填写，runner 会从 Supabase 自动取值。",
+      "autofillSlots": "官方日历名额由 runner 抓取后写入下方列表，您只需要选择时间。",
+      "autofillEvidence": "预约后会持续追踪状态，并在有官方确认号、截图或 PDF 时展示凭证。"
+    },
     "panel": {
       "title": "实时助手",
       "noJob": "从这里开始预约：先确认左侧 DS-160 信息并授权。VIZA 会使用 DS-160 中已经保存的面签使领馆，再由后端获取当前可预约时段。",
