@@ -73,6 +73,7 @@ import {
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
+  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isPhilippinesEtravelApplication,
@@ -124,7 +125,19 @@ const TDAC_LIVE_ASSISTED_ENABLED =
 const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
 
-type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | "phetravel" | null;
+const INDONESIA_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
+
+type LiveAssistedTarget =
+  | "ds160"
+  | "france"
+  | "vietnam"
+  | "sgac"
+  | "mdac"
+  | "tdac"
+  | "phetravel"
+  | "indonesia"
+  | null;
 
 interface VietnamOneTimePaymentCard {
   pan: string;
@@ -880,6 +893,7 @@ function FinalConfirmationPanel({
   const isMdac = liveAssistedTarget === "mdac";
   const isTdac = liveAssistedTarget === "tdac";
   const isPhEtravel = liveAssistedTarget === "phetravel";
+  const isIndonesia = liveAssistedTarget === "indonesia";
   const vietnamCardReady =
     !isVietnam ||
     (
@@ -919,6 +933,10 @@ function FinalConfirmationPanel({
                   ? (isZh
                       ? "本地 Philippines eTravel live handoff 已关闭。请确认 PH_ETRAVEL_LIVE_SUBMISSION_ENABLED。"
                       : "Philippines eTravel live handoff is disabled locally. Check PH_ETRAVEL_LIVE_SUBMISSION_ENABLED.")
+                  : isIndonesia
+                    ? (isZh
+                        ? "本地 Indonesia live handoff 已关闭。请确认 INDONESIA_LIVE_SUBMISSION_ENABLED。"
+                        : "Indonesia live handoff is disabled locally. Check INDONESIA_LIVE_SUBMISSION_ENABLED.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -965,6 +983,10 @@ function FinalConfirmationPanel({
               ? (isZh
                   ? "提交后会创建 Philippines eTravel 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方 QR / 参考号和确认证据。"
                   : "Submitting creates a Philippines eTravel official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official QR/reference, and confirmation evidence.")
+              : isIndonesia
+                ? (isZh
+                    ? "提交后会创建 Indonesia e-Visa 官方提交任务；VIZA 会使用托管账号填写官网表单，并把流程推进到官方付款页。"
+                    : "Submitting creates an Indonesia e-Visa official-submission task. VIZA uses the managed account to fill the official portal and advance to the official payment page.")
               : (isZh
                   ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
                   : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
@@ -1702,6 +1724,7 @@ export default function ApplicationPage() {
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
+  const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -1716,7 +1739,9 @@ export default function ApplicationPage() {
               ? "tdac"
               : isPhilippinesEtravel
                 ? "phetravel"
-              : null;
+                : isIndonesiaEVisa
+                  ? "indonesia"
+                  : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
     : liveAssistedTarget === "france"
@@ -1731,7 +1756,9 @@ export default function ApplicationPage() {
               ? TDAC_LIVE_ASSISTED_ENABLED
               : liveAssistedTarget === "phetravel"
                 ? PH_ETRAVEL_LIVE_ASSISTED_ENABLED
-          : false;
+                : liveAssistedTarget === "indonesia"
+                  ? INDONESIA_LIVE_ASSISTED_ENABLED
+                  : false;
 
   useEffect(() => {
     const href = buildApplicationFormHref(
@@ -2575,7 +2602,8 @@ export default function ApplicationPage() {
     setError(null);
     const shouldShowArrivalSubmissionImmediately =
       mode === "live_assisted" &&
-      isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
+      (isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType) ||
+        isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType));
     const previousSubmissionState = {
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,

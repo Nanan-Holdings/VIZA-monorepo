@@ -36,7 +36,7 @@ export function classifyIndonesiaPortalSnapshot(
   ) {
     return "account_registration_form_visible";
   }
-  if (/\/web\/applications\/.+\/list\b/i.test(snapshot.url)) {
+  if (/\/web\/applications\/.+\/list\b/i.test(snapshot.url) || /\/(pay|payment|checkout|invoice|billing|otp)/i.test(snapshot.url)) {
     return "payment_required";
   }
   if (text.includes("/step_1")) {
@@ -87,6 +87,10 @@ export function classifyIndonesiaPortalSnapshot(
     text.includes("pay now") ||
     text.includes("proceed to payment") ||
     text.includes("make payment") ||
+    text.includes("pembayaran") ||
+    text.includes("menunggu pembayaran") ||
+    text.includes("belum bayar") ||
+    text.includes("bayar") ||
     text.includes("checkout") ||
     text.includes("credit card") ||
     text.includes("debit card") ||

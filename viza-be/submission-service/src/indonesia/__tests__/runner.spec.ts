@@ -135,6 +135,22 @@ test("classifies Indonesia portal login and registration gates", () => {
     }),
     "payment_required",
   );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}payment/otp`,
+      title: "Bayar Sekarang",
+      text: "Bayar / Enter OTP",
+    }),
+    "payment_required",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/payment/checkout`,
+      title: "Indonesia eVisa",
+      text: "Waiting for payment",
+    }),
+    "payment_required",
+  );
 });
 
 test("maps portal states to actionable automation checkpoints", () => {

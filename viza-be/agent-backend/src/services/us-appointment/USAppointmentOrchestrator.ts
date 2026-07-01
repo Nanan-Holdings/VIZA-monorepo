@@ -73,12 +73,11 @@ function latestCompleted(actions: AppointmentManualAction[], actionType: string)
 }
 
 function generateOfficialAccountPassword(): string {
-  return [
-    "Viza",
-    randomBytes(8).toString("base64url"),
-    randomBytes(8).toString("base64url"),
-    "9!",
-  ].join("-");
+  const suffix = randomBytes(8)
+    .toString("base64url")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .slice(0, 8);
+  return `Viza9!${suffix}`;
 }
 
 function encryptOfficialPassword(password: string): string {
