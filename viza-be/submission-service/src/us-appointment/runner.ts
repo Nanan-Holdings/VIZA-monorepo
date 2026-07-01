@@ -591,6 +591,23 @@ export async function processUSAppointmentJob(
 
     if (["appointment_payment_completed", "appointment_no_slots_available"].includes(job.status)) {
       client = portalClient ?? await createDefaultPortalClient(job, config);
+      const credentials = await repository.getAppointmentAccountCredentials(job);
+      const prepared = await client.prepareAppointmentFlow(job, credentials);
+      if (!prepared.readyForSlotCapture) {
+        if (prepared.gate) {
+          await persistManualGate(job, repository, prepared.gate);
+          return "processed";
+        }
+        await repository.updateJobStatus({
+          jobId: job.id,
+          status: "appointment_manual_required",
+          currentManualAction: "site_policy_review",
+          lastErrorCode: prepared.errorCode ?? "appointment_prepare_failed",
+          lastErrorMessage:
+            prepared.errorMessage ?? "US appointment portal could not be prepared for slot observation.",
+        });
+        return "processed";
+      }
       const slots = await client.observeSlots(job);
     await repository.insertSlots(slots);
       await repository.updateJobStatus({

@@ -17,7 +17,7 @@ import type {
 
 export const US_VISA_SCHEDULING_SELECTORS = {
   emailInputs:
-    "input[type='email'], input[name*='email' i], input[id*='email' i], input[name*='user' i], input[id*='user' i]",
+    "input[type='email'], input[name*='email' i], input[id*='email' i], input[name*='user' i], input[id*='user' i], input[placeholder*='Username' i], input[aria-label*='Username' i]",
   passwordInputs:
     "input[type='password'], input[name*='password' i], input[id*='password' i]",
   loginButtons:
@@ -527,12 +527,8 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   private async login(page: Page, credentials: AppointmentAccountCredentials): Promise<void> {
-    await page.locator(US_VISA_SCHEDULING_SELECTORS.emailInputs)
-      .first()
-      .fill(credentials.email, { timeout: 15_000 });
-    await page.locator(US_VISA_SCHEDULING_SELECTORS.passwordInputs)
-      .first()
-      .fill(credentials.password, { timeout: 15_000 });
+    await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.emailInputs, credentials.email);
+    await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.passwordInputs, credentials.password);
     await this.clickFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.loginButtons);
   }
 
@@ -766,9 +762,42 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   private async fillFirstVisible(page: Page, selector: string, value: string): Promise<void> {
-    const locator = page.locator(selector).first();
-    await locator.waitFor({ state: "visible", timeout: 15_000 });
-    await locator.fill(value, { timeout: 15_000 });
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (!await candidate.isVisible().catch(() => false)) continue;
+      try {
+        await candidate.fill(value, { timeout: 5_000 });
+        return;
+      } catch {
+        const filled = await candidate.evaluate((element, inputValue) => {
+          const tagName = element.tagName.toLowerCase();
+          if (!["input", "textarea"].includes(tagName)) {
+            return false;
+          }
+          (element as HTMLInputElement | HTMLTextAreaElement).value = inputValue;
+          element.dispatchEvent(new Event("input", { bubbles: true }));
+          element.dispatchEvent(new Event("change", { bubbles: true }));
+          return true;
+        }, value).catch(() => false);
+        if (filled) return;
+      }
+    }
+    const first = locator.first();
+    await first.waitFor({ state: "attached", timeout: 15_000 });
+    const filled = await first.evaluate((element, inputValue) => {
+      const tagName = element.tagName.toLowerCase();
+      if (!["input", "textarea"].includes(tagName)) {
+        return false;
+      }
+      (element as HTMLInputElement | HTMLTextAreaElement).value = inputValue;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }, value).catch(() => false);
+    if (filled) return;
+    await first.fill(value, { timeout: 15_000 });
   }
 
   private async readFirstVisibleText(page: Page, selector: string): Promise<string> {
