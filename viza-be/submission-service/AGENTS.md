@@ -187,6 +187,14 @@ filling and one-shot submission for the applicant.
   and CVV in process memory with a short TTL, and deletes the card when the
   payment worker consumes it. Do not persist these values to DB, queue payloads,
   logs, traces, `.env`, AGENTS, or profile records.
+- `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
+  registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
+  or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,
+  uses the applicant inbox alias when `--applicant-id` is provided without an
+  explicit email, can consume USVisaScheduling verification mail from
+  `inbound_email`, types account fields with the US appointment typing-delay
+  range, and must not print passwords, Browser API endpoints, verification
+  codes, or links.
 - Vietnam runner note/acknowledgement handling must never auto-check
   "Agree to create account by email" or similar account-creation checkboxes.
   It may auto-check required official declarations needed to continue the
