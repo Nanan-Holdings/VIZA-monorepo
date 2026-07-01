@@ -389,6 +389,9 @@ function getApplicationProgressPercent(
 
 function getNextApplicationHref(application: ApplicationRow, payments: PaymentRow[]): string {
   if (!isFormComplete(application)) return buildApplicationHref(application);
+  if (application.country === "south_korea" && application.visa_type === "KR_C39_SHORT_TERM_VISIT") {
+    return buildApplicationHref(application);
+  }
   if (!isPaymentComplete(application, payments)) return buildCheckoutHref(application);
   return buildStatusHref(application);
 }

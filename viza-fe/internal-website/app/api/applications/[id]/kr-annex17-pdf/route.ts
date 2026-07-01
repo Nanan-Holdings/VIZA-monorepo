@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { renderKoreaC39Annex17 } from "@/lib/korea-c39/render-annex17";
 
@@ -24,17 +24,9 @@ export async function GET(
 
   const impersonation = await getImpersonationSession();
   if (!impersonation) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    const { data: profile } = await admin
-      .from("applicant_profiles")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if (!profile || profile.id !== app.applicant_id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const session = await getClientSessionWithFallback();
+    if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    if (session.userId !== app.applicant_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { data: rows, error: rowsErr } = await admin

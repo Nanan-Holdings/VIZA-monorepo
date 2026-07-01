@@ -127,6 +127,14 @@ test("classifies Indonesia portal login and registration gates", () => {
     }),
     "payment_required",
   );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/applications/gywt-XkmT06RwlbgXF3Y9gdtoipwtp7feM2hXLyDnrxjbIHm0oZAFEA0g8k4H90f/list`,
+      title: "Indonesia eVisa",
+      text: "Passport Travel Document Application Form",
+    }),
+    "payment_required",
+  );
 });
 
 test("maps portal states to actionable automation checkpoints", () => {
