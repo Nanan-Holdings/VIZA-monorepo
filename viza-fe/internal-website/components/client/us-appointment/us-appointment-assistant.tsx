@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
+  Eye,
+  EyeOff,
   Loader2,
   PauseCircle,
   Play,
@@ -43,6 +45,7 @@ import {
   createAppointmentJob,
   getAppointmentStatus,
   recordAppointmentConsent,
+  revealAppointmentAccount,
   resumeAppointmentJob,
   runAppointmentJob,
   selectAppointmentSlot,
@@ -51,6 +54,7 @@ import {
 import { cn } from "@/lib/utils";
 import type {
   AppointmentManualActionType,
+  RevealedAppointmentAccount,
   AppointmentSlot,
   AppointmentStatusSnapshot,
   JsonObject,
@@ -66,6 +70,7 @@ type BusyAction =
   | "slot"
   | "approve"
   | "book"
+  | "account"
   | "checkSlots"
   | "checkStatus"
   | "cancel";
@@ -230,6 +235,9 @@ export function USAppointmentAssistant({
   const [consentRecorded, setConsentRecorded] = useState(false);
   const [ds160Code, setDs160Code] = useState("");
   const [manualInput, setManualInput] = useState("");
+  const [revealedAccount, setRevealedAccount] =
+    useState<RevealedAppointmentAccount | null>(null);
+  const [accountVisible, setAccountVisible] = useState(false);
 
   const job = snapshot?.job ?? null;
   const pendingManualAction = snapshot?.pendingManualAction ?? null;
@@ -367,6 +375,15 @@ export function USAppointmentAssistant({
     });
   };
 
+  const handleRevealAccount = () => {
+    void runWithBusy("account", async () => {
+      const account = await revealAppointmentAccount(applicationId);
+      setRevealedAccount(account);
+      setAccountVisible(true);
+      return getAppointmentStatus(applicationId);
+    });
+  };
+
   const handleRun = (resume: boolean) => {
     if (!job) return;
     void runWithBusy("run", () =>
@@ -476,6 +493,107 @@ export function USAppointmentAssistant({
                   label={t("completed.ds160Code")}
                   value={job?.ds160ConfirmationCode || ds160Code || t("completed.pendingCode")}
                 />
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[8px]">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-[20px]">
+                  <ShieldCheck className="h-5 w-5 text-brand-500" />
+                  {t("account.title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Detail
+                    label={t("account.email")}
+                    value={
+                      revealedAccount?.accountEmail ??
+                      (typeof snapshot?.account?.accountEmail === "string"
+                        ? snapshot.account.accountEmail
+                        : t("account.notCreated"))
+                    }
+                  />
+                  <Detail
+                    label={t("account.status")}
+                    value={
+                      revealedAccount?.accountStatus ??
+                      (typeof snapshot?.account?.accountStatus === "string"
+                        ? snapshot.account.accountStatus
+                        : t("account.notCreated"))
+                    }
+                  />
+                </div>
+
+                <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+                  <ShieldCheck className="h-4 w-4" />
+                  <AlertTitle>{t("account.revealTitle")}</AlertTitle>
+                  <AlertDescription>{t("account.revealBody")}</AlertDescription>
+                </Alert>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRevealAccount}
+                    disabled={isBusy}
+                  >
+                    {busyAction === "account" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                    {t("account.reveal")}
+                  </Button>
+                  {revealedAccount && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setAccountVisible((current) => !current)}
+                    >
+                      {accountVisible ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                      {accountVisible ? t("account.hide") : t("account.show")}
+                    </Button>
+                  )}
+                </div>
+
+                {revealedAccount && accountVisible && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Detail label={t("account.email")} value={revealedAccount.accountEmail} />
+                    <Detail label={t("account.password")} value={revealedAccount.accountPassword} />
+                    {revealedAccount.securityQuestions.map((item, index) => (
+                      <Detail
+                        key={`${item.label}-${index}`}
+                        label={t("account.securityAnswer", { index: index + 1 })}
+                        value={item.answer}
+                      />
+                    ))}
+                    <Detail
+                      label={t("account.prefillDs160")}
+                      value={revealedAccount.prefill.ds160ConfirmationCode ?? t("account.missing")}
+                    />
+                    <Detail
+                      label={t("account.prefillPost")}
+                      value={revealedAccount.prefill.applyingPostCity ?? t("account.missing")}
+                    />
+                  </div>
+                )}
+
+                <div className="rounded-[8px] border border-slate-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    {t("account.autofillTitle")}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
+                    <li>{t("account.autofillDs160")}</li>
+                    <li>{t("account.autofillProfile")}</li>
+                    <li>{t("account.autofillSlots")}</li>
+                    <li>{t("account.autofillEvidence")}</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
 

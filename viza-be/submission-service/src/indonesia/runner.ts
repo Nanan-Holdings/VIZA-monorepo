@@ -30,6 +30,7 @@ export interface IndonesiaPortalProbeInput {
       diagnostics: string[];
     }) => Promise<void>;
   };
+  onStage?: (stage: string, snapshot: { url: string; title?: string | null }) => Promise<void>;
 }
 
 export interface IndonesiaPortalProbeResult {
@@ -405,6 +406,28 @@ async function waitForHiddenValue(page: Page, selector: string, diagnostics: str
   return ready;
 }
 
+async function waitForAnyHiddenValue(
+  page: Page,
+  selectors: string[],
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const ready = await page
+    .waitForFunction(
+      (cssSelectors) =>
+        cssSelectors.some((css) => {
+          const input = document.querySelector<HTMLInputElement>(css);
+          return Boolean(input?.value?.trim());
+        }),
+      selectors,
+      { timeout: 35_000, polling: 500 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  diagnostics.push(`${label}_${ready ? "ready" : "not_ready"}`);
+  return ready;
+}
+
 async function captureRegistrationArtifact(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -633,29 +656,182 @@ async function continueFromApplicationStepOne(
   }
 
   await dismissIndonesiaDialogs(page, diagnostics);
+  await input.onStage?.("step_1_processing_passport_image", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   const passportPath = await normalizePassportLandscape(page, application.passportImagePath, diagnostics);
   if (!passportPath) {
     diagnostics.push("indonesia_step_1_passport_image_unavailable");
     return false;
   }
+  await input.onStage?.("step_1_uploading_passport", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   await setFilesIfPresent(page, "#passport-attachment", passportPath);
-  await page.waitForTimeout(6_000);
+  await setFilesIfPresent(page, "#initial_file", passportPath);
   await dismissIndonesiaDialogs(page, diagnostics);
+  await waitForAnyHiddenValue(
+    page,
+    ["#path_attachment", "#path_attachment_crop"],
+    diagnostics,
+    "indonesia_step_1_passport_upload",
+  );
 
+  await input.onStage?.("step_1_uploading_photo", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   await setFilesIfPresent(page, "#picture", application.photoImagePath);
-  await page.waitForTimeout(2_000);
+  await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload");
   await dismissIndonesiaDialogs(page, diagnostics);
 
   const next = page.locator("#btn-submit").first();
   if (await next.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await next.click({ timeout: 15_000 });
-    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-    await page.waitForTimeout(3_000);
+    await input.onStage?.("step_1_clicking_next", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    await clickIndonesiaStepOneNext(page, next, diagnostics);
+    await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+    await page.waitForTimeout(5_000);
     await dismissIndonesiaDialogs(page, diagnostics);
+    if (/\/step_1\b/i.test(page.url())) {
+      const invalidControls = await visibleInvalidControlNames(page);
+      if (invalidControls.length > 0) {
+        diagnostics.push(`indonesia_step_1_validation_controls ${invalidControls.join(", ")}`);
+      } else {
+        diagnostics.push("indonesia_step_1_still_visible_after_next");
+      }
+      const debugSummary = await collectIndonesiaStepOneDebugSummary(page);
+      for (const entry of debugSummary) {
+        diagnostics.push(entry);
+      }
+      await input.onStage?.("step_1_validation_blocked", {
+        url: page.url(),
+        title: await page.title().catch(() => null),
+      });
+      return false;
+    }
     diagnostics.push("indonesia_step_1_uploaded_and_advanced");
     return true;
   }
   return false;
+}
+
+function hasIndonesiaStepOneValidationBlock(diagnostics: string[]): boolean {
+  return diagnostics.some((entry) =>
+    entry.startsWith("indonesia_step_1_validation_controls") ||
+    entry === "indonesia_step_1_still_visible_after_next",
+  );
+}
+
+async function clickIndonesiaStepOneNext(
+  page: Page,
+  _next: ReturnType<Page["locator"]>,
+  diagnostics: string[],
+): Promise<void> {
+  const box = await page
+    .locator("#btn-submit")
+    .first()
+    .boundingBox({ timeout: 5_000 })
+    .catch(() => null);
+  if (box) {
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    diagnostics.push("indonesia_step_1_next_mouse_clicked");
+    return;
+  }
+  const domClicked = await page
+    .evaluate(() => {
+      const button = document.querySelector<HTMLElement>("#btn-submit");
+      if (!button) return false;
+      button.scrollIntoView({ block: "center", inline: "center" });
+      button.click();
+      return true;
+    })
+    .catch(() => false);
+  if (domClicked) {
+    diagnostics.push("indonesia_step_1_next_dom_clicked");
+    return;
+  }
+  diagnostics.push("indonesia_step_1_next_click_failed");
+}
+
+async function visibleInvalidControlNames(page: Page): Promise<string[]> {
+  return page
+    .evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>(".is-invalid, [aria-invalid='true'], .invalid-feedback, .text-danger, .alert, .swal2-container"))
+        .filter((element) => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0;
+        })
+        .map((element) => {
+          const field = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+          const identifier = field.id || field.name || element.getAttribute("data-field") || element.className || element.tagName;
+          const text = (element.innerText || element.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 120);
+          if (text === "*") return "";
+          return text ? `${identifier}: ${text}` : identifier;
+        })
+        .filter(Boolean)
+        .slice(0, 10),
+    )
+    .catch(() => []);
+}
+
+async function collectIndonesiaStepOneDebugSummary(page: Page): Promise<string[]> {
+  return page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => {
+        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        return control.id || control.name || element.getAttribute("data-field") || element.tagName.toLowerCase();
+      };
+      const submit = document.querySelector<HTMLButtonElement | HTMLInputElement>("#btn-submit");
+      const form = submit?.closest("form") ?? document.querySelector("form");
+      const controls = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea"));
+      const requiredEmpty = controls
+        .filter((control) => {
+          const required = control.required || control.getAttribute("aria-required") === "true" || control.closest(".required");
+          if (!required) return false;
+          if ((control as HTMLInputElement).type === "file") return !(control as HTMLInputElement).files?.length;
+          return !String(control.value ?? "").trim();
+        })
+        .map(describe)
+        .filter(Boolean)
+        .slice(0, 12);
+      const uploadFlags = controls
+        .filter((control) => /passport|picture|photo|attachment|file|path/i.test(`${control.id} ${control.name}`))
+        .map((control) => {
+          const input = control as HTMLInputElement;
+          const hasFile = input.type === "file" ? Boolean(input.files?.length) : Boolean(String(input.value ?? "").trim());
+          return `${describe(control)}=${hasFile ? "set" : "empty"}`;
+        })
+        .slice(0, 16);
+      return [
+        `indonesia_step_1_button disabled=${submit?.disabled ? "true" : "false"} type=${submit?.getAttribute("type") ?? "button"} classes=${submit?.className ?? ""}`.slice(0, 220),
+        `indonesia_step_1_form action=${form?.getAttribute("action") ?? ""} method=${form?.getAttribute("method") ?? ""}`.slice(0, 220),
+        `indonesia_step_1_required_empty ${requiredEmpty.join(",") || "none"}`.slice(0, 260),
+        `indonesia_step_1_upload_flags ${uploadFlags.join(",") || "none"}`.slice(0, 320),
+        `indonesia_step_1_visible_submit=${submit && visible(submit) ? "true" : "false"}`,
+      ];
+    })
+    .catch(() => ["indonesia_step_1_debug_summary_failed"]);
 }
 
 function isExistingApplicationWarningText(value: string): boolean {
@@ -859,23 +1035,18 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
   if (!/\/web\/applications\/.+\/list\b/i.test(page.url())) return false;
   await dismissIndonesiaDialogs(page, diagnostics);
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (/waiting for payment/i.test(text)) {
-    diagnostics.push("indonesia_application_list_waiting_for_payment");
-    const paymentControl = page
-      .getByRole("link", { name: /pay|payment|checkout|proceed/i })
-      .or(page.getByRole("button", { name: /pay|payment|checkout|proceed/i }))
-      .or(page.locator('a[href*="pay"], a[href*="payment"], button[id*="pay"], button[class*="pay"]'))
-      .first();
-    if (await paymentControl.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await paymentControl.click({ timeout: 10_000 });
-      await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-      await page.waitForTimeout(3_000);
-      await dismissIndonesiaDialogs(page, diagnostics);
-      diagnostics.push("indonesia_application_payment_control_clicked");
-    } else {
-      diagnostics.push("indonesia_application_payment_control_not_found");
-    }
+  diagnostics.push("indonesia_application_list_visible");
+  const clicked = await clickIndonesiaPaymentControl(page, diagnostics);
+  if (clicked) {
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(3_000);
+    await dismissIndonesiaDialogs(page, diagnostics);
+    diagnostics.push("indonesia_application_payment_control_clicked");
     return true;
+  }
+  if (/waiting for payment|menunggu pembayaran|belum bayar|bayar/i.test(text)) {
+    diagnostics.push("indonesia_application_list_waiting_for_payment");
+    diagnostics.push("indonesia_application_payment_control_not_found");
   }
   const submit = page.locator("#btn-save").first();
   if (!(await submit.isVisible({ timeout: 3_000 }).catch(() => false))) return false;
@@ -892,6 +1063,86 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
   }
   diagnostics.push("indonesia_application_list_submit_clicked");
   return true;
+}
+
+async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): Promise<boolean> {
+  const paymentControl = page
+    .getByRole("link", { name: /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard/i })
+    .or(page.getByRole("button", { name: /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard/i }))
+    .or(page.locator([
+      'a[href*="pay" i]',
+      'a[href*="payment" i]',
+      'a[href*="billing" i]',
+      'a[href*="invoice" i]',
+      'button[id*="pay" i]',
+      'button[id*="billing" i]',
+      'button[class*="pay" i]',
+      'button[class*="billing" i]',
+      '[data-action*="pay" i]',
+      '[data-action*="payment" i]',
+      '[data-url*="pay" i]',
+      '[data-url*="payment" i]',
+      '[onclick*="pay" i]',
+      '[onclick*="payment" i]',
+      '[onclick*="billing" i]',
+    ].join(",")))
+    .first();
+  if (await paymentControl.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await paymentControl.click({ timeout: 10_000 });
+    diagnostics.push("indonesia_payment_control_clicked_by_locator");
+    return true;
+  }
+
+  const clickedByDomSearch = await page.evaluate(() => {
+    const keywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard/i;
+    const isVisible = (element: Element): boolean => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0;
+    };
+    const describe = (element: Element): string => [
+      element.textContent ?? "",
+      element.getAttribute("aria-label") ?? "",
+      element.getAttribute("title") ?? "",
+      element.getAttribute("href") ?? "",
+      element.getAttribute("id") ?? "",
+      element.getAttribute("class") ?? "",
+      element.getAttribute("data-action") ?? "",
+      element.getAttribute("data-url") ?? "",
+      element.getAttribute("onclick") ?? "",
+    ].join(" ");
+    const clickTarget = (element: Element): boolean => {
+      if (!isVisible(element)) return false;
+      (element as HTMLElement).click();
+      return true;
+    };
+
+    const directTargets = Array.from(document.querySelectorAll("a,button,[role='button'],input[type='button'],input[type='submit']"));
+    const directMatch = directTargets.find((element) => keywords.test(describe(element)));
+    if (directMatch && clickTarget(directMatch)) return true;
+
+    const paymentRows = Array.from(document.querySelectorAll("tr,.row,.card,.list-group-item"))
+      .filter((element) => /waiting for payment|menunggu pembayaran|belum bayar/i.test(element.textContent ?? ""));
+    for (const row of paymentRows) {
+      const rowTargets = Array.from(row.querySelectorAll("a,button,[role='button'],input[type='button'],input[type='submit']"))
+        .filter(isVisible);
+      const keywordTarget = rowTargets.find((element) => keywords.test(describe(element)));
+      if (keywordTarget && clickTarget(keywordTarget)) return true;
+      const lastTarget = rowTargets[rowTargets.length - 1];
+      if (lastTarget && clickTarget(lastTarget)) return true;
+    }
+
+    return false;
+  }).catch(() => false);
+  if (clickedByDomSearch) {
+    diagnostics.push("indonesia_payment_control_clicked_by_dom_search");
+    return true;
+  }
+
+  return false;
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -1247,7 +1498,15 @@ export async function probeIndonesiaPortal(
       state = paymentResult.state;
     }
 
-    const action = actionForIndonesiaPortalState(state);
+    const stepOneValidationBlocked = hasIndonesiaStepOneValidationBlock(session.diagnostics);
+    const action = stepOneValidationBlocked
+      ? {
+          actionType: "official_step_1_validation_blocked",
+          instruction:
+            "The Indonesia official portal blocked step 1 after VIZA uploaded passport/photo files. Review the official validation message and adjust the uploaded document mapping or image format before continuing.",
+          implementationStatus: "partial" as const,
+        }
+      : actionForIndonesiaPortalState(state);
     return {
       state,
       actionType: action.actionType,

@@ -281,9 +281,28 @@ export interface JpSubmissionResult {
 
 export interface KrSubmissionResult {
   country: "KR";
-  status: "form_ready_for_kvac";
+  status: "form_ready_for_kvac" | "official_eform_required" | "official_eform_ready";
   applicationId: string;
   annex17PdfUrl: string;
+  officialEformPdfStoragePath?: string | null;
+  officialEformPortalUrl?: string | null;
+  officialEformStatus?:
+    | "not_started"
+    | "queued"
+    | "processing"
+    | "manual_action_required"
+    | "ready"
+    | "failed";
+  manualAction?: {
+    type:
+      | "official_eform_generation_required"
+      | "official_eform_portal_review_required"
+      | "official_eform_unsupported_for_post"
+      | "official_eform_download_required"
+      | "official_portal_error";
+    status: "open" | "completed";
+    instructions: string;
+  };
   recommendedCenter?: {
     code: string;
     nameEn: string;

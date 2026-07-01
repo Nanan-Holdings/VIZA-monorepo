@@ -71,6 +71,7 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
       diagnostics: string[];
     }) => Promise<void>;
   };
+  onStage?: (stage: string, snapshot: { url: string; title?: string | null }) => Promise<void>;
 }
 
 function normalizeVisaType(visaType: string): string {
@@ -297,6 +298,7 @@ export async function runIndonesiaLiveSubmission(
       },
       headless: input.portalProbeHeadless ?? true,
       userPaymentHandoff: input.userPaymentHandoff,
+      onStage: input.onStage,
     });
     return {
       country: "GENERIC",

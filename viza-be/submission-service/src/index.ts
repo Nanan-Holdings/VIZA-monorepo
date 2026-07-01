@@ -6403,6 +6403,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
 
     if (preparedPortalAccount) {
       const existingPortalEmail = managedVaultEmail!;
+      await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
       result = await runIndonesiaLiveSubmission({
         applicationId: item.application_id,
         visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
@@ -6437,6 +6438,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         probeOfficialPortal: true,
         portalProbeHeadless,
         userPaymentHandoff,
+        onStage: async (stage, snapshot) => {
+          await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
+        },
       });
     } else {
       for (let attempt = 0; attempt < aliasDomains.length; attempt += 1) {
@@ -6448,6 +6452,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
           note: "VIZA-managed Indonesia eVisa portal alias email",
         });
 
+        await markIndonesiaQueueStage(item.id, "official_portal_running", provider);
         result = await runIndonesiaLiveSubmission({
           applicationId: item.application_id,
           visaType: application.visa_type || (isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST"),
@@ -6482,6 +6487,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
           probeOfficialPortal: true,
           portalProbeHeadless,
           userPaymentHandoff,
+          onStage: async (stage, snapshot) => {
+            await markIndonesiaQueueStage(item.id, stage, provider, snapshot.url);
+          },
         });
 
         if (
@@ -6576,6 +6584,24 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     }
     console.error(`[indonesia] ${provider} failed for application=${redactIdentifier(item.application_id)}:`, errorMsg);
   }
+}
+
+async function markIndonesiaQueueStage(
+  queueId: string,
+  currentStage: string,
+  provider: "indonesia_c1_live" | "indonesia_b1_evoa_live",
+  portalUrl?: string | null,
+): Promise<void> {
+  await supabase
+    .from("submission_queue")
+    .update({
+      provider,
+      current_stage: currentStage,
+      ...(portalUrl ? { official_portal_url: portalUrl } : {}),
+      heartbeat_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", queueId);
 }
 
 async function processDryRunItem(
