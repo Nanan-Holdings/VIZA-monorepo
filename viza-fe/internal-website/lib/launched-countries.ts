@@ -13,9 +13,17 @@ const SELF_SERVE_ARRIVAL_CARD_COUNTRIES = new Set<string>([
   "ph",
   "philippines",
 ]);
+const SELF_SERVE_PAPER_OR_APPOINTMENT_COUNTRIES = new Set<string>([
+  "kr",
+  "south_korea",
+]);
 
 export function isCountryLaunched(country: string | null | undefined): boolean {
   if (!country) return false;
   const normalizedCountry = normalizeCountry(country);
-  return LAUNCHED.has(normalizedCountry) || SELF_SERVE_ARRIVAL_CARD_COUNTRIES.has(normalizedCountry);
+  return (
+    LAUNCHED.has(normalizedCountry) ||
+    SELF_SERVE_ARRIVAL_CARD_COUNTRIES.has(normalizedCountry) ||
+    SELF_SERVE_PAPER_OR_APPOINTMENT_COUNTRIES.has(normalizedCountry)
+  );
 }

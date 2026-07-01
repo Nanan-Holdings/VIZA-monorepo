@@ -19,7 +19,10 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
   const isZh = isChineseLocale(useLocale());
   const fallbackCenter = resolveKvacCenter({}).recommended;
   const center = result.recommendedCenter ?? fallbackCenter;
-  const downloadUrl = result.annex17PdfUrl || `/api/applications/${applicationId}/kr-annex17-pdf`;
+  const currentPdfUrl = `/api/applications/${applicationId}/kr-annex17-pdf`;
+  const downloadUrl = result.annex17PdfUrl?.includes(`/api/applications/${applicationId}/`)
+    ? result.annex17PdfUrl
+    : currentPdfUrl;
 
   return (
     <Card className="rounded-xl border-input">

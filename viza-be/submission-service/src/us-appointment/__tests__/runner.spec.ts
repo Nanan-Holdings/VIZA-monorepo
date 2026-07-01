@@ -464,6 +464,7 @@ test("US appointment runner writes observed slots from a portal fixture", async 
       status: "appointment_payment_completed",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           slots: [
             {
               date: "2026-08-18",
@@ -496,6 +497,7 @@ test("US appointment runner rechecks slots after a no-slots result", async () =>
       status: "appointment_no_slots_available",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           slots: [
             {
               date: "2026-10-03",
@@ -522,7 +524,7 @@ test("US appointment runner can use an injected portal client for slot observati
   const repository = new InMemoryRunnerRepository();
   const portalClient: USAppointmentPortalClient = {
     async prepareAppointmentFlow() {
-      return { readyForSlotCapture: false };
+      return { readyForSlotCapture: true };
     },
     async observeSlots(job) {
       return [
@@ -571,6 +573,62 @@ test("US appointment runner can use an injected portal client for slot observati
 
   assert.equal(result, "processed");
   assert.equal(repository.slots[0]?.appointment_location, "U.S. Consulate General Shanghai");
+});
+
+test("US appointment runner does not report no-slots when slot recheck is gated", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return {
+        readyForSlotCapture: false,
+        gate: {
+          jobStatus: "appointment_manual_required",
+          actionType: "login",
+          instruction: "USVisaScheduling login is required before slot observation.",
+          metadata: {
+            gate_type: "login_required",
+            provider: "usvisascheduling",
+          },
+          errorCode: "login_required",
+          errorMessage: "USVisaScheduling login is required before slot observation.",
+        },
+      };
+    },
+    async observeSlots() {
+      throw new Error("observeSlots should not run before the portal is prepared.");
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_no_slots_available",
+      user_preferences_json: {},
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.slots.length, 0);
+  assert.equal(repository.manualActions.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
 });
 
 test("US appointment runner writes confirmation after final approved booking fixture", async () => {

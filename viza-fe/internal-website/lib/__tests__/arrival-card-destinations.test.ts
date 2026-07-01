@@ -59,4 +59,12 @@ describe("arrival card destination labels", () => {
     expect(isCountryLaunched("philippines")).toBe(true);
     expect(isCountryLaunched("ph")).toBe(true);
   });
+
+  test("South Korea C-3-9 search card is clickable as paper/KVAC assisted flow", () => {
+    const southKorea = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "south_korea");
+    expect(southKorea?.visaType).toBe("KR_C39_SHORT_TERM_VISIT");
+    expect(southKorea?.visaNameZh).toBe("C-3 签证 / K-ETA");
+    expect(isCountryLaunched("south_korea")).toBe(true);
+    expect(isCountryLaunched("kr")).toBe(true);
+  });
 });

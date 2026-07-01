@@ -243,11 +243,13 @@ async function isVisibleSelector(page: Page, selector: string, timeoutMs = 1_500
   return page.locator(selector).first().isVisible({ timeout: timeoutMs }).catch(() => false);
 }
 
-async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promise<void> {
+async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promise<boolean> {
+  let sawExistingApplicationWarning = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const swal = page.locator(".swal2-confirm").first();
     if (await swal.isVisible({ timeout: 1_000 }).catch(() => false)) {
       const text = await page.locator(".swal2-container").first().innerText({ timeout: 1_000 }).catch(() => "");
+      sawExistingApplicationWarning ||= isExistingApplicationWarningText(text);
       await swal.click({ timeout: 5_000, force: true }).catch(() => undefined);
       diagnostics.push(`indonesia_dialog_confirmed ${text.replace(/\s+/g, " ").trim().slice(0, 80)}`);
       await page.waitForTimeout(1_000);
@@ -261,8 +263,9 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
       await page.waitForTimeout(1_000);
       continue;
     }
-    return;
+    return sawExistingApplicationWarning;
   }
+  return sawExistingApplicationWarning;
 }
 
 async function imageMetadata(page: Page, filePath: string): Promise<{ width: number; height: number } | null> {
@@ -764,7 +767,12 @@ async function continueFromApplicationStepTwo(
   const application = input.application;
   if (!application) return false;
 
-  await dismissIndonesiaDialogs(page, diagnostics);
+  const initialExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
+  if (initialExistingApplicationWarning) {
+    diagnostics.push("indonesia_step_2_existing_application_warning_detected");
+    await redirectToSavedIndonesiaApplication(page, input, diagnostics);
+    return true;
+  }
   await fillIfPresent(page, "#full_name", application.fullName);
   const gender = page.locator(genderSelector(application.gender)).first();
   if (await gender.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -803,10 +811,10 @@ async function continueFromApplicationStepTwo(
     await next.click({ timeout: 15_000 });
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
-    await dismissIndonesiaDialogs(page, diagnostics);
+    const submitExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     const allDiagnostics = diagnostics.join(" ");
-    if (isExistingApplicationWarningText(`${bodyText} ${allDiagnostics}`)) {
+    if (submitExistingApplicationWarning || isExistingApplicationWarningText(`${bodyText} ${allDiagnostics}`)) {
       diagnostics.push("indonesia_step_2_existing_application_warning_detected");
       await redirectToSavedIndonesiaApplication(page, input, diagnostics);
     }
