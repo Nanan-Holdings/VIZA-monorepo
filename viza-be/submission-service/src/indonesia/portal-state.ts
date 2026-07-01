@@ -86,7 +86,12 @@ export function classifyIndonesiaPortalSnapshot(
     text.includes("make payment") ||
     text.includes("checkout") ||
     text.includes("credit card") ||
-    text.includes("debit card")
+    text.includes("debit card") ||
+    text.includes("enter otp") ||
+    text.includes("otp code") ||
+    text.includes("one time password") ||
+    text.includes("authentication code") ||
+    text.includes("3ds")
   ) {
     return "payment_required";
   }
@@ -176,7 +181,7 @@ export function actionForIndonesiaPortalState(
       return {
         actionType: "official_fee_payment_required",
         instruction:
-          "The Indonesia official portal reached payment. Continue only with an authorized one-time card session; stop at 3DS or OTP.",
+          "The Indonesia official portal reached payment or bank OTP. Keep the visible official browser window open and let the applicant complete card authentication there.",
         implementationStatus: "partial",
       };
     case "submitted_or_approved":
