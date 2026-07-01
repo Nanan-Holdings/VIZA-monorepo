@@ -653,7 +653,8 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
 
     expect(repository.accounts).toHaveLength(1);
     expect(revealed.accountEmail).toBe("appl-existing@haggstorm.com");
-    expect(revealed.accountPassword).toMatch(/^Viza-/);
+    expect(revealed.accountPassword).toMatch(/^Viza9!/);
+    expect(revealed.accountPassword).toHaveLength(14);
     expect(revealed.securityQuestions).toHaveLength(3);
     expect(revealed.securityQuestions.every((item) => item.answer === "VIZA")).toBe(true);
     expect(revealed.prefill.ds160ConfirmationCode).toBe("AA00DRYRUN1");

@@ -228,8 +228,65 @@ async function setFilesIfPresent(page: Page, selector: string, filePath: string 
   const field = page.locator(selector).first();
   if ((await field.count().catch(() => 0)) === 0) return false;
   await field.setInputFiles(cleaned, { timeout: 30_000 });
+  await triggerInputEvent(page, selector);
   await page.waitForTimeout(1_000);
   return true;
+}
+
+async function triggerInputEvent(page: Page, selector: string): Promise<void> {
+  await page
+    .evaluate((css) => {
+      const element = document.querySelector<HTMLInputElement>(css);
+      if (!element) return;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      element.dispatchEvent(new Event("blur", { bubbles: true }));
+      element.dispatchEvent(new Event("click", { bubbles: true }));
+    }, selector)
+    .catch(() => undefined);
+}
+
+async function setFilesWithFallbackSelectors(
+  page: Page,
+  filePath: string | null | undefined,
+  explicitSelectors: string[],
+  fallbackHints: string[],
+): Promise<boolean> {
+  if (!clean(filePath)) return false;
+  const triedSelectors = new Set(explicitSelectors);
+  for (const selector of triedSelectors) {
+    if (await setFilesIfPresent(page, selector, filePath)) return true;
+  }
+
+  const fallbackSelectors = await page
+    .evaluate((hints) => {
+      const lowerHints = hints.map((hint) => hint.toLowerCase());
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='file']"));
+      const visibleInputs = inputs.filter((input) => {
+        const style = window.getComputedStyle(input);
+        const rect = input.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      });
+      const matches = visibleInputs.filter((input) => {
+        const haystack = `${input.id} ${input.name} ${input.className} ${input.getAttribute("aria-label")} ${input.getAttribute("accept")}`
+          .toLowerCase();
+        return lowerHints.some((hint) => haystack.includes(hint));
+      });
+      const picked = (matches.length > 0 ? matches : visibleInputs).slice(0, 2);
+      return picked.map((input) => {
+        if (input.id) return `#${CSS.escape(input.id)}`;
+        if (input.name) return `input[name="${input.name.replace(/"/g, "\\\"")}"]`;
+        return null;
+      }).filter((selector): selector is string => Boolean(selector));
+    }, fallbackHints)
+    .catch(() => []);
+  for (const selector of fallbackSelectors) {
+    if (await setFilesIfPresent(page, selector, filePath)) return true;
+  }
+  return false;
 }
 
 async function clickIfPresent(page: Page, selector: string): Promise<boolean> {
@@ -444,25 +501,28 @@ async function captureRegistrationArtifact(
   diagnostics.push(`indonesia_account_registration_artifact ${dir}`);
 }
 
-async function waitForIndonesiaVerificationLink(applicantId: string): Promise<URL | null> {
-  const { inbox } = await import("../inbox/wait-for-message");
-  const message = await inbox.waitForMessage(
-    applicantId,
-    (row) => {
-      const haystack = `${row.from_addr ?? ""} ${row.subject ?? ""} ${row.text ?? ""} ${row.html ?? ""}`;
-      return /evisa\.imigrasi\.go\.id|imigrasi/i.test(haystack) &&
-        /verify|verification|activate|activation|confirm|account|email/i.test(haystack);
-    },
-    Number(process.env.INDONESIA_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000"),
-  ).catch(() => null);
+function decodeQuotedPrintable(value: string): string {
+  return value
+    .replace(/=\r?\n/g, "")
+    .replace(/=([0-9A-F]{2})/gi, (_match, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
+}
 
-  if (!message) return null;
-  const haystacks = [message.html ?? "", message.text ?? ""];
+function extractIndonesiaVerificationUrlFromEmail(message: {
+  html?: string | null;
+  text?: string | null;
+}): URL | null {
+  const haystacks = [message.html ?? "", message.text ?? ""]
+    .flatMap((value) => [value, decodeQuotedPrintable(value)])
+    .map((value) =>
+      value
+        .replace(/&amp;/gi, "&")
+        .replace(/&#x3D;/gi, "=")
+        .replace(/&equals;/gi, "="),
+    );
   for (const haystack of haystacks) {
     const matches = haystack.match(/https?:\/\/[^\s"'<>]+/gi) ?? [];
     for (const match of matches) {
       const candidate = match
-        .replace(/&amp;/gi, "&")
         .replace(/[),.;\]]+$/g, "")
         .trim();
       if (!/evisa\.imigrasi\.go\.id/i.test(candidate)) continue;
@@ -474,6 +534,70 @@ async function waitForIndonesiaVerificationLink(applicantId: string): Promise<UR
       }
     }
   }
+  return null;
+}
+
+async function waitForIndonesiaVerificationLink(
+  applicantId: string,
+  accountEmail: string | null | undefined,
+  diagnostics: string[],
+): Promise<URL | null> {
+  const alias = clean(accountEmail)?.toLowerCase();
+  const { supabase } = await import("../supabase");
+  const timeoutMs = Number(process.env.INDONESIA_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+  const since = new Date(Date.now() - Number(process.env.INDONESIA_EMAIL_VERIFICATION_LOOKBACK_MS ?? "1800000")).toISOString();
+  const deadline = Date.now() + Math.max(10_000, timeoutMs);
+
+  if (!alias) {
+    diagnostics.push("indonesia_account_email_verification_alias_missing");
+    return null;
+  }
+
+  while (Date.now() < deadline) {
+    const { data, error } = await supabase
+      .from("inbound_email")
+      .select("id, to_addr, from_addr, subject, text, html, received_at, processed")
+      .eq("to_addr", alias)
+      .gte("received_at", since)
+      .order("received_at", { ascending: false })
+      .limit(10);
+    if (error) {
+      diagnostics.push(`indonesia_account_email_verification_lookup_failed ${error.message}`);
+      return null;
+    }
+
+    for (const row of (data ?? []) as Array<{
+      id: string;
+      from_addr: string | null;
+      subject: string | null;
+      text: string | null;
+      html: string | null;
+      received_at: string;
+    }>) {
+      const haystack = `${row.from_addr ?? ""} ${row.subject ?? ""} ${row.text ?? ""} ${row.html ?? ""}`;
+      if (!/evisa\.imigrasi\.go\.id|imigrasi/i.test(haystack)) continue;
+      if (!/verify|verification|activate|activation|confirm|account|email/i.test(haystack)) continue;
+      const link = extractIndonesiaVerificationUrlFromEmail(row);
+      if (!link) {
+        diagnostics.push(`indonesia_account_email_verification_link_not_extracted received_at=${row.received_at}`);
+        continue;
+      }
+      try {
+        await supabase
+          .from("inbound_email")
+          .update({ processed: true, processed_at: new Date().toISOString() })
+          .eq("id", row.id);
+      } catch {
+        // Marking the email processed is best-effort; the activation link can still be used.
+      }
+      diagnostics.push(`indonesia_account_email_verification_link_found received_at=${row.received_at}`);
+      return link;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+  }
+
+  diagnostics.push(`indonesia_account_email_verification_timeout applicant=${applicantId}`);
   return null;
 }
 
@@ -508,7 +632,109 @@ async function continueFromVisaSelection(
   diagnostics.push("indonesia_official_application_url_opened");
 }
 
-async function continueFromAccountGate(page: Page, diagnostics: string[]): Promise<boolean> {
+async function continueFromAccountLogin(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  const email = clean(input.accountEmail);
+  const password = clean(input.accountPassword);
+  if (!email || !password) return false;
+  const loginVisible = await page
+    .locator("input[type='email'], input[name='username'], #username, #email, input[name='email']")
+    .first()
+    .isVisible({ timeout: 3_000 })
+    .catch(() => false);
+  const passwordVisible = await page
+    .locator("input[type='password'], #password")
+    .first()
+    .isVisible({ timeout: 3_000 })
+    .catch(() => false);
+  const text = await page.locator("body").innerText({ timeout: 3_000 }).catch(() => "");
+  if (!loginVisible || !passwordVisible || !/login|log in|sign in|masuk|email|username/i.test(text)) {
+    return false;
+  }
+
+  const filled = await page
+    .evaluate(
+      ({ nextEmail, nextPassword }) => {
+        const visible = (element: Element): boolean => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0;
+        };
+        const inputs = Array.from(document.querySelectorAll<HTMLInputElement>("input")).filter((input) =>
+          !input.disabled &&
+          input.type !== "hidden" &&
+          visible(input)
+        );
+        const emailInput = inputs.find((input) =>
+          /email|username|user/i.test(`${input.id} ${input.name} ${input.placeholder} ${input.autocomplete}`),
+        ) ?? inputs.find((input) => input.type === "email") ?? inputs[0];
+        const passwordInput = inputs.find((input) => input.type === "password" || /password/i.test(`${input.id} ${input.name}`));
+        if (!emailInput || !passwordInput) return false;
+        emailInput.value = nextEmail;
+        emailInput.dispatchEvent(new Event("input", { bubbles: true }));
+        emailInput.dispatchEvent(new Event("change", { bubbles: true }));
+        passwordInput.value = nextPassword;
+        passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
+        passwordInput.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      },
+      { nextEmail: email, nextPassword: password },
+    )
+    .catch(() => false);
+  if (!filled) return false;
+
+  const clicked = await page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => [
+        element.textContent ?? "",
+        (element as HTMLInputElement).value ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+        element.getAttribute("id") ?? "",
+        element.getAttribute("class") ?? "",
+      ].join(" ").toLowerCase();
+      const controls = Array.from(document.querySelectorAll<HTMLElement>(
+        "button, input[type='submit'], input[type='button'], a.btn, [role='button']",
+      )).filter(visible);
+      const target = controls.find((control) => /login|log in|sign in|masuk|submit|lanjut|continue/i.test(describe(control))) ??
+        controls.find((control) => (control as HTMLButtonElement).type === "submit") ??
+        controls[0];
+      if (!target) return false;
+      target.scrollIntoView({ block: "center", inline: "center" });
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return true;
+    })
+    .catch(() => false);
+  if (!clicked) return false;
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+  diagnostics.push("indonesia_account_login_submitted");
+  return true;
+}
+
+async function continueFromAccountGate(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  if (await continueFromAccountLogin(page, input, diagnostics)) {
+    return true;
+  }
   const createAccountLink = page.getByRole("link", { name: /create account/i }).first();
   if (!(await createAccountLink.isVisible({ timeout: 3_000 }).catch(() => false))) {
     return false;
@@ -628,11 +854,13 @@ async function fillForeignerAccountRegistration(
   }
 
   if (input.applicantId) {
-    const verificationLink = await waitForIndonesiaVerificationLink(input.applicantId);
+    const verificationLink = await waitForIndonesiaVerificationLink(input.applicantId, input.accountEmail, diagnostics);
     if (verificationLink) {
       await page.goto(verificationLink.toString(), { waitUntil: "domcontentloaded", timeout: 60_000 });
       await page.waitForTimeout(2_000);
       diagnostics.push("indonesia_account_email_verification_opened");
+      await page.goto(input.portalUrl, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_500);
     } else {
       diagnostics.push("indonesia_account_email_verification_not_found_yet");
     }
@@ -669,12 +897,16 @@ async function continueFromApplicationStepOne(
     url: page.url(),
     title: await page.title().catch(() => null),
   });
-  await setFilesIfPresent(page, "#passport-attachment", passportPath);
-  await setFilesIfPresent(page, "#initial_file", passportPath);
+  await setFilesWithFallbackSelectors(
+    page,
+    passportPath,
+    ["#passport-attachment", "#initial_file", "#attachment-crop", "#attachment"],
+    ["passport", "biografi", "passport_page", "passport copy", "bio"],
+  );
   await dismissIndonesiaDialogs(page, diagnostics);
   await waitForAnyHiddenValue(
     page,
-    ["#path_attachment", "#path_attachment_crop"],
+    ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
     diagnostics,
     "indonesia_step_1_passport_upload",
   );
@@ -683,7 +915,12 @@ async function continueFromApplicationStepOne(
     url: page.url(),
     title: await page.title().catch(() => null),
   });
-  await setFilesIfPresent(page, "#picture", application.photoImagePath);
+  await setFilesWithFallbackSelectors(
+    page,
+    application.photoImagePath,
+    ["#picture", "#photo", "#photo_attachment"],
+    ["photo", "foto", "applicant_photo", "profile_photo"],
+  );
   await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload");
   await dismissIndonesiaDialogs(page, diagnostics);
 
@@ -698,6 +935,12 @@ async function continueFromApplicationStepOne(
     await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
     await page.waitForTimeout(5_000);
     await dismissIndonesiaDialogs(page, diagnostics);
+    if (/\/step_1\b/i.test(page.url())) {
+      const fallbackClicked = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_1");
+      if (!fallbackClicked) {
+        diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
+      }
+    }
     if (/\/step_1\b/i.test(page.url())) {
       const invalidControls = await visibleInvalidControlNames(page);
       if (invalidControls.length > 0) {
@@ -733,11 +976,21 @@ async function clickIndonesiaStepOneNext(
   _next: ReturnType<Page["locator"]>,
   diagnostics: string[],
 ): Promise<void> {
-  const box = await page
-    .locator("#btn-submit")
-    .first()
-    .boundingBox({ timeout: 5_000 })
-    .catch(() => null);
+  const nextCandidates = [
+    page.locator("#btn-submit"),
+    page.locator("button.btn-send"),
+    page.locator("button[name='send']"),
+    page.getByRole("button", { name: /lanjut|selanjutnya|kirim/i }),
+    page.getByRole("button", { name: /submit|continue|next/i }),
+  ];
+  let nextLocator = nextCandidates[0];
+  for (const candidate of nextCandidates) {
+    if (await candidate.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      nextLocator = candidate;
+      break;
+    }
+  }
+  const box = await nextLocator.first().boundingBox({ timeout: 5_000 }).catch(() => null);
   if (box) {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     diagnostics.push("indonesia_step_1_next_mouse_clicked");
@@ -745,7 +998,9 @@ async function clickIndonesiaStepOneNext(
   }
   const domClicked = await page
     .evaluate(() => {
-      const button = document.querySelector<HTMLElement>("#btn-submit");
+      const button = document.querySelector<HTMLElement>(
+        "#btn-submit, button.btn-send, button[name='send'], button[type='submit'], input[type='submit']",
+      );
       if (!button) return false;
       button.scrollIntoView({ block: "center", inline: "center" });
       button.click();
@@ -834,9 +1089,370 @@ async function collectIndonesiaStepOneDebugSummary(page: Page): Promise<string[]
     .catch(() => ["indonesia_step_1_debug_summary_failed"]);
 }
 
+async function clickVisibleSubmitFallback(page: Page, diagnostics: string[], label: string): Promise<boolean> {
+  const clicked = await page
+    .evaluate(() => {
+      const isVisible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => {
+        const control = element as HTMLInputElement | HTMLButtonElement;
+        return `${control.textContent ?? ""} ${(control as HTMLInputElement).value ?? ""} ${control.getAttribute("id") ?? ""} ${control.getAttribute("name") ?? ""}`.toLowerCase();
+      };
+      const controls = Array.from(
+        document.querySelectorAll<HTMLElement>("button, input[type='button'], input[type='submit'], [role='button'], a.btn, a[role='button'], a"),
+      ).filter(isVisible);
+      const candidate = controls.find((control) => /(submit|continue|next|lanjut|selanjutnya|save|kirim|selesai|send|lanjutkan)/i.test(describe(control)));
+      if (!candidate) return false;
+      candidate.scrollIntoView({ block: "center", inline: "center" });
+      candidate.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return true;
+    })
+    .catch(() => false);
+
+  if (clicked) {
+    diagnostics.push(`${label}_fallback_clicked`);
+    return true;
+  }
+  diagnostics.push(`${label}_fallback_not_clicked`);
+  return false;
+}
+
+function isPaymentGatewayOrFlowUrl(value: string | null | undefined): boolean {
+  const normalized = clean(value)?.toLowerCase() ?? "";
+  return /\/(pay|payment|checkout|billing|invoice|gateway|otp)\b|pembayaran|simponi|tripay|midtrans|checkout\.html|pay\.html/i.test(
+    normalized,
+  );
+}
+
+async function waitForPaymentLikeUrlOrText(
+  page: Page,
+  previousUrl: string,
+  timeoutMs = 8_000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const currentUrl = page.url();
+    const text = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+    const textNormalized = (text ?? "").toLowerCase();
+    if (/pay|payment|checkout|otp|bayar|pembayaran|menunggu pembayaran|belum bayar|belum dibayar/i.test(textNormalized)) {
+      return true;
+    }
+    if (currentUrl !== previousUrl && isPaymentGatewayOrFlowUrl(currentUrl)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
+}
+
+function extractPaymentUrlFromDomValue(value: string | null | undefined): string | null {
+  const raw = clean(value);
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (/^https?:\/\/.*/i.test(trimmed) || /^\/.*/.test(trimmed)) {
+    if (trimmed === "#" || /^javascript:void\(0\)/i.test(trimmed)) return null;
+    return trimmed;
+  }
+  const jsQuoted = trimmed.match(/["']([^"']+)["']/);
+  if (jsQuoted?.[1]) {
+    return jsQuoted[1].trim();
+  }
+  const locationMatch = trimmed.match(
+    /(?:location\.href|location\.href\s*=\s*|window\.location|window\.location\.href|window\.open)\s*[:=]\s*["']([^"']+)["']/i,
+  );
+  if (locationMatch?.[1]) {
+    return locationMatch[1].trim();
+  }
+  return null;
+}
+
+async function detectPaymentCandidates(page: Page): Promise<string[]> {
+  return page
+    .evaluate(() => {
+      const isVisible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => [
+        element.textContent ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+        element.getAttribute("href") ?? "",
+        element.getAttribute("id") ?? "",
+        element.getAttribute("class") ?? "",
+        element.getAttribute("data-action") ?? "",
+        element.getAttribute("data-url") ?? "",
+        element.getAttribute("onclick") ?? "",
+      ].join(" ").toLowerCase();
+
+      const keywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard|otp|3ds|3d secure|pembayaran|menunggu pembayaran|belum bayar|belum dibayar/i;
+      const controls = Array.from(
+        document.querySelectorAll<
+          HTMLAnchorElement | HTMLButtonElement | HTMLInputElement | HTMLSpanElement | HTMLElement
+        >("a, button, [role='button'], input[type='button'], input[type='submit'], input[type='image'], span, div"),
+      ).filter(isVisible);
+      const directMatches = controls.filter((control) => {
+        const description = describe(control);
+        if (!keywords.test(description)) return false;
+        const href = control.getAttribute("href") ?? "";
+        if (href && href.startsWith("javascript:")) return true;
+        return true;
+      });
+
+      const paymentHrefMatches = Array.from(document.querySelectorAll<HTMLElement>("a[href], [data-url], [onclick], [data-action]"))
+        .filter(isVisible)
+        .map((control) => {
+          const href = control.getAttribute("href") ?? "";
+          const dataUrl = control.getAttribute("data-url") ?? "";
+          const dataAction = control.getAttribute("data-action") ?? "";
+          const onclick = control.getAttribute("onclick") ?? "";
+          const text = describe(control);
+          const paymentValue = href || dataUrl || dataAction || onclick;
+          if (!paymentValue && !text) return null;
+          if (/pay|payment|billing|invoice|checkout|otp|order|transaction/i.test(`${paymentValue} ${text}`)) return paymentValue || null;
+          return null;
+        })
+        .filter((value): value is string => Boolean(value));
+
+      const indonesianPaymentRowText = /bayar|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|bayarkan|melakukan pembayaran/i;
+      const rows = Array.from(document.querySelectorAll("tr, .row, .card, .list-group-item, table, tbody"))
+        .filter((element) => indonesianPaymentRowText.test(element.textContent ?? ""));
+      const rowLinks = rows.flatMap((row) =>
+        Array.from(row.querySelectorAll<HTMLElement>("a, button, [role='button'], input[type='button'], input[type='submit']"))
+          .filter(isVisible)
+          .map((control) => {
+            if (control instanceof HTMLAnchorElement && control.href) return control.href;
+            return (
+              control.getAttribute("data-url") ??
+              control.getAttribute("data-action") ??
+              control.getAttribute("onclick") ??
+              ""
+            );
+          }),
+      );
+
+      const fallbackTexts = controls
+        .filter((control) => /bayar|pay|payment|checkout|proceed/i.test(describe(control)))
+        .slice(0, 5)
+        .map((control) => describe(control));
+
+      const candidates = [
+        ...directMatches.map((control) => {
+          if (control instanceof HTMLAnchorElement && control.href) return control.href;
+          return control.getAttribute("href") || "";
+        }),
+        ...paymentHrefMatches,
+        ...rowLinks,
+      ]
+        .filter((candidate) => Boolean(candidate))
+        .map((candidate) => candidate.trim())
+        .filter((candidate, index, self) => Boolean(candidate) && self.indexOf(candidate) === index)
+        .filter((candidate) => candidate && !candidate.startsWith("javascript:void(0)"))
+        .slice(0, 12);
+
+      if (candidates.length > 0) {
+        return candidates;
+      }
+
+      if (fallbackTexts.length > 0) {
+        return [`text-fallback:${fallbackTexts.join(" | ").slice(0, 180)}`];
+      }
+
+      return [];
+    })
+    .catch(() => []);
+}
+
+async function openPaymentCandidateLinks(
+  page: Page,
+  diagnostics: string[],
+): Promise<"candidate_navigated" | "candidate_popup" | null> {
+  const previousUrl = page.url();
+  const popup = page
+    .waitForEvent("popup", { timeout: 8_000 })
+    .then((nextPage) => nextPage)
+    .catch(() => null);
+
+  const paymentCandidates = await detectPaymentCandidates(page);
+  const paymentLink = paymentCandidates[0] ?? null;
+  if (paymentCandidates.length > 0) {
+    diagnostics.push(`indonesia_payment_candidate_pool ${paymentCandidates.length}`);
+  }
+  if (paymentLink && !paymentLink.startsWith("text-fallback:")) {
+    const rawCandidates = [paymentLink, ...paymentCandidates.slice(1)];
+    const resolvedLinks = rawCandidates
+      .map((candidate) => extractPaymentUrlFromDomValue(candidate))
+      .filter((value): value is string => Boolean(value))
+      .map((value) => {
+        if (/^https?:\/\//i.test(value)) return value;
+        try {
+          return new URL(value, previousUrl).toString();
+        } catch {
+          return null;
+        }
+      })
+      .filter((value): value is string => value !== null && !value.startsWith("javascript:"))
+      .filter((value, index, all) => all.indexOf(value) === index);
+
+    for (const resolvedLink of resolvedLinks) {
+      if (!isPaymentGatewayOrFlowUrl(resolvedLink)) {
+        continue;
+      }
+      await page.goto(resolvedLink, { waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
+      const arrived = await waitForPaymentLikeUrlOrText(page, previousUrl, 8_000);
+      if (arrived) {
+        diagnostics.push("indonesia_payment_control_navigated_via_href");
+        return "candidate_navigated";
+      }
+      diagnostics.push(`indonesia_payment_control_via_href_not_paid ${resolvedLink}`);
+    }
+  }
+
+  const clickedByHeuristic = await page
+      .evaluate(() => {
+      const keywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard|otp|3ds|3d secure|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|pay now/i;
+      const isVisible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => [
+        element.textContent ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+        element.getAttribute("href") ?? "",
+        element.getAttribute("id") ?? "",
+        element.getAttribute("class") ?? "",
+        element.getAttribute("data-action") ?? "",
+        element.getAttribute("data-url") ?? "",
+        element.getAttribute("onclick") ?? "",
+      ].join(" ").toLowerCase();
+      const targets = Array.from(
+        document.querySelectorAll<HTMLElement>("a, button, [role='button'], input[type='button'], input[type='submit'], .btn, .button"),
+      )
+        .filter(isVisible)
+        .filter((control) => keywords.test(describe(control)));
+      if (!targets.length) return false;
+      const target = targets[0];
+      target.scrollIntoView({ block: "center", inline: "center" });
+      target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return true;
+    })
+    .catch(() => false);
+  if (clickedByHeuristic) {
+    await page.waitForTimeout(1_500);
+    if (page.url() === previousUrl) {
+      diagnostics.push("indonesia_payment_control_candidate_clicked_without_navigation");
+      return null;
+    }
+    const text = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+    if (/pay|payment|checkout|otp|bayar|pembayaran|menunggu pembayaran|belum bayar|belum dibayar/i.test(text.toLowerCase()) || isPaymentGatewayOrFlowUrl(page.url())) {
+      diagnostics.push("indonesia_payment_control_candidate_clicked_by_heuristic");
+      return "candidate_navigated";
+    }
+    diagnostics.push("indonesia_payment_control_candidate_clicked_non_payment_page");
+    return null;
+  }
+
+  const popupPage = await popup;
+  if (popupPage) {
+    await popupPage.bringToFront().catch(() => undefined);
+    const popupUrl = popupPage.url() ?? "";
+    if (popupUrl && isPaymentGatewayOrFlowUrl(popupUrl) && popupPage !== page) {
+      await popupPage.waitForLoadState("domcontentloaded").catch(() => undefined);
+      await page.goto(popupUrl, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000);
+      diagnostics.push("indonesia_payment_popup_opened_and_replayed");
+      return "candidate_popup";
+    }
+  }
+
+  if (paymentLink && paymentLink.startsWith("text-fallback:")) {
+    const rowText = paymentLink.replace(/^text-fallback:/, "");
+    diagnostics.push(`indonesia_payment_control_text_fallback ${rowText}`);
+  }
+  return null;
+}
+
+async function navigateToDerivedPaymentUrlFromApplicationsList(
+  page: Page,
+  diagnostics: string[],
+): Promise<boolean> {
+  const currentUrl = page.url();
+  const match = /\/web\/applications\/([^/]+)\/list/i.exec(currentUrl);
+  if (!match?.[1]) return false;
+  const appId = match[1];
+  let base: string | null = null;
+  try {
+    base = new URL(currentUrl).origin;
+  } catch {
+    return false;
+  }
+
+  const paymentCandidates = [
+    `${base}/web/applications/${appId}/checkout`,
+    `${base}/web/applications/${appId}/payment`,
+    `${base}/web/payment/${appId}/checkout`,
+    `${base}/web/payment/checkout?appId=${appId}`,
+    `${base}/web/payment/checkout?applicationId=${appId}`,
+    `${base}/web/payment/checkout/${appId}`,
+    `${base}/web/checkout/${appId}`,
+    `${base}/payment/checkout?application=${appId}`,
+    `${base}/front/payment/${appId}`,
+  ];
+
+  for (const candidate of paymentCandidates) {
+    if (!isPaymentGatewayOrFlowUrl(candidate)) continue;
+    const responseUrl = await page.goto(candidate, { waitUntil: "domcontentloaded", timeout: 10_000 }).then(() => page.url())
+      .catch(() => null);
+    if (!responseUrl) continue;
+    const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    if (/pay|payment|checkout|otp|bayar|pembayaran|billing/i.test((text ?? "").toLowerCase())) {
+      diagnostics.push(`indonesia_payment_navigation_derived_url ${responseUrl}`);
+      await page.waitForTimeout(1_500);
+      return true;
+    }
+  }
+  return false;
+}
+
 function isExistingApplicationWarningText(value: string): boolean {
   return /currently\s+the\s+foreigner\s+has\s+a\s+visa\s+application/i.test(value) ||
     /application\s+that\s+is\s+being\s+verified/i.test(value);
+}
+
+function isExpiredIndonesiaApplicationText(value: string): boolean {
+  const normalized = clean(value)?.toLowerCase() ?? "";
+  return /application\s+expired/i.test(normalized) ||
+    /expired\s+application/i.test(normalized) ||
+    /expired.*visa/i.test(normalized) ||
+    /visa\s+application\s+.*\bexpired\b/i.test(normalized) ||
+    /permohonan\s+terkadaluarsa/i.test(normalized) ||
+    /permohonan\s+telah\s+kedaluwarsa/i.test(normalized) ||
+    /permohonan\s+kadaluarsa/i.test(normalized) ||
+    /permohonan\s+kedaluwarsa/i.test(normalized) ||
+    /sudah\s+kadaluarsa/i.test(normalized) ||
+    /telah\s+kedaluwarsa/i.test(normalized) ||
+    /expired.*step/i.test(normalized) ||
+    /tanggal\s+berakhir/i.test(normalized);
+}
+
+function isExpiredIndonesiaPortalUrl(value: string | null | undefined): boolean {
+  const normalized = clean(value)?.toLowerCase() ?? "";
+  return /\/expired\b/.test(normalized) || /status=expired/i.test(normalized);
 }
 
 function isReusableIndonesiaApplicationUrl(value: string | null | undefined): value is string {
@@ -862,6 +1478,19 @@ function collectIndonesiaPortalUrls(value: unknown, urls: string[] = []): string
     collectIndonesiaPortalUrls(item, urls);
   }
   return urls;
+}
+
+async function reopenIndonesiaPortalFromScratch(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<void> {
+  diagnostics.push("indonesia_expired_application_recovered_start_from_portal_root");
+  await page.goto(input.portalUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: input.timeoutMs ?? 60_000,
+  });
+  await page.waitForTimeout(1500);
 }
 
 async function findSavedIndonesiaApplicationUrl(
@@ -929,6 +1558,11 @@ async function redirectToSavedIndonesiaApplication(
   });
   await page.waitForTimeout(3_000);
   await dismissIndonesiaDialogs(page, diagnostics);
+  const savedBodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (isExpiredIndonesiaApplicationText(savedBodyText) || isExpiredIndonesiaPortalUrl(page.url())) {
+    diagnostics.push("indonesia_existing_application_saved_url_expired");
+    await reopenIndonesiaPortalFromScratch(page, input, diagnostics);
+  }
 }
 
 async function continueFromApplicationStepTwo(
@@ -995,6 +1629,11 @@ async function continueFromApplicationStepTwo(
       await redirectToSavedIndonesiaApplication(page, input, diagnostics);
     }
     diagnostics.push("indonesia_step_2_submitted");
+  } else {
+    const fallbackSubmitted = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_2");
+    if (fallbackSubmitted) {
+      diagnostics.push("indonesia_step_2_fallback_submitted");
+    }
   }
   return true;
 }
@@ -1027,6 +1666,11 @@ async function continueFromApplicationStepThree(
     await page.waitForTimeout(4_000);
     await dismissIndonesiaDialogs(page, diagnostics);
     diagnostics.push("indonesia_step_3_submitted");
+  } else {
+    const fallbackSubmitted = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_3");
+    if (fallbackSubmitted) {
+      diagnostics.push("indonesia_step_3_fallback_submitted");
+    }
   }
   return true;
 }
@@ -1036,6 +1680,7 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
   await dismissIndonesiaDialogs(page, diagnostics);
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   diagnostics.push("indonesia_application_list_visible");
+  const isWaitingForPaymentText = /waiting for payment|menunggu pembayaran|belum bayar|bayar|pembayaran|belum dibayar/i.test(text);
   const clicked = await clickIndonesiaPaymentControl(page, diagnostics);
   if (clicked) {
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
@@ -1044,11 +1689,31 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
     diagnostics.push("indonesia_application_payment_control_clicked");
     return true;
   }
-  if (/waiting for payment|menunggu pembayaran|belum bayar|bayar/i.test(text)) {
-    diagnostics.push("indonesia_application_list_waiting_for_payment");
-    diagnostics.push("indonesia_application_payment_control_not_found");
+  const candidateResult = await openPaymentCandidateLinks(page, diagnostics);
+  if (candidateResult) {
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    await dismissIndonesiaDialogs(page, diagnostics);
+    diagnostics.push(`indonesia_application_payment_control_candidate_${candidateResult}`);
+    return true;
   }
-  const submit = page.locator("#btn-save").first();
+
+  if (isWaitingForPaymentText) {
+    diagnostics.push("indonesia_application_list_waiting_for_payment");
+  }
+  const derivedPaymentNavigation = await navigateToDerivedPaymentUrlFromApplicationsList(page, diagnostics);
+  if (derivedPaymentNavigation) {
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+    await dismissIndonesiaDialogs(page, diagnostics);
+    diagnostics.push("indonesia_application_list_derived_payment_url_navigated");
+    return true;
+  }
+  if (isWaitingForPaymentText) {
+    diagnostics.push("indonesia_application_payment_control_not_found");
+    return false;
+  }
+  const submit = page.locator("#btn-save, .btn-save").first();
   if (!(await submit.isVisible({ timeout: 3_000 }).catch(() => false))) return false;
   await submit.click({ timeout: 10_000 });
   await page.waitForTimeout(1_500);
@@ -1066,12 +1731,16 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
 }
 
 async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): Promise<boolean> {
+  const paymentKeywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|pay now|invoice|billing/i;
   const paymentControl = page
-    .getByRole("link", { name: /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard/i })
-    .or(page.getByRole("button", { name: /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard/i }))
+    .getByRole("link", { name: paymentKeywords })
+    .or(page.getByRole("button", { name: paymentKeywords }))
     .or(page.locator([
       'a[href*="pay" i]',
       'a[href*="payment" i]',
+      'a[href*="pay/" i]',
+      'a[href*="pay-now" i]',
+      'a[href*="checkout" i]',
       'a[href*="billing" i]',
       'a[href*="invoice" i]',
       'button[id*="pay" i]',
@@ -1085,6 +1754,8 @@ async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): 
       '[onclick*="pay" i]',
       '[onclick*="payment" i]',
       '[onclick*="billing" i]',
+      '[onclick*="checkout" i]',
+      '[onclick*="simponi" i]',
     ].join(",")))
     .first();
   if (await paymentControl.isVisible({ timeout: 3_000 }).catch(() => false)) {
@@ -1432,12 +2103,28 @@ export async function probeIndonesiaPortal(
     await page.waitForTimeout(1500);
     let title = await page.title().catch(() => null);
     let text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+    if (savedApplicationUrl && (isExpiredIndonesiaApplicationText(text) || isExpiredIndonesiaPortalUrl(startUrl))) {
+      session.diagnostics.push("indonesia_starting_url_detected_expired");
+      await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+      title = await page.title().catch(() => null);
+      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+    }
     let url = page.url();
     let state = classifyIndonesiaPortalSnapshot({ url, title, text });
     for (let step = 0; step < 18; step += 1) {
       const beforeUrl = url;
       const beforeState = state;
       let advanced = false;
+
+      if (isExpiredIndonesiaApplicationText(text) || isExpiredIndonesiaPortalUrl(url)) {
+        session.diagnostics.push("indonesia_running_flow_detected_expired");
+        await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+        title = await page.title().catch(() => null);
+        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+        url = page.url();
+        state = classifyIndonesiaPortalSnapshot({ url, title, text });
+        advanced = true;
+      }
 
       if (state === "landing_visible") {
         const applyControl = page
@@ -1454,7 +2141,7 @@ export async function probeIndonesiaPortal(
         await continueFromVisaSelection(page, input, session.diagnostics);
         advanced = true;
       } else if (state === "login_required" || state === "registration_required") {
-        advanced = await continueFromAccountGate(page, session.diagnostics);
+        advanced = await continueFromAccountGate(page, input, session.diagnostics);
       } else if (state === "account_registration_form_visible") {
         advanced = await fillForeignerAccountRegistration(page, input, session.diagnostics);
       } else if (/\/step_1\b/i.test(url)) {
