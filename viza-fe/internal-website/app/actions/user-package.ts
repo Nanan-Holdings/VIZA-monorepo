@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getPopularVisaDestination } from "@/lib/visa-destinations";
+import { getClientSessionWithFallback } from "@/lib/client-session";
 
 export interface UserVisaPackage {
   id: string;
@@ -97,11 +98,28 @@ export async function selectUserVisaDestination(
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      return { success: false, error: "You must be signed in to select a destination" };
-    }
-
     const adminClient = createAdminClient();
+    let authUserId = user?.id ?? null;
+
+    if (!authUserId) {
+      const session = await getClientSessionWithFallback();
+      if (!session) {
+        return { success: false, error: "You must be signed in to select a destination" };
+      }
+
+      const { data: profile, error: profileError } = await adminClient
+        .from("applicant_profiles")
+        .select("auth_user_id")
+        .eq("id", session.userId)
+        .maybeSingle();
+      if (profileError) {
+        return { success: false, error: profileError.message };
+      }
+      authUserId = (profile?.auth_user_id as string | null) ?? null;
+      if (!authUserId) {
+        return { success: false, error: "Your client profile is not linked to a login account yet" };
+      }
+    }
 
     const { data: existingPackage, error: packageLookupError } = await adminClient
       .from("visa_packages")
@@ -149,7 +167,7 @@ export async function selectUserVisaDestination(
     const { data: existingAssignment, error: assignmentLookupError } = await adminClient
       .from("user_packages")
       .select("id")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", authUserId)
       .eq("visa_package_id", packageRow.id)
       .eq("status", "active")
       .limit(1)
@@ -163,7 +181,7 @@ export async function selectUserVisaDestination(
       const { error: assignError } = await adminClient
         .from("user_packages")
         .insert({
-          auth_user_id: user.id,
+          auth_user_id: authUserId,
           visa_package_id: packageRow.id,
           status: "active",
         });
