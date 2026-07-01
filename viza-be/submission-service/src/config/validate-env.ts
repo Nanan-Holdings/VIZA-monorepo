@@ -10,11 +10,11 @@
  */
 import { proxyCoverageGaps } from "../proxy/country-overrides.js";
 
-/** The 16 launch countries (local mirror — avoids pulling the runner graph into startup validation). */
+/** The 17 launch countries (local mirror — avoids pulling the runner graph into startup validation). */
 const LAUNCH_COUNTRIES = [
   "indonesia", "egypt", "australia", "saudi_arabia", "united_kingdom", "vietnam",
   "malaysia", "japan", "united_states", "canada", "turkey", "thailand",
-  "united_arab_emirates", "france", "italy", "india",
+  "united_arab_emirates", "france", "italy", "india", "south_korea",
 ] as const;
 
 /** Must be present for the service to boot at all. */

@@ -10,7 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GOVT_FEE_ROUTING, routingFor, decisionFor, UnknownPackageError } from "../payment-routing.js";
 
-// PAYP-001 + PAYP-007: the 16 launch packages (country, visaType).
+// PAYP-001 + PAYP-007: the 17 launch packages (country, visaType).
 const LAUNCH: [string, string][] = [
   ["indonesia", "B211A"], ["egypt", "EG_E_VISA"], ["australia", "AU_VISITOR_600"],
   ["saudi_arabia", "SA_E_VISA"], ["united_kingdom", "UK_STANDARD_VISITOR"], ["vietnam", "VN_E_VISA"],
@@ -18,9 +18,10 @@ const LAUNCH: [string, string][] = [
   ["canada", "CA_TRV"], ["turkey", "TR_E_VISA"], ["thailand", "TH_TOURIST_E_VISA"],
   ["united_arab_emirates", "AE_TOURIST_VISA"], ["france", "EU_SCHENGEN_C_SHORT_STAY"],
   ["italy", "EU_SCHENGEN_C_SHORT_STAY"], ["india", "IN_E_VISA"],
+  ["south_korea", "KR_C39_SHORT_TERM_VISIT"],
 ];
 
-test("PAYP-001: decisionFor resolves a typed decision for all 16 launch countries", () => {
+test("PAYP-001: decisionFor resolves a typed decision for all 17 launch countries", () => {
   for (const [country, visaType] of LAUNCH) {
     const d = decisionFor(country, visaType);
     assert.equal(d.country, country);

@@ -1,5 +1,6 @@
 #!/usr/bin/env npx tsx
 import "dotenv/config";
+import { chromium } from "@playwright/test";
 import {
   assertUSAppointmentAutoVerificationConfig,
   generateUSAppointmentAccountPassword,
@@ -165,6 +166,53 @@ function maskEmail(email: string): string {
   return `${localPart.slice(0, 2)}***@${domain}`;
 }
 
+async function waitForAuthHandoffUrl(
+  endpoint: string,
+  baseUrl: string,
+): Promise<string> {
+  const browser = await chromium.connectOverCDP(endpoint, { timeout: 60_000 });
+  try {
+    const context = browser.contexts()[0] ?? await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    const started = Date.now();
+    while (Date.now() - started < 90_000) {
+      const [currentUrl, title, bodyText] = await Promise.all([
+        Promise.resolve(page.url()),
+        page.title().catch(() => ""),
+        page.locator("body").innerText({ timeout: 3_000 }).catch(() => ""),
+      ]);
+      const normalized = `${title} ${bodyText}`.replace(/\s+/g, " ").trim();
+      const isCloudflareTransit =
+        /__cf_chl_rt_tk/.test(currentUrl)
+        || /just a moment|loading|cloudflare|verify you are human|checking your browser/i
+          .test(`${currentUrl} ${normalized}`)
+        || normalized.length === 0;
+      const reachedAuth =
+        /b2clogin|signin|authorize|sign in|login/i.test(`${currentUrl} ${normalized}`);
+      if (reachedAuth && !/__cf_chl_rt_tk/.test(currentUrl)) {
+        await page.close().catch(() => undefined);
+        return currentUrl;
+      }
+      if (!isCloudflareTransit) {
+        await page.close().catch(() => undefined);
+        return currentUrl;
+      }
+      await page.waitForTimeout(2_000);
+    }
+    const currentUrl = page.url();
+    await page.close().catch(() => undefined);
+    return currentUrl;
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
+}
+
+async function assertLocalCdpReachable(endpoint: string): Promise<void> {
+  const browser = await chromium.connectOverCDP(endpoint, { timeout: 10_000 });
+  await browser.close().catch(() => undefined);
+}
+
 async function waitUntilInterrupted(): Promise<void> {
   console.log("Browser session is being kept open. Press Ctrl+C to stop.");
   await new Promise<void>((resolve) => {
@@ -199,11 +247,27 @@ async function main(): Promise<void> {
     generatedPassword,
   });
   const loadedConfig = loadUSAppointmentRunnerConfig();
+  const remoteEndpoint = args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint;
+  const localHandoffEndpoint =
+    process.env.US_APPOINTMENT_LOCAL_CDP_ENDPOINT?.trim()
+    || "http://127.0.0.1:9222";
+  let browserMode: "configured" | "local" | "hybrid" = args.localBrowser ? "local" : "configured";
+  let baseUrl = loadedConfig.baseUrl;
+  let playwrightCdpEndpoint = args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint;
+
+  if (!args.localBrowser && remoteEndpoint) {
+    await assertLocalCdpReachable(localHandoffEndpoint);
+    baseUrl = await waitForAuthHandoffUrl(remoteEndpoint, loadedConfig.baseUrl);
+    playwrightCdpEndpoint = localHandoffEndpoint;
+    browserMode = "hybrid";
+  }
+
   const config = {
     ...loadedConfig,
     playwrightEnabled: true,
     playwrightHeadless: args.headless,
-    playwrightCdpEndpoint: args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint,
+    playwrightCdpEndpoint,
+    baseUrl,
   };
 
   if (!args.localBrowser && !config.playwrightCdpEndpoint) {
@@ -221,7 +285,7 @@ async function main(): Promise<void> {
     generatedPassword,
     appointmentAccountPersisted: persistedAccount.persisted,
     appointmentAccountPersistReason: persistedAccount.reason,
-    browserApi: config.playwrightCdpEndpoint ? "configured" : "local",
+    browserApi: browserMode,
     typingDelayMs: {
       min: config.typingDelayMinMs,
       max: config.typingDelayMaxMs,
@@ -231,8 +295,13 @@ async function main(): Promise<void> {
   const client = new PlaywrightUSVisaSchedulingPortalClient(config);
   try {
     const result = await client.registerAccount(credentials);
-    const emailVerification = args.autoVerifyEmail && args.applicantId
-      ? await waitForUSAppointmentVerificationEmail(args.applicantId, config.emailTimeoutMs)
+    const emailApplicantId = args.applicantId?.trim() || null;
+    const shouldWaitForEmail =
+      args.autoVerifyEmail
+      && emailApplicantId
+      && result.gate?.actionType === "account_email_verification";
+    const emailVerification = shouldWaitForEmail
+      ? await waitForUSAppointmentVerificationEmail(emailApplicantId, config.emailTimeoutMs)
           .then((message) => ({
             received: true,
             hasCode: Boolean(message.code),
@@ -246,7 +315,7 @@ async function main(): Promise<void> {
           }))
       : null;
     const verificationResult =
-      emailVerification?.received
+      emailVerification?.received && "code" in emailVerification
         ? await client.completeAccountEmailVerification({
           emailCode: emailVerification.code,
           verificationLink: emailVerification.link,

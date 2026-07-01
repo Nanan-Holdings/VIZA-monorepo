@@ -150,6 +150,9 @@ filling and one-shot submission for the applicant.
 - `src/korea-eform/**`: Korea Visa Portal official e-Form/barcode PDF runner
   scaffold. Live automation must be explicitly env-gated and must not mark
   success until the official portal-generated PDF is captured in storage.
+- `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
+  `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
+  e-Form completion behind the gated `src/korea-eform/**` automation.
 - `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
   observes deterministic slots and books only after a user-selected slot. Live
   KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
