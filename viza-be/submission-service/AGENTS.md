@@ -147,6 +147,11 @@ filling and one-shot submission for the applicant.
   `ph_etravel_accounts` by applicant before creating a new official account;
   do not mint a fresh inbox-alias account when a prior PH eTravel account row
   exists.
+- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
+  observes deterministic slots and books only after a user-selected slot. Live
+  KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
+  and stop with structured manual-required evidence for unsupported SMS,
+  real-name, WAF, or center-specific policy gates instead of marking success.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
@@ -210,7 +215,8 @@ filling and one-shot submission for the applicant.
 | Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
-| Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
+| Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
+| Korea C-3-9 | PDF + appointment dry-run scaffold | Frontend generates Annex-17 PDF and KVAC guidance; `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live KVAC portal booking remains gated pending per-center selector validation. |
 
 ## Ownership Boundaries
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
@@ -298,6 +304,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/__tests__/queue-scheduler.spec.ts`
 - `viza-be/submission-service/src/__tests__/queue-claim-rpc.spec.ts`
 - `viza-be/submission-service/src/country-submissions/*`
+- `viza-be/submission-service/src/korea-kvac/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`

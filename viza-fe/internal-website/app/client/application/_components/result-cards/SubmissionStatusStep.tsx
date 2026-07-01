@@ -26,6 +26,7 @@ import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
+import { KrResultCard } from "./KrResultCard";
 import {
   isDs160VisaType,
   isMalaysiaMdacApplication,
@@ -1391,6 +1392,10 @@ function renderSubmissionResultCard(
     case "JP":
       return applicationId ? (
         <JpResultCard applicationId={applicationId} result={result} />
+      ) : null;
+    case "KR":
+      return applicationId ? (
+        <KrResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "GENERIC":
       return (
