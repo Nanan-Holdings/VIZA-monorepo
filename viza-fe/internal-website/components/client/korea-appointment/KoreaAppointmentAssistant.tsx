@@ -40,6 +40,9 @@ interface Snapshot {
     appointment_date: string | null;
     appointment_time: string | null;
     appointment_location: string | null;
+    confirmation_pdf_url?: string | null;
+    confirmation_screenshot_url?: string | null;
+    raw_confirmation_redacted_json?: { mode?: string } | null;
   } | null;
 }
 
@@ -66,8 +69,14 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     [snapshot?.slots],
   );
   const waitingForSms = snapshot?.manualAction?.action_type === "sms_verification_required";
-  const smsSubmitted = snapshot?.job?.status === "sms_verification_submitted";
+  const waitingForFinalApproval = snapshot?.manualAction?.action_type === "final_booking_approval_required";
+  const finalApproved = snapshot?.job?.status === "final_booking_approved";
   const smsManualAction = waitingForSms ? snapshot?.manualAction : null;
+  const finalApprovalAction = waitingForFinalApproval ? snapshot?.manualAction : null;
+  const hasOfficialConfirmation =
+    Boolean(snapshot?.confirmation) &&
+    snapshot?.confirmation?.raw_confirmation_redacted_json?.mode !== "dry_run" &&
+    !String(snapshot?.confirmation?.confirmation_number ?? "").startsWith("KR-DRYRUN-");
 
   const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
@@ -204,6 +213,27 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <AlertTitle>{isZh ? "预约已确认" : "Appointment confirmed"}</AlertTitle>
               <AlertDescription>
                 {snapshot.confirmation.confirmation_number} · {snapshot.confirmation.appointment_date} {snapshot.confirmation.appointment_time}
+                {hasOfficialConfirmation ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline" className="border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-100">
+                      <a
+                        href={snapshot.confirmation.confirmation_pdf_url ?? `/api/applications/${applicationId}/korea-appointment-proof-pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        {isZh ? "下载预约证明" : "Download proof"}
+                      </a>
+                    </Button>
+                    {snapshot.confirmation.confirmation_screenshot_url ? (
+                      <Button asChild size="sm" variant="ghost" className="text-emerald-900 hover:bg-emerald-100">
+                        <a href={snapshot.confirmation.confirmation_screenshot_url} target="_blank" rel="noopener noreferrer">
+                          {isZh ? "查看官方截图" : "View official screenshot"}
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -227,7 +257,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <Button
               variant="outline"
               onClick={() => void run("request-live-booking")}
-              disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation) || waitingForSms || smsSubmitted}
+              disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation) || waitingForSms || waitingForFinalApproval || finalApproved}
             >
               {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
               {isZh ? "进入真实预约验证" : "Start live verification"}
@@ -262,12 +292,32 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               </div>
             </div>
           ) : null}
-          {smsSubmitted ? (
+          {finalApprovalAction ? (
+            <div className="rounded-[8px] border border-amber-200 bg-amber-50/60 p-4">
+              <div className="text-sm font-medium text-foreground">
+                {isZh ? "最终预约确认" : "Final booking approval"}
+              </div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                {isZh
+                  ? "验证码已提交。请确认允许 worker 在官方 KVAC 页面点击最后的预约确认按钮；只有官方页面返回确认号后，VIZA 才会保存预约证明。"
+                  : "The SMS code has been submitted. Approve the worker to click the final booking button on the official KVAC page; VIZA saves proof only after the official portal returns a confirmation number."}
+              </div>
+              <Button
+                className="mt-3"
+                onClick={() => void run("approve-final-booking")}
+                disabled={Boolean(busy)}
+              >
+                {busy === "approve-final-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                {isZh ? "授权最终预约" : "Approve final booking"}
+              </Button>
+            </div>
+          ) : null}
+          {finalApproved ? (
             <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>{isZh ? "验证码已提交" : "SMS code submitted"}</AlertTitle>
+              <AlertTitle>{isZh ? "已授权最终预约" : "Final booking approved"}</AlertTitle>
               <AlertDescription>
-                {isZh ? "worker 可以继续官方预约流程；如果官方页面再次要求验证，会再次暂停。" : "The worker can resume the official booking flow; if the portal asks again, it will pause again."}
+                {isZh ? "worker 可以完成官方最后一步；拿到官方确认号后会显示并提供预约证明下载。" : "The worker can complete the official final step; once the portal returns a confirmation number, proof will appear here."}
               </AlertDescription>
             </Alert>
           ) : null}
