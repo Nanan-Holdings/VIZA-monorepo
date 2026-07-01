@@ -2631,8 +2631,9 @@ export default function ApplicationPage() {
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
+      const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
 
-      if (!isJpTourist) {
+      if (!isJpTourist && !isKrC39) {
         const queueJob = mode === "live_assisted" && isVietnamEVisa
           ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
           : await (async () => {
@@ -2682,6 +2683,25 @@ export default function ApplicationPage() {
             status: "form_ready_for_agency",
             applicationId,
             formAPdfUrl: `/api/applications/${applicationId}/jp-form-a-pdf`,
+          },
+        }));
+      }
+      if (isKrC39) {
+        const submittedAt = new Date().toISOString();
+        const { error: submitError } = await supabase.from("applications").update({
+          status: "submitted",
+          submitted_at: submittedAt,
+        }).eq("id", applicationId);
+        if (submitError) throw new Error(submitError.message);
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt,
+          submissionResultStatus: "form_ready_for_kvac",
+          submissionResult: {
+            country: "KR",
+            status: "form_ready_for_kvac",
+            applicationId,
+            annex17PdfUrl: `/api/applications/${applicationId}/kr-annex17-pdf`,
           },
         }));
       }

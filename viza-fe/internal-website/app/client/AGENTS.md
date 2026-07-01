@@ -45,6 +45,10 @@ applicant info, and help pages.
   appointment assistant entry after DS-160 capture/submission. It may use China
   USVisaScheduling gated assisted-live from explicit user actions, while other
   countries/posts remain dry-run or manual until verified.
+- `applications/[applicationId]/korea-appointment/page.tsx`: Korea C-3-9 KVAC
+  appointment assistant entry after Annex-17 packet generation. It reads the
+  recommended China KVAC center, lets users choose observed slots, and records
+  dry-run booking confirmation only after explicit slot selection.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 
@@ -66,6 +70,9 @@ applicant info, and help pages.
 - U.S. appointment component internals are governed by
   `components/client/us-appointment/AGENTS.md`; browser API helpers are governed
   by `lib/us-appointment/AGENTS.md`.
+- Korea appointment component internals live in
+  `components/client/korea-appointment/**`; KVAC routing and PDF helpers live
+  in `lib/korea-c39/**`.
 - Do not bypass `proxy.ts` or the client shell session checks when adding new
   authenticated routes.
 - Use `getAuthenticatedUserId()` for user identity when impersonation support
@@ -102,8 +109,11 @@ accessible component state.
 - `viza-fe/internal-website/app/client/chat/chat-client.tsx`
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/us-appointment/page.tsx`
+- `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/page.tsx`
 - `viza-fe/internal-website/components/client/us-appointment/AGENTS.md`
+- `viza-fe/internal-website/components/client/korea-appointment/KoreaAppointmentAssistant.tsx`
 - `viza-fe/internal-website/lib/us-appointment/AGENTS.md`
+- `viza-fe/internal-website/lib/korea-c39/*`
 - `viza-fe/internal-website/app/actions/client-auth.ts`
 - `viza-fe/internal-website/app/actions/form-requests.ts`
 - `viza-fe/internal-website/lib/auth/get-authenticated-user.ts`
