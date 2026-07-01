@@ -19,6 +19,16 @@ export interface IndonesiaPortalProbeInput {
   application?: IndonesiaApplicationFormInput;
   headless?: boolean;
   timeoutMs?: number;
+  userPaymentHandoff?: {
+    enabled?: boolean;
+    waitTimeoutMs?: number;
+    onWaitingForUser?: (snapshot: {
+      url: string;
+      title: string | null;
+      state: IndonesiaPortalStateId;
+      diagnostics: string[];
+    }) => Promise<void>;
+  };
 }
 
 export interface IndonesiaPortalProbeResult {
@@ -218,6 +228,10 @@ async function clickIfPresent(page: Page, selector: string): Promise<boolean> {
   await control.click({ timeout: 10_000 });
   await page.waitForTimeout(1_500);
   return true;
+}
+
+async function isVisibleSelector(page: Page, selector: string, timeoutMs = 1_500): Promise<boolean> {
+  return page.locator(selector).first().isVisible({ timeout: timeoutMs }).catch(() => false);
 }
 
 async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promise<void> {
@@ -596,7 +610,10 @@ async function continueFromApplicationStepOne(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<boolean> {
-  if (!/\/step_1\b/i.test(page.url())) return false;
+  const isStepOne =
+    /\/step_1\b/i.test(page.url()) ||
+    await isVisibleSelector(page, "#passport-attachment");
+  if (!isStepOne) return false;
   const application = input.application;
   if (!application?.passportImagePath || !application.photoImagePath) {
     diagnostics.push("indonesia_step_1_missing_passport_or_photo");
@@ -634,7 +651,10 @@ async function continueFromApplicationStepTwo(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<boolean> {
-  if (!/\/step_2\b/i.test(page.url())) return false;
+  const isStepTwo =
+    /\/step_2\b/i.test(page.url()) ||
+    await isVisibleSelector(page, "#residence_type_id, #attachment-return_ticket, #support-paspor");
+  if (!isStepTwo) return false;
   const application = input.application;
   if (!application) return false;
 
@@ -687,7 +707,10 @@ async function continueFromApplicationStepThree(
   page: Page,
   diagnostics: string[],
 ): Promise<boolean> {
-  if (!/\/step_3\b/i.test(page.url())) return false;
+  const isStepThree =
+    /\/step_3\b/i.test(page.url()) ||
+    await isVisibleSelector(page, 'input[type="checkbox"]');
+  if (!isStepThree) return false;
   await dismissIndonesiaDialogs(page, diagnostics);
   const checkboxes = page.locator('input[type="checkbox"]');
   const count = await checkboxes.count().catch(() => 0);
@@ -751,6 +774,66 @@ async function continueFromApplicationList(page: Page, diagnostics: string[]): P
   return true;
 }
 
+async function waitForUserPaymentCompletion(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<{
+  state: IndonesiaPortalStateId;
+  title: string | null;
+  text: string;
+  url: string;
+}> {
+  const waitTimeoutMs = Math.max(
+    30_000,
+    Number(input.userPaymentHandoff?.waitTimeoutMs ?? process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? 10 * 60 * 1000),
+  );
+  const deadline = Date.now() + waitTimeoutMs;
+  let notified = false;
+  let title = await page.title().catch(() => null);
+  let text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  let url = page.url();
+  let state = classifyIndonesiaPortalSnapshot({ url, title, text });
+
+  while (Date.now() < deadline) {
+    if (!notified) {
+      await input.userPaymentHandoff?.onWaitingForUser?.({
+        url,
+        title,
+        state,
+        diagnostics,
+      });
+      diagnostics.push("indonesia_user_payment_handoff_waiting");
+      notified = true;
+    }
+
+    await page.waitForTimeout(5_000);
+    if (page.isClosed()) {
+      diagnostics.push("indonesia_user_payment_window_closed");
+      break;
+    }
+
+    title = await page.title().catch(() => null);
+    text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    url = page.url();
+    state = classifyIndonesiaPortalSnapshot({ url, title, text });
+    if (state === "submitted_or_approved") {
+      diagnostics.push("indonesia_user_payment_completed");
+      break;
+    }
+    if (state !== "payment_required") {
+      diagnostics.push(`indonesia_user_payment_state_changed ${state}`);
+      break;
+    }
+  }
+
+  if (state === "payment_required" && Date.now() >= deadline) {
+    diagnostics.push("indonesia_user_payment_wait_timeout");
+  }
+
+  return { state, title, text, url };
+}
+
 function firstConfiguredEndpoint(envNames: string[]): string | null {
   for (const name of envNames) {
     const value = process.env[name]?.trim();
@@ -785,7 +868,9 @@ async function createIndonesiaProbeSession(input: IndonesiaPortalProbeInput): Pr
   diagnostics: string[];
 }> {
   const diagnostics: string[] = [];
-  const endpoint = firstConfiguredEndpoint(endpointEnvNames(input.provider));
+  const endpoint = input.userPaymentHandoff?.enabled
+    ? null
+    : firstConfiguredEndpoint(endpointEnvNames(input.provider));
   if (endpoint) {
     const browser = await chromium.connectOverCDP(endpoint, { timeout: 45_000 });
     const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
@@ -830,7 +915,7 @@ export async function probeIndonesiaPortal(
     let text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
     let url = page.url();
     let state = classifyIndonesiaPortalSnapshot({ url, title, text });
-    for (let step = 0; step < 10; step += 1) {
+    for (let step = 0; step < 18; step += 1) {
       const beforeUrl = url;
       const beforeState = state;
       let advanced = false;
@@ -861,6 +946,15 @@ export async function probeIndonesiaPortal(
         advanced = await continueFromApplicationStepThree(page, session.diagnostics);
       } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
         advanced = await continueFromApplicationList(page, session.diagnostics);
+      } else if (state === "official_application_started" || state === "application_form_visible") {
+        advanced =
+          await continueFromApplicationStepOne(page, input, session.diagnostics) ||
+          await continueFromApplicationStepTwo(page, input, session.diagnostics) ||
+          await continueFromApplicationStepThree(page, session.diagnostics) ||
+          await continueFromApplicationList(page, session.diagnostics);
+        if (!advanced) {
+          session.diagnostics.push(`indonesia_application_form_visible_no_handler url=${url}`);
+        }
       }
 
       if (advanced) {
@@ -874,6 +968,15 @@ export async function probeIndonesiaPortal(
         break;
       }
     }
+
+    if (state === "payment_required" && input.userPaymentHandoff?.enabled) {
+      const paymentResult = await waitForUserPaymentCompletion(page, input, session.diagnostics);
+      title = paymentResult.title;
+      text = paymentResult.text;
+      url = paymentResult.url;
+      state = paymentResult.state;
+    }
+
     const action = actionForIndonesiaPortalState(state);
     return {
       state,

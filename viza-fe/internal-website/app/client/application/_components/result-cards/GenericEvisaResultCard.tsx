@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ExternalLink, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Download, ExternalLink, Loader2, Mail, RotateCw, ShieldCheck } from "lucide-react";
 import { useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,8 @@ export function GenericEvisaResultCard({
   const [locatingPayment, setLocatingPayment] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
   const portalUrl = result.portalUrl;
+  const checkpoint = (result as GenericEvisaSubmissionResult & { checkpoint?: string }).checkpoint;
+  const userPaymentRequired = result.country === "ID" && checkpoint === "user_payment_required";
   const isIndonesiaHomePaymentUrl =
     result.country === "ID" &&
     portalUrl !== undefined &&
@@ -101,8 +103,12 @@ export function GenericEvisaResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {result.status === "stopped_at_pay"
             ? isZh
-              ? `我们已把你的${country}申请推进到官网付款节点。请在官方页面完成付款，付款后 VIZA 会继续跟踪结果并在这里保存获批签证。`
-              : `We prepared your ${country} application and stopped at the government payment step. Complete the payment to finalize; we monitor the outcome and store your approved visa here.`
+              ? userPaymentRequired
+                ? `官方付款窗口已经打开。请在那个窗口里完成银行卡付款和 OTP 验证，完成后 VIZA 会继续跟踪结果。`
+                : `我们已把你的${country}申请推进到官网付款节点。请在官方页面完成付款，付款后 VIZA 会继续跟踪结果并在这里保存获批签证。`
+              : userPaymentRequired
+                ? "The official payment window is open. Complete card payment and OTP verification there; VIZA will keep tracking the result."
+                : `We prepared your ${country} application and stopped at the government payment step. Complete the payment to finalize; we monitor the outcome and store your approved visa here.`
             : result.status === "form_ready_for_agency"
               ? isZh
                 ? `你的${country}申请资料包已准备好，可下载、打印并递交至签证中心。`
@@ -124,6 +130,11 @@ export function GenericEvisaResultCard({
             <a href={`/api/applications/${applicationId}/evisa-artifact`}>
               <Download className="mr-2 h-4 w-4" /> {isZh ? "下载文件" : "Download document"}
             </a>
+          </Button>
+        ) : result.status === "stopped_at_pay" && userPaymentRequired ? (
+          <Button type="button" className="w-full" onClick={() => window.location.reload()}>
+            <RotateCw className="mr-2 h-4 w-4" />
+            {isZh ? "我已完成付款，刷新状态" : "I finished payment, refresh status"}
           </Button>
         ) : result.status === "stopped_at_pay" && portalUrl && !isIndonesiaHomePaymentUrl ? (
           <Button asChild className="w-full">

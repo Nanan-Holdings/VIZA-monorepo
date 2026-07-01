@@ -258,6 +258,29 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "au_prefill_processing",
 ];
 
+function parseProviderAllowlist(): Set<string> {
+  const raw =
+    process.env.SUBMISSION_SERVICE_PROVIDER_ALLOWLIST?.trim() ||
+    process.env.VIZA_SUBMISSION_PROVIDER_ALLOWLIST?.trim() ||
+    "";
+  return new Set(
+    raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+const SUBMISSION_PROVIDER_ALLOWLIST = parseProviderAllowlist();
+const LEGACY_US_APPOINTMENT_POLL_ENABLED = readBooleanEnv(
+  "SUBMISSION_SERVICE_LEGACY_US_APPOINTMENT_POLL_ENABLED",
+  true,
+);
+const RUNNER_JOB_CONSUMER_ENABLED = readBooleanEnv(
+  "SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED",
+  true,
+);
+
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
 }
@@ -326,6 +349,29 @@ async function fetchPendingItems(input: {
 }): Promise<SubmissionQueueItem[]> {
   let items: SubmissionQueueItem[];
   try {
+    if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
+      let query = supabase
+        .from("submission_queue")
+        .select("*")
+        .in("status", STALE_QUEUE_STATUSES.filter((status) => status.endsWith("_pending") || status === "pending"))
+        .lt("attempts", MAX_ATTEMPTS)
+        .order("created_at", { ascending: true })
+        .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
+      if (input.targetJobId) {
+        query = query.eq("id", input.targetJobId);
+      } else {
+        query = query.in("provider", Array.from(SUBMISSION_PROVIDER_ALLOWLIST));
+      }
+      const { data, error } = await query;
+      if (error) {
+        throw new Error(`Failed provider-filtered submission_queue select: ${error.message}`);
+      }
+      items = ((data ?? []) as SubmissionQueueItem[]).filter((item) =>
+        input.targetJobId ? SUBMISSION_PROVIDER_ALLOWLIST.has(item.provider ?? "") : true,
+      );
+      return items.sort((left, right) => queuePriority(left) - queuePriority(right));
+    }
+
     items = await claimPendingSubmissionQueueItems(supabase, {
       workerId: SUBMISSION_QUEUE_WORKER_ID,
       limit: input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency),
@@ -6295,6 +6341,52 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         note: "VIZA-managed Indonesia eVisa portal password",
       });
     }
+    const userPaymentHandoffEnabled = readBooleanEnv("INDONESIA_USER_PAYMENT_HANDOFF_ENABLED", true);
+    const portalProbeHeadless = userPaymentHandoffEnabled
+      ? false
+      : readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true);
+    const userPaymentHandoff = {
+      enabled: userPaymentHandoffEnabled,
+      waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
+      onWaitingForUser: async (snapshot: {
+        url: string;
+        title: string | null;
+        state: string;
+        diagnostics: string[];
+      }) => {
+        const message =
+          "Official Indonesia payment/OTP page is open in a visible browser window. Complete card payment and bank verification in that official window.";
+        await supabase
+          .from("submission_queue")
+          .update({
+            status: paymentPendingStatus,
+            provider,
+            current_stage: "user_payment_required",
+            manual_action_status: "user_payment_required",
+            error_code: "user_payment_required",
+            error_message: message,
+            official_portal_url: snapshot.url,
+            vn_result_payload: {
+              ...(item.vn_result_payload ?? {}),
+              actionType: "official_fee_payment_required",
+              actionInstructions: message,
+              checkpoint: "user_payment_required",
+              message,
+              url: snapshot.url,
+              implementationStatus: "partial",
+              evidence: {
+                provider,
+                state: snapshot.state,
+                title: snapshot.title,
+                diagnostics: snapshot.diagnostics.slice(-8),
+              },
+            },
+            heartbeat_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.id);
+      },
+    };
 
     let result: GenericSubmissionResult = {
       country: "GENERIC",
@@ -6343,7 +6435,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
           phone: profile.phone,
         },
         probeOfficialPortal: true,
-        portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
+        portalProbeHeadless,
+        userPaymentHandoff,
       });
     } else {
       for (let attempt = 0; attempt < aliasDomains.length; attempt += 1) {
@@ -6387,7 +6480,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
             phone: profile.phone,
           },
           probeOfficialPortal: true,
-          portalProbeHeadless: readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true),
+          portalProbeHeadless,
+          userPaymentHandoff,
         });
 
         if (
@@ -6414,7 +6508,11 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       : result.status === "action_required"
         ? "action_required"
         : failedStatus;
-    const currentStage = result.actionType === "official_fee_payment_required" ? "payment_page_visible" : result.actionType ?? "indonesia_live_action_required";
+    const currentStage = result.actionType === "official_fee_payment_required"
+      ? userPaymentHandoffEnabled
+        ? "user_payment_required"
+        : "payment_page_visible"
+      : result.actionType ?? "indonesia_live_action_required";
     const portalUrl =
       result.portalUrl ??
       (isB1 ? INDONESIA_B1_EVOA_PORTAL_URL : INDONESIA_C1_PORTAL_URL);
@@ -6429,8 +6527,6 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       evidence: { provider: provider, message: result.message },
     };
 
-    const shouldKeepAsActionRequired = result.status === "action_required" && !isPaymentAuthorizationRequired;
-
     await writeSubmissionResult(item.application_id, result, resultStatus);
     const { error: queueUpdateError } = await supabase
       .from("submission_queue")
@@ -6440,9 +6536,13 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         last_error: null,
         error_code: result.actionType ?? null,
         error_message: result.message,
-        current_stage: shouldKeepAsActionRequired ? currentStage : (isPaymentAuthorizationRequired ? "payment_page_visible" : currentStage),
+        current_stage: currentStage,
         official_portal_url: portalUrl,
-        manual_action_status: result.status === "action_required" ? "pending" : null,
+        manual_action_status: result.status === "action_required"
+          ? userPaymentHandoffEnabled && isPaymentAuthorizationRequired
+            ? "user_payment_required"
+            : "pending"
+          : null,
         vn_result_payload: queuePayload,
         updated_at: new Date().toISOString(),
       })
@@ -6733,17 +6833,19 @@ async function pollOnce(): Promise<void> {
       console.error("[poll] Vietnam official status checks failed:", err);
     }
   }
-  try {
-    const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
-      createUSAppointmentRunnerRepository(),
-    );
-    if (processedUsAppointmentJobs > 0) {
-      console.log(
-        `[poll] Processed ${processedUsAppointmentJobs} US appointment assisted job(s).`,
+  if (LEGACY_US_APPOINTMENT_POLL_ENABLED) {
+    try {
+      const processedUsAppointmentJobs = await pollUSAppointmentAssistedJobs(
+        createUSAppointmentRunnerRepository(),
       );
+      if (processedUsAppointmentJobs > 0) {
+        console.log(
+          `[poll] Processed ${processedUsAppointmentJobs} US appointment assisted job(s).`,
+        );
+      }
+    } catch (err) {
+      console.error("[poll] US appointment runner failed:", err);
     }
-  } catch (err) {
-    console.error("[poll] US appointment runner failed:", err);
   }
 
   const concurrency = targetJobId ? 1 : readSubmissionQueueConcurrency(process.env);
@@ -6832,6 +6934,15 @@ async function main(): Promise<void> {
 
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
+  if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
+    console.log(`[main] Provider allowlist active: ${Array.from(SUBMISSION_PROVIDER_ALLOWLIST).join(",")}`);
+  }
+  if (!LEGACY_US_APPOINTMENT_POLL_ENABLED) {
+    console.log("[main] Legacy US appointment poll disabled by env");
+  }
+  if (!RUNNER_JOB_CONSUMER_ENABLED) {
+    console.log("[main] runner_job consumer disabled by env");
+  }
   const ds160Config = loadDs160SubmissionConfig();
   console.log(
     [
@@ -6905,13 +7016,17 @@ async function main(): Promise<void> {
   setInterval(poll, POLL_INTERVAL_MS);
 
   // QUE-002: start the runner_job consumer (does not block the legacy poll).
-  console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
-  runnerStarted = true;
-  void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
-    signal: runnerAbort.signal,
-  }).catch((err) => {
-    console.error("[main] runner_job consumer crashed", err);
-  });
+  if (RUNNER_JOB_CONSUMER_ENABLED) {
+    console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
+    runnerStarted = true;
+    void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
+      signal: runnerAbort.signal,
+    }).catch((err) => {
+      console.error("[main] runner_job consumer crashed", err);
+    });
+  } else {
+    runnerStarted = true;
+  }
 }
 
 main().catch((err) => {
