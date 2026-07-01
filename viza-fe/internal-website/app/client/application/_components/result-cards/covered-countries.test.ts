@@ -4,17 +4,17 @@ import { RESULT_CARD_COUNTRIES } from "./covered-countries";
 /**
  * POR-008: guest checkout + magic-link resumes into SubmissionStatusStep, which
  * must render a real card for every launch country (no generic/empty fallback).
- * This asserts the 16 launch countries (by SubmissionResult.country code) are
+ * This asserts the 17 launch countries (by SubmissionResult.country code) are
  * all covered. The end-to-end guest path (checkout → webhook →
  * provisionAccountAndMagicLink → login → status) reuses this same mapping.
  */
 const LAUNCH_RESULT_CODES = [
   "ID", "EG", "AU", "SA", "UK", "VN", "MY", "JP",
-  "US", "CA", "TR", "TH", "AE", "FR", "IT", "IN",
+  "US", "CA", "TR", "TH", "AE", "FR", "IT", "IN", "KR",
 ];
 
 describe("result-card coverage", () => {
-  it("covers all 16 launch countries", () => {
+  it("covers all 17 launch countries", () => {
     for (const code of LAUNCH_RESULT_CODES) {
       expect(RESULT_CARD_COUNTRIES).toContain(code);
     }

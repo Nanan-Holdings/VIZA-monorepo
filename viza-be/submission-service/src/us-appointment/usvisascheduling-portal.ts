@@ -868,9 +868,126 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     const filled =
       await this.assignInputValue(first, value)
       || await this.assignLocatorCollectionValue(locator, value)
-      || await this.assignFirstInputForSelector(page, selector, value);
+      || await this.assignFirstInputForSelector(page, selector, value)
+      || await this.typeIntoFocusedInputForSelector(page, selector, value);
     if (filled) return;
+    const diagnostics = await this.readInputAssignmentDiagnostics(page, selector);
+    if (diagnostics) {
+      console.warn("[us-appointment] input assignment fallback failed", diagnostics);
+    }
     await this.fillVisibleLocator(first, value, 15_000);
+  }
+
+  private async typeIntoFocusedInputForSelector(
+    page: Page,
+    selector: string,
+    value: string,
+  ): Promise<boolean> {
+    const focused = await page.evaluate(`(() => {
+      const selectorText = ${JSON.stringify(selector)};
+      const parts = selectorText
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      for (const part of parts) {
+        let element: Element | null = null;
+        try {
+          element = document.querySelector(part);
+        } catch {
+          continue;
+        }
+        if (!element) continue;
+        const tagName = element.tagName.toLowerCase();
+        if (!["input", "textarea"].includes(tagName)) continue;
+        const field = element as HTMLInputElement | HTMLTextAreaElement;
+        field.focus();
+        field.value = "";
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        return document.activeElement === field;
+      }
+      return false;
+    })()`).catch(() => false);
+    if (!focused) return false;
+
+    for (const character of value) {
+      await page.keyboard.type(character, { delay: this.randomTypingDelayMs() });
+    }
+
+    return page.evaluate(`(() => {
+      const selectorText = ${JSON.stringify(selector)};
+      const expectedValue = ${JSON.stringify(value)};
+      const parts = selectorText
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      for (const part of parts) {
+        let element: Element | null = null;
+        try {
+          element = document.querySelector(part);
+        } catch {
+          continue;
+        }
+        if (!element) continue;
+        const tagName = element.tagName.toLowerCase();
+        if (!["input", "textarea"].includes(tagName)) continue;
+        return (element as HTMLInputElement | HTMLTextAreaElement).value === expectedValue;
+      }
+      return false;
+    })()`).then(Boolean).catch(() => false);
+  }
+
+  private async readInputAssignmentDiagnostics(
+    page: Page,
+    selector: string,
+  ): Promise<unknown | null> {
+    return page.evaluate((selectorText) => {
+      const parts = selectorText
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      const details = [];
+      for (const part of parts) {
+        let elements: Element[] = [];
+        try {
+          elements = Array.from(document.querySelectorAll(part));
+        } catch (error) {
+          details.push({
+            selector: part,
+            selectorError: error instanceof Error ? error.message : String(error),
+          });
+          continue;
+        }
+        for (const element of elements.slice(0, 3)) {
+          const style = window.getComputedStyle(element);
+          const input = element as HTMLInputElement | HTMLTextAreaElement;
+          const descriptor = Object.getOwnPropertyDescriptor(
+            Object.getPrototypeOf(input),
+            "value",
+          );
+          details.push({
+            selector: part,
+            tagName: element.tagName.toLowerCase(),
+            type: input.type ?? null,
+            disabled: Boolean(input.disabled),
+            readOnly: Boolean(input.readOnly),
+            ariaDisabled: element.getAttribute("aria-disabled"),
+            display: style.display,
+            visibility: style.visibility,
+            pointerEvents: style.pointerEvents,
+            offsetWidth: (element as HTMLElement).offsetWidth,
+            offsetHeight: (element as HTMLElement).offsetHeight,
+            hasValueSetter: typeof descriptor?.set === "function",
+            valueLength: typeof input.value === "string" ? input.value.length : null,
+          });
+        }
+      }
+      return {
+        matchedCount: details.length,
+        details,
+        activeTag: document.activeElement?.tagName.toLowerCase() ?? null,
+        readyState: document.readyState,
+      };
+    }, selector).catch(() => null);
   }
 
   private async assignFirstInputForSelector(
@@ -878,7 +995,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     selector: string,
     value: string,
   ): Promise<boolean> {
-    return page.evaluate(({ selectorText, inputValue }) => {
+    return page.evaluate(`(() => {
+      const selectorText = ${JSON.stringify(selector)};
+      const inputValue = ${JSON.stringify(value)};
       const candidates = selectorText
         .split(",")
         .map((part) => part.trim())
@@ -893,14 +1012,24 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         if (!element) continue;
         const tagName = element.tagName.toLowerCase();
         if (!["input", "textarea"].includes(tagName)) continue;
-        (element as HTMLInputElement | HTMLTextAreaElement).value = inputValue;
+        const field = element as HTMLInputElement | HTMLTextAreaElement;
+        const prototype = tagName === "textarea"
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype;
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+        element.dispatchEvent(new Event("focus", { bubbles: true }));
+        if (typeof descriptor?.set === "function") {
+          descriptor.set.call(field, inputValue);
+        } else {
+          field.value = inputValue;
+        }
         element.dispatchEvent(new Event("input", { bubbles: true }));
         element.dispatchEvent(new Event("change", { bubbles: true }));
         element.dispatchEvent(new Event("blur", { bubbles: true }));
-        return true;
+        return field.value === inputValue;
       }
       return false;
-    }, { selectorText: selector, inputValue: value }).catch(() => false);
+    })()`).then(Boolean).catch(() => false);
   }
 
   private async assignLocatorCollectionValue(
@@ -911,11 +1040,21 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       for (const element of elements) {
         const tagName = element.tagName.toLowerCase();
         if (!["input", "textarea"].includes(tagName)) continue;
-        (element as HTMLInputElement | HTMLTextAreaElement).value = inputValue;
+        const field = element as HTMLInputElement | HTMLTextAreaElement;
+        const prototype = tagName === "textarea"
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype;
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+        element.dispatchEvent(new Event("focus", { bubbles: true }));
+        if (typeof descriptor?.set === "function") {
+          descriptor.set.call(field, inputValue);
+        } else {
+          field.value = inputValue;
+        }
         element.dispatchEvent(new Event("input", { bubbles: true }));
         element.dispatchEvent(new Event("change", { bubbles: true }));
         element.dispatchEvent(new Event("blur", { bubbles: true }));
-        return true;
+        return field.value === inputValue;
       }
       return false;
     }, value).catch(() => false);
@@ -927,10 +1066,21 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       if (!["input", "textarea"].includes(tagName)) {
         return false;
       }
-      (element as HTMLInputElement | HTMLTextAreaElement).value = inputValue;
+      const field = element as HTMLInputElement | HTMLTextAreaElement;
+      const prototype = tagName === "textarea"
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+      element.dispatchEvent(new Event("focus", { bubbles: true }));
+      if (typeof descriptor?.set === "function") {
+        descriptor.set.call(field, inputValue);
+      } else {
+        field.value = inputValue;
+      }
       element.dispatchEvent(new Event("input", { bubbles: true }));
       element.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
+      element.dispatchEvent(new Event("blur", { bubbles: true }));
+      return field.value === inputValue;
     }, value).catch(() => false);
   }
 

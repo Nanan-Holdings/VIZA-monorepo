@@ -1,4 +1,6 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 import { resolveKvacCenter, type KvacRoutingInput } from "./kvac-routing";
 
@@ -6,6 +8,7 @@ export type KoreaAnswerMap = Record<string, string | null | undefined>;
 
 interface RenderOptions {
   routing?: KvacRoutingInput;
+  templateLanguage?: "zh" | "en";
 }
 
 export type Annex17RequiredField =
@@ -57,12 +60,27 @@ const FIELD_ORDER = [
   ["Inviter", ["inviter_name", "inviter_full_name"]],
 ] as const;
 
+const TEMPLATE_BY_LANGUAGE: Record<NonNullable<RenderOptions["templateLanguage"]>, string> = {
+  zh: "visa-application-form-ch.pdf",
+  en: "visa-application-form-en.pdf",
+};
+
+type DrawCtx = {
+  font: PDFFont;
+  bold: PDFFont;
+};
+
 function answer(answers: KoreaAnswerMap, keys: readonly string[]): string {
   for (const key of keys) {
     const value = answers[key]?.toString().trim();
     if (value) return value;
   }
   return "";
+}
+
+function yesNo(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return ["1", "true", "yes", "y", "on", "是", "有"].includes(normalized);
 }
 
 function sanitize(value: string): string {
@@ -77,7 +95,6 @@ function sanitize(value: string): string {
     "）": ")",
     "—": "-",
     "–": "-",
-    "—": "-",
     "…": "...",
   };
   let output = "";
@@ -90,6 +107,182 @@ function sanitize(value: string): string {
     output += cp <= 0x7e && cp >= 0x20 ? ch : "?";
   }
   return output;
+}
+
+function formatDate(value: string): string {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (!match) return sanitize(trimmed);
+  return `${match[1]}/${match[2].padStart(2, "0")}/${match[3].padStart(2, "0")}`;
+}
+
+function drawText(
+  page: PDFPage,
+  ctx: DrawCtx,
+  value: string,
+  x: number,
+  y: number,
+  options: { size?: number; maxChars?: number; bold?: boolean } = {},
+): void {
+  const text = sanitize(value).slice(0, options.maxChars ?? 80);
+  if (!text) return;
+  page.drawText(text, {
+    x,
+    y,
+    size: options.size ?? 9,
+    font: options.bold ? ctx.bold : ctx.font,
+    color: rgb(0.02, 0.02, 0.02),
+  });
+}
+
+function drawWrapped(
+  page: PDFPage,
+  ctx: DrawCtx,
+  value: string,
+  x: number,
+  y: number,
+  maxCharsPerLine: number,
+  maxLines: number,
+  options: { size?: number; lineHeight?: number } = {},
+): void {
+  const text = sanitize(value);
+  if (!text) return;
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length > maxCharsPerLine && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+    if (lines.length >= maxLines) break;
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  lines.slice(0, maxLines).forEach((line, index) => {
+    drawText(page, ctx, line, x, y - index * (options.lineHeight ?? 11), { size: options.size ?? 8 });
+  });
+}
+
+function drawCheck(page: PDFPage, ctx: DrawCtx, x: number, y: number): void {
+  page.drawText("V", { x, y, size: 10, font: ctx.bold, color: rgb(0.02, 0.02, 0.02) });
+}
+
+function readAny(answers: KoreaAnswerMap, keys: readonly string[]): string {
+  return answer(answers, keys);
+}
+
+async function loadOfficialTemplate(language: NonNullable<RenderOptions["templateLanguage"]>): Promise<Uint8Array | null> {
+  const templateFile = TEMPLATE_BY_LANGUAGE[language];
+  const candidates = [
+    path.join(process.cwd(), "lib", "korea-c39", "templates", templateFile),
+    path.join(process.cwd(), "viza-fe", "internal-website", "lib", "korea-c39", "templates", templateFile),
+  ];
+  for (const templatePath of candidates) {
+    try {
+      const bytes = await readFile(templatePath);
+      return Uint8Array.from(bytes);
+    } catch {
+      // Try the next workspace layout.
+    }
+  }
+  return null;
+}
+
+async function renderOfficialTemplate(
+  answers: KoreaAnswerMap,
+  options: RenderOptions,
+): Promise<Uint8Array | null> {
+  const template = await loadOfficialTemplate(options.templateLanguage ?? "zh");
+  if (!template) return null;
+
+  const pdf = await PDFDocument.load(template);
+  const ctx: DrawCtx = {
+    font: await pdf.embedFont(StandardFonts.Helvetica),
+    bold: await pdf.embedFont(StandardFonts.HelveticaBold),
+  };
+  const pages = pdf.getPages();
+  const [page1, page2, page3, page4, page5] = pages;
+  const routing = resolveKvacCenter(options.routing ?? {});
+
+  if (page1) {
+    drawText(page1, ctx, readAny(answers, ["family_name", "surname", "last_name"]).toUpperCase(), 172, 516, { size: 10 });
+    drawText(page1, ctx, readAny(answers, ["given_names", "given_name", "first_name"]).toUpperCase(), 382, 516, { size: 10 });
+    drawText(page1, ctx, readAny(answers, ["chinese_name", "name_in_chinese"]), 172, 486, { size: 9 });
+    const sex = readAny(answers, ["sex", "gender"]).toLowerCase();
+    if (["female", "f", "woman", "女"].includes(sex)) drawCheck(page1, ctx, 552, 486);
+    else drawCheck(page1, ctx, 462, 486);
+    drawText(page1, ctx, formatDate(readAny(answers, ["date_of_birth", "dob"])), 204, 448, { size: 10 });
+    drawText(page1, ctx, readAny(answers, ["nationality", "current_nationality"]) || "CHINA", 392, 448, { size: 10 });
+    drawText(page1, ctx, readAny(answers, ["country_of_birth", "place_of_birth_country"]) || "CHINA", 210, 420, { size: 9 });
+    drawText(page1, ctx, readAny(answers, ["national_id_number", "identity_number"]), 430, 420, { size: 9 });
+    drawCheck(page1, ctx, yesNo(readAny(answers, ["has_used_other_names"])) ? 186 : 111, 375);
+    drawCheck(page1, ctx, yesNo(readAny(answers, ["has_multiple_nationalities"])) ? 526 : 444, 350);
+    drawCheck(page1, ctx, 319, 260);
+    drawText(page1, ctx, "C-3-9", 378, 260, { size: 11, bold: true });
+  }
+
+  if (page2) {
+    drawCheck(page2, ctx, 259, 732);
+    drawText(page2, ctx, readAny(answers, ["passport_number"]), 178, 702, { size: 10 });
+    drawText(page2, ctx, readAny(answers, ["passport_issuing_country", "passport_issue_country", "nationality"]) || "CHINA", 353, 702, { size: 9 });
+    drawText(page2, ctx, readAny(answers, ["passport_place_of_issue", "passport_issue_place"]), 500, 702, { size: 9 });
+    drawText(page2, ctx, formatDate(readAny(answers, ["passport_issue_date"])), 178, 672, { size: 9 });
+    drawText(page2, ctx, formatDate(readAny(answers, ["passport_expiry_date", "passport_expiration_date"])), 387, 672, { size: 9 });
+    drawCheck(page2, ctx, yesNo(readAny(answers, ["has_other_passports"])) ? 223 : 145, 640);
+    drawCheck(page2, ctx, yesNo(readAny(answers, ["is_married", "marital_status"])) ? 306 : 146, 531);
+    drawWrapped(page2, ctx, readAny(answers, ["home_address", "current_address", "residential_address"]), 177, 361, 58, 2);
+    drawText(page2, ctx, readAny(answers, ["mobile_phone", "mobile_number", "telephone_number", "phone"]), 178, 326, { size: 9 });
+    drawText(page2, ctx, readAny(answers, ["email_address", "email"]), 362, 326, { size: 9, maxChars: 46 });
+  }
+
+  if (page3) {
+    drawCheck(page3, ctx, 143, 752);
+    drawText(page3, ctx, readAny(answers, ["occupation", "current_occupation"]), 177, 726, { size: 9 });
+    drawWrapped(page3, ctx, readAny(answers, ["employer_name", "school_name"]), 177, 695, 48, 1);
+    drawWrapped(page3, ctx, readAny(answers, ["employer_address", "school_address"]), 177, 668, 60, 2);
+    drawText(page3, ctx, readAny(answers, ["employer_phone", "school_phone"]), 177, 630, { size: 9 });
+    drawText(page3, ctx, "TOURISM / SHORT-TERM VISIT", 177, 548, { size: 9 });
+    drawText(page3, ctx, readAny(answers, ["intended_period_of_stay", "intended_length_of_stay"]), 194, 517, { size: 9 });
+    drawText(page3, ctx, formatDate(readAny(answers, ["intended_date_of_entry", "arrival_date"])), 388, 517, { size: 9 });
+    drawWrapped(page3, ctx, readAny(answers, ["address_in_korea", "accommodation_address"]), 177, 487, 58, 2);
+    drawText(page3, ctx, readAny(answers, ["contact_no_in_korea", "accommodation_phone"]), 388, 447, { size: 9 });
+    drawCheck(page3, ctx, yesNo(readAny(answers, ["visited_korea_last_5_years"])) ? 207 : 145, 414);
+    drawCheck(page3, ctx, yesNo(readAny(answers, ["travelled_other_countries_last_5_years"])) ? 207 : 145, 311);
+    drawCheck(page3, ctx, yesNo(readAny(answers, ["family_in_korea"])) ? 207 : 145, 191);
+  }
+
+  if (page4) {
+    drawCheck(page4, ctx, yesNo(readAny(answers, ["travelling_with_family"])) ? 207 : 145, 755);
+    drawCheck(page4, ctx, yesNo(readAny(answers, ["has_inviter", "inviter_name"])) ? 206 : 145, 530);
+    drawText(page4, ctx, readAny(answers, ["inviter_name", "inviter_full_name"]), 182, 502, { size: 9 });
+    drawWrapped(page4, ctx, readAny(answers, ["inviter_address"]), 182, 443, 58, 2);
+    drawText(page4, ctx, readAny(answers, ["inviter_phone"]), 182, 396, { size: 9 });
+    const funding = readAny(answers, ["trip_funding", "sponsor_name", "payer_name"]);
+    drawText(page4, ctx, funding || "SELF", 182, 276, { size: 9 });
+    drawText(page4, ctx, readAny(answers, ["estimated_travel_cost", "trip_budget"]), 412, 276, { size: 9 });
+  }
+
+  if (page5) {
+    drawCheck(page5, ctx, yesNo(readAny(answers, ["received_assistance"])) ? 207 : 145, 726);
+    drawText(page5, ctx, formatDate(readAny(answers, ["date_of_application"]) || new Date().toISOString().slice(0, 10)), 180, 203, { size: 9 });
+    drawText(
+      page5,
+      ctx,
+      [
+        readAny(answers, ["family_name", "surname", "last_name"]).toUpperCase(),
+        readAny(answers, ["given_names", "given_name", "first_name"]).toUpperCase(),
+      ].filter(Boolean).join(" "),
+      180,
+      176,
+      { size: 9 },
+    );
+    drawText(page5, ctx, `Recommended KVAC: ${routing.recommended.nameEn}`, 96, 90, { size: 7, maxChars: 72 });
+  }
+
+  return pdf.save();
 }
 
 export function validateAnnex17Answers(answers: KoreaAnswerMap): Annex17RequiredField[] {
@@ -111,6 +304,9 @@ export async function renderKoreaC39Annex17(
     const normalized = missingFields.join(", ");
     throw new Error(`Missing required Korea Annex-17 fields: ${normalized}`);
   }
+
+  const official = await renderOfficialTemplate(answers, options);
+  if (official) return official;
 
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);

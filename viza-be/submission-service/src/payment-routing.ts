@@ -148,7 +148,7 @@ const AGENCY_FEE_CENTS = 9900; // flat USD 99 (mirrors pricing.ts AGENCY_USD)
  * Full per-country fee table (mirrors viza-fe/internal-website/lib/pricing.ts +
  * the marketing mirror, MKT-006). Government fee is in the listed currency;
  * agency fee is USD. Kept here to avoid a cross-package import — edit
- * alongside pricing.ts. Covers all 16 launch countries.
+ * alongside pricing.ts. Covers all 17 launch countries.
  */
 export interface PackageFee {
   govtCents: number;
@@ -168,6 +168,7 @@ export const PACKAGE_FEES: Record<string, Record<string, PackageFee>> = {
   vietnam: { VN_E_VISA: { govtCents: 2500, currency: "USD" } },
   malaysia: { MY_TOURIST_E_VISA: { govtCents: 1500, currency: "USD" } },
   japan: { JP_TOURIST: { govtCents: 0, currency: "USD" } },
+  south_korea: { KR_C39_SHORT_TERM_VISIT: { govtCents: 0, currency: "USD" } },
   united_states: { B1_B2: { govtCents: 18500, currency: "USD" } },
   canada: { CA_TRV: { govtCents: 10000, currency: "CAD" } },
   turkey: { TR_E_VISA: { govtCents: 5000, currency: "USD" } },

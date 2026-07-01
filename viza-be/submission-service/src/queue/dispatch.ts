@@ -24,6 +24,7 @@ import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
 import { runOne as runMalaysia } from "../my/runner.js";
 import { runOne as runJapan } from "../jp/runner.js";
+import { runOne as runKorea } from "../kr/runner.js";
 import { runOne as runCanada } from "../ca/runner.js";
 import { runOne as runTurkey } from "../tr/runner.js";
 import { runOne as runThailand } from "../th/runner.js";
@@ -58,7 +59,7 @@ function unsupported(country: string): RunOne {
 
 /* --------------------------- Dispatch table --------------------------- */
 
-/** The 16 launch countries (canonical codes). */
+/** The 17 launch countries (canonical codes). */
 export const LAUNCH_COUNTRIES = [
   "indonesia",
   "egypt",
@@ -76,12 +77,13 @@ export const LAUNCH_COUNTRIES = [
   "france",
   "italy",
   "india",
+  "south_korea",
 ] as const;
 
 export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
 
 /**
- * Country → runOne. Includes the 16 launch countries plus the additional
+ * Country → runOne. Includes the 17 launch countries plus the additional
  * prefill-capable countries that already have runners (Sri Lanka, Cambodia,
  * Laos, South Africa). `united_states`, `united_kingdom`, `france`,
  * `australia` are halt-via-legacy-queue and get real runOne wrappers in
@@ -118,6 +120,8 @@ export const DISPATCH: Record<string, RunOne> = {
   saudi_arabia: (a, j) => runSaudi(a, j),
   // RUN-JP-001: Japan paper-pack runner (paper_ready terminal, no online submit).
   japan: (a, j) => runJapan(a, j),
+  // RUN-KR-001: Korea C-3-9 paper/KVAC readiness result; live e-Form remains gated.
+  south_korea: (a, j) => runKorea(a, j),
 };
 
 /**
@@ -145,6 +149,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   australia: { runner: "au/runner.runOne", implemented: true },
   saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
   japan: { runner: "jp/runner.runOne (paper_ready)", implemented: true },
+  south_korea: { runner: "kr/runner.runOne (form_ready_for_kvac)", implemented: true },
 };
 
 /**
@@ -165,6 +170,9 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   vn: "vietnam",
   my: "malaysia",
   jp: "japan",
+  kr: "south_korea",
+  kor: "south_korea",
+  korea: "south_korea",
   ca: "canada",
   tr: "turkey",
   th: "thailand",
