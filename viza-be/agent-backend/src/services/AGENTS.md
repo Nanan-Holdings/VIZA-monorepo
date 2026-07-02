@@ -21,6 +21,10 @@ conversation state, and other cross-route behavior.
 - `us-appointment/**`: U.S. B1/B2 appointment dry-run state machine,
   provider-detection metadata, manual checkpoints, slot/status models,
   redaction, and audit helpers.
+- `france-appointment/**`: France Schengen TLScontact China appointment service
+  over the shared `appointment_*` data model. Requires France-Visas reference
+  and user consent, enforces slot/status cooldowns, allows only user-selected
+  observed slots, and stores payment state as redacted metadata.
 - `korea-appointment/**`: Korea C-3-9 KVAC appointment service shell for
   slot observation, explicit user slot selection, and dry-run booking
   confirmation against the shared `appointment_*` data model.
@@ -59,6 +63,7 @@ one Schengen multi-country prompt.
 - `viza-be/agent-backend/src/socket/visa-namespace.ts`
 - `viza-be/agent-backend/src/services/internal-automation/AGENTS.md`
 - `viza-be/agent-backend/src/services/us-appointment/AGENTS.md`
+- `viza-be/agent-backend/src/services/france-appointment/*`
 - `viza-be/agent-backend/src/services/korea-appointment/*`
 - `viza-be/agent-backend/src/routes/field-guidance.routes.ts`
 - `viza-be/agent-backend/drizzle/0012_match_visa_chunks.sql`

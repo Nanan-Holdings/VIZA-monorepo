@@ -49,6 +49,11 @@ applicant info, and help pages.
   appointment assistant entry after official e-Form/fallback packet generation.
   It reads the recommended China KVAC center, lets users choose observed slots,
   and records dry-run booking confirmation only after explicit slot selection.
+- `applications/[applicationId]/france-appointment/page.tsx`: France Schengen
+  TLScontact China appointment assistant entry after France-Visas official
+  reference capture. It reads backend-observed TLS slots, keeps user slot
+  selection and final approval explicit, and records only redacted one-time TLS
+  service-fee authorization metadata.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 
@@ -70,6 +75,9 @@ applicant info, and help pages.
 - U.S. appointment component internals are governed by
   `components/client/us-appointment/AGENTS.md`; browser API helpers are governed
   by `lib/us-appointment/AGENTS.md`.
+- France appointment component internals are governed by
+  `components/client/france-appointment/AGENTS.md`; browser API helpers and
+  TLS China center options are governed by `lib/france-appointment/AGENTS.md`.
 - Korea appointment component internals live in
   `components/client/korea-appointment/**`; official e-Form status lives under
   `app/api/applications/[id]/korea-official-eform/**`; KVAC routing and fallback
@@ -111,9 +119,12 @@ accessible component state.
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/us-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/page.tsx`
+- `viza-fe/internal-website/app/client/applications/[applicationId]/france-appointment/page.tsx`
 - `viza-fe/internal-website/components/client/us-appointment/AGENTS.md`
+- `viza-fe/internal-website/components/client/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/components/client/korea-appointment/KoreaAppointmentAssistant.tsx`
 - `viza-fe/internal-website/lib/us-appointment/AGENTS.md`
+- `viza-fe/internal-website/lib/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/lib/korea-c39/*`
 - `viza-fe/internal-website/app/actions/client-auth.ts`
 - `viza-fe/internal-website/app/actions/form-requests.ts`

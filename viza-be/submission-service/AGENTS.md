@@ -72,8 +72,10 @@ filling and one-shot submission for the applicant.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
-  flags and safety validation. Dry-run is the default; live assisted is visible
-  browser only and blocks final validation, payment, and appointment booking.
+  flags and safety validation. Dry-run is the default; France-Visas live
+  assisted is visible-browser only and blocks final validation/payment/booking;
+  TLS appointment/payment require separate explicit
+  `FRANCE_TLS_APPOINTMENT_ENABLED` and `FRANCE_TLS_PAYMENT_ENABLED` gates.
 - `src/form-mappings.ts`: Indonesian e-visa portal selectors.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
@@ -83,6 +85,12 @@ filling and one-shot submission for the applicant.
   reference capture, optional CERFA PDF finalization, standard Chromium launch,
   VIZA-alias account registration, registration CAPTCHA solving when explicitly
   enabled, manual checkpoints, and typed failures.
+- `src/france-tls/**`: TLScontact China appointment scaffold for France
+  Schengen. Keeps the mainland China center registry in one provider, models
+  selector/page boundaries, reads backend-observed slots, consumes short-TTL
+  payment sessions, clears sensitive PAN/CVV after use, and must capture
+  redacted confirmation/payment evidence only after explicit user slot,
+  payment, and final approval.
 - `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
   alias provisioning and inbound-email verification-link extraction for
   official account registration.
@@ -224,7 +232,7 @@ filling and one-shot submission for the applicant.
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses CAPTCHA solving when needed, and completes applicant Sign/Submit as part of one-shot submission. |
 | US B1/B2 appointment / China USVisaScheduling | Assisted-live gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; reads VIZA-created appointment account credentials, automates supported login/account-prep and official slot/status observation, books only after user slot selection plus payment/final approval, and must handle supported CAPTCHA, waiting rooms, policy warnings, and approval checkpoints without hiding unsupported gates or skipping user slot selection/payment/final VIZA approval. |
-| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
+| France Schengen | Live assisted gated + TLS appointment scaffold | Dry-run by default; France-Visas live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation/payment/booking. TLScontact China appointment/payment require separate explicit env gates, use the shared mainland China center registry, and book only after backend slot observation, user slot selection, one-time payment authorization, and final approval. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 + gated payment pilot | Fills form and stops before Pay/Submit by default; captures registration code when portal review is reached. With explicit VIZA official-fee authorization plus fixed-card pilot env flags, may continue from the official payment page until paid or a 3DS/OTP/unknown-gateway manual checkpoint appears. |
 | Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
@@ -241,6 +249,12 @@ filling and one-shot submission for the applicant.
   account-registration flow guarded by `FRANCE_ACCOUNT_REGISTRATION_ENABLED`
   and `FRANCE_REGISTRATION_2CAPTCHA_ENABLED`; login risk challenges and
   anti-bot/Cloudflare gates remain manual checkpoints.
+- France TLS service-fee payment sessions must be short TTL, in-memory/local
+  handoffs. Do not persist full card numbers, CVV, OTP, payment passwords, or
+  official TLS cookies to DB, logs, traces, screenshots, `.env`, or AGENTS.
+- France TLS live booking must not bypass unsupported official-site MFA,
+  real-name, WAF, policy, or payment-challenge gates. Stop with structured
+  checkpoint/error evidence instead of marking success.
 - Keep Playwright selectors isolated in mapping files where possible.
 - Keep retries and queue status transitions explicit.
 - Do not move AI/RAG logic here; use `agent-backend`.
@@ -329,6 +343,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
+- `viza-be/submission-service/src/france-tls/*`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
 - `viza-be/agent-backend/src/db/schema.ts`
 - `docs/prd-ds160-ceac-runtime-validation.md`

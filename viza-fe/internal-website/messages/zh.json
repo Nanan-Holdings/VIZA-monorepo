@@ -4976,5 +4976,148 @@
       "button": "打开预约助手",
       "badge": "Assisted live"
     }
+  },
+  "franceAppointment": {
+    "page": {
+      "eyebrow": "法国申根预约助手",
+      "title": "TLScontact 预约设置",
+      "subtitle": "在 VIZA 已取得 France-Visas 官方申请编号后，读取 TLScontact 中国大陆名额，由用户选择后端刚观察到的时段，记录一次性 TLS 服务费授权，并在最终确认后请求官网预约。"
+    },
+    "loading": "正在加载法国预约助手...",
+    "errorTitle": "法国预约助手需要处理",
+    "dryRunNoticeTitle": "TLS 中国受控流程",
+    "dryRunNotice": "该流程只会在用户明确操作后运行。VIZA 通过后端读取 TLScontact 名额，不替申请人随意选位；遇到不支持自动化的官网风控、MFA、实名或支付挑战时会暂停。 ",
+    "errors": {
+      "generic": "法国预约请求暂时无法完成，请稍后重试。",
+      "withCode": "法国预约请求暂时无法完成。参考代码：{code}。",
+      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，或 SUPABASE_URL 和 SUPABASE_ANON_KEY，然后重启后端。",
+      "appointmentSchemaNotConfigured": "预约服务的数据库表尚未部署。请先执行预约助手迁移，然后重启后端。"
+    },
+    "modes": {
+      "dry_run": "Dry run 演练",
+      "assisted_live": "人工辅助 live",
+      "manual": "手动"
+    },
+    "statusLabels": {
+      "appointment_not_started": "未开始",
+      "appointment_consent_required": "需要授权",
+      "appointment_consent_received": "已收到授权",
+      "appointment_account_required": "需要 TLS 账号",
+      "appointment_account_creation_started": "TLS 账号设置已开始",
+      "appointment_email_verification_required": "邮箱验证节点",
+      "appointment_login_required": "登录节点",
+      "appointment_captcha_required": "CAPTCHA 节点",
+      "appointment_profile_fill_in_progress": "资料填写进行中",
+      "appointment_profile_filled": "资料填写完成",
+      "appointment_ds160_linked": "France-Visas 编号已关联",
+      "appointment_payment_required": "需要 TLS 服务费授权",
+      "appointment_payment_in_progress": "付款处理中",
+      "appointment_payment_completed": "付款授权已记录",
+      "appointment_calendar_opened": "日历已打开",
+      "appointment_slots_observed": "已发现名额",
+      "appointment_no_slots_available": "暂无名额",
+      "appointment_slot_selection_required": "需要选择名额",
+      "appointment_slot_selected": "已选择名额",
+      "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_booked": "已请求预约",
+      "appointment_confirmation_captured": "官方确认已记录",
+      "appointment_status_check_in_progress": "状态检查中",
+      "appointment_status_checked": "状态已检查",
+      "appointment_manual_required": "需要人工处理",
+      "appointment_blocked_by_site_policy": "因网站政策暂停",
+      "appointment_failed": "失败",
+      "appointment_cancelled": "已取消"
+    },
+    "centers": {
+      "beijing": "北京",
+      "guangzhou": "广州",
+      "chengdu": "成都",
+      "shanghai": "上海",
+      "shenyang": "沈阳",
+      "wuhan": "武汉",
+      "chongqing": "重庆",
+      "changsha": "长沙",
+      "fuzhou": "福州",
+      "hangzhou": "杭州",
+      "kunming": "昆明",
+      "nanjing": "南京",
+      "shenzhen": "深圳",
+      "jinan": "济南",
+      "xian": "西安"
+    },
+    "setup": {
+      "title": "TLS 设置",
+      "center": "TLScontact 中心",
+      "referenceHint": "创建 TLS 预约任务前必须已有 France-Visas 官方申请编号；如编号缺失，后端会阻止任务创建。",
+      "createJob": "开始法国预约助手",
+      "jobCreated": "预约任务已创建",
+      "recordConsent": "记录授权",
+      "consentRequiredError": "请先阅读并同意授权说明。"
+    },
+    "consent": {
+      "title": "授权与边界",
+      "body1": "VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。",
+      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。",
+      "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
+    },
+    "panel": {
+      "title": "预约 runner",
+      "noJob": "请在授权并选择中心后开始。打开本页只读取状态，不会自动创建或重跑 TLS 任务。",
+      "progressBody": "后端从 VIZA 表读取最新预约状态；TLS 名额检查只会在用户触发且满足后端 cooldown 后运行。",
+      "provider": "预约平台",
+      "providerUnknown": "待识别",
+      "mode": "模式",
+      "run": "运行第一步",
+      "checkSlots": "检查名额",
+      "cancel": "取消"
+    },
+    "slots": {
+      "title": "发现的 TLS 名额",
+      "empty": "后端尚未返回 TLS 可预约时间。请先开始助手，再在需要时点击检查名额。",
+      "noSlots": "TLScontact 返回暂无可预约名额。只有在您明确点击检查名额时才会再次检查。",
+      "choose": "选择",
+      "selected": "已选择",
+      "observedAt": "发现时间 {value}",
+      "observedPending": "发现时间待定",
+      "datePending": "日期待定",
+      "timePending": "时间待定",
+      "locationPending": "地点待定",
+      "slotLine": "{date} {time}"
+    },
+    "payment": {
+      "title": "一次性 TLS 服务费授权",
+      "body": "这里仅记录脱敏后的支付授权交接状态。完整卡号、CVV、OTP 和支付密码不得进入 VIZA 数据库、日志、截图或浏览器状态接口。",
+      "brand": "卡组织",
+      "brandPlaceholder": "Visa",
+      "last4": "后四位",
+      "expMonth": "有效期月份",
+      "expYear": "有效期年份",
+      "record": "记录授权",
+      "authorized": "授权已记录",
+      "validation": "请输入后四位、有效期月份和四位有效期年份。"
+    },
+    "final": {
+      "title": "最终确认",
+      "requirement": "请先选择一个已发现的 TLS 名额，再进行最终确认。",
+      "selected": "已选名额：{date} {time}。请复核 TLS 时间和支付授权后再确认。",
+      "approve": "批准最终步骤",
+      "book": "请求官方预约",
+      "approvedBadge": "已批准"
+    },
+    "results": {
+      "title": "结果",
+      "none": "尚未记录 TLS 官方预约确认。",
+      "confirmationNumber": "官方确认号",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "中心",
+      "captured": "官方证据已记录"
+    },
+    "nextStepCard": {
+      "title": "下一步：TLS 预约",
+      "body": "继续进入 TLScontact 中国预约设置，保留用户触发名额检查、明确选位、一次性支付授权和最终批准。",
+      "button": "打开 TLS 预约助手",
+      "badge": "TLScontact 中国"
+    }
   }
 }

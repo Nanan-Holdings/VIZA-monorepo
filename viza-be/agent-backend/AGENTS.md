@@ -41,6 +41,13 @@ explicitly reintroduces another provider.
   `submission-service`; `agent-backend` must keep browser automation out of
   this service and preserve explicit user slot selection plus payment/final
   approval actions.
+- France Schengen TLS appointment assistant:
+  `src/routes/france-appointment.routes.ts` and
+  `src/services/france-appointment/**`. Reuses the shared `appointment_*`
+  tables for mainland China `TLSCONTACT_CN_FR`, requires France-Visas official
+  reference plus user consent, enforces slot/status cooldowns, exposes only
+  safe slot/confirmation/account metadata, and stores TLS payment authorization
+  as redacted metadata only.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
@@ -64,7 +71,8 @@ explicitly reintroduces another provider.
   uncertain.
 - Do not move browser automation into this service; official portal automation,
   CAPTCHA handling, proxy/fingerprint handling, and runner artifacts belong
-  outside this website automation scope. The U.S. appointment assistant may
+  outside this website automation scope. The U.S. and France appointment
+  assistants may
   create/link appointment account records and model checkpoint state, but
   actual login, official account registration, CAPTCHA/MFA/email handling,
   waiting-room/rate-limit handling, and slot capture belong in
@@ -105,9 +113,11 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/routes/internal-automation/*`
 - `src/routes/official-fee.routes.ts`
 - `src/routes/us-appointment.routes.ts`
+- `src/routes/france-appointment.routes.ts`
 - `src/services/internal-automation/*`
 - `src/services/official-fee/*`
 - `src/services/us-appointment/*`
+- `src/services/france-appointment/*`
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`

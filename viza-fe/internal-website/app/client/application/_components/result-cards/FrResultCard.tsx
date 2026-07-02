@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLocale } from "next-intl";
+import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertTriangle,
   CalendarCheck,
@@ -42,6 +43,7 @@ type FvOfficialAccount = {
 
 export function FrResultCard({ applicationId, result }: FrResultCardProps) {
   const isZh = isChineseLocale(useLocale());
+  const appointmentT = useTranslations("franceAppointment.nextStepCard");
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
@@ -344,6 +346,24 @@ export function FrResultCard({ applicationId, result }: FrResultCardProps) {
             {accountError && (
               <p className="text-sm text-red-700">{accountError}</p>
             )}
+          </div>
+        )}
+
+        {displayedApplicationReference && (
+          <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-brand-700">
+              <CalendarCheck className="h-4 w-4" />
+              {appointmentT("title")}
+              <Badge variant="secondary">{appointmentT("badge")}</Badge>
+            </div>
+            <p className="text-sm leading-relaxed text-brand-950">
+              {appointmentT("body")}
+            </p>
+            <Button asChild className="w-full">
+              <Link href={`/client/applications/${applicationId}/france-appointment`}>
+                {appointmentT("button")}
+              </Link>
+            </Button>
           </div>
         )}
 
