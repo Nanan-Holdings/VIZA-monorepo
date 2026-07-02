@@ -1,6 +1,10 @@
 import * as http from "node:http";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
+import { chromium } from "playwright";
+import { runKoreaOfficialEform, runKoreaOfficialEformLiveFill } from "./korea-eform/runner.js";
 import {
   completeKoreaKvacOfficialBooking,
   startKoreaKvacOfficialSmsSession,
@@ -193,10 +197,67 @@ async function handleKoreaKvacSmsComplete(req: http.IncomingMessage, res: http.S
             appointment_time: typeof selectedSlot.appointment_time === "string" ? selectedSlot.appointment_time : null,
             appointment_location: typeof selectedSlot.appointment_location === "string" ? selectedSlot.appointment_location : null,
             appointment_type: typeof selectedSlot.appointment_type === "string" ? selectedSlot.appointment_type : null,
+            departure_date: typeof selectedSlot.departure_date === "string" ? selectedSlot.departure_date : null,
           }
         : null,
     });
     sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleKoreaEformGenerate(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 131072)) as Record<string, unknown>;
+    const answers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers)
+      ? (body.answers as Record<string, string | null | undefined>)
+      : {};
+    const input = {
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      answers,
+      officialPdfStoragePath: typeof body.officialPdfStoragePath === "string" ? body.officialPdfStoragePath : null,
+      finalReviewApproved: body.finalReviewApproved === true,
+    };
+
+    if (!envEnabled(process.env.KR_VISA_PORTAL_EFORM_LIVE_ENABLED)) {
+      sendJson(res, 200, { ok: true, ...(await runKoreaOfficialEform(input)) });
+      return;
+    }
+
+    const headless = !envEnabled(process.env.KR_VISA_PORTAL_EFORM_HEADFUL);
+    const browser = await chromium.launch({ headless });
+    try {
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+      const result = await runKoreaOfficialEformLiveFill(page, input);
+      if (result.status === "manual_required") {
+        const evidenceDir = path.resolve(process.cwd(), "output", "playwright");
+        await fs.mkdir(evidenceDir, { recursive: true });
+        const screenshotPath = path.join(evidenceDir, `korea-eform-${input.applicationId}-filled.png`);
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        sendJson(res, 200, {
+          ok: true,
+          ...result,
+          evidence: {
+            ...result.evidence,
+            screenshotPath,
+          },
+        });
+        return;
+      }
+      sendJson(res, 200, { ok: true, ...result });
+    } finally {
+      await browser.close();
+    }
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }
@@ -270,6 +331,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleKoreaKvacSmsComplete(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/local/korea-eform/generate") {
+      void handleKoreaEformGenerate(req, res);
+      return;
+    }
     if (req.method === "POST" && url === "/local/france-tls/check-slots") {
       void handleFranceTlsCheckSlots(req, res);
       return;
@@ -310,6 +375,22 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/local/korea-eform/generate") {
+      if (!envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isLocalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, {
+        ok: true,
+        enabled: true,
+        liveEnabled: envEnabled(process.env.KR_VISA_PORTAL_EFORM_LIVE_ENABLED),
+      });
+      return;
+    }
     if (req.method === "GET" && url === "/local/france-tls/check-slots") {
       if (!envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) {
         sendJson(res, 404, { error: "not_found" });
@@ -330,6 +411,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/vietnam/card-session");
     if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
+    if (envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) endpoints.push("/local/korea-eform/generate");
     if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);

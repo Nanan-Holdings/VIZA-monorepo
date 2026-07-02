@@ -50,6 +50,7 @@ export type KoreaOfficialEformResult =
       evidence?: {
         filledSelectors?: string[];
         missingUploads?: string[];
+        screenshotPath?: string;
       };
     }
   | {

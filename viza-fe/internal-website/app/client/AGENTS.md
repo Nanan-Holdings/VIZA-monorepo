@@ -49,6 +49,9 @@ applicant info, and help pages.
   appointment assistant entry after official e-Form/fallback packet generation.
   It reads the recommended China KVAC center, lets users choose observed slots,
   and records dry-run booking confirmation only after explicit slot selection.
+- `applications/[applicationId]/korea-appointment/rules/page.tsx`: Korea C-3-9
+  rule detail page for recommended KVAC/consular routing, walk-in notes,
+  official-source links, and alternative mainland China channels.
 - `applications/[applicationId]/france-appointment/page.tsx`: France Schengen
   TLScontact China appointment assistant entry after France-Visas official
   reference capture. It reads backend-observed TLS slots, keeps user slot
@@ -119,10 +122,12 @@ accessible component state.
 - `viza-fe/internal-website/app/client/travel-chat/travel-chat-client.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/us-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/page.tsx`
+- `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/rules/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/france-appointment/page.tsx`
 - `viza-fe/internal-website/components/client/us-appointment/AGENTS.md`
 - `viza-fe/internal-website/components/client/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/components/client/korea-appointment/KoreaAppointmentAssistant.tsx`
+- `viza-fe/internal-website/components/client/korea-appointment/KoreaAppointmentRules.tsx`
 - `viza-fe/internal-website/lib/us-appointment/AGENTS.md`
 - `viza-fe/internal-website/lib/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/lib/korea-c39/*`
