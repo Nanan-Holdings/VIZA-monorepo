@@ -17,6 +17,7 @@ import {
   type AppointmentAccountCredentials,
 } from "../runner";
 import {
+  buildUSVisaSchedulingUsername,
   classifyUSVisaSchedulingGateText,
   US_VISA_SCHEDULING_SELECTORS,
 } from "../usvisascheduling-portal";
@@ -201,6 +202,14 @@ test("USVisaScheduling selectors avoid mixed text-engine comma lists", () => {
       `${name} mixes Playwright text selectors into a CSS selector list`,
     );
   }
+});
+
+test("USVisaScheduling registration username is deterministic and not an email address", () => {
+  const username = buildUSVisaSchedulingUsername("Applicant.Example+US@Example.COM");
+
+  assert.match(username, /^viza[a-f0-9]{16}$/);
+  assert.equal(username.includes("@"), false);
+  assert.equal(username, buildUSVisaSchedulingUsername("applicant.example+us@example.com"));
 });
 
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {

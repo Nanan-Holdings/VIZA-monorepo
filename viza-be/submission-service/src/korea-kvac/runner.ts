@@ -106,14 +106,6 @@ export async function runKoreaKvacLive(
     };
   }
 
-  if (!input.selectedSlotId) {
-    return {
-      status: "manual_required",
-      manualActionType: "appointment_slot_selection_required",
-      message: "Korea KVAC live booking requires the applicant to choose an observed appointment slot before the worker books.",
-    };
-  }
-
   if (!input.smsCodeProvided) {
     return {
       status: "manual_required",
@@ -128,6 +120,15 @@ export async function runKoreaKvacLive(
           smsCode: { type: "string", minLength: 4, maxLength: 8, pattern: "^[0-9]+$" },
         },
       },
+    };
+  }
+
+  if (!input.selectedSlotId) {
+    return {
+      status: "manual_required",
+      manualActionType: "appointment_slot_selection_required",
+      message:
+        "The SMS checkpoint is satisfied. Continue the official KVAC session to observe slots, then ask the applicant to choose one before booking.",
     };
   }
 

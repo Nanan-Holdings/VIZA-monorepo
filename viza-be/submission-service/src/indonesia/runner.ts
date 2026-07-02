@@ -409,8 +409,12 @@ async function setFilesWithFallbackSelectors(
 ): Promise<boolean> {
   if (!clean(filePath)) return false;
   const triedSelectors = new Set(explicitSelectors);
+  let uploaded = false;
   for (const selector of triedSelectors) {
-    if (await setFilesIfPresent(page, selector, filePath)) return true;
+    uploaded = await setFilesIfPresent(page, selector, filePath) || uploaded;
+  }
+  if (uploaded) {
+    return true;
   }
 
   const fallbackSelectors = await page
@@ -439,9 +443,9 @@ async function setFilesWithFallbackSelectors(
     }, fallbackHints)
     .catch(() => []);
   for (const selector of fallbackSelectors) {
-    if (await setFilesIfPresent(page, selector, filePath)) return true;
+    uploaded = await setFilesIfPresent(page, selector, filePath) || uploaded;
   }
-  return false;
+  return uploaded;
 }
 
 async function clickIfPresent(page: Page, selector: string): Promise<boolean> {
@@ -602,7 +606,13 @@ async function fillPostalCodeAndWaitForAddress(page: Page, postalCode: string | 
   return true;
 }
 
-async function waitForHiddenValue(page: Page, selector: string, diagnostics: string[], label: string): Promise<boolean> {
+async function waitForHiddenValue(
+  page: Page,
+  selector: string,
+  diagnostics: string[],
+  label: string,
+  timeoutMs = 35_000,
+): Promise<boolean> {
   const ready = await page
     .waitForFunction(
       (css) => {
@@ -610,7 +620,7 @@ async function waitForHiddenValue(page: Page, selector: string, diagnostics: str
         return Boolean(input?.value?.trim());
       },
       selector,
-      { timeout: 35_000, polling: 500 },
+      { timeout: timeoutMs, polling: 500 },
     )
     .then(() => true)
     .catch(() => false);
@@ -640,6 +650,28 @@ async function waitForAnyHiddenValue(
   return ready;
 }
 
+async function waitForAnyUploadValue(
+  page: Page,
+  selectors: string[],
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const ready = await page
+    .waitForFunction(
+      (cssSelectors) =>
+        cssSelectors.some((css) => {
+          const input = document.querySelector<HTMLInputElement>(css);
+          return Boolean(input?.files?.length || input?.value?.trim());
+        }),
+      selectors,
+      { timeout: 35_000, polling: 500 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  diagnostics.push(`${label}_${ready ? "ready" : "not_ready"}`);
+  return ready;
+}
+
 async function syncUploadHiddenFallback(
   page: Page,
   fileSelectors: string[],
@@ -659,7 +691,7 @@ async function syncUploadHiddenFallback(
       let count = 0;
       for (const selector of nextHiddenSelectors) {
         const input = document.querySelector<HTMLInputElement>(selector);
-        if (!input || input.value.trim()) continue;
+        if (!input || input.value.trim() || input.type === "file") continue;
         input.value = fileName;
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -670,6 +702,202 @@ async function syncUploadHiddenFallback(
     .catch(() => 0);
   diagnostics.push(`${label}_hidden_fallback_${changed > 0 ? `set_${changed}` : "skipped"}`);
   return changed > 0;
+}
+
+async function assignBrowserFileToInputs(
+  page: Page,
+  filePath: string,
+  selectors: string[],
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const cleaned = clean(filePath);
+  if (!cleaned) return false;
+  const ext = path.extname(cleaned).toLowerCase();
+  const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  const payload = {
+    selectors,
+    name: path.basename(cleaned),
+    mime,
+    base64: fs.readFileSync(cleaned).toString("base64"),
+  };
+  const assigned = await page
+    .evaluate(({ selectors: cssSelectors, name, mime, base64 }) => {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      let count = 0;
+      for (const css of cssSelectors) {
+        const input = document.querySelector<HTMLInputElement>(css);
+        if (!input || input.type !== "file") continue;
+        const file = new File([bytes], name, { type: mime, lastModified: Date.now() });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        input.dispatchEvent(new Event("blur", { bubbles: true }));
+        count += input.files?.length ? 1 : 0;
+      }
+      return count;
+    }, payload)
+    .catch(() => 0);
+  diagnostics.push(`${label}_browser_file_assign_${assigned}`);
+  return assigned > 0;
+}
+
+async function snapshotUploadInputs(page: Page, selectors: string[], diagnostics: string[], label: string): Promise<void> {
+  const flags = await page
+    .evaluate((cssSelectors) =>
+      cssSelectors.map((css) => {
+        const input = document.querySelector<HTMLInputElement>(css);
+        if (!input) return `${css}=missing`;
+        return `${css}=type:${input.type || "?"},files:${input.files?.length ?? 0},value:${input.value ? "set" : "empty"}`;
+      }),
+    selectors)
+    .catch(() => []);
+  diagnostics.push(`${label}_snapshot ${flags.join(",") || "unavailable"}`);
+}
+
+async function completeIndonesiaPassportBiodataUpload(
+  page: Page,
+  passportPath: string,
+  diagnostics: string[],
+): Promise<boolean> {
+  await setFilesWithFallbackSelectors(
+    page,
+    passportPath,
+    [
+      "#passport-attachment",
+      "#initial_file",
+      "#path_attachment",
+      "#path_attachment_crop",
+      "#attachment-crop",
+      "#attachment",
+    ],
+    ["passport", "biografi", "passport_page", "passport copy", "bio"],
+  );
+  await dismissIndonesiaDialogs(page, diagnostics);
+
+  const hiddenFileInputsReady = await waitForAnyUploadValue(
+    page,
+    ["#path_attachment", "#path_attachment_crop"],
+    diagnostics,
+    "indonesia_step_1_passport_hidden_file_upload",
+  );
+  if (!hiddenFileInputsReady) {
+    await setFilesIfPresent(page, "#path_attachment", passportPath);
+    await setFilesIfPresent(page, "#path_attachment_crop", passportPath);
+    await assignBrowserFileToInputs(
+      page,
+      passportPath,
+      ["#path_attachment", "#path_attachment_crop"],
+      diagnostics,
+      "indonesia_step_1_passport_hidden",
+    );
+    await dismissIndonesiaDialogs(page, diagnostics);
+  }
+  await snapshotUploadInputs(
+    page,
+    ["#passport-attachment", "#initial_file", "#path_attachment", "#path_attachment_crop"],
+    diagnostics,
+    "indonesia_step_1_passport",
+  );
+
+  const ready = await waitForAnyUploadValue(
+    page,
+    ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
+    diagnostics,
+    "indonesia_step_1_passport_upload",
+  );
+  await syncUploadHiddenFallback(
+    page,
+    ["#passport-attachment", "#initial_file", "#attachment-crop", "#attachment"],
+    ready
+      ? ["#attachment-files", "#path_passport", "#path_upload", "#passport_file"]
+      : ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
+    diagnostics,
+    "indonesia_step_1_passport_upload",
+  );
+  return ready || await waitForAnyUploadValue(
+    page,
+    ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
+    diagnostics,
+    "indonesia_step_1_passport_upload_after_fallback",
+  );
+}
+
+async function waitForIndonesiaMrzScannerReady(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  const scannerReady = await page
+    .waitForFunction(
+      () => {
+        try {
+          return Boolean(eval("typeof scannerPayload !== 'undefined' && scannerPayload"));
+        } catch {
+          return false;
+        }
+      },
+      undefined,
+      { timeout: 90_000, polling: 1_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (scannerReady) {
+    diagnostics.push("indonesia_step_1_mrz_scanner_payload_ready");
+    await dismissIndonesiaDialogs(page, diagnostics);
+    return true;
+  }
+
+  const fallbackEnabled = process.env.INDONESIA_MRZ_FALLBACK_FROM_APPLICATION !== "false";
+  if (!fallbackEnabled) {
+    diagnostics.push("indonesia_step_1_mrz_scanner_payload_not_ready");
+    return false;
+  }
+
+  const application = input.application;
+  const source = input.registration ?? application;
+  if (!source) {
+    diagnostics.push("indonesia_step_1_mrz_scanner_payload_fallback_missing_profile");
+    return false;
+  }
+  const nameParts = (source.fullName ?? application?.fullName ?? "")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const fallbackPayload = {
+    documentNumber: source.passportNumber,
+    dateOfBirth: source.dateOfBirth,
+    dateOfExpiry: source.passportExpiryDate,
+    firstName: nameParts[0] ?? source.fullName ?? null,
+    lastName: nameParts.length > 1 ? nameParts.slice(1).join(" ") : "",
+    nationality: source.passportCountry,
+    issuingState: source.passportCountry,
+    sex: source.gender,
+    mrzText: null,
+  };
+  const injected = await page
+    .evaluate((payload) => {
+      try {
+        eval("scannerPayload = arguments[0]");
+        eval("mrzInvalidCount = 0");
+        eval("skipMRZ = false");
+        return true;
+      } catch {
+        try {
+          eval("skipMRZ = true");
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }, { ...fallbackPayload, email: application?.email ?? input.accountEmail })
+    .catch(() => false);
+  diagnostics.push(`indonesia_step_1_mrz_scanner_payload_fallback_${injected ? "set" : "failed"}`);
+  return injected;
 }
 
 async function captureRegistrationArtifact(
@@ -686,6 +914,50 @@ async function captureRegistrationArtifact(
   fs.writeFileSync(htmlPath, await page.content().catch(() => ""));
   await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => undefined);
   diagnostics.push(`indonesia_account_registration_artifact ${dir}`);
+}
+
+async function captureStepOneArtifact(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<void> {
+  try {
+    const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
+      .replace(/[^a-zA-Z0-9_-]/g, "_");
+    const dir = path.resolve("diag-out", "indonesia-step-1", applicationId);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "step-1.html"), await page.content().catch(() => ""));
+    const fieldSnapshot = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea"))
+          .filter((control) => /passport|picture|photo|attachment|file|path|crop|initial/i.test(`${control.id} ${control.name} ${control.className}`))
+          .map((control) => {
+            const input = control as HTMLInputElement;
+            return {
+              tag: control.tagName.toLowerCase(),
+              id: control.id,
+              name: control.getAttribute("name"),
+              type: input.type,
+              classes: control.className,
+              accept: input.accept,
+              required: control.required,
+              hasValue: Boolean(String(control.value ?? "").trim()),
+              valueLength: String(control.value ?? "").length,
+              fileCount: input.files?.length ?? 0,
+              onchange: control.getAttribute("onchange"),
+              data: Array.from(control.attributes)
+                .filter((attr) => attr.name.startsWith("data-") || /url|upload|crop|path/i.test(attr.name))
+                .map((attr) => [attr.name, attr.value]),
+            };
+          }),
+      )
+      .catch((error: unknown) => [{ error: error instanceof Error ? error.message : String(error) }]);
+    fs.writeFileSync(path.join(dir, "fields.json"), JSON.stringify(fieldSnapshot, null, 2));
+    await page.screenshot({ path: path.join(dir, "step-1.png"), fullPage: true }).catch(() => undefined);
+    diagnostics.push(`indonesia_step_1_artifact ${dir}`);
+  } catch (error) {
+    diagnostics.push(`indonesia_step_1_artifact_failed ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function decodeQuotedPrintable(value: string): string {
@@ -1122,28 +1394,8 @@ async function continueFromApplicationStepOne(
     url: page.url(),
     title: await page.title().catch(() => null),
   });
-  await setFilesWithFallbackSelectors(
-    page,
-    passportPath,
-    ["#passport-attachment", "#initial_file", "#attachment-crop", "#attachment"],
-    ["passport", "biografi", "passport_page", "passport copy", "bio"],
-  );
-  await dismissIndonesiaDialogs(page, diagnostics);
-  const passportUploadReady = await waitForAnyHiddenValue(
-    page,
-    ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
-    diagnostics,
-    "indonesia_step_1_passport_upload",
-  );
-  await syncUploadHiddenFallback(
-    page,
-    ["#passport-attachment", "#initial_file", "#attachment-crop", "#attachment"],
-    passportUploadReady
-      ? ["#path_attachment", "#path_attachment_crop"]
-      : ["#path_attachment", "#path_attachment_crop", "#attachment-files", "#path_passport", "#path_upload", "#passport_file"],
-    diagnostics,
-    "indonesia_step_1_passport_upload",
-  );
+  await completeIndonesiaPassportBiodataUpload(page, passportPath, diagnostics);
+  await waitForIndonesiaMrzScannerReady(page, input, diagnostics);
 
   await input.onStage?.("step_1_uploading_photo", {
     url: page.url(),
@@ -1155,7 +1407,7 @@ async function continueFromApplicationStepOne(
     ["#picture", "#photo", "#photo_attachment"],
     ["photo", "foto", "applicant_photo", "profile_photo"],
   );
-  const photoUploadReady = await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload");
+  const photoUploadReady = await waitForHiddenValue(page, "#path_photo", diagnostics, "indonesia_step_1_photo_upload", 12_000);
   if (!photoUploadReady) {
     await syncUploadHiddenFallback(
       page,
@@ -1165,6 +1417,17 @@ async function continueFromApplicationStepOne(
       "indonesia_step_1_photo_upload",
     );
   }
+  await snapshotUploadInputs(
+    page,
+    ["#picture", "#path_photo"],
+    diagnostics,
+    "indonesia_step_1_photo",
+  );
+  await input.onStage?.("step_1_photo_ready", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
+  await fillIndonesiaStayAndSupportFieldsIfPresent(page, input, diagnostics, "indonesia_step_1");
   await dismissIndonesiaDialogs(page, diagnostics);
 
   const next = page.locator("#btn-submit").first();
@@ -1183,6 +1446,21 @@ async function continueFromApplicationStepOne(
       if (!fallbackClicked) {
         diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
       }
+      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 10_000 }).catch(() => undefined);
+    }
+    if (/\/step_1\b/i.test(page.url())) {
+      await submitIndonesiaStepOneFormFallback(page, diagnostics);
+      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 15_000 }).catch(() => undefined);
+      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+      await page.waitForTimeout(3_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
+    }
+    if (/\/step_1\b/i.test(page.url())) {
+      await submitIndonesiaStepOneOfficialAjax(page, input, diagnostics);
+      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 20_000 }).catch(() => undefined);
+      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+      await page.waitForTimeout(3_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
     }
     if (/\/step_1\b/i.test(page.url())) {
       const invalidControls = await visibleInvalidControlNames(page);
@@ -1191,10 +1469,12 @@ async function continueFromApplicationStepOne(
       } else {
         diagnostics.push("indonesia_step_1_still_visible_after_next");
       }
+      await captureStepOneArtifact(page, input, diagnostics);
       const debugSummary = await collectIndonesiaStepOneDebugSummary(page);
       for (const entry of debugSummary) {
         diagnostics.push(entry);
       }
+      diagnostics.push("indonesia_step_1_debug_after_artifact_v2");
       await input.onStage?.("step_1_validation_blocked", {
         url: page.url(),
         title: await page.title().catch(() => null),
@@ -1202,9 +1482,41 @@ async function continueFromApplicationStepOne(
       return false;
     }
     diagnostics.push("indonesia_step_1_uploaded_and_advanced");
+    await page.waitForURL((nextUrl) => /\/step_[23]\b|\/web\/applications\/.+\/list\b/i.test(nextUrl.toString()), {
+      timeout: 10_000,
+    }).catch(() => undefined);
+    await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+    const chainedStepTwo = await continueFromApplicationStepTwo(page, input, diagnostics);
+    if (!chainedStepTwo) {
+      diagnostics.push(`indonesia_step_1_chain_step_2_not_applicable url=${page.url()}`);
+    }
     return true;
   }
   return false;
+}
+
+async function fillIndonesiaStayAndSupportFieldsIfPresent(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const application = input.application;
+  if (!application) return false;
+  let touched = false;
+  touched = await selectNativeOptionByText(
+    page,
+    "#residence_type_id",
+    new RegExp(application.residenceType ?? "HOTEL", "i"),
+  ).then(() => true).catch(() => touched);
+  touched = await fillIfPresent(page, "#address", application.addressInIndonesia) || touched;
+  touched = await fillPostalCodeAndWaitForAddress(page, application.postalCode) || touched;
+  touched = await fillIfPresent(page, "#email", input.accountEmail ?? application.email) || touched;
+  touched = await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email) || touched;
+  touched = await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath) || touched;
+  if (touched) diagnostics.push(`${label}_stay_support_fields_filled`);
+  return touched;
 }
 
 function hasIndonesiaStepOneValidationBlock(diagnostics: string[]): boolean {
@@ -1257,6 +1569,108 @@ async function clickIndonesiaStepOneNext(
   diagnostics.push("indonesia_step_1_next_click_failed");
 }
 
+async function submitIndonesiaStepOneFormFallback(page: Page, diagnostics: string[]): Promise<boolean> {
+  const result = await page
+    .evaluate(() => {
+      const button = document.querySelector<HTMLButtonElement | HTMLInputElement>(
+        "#btn-submit, button.btn-send, button[name='send'], button[type='submit'], input[type='submit']",
+      );
+      const form = button?.closest("form") ?? document.querySelector<HTMLFormElement>("form");
+      if (!form) return { submitted: false, reason: "form_missing", events: 0 };
+      let events = 0;
+      form.addEventListener("submit", () => {
+        events += 1;
+      }, { once: true });
+      button?.removeAttribute("disabled");
+      button?.scrollIntoView({ block: "center", inline: "center" });
+      button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+      button?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      if (events === 0 && typeof form.requestSubmit === "function") {
+        form.requestSubmit(button instanceof HTMLButtonElement || button instanceof HTMLInputElement ? button : undefined);
+      } else if (events === 0) {
+        form.submit();
+      }
+      return { submitted: true, reason: "fallback_submitted", events };
+    })
+    .catch((error: unknown) => ({ submitted: false, reason: error instanceof Error ? error.message : String(error), events: 0 }));
+  diagnostics.push(`indonesia_step_1_form_submit_fallback submitted=${result.submitted ? "true" : "false"} events=${result.events} reason=${String(result.reason).slice(0, 80)}`);
+  return result.submitted;
+}
+
+async function submitIndonesiaStepOneOfficialAjax(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  const source = input.registration ?? input.application;
+  const payload = {
+    documentNumber: source?.passportNumber ?? null,
+    dateOfBirth: source?.dateOfBirth ?? null,
+    dateOfExpiry: source?.passportExpiryDate ?? null,
+    fullName: source?.fullName ?? null,
+    nationality: source?.passportCountry ?? null,
+    issuingState: source?.passportCountry ?? null,
+    sex: source?.gender ?? null,
+  };
+  const result = await page
+    .evaluate(async (mrzPayload) => {
+      const win = window as unknown as {
+        $?: {
+          ajax: (options: Record<string, unknown>) => void;
+        };
+        routing?: {
+          generate: (name: string) => string;
+        };
+        __vizaStepOneOfficialAjaxResult?: { ok: boolean; reason: string; code?: unknown; message?: unknown };
+      };
+      const form = document.querySelector<HTMLFormElement>("#form") ?? document.querySelector<HTMLFormElement>("form");
+      if (!form || !win.$?.ajax || !win.routing?.generate) {
+        return { ok: false, reason: "missing_form_or_ajax" };
+      }
+      const data = new FormData(form);
+      data.append("mrz_payload_data", JSON.stringify(mrzPayload ?? {}));
+      return await new Promise<{ ok: boolean; reason: string; code?: unknown; message?: unknown }>((resolve) => {
+        let settled = false;
+        const finish = (outcome: { ok: boolean; reason: string; code?: unknown; message?: unknown }) => {
+          if (settled) return;
+          settled = true;
+          win.__vizaStepOneOfficialAjaxResult = outcome;
+          resolve(outcome);
+        };
+        window.setTimeout(() => {
+          finish({ ok: false, reason: "official_ajax_timeout" });
+        }, 45_000);
+        win.$?.ajax({
+          type: "POST",
+          data,
+          processData: false,
+          contentType: false,
+          url: win.routing?.generate("web_upload_passport_add"),
+          success: (raw: { code?: unknown; message?: unknown }) => {
+            if (raw?.code === 400) {
+              finish({ ok: false, reason: "official_ajax_validation", code: raw.code, message: raw.message });
+              return;
+            }
+            window.location.href = win.routing?.generate("web_application_add_step_2") ?? window.location.href;
+            finish({ ok: true, reason: "official_ajax_success", code: raw?.code, message: raw?.message });
+          },
+          error: (request: { responseJSON?: { error?: unknown; message?: unknown }; status?: unknown }) => {
+            finish({
+              ok: false,
+              reason: "official_ajax_error",
+              code: request?.status,
+              message: request?.responseJSON?.error ?? request?.responseJSON?.message,
+            });
+          },
+        });
+      });
+    }, payload)
+    .catch((error: unknown) => ({ ok: false, reason: error instanceof Error ? error.message : String(error) }));
+  diagnostics.push(`indonesia_step_1_official_ajax ok=${result.ok ? "true" : "false"} reason=${String(result.reason).slice(0, 80)} message=${String("message" in result ? result.message ?? "" : "").slice(0, 120)}`);
+  return result.ok;
+}
+
 async function visibleInvalidControlNames(page: Page): Promise<string[]> {
   return page
     .evaluate(() =>
@@ -1303,6 +1717,23 @@ async function collectIndonesiaStepOneDebugSummary(page: Page): Promise<string[]
       const submit = document.querySelector<HTMLButtonElement | HTMLInputElement>("#btn-submit");
       const form = submit?.closest("form") ?? document.querySelector("form");
       const controls = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input,select,textarea"));
+      const runtime = (() => {
+        const win = window as unknown as {
+          __vizaStepOneOfficialAjaxResult?: { ok?: boolean; reason?: string; code?: unknown; message?: unknown };
+        };
+        let scannerPayloadReady = false;
+        let skipMrz = "unknown";
+        let mrzInvalidCount = "unknown";
+        try {
+          scannerPayloadReady = Boolean(eval("typeof scannerPayload !== 'undefined' && scannerPayload"));
+          skipMrz = String(eval("typeof skipMRZ !== 'undefined' ? skipMRZ : 'unknown'"));
+          mrzInvalidCount = String(eval("typeof mrzInvalidCount !== 'undefined' ? mrzInvalidCount : 'unknown'"));
+        } catch {
+          scannerPayloadReady = false;
+        }
+        const ajax = win.__vizaStepOneOfficialAjaxResult;
+        return `scannerPayload=${scannerPayloadReady ? "set" : "empty"} skipMRZ=${skipMrz} mrzInvalidCount=${mrzInvalidCount} ajax=${ajax ? `${ajax.ok ? "ok" : "fail"}:${ajax.reason ?? ""}:${String(ajax.message ?? "").slice(0, 80)}` : "none"}`;
+      })();
       const requiredEmpty = controls
         .filter((control) => {
           const required = control.required || control.getAttribute("aria-required") === "true" || control.closest(".required");
@@ -1326,6 +1757,7 @@ async function collectIndonesiaStepOneDebugSummary(page: Page): Promise<string[]
         `indonesia_step_1_form action=${form?.getAttribute("action") ?? ""} method=${form?.getAttribute("method") ?? ""}`.slice(0, 220),
         `indonesia_step_1_required_empty ${requiredEmpty.join(",") || "none"}`.slice(0, 260),
         `indonesia_step_1_upload_flags ${uploadFlags.join(",") || "none"}`.slice(0, 320),
+        `indonesia_step_1_runtime ${runtime}`.slice(0, 320),
         `indonesia_step_1_visible_submit=${submit && visible(submit) ? "true" : "false"}`,
       ];
     })
@@ -1702,8 +2134,9 @@ function isReusableIndonesiaApplicationUrl(value: string | null | undefined): va
   const cleanUrl = clean(value);
   if (!cleanUrl) return false;
   if (!/^https:\/\/evisa\.imigrasi\.go\.id\//i.test(cleanUrl)) return false;
-  if (/\/application_add\//i.test(cleanUrl)) return false;
+  if (/\/application_add\//i.test(cleanUrl) && !/\/step_[23]\b/i.test(cleanUrl)) return false;
   return /\/web\/applications\/.+\/list\b/i.test(cleanUrl) ||
+    /\/application_add\/visa\/step_[23]\b/i.test(cleanUrl) ||
     /pay|payment|checkout/i.test(cleanUrl);
 }
 
@@ -1786,6 +2219,16 @@ async function findSavedIndonesiaApplicationUrl(
     diagnostics.push("indonesia_existing_application_no_saved_portal_url");
     return null;
   }
+  unique.sort((a, b) => {
+    const score = (value: string): number => {
+      if (isPaymentGatewayOrFlowUrl(value) || /\/web\/applications\/.+\/list\b/i.test(value)) return 0;
+      if (/\/step_3\b/i.test(value)) return 1;
+      if (/\/step_2\b/i.test(value)) return 2;
+      return 3;
+    };
+    return score(a) - score(b);
+  });
+  diagnostics.push(`indonesia_existing_application_saved_url_selected ${unique[0]}`);
   return unique[0];
 }
 
@@ -1822,9 +2265,19 @@ async function continueFromApplicationStepTwo(
   const isStepTwo =
     /\/step_2\b/i.test(page.url()) ||
     await isVisibleSelector(page, "#residence_type_id, #attachment-return_ticket, #support-paspor");
-  if (!isStepTwo) return false;
+  if (!isStepTwo) {
+    diagnostics.push(`indonesia_step_2_not_detected url=${page.url()}`);
+    return false;
+  }
   const application = input.application;
-  if (!application) return false;
+  if (!application) {
+    diagnostics.push("indonesia_step_2_missing_application_input");
+    return false;
+  }
+  await input.onStage?.("step_2_started", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
 
   const initialExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
   if (initialExistingApplicationWarning) {
@@ -1855,10 +2308,22 @@ async function continueFromApplicationStepTwo(
   await fillPostalCodeAndWaitForAddress(page, application.postalCode);
   await fillIfPresent(page, "#email", input.accountEmail ?? application.email);
   await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email);
+  await input.onStage?.("step_2_filled_text_fields", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
 
   await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath);
+  await input.onStage?.("step_2_uploaded_return_ticket", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   const passportSupportPath = application.passportSupportPath ?? await makeImagePdf(page, application.passportImagePath, diagnostics);
   await setFilesIfPresent(page, "#support-paspor", passportSupportPath);
+  await input.onStage?.("step_2_uploaded_support_passport", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   await page.waitForTimeout(2_000);
   await dismissIndonesiaDialogs(page, diagnostics);
   diagnostics.push("indonesia_step_2_form_filled");
@@ -1867,6 +2332,10 @@ async function continueFromApplicationStepTwo(
   if (!shouldAdvance) return true;
   const next = page.locator("#btn-submit").first();
   if (await next.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await input.onStage?.("step_2_clicking_next", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
     await next.click({ timeout: 15_000 });
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
@@ -1884,17 +2353,25 @@ async function continueFromApplicationStepTwo(
       diagnostics.push("indonesia_step_2_fallback_submitted");
     }
   }
+  if (/\/step_3\b/i.test(page.url())) {
+    await continueFromApplicationStepThree(page, input, diagnostics);
+  }
   return true;
 }
 
 async function continueFromApplicationStepThree(
   page: Page,
+  input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<boolean> {
   const isStepThree =
     /\/step_3\b/i.test(page.url()) ||
     await isVisibleSelector(page, 'input[type="checkbox"]');
   if (!isStepThree) return false;
+  await input.onStage?.("step_3_started", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   await dismissIndonesiaDialogs(page, diagnostics);
   const checkboxes = page.locator('input[type="checkbox"]');
   const count = await checkboxes.count().catch(() => 0);
@@ -1910,6 +2387,10 @@ async function continueFromApplicationStepThree(
   if (!shouldAdvance) return true;
   const next = page.locator("#btn-submit, button.btn-send").first();
   if (await next.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await input.onStage?.("step_3_clicking_submit", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
     await next.click({ timeout: 15_000 });
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
@@ -1921,11 +2402,22 @@ async function continueFromApplicationStepThree(
       diagnostics.push("indonesia_step_3_fallback_submitted");
     }
   }
+  if (/\/web\/applications\/.+\/list\b/i.test(page.url())) {
+    await continueFromApplicationList(page, input, diagnostics);
+  }
   return true;
 }
 
-async function continueFromApplicationList(page: Page, diagnostics: string[]): Promise<boolean> {
+async function continueFromApplicationList(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
   if (!/\/web\/applications\/.+\/list\b/i.test(page.url())) return false;
+  await input.onStage?.("application_list_visible", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
   await dismissIndonesiaDialogs(page, diagnostics);
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   diagnostics.push("indonesia_application_list_visible");
@@ -2402,17 +2894,17 @@ export async function probeIndonesiaPortal(
       } else if (/\/step_2\b/i.test(url)) {
         advanced = await continueFromApplicationStepTwo(page, input, session.diagnostics);
       } else if (/\/step_3\b/i.test(url)) {
-        advanced = await continueFromApplicationStepThree(page, session.diagnostics);
+        advanced = await continueFromApplicationStepThree(page, input, session.diagnostics);
       } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
-        advanced = await continueFromApplicationList(page, session.diagnostics);
+        advanced = await continueFromApplicationList(page, input, session.diagnostics);
       } else if (state === "payment_required") {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
       } else if (state === "official_application_started" || state === "application_form_visible") {
         advanced =
           await continueFromApplicationStepOne(page, input, session.diagnostics) ||
           await continueFromApplicationStepTwo(page, input, session.diagnostics) ||
-          await continueFromApplicationStepThree(page, session.diagnostics) ||
-          await continueFromApplicationList(page, session.diagnostics);
+          await continueFromApplicationStepThree(page, input, session.diagnostics) ||
+          await continueFromApplicationList(page, input, session.diagnostics);
         if (!advanced) {
           session.diagnostics.push(`indonesia_application_form_visible_no_handler url=${url}`);
         }
