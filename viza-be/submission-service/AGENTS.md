@@ -172,6 +172,10 @@ filling and one-shot submission for the applicant.
   KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
   and stop with structured manual-required evidence for unsupported SMS,
   real-name, WAF, or center-specific policy gates instead of marking success.
+  The localhost-only Korea KVAC endpoints are
+  `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
+  `/local/korea-kvac/sms/complete`; the final endpoint may report success only
+  after the official portal returns a confirmation number.
 - `scripts/smoke-korea-kvac-centers.ts`: local Korea KVAC/consulate reachability
   smoke for all mainland China filing channels. It opens the official booking
   or guidance entry for each center and saves evidence screenshots without

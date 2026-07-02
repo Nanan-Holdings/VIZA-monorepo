@@ -129,6 +129,11 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       if (action === "submit-sms-code") setSmsCode("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      try {
+        setSnapshot(await requestSnapshot(applicationId));
+      } catch {
+        // Keep the original action error visible if the follow-up refresh also fails.
+      }
     } finally {
       setBusy(null);
     }
@@ -205,15 +210,15 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
-            <a href="https://www.visa.go.kr/openPage.do?MENU_ID=10204" target="_blank" rel="noopener noreferrer">
+            <a href={`/api/applications/${applicationId}/kr-annex17-pdf`} target="_blank" rel="noopener noreferrer">
               <Download className="mr-2 h-4 w-4" />
-              {isZh ? "官方 e-Form" : "Official e-Form"}
+              {isZh ? "下载已填申请表" : "Download filled form"}
             </a>
           </Button>
           <Button asChild variant="outline">
-            <a href={`/api/applications/${applicationId}/kr-annex17-pdf`} target="_blank" rel="noopener noreferrer">
-            <Download className="mr-2 h-4 w-4" />
-              {isZh ? "备用 Annex-17" : "Fallback Annex-17"}
+            <a href="https://www.visa.go.kr/openPage.do?MENU_ID=10204" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {isZh ? "打开官方 e-Form 门户" : "Open official e-Form portal"}
             </a>
           </Button>
         </div>
@@ -400,7 +405,9 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           </p>
           <Button onClick={() => void run("confirm-booking")} disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation) || isLiveAssisted}>
             {busy === "confirm-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-            {isLiveAssisted ? (isZh ? "等待最终授权" : "Waiting for final approval") : (isZh ? "确认预约" : "Confirm booking")}
+            {finalApproved
+              ? isZh ? "等待官方确认号" : "Waiting for official confirmation"
+              : isLiveAssisted ? (isZh ? "等待最终授权" : "Waiting for final approval") : (isZh ? "确认预约" : "Confirm booking")}
           </Button>
           {snapshot?.confirmation ? (
             <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
@@ -538,9 +545,34 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           {finalApproved ? (
             <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>{isZh ? "已授权最终预约" : "Final booking approved"}</AlertTitle>
-              <AlertDescription>
-                {isZh ? "worker 可以完成官方最后一步；拿到官方确认号后会显示并提供预约证明下载。" : "The worker can complete the official final step; once the portal returns a confirmation number, proof will appear here."}
+              <AlertTitle>{isZh ? "已授权，尚未拿到官方确认号" : "Approved, official confirmation not captured yet"}</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  {isZh
+                    ? "这还不是预约成功。VIZA 只有在官方 KVAC 页面返回确认号后，才会显示“预约已确认”和预约证明下载。若官方会话已过期，请重新发起短信验证。"
+                    : "This is not booked yet. VIZA shows appointment confirmation and proof only after the official KVAC page returns a confirmation number. Restart SMS verification if the official session expired."}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => void run("complete-final-booking")}
+                    disabled={Boolean(busy)}
+                    className="bg-emerald-700 text-white hover:bg-emerald-800"
+                  >
+                    {busy === "complete-final-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    {isZh ? "完成官方最终提交" : "Complete official final submit"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void run("request-live-booking")}
+                    disabled={Boolean(busy)}
+                    className="border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-100"
+                  >
+                    {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                    {isZh ? "重新发短信验证" : "Restart SMS verification"}
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           ) : null}
