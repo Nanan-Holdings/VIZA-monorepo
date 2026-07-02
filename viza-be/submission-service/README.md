@@ -60,4 +60,11 @@ src/
   alert.ts          — Resend failure email
   supabase.ts       — Supabase client singleton
   types.ts          — TypeScript interfaces
+  payment-routing.ts            — per-country government-fee routing (decisionFor)
+  applicant-vault.ts            — encrypted per-applicant credential vault (AES-256-GCM)
+  clients/airwallex-issuing.ts  — Airwallex Issuing API client (single-use virtual cards)
+  issuing/escrow-card-provider.ts — mint/freeze escrow card into the vault (flag: AIRWALLEX_ISSUING_ENABLED)
 ```
+
+Airwallex virtual-card issuing is foundation-only and gated off by default — see
+`docs/airwallex-issuing-integration.md` for design, status, and rollout.
