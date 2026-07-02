@@ -21,6 +21,91 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function submissionServiceBaseUrl() {
+  return (process.env.KR_EFORM_SUBMISSION_SERVICE_URL ?? process.env.SUBMISSION_SERVICE_LOCAL_URL ?? "http://127.0.0.1:8080").replace(/\/$/u, "");
+}
+
+async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const url = `${submissionServiceBaseUrl()}${path}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!response.ok || !payload) {
+    throw new Error(
+      payload?.error
+        ? `Submission service ${url} failed (${response.status}): ${payload.error}`
+        : `Submission service ${url} failed (${response.status})`,
+    );
+  }
+  if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
+  return payload as T;
+}
+
+async function readAnswerMap(admin: ReturnType<typeof createAdminClient>, applicationId: string, applicantId: string) {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text")
+    .eq("application_id", applicationId);
+  if (error) throw new Error(error.message);
+
+  const answers: Record<string, string> = {};
+  for (const row of data ?? []) {
+    if (row.field_name && row.value_text) answers[row.field_name] = row.value_text;
+  }
+
+  const { data: profile } = await admin
+    .from("applicant_profiles")
+    .select("surname, given_names, email, phone, date_of_birth, gender, nationality, passport_number, passport_expiry_date, passport_issue_date, current_address")
+    .eq("id", applicantId)
+    .maybeSingle();
+  if (isRecord(profile)) {
+    const profileFallbacks: Record<string, unknown> = {
+      family_name: profile.surname,
+      given_names: profile.given_names,
+      email: profile.email,
+      phone: profile.phone,
+      date_of_birth: profile.date_of_birth,
+      gender: profile.gender,
+      nationality: profile.nationality,
+      passport_number: profile.passport_number,
+      passport_expiry_date: profile.passport_expiry_date,
+      passport_issue_date: profile.passport_issue_date,
+      home_address: profile.current_address,
+    };
+    for (const [key, value] of Object.entries(profileFallbacks)) {
+      if (!answers[key] && typeof value === "string" && value.trim()) answers[key] = value.trim();
+    }
+  }
+
+  return answers;
+}
+
+type KoreaEformServiceResponse =
+  | {
+      ok: true;
+      status: "official_eform_ready";
+      portalUrl: string;
+      officialPdfStoragePath: string;
+      message: string;
+    }
+  | {
+      ok: true;
+      status: "manual_required";
+      portalUrl: string;
+      manualActionType: NonNullable<KrSubmissionResult["manualAction"]>["type"];
+      message: string;
+      evidence?: NonNullable<KrSubmissionResult["manualAction"]>["evidence"];
+    }
+  | {
+      ok: true;
+      status: "validation_failed";
+      missingFields: string[];
+      message: string;
+    };
+
 function asKrResult(value: unknown, applicationId: string): KrSubmissionResult {
   if (isRecord(value) && value.country === "KR") {
     return {
@@ -119,18 +204,56 @@ export async function POST(
     return NextResponse.json(responsePayload({ ...current, officialEformStatus: "ready", status: "official_eform_ready" }));
   }
 
-  const next: KrSubmissionResult = {
-    ...current,
-    status: "official_eform_required",
-    officialEformStatus: "manual_action_required",
-    officialEformPortalUrl: OFFICIAL_EFORM_URL,
-    manualAction: {
-      type: "official_eform_portal_review_required",
-      status: "open",
-      instructions:
-        "VIZA must fill the official Korea Visa Portal e-Form and download the barcode PDF. If the portal rejects the selected post or asks for unsupported verification, use the official portal link and complete the e-Form there before KVAC.",
-    },
-  };
+  let next: KrSubmissionResult;
+  try {
+    const answers = await readAnswerMap(auth.admin, id, auth.application.applicant_id);
+    const serviceResult = await postSubmissionService<KoreaEformServiceResponse>("/local/korea-eform/generate", {
+      applicationId: id,
+      answers,
+      officialPdfStoragePath: current.officialEformPdfStoragePath ?? null,
+      finalReviewApproved: false,
+    });
+    if (serviceResult.status === "official_eform_ready") {
+      next = {
+        ...current,
+        status: "official_eform_ready",
+        officialEformStatus: "ready",
+        officialEformPortalUrl: serviceResult.portalUrl,
+        officialEformPdfStoragePath: serviceResult.officialPdfStoragePath,
+        manualAction: undefined,
+      };
+    } else if (serviceResult.status === "validation_failed") {
+      return NextResponse.json({ error: serviceResult.message, missingFields: serviceResult.missingFields }, { status: 422 });
+    } else {
+      next = {
+        ...current,
+        status: "official_eform_required",
+        officialEformStatus: "manual_action_required",
+        officialEformPortalUrl: serviceResult.portalUrl,
+        manualAction: {
+          type: serviceResult.manualActionType,
+          status: "open",
+          instructions: serviceResult.message,
+          evidence: serviceResult.evidence,
+        },
+      };
+    }
+  } catch (err) {
+    next = {
+      ...current,
+      status: "official_eform_required",
+      officialEformStatus: "manual_action_required",
+      officialEformPortalUrl: OFFICIAL_EFORM_URL,
+      manualAction: {
+        type: "official_eform_portal_review_required",
+        status: "open",
+        instructions:
+          err instanceof Error
+            ? `VIZA could not start the official Korea Visa Portal e-Form runner: ${err.message}`
+            : "VIZA could not start the official Korea Visa Portal e-Form runner.",
+      },
+    };
+  }
 
   const { error } = await auth.admin
     .from("applications")

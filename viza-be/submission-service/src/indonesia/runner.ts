@@ -1053,6 +1053,57 @@ async function captureApplicationStepArtifact(
   }
 }
 
+async function capturePaymentArtifact(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+  label: "otp" | "payment",
+): Promise<void> {
+  try {
+    const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
+      .replace(/[^a-zA-Z0-9_-]/g, "_");
+    const dir = path.resolve("diag-out", "indonesia-payment", applicationId);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${label}.html`), await page.content().catch(() => ""));
+    const controls = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("a,button,[role='button'],input[type='button'],input[type='submit'],select,input,textarea,iframe"))
+          .filter((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0;
+          })
+          .map((element) => {
+            const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+            return {
+              tag: element.tagName.toLowerCase(),
+              text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 180),
+              id: element.id,
+              name: element.getAttribute("name"),
+              type: control instanceof HTMLInputElement ? control.type : null,
+              classes: element.className,
+              placeholder: element.getAttribute("placeholder"),
+              autocomplete: element.getAttribute("autocomplete"),
+              valueLength: String(control.value ?? "").length,
+              required: "required" in control ? Boolean(control.required) : false,
+              disabled: "disabled" in control ? Boolean(control.disabled) : false,
+              href: element.getAttribute("href"),
+              src: element.getAttribute("src"),
+            };
+          }),
+      )
+      .catch((error: unknown) => [{ error: error instanceof Error ? error.message : String(error) }]);
+    fs.writeFileSync(path.join(dir, `${label}-controls.json`), JSON.stringify(controls, null, 2));
+    await page.screenshot({ path: path.join(dir, `${label}.png`), fullPage: true }).catch(() => undefined);
+    diagnostics.push(`indonesia_${label}_artifact ${dir}`);
+  } catch (error) {
+    diagnostics.push(`indonesia_${label}_artifact_failed ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function decodeQuotedPrintable(value: string): string {
   return value
     .replace(/=\r?\n/g, "")
@@ -2553,6 +2604,26 @@ async function continueFromApplicationList(
     await reopenIndonesiaPortalFromScratch(page, input, diagnostics);
     return true;
   }
+  const isDraftApplicationText = /\bdraft\b|please click submit before submitting the application/i.test(text);
+  if (isDraftApplicationText) {
+    const submittedDraft = await submitIndonesiaDraftApplicationFromList(page, diagnostics);
+    if (submittedDraft) {
+      await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+      await page.waitForTimeout(3_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
+      diagnostics.push("indonesia_application_list_draft_submitted");
+      return true;
+    }
+    diagnostics.push("indonesia_application_list_draft_submit_not_clicked");
+  }
+  const waitingPaymentDetailNavigated = await navigateToWaitingPaymentDetail(page, diagnostics);
+  if (waitingPaymentDetailNavigated) {
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    await dismissIndonesiaDialogs(page, diagnostics);
+    diagnostics.push("indonesia_application_list_waiting_payment_detail_navigated");
+    return true;
+  }
   const isWaitingForPaymentText = /waiting for payment|menunggu pembayaran|belum bayar|bayar|pembayaran|belum dibayar/i.test(text);
   const clicked = await clickIndonesiaPaymentControl(page, diagnostics);
   if (clicked) {
@@ -2600,6 +2671,51 @@ async function continueFromApplicationList(
     return true;
   }
   diagnostics.push("indonesia_application_list_submit_clicked");
+  return true;
+}
+
+async function navigateToWaitingPaymentDetail(page: Page, diagnostics: string[]): Promise<boolean> {
+  const href = await page
+    .evaluate(() => {
+      const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>("tr"));
+      for (const row of rows) {
+        const text = (row.innerText || row.textContent || "").replace(/\s+/g, " ");
+        if (!/waiting\s+for\s+payment|menunggu\s+pembayaran|belum\s+bayar/i.test(text)) continue;
+        const link = Array.from(row.querySelectorAll<HTMLAnchorElement>("a[href]"))
+          .map((anchor) => anchor.getAttribute("href") ?? "")
+          .find((value) => /\/web\/application\/.+\/detail/i.test(value));
+        if (link) return link;
+      }
+      return null;
+    })
+    .catch(() => null);
+  if (!href) {
+    diagnostics.push("indonesia_application_list_waiting_payment_detail_not_found");
+    return false;
+  }
+  diagnostics.push(`indonesia_application_list_waiting_payment_detail_opening ${href}`);
+  await page.goto(new URL(href, page.url()).toString(), { waitUntil: "domcontentloaded", timeout: 30_000 }).catch((error: unknown) => {
+    diagnostics.push(`indonesia_application_list_waiting_payment_detail_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+  });
+  return /\/web\/application\/.+\/detail/i.test(page.url()) ||
+    /\/web\/application-detail-otp\//i.test(page.url());
+}
+
+async function submitIndonesiaDraftApplicationFromList(page: Page, diagnostics: string[]): Promise<boolean> {
+  const submit = page.locator("#btn-save, button#btn-save, .btn-save").first();
+  if (!(await submit.isVisible({ timeout: 5_000 }).catch(() => false))) return false;
+  await submit.click({ timeout: 10_000 });
+  await page.waitForTimeout(1_500);
+  const asGuest = page.locator("#btn-as-guest").first();
+  if (await asGuest.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await asGuest.click({ timeout: 10_000 });
+    diagnostics.push("indonesia_application_list_draft_as_guest_clicked");
+    return true;
+  }
+  const withRegister = page.locator("#btn-with-register").first();
+  if (await withRegister.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    diagnostics.push("indonesia_application_list_draft_register_option_visible");
+  }
   return true;
 }
 
@@ -2733,7 +2849,7 @@ async function waitForIndonesiaOtpCode(
   }
   const { supabase } = await import("../supabase");
   const timeoutMs = Number(process.env.INDONESIA_EMAIL_OTP_TIMEOUT_MS ?? "90000");
-  const since = new Date(Date.now() - Number(process.env.INDONESIA_EMAIL_OTP_LOOKBACK_MS ?? "900000")).toISOString();
+  const since = new Date(Date.now() - Number(process.env.INDONESIA_EMAIL_OTP_LOOKBACK_MS ?? "120000")).toISOString();
   const deadline = Date.now() + Math.max(10_000, timeoutMs);
 
   while (Date.now() < deadline) {
@@ -2742,6 +2858,7 @@ async function waitForIndonesiaOtpCode(
       .select("id, subject, text, html, received_at")
       .eq("to_addr", alias)
       .ilike("subject", "%OTP%")
+      .eq("processed", false)
       .gte("received_at", since)
       .order("received_at", { ascending: false })
       .limit(8);
@@ -2765,6 +2882,35 @@ async function waitForIndonesiaOtpCode(
       return code;
     }
 
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("inbound_email")
+      .select("id, subject, text, html, received_at")
+      .eq("from_addr", "no-reply@notif.imigrasi.go.id")
+      .ilike("subject", "%OTP%")
+      .eq("processed", false)
+      .gte("received_at", since)
+      .order("received_at", { ascending: false })
+      .limit(3);
+    if (fallbackError) {
+      diagnostics.push(`indonesia_otp_email_fallback_lookup_failed ${fallbackError.message}`);
+      return null;
+    }
+
+    for (const row of (fallbackData ?? []) as IndonesiaInboundEmailRow[]) {
+      const code = extractIndonesiaOtpCode(row);
+      if (!code) continue;
+      try {
+        await supabase
+          .from("inbound_email")
+          .update({ processed: true, processed_at: new Date().toISOString() })
+          .eq("id", row.id);
+      } catch {
+        // Marking the email processed is best-effort; the OTP can still be used once.
+      }
+      diagnostics.push(`indonesia_otp_email_fallback_consumed received_at=${row.received_at}`);
+      return code;
+    }
+
     await new Promise((resolve) => setTimeout(resolve, 3_000));
   }
 
@@ -2778,8 +2924,12 @@ async function continueFromIndonesiaOtpPage(
   diagnostics: string[],
 ): Promise<boolean> {
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (!/enter otp code|otp code/i.test(text)) return false;
+  const isOfficialOtpUrl = /\/web\/application-detail-otp\//i.test(page.url());
+  if (!isOfficialOtpUrl && !/enter otp code|otp code|one time password|authentication code|verification code|kode otp|kode verifikasi/i.test(text)) {
+    return false;
+  }
   if (!/evisa\.imigrasi\.go\.id/i.test(page.url())) return false;
+  await capturePaymentArtifact(page, input, diagnostics, "otp");
 
   const code = await waitForIndonesiaOtpCode(input, diagnostics);
   if (!code) return false;
@@ -2821,7 +2971,10 @@ async function continueFromIndonesiaOtpPage(
     return false;
   }
 
-  const submit = page.getByRole("button", { name: /^submit$/i }).or(page.locator("#btn-submit, button[type='submit']")).first();
+  const submit = page
+    .getByRole("button", { name: /^submit$/i })
+    .or(page.locator("#btn-submit-otp, #btn-submit, button[type='submit'], a.btn-primary:has-text('Submit')"))
+    .first();
   if (await submit.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await submit.click({ timeout: 10_000 });
   } else {
@@ -2832,6 +2985,34 @@ async function continueFromIndonesiaOtpPage(
   await dismissIndonesiaDialogs(page, diagnostics);
   diagnostics.push("indonesia_otp_filled_and_submitted");
   return true;
+}
+
+async function continueFromIndonesiaPaymentDetail(
+  page: Page,
+  diagnostics: string[],
+): Promise<boolean> {
+  if (!/\/web\/application\/.+\/detail/i.test(page.url())) return false;
+  const href = await page
+    .evaluate(() => {
+      const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+      const makePayment = links.find((link) =>
+        /make\s+a\s+payment|payment/i.test((link.innerText || link.textContent || "").replace(/\s+/g, " ")) &&
+        /\/web\/payment\//i.test(link.getAttribute("href") ?? ""),
+      );
+      return makePayment?.getAttribute("href") ?? null;
+    })
+    .catch(() => null);
+  if (!href) {
+    diagnostics.push("indonesia_payment_detail_make_payment_not_found");
+    return false;
+  }
+  const targetUrl = new URL(href, page.url()).toString();
+  diagnostics.push(`indonesia_payment_detail_make_payment_opening ${targetUrl}`);
+  await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 45_000 }).catch((error: unknown) => {
+    diagnostics.push(`indonesia_payment_detail_make_payment_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+  });
+  await page.waitForTimeout(3_000);
+  return page.url() !== targetUrl || /\/web\/payment\//i.test(page.url()) || isPaymentGatewayOrFlowUrl(page.url());
 }
 
 async function waitForUserPaymentCompletion(
@@ -3001,7 +3182,7 @@ export async function probeIndonesiaPortal(
         advanced = true;
       }
 
-      if (!advanced && /enter otp code|otp code|one time password|authentication code/i.test(text)) {
+      if (!advanced && (/\/web\/application-detail-otp\//i.test(url) || /enter otp code|otp code|one time password|authentication code|verification code|kode otp|kode verifikasi/i.test(text))) {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
       }
 
@@ -3038,7 +3219,9 @@ export async function probeIndonesiaPortal(
       } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
         advanced = await continueFromApplicationList(page, input, session.diagnostics);
       } else if (state === "payment_required") {
-        advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
+        advanced =
+          await continueFromIndonesiaOtpPage(page, input, session.diagnostics) ||
+          await continueFromIndonesiaPaymentDetail(page, session.diagnostics);
       } else if (state === "official_application_started" || state === "application_form_visible") {
         advanced =
           await continueFromApplicationStepOne(page, input, session.diagnostics) ||
@@ -3080,6 +3263,7 @@ export async function probeIndonesiaPortal(
     }
 
     if (state === "payment_required" && input.userPaymentHandoff?.enabled) {
+      await capturePaymentArtifact(page, input, session.diagnostics, "payment");
       const paymentResult = await waitForUserPaymentCompletion(page, input, session.diagnostics);
       title = paymentResult.title;
       text = paymentResult.text;

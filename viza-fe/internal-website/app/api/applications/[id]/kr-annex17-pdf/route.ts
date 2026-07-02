@@ -4,6 +4,34 @@ import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import { validateAnnex17Answers, renderKoreaC39Annex17 } from "@/lib/korea-c39/render-annex17";
 
+interface ApplicantProfileFallback {
+  surname: string | null;
+  surname_en: string | null;
+  given_names: string | null;
+  given_names_en: string | null;
+  full_name: string | null;
+  full_name_en: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+function setIfMissing(answers: Record<string, string>, key: string, value?: string | null): void {
+  const normalized = value?.trim();
+  if (!answers[key]?.trim() && normalized) answers[key] = normalized;
+}
+
+function applyProfileFallbacks(answers: Record<string, string>, profile: ApplicantProfileFallback | null): void {
+  if (!profile) return;
+  const fullName = profile.full_name_en?.trim() || profile.full_name?.trim() || "";
+  const [fallbackFamilyName, ...fallbackGivenParts] = fullName.split(/\s+/).filter(Boolean);
+  const fallbackGivenNames = fallbackGivenParts.join(" ");
+
+  setIfMissing(answers, "family_name", profile.surname_en ?? profile.surname ?? fallbackFamilyName);
+  setIfMissing(answers, "given_names", profile.given_names_en ?? profile.given_names ?? fallbackGivenNames);
+  setIfMissing(answers, "email_address", profile.email);
+  setIfMissing(answers, "mobile_phone", profile.phone);
+}
+
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -41,6 +69,13 @@ export async function GET(
     answers[row.field_name] = row.value_text;
   }
 
+  const { data: profile } = await admin
+    .from("applicant_profiles")
+    .select("surname, surname_en, given_names, given_names_en, full_name, full_name_en, email, phone")
+    .eq("id", app.applicant_id)
+    .maybeSingle();
+  applyProfileFallbacks(answers, (profile as ApplicantProfileFallback | null) ?? null);
+
   const missingFields = validateAnnex17Answers(answers);
   if (missingFields.length > 0) {
     return NextResponse.json(
@@ -57,7 +92,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `inline; filename="${filename}"`,
       "Content-Length": String(pdfBytes.length),
       "Cache-Control": "no-store",
     },
