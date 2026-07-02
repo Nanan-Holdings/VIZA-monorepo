@@ -4890,5 +4890,148 @@
       "button": "Open appointment assistant",
       "badge": "Assisted live"
     }
+  },
+  "franceAppointment": {
+    "page": {
+      "eyebrow": "France Schengen appointment assistant",
+      "title": "TLScontact appointment setup",
+      "subtitle": "After VIZA has a France-Visas official reference, check TLScontact China slots, choose one observed timing, record one-time TLS service-fee authorization, and approve the final booking step."
+    },
+    "loading": "Loading France appointment assistant...",
+    "errorTitle": "France appointment assistant needs attention",
+    "dryRunNoticeTitle": "TLS China gated flow",
+    "dryRunNotice": "This workflow only runs after explicit user actions. VIZA reads TLScontact slots through the backend, never chooses a slot for the applicant, and pauses on unsupported official-site risk, MFA, identity, or payment challenges.",
+    "errors": {
+      "generic": "The France appointment request could not be completed. Please try again.",
+      "withCode": "The France appointment request could not be completed. Reference: {code}.",
+      "supabaseAuthNotConfigured": "The appointment service is missing Supabase auth configuration. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or SUPABASE_URL and SUPABASE_ANON_KEY, to agent-backend, then restart the backend.",
+      "appointmentSchemaNotConfigured": "The appointment database tables have not been deployed yet. Run the appointment assistant migration, then restart the backend."
+    },
+    "modes": {
+      "dry_run": "Dry run",
+      "assisted_live": "Assisted live",
+      "manual": "Manual"
+    },
+    "statusLabels": {
+      "appointment_not_started": "Not started",
+      "appointment_consent_required": "Consent required",
+      "appointment_consent_received": "Consent received",
+      "appointment_account_required": "TLS account required",
+      "appointment_account_creation_started": "TLS account setup started",
+      "appointment_email_verification_required": "Email checkpoint",
+      "appointment_login_required": "Login checkpoint",
+      "appointment_captcha_required": "CAPTCHA checkpoint",
+      "appointment_profile_fill_in_progress": "Profile fill in progress",
+      "appointment_profile_filled": "Profile fill complete",
+      "appointment_ds160_linked": "France-Visas reference linked",
+      "appointment_payment_required": "TLS service fee authorization required",
+      "appointment_payment_in_progress": "Payment in progress",
+      "appointment_payment_completed": "Payment authorization recorded",
+      "appointment_calendar_opened": "Calendar opened",
+      "appointment_slots_observed": "Slots observed",
+      "appointment_no_slots_available": "No slots available",
+      "appointment_slot_selection_required": "Slot selection required",
+      "appointment_slot_selected": "Slot selected",
+      "appointment_final_confirmation_required": "Final approval required",
+      "appointment_booked": "Booking requested",
+      "appointment_confirmation_captured": "Official confirmation captured",
+      "appointment_status_check_in_progress": "Status check in progress",
+      "appointment_status_checked": "Status checked",
+      "appointment_manual_required": "Manual review required",
+      "appointment_blocked_by_site_policy": "Stopped by site policy",
+      "appointment_failed": "Failed",
+      "appointment_cancelled": "Cancelled"
+    },
+    "centers": {
+      "beijing": "Beijing",
+      "guangzhou": "Guangzhou",
+      "chengdu": "Chengdu",
+      "shanghai": "Shanghai",
+      "shenyang": "Shenyang",
+      "wuhan": "Wuhan",
+      "chongqing": "Chongqing",
+      "changsha": "Changsha",
+      "fuzhou": "Fuzhou",
+      "hangzhou": "Hangzhou",
+      "kunming": "Kunming",
+      "nanjing": "Nanjing",
+      "shenzhen": "Shenzhen",
+      "jinan": "Jinan",
+      "xian": "Xi'an"
+    },
+    "setup": {
+      "title": "TLS setup",
+      "center": "TLScontact center",
+      "referenceHint": "A France-Visas official reference must exist before VIZA can create a TLS appointment job. The backend blocks the job if the reference is missing.",
+      "createJob": "Start France appointment assistant",
+      "jobCreated": "Appointment job created",
+      "recordConsent": "Record consent",
+      "consentRequiredError": "Please review and accept the consent statement before continuing."
+    },
+    "consent": {
+      "title": "Consent and boundaries",
+      "body1": "VIZA can assist the mainland China TLScontact flow after the France-Visas application reference has been created.",
+      "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, slot observation, service-fee payment handoff, and confirmation checkpoints. You still choose the slot, authorize payment, and approve final booking.",
+      "checkbox": "I authorize VIZA to run France Schengen TLScontact China appointment actions for this application, with explicit slot selection, one-time payment authorization, final approval, and official evidence capture."
+    },
+    "panel": {
+      "title": "Appointment runner",
+      "noJob": "Start after consent and center selection. Opening this page only reads status; no TLS job is created or rerun automatically.",
+      "progressBody": "The backend reads the latest appointment state from VIZA tables. TLS slot checks run only after a user-triggered action and backend cooldown.",
+      "provider": "Scheduling provider",
+      "providerUnknown": "To be detected",
+      "mode": "Mode",
+      "run": "Run first step",
+      "checkSlots": "Check slots",
+      "cancel": "Cancel"
+    },
+    "slots": {
+      "title": "Observed TLS slots",
+      "empty": "No TLS timings have been returned yet. Start the assistant, then use Check slots when you intentionally want a backend observation.",
+      "noSlots": "TLScontact returned no available slots. Use Check slots only when you intentionally want another user-triggered check.",
+      "choose": "Choose",
+      "selected": "Selected",
+      "observedAt": "Observed {value}",
+      "observedPending": "Observation time pending",
+      "datePending": "Date pending",
+      "timePending": "Time pending",
+      "locationPending": "Location pending",
+      "slotLine": "{date} at {time}"
+    },
+    "payment": {
+      "title": "One-time TLS fee authorization",
+      "body": "Record only the redacted payment authorization handoff here. Full PAN, CVV, OTP, and payment passwords must stay out of VIZA DB, logs, screenshots, and browser status APIs.",
+      "brand": "Brand",
+      "brandPlaceholder": "Visa",
+      "last4": "Last 4",
+      "expMonth": "Expiry month",
+      "expYear": "Expiry year",
+      "record": "Record authorization",
+      "authorized": "Authorization recorded",
+      "validation": "Enter last 4 digits, expiry month, and four-digit expiry year."
+    },
+    "final": {
+      "title": "Final approval",
+      "requirement": "Choose an observed TLS slot before final approval is available.",
+      "selected": "Selected slot: {date} at {time}. Approve only after reviewing the TLS timing and payment authorization.",
+      "approve": "Approve final step",
+      "book": "Request official booking",
+      "approvedBadge": "Approved"
+    },
+    "results": {
+      "title": "Results",
+      "none": "No TLS appointment confirmation has been captured yet.",
+      "confirmationNumber": "Official confirmation",
+      "date": "Appointment date",
+      "time": "Appointment time",
+      "location": "Center",
+      "captured": "Official evidence captured"
+    },
+    "nextStepCard": {
+      "title": "Next: TLS appointment",
+      "body": "Continue to TLScontact China appointment setup with user-triggered slot checks, explicit slot selection, one-time payment authorization, and final approval.",
+      "button": "Open TLS appointment assistant",
+      "badge": "TLScontact China"
+    }
   }
 }

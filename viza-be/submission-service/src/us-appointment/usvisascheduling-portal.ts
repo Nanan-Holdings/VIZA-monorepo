@@ -712,9 +712,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     const answers = page.locator("input#kba1_response, input#kba2_response, input#kba3_response");
     const count = Math.min(await answers.count().catch(() => 0), US_VISA_SCHEDULING_SECURITY_ANSWERS.length);
     if (count === 0) return;
-    await page.evaluate((values) => {
-      values.forEach((value, index) => {
-        const input = document.querySelector<HTMLInputElement>(`input#kba${index + 1}_response`);
+    await page.evaluate((valuesById) => {
+      Object.entries(valuesById).forEach(([id, value]) => {
+        const input = document.querySelector<HTMLInputElement>(`input#${id}`);
         if (!input) return;
         const descriptor = Object.getOwnPropertyDescriptor(
           HTMLInputElement.prototype,
@@ -724,7 +724,11 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-    }, US_VISA_SCHEDULING_SECURITY_ANSWERS.slice(0, count));
+    }, {
+      kba1_response: US_VISA_SCHEDULING_SECURITY_ANSWERS[0],
+      kba2_response: US_VISA_SCHEDULING_SECURITY_ANSWERS[1],
+      kba3_response: US_VISA_SCHEDULING_SECURITY_ANSWERS[2],
+    });
     await page.locator("button#continue, button:has-text('Continue'), input[value='Continue']")
       .first()
       .click()

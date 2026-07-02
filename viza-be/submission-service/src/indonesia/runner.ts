@@ -1611,27 +1611,12 @@ async function navigateIndonesiaApplicationStep(
   diagnostics: string[],
   label: string,
 ): Promise<boolean> {
-  const navigated = await page
-    .evaluate((targetStep) => {
-      const win = window as unknown as {
-        routing?: {
-          generate: (name: string) => string;
-        };
-      };
-      const routeName = targetStep === 2 ? "web_application_add_step_2" : "web_application_add_step_3";
-      const nextUrl = win.routing?.generate(routeName) ?? `/web/application_add/visa/step_${targetStep}`;
-      window.location.href = nextUrl;
-      return nextUrl;
-    }, step)
-    .then((targetUrl) => {
-      diagnostics.push(`${label}_navigating ${targetUrl}`);
-      return true;
-    })
-    .catch((error: unknown) => {
-      diagnostics.push(`${label}_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
-      return false;
-    });
-  return navigated;
+  const targetUrl = new URL(`/web/application_add/visa/step_${step}`, page.url()).toString();
+  diagnostics.push(`${label}_navigating ${targetUrl}`);
+  await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 }).catch((error: unknown) => {
+    diagnostics.push(`${label}_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+  });
+  return /\/step_[23]\b/i.test(page.url());
 }
 
 async function submitIndonesiaStepOneOfficialAjax(
@@ -2540,6 +2525,10 @@ async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): 
     diagnostics.push("indonesia_payment_control_clicked_by_locator");
     return true;
   }
+  if (process.env.INDONESIA_PAYMENT_DOM_SEARCH !== "true") {
+    diagnostics.push("indonesia_payment_control_dom_search_disabled");
+    return false;
+  }
 
   const clickedByDomSearch = await page.evaluate(() => {
     const keywords = /pay|payment|checkout|bayar|billing|simponi|pembayaran|invoice/i;
@@ -2921,6 +2910,12 @@ export async function probeIndonesiaPortal(
         advanced = true;
       } else if (state === "login_required" || state === "registration_required") {
         advanced = await continueFromAccountGate(page, input, session.diagnostics);
+        if (advanced && savedApplicationUrl) {
+          session.diagnostics.push("indonesia_login_completed_returning_to_saved_url");
+          await page.goto(savedApplicationUrl, { waitUntil: "domcontentloaded", timeout: input.timeoutMs ?? 60_000 })
+            .catch(() => undefined);
+          await page.waitForTimeout(1_500);
+        }
       } else if (state === "account_registration_form_visible") {
         advanced = await fillForeignerAccountRegistration(page, input, session.diagnostics);
       } else if (/\/step_1\b/i.test(url)) {
