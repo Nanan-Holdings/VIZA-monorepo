@@ -58,7 +58,7 @@ async function readAnswerMap(admin: ReturnType<typeof createAdminClient>, applic
 
   const { data: profile } = await admin
     .from("applicant_profiles")
-    .select("surname, given_names, email, phone, date_of_birth, gender, nationality, passport_number, passport_expiry_date, passport_issue_date, current_address")
+    .select("surname, given_names, email, phone, date_of_birth, gender, nationality, passport_number, passport_expiry_date, passport_issue_date, address, address_en")
     .eq("id", applicantId)
     .maybeSingle();
   if (isRecord(profile)) {
@@ -73,7 +73,7 @@ async function readAnswerMap(admin: ReturnType<typeof createAdminClient>, applic
       passport_number: profile.passport_number,
       passport_expiry_date: profile.passport_expiry_date,
       passport_issue_date: profile.passport_issue_date,
-      home_address: profile.current_address,
+      home_address: profile.address_en ?? profile.address,
     };
     for (const [key, value] of Object.entries(profileFallbacks)) {
       if (!answers[key] && typeof value === "string" && value.trim()) answers[key] = value.trim();

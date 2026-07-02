@@ -16,6 +16,8 @@ interface KrResultCardProps {
   result: KrSubmissionResult;
 }
 
+type OfficialEformEvidence = NonNullable<NonNullable<KrSubmissionResult["manualAction"]>["evidence"]>;
+
 function normalizeOfficialEformStatus(value: string | null | undefined): NonNullable<KrSubmissionResult["officialEformStatus"]> {
   if (
     value === "queued" ||
@@ -42,6 +44,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     ? "官方 e-Form 需要通过 Korea Visa Portal 生成带条码 PDF。若官网要求人工选择馆别、上传文件或验证，请在官方页面完成后再回到 VIZA 下载。"
     : "The official barcode e-Form must be generated through Korea Visa Portal. If the portal asks for post selection, uploads, or verification, complete it on the official page and return to VIZA for download.";
   const [officialMessage, setOfficialMessage] = useState<string | null>(result.manualAction ? defaultOfficialMessage : null);
+  const [officialEvidence, setOfficialEvidence] = useState<OfficialEformEvidence | null>(result.manualAction?.evidence ?? null);
   const [officialError, setOfficialError] = useState<string | null>(null);
   const currentPdfUrl = `/api/applications/${applicationId}/kr-annex17-pdf`;
   const downloadUrl = result.annex17PdfUrl?.includes(`/api/applications/${applicationId}/`)
@@ -62,13 +65,21 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
       const payload = (await response.json().catch(() => null)) as {
         status?: string;
         officialEformPdfStoragePath?: string | null;
-        manualAction?: { instructions?: string } | null;
+        manualAction?: {
+          instructions?: string;
+          evidence?: {
+            filledSelectors?: string[];
+            missingUploads?: string[];
+            screenshotPath?: string | null;
+          };
+        } | null;
         error?: string;
       } | null;
       if (!response.ok) throw new Error(payload?.error ?? `Request failed: ${response.status}`);
       setOfficialPath(payload?.officialEformPdfStoragePath ?? null);
       setOfficialStatus(normalizeOfficialEformStatus(payload?.status ?? "manual_action_required"));
-      setOfficialMessage(defaultOfficialMessage);
+      setOfficialMessage(payload?.manualAction?.instructions ?? defaultOfficialMessage);
+      setOfficialEvidence(payload?.manualAction?.evidence ?? null);
     } catch (error) {
       setOfficialError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -132,6 +143,24 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
           </div>
           {officialMessage ? <p className="mt-1 leading-6 text-muted-foreground">{officialMessage}</p> : null}
           {officialError ? <p className="mt-1 text-red-600">{officialError}</p> : null}
+          {officialEvidence?.screenshotPath ? (
+            <p className="mt-2 break-all text-xs text-muted-foreground">
+              {isZh ? "官网填写截图：" : "Official fill screenshot:"}{" "}
+              <a
+                className="underline underline-offset-2"
+                href={`/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(officialEvidence.screenshotPath)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {isZh ? "查看证据" : "View evidence"}
+              </a>
+            </p>
+          ) : null}
+          {officialEvidence?.missingUploads?.length ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isZh ? "仍需上传：" : "Still needs upload:"} {officialEvidence.missingUploads.join(", ")}
+            </p>
+          ) : null}
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <Button type="button" onClick={officialPath ? downloadOfficialEform : requestOfficialEform} disabled={busy}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}

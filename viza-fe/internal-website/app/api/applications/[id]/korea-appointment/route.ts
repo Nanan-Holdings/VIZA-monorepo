@@ -282,7 +282,15 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
   if (slotsErr) throw new Error(slotsErr.message);
   if (confirmationErr) throw new Error(confirmationErr.message);
   if (manualActionErr) throw new Error(manualActionErr.message);
-  return { routing, job, slots: slots ?? [], confirmation: confirmation ?? null, manualAction: (manualAction as AppointmentManualActionRow | null) ?? null };
+  const normalizedConfirmation = confirmation
+    ? {
+        ...confirmation,
+        confirmation_screenshot_url: confirmation.confirmation_screenshot_url
+          ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(confirmation.confirmation_screenshot_url)}`
+          : null,
+      }
+    : null;
+  return { routing, job, slots: slots ?? [], confirmation: normalizedConfirmation, manualAction: (manualAction as AppointmentManualActionRow | null) ?? null };
 }
 
 function dryRunSlots(centerCode: string) {
