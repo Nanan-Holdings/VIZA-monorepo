@@ -89,4 +89,28 @@ describe("resolveKvacCenter", () => {
     expect(qingdao.serviceMode).toBe("center_guidance_required");
     expect(qingdao.bookingUrl).toBeNull();
   });
+
+  it("marks only validated visaforkorea centers as live SMS sync supported", () => {
+    const supported = ["北京", "上海", "广东", "陕西"].map(
+      (province) => resolveKvacCenter({ hukouProvince: province }).recommended,
+    );
+    const reconOnly = ["湖北", "辽宁", "四川"].map(
+      (province) => resolveKvacCenter({ hukouProvince: province }).recommended,
+    );
+    const guidanceOnly = resolveKvacCenter({ hukouProvince: "山东" }).recommended;
+
+    expect(supported.map((center) => center.liveBookingMode)).toEqual([
+      "sms_sync_supported",
+      "sms_sync_supported",
+      "sms_sync_supported",
+      "sms_sync_supported",
+    ]);
+    expect(reconOnly.map((center) => center.liveBookingMode)).toEqual([
+      "site_recon_only",
+      "site_recon_only",
+      "site_recon_only",
+    ]);
+    expect(guidanceOnly.liveBookingMode).toBe("official_guidance_only");
+    expect(guidanceOnly.liveBookingRuleZh).toContain("不承诺自动预约");
+  });
 });

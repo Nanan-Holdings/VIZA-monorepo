@@ -22,6 +22,10 @@ import {
   usAppointmentApplicationRouter,
   usAppointmentOperationsRouter,
 } from './routes/us-appointment.routes.js';
+import {
+  franceAppointmentApplicationRouter,
+  franceAppointmentOperationsRouter,
+} from './routes/france-appointment.routes.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -78,6 +82,10 @@ app.use('/api/official-fee', officialFeeOperationsRouter);
 // U.S. appointment assistance dry-run/manual checkpoint framework
 app.use('/api/applications', usAppointmentApplicationRouter);
 app.use('/api/us-appointment', usAppointmentOperationsRouter);
+
+// France Schengen TLScontact appointment assistance framework
+app.use('/api/applications', franceAppointmentApplicationRouter);
+app.use('/api/france-appointment', franceAppointmentOperationsRouter);
 
 // Submission result + per-application artifact endpoints
 app.use('/api/applications', submissionResultRouter);

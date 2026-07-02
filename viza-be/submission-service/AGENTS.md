@@ -158,6 +158,10 @@ filling and one-shot submission for the applicant.
   KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
   and stop with structured manual-required evidence for unsupported SMS,
   real-name, WAF, or center-specific policy gates instead of marking success.
+- `scripts/smoke-korea-kvac-centers.ts`: local Korea KVAC/consulate reachability
+  smoke for all mainland China filing channels. It opens the official booking
+  or guidance entry for each center and saves evidence screenshots without
+  sending SMS codes or clicking final booking.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
@@ -275,6 +279,8 @@ npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts
 npm run ph-etravel:chrome
 npx tsx scripts/run-ph-etravel-smoke.ts
+# Korea KVAC/consulate center reachability only; no SMS/final booking:
+npx ts-node scripts/smoke-korea-kvac-centers.ts
 # UK recon/pre-auth walk:
 npx ts-node scripts/walk-uk-portal.ts
 ```

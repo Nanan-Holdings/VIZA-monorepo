@@ -1436,26 +1436,33 @@ async function continueFromApplicationStepOne(
       url: page.url(),
       title: await page.title().catch(() => null),
     });
-    await clickIndonesiaStepOneNext(page, next, diagnostics);
-    await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
-    await page.waitForTimeout(5_000);
-    await dismissIndonesiaDialogs(page, diagnostics);
-    if (/\/step_1\b/i.test(page.url())) {
+    if (process.env.INDONESIA_STEP_1_DIRECT_TO_STEP_2 !== "false") {
+      await navigateIndonesiaApplicationStep(page, 2, diagnostics, "indonesia_step_1_next_direct_step_2");
+      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+      await page.waitForTimeout(2_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
+    } else {
+      await clickIndonesiaStepOneNext(page, next, diagnostics);
+      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 30_000 }).catch(() => undefined);
+      await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
+      await page.waitForTimeout(5_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
+    }
+    if (/\/step_1\b/i.test(page.url()) && process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") {
       const fallbackClicked = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_1");
       if (!fallbackClicked) {
         diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
       }
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 10_000 }).catch(() => undefined);
     }
-    if (/\/step_1\b/i.test(page.url())) {
+    if (/\/step_1\b/i.test(page.url()) && process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") {
       await submitIndonesiaStepOneFormFallback(page, diagnostics);
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 15_000 }).catch(() => undefined);
       await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
       await page.waitForTimeout(3_000);
       await dismissIndonesiaDialogs(page, diagnostics);
     }
-    if (/\/step_1\b/i.test(page.url())) {
+    if (/\/step_1\b/i.test(page.url()) && process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") {
       await submitIndonesiaStepOneOfficialAjax(page, input, diagnostics);
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 20_000 }).catch(() => undefined);
       await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
@@ -1596,6 +1603,35 @@ async function submitIndonesiaStepOneFormFallback(page: Page, diagnostics: strin
     .catch((error: unknown) => ({ submitted: false, reason: error instanceof Error ? error.message : String(error), events: 0 }));
   diagnostics.push(`indonesia_step_1_form_submit_fallback submitted=${result.submitted ? "true" : "false"} events=${result.events} reason=${String(result.reason).slice(0, 80)}`);
   return result.submitted;
+}
+
+async function navigateIndonesiaApplicationStep(
+  page: Page,
+  step: 2 | 3,
+  diagnostics: string[],
+  label: string,
+): Promise<boolean> {
+  const navigated = await page
+    .evaluate((targetStep) => {
+      const win = window as unknown as {
+        routing?: {
+          generate: (name: string) => string;
+        };
+      };
+      const routeName = targetStep === 2 ? "web_application_add_step_2" : "web_application_add_step_3";
+      const nextUrl = win.routing?.generate(routeName) ?? `/web/application_add/visa/step_${targetStep}`;
+      window.location.href = nextUrl;
+      return nextUrl;
+    }, step)
+    .then((targetUrl) => {
+      diagnostics.push(`${label}_navigating ${targetUrl}`);
+      return true;
+    })
+    .catch((error: unknown) => {
+      diagnostics.push(`${label}_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return false;
+    });
+  return navigated;
 }
 
 async function submitIndonesiaStepOneOfficialAjax(
@@ -2472,7 +2508,7 @@ async function continueFromApplicationList(
 }
 
 async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): Promise<boolean> {
-  const paymentKeywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|pay now|invoice|billing/i;
+  const paymentKeywords = /pay|payment|checkout|bayar|billing|simponi|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|pay now|invoice/i;
   const paymentControl = page
     .getByRole("link", { name: paymentKeywords })
     .or(page.getByRole("button", { name: paymentKeywords }))
@@ -2506,7 +2542,7 @@ async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): 
   }
 
   const clickedByDomSearch = await page.evaluate(() => {
-    const keywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard/i;
+    const keywords = /pay|payment|checkout|bayar|billing|simponi|pembayaran|invoice/i;
     const isVisible = (element: Element): boolean => {
       const style = window.getComputedStyle(element);
       const rect = element.getBoundingClientRect();
@@ -2543,8 +2579,6 @@ async function clickIndonesiaPaymentControl(page: Page, diagnostics: string[]): 
         .filter(isVisible);
       const keywordTarget = rowTargets.find((element) => keywords.test(describe(element)));
       if (keywordTarget && clickTarget(keywordTarget)) return true;
-      const lastTarget = rowTargets[rowTargets.length - 1];
-      if (lastTarget && clickTarget(lastTarget)) return true;
     }
 
     return false;

@@ -55,6 +55,28 @@ interface KoreaKvacLiveSession {
 
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const sessions = new Map<string, KoreaKvacLiveSession>();
+const VISAFORKOREA_CENTER_CONFIG: Record<string, { hostPattern: RegExp; location: string; label: string }> = {
+  beijing: {
+    hostPattern: /visaforkorea-bj\.com/i,
+    location: "Korea Visa Application Center Beijing",
+    label: "Beijing KVAC",
+  },
+  shanghai: {
+    hostPattern: /visaforkorea-sh\.com/i,
+    location: "Korea Visa Application Center Shanghai",
+    label: "Shanghai KVAC",
+  },
+  guangzhou: {
+    hostPattern: /visaforkorea-gz\.com/i,
+    location: "Korea Visa Application Center Guangzhou",
+    label: "Guangzhou KVAC",
+  },
+  xian: {
+    hostPattern: /visaforkorea-xa\.com/i,
+    location: "Korea Visa Application Center Xi'an",
+    label: "Xi'an KVAC",
+  },
+};
 
 function nowMs() {
   return Date.now();
@@ -71,13 +93,18 @@ function maskPhone(phone: string) {
   return digits.replace(/(\d{3})\d+(\d{4})/, "$1****$2");
 }
 
-function assertBeijing(input: KoreaKvacStartSmsInput) {
-  if (input.centerCode !== "beijing") {
-    throw new Error(`Korea KVAC official SMS sync is currently validated only for Beijing. Unsupported center: ${input.centerCode}.`);
+function getVisaforkoreaConfig(input: KoreaKvacStartSmsInput) {
+  const config = VISAFORKOREA_CENTER_CONFIG[input.centerCode];
+  if (!config) {
+    throw new Error(
+      `Korea KVAC official SMS sync is not enabled for ${input.centerCode}. ` +
+      "This center is covered as guidance/reachability only and must stop at a manual checkpoint.",
+    );
   }
-  if (!/visaforkorea-bj\.com/i.test(input.bookingUrl)) {
-    throw new Error("Beijing KVAC booking URL is required for official SMS sync.");
+  if (!config.hostPattern.test(input.bookingUrl)) {
+    throw new Error(`${config.label} booking URL is required for official SMS sync.`);
   }
+  return config;
 }
 
 async function cleanupSession(jobId: string) {
@@ -156,12 +183,12 @@ async function screenshot(page: Page, jobId: string, label: string) {
 export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsInput): Promise<KoreaKvacStartSmsResult> {
   console.log(`[korea-kvac] start official SMS session job=${input.jobId} center=${input.centerCode}`);
   cleanupExpired();
-  assertBeijing(input);
+  const centerConfig = getVisaforkoreaConfig(input);
   await cleanupSession(input.jobId);
 
   const phone = normalizePhoneForKvac(input.mobilePhone);
   if (!/^1\d{10}$/.test(phone)) {
-    throw new Error("Beijing KVAC requires a mainland China 11-digit mobile number without +86 or hyphens.");
+    throw new Error(`${centerConfig.label} requires a mainland China 11-digit mobile number without +86 or hyphens.`);
   }
   const applicantName = input.applicantName.trim();
   if (!applicantName) throw new Error("Applicant name is required before starting Beijing KVAC SMS verification.");
@@ -182,7 +209,7 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
     await clickFirstAvailableTime(page);
     const selected = await readSelectedTime(page);
     if (!selected.day || !selected.time) {
-      throw new Error("Beijing KVAC date/time was not selected on the official page.");
+      throw new Error(`${centerConfig.label} date/time was not selected on the official page.`);
     }
 
     console.log(`[korea-kvac] selected ${selected.day} ${selected.time}-${selected.nextTime} job=${input.jobId}`);
@@ -214,7 +241,7 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
       appointmentDate: selected.day,
       appointmentTime: selected.time,
       appointmentEndTime: selected.nextTime,
-      appointmentLocation: "Korea Visa Application Center Beijing",
+      appointmentLocation: centerConfig.location,
       expiresAt,
       screenshotPath,
     });
@@ -226,7 +253,7 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
       appointmentDate: selected.day,
       appointmentTime: selected.time,
       appointmentEndTime: selected.nextTime,
-      appointmentLocation: "Korea Visa Application Center Beijing",
+      appointmentLocation: centerConfig.location,
       phoneMasked: maskPhone(phone),
       expiresAtIso: new Date(expiresAt).toISOString(),
       screenshotPath,

@@ -539,6 +539,15 @@ export async function POST(
         { status: 409 },
       );
     }
+    if (routing.recommended.liveBookingMode !== "sms_sync_supported") {
+      return NextResponse.json(
+        {
+          error:
+            "This Korea center is covered for guidance and portal reachability, but VIZA live SMS-sync booking is not enabled for this center yet. Follow the displayed official-center instructions or use a manual checkpoint.",
+        },
+        { status: 409 },
+      );
+    }
     const job = await ensureKoreaJob(auth.admin, id, auth.profile.id, routing, "live_assisted");
     if (job.status === "sms_verification_submitted") {
       return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));

@@ -147,3 +147,26 @@ test("Korea KVAC live runner requires official confirmation capture before succe
     else process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = previous;
   }
 });
+
+test("Korea KVAC live runner never reports success for center-specific gates", async () => {
+  const previous = process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED;
+  process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = "true";
+  try {
+    for (const centerCode of ["wuhan", "shenyang", "chengdu", "qingdao"]) {
+      const result = await runKoreaKvacLive({
+        applicationId: "app-1",
+        jobId: `job-${centerCode}`,
+        selectedSlotId: "slot-1",
+        centerCode,
+        smsCodeProvided: true,
+        finalBookingApproved: true,
+      });
+
+      assert.equal(result.status, "manual_required");
+      assert.equal(result.manualActionType, "official_confirmation_capture_required");
+    }
+  } finally {
+    if (previous === undefined) delete process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED;
+    else process.env.KR_KVAC_APPOINTMENT_ASSISTED_LIVE_ENABLED = previous;
+  }
+});
