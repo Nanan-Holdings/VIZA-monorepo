@@ -191,11 +191,11 @@ export function FranceAppointmentAssistant({
   const selectedAppointmentSlot = useMemo(() => selectedSlot(slots), [slots]);
   const finalApproved = useMemo(
     () =>
-      snapshot?.manualActions.some(
+      (snapshot?.manualActions ?? []).some(
         (action) =>
           action.actionType === "final_confirmation" &&
           action.status === "completed",
-      ) ?? false,
+      ),
     [snapshot?.manualActions],
   );
   const paymentAuthorized =
@@ -284,9 +284,9 @@ export function FranceAppointmentAssistant({
   const handleCreateJob = () =>
     runAction("create", async () => {
       await createFranceAppointmentJob(applicationId, {
-        mode: "dry_run",
+        mode: "assisted_live",
         centerCode,
-        idempotencyKey: `france-tls:${applicationId}:${centerCode}:dry-run`,
+        idempotencyKey: `france-tls:${applicationId}:${centerCode}:assisted-live`,
         userPreferencesJson: {
           centerCode,
           schedulingProvider: "tlscontact_cn_fr",
@@ -299,7 +299,7 @@ export function FranceAppointmentAssistant({
     runAction("payment", async () => {
       if (!job) return;
       const last4 = paymentLast4.trim();
-      const expMonth = paymentExpMonth.trim();
+      const expMonth = paymentExpMonth.trim().padStart(2, "0");
       const expYear = paymentExpYear.trim();
       if (!/^\d{4}$/.test(last4) || !/^\d{1,2}$/.test(expMonth) || !/^\d{4}$/.test(expYear)) {
         setErrorMessage(t("payment.validation"));
@@ -334,7 +334,7 @@ export function FranceAppointmentAssistant({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <section className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -365,8 +365,7 @@ export function FranceAppointmentAssistant({
         </Alert>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-5">
+      <div className="mx-auto w-full space-y-5">
           <Card className="rounded-[8px] border-input">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -447,9 +446,6 @@ export function FranceAppointmentAssistant({
               </Button>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="space-y-5">
           <Card className="rounded-[8px] border-input">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -465,7 +461,7 @@ export function FranceAppointmentAssistant({
                 />
                 <Detail
                   label={t("panel.mode")}
-                  value={job ? t(`modes.${job.mode}`) : t("modes.dry_run")}
+                  value={job ? t(`modes.${job.mode}`) : t("modes.assisted_live")}
                 />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
@@ -746,7 +742,6 @@ export function FranceAppointmentAssistant({
               )}
             </CardContent>
           </Card>
-        </div>
       </div>
     </main>
   );

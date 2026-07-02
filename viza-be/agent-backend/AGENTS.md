@@ -47,7 +47,10 @@ explicitly reintroduces another provider.
   tables for mainland China `TLSCONTACT_CN_FR`, requires France-Visas official
   reference plus user consent, enforces slot/status cooldowns, exposes only
   safe slot/confirmation/account metadata, and stores TLS payment authorization
-  as redacted metadata only.
+  as redacted metadata only. Assisted-live slot checks call the localhost
+  submission-service `/local/france-tls/check-slots` endpoint via
+  `FRANCE_TLS_SUBMISSION_SERVICE_URL`; browser automation and WAF/CDP handling
+  must remain in submission-service.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.

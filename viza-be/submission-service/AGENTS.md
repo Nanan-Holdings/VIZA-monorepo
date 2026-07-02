@@ -91,6 +91,12 @@ filling and one-shot submission for the applicant.
   payment sessions, clears sensitive PAN/CVV after use, and must capture
   redacted confirmation/payment evidence only after explicit user slot,
   payment, and final approval.
+- `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
+  gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
+  configured TLS VAC official URL through France-specific Browser API/CDP or a
+  local browser, returns visible slots when safely observed, and otherwise
+  returns structured checkpoints such as `login`, `captcha`, `waf`, `payment`,
+  or `selector_drift` without logging Browser API endpoints.
 - `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
   alias provisioning and inbound-email verification-link extraction for
   official account registration.
@@ -252,6 +258,9 @@ filling and one-shot submission for the applicant.
 - France TLS service-fee payment sessions must be short TTL, in-memory/local
   handoffs. Do not persist full card numbers, CVV, OTP, payment passwords, or
   official TLS cookies to DB, logs, traces, screenshots, `.env`, or AGENTS.
+- France TLS official-page checks should prefer `FRANCE_TLS_BROWSER_API_ENDPOINT`
+  or `FRANCE_TLS_CDP_ENDPOINT` before global Browser API settings. Never log
+  endpoint URLs or embedded credentials.
 - France TLS live booking must not bypass unsupported official-site MFA,
   real-name, WAF, policy, or payment-challenge gates. Stop with structured
   checkpoint/error evidence instead of marking success.

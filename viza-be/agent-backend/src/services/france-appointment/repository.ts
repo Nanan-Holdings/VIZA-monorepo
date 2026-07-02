@@ -294,7 +294,7 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
       .from("appointment_slots")
       .delete()
       .eq("job_id", jobId)
-      .eq("source", "france_tls_dry_run");
+      .eq("status", "observed");
     if (deleteError) throw new Error(deleteError.message);
     const { data, error } = await client
       .from("appointment_slots")

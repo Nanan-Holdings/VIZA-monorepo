@@ -33,6 +33,7 @@ interface AppointmentManualActionRow {
   instruction: string | null;
   expires_at: string | null;
   created_at: string | null;
+  metadata_redacted_json?: Record<string, unknown> | null;
 }
 
 interface KoreaKvacStartSmsResponse {
@@ -243,7 +244,7 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .maybeSingle(),
     admin
       .from("appointment_manual_actions")
-      .select("id, job_id, action_type, status, instruction, expires_at, created_at")
+      .select("id, job_id, action_type, status, instruction, expires_at, created_at, metadata_redacted_json")
       .eq("job_id", job.id)
       .in("status", ["pending", "in_progress"])
       .order("created_at", { ascending: false })
@@ -342,6 +343,97 @@ async function ensureKoreaJob(
   }).eq("id", applicationId);
 
   return data as AppointmentJobRow;
+}
+
+function manualCheckpointForCenter(routing: ReturnType<typeof resolveKvacCenter>) {
+  const center = routing.recommended;
+  const isGuidanceOnly = center.liveBookingMode === "official_guidance_only" || !center.bookingUrl;
+  return {
+    actionType: isGuidanceOnly ? "official_guidance_required" : "official_center_manual_checkpoint",
+    status: isGuidanceOnly ? "official_guidance_required" : "official_center_manual_checkpoint",
+    instruction: isGuidanceOnly
+      ? "This Korea filing channel has no confirmed unified online appointment portal. Show the official consulate guidance and designated filing-channel notes instead of claiming automatic booking."
+      : "This Korea center's official entry is reachable, but its live booking flow is center-specific. Continue from the official entry and pause at account, SMS, real-name, queue, payment-like, or final-submit gates.",
+    metadata: {
+      centerCode: center.code,
+      centerNameEn: center.nameEn,
+      centerNameZh: center.nameZh,
+      liveBookingMode: center.liveBookingMode,
+      serviceMode: center.serviceMode,
+      officialUrl: center.officialUrl,
+      bookingUrl: center.bookingUrl,
+      appointmentRuleZh: center.appointmentRuleZh,
+      appointmentRuleEn: center.appointmentRuleEn,
+      liveBookingRuleZh: center.liveBookingRuleZh,
+      liveBookingRuleEn: center.liveBookingRuleEn,
+      sourceUrls: center.sourceUrls,
+      nextStep: isGuidanceOnly ? "show_official_guidance" : "continue_official_center_checkpoint",
+    },
+  };
+}
+
+async function createOrReuseCenterCheckpoint(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+) {
+  const checkpoint = manualCheckpointForCenter(routing);
+  const { data: existingManualAction, error: existingManualErr } = await admin
+    .from("appointment_manual_actions")
+    .select("id")
+    .eq("job_id", job.id)
+    .eq("action_type", checkpoint.actionType)
+    .in("status", ["pending", "in_progress"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingManualErr) throw new Error(existingManualErr.message);
+
+  const manualActionId = existingManualAction?.id ?? await (async () => {
+    const { data: manualAction, error: manualErr } = await admin
+      .from("appointment_manual_actions")
+      .insert({
+        job_id: job.id,
+        application_id: applicationId,
+        user_id: userId,
+        action_type: checkpoint.actionType,
+        status: "pending",
+        instruction: checkpoint.instruction,
+        user_input_schema_json: {
+          type: "object",
+          properties: {
+            acknowledged: { type: "boolean" },
+          },
+        },
+        metadata_redacted_json: checkpoint.metadata,
+      })
+      .select("id")
+      .single();
+    if (manualErr || !manualAction) throw new Error(manualErr?.message ?? "Could not create Korea center checkpoint.");
+    return manualAction.id as string;
+  })();
+
+  await admin.from("appointment_assistance_jobs").update({
+    mode: "live_assisted",
+    status: checkpoint.status,
+    requires_user_action: true,
+    current_manual_action: manualActionId,
+    updated_at: new Date().toISOString(),
+  }).eq("id", job.id);
+  await admin.from("applications").update({
+    appointment_assistance_status: checkpoint.status,
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+  await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: checkpoint.status,
+    event_message: "Korea center checkpoint created for a non-SMS-sync official filing channel.",
+    metadata_redacted_json: checkpoint.metadata,
+  });
 }
 
 async function replaceObservedSlots(
@@ -533,22 +625,11 @@ export async function POST(
   }
 
   if (action === "request-live-booking") {
-    if (!routing.recommended.bookingUrl) {
-      return NextResponse.json(
-        { error: "This Korea visa filing channel does not have a confirmed online appointment portal. Use the official consulate guidance or a published designated agency channel." },
-        { status: 409 },
-      );
-    }
-    if (routing.recommended.liveBookingMode !== "sms_sync_supported") {
-      return NextResponse.json(
-        {
-          error:
-            "This Korea center is covered for guidance and portal reachability, but VIZA live SMS-sync booking is not enabled for this center yet. Follow the displayed official-center instructions or use a manual checkpoint.",
-        },
-        { status: 409 },
-      );
-    }
     const job = await ensureKoreaJob(auth.admin, id, auth.profile.id, routing, "live_assisted");
+    if (routing.recommended.liveBookingMode !== "sms_sync_supported") {
+      await createOrReuseCenterCheckpoint(auth.admin, id, auth.profile.id, job, routing);
+      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    }
     if (job.status === "sms_verification_submitted") {
       return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
     }

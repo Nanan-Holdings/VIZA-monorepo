@@ -45,9 +45,10 @@ const consentBodySchema = z
 
 const jobBodySchema = z
   .object({
-    mode: z.enum(["dry_run", "assisted_live", "manual"]).optional().default("dry_run"),
+    mode: z.enum(["dry_run", "assisted_live", "manual"]).optional().default("assisted_live"),
     centerCode: z.string().trim().min(2).max(80).default("shanghai"),
     idempotencyKey: z.string().trim().min(8).max(160).optional(),
+    userPreferencesJson: z.record(z.unknown()).optional().default({}),
   })
   .strict();
 
@@ -345,7 +346,19 @@ franceAppointmentApplicationRouter.get(
     }
     try {
       const snapshot = await service.getStatusForApplication(applicationId);
-      res.json({ error: false, data: snapshot ?? { job: null, slots: [], pendingManualAction: null, confirmation: null } });
+      res.json({
+        error: false,
+        data: snapshot ?? {
+          job: null,
+          account: null,
+          slots: [],
+          pendingManualAction: null,
+          manualActions: [],
+          confirmation: null,
+          latestStatusCheck: null,
+          dryRunNotice: null,
+        },
+      });
     } catch (error) {
       sendFranceAppointmentError(res, error, "france_appointment_status_failed");
     }
@@ -425,7 +438,7 @@ franceAppointmentOperationsRouter.post(
         sessionId: bodyResult.data.sessionId,
         redacted: bodyResult.data.redacted,
       });
-      res.json({ error: false, data: job });
+      res.json({ error: false, data: await service.getStatus(job.id) });
     } catch (error) {
       sendFranceAppointmentError(res, error, "france_appointment_payment_session_failed");
     }
@@ -443,7 +456,7 @@ franceAppointmentOperationsRouter.post(
     }
     try {
       const job = await service.approveFinalConfirmation(jobId);
-      res.json({ error: false, data: job });
+      res.json({ error: false, data: await service.getStatus(job.id) });
     } catch (error) {
       sendFranceAppointmentError(res, error, "france_appointment_final_approval_failed");
     }

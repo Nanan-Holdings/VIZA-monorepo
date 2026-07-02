@@ -15,6 +15,8 @@ France-Visas official reference capture.
   booking until the applicant clicks an explicit action.
 - Users can choose only backend-observed TLS slots from the current job. Do not
   collect preferred dates or let the frontend invent appointment timings.
+- Start new jobs in `assisted_live` mode by default. Dry-run is for tests only
+  and must not be presented as real TLS availability.
 - Payment UI may display or collect only redacted one-time authorization
   metadata such as brand, last4, and expiry. Full PAN, CVV, OTP, payment
   password, and provider tokens must never be sent to agent-backend status APIs,

@@ -53,6 +53,7 @@ interface Snapshot {
     status: string;
     instruction: string | null;
     expires_at: string | null;
+    metadata_redacted_json?: Record<string, unknown> | null;
   } | null;
   slots: Array<{
     id: string;
@@ -105,10 +106,20 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const isLiveAssisted = snapshot?.job?.mode === "live_assisted";
   const smsManualAction = waitingForSms ? snapshot?.manualAction : null;
   const finalApprovalAction = waitingForFinalApproval ? snapshot?.manualAction : null;
+  const centerManualAction =
+    snapshot?.manualAction && ["official_center_manual_checkpoint", "official_guidance_required", "official_account_login_required"].includes(snapshot.manualAction.action_type)
+      ? snapshot.manualAction
+      : null;
   const hasOfficialConfirmation =
     Boolean(snapshot?.confirmation) &&
     snapshot?.confirmation?.raw_confirmation_redacted_json?.mode !== "dry_run" &&
     !String(snapshot?.confirmation?.confirmation_number ?? "").startsWith("KR-DRYRUN-");
+  const showLiveStartButton =
+    !waitingForSms &&
+    !waitingForFinalApproval &&
+    !finalApproved &&
+    !centerManualAction &&
+    !snapshot?.confirmation;
 
   const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
@@ -145,6 +156,38 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     if (center.liveBookingMode === "sms_sync_supported") return isZh ? "VIZA 可同步短信预约" : "VIZA SMS sync supported";
     if (center.liveBookingMode === "site_recon_only") return isZh ? "入口已覆盖，遇门槛转人工" : "Entry covered; gates become manual";
     return isZh ? "仅展示官方指引" : "Official guidance only";
+  }, [center, isZh]);
+  const liveStartLabel = useMemo(() => {
+    if (!center) return isZh ? "启动官方预约助手" : "Start official assistant";
+    if (center.liveBookingMode === "sms_sync_supported") return isZh ? "进入短信验证" : "Start SMS verification";
+    if (center.liveBookingMode === "official_guidance_only") return isZh ? "查看官方递签指引" : "Show official filing guidance";
+    return isZh ? "启动官方预约助手" : "Start official assistant";
+  }, [center, isZh]);
+  const centerManualTitle = useMemo(() => {
+    if (!center) return "";
+    if (center.liveBookingMode === "official_guidance_only") return isZh ? "官方递签指引已就绪" : "Official filing guidance is ready";
+    return isZh ? "官方入口已就绪" : "Official entry is ready";
+  }, [center, isZh]);
+  const centerManualDescription = useMemo(() => {
+    if (!center) return "";
+    if (center.liveBookingMode === "official_guidance_only") {
+      return isZh
+        ? "该领区暂无可确认的统一在线预约入口。请按下方领馆公告或指定代办机构要求递交；VIZA 不会把无法验证的渠道标记为预约成功。"
+        : "This jurisdiction has no confirmed unified online booking portal. Follow the consulate notices or designated agency channel below; VIZA will not mark an unverified channel as booked.";
+    }
+    if (center.code === "shenyang") {
+      return isZh
+        ? "沈阳入口会进入 VFS/KVAC 流程。账号登录、短信、实名、排队或最终提交都会暂停给用户确认，不会假装已经预约成功。"
+        : "Shenyang continues through a VFS/KVAC flow. Account login, SMS, real-name, queue, or final submit gates pause for user confirmation instead of pretending success.";
+    }
+    if (center.code === "chengdu") {
+      return isZh
+        ? "成都独立预约表入口已覆盖。预约后需要打印访问预约证；遇到最终申请或验证码门槛时会暂停等待用户确认。"
+        : "Chengdu's standalone appointment form entry is covered. After booking, the visit appointment certificate must be printed; final apply or verification gates pause for user confirmation.";
+    }
+    return isZh
+      ? "该中心使用独立官方站点。VIZA 会保留官方入口和规则提醒，遇到账号、短信、实名、排队或最终提交门槛时转为人工检查点。"
+      : "This center uses a standalone official site. VIZA keeps the official entry and rule reminders, and converts account, SMS, real-name, queue, or final-submit gates into manual checkpoints.";
   }, [center, isZh]);
 
   return (
@@ -396,32 +439,53 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquareText className="h-5 w-5 text-brand-500" />
-            {isZh ? "真实预约短信验证" : "Live booking SMS verification"}
+            {isZh ? "官方预约助手" : "Official appointment assistant"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm leading-6 text-muted-foreground">
             {isZh
-              ? "KVAC 手机验证码不能绕过。真实预约时，worker 会先在官方页面发起短信验证并暂停；你在 5 分钟内输入验证码后，worker 才继续读取官方可预约时段。验证码不会明文写入日志或数据库。"
-              : "KVAC SMS verification cannot be bypassed. During live booking, the worker first pauses after triggering the official SMS; enter the code within 5 minutes so it can continue to observe official slots. The code is not stored in plaintext logs or database rows."}
+              ? "VIZA 会按推荐领区进入官方预约或递签指引。可短信同步的 KVAC 会先发起官方短信验证；独立站、VFS、领馆指引或任何实名/账号/最终提交门槛都会暂停给用户确认。验证码不会明文写入日志或数据库。"
+              : "VIZA follows the recommended jurisdiction into the official booking or filing channel. SMS-sync KVAC centers trigger official SMS first; standalone sites, VFS, consulate guidance, or any real-name/account/final-submit gate pause for user confirmation. Codes are not stored in plaintext logs or database rows."}
           </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => void run("request-live-booking")}
-              disabled={
-                Boolean(busy) ||
-                Boolean(snapshot?.confirmation) ||
-                waitingForSms ||
-                waitingForFinalApproval ||
-                finalApproved ||
-                center?.liveBookingMode !== "sms_sync_supported"
-              }
-            >
-              {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-              {isZh ? "进入短信验证" : "Start SMS verification"}
-            </Button>
-          </div>
+          {showLiveStartButton ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => void run("request-live-booking")}
+                disabled={Boolean(busy) || !center}
+              >
+                {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                {liveStartLabel}
+              </Button>
+            </div>
+          ) : null}
+          {centerManualAction && center ? (
+            <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
+              <div className="text-sm font-medium text-foreground">
+                {centerManualTitle}
+              </div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                {centerManualDescription}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {center.bookingUrl ? (
+                  <Button asChild size="sm" variant="outline">
+                    <a href={center.bookingUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {isZh ? "打开官方入口" : "Open official entry"}
+                    </a>
+                  </Button>
+                ) : null}
+                <Button asChild size="sm" variant={center.bookingUrl ? "ghost" : "outline"}>
+                  <a href={center.officialUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    {isZh ? "查看官方说明" : "View official guidance"}
+                  </a>
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {smsManualAction ? (
             <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
               <div className="text-sm font-medium text-foreground">
