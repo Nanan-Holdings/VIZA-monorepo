@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { CircleFlag } from "react-circle-flags";
+import LanguageToggle from "./LanguageToggle";
 import "./site-nav.css";
 
 const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
@@ -190,6 +191,7 @@ export default function SiteNav({ activeTab }: Props) {
             </svg>
             <input id="siteNavSearchInput" placeholder="Search a country or visa…" />
           </label>
+          <LanguageToggle />
           <button className="icon-btn" title="Help" type="button">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
