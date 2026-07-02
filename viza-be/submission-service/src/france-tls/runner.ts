@@ -148,14 +148,15 @@ async function createFranceTlsPage(): Promise<{
 }
 
 function classifyCheckpoint(text: string): FranceTlsRunnerResult["checkpoint"] | null {
-  if (/cloudflare|checking your browser|attention required|access denied|blocked|turnstile/i.test(text)) {
+  const start = text.slice(0, 1200);
+  if (/checking your browser|attention required|access denied|cf-error|turnstile/i.test(start)) {
     return {
       type: "waf",
       message: "TLScontact is protected by WAF/Cloudflare or blocked the current browser session.",
       metadataRedactedJson: { provider: "tlscontact_cn_fr" },
     };
   }
-  if (/captcha|recaptcha|verification code|security check/i.test(text)) {
+  if (/captcha|recaptcha|verification code|security check/i.test(start)) {
     return {
       type: "captcha",
       message: "TLScontact requires CAPTCHA or a security verification checkpoint.",
@@ -233,7 +234,8 @@ export async function probeFranceTlsOfficialPortal(
       waitUntil: "domcontentloaded",
       timeout: 60_000,
     });
-    await session.page.waitForTimeout(4_000);
+    const settleMs = Number.parseInt(process.env.FRANCE_TLS_PAGE_SETTLE_MS ?? "30000", 10);
+    await session.page.waitForTimeout(Number.isFinite(settleMs) ? Math.max(4_000, settleMs) : 30_000);
     const text = await session.page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
     const checkpoint = classifyCheckpoint(text);
     if (checkpoint) {

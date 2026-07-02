@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
 import {
+  completeKoreaKvacOfficialBooking,
   startKoreaKvacOfficialSmsSession,
   submitKoreaKvacOfficialSmsCode,
 } from "./korea-kvac/live-session.js";
@@ -169,6 +170,38 @@ async function handleKoreaKvacSmsSubmit(req: http.IncomingMessage, res: http.Ser
   }
 }
 
+async function handleKoreaKvacSmsComplete(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const selectedSlot = body.selectedSlot && typeof body.selectedSlot === "object" && !Array.isArray(body.selectedSlot)
+      ? (body.selectedSlot as Record<string, unknown>)
+      : null;
+    const result = await completeKoreaKvacOfficialBooking({
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      selectedSlot: selectedSlot
+        ? {
+            appointment_date: typeof selectedSlot.appointment_date === "string" ? selectedSlot.appointment_date : null,
+            appointment_time: typeof selectedSlot.appointment_time === "string" ? selectedSlot.appointment_time : null,
+            appointment_location: typeof selectedSlot.appointment_location === "string" ? selectedSlot.appointment_location : null,
+            appointment_type: typeof selectedSlot.appointment_type === "string" ? selectedSlot.appointment_type : null,
+          }
+        : null,
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function handleFranceTlsCheckSlots(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   if (!envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) {
     sendJson(res, 404, { error: "not_found" });
@@ -231,6 +264,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/submit") {
       void handleKoreaKvacSmsSubmit(req, res);
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/sms/complete") {
+      void handleKoreaKvacSmsComplete(req, res);
       return;
     }
     if (req.method === "POST" && url === "/local/france-tls/check-slots") {

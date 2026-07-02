@@ -39,6 +39,18 @@ export interface KoreaKvacSubmitSmsResult {
   screenshotPath: string | null;
 }
 
+export interface KoreaKvacCompleteBookingResult {
+  status: "appointment_booked";
+  officialSessionId: string;
+  confirmationNumber: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentLocation: string;
+  appointmentType: string;
+  screenshotPath: string | null;
+  confirmationPdfUrl: string | null;
+}
+
 interface KoreaKvacLiveSession {
   applicationId: string;
   jobId: string;
@@ -180,6 +192,39 @@ async function screenshot(page: Page, jobId: string, label: string) {
   return path;
 }
 
+async function clickFinalBookingButton(page: Page) {
+  const candidates = [
+    page.locator("#btn_reserve").first(),
+    page.locator("#btn_submit").first(),
+    page.locator("button, a, input[type='button'], input[type='submit']").filter({
+      hasText: /预约|申请|提交|确认预约|예약|신청|Reserve|Book|Submit/i,
+    }).last(),
+  ];
+
+  for (const candidate of candidates) {
+    if ((await candidate.count().catch(() => 0)) === 0) continue;
+    const visible = await candidate.isVisible().catch(() => false);
+    const enabled = await candidate.isEnabled().catch(() => true);
+    if (!visible || !enabled) continue;
+    await candidate.click({ timeout: 30_000 });
+    await page.waitForTimeout(5_000);
+    return;
+  }
+  throw new Error("Official KVAC final booking button was not found after user approval.");
+}
+
+async function extractConfirmationNumber(page: Page) {
+  const text = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
+  const patterns = [
+    /(?:예약\s*번호|预约(?:确认)?(?:号|编号)|confirmation\s*(?:number|no\.?)|reference\s*(?:number|no\.?))\s*[:：]?\s*([A-Z0-9-]{5,})/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+  return null;
+}
+
 export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsInput): Promise<KoreaKvacStartSmsResult> {
   console.log(`[korea-kvac] start official SMS session job=${input.jobId} center=${input.centerCode}`);
   cleanupExpired();
@@ -304,6 +349,42 @@ export async function submitKoreaKvacOfficialSmsCode(input: {
       },
     ],
     screenshotPath,
+  };
+}
+
+export async function completeKoreaKvacOfficialBooking(input: {
+  jobId: string;
+  selectedSlot?: {
+    appointment_date?: string | null;
+    appointment_time?: string | null;
+    appointment_location?: string | null;
+    appointment_type?: string | null;
+  } | null;
+}): Promise<KoreaKvacCompleteBookingResult> {
+  cleanupExpired();
+  const session = sessions.get(input.jobId);
+  if (!session) {
+    throw new Error("Official KVAC browser session is missing or expired. Restart SMS verification before final booking.");
+  }
+
+  await clickFinalBookingButton(session.page);
+  const confirmationNumber = await extractConfirmationNumber(session.page);
+  const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
+  if (!confirmationNumber) {
+    throw new Error("Official KVAC final click completed, but no confirmation number was found. Preserve the screenshot and verify the official page before reporting success.");
+  }
+
+  await cleanupSession(input.jobId);
+  return {
+    status: "appointment_booked",
+    officialSessionId: input.jobId,
+    confirmationNumber,
+    appointmentDate: input.selectedSlot?.appointment_date ?? session.appointmentDate,
+    appointmentTime: input.selectedSlot?.appointment_time ?? session.appointmentTime,
+    appointmentLocation: input.selectedSlot?.appointment_location ?? session.appointmentLocation,
+    appointmentType: input.selectedSlot?.appointment_type ?? "C-3-9 document intake",
+    screenshotPath,
+    confirmationPdfUrl: null,
   };
 }
 

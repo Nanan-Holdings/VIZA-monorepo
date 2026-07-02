@@ -1004,6 +1004,55 @@ async function captureApplicationListArtifact(
   }
 }
 
+async function captureApplicationStepArtifact(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+  step: 2 | 3,
+): Promise<void> {
+  try {
+    const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
+      .replace(/[^a-zA-Z0-9_-]/g, "_");
+    const dir = path.resolve("diag-out", `indonesia-step-${step}`, applicationId);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `step-${step}.html`), await page.content().catch(() => ""));
+    const controls = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("a,button,[role='button'],input[type='button'],input[type='submit'],select,input,textarea"))
+          .filter((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0;
+          })
+          .map((element) => {
+            const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+            return {
+              tag: element.tagName.toLowerCase(),
+              text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 180),
+              id: element.id,
+              name: element.getAttribute("name"),
+              type: control instanceof HTMLInputElement ? control.type : null,
+              classes: element.className,
+              valueLength: String(control.value ?? "").length,
+              required: "required" in control ? Boolean(control.required) : false,
+              disabled: "disabled" in control ? Boolean(control.disabled) : false,
+              href: element.getAttribute("href"),
+              onclick: element.getAttribute("onclick"),
+            };
+          }),
+      )
+      .catch((error: unknown) => [{ error: error instanceof Error ? error.message : String(error) }]);
+    fs.writeFileSync(path.join(dir, "controls.json"), JSON.stringify(controls, null, 2));
+    await page.screenshot({ path: path.join(dir, `step-${step}.png`), fullPage: true }).catch(() => undefined);
+    diagnostics.push(`indonesia_step_${step}_artifact ${dir}`);
+  } catch (error) {
+    diagnostics.push(`indonesia_step_${step}_artifact_failed ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function decodeQuotedPrintable(value: string): string {
   return value
     .replace(/=\r?\n/g, "")
@@ -1655,7 +1704,10 @@ async function navigateIndonesiaApplicationStep(
   diagnostics: string[],
   label: string,
 ): Promise<boolean> {
-  const targetUrl = new URL(`/web/application_add/visa/step_${step}`, page.url()).toString();
+  const currentUrl = page.url();
+  const targetUrl = /\/step_\d+\b/i.test(currentUrl)
+    ? currentUrl.replace(/\/step_\d+\b/i, `/step_${step}`)
+    : new URL(`step_${step}`, currentUrl.endsWith("/") ? currentUrl : `${currentUrl}/`).toString();
   diagnostics.push(`${label}_navigating ${targetUrl}`);
   await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 20_000 }).catch((error: unknown) => {
     diagnostics.push(`${label}_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
@@ -2058,9 +2110,9 @@ async function openPaymentCandidateLinks(
     }
   }
 
-  const clickedByHeuristic = await page
+  const clickedByHeuristic = process.env.INDONESIA_PAYMENT_HEURISTIC_CLICK_UNSAFE === "true" && await page
       .evaluate(() => {
-      const keywords = /pay|payment|checkout|proceed|bayar|billing|simponi|card|visa|mastercard|otp|3ds|3d secure|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|pay now/i;
+      const keywords = /pay|payment|checkout|bayar|billing|simponi|otp|3ds|3d secure|pembayaran|menunggu pembayaran|belum bayar|belum dibayar|pay now/i;
       const isVisible = (element: Element): boolean => {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -2177,6 +2229,8 @@ function isExistingApplicationWarningText(value: string): boolean {
 function isExpiredIndonesiaApplicationText(value: string): boolean {
   const normalized = clean(value)?.toLowerCase() ?? "";
   return /application\s+expired/i.test(normalized) ||
+    /\bstatus\s*[:\s]+expired\b/i.test(normalized) ||
+    /\bexpired\b/i.test(normalized) && /transaction number|visitor visa number|passport number|visa type|action/i.test(normalized) ||
     /expired\s+application/i.test(normalized) ||
     /expired.*visa/i.test(normalized) ||
     /visa\s+application\s+.*\bexpired\b/i.test(normalized) ||
@@ -2199,9 +2253,10 @@ function isReusableIndonesiaApplicationUrl(value: string | null | undefined): va
   const cleanUrl = clean(value);
   if (!cleanUrl) return false;
   if (!/^https:\/\/evisa\.imigrasi\.go\.id\//i.test(cleanUrl)) return false;
+  if (/\/web\/visa-selection\b/i.test(cleanUrl)) return false;
   if (/\/application_add\//i.test(cleanUrl) && !/\/step_[23]\b/i.test(cleanUrl)) return false;
   return /\/web\/applications\/.+\/list\b/i.test(cleanUrl) ||
-    /\/application_add\/visa\/step_[23]\b/i.test(cleanUrl) ||
+    /\/application_add\/visa\/.+\/step_[23]\b/i.test(cleanUrl) ||
     /pay|payment|checkout/i.test(cleanUrl);
 }
 
@@ -2416,6 +2471,12 @@ async function continueFromApplicationStepTwo(
     const fallbackSubmitted = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_2");
     if (fallbackSubmitted) {
       diagnostics.push("indonesia_step_2_fallback_submitted");
+    } else {
+      await captureApplicationStepArtifact(page, input, diagnostics, 2);
+      const directStepThree = await navigateIndonesiaApplicationStep(page, 3, diagnostics, "indonesia_step_2_next_direct_step_3");
+      if (directStepThree) {
+        diagnostics.push("indonesia_step_2_direct_step_3_after_missing_submit");
+      }
     }
   }
   if (/\/step_3\b/i.test(page.url())) {
@@ -2487,6 +2548,11 @@ async function continueFromApplicationList(
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   diagnostics.push("indonesia_application_list_visible");
   await captureApplicationListArtifact(page, input, diagnostics);
+  if (isExpiredIndonesiaApplicationText(text)) {
+    diagnostics.push("indonesia_application_list_expired_detected_restarting_application");
+    await reopenIndonesiaPortalFromScratch(page, input, diagnostics);
+    return true;
+  }
   const isWaitingForPaymentText = /waiting for payment|menunggu pembayaran|belum bayar|bayar|pembayaran|belum dibayar/i.test(text);
   const clicked = await clickIndonesiaPaymentControl(page, diagnostics);
   if (clicked) {
@@ -2989,6 +3055,23 @@ export async function probeIndonesiaPortal(
         text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
         url = page.url();
         state = classifyIndonesiaPortalSnapshot({ url, title, text });
+      }
+
+      if (
+        /\/step_2\b/i.test(url) &&
+        (beforeUrl === url && beforeState === state || !advanced) &&
+        !session.diagnostics.includes("indonesia_step_2_state_machine_direct_step_3_attempted")
+      ) {
+        await captureApplicationStepArtifact(page, input, session.diagnostics, 2);
+        session.diagnostics.push("indonesia_step_2_state_machine_direct_step_3_attempted");
+        const directStepThree = await navigateIndonesiaApplicationStep(page, 3, session.diagnostics, "indonesia_step_2_state_machine_direct_step_3");
+        if (directStepThree) {
+          title = await page.title().catch(() => null);
+          text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+          url = page.url();
+          state = classifyIndonesiaPortalSnapshot({ url, title, text });
+          advanced = true;
+        }
       }
 
       if (!advanced || (beforeUrl === url && beforeState === state)) {

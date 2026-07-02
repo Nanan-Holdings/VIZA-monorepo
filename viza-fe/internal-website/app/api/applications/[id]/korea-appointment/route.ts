@@ -11,6 +11,7 @@ type Action =
   | "request-live-booking"
   | "submit-sms-code"
   | "approve-final-booking"
+  | "complete-final-booking"
   | "refresh-status";
 
 interface AppointmentJobRow {
@@ -67,6 +68,20 @@ interface KoreaKvacSubmitSmsResponse {
     metadata_redacted_json: Record<string, unknown>;
   }>;
   screenshotPath?: string | null;
+}
+
+interface KoreaKvacCompleteBookingResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "appointment_booked";
+  officialSessionId?: string;
+  confirmationNumber?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
+  appointmentLocation?: string;
+  appointmentType?: string;
+  screenshotPath?: string | null;
+  confirmationPdfUrl?: string | null;
 }
 
 type ApplicationAuthResult =
@@ -453,6 +468,89 @@ async function replaceObservedSlots(
   await admin.from("appointment_slots").delete().eq("job_id", jobId).in("source", ["dry_run", "dry_run_after_sms"]);
   const { error: slotErr } = await admin.from("appointment_slots").insert(slots);
   if (slotErr) throw new Error(slotErr.message);
+}
+
+async function completeOfficialFinalBooking(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+) {
+  const { data: slot, error: slotErr } = await admin
+    .from("appointment_slots")
+    .select("*")
+    .eq("job_id", job.id)
+    .in("status", ["user_selected", "selected"])
+    .order("observed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (slotErr) throw new Error(slotErr.message);
+  if (!slot) throw new Error("Select an official Korea KVAC slot before final booking.");
+
+  const officialComplete = await postSubmissionService<KoreaKvacCompleteBookingResponse>("/local/korea-kvac/sms/complete", {
+    applicationId,
+    jobId: job.id,
+    centerCode: routing.recommended.code,
+    selectedSlot: {
+      appointment_date: slot.appointment_date,
+      appointment_time: slot.appointment_time,
+      appointment_location: slot.appointment_location,
+      appointment_type: slot.appointment_type,
+    },
+  });
+  if (!officialComplete.ok || officialComplete.status !== "appointment_booked" || !officialComplete.confirmationNumber) {
+    throw new Error("Official Korea KVAC final booking did not return a confirmation number.");
+  }
+
+  const { data: confirmation, error: confirmationErr } = await admin
+    .from("appointment_confirmations")
+    .insert({
+      job_id: job.id,
+      application_id: applicationId,
+      user_id: userId,
+      country_code: "KR",
+      visa_type: "KR_C39_SHORT_TERM_VISIT",
+      appointment_date: officialComplete.appointmentDate ?? slot.appointment_date,
+      appointment_time: officialComplete.appointmentTime ?? slot.appointment_time,
+      appointment_location: officialComplete.appointmentLocation ?? slot.appointment_location,
+      appointment_type: officialComplete.appointmentType ?? slot.appointment_type,
+      confirmation_number: officialComplete.confirmationNumber,
+      confirmation_pdf_url: officialComplete.confirmationPdfUrl ?? null,
+      confirmation_screenshot_url: officialComplete.screenshotPath ?? null,
+      raw_confirmation_redacted_json: {
+        mode: "official_kvac_live",
+        center: routing.recommended.code,
+        officialSessionId: officialComplete.officialSessionId ?? job.id,
+        screenshotPath: officialComplete.screenshotPath,
+      },
+    })
+    .select("id")
+    .single();
+  if (confirmationErr || !confirmation) throw new Error(confirmationErr?.message ?? "Could not save Korea official appointment confirmation.");
+
+  await admin.from("appointment_assistance_jobs").update({
+    status: "appointment_booked",
+    requires_user_action: false,
+    current_manual_action: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", job.id);
+  await admin.from("applications").update({
+    appointment_assistance_status: "appointment_booked",
+    appointment_confirmation_id: confirmation.id,
+  }).eq("id", applicationId);
+  await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: "appointment_booked",
+    event_message: "Official Korea KVAC final booking returned a confirmation number and VIZA saved appointment proof metadata.",
+    metadata_redacted_json: {
+      centerCode: routing.recommended.code,
+      confirmationNumber: officialComplete.confirmationNumber,
+      screenshotPath: officialComplete.screenshotPath,
+    },
+  });
 }
 
 export async function GET(
@@ -861,6 +959,41 @@ export async function POST(
       event_message: "User approved Korea KVAC final booking click. Worker may proceed to the official final confirmation step.",
       metadata_redacted_json: { centerCode: routing.recommended.code },
     });
+    try {
+      await completeOfficialFinalBooking(auth.admin, id, auth.profile.id, { ...job, status: "final_booking_approved" }, routing);
+    } catch (error) {
+      console.error("[korea-appointment] complete final booking after approval failed", error);
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Korea KVAC final booking could not be completed. Restart SMS verification if the official session expired.",
+        },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "complete-final-booking") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Start live booking first" }, { status: 400 });
+    if (job.mode !== "live_assisted") return NextResponse.json({ error: "Final official booking requires live-assisted mode" }, { status: 400 });
+    try {
+      await completeOfficialFinalBooking(auth.admin, id, auth.profile.id, job, routing);
+    } catch (error) {
+      console.error("[korea-appointment] complete-final-booking failed", error);
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Korea KVAC final booking could not be completed. Restart SMS verification if the official session expired.",
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
