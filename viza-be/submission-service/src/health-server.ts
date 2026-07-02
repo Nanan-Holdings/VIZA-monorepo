@@ -1,4 +1,5 @@
 import * as http from "node:http";
+import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
 import {
   startKoreaKvacOfficialSmsSession,
@@ -168,6 +169,29 @@ async function handleKoreaKvacSmsSubmit(req: http.IncomingMessage, res: http.Ser
   }
 }
 
+async function handleFranceTlsCheckSlots(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const result = await probeFranceTlsOfficialPortal({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      centerCode: typeof body.centerCode === "string" ? body.centerCode : "shanghai",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
@@ -209,6 +233,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleKoreaKvacSmsSubmit(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/local/france-tls/check-slots") {
+      void handleFranceTlsCheckSlots(req, res);
+      return;
+    }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {
       if (!envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) {
         sendJson(res, 404, { error: "not_found" });
@@ -245,6 +273,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/local/france-tls/check-slots") {
+      if (!envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isLocalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
     sendJson(res, 404, { error: "not_found" });
   });
 
@@ -253,6 +293,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/vietnam/card-session");
     if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
+    if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);
   });

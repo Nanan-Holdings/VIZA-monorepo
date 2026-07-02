@@ -960,6 +960,50 @@ async function captureStepOneArtifact(
   }
 }
 
+async function captureApplicationListArtifact(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<void> {
+  try {
+    const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
+      .replace(/[^a-zA-Z0-9_-]/g, "_");
+    const dir = path.resolve("diag-out", "indonesia-application-list", applicationId);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "application-list.html"), await page.content().catch(() => ""));
+    const controls = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("a,button,[role='button'],input[type='button'],input[type='submit']"))
+          .filter((element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== "none" &&
+              style.visibility !== "hidden" &&
+              rect.width > 0 &&
+              rect.height > 0;
+          })
+          .map((element) => ({
+            tag: element.tagName.toLowerCase(),
+            text: (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 180),
+            href: element.getAttribute("href"),
+            id: element.id,
+            classes: element.className,
+            title: element.getAttribute("title"),
+            ariaLabel: element.getAttribute("aria-label"),
+            dataAction: element.getAttribute("data-action"),
+            dataUrl: element.getAttribute("data-url"),
+            onclick: element.getAttribute("onclick"),
+          })),
+      )
+      .catch((error: unknown) => [{ error: error instanceof Error ? error.message : String(error) }]);
+    fs.writeFileSync(path.join(dir, "controls.json"), JSON.stringify(controls, null, 2));
+    await page.screenshot({ path: path.join(dir, "application-list.png"), fullPage: true }).catch(() => undefined);
+    diagnostics.push(`indonesia_application_list_artifact ${dir}`);
+  } catch (error) {
+    diagnostics.push(`indonesia_application_list_artifact_failed ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function decodeQuotedPrintable(value: string): string {
   return value
     .replace(/=\r?\n/g, "")
@@ -2442,6 +2486,7 @@ async function continueFromApplicationList(
   await dismissIndonesiaDialogs(page, diagnostics);
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   diagnostics.push("indonesia_application_list_visible");
+  await captureApplicationListArtifact(page, input, diagnostics);
   const isWaitingForPaymentText = /waiting for payment|menunggu pembayaran|belum bayar|bayar|pembayaran|belum dibayar/i.test(text);
   const clicked = await clickIndonesiaPaymentControl(page, diagnostics);
   if (clicked) {

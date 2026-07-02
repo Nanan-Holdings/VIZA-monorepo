@@ -85,9 +85,13 @@ export interface FranceAppointmentConfirmation {
 
 export interface FranceAppointmentSnapshot {
   job: FranceAppointmentJob;
+  account: null;
   slots: FranceAppointmentSlot[];
   pendingManualAction: FranceAppointmentManualAction | null;
+  manualActions: FranceAppointmentManualAction[];
   confirmation: FranceAppointmentConfirmation | null;
+  latestStatusCheck: null;
+  dryRunNotice: string | null;
 }
 
 export interface FranceAppointmentRepository {
@@ -131,6 +135,7 @@ export class FranceAppointmentServiceError extends Error {
 export interface FranceAppointmentServiceOptions {
   slotCooldownMs?: number;
   now?: () => number;
+  submissionServiceUrl?: string | null;
 }
 
 const CENTER_NAMES: Record<string, string> = {
@@ -191,10 +196,12 @@ function latestPendingAction(actions: FranceAppointmentManualAction[]): FranceAp
 export class FranceAppointmentService {
   private readonly slotCooldownMs: number;
   private readonly now: () => number;
+  private readonly submissionServiceUrl: string | null;
 
   constructor(private readonly repository: FranceAppointmentRepository, options: FranceAppointmentServiceOptions = {}) {
     this.slotCooldownMs = options.slotCooldownMs ?? 600_000;
     this.now = options.now ?? Date.now;
+    this.submissionServiceUrl = options.submissionServiceUrl ?? process.env.FRANCE_TLS_SUBMISSION_SERVICE_URL ?? "http://127.0.0.1:8080";
   }
 
   async recordConsent(input: {
@@ -289,12 +296,7 @@ export class FranceAppointmentService {
       this.repository.listSlots(job.id),
       this.repository.getConfirmation(job.id),
     ]);
-    return {
-      job,
-      slots,
-      pendingManualAction: latestPendingAction([]),
-      confirmation,
-    };
+    return this.snapshot(job, slots, confirmation, latestPendingAction([]));
   }
 
   async getStatusForApplication(applicationId: string): Promise<FranceAppointmentSnapshot | null> {
@@ -307,7 +309,45 @@ export class FranceAppointmentService {
     if (job.lastSlotCheckAt && this.now() - Date.parse(job.lastSlotCheckAt) < this.slotCooldownMs) {
       throw new FranceAppointmentServiceError(429, "slot_check_rate_limited", "France TLS slot checks are rate limited.");
     }
-    const slots = await this.repository.replaceObservedSlots(job.id, dryRunSlots(jobCenterCode(job)));
+    const liveResult = job.mode === "assisted_live"
+      ? await this.checkLiveSlots(job)
+      : null;
+    if (liveResult?.checkpoint) {
+      const updated = await this.repository.updateJob(job.id, {
+        status: "appointment_manual_required",
+        requiresUserAction: true,
+        currentManualAction: liveResult.checkpoint.type,
+        lastSlotCheckAt: new Date(this.now()).toISOString(),
+        userPreferencesJson: {
+          ...job.userPreferencesJson,
+          liveCheckpoint: liveResult.checkpoint,
+        },
+      });
+      await this.repository.updateApplicationAppointmentState(job.applicationId, {
+        appointmentAssistanceStatus: updated.status,
+        appointmentAssistanceJobId: updated.id,
+      });
+      return this.snapshot(
+        updated,
+        await this.repository.listSlots(job.id),
+        await this.repository.getConfirmation(job.id),
+        {
+          id: `france-tls-${updated.id}-${liveResult.checkpoint.type}`,
+          applicationId: updated.applicationId,
+          userId: updated.userId,
+          jobId: updated.id,
+          actionType: liveResult.checkpoint.type,
+          status: "pending",
+          instruction: liveResult.checkpoint.message,
+          metadataRedactedJson: liveResult.checkpoint.metadataRedactedJson,
+          createdAt: new Date(this.now()).toISOString(),
+        },
+      );
+    }
+    const slots = await this.repository.replaceObservedSlots(
+      job.id,
+      liveResult?.slots ?? dryRunSlots(jobCenterCode(job)),
+    );
     const updated = await this.repository.updateJob(job.id, {
       status: slots.length > 0 ? "appointment_slot_selection_required" : "appointment_no_slots_available",
       requiresUserAction: slots.length > 0,
@@ -318,12 +358,7 @@ export class FranceAppointmentService {
       appointmentAssistanceStatus: updated.status,
       appointmentAssistanceJobId: updated.id,
     });
-    return {
-      job: updated,
-      slots,
-      pendingManualAction: null,
-      confirmation: await this.repository.getConfirmation(job.id),
-    };
+    return this.snapshot(updated, slots, await this.repository.getConfirmation(job.id), null);
   }
 
   async selectSlot(jobId: string, slotId: string): Promise<FranceAppointmentSnapshot> {
@@ -340,12 +375,12 @@ export class FranceAppointmentService {
       requiresUserAction: true,
       currentManualAction: "final_confirmation",
     });
-    return {
-      job: updated,
-      slots: await this.repository.listSlots(job.id),
-      pendingManualAction: null,
-      confirmation: await this.repository.getConfirmation(job.id),
-    };
+    return this.snapshot(
+      updated,
+      await this.repository.listSlots(job.id),
+      await this.repository.getConfirmation(job.id),
+      null,
+    );
   }
 
   async recordPaymentAuthorization(jobId: string, input: {
@@ -423,12 +458,7 @@ export class FranceAppointmentService {
       appointmentAssistanceJobId: updated.id,
       appointmentConfirmationId: confirmation.id,
     });
-    return {
-      job: updated,
-      slots: await this.repository.listSlots(job.id),
-      pendingManualAction: null,
-      confirmation,
-    };
+    return this.snapshot(updated, await this.repository.listSlots(job.id), confirmation, null);
   }
 
   async cancelJob(jobId: string): Promise<FranceAppointmentJob> {
@@ -472,6 +502,101 @@ export class FranceAppointmentService {
     if (!["france", "fr"].includes(country) || application.visaType !== "EU_SCHENGEN_C_SHORT_STAY") {
       throw new FranceAppointmentServiceError(409, "unsupported_application", "France TLS appointment assistance supports France Schengen Type C applications only.");
     }
+  }
+
+  private snapshot(
+    job: FranceAppointmentJob,
+    slots: FranceAppointmentSlot[],
+    confirmation: FranceAppointmentConfirmation | null,
+    pendingManualAction: FranceAppointmentManualAction | null,
+  ): FranceAppointmentSnapshot {
+    return {
+      job,
+      account: null,
+      slots,
+      pendingManualAction,
+      manualActions: pendingManualAction ? [pendingManualAction] : [],
+      confirmation,
+      latestStatusCheck: null,
+      dryRunNotice: job.mode === "dry_run"
+        ? "Dry-run mode returns deterministic sample TLS slots and does not connect to TLScontact."
+        : null,
+    };
+  }
+
+  private async checkLiveSlots(job: FranceAppointmentJob): Promise<{
+    slots?: Omit<FranceAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt">[];
+    checkpoint?: {
+      type: string;
+      message: string;
+      metadataRedactedJson: JsonObject;
+    };
+  } | null> {
+    if (!this.submissionServiceUrl) {
+      return {
+        checkpoint: {
+          type: "site_policy_review",
+          message: "France TLS assisted-live is not configured: FRANCE_TLS_SUBMISSION_SERVICE_URL is missing.",
+          metadataRedactedJson: { provider: "tlscontact_cn_fr" },
+        },
+      };
+    }
+    const endpoint = new URL("/local/france-tls/check-slots", this.submissionServiceUrl);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        applicationId: job.applicationId,
+        jobId: job.id,
+        centerCode: jobCenterCode(job),
+      }),
+    });
+    const payload = await response.json().catch(() => null) as {
+      ok?: boolean;
+      status?: string;
+      slots?: Array<{
+        appointmentDate: string;
+        appointmentTime: string;
+        appointmentLocation: string;
+        appointmentType: string;
+        source: string;
+        metadataRedactedJson?: JsonObject;
+      }>;
+      checkpoint?: {
+        type?: string;
+        message?: string;
+        metadataRedactedJson?: JsonObject;
+      };
+      error?: string;
+    } | null;
+    if (!response.ok || !payload?.ok) {
+      return {
+        checkpoint: {
+          type: "site_policy_review",
+          message: payload?.error ?? "France TLS official portal check failed in submission-service.",
+          metadataRedactedJson: { provider: "tlscontact_cn_fr", httpStatus: response.status },
+        },
+      };
+    }
+    if (payload.checkpoint) {
+      return {
+        checkpoint: {
+          type: payload.checkpoint.type ?? "site_policy_review",
+          message: payload.checkpoint.message ?? "France TLS official portal requires manual review.",
+          metadataRedactedJson: payload.checkpoint.metadataRedactedJson ?? { provider: "tlscontact_cn_fr" },
+        },
+      };
+    }
+    return {
+      slots: (payload.slots ?? []).map((slot) => ({
+        appointmentDate: slot.appointmentDate,
+        appointmentTime: slot.appointmentTime,
+        appointmentLocation: slot.appointmentLocation,
+        appointmentType: slot.appointmentType,
+        source: slot.source || "france_tls_live",
+        metadataRedactedJson: slot.metadataRedactedJson ?? { provider: "tlscontact_cn_fr" },
+      })),
+    };
   }
 }
 

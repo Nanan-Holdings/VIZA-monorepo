@@ -31,6 +31,7 @@ export const franceAppointmentStatuses = [
   "appointment_slot_selection_required",
   "appointment_slot_selected",
   "appointment_final_confirmation_required",
+  "appointment_final_confirmation_approved",
   "appointment_booked",
   "appointment_confirmation_captured",
   "appointment_status_check_in_progress",

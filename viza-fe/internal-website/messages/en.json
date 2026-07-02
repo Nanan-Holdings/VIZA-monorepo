@@ -4704,6 +4704,7 @@
       "appointment_slot_selection_required": "Slot selection required",
       "appointment_slot_selected": "Slot selected",
       "appointment_final_confirmation_required": "Final approval required",
+      "appointment_final_confirmation_approved": "Final approval recorded",
       "appointment_booked": "Booking requested",
       "appointment_confirmation_captured": "Official confirmation captured",
       "appointment_status_check_in_progress": "Status check in progress",
