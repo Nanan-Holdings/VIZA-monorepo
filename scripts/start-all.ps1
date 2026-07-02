@@ -686,6 +686,13 @@ $submissionAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $submissionServiceDir `
   -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
   -ExpectedContent @('"status":"ok"')
+$submissionCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session"
+if ($submissionAlreadyRunning -and !(Test-HttpProbe -Uri $submissionCardSessionUri -ExpectedContent @('"enabled":true'))) {
+  Write-Warn "submission-service is running but Vietnam card-session endpoint is not enabled; restarting it with local autopay env."
+  Stop-ProcessesByPath -Path $submissionServiceDir
+  Start-Sleep -Seconds 2
+  $submissionAlreadyRunning = $false
+}
 
 if ($Reset) {
   $agentAlreadyRunning = $false
@@ -709,7 +716,19 @@ if (!$agentAlreadyRunning) {
 if (!$submissionAlreadyRunning) {
   $submissionProcess = Find-RunningProcessByPath -Path $submissionServiceDir
   if ($submissionProcess) {
-    Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
+    if (Test-HttpProbe -Uri $submissionCardSessionUri -ExpectedContent @('"enabled":true')) {
+      Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
+    } else {
+      Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but Vietnam card-session endpoint is not ready; restarting it."
+      Stop-ProcessesByPath -Path $submissionServiceDir
+      Start-Sleep -Seconds 2
+      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
+      $started += Start-ManagedProcess `
+        -Name "submission-service worker with Vietnam autopay" `
+        -SafeName "submission-service" `
+        -WorkingDirectory $submissionServiceDir `
+        -Command $submissionCommand
+    }
   } else {
     $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
     $started += Start-ManagedProcess `
@@ -756,7 +775,7 @@ foreach ($process in $started) {
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
-Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri $submissionCardSessionUri -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds

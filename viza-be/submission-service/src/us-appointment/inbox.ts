@@ -1,11 +1,11 @@
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 import { extractAuto } from "../inbox/extractors";
 
-const US_VISA_SCHEDULING_FROM = /(^|@|\.)(usvisascheduling\.com)$/i;
+const US_VISA_SCHEDULING_FROM = /(^|@|\.)(usvisascheduling\.com|microsoftonline\.com)$/i;
 
 function isUSVisaSchedulingVerification(msg: InboundMessage): boolean {
   if (!US_VISA_SCHEDULING_FROM.test(msg.from_addr)) return false;
-  return /(verify|verification|code|account|email)/i.test(msg.subject ?? "");
+  return /(us visa|american citizen services|verify|verification|code|account|email)/i.test(msg.subject ?? "");
 }
 
 export interface USAppointmentVerificationEmail {
