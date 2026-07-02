@@ -18,10 +18,12 @@ export interface USAppointmentRunnerConfig {
   captchaSolvingEnabled: boolean;
   twoCaptchaConfigured: boolean;
   captchaMaxAttempts: number;
+  browserApiSessionAttempts: number;
   playwrightEnabled: boolean;
   playwrightHeadless: boolean;
   playwrightChannel: string | null;
   playwrightCdpEndpoint: string | null;
+  localCdpEndpoint: string | null;
   playwrightStorageStatePath: string | null;
   baseUrl: string;
   typingDelayMinMs: number;
@@ -241,6 +243,10 @@ export function loadUSAppointmentRunnerConfig(
     captchaSolvingEnabled: env.US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED === "true",
     twoCaptchaConfigured: Boolean(env.TWOCAPTCHA_API_KEY?.trim()),
     captchaMaxAttempts: readPositiveInt(env.US_APPOINTMENT_CAPTCHA_MAX_ATTEMPTS, 2),
+    browserApiSessionAttempts: readPositiveInt(
+      env.US_APPOINTMENT_BROWSER_API_SESSION_ATTEMPTS,
+      2,
+    ),
     playwrightEnabled: env.US_APPOINTMENT_PLAYWRIGHT_ENABLED === "true",
     playwrightHeadless: env.US_APPOINTMENT_PLAYWRIGHT_HEADLESS !== "false",
     playwrightChannel: env.US_APPOINTMENT_PLAYWRIGHT_CHANNEL?.trim() || null,
@@ -249,6 +255,7 @@ export function loadUSAppointmentRunnerConfig(
       || env.US_APPOINTMENT_CDP_ENDPOINT?.trim()
       || env.BRIGHTDATA_BROWSER_API_ENDPOINT?.trim()
       || null,
+    localCdpEndpoint: env.US_APPOINTMENT_LOCAL_CDP_ENDPOINT?.trim() || null,
     playwrightStorageStatePath: env.US_APPOINTMENT_STORAGE_STATE_PATH?.trim() || null,
     baseUrl: env.US_APPOINTMENT_BASE_URL ?? "https://www.usvisascheduling.com/",
     ...normalizeTypingDelayRange(

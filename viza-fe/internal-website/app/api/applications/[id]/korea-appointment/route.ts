@@ -12,6 +12,8 @@ type Action =
   | "submit-sms-code"
   | "approve-final-booking"
   | "complete-final-booking"
+  | "request-reschedule"
+  | "request-cancel"
   | "refresh-status";
 
 interface AppointmentJobRow {
@@ -234,6 +236,17 @@ function mobilePhoneForOfficial(answers: Record<string, string>) {
   return firstAnswer(answers, ["mobile_phone", "phone", "phone_number", "primary_phone_number", "booker_phone"]) ?? "";
 }
 
+function departureDateForOfficial(answers: Record<string, string>) {
+  return firstAnswer(answers, [
+    "intended_date_of_entry",
+    "planned_entry_date",
+    "arrival_date",
+    "travel_start_date",
+    "departure_date",
+    "planned_departure_date",
+  ]);
+}
+
 async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string, routingInput?: KvacRoutingInput) {
   const job = await latestJob(admin, applicationId);
   const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, routingInput));
@@ -451,6 +464,96 @@ async function createOrReuseCenterCheckpoint(
   });
 }
 
+async function createOrReuseAppointmentChangeCheckpoint(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+  kind: "reschedule" | "cancel",
+) {
+  const { data: confirmation, error: confirmationErr } = await admin
+    .from("appointment_confirmations")
+    .select("id, confirmation_number, appointment_date, appointment_time, appointment_location")
+    .eq("application_id", applicationId)
+    .eq("country_code", "KR")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (confirmationErr) throw new Error(confirmationErr.message);
+  if (!confirmation?.confirmation_number) {
+    throw new Error("Official Korea appointment confirmation is required before reschedule or cancellation.");
+  }
+
+  const actionType = kind === "reschedule" ? "official_reschedule_required" : "official_cancel_required";
+  const nextStatus = kind === "reschedule" ? "reschedule_requested" : "cancellation_requested";
+  const { data: existingManualAction, error: existingManualErr } = await admin
+    .from("appointment_manual_actions")
+    .select("id")
+    .eq("job_id", job.id)
+    .eq("action_type", actionType)
+    .in("status", ["pending", "in_progress"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingManualErr) throw new Error(existingManualErr.message);
+
+  const metadata = {
+    centerCode: routing.recommended.code,
+    centerNameEn: routing.recommended.nameEn,
+    bookingUrl: routing.recommended.bookingUrl,
+    officialUrl: routing.recommended.officialUrl,
+    confirmationId: confirmation.id,
+    confirmationNumber: confirmation.confirmation_number,
+    appointmentDate: confirmation.appointment_date,
+    appointmentTime: confirmation.appointment_time,
+    appointmentLocation: confirmation.appointment_location,
+    nextStep: kind === "reschedule" ? "restart_sms_and_select_new_slot" : "open_official_query_or_cancel_page",
+  };
+  const instruction =
+    kind === "reschedule"
+      ? "Applicant requested Korea KVAC reschedule. Restart official SMS verification, observe new official slots, and book only after the applicant selects a new slot and approves final submission."
+      : "Applicant requested Korea KVAC cancellation. Open the official appointment query/cancel flow and save official cancellation evidence before marking cancelled.";
+
+  const manualActionId = existingManualAction?.id ?? await (async () => {
+    const { data: manualAction, error: manualErr } = await admin
+      .from("appointment_manual_actions")
+      .insert({
+        job_id: job.id,
+        application_id: applicationId,
+        user_id: userId,
+        action_type: actionType,
+        status: "pending",
+        instruction,
+        user_input_schema_json: { type: "object", properties: { acknowledged: { type: "boolean" } } },
+        metadata_redacted_json: metadata,
+      })
+      .select("id")
+      .single();
+    if (manualErr || !manualAction) throw new Error(manualErr?.message ?? "Could not create Korea appointment change checkpoint.");
+    return manualAction.id as string;
+  })();
+
+  await admin.from("appointment_assistance_jobs").update({
+    status: nextStatus,
+    requires_user_action: true,
+    current_manual_action: manualActionId,
+    updated_at: new Date().toISOString(),
+  }).eq("id", job.id);
+  await admin.from("applications").update({
+    appointment_assistance_status: nextStatus,
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+  await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: nextStatus,
+    event_message: kind === "reschedule" ? "Korea KVAC reschedule requested by applicant." : "Korea KVAC cancellation requested by applicant.",
+    metadata_redacted_json: metadata,
+  });
+}
+
 async function replaceObservedSlots(
   admin: ReturnType<typeof createAdminClient>,
   applicationId: string,
@@ -497,6 +600,7 @@ async function completeOfficialFinalBooking(
       appointment_time: slot.appointment_time,
       appointment_location: slot.appointment_location,
       appointment_type: slot.appointment_type,
+      departure_date: departureDateForOfficial(await readAnswerMap(admin, applicationId)),
     },
   });
   if (!officialComplete.ok || officialComplete.status !== "appointment_booked" || !officialComplete.confirmationNumber) {
@@ -991,6 +1095,27 @@ export async function POST(
               ? error.message
               : "Korea KVAC final booking could not be completed. Restart SMS verification if the official session expired.",
         },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "request-reschedule" || action === "request-cancel") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
+    try {
+      await createOrReuseAppointmentChangeCheckpoint(
+        auth.admin,
+        id,
+        auth.profile.id,
+        job,
+        routing,
+        action === "request-reschedule" ? "reschedule" : "cancel",
+      );
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Could not create Korea appointment change checkpoint." },
         { status: 409 },
       );
     }

@@ -22,17 +22,48 @@ async function renderProofPdf(applicationId: string, confirmation: ConfirmationR
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const margin = 56;
+  const maxWidth = page.getWidth() - margin * 2;
   let y = 760;
 
+  const wrapText = (text: string, size: number, useBold: boolean): string[] => {
+    const activeFont = useBold ? bold : font;
+    const words = text.split(" ");
+    const lines: string[] = [];
+    let line = "";
+
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (activeFont.widthOfTextAtSize(next, size) <= maxWidth) {
+        line = next;
+        continue;
+      }
+
+      if (line) lines.push(line);
+      line = word;
+      while (activeFont.widthOfTextAtSize(line, size) > maxWidth && line.length > 1) {
+        let end = line.length;
+        while (end > 1 && activeFont.widthOfTextAtSize(line.slice(0, end), size) > maxWidth) end -= 1;
+        lines.push(line.slice(0, end));
+        line = line.slice(end);
+      }
+    }
+
+    if (line) lines.push(line);
+    return lines;
+  };
+
   const draw = (text: string, size = 11, useBold = false) => {
-    page.drawText(text, {
-      x: margin,
-      y,
-      size,
-      font: useBold ? bold : font,
-      color: rgb(0.1, 0.12, 0.16),
-    });
-    y -= size + 10;
+    for (const line of wrapText(text, size, useBold)) {
+      page.drawText(line, {
+        x: margin,
+        y,
+        size,
+        font: useBold ? bold : font,
+        color: rgb(0.1, 0.12, 0.16),
+      });
+      y -= size + 6;
+    }
+    y -= 4;
   };
 
   draw("Korea KVAC Appointment Proof Packet", 20, true);

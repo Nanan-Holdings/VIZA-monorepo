@@ -17,6 +17,7 @@ import {
   type AppointmentAccountCredentials,
 } from "../runner";
 import {
+  buildUSAppointmentBrowserApiEndpointForAttempt,
   buildUSVisaSchedulingUsername,
   classifyUSVisaSchedulingGateText,
   US_VISA_SCHEDULING_SELECTORS,
@@ -166,6 +167,19 @@ test("US appointment runner reads user Chrome CDP configuration", () => {
   assert.equal(config.playwrightStorageStatePath, "output/playwright/usvisascheduling.json");
 });
 
+test("US appointment runner reads local Chrome CDP bridge configuration", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
+    US_APPOINTMENT_BROWSER_API_ENDPOINT: "wss://user:pass@brd.superproxy.io:9222",
+    US_APPOINTMENT_LOCAL_CDP_ENDPOINT: "http://127.0.0.1:9222",
+    US_APPOINTMENT_BROWSER_API_SESSION_ATTEMPTS: "3",
+  });
+
+  assert.equal(config.playwrightCdpEndpoint, "wss://user:pass@brd.superproxy.io:9222");
+  assert.equal(config.localCdpEndpoint, "http://127.0.0.1:9222");
+  assert.equal(config.browserApiSessionAttempts, 3);
+});
+
 test("US appointment runner can read Bright Data Browser API endpoint", () => {
   const config = loadUSAppointmentRunnerConfig({
     US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
@@ -210,6 +224,22 @@ test("USVisaScheduling registration username is deterministic and not an email a
   assert.match(username, /^viza[a-f0-9]{16}$/);
   assert.equal(username.includes("@"), false);
   assert.equal(username, buildUSVisaSchedulingUsername("applicant.example+us@example.com"));
+});
+
+test("USVisaScheduling Browser API endpoint rotation changes only Bright Data session usernames", () => {
+  const first = buildUSAppointmentBrowserApiEndpointForAttempt(
+    "wss://brd-customer-test-zone-us:pass@brd.superproxy.io:9222",
+    1,
+  );
+  const second = buildUSAppointmentBrowserApiEndpointForAttempt(
+    "wss://brd-customer-test-zone-us-session-old:pass@brd.superproxy.io:9222",
+    1,
+  );
+  const local = buildUSAppointmentBrowserApiEndpointForAttempt("http://127.0.0.1:9222", 1);
+
+  assert.match(first, /^wss:\/\/brd-customer-test-zone-us-session-vizaus[a-f0-9]{8}:pass@brd\.superproxy\.io:9222\/$/);
+  assert.match(second, /^wss:\/\/brd-customer-test-zone-us-session-vizaus[a-f0-9]{8}:pass@brd\.superproxy\.io:9222\/$/);
+  assert.equal(local, "http://127.0.0.1:9222");
 });
 
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {
@@ -810,8 +840,18 @@ test("USVisaScheduling gate classifier identifies unsupported official-site gate
     "waiting_room",
   );
   assert.equal(
+    classifyUSVisaSchedulingGateText("请稍候... Just a moment while we verify you are human.")?.metadata.provider,
+    "cloudflare",
+  );
+  assert.equal(
     classifyUSVisaSchedulingGateText("Review and accept the privacy policy before continuing.")?.actionType,
     "site_policy_review",
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText(
+      "https://www.usvisascheduling.com/en-US/Account/Login/TermsAndConditions Access Denied You're offline. This is a read only version of the page. var isPortalUserLoggedIn = 'False';",
+    )?.metadata.gate_type,
+    "power_pages_access_or_terms",
   );
   assert.equal(
     classifyUSVisaSchedulingGateText("Payment required before scheduling your appointment.")?.actionType,

@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { dirname } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { solveCaptcha } from "../captcha";
@@ -78,6 +78,11 @@ interface TurnstileParams {
   userAgent: string;
 }
 
+interface CapturedSignInPost {
+  url: string;
+  body: string;
+}
+
 function normalizeVisibleText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
@@ -87,6 +92,28 @@ export function buildUSVisaSchedulingUsername(email: string): string {
     .update(email.trim().toLowerCase())
     .digest("hex")
     .slice(0, 16)}`;
+}
+
+export function buildUSAppointmentBrowserApiEndpointForAttempt(
+  endpoint: string,
+  attemptIndex: number,
+): string {
+  if (attemptIndex <= 0 || !/brd\.superproxy\.io|brightdata|browser-?api/i.test(endpoint)) {
+    return endpoint;
+  }
+  try {
+    const parsed = new URL(endpoint);
+    if (!parsed.username) return endpoint;
+    const sessionToken = `vizaus${randomBytes(4).toString("hex")}`;
+    const username = decodeURIComponent(parsed.username);
+    const rotatedUsername = /-session-[^-]+/i.test(username)
+      ? username.replace(/-session-[^-]+/i, `-session-${sessionToken}`)
+      : `${username}-session-${sessionToken}`;
+    parsed.username = rotatedUsername;
+    return parsed.toString();
+  } catch {
+    return endpoint;
+  }
 }
 
 const US_VISA_SCHEDULING_SECURITY_ANSWERS = [
@@ -99,11 +126,19 @@ export function classifyUSVisaSchedulingGateText(text: string): AppointmentPorta
   const normalized = normalizeVisibleText(text).toLowerCase();
   if (!normalized) return null;
 
-  if (/hcaptcha|captcha|recaptcha|cloudflare|mfa|multi-factor|verification challenge/.test(normalized)) {
+  if (
+    /hcaptcha|captcha|recaptcha|cloudflare|mfa|multi-factor|verification challenge/.test(normalized)
+    || /just a moment|请稍候|verify you are human|checking your browser|安全验证/.test(normalized)
+  ) {
     let provider = "captcha_or_mfa";
     if (normalized.includes("hcaptcha")) provider = "hcaptcha";
     if (normalized.includes("recaptcha")) provider = "recaptcha";
-    if (normalized.includes("cloudflare")) provider = "cloudflare";
+    if (
+      normalized.includes("cloudflare")
+      || /just a moment|请稍候|verify you are human|checking your browser|安全验证/.test(normalized)
+    ) {
+      provider = "cloudflare";
+    }
 
     return {
       jobStatus: "appointment_manual_required",
@@ -130,6 +165,26 @@ export function classifyUSVisaSchedulingGateText(text: string): AppointmentPorta
       },
       errorCode: "waiting_room",
       errorMessage: "USVisaScheduling presented a waiting-room or rate-limit gate.",
+    };
+  }
+
+  if (
+    /access denied|you.?re offline|read only version/.test(normalized)
+    || /account\/login\/termsandconditions/i.test(normalized)
+    || /isportaluserloggedin\s*=\s*['"]?false/.test(normalized)
+  ) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "site_policy_review",
+      instruction:
+        "USVisaScheduling reached a Microsoft Power Pages access or terms checkpoint after authentication. Review whether the account contact/profile is provisioned and terms were accepted before slot observation continues.",
+      metadata: {
+        gate_type: "power_pages_access_or_terms",
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "power_pages_access_or_terms",
+      errorMessage:
+        "USVisaScheduling reached a Power Pages access or terms checkpoint after authentication.",
     };
   }
 
@@ -271,6 +326,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   private context: BrowserContext | null = null;
   private page: Page | null = null;
   private connectedToUserBrowser = false;
+  private browserApiSessionAttemptIndex = 0;
 
   constructor(private readonly config: USAppointmentRunnerConfig) {}
 
@@ -352,6 +408,49 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   async prepareAppointmentFlow(
+    job: USAppointmentJobRow,
+    credentials: AppointmentAccountCredentials | null,
+  ): Promise<{ readyForSlotCapture: boolean; gate?: AppointmentPortalGate }> {
+    const attempts = this.shouldRotateBrowserApiSession()
+      ? Math.max(1, this.config.browserApiSessionAttempts)
+      : 1;
+    let latest: { readyForSlotCapture: boolean; gate?: AppointmentPortalGate } | null = null;
+
+    for (let attemptIndex = 0; attemptIndex < attempts; attemptIndex += 1) {
+      this.browserApiSessionAttemptIndex = attemptIndex;
+      latest = await this.prepareAppointmentFlowOnce(job, credentials);
+      if (
+        latest.readyForSlotCapture
+        || !latest.gate
+        || !this.isRetryableCloudflareGate(latest.gate)
+        || attemptIndex === attempts - 1
+      ) {
+        return this.withBrowserApiAttemptMetadata(latest, attemptIndex + 1);
+      }
+      await this.close();
+    }
+
+    return latest ?? { readyForSlotCapture: false };
+  }
+
+  private withBrowserApiAttemptMetadata(
+    result: { readyForSlotCapture: boolean; gate?: AppointmentPortalGate },
+    attemptsUsed: number,
+  ): { readyForSlotCapture: boolean; gate?: AppointmentPortalGate } {
+    if (!result.gate || !this.shouldRotateBrowserApiSession()) return result;
+    return {
+      ...result,
+      gate: {
+        ...result.gate,
+        metadata: {
+          ...result.gate.metadata,
+          browser_api_session_attempts: attemptsUsed,
+        },
+      },
+    };
+  }
+
+  private async prepareAppointmentFlowOnce(
     _job: USAppointmentJobRow,
     credentials: AppointmentAccountCredentials | null,
   ): Promise<{ readyForSlotCapture: boolean; gate?: AppointmentPortalGate }> {
@@ -384,6 +483,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       await this.login(page, credentials);
       await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(1_000);
+      await this.acceptTermsCheckpointIfPresent(page);
       if (await this.isInvalidCredentialsVisible(page)) {
         const gate = await this.startAccountRegistration(page, credentials);
         return { readyForSlotCapture: false, gate };
@@ -396,12 +496,19 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         if (!solved) return { readyForSlotCapture: false, gate: loginGate };
         const gateAfterSolve = await this.detectGate(page);
         if (gateAfterSolve) {
+          await this.acceptTermsCheckpointIfPresent(page);
+          const gateAfterTerms = await this.detectGate(page);
+          if (!gateAfterTerms) {
+            return {
+              readyForSlotCapture: await this.readVisibleSlotCandidates(page).then((slots) => slots.length > 0),
+            };
+          }
           return {
             readyForSlotCapture: false,
             gate: {
-              ...gateAfterSolve,
+              ...gateAfterTerms,
               metadata: {
-                ...gateAfterSolve.metadata,
+                ...gateAfterTerms.metadata,
                 turnstile_solve_attempted: true,
                 turnstile_solve_id: solved.solveId ? "[REDACTED]" : null,
                 turnstile_duration_ms: solved.durationMs,
@@ -500,6 +607,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     await this.saveStorageState().catch(() => undefined);
     if (this.connectedToUserBrowser) {
       await this.page?.close().catch(() => undefined);
+      await this.browser?.close().catch(() => undefined);
     } else {
       await this.browser?.close();
     }
@@ -511,8 +619,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   private async getPage(): Promise<Page> {
     if (this.page) return this.page;
-    if (this.config.playwrightCdpEndpoint) {
-      this.browser = await chromium.connectOverCDP(this.config.playwrightCdpEndpoint, {
+    const cdpEndpoint = this.currentPlaywrightCdpEndpoint();
+    if (cdpEndpoint) {
+      this.browser = await chromium.connectOverCDP(cdpEndpoint, {
         timeout: 60_000,
       });
       this.connectedToUserBrowser = true;
@@ -541,6 +650,36 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   private shouldInstallTurnstileHook(): boolean {
     return !/brd\.superproxy\.io/i.test(this.config.playwrightCdpEndpoint ?? "");
+  }
+
+  private currentPlaywrightCdpEndpoint(): string | null {
+    const endpoint = this.config.playwrightCdpEndpoint;
+    if (!endpoint) return null;
+    return buildUSAppointmentBrowserApiEndpointForAttempt(
+      endpoint,
+      this.browserApiSessionAttemptIndex,
+    );
+  }
+
+  private shouldRotateBrowserApiSession(): boolean {
+    return Boolean(
+      this.config.playwrightCdpEndpoint
+      && this.config.browserApiSessionAttempts > 1
+      && /brd\.superproxy\.io|brightdata|browser-?api/i.test(this.config.playwrightCdpEndpoint),
+    );
+  }
+
+  private isRetryableCloudflareGate(gate: AppointmentPortalGate): boolean {
+    return gate.actionType === "captcha"
+      && gate.metadata.provider === "cloudflare";
+  }
+
+  private shouldUseLocalSignInPostBridge(): boolean {
+    const remoteEndpoint = this.config.playwrightCdpEndpoint?.trim();
+    const localEndpoint = this.config.localCdpEndpoint?.trim();
+    if (!remoteEndpoint || !localEndpoint) return false;
+    if (remoteEndpoint === localEndpoint) return false;
+    return /brd\.superproxy\.io|brightdata|browser-?api/i.test(remoteEndpoint);
   }
 
   private async saveStorageState(): Promise<void> {
@@ -626,6 +765,17 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   private async login(page: Page, credentials: AppointmentAccountCredentials): Promise<void> {
+    if (this.shouldUseLocalSignInPostBridge()) {
+      await this.loginViaLocalSignInPostBridge(page, credentials);
+      return;
+    }
+    await this.loginDirectly(page, credentials);
+  }
+
+  private async loginDirectly(
+    page: Page,
+    credentials: AppointmentAccountCredentials,
+  ): Promise<void> {
     await this.fillFirstVisible(
       page,
       US_VISA_SCHEDULING_SELECTORS.emailInputs,
@@ -636,6 +786,88 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(1_000);
     await this.answerLoginSecurityQuestions(page);
+  }
+
+  private async loginViaLocalSignInPostBridge(
+    remotePage: Page,
+    credentials: AppointmentAccountCredentials,
+  ): Promise<void> {
+    const signInPost = await this.captureSignInPostFromLocalBrowser(remotePage.url(), credentials);
+    await this.submitCapturedSignInPost(remotePage, signInPost);
+    await this.waitForPortalNavigationSettle(remotePage);
+  }
+
+  private async captureSignInPostFromLocalBrowser(
+    loginUrl: string,
+    credentials: AppointmentAccountCredentials,
+  ): Promise<CapturedSignInPost> {
+    const localEndpoint = this.config.localCdpEndpoint?.trim();
+    if (!localEndpoint) {
+      throw new Error("US appointment local CDP endpoint is required for Browser API sign-in bridge.");
+    }
+
+    const localBrowser = await chromium.connectOverCDP(localEndpoint, { timeout: 30_000 });
+    const localContext = localBrowser.contexts()[0] ?? await localBrowser.newContext();
+    const localPage = await localContext.newPage();
+    let captured: CapturedSignInPost | null = null;
+
+    localPage.on("request", (request) => {
+      if (captured) return;
+      if (request.method() !== "POST") return;
+      if (!/usvisascheduling\.com\/signin-aad-b2c_1/i.test(request.url())) return;
+      const body = request.postData();
+      if (!body) return;
+      captured = {
+        url: request.url(),
+        body,
+      };
+    });
+
+    try {
+      await localPage.goto(loginUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await this.loginDirectly(localPage, credentials);
+
+      const started = Date.now();
+      while (!captured && Date.now() - started < 120_000) {
+        await this.answerLoginSecurityQuestions(localPage);
+        await localPage.waitForTimeout(1_000);
+      }
+    } finally {
+      await localPage.close().catch(() => undefined);
+      await localBrowser.close().catch(() => undefined);
+    }
+
+    if (!captured) {
+      throw new Error("USVisaScheduling local sign-in did not produce the official B2C form POST.");
+    }
+    return captured;
+  }
+
+  private async submitCapturedSignInPost(
+    remotePage: Page,
+    signInPost: CapturedSignInPost,
+  ): Promise<void> {
+    await remotePage.evaluate(`(() => {
+      const url = ${JSON.stringify(signInPost.url)};
+      const body = ${JSON.stringify(signInPost.body)};
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = url;
+      form.style.display = "none";
+      const parameters = new URLSearchParams(body);
+      parameters.forEach((value, key) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    })()`);
+    await remotePage.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
+    await remotePage.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+    await remotePage.waitForTimeout(1_000);
   }
 
   private async isInvalidCredentialsVisible(page: Page): Promise<boolean> {
@@ -712,9 +944,14 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     const answers = page.locator("input#kba1_response, input#kba2_response, input#kba3_response");
     const count = Math.min(await answers.count().catch(() => 0), US_VISA_SCHEDULING_SECURITY_ANSWERS.length);
     if (count === 0) return;
-    await page.evaluate((valuesById) => {
+    await page.evaluate(`(() => {
+      const valuesById = {
+        kba1_response: ${JSON.stringify(US_VISA_SCHEDULING_SECURITY_ANSWERS[0])},
+        kba2_response: ${JSON.stringify(US_VISA_SCHEDULING_SECURITY_ANSWERS[1])},
+        kba3_response: ${JSON.stringify(US_VISA_SCHEDULING_SECURITY_ANSWERS[2])}
+      };
       Object.entries(valuesById).forEach(([id, value]) => {
-        const input = document.querySelector<HTMLInputElement>(`input#${id}`);
+        const input = document.querySelector("input#" + id);
         if (!input) return;
         const descriptor = Object.getOwnPropertyDescriptor(
           HTMLInputElement.prototype,
@@ -724,50 +961,88 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-    }, {
-      kba1_response: US_VISA_SCHEDULING_SECURITY_ANSWERS[0],
-      kba2_response: US_VISA_SCHEDULING_SECURITY_ANSWERS[1],
-      kba3_response: US_VISA_SCHEDULING_SECURITY_ANSWERS[2],
-    });
+    })()`);
     await page.locator("button#continue, button:has-text('Continue'), input[value='Continue']")
       .first()
       .click()
       .catch(() => undefined);
   }
 
+  private async acceptTermsCheckpointIfPresent(page: Page): Promise<void> {
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const url = page.url();
+    const normalized = normalizeVisibleText(`${url} ${bodyText}`).toLowerCase();
+    const looksLikeTerms =
+      /termsandconditions|terms and conditions|i agree|agreement|privacy policy/.test(normalized);
+    if (!looksLikeTerms) return;
+
+    const checkboxes = page.locator("input[type='checkbox']");
+    const checkboxCount = await checkboxes.count().catch(() => 0);
+    for (let index = 0; index < checkboxCount; index += 1) {
+      const checkbox = checkboxes.nth(index);
+      if (await checkbox.isVisible().catch(() => false)) {
+        await checkbox.check({ force: true }).catch(() => undefined);
+      }
+    }
+
+    const continueControl = page
+      .locator(
+        "button:has-text('Continue'), input[value='Continue'], button:has-text('I agree'), input[value*='Agree' i], a:has-text('Continue')",
+      )
+      .first();
+    if (await continueControl.isVisible().catch(() => false)) {
+      await continueControl.click({ force: true }).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+      await page.waitForTimeout(1_000);
+    }
+  }
+
   private async readVisibleSlotCandidates(page: Page): Promise<VisibleSlotCandidate[]> {
-    return page.locator(US_VISA_SCHEDULING_SELECTORS.slotCandidates).evaluateAll((nodes) =>
-      nodes
-        .map((node) => {
-          const element = node as HTMLElement;
-          const text = element.innerText || element.textContent || "";
-          return {
-            text,
-            externalSlotId:
-              element.getAttribute("data-slot-id")
-              ?? element.getAttribute("data-appointment-slot")
-              ?? element.getAttribute("id"),
-          };
-        })
-        .filter((candidate) => candidate.text.trim().length > 0),
-    );
+    const nodes = page.locator(US_VISA_SCHEDULING_SELECTORS.slotCandidates);
+    const candidates: VisibleSlotCandidate[] = [];
+    const count = Math.min(await nodes.count().catch(() => 0), 100);
+    for (let index = 0; index < count; index += 1) {
+      const node = nodes.nth(index);
+      const text = (await node.innerText({ timeout: 1_000 })
+        .catch(() => node.textContent({ timeout: 1_000 }))
+        .catch(() => "")) ?? "";
+      if (!text.trim()) continue;
+      candidates.push({
+        text,
+        externalSlotId:
+          await node.getAttribute("data-slot-id").catch(() => null)
+          ?? await node.getAttribute("data-appointment-slot").catch(() => null)
+          ?? await node.getAttribute("id").catch(() => null),
+      });
+    }
+    return candidates;
   }
 
   private async detectGate(page: Page): Promise<AppointmentPortalGate | null> {
-    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    return classifyUSVisaSchedulingGateText(bodyText);
+    const [currentUrl, title, bodyText] = await Promise.all([
+      Promise.resolve(page.url()),
+      page.title().catch(() => ""),
+      page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
+    ]);
+    const gate = classifyUSVisaSchedulingGateText(`${currentUrl} ${title} ${bodyText}`);
+    if (gate) return gate;
+    if (
+      /usvisascheduling\.com/i.test(currentUrl)
+      && normalizeVisibleText(bodyText).length === 0
+    ) {
+      return classifyUSVisaSchedulingGateText("Cloudflare empty official page while verifying browser.");
+    }
+    return null;
   }
 
   private async readTurnstileParams(page: Page): Promise<TurnstileParams> {
-    return page.evaluate(() => {
-      const w = window as typeof window & {
-        __vizaTurnstileParams?: Record<string, unknown>;
-      };
+    return page.evaluate(`(() => {
+      const w = window;
       const captured = w.__vizaTurnstileParams ?? {};
       const elementSitekey = document
         .querySelector("[data-sitekey]")
         ?.getAttribute("data-sitekey");
-      const iframeSitekey = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe"))
+      const iframeSitekey = Array.from(document.querySelectorAll("iframe"))
         .map((iframe) => {
           try {
             const url = new URL(iframe.src);
@@ -776,9 +1051,9 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
             return null;
           }
         })
-        .find((value): value is string => Boolean(value));
+        .find((value) => Boolean(value));
 
-      const stringValue = (value: unknown): string | null =>
+      const stringValue = (value) =>
         typeof value === "string" && value.trim() ? value : null;
 
       return {
@@ -789,7 +1064,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         pageUrl: stringValue(captured.pageUrl) ?? window.location.href,
         userAgent: stringValue(captured.userAgent) ?? navigator.userAgent,
       };
-    });
+    })()`);
   }
 
   private async waitForTurnstileParams(
@@ -806,11 +1081,10 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   private async applyTurnstileToken(page: Page, token: string): Promise<void> {
-    await page.evaluate((captchaToken) => {
-      const w = window as typeof window & {
-        __vizaTurnstileCallback?: (token: string) => void;
-      };
-      const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    await page.evaluate(`(() => {
+      const captchaToken = ${JSON.stringify(token)};
+      const w = window;
+      const fields = document.querySelectorAll(
         "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='g-recaptcha-response'], textarea[name='g-recaptcha-response']",
       );
       fields.forEach((field) => {
@@ -821,7 +1095,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       if (typeof w.__vizaTurnstileCallback === "function") {
         w.__vizaTurnstileCallback(captchaToken);
       }
-    }, token);
+    })()`);
   }
 
   private async solveTurnstileIfPresent(
@@ -914,19 +1188,14 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         await this.fillVisibleLocator(candidate, value, 5_000);
         return;
       } catch {
-        const filled =
-          await this.assignInputValue(candidate, value)
-          || await this.assignLocatorCollectionValue(locator, value)
-          || await this.assignFirstInputForSelector(page, selector, value);
+        const filled = await this.assignFirstInputForSelector(page, selector, value);
         if (filled) return;
       }
     }
     const first = locator.first();
     await first.waitFor({ state: "attached", timeout: 15_000 });
     const filled =
-      await this.assignInputValue(first, value)
-      || await this.assignLocatorCollectionValue(locator, value)
-      || await this.assignFirstInputForSelector(page, selector, value)
+      await this.assignFirstInputForSelector(page, selector, value)
       || await this.typeIntoFocusedInputForSelector(page, selector, value);
     if (filled) return;
     const diagnostics = await this.readInputAssignmentDiagnostics(page, selector);
@@ -948,7 +1217,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         .map((part) => part.trim())
         .filter(Boolean);
       for (const part of parts) {
-        let element: Element | null = null;
+        let element = null;
         try {
           element = document.querySelector(part);
         } catch {
@@ -957,7 +1226,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         if (!element) continue;
         const tagName = element.tagName.toLowerCase();
         if (!["input", "textarea"].includes(tagName)) continue;
-        const field = element as HTMLInputElement | HTMLTextAreaElement;
+        const field = element;
         field.focus();
         field.value = "";
         field.dispatchEvent(new Event("input", { bubbles: true }));
@@ -979,7 +1248,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         .map((part) => part.trim())
         .filter(Boolean);
       for (const part of parts) {
-        let element: Element | null = null;
+        let element = null;
         try {
           element = document.querySelector(part);
         } catch {
@@ -988,7 +1257,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         if (!element) continue;
         const tagName = element.tagName.toLowerCase();
         if (!["input", "textarea"].includes(tagName)) continue;
-        return (element as HTMLInputElement | HTMLTextAreaElement).value === expectedValue;
+        return element.value === expectedValue;
       }
       return false;
     })()`).then(Boolean).catch(() => false);
@@ -998,26 +1267,27 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     page: Page,
     selector: string,
   ): Promise<unknown | null> {
-    return page.evaluate((selectorText) => {
+    return page.evaluate(`(() => {
+      const selectorText = ${JSON.stringify(selector)};
       const parts = selectorText
         .split(",")
         .map((part) => part.trim())
         .filter(Boolean);
       const details = [];
       for (const part of parts) {
-        let elements: Element[] = [];
+        let elements = [];
         try {
           elements = Array.from(document.querySelectorAll(part));
         } catch (error) {
           details.push({
             selector: part,
-            selectorError: error instanceof Error ? error.message : String(error),
+            selectorError: error && error.message ? error.message : String(error),
           });
           continue;
         }
         for (const element of elements.slice(0, 3)) {
           const style = window.getComputedStyle(element);
-          const input = element as HTMLInputElement | HTMLTextAreaElement;
+          const input = element;
           const descriptor = Object.getOwnPropertyDescriptor(
             Object.getPrototypeOf(input),
             "value",
@@ -1032,8 +1302,8 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
             display: style.display,
             visibility: style.visibility,
             pointerEvents: style.pointerEvents,
-            offsetWidth: (element as HTMLElement).offsetWidth,
-            offsetHeight: (element as HTMLElement).offsetHeight,
+            offsetWidth: element.offsetWidth,
+            offsetHeight: element.offsetHeight,
             hasValueSetter: typeof descriptor?.set === "function",
             valueLength: typeof input.value === "string" ? input.value.length : null,
           });
@@ -1045,7 +1315,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         activeTag: document.activeElement?.tagName.toLowerCase() ?? null,
         readyState: document.readyState,
       };
-    }, selector).catch(() => null);
+    })()`).catch(() => null);
   }
 
   private async assignFirstInputForSelector(
@@ -1061,7 +1331,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         .map((part) => part.trim())
         .filter(Boolean);
       for (const candidate of candidates) {
-        let element: Element | null = null;
+        let element = null;
         try {
           element = document.querySelector(candidate);
         } catch {
@@ -1070,7 +1340,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
         if (!element) continue;
         const tagName = element.tagName.toLowerCase();
         if (!["input", "textarea"].includes(tagName)) continue;
-        const field = element as HTMLInputElement | HTMLTextAreaElement;
+        const field = element;
         const prototype = tagName === "textarea"
           ? window.HTMLTextAreaElement.prototype
           : window.HTMLInputElement.prototype;
@@ -1094,52 +1364,15 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     locator: Locator,
     value: string,
   ): Promise<boolean> {
-    return locator.evaluateAll((elements, inputValue) => {
-      for (const element of elements) {
-        const tagName = element.tagName.toLowerCase();
-        if (!["input", "textarea"].includes(tagName)) continue;
-        const field = element as HTMLInputElement | HTMLTextAreaElement;
-        const prototype = tagName === "textarea"
-          ? window.HTMLTextAreaElement.prototype
-          : window.HTMLInputElement.prototype;
-        const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
-        element.dispatchEvent(new Event("focus", { bubbles: true }));
-        if (typeof descriptor?.set === "function") {
-          descriptor.set.call(field, inputValue);
-        } else {
-          field.value = inputValue;
-        }
-        element.dispatchEvent(new Event("input", { bubbles: true }));
-        element.dispatchEvent(new Event("change", { bubbles: true }));
-        element.dispatchEvent(new Event("blur", { bubbles: true }));
-        return field.value === inputValue;
-      }
-      return false;
-    }, value).catch(() => false);
+    void locator;
+    void value;
+    return false;
   }
 
   private async assignInputValue(locator: Locator, value: string): Promise<boolean> {
-    return locator.evaluate((element, inputValue) => {
-      const tagName = element.tagName.toLowerCase();
-      if (!["input", "textarea"].includes(tagName)) {
-        return false;
-      }
-      const field = element as HTMLInputElement | HTMLTextAreaElement;
-      const prototype = tagName === "textarea"
-        ? window.HTMLTextAreaElement.prototype
-        : window.HTMLInputElement.prototype;
-      const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
-      element.dispatchEvent(new Event("focus", { bubbles: true }));
-      if (typeof descriptor?.set === "function") {
-        descriptor.set.call(field, inputValue);
-      } else {
-        field.value = inputValue;
-      }
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-      element.dispatchEvent(new Event("change", { bubbles: true }));
-      element.dispatchEvent(new Event("blur", { bubbles: true }));
-      return field.value === inputValue;
-    }, value).catch(() => false);
+    void locator;
+    void value;
+    return false;
   }
 
   private randomTypingDelayMs(): number {

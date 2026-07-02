@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarCheck, CheckCircle2, Download, ExternalLink, Loader2, MapPin, MessageSquareText, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CheckCircle2, Download, ExternalLink, Info, Loader2, MapPin, MessageSquareText, RefreshCw, RotateCcw, XCircle } from "lucide-react";
 import { useLocale } from "next-intl";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +96,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     () => snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null,
     [snapshot?.slots],
   );
+  const center = snapshot?.routing.recommended;
   const smsActionExpired =
     Boolean(snapshot?.manualAction?.expires_at) &&
     new Date(snapshot?.manualAction?.expires_at ?? "").getTime() <= Date.now();
@@ -110,16 +112,24 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     snapshot?.manualAction && ["official_center_manual_checkpoint", "official_guidance_required", "official_account_login_required"].includes(snapshot.manualAction.action_type)
       ? snapshot.manualAction
       : null;
+  const changeManualAction =
+    snapshot?.manualAction && ["official_reschedule_required", "official_cancel_required"].includes(snapshot.manualAction.action_type)
+      ? snapshot.manualAction
+      : null;
   const hasOfficialConfirmation =
     Boolean(snapshot?.confirmation) &&
     snapshot?.confirmation?.raw_confirmation_redacted_json?.mode !== "dry_run" &&
     !String(snapshot?.confirmation?.confirmation_number ?? "").startsWith("KR-DRYRUN-");
   const showLiveStartButton =
+    center?.liveBookingMode !== "sms_sync_supported" &&
     !waitingForSms &&
     !waitingForFinalApproval &&
     !finalApproved &&
     !centerManualAction &&
     !snapshot?.confirmation;
+  const showSmsSyncPanel = center?.liveBookingMode === "sms_sync_supported";
+  const isReadingSlots = busy === "start-slot-search" || busy === "submit-sms-code" || busy === "request-live-booking";
+  const hasObservedSlots = (snapshot?.slots ?? []).some((slot) => ["observed", "user_selected", "selected"].includes(slot.status));
 
   const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
@@ -139,11 +149,29 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     }
   }, [applicationId]);
 
+  const downloadFilledForm = useCallback(async () => {
+    setBusy("download-form");
+    setError(null);
+    const pdfUrl = `/api/applications/${applicationId}/kr-annex17-pdf`;
+    try {
+      const response = await fetch(pdfUrl, { cache: "no-store" });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string; missingFields?: string[] } | null;
+        const missing = body?.missingFields?.length ? `: ${body.missingFields.join(", ")}` : "";
+        throw new Error(`${body?.error ?? `PDF request failed: ${response.status}`}${missing}`);
+      }
+      window.location.href = pdfUrl;
+      setBusy(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(null);
+    }
+  }, [applicationId]);
+
   useEffect(() => {
     void run();
   }, [run]);
 
-  const center = snapshot?.routing.recommended;
   const serviceModeLabel = useMemo(() => {
     if (!center) return "";
     if (center.serviceMode === "appointment_required") return isZh ? "必须提前预约" : "Appointment required";
@@ -161,12 +189,6 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     if (center.liveBookingMode === "sms_sync_supported") return isZh ? "VIZA 可同步短信预约" : "VIZA SMS sync supported";
     if (center.liveBookingMode === "site_recon_only") return isZh ? "入口已覆盖，遇门槛转人工" : "Entry covered; gates become manual";
     return isZh ? "仅展示官方指引" : "Official guidance only";
-  }, [center, isZh]);
-  const liveStartLabel = useMemo(() => {
-    if (!center) return isZh ? "启动官方预约助手" : "Start official assistant";
-    if (center.liveBookingMode === "sms_sync_supported") return isZh ? "进入短信验证" : "Start SMS verification";
-    if (center.liveBookingMode === "official_guidance_only") return isZh ? "查看官方递签指引" : "Show official filing guidance";
-    return isZh ? "启动官方预约助手" : "Start official assistant";
   }, [center, isZh]);
   const centerManualTitle = useMemo(() => {
     if (!center) return "";
@@ -209,11 +231,9 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild>
-            <a href={`/api/applications/${applicationId}/kr-annex17-pdf`} target="_blank" rel="noopener noreferrer">
-              <Download className="mr-2 h-4 w-4" />
-              {isZh ? "下载已填申请表" : "Download filled form"}
-            </a>
+          <Button onClick={() => void downloadFilledForm()} disabled={Boolean(busy)}>
+            {busy === "download-form" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isZh ? "备用 Annex-17" : "Fallback Annex-17"}
           </Button>
           <Button asChild variant="outline">
             <a href="https://www.visa.go.kr/openPage.do?MENU_ID=10204" target="_blank" rel="noopener noreferrer">
@@ -258,6 +278,12 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline">
+                    <Link href={`/client/applications/${applicationId}/korea-appointment/rules`}>
+                      <Info className="mr-2 h-4 w-4" />
+                      {isZh ? "查看递签规则" : "View rules"}
+                    </Link>
+                  </Button>
                   {center.bookingUrl ? (
                     <Button asChild variant="outline">
                       <a href={center.bookingUrl} target="_blank" rel="noopener noreferrer">
@@ -274,30 +300,6 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   </Button>
                 </div>
               </div>
-              <Alert className={center.serviceMode === "appointment_required" ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-slate-50/70"}>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{isZh ? "递签规则提醒" : "Submission rule reminder"}</AlertTitle>
-                <AlertDescription className="space-y-2">
-                  <p>{isZh ? center.appointmentRuleZh : center.appointmentRuleEn}</p>
-                  <p>{isZh ? center.liveBookingRuleZh : center.liveBookingRuleEn}</p>
-                  <ul className="list-disc space-y-1 pl-5">
-                    {(isZh ? center.importantNoticesZh : center.importantNoticesEn).map((notice) => (
-                      <li key={notice}>{notice}</li>
-                    ))}
-                  </ul>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>
-                      {isZh ? "规则来源刷新：" : "Source checked: "}
-                      {center.sourceCheckedAt}
-                    </span>
-                    {center.sourceUrls.map((url, index) => (
-                      <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                        {isZh ? `官方来源 ${index + 1}` : `Official source ${index + 1}`}
-                      </a>
-                    ))}
-                  </div>
-                </AlertDescription>
-              </Alert>
               {snapshot.routing.basis === "ambiguous" ? (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
@@ -309,24 +311,6 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   </AlertDescription>
                 </Alert>
               ) : null}
-              <div className="rounded-[8px] border border-dashed p-3 text-xs text-muted-foreground">
-                <div className="font-medium text-foreground">{isZh ? "其他大陆递签渠道" : "Other mainland filing channels"}</div>
-                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  {snapshot.routing.alternatives.slice(0, 7).map((alternative) => (
-                    <div key={alternative.code} className="flex items-center justify-between gap-3">
-                      <span>{isZh ? alternative.nameZh : alternative.nameEn}</span>
-                      <a
-                        href={alternative.bookingUrl ?? alternative.officialUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 underline underline-offset-2"
-                      >
-                        {isZh ? "查看" : "View"}
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </>
           ) : (
             <div className="text-sm text-muted-foreground">{isZh ? "正在读取推荐中心。" : "Loading center recommendation."}</div>
@@ -337,8 +321,84 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       <Card className="rounded-[8px]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <MessageSquareText className="h-5 w-5 text-brand-500" />
+            {isZh ? "1. 官方短信验证" : "1. Official SMS verification"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm leading-6 text-muted-foreground">
+            {isZh
+              ? "先在官网触发短信验证码。你在 VIZA 输入验证码后，后端会同步提交到官方 KVAC 页面，再读取真实可预约时间。"
+              : "Trigger the official SMS first. After you enter the code in VIZA, the backend submits it to the official KVAC page and reads live slots."}
+          </p>
+          {showSmsSyncPanel ? (
+            <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="text-sm font-medium text-foreground">
+                    {hasOfficialConfirmation
+                      ? isZh ? "官方短信验证已完成" : "Official SMS verification complete"
+                      : waitingForSms ? (isZh ? "已发送官方短信验证码" : "Official SMS code sent") : (isZh ? "等待发送验证码" : "Ready to send code")}
+                  </div>
+                  <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {hasOfficialConfirmation
+                      ? isZh
+                        ? "当前申请已经拿到官方预约确认号。改约需要重新发码并读取新时段。"
+                        : "This application already has an official confirmation number. Rescheduling requires a fresh SMS and slot read."
+                      : waitingForSms
+                      ? isZh ? "请在有效期内输入手机收到的验证码。" : "Enter the code before it expires."
+                      : isZh ? "验证码不会明文写入日志或数据库。" : "The code is not stored in plaintext logs or database rows."}
+                  </div>
+                  {smsManualAction?.expires_at ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {isZh ? `有效期至 ${new Date(smsManualAction.expires_at).toLocaleTimeString()}` : `Expires at ${new Date(smsManualAction.expires_at).toLocaleTimeString()}`}
+                    </div>
+                  ) : null}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => void run("request-live-booking")}
+                  disabled={Boolean(busy) || waitingForFinalApproval}
+                  className="shrink-0 bg-white"
+                >
+                  {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                  {waitingForSms ? (isZh ? "重新发送验证码" : "Resend code") : (isZh ? "发送验证码" : "Send code")}
+                </Button>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(180px,260px)_auto]">
+                <input
+                  value={smsCode}
+                  onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  disabled={!waitingForSms || Boolean(busy)}
+                  className="h-10 rounded-[8px] border bg-white px-3 text-sm outline-none focus:border-brand-500 disabled:bg-slate-100 disabled:text-muted-foreground"
+                  placeholder={isZh ? "输入短信验证码" : "SMS code"}
+                />
+                <Button
+                  onClick={() => void run("submit-sms-code", undefined, smsCode)}
+                  disabled={Boolean(busy) || !waitingForSms || !/^\d{4,8}$/.test(smsCode)}
+                >
+                  {busy === "submit-sms-code" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                  {isZh ? "提交验证码并读取时间" : "Submit code and read slots"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{isZh ? "该中心不是短信同步流程" : "SMS sync is not available for this center"}</AlertTitle>
+              <AlertDescription>{centerManualDescription}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-[8px]">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <CalendarCheck className="h-5 w-5 text-brand-500" />
-            {isZh ? "可预约时间" : "Available slots"}
+            {isZh ? "2. 选择可预约时间" : "2. Choose a slot"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -358,17 +418,32 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </Alert>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void run("start-slot-search")} disabled={Boolean(busy)}>
+            <Button onClick={() => void run("start-slot-search")} disabled={Boolean(busy) || (center?.liveBookingMode === "sms_sync_supported" && !hasObservedSlots)}>
               {busy === "start-slot-search" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              {isZh ? "Dry-run 查询时间" : "Dry-run slots"}
+              {isZh ? "重新读取时间" : "Refresh slots"}
             </Button>
             <Button variant="outline" onClick={() => void run("refresh-status")} disabled={Boolean(busy)}>
               {isZh ? "刷新状态" : "Refresh"}
             </Button>
           </div>
+          {isReadingSlots ? (
+            <div className="rounded-[8px] border border-brand-100 bg-white p-5">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+                <div>
+                  <div className="text-sm font-medium text-foreground">{isZh ? "正在读取官网可预约时间" : "Reading official appointment slots"}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {isZh ? "请保持页面打开；读取完成后会自动显示可选时段。" : "Keep this page open. Available slots will appear here when the portal responds."}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {(snapshot?.slots ?? []).length === 0 ? (
             <div className="rounded-[8px] border border-dashed p-5 text-sm text-muted-foreground">
-              {isZh ? "还没有读取到时段。" : "No slots observed yet."}
+              {center?.liveBookingMode === "sms_sync_supported"
+                ? isZh ? "请先完成上方短信验证，系统会随后读取官网时段。" : "Complete SMS verification above; VIZA will then read official slots."
+                : isZh ? "还没有读取到时段。" : "No slots observed yet."}
             </div>
           ) : (
             snapshot?.slots.map((slot) => (
@@ -456,16 +531,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               : "VIZA follows the recommended jurisdiction into the official booking or filing channel. SMS-sync KVAC centers trigger official SMS first; standalone sites, VFS, consulate guidance, or any real-name/account/final-submit gate pause for user confirmation. Codes are not stored in plaintext logs or database rows."}
           </p>
           {showLiveStartButton ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => void run("request-live-booking")}
-                disabled={Boolean(busy) || !center}
-              >
-                {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                {liveStartLabel}
-              </Button>
-            </div>
+            <Alert className="border-brand-100 bg-brand-50/40">
+              <MessageSquareText className="h-4 w-4" />
+              <AlertTitle>{isZh ? "从短信验证开始" : "Start with SMS verification"}</AlertTitle>
+              <AlertDescription>
+                {isZh ? "请使用上方“官方短信验证”区域发送验证码，再读取官网时段。" : "Use the official SMS verification section above before reading official slots."}
+              </AlertDescription>
+            </Alert>
           ) : null}
           {centerManualAction && center ? (
             <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
@@ -489,35 +561,6 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                     <ExternalLink className="mr-2 h-4 w-4" />
                     {isZh ? "查看官方说明" : "View official guidance"}
                   </a>
-                </Button>
-              </div>
-            </div>
-          ) : null}
-          {smsManualAction ? (
-            <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
-              <div className="text-sm font-medium text-foreground">
-                {isZh ? "正在等待短信验证码" : "Waiting for SMS code"}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {smsManualAction.expires_at
-                  ? isZh ? `有效期至 ${new Date(smsManualAction.expires_at).toLocaleTimeString()}` : `Expires at ${new Date(smsManualAction.expires_at).toLocaleTimeString()}`
-                  : isZh ? "请尽快输入。" : "Enter it as soon as it arrives."}
-              </div>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={smsCode}
-                  onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  className="h-10 rounded-[8px] border px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder={isZh ? "输入短信验证码" : "SMS code"}
-                />
-                <Button
-                  onClick={() => void run("submit-sms-code", undefined, smsCode)}
-                  disabled={Boolean(busy) || !/^\d{4,8}$/.test(smsCode)}
-                >
-                  {busy === "submit-sms-code" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                  {isZh ? "提交验证码" : "Submit code"}
                 </Button>
               </div>
             </div>
@@ -573,6 +616,54 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                     {isZh ? "重新发短信验证" : "Restart SMS verification"}
                   </Button>
                 </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {hasOfficialConfirmation ? (
+            <div className="rounded-[8px] border p-4">
+              <div className="text-sm font-medium text-foreground">
+                {isZh ? "改约或取消" : "Reschedule or cancel"}
+              </div>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {isZh
+                  ? "改约会重新进入官方短信验证并读取新时段；取消会创建官方取消检查点。只有官网返回改约/取消结果和证据后，VIZA 才会更新最终状态。"
+                  : "Rescheduling restarts official SMS verification and reads new slots. Cancellation creates an official cancellation checkpoint. VIZA updates the final state only after official evidence is captured."}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void run("request-reschedule")}
+                  disabled={Boolean(busy)}
+                >
+                  {busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                  {isZh ? "申请改约" : "Request reschedule"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void run("request-cancel")}
+                  disabled={Boolean(busy)}
+                >
+                  {busy === "request-cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                  {isZh ? "申请取消" : "Request cancellation"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {changeManualAction ? (
+            <Alert className="border-amber-200 bg-amber-50/60">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>
+                {changeManualAction.action_type === "official_cancel_required"
+                  ? isZh ? "取消流程已创建" : "Cancellation checkpoint created"
+                  : isZh ? "改约流程已创建" : "Reschedule checkpoint created"}
+              </AlertTitle>
+              <AlertDescription>
+                {changeManualAction.instruction ??
+                  (changeManualAction.action_type === "official_cancel_required"
+                    ? isZh ? "后端需要进入官方页面完成取消并保存证据。" : "The backend must complete cancellation on the official page and save evidence."
+                    : isZh ? "请重新发送验证码并读取新时段。" : "Send a fresh code and read new slots.")}
               </AlertDescription>
             </Alert>
           ) : null}

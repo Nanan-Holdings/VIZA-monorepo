@@ -153,14 +153,14 @@ async function clickFirstAvailableDate(page: Page) {
 }
 
 async function clickFirstAvailableTime(page: Page) {
-  const timeCards = page.locator("a").filter({ hasText: /\d{2}:\d{2}\s*\S*/ });
+  const timeCards = page.locator(".time-table__item:not(.-done) a, .time-table__item:not(.-done) button");
   if ((await timeCards.count()) === 0) {
-    throw new Error("No Beijing KVAC appointment time card was found after choosing a date.");
+    throw new Error("No available Beijing KVAC appointment hour was found after choosing a date.");
   }
   await timeCards.first().click({ timeout: 10_000 });
   await page.waitForTimeout(1_000);
 
-  const detailedTimes = page.locator("a, button").filter({ hasText: /\d{2}:\d{2}\s*~\s*\d{2}:\d{2}/ });
+  const detailedTimes = page.locator(".time-table__ly-link:not(.-done), .time-table__ly-item:not(.-done) a, .time-table__ly-item:not(.-done) button");
   const detailedCount = await detailedTimes.count();
   if (detailedCount > 0) {
     await detailedTimes.nth(detailedCount - 1).click({ timeout: 10_000 });
@@ -193,6 +193,15 @@ async function screenshot(page: Page, jobId: string, label: string) {
 }
 
 async function clickFinalBookingButton(page: Page) {
+  const hasOfficialSubmit = await page.evaluate(() => typeof (window as unknown as { jsSave?: unknown }).jsSave === "function").catch(() => false);
+  if (hasOfficialSubmit) {
+    await page.evaluate(() => {
+      (window as unknown as { jsSave: () => void }).jsSave();
+    });
+    await page.waitForTimeout(5_000);
+    return;
+  }
+
   const candidates = [
     page.locator("#btn_reserve").first(),
     page.locator("#btn_submit").first(),
@@ -216,6 +225,7 @@ async function clickFinalBookingButton(page: Page) {
 async function extractConfirmationNumber(page: Page) {
   const text = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
   const patterns = [
+    /(?:预先预约受理编号|预约受理编号|受理编号)\s*([A-Z0-9-]{5,})/i,
     /(?:예약\s*번호|预约(?:确认)?(?:号|编号)|confirmation\s*(?:number|no\.?)|reference\s*(?:number|no\.?))\s*[:：]?\s*([A-Z0-9-]{5,})/i,
   ];
   for (const pattern of patterns) {
@@ -359,6 +369,7 @@ export async function completeKoreaKvacOfficialBooking(input: {
     appointment_time?: string | null;
     appointment_location?: string | null;
     appointment_type?: string | null;
+    departure_date?: string | null;
   } | null;
 }): Promise<KoreaKvacCompleteBookingResult> {
   cleanupExpired();
@@ -367,6 +378,34 @@ export async function completeKoreaKvacOfficialBooking(input: {
     throw new Error("Official KVAC browser session is missing or expired. Restart SMS verification before final booking.");
   }
 
+  const existingConfirmationNumber = await extractConfirmationNumber(session.page);
+  if (existingConfirmationNumber) {
+    const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
+    await cleanupSession(input.jobId);
+    return {
+      status: "appointment_booked",
+      officialSessionId: input.jobId,
+      confirmationNumber: existingConfirmationNumber,
+      appointmentDate: input.selectedSlot?.appointment_date ?? session.appointmentDate,
+      appointmentTime: input.selectedSlot?.appointment_time ?? session.appointmentTime,
+      appointmentLocation: input.selectedSlot?.appointment_location ?? session.appointmentLocation,
+      appointmentType: input.selectedSlot?.appointment_type ?? "C-3-9 document intake",
+      screenshotPath,
+      confirmationPdfUrl: null,
+    };
+  }
+
+  const departureDate = input.selectedSlot?.departure_date?.trim();
+  if (departureDate) {
+    await session.page.locator("#departure_day").evaluate((element, value) => {
+      const input = element as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, departureDate);
+  }
+  await session.page.locator("#termsCheck").check({ force: true }).catch(() => undefined);
+  await session.page.locator("#personal_info_agree_yn").check({ force: true }).catch(() => undefined);
   await clickFinalBookingButton(session.page);
   const confirmationNumber = await extractConfirmationNumber(session.page);
   const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
