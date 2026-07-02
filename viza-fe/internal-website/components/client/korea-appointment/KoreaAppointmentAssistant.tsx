@@ -24,9 +24,12 @@ interface Snapshot {
       consularPostZh: string;
       consularPostEn: string;
       serviceMode: string;
+      liveBookingMode: string;
       acceptsWalkIn: boolean | null;
       appointmentRuleZh: string;
       appointmentRuleEn: string;
+      liveBookingRuleZh: string;
+      liveBookingRuleEn: string;
       importantNoticesZh: string[];
       importantNoticesEn: string[];
       sourceUrls: string[];
@@ -137,6 +140,12 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     if (center.acceptsWalkIn === false) return isZh ? "不可无预约现场受理" : "No walk-in acceptance without appointment";
     return isZh ? "现场受理规则需以当天公告确认" : "Walk-in acceptance must be confirmed from current notices";
   }, [center, isZh]);
+  const liveBookingModeLabel = useMemo(() => {
+    if (!center) return "";
+    if (center.liveBookingMode === "sms_sync_supported") return isZh ? "VIZA 可同步短信预约" : "VIZA SMS sync supported";
+    if (center.liveBookingMode === "site_recon_only") return isZh ? "入口已覆盖，遇门槛转人工" : "Entry covered; gates become manual";
+    return isZh ? "仅展示官方指引" : "Official guidance only";
+  }, [center, isZh]);
 
   return (
     <div className="mx-auto w-full max-w-[1090px] space-y-5 py-8">
@@ -193,6 +202,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   <div className="text-sm text-muted-foreground">{center.addressZh}</div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-brand-800">{serviceModeLabel}</span>
+                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-800">{liveBookingModeLabel}</span>
                     <span className="rounded-full border px-3 py-1 text-muted-foreground">{walkInLabel}</span>
                     <span className="rounded-full border px-3 py-1 text-muted-foreground">
                       {isZh ? `领区：${center.provinces.join("、")}` : `Jurisdiction: ${center.provinces.join(", ")}`}
@@ -221,6 +231,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <AlertTitle>{isZh ? "递签规则提醒" : "Submission rule reminder"}</AlertTitle>
                 <AlertDescription className="space-y-2">
                   <p>{isZh ? center.appointmentRuleZh : center.appointmentRuleEn}</p>
+                  <p>{isZh ? center.liveBookingRuleZh : center.liveBookingRuleEn}</p>
                   <ul className="list-disc space-y-1 pl-5">
                     {(isZh ? center.importantNoticesZh : center.importantNoticesEn).map((notice) => (
                       <li key={notice}>{notice}</li>
@@ -398,7 +409,14 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <Button
               variant="outline"
               onClick={() => void run("request-live-booking")}
-              disabled={Boolean(busy) || Boolean(snapshot?.confirmation) || waitingForSms || waitingForFinalApproval || finalApproved}
+              disabled={
+                Boolean(busy) ||
+                Boolean(snapshot?.confirmation) ||
+                waitingForSms ||
+                waitingForFinalApproval ||
+                finalApproved ||
+                center?.liveBookingMode !== "sms_sync_supported"
+              }
             >
               {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
               {isZh ? "进入短信验证" : "Start SMS verification"}

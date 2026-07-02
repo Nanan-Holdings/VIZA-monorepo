@@ -19,6 +19,9 @@ export interface FranceSubmissionConfig {
   registrationMaxCaptchaAttempts: number;
   registrationEmailTimeoutMs: number;
   twoCaptchaConfigured: boolean;
+  tlsAppointmentEnabled: boolean;
+  tlsPaymentEnabled: boolean;
+  tlsSupportedCountries: string;
 }
 
 function boolEnv(
@@ -70,6 +73,9 @@ export function loadFranceSubmissionConfig(
     registrationMaxCaptchaAttempts: positiveIntEnv(env, "FRANCE_REGISTRATION_MAX_CAPTCHA_ATTEMPTS", 3),
     registrationEmailTimeoutMs: positiveIntEnv(env, "FRANCE_REGISTRATION_EMAIL_TIMEOUT_MS", 180_000),
     twoCaptchaConfigured: Boolean(env.TWOCAPTCHA_API_KEY?.trim()),
+    tlsAppointmentEnabled: boolEnv(env, "FRANCE_TLS_APPOINTMENT_ENABLED", false),
+    tlsPaymentEnabled: boolEnv(env, "FRANCE_TLS_PAYMENT_ENABLED", false),
+    tlsSupportedCountries: env.FRANCE_TLS_SUPPORTED_COUNTRIES?.trim().toUpperCase() || "CN",
   };
 }
 
@@ -106,6 +112,29 @@ export function validateFranceLiveStart(config: FranceSubmissionConfig): string 
   }
   if (config.accountRegistrationEnabled && !config.twoCaptchaConfigured) {
     return "France live assisted is blocked: TWOCAPTCHA_API_KEY must be set for France account registration.";
+  }
+  return null;
+}
+
+export function validateFranceTlsAppointmentStart(config: FranceSubmissionConfig): string | null {
+  if (!config.tlsAppointmentEnabled) {
+    return "France TLS appointment booking is blocked: FRANCE_TLS_APPOINTMENT_ENABLED must be true.";
+  }
+  if (!config.tlsPaymentEnabled) {
+    return "France TLS appointment booking is blocked: FRANCE_TLS_PAYMENT_ENABLED must be true for online TLS service-fee confirmation.";
+  }
+  const liveBlocker = validateFranceLiveStart({
+    ...config,
+    paymentLiveEnabled: false,
+    appointmentLiveEnabled: false,
+  });
+  if (liveBlocker) return liveBlocker;
+  const countries = config.tlsSupportedCountries
+    .split(",")
+    .map((country) => country.trim().toUpperCase())
+    .filter(Boolean);
+  if (!countries.includes("CN")) {
+    return "France TLS appointment booking is blocked: FRANCE_TLS_SUPPORTED_COUNTRIES must include CN.";
   }
   return null;
 }
