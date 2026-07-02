@@ -33,4 +33,60 @@ describe("resolveKvacCenter", () => {
     expect(result.recommended.code).toBe("beijing");
     expect(result.alternatives.length).toBeGreaterThan(1);
   });
+
+  it("covers every mainland China province-level region used for Korea visa routing", () => {
+    const expected: Record<string, string> = {
+      北京: "beijing",
+      天津: "beijing",
+      河北: "beijing",
+      山西: "beijing",
+      内蒙古: "beijing",
+      新疆: "beijing",
+      西藏: "beijing",
+      青海: "beijing",
+      上海: "shanghai",
+      江苏: "shanghai",
+      浙江: "shanghai",
+      安徽: "shanghai",
+      广东: "guangzhou",
+      福建: "guangzhou",
+      海南: "guangzhou",
+      广西: "guangzhou",
+      湖北: "wuhan",
+      湖南: "wuhan",
+      河南: "wuhan",
+      江西: "wuhan",
+      陕西: "xian",
+      甘肃: "xian",
+      宁夏: "xian",
+      辽宁: "shenyang",
+      吉林: "shenyang",
+      黑龙江: "shenyang",
+      四川: "chengdu",
+      重庆: "chengdu",
+      云南: "chengdu",
+      贵州: "chengdu",
+      山东: "qingdao",
+    };
+
+    for (const [province, centerCode] of Object.entries(expected)) {
+      expect(resolveKvacCenter({ hukouProvince: province }).recommended.code).toBe(centerCode);
+    }
+  });
+
+  it("exposes appointment and walk-in rules for user-facing slot guidance", () => {
+    const shanghai = resolveKvacCenter({ hukouProvince: "上海市" }).recommended;
+    const guangzhou = resolveKvacCenter({ hukouProvince: "广东省" }).recommended;
+    const chengdu = resolveKvacCenter({ hukouProvince: "四川省" }).recommended;
+    const qingdao = resolveKvacCenter({ hukouProvince: "山东省" }).recommended;
+
+    expect(shanghai.serviceMode).toBe("appointment_required");
+    expect(shanghai.acceptsWalkIn).toBe(false);
+    expect(shanghai.importantNoticesZh.join(" ")).toContain("预约");
+    expect(guangzhou.acceptsWalkIn).toBe(true);
+    expect(guangzhou.importantNoticesZh.join(" ")).toContain("不能双面打印");
+    expect(chengdu.appointmentRuleZh).toContain("7 个工作日");
+    expect(qingdao.serviceMode).toBe("center_guidance_required");
+    expect(qingdao.bookingUrl).toBeNull();
+  });
 });

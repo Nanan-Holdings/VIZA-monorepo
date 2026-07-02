@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarCheck, CheckCircle2, Download, Loader2, MapPin, MessageSquareText, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CheckCircle2, Download, ExternalLink, Loader2, MapPin, MessageSquareText, RefreshCw } from "lucide-react";
 import { useLocale } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,39 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 interface Snapshot {
   routing: {
     basis: string;
+    matchedProvince: string | null;
     recommended: {
       code: string;
       nameEn: string;
       nameZh: string;
-      bookingUrl: string;
+      officialUrl: string;
+      bookingUrl: string | null;
       addressZh: string;
+      phone?: string;
+      provinces: string[];
+      consularPostZh: string;
+      consularPostEn: string;
       serviceMode: string;
+      acceptsWalkIn: boolean | null;
+      appointmentRuleZh: string;
+      appointmentRuleEn: string;
+      importantNoticesZh: string[];
+      importantNoticesEn: string[];
+      sourceUrls: string[];
+      sourceCheckedAt: string;
     };
+    alternatives: Array<{
+      code: string;
+      nameEn: string;
+      nameZh: string;
+      bookingUrl: string | null;
+      officialUrl: string;
+      provinces: string[];
+      serviceMode: string;
+      acceptsWalkIn: boolean | null;
+    }>;
   };
-  job: { id: string; status: string } | null;
+  job: { id: string; status: string; mode?: string | null } | null;
   manualAction: {
     id: string;
     action_type: string;
@@ -68,9 +91,15 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     () => snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null,
     [snapshot?.slots],
   );
-  const waitingForSms = snapshot?.manualAction?.action_type === "sms_verification_required";
+  const smsActionExpired =
+    Boolean(snapshot?.manualAction?.expires_at) &&
+    new Date(snapshot?.manualAction?.expires_at ?? "").getTime() <= Date.now();
+  const waitingForSms =
+    snapshot?.manualAction?.action_type === "sms_verification_required" &&
+    !smsActionExpired;
   const waitingForFinalApproval = snapshot?.manualAction?.action_type === "final_booking_approval_required";
   const finalApproved = snapshot?.job?.status === "final_booking_approved";
+  const isLiveAssisted = snapshot?.job?.mode === "live_assisted";
   const smsManualAction = waitingForSms ? snapshot?.manualAction : null;
   const finalApprovalAction = waitingForFinalApproval ? snapshot?.manualAction : null;
   const hasOfficialConfirmation =
@@ -96,6 +125,18 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   }, [run]);
 
   const center = snapshot?.routing.recommended;
+  const serviceModeLabel = useMemo(() => {
+    if (!center) return "";
+    if (center.serviceMode === "appointment_required") return isZh ? "必须提前预约" : "Appointment required";
+    if (center.serviceMode === "center_guidance_required") return isZh ? "按领馆/中心公告办理" : "Follow consulate/center guidance";
+    return isZh ? "建议预约优先" : "Appointment preferred";
+  }, [center, isZh]);
+  const walkInLabel = useMemo(() => {
+    if (!center) return "";
+    if (center.acceptsWalkIn === true) return isZh ? "可现场取号/Walk-in：官方规则允许，但可能等待更久" : "Walk-in: allowed by current guidance, but waiting may be longer";
+    if (center.acceptsWalkIn === false) return isZh ? "不可无预约现场受理" : "No walk-in acceptance without appointment";
+    return isZh ? "现场受理规则需以当天公告确认" : "Walk-in acceptance must be confirmed from current notices";
+  }, [center, isZh]);
 
   return (
     <div className="mx-auto w-full max-w-[1090px] space-y-5 py-8">
@@ -106,8 +147,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             {isZh
-              ? "VIZA 会先读取 KVAC 可用时段；你选择时间后，后端才会继续预约并保存确认凭证。"
-              : "VIZA observes KVAC slots first. The backend books only after you choose a slot, then saves confirmation evidence."}
+              ? "真实预约会先进入 KVAC 短信验证；你输入验证码后，后端继续读取可预约时段。选择时间并最终授权后才会预约并保存确认凭证。"
+              : "Live booking starts with KVAC SMS verification. After you enter the code, the backend continues to observe slots. It books only after you choose a slot and approve the final click."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -143,13 +184,90 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <CardContent className="space-y-3">
           {center ? (
             <>
-              <div className="font-medium">{isZh ? center.nameZh : center.nameEn}</div>
-              <div className="text-sm text-muted-foreground">{center.addressZh}</div>
-              <Button asChild variant="ghost" className="px-0">
-                <a href={center.bookingUrl} target="_blank" rel="noopener noreferrer">
-                  {isZh ? "打开官方预约页面" : "Open official booking page"}
-                </a>
-              </Button>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-2">
+                  <div className="font-medium">{isZh ? center.nameZh : center.nameEn}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {isZh ? center.consularPostZh : center.consularPostEn}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{center.addressZh}</div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-brand-800">{serviceModeLabel}</span>
+                    <span className="rounded-full border px-3 py-1 text-muted-foreground">{walkInLabel}</span>
+                    <span className="rounded-full border px-3 py-1 text-muted-foreground">
+                      {isZh ? `领区：${center.provinces.join("、")}` : `Jurisdiction: ${center.provinces.join(", ")}`}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {center.bookingUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={center.bookingUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        {isZh ? "打开官方预约页" : "Official booking"}
+                      </a>
+                    </Button>
+                  ) : null}
+                  <Button asChild variant={center.bookingUrl ? "ghost" : "outline"}>
+                    <a href={center.officialUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {isZh ? "官方说明" : "Official guidance"}
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              <Alert className={center.serviceMode === "appointment_required" ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-slate-50/70"}>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>{isZh ? "递签规则提醒" : "Submission rule reminder"}</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>{isZh ? center.appointmentRuleZh : center.appointmentRuleEn}</p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {(isZh ? center.importantNoticesZh : center.importantNoticesEn).map((notice) => (
+                      <li key={notice}>{notice}</li>
+                    ))}
+                  </ul>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>
+                      {isZh ? "规则来源刷新：" : "Source checked: "}
+                      {center.sourceCheckedAt}
+                    </span>
+                    {center.sourceUrls.map((url, index) => (
+                      <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                        {isZh ? `官方来源 ${index + 1}` : `Official source ${index + 1}`}
+                      </a>
+                    ))}
+                  </div>
+                </AlertDescription>
+              </Alert>
+              {snapshot.routing.basis === "ambiguous" ? (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{isZh ? "领区信息不完整" : "Jurisdiction information incomplete"}</AlertTitle>
+                  <AlertDescription>
+                    {isZh
+                      ? "当前没有可用的居住地或户籍省份，系统默认展示北京并列出其他中心；请在申请资料中补充可证明的现居住地或户籍地后再预约。"
+                      : "No usable residence or hukou province is available, so Beijing is shown by default with alternatives. Add a provable current residence or hukou province before booking."}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <div className="rounded-[8px] border border-dashed p-3 text-xs text-muted-foreground">
+                <div className="font-medium text-foreground">{isZh ? "其他大陆递签渠道" : "Other mainland filing channels"}</div>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {snapshot.routing.alternatives.slice(0, 7).map((alternative) => (
+                    <div key={alternative.code} className="flex items-center justify-between gap-3">
+                      <span>{isZh ? alternative.nameZh : alternative.nameEn}</span>
+                      <a
+                        href={alternative.bookingUrl ?? alternative.officialUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 underline underline-offset-2"
+                      >
+                        {isZh ? "查看" : "View"}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
             <div className="text-sm text-muted-foreground">{isZh ? "正在读取推荐中心。" : "Loading center recommendation."}</div>
@@ -165,10 +283,25 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {center ? (
+            <Alert className="border-brand-100 bg-brand-50/40">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{isZh ? "选择时段前请确认" : "Confirm before choosing a slot"}</AlertTitle>
+              <AlertDescription>
+                {center.serviceMode === "center_guidance_required"
+                  ? isZh
+                    ? "该领区没有已确认的统一在线预约入口，请先按官方公告确认是否需要代办机构或线下递交。"
+                    : "This jurisdiction has no confirmed unified online booking portal. Confirm whether agency or in-person filing is required from official notices first."
+                  : isZh
+                    ? `${serviceModeLabel}。${walkInLabel}。`
+                    : `${serviceModeLabel}. ${walkInLabel}.`}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void run("start-slot-search")} disabled={Boolean(busy)}>
               {busy === "start-slot-search" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              {isZh ? "查询可用时间" : "Check slots"}
+              {isZh ? "Dry-run 查询时间" : "Dry-run slots"}
             </Button>
             <Button variant="outline" onClick={() => void run("refresh-status")} disabled={Boolean(busy)}>
               {isZh ? "刷新状态" : "Refresh"}
@@ -211,9 +344,9 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               ? isZh ? `已选择 ${selectedSlot.appointment_date} ${selectedSlot.appointment_time}` : `Selected ${selectedSlot.appointment_date} ${selectedSlot.appointment_time}`
               : isZh ? "请先选择一个时段。" : "Choose a slot first."}
           </p>
-          <Button onClick={() => void run("confirm-booking")} disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation)}>
+          <Button onClick={() => void run("confirm-booking")} disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation) || isLiveAssisted}>
             {busy === "confirm-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-            {isZh ? "确认预约" : "Confirm booking"}
+            {isLiveAssisted ? (isZh ? "等待最终授权" : "Waiting for final approval") : (isZh ? "确认预约" : "Confirm booking")}
           </Button>
           {snapshot?.confirmation ? (
             <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
@@ -258,17 +391,17 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <CardContent className="space-y-3">
           <p className="text-sm leading-6 text-muted-foreground">
             {isZh
-              ? "KVAC 手机验证码不能绕过。真实预约时，worker 会在官方页面发起短信验证并暂停；你在 5 分钟内输入验证码后，worker 才继续。验证码不会明文写入日志或数据库。"
-              : "KVAC SMS verification cannot be bypassed. During live booking, the worker pauses after triggering the official SMS; enter the code within 5 minutes so it can continue. The code is not stored in plaintext logs or database rows."}
+              ? "KVAC 手机验证码不能绕过。真实预约时，worker 会先在官方页面发起短信验证并暂停；你在 5 分钟内输入验证码后，worker 才继续读取官方可预约时段。验证码不会明文写入日志或数据库。"
+              : "KVAC SMS verification cannot be bypassed. During live booking, the worker first pauses after triggering the official SMS; enter the code within 5 minutes so it can continue to observe official slots. The code is not stored in plaintext logs or database rows."}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={() => void run("request-live-booking")}
-              disabled={Boolean(busy) || !selectedSlot || Boolean(snapshot?.confirmation) || waitingForSms || waitingForFinalApproval || finalApproved}
+              disabled={Boolean(busy) || Boolean(snapshot?.confirmation) || waitingForSms || waitingForFinalApproval || finalApproved}
             >
               {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-              {isZh ? "进入真实预约验证" : "Start live verification"}
+              {isZh ? "进入短信验证" : "Start SMS verification"}
             </Button>
           </div>
           {smsManualAction ? (
@@ -307,8 +440,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               </div>
               <div className="mt-1 text-sm leading-6 text-muted-foreground">
                 {isZh
-                  ? "验证码已提交。请确认允许 worker 在官方 KVAC 页面点击最后的预约确认按钮；只有官方页面返回确认号后，VIZA 才会保存预约证明。"
-                  : "The SMS code has been submitted. Approve the worker to click the final booking button on the official KVAC page; VIZA saves proof only after the official portal returns a confirmation number."}
+                  ? "验证码已提交且时段已选择。请确认允许 worker 在官方 KVAC 页面点击最后的预约确认按钮；只有官方页面返回确认号后，VIZA 才会保存预约证明。"
+                  : "The SMS code has been submitted and a slot is selected. Approve the worker to click the final booking button on the official KVAC page; VIZA saves proof only after the official portal returns a confirmation number."}
               </div>
               <Button
                 className="mt-3"

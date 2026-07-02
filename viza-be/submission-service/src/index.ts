@@ -7037,6 +7037,12 @@ async function main(): Promise<void> {
   // DEP-004: health server for Cloud Run probes (/health, /ready).
   startHealthServer({ isWorkerStarted: () => runnerStarted });
 
+  if (/^(1|true|yes|on)$/i.test(process.env.SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY ?? "")) {
+    runnerStarted = true;
+    console.log("[main] Local endpoints only mode enabled; submission polling and runner_job consumer are disabled.");
+    return;
+  }
+
   // Run immediately on start, then on interval
   await poll();
   setInterval(poll, POLL_INTERVAL_MS);

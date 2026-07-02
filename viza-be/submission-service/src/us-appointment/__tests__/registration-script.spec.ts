@@ -62,6 +62,18 @@ test("US appointment registration extracts Email Worker verification codes", () 
   assert.equal(parsed.code, "654321");
 });
 
+test("US appointment registration extracts Microsoft-hosted B2C verification codes", () => {
+  const parsed = extractAuto({
+    from: "msonlineservicesteam@microsoftonline.com",
+    subject: "US Visa & American Citizen Services Processing account email verification code",
+    text: "Your account email verification code is 123456.",
+    html: null,
+  });
+
+  assert.equal(parsed.profileId, "usvisascheduling");
+  assert.equal(parsed.code, "123456");
+});
+
 test("US appointment registration can generate a strong account password", () => {
   const password = generateUSAppointmentAccountPassword(() => Buffer.from("0123456789abcdef0123456789abcdef"));
 

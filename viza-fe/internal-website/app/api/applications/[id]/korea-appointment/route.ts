@@ -35,6 +35,39 @@ interface AppointmentManualActionRow {
   created_at: string | null;
 }
 
+interface KoreaKvacStartSmsResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "sms_verification_required";
+  officialSessionId?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
+  appointmentEndTime?: string;
+  appointmentLocation?: string;
+  phoneMasked?: string;
+  expiresAtIso?: string;
+  screenshotPath?: string | null;
+  officialMessage?: string;
+}
+
+interface KoreaKvacSubmitSmsResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "appointment_slots_observed";
+  officialSessionId?: string;
+  slots?: Array<{
+    id: string;
+    appointment_date: string;
+    appointment_time: string;
+    appointment_location: string;
+    appointment_type: string;
+    source: string;
+    status: string;
+    metadata_redacted_json: Record<string, unknown>;
+  }>;
+  screenshotPath?: string | null;
+}
+
 type ApplicationAuthResult =
   | { ok: false; response: Response }
   | {
@@ -82,9 +115,112 @@ async function latestJob(admin: ReturnType<typeof createAdminClient>, applicatio
   return data as AppointmentJobRow | null;
 }
 
-async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string) {
+async function readAnswerMap(admin: ReturnType<typeof createAdminClient>, applicationId: string) {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("field_name, value_text")
+    .eq("application_id", applicationId);
+  if (error) throw new Error(error.message);
+
+  const answers: Record<string, string> = {};
+  for (const row of data ?? []) {
+    if (row.field_name && row.value_text) answers[row.field_name] = row.value_text;
+  }
+  return answers;
+}
+
+function firstAnswer(answers: Record<string, string>, keys: string[]) {
+  for (const key of keys) {
+    const value = answers[key]?.trim();
+    if (value) return value;
+  }
+  return null;
+}
+
+function parseBooleanAnswer(value: string | null) {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "yes", "y", "1", "有", "是", "available"].includes(normalized)) return true;
+  if (["false", "no", "n", "0", "无", "否", "unavailable"].includes(normalized)) return false;
+  return null;
+}
+
+async function readRoutingInput(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  explicitInput?: KvacRoutingInput,
+): Promise<KvacRoutingInput> {
+  if (explicitInput && Object.values(explicitInput).some((value) => value !== undefined && value !== null && value !== "")) {
+    return explicitInput;
+  }
+
+  const answers = await readAnswerMap(admin, applicationId);
+
+  const currentResidenceProvince = firstAnswer(answers, [
+    "current_residence_province",
+    "residence_province",
+    "residence_province_or_state",
+    "residence_province_or_state_zh",
+    "home_address_state_province",
+    "address_province",
+    "province",
+  ]);
+  const hukouProvince = firstAnswer(answers, [
+    "hukou_province",
+    "household_registration_province",
+    "household_register_province",
+    "domicile_province",
+    "permanent_residence_province",
+  ]);
+  const hasResidenceProof = parseBooleanAnswer(firstAnswer(answers, [
+    "has_residence_proof",
+    "residence_proof_available",
+    "current_residence_proof",
+    "has_local_residence_permit",
+  ]));
+
+  return { currentResidenceProvince, hasResidenceProof, hukouProvince };
+}
+
+function submissionServiceBaseUrl() {
+  return (process.env.KR_KVAC_SUBMISSION_SERVICE_URL ?? process.env.SUBMISSION_SERVICE_LOCAL_URL ?? "http://127.0.0.1:8080").replace(/\/$/u, "");
+}
+
+async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const url = `${submissionServiceBaseUrl()}${path}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!response.ok || !payload) {
+    throw new Error(
+      payload?.error
+        ? `Submission service ${url} failed (${response.status}): ${payload.error}`
+        : `Submission service ${url} failed (${response.status})`,
+    );
+  }
+  if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
+  return payload as T;
+}
+
+function applicantNameForOfficial(answers: Record<string, string>) {
+  const fullName = firstAnswer(answers, ["full_name_en", "full_name", "applicant_name", "booker_name"]);
+  if (fullName) return fullName;
+  return [firstAnswer(answers, ["family_name", "surname"]), firstAnswer(answers, ["given_names", "given_name"])]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function mobilePhoneForOfficial(answers: Record<string, string>) {
+  return firstAnswer(answers, ["mobile_phone", "phone", "phone_number", "primary_phone_number", "booker_phone"]) ?? "";
+}
+
+async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string, routingInput?: KvacRoutingInput) {
   const job = await latestJob(admin, applicationId);
-  const routing = resolveKvacCenter({});
+  const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, routingInput));
   if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null };
 
   const [
@@ -144,6 +280,89 @@ function dryRunSlots(centerCode: string) {
   ];
 }
 
+async function ensureKoreaJob(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  routing: ReturnType<typeof resolveKvacCenter>,
+  mode: "dry_run" | "live_assisted",
+) {
+  let job = await latestJob(admin, applicationId);
+  if (job) {
+    if (mode === "live_assisted" && job.mode !== "live_assisted") {
+      const { data, error } = await admin
+        .from("appointment_assistance_jobs")
+        .update({
+          mode: "live_assisted",
+          status: "sms_verification_required",
+          requires_user_action: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id)
+        .select("*")
+        .single();
+      if (error || !data) throw new Error(error?.message ?? "Could not upgrade Korea appointment job.");
+      job = data as AppointmentJobRow;
+      await admin.from("applications").update({
+        appointment_assistance_status: "sms_verification_required",
+        appointment_assistance_job_id: job.id,
+      }).eq("id", applicationId);
+    }
+    return job;
+  }
+
+  const { data, error } = await admin
+    .from("appointment_assistance_jobs")
+    .insert({
+      application_id: applicationId,
+      user_id: userId,
+      country_code: "KR",
+      visa_type: "KR_C39_SHORT_TERM_VISIT",
+      applying_country_code: "CN",
+      applying_post_city: routing.recommended.nameEn,
+      scheduling_provider: "kvac_cn",
+      status: mode === "live_assisted" ? "sms_verification_required" : "appointment_slots_observed",
+      mode,
+      user_preferences_json: {
+        routing,
+        centerCode: routing.recommended.code,
+        finalConfirmationRequired: true,
+        source: "korea_c39_v1",
+      },
+      requires_user_action: mode === "live_assisted",
+      idempotency_key: `korea-kvac:${applicationId}:${randomUUID()}`,
+    })
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Could not create Korea appointment job.");
+
+  await admin.from("applications").update({
+    appointment_assistance_status: mode === "live_assisted" ? "sms_verification_required" : "appointment_slots_observed",
+    appointment_assistance_job_id: data.id,
+  }).eq("id", applicationId);
+
+  return data as AppointmentJobRow;
+}
+
+async function replaceObservedSlots(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  jobId: string,
+  centerCode: string,
+  source: string,
+) {
+  const slots = dryRunSlots(centerCode).map((slot) => ({
+    ...slot,
+    source,
+    metadata_redacted_json: { centerCode, source },
+    job_id: jobId,
+    application_id: applicationId,
+  }));
+  await admin.from("appointment_slots").delete().eq("job_id", jobId).in("source", ["dry_run", "dry_run_after_sms"]);
+  const { error: slotErr } = await admin.from("appointment_slots").insert(slots);
+  if (slotErr) throw new Error(slotErr.message);
+}
+
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -169,55 +388,23 @@ export async function POST(
     routingInput?: KvacRoutingInput;
   };
   const action = body.action;
-  const routing = resolveKvacCenter(body.routingInput ?? {});
+  const routingInput = await readRoutingInput(auth.admin, id, body.routingInput);
+  const routing = resolveKvacCenter(routingInput);
 
   if (action === "refresh-status") {
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
   if (action === "start-slot-search") {
-    let job = await latestJob(auth.admin, id);
-    if (!job) {
-      const { data, error } = await auth.admin
-        .from("appointment_assistance_jobs")
-        .insert({
-          application_id: id,
-          user_id: auth.profile.id,
-          country_code: "KR",
-          visa_type: "KR_C39_SHORT_TERM_VISIT",
-          applying_country_code: "CN",
-          applying_post_city: routing.recommended.nameEn,
-          scheduling_provider: "kvac_cn",
-          status: "appointment_slots_observed",
-          mode: "dry_run",
-          user_preferences_json: {
-            routing,
-            centerCode: routing.recommended.code,
-            finalConfirmationRequired: true,
-            source: "korea_c39_v1",
-          },
-          requires_user_action: false,
-          idempotency_key: `korea-kvac:${id}:${randomUUID()}`,
-        })
-        .select("*")
-        .single();
-      if (error || !data) throw new Error(error?.message ?? "Could not create Korea appointment job.");
-      job = data as AppointmentJobRow;
-      await auth.admin.from("applications").update({
-        appointment_assistance_status: "appointment_slots_observed",
-        appointment_assistance_job_id: job.id,
-      }).eq("id", id);
+    if (!routing.recommended.bookingUrl) {
+      return NextResponse.json(
+        { error: "This Korea visa filing channel does not have a confirmed online appointment portal. Follow the official consulate guidance instead." },
+        { status: 409 },
+      );
     }
-
-    const slots = dryRunSlots(routing.recommended.code).map((slot) => ({
-      ...slot,
-      job_id: job.id,
-      application_id: id,
-    }));
-    await auth.admin.from("appointment_slots").delete().eq("job_id", job.id).eq("source", "dry_run");
-    const { error: slotErr } = await auth.admin.from("appointment_slots").insert(slots);
-    if (slotErr) throw new Error(slotErr.message);
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+    const job = await ensureKoreaJob(auth.admin, id, auth.profile.id, routing, "dry_run");
+    await replaceObservedSlots(auth.admin, id, job.id, routing.recommended.code, "dry_run");
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
   if (action === "select-slot") {
@@ -227,8 +414,79 @@ export async function POST(
     await auth.admin.from("appointment_slots").update({ status: "expired" }).eq("job_id", job.id).eq("status", "observed");
     const { error: slotErr } = await auth.admin.from("appointment_slots").update({ status: "user_selected" }).eq("id", body.slotId).eq("job_id", job.id);
     if (slotErr) throw new Error(slotErr.message);
-    await auth.admin.from("appointment_assistance_jobs").update({ status: "appointment_slot_selection_required", updated_at: new Date().toISOString() }).eq("id", job.id);
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+
+    if (job.mode === "live_assisted") {
+      const { data: slot, error: selectedSlotErr } = await auth.admin
+        .from("appointment_slots")
+        .select("id, appointment_date, appointment_time, appointment_location")
+        .eq("id", body.slotId)
+        .eq("job_id", job.id)
+        .maybeSingle();
+      if (selectedSlotErr) throw new Error(selectedSlotErr.message);
+
+      const { data: existingFinalAction, error: existingFinalErr } = await auth.admin
+        .from("appointment_manual_actions")
+        .select("id")
+        .eq("job_id", job.id)
+        .eq("action_type", "final_booking_approval_required")
+        .in("status", ["pending", "in_progress"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingFinalErr) throw new Error(existingFinalErr.message);
+
+      const finalActionId = existingFinalAction?.id ?? await (async () => {
+        const { data: finalAction, error: finalActionErr } = await auth.admin
+          .from("appointment_manual_actions")
+          .insert({
+            job_id: job.id,
+            application_id: id,
+            user_id: auth.profile.id,
+            action_type: "final_booking_approval_required",
+            status: "pending",
+            instruction:
+              "Review the selected KVAC slot before the worker clicks the final official booking button. VIZA saves proof only after the official portal returns confirmation.",
+            user_input_schema_json: {
+              type: "object",
+              required: ["approved"],
+              properties: {
+                approved: { type: "boolean", const: true },
+              },
+            },
+            metadata_redacted_json: {
+              centerCode: routing.recommended.code,
+              selectedSlotId: slot?.id ?? body.slotId,
+              selectedSlot: slot
+                ? {
+                    appointment_date: slot.appointment_date,
+                    appointment_time: slot.appointment_time,
+                    appointment_location: slot.appointment_location,
+                  }
+                : null,
+            },
+          })
+          .select("id")
+          .single();
+        if (finalActionErr || !finalAction) {
+          throw new Error(finalActionErr?.message ?? "Could not create final booking approval checkpoint.");
+        }
+        return finalAction.id as string;
+      })();
+
+      await auth.admin.from("appointment_assistance_jobs").update({
+        status: "final_booking_approval_required",
+        requires_user_action: true,
+        current_manual_action: finalActionId,
+        updated_at: new Date().toISOString(),
+      }).eq("id", job.id);
+      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    }
+
+    await auth.admin.from("appointment_assistance_jobs").update({
+      status: "appointment_slot_selection_required",
+      updated_at: new Date().toISOString(),
+    }).eq("id", job.id);
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
   if (action === "confirm-booking") {
@@ -271,18 +529,23 @@ export async function POST(
       appointment_assistance_status: "appointment_booked",
       appointment_confirmation_id: confirmation.id,
     }).eq("id", id);
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
   if (action === "request-live-booking") {
-    const job = await latestJob(auth.admin, id);
-    if (!job) return NextResponse.json({ error: "Start slot search first" }, { status: 400 });
+    if (!routing.recommended.bookingUrl) {
+      return NextResponse.json(
+        { error: "This Korea visa filing channel does not have a confirmed online appointment portal. Use the official consulate guidance or a published designated agency channel." },
+        { status: 409 },
+      );
+    }
+    const job = await ensureKoreaJob(auth.admin, id, auth.profile.id, routing, "live_assisted");
     if (job.status === "sms_verification_submitted") {
-      return NextResponse.json(await readSnapshot(auth.admin, id));
+      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
     }
     const { data: existingManualAction, error: existingManualErr } = await auth.admin
       .from("appointment_manual_actions")
-      .select("id")
+      .select("id, expires_at")
       .eq("job_id", job.id)
       .eq("action_type", "sms_verification_required")
       .in("status", ["pending", "in_progress"])
@@ -291,20 +554,39 @@ export async function POST(
       .maybeSingle();
     if (existingManualErr) throw new Error(existingManualErr.message);
     if (existingManualAction) {
-      return NextResponse.json(await readSnapshot(auth.admin, id));
+      if (!existingManualAction.expires_at || new Date(existingManualAction.expires_at).getTime() > Date.now()) {
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      }
+      await auth.admin
+        .from("appointment_manual_actions")
+        .update({ status: "expired" })
+        .eq("id", existingManualAction.id);
     }
-    const { data: slot, error: slotErr } = await auth.admin
-      .from("appointment_slots")
-      .select("id, appointment_date, appointment_time, appointment_location")
-      .eq("job_id", job.id)
-      .in("status", ["user_selected", "selected"])
-      .order("observed_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (slotErr) throw new Error(slotErr.message);
-    if (!slot) return NextResponse.json({ error: "Select a slot before starting live booking" }, { status: 400 });
-
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    try {
+    const answers = await readAnswerMap(auth.admin, id);
+    const applicantName = applicantNameForOfficial(answers);
+    const mobilePhone = mobilePhoneForOfficial(answers);
+    if (!applicantName || !mobilePhone) {
+      return NextResponse.json(
+        {
+          error:
+            "Korea KVAC live SMS verification requires the applicant name and mainland China mobile phone in the application answers before VIZA can operate the official portal.",
+        },
+        { status: 409 },
+      );
+    }
+    const officialStart = await postSubmissionService<KoreaKvacStartSmsResponse>("/local/korea-kvac/sms/start", {
+      applicationId: id,
+      jobId: job.id,
+      centerCode: routing.recommended.code,
+      bookingUrl: routing.recommended.bookingUrl,
+      applicantName,
+      mobilePhone,
+    });
+    if (!officialStart.ok || officialStart.status !== "sms_verification_required") {
+      throw new Error("Official Korea KVAC SMS verification did not start.");
+    }
+    const expiresAt = officialStart.expiresAtIso ?? new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const { data: manualAction, error: manualErr } = await auth.admin
       .from("appointment_manual_actions")
       .insert({
@@ -324,12 +606,15 @@ export async function POST(
         expires_at: expiresAt,
         metadata_redacted_json: {
           centerCode: routing.recommended.code,
-          selectedSlotId: slot.id,
-          selectedSlot: {
-            appointment_date: slot.appointment_date,
-            appointment_time: slot.appointment_time,
-            appointment_location: slot.appointment_location,
-          },
+          officialSessionId: officialStart.officialSessionId ?? job.id,
+          appointmentDate: officialStart.appointmentDate,
+          appointmentTime: officialStart.appointmentTime,
+          appointmentEndTime: officialStart.appointmentEndTime,
+          appointmentLocation: officialStart.appointmentLocation,
+          phoneMasked: officialStart.phoneMasked,
+          officialMessage: officialStart.officialMessage,
+          screenshotPath: officialStart.screenshotPath,
+          nextStep: "observe_slots_after_sms",
         },
       })
       .select("id")
@@ -347,10 +632,24 @@ export async function POST(
       application_id: id,
       user_id: auth.profile.id,
       event_type: "sms_verification_required",
-      event_message: "Korea KVAC live assisted booking is waiting for user-provided SMS code.",
-      metadata_redacted_json: { centerCode: routing.recommended.code },
+      event_message: "Official Korea KVAC SMS was requested from the live portal session. VIZA is waiting for the user-provided code.",
+      metadata_redacted_json: {
+        centerCode: routing.recommended.code,
+        officialSessionId: officialStart.officialSessionId ?? job.id,
+        appointmentDate: officialStart.appointmentDate,
+        appointmentTime: officialStart.appointmentTime,
+        phoneMasked: officialStart.phoneMasked,
+        screenshotPath: officialStart.screenshotPath,
+      },
     });
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    } catch (error) {
+      console.error("[korea-appointment] request-live-booking failed", error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Korea KVAC live booking failed" },
+        { status: 502 },
+      );
+    }
   }
 
   if (action === "submit-sms-code") {
@@ -373,6 +672,14 @@ export async function POST(
       await auth.admin.from("appointment_manual_actions").update({ status: "expired" }).eq("id", manualAction.id);
       return NextResponse.json({ error: "SMS verification checkpoint expired" }, { status: 409 });
     }
+    const officialSubmit = await postSubmissionService<KoreaKvacSubmitSmsResponse>("/local/korea-kvac/sms/submit", {
+      jobId: job.id,
+      smsCode,
+    });
+    if (!officialSubmit.ok || officialSubmit.status !== "appointment_slots_observed" || !officialSubmit.slots?.length) {
+      throw new Error("Official Korea KVAC SMS submission did not return observable slots.");
+    }
+
     await auth.admin.from("appointment_manual_actions").update({
       status: "completed",
       completed_at: new Date().toISOString(),
@@ -382,62 +689,49 @@ export async function POST(
         suffix: smsCode.slice(-2),
       },
     }).eq("id", manualAction.id);
-    const { data: slot, error: slotErr } = await auth.admin
-      .from("appointment_slots")
-      .select("id, appointment_date, appointment_time, appointment_location")
-      .eq("job_id", job.id)
-      .in("status", ["user_selected", "selected"])
-      .order("observed_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (slotErr) throw new Error(slotErr.message);
-    const { data: finalAction, error: finalActionErr } = await auth.admin
-      .from("appointment_manual_actions")
-      .insert({
+    await auth.admin.from("appointment_slots").delete().eq("job_id", job.id).in("source", ["dry_run", "dry_run_after_sms", "official_kvac_after_sms"]);
+    const { error: officialSlotErr } = await auth.admin.from("appointment_slots").insert(
+      officialSubmit.slots.map((slot) => ({
         job_id: job.id,
         application_id: id,
-        user_id: auth.profile.id,
-        action_type: "final_booking_approval_required",
-        status: "pending",
-        instruction:
-          "Review the official KVAC booking details before the worker clicks the final booking button. VIZA will only capture proof after the official portal returns a confirmation.",
-        user_input_schema_json: {
-          type: "object",
-          required: ["approved"],
-          properties: {
-            approved: { type: "boolean", const: true },
-          },
-        },
+        appointment_date: slot.appointment_date,
+        appointment_time: slot.appointment_time,
+        appointment_location: slot.appointment_location,
+        appointment_type: slot.appointment_type,
+        source: slot.source,
+        status: slot.status,
         metadata_redacted_json: {
-          centerCode: routing.recommended.code,
-          selectedSlotId: slot?.id ?? null,
-          selectedSlot: slot
-            ? {
-                appointment_date: slot.appointment_date,
-                appointment_time: slot.appointment_time,
-                appointment_location: slot.appointment_location,
-              }
-            : null,
+          ...slot.metadata_redacted_json,
+          providerSlotId: slot.id,
         },
-      })
-      .select("id")
-      .single();
-    if (finalActionErr || !finalAction) throw new Error(finalActionErr?.message ?? "Could not create final booking approval checkpoint.");
+      })),
+    );
+    if (officialSlotErr) throw new Error(officialSlotErr.message);
     await auth.admin.from("appointment_assistance_jobs").update({
-      status: "final_booking_approval_required",
-      requires_user_action: true,
-      current_manual_action: finalAction.id,
+      status: "appointment_slots_observed",
+      requires_user_action: false,
+      current_manual_action: null,
       updated_at: new Date().toISOString(),
     }).eq("id", job.id);
+    await auth.admin.from("applications").update({
+      appointment_assistance_status: "appointment_slots_observed",
+      appointment_assistance_job_id: job.id,
+    }).eq("id", id);
     await auth.admin.from("appointment_audit_events").insert({
       job_id: job.id,
       application_id: id,
       user_id: auth.profile.id,
       event_type: "sms_verification_submitted",
-      event_message: "User submitted Korea KVAC SMS verification code. Code content was not logged.",
-      metadata_redacted_json: { codeLength: smsCode.length, codeSuffix: smsCode.slice(-2) },
+      event_message: "User submitted Korea KVAC SMS verification code. Code content was not logged; the code was passed to the live official session and official slots were recorded.",
+      metadata_redacted_json: {
+        codeLength: smsCode.length,
+        codeSuffix: smsCode.slice(-2),
+        officialSessionId: officialSubmit.officialSessionId ?? job.id,
+        screenshotPath: officialSubmit.screenshotPath,
+        nextStep: "observe_slots",
+      },
     });
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
   if (action === "approve-final-booking") {
@@ -477,7 +771,7 @@ export async function POST(
       event_message: "User approved Korea KVAC final booking click. Worker may proceed to the official final confirmation step.",
       metadata_redacted_json: { centerCode: routing.recommended.code },
     });
-    return NextResponse.json(await readSnapshot(auth.admin, id));
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
   return NextResponse.json({ error: "Unsupported action" }, { status: 400 });

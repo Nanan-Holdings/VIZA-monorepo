@@ -1,5 +1,9 @@
 import * as http from "node:http";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
+import {
+  startKoreaKvacOfficialSmsSession,
+  submitKoreaKvacOfficialSmsCode,
+} from "./korea-kvac/live-session.js";
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
 
@@ -116,6 +120,54 @@ async function handleIndonesiaCardSession(req: http.IncomingMessage, res: http.S
   }
 }
 
+async function handleKoreaKvacSmsStart(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const result = await startKoreaKvacOfficialSmsSession({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      centerCode: typeof body.centerCode === "string" ? body.centerCode : "",
+      bookingUrl: typeof body.bookingUrl === "string" ? body.bookingUrl : "",
+      applicantName: typeof body.applicantName === "string" ? body.applicantName : "",
+      mobilePhone: typeof body.mobilePhone === "string" ? body.mobilePhone : "",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleKoreaKvacSmsSubmit(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const result = await submitKoreaKvacOfficialSmsCode({
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      smsCode: typeof body.smsCode === "string" ? body.smsCode : "",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
@@ -149,6 +201,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleIndonesiaCardSession(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/local/korea-kvac/sms/start") {
+      void handleKoreaKvacSmsStart(req, res);
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/sms/submit") {
+      void handleKoreaKvacSmsSubmit(req, res);
+      return;
+    }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {
       if (!envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) {
         sendJson(res, 404, { error: "not_found" });
@@ -173,6 +233,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/local/korea-kvac/sms/start") {
+      if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isLocalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
     sendJson(res, 404, { error: "not_found" });
   });
 
@@ -180,6 +252,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     const endpoints: string[] = [];
     if (envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/vietnam/card-session");
     if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
+    if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);
   });

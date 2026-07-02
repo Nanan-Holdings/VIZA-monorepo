@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { solveCaptcha } from "../captcha";
@@ -80,6 +81,19 @@ interface TurnstileParams {
 function normalizeVisibleText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
+
+export function buildUSVisaSchedulingUsername(email: string): string {
+  return `viza${createHash("sha256")
+    .update(email.trim().toLowerCase())
+    .digest("hex")
+    .slice(0, 16)}`;
+}
+
+const US_VISA_SCHEDULING_SECURITY_ANSWERS = [
+  "VizaAnswer1",
+  "VizaAnswer2",
+  "VizaAnswer3",
+] as const;
 
 export function classifyUSVisaSchedulingGateText(text: string): AppointmentPortalGate | null {
   const normalized = normalizeVisibleText(text).toLowerCase();
@@ -612,9 +626,16 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   }
 
   private async login(page: Page, credentials: AppointmentAccountCredentials): Promise<void> {
-    await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.emailInputs, credentials.email);
+    await this.fillFirstVisible(
+      page,
+      US_VISA_SCHEDULING_SELECTORS.emailInputs,
+      buildUSVisaSchedulingUsername(credentials.email),
+    );
     await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.passwordInputs, credentials.password);
     await this.clickFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.loginButtons);
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+    await this.answerLoginSecurityQuestions(page);
   }
 
   private async isInvalidCredentialsVisible(page: Page): Promise<boolean> {
@@ -632,7 +653,11 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(1_000);
     }
-    await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.registrationUsernameInputs, credentials.email);
+    await this.fillFirstVisible(
+      page,
+      US_VISA_SCHEDULING_SELECTORS.registrationUsernameInputs,
+      buildUSVisaSchedulingUsername(credentials.email),
+    );
     await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.registrationNewPasswordInputs, credentials.password);
     await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.registrationConfirmPasswordInputs, credentials.password);
     await this.fillFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.registrationEmailInputs, credentials.email);
@@ -668,13 +693,42 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     const selects = page.locator("select");
     const count = Math.min(await selects.count().catch(() => 0), 3);
     for (let index = 0; index < count; index += 1) {
-      await selects.nth(index).selectOption({ index: 0 }).catch(() => undefined);
+      await selects.nth(index).selectOption({ index: 1 }).catch(() => undefined);
     }
-    const answerInputs = page.locator("input[id*='Answer' i], input[name*='Answer' i], input[aria-label*='Answer' i]");
+    const answerInputs = page.locator(
+      "input#extension_kba1, input#extension_kba2, input#extension_kba3, input[id*='Answer' i], input[name*='Answer' i], input[aria-label*='Answer' i]",
+    );
     const answerCount = Math.min(await answerInputs.count().catch(() => 0), 3);
     for (let index = 0; index < answerCount; index += 1) {
-      await this.fillVisibleLocator(answerInputs.nth(index), "VIZA", 5_000).catch(() => undefined);
+      await this.fillVisibleLocator(
+        answerInputs.nth(index),
+        US_VISA_SCHEDULING_SECURITY_ANSWERS[index] ?? "VizaAnswer",
+        5_000,
+      ).catch(() => undefined);
     }
+  }
+
+  private async answerLoginSecurityQuestions(page: Page): Promise<void> {
+    const answers = page.locator("input#kba1_response, input#kba2_response, input#kba3_response");
+    const count = Math.min(await answers.count().catch(() => 0), US_VISA_SCHEDULING_SECURITY_ANSWERS.length);
+    if (count === 0) return;
+    await page.evaluate((values) => {
+      values.forEach((value, index) => {
+        const input = document.querySelector<HTMLInputElement>(`input#kba${index + 1}_response`);
+        if (!input) return;
+        const descriptor = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        );
+        descriptor?.set?.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }, US_VISA_SCHEDULING_SECURITY_ANSWERS.slice(0, count));
+    await page.locator("button#continue, button:has-text('Continue'), input[value='Continue']")
+      .first()
+      .click()
+      .catch(() => undefined);
   }
 
   private async readVisibleSlotCandidates(page: Page): Promise<VisibleSlotCandidate[]> {
