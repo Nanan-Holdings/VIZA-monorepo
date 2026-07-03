@@ -119,6 +119,12 @@ function clean(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function isIndonesiaPortalHomeUrl(value: string | null | undefined): boolean {
+  const normalized = clean(value);
+  if (!normalized) return false;
+  return /^https:\/\/evisa\.imigrasi\.go\.id\/?$/i.test(normalized);
+}
+
 async function solveIndonesiaRecaptchaIfPresent(
   page: Page,
   diagnostics: string[],
@@ -1998,15 +2004,25 @@ async function clickVisibleSubmitFallback(page: Page, diagnostics: string[], lab
       };
       const describe = (element: Element): string => {
         const control = element as HTMLInputElement | HTMLButtonElement;
-        return `${control.textContent ?? ""} ${(control as HTMLInputElement).value ?? ""} ${control.getAttribute("id") ?? ""} ${control.getAttribute("name") ?? ""}`.toLowerCase();
+        return `${control.textContent ?? ""} ${(control as HTMLInputElement).value ?? ""} ${control.getAttribute("id") ?? ""} ${control.getAttribute("name") ?? ""} ${control.getAttribute("class") ?? ""} ${control.getAttribute("title") ?? ""}`.toLowerCase();
       };
       const controls = Array.from(
         document.querySelectorAll<HTMLElement>("button, input[type='button'], input[type='submit'], [role='button'], a.btn, a[role='button'], a"),
       ).filter(isVisible);
-      const candidate = controls.find((control) => /(submit|continue|next|lanjut|selanjutnya|save|kirim|selesai|send|lanjutkan)/i.test(describe(control)));
+      const isNegative = (control: Element): boolean =>
+        /(back|cancel|previous|prev|kembali|batal|close|tutup|delete|hapus)/i.test(describe(control));
+      const textCandidate = controls.find((control) =>
+        !isNegative(control) &&
+        /(submit|continue|next|proceed|confirm|agree|process|payment|pay|bayar|lanjut|selanjutnya|save|kirim|selesai|send|lanjutkan)/i.test(describe(control))
+      );
+      const primaryCandidates = controls.filter((control) =>
+        !isNegative(control) &&
+        /(btn-primary|btn-send|submit|send|primary|next|continue|lanjut|bayar|payment|pay)/i.test(describe(control))
+      );
+      const candidate = textCandidate ?? primaryCandidates.at(-1);
       if (!candidate) return false;
       candidate.scrollIntoView({ block: "center", inline: "center" });
-      candidate.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      (candidate as HTMLElement).click();
       return true;
     })
     .catch(() => false);
@@ -2636,6 +2652,11 @@ async function continueFromApplicationStepThree(
     const fallbackSubmitted = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_3");
     if (fallbackSubmitted) {
       diagnostics.push("indonesia_step_3_fallback_submitted");
+      await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+      await page.waitForTimeout(4_000);
+      await dismissIndonesiaDialogs(page, diagnostics);
+    } else {
+      await captureApplicationStepArtifact(page, input, diagnostics, 3);
     }
   }
   if (/\/web\/applications\/.+\/list\b/i.test(page.url())) {
@@ -3250,15 +3271,28 @@ export async function probeIndonesiaPortal(
       }
 
       if (state === "landing_visible") {
-        const applyControl = page
-          .getByRole("link", { name: /^apply$/i })
-          .or(page.getByRole("button", { name: /^apply$/i }))
-          .first();
-        if (await applyControl.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await applyControl.click({ timeout: 10_000 });
-          await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-          await page.waitForTimeout(1500);
+        if (savedApplicationUrl && !isIndonesiaPortalHomeUrl(savedApplicationUrl)) {
+          session.diagnostics.push("indonesia_landing_returning_to_saved_application_url");
+          await page.goto(savedApplicationUrl, {
+            waitUntil: "domcontentloaded",
+            timeout: input.timeoutMs ?? 60_000,
+          }).catch((error: unknown) => {
+            session.diagnostics.push(`indonesia_landing_saved_url_return_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+          });
+          await page.waitForTimeout(1_500);
+          await dismissIndonesiaDialogs(page, session.diagnostics);
           advanced = true;
+        } else {
+          const applyControl = page
+            .getByRole("link", { name: /^apply$/i })
+            .or(page.getByRole("button", { name: /^apply$/i }))
+            .first();
+          if (await applyControl.isVisible({ timeout: 3000 }).catch(() => false)) {
+            await applyControl.click({ timeout: 10_000 });
+            await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+            await page.waitForTimeout(1500);
+            advanced = true;
+          }
         }
       } else if (state === "visa_selection_visible" || url.includes("/web/visa-selection")) {
         await continueFromVisaSelection(page, input, session.diagnostics);

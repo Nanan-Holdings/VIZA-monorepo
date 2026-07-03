@@ -1,4 +1,10 @@
-import { chromium, type Browser, type Page } from "@playwright/test";
+import type { Browser } from "@playwright/test";
+import {
+  classifyFranceTlsBrowserState,
+  createFranceTlsBrowserSession,
+  readFranceTlsBrowserState,
+  waitForFranceTlsCloudflareClearance,
+} from "./browser-api";
 import { FRANCE_TLS_CHINA_CENTERS, resolveFranceTlsCenter } from "./center-registry";
 import type { FranceTlsPaymentRedacted } from "./payment-session";
 
@@ -104,49 +110,6 @@ export class FranceTlsAppointmentProvider {
   }
 }
 
-function firstConfiguredEndpoint(names: string[]): string | null {
-  for (const name of names) {
-    const value = process.env[name]?.trim();
-    if (value) return value;
-  }
-  return null;
-}
-
-async function createFranceTlsPage(): Promise<{
-  browser: Browser;
-  page: Page;
-  provider: "remote-browser-api" | "local-cdp" | "local";
-}> {
-  const browserApiEndpoint = firstConfiguredEndpoint([
-    "FRANCE_TLS_BROWSER_API_ENDPOINT",
-    "FRANCE_TLS_BRIGHTDATA_BROWSER_API_ENDPOINT",
-    "BRIGHTDATA_BROWSER_WS",
-    "BRIGHTDATA_BROWSER_API_ENDPOINT",
-    "SBR_WS_ENDPOINT",
-  ]);
-  if (browserApiEndpoint) {
-    const browser = await chromium.connectOverCDP(browserApiEndpoint, { timeout: 45_000 });
-    const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
-    return { browser, page: await context.newPage(), provider: "remote-browser-api" };
-  }
-
-  const cdpEndpoint = firstConfiguredEndpoint([
-    "FRANCE_TLS_CDP_ENDPOINT",
-    "FRANCE_TLS_CHROME_CDP_ENDPOINT",
-  ]);
-  if (cdpEndpoint) {
-    const browser = await chromium.connectOverCDP(cdpEndpoint, { timeout: 45_000 });
-    const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
-    return { browser, page: await context.newPage(), provider: "local-cdp" };
-  }
-
-  const headless = process.env.FRANCE_TLS_PLAYWRIGHT_HEADLESS?.trim() !== "false";
-  const channel = process.env.FRANCE_TLS_PLAYWRIGHT_CHANNEL?.trim() || undefined;
-  const browser = await chromium.launch({ channel, headless });
-  const context = await browser.newContext({ acceptDownloads: true });
-  return { browser, page: await context.newPage(), provider: "local" };
-}
-
 function classifyCheckpoint(text: string): FranceTlsRunnerResult["checkpoint"] | null {
   const start = text.slice(0, 1200);
   if (/checking your browser|attention required|access denied|cf-error|turnstile/i.test(start)) {
@@ -228,7 +191,7 @@ export async function probeFranceTlsOfficialPortal(
 
   let browser: Browser | null = null;
   try {
-    const session = await createFranceTlsPage();
+    const session = await createFranceTlsBrowserSession();
     browser = session.browser;
     await session.page.goto(center.bookingUrl, {
       waitUntil: "domcontentloaded",
@@ -236,7 +199,40 @@ export async function probeFranceTlsOfficialPortal(
     });
     const settleMs = Number.parseInt(process.env.FRANCE_TLS_PAGE_SETTLE_MS ?? "30000", 10);
     await session.page.waitForTimeout(Number.isFinite(settleMs) ? Math.max(4_000, settleMs) : 30_000);
+    const browserState = await waitForFranceTlsCloudflareClearance(session.page, {
+      timeoutMs: Number.parseInt(process.env.FRANCE_TLS_CLOUDFLARE_WAIT_MS ?? "90000", 10),
+      solveProviderCaptcha: true,
+    });
+    if (browserState.checkpoint === "waf" || browserState.checkpoint === "captcha_grid" || browserState.checkpoint === "captcha_token") {
+      return {
+        status: "manual_required",
+        checkpoint: {
+          type: browserState.checkpoint === "waf" ? "waf" : "captcha",
+          message: browserState.message,
+          metadataRedactedJson: {
+            centerCode: center.code,
+            browserProvider: session.provider,
+            officialUrlReached: true,
+          },
+        },
+      };
+    }
     const text = await session.page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
+    const pageState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(session.page));
+    if (pageState.checkpoint === "payment") {
+      return {
+        status: "payment_required",
+        checkpoint: {
+          type: "payment",
+          message: pageState.message,
+          metadataRedactedJson: {
+            centerCode: center.code,
+            browserProvider: session.provider,
+            officialUrlReached: true,
+          },
+        },
+      };
+    }
     const checkpoint = classifyCheckpoint(text);
     if (checkpoint) {
       return {

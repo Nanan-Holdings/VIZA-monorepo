@@ -1,3 +1,4 @@
+export * from "./browser-api";
 export * from "./center-registry";
 export * from "./pages";
 export * from "./payment-session";
