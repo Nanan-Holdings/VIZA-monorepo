@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Page } from "playwright";
 import type { KoreaOfficialEformPayload } from "./runner";
 
@@ -30,6 +32,9 @@ interface FieldAssignment {
 interface RadioAssignment {
   selector: string;
 }
+
+const MAX_OFFICIAL_UPLOAD_BYTES = 500 * 1024;
+const TARGET_OFFICIAL_UPLOAD_BYTES = 480 * 1024;
 
 function compactDate(value: string | null): string {
   if (!value) return "";
@@ -84,7 +89,7 @@ export function buildKoreaOfficialEformFirstPagePlan(
       { selector: "#OTHER_EK_NM_YN1" },
       { selector: "#MUL_NAT_YN1" },
       { selector: "#MUL_PASS_YN2" },
-      { selector: "#CUR_NAT_SAME_YN2" },
+      { selector: "#CUR_NAT_SAME_Y" },
     ],
     fields: [
       { selector: "#RES_NM", value: postName },
@@ -146,6 +151,93 @@ async function assignRadios(page: Page, assignments: RadioAssignment[]): Promise
   return filled;
 }
 
+function isCompressibleImage(filePath: string) {
+  return /\.(?:jpe?g|png|webp)$/i.test(filePath);
+}
+
+async function compressImageForOfficialUpload(page: Page, filePath: string): Promise<string> {
+  const stat = await fs.stat(filePath);
+  if (stat.size <= TARGET_OFFICIAL_UPLOAD_BYTES || !isCompressibleImage(filePath)) return filePath;
+
+  const bytes = await fs.readFile(filePath);
+  const ext = path.extname(filePath);
+  const baseName = path.basename(filePath, ext);
+  const outputDir = path.join(path.dirname(filePath), "official-upload");
+  await fs.mkdir(outputDir, { recursive: true });
+
+  const compressedBase64 = await page.evaluate(
+    async ({ dataUrl, targetBytes }) => {
+      const image = new Image();
+      const loaded = new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Could not decode official upload image"));
+      });
+      image.src = dataUrl;
+      await loaded;
+
+      const dimensions = [1800, 1600, 1400, 1200, 1000, 850, 700, 560];
+      const qualities = [0.88, 0.78, 0.68, 0.58, 0.48, 0.38];
+      let best = "";
+      for (const maxDimension of dimensions) {
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Could not create official upload canvas");
+        ctx.drawImage(image, 0, 0, width, height);
+
+        for (const quality of qualities) {
+          const data = canvas.toDataURL("image/jpeg", quality);
+          const payload = data.split(",", 2)[1] ?? "";
+          best = payload;
+          const approxBytes = Math.floor((payload.length * 3) / 4);
+          if (approxBytes <= targetBytes) return payload;
+        }
+      }
+      return best;
+    },
+    {
+      dataUrl: `data:image/${ext.replace(".", "").replace("jpg", "jpeg")};base64,${bytes.toString("base64")}`,
+      targetBytes: TARGET_OFFICIAL_UPLOAD_BYTES,
+    },
+  );
+
+  const outputPath = path.join(outputDir, `${baseName}.official.jpg`);
+  await fs.writeFile(outputPath, Buffer.from(compressedBase64, "base64"));
+  const outputStat = await fs.stat(outputPath);
+  if (outputStat.size > MAX_OFFICIAL_UPLOAD_BYTES) {
+    throw new Error(`Korea official e-Form upload image remains over 500KB after compression: ${outputStat.size} bytes`);
+  }
+  return outputPath;
+}
+
+async function waitForOfficialUploadSettle(page: Page) {
+  await page.waitForFunction(
+    () => {
+      const visibleModal = Array.from(document.querySelectorAll(".ui-dialog, .layerPopup, .popup, [role='dialog']"))
+        .some((node) => {
+          const element = node as HTMLElement;
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        });
+      const dimmed = Array.from(document.querySelectorAll(".ui-widget-overlay, .blockUI, .loading, [class*='loading']"))
+        .some((node) => {
+          const element = node as HTMLElement;
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        });
+      return !visibleModal && !dimmed;
+    },
+    { timeout: 8000 },
+  ).catch(() => undefined);
+  await page.waitForTimeout(1200);
+}
+
 export async function fillKoreaOfficialEformFirstPage(
   page: Page,
   payload: KoreaOfficialEformPayload,
@@ -158,26 +250,29 @@ export async function fillKoreaOfficialEformFirstPage(
   }
   await page.waitForSelector("#SUR_NM", { timeout: 15000 });
 
+  const missingUploads: Array<"photo" | "passport_scan"> = [];
+  const photoPath = options.documents?.photoFilePath?.trim();
+  const passportPath = options.documents?.passportScanFilePath?.trim();
+  if (photoPath) {
+    await page.locator("#PassPort_FILEIMAGE").setInputFiles(await compressImageForOfficialUpload(page, photoPath));
+  } else {
+    missingUploads.push("photo");
+  }
+  if (passportPath) {
+    await page.locator("#PassPort_FULLIMAGE").setInputFiles(await compressImageForOfficialUpload(page, passportPath));
+  } else {
+    missingUploads.push("passport_scan");
+  }
+  if (photoPath || passportPath) {
+    await waitForOfficialUploadSettle(page);
+  }
+
   const plan = buildKoreaOfficialEformFirstPagePlan(payload, options);
   const filledSelectors = [
     ...(await assignFields(page, plan.selects)),
     ...(await assignRadios(page, plan.radios)),
     ...(await assignFields(page, plan.fields)),
   ];
-
-  const missingUploads: Array<"photo" | "passport_scan"> = [];
-  const photoPath = options.documents?.photoFilePath?.trim();
-  const passportPath = options.documents?.passportScanFilePath?.trim();
-  if (photoPath) {
-    await page.locator("#PassPort_FULLIMAGE").setInputFiles(photoPath);
-  } else {
-    missingUploads.push("photo");
-  }
-  if (passportPath) {
-    await page.locator("#PassPort_FILEIMAGE").setInputFiles(passportPath);
-  } else {
-    missingUploads.push("passport_scan");
-  }
 
   return {
     status: "filled_first_page",

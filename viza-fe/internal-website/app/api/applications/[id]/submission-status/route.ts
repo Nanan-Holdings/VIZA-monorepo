@@ -64,7 +64,8 @@ type DerivedStatus = {
   error: string | null;
 };
 
-const STALE_AFTER_MS = 3 * 60 * 1000;
+const PENDING_PICKUP_STALE_AFTER_MS = 45 * 1000;
+const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
 
 const COMPLETED_APPLICATION_STATUSES = new Set([
   "completed",
@@ -241,10 +242,10 @@ function latestTimestamp(...values: Array<string | null | undefined>): string | 
   return latest;
 }
 
-function isStale(updatedAt: string | null): boolean {
+function isStale(updatedAt: string | null, staleAfterMs = RUNNING_STALE_AFTER_MS): boolean {
   if (!updatedAt) return false;
   const ms = Date.parse(updatedAt);
-  return Number.isFinite(ms) && Date.now() - ms > STALE_AFTER_MS;
+  return Number.isFinite(ms) && Date.now() - ms > staleAfterMs;
 }
 
 function isAfterOrEqual(candidate: string | null, baseline: string | null): boolean {
@@ -576,7 +577,12 @@ export function deriveNonTerminalStatus(
 
   if (
     (queueDerived.status === "queued" || queueDerived.status === "running") &&
-    isStale(updatedAt)
+    isStale(
+      updatedAt,
+      queueStatus === "pending" || queueStatus.endsWith("_pending")
+        ? PENDING_PICKUP_STALE_AFTER_MS
+        : RUNNING_STALE_AFTER_MS,
+    )
   ) {
     return {
       status: "stalled",

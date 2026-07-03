@@ -28,7 +28,7 @@ function submissionServiceBaseUrl() {
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const url = `${submissionServiceBaseUrl()}${path}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const response = await fetch(url, {
       method: "POST",

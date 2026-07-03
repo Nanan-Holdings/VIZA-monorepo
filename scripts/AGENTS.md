@@ -34,6 +34,9 @@ smoke-test helpers for the VIZA monorepo.
   `start-all.ps1` with `-Reset` (stop all matching started processes and start
   fresh).
 - `start-viza-dev.ps1`: starts the internal website with backend services.
+- `start-indonesia-submission-worker.cmd`: Windows double-click helper that
+  starts `viza-be/submission-service` for local Indonesia B1/C1 assisted-live
+  retries; keep the window open while submitting from the VIZA portal.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the
   internal portal on separate local ports.

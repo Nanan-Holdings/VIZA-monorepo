@@ -5,8 +5,11 @@ import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
 import { chromium } from "playwright";
 import { runKoreaOfficialEform, runKoreaOfficialEformLiveFill } from "./korea-eform/runner.js";
+import { loadKoreaOfficialEformDocuments } from "./korea-eform/documents.js";
 import {
+  confirmKoreaKvacOfficialCancellation,
   completeKoreaKvacOfficialBooking,
+  startKoreaKvacOfficialCancelQuery,
   startKoreaKvacOfficialSmsSession,
   submitKoreaKvacOfficialSmsCode,
 } from "./korea-kvac/live-session.js";
@@ -207,6 +210,53 @@ async function handleKoreaKvacSmsComplete(req: http.IncomingMessage, res: http.S
   }
 }
 
+async function handleKoreaKvacCancelQuery(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const result = await startKoreaKvacOfficialCancelQuery({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      centerCode: typeof body.centerCode === "string" ? body.centerCode : "",
+      bookingSearchUrl: typeof body.bookingSearchUrl === "string" ? body.bookingSearchUrl : "",
+      applicantName: typeof body.applicantName === "string" ? body.applicantName : "",
+      mobilePhone: typeof body.mobilePhone === "string" ? body.mobilePhone : "",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleKoreaKvacCancelConfirm(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const result = await confirmKoreaKvacOfficialCancellation({
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function handleKoreaEformGenerate(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   if (!envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) {
     sendJson(res, 404, { error: "not_found" });
@@ -238,7 +288,10 @@ async function handleKoreaEformGenerate(req: http.IncomingMessage, res: http.Ser
     const browser = await chromium.launch({ headless });
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
-      const result = await runKoreaOfficialEformLiveFill(page, input);
+      const documentResult = await loadKoreaOfficialEformDocuments(input.applicationId);
+      const result = await runKoreaOfficialEformLiveFill(page, input, {
+        documents: documentResult.documents,
+      });
       if (result.status === "manual_required") {
         const evidenceDir = path.resolve(process.cwd(), "output", "playwright");
         await fs.mkdir(evidenceDir, { recursive: true });
@@ -249,6 +302,11 @@ async function handleKoreaEformGenerate(req: http.IncomingMessage, res: http.Ser
           ...result,
           evidence: {
             ...result.evidence,
+            missingUploads: Array.from(new Set([
+              ...(result.evidence?.missingUploads ?? []),
+              ...documentResult.missingUploads,
+            ])),
+            availableDocumentTypes: documentResult.availableDocumentTypes,
             screenshotPath,
           },
         });
@@ -331,6 +389,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleKoreaKvacSmsComplete(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/local/korea-kvac/cancel/query") {
+      void handleKoreaKvacCancelQuery(req, res);
+      return;
+    }
+    if (req.method === "POST" && url === "/local/korea-kvac/cancel/confirm") {
+      void handleKoreaKvacCancelConfirm(req, res);
+      return;
+    }
     if (req.method === "POST" && url === "/local/korea-eform/generate") {
       void handleKoreaEformGenerate(req, res);
       return;
@@ -363,7 +429,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
-    if (req.method === "GET" && url === "/local/korea-kvac/sms/start") {
+    if (req.method === "GET" && (url === "/local/korea-kvac/sms/start" || url === "/local/korea-kvac/cancel/query")) {
       if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
         sendJson(res, 404, { error: "not_found" });
         return;
