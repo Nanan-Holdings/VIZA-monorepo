@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveNonTerminalStatus } from "./route";
+import { deriveNonTerminalStatus, selectQueueForSubmissionStatus } from "./route";
 
 describe("deriveNonTerminalStatus", () => {
   it("marks stale pending live submission rows stalled when the worker has not picked them up", () => {
@@ -88,5 +88,49 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.stage).toBe("payment_handoff");
     expect(status.progress).toBe(99);
     expect(status.message).toContain("Continue payment from the official payment page.");
+  });
+});
+
+describe("selectQueueForSubmissionStatus", () => {
+  it("prefers the latest active retry queue over a superseded queue with the same updated timestamp", () => {
+    const updatedAt = new Date().toISOString();
+
+    const queue = selectQueueForSubmissionStatus([
+      {
+        id: "old_queue",
+        status: "retry_superseded",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "indonesia_b1_evoa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "preparing_managed_alias",
+        heartbeat_at: updatedAt,
+        manual_action_status: null,
+        official_status: null,
+        created_at: new Date(Date.now() - 60_000).toISOString(),
+        updated_at: updatedAt,
+      },
+      {
+        id: "new_queue",
+        status: "id_b1_evoa_live_assisted_pending",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "indonesia_b1_evoa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: null,
+        heartbeat_at: null,
+        manual_action_status: null,
+        official_status: null,
+        created_at: updatedAt,
+        updated_at: updatedAt,
+      },
+    ]);
+
+    expect(queue?.id).toBe("new_queue");
+    expect(queue?.current_stage).toBeNull();
   });
 });

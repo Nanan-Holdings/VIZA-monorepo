@@ -93,7 +93,13 @@ filling and one-shot submission for the applicant.
   payment, and final approval. `src/france-tls/recaptcha-grid.ts` maps visible
   reCAPTCHA image-grid challenges to 2captcha `GridTask` solves and page
   clicks; it must not be treated as a Cloudflare/WAF, MFA, identity, or
-  payment-challenge bypass.
+  payment-challenge bypass. `src/france-tls/browser-api.ts` owns TLS-specific
+  Browser API/CDP endpoint selection, provider-native CAPTCHA solve attempts,
+  Cloudflare/WAF classification, and shared live-smoke page state detection.
+  Bright Data Browser API zones block password entry by default; TLS login can
+  only be fully automated in the same session when the configured Browser API
+  zone has password entry enabled by the provider, or when a local/TLS CDP
+  session is already past Cloudflare and authorized for official login.
 - `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
   gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
   configured TLS VAC official URL through France-specific Browser API/CDP or a
@@ -300,6 +306,9 @@ npm run install-browsers
 npx ts-node src/ceac/smoke.ts
 # Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
 npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
+# Requires an authorized FRANCE_TLS_* or global Browser API/CDP endpoint;
+# captures official TLS WAF/login/slot/payment checkpoints:
+npm run france-tls:live-smoke -- --url=https://visas-fr.tlscontact.com/en-us/login
 # Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:
 npm run au:smoke
 # Public Vietnam form; stops before Pay/Submit:
@@ -360,6 +369,8 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
+- `viza-be/submission-service/scripts/run-france-tls-live-smoke.ts`
+- `viza-be/submission-service/src/france-tls/__tests__/browser-api.spec.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/recaptcha-grid.spec.ts`
 - `viza-be/submission-service/src/captcha/__tests__/two-captcha-grid.spec.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
