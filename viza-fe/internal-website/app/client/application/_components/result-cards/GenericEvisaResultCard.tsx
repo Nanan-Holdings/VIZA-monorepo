@@ -46,6 +46,10 @@ export function GenericEvisaResultCard({
     result.country === "ID" &&
     portalUrl !== undefined &&
     /^https:\/\/evisa\.imigrasi\.go\.id\/?$/i.test(portalUrl.trim());
+  const isIndonesiaPaymentGatewayUrl =
+    result.country === "ID" &&
+    portalUrl !== undefined &&
+    /^https:\/\/live\.finpay\.id\//i.test(portalUrl.trim());
   const country = (isZh ? COUNTRY_LABEL_ZH[result.country] : COUNTRY_LABEL[result.country]) ?? result.country;
   const hasArtifact = Boolean(result.artifactStoragePath);
 
@@ -132,10 +136,41 @@ export function GenericEvisaResultCard({
             </a>
           </Button>
         ) : result.status === "stopped_at_pay" && userPaymentRequired ? (
-          <Button type="button" className="w-full" onClick={() => window.location.reload()}>
-            <RotateCw className="mr-2 h-4 w-4" />
-            {isZh ? "我已完成付款，刷新状态" : "I finished payment, refresh status"}
-          </Button>
+          <div className="space-y-2">
+            {portalUrl && !isIndonesiaHomePaymentUrl ? (
+              <Button asChild className="w-full">
+                <a href={portalUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {isIndonesiaPaymentGatewayUrl
+                    ? isZh ? "重新打开官方银行卡付款页" : "Reopen official card payment page"
+                    : isZh ? "打开官方付款页" : "Open official payment page"}
+                </a>
+              </Button>
+            ) : null}
+            <Button type="button" className="w-full" onClick={() => window.location.reload()}>
+              <RotateCw className="mr-2 h-4 w-4" />
+              {isZh ? "我已完成付款，刷新状态" : "I finished payment, refresh status"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={!applicationId || locatingPayment}
+              onClick={() => {
+                void locateOfficialPaymentPage();
+              }}
+            >
+              {locatingPayment ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ExternalLink className="mr-2 h-4 w-4" />
+              )}
+              {locatingPayment
+                ? isZh ? "正在重新生成付款页" : "Regenerating payment page"
+                : isZh ? "付款超时，重新生成付款页" : "Payment timed out, regenerate payment page"}
+            </Button>
+            {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
+          </div>
         ) : result.status === "stopped_at_pay" && portalUrl && !isIndonesiaHomePaymentUrl ? (
           <Button asChild className="w-full">
             <a href={portalUrl} target="_blank" rel="noopener noreferrer">

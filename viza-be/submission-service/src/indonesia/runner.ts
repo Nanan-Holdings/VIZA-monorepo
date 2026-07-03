@@ -485,6 +485,59 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
   return sawExistingApplicationWarning;
 }
 
+async function acceptIndonesiaExistingApplicationCancellationWarning(
+  page: Page,
+  diagnostics: string[],
+): Promise<boolean> {
+  const accepted = await page
+    .evaluate(() => {
+      const normalized = (document.body.innerText || document.body.textContent || "").replace(/\s+/g, " ");
+      if (!/Currently the foreigner has a visa application/i.test(normalized)) return false;
+      if (!/cancell?ing my current visa|cancelled from the previous visa application/i.test(normalized)) return false;
+
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+
+      const checkboxes = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='checkbox']"))
+        .filter((checkbox) => !checkbox.disabled && visible(checkbox));
+      const checkbox = checkboxes[0] ?? null;
+      if (!checkbox) return false;
+      checkbox.scrollIntoView({ block: "center", inline: "center" });
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      checkbox.dispatchEvent(new Event("input", { bubbles: true }));
+      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+
+      const controls = Array.from(
+        document.querySelectorAll<HTMLElement>("button, a, input[type='button'], input[type='submit'], [role='button']"),
+      ).filter(visible);
+      const next = controls.find((control) => /next/i.test((control.innerText || control.textContent || (control as HTMLInputElement).value || "").trim()));
+      if (!next) return false;
+      if ("disabled" in next) {
+        (next as HTMLButtonElement | HTMLInputElement).disabled = false;
+      }
+      next.removeAttribute("disabled");
+      next.classList.remove("disabled");
+      next.scrollIntoView({ block: "center", inline: "center" });
+      next.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      return true;
+    })
+    .catch(() => false);
+
+  if (!accepted) return false;
+  diagnostics.push("indonesia_existing_application_cancellation_warning_accepted");
+  await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+  await dismissIndonesiaDialogs(page, diagnostics);
+  return true;
+}
+
 async function imageMetadata(page: Page, filePath: string): Promise<{ width: number; height: number } | null> {
   const ext = path.extname(filePath).toLowerCase();
   if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return null;
@@ -2453,7 +2506,10 @@ async function continueFromApplicationStepTwo(
   const initialExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
   if (initialExistingApplicationWarning) {
     diagnostics.push("indonesia_step_2_existing_application_warning_detected");
-    await redirectToSavedIndonesiaApplication(page, input, diagnostics);
+    const acceptedCancellation = await acceptIndonesiaExistingApplicationCancellationWarning(page, diagnostics);
+    if (!acceptedCancellation) {
+      await redirectToSavedIndonesiaApplication(page, input, diagnostics);
+    }
     return true;
   }
   await fillIfPresent(page, "#full_name", application.fullName);
@@ -2515,7 +2571,10 @@ async function continueFromApplicationStepTwo(
     const allDiagnostics = diagnostics.join(" ");
     if (submitExistingApplicationWarning || isExistingApplicationWarningText(`${bodyText} ${allDiagnostics}`)) {
       diagnostics.push("indonesia_step_2_existing_application_warning_detected");
-      await redirectToSavedIndonesiaApplication(page, input, diagnostics);
+      const acceptedCancellation = await acceptIndonesiaExistingApplicationCancellationWarning(page, diagnostics);
+      if (!acceptedCancellation) {
+        await redirectToSavedIndonesiaApplication(page, input, diagnostics);
+      }
     }
     diagnostics.push("indonesia_step_2_submitted");
   } else {
@@ -3184,6 +3243,10 @@ export async function probeIndonesiaPortal(
 
       if (!advanced && (/\/web\/application-detail-otp\//i.test(url) || /enter otp code|otp code|one time password|authentication code|verification code|kode otp|kode verifikasi/i.test(text))) {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
+      }
+
+      if (!advanced && isExistingApplicationWarningText(text)) {
+        advanced = await acceptIndonesiaExistingApplicationCancellationWarning(page, session.diagnostics);
       }
 
       if (state === "landing_visible") {

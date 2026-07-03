@@ -460,9 +460,49 @@ function isActiveQueue(queue: QueueRow | null): boolean {
   const queueStatus = normalizeStatus(queue.status);
   const provider = normalizeStatus(queue.provider);
   if (queueStatus.startsWith("ds160_proof_") || provider === "ceac_proof") return false;
+  if (queueStatus === "retry_superseded") return false;
   if (queueStatus === "done" || queueStatus.endsWith("_prefilled")) return false;
   const derived = deriveQueueStage(queueStatus);
   return derived.status === "scheduled" || derived.status === "queued" || derived.status === "running";
+}
+
+function queueSortTime(queue: QueueRow): number {
+  const latest = latestTimestamp(queue.heartbeat_at, queue.updated_at, queue.created_at);
+  const ms = latest ? Date.parse(latest) : Number.NaN;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function newestQueue(rows: QueueRow[]): QueueRow | null {
+  let selected: QueueRow | null = null;
+  let selectedMs = Number.NEGATIVE_INFINITY;
+  for (const row of rows) {
+    const ms = queueSortTime(row);
+    if (!selected || ms > selectedMs) {
+      selected = row;
+      selectedMs = ms;
+      continue;
+    }
+
+    if (ms === selectedMs) {
+      const rowCreatedMs = row.created_at ? Date.parse(row.created_at) : Number.NEGATIVE_INFINITY;
+      const selectedCreatedMs = selected.created_at ? Date.parse(selected.created_at) : Number.NEGATIVE_INFINITY;
+      if (Number.isFinite(rowCreatedMs) && rowCreatedMs > selectedCreatedMs) {
+        selected = row;
+        selectedMs = ms;
+      }
+    }
+  }
+  return selected;
+}
+
+export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | null {
+  const activeRows = rows.filter(isActiveQueue);
+  if (activeRows.length > 0) return newestQueue(activeRows);
+
+  const currentRows = rows.filter((row) => normalizeStatus(row.status) !== "retry_superseded");
+  if (currentRows.length > 0) return newestQueue(currentRows);
+
+  return newestQueue(rows);
 }
 
 export function deriveNonTerminalStatus(
@@ -612,20 +652,19 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: queueData, error: queueError } = await admin
+  const { data: queueRows, error: queueError } = await admin
     .from("submission_queue")
     .select("*")
     .eq("application_id", applicationId)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
 
   if (queueError) {
     return NextResponse.json({ error: queueError.message }, { status: 500 });
   }
 
-  const queue = (queueData ?? null) as QueueRow | null;
+  const queue = selectQueueForSubmissionStatus((queueRows ?? []) as QueueRow[]);
   const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
   const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
   const activeQueueOverridesTerminal =

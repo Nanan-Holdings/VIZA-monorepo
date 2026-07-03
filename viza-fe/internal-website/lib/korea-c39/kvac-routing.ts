@@ -36,6 +36,7 @@ export interface KvacRoutingInput {
   currentResidenceProvince?: string | null;
   hasResidenceProof?: boolean | null;
   hukouProvince?: string | null;
+  selectedCenterCode?: KvacCenterCode | null;
 }
 
 export interface KvacRoutingResult {
@@ -326,13 +327,19 @@ function findCenter(province: string | null): KvacCenter | null {
   return KVAC_CENTERS.find((center) => center.provinces.includes(province)) ?? null;
 }
 
+function findCenterByCode(code: KvacCenterCode | null | undefined): KvacCenter | null {
+  if (!code) return null;
+  return KVAC_CENTERS.find((center) => center.code === code) ?? null;
+}
+
 export function resolveKvacCenter(input: KvacRoutingInput): KvacRoutingResult {
   const residence = normalizeProvince(input.currentResidenceProvince);
   const hukou = normalizeProvince(input.hukouProvince);
   const residenceCenter = input.hasResidenceProof ? findCenter(residence) : null;
   const hukouCenter = findCenter(hukou);
-  const recommended = residenceCenter ?? hukouCenter ?? KVAC_CENTERS[0];
-  const basis = residenceCenter ? "current_residence" : hukouCenter ? "hukou" : "ambiguous";
+  const selectedCenter = findCenterByCode(input.selectedCenterCode);
+  const recommended = selectedCenter ?? residenceCenter ?? hukouCenter ?? KVAC_CENTERS[0];
+  const basis = selectedCenter ? "ambiguous" : residenceCenter ? "current_residence" : hukouCenter ? "hukou" : "ambiguous";
 
   return {
     basis,
