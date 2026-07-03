@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarCheck, CheckCircle2, Download, ExternalLink, Info, Loader2, MapPin, MessageSquareText, RefreshCw, RotateCcw, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarCheck, CheckCircle2, ChevronDown, ChevronUp, Download, ExternalLink, Info, Loader2, MapPin, MessageSquareText, RefreshCw, RotateCcw, XCircle } from "lucide-react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -105,6 +105,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [error, setError] = useState<string | null>(null);
   const [smsCode, setSmsCode] = useState("");
   const [selectedCenterCode, setSelectedCenterCode] = useState<string | null>(null);
+  const [centerDetailsOpen, setCenterDetailsOpen] = useState(false);
   const selectedSlot = useMemo(
     () => snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null,
     [snapshot?.slots],
@@ -130,6 +131,10 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     snapshot?.manualAction && ["official_reschedule_required", "official_cancel_required"].includes(snapshot.manualAction.action_type)
       ? snapshot.manualAction
       : null;
+  const cancellationAction =
+    snapshot?.manualAction && ["official_cancel_confirmation_required", "official_cancel_manual_checkpoint"].includes(snapshot.manualAction.action_type)
+      ? snapshot.manualAction
+      : null;
   const hasOfficialConfirmation =
     Boolean(snapshot?.confirmation) &&
     snapshot?.confirmation?.raw_confirmation_redacted_json?.mode !== "dry_run" &&
@@ -145,7 +150,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const isReadingSlots = busy === "start-slot-search" || busy === "submit-sms-code" || busy === "request-live-booking";
   const hasObservedSlots = (snapshot?.slots ?? []).some((slot) => ["observed", "user_selected", "selected"].includes(slot.status));
   const canRestartSmsForReschedule = changeManualAction?.action_type === "official_reschedule_required";
-  const changeMetadata = changeManualAction?.metadata_redacted_json ?? null;
+  const changeMetadata = (changeManualAction ?? cancellationAction)?.metadata_redacted_json ?? null;
   const officialChangeSearchUrl =
     (typeof changeMetadata?.bookingSearchUrl === "string" ? changeMetadata.bookingSearchUrl : null) ??
     center?.bookingSearchUrl ??
@@ -155,12 +160,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const changeDescription = changeManualAction
     ? changeManualAction.action_type === "official_cancel_required"
       ? isZh
-        ? "官网同构 KVAC 站点提供“预先预约查询”入口，先输入访问者名和手机号查询已有预约；查到记录后才可能出现取消操作。VIZA 会把取消保持在检查点，直到拿到官网取消结果或截图证据。"
-        : "The matching KVAC sites provide an official appointment query page. Search by visitor name and mobile number first; cancellation options appear only after a matching booking is found. VIZA keeps cancellation as a checkpoint until official evidence is captured."
+        ? "VIZA 会在后台打开官网“预先预约查询”，用申请资料里的访问者名和手机号查询已有预约；查到记录后会回到本页让你确认是否取消。"
+        : "VIZA opens the official appointment query in the background using the applicant name and mobile number from this application. If a record is found, this page asks you to confirm cancellation."
       : isZh
         ? "改约会重新走官网短信验证并读取新时段；你仍需要先选择新时间，再授权最后提交。原预约不要在官网中手动取消，除非你确认要走取消后重约。"
         : "Rescheduling restarts official SMS verification and reads new slots. You still choose a new slot and approve the final submit. Do not manually cancel the existing booking unless you intend to cancel-and-rebook."
     : null;
+  const isCancelled = snapshot?.job?.status === "appointment_cancelled";
 
   const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
@@ -269,9 +275,16 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     <div className="mx-auto w-full max-w-[1090px] space-y-5 py-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-[34px] font-medium text-foreground">
-            {isZh ? "韩国签证预约" : "Korea visa appointment"}
-          </h1>
+          <div className="flex items-center gap-3">
+            <Button asChild variant="outline" size="icon" aria-label={isZh ? "返回申请表" : "Back to form"} title={isZh ? "返回申请表" : "Back to form"}>
+              <Link href={`/client/application/long-form?country=south_korea&visaType=KR_C39_SHORT_TERM_VISIT&applicationId=${encodeURIComponent(applicationId)}`}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <h1 className="font-heading text-[34px] font-medium text-foreground">
+              {isZh ? "韩国签证预约" : "Korea visa appointment"}
+            </h1>
+          </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             {isZh
               ? "真实预约会先进入 KVAC 短信验证；你输入验证码后，后端继续读取可预约时段。选择时间并最终授权后才会预约并保存确认凭证。"
@@ -281,7 +294,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void downloadFilledForm()} disabled={Boolean(busy)}>
             {busy === "download-form" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {isZh ? "备用 Annex-17" : "Fallback Annex-17"}
+            {isZh ? "备用 Annex-17（非官网）" : "Fallback Annex-17 (not official)"}
           </Button>
           <Button asChild variant="outline">
             <a href="https://www.visa.go.kr/openPage.do?MENU_ID=10204" target="_blank" rel="noopener noreferrer">
@@ -312,9 +325,21 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
                   <div className="font-medium">{isZh ? center.nameZh : center.nameEn}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {isZh ? center.consularPostZh : center.consularPostEn}
+                  <div className="text-sm text-muted-foreground">{isZh ? center.consularPostZh : center.consularPostEn}</div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-brand-800">{serviceModeLabel}</span>
+                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-800">{liveBookingModeLabel}</span>
                   </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => setCenterDetailsOpen((open) => !open)}>
+                    {centerDetailsOpen ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+                    {centerDetailsOpen ? (isZh ? "收起详情" : "Hide details") : (isZh ? "查看详情" : "View details")}
+                  </Button>
+                </div>
+              </div>
+              {centerDetailsOpen ? (
+                <div className="space-y-3 border-t pt-3">
                   <div className="text-sm text-muted-foreground">{center.addressZh}</div>
                   <label className="block max-w-md text-sm">
                     <span className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -334,38 +359,36 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                     </select>
                   </label>
                   <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-brand-800">{serviceModeLabel}</span>
-                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-800">{liveBookingModeLabel}</span>
                     <span className="rounded-full border px-3 py-1 text-muted-foreground">{walkInLabel}</span>
                     <span className="rounded-full border px-3 py-1 text-muted-foreground">
                       {isZh ? `领区：${center.provinces.join("、")}` : `Jurisdiction: ${center.provinces.join(", ")}`}
                     </span>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline">
-                    <Link href={`/client/applications/${applicationId}/korea-appointment/rules`}>
-                      <Info className="mr-2 h-4 w-4" />
-                      {isZh ? "查看递签规则" : "View rules"}
-                    </Link>
-                  </Button>
-                  {center.bookingUrl ? (
+                  <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline">
-                      <a href={center.bookingUrl} target="_blank" rel="noopener noreferrer">
+                      <Link href={`/client/applications/${applicationId}/korea-appointment/rules`}>
+                        <Info className="mr-2 h-4 w-4" />
+                        {isZh ? "查看递签规则" : "View rules"}
+                      </Link>
+                    </Button>
+                    {center.bookingUrl ? (
+                      <Button asChild variant="outline">
+                        <a href={center.bookingUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          {isZh ? "官方预约页" : "Official booking"}
+                        </a>
+                      </Button>
+                    ) : null}
+                    <Button asChild variant={center.bookingUrl ? "ghost" : "outline"}>
+                      <a href={center.officialUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        {isZh ? "打开官方预约页" : "Official booking"}
+                        {isZh ? "官方说明" : "Official guidance"}
                       </a>
                     </Button>
-                  ) : null}
-                  <Button asChild variant={center.bookingUrl ? "ghost" : "outline"}>
-                    <a href={center.officialUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      {isZh ? "官方说明" : "Official guidance"}
-                    </a>
-                  </Button>
+                  </div>
                 </div>
-              </div>
-              {snapshot.routing.basis === "ambiguous" ? (
+              ) : null}
+              {centerDetailsOpen && snapshot.routing.basis === "ambiguous" ? (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>{isZh ? "领区信息不完整" : "Jurisdiction information incomplete"}</AlertTitle>
@@ -710,8 +733,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               </div>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {isZh
-                  ? "改约会重新进入官方短信验证并读取新时段；取消会创建官方取消检查点。只有官网返回改约/取消结果和证据后，VIZA 才会更新最终状态。"
-                  : "Rescheduling restarts official SMS verification and reads new slots. Cancellation creates an official cancellation checkpoint. VIZA updates the final state only after official evidence is captured."}
+                  ? "改约和取消都在 VIZA 页面发起。后端会进入官网执行对应步骤；需要验证码或最终取消确认时，页面会在这里继续让你操作。"
+                  : "Reschedule and cancellation both start inside VIZA. The backend operates the official site; SMS or final cancellation confirmation remains on this page."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
@@ -745,7 +768,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               </AlertTitle>
               <AlertDescription className="space-y-3">
                 <p>{changeDescription}</p>
-                {changeManualAction.instruction ? (
+                {changeManualAction.instruction && changeManualAction.action_type !== "official_cancel_required" ? (
                   <p className="text-xs leading-5 text-muted-foreground">{changeManualAction.instruction}</p>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -759,17 +782,71 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                       {isZh ? "重新发送官网验证码" : "Send a fresh official code"}
                     </Button>
                   ) : null}
-                  {officialChangeSearchUrl ? (
+                  {changeManualAction.action_type === "official_cancel_required" ? (
+                    <Button
+                      size="sm"
+                      onClick={() => void run("start-cancel-query")}
+                      disabled={Boolean(busy) || !officialChangeSearchUrl}
+                    >
+                      {busy === "start-cancel-query" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      {isZh ? "站内查询取消入口" : "Query cancellation in VIZA"}
+                    </Button>
+                  ) : null}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {cancellationAction ? (
+            <Alert className={cancellationAction.action_type === "official_cancel_confirmation_required" ? "border-red-200 bg-red-50/70" : "border-amber-200 bg-amber-50/60"}>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>
+                {cancellationAction.action_type === "official_cancel_confirmation_required"
+                  ? isZh ? "已查到官网预约，等待确认取消" : "Official booking found, confirm cancellation"
+                  : isZh ? "取消查询需要人工确认" : "Cancellation query needs review"}
+              </AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  {cancellationAction.action_type === "official_cancel_confirmation_required"
+                    ? isZh
+                      ? "后端已经在官网查询到预约记录。点击下方按钮后，worker 会继续在官网点击取消并保存官方截图证据。"
+                      : "The backend found the official booking. Click below to let the worker cancel it on the official site and save evidence."
+                    : isZh
+                      ? "后端已在官网完成查询，但没有识别到可自动点击的取消按钮。请查看证据后等待人工处理。"
+                      : "The backend completed the official query but did not detect an automatable cancellation button. Review the evidence and wait for manual handling."}
+                </p>
+                {typeof cancellationAction.metadata_redacted_json?.officialMessage === "string" ? (
+                  <p className="text-xs leading-5 text-muted-foreground">{cancellationAction.metadata_redacted_json.officialMessage}</p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  {cancellationAction.action_type === "official_cancel_confirmation_required" ? (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => void run("confirm-cancel-official")}
+                      disabled={Boolean(busy)}
+                    >
+                      {busy === "confirm-cancel-official" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                      {isZh ? "确认取消预约" : "Confirm cancellation"}
+                    </Button>
+                  ) : null}
+                  {typeof cancellationAction.metadata_redacted_json?.screenshotPath === "string" ? (
                     <Button asChild size="sm" variant="outline">
-                      <a href={officialChangeSearchUrl} target="_blank" rel="noopener noreferrer">
+                      <a href={`/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(cancellationAction.metadata_redacted_json.screenshotPath)}`} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        {changeManualAction.action_type === "official_cancel_required"
-                          ? isZh ? "打开官网查询/取消页" : "Open official query/cancel"
-                          : isZh ? "打开官网预约页" : "Open official booking page"}
+                        {isZh ? "查看官网证据" : "View official evidence"}
                       </a>
                     </Button>
                   ) : null}
                 </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {isCancelled ? (
+            <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>{isZh ? "预约已取消" : "Appointment cancelled"}</AlertTitle>
+              <AlertDescription>
+                {isZh ? "VIZA 已从官网取消流程拿到结果并更新状态。" : "VIZA captured the official cancellation result and updated the status."}
               </AlertDescription>
             </Alert>
           ) : null}

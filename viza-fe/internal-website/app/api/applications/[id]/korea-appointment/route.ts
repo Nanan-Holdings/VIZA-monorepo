@@ -14,6 +14,8 @@ type Action =
   | "complete-final-booking"
   | "request-reschedule"
   | "request-cancel"
+  | "start-cancel-query"
+  | "confirm-cancel-official"
   | "refresh-status";
 
 interface AppointmentJobRow {
@@ -84,6 +86,26 @@ interface KoreaKvacCompleteBookingResponse {
   appointmentType?: string;
   screenshotPath?: string | null;
   confirmationPdfUrl?: string | null;
+}
+
+interface KoreaKvacCancelQueryResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "cancellation_confirmation_required" | "cancellation_manual_checkpoint";
+  officialSessionId?: string;
+  phoneMasked?: string;
+  screenshotPath?: string | null;
+  officialMessage?: string;
+  canCancel?: boolean;
+}
+
+interface KoreaKvacCancelConfirmResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "appointment_cancelled";
+  officialSessionId?: string;
+  screenshotPath?: string | null;
+  officialMessage?: string;
 }
 
 type ApplicationAuthResult =
@@ -221,6 +243,15 @@ async function postSubmissionService<T>(path: string, body: Record<string, unkno
   }
   if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
   return payload as T;
+}
+
+function submissionServiceErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isSubmissionRunnerUnavailable(error: unknown) {
+  const message = submissionServiceErrorMessage(error);
+  return /fetch failed|ECONNREFUSED|ECONNRESET|Failed to fetch|terminated|AbortError|failed \(404\)|not[_ ]found/i.test(message);
 }
 
 function applicantNameForOfficial(answers: Record<string, string>) {
@@ -534,7 +565,7 @@ async function createOrReuseAppointmentChangeCheckpoint(
   const instruction =
     kind === "reschedule"
       ? "已创建韩国 KVAC 改约流程。可同步短信的中心会重新发送官网短信验证码，读取新时段后仍需申请人选择新时间并授权最终提交。Reschedule checkpoint created; restart official SMS verification, observe new official slots, and book only after applicant selection and final approval."
-      : "已创建韩国 KVAC 取消检查点。请进入官网“预先预约查询”，用访问者名和手机号查到预约后再按官网取消入口操作；只有保存官网取消结果证据后，VIZA 才会标记为已取消。Cancellation checkpoint created; use the official appointment query/cancel flow and save official cancellation evidence before marking cancelled.";
+      : "已创建韩国 KVAC 取消检查点。请在 VIZA 点击站内查询取消入口；后端会进入官网查询预约记录，查到后回到本页等待你确认最终取消。Cancellation checkpoint created; VIZA will operate the official query/cancel flow in the background and return here for final cancellation approval.";
 
   const manualActionId = existingManualAction?.id ?? await (async () => {
     const { data: manualAction, error: manualErr } = await admin
@@ -581,6 +612,108 @@ async function createOrReuseAppointmentChangeCheckpoint(
     user_id: userId,
     event_type: nextStatus,
     event_message: kind === "reschedule" ? "Korea KVAC reschedule requested by applicant." : "Korea KVAC cancellation requested by applicant.",
+    metadata_redacted_json: metadata,
+  });
+}
+
+async function createWorkerUnavailableCheckpoint(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+  kind: "booking" | "reschedule" | "cancel",
+  rawError: string,
+) {
+  const actionType = kind === "cancel"
+    ? "official_cancel_manual_checkpoint"
+    : kind === "reschedule"
+      ? "official_reschedule_required"
+      : "official_center_manual_checkpoint";
+  const status = kind === "cancel"
+    ? "cancellation_manual_checkpoint"
+    : kind === "reschedule"
+      ? "reschedule_requested"
+      : "official_center_manual_checkpoint";
+  const instruction = kind === "cancel"
+    ? "VIZA 已创建站内取消任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新点击站内查询取消入口；用户不需要跳转到官网操作。"
+    : kind === "reschedule"
+      ? "VIZA 已创建站内改约任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新发送官网验证码；用户不需要跳转到官网操作。"
+      : "VIZA 已保留站内预约流程，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新发送官网验证码；用户不需要跳转到官网操作。";
+  const metadata = {
+    centerCode: routing.recommended.code,
+    centerNameEn: routing.recommended.nameEn,
+    bookingUrl: routing.recommended.bookingUrl,
+    bookingSearchUrl: routing.recommended.bookingSearchUrl,
+    officialUrl: routing.recommended.officialUrl,
+    nextStep: kind === "cancel" ? "restart_worker_and_retry_cancel_query" : "restart_worker_and_resend_sms",
+    workerBaseUrl: submissionServiceBaseUrl(),
+    workerUnavailable: true,
+    error: rawError,
+  };
+
+  const { data: existingManualAction, error: existingManualErr } = await admin
+    .from("appointment_manual_actions")
+    .select("id")
+    .eq("job_id", job.id)
+    .eq("action_type", actionType)
+    .in("status", ["pending", "in_progress"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingManualErr) throw new Error(existingManualErr.message);
+
+  const manualActionId = existingManualAction?.id ?? await (async () => {
+    const { data: manualAction, error: manualErr } = await admin
+      .from("appointment_manual_actions")
+      .insert({
+        job_id: job.id,
+        application_id: applicationId,
+        user_id: userId,
+        action_type: actionType,
+        status: "pending",
+        instruction,
+        user_input_schema_json: { type: "object", properties: { acknowledged: { type: "boolean" } } },
+        metadata_redacted_json: metadata,
+      })
+      .select("id")
+      .single();
+    if (manualErr || !manualAction) throw new Error(manualErr?.message ?? "Could not create Korea worker checkpoint.");
+    return manualAction.id as string;
+  })();
+
+  if (existingManualAction?.id) {
+    const { error: updateManualErr } = await admin
+      .from("appointment_manual_actions")
+      .update({
+        instruction,
+        metadata_redacted_json: metadata,
+      })
+      .eq("id", existingManualAction.id);
+    if (updateManualErr) throw new Error(updateManualErr.message);
+  }
+
+  await admin.from("appointment_assistance_jobs").update({
+    mode: "live_assisted",
+    status,
+    requires_user_action: true,
+    current_manual_action: manualActionId,
+    updated_at: new Date().toISOString(),
+  }).eq("id", job.id);
+  await admin.from("applications").update({
+    appointment_assistance_status: status,
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+  await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: status,
+    event_message: kind === "cancel"
+      ? "Korea KVAC cancellation stayed inside VIZA because the local official-portal worker was unavailable."
+      : kind === "reschedule"
+        ? "Korea KVAC reschedule stayed inside VIZA because the local official-portal worker was unavailable."
+        : "Korea KVAC booking stayed inside VIZA because the local official-portal worker was unavailable.",
     metadata_redacted_json: metadata,
   });
 }
@@ -684,6 +817,138 @@ async function completeOfficialFinalBooking(
       centerCode: routing.recommended.code,
       confirmationNumber: officialComplete.confirmationNumber,
       screenshotPath: officialComplete.screenshotPath,
+    },
+  });
+}
+
+async function startOfficialCancellationQuery(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+) {
+  if (!routing.recommended.bookingSearchUrl) {
+    throw new Error("This Korea center does not expose a supported official cancellation query page.");
+  }
+  const answers = await readAnswerMap(admin, applicationId);
+  const applicantName = applicantNameForOfficial(answers);
+  const mobilePhone = mobilePhoneForOfficial(answers);
+  if (!applicantName || !mobilePhone) {
+    throw new Error("Korea KVAC cancellation requires applicant name and mainland China mobile phone in the application answers.");
+  }
+  const result = await postSubmissionService<KoreaKvacCancelQueryResponse>("/local/korea-kvac/cancel/query", {
+    applicationId,
+    jobId: job.id,
+    centerCode: routing.recommended.code,
+    bookingSearchUrl: routing.recommended.bookingSearchUrl,
+    applicantName,
+    mobilePhone,
+  });
+  if (!result.ok || !result.status) throw new Error("Official Korea KVAC cancellation query did not return a usable status.");
+
+  const actionType = result.status === "cancellation_confirmation_required"
+    ? "official_cancel_confirmation_required"
+    : "official_cancel_manual_checkpoint";
+  const status = result.status;
+  await admin.from("appointment_manual_actions").update({ status: "expired" })
+    .eq("job_id", job.id)
+    .in("action_type", ["official_cancel_required", "official_cancel_confirmation_required", "official_cancel_manual_checkpoint"])
+    .in("status", ["pending", "in_progress"]);
+  const { data: manualAction, error: manualErr } = await admin
+    .from("appointment_manual_actions")
+    .insert({
+      job_id: job.id,
+      application_id: applicationId,
+      user_id: userId,
+      action_type: actionType,
+      status: "pending",
+      instruction: result.status === "cancellation_confirmation_required"
+        ? "VIZA 已在官网查询到预约记录。请在 VIZA 确认是否取消；确认后后端会继续点击官网取消按钮并保存证据。"
+        : "VIZA 已完成官网预约查询，但没有识别到可自动点击的取消按钮。请查看官方截图证据，当前不会标记为已取消。",
+      user_input_schema_json: { type: "object", properties: { approved: { type: "boolean" } } },
+      metadata_redacted_json: {
+        centerCode: routing.recommended.code,
+        officialSessionId: result.officialSessionId ?? job.id,
+        phoneMasked: result.phoneMasked,
+        screenshotPath: result.screenshotPath,
+        officialMessage: result.officialMessage,
+        canCancel: result.canCancel === true,
+      },
+    })
+    .select("id")
+    .single();
+  if (manualErr || !manualAction) throw new Error(manualErr?.message ?? "Could not create Korea cancellation checkpoint.");
+  await admin.from("appointment_assistance_jobs").update({
+    status,
+    requires_user_action: result.status === "cancellation_confirmation_required",
+    current_manual_action: manualAction.id,
+    updated_at: new Date().toISOString(),
+  }).eq("id", job.id);
+  await admin.from("applications").update({
+    appointment_assistance_status: status,
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+  await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: status,
+    event_message: "Korea KVAC cancellation query was run from VIZA against the official portal.",
+    metadata_redacted_json: {
+      centerCode: routing.recommended.code,
+      screenshotPath: result.screenshotPath,
+      canCancel: result.canCancel === true,
+    },
+  });
+}
+
+async function confirmOfficialCancellation(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+) {
+  const result = await postSubmissionService<KoreaKvacCancelConfirmResponse>("/local/korea-kvac/cancel/confirm", {
+    jobId: job.id,
+  });
+  if (!result.ok || result.status !== "appointment_cancelled") {
+    throw new Error("Official Korea KVAC cancellation did not return a confirmed cancellation result.");
+  }
+  await admin.from("appointment_manual_actions").update({
+    status: "completed",
+    completed_at: new Date().toISOString(),
+    user_input_redacted_json: { approved: true },
+    metadata_redacted_json: {
+      centerCode: routing.recommended.code,
+      officialSessionId: result.officialSessionId ?? job.id,
+      screenshotPath: result.screenshotPath,
+      officialMessage: result.officialMessage,
+    },
+  }).eq("job_id", job.id)
+    .eq("action_type", "official_cancel_confirmation_required")
+    .in("status", ["pending", "in_progress"]);
+  await admin.from("appointment_assistance_jobs").update({
+    status: "appointment_cancelled",
+    requires_user_action: false,
+    current_manual_action: null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", job.id);
+  await admin.from("applications").update({
+    appointment_assistance_status: "appointment_cancelled",
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+  await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: "appointment_cancelled",
+    event_message: "Korea KVAC appointment cancellation was confirmed on the official portal.",
+    metadata_redacted_json: {
+      centerCode: routing.recommended.code,
+      screenshotPath: result.screenshotPath,
+      officialMessage: result.officialMessage,
     },
   });
 }
@@ -994,6 +1259,18 @@ export async function POST(
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
     } catch (error) {
       console.error("[korea-appointment] request-live-booking failed", error);
+      if (isSubmissionRunnerUnavailable(error)) {
+        await createWorkerUnavailableCheckpoint(
+          auth.admin,
+          id,
+          auth.profile.id,
+          job,
+          routing,
+          rescheduleAction ? "reschedule" : "booking",
+          submissionServiceErrorMessage(error),
+        );
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      }
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Korea KVAC live booking failed" },
         { status: 502 },
@@ -1173,6 +1450,46 @@ export async function POST(
     } catch (error) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Could not create Korea appointment change checkpoint." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "start-cancel-query") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
+    try {
+      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing);
+    } catch (error) {
+      if (isSubmissionRunnerUnavailable(error)) {
+        await createWorkerUnavailableCheckpoint(
+          auth.admin,
+          id,
+          auth.profile.id,
+          job,
+          routing,
+          "cancel",
+          submissionServiceErrorMessage(error),
+        );
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      }
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Could not query Korea KVAC cancellation flow." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "confirm-cancel-official") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
+    try {
+      await confirmOfficialCancellation(auth.admin, id, auth.profile.id, job, routing);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Could not confirm Korea KVAC cancellation." },
         { status: 409 },
       );
     }

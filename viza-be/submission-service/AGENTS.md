@@ -171,7 +171,9 @@ filling and one-shot submission for the applicant.
   do not mint a fresh inbox-alias account when a prior PH eTravel account row
   exists.
 - `src/korea-eform/**`: Korea Visa Portal official e-Form/barcode PDF runner
-  scaffold. Live automation must be explicitly env-gated and must not mark
+  scaffold. `src/korea-eform/documents.ts` downloads uploaded applicant photo
+  and passport scan files from `application-documents` for official portal
+  upload. Live automation must be explicitly env-gated and must not mark
   success until the official portal-generated PDF is captured in storage.
 - `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
   `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal

@@ -83,6 +83,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Live-assisted official submission status summaries are loaded through
   `lib/submission-live-status.ts`; keep service-role access server-only and
   expose customer/staff actions through route handlers or server actions.
+- Local developer recovery for stalled official submission jobs is exposed
+  through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
+  localhost-only and may only start the repository `viza-be/submission-service`
+  worker before the normal retry flow.
 - Chinese and English legal article copy for `/terms`, `/privacy`, and
   `/disclaimer` lives in `lib/legal/*-legal-content.ts`; auth footers and
   signup consent link to these routes.

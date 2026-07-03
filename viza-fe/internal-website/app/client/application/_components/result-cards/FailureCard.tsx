@@ -120,6 +120,8 @@ export function FailureCard({
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
+  const [localWorkerStarting, setLocalWorkerStarting] = useState(false);
+  const [localWorkerError, setLocalWorkerError] = useState<string | null>(null);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const validationError = parseValidationError(errorMessage);
@@ -167,6 +169,30 @@ export function FailureCard({
     }
   };
 
+  const handleLocalWorkerRetry = async () => {
+    if (!applicationId || !onRetry) return;
+    const mode = modes.find((item) => item.mode === "live_assisted")?.mode ?? modes[0]?.mode;
+    if (!mode) return;
+    setLocalWorkerError(null);
+    setLocalWorkerStarting(true);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/local-submission-worker`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restart: true }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : `Worker start failed with ${response.status}`);
+      }
+      await handleRetry(mode);
+    } catch (error) {
+      setLocalWorkerError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLocalWorkerStarting(false);
+    }
+  };
+
   return (
     <Card className="rounded-xl border-destructive/40">
       <CardHeader>
@@ -208,22 +234,38 @@ export function FailureCard({
           </pre>
         )}
         {applicationId && onRetry && (
-          <div className={modes.length > 1 ? "grid gap-2 sm:grid-cols-2" : "grid gap-2"}>
-            {modes.map((item) => (
+          <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
+            {workerPickupError ? (
               <BrandActionButton
-                key={item.mode}
                 onClick={() => {
-                  void handleRetry(item.mode).catch(() => undefined);
+                  void handleLocalWorkerRetry();
                 }}
-                loading={retryingMode === item.mode}
+                loading={localWorkerStarting}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >
                 <RotateCw className="mr-2 h-4 w-4" />
-                {item.label}
+                {isZh ? "提交" : "Submit"}
               </BrandActionButton>
-            ))}
+            ) : (
+              modes.map((item) => (
+                <BrandActionButton
+                  key={item.mode}
+                  onClick={() => {
+                    void handleRetry(item.mode).catch(() => undefined);
+                  }}
+                  loading={retryingMode === item.mode}
+                  loadingText={isZh ? "正在提交" : "Submitting"}
+                >
+                  <RotateCw className="mr-2 h-4 w-4" />
+                  {item.label}
+                </BrandActionButton>
+              ))
+            )}
           </div>
         )}
+        {localWorkerError ? (
+          <p className="text-sm text-red-700">{localWorkerError}</p>
+        ) : null}
         {officialAccount?.email && (
           <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
             <div className="text-sm font-semibold text-foreground">

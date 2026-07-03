@@ -51,6 +51,32 @@ export interface KoreaKvacCompleteBookingResult {
   confirmationPdfUrl: string | null;
 }
 
+export interface KoreaKvacCancelQueryInput {
+  applicationId: string;
+  jobId: string;
+  centerCode: string;
+  bookingSearchUrl: string;
+  applicantName: string;
+  mobilePhone: string;
+}
+
+export interface KoreaKvacCancelQueryResult {
+  status: "cancellation_confirmation_required" | "cancellation_manual_checkpoint";
+  officialSessionId: string;
+  centerCode: string;
+  phoneMasked: string;
+  screenshotPath: string | null;
+  officialMessage: string;
+  canCancel: boolean;
+}
+
+export interface KoreaKvacCancelConfirmResult {
+  status: "appointment_cancelled";
+  officialSessionId: string;
+  screenshotPath: string | null;
+  officialMessage: string;
+}
+
 interface KoreaKvacLiveSession {
   applicationId: string;
   jobId: string;
@@ -67,6 +93,7 @@ interface KoreaKvacLiveSession {
 
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const sessions = new Map<string, KoreaKvacLiveSession>();
+const cancelSessions = new Map<string, { browser: Browser; page: Page; expiresAt: number; screenshotPath: string | null }>();
 const VISAFORKOREA_CENTER_CONFIG: Record<string, { hostPattern: RegExp; location: string; label: string }> = {
   beijing: {
     hostPattern: /visaforkorea-bj\.com/i,
@@ -126,10 +153,23 @@ async function cleanupSession(jobId: string) {
   await existing.browser.close().catch(() => undefined);
 }
 
+async function cleanupCancelSession(jobId: string) {
+  const existing = cancelSessions.get(jobId);
+  if (!existing) return;
+  cancelSessions.delete(jobId);
+  await existing.browser.close().catch(() => undefined);
+}
+
 function cleanupExpired(referenceTime = nowMs()) {
   for (const [jobId, session] of sessions.entries()) {
     if (session.expiresAt <= referenceTime) {
       sessions.delete(jobId);
+      void session.browser.close().catch(() => undefined);
+    }
+  }
+  for (const [jobId, session] of cancelSessions.entries()) {
+    if (session.expiresAt <= referenceTime) {
+      cancelSessions.delete(jobId);
       void session.browser.close().catch(() => undefined);
     }
   }
@@ -231,6 +271,23 @@ async function extractConfirmationNumber(page: Page) {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match?.[1]) return match[1].trim();
+  }
+  return null;
+}
+
+async function findOfficialCancelButton(page: Page) {
+  const candidates = [
+    page.locator("button, a, input[type='button'], input[type='submit']").filter({
+      hasText: /取消预约|预约取消|取消|Cancel|예약취소|취소/i,
+    }).last(),
+    page.locator("[onclick*='cancel' i], [onclick*='Cancel'], [onclick*='예약취소'], [onclick*='취소']").last(),
+  ];
+
+  for (const candidate of candidates) {
+    if ((await candidate.count().catch(() => 0)) === 0) continue;
+    const visible = await candidate.isVisible().catch(() => false);
+    const enabled = await candidate.isEnabled().catch(() => true);
+    if (visible && enabled) return candidate;
   }
   return null;
 }
@@ -427,6 +484,103 @@ export async function completeKoreaKvacOfficialBooking(input: {
   };
 }
 
+export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQueryInput): Promise<KoreaKvacCancelQueryResult> {
+  cleanupExpired();
+  await cleanupCancelSession(input.jobId);
+
+  const phone = normalizePhoneForKvac(input.mobilePhone);
+  if (!/^1\d{10}$/.test(phone)) {
+    throw new Error("Korea KVAC cancellation query requires a mainland China 11-digit mobile number without +86 or hyphens.");
+  }
+  const applicantName = input.applicantName.trim();
+  if (!applicantName) throw new Error("Applicant name is required before querying the official KVAC appointment.");
+  if (!/\/visacenter\/booking\/search/i.test(input.bookingSearchUrl)) {
+    throw new Error("This Korea center does not expose a supported visaforkorea appointment query page.");
+  }
+
+  const browser = await chromium.launch({ headless: !/^(1|true|yes|on)$/i.test(process.env.KR_KVAC_HEADFUL ?? "") });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+  const dialogs: string[] = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.accept().catch(() => undefined);
+  });
+
+  try {
+    await page.goto(input.bookingSearchUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.waitForTimeout(2_000);
+    await page.locator("#booker_nm").fill(applicantName, { timeout: 20_000 });
+    await page.locator("#booker_phone").fill(phone, { timeout: 20_000 });
+    await page.locator("button[type='submit'], input[type='submit']").first().click({ timeout: 20_000 });
+    await page.waitForTimeout(5_000);
+
+    const cancelButton = await findOfficialCancelButton(page);
+    const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+    const screenshotPath = await screenshot(page, input.jobId, cancelButton ? "cancel-confirmation-required" : "cancel-query");
+    if (!cancelButton) {
+      await browser.close().catch(() => undefined);
+      return {
+        status: "cancellation_manual_checkpoint",
+        officialSessionId: input.jobId,
+        centerCode: input.centerCode,
+        phoneMasked: maskPhone(phone),
+        screenshotPath,
+        officialMessage:
+          dialogs.at(-1) ??
+          (bodyText ? bodyText.replace(/\s+/g, " ").slice(0, 280) : "Official query completed, but no cancellation button was detected."),
+        canCancel: false,
+      };
+    }
+
+    cancelSessions.set(input.jobId, {
+      browser,
+      page,
+      expiresAt: nowMs() + SESSION_TTL_MS,
+      screenshotPath,
+    });
+    return {
+      status: "cancellation_confirmation_required",
+      officialSessionId: input.jobId,
+      centerCode: input.centerCode,
+      phoneMasked: maskPhone(phone),
+      screenshotPath,
+      officialMessage: dialogs.at(-1) ?? "Official appointment record was found. User confirmation is required before cancelling.",
+      canCancel: true,
+    };
+  } catch (error) {
+    await browser.close().catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function confirmKoreaKvacOfficialCancellation(input: { jobId: string }): Promise<KoreaKvacCancelConfirmResult> {
+  cleanupExpired();
+  const session = cancelSessions.get(input.jobId);
+  if (!session) throw new Error("Official KVAC cancellation session is missing or expired. Start cancellation query again.");
+
+  const dialogs: string[] = [];
+  session.page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.accept().catch(() => undefined);
+  });
+  const cancelButton = await findOfficialCancelButton(session.page);
+  if (!cancelButton) throw new Error("Official cancellation button is no longer visible. Start cancellation query again.");
+  await cancelButton.click({ timeout: 30_000 });
+  await session.page.waitForTimeout(5_000);
+  const screenshotPath = await screenshot(session.page, input.jobId, "cancelled");
+  const bodyText = await session.page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  await cleanupCancelSession(input.jobId);
+  return {
+    status: "appointment_cancelled",
+    officialSessionId: input.jobId,
+    screenshotPath,
+    officialMessage:
+      dialogs.at(-1) ??
+      (bodyText ? bodyText.replace(/\s+/g, " ").slice(0, 280) : "Official cancellation click completed."),
+  };
+}
+
 export async function clearKoreaKvacOfficialSession(jobId: string): Promise<void> {
   await cleanupSession(jobId);
+  await cleanupCancelSession(jobId);
 }
