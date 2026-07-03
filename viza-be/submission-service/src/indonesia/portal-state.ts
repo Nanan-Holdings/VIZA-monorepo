@@ -36,7 +36,7 @@ export function classifyIndonesiaPortalSnapshot(
   ) {
     return "account_registration_form_visible";
   }
-  if (/\/web\/applications\/.+\/list\b/i.test(snapshot.url) || /\/(pay|payment|checkout|invoice|billing|otp)/i.test(snapshot.url)) {
+  if (/\/(pay|payment|checkout|invoice|billing|otp)/i.test(snapshot.url)) {
     return "payment_required";
   }
   if (text.includes("/step_1")) {

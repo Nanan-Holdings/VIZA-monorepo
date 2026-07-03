@@ -1,5 +1,9 @@
 import type { Page } from "playwright";
-import { fillKoreaOfficialEformFirstPage, type KoreaOfficialEformFillOptions } from "./portal";
+import {
+  fillKoreaOfficialEformFirstPage,
+  fillKoreaOfficialEformSecondPage,
+  type KoreaOfficialEformFillOptions,
+} from "./portal";
 
 export const KOREA_VISA_PORTAL_EFORM_URL = "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
 
@@ -80,17 +84,17 @@ export function buildKoreaOfficialEformPayload(input: KoreaOfficialEformInput): 
   const answers = input.answers;
   return {
     applicationId: input.applicationId,
-    familyName: readFirst(answers, ["family_name", "surname", "last_name"]),
-    givenNames: readFirst(answers, ["given_names", "given_name", "first_name"]),
+    familyName: readFirst(answers, ["family_name", "family_name_en", "surname", "last_name"]),
+    givenNames: readFirst(answers, ["given_names", "given_names_en", "given_name", "first_name"]),
     dateOfBirth: readFirst(answers, ["date_of_birth", "birth_date"]),
     gender: normalizeGender(readFirst(answers, ["gender", "sex"])),
     nationality: readFirst(answers, ["nationality", "current_nationality"]),
-    passportNumber: readFirst(answers, ["passport_number"]),
-    passportExpiryDate: readFirst(answers, ["passport_expiry_date", "passport_expiration_date"]),
-    passportIssueDate: readFirst(answers, ["passport_issue_date"]),
+    passportNumber: readFirst(answers, ["passport_number", "passport_no"]),
+    passportExpiryDate: readFirst(answers, ["passport_expiry_date", "passport_expiration_date", "passport_date_of_expiry"]),
+    passportIssueDate: readFirst(answers, ["passport_issue_date", "passport_date_of_issue"]),
     email: readFirst(answers, ["email", "email_address"]),
-    phone: readFirst(answers, ["phone", "mobile_phone", "mobile_number"]),
-    homeAddress: readFirst(answers, ["home_address", "current_address", "residential_address"]),
+    phone: readFirst(answers, ["phone", "mobile_phone", "mobile_number", "cell_phone"]),
+    homeAddress: readFirst(answers, ["home_address", "home_country_address", "current_address", "current_residential_address", "residential_address"]),
     purpose: "tourism_transit",
     stayStatus: "C-3",
   };
@@ -197,6 +201,32 @@ export async function runKoreaOfficialEformLiveFill(
   }
 
   const fillResult = await fillKoreaOfficialEformFirstPage(page, payload, options);
+  const canContinueToSecondPage =
+    process.env.KR_VISA_PORTAL_EFORM_SECOND_PAGE_ENABLED === "true" &&
+    fillResult.missingUploads.length === 0;
+
+  if (canContinueToSecondPage) {
+    const nextButton = page.locator("#REG_STEP1");
+    await nextButton.waitFor({ state: "visible", timeout: 15000 });
+    await nextButton.click();
+    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+    const secondPageResult = await fillKoreaOfficialEformSecondPage(page, input.answers);
+
+    return {
+      status: "manual_required",
+      applicationId: input.applicationId,
+      portalUrl: page.url(),
+      manualActionType: "official_eform_portal_review_required",
+      message:
+        "Korea Visa Portal e-Form pages 1 and 2 were filled with VIZA answers. Review the official portal, confirm the final declaration yourself, then download the official barcode PDF.",
+      payload,
+      evidence: {
+        filledSelectors: [...fillResult.filledSelectors, ...secondPageResult.filledSelectors],
+        missingUploads: fillResult.missingUploads,
+      },
+    };
+  }
+
   return {
     status: "manual_required",
     applicationId: input.applicationId,

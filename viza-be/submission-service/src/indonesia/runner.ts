@@ -2369,6 +2369,13 @@ function isExpiredIndonesiaPortalUrl(value: string | null | undefined): boolean 
   return /\/expired\b/.test(normalized) || /status=expired/i.test(normalized);
 }
 
+function isIndonesiaPortalNotFoundText(value: string): boolean {
+  const normalized = clean(value)?.toLowerCase() ?? "";
+  return /page\s+not\s+found/i.test(normalized) ||
+    /oh\s*!\s*no/i.test(normalized) ||
+    /go\s+to\s+home/i.test(normalized);
+}
+
 function isReusableIndonesiaApplicationUrl(value: string | null | undefined): value is string {
   const cleanUrl = clean(value);
   if (!cleanUrl) return false;
@@ -2502,8 +2509,13 @@ async function continueFromApplicationStepTwo(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<boolean> {
+  const pageText = await page.locator("body").innerText({ timeout: 3_000 }).catch(() => "");
+  if (isIndonesiaPortalNotFoundText(pageText)) {
+    diagnostics.push("indonesia_step_2_not_found_page_detected");
+    return false;
+  }
   const isStepTwo =
-    /\/step_2\b/i.test(page.url()) ||
+    (/\/step_2\b/i.test(page.url()) && await isVisibleSelector(page, "#residence_type_id, #attachment-return_ticket, #support-paspor")) ||
     await isVisibleSelector(page, "#residence_type_id, #attachment-return_ticket, #support-paspor");
   if (!isStepTwo) {
     diagnostics.push(`indonesia_step_2_not_detected url=${page.url()}`);
@@ -2669,6 +2681,7 @@ async function continueFromApplicationList(
   page: Page,
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
+  options: { onExpiredApplication?: () => void } = {},
 ): Promise<boolean> {
   if (!/\/web\/applications\/.+\/list\b/i.test(page.url())) return false;
   await input.onStage?.("application_list_visible", {
@@ -2681,6 +2694,7 @@ async function continueFromApplicationList(
   await captureApplicationListArtifact(page, input, diagnostics);
   if (isExpiredIndonesiaApplicationText(text)) {
     diagnostics.push("indonesia_application_list_expired_detected_restarting_application");
+    options.onExpiredApplication?.();
     await reopenIndonesiaPortalFromScratch(page, input, diagnostics);
     return true;
   }
@@ -3227,7 +3241,7 @@ export async function probeIndonesiaPortal(
   const session = await createIndonesiaProbeSession(input);
   try {
     const page = session.page;
-    const savedApplicationUrl = await findSavedIndonesiaApplicationUrl(input, session.diagnostics);
+    let savedApplicationUrl = await findSavedIndonesiaApplicationUrl(input, session.diagnostics);
     const startUrl = savedApplicationUrl ?? input.portalUrl;
     if (savedApplicationUrl) {
       session.diagnostics.push("indonesia_starting_from_saved_application_url");
@@ -3241,6 +3255,7 @@ export async function probeIndonesiaPortal(
     let text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
     if (savedApplicationUrl && (isExpiredIndonesiaApplicationText(text) || isExpiredIndonesiaPortalUrl(startUrl))) {
       session.diagnostics.push("indonesia_starting_url_detected_expired");
+      savedApplicationUrl = null;
       await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
       title = await page.title().catch(() => null);
       text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
@@ -3254,6 +3269,18 @@ export async function probeIndonesiaPortal(
 
       if (isExpiredIndonesiaApplicationText(text) || isExpiredIndonesiaPortalUrl(url)) {
         session.diagnostics.push("indonesia_running_flow_detected_expired");
+        savedApplicationUrl = null;
+        await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+        title = await page.title().catch(() => null);
+        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+        url = page.url();
+        state = classifyIndonesiaPortalSnapshot({ url, title, text });
+        advanced = true;
+      }
+
+      if (!advanced && /\/application_add\/visa\/.+\/step_/i.test(url) && isIndonesiaPortalNotFoundText(text)) {
+        session.diagnostics.push("indonesia_running_flow_detected_application_step_not_found_restarting");
+        savedApplicationUrl = null;
         await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
         title = await page.title().catch(() => null);
         text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
@@ -3314,7 +3341,11 @@ export async function probeIndonesiaPortal(
       } else if (/\/step_3\b/i.test(url)) {
         advanced = await continueFromApplicationStepThree(page, input, session.diagnostics);
       } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
-        advanced = await continueFromApplicationList(page, input, session.diagnostics);
+        advanced = await continueFromApplicationList(page, input, session.diagnostics, {
+          onExpiredApplication: () => {
+            savedApplicationUrl = null;
+          },
+        });
       } else if (state === "payment_required") {
         advanced =
           await continueFromIndonesiaOtpPage(page, input, session.diagnostics) ||
@@ -3324,7 +3355,11 @@ export async function probeIndonesiaPortal(
           await continueFromApplicationStepOne(page, input, session.diagnostics) ||
           await continueFromApplicationStepTwo(page, input, session.diagnostics) ||
           await continueFromApplicationStepThree(page, input, session.diagnostics) ||
-          await continueFromApplicationList(page, input, session.diagnostics);
+          await continueFromApplicationList(page, input, session.diagnostics, {
+            onExpiredApplication: () => {
+              savedApplicationUrl = null;
+            },
+          });
         if (!advanced) {
           session.diagnostics.push(`indonesia_application_form_visible_no_handler url=${url}`);
         }

@@ -6294,6 +6294,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       status: processingStatus,
       provider,
       current_stage: "preparing_managed_alias",
+      last_error: null,
+      error_code: null,
+      error_message: null,
       heartbeat_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -6607,6 +6610,9 @@ async function markIndonesiaQueueStage(
     .update({
       provider,
       current_stage: currentStage,
+      last_error: null,
+      error_code: null,
+      error_message: null,
       ...(portalUrl ? { official_portal_url: portalUrl } : {}),
       heartbeat_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
