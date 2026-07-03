@@ -840,6 +840,32 @@ export async function POST(
       await createOrReuseCenterCheckpoint(auth.admin, id, auth.profile.id, job, routing);
       return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
     }
+    const [{ data: existingConfirmation, error: confirmationErr }, { data: rescheduleAction, error: rescheduleErr }] = await Promise.all([
+      auth.admin
+        .from("appointment_confirmations")
+        .select("id")
+        .eq("job_id", job.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      auth.admin
+        .from("appointment_manual_actions")
+        .select("id")
+        .eq("job_id", job.id)
+        .eq("action_type", "official_reschedule_required")
+        .in("status", ["pending", "in_progress"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (confirmationErr) throw new Error(confirmationErr.message);
+    if (rescheduleErr) throw new Error(rescheduleErr.message);
+    if (existingConfirmation && !rescheduleAction) {
+      return NextResponse.json(
+        { error: "This Korea KVAC appointment already has an official confirmation number. Request reschedule before sending a new official SMS code." },
+        { status: 409 },
+      );
+    }
     if (job.status === "sms_verification_submitted") {
       return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
     }

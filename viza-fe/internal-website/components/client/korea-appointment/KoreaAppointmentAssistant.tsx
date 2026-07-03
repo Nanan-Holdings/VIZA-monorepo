@@ -46,6 +46,14 @@ interface Snapshot {
       serviceMode: string;
       acceptsWalkIn: boolean | null;
     }>;
+    allCenters?: Array<{
+      code: string;
+      nameEn: string;
+      nameZh: string;
+      provinces: string[];
+      liveBookingMode: string;
+      serviceMode: string;
+    }>;
   };
   job: { id: string; status: string; mode?: string | null } | null;
   manualAction: {
@@ -74,11 +82,12 @@ interface Snapshot {
   } | null;
 }
 
-async function requestSnapshot(applicationId: string, action?: string, slotId?: string, smsCode?: string): Promise<Snapshot> {
+async function requestSnapshot(applicationId: string, action?: string, slotId?: string, smsCode?: string, selectedCenterCode?: string): Promise<Snapshot> {
+  const routingInput = selectedCenterCode ? { selectedCenterCode } : undefined;
   const response = await fetch(`/api/applications/${applicationId}/korea-appointment`, {
     method: action ? "POST" : "GET",
     headers: { "Content-Type": "application/json" },
-    body: action ? JSON.stringify({ action, slotId, smsCode }) : undefined,
+    body: action ? JSON.stringify({ action, slotId, smsCode, routingInput }) : undefined,
     cache: "no-store",
   });
   const body = (await response.json().catch(() => null)) as Snapshot | { error?: string } | null;
@@ -92,11 +101,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState<string | null>(null);
   const [smsCode, setSmsCode] = useState("");
+  const [selectedCenterCode, setSelectedCenterCode] = useState<string | null>(null);
   const selectedSlot = useMemo(
     () => snapshot?.slots.find((slot) => ["user_selected", "selected"].includes(slot.status)) ?? null,
     [snapshot?.slots],
   );
   const center = snapshot?.routing.recommended;
+  const effectiveCenterCode = selectedCenterCode ?? center?.code ?? null;
   const smsActionExpired =
     Boolean(snapshot?.manualAction?.expires_at) &&
     new Date(snapshot?.manualAction?.expires_at ?? "").getTime() <= Date.now();
@@ -130,24 +141,42 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const showSmsSyncPanel = center?.liveBookingMode === "sms_sync_supported";
   const isReadingSlots = busy === "start-slot-search" || busy === "submit-sms-code" || busy === "request-live-booking";
   const hasObservedSlots = (snapshot?.slots ?? []).some((slot) => ["observed", "user_selected", "selected"].includes(slot.status));
+  const canRestartSmsForReschedule = changeManualAction?.action_type === "official_reschedule_required";
 
   const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
     setError(null);
     try {
-      setSnapshot(await requestSnapshot(applicationId, action, slotId, nextSmsCode));
+      setSnapshot(await requestSnapshot(applicationId, action, slotId, nextSmsCode, effectiveCenterCode ?? undefined));
       if (action === "submit-sms-code") setSmsCode("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       try {
-        setSnapshot(await requestSnapshot(applicationId));
+        setSnapshot(await requestSnapshot(applicationId, undefined, undefined, undefined, effectiveCenterCode ?? undefined));
       } catch {
         // Keep the original action error visible if the follow-up refresh also fails.
       }
     } finally {
       setBusy(null);
     }
+  }, [applicationId, effectiveCenterCode]);
+
+  const chooseCenter = useCallback(async (nextCenterCode: string) => {
+    setSelectedCenterCode(nextCenterCode);
+    setBusy("refresh-status");
+    setError(null);
+    try {
+      setSnapshot(await requestSnapshot(applicationId, "refresh-status", undefined, undefined, nextCenterCode));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
   }, [applicationId]);
+
+  useEffect(() => {
+    if (!selectedCenterCode && center?.code) setSelectedCenterCode(center.code);
+  }, [center?.code, selectedCenterCode]);
 
   const downloadFilledForm = useCallback(async () => {
     setBusy("download-form");
@@ -268,6 +297,23 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                     {isZh ? center.consularPostZh : center.consularPostEn}
                   </div>
                   <div className="text-sm text-muted-foreground">{center.addressZh}</div>
+                  <label className="block max-w-md text-sm">
+                    <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                      {isZh ? "选择领区/递签中心" : "Choose jurisdiction / filing center"}
+                    </span>
+                    <select
+                      value={effectiveCenterCode ?? ""}
+                      onChange={(event) => void chooseCenter(event.target.value)}
+                      disabled={Boolean(busy) || Boolean(waitingForSms) || Boolean(waitingForFinalApproval) || (hasOfficialConfirmation && !canRestartSmsForReschedule)}
+                      className="h-10 w-full rounded-[8px] border bg-white px-3 text-sm outline-none focus:border-brand-500 disabled:bg-slate-100 disabled:text-muted-foreground"
+                    >
+                      {(snapshot.routing.allCenters ?? [center, ...snapshot.routing.alternatives]).map((item) => (
+                        <option key={item.code} value={item.code}>
+                          {isZh ? item.nameZh : item.nameEn} ({item.provinces.join(isZh ? "、" : ", ")})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-brand-800">{serviceModeLabel}</span>
                     <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-800">{liveBookingModeLabel}</span>
@@ -358,11 +404,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <Button
                   variant="outline"
                   onClick={() => void run("request-live-booking")}
-                  disabled={Boolean(busy) || waitingForFinalApproval}
+                  disabled={Boolean(busy) || waitingForFinalApproval || (hasOfficialConfirmation && !canRestartSmsForReschedule)}
                   className="shrink-0 bg-white"
                 >
                   {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                  {waitingForSms ? (isZh ? "重新发送验证码" : "Resend code") : (isZh ? "发送验证码" : "Send code")}
+                  {hasOfficialConfirmation && !canRestartSmsForReschedule
+                    ? isZh ? "已有确认号" : "Already confirmed"
+                    : waitingForSms ? (isZh ? "重新发送验证码" : "Resend code") : (isZh ? "发送验证码" : "Send code")}
                 </Button>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(180px,260px)_auto]">
@@ -418,7 +466,10 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </Alert>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void run("start-slot-search")} disabled={Boolean(busy) || (center?.liveBookingMode === "sms_sync_supported" && !hasObservedSlots)}>
+            <Button
+              onClick={() => void run("start-slot-search")}
+              disabled={Boolean(busy) || (hasOfficialConfirmation && !canRestartSmsForReschedule) || (center?.liveBookingMode === "sms_sync_supported" && !hasObservedSlots)}
+            >
               {busy === "start-slot-search" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
               {isZh ? "重新读取时间" : "Refresh slots"}
             </Button>
@@ -538,6 +589,20 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 {isZh ? "请使用上方“官方短信验证”区域发送验证码，再读取官网时段。" : "Use the official SMS verification section above before reading official slots."}
               </AlertDescription>
             </Alert>
+          ) : null}
+          {hasOfficialConfirmation ? (
+            <div className="rounded-[8px] border border-emerald-200 bg-white p-4">
+              <div className="text-sm font-medium text-foreground">
+                {isZh ? "到场材料提醒" : "Documents to bring"}
+              </div>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-muted-foreground">
+                <li>{isZh ? "护照原件，以及护照资料页复印件。" : "Original passport and a copy of the passport bio page."}</li>
+                <li>{isZh ? "官方 Korea Visa Portal 生成的带条码 e-Form 打印件；到场签字。" : "Printed Korea Visa Portal barcode e-Form; sign it at filing."}</li>
+                <li>{isZh ? "白底 3.5cm x 4.5cm 证件照。" : "One 3.5cm x 4.5cm white-background visa photo."}</li>
+                <li>{isZh ? "预约确认单打印件，以及 VIZA 页面里的官方确认号。" : "Printed appointment confirmation and the official confirmation number shown in VIZA."}</li>
+                <li>{isZh ? "行程、机酒订单、在职/在读/资产等材料按所选领区官网要求准备。" : "Itinerary, flight/hotel bookings, employment or student proof, financial documents, and any center-specific materials required by the selected jurisdiction."}</li>
+              </ul>
+            </div>
           ) : null}
           {centerManualAction && center ? (
             <div className="rounded-[8px] border border-brand-100 bg-brand-50/40 p-4">
