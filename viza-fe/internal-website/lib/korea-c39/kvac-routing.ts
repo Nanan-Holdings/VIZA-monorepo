@@ -14,6 +14,7 @@ export interface KvacCenter {
   nameZh: string;
   officialUrl: string;
   bookingUrl: string | null;
+  bookingSearchUrl: string | null;
   addressZh: string;
   phone?: string;
   provinces: string[];
@@ -61,6 +62,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（北京）",
     officialUrl: "https://www.visaforkorea-bj.com/",
     bookingUrl: "https://www.visaforkorea-bj.com/visacenter/booking/insert",
+    bookingSearchUrl: "https://www.visaforkorea-bj.com/visacenter/booking/search",
     addressZh: "北京市辖区韩国签证申请中心",
     phone: "400-813-3666",
     provinces: ["北京", "天津", "河北", "山西", "内蒙古", "新疆", "西藏", "青海"],
@@ -95,6 +97,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（上海）",
     officialUrl: "https://www.visaforkorea-sh.com/",
     bookingUrl: "https://www.visaforkorea-sh.com/visacenter/booking/insert",
+    bookingSearchUrl: "https://www.visaforkorea-sh.com/visacenter/booking/search",
     addressZh: "上海市长宁区仙霞路99号尚嘉中心办公楼31层3101号",
     provinces: ["上海", "安徽", "江苏", "浙江"],
     consularPostZh: "大韩民国驻上海总领事馆",
@@ -125,6 +128,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（广州）",
     officialUrl: "https://www.visaforkorea-gz.com/",
     bookingUrl: "https://www.visaforkorea-gz.com/visacenter/booking/insert",
+    bookingSearchUrl: "https://www.visaforkorea-gz.com/visacenter/booking/search",
     addressZh: "广州市天河区珠江东路28号越秀金融大厦14层09-16单元",
     provinces: ["广东", "福建", "海南", "广西"],
     consularPostZh: "大韩民国驻广州总领事馆",
@@ -158,6 +162,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（武汉）",
     officialUrl: "https://www.koreavisa-wh.com/",
     bookingUrl: "https://www.koreavisa-wh.com/zh-CN",
+    bookingSearchUrl: null,
     addressZh: "武汉市江汉区新华路218号浦发银行大厦16层3-6室",
     phone: "4008-008-389",
     provinces: ["湖北", "湖南", "河南", "江西"],
@@ -190,6 +195,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（西安）",
     officialUrl: "https://www.visaforkorea-xa.com/",
     bookingUrl: "https://www.visaforkorea-xa.com/visacenter/booking/insert",
+    bookingSearchUrl: "https://www.visaforkorea-xa.com/visacenter/booking/search",
     addressZh: "西安韩国签证申请中心",
     provinces: ["陕西", "甘肃", "宁夏"],
     consularPostZh: "大韩民国驻西安总领事馆",
@@ -218,6 +224,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（沈阳）",
     officialUrl: "https://visaforkorea-sy030.com/",
     bookingUrl: "https://visaforkorea-sy030.com/en/schedule-an-appointment.html",
+    bookingSearchUrl: null,
     addressZh: "沈阳韩国签证申请中心",
     phone: "+86 024 2296 5320",
     provinces: ["辽宁", "吉林", "黑龙江"],
@@ -247,6 +254,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "韩国签证申请中心（成都）",
     officialUrl: "https://www.koreavisa-cd.com/zh-CN",
     bookingUrl: "https://www.koreavisa-cd.com/zh-CN/reservation/apply",
+    bookingSearchUrl: null,
     addressZh: "成都市锦江区东御街18号百扬大厦1栋35层1-2单元",
     phone: "400-0622-123",
     provinces: ["四川", "重庆", "云南", "贵州"],
@@ -281,6 +289,7 @@ export const KVAC_CENTERS: KvacCenter[] = [
     nameZh: "大韩民国驻青岛总领事馆签证业务",
     officialUrl: "https://www.mofa.go.kr/cn-qingdao-zh/index.do",
     bookingUrl: null,
+    bookingSearchUrl: null,
     addressZh: "青岛市城阳区春阳路88号",
     phone: "86-532-8897-6001",
     provinces: ["山东"],

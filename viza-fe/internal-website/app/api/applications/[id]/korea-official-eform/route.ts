@@ -27,21 +27,28 @@ function submissionServiceBaseUrl() {
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const url = `${submissionServiceBaseUrl()}${path}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
-  if (!response.ok || !payload) {
-    throw new Error(
-      payload?.error
-        ? `Submission service ${url} failed (${response.status}): ${payload.error}`
-        : `Submission service ${url} failed (${response.status})`,
-    );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+    if (!response.ok || !payload) {
+      throw new Error(
+        payload?.error
+          ? `Submission service ${url} failed (${response.status}): ${payload.error}`
+          : `Submission service ${url} failed (${response.status})`,
+      );
+    }
+    if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
+    return payload as T;
+  } finally {
+    clearTimeout(timeout);
   }
-  if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
-  return payload as T;
 }
 
 async function readAnswerMap(admin: ReturnType<typeof createAdminClient>, applicationId: string, applicantId: string) {
@@ -239,6 +246,11 @@ export async function POST(
       };
     }
   } catch (err) {
+    const errMessage = err instanceof Error ? err.message : String(err);
+    const runnerHint =
+      errMessage === "fetch failed" || errMessage.includes("ECONNREFUSED") || errMessage.includes("Failed to fetch")
+        ? "本机 official e-Form worker 没有运行或端口不可达。请启动 viza-be/submission-service 的 localhost endpoint，并设置 KR_VISA_PORTAL_EFORM_LOCAL_ENABLED=true；VIZA 不会用备用 Annex-17 冒充官网条码 PDF。"
+        : `官方 e-Form runner 返回错误：${errMessage}`;
     next = {
       ...current,
       status: "official_eform_required",
@@ -248,9 +260,7 @@ export async function POST(
         type: "official_eform_portal_review_required",
         status: "open",
         instructions:
-          err instanceof Error
-            ? `VIZA could not start the official Korea Visa Portal e-Form runner: ${err.message}`
-            : "VIZA could not start the official Korea Visa Portal e-Form runner.",
+          `${runnerHint} Official Korea Visa Portal e-Form automation did not complete; use the official portal link, or start the gated submission-service runner and click Generate again.`,
       },
     };
   }

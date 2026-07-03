@@ -494,7 +494,19 @@ async function createOrReuseAppointmentChangeCheckpoint(
   }
 
   const actionType = kind === "reschedule" ? "official_reschedule_required" : "official_cancel_required";
+  const supersededActionType = kind === "reschedule" ? "official_cancel_required" : "official_reschedule_required";
   const nextStatus = kind === "reschedule" ? "reschedule_requested" : "cancellation_requested";
+  const { error: supersedeErr } = await admin
+    .from("appointment_manual_actions")
+    .update({
+      status: "expired",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("job_id", job.id)
+    .eq("action_type", supersededActionType)
+    .in("status", ["pending", "in_progress"]);
+  if (supersedeErr) throw new Error(supersedeErr.message);
+
   const { data: existingManualAction, error: existingManualErr } = await admin
     .from("appointment_manual_actions")
     .select("id")
@@ -510,6 +522,7 @@ async function createOrReuseAppointmentChangeCheckpoint(
     centerCode: routing.recommended.code,
     centerNameEn: routing.recommended.nameEn,
     bookingUrl: routing.recommended.bookingUrl,
+    bookingSearchUrl: routing.recommended.bookingSearchUrl,
     officialUrl: routing.recommended.officialUrl,
     confirmationId: confirmation.id,
     confirmationNumber: confirmation.confirmation_number,
@@ -520,8 +533,8 @@ async function createOrReuseAppointmentChangeCheckpoint(
   };
   const instruction =
     kind === "reschedule"
-      ? "Applicant requested Korea KVAC reschedule. Restart official SMS verification, observe new official slots, and book only after the applicant selects a new slot and approves final submission."
-      : "Applicant requested Korea KVAC cancellation. Open the official appointment query/cancel flow and save official cancellation evidence before marking cancelled.";
+      ? "已创建韩国 KVAC 改约流程。可同步短信的中心会重新发送官网短信验证码，读取新时段后仍需申请人选择新时间并授权最终提交。Reschedule checkpoint created; restart official SMS verification, observe new official slots, and book only after applicant selection and final approval."
+      : "已创建韩国 KVAC 取消检查点。请进入官网“预先预约查询”，用访问者名和手机号查到预约后再按官网取消入口操作；只有保存官网取消结果证据后，VIZA 才会标记为已取消。Cancellation checkpoint created; use the official appointment query/cancel flow and save official cancellation evidence before marking cancelled.";
 
   const manualActionId = existingManualAction?.id ?? await (async () => {
     const { data: manualAction, error: manualErr } = await admin
@@ -541,6 +554,16 @@ async function createOrReuseAppointmentChangeCheckpoint(
     if (manualErr || !manualAction) throw new Error(manualErr?.message ?? "Could not create Korea appointment change checkpoint.");
     return manualAction.id as string;
   })();
+  if (existingManualAction?.id) {
+    const { error: updateManualErr } = await admin
+      .from("appointment_manual_actions")
+      .update({
+        instruction,
+        metadata_redacted_json: metadata,
+      })
+      .eq("id", existingManualAction.id);
+    if (updateManualErr) throw new Error(updateManualErr.message);
+  }
 
   await admin.from("appointment_assistance_jobs").update({
     status: nextStatus,

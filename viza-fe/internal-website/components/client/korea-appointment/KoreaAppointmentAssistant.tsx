@@ -19,6 +19,7 @@ interface Snapshot {
       nameZh: string;
       officialUrl: string;
       bookingUrl: string | null;
+      bookingSearchUrl: string | null;
       addressZh: string;
       phone?: string;
       provinces: string[];
@@ -41,6 +42,7 @@ interface Snapshot {
       nameEn: string;
       nameZh: string;
       bookingUrl: string | null;
+      bookingSearchUrl?: string | null;
       officialUrl: string;
       provinces: string[];
       serviceMode: string;
@@ -53,6 +55,7 @@ interface Snapshot {
       provinces: string[];
       liveBookingMode: string;
       serviceMode: string;
+      bookingSearchUrl?: string | null;
     }>;
   };
   job: { id: string; status: string; mode?: string | null } | null;
@@ -142,6 +145,22 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const isReadingSlots = busy === "start-slot-search" || busy === "submit-sms-code" || busy === "request-live-booking";
   const hasObservedSlots = (snapshot?.slots ?? []).some((slot) => ["observed", "user_selected", "selected"].includes(slot.status));
   const canRestartSmsForReschedule = changeManualAction?.action_type === "official_reschedule_required";
+  const changeMetadata = changeManualAction?.metadata_redacted_json ?? null;
+  const officialChangeSearchUrl =
+    (typeof changeMetadata?.bookingSearchUrl === "string" ? changeMetadata.bookingSearchUrl : null) ??
+    center?.bookingSearchUrl ??
+    center?.bookingUrl ??
+    center?.officialUrl ??
+    null;
+  const changeDescription = changeManualAction
+    ? changeManualAction.action_type === "official_cancel_required"
+      ? isZh
+        ? "官网同构 KVAC 站点提供“预先预约查询”入口，先输入访问者名和手机号查询已有预约；查到记录后才可能出现取消操作。VIZA 会把取消保持在检查点，直到拿到官网取消结果或截图证据。"
+        : "The matching KVAC sites provide an official appointment query page. Search by visitor name and mobile number first; cancellation options appear only after a matching booking is found. VIZA keeps cancellation as a checkpoint until official evidence is captured."
+      : isZh
+        ? "改约会重新走官网短信验证并读取新时段；你仍需要先选择新时间，再授权最后提交。原预约不要在官网中手动取消，除非你确认要走取消后重约。"
+        : "Rescheduling restarts official SMS verification and reads new slots. You still choose a new slot and approve the final submit. Do not manually cancel the existing booking unless you intend to cancel-and-rebook."
+    : null;
 
   const run = useCallback(async (action?: string, slotId?: string, nextSmsCode?: string) => {
     setBusy(action ?? "load");
@@ -724,11 +743,33 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   ? isZh ? "取消流程已创建" : "Cancellation checkpoint created"
                   : isZh ? "改约流程已创建" : "Reschedule checkpoint created"}
               </AlertTitle>
-              <AlertDescription>
-                {changeManualAction.instruction ??
-                  (changeManualAction.action_type === "official_cancel_required"
-                    ? isZh ? "后端需要进入官方页面完成取消并保存证据。" : "The backend must complete cancellation on the official page and save evidence."
-                    : isZh ? "请重新发送验证码并读取新时段。" : "Send a fresh code and read new slots.")}
+              <AlertDescription className="space-y-3">
+                <p>{changeDescription}</p>
+                {changeManualAction.instruction ? (
+                  <p className="text-xs leading-5 text-muted-foreground">{changeManualAction.instruction}</p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  {changeManualAction.action_type === "official_reschedule_required" ? (
+                    <Button
+                      size="sm"
+                      onClick={() => void run("request-live-booking")}
+                      disabled={Boolean(busy) || center?.liveBookingMode !== "sms_sync_supported"}
+                    >
+                      {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                      {isZh ? "重新发送官网验证码" : "Send a fresh official code"}
+                    </Button>
+                  ) : null}
+                  {officialChangeSearchUrl ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={officialChangeSearchUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        {changeManualAction.action_type === "official_cancel_required"
+                          ? isZh ? "打开官网查询/取消页" : "Open official query/cancel"
+                          : isZh ? "打开官网预约页" : "Open official booking page"}
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
               </AlertDescription>
             </Alert>
           ) : null}
