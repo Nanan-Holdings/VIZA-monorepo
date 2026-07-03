@@ -22,7 +22,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function submissionServiceBaseUrl() {
-  return (process.env.KR_EFORM_SUBMISSION_SERVICE_URL ?? process.env.SUBMISSION_SERVICE_LOCAL_URL ?? "http://127.0.0.1:8080").replace(/\/$/u, "");
+  return (process.env.KR_EFORM_SUBMISSION_SERVICE_URL ?? "http://127.0.0.1:8081").replace(/\/$/u, "");
 }
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
@@ -249,7 +249,7 @@ export async function POST(
     const errMessage = err instanceof Error ? err.message : String(err);
     const runnerHint =
       errMessage === "fetch failed" || errMessage.includes("ECONNREFUSED") || errMessage.includes("Failed to fetch")
-        ? "本机 official e-Form worker 没有运行或端口不可达。请启动 viza-be/submission-service 的 localhost endpoint，并设置 KR_VISA_PORTAL_EFORM_LOCAL_ENABLED=true；VIZA 不会用备用 Annex-17 冒充官网条码 PDF。"
+        ? "本机 official e-Form worker 没有运行或端口不可达。请启动 viza-be/submission-service 的 localhost endpoint（默认 http://127.0.0.1:8081），并设置 KR_VISA_PORTAL_EFORM_LOCAL_ENABLED=true；VIZA 不会用备用 Annex-17 冒充官网条码 PDF。"
         : `官方 e-Form runner 返回错误：${errMessage}`;
     next = {
       ...current,
