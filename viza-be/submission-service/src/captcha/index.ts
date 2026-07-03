@@ -1,5 +1,6 @@
 export {
   solveImageCaptcha,
+  solveGridCaptcha,
   solveCaptcha,
   reportBadCaptcha,
   TwoCaptchaConfigError,
@@ -12,5 +13,7 @@ export {
 export type {
   CaptchaSolveResult,
   CaptchaSolveTelemetry,
+  GridCaptchaSolveResult,
+  GridCaptchaTaskOptions,
   TokenCaptchaInput,
 } from "./two-captcha";

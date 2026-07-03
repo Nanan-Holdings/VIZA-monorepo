@@ -90,7 +90,10 @@ filling and one-shot submission for the applicant.
   selector/page boundaries, reads backend-observed slots, consumes short-TTL
   payment sessions, clears sensitive PAN/CVV after use, and must capture
   redacted confirmation/payment evidence only after explicit user slot,
-  payment, and final approval.
+  payment, and final approval. `src/france-tls/recaptcha-grid.ts` maps visible
+  reCAPTCHA image-grid challenges to 2captcha `GridTask` solves and page
+  clicks; it must not be treated as a Cloudflare/WAF, MFA, identity, or
+  payment-challenge bypass.
 - `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
   gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
   configured TLS VAC official URL through France-specific Browser API/CDP or a
@@ -357,6 +360,8 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
+- `viza-be/submission-service/src/france-tls/__tests__/recaptcha-grid.spec.ts`
+- `viza-be/submission-service/src/captcha/__tests__/two-captcha-grid.spec.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
 - `viza-be/agent-backend/src/db/schema.ts`
 - `docs/prd-ds160-ceac-runtime-validation.md`
