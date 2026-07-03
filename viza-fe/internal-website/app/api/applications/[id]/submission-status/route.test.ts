@@ -41,6 +41,43 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.message).toContain("worker has not picked it up");
   });
 
+  it("marks pending rows stalled after the shorter pickup timeout", () => {
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+
+    const status = deriveNonTerminalStatus(
+      {
+        id: "app_pickup_timeout",
+        applicant_id: "profile_1",
+        country: "indonesia",
+        visa_type: "ID_B1_EVOA",
+        submitted_at: oneMinuteAgo,
+        submission_result: null,
+        submission_result_status: "waiting",
+        submission_result_updated_at: oneMinuteAgo,
+        updated_at: oneMinuteAgo,
+      },
+      {
+        id: "queue_pickup_timeout",
+        status: "id_b1_evoa_live_assisted_pending",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "indonesia_b1_evoa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: null,
+        heartbeat_at: null,
+        manual_action_status: null,
+        official_status: null,
+        created_at: oneMinuteAgo,
+        updated_at: oneMinuteAgo,
+      },
+    );
+
+    expect(status.status).toBe("stalled");
+    expect(status.message).toContain("worker has not picked it up");
+  });
+
   it("treats Indonesia payment pending as manual action required", () => {
     const now = new Date().toISOString();
 

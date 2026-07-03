@@ -379,28 +379,38 @@ async function fetchPendingItems(input: {
       targetJobId: input.targetJobId ?? null,
       maxAttempts: MAX_ATTEMPTS,
     });
+    if (items.length === 0) {
+      items = await selectPendingItemsFallback(input);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!isSubmissionQueueClaimRpcUnavailableError(error)) {
       throw error;
     }
     console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
-    const query = supabase
-      .from("submission_queue")
-      .select("*")
-      .in("status", STALE_QUEUE_STATUSES.filter((status) => status.endsWith("_pending") || status === "pending"))
-      .lt("attempts", MAX_ATTEMPTS)
-      .order("created_at", { ascending: true })
-      .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
-    const { data, error: selectError } = input.targetJobId
-      ? await query.eq("id", input.targetJobId)
-      : await query;
-    if (selectError) {
-      throw new Error(`Failed fallback submission_queue select: ${selectError.message}`);
-    }
-    items = (data ?? []) as SubmissionQueueItem[];
+    items = await selectPendingItemsFallback(input);
   }
   return items.sort((left, right) => queuePriority(left) - queuePriority(right));
+}
+
+async function selectPendingItemsFallback(input: {
+  concurrency: number;
+  targetJobId?: string | null;
+}): Promise<SubmissionQueueItem[]> {
+  const query = supabase
+    .from("submission_queue")
+    .select("*")
+    .in("status", STALE_QUEUE_STATUSES.filter((status) => status.endsWith("_pending") || status === "pending"))
+    .lt("attempts", MAX_ATTEMPTS)
+    .order("created_at", { ascending: true })
+    .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
+  const { data, error: selectError } = input.targetJobId
+    ? await query.eq("id", input.targetJobId)
+    : await query;
+  if (selectError) {
+    throw new Error(`Failed fallback submission_queue select: ${selectError.message}`);
+  }
+  return (data ?? []) as SubmissionQueueItem[];
 }
 
 function queuePriority(item: SubmissionQueueItem): number {
