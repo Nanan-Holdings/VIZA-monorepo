@@ -239,3 +239,67 @@
   .site-foot .legal a { color: var(--fg-2); }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Headline floor lowered so it fits a 375px viewport */
+  .hero-headline { font-size: clamp(34px, 9vw, 132px); }
+  .sec-head h2 { font-size: clamp(30px, 5.5vw, 44px); }
+
+  @media (max-width: 900px) {
+    .hero-band { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+    .channel-grid { grid-template-columns: repeat(2, 1fr); }
+    .desks-grid { grid-template-columns: repeat(2, 1fr); }
+    .contact-form-wrap { grid-template-columns: 1fr; gap: 24px; }
+    .emergency { grid-template-columns: 1fr; gap: 24px; }
+    .emergency .right { align-items: flex-start; }
+  }
+
+  @media (max-width: 720px) {
+    .hero-headline { letter-spacing: -1px; }
+    .hero-inner { padding: 56px 20px 0; }
+    .hero-band { margin-top: 36px; padding-bottom: 28px; }
+
+    .section { padding: 56px 20px; }
+    .sec-head { margin-bottom: 32px; }
+
+    .form-shell { padding: 24px 20px; }
+    .form-head { flex-direction: column; gap: 12px; }
+    .form-head .form-ref { text-align: left; }
+
+    .emergency { margin-left: 20px; margin-right: 20px; margin-bottom: 56px; padding: 32px 24px; }
+
+    .faq-grid { grid-template-columns: 1fr; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 44px 0 36px;
+    }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 20px 0 28px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 560px) {
+    .channel-grid { grid-template-columns: 1fr; }
+    .desks-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+  }

@@ -650,3 +650,97 @@
   }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     ==================================================== */
+
+  /* Popover can never exceed the viewport width */
+  .passport-pop {
+    width: min(360px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+  }
+
+  @media (max-width: 860px) {
+    .nav-inner {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      gap: 12px;
+    }
+    .nav-left { flex: 1 1 auto; min-width: 0; gap: 12px; }
+    /* Compact passport pill: flag ball only (hide label text) */
+    .passport-pill { padding: 6px; }
+    .passport-pill > span:not(.ball) { display: none; }
+    /* Tabs drop to their own full-width row and scroll horizontally */
+    .nav-tabs {
+      order: 10;
+      flex: 1 1 100%;
+      overflow-x: auto;
+      padding: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav-tab { white-space: nowrap; padding: 9px 16px; }
+    .nav-right { flex: 1 1 auto; flex-wrap: wrap; min-width: 0; }
+    .search { width: auto; flex: 1 1 140px; min-width: 0; }
+    .search input { min-width: 0; }
+    /* Anchor the popover to the viewport so it cannot overflow right */
+    .passport-pop {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      top: 72px;
+      width: auto;
+      margin-top: 0;
+    }
+  }
+
+  @media (max-width: 560px) {
+    /* Drop the low-priority help button to make room for the search field */
+    .nav-right .icon-btn { display: none; }
+  }
+
+  @media (max-width: 720px) {
+    /* Passport status strip */
+    .passport-strip-inner { padding: 14px 16px; gap: 16px 24px; }
+    .ps-stats { flex-wrap: wrap; gap: 16px 24px; flex: 1 1 100%; }
+
+    /* Page shell */
+    .page { padding: 24px 16px 56px; }
+    .pagehead h1 { font-size: clamp(26px, 6vw, 36px); letter-spacing: -0.8px; }
+
+    /* Filter bar: scroll instead of clipping filters */
+    .filter-bar { overflow-x: auto; max-width: 100%; }
+    .filter { flex: 0 0 auto; }
+
+    /* Country cards render 2-up on a phone */
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 48px 0 40px;
+    }
+    .site-foot .foot-apps { flex-wrap: wrap; }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 24px 0 32px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 480px) {
+    /* 3 stats must fit a ~165px card */
+    .card-stats { gap: 6px; }
+    .stat .k { font-size: 9px; letter-spacing: 0.04em; }
+    .stat .v { font-size: 12px; }
+    .card-body { padding: 12px 12px 14px; }
+
+    /* Footer: single column */
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+    .site-foot .foot-apps { grid-column: auto; }
+  }
