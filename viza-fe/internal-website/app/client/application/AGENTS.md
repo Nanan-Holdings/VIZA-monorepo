@@ -44,7 +44,7 @@ Before changing this route, read:
 2. Do not reintroduce section-header rows or nested table/card borders inside the form body unless the user explicitly asks. The outer form card is enough.
 3. Keep the application page width aligned with the homepage content width. Use the shared `max-w-[1090px]` page rhythm unless a deliberate design change updates both.
 4. Avoid clipped focus or active borders. Prefer real borders inside the element over rings that overflow a constrained container.
-5. Text fields may be edited from either language side. Updating one side should update the other side and the canonical value.
+5. Text fields may be edited from either language side. Chinese-side edits may update the English/official side and the canonical value; English/official-side edits must not overwrite the Chinese side.
 6. Preserve native input shortcuts. Form-level shortcuts may handle non-text controls, but text inputs and textareas must keep browser-native `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `Ctrl/Cmd+Z`, and related behavior.
 7. Field AI must open only from the explicit `问 AI` button. Do not open it on generic field focus or row click.
 8. VIZA AI and field guidance answers must be plain text by default. Do not render Markdown-heavy output in the form panel.
@@ -66,7 +66,7 @@ For frontend application changes:
    `/client/application?country=germany&visaType=schengen_c`
 5. If an authenticated browser session is available, verify:
    - destination card opens the expected application
-   - bilingual fields sync both directions
+   - Chinese-side text edits update the English/official side, while English/official-side text edits do not overwrite Chinese text
    - `问 AI` opens and closes only from the button
    - photo upload is available from the supporting-documents photo row
    - review page is read-only

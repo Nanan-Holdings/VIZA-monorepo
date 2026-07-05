@@ -3042,6 +3042,8 @@ export default function ApplicationPage() {
                         className="mb-6"
                         initialFileName={passportOcrInitialFileName}
                         initialUploaded={passportOcrInitialUploaded}
+                        country={activeCountry}
+                        visaType={activeVisaType}
                         onFieldsApplied={handlePassportOcrFieldsApplied}
                         onUploaded={setLocalPassportBioPageName}
                       />

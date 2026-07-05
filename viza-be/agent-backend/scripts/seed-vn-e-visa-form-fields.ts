@@ -126,6 +126,12 @@ const EXPENSE_COVERAGE_OPTIONS = [
   { value: "company", text: "Company" },
 ];
 
+const EXPENSE_PAYMENT_METHOD_OPTIONS = [
+  { value: "cash", text: "Cash", label_zh: "现金", label_en: "Cash", official_label: "Cash" },
+  { value: "credit_card", text: "Credit card", label_zh: "信用卡", label_en: "Credit card", official_label: "Credit card" },
+  { value: "travellers_cheques", text: "Traveller's cheques", label_zh: "旅行支票", label_en: "Traveller's cheques", official_label: "Traveller's cheques" },
+];
+
 // Live list: 34 province-level administrative units. Vietnam reorganised
 // from 63 provinces to 34 in the June 2025 consolidation (Resolution
 // 60/NQ-TW). Order is the exact live render order (alphabetically grouped
@@ -166,43 +172,6 @@ const PROVINCE_OPTIONS = [
   { value: "dong_nai", text: "DONG NAI" },
   { value: "dong_thap", text: "DONG THAP" },
 ];
-
-const WARD_COMMUNE_FALLBACK_BY_PROVINCE: Record<string, string> = {
-  an_giang: "BINH DUC WARD",
-  bac_ninh: "BAC GIANG WARD",
-  cao_bang: "NUNG TRI CAO WARD",
-  ca_mau: "AN XUYEN WARD",
-  gia_lai: "AN BINH WARD",
-  ha_tinh: "BAC HONG LINH WARD",
-  hung_yen: "HONG CHAU WARD",
-  khanh_hoa: "PHUONG HOA THANG",
-  lai_chau: "TAN PHONG WARD",
-  lao_cai: "CAM DUONG WARD",
-  lam_dong: "1 BAO LOC WARD",
-  lang_son: "HOANG VAN THU WARD",
-  nghe_an: "CUA LO WARD",
-  ninh_binh: "CHAU SON WARD",
-  phu_tho: "HOA BINH WARD",
-  quang_ngai: "CAM THANH WARD",
-  quang_ninh: "AN SINH WARD",
-  quang_tri: "BA DON WARD",
-  son_la: "CHIENG AN WARD",
-  can_tho_city: "AN BINH WARD",
-  hue_city: "AN CUU WARD",
-  ha_noi_city: "BA DINH WARD",
-  hai_phong_city: "AN BIEN WARD",
-  ho_chi_minh_city: "PHUONG AN NHON",
-  da_nang_city: "AN HAI WARD",
-  thanh_hoa: "BIM SON WARD",
-  thai_nguyen: "BA XUYEN WARD",
-  tuyen_quang: "AN TUONG WARD",
-  tay_ninh: "AN TINH WARD",
-  vinh_long: "PHUONG LONG CHAU",
-  dien_bien: "MUONG LAY WARD",
-  dak_lak: "BUON MA THUOT WARD",
-  dong_nai: "AN LOC WARD",
-  dong_thap: "AN BINH WARD",
-};
 
 // Live list: 79 border gates (air + land + sea combined). Exact live
 // render order preserved. Labels match the government's Vietnamese-English
@@ -353,6 +322,7 @@ const FIELD_LABEL_ZH: Record<string, string> = {
   intended_expenses_usd: "预计费用（美元）",
   bought_travel_insurance: "是否已购买本次旅行保险？",
   expense_coverage: "谁承担申请人的旅行费用？",
+  expense_payment_method: "付款方式",
   violation_of_vietnam_laws_details: "请说明违反越南法律或法规的具体情况",
   final_declaration: "确认以上信息真实、准确、完整，并愿意对虚假申报承担责任",
 };
@@ -572,7 +542,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "identity_card_number", label: "Identity card number", field_type: "text", required: false, step_number: 1, step_name: "Personal Information", display_order: 6, placeholder: "ID Card", validation_rules: { maxLength: 30, live_dom_id: "basic_ttcnCccd" } },
   { field_name: "email_address", label: "Email", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 7, placeholder: "Enter email", validation_rules: { maxLength: 100, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", live_dom_id: "basic_ttcnEmail" } },
   { field_name: "re_enter_email_address", label: "Re-enter Email", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 8, placeholder: "Re-enter email", validation_rules: { maxLength: 100, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", live_dom_id: "basic_ttcnConfirmEmail" } },
-  { field_name: "religion", label: "Religion", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 9, placeholder: "Enter religion", validation_rules: { maxLength: 40, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, fallbackDefault: "NONE", live_dom_id: "basic_ttcnTonGiao" } },
+  { field_name: "religion", label: "Religion", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 9, placeholder: "Enter religion", validation_rules: { maxLength: 40, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, live_dom_id: "basic_ttcnTonGiao" } },
   { field_name: "place_of_birth", label: "Place of birth", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 10, placeholder: "Enter place of birth", validation_rules: { maxLength: 80, live_dom_id: "basic_ttcnNoiSinh" } },
 
   // Inline Yes/No toggles rendered outside ant-form-item on live (screenshot-confirmed)
@@ -606,16 +576,16 @@ const FIELDS: FieldDef[] = [
   { field_name: "emergency_contact_full_name", label: "Emergency contact full name", field_type: "text", required: true, step_number: 4, step_name: "Contact Information", display_order: 4, placeholder: "Enter emergency contact full name", validation_rules: { maxLength: 100, block_group: "emergency_contact", live_dom_id: "basic_ttllLlHoTen" } },
   { field_name: "emergency_contact_current_address", label: "Emergency contact current residential address", field_type: "text", required: true, step_number: 4, step_name: "Contact Information", display_order: 5, placeholder: "Enter emergency contact current residential address", validation_rules: { maxLength: 200, block_group: "emergency_contact", live_dom_id: "basic_ttllLlNoiOHienTai" } },
   { field_name: "emergency_contact_telephone", label: "Emergency contact telephone number", field_type: "text", required: true, step_number: 4, step_name: "Contact Information", display_order: 6, placeholder: "Enter emergency contact telephone number", validation_rules: { maxLength: 20, block_group: "emergency_contact", live_dom_id: "basic_ttllLlSdt" } },
-  { field_name: "emergency_contact_relationship", label: "Emergency contact relationship", field_type: "text", required: true, step_number: 4, step_name: "Contact Information", display_order: 7, placeholder: "Enter relationship to emergency contact", validation_rules: { maxLength: 40, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, fallbackDefault: "FRIEND", block_group: "emergency_contact", live_dom_id: "basic_ttllLlQuanHe" } },
+  { field_name: "emergency_contact_relationship", label: "Emergency contact relationship", field_type: "text", required: true, step_number: 4, step_name: "Contact Information", display_order: 7, placeholder: "Enter relationship to emergency contact", validation_rules: { maxLength: 40, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, block_group: "emergency_contact", live_dom_id: "basic_ttllLlQuanHe" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 5: Occupation  (live section "5. OCCUPATION")
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "occupation", label: "Occupation", field_type: "select", required: false, step_number: 5, step_name: "Occupation", display_order: 1, placeholder: "Enter occupation", options: OCCUPATION_OPTIONS, validation_rules: { live_dom_id: "basic_nnNgheNghiep" } },
-  { field_name: "occupation_info", label: "Current occupation details", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 2, placeholder: "Enter current occupation details", validation_rules: { maxLength: 100, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, fallbackDefault: "NOT APPLICABLE", live_dom_id: "basic_nnNgheNghiepHienTai" } },
-  { field_name: "company_or_school_name", label: "Name of Company/Agency/School", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 3, placeholder: "Enter name of Company/Agency/School", validation_rules: { maxLength: 120, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, fallbackDefault: "NOT APPLICABLE", live_dom_id: "basic_nnTenCtyCq" } },
-  { field_name: "position_course", label: "Position or course of study", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 4, placeholder: "Enter position or course of study", validation_rules: { maxLength: 80, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, fallbackDefault: "NOT APPLICABLE", live_dom_id: "basic_nnChucVu" } },
-  { field_name: "company_address", label: "Address of Company/Agency/School", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 5, placeholder: "Enter address of Company/Agency/School", validation_rules: { maxLength: 200, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, fallbackDefault: "NOT APPLICABLE", live_dom_id: "basic_nnDiaChi" } },
+  { field_name: "occupation_info", label: "Current occupation details", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 2, placeholder: "Enter current occupation details", validation_rules: { maxLength: 100, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, live_dom_id: "basic_nnNgheNghiepHienTai" } },
+  { field_name: "company_or_school_name", label: "Name of Company/Agency/School", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 3, placeholder: "Enter name of Company/Agency/School", validation_rules: { maxLength: 120, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, live_dom_id: "basic_nnTenCtyCq" } },
+  { field_name: "position_course", label: "Position or course of study", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 4, placeholder: "Enter position or course of study", validation_rules: { maxLength: 80, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, live_dom_id: "basic_nnChucVu" } },
+  { field_name: "company_address", label: "Address of Company/Agency/School", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 5, placeholder: "Enter address of Company/Agency/School", validation_rules: { maxLength: 200, pattern: "^[A-Za-z0-9 .,'()/-]+$", normalizeToUppercase: true, live_dom_id: "basic_nnDiaChi" } },
   { field_name: "company_phone", label: "Company/agency/school telephone number", field_type: "text", required: false, step_number: 5, step_name: "Occupation", display_order: 6, placeholder: "Enter company, agency, or school telephone number", validation_rules: { maxLength: 20, live_dom_id: "basic_nnSdt" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -636,7 +606,7 @@ const FIELDS: FieldDef[] = [
   // We cannot enumerate options statically (they depend on province), so we store as select
   // with an empty option list and rely on the province selection to populate at render time.
   // A future enhancement: wire up a dependent-select loader.
-  { field_name: "intended_ward_commune", label: "Intended ward/commune in Viet Nam", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 7, placeholder: "Choose ward/commune in Viet Nam", options: [], validation_rules: { dependent_on: "intended_province_city", fallbackDefault: "BA DINH WARD", fallbackDefaultByParent: WARD_COMMUNE_FALLBACK_BY_PROVINCE, officialSource: "/client-service/public/dm-tinh-tp/get-all -> selected province dmPhuongXa", live_dom_id: "basic_ttcdPhuongXa" } },
+  { field_name: "intended_ward_commune", label: "Intended ward/commune in Viet Nam", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 7, placeholder: "Choose ward/commune in Viet Nam", options: [], validation_rules: { dependent_on: "intended_province_city", dependent_options_key: "vietnam_wards_by_province", officialSource: "/client-service/public/dm-tinh-tp/get-all -> selected province dmPhuongXa", live_dom_id: "basic_ttcdPhuongXa" } },
   { field_name: "intended_border_gate_of_entry", label: "Intended border gate of entry", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 8, placeholder: "Choose one", options: BORDER_GATE_OPTIONS, validation_rules: { live_dom_id: "basic_ttcdNcCuaKhau" } },
   { field_name: "intended_border_gate_of_exit", label: "Intended border gate of exit", field_type: "select", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 9, placeholder: "Choose one", options: BORDER_GATE_OPTIONS, validation_rules: { live_dom_id: "basic_ttcdXcCuaKhau" } },
   { field_name: "declaration_temporary_residence", label: "I commit to declare temporary residence according to Vietnamese law", field_type: "checkbox", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 10, options: [{ value: "yes", text: "I agree" }], validation_rules: { live_dom_id: "basic_ttcdCqTcCamDoan" } },
@@ -668,6 +638,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "intended_expenses_usd", label: "Intended expenses (in USD)", field_type: "text", required: false, step_number: 8, step_name: "Trip Expenses & Insurance", display_order: 1, placeholder: "Enter intended expenses", validation_rules: { pattern: "^[0-9]{1,6}$", live_dom_id: "basic_kpbhDuTinh" } },
   { field_name: "bought_travel_insurance", label: "Have you bought travel insurance?", field_type: "select", required: false, step_number: 8, step_name: "Trip Expenses & Insurance", display_order: 2, placeholder: "Choose one", options: INSURANCE_OPTIONS, validation_rules: { live_dom_id: "basic_kpbhMuaBaoHiem" } },
   { field_name: "expense_coverage", label: "Who will cover the applicant's trip expenses?", field_type: "select", required: false, step_number: 8, step_name: "Trip Expenses & Insurance", display_order: 3, placeholder: "Choose one", options: EXPENSE_COVERAGE_OPTIONS, validation_rules: { live_dom_id: "basic_kpbhNguoiDamBao" } },
+  { field_name: "expense_payment_method", label: "Payment method", field_type: "select", required: true, step_number: 8, step_name: "Trip Expenses & Insurance", display_order: 4, placeholder: "Choose one", options: EXPENSE_PAYMENT_METHOD_OPTIONS, conditional_logic: { showIf: "expense_coverage === personal || expense_coverage === company" }, validation_rules: { live_dom_id: "basic_kpbhHinhThuc" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 9: Declaration  (live form footer)

@@ -407,7 +407,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
       { value: "credit_card", text: "Credit card", label_zh: "信用卡", label_en: "Credit card" },
       { value: "travellers_cheques", text: "Traveller's cheques", label_zh: "旅行支票", label_en: "Traveller's cheques" },
     ],
-    validationRules: { label_zh: "付款方式" },
+    validationRules: { label_zh: "付款方式", live_dom_id: "basic_kpbhHinhThuc" },
     conditionalLogic: { showIf: "expense_coverage in [personal, company]" },
   },
   {

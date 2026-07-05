@@ -88,89 +88,49 @@ const EXPENSE_COVERAGE_LABELS = {
   personal: "Personal",
   company: "Company",
 };
+const EXPENSE_PAYMENT_METHOD_LABELS = {
+  cash: "Cash",
+  credit_card: "Credit card",
+  travellers_cheques: "Traveller's cheques",
+  traveller_cheques: "Traveller's cheques",
+  traveler_cheques: "Traveller's cheques",
+};
 
 const PROVINCE_LABELS: Record<string, string> = {
+  an_giang: "AN GIANG",
+  bac_ninh: "BAC NINH",
+  cao_bang: "CAO BANG",
+  ca_mau: "CA MAU",
+  gia_lai: "GIA LAI",
+  ha_tinh: "HA TINH",
+  hung_yen: "HUNG YEN",
+  khanh_hoa: "KHANH HOA",
+  lai_chau: "LAI CHAU",
+  lam_dong: "LAM DONG",
+  lao_cai: "LAO CAI",
+  lang_son: "LANG SON",
+  nghe_an: "NGHE AN",
+  quang_ngai: "QUANG NGAI",
+  ninh_binh: "NINH BINH",
+  quang_ninh: "QUANG NINH",
+  phu_tho: "PHU THO",
+  quang_tri: "QUANG TRI",
+  hue_city: "HUE City",
+  son_la: "SON LA",
   ha_noi_city: "HA NOI City",
-};
-
-const WARD_COMMUNE_FALLBACK_BY_PROVINCE: Record<string, string> = {
-  an_giang: "BINH DUC WARD",
-  bac_ninh: "BAC GIANG WARD",
-  cao_bang: "NUNG TRI CAO WARD",
-  ca_mau: "AN XUYEN WARD",
-  gia_lai: "AN BINH WARD",
-  ha_tinh: "BAC HONG LINH WARD",
-  hung_yen: "HONG CHAU WARD",
-  khanh_hoa: "PHUONG HOA THANG",
-  lai_chau: "TAN PHONG WARD",
-  lao_cai: "CAM DUONG WARD",
-  lam_dong: "1 BAO LOC WARD",
-  lang_son: "HOANG VAN THU WARD",
-  nghe_an: "CUA LO WARD",
-  ninh_binh: "CHAU SON WARD",
-  phu_tho: "HOA BINH WARD",
-  quang_ngai: "CAM THANH WARD",
-  quang_ninh: "AN SINH WARD",
-  quang_tri: "BA DON WARD",
-  son_la: "CHIENG AN WARD",
-  can_tho_city: "AN BINH WARD",
-  hue_city: "AN CUU WARD",
-  ha_noi_city: "BA DINH WARD",
-  hai_phong_city: "AN BIEN WARD",
-  ho_chi_minh_city: "PHUONG AN NHON",
-  da_nang_city: "AN HAI WARD",
-  thanh_hoa: "BIM SON WARD",
-  thai_nguyen: "BA XUYEN WARD",
-  tuyen_quang: "AN TUONG WARD",
-  tay_ninh: "AN TINH WARD",
-  vinh_long: "PHUONG LONG CHAU",
-  dien_bien: "MUONG LAY WARD",
-  dak_lak: "BUON MA THUOT WARD",
-  dong_nai: "AN LOC WARD",
-  dong_thap: "AN BINH WARD",
-};
-
-const LATIN_TEXT_SCHEMA_RULE = {
-  pattern: "^[A-Za-z0-9 .,'()/-]+$",
-  maxLength: 120,
-  normalizeToUppercase: true,
-} as const;
-
-const VN_FIELD_FALLBACK_DEFAULTS: Record<
-  string,
-  {
-    value: string;
-    schemaRuleSuggestion: Omit<VnFieldFallbackRecord["schemaRuleSuggestion"], "fallbackDefault">;
-  }
-> = {
-  religion: {
-    value: "NONE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  occupation_info: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  company_or_school_name: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  position_course: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  company_address: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  emergency_contact_relationship: {
-    value: "FRIEND",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  intended_ward_commune: {
-    value: "BA DINH WARD",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
+  can_tho_city: "CAN THO City",
+  hai_phong_city: "HAI PHONG City",
+  thanh_hoa: "THANH HOA",
+  ho_chi_minh_city: "HO CHI MINH City",
+  thai_nguyen: "THAI NGUYEN",
+  da_nang_city: "DA NANG City",
+  tuyen_quang: "TUYEN QUANG",
+  dien_bien: "DIEN BIEN",
+  tay_ninh: "TAY NINH",
+  dak_lak: "DAK LAK",
+  vinh_long: "VINH LONG",
+  dong_nai: "DONG NAI",
+  dong_thap: "DONG THAP",
 };
 
 function titleizeOptionSlug(value: string): string {
@@ -217,6 +177,7 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
     return PROVINCE_LABELS[normalized];
   }
   if (fieldName === "intended_province_city") return provinceLabel(normalized);
+  if (fieldName === "intended_ward_commune") return titleizeOptionSlug(normalized).toUpperCase();
   if (
     fieldName === "intended_border_gate_of_entry" ||
     fieldName === "intended_border_gate_of_exit"
@@ -235,7 +196,8 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
 }
 
 export function getVnFieldFallbackValue(fieldName: string): string | null {
-  return VN_FIELD_FALLBACK_DEFAULTS[fieldName]?.value ?? null;
+  void fieldName;
+  return null;
 }
 
 export function normalizeVnProvinceKey(rawValue: string | null | undefined): string {
@@ -251,11 +213,9 @@ export function getVnDependentFieldFallbackValue(
   fieldName: string,
   answers: Record<string, string>,
 ): string | null {
-  if (fieldName === "intended_ward_commune") {
-    const provinceKey = normalizeVnProvinceKey(answers.intended_province_city);
-    return WARD_COMMUNE_FALLBACK_BY_PROVINCE[provinceKey] ?? getVnFieldFallbackValue(fieldName);
-  }
-  return getVnFieldFallbackValue(fieldName);
+  void fieldName;
+  void answers;
+  return null;
 }
 
 export function buildVnFieldFallback(input: {
@@ -266,21 +226,8 @@ export function buildVnFieldFallback(input: {
   fallbackValue?: string | null;
   errorMessage: string;
 }): VnFieldFallbackRecord | null {
-  const fallback = VN_FIELD_FALLBACK_DEFAULTS[input.fieldName];
-  if (!fallback) return null;
-  const fallbackValue = input.fallbackValue?.trim() || fallback.value;
-  return {
-    fieldName: input.fieldName,
-    domId: input.domId,
-    type: input.type,
-    userValue: input.userValue,
-    fallbackValue,
-    reason: input.errorMessage,
-    schemaRuleSuggestion: {
-      ...fallback.schemaRuleSuggestion,
-      fallbackDefault: fallbackValue,
-    },
-  };
+  void input;
+  return null;
 }
 
 export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
@@ -350,6 +297,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   intended_expenses_usd: { domId: "basic_kpbhDuTinh", type: "text", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
   bought_travel_insurance: { domId: "basic_kpbhMuaBaoHiem", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: YES_NO_LABELS },
   expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: EXPENSE_COVERAGE_LABELS },
+  expense_payment_method: { domId: "basic_kpbhHinhThuc", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_PAYMENT_METHOD_LABELS },
 };
 
 /** Selector for the registration-code element shown after a successful save
