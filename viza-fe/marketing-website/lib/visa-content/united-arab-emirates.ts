@@ -1,74 +1,87 @@
 import type { VisaContent } from "./types";
 
 /**
- * United Arab Emirates e-Visa content.
- * Last fact-checked: 2026-06-10 against icp.gov.ae, gdrfad.gov.ae, and u.ae.
+ * United Arab Emirates tourist visa content.
+ * Last fact-checked: 2026-07-05 against u.ae, gdrfad.gov.ae, icp.gov.ae,
+ * smartservices.icp.gov.ae, ae.china-embassy.gov.cn, mofa.gov.ae.
  *
- * Visa specifics (fees, validity, document list, rejection reasons, entry
- * conditions) must be verified by ops/legal against the official ICP portal
- * (icp.gov.ae) and Dubai GDRFA (gdrfad.gov.ae) before publishing changes.
- * Stay duration and entry type vary by visa category — copy is intentionally
- * nationality-neutral.
+ * Key facts baked in:
+ *   - UAE tourist visas are sponsor-filed (airline, licensed agent, or UAE
+ *     hotel) via GDRFA Dubai or federal ICP — embassies do NOT issue them.
+ *   - GDRFA fees: 30-day AED 252 + 5% VAT + AED 20 dirhams (≈ SGD 100);
+ *     60-day AED 352 + VAT (≈ SGD 130). Processing: 48 hours (GDRFA stated).
+ *   - Singapore & PRC passports need NO visa: free entry on arrival, 90 days
+ *     within any 180-day period (SG since Sep 2024; PRC per Apr 2025 embassy
+ *     confirmation under the 2018 mutual-exemption agreement).
+ *   - Extension: up to 120 days total, fully online via ICP since Dec 2025
+ *     (AED 100 + AED 500 ≈ SGD 210, ~2 days). Overstay: AED 50/day unified
+ *     rate since Feb 2026, no grace period, fines block future approvals.
  *
- * Ops confirmation needed:
- *   - Validity from issue: officially 58 days (per u.ae/GDRFA); displayed here as
- *     "approximately 60 days" for readability — confirm exact figure before updating.
- *   - Overstay fine: AED 50/day is the ICP-standardised federal rate as of Feb 2026;
- *     GDRFA Dubai historically listed AED 100/day — confirm which applies at checkout.
- *   - Extension: available online via ICP or GDRFA (Dubai); confirm current fee/process.
+ * Items needing ops confirmation:
+ *   - u.ae visa-on-arrival country-list pages 404 as of 2026-07-05; Singapore's
+ *     90-day placement rests on Emirates airline + Fragomen, not a live gov page.
+ *   - Entry-validity window of the pre-arranged visa (~60 days from issue is the
+ *     commonly cited figure) is not stated on the GDRFA service page.
+ *   - Whether the old 10-day grace on the 30-day VOA survives the Feb 2026 fine
+ *     unification, and whether the 90/180 arrival stay is single- or multi-entry.
+ *   - Third-party sources cite ~AED 1,130 all-in for an ICP extension vs AED 600
+ *     official line items; exit-permit fee (AED 250–300) for 30+ day overstays is
+ *     secondary-source only.
+ *   - SGD conversions use 1 AED ≈ 0.35 SGD (AED pegged at USD 3.6725) — verify at
+ *     publication.
  */
 export const unitedArabEmirates: VisaContent = {
   slug: "united-arab-emirates",
 
-  heroTitle: "United Arab Emirates e-Visa",
-  lede: "An official UAE e-Visa for tourism and short-term visits, granting 30 or 60 days of stay with optional extension. Apply online before travel — no embassy visit required.",
+  heroTitle: "United Arab Emirates Tourist Visa",
+  lede: "A sponsor-filed UAE tourist visa granting a 30- or 60-day stay, processed by GDRFA Dubai in 48 hours. Singapore and Chinese passport holders skip it entirely — 90 days visa-free on arrival. VIZA confirms which applies to you and handles the rest.",
   heroImage: "/assets/heroes/united-arab-emirates.jpg",
   meta: [
-    { k: "Type", v: "e-Visa (Tourist)" },
+    { k: "Type", v: "Tourist visa (sponsor-filed)" },
     { k: "Length of stay", v: "30 or 60 days" },
-    { k: "Validity", v: "~58 days from issue" },
+    { k: "Validity", v: "~60 days to enter" },
     { k: "Entry", v: "Single or Multiple" },
   ],
   tags: [
-    { icon: "bolt", label: "Fast approval" },
+    { icon: "bolt", label: "48-hr government processing" },
     { icon: "shield", label: "On-time guarantee" },
     { icon: "doc", label: "Minimal documents" },
   ],
 
   overviewTitle: "United Arab Emirates, at a glance",
   overviewSub:
-    "Futuristic skylines, golden deserts, luxury shopping, and year-round sunshine — the UAE is a gateway destination between East and West.",
+    "Futuristic skylines, golden deserts, luxury shopping, and year-round sunshine. Singapore and Chinese passports enter visa-free for 90 days; most other nationalities need this sponsor-arranged tourist visa.",
   glance: [
     { icon: "globe", k: "Capital", v: "Abu Dhabi", sub: "UTC +4 (GST, no DST)" },
     { icon: "clock", k: "Best time to visit", v: "Oct – Apr", sub: "Cooler temperatures, outdoor-friendly" },
-    { icon: "currency", k: "Currency", v: "UAE Dirham (AED)", sub: "Pegged to the USD since 1997" },
+    { icon: "currency", k: "Currency", v: "UAE Dirham (AED)", sub: "Pegged to the USD · SGD 1 ≈ AED 2.85" },
     { icon: "pin", k: "Top destinations", v: "Dubai · Abu Dhabi · Sharjah", sub: "Plus Ras Al Khaimah, Fujairah" },
   ],
 
-  processTitle: "How the UAE e-Visa process works",
+  processTitle: "How the UAE tourist visa process works",
   processSub:
-    "Submit once. We handle every step with the UAE Federal Authority ICP portal and notify you the moment your visa is ready.",
+    "UAE embassies don't issue tourist visas — applications go through a licensed sponsor to GDRFA Dubai or the federal ICP. VIZA files through its licensed channel and tracks every stage.",
   steps: [
     {
       title: "Apply on VIZA",
-      body: "Upload your passport, photo, and travel details. Pay only the government fee upfront — VIZA's processing fee is charged on approval.",
+      body: "Upload your passport, one white-background photo, travel dates, and onward ticket. Pay only the government fee upfront — VIZA's processing fee is charged on approval.",
     },
     {
-      title: "Your documents are verified",
-      body: "Your VIZA consultant checks nationality eligibility, passport scan quality, and every required field, then submits directly to the ICP portal.",
+      title: "Eligibility check & document verification",
+      body: "Your VIZA consultant first confirms you actually need a visa — Singapore and Chinese passports don't — then verifies your MRZ scan, photo, insurance, and onward ticket before filing through our licensed sponsor channel to GDRFA Dubai.",
     },
     {
-      title: "Your e-Visa gets processed",
-      body: "We monitor each stage in the UAE system and flag any delays so you always know where things stand.",
+      title: "Your visa gets processed",
+      body: "GDRFA Dubai's stated processing time is 48 hours. We monitor each stage and flag any delays so you always know where things stand.",
       statusRows: [
-        { label: "Application submitted to ICP portal", ts: "15 Jun, 10:00 AM", onTime: true },
+        { label: "Application filed with GDRFA Dubai", ts: "15 Jun, 10:00 AM", onTime: true },
         { label: "Identity and travel document verified", ts: "15 Jun, 1:30 PM", onTime: true },
-        { label: "Awaiting final e-Visa issuance", ts: "In progress" },
+        { label: "Awaiting final visa issuance", ts: "In progress" },
       ],
     },
     {
-      title: "Get your e-Visa on 18 Jun, 12:00 PM",
-      body: "The e-Visa PDF arrives in your inbox and your VIZA app. Print it or save it — UAE immigration scans it on arrival.",
+      title: "Get your visa on 18 Jun, 12:00 PM",
+      body: "The visa PDF arrives in your inbox and your VIZA app. Print it or save it — UAE immigration scans it on arrival, then captures your biometrics at the border.",
       delivered: true,
     },
   ],
@@ -77,44 +90,59 @@ export const unitedArabEmirates: VisaContent = {
   docsSub:
     "Your VIZA consultant double-checks each document before submission. Re-uploads are unlimited and free.",
   documents: [
-    { name: "Passport bio page", sub: "Valid 6+ months beyond stay · clean scan" },
-    { name: "Recent photograph", sub: "White background · last 6 months" },
-    { name: "Return or onward ticket", sub: "Departure within the approved stay window" },
-    { name: "Accommodation proof", sub: "Hotel confirmation or host invitation letter" },
+    { name: "Passport bio page", sub: "Valid 6+ months · clear scan with readable MRZ" },
+    { name: "One colour photograph", sub: "White background · recent" },
+    { name: "Onward or return ticket", sub: "GDRFA condition — showing your journey out of the UAE" },
+    { name: "Health insurance", sub: "Valid in the UAE for your stay — a stated visa condition" },
+    { name: "National ID card", sub: "Only for Iraq, Pakistan, Iran, and Afghanistan nationals" },
   ],
 
-  rejectionTitle: "Why UAE e-Visas get rejected",
+  rejectionTitle: "Why UAE tourist visas get rejected",
   rejectionSub:
-    "The ICP system checks these automatically. VIZA reviews your application before submission to catch issues first.",
+    "The GDRFA/ICP systems check these automatically. VIZA reviews your application before submission to catch issues first.",
   rejectionReasons: [
     {
-      title: "Incomplete or unclear passport scan",
-      body: "The UAE system requires a fully legible, un-cropped bio page. Blurry or partially obscured scans are rejected automatically.",
+      title: "Passport validity under 6 months",
+      body: "GDRFA rejects applications outright when the passport has less than 6 months remaining. The same 6-month rule applies to visa-free entry.",
     },
     {
-      title: "Security or criminal record flags",
-      body: "Applicants with flagged travel history, certain prior criminal convictions, or entry bans in the UAE are ineligible for an e-Visa.",
+      title: "Blurry photo or unreadable passport scan",
+      body: "A low-resolution photo, wrong background, or obscured MRZ zone prevents identity verification and triggers automatic rejection.",
     },
     {
-      title: "Prior immigration violations",
-      body: "Overstaying a previous UAE visa or violating entry conditions creates a record that can block future applications.",
+      title: "Previous overstay or unpaid fines",
+      body: "Overstay records and outstanding fines stay on the ICP/GDRFA systems permanently. New applications are refused until fines are cleared — compliance history is now linked to future approvals.",
+    },
+    {
+      title: "An old visa still open in the system",
+      body: "An active prior entry permit or uncancelled residence visa blocks a new tourist visa until it's cancelled or expires.",
+    },
+    {
+      title: "Data mismatch",
+      body: "Name, passport number, or date-of-birth inconsistencies between the application and passport — or travel dates that don't match the visa requested.",
+    },
+    {
+      title: "Nationality-specific document gaps",
+      body: "Missing home-country ID card for Iraq, Pakistan, Iran, or Afghanistan nationals, or missing financial documents where required.",
     },
   ],
 
   entryTitle: "Entry & exit regulations",
   entrySub:
-    "Carry your e-Visa PDF and a valid return ticket. Stay within the permitted period — UAE immigration tracks departure dates closely.",
+    "No arrival card is needed — the UAE has no equivalent of Thailand's TDAC or Malaysia's MDAC. Biometrics (face and iris) are captured at immigration, and airlines can ask for your onward ticket at check-in — it's a formal visa condition.",
   entryExit: [
-    { icon: "refresh", k: "Entry", v: "Single or Multiple", sub: "Depends on visa category selected at application" },
-    { icon: "clock", k: "Activate within", v: "~58 days", sub: "From the e-Visa issue date — enter before this window closes" },
+    { icon: "refresh", k: "Entry", v: "Single or Multiple", sub: "Chosen at application — both exist for 30- and 60-day visas" },
+    { icon: "clock", k: "Activate within", v: "~60 days", sub: "From the issue date — enter before the window closes" },
+    { icon: "plane", k: "Arrival card", v: "Not required", sub: "Biometrics captured at the border instead" },
   ],
 
   extensionTitle: "Visa extension & overstays",
   extensionSub:
-    "Tourist e-Visas can be extended online through the ICP portal or GDRFA (for Dubai) before expiry for a period matching the original visa duration. Overstaying triggers daily fines and can result in a travel ban.",
+    "Since December 2025, 30- and 60-day visit visas extend fully online through ICP Smart Services — no more exiting and re-entering. Extensions run up to 120 days total and must be filed before expiry; fines start the day after.",
   extension: [
-    { icon: "extend", k: "Extension", v: "Available online", sub: "Apply via ICP portal or GDRFA before expiry — duration matches original visa" },
-    { icon: "alert", k: "Overstay fine", v: "AED 50 / day", sub: "Plus entry ban risk on departure" },
+    { icon: "extend", k: "Extension", v: "Up to 120 days", sub: "Once or multiple times · fully online via ICP · ~2 days" },
+    { icon: "currency", k: "Extension fee", v: "AED 600", sub: "AED 100 application + AED 500 extension ≈ SGD 210" },
+    { icon: "alert", k: "Overstay fine", v: "AED 50 / day", sub: "≈ SGD 17.50 per day · unified rate, no grace period" },
   ],
 
   reviews: {
@@ -148,59 +176,74 @@ export const unitedArabEmirates: VisaContent = {
   faq: [
     {
       category: "General information",
-      q: "What is the UAE Tourist e-Visa?",
-      a: "The UAE Tourist e-Visa is an official electronic authorisation issued by the Federal Authority for Identity, Citizenship, Customs & Port Security (ICP). It allows eligible travellers to enter the UAE for tourism, leisure, family visits, or transit without attending an embassy.",
+      q: "What is the UAE tourist visa and who issues it?",
+      a: "A 30- or 60-day tourist visa issued by GDRFA Dubai or the federal ICP. Unusually, you can't apply direct or at an embassy — applications must be filed by a licensed sponsor such as an airline, a UAE hotel, or a licensed travel agent. VIZA files through its licensed channel, so for you it works like any online visa.",
     },
     {
       category: "General information",
-      q: "Can I travel to all seven emirates on one e-Visa?",
-      a: "Yes. A UAE e-Visa is valid across all seven emirates — Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, and Umm Al Quwain. There are no inter-emirate border checks.",
+      q: "Do Singapore or Chinese passport holders need this visa?",
+      a: "No. Singapore passports get free visa on arrival for 90 days within any 180-day period (since September 2024). Chinese ordinary passports are visa-free for the same 90-in-180 stay under the 2018 China–UAE mutual exemption. Both need 6+ months' passport validity. VIZA confirms your eligibility before you pay a cent.",
+    },
+    {
+      category: "General information",
+      q: "Can I travel to all seven emirates on one visa?",
+      a: "Yes. A UAE tourist visa is valid across all seven emirates — Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, and Umm Al Quwain. There are no inter-emirate border checks.",
     },
     {
       category: "Application process",
-      q: "How quickly will I receive my UAE e-Visa?",
-      a: "Most approvals arrive within 2 – 4 business days through VIZA. Processing can be faster for straightforward cases. We back our timeline with an on-time guarantee — your money back if we're late.",
+      q: "How quickly will I receive my UAE tourist visa?",
+      a: "GDRFA Dubai's stated processing time is 48 hours once filed. Through VIZA, most visas are delivered within 2 – 3 business days end-to-end, backed by our on-time guarantee — your money back if we're late.",
     },
     {
       category: "Application process",
-      q: "Can I apply for multiple family members together?",
-      a: "Yes. Add each traveller in your VIZA application — your consultant submits them together so they are processed on the same timeline and land with matching visas.",
+      q: "How much is the government fee?",
+      a: "For the 30-day visa, GDRFA charges AED 252 + 5% VAT + AED 20 in knowledge/innovation dirhams (≈ SGD 100). The 60-day visa is AED 352 + VAT (≈ SGD 130). A 5-year multi-entry tourist visa also exists at AED 713.50 in fees plus a refundable AED 3,000 guarantee deposit, with a USD 4,000 bank-balance requirement.",
     },
     {
       category: "Refunds, rejections & reapplications",
-      q: "What happens if my UAE e-Visa is refused?",
-      a: "The UAE government retains the application fee. VIZA's service fee is fully refunded. Your consultant will review the reason for refusal — often a document issue — and advise on reapplication or alternative entry options.",
+      q: "What happens if my UAE tourist visa is refused?",
+      a: "The UAE government retains its fee; VIZA's service fee is fully refunded. Your consultant reviews the refusal — the most common causes are unpaid fines from a previous stay or an old visa still open in the system — and helps you clear the blocker and reapply.",
     },
   ],
 
   sources: [
     {
-      label: "UAE Federal Authority for Identity, Citizenship, Customs & Port Security (ICP)",
-      url: "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e60",
-      display: "icp.gov.ae",
+      label: "UAE Official Government Portal — Tourist visa",
+      url: "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa",
+      display: "u.ae",
     },
     {
-      label: "Dubai General Directorate of Residency and Foreigners Affairs (GDRFA)",
+      label: "GDRFA Dubai — Issuance of a single-entry tourist visa",
       url: "https://www.gdrfad.gov.ae/en/services/f9e586fe-0642-11ec-0320-0050569629e8",
       display: "gdrfad.gov.ae",
     },
     {
-      label: "UAE Official Government Portal — Tourist Visa",
-      url: "https://u.ae/en/information-and-services/visa-and-emirates-id/tourist-visa",
-      display: "u.ae",
+      label: "ICP — Visa extension service",
+      url: "https://icp.gov.ae/en/services-details/?serviceid=64afe3c1035448005bd52e62",
+      display: "icp.gov.ae",
+    },
+    {
+      label: "ICP Smart Services portal",
+      url: "https://smartservices.icp.gov.ae",
+      display: "smartservices.icp.gov.ae",
+    },
+    {
+      label: "Chinese Embassy in the UAE — Entry & exit requirements",
+      url: "https://ae.china-embassy.gov.cn/chn//faxz/crjyq/",
+      display: "ae.china-embassy.gov.cn",
     },
   ],
 
   price: {
     etaLabel: "Apply now, get it by",
     etaValue: "18 Jun 2026, 12:00 PM",
-    title: "e-Visa · UAE Tourist",
+    title: "Tourist visa · 30 or 60-day stay",
     saving: "Faster than applying direct",
     sub: "All-inclusive of government fee, document review, and on-time guarantee.",
     foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
   },
 
-  aiPlaceholder: "Ask anything about UAE visas — entry rules, extensions, eligible nationalities…",
+  aiPlaceholder: "Ask anything about UAE visas — visa-free entry, fees, extensions…",
 };
 
 export default unitedArabEmirates;
