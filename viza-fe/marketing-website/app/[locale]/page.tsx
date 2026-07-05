@@ -8,6 +8,7 @@ import { COUNTRIES as COUNTRY_META, visaHref } from "@/lib/countries";
 import { displayFeeSGD } from "@/lib/pricing";
 import LanguageToggle from "@/components/LanguageToggle";
 import SiteFooter from "@/components/SiteFooter";
+import VisaWorldMap from "@/components/VisaWorldMap";
 
 const FILTER_KEYS = ["delivery", "type", "documents", "dates"] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
@@ -413,22 +414,35 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        {/* Primary grid: 1 featured + regular */}
-        <div className="grid">
-          {first.map((c, i) => (
-            <Card key={c.slug} c={c} featured={i === 0} />
-          ))}
-        </div>
+        {view === "map" ? (
+          /* Dotted world map: colorized dots for supported destinations, hover for the card */
+          <VisaWorldMap
+            countries={countries}
+            renderCard={(slug) => {
+              const c = countries.find((x) => x.slug === slug);
+              return c ? <Card c={c} /> : null;
+            }}
+          />
+        ) : (
+          <>
+            {/* Primary grid: 1 featured + regular */}
+            <div className="grid">
+              {first.map((c, i) => (
+                <Card key={c.slug} c={c} featured={i === 0} />
+              ))}
+            </div>
 
-        <div className="section-head">
-          <h2>{t("explore.sectionTitle", { country: passportName })}</h2>
-          <a href="#" className="seeall">{t("explore.seeAll", { n: COUNTRY_META.length })} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></a>
-        </div>
-        <div className="grid">
-          {rest.map((c) => (
-            <Card key={c.slug} c={c} />
-          ))}
-        </div>
+            <div className="section-head">
+              <h2>{t("explore.sectionTitle", { country: passportName })}</h2>
+              <a href="#" className="seeall">{t("explore.seeAll", { n: COUNTRY_META.length })} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></a>
+            </div>
+            <div className="grid">
+              {rest.map((c) => (
+                <Card key={c.slug} c={c} />
+              ))}
+            </div>
+          </>
+        )}
 
         <p className="footnote">{t("explore.footnote")}</p>
       </main>
