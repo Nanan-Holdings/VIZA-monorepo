@@ -1,158 +1,88 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CircleFlag } from "react-circle-flags";
+import { useTranslations } from "next-intl";
 import LanguageToggle from "./LanguageToggle";
 import "./site-nav.css";
 
-const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
+/** Passport ISO codes (display names resolve from the `passports` namespace). */
+const PASSPORT_CODES = [
+  "SG", "JP", "KR", "DE", "FR", "GB", "US", "AU", "CA",
+  "AE", "CN", "IN", "BR", "PH", "ID", "MY", "TH",
+] as const;
+type PassportCode = (typeof PASSPORT_CODES)[number];
 
-type Passport = { code: string; name: string };
-const PASSPORTS: Passport[] = [
-  { code: "SG", name: "Singapore" },
-  { code: "JP", name: "Japan" },
-  { code: "KR", name: "South Korea" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "US", name: "United States" },
-  { code: "AU", name: "Australia" },
-  { code: "CA", name: "Canada" },
-  { code: "AE", name: "United Arab Emirates" },
-  { code: "CN", name: "China" },
-  { code: "IN", name: "India" },
-  { code: "BR", name: "Brazil" },
-  { code: "PH", name: "Philippines" },
-  { code: "ID", name: "Indonesia" },
-  { code: "MY", name: "Malaysia" },
-  { code: "TH", name: "Thailand" },
-];
+type Tab = "explore" | "events";
 
 type Props = {
   /** "explore" or "events" — adds .active to that tab. Omit for none. */
-  activeTab?: "explore" | "events";
+  activeTab?: Tab;
 };
 
-export default function SiteNav({ activeTab }: Props) {
+export default function SiteNav({ activeTab: initialTab }: Props) {
+  const t = useTranslations();
+
+  // --- Nav tab pill indicator ---
+  const [activeTab, setActiveTab] = useState<Tab | undefined>(initialTab);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const exploreRef = useRef<HTMLAnchorElement>(null);
+  const eventsRef = useRef<HTMLAnchorElement>(null);
+  const [pill, setPill] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    if (!activeTab) return;
+    const el = activeTab === "explore" ? exploreRef.current : eventsRef.current;
+    const wrap = tabsRef.current;
+    if (!el || !wrap) return;
+    const r = el.getBoundingClientRect();
+    const pr = wrap.getBoundingClientRect();
+    setPill({ left: r.left - pr.left, width: r.width });
+  }, [activeTab, t]);
+
   useEffect(() => {
-    const tabsEl = document.getElementById("siteNavTabs");
-    const pill = document.getElementById("siteNavPill");
-    function movePill(target: Element) {
-      if (!tabsEl || !pill) return;
-      const r = target.getBoundingClientRect();
-      const pr = tabsEl.getBoundingClientRect();
-      (pill as HTMLElement).style.left = r.left - pr.left + "px";
-      (pill as HTMLElement).style.width = r.width + "px";
-    }
-    tabsEl?.querySelectorAll(".nav-tab").forEach((b) => {
-      b.addEventListener("click", () => {
-        tabsEl.querySelectorAll(".nav-tab").forEach((x) => x.classList.remove("active"));
-        b.classList.add("active");
-        movePill(b);
-      });
-    });
-    requestAnimationFrame(() => {
-      const active = tabsEl?.querySelector(".nav-tab.active");
-      if (active) movePill(active);
-    });
     const onResize = () => {
-      const active = tabsEl?.querySelector(".nav-tab.active");
-      if (active) movePill(active);
+      if (!activeTab) return;
+      const el = activeTab === "explore" ? exploreRef.current : eventsRef.current;
+      const wrap = tabsRef.current;
+      if (!el || !wrap) return;
+      const r = el.getBoundingClientRect();
+      const pr = wrap.getBoundingClientRect();
+      setPill({ left: r.left - pr.left, width: r.width });
     };
     window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [activeTab]);
 
-    let currentPassport: Passport = PASSPORTS[0];
-    let passportPop: HTMLElement | null = null;
-    const passportPill = document.getElementById("siteNavPassportPill");
+  // --- Passport selector ---
+  const [passportCode, setPassportCode] = useState<PassportCode>("SG");
+  const [ppOpen, setPpOpen] = useState(false);
+  const [ppQuery, setPpQuery] = useState("");
+  const ppInputRef = useRef<HTMLInputElement>(null);
+  const passportName = t(`passports.${passportCode}`);
 
-    function setPassport(p: Passport) {
-      currentPassport = p;
-      const code = p.code.toLowerCase();
-      const ball = document.getElementById("siteNavPassportBall");
-      if (ball) ball.innerHTML = `<img src="${FLAG_CDN}/${code}.svg" alt="${p.name}"/>`;
-      const nameEl = document.getElementById("siteNavPassportName");
-      if (nameEl) nameEl.textContent = p.name;
+  useEffect(() => {
+    if (ppOpen) {
+      const id = window.setTimeout(() => ppInputRef.current?.focus(), 0);
+      return () => window.clearTimeout(id);
     }
+    setPpQuery("");
+  }, [ppOpen]);
 
-    function closePassportPop() {
-      if (passportPop) {
-        passportPop.remove();
-        passportPop = null;
-      }
-      passportPill?.classList.remove("open");
-    }
+  useEffect(() => {
+    if (!ppOpen) return;
+    const close = () => setPpOpen(false);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [ppOpen]);
 
-    function renderPassportList(query: string) {
-      const q = (query || "").trim().toLowerCase();
-      const filtered = PASSPORTS.filter(
-        (p) => !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
-      );
-      return (
-        filtered
-          .map(
-            (p) => `
-        <button class="pp-row ${p.code === currentPassport.code ? "sel" : ""}" data-code="${p.code}">
-          <span class="pp-flag"><img src="${FLAG_CDN}/${p.code.toLowerCase()}.svg" alt="${p.name}"/></span>
-          <span class="pp-name">${p.name}</span>
-          <svg class="pp-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>`
-          )
-          .join("") ||
-        `<div style="padding:24px 12px;text-align:center;color:var(--fg-2);font-size:13px;">No passports match "${query}"</div>`
-      );
-    }
-
-    function bindPpRows() {
-      if (!passportPop) return;
-      passportPop.querySelectorAll(".pp-row").forEach((r) => {
-        r.addEventListener("click", () => {
-          const p = PASSPORTS.find((x) => x.code === (r as HTMLElement).dataset.code);
-          if (p) setPassport(p);
-          closePassportPop();
-        });
-      });
-    }
-
-    passportPill?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (passportPop) {
-        closePassportPop();
-        return;
-      }
-      passportPill.classList.add("open");
-      const pop = document.createElement("div");
-      pop.className = "passport-pop";
-      pop.innerHTML = `
-        <h4>Choose your passport</h4>
-        <label class="pp-search">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input id="ppSearch" placeholder="Search passport country…" autocomplete="off"/>
-        </label>
-        <div class="pp-list" id="ppList">${renderPassportList("")}</div>
-        <div class="pp-foot">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-          Updated for May 2026 · Sourced from IATA Timatic
-        </div>`;
-      passportPill.appendChild(pop);
-      passportPop = pop;
-      pop.addEventListener("click", (e2) => e2.stopPropagation());
-      const inp = pop.querySelector("#ppSearch") as HTMLInputElement | null;
-      setTimeout(() => inp?.focus(), 0);
-      inp?.addEventListener("input", (e2) => {
-        const list = pop.querySelector("#ppList");
-        if (list) list.innerHTML = renderPassportList((e2.target as HTMLInputElement).value);
-        bindPpRows();
-      });
-      bindPpRows();
-    });
-
-    document.addEventListener("click", closePassportPop);
-
-    return () => {
-      window.removeEventListener("resize", onResize);
-      document.removeEventListener("click", closePassportPop);
-    };
-  }, []);
+  const filteredPassports = useMemo(() => {
+    const q = ppQuery.trim().toLowerCase();
+    if (!q) return PASSPORT_CODES;
+    return PASSPORT_CODES.filter(
+      (code) => t(`passports.${code}`).toLowerCase().includes(q) || code.toLowerCase().includes(q),
+    );
+  }, [ppQuery, t]);
 
   return (
     <nav className="site-nav">
@@ -161,26 +91,106 @@ export default function SiteNav({ activeTab }: Props) {
           <a className="nav-logo" href="/" aria-label="VIZA home">
             <img src="/assets/viza-logo-black.svg" alt="VIZA" />
           </a>
-          <button className="passport-pill" id="siteNavPassportPill" type="button">
+          <button
+            className={`passport-pill${ppOpen ? " open" : ""}`}
+            id="siteNavPassportPill"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPpOpen((v) => !v);
+            }}
+          >
             <span className="ball" id="siteNavPassportBall">
-              <CircleFlag countryCode="sg" height={32} />
+              <CircleFlag countryCode={passportCode.toLowerCase()} height={32} />
             </span>
             <span>
-              <span className="lab-key">Your passport</span>
+              <span className="lab-key">{t("nav.yourPassport")}</span>
               <span className="lab-val">
-                <span id="siteNavPassportName">Singapore</span>
+                <span id="siteNavPassportName">{passportName}</span>
                 <svg className="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </span>
             </span>
+
+            {ppOpen && (
+              <div className="passport-pop" onClick={(e) => e.stopPropagation()}>
+                <h4>{t("explore.choosePassport")}</h4>
+                <label className="pp-search">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  <input
+                    id="ppSearch"
+                    ref={ppInputRef}
+                    value={ppQuery}
+                    onChange={(e) => setPpQuery(e.target.value)}
+                    placeholder={t("explore.searchPassport")}
+                    autoComplete="off"
+                  />
+                </label>
+                <div className="pp-list" id="ppList">
+                  {filteredPassports.length === 0 ? (
+                    <div style={{ padding: "24px 12px", textAlign: "center", color: "var(--fg-2)", fontSize: "13px" }}>
+                      {t("explore.noMatch", { q: ppQuery })}
+                    </div>
+                  ) : (
+                    filteredPassports.map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        className={`pp-row${code === passportCode ? " sel" : ""}`}
+                        data-code={code}
+                        onClick={() => {
+                          setPassportCode(code);
+                          setPpOpen(false);
+                        }}
+                      >
+                        <span className="pp-flag">
+                          <CircleFlag countryCode={code.toLowerCase()} height={28} />
+                        </span>
+                        <span className="pp-name">{t(`passports.${code}`)}</span>
+                        <svg className="pp-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </button>
+                    ))
+                  )}
+                </div>
+                <div className="pp-foot">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                  {t("explore.ppFoot")}
+                </div>
+              </div>
+            )}
           </button>
         </div>
 
-        <div className="nav-tabs" id="siteNavTabs">
-          <span className="pill-indicator" id="siteNavPill" />
-          <a className={`nav-tab${activeTab === "explore" ? " active" : ""}`} data-tab="explore" href="/">Explore</a>
-          <a className={`nav-tab${activeTab === "events" ? " active" : ""}`} data-tab="events" href="/events">Events</a>
+        <div className="nav-tabs" id="siteNavTabs" ref={tabsRef}>
+          <span className="pill-indicator" id="siteNavPill" style={{ left: pill.left, width: pill.width }} />
+          <a
+            ref={exploreRef}
+            className={`nav-tab${activeTab === "explore" ? " active" : ""}`}
+            data-tab="explore"
+            href="/"
+            onClick={() => setActiveTab("explore")}
+          >
+            {t("nav.explore")}
+          </a>
+          <a
+            ref={eventsRef}
+            className={`nav-tab${activeTab === "events" ? " active" : ""}`}
+            data-tab="events"
+            href="/events"
+            onClick={() => setActiveTab("events")}
+          >
+            {t("nav.events")}
+          </a>
         </div>
 
         <div className="nav-right">
@@ -189,10 +199,10 @@ export default function SiteNav({ activeTab }: Props) {
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <input id="siteNavSearchInput" placeholder="Search a country or visa…" />
+            <input id="siteNavSearchInput" placeholder={t("nav.searchPlaceholder")} />
           </label>
           <LanguageToggle />
-          <button className="icon-btn" title="Help" type="button">
+          <button className="icon-btn" title={t("explore.help")} type="button">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
