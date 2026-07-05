@@ -246,6 +246,14 @@ Backend:
 - It optionally calls OpenAI when `OPENAI_API_KEY` is available.
 - It strips Markdown from generated text before returning it.
 - It uses an in-memory cache keyed by visa type, field name, and locale.
+- Initial guidance is cached per field, but follow-up questions are not treated
+  as generic field help. When a user asks about the current question, the
+  backend builds a question-specific RAG query from the field label, field name,
+  current answer, user question, and relevant answers already on the form. For
+  select/radio/country fields, it also compares the user's text against the
+  exact official options and passes that option context to OpenAI. If an address
+  or answer clearly matches one option, the copilot should state that option
+  directly before adding caveats.
 - For standard-answer identity fields such as passport issuing authority,
   place of issue, passport type, nationality, and passport dates, it injects
   standard passport-field RAG and must prefer the passport biodata page, MRZ,

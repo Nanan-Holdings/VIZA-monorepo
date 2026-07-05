@@ -327,6 +327,44 @@ function buildStandardIdentityFieldCases(): EvalCase[] {
   ];
 }
 
+function buildAddressOptionCopilotCases(): EvalCase[] {
+  const field: DbFieldRow = {
+    id: "synthetic-vietnam-ward-commune",
+    visa_type: "evisa_tourism",
+    field_name: "intended_ward_commune",
+    label: "在越南拟停留坊/社",
+    field_type: "select",
+    required: true,
+    step_number: 99,
+    step_name: "Vietnam stay address",
+    display_order: 3,
+    placeholder: "Select ward/commune",
+    validation_rules: null,
+    options: [
+      { value: "HAI_CHAU_WARD", text: "HAI CHAU WARD" },
+      { value: "NGU_HANH_SON_WARD", text: "NGU HANH SON WARD" },
+      { value: "SON_TRA_WARD", text: "SON TRA WARD" },
+    ],
+    conditional_logic: null,
+  };
+
+  return [
+    {
+      name: "address-option:vietnam-da-nang-ward-question",
+      locale: "zh",
+      field,
+      answer: "",
+      allAnswers: {
+        ...baseAnswers(field, ""),
+        intended_province_city: "DA NANG",
+        intended_address: "19 Trường Sa, Ngũ Hành Sơn, Đà Nẵng 50000, Vietnam",
+      },
+      question: "19 Trường Sa, Ngũ Hành Sơn, Đà Nẵng 50000, Vietnam 这个地址应该选择哪一个选项",
+      expectedSeverity: "warning",
+    },
+  ];
+}
+
 function buildInvalidCases(fields: DbFieldRow[]): EvalCase[] {
   const cases: EvalCase[] = [];
 
@@ -638,6 +676,28 @@ function validateResponse(response: GuidanceResponse, testCase: EvalCase, failur
         });
       }
     }
+
+    if (testCase.name === "address-option:vietnam-da-nang-ward-question") {
+      const reply = response.reply ?? "";
+      if (!/NGU[_\s-]?HANH[_\s-]?SON|五行山|Ngũ Hành Sơn/i.test(reply)) {
+        failures.push({
+          caseName: testCase.name,
+          visaType: testCase.field.visa_type,
+          fieldName: testCase.field.field_name,
+          message: "Reply does not select or prioritize the address-matching ward option",
+          details: reply.slice(0, 400),
+        });
+      }
+      if (!/选项|option|选择|select/i.test(reply)) {
+        failures.push({
+          caseName: testCase.name,
+          visaType: testCase.field.visa_type,
+          fieldName: testCase.field.field_name,
+          message: "Reply does not answer the user's option-selection question directly",
+          details: reply.slice(0, 400),
+        });
+      }
+    }
   }
 
   if (!["high", "medium", "low"].includes(response.confidence ?? "")) {
@@ -717,7 +777,15 @@ async function main(): Promise<void> {
   const crossFieldCases = SYNTHETIC_ONLY ? [] : buildCrossFieldCases(fields);
   const photoCases = buildPhotoSpecificCases(photoFields);
   const standardIdentityCases = buildStandardIdentityFieldCases();
-  const cases = [...guidanceCases, ...invalidCases, ...crossFieldCases, ...photoCases, ...standardIdentityCases];
+  const addressOptionCases = buildAddressOptionCopilotCases();
+  const cases = [
+    ...guidanceCases,
+    ...invalidCases,
+    ...crossFieldCases,
+    ...photoCases,
+    ...standardIdentityCases,
+    ...addressOptionCases,
+  ];
   counters.guidanceCases = guidanceCases.length;
   counters.invalidCases = invalidCases.length + photoCases.length;
   counters.crossFieldCases = crossFieldCases.length;
