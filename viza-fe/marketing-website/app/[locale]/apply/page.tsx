@@ -29,6 +29,47 @@ type PassportExtraction = {
 
 type ExtractStage = "idle" | "reading" | "extracting" | "verifying" | "done";
 
+/**
+ * The six identity fields the visitor must confirm before checkout. Every
+ * one is required — extraction may leave any of them empty (partial read),
+ * in which case the field opens in edit mode and blocks step 2 → 3.
+ */
+type PassportField =
+  | "surname"
+  | "givenNames"
+  | "passportNumber"
+  | "dob"
+  | "nationality"
+  | "expiryDate";
+
+const REQUIRED_PASSPORT_FIELDS: PassportField[] = [
+  "surname",
+  "givenNames",
+  "passportNumber",
+  "dob",
+  "nationality",
+  "expiryDate",
+];
+
+const EMPTY_FIELDS: Record<PassportField, string> = {
+  surname: "",
+  givenNames: "",
+  passportNumber: "",
+  dob: "",
+  nationality: "",
+  expiryDate: "",
+};
+
+/** Recognition result: fully read vs. readable-but-incomplete. */
+type ScanOutcome = "success" | "partial";
+
+/** Terminal scan failures that keep the visitor on step 1 with a retry. */
+type ScanFailure = "notPassport" | "unreadable" | "network";
+
+/** Backend warning codes we can explain to the visitor. */
+const KNOWN_WARNINGS = ["expired", "unreadable_mrz", "photo_too_blurry"] as const;
+type KnownWarning = (typeof KNOWN_WARNINGS)[number];
+
 type Step = 1 | 2 | 3;
 type Speed = "standard" | "express" | "superrush";
 type Addon = "insurance" | "esim";
@@ -93,6 +134,84 @@ const CheckMark = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 );
 
+const PencilIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+);
+
+/**
+ * One cell of the passport review card. Displays the extracted value with a
+ * hover pencil; clicking the pencil (or being flagged missing after a
+ * partial scan) swaps the value for an inline input/select. Missing fields
+ * are highlighted and block the continue-to-checkout action.
+ */
+function ReviewField({
+  label,
+  value,
+  display,
+  editing,
+  invalid,
+  requiredMsg,
+  editLabel,
+  type = "text",
+  options,
+  onEdit,
+  onChange,
+  onDone,
+}: {
+  label: string;
+  value: string;
+  display: React.ReactNode;
+  editing: boolean;
+  invalid: boolean;
+  requiredMsg: string;
+  editLabel: string;
+  type?: "text" | "date" | "select";
+  options?: { value: string; label: string }[];
+  onEdit: () => void;
+  onChange: (v: string) => void;
+  onDone: () => void;
+}) {
+  return (
+    <div className={`review-field${invalid ? " missing" : ""}`}>
+      <div className="k">{label}</div>
+      {editing ? (
+        <div className="v">
+          {type === "select" ? (
+            <select
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onDone}
+              aria-label={label}
+            >
+              <option value="">—</option>
+              {options?.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type={type}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onDone}
+              onKeyDown={(e) => { if (e.key === "Enter") onDone(); }}
+              aria-label={label}
+            />
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="v">{display}</div>
+          <button className="edit" type="button" aria-label={editLabel} onClick={onEdit}>
+            <PencilIcon />
+          </button>
+        </>
+      )}
+      {invalid && !editing && <div className="req-note">{requiredMsg}</div>}
+    </div>
+  );
+}
+
 export default function ApplyPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -132,12 +251,32 @@ export default function ApplyPage() {
 
   const [extractStage, setExtractStage] = useState<ExtractStage>("idle");
   const [extracted, setExtracted] = useState<PassportExtraction | null>(null);
-  const [extractError, setExtractError] = useState<string | null>(null);
+  const [scanOutcome, setScanOutcome] = useState<ScanOutcome | null>(null);
+  const [scanFailure, setScanFailure] = useState<ScanFailure | null>(null);
+  const [scanFailureDetail, setScanFailureDetail] = useState<string | null>(null);
+
+  // Editable copy of the extraction — the review card writes here, so the
+  // visitor can correct misreads and fill anything the scan missed.
+  const [fields, setFields] = useState<Record<PassportField, string>>(EMPTY_FIELDS);
+  const [editing, setEditing] = useState<Partial<Record<PassportField, boolean>>>({});
+
+  // Contact details (step 2) — required before checkout.
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dialCode, setDialCode] = useState("+65");
+  const [consent, setConsent] = useState(true);
+  const [triedContinue, setTriedContinue] = useState(false);
+
+  const setField = useCallback((f: PassportField, value: string) => {
+    setFields((prev) => ({ ...prev, [f]: value }));
+  }, []);
 
   const runExtraction = useCallback(async (file: File) => {
     if (!file) return;
     setExtracted(null);
-    setExtractError(null);
+    setScanOutcome(null);
+    setScanFailure(null);
+    setScanFailureDetail(null);
     setExtractStage("reading");
 
     const form = new FormData();
@@ -164,12 +303,48 @@ export default function ApplyPage() {
       const data = body.extracted;
       if (!data) throw new Error("Empty response");
 
+      // ---- Outcome classification ----
+      const warnings = data.warnings ?? [];
+      if (warnings.includes("not_a_passport")) {
+        setScanFailure("notPassport");
+        setExtractStage("idle");
+        return;
+      }
+
+      const nextFields: Record<PassportField, string> = {
+        surname: data.surname ?? "",
+        givenNames: data.givenNames ?? "",
+        passportNumber: data.passportNumber ?? "",
+        dob: data.dob ?? "",
+        nationality: data.nationality ?? "",
+        expiryDate: data.expiryDate ?? "",
+      };
+      const missing = REQUIRED_PASSPORT_FIELDS.filter((f) => !nextFields[f].trim());
+
+      // Nothing usable came back — treat as a failed scan, not a partial one.
+      if (missing.length === REQUIRED_PASSPORT_FIELDS.length) {
+        setScanFailure("unreadable");
+        setExtractStage("idle");
+        return;
+      }
+
+      const outcome: ScanOutcome =
+        missing.length > 0 || data.confidence !== "high" || warnings.length > 0
+          ? "partial"
+          : "success";
+
       setExtractStage("verifying");
       // Brief verifying stage so users see the third checkmark animate in
       // before the page jumps to step 2.
       await new Promise((r) => setTimeout(r, 600));
 
       setExtracted(data);
+      setFields(nextFields);
+      // Missing fields open in edit mode so the visitor lands straight on
+      // "complete these" rather than a wall of em-dashes.
+      setEditing(Object.fromEntries(missing.map((f) => [f, true])));
+      setScanOutcome(outcome);
+      setTriedContinue(false);
       setExtractStage("done");
 
       try {
@@ -180,7 +355,8 @@ export default function ApplyPage() {
 
       setTimeout(() => goStep(2), 400);
     } catch (err) {
-      setExtractError(err instanceof Error ? err.message : String(err));
+      setScanFailure("network");
+      setScanFailureDetail(err instanceof Error ? err.message : String(err));
       setExtractStage("idle");
     }
   }, [goStep]);
@@ -286,6 +462,17 @@ export default function ApplyPage() {
 
   const canProceed = step === 2 || step === 3;
 
+  // -------------- STEP 2 VALIDATION --------------
+  const missingFields = useMemo(
+    () => REQUIRED_PASSPORT_FIELDS.filter((f) => !fields[f].trim()),
+    [fields],
+  );
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneValid = phone.replace(/\D/g, "").length >= 5;
+  const step2Valid = missingFields.length === 0 && emailValid && phoneValid && consent;
+
+  const fullName = `${fields.givenNames} ${fields.surname}`.trim();
+
   const onBack = useCallback(() => {
     setStep((s) => {
       if (s > 1) {
@@ -302,12 +489,69 @@ export default function ApplyPage() {
     // via the inline buttons that deep-link to the portal checkout, so the
     // bottom Next button does nothing here (it is also hidden).
     if (step === 3) return;
+    if (step === 2) {
+      if (!step2Valid) {
+        // Surface what's blocking: open every missing passport field in edit
+        // mode and switch the inline validation messages on.
+        setTriedContinue(true);
+        setEditing((prev) => ({
+          ...prev,
+          ...Object.fromEntries(missingFields.map((f) => [f, true])),
+        }));
+        return;
+      }
+      try {
+        sessionStorage.setItem(
+          "viza.passport.extracted",
+          JSON.stringify({ ...extracted, ...fields }),
+        );
+        sessionStorage.setItem(
+          "viza.apply.contact",
+          JSON.stringify({ email: email.trim(), phone: `${dialCode} ${phone.trim()}` }),
+        );
+      } catch {
+        // sessionStorage may be blocked — non-fatal.
+      }
+    }
     goStep((step + 1) as Step);
-  }, [canProceed, step, goStep]);
+  }, [canProceed, step, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone]);
 
-  const showWarning =
-    extracted !== null &&
-    (extracted.confidence !== "high" || (extracted.warnings ?? []).length > 0);
+  const showWarning = scanOutcome === "partial";
+  const knownWarnings = (extracted?.warnings ?? []).filter((w): w is KnownWarning =>
+    (KNOWN_WARNINGS as readonly string[]).includes(w),
+  );
+
+  // -------------- REVIEW CARD CONFIG --------------
+  const nationalityOptions = useMemo(() => {
+    const opts = Object.entries(COUNTRY_MAP)
+      .map(([a3, v]) => ({ value: a3, label: v.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    // Preserve an extracted alpha-3 we don't have a friendly name for.
+    const current = fields.nationality.toUpperCase();
+    if (current && !COUNTRY_MAP[current]) {
+      opts.push({ value: fields.nationality, label: fields.nationality });
+    }
+    return opts;
+  }, [fields.nationality]);
+
+  const reviewFieldDefs: {
+    f: PassportField;
+    label: string;
+    type?: "text" | "date" | "select";
+    display: React.ReactNode;
+  }[] = [
+    { f: "surname", label: tA("fSurname"), display: fields.surname || "—" },
+    { f: "givenNames", label: tA("fGiven"), display: fields.givenNames || "—" },
+    { f: "passportNumber", label: tA("fPassport"), display: fields.passportNumber || "—" },
+    { f: "dob", label: tA("fDob"), type: "date", display: formatDateDisplay(fields.dob) },
+    {
+      f: "nationality",
+      label: tA("fNationality"),
+      type: "select",
+      display: fields.nationality ? <CountryDisplay alpha3={fields.nationality} /> : "—",
+    },
+    { f: "expiryDate", label: tA("fExpires"), type: "date", display: formatDateDisplay(fields.expiryDate) },
+  ];
 
   const pstepClass = (n: Step) =>
     `pstep${n < step ? " done" : ""}${n === step ? " current" : ""}`;
@@ -368,11 +612,13 @@ export default function ApplyPage() {
               </button>
             </div>
 
-            {/* Hidden file input — clicked via dropzone */}
+            {/* Hidden file input — clicked via dropzone. In "Take photo"
+                mode the capture hint opens the camera directly on mobile. */}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              capture={uploadMode === "capture" ? "environment" : undefined}
               hidden
               onChange={onFilePicked}
             />
@@ -410,20 +656,26 @@ export default function ApplyPage() {
                   </div>
                 </div>
 
-                {extractError && (
-                  <div
-                    role="alert"
-                    style={{
-                      marginTop: 16,
-                      padding: "12px 14px",
-                      borderRadius: 10,
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      color: "#991b1b",
-                      font: "500 13px/1.45 var(--font-sans)",
-                    }}
-                  >
-                    {tA("errReadFail", { detail: extractError })}
+                {scanFailure && (
+                  <div className="scan-failed" role="alert">
+                    <div className="sf-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    </div>
+                    <div className="sf-body">
+                      <div className="sf-title">{tA("failTitle")}</div>
+                      <div className="sf-text">
+                        {scanFailure === "notPassport" && tA("failNotPassport")}
+                        {scanFailure === "unreadable" && tA("failUnreadable")}
+                        {scanFailure === "network" && tA("errReadFail", { detail: scanFailureDetail ?? "" })}
+                      </div>
+                      <button
+                        className="sf-retry"
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {tA("tryAgain")}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -503,10 +755,30 @@ export default function ApplyPage() {
                   background: "#fef3c7",
                   color: "#92400e",
                   border: "1px solid #fde68a",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 6,
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                {extracted.confidence === "low" ? tA("warnLow") : tA("warnMed")}
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  {missingFields.length > 0
+                    ? tA("warnPartial")
+                    : extracted.confidence === "low"
+                      ? tA("warnLow")
+                      : tA("warnMed")}
+                </span>
+                {knownWarnings.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 26, font: "400 12px/1.6 var(--font-sans)" }}>
+                    {knownWarnings.map((w) => (
+                      <li key={w}>
+                        {w === "expired" && tA("warnExpired")}
+                        {w === "unreadable_mrz" && tA("warnMrz")}
+                        {w === "photo_too_blurry" && tA("warnBlurry")}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -519,38 +791,23 @@ export default function ApplyPage() {
                 <span className="verified"><span className="dot"></span> {tA("autoExtracted")}</span>
               </div>
               <div className="review-grid">
-                <div className="review-field">
-                  <div className="k">{tA("fSurname")}</div>
-                  <div className="v">{extracted?.surname || "—"}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fGiven")}</div>
-                  <div className="v">{extracted?.givenNames || "—"}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fPassport")}</div>
-                  <div className="v">{extracted?.passportNumber || "—"}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fDob")}</div>
-                  <div className="v">{formatDateDisplay(extracted?.dob ?? "")}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fNationality")}</div>
-                  <div className="v">
-                    {extracted ? <CountryDisplay alpha3={extracted.nationality} /> : "—"}
-                  </div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fExpires")}</div>
-                  <div className="v">{formatDateDisplay(extracted?.expiryDate ?? "")}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
+                {reviewFieldDefs.map(({ f, label, type, display }) => (
+                  <ReviewField
+                    key={f}
+                    label={label}
+                    value={fields[f]}
+                    display={display}
+                    type={type}
+                    options={f === "nationality" ? nationalityOptions : undefined}
+                    editing={!!editing[f]}
+                    invalid={!fields[f].trim()}
+                    requiredMsg={tA("fieldRequired")}
+                    editLabel={tA("editField", { field: label })}
+                    onEdit={() => setEditing((prev) => ({ ...prev, [f]: true }))}
+                    onChange={(v) => setField(f, v)}
+                    onDone={() => setEditing((prev) => ({ ...prev, [f]: false }))}
+                  />
+                ))}
               </div>
             </div>
 
@@ -559,28 +816,80 @@ export default function ApplyPage() {
 
             <div className="field-row">
               <div className="field">
-                <label>{tA("email")} <span className="req">*</span></label>
-                <input type="email" placeholder={tA("emailPh")} />
+                <label htmlFor="applyEmail">{tA("email")} <span className="req">*</span></label>
+                <input
+                  id="applyEmail"
+                  type="email"
+                  placeholder={tA("emailPh")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={triedContinue && !emailValid ? "invalid" : undefined}
+                />
+                {triedContinue && !emailValid && (
+                  <div className="req-note">{tA("emailInvalid")}</div>
+                )}
               </div>
               <div className="field">
-                <label>{tA("phone")} <span className="req">*</span></label>
+                <label htmlFor="applyPhone">{tA("phone")} <span className="req">*</span></label>
                 <div className="phone-grp">
-                  <select defaultValue="🇸🇬 +65">
-                    <option>🇸🇬 +65</option>
-                    <option>🇲🇾 +60</option>
-                    <option>🇮🇩 +62</option>
+                  <select
+                    value={dialCode}
+                    onChange={(e) => setDialCode(e.target.value)}
+                    aria-label={tA("phone")}
+                  >
+                    <option value="+65">🇸🇬 +65</option>
+                    <option value="+60">🇲🇾 +60</option>
+                    <option value="+62">🇮🇩 +62</option>
+                    <option value="+86">🇨🇳 +86</option>
+                    <option value="+852">🇭🇰 +852</option>
+                    <option value="+886">🇹🇼 +886</option>
                   </select>
-                  <input type="tel" placeholder={tA("phonePh")} />
+                  <input
+                    id="applyPhone"
+                    type="tel"
+                    placeholder={tA("phonePh")}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={triedContinue && !phoneValid ? "invalid" : undefined}
+                  />
                 </div>
+                {triedContinue && !phoneValid && (
+                  <div className="req-note">{tA("phoneInvalid")}</div>
+                )}
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '8px' }}>
-              <input type="checkbox" id="consent" defaultChecked style={{ height: '18px', width: '18px', marginTop: '2px' }}/>
+              <input
+                type="checkbox"
+                id="consent"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                style={{ height: '18px', width: '18px', marginTop: '2px' }}
+              />
               <label htmlFor="consent" style={{ font: '400 13px/1.5 var(--font-sans)', color: 'var(--fg-2)', cursor: 'pointer' }}>
                 {tA("consent", { country: countryName })}
               </label>
             </div>
+            {triedContinue && !consent && (
+              <div className="req-note" style={{ marginTop: 6 }}>{tA("consentRequired")}</div>
+            )}
+            {triedContinue && !step2Valid && (
+              <div
+                role="alert"
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: "#fef3c7",
+                  border: "1px solid #fde68a",
+                  color: "#92400e",
+                  font: "500 13px/1.45 var(--font-sans)",
+                }}
+              >
+                {tA("completeBeforeCheckout")}
+              </div>
+            )}
           </section>
 
           {/* ============= STEP 3: CHECKOUT ============= */}
@@ -655,8 +964,18 @@ export default function ApplyPage() {
               {tA("paySub")}
             </p>
             <div style={{ display: 'grid', gap: '10px', maxWidth: '420px' }}>
-              <PayByCardButton country={country.portalCountry} visaType={country.visaType} />
-              <WechatPayButton country={country.portalCountry} visaType={country.visaType} />
+              <PayByCardButton
+                country={country.portalCountry}
+                visaType={country.visaType}
+                email={email.trim() || undefined}
+                fullName={fullName || undefined}
+              />
+              <WechatPayButton
+                country={country.portalCountry}
+                visaType={country.visaType}
+                email={email.trim() || undefined}
+                fullName={fullName || undefined}
+              />
             </div>
           </section>
 
@@ -699,14 +1018,14 @@ export default function ApplyPage() {
 
       </div>
 
-      <div className="help-bubble" id="helpBubble" onClick={() => alert(tA("helpAlert"))}>
+      <a className="help-bubble" id="helpBubble" href="/contact">
         <img src="https://i.pravatar.cc/64?img=47" alt=""/>
         <div>
           <div className="ht">{tA("helpOnline")}</div>
           <div className="hs">{tA("helpTap")}</div>
         </div>
         <span className="pulse"></span>
-      </div>
+      </a>
 
       <div className="actions">
         <div className="actions-inner">
