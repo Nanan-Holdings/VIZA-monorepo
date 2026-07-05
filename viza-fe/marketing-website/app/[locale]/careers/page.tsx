@@ -860,16 +860,10 @@ export default function CareersPage() {
             <h4 className="col-head">{t("footer.offices")}</h4>
             <ul className="col-list">
               <li>
-                <a href="#offices">{t("footer.officeSg")}</a>
-              </li>
-              <li>
                 <a href="#offices">{t("footer.officeSf")}</a>
               </li>
               <li>
-                <a href="#offices">{t("footer.officeDxb")}</a>
-              </li>
-              <li>
-                <a href="#offices">{t("footer.officeLdn")}</a>
+                <a href="#offices">{t("footer.officeSg")}</a>
               </li>
             </ul>
           </div>
