@@ -13,8 +13,14 @@ applicant info, and help pages.
 
 - `layout.tsx`: client shell, nav, session validation, impersonation mismatch
   handling, first-login form request redirect.
-- `home/page.tsx`: dashboard, destination cards, subscription entry, universal
-  information summary.
+- `home/page.tsx`: dashboard (hero, subscription entry, universal information
+  summary, recent activity). Destination selection moved to
+  `destinations/page.tsx`.
+- `destinations/page.tsx`: country/application switch page — "my applications"
+  switcher plus the popular-destinations catalog (featured, region groups,
+  search). Reached via the hamburger menu "Change country" item. Progress
+  computation lives in `lib/client/application-progress.ts` (shared with home's
+  activity hrefs). Region browse subpages: `destinations/[region]/`.
 - `home/home-load-errors.ts`: safe dashboard load-error classification for
   refresh/abort handling.
 - `home/home-activity.ts`: safe activity-feed helpers, including document type
