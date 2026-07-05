@@ -132,23 +132,21 @@ const TickIcon = () => (
 /* ------------------------------- Page data ------------------------------- */
 /** Locale-invariant contact details (numbers, handles, addresses). */
 const CONTACTS = {
-  whatsapp: "+65 9013 4421",
+  whatsapp: "+65 84106368",
   wechat: "@viza_help",
-  phoneAsia: "+65 6011 8842",
-  phoneAmericas: "+1 (415) 802 9911",
-  emailGeneral: "hello@viza.travel",
-  emailPress: "press@viza.travel",
-  emailPartners: "partners@viza.travel",
-  emergency: "+65 6011 8800",
+  phoneAsia: "+65 84106368",
+  phoneAmericas: "+66 18930437448",
+  emailGeneral: "sales@kelin.studio",
+  emailPress: "sales@kelin.studio",
+  emailPartners: "sales@kelin.studio",
+  emergency: "+65 84106368",
 } as const;
 
 const DIAL_CODES = ["🇸🇬 +65", "🇺🇸 +1", "🇬🇧 +44", "🇦🇪 +971", "🇨🇳 +86", "🇮🇳 +91", "🇵🇭 +63"] as const;
 
 const DESKS = [
-  { id: "sg", phone: "+65 6011 8842", email: "singapore@viza.travel", address: "1 Marina Boulevard, #20-01, SG 018989", closed: false },
-  { id: "us", phone: "+1 (415) 802 9911", email: "sf@viza.travel", address: "301 Mission Street, San Francisco, CA 94105", closed: false },
-  { id: "ae", phone: "+971 4 887 2210", email: "dubai@viza.travel", address: "M16, Al Makateb Bldg, Al Quoz 3", closed: false },
-  { id: "gb", phone: "+44 20 4538 1192", email: "london@viza.travel", address: "Suite 203, Davina House, 137-149 Goswell Rd", closed: true },
+  { id: "cn", phone: "+66 18930437448", email: "sales@kelin.studio", address: "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai", closed: false },
+  { id: "sg", phone: "+65 84106368", email: "sales@kelin.studio", address: "225 Pasir Panjang Rd, Singapore", closed: false },
 ] as const;
 
 const FAQ_IDS = ["q1", "q2", "q3", "q4", "q5", "q6"] as const;
@@ -519,7 +517,7 @@ export default function ContactPage() {
         <div className="right">
           <span className="lab">{t("emergency.hotlineLabel")}</span>
           <span className="number">{CONTACTS.emergency}</span>
-          <a className="em-btn" href="tel:+6560118800">
+          <a className="em-btn" href="tel:+6584106368">
             <PhoneIcon size={14} strokeWidth="2.2" />
             {t("emergency.call")}
           </a>

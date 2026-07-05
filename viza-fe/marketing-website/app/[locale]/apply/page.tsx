@@ -1113,19 +1113,11 @@ export default function ApplyPage() {
             <ul className="col-list">
               <li className="office-row">
                 <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>1 Marina Boulevard, #20-01,<br/>Singapore 018989</span>
+                <span>中国（上海）自由贸易试验区罗山路1502弄<br/>No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China</span>
               </li>
               <li className="office-row">
                 <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>301 Mission Street, San Francisco,<br/>CA 94105, USA</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>M16 — Al Makateb Building,<br/>Al Quoz 3, Sheikh Zayed Rd, Dubai</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>Suite 203, Davina House,<br/>137-149 Goswell Road, London EC1V 7ET</span>
+                <span>225 Pasir Panjang Rd,<br/>Singapore</span>
               </li>
             </ul>
           </div>

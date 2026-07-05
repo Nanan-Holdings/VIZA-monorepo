@@ -445,10 +445,8 @@ export default async function SecurityPage({ params }: { params: Promise<{ local
           <div className="col-offices">
             <h4 className="col-head">{t("footer.offices")}</h4>
             <ul className="col-list">
-              <li><a href="#">{t("footer.officeSg")}</a></li>
               <li><a href="#">{t("footer.officeSf")}</a></li>
-              <li><a href="#">{t("footer.officeDubai")}</a></li>
-              <li><a href="#">{t("footer.officeLondon")}</a></li>
+              <li><a href="#">{t("footer.officeSg")}</a></li>
             </ul>
           </div>
         </div>

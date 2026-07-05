@@ -55,7 +55,7 @@
     },
     "careers": {
       "title": "加入 VIZA",
-      "description": "和我们一起，让边境消失。新加坡、旧金山、迪拜、伦敦招聘工程、设计、运营、咨询岗位。",
+      "description": "和我们一起，让边境消失。上海与新加坡招聘工程、设计、运营、咨询岗位。",
       "rightCta": "查看职位"
     },
     "contact": {
@@ -267,6 +267,8 @@
     "resultsCount": "共 <b>{count}</b> 个目的地 <dot></dot> 按<b>{sort}</b>排序",
     "grid": "网格",
     "map": "地图",
+    "mapLegendEvisa": "电子签证与访客签证",
+    "mapHint": "悬停高亮圆点即可预览目的地",
     "sectionTitle": "适用于{country}护照",
     "seeAll": "查看全部 {n}",
     "footnote": "政府签证费另行收取，各国标准不同。",
@@ -417,10 +419,8 @@
     "hero": {
       "nowHiring": "正在招聘",
       "cities": [
-        "新加坡",
-        "旧金山",
-        "迪拜",
-        "伦敦"
+        "上海",
+        "新加坡"
       ],
       "sep": "/",
       "openRoles": "28 个在招职位",
@@ -487,7 +487,7 @@
       {
         "value": "340",
         "suffix": "",
-        "label": "团队成员遍布新加坡、旧金山、迪拜与伦敦"
+        "label": "团队成员遍布上海与新加坡"
       }
     ],
     "mission": {
@@ -561,19 +561,19 @@
       "photos": [
         {
           "label": "照片 · 新加坡总部 — 开放式办公区",
-          "mark": "Marina Boulevard, SG"
+          "mark": "Pasir Panjang Rd, SG"
         },
         {
           "label": "照片 · 顾问一线工作区",
-          "mark": "Mission Street, SF"
+          "mark": "Kangcheng Rd, Shanghai"
         },
         {
           "label": "照片 · 白板讨论",
           "mark": "技术团建，巴厘岛"
         },
         {
-          "label": "照片 · 迪拜运营区",
-          "mark": "Sheikh Zayed Rd, DXB"
+          "label": "照片 · 上海运营区",
+          "mark": "Minhang District, Shanghai"
         },
         {
           "label": "照片 · 团队聚餐",
@@ -581,7 +581,7 @@
         },
         {
           "label": "照片 · 拜访使馆合作伙伴",
-          "mark": "Goswell Road, 伦敦"
+          "mark": "Pasir Panjang Rd, SG"
         }
       ],
       "pull": "“我们招的人在加入之前就对签证有自己的见解。到第二个月，你的见解会更加鲜明。”",
@@ -649,9 +649,9 @@
       "viewRole": "查看职位",
       "locations": {
         "sg": "新加坡",
-        "sf": "旧金山",
-        "ldn": "伦敦",
-        "dxb": "迪拜"
+        "sf": "上海",
+        "ldn": "新加坡",
+        "dxb": "上海"
       },
       "jobs": {
         "backendPayments": "资深后端工程师 — 支付",
@@ -775,44 +775,26 @@
     },
     "offices": {
       "eyebrow": "我们的办公地点",
-      "title": "四个办公室，一个产品。",
+      "title": "两个办公室，一个产品。",
       "lead": "我们把办公室设在使馆、合作伙伴和所服务市场的附近。每个办公室都同时有工程师和运营团队——我们不把构建产品的人和运营一线的人分开。",
       "cards": [
+        {
+          "photo": "照片 · 上海",
+          "open": "6 个在招",
+          "name": "上海",
+          "addr1": "中国（上海）自由贸易试验区罗山路1502弄",
+          "addr2": "闵行区新松路958弄康城路67号",
+          "tz": "GMT+8 · 中国区运营",
+          "since": "始于 2023"
+        },
         {
           "photo": "照片 · 新加坡总部",
           "open": "12 个在招",
           "name": "新加坡",
-          "addr1": "1 Marina Boulevard, #20-01",
-          "addr2": "Singapore 018989",
-          "tz": "GMT+8 · 142 人",
+          "addr1": "225 Pasir Panjang Rd,",
+          "addr2": "Singapore",
+          "tz": "GMT+8 · 亚太总部",
           "since": "总部 · 始于 2021"
-        },
-        {
-          "photo": "照片 · 旧金山",
-          "open": "8 个在招",
-          "name": "旧金山",
-          "addr1": "301 Mission Street",
-          "addr2": "San Francisco, CA 94105",
-          "tz": "PST · 78 人",
-          "since": "始于 2023"
-        },
-        {
-          "photo": "照片 · 迪拜",
-          "open": "5 个在招",
-          "name": "迪拜",
-          "addr1": "M16 — Al Makateb Building,",
-          "addr2": "Al Quoz 3, Sheikh Zayed Rd",
-          "tz": "GMT+4 · 64 人",
-          "since": "始于 2023"
-        },
-        {
-          "photo": "照片 · 伦敦",
-          "open": "3 个在招",
-          "name": "伦敦",
-          "addr1": "Suite 203, Davina House,",
-          "addr2": "137-149 Goswell Road, EC1V 7ET",
-          "tz": "GMT · 56 人",
-          "since": "始于 2024"
         }
       ]
     },
@@ -840,9 +822,7 @@
       "prodHelpline": "VIZA 紧急热线",
       "prodStudent": "学生签证",
       "officeSg": "新加坡 — 总部",
-      "officeSf": "旧金山",
-      "officeDxb": "迪拜",
-      "officeLdn": "伦敦",
+      "officeSf": "上海",
       "copyright": "© VIZA，版权所有"
     }
   },
@@ -879,10 +859,10 @@
         "tag": "语音 · 7 种语言",
         "title": "电话",
         "sub": "紧急签证问题——直接与顾问通话",
-        "asiaLabel": "亚洲 · 主线",
+        "asiaLabel": "新加坡 · 主线",
         "asiaLangs": "English · 普通话 · Bahasa · हिन्दी · Tagalog",
-        "americasLabel": "美洲与欧洲",
-        "americasLangs": "English · Español · Français · Português",
+        "americasLabel": "中国 · 上海",
+        "americasLangs": "普通话 · English",
         "hours": "24/7 紧急热线 · 全天有人接听",
         "action": "点击拨号 ↗"
       },
@@ -1002,29 +982,17 @@
       "email": "邮箱",
       "address": "地址",
       "maps": "在地图中打开 →",
+      "cn": {
+        "status": "在线 · 6 位顾问",
+        "title": "上海",
+        "sub": "中国区运营",
+        "tz": "GMT+8 · 9:00–20:00"
+      },
       "sg": {
         "status": "在线 · 9 位顾问",
         "title": "新加坡 — 总部",
         "sub": "亚太区运营",
         "tz": "GMT+8 · 9:00–20:00"
-      },
-      "us": {
-        "status": "在线 · 6 位顾问",
-        "title": "旧金山",
-        "sub": "美洲区运营",
-        "tz": "太平洋时间 · 8:00–18:00"
-      },
-      "ae": {
-        "status": "在线 · 5 位顾问",
-        "title": "迪拜",
-        "sub": "中东与非洲",
-        "tz": "GMT+4 · 9:00–20:00"
-      },
-      "gb": {
-        "status": "GMT 8:00 恢复营业",
-        "title": "伦敦",
-        "sub": "英国与申根递签",
-        "tz": "GMT · 8:00–18:00"
       }
     },
     "emergency": {
@@ -1060,7 +1028,7 @@
       },
       "q6": {
         "q": "我是合作伙伴 / 代理 / OTA，有专门的邮箱吗？",
-        "a": "有——请直接发邮件至 <a>partners@viza.travel</a>。合作事宜由专门的商务拓展团队处理，与消费者咨询分开流转。"
+        "a": "有——请直接发邮件至 <a>sales@kelin.studio</a>。合作事宜由专门的商务拓展团队处理，与消费者咨询分开流转。"
       }
     }
   },
@@ -1299,7 +1267,7 @@
         "intro": "隐私问题、请求、投诉——均由同一地址受理。",
         "email": "<strong>电子邮箱：</strong><a>privacy@viza.com</a>",
         "dpo": "<strong>数据保护官：</strong><a>dpo@viza.com</a>",
-        "address": "<strong>邮寄地址：</strong>1 Marina Boulevard, #20-01, Singapore 018989",
+        "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>新加坡 PDPC：</strong><a>pdpc.gov.sg</a>"
       }
     },
@@ -1470,7 +1438,7 @@
         "title": "联系方式",
         "legal": "<strong>法律问题：</strong><a>legal@viza.com</a>",
         "privacy": "<strong>隐私 / 数据请求：</strong><a>privacy@viza.com</a>",
-        "address": "<strong>邮寄地址：</strong>1 Marina Boulevard, #20-01, Singapore 018989",
+        "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN：</strong>202312345A"
       }
     },
@@ -1762,7 +1730,7 @@
       "items": {
         "inapp": "<strong>应用内。</strong>在 VIZA 控制台中打开任意申请，滚动至<em>款项与收据</em>，点击<em>发起退款索赔</em>。案件编号已自动填好。",
         "email": "<strong>通过邮件。</strong>回复您顾问的任意邮件，或附上申请编号写信至 <link>refunds@viza.co</link>。",
-        "person": "<strong>亲临办公室。</strong>前往任意一间 VIZA 办公室——新加坡、迪拜、伦敦或旧金山——当地时间 09:00 至 18:00。请携带护照。"
+        "person": "<strong>亲临办公室。</strong>前往任意一间 VIZA 办公室——上海或新加坡——当地时间 09:00 至 18:00。请携带护照。"
       },
       "escalate": "对结果不满意？每项决定均可上诉至由首席客户官主持的退款委员会，该委员会每周审议争议案件。此后，您还可免费使用新加坡消费者协会（CASE）的调解服务。"
     },
@@ -2139,9 +2107,7 @@
       "prodStudent": "学生签证",
       "offices": "办公室",
       "officeSg": "新加坡 — 总部",
-      "officeSf": "旧金山",
-      "officeDubai": "迪拜",
-      "officeLondon": "伦敦",
+      "officeSf": "上海",
       "copyright": "© VIZA，版权所有"
     }
   },

@@ -65,10 +65,8 @@ const PRODUCT_KEYS = [
 
 /** Office addresses are proper nouns — intentionally untranslated (matches SiteFooter). */
 const OFFICES: Array<[string, string]> = [
-  ["1 Marina Boulevard, #20-01,", "Singapore 018989"],
-  ["301 Mission Street, San Francisco,", "CA 94105, USA"],
-  ["M16 — Al Makateb Building,", "Al Quoz 3, Sheikh Zayed Rd, Dubai"],
-  ["Suite 203, Davina House,", "137-149 Goswell Road, London EC1V 7ET"],
+  ["中国（上海）自由贸易试验区罗山路1502弄", "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China"],
+  ["225 Pasir Panjang Rd,", "Singapore"],
 ];
 
 const richTags = {
