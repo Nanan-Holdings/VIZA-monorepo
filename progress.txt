@@ -2871,3 +2871,12 @@ acknowledgment).
 - Files: metrics/emit.ts, alerts/dispatch.ts + test, queue/handler.ts, scripts/launch/*, docs/observability/*, docs/launch/launch-checklist.md, prd.json. Typecheck + tests pass. OBSV block COMPLETE.
 - ALL non-onHold prd.json stories now pass. 19 onHold stories skipped (blocked on external creds/data/provisioning per CLAUDE.md).
 ---
+## 2026-07-05 - Marketing /apply placeholders (direct user request, no PRD story)
+- Passport-scan outcome states on marketing /apply: failed (not_a_passport / unreadable / network -> retry panel, stays on step 1), partial (missing fields or <high confidence -> amber strip + per-warning details), success (green strip)
+- Review card fields are now editable (inline input/date/nationality select); missing fields auto-open in edit mode, highlighted, and block continue-to-checkout
+- Email/phone/consent are controlled + validated; step 2 -> 3 gated; merged data persisted to sessionStorage
+- Checkout deep-links now carry email + name; portal /checkout/{card,wechat} prefill the guest forms from them
+- Camera mode wires capture="environment"; help bubble links to /contact (was alert())
+- Files: marketing-website apply/page.tsx + apply.css, PayByCardButton/WechatPayButton, messages/{en,zh-CN}.json; internal-website checkout/{card,wechat} pages + forms
+- Learnings: post-payment chain (Stripe/WeChat webhooks -> Supabase createUser -> magic-link email via Resend -> check-your-email pages) already exists end-to-end in internal-website; the gap was marketing-side statuses + data handoff. Marketing lockfile is out of sync with package.json (@swc/helpers) so npm ci fails; internal-website type-check has a pre-existing failure in scripts/capture-travel-city-coverage-screenshots.ts (playwright not a dependency).
+---
