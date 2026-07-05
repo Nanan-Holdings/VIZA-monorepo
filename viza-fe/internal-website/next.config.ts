@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/applications/[id]/kr-annex17-pdf": ["./lib/korea-c39/templates/**"],
   },
+  outputFileTracingExcludes: {
+    "*": ["./public/**", "./screenshots/**"],
+  },
   turbopack: {
     root: projectRoot,
   },
