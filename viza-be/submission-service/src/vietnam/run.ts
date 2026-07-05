@@ -13,6 +13,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
+import {
+  fillVietnamPreviousVisitRows,
+  validateVietnamConditionalAnswers,
+} from "./conditional-fields";
 import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
   getVnPortalOptionText,
@@ -341,6 +345,27 @@ async function fillVietnamApplicationOnce(
 
     // ── Fill every mapped field that we have an answer for ─────────────
     await emitProgress("application_form_visible");
+    const conditionalAnswerErrors = validateVietnamConditionalAnswers(input.answers);
+    if (conditionalAnswerErrors.length > 0) {
+      validationErrors.push(
+        ...conditionalAnswerErrors.map((error) => ({
+          label: error.fieldName,
+          domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
+          message: error.message,
+        })),
+      );
+      return {
+        status: "scaffolded_pending_walk",
+        runId,
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
+          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+          .join("; ")}`,
+        checkpoint: "application_form_visible",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
+
     await emitProgress("filling_fields");
     let filled = 0;
     let skipped = 0;
@@ -354,6 +379,9 @@ async function fillVietnamApplicationOnce(
         await fillByType(page, fieldName, mapping.type, mapping.domId, value);
         if (fieldName === "intended_province_city") {
           await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
+        }
+        if (fieldName === "visited_vietnam_in_last_year") {
+          filled += (await fillVietnamPreviousVisitRows(page, input.answers)) * 3;
         }
         filled++;
       } catch (err) {

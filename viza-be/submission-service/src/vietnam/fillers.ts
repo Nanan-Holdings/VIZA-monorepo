@@ -222,25 +222,33 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
  * Select a `.ant-radio-group` option by visible label text.
  */
 export async function pickRadio(page: Page, domId: string, optionText: string): Promise<void> {
-  const clicked = await page.evaluate(
-    ({ domId, optionText }) => {
-      const normalize = (value: string | null | undefined) => (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
-      const target = document.getElementById(domId);
-      const root =
-        target?.closest(".ant-form-item") ??
-        target?.closest(".ant-radio-group") ??
-        document;
-      const options = Array.from(root.querySelectorAll<HTMLElement>(".ant-radio-wrapper, label.ant-radio-button-wrapper, label"));
-      const option = options.find((element) => normalize(element.innerText || element.textContent) === normalize(optionText));
-      option?.click();
-      return Boolean(option);
-    },
-    { domId, optionText },
-  );
-  if (!clicked) {
+  const target = page.locator(`#${cssEscape(domId)}`).first();
+  const formItem = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-form-item ')][1]");
+  const radioGroup = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-radio-group ')][1]");
+  const root = (await formItem.count()) > 0 ? formItem : (await radioGroup.count()) > 0 ? radioGroup : page.locator("body");
+  const exactText = new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i");
+  const option = root
+    .locator(".ant-radio-wrapper, label.ant-radio-button-wrapper, label")
+    .filter({ hasText: exactText })
+    .first();
+
+  if ((await option.count()) === 0) {
     throw new Error(`Ant radio option not found for ${domId}: ${optionText}`);
   }
+  await option.click({ timeout: SHORT_TIMEOUT });
   await settle(page);
+
+  const input = option.locator("input[type='radio']").first();
+  const confirmed =
+    ((await input.count()) > 0 && (await input.isChecked())) ||
+    (await option.evaluate((element) =>
+      element.classList.contains("ant-radio-wrapper-checked") ||
+      element.classList.contains("ant-radio-button-wrapper-checked") ||
+      Boolean(element.querySelector(".ant-radio-checked")),
+    ));
+  if (!confirmed) {
+    throw new Error(`Ant radio selection not confirmed for ${domId}: ${optionText}`);
+  }
 }
 
 /**
@@ -290,6 +298,10 @@ export function toDdMmYyyy(yyyymmdd: string): string {
  */
 function cssEscape(id: string): string {
   return id.replace(/([!"#$%&'()*+,./:;<=>?@\[\\\]^`{|}~])/g, "\\$1");
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 
