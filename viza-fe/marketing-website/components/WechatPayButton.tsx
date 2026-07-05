@@ -12,6 +12,9 @@ interface Props {
    *  `inline` is for chip-style placement next to another button. */
   variant?: "block" | "inline";
   className?: string;
+  /** Prefill for the portal checkout form (collected by the /apply wizard). */
+  email?: string;
+  fullName?: string;
 }
 
 /**
@@ -27,13 +30,17 @@ export function WechatPayButton({
   visaType,
   variant = "block",
   className,
+  email,
+  fullName,
 }: Props) {
   const locale = useLocale();
   const t = useTranslations("cta");
   const href = portalUrl(
     `/checkout/wechat?country=${encodeURIComponent(country)}` +
       `&visa=${encodeURIComponent(visaType)}` +
-      `&locale=${encodeURIComponent(locale)}`,
+      `&locale=${encodeURIComponent(locale)}` +
+      (email ? `&email=${encodeURIComponent(email)}` : "") +
+      (fullName ? `&name=${encodeURIComponent(fullName)}` : ""),
   );
 
   const base =
