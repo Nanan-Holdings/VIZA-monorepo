@@ -75,7 +75,7 @@ export default async function ClientOrderPage({ params }: PageProps) {
       : ord.agency_fee_cents + ord.govt_fee_cents;
 
   return (
-    <div className="w-full p-6 md:p-8 space-y-6 max-w-3xl mx-auto">
+    <div className="w-full py-6 md:py-8 space-y-6 max-w-3xl mx-auto">
       <div>
         <Link
           href="/client/home"
@@ -83,7 +83,7 @@ export default async function ClientOrderPage({ params }: PageProps) {
         >
           &larr; Back
         </Link>
-        <h1 className="text-2xl font-semibold text-[#232323]">Order {ord.id}</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-[#232323] break-all">Order {ord.id}</h1>
         <p className="text-sm text-[#6b6b6b]">
           Status: {ord.status} ·{" "}
           {ord.paid_at
@@ -92,8 +92,8 @@ export default async function ClientOrderPage({ params }: PageProps) {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-lg border border-[#efefef] shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
           <thead>
             <tr className="border-b bg-[#fafafa]">
               <th className="text-left px-3 py-2 font-medium text-[#6b6b6b]">Kind</th>

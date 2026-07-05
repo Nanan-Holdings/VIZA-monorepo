@@ -722,7 +722,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
   const inboundRows = (inbound.data ?? []) as InboundRow[];
 
   return (
-    <div className="w-full space-y-6 p-6 md:p-8 max-w-6xl mx-auto">
+    <div className="w-full space-y-6 p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
       <div>
         <Link href="/admin/applications" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:underline">
           <ArrowLeft className="h-4 w-4" />
@@ -845,7 +845,7 @@ export default async function AdminApplicantOverviewPage({ params, searchParams 
                   <p className="font-medium text-[#232323] truncate">
                     {m.subject ?? copy.detail.diagnostics.noSubject}
                   </p>
-                  <p className="text-xs text-[#6b6b6b] mt-1">
+                  <p className="text-xs text-[#6b6b6b] mt-1 break-words [overflow-wrap:anywhere]">
                     {formatAdminDateTime(m.received_at, locale, copy.common.notRecorded)} · {copy.detail.diagnostics.from}: <span className="text-[#232323]">{m.from_addr}</span>
                     {m.processed && <span className="ml-2 text-emerald-600 bg-emerald-50 px-1 rounded font-medium">{copy.detail.diagnostics.processed}</span>}
                   </p>

@@ -533,7 +533,7 @@ export default function HomePage() {
 
         {/* Recent Activity Heading — 与 hero 底部保持充足间距 */}
         <motion.p
-          className="mt-16 mb-8 w-full max-w-[1090px] font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d] sm:mb-10 sm:mt-20 xl:mt-24"
+          className="mt-16 mb-8 w-full max-w-[1090px] font-heading text-[24px] font-medium leading-[1.3] tracking-[-0.72px] text-[#3d3d3d] sm:mb-10 sm:mt-20 sm:text-[30px] sm:tracking-[-0.9px] xl:mt-24"
           initial="hidden"
           animate="visible"
           variants={activityHeadingVariants}
