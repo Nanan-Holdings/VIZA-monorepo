@@ -343,7 +343,7 @@
     "malaysia": "3 months",
     "japan": "90 days",
     "united-states": "10 years",
-    "canada": "5 years",
+    "canada": "10 years",
     "turkiye": "180 days",
     "thailand": "3 months",
     "united-arab-emirates": "60 days",
@@ -396,7 +396,9 @@
     "B1/B2": "B1/B2",
     "eTA": "eTA",
     "Schengen": "Schengen",
-    "eVisa": "eVisa"
+    "eVisa": "eVisa",
+    "Visitor visa": "Visitor visa",
+    "Tourist visa": "Tourist visa"
   },
   "careers": {
     "hero": {

@@ -343,7 +343,7 @@
     "malaysia": "3 个月",
     "japan": "90 天",
     "united-states": "10 年",
-    "canada": "5 年",
+    "canada": "10 年",
     "turkiye": "180 天",
     "thailand": "3 个月",
     "united-arab-emirates": "60 天",
@@ -396,7 +396,9 @@
     "B1/B2": "B1/B2签证",
     "eTA": "电子旅行授权",
     "Schengen": "申根签证",
-    "eVisa": "电子签证"
+    "eVisa": "电子签证",
+    "Visitor visa": "访客签证",
+    "Tourist visa": "旅游签证"
   },
   "careers": {
     "hero": {
