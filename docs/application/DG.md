@@ -212,7 +212,7 @@ Rules:
 
 - left side is Chinese only
 - right side is English or official wording only
-- text-like fields keep a `{ zh, en }` pair
+- text-like fields keep a `{ zh, en }` pair; Chinese-side edits may update `en`, while English/official-side edits preserve `zh`
 - editing either side updates the pair and the canonical field value
 - non-text fields share one canonical answer across both sides
 - date, country, select, radio, and checkbox values should not diverge by language
@@ -359,7 +359,7 @@ Manual checks:
 
 - destination card opens the matching application
 - multiple applications preserve separate progress
-- bilingual fields sync both directions
+- Chinese-side text edits update the English/official side, while English/official-side text edits do not overwrite Chinese text
 - select/date/country controls stay synchronized
 - `问 AI` opens only from the button
 - AI guidance has no Markdown formatting artifacts

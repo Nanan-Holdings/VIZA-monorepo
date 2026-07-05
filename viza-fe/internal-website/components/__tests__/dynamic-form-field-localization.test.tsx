@@ -70,7 +70,7 @@ describe("DynamicFormField localization", () => {
     expect(screen.getByText("Business")).toBeInTheDocument();
   });
 
-  it("lets empty dependent selects fall back to a localized text input", () => {
+  it("does not let empty dependent selects fall back to a free-text input", () => {
     const onChange = vi.fn();
     const wardField = field({
       id: "ward",
@@ -93,11 +93,9 @@ describe("DynamicFormField localization", () => {
       />,
     );
 
-    const input = screen.getByPlaceholderText(/坊\/社/);
-    expect(input).toHaveAttribute("type", "text");
-
-    fireEvent.change(input, { target: { value: "Phuong Ben Nghe" } });
-    expect(onChange).toHaveBeenCalledWith("Phuong Ben Nghe");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByText("请先选择上级选项，或联系 VIZA 检查官方下拉列表。")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("keeps page scrolling available while a searchable dropdown is open", () => {
