@@ -184,7 +184,7 @@ export default function DestinationsPage() {
   }, [applications, applicationProgress, payments, visaPackages]);
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+    <div className="min-h-screen bg-[#fcfcfc] pb-16 pt-8">
       <main className="mx-auto flex w-full max-w-[1090px] flex-col gap-6">
         <Link
           href="/client/home"
@@ -195,7 +195,7 @@ export default function DestinationsPage() {
         </Link>
 
         <section className="rounded-[18px] border border-[#e7edf5] bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
-          <h1 className="font-heading text-[34px] font-medium leading-tight text-[#2f2f2f] sm:text-[40px]">
+          <h1 className="font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[40px]">
             {t("title")}
           </h1>
           <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[#667085]">
@@ -213,7 +213,7 @@ export default function DestinationsPage() {
               <p className="text-[15px] font-medium text-[#526174]">{t("noApplications")}</p>
             </div>
           ) : (
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
               {myDestinations.map((entry) => {
                 const isCurrent = currentKey === entry.key;
                 return (
@@ -222,18 +222,18 @@ export default function DestinationsPage() {
                     type="button"
                     onClick={() => router.push(entry.href)}
                     className={[
-                      "group flex min-h-[150px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition cursor-pointer",
+                      "group flex min-h-[130px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition cursor-pointer sm:min-h-[150px] sm:p-5",
                       isCurrent
                         ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
                         : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
                     ].join(" ")}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[34px] leading-none" aria-hidden="true">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-[26px] leading-none sm:text-[34px]" aria-hidden="true">
                           {getDestinationFlag(entry.country)}
                         </span>
-                        <p className="font-heading text-[17px] font-medium leading-snug text-[#222]">
+                        <p className="font-heading text-[15px] font-medium leading-snug text-[#222] sm:text-[17px]">
                           {getVisaPackageTitle(entry.country, entry.visaType, locale)}
                         </p>
                       </div>
