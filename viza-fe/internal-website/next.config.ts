@@ -34,6 +34,10 @@ const nextConfig: NextConfig = {
     ],
   },
   output: "standalone",
+  outputFileTracingRoot: projectRoot,
+  outputFileTracingIncludes: {
+    "/api/applications/[id]/kr-annex17-pdf": ["./lib/korea-c39/templates/**"],
+  },
   turbopack: {
     root: projectRoot,
   },
