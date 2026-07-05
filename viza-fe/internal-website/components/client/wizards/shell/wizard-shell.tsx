@@ -381,6 +381,8 @@ export function WizardShell<TForm>({
           <PassportOcrUpload
             applicationId={applicationId}
             className="mb-6"
+            country={applicationCountry}
+            visaType={applicationVisaType}
             onFieldsApplied={(fields) => {
               setForm((prev) => mergeUniversalProfileIntoWizardForm(prev, fields, { force: true }));
             }}

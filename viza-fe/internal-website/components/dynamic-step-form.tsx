@@ -2039,10 +2039,9 @@ export function DynamicStepForm({
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
-    const targetWasManuallyEdited = Boolean(manualEnglishValueKeysRef.current[fieldName] && currentPair.en.trim());
     const nextPair = side === "zh"
-      ? { zh: value, en: targetWasManuallyEdited ? currentPair.en : toOfficialEnglishValue(value) }
-      : { zh: toChineseSourceValue(value), en: value };
+      ? { zh: value, en: toOfficialEnglishValue(value) }
+      : { zh: currentPair.zh, en: value };
     if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
 
     pushUndoSnapshot();
@@ -2050,7 +2049,7 @@ export function DynamicStepForm({
       const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: Boolean(value.trim()) };
       manualEnglishValueKeysRef.current = nextManualKeys;
       setManualEnglishValueKeys(nextManualKeys);
-    } else if (!value.trim()) {
+    } else {
       const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: false };
       manualEnglishValueKeysRef.current = nextManualKeys;
       setManualEnglishValueKeys(nextManualKeys);
@@ -2060,7 +2059,7 @@ export function DynamicStepForm({
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
 
-    const officialValue = nextPair.en || nextPair.zh;
+    const officialValue = side === "en" ? value : nextPair.en || nextPair.zh;
     handleChange(fieldName, officialValue, { recordUndo: false });
   };
 

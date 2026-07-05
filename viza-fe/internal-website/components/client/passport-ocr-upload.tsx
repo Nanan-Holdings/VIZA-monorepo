@@ -60,6 +60,8 @@ export interface PassportOcrUploadProps {
   className?: string;
   initialFileName?: string | null;
   initialUploaded?: boolean;
+  country?: string | null;
+  visaType?: string | null;
   documentScope?: "application" | "universal_profile";
   documentType?: string;
   requirementKey?: string;
@@ -221,6 +223,22 @@ const PASSPORT_OCR_COPY = {
   },
 } as const;
 
+const GENERIC_UPLOAD_BADGES = ["JPG", "PNG", "WebP", "PDF"] as const;
+const VIETNAM_OFFICIAL_IMAGE_BADGES = ["JPG/JPEG", "PNG", "WebP"] as const;
+const GENERIC_UPLOAD_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
+const VIETNAM_OFFICIAL_IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+
+function isVietnamOfficialImageContext(country?: string | null, visaType?: string | null): boolean {
+  const normalizedCountry = (country ?? "").trim().toLowerCase();
+  const normalizedVisaType = (visaType ?? "").trim().toLowerCase();
+  return (
+    normalizedCountry === "vietnam" ||
+    normalizedCountry === "vn" ||
+    normalizedVisaType === "vn_e_visa" ||
+    normalizedVisaType === "evisa_tourism"
+  );
+}
+
 function getResponseError(payload: PassportOcrResponse | null, fallbackMessage: string, isZh: boolean) {
   const message = payload?.error?.message?.trim();
   const code = payload?.error?.code;
@@ -340,6 +358,8 @@ export function PassportOcrUpload({
   className,
   initialFileName,
   initialUploaded = false,
+  country = null,
+  visaType = null,
   documentScope = "application",
   documentType = "passport_copy",
   requirementKey = documentType,
@@ -353,6 +373,14 @@ export function PassportOcrUpload({
   const copy = isZh ? PASSPORT_OCR_COPY.zh : PASSPORT_OCR_COPY.en;
   const resolvedTitle = title ?? copy.title;
   const resolvedDescription = description ?? copy.description;
+  const useVietnamOfficialImageRules = isVietnamOfficialImageContext(country, visaType);
+  const uploadBadges = useVietnamOfficialImageRules ? VIETNAM_OFFICIAL_IMAGE_BADGES : GENERIC_UPLOAD_BADGES;
+  const uploadLimitLabel = useVietnamOfficialImageRules
+    ? isZh
+      ? "最大 2 MB"
+      : "Up to 2 MB"
+    : copy.formatsLimit;
+  const uploadAccept = useVietnamOfficialImageRules ? VIETNAM_OFFICIAL_IMAGE_ACCEPT : GENERIC_UPLOAD_ACCEPT;
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<UploadStatus>(initialUploaded ? "uploaded" : "idle");
@@ -616,11 +644,12 @@ export function PassportOcrUpload({
               {copy.chooseFile}
             </span>
             <span className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded border bg-white px-2 py-1 font-medium">JPG</span>
-              <span className="rounded border bg-white px-2 py-1 font-medium">PNG</span>
-              <span className="rounded border bg-white px-2 py-1 font-medium">WebP</span>
-              <span className="rounded border bg-white px-2 py-1 font-medium">PDF</span>
-              <span>{copy.formatsLimit}</span>
+              {uploadBadges.map((badge) => (
+                <span key={badge} className="rounded border bg-white px-2 py-1 font-medium">
+                  {badge}
+                </span>
+              ))}
+              <span>{uploadLimitLabel}</span>
             </span>
           </button>
 
@@ -665,7 +694,7 @@ export function PassportOcrUpload({
         ref={inputRef}
         type="file"
         className="hidden"
-        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+        accept={uploadAccept}
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) void handleFile(file);

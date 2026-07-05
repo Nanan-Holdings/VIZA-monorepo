@@ -690,20 +690,20 @@ export function DynamicFormField({
       }
       const opts = normaliseOptions(options, sideLocale);
       if (isEmptyDependentSelect(field, opts)) {
+        const dependentMessage = sideLocale === "zh"
+          ? "请先选择上级选项，或联系 VIZA 检查官方下拉列表。"
+          : "Select the parent option first, or contact VIZA to check the official dropdown list.";
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
-            <InputGroup className={`h-12 rounded-lg border-[#e8e8e8] focus-within:ring-1 focus-within:ring-[#03346E] focus-within:border-[#03346E] ${forceWhiteBackground ? "bg-white" : ""} ${disabled ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}>
-              <InputGroupInput
-                type="text"
-                placeholder={localizedPlaceholder ?? selectFallback}
-                value={value}
-                onChange={(event) => onChange(maxLength ? event.target.value.slice(0, maxLength) : event.target.value)}
-                required={required}
-                disabled={disabled}
-                maxLength={maxLength}
-                className="h-12 text-[15px]"
-              />
-            </InputGroup>
+            <div
+              className={cn(
+                "flex min-h-12 items-center rounded-lg border border-red-200 px-3 text-[14px] leading-5 text-red-700",
+                forceWhiteBackground ? "bg-white" : "bg-red-50",
+              )}
+              role="alert"
+            >
+              {dependentMessage}
+            </div>
           </FieldWrapper>
         );
       }

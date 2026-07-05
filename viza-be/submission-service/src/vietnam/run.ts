@@ -15,8 +15,6 @@ import { chooseVietnamApplyEntry } from "./apply-entry";
 import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
 import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
-  buildVnFieldFallback,
-  getVnDependentFieldFallbackValue,
   getVnPortalOptionText,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
@@ -360,37 +358,27 @@ async function fillVietnamApplicationOnce(
         filled++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const fallbackValue = getVnDependentFieldFallbackValue(fieldName, input.answers);
-        const fallbackRecord = buildVnFieldFallback({
-          fieldName,
+        validationErrors.push({
+          label: fieldName,
           domId: mapping.domId,
-          type: mapping.type,
-          userValue: value,
-          fallbackValue,
-          errorMessage: msg,
+          message: `Official Vietnam e-Visa portal rejected this value: ${msg}`,
         });
-        if (fallbackValue && fallbackRecord) {
-          try {
-            if (fieldName === "intended_ward_commune") {
-              await waitForDependentAntSelectToHydrate(page, mapping.domId);
-            }
-            await fillByType(page, fieldName, mapping.type, mapping.domId, fallbackValue);
-            fieldFallbacks.push(fallbackRecord);
-            filled++;
-            console.warn(
-              `[vn] fill fallback for ${fieldName} (${mapping.domId}): ${msg}; used ${fallbackValue}`,
-            );
-            continue;
-          } catch (fallbackErr) {
-            const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-            console.warn(
-              `[vn] fallback fill failed for ${fieldName} (${mapping.domId}): ${fallbackMsg}`,
-            );
-          }
-        }
-        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}): ${msg}`);
+        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${msg}`);
         skipped++;
       }
+    }
+
+    if (validationErrors.length > 0) {
+      return {
+        status: "scaffolded_pending_walk",
+        runId,
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
+          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+          .join("; ")}`,
+        checkpoint: "application_form_visible",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
     }
 
     // ── Stop-at-pay sentinel + capture registration code ──────────────
