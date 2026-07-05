@@ -515,6 +515,78 @@
   /* Tab switch (Explore / Events) on top — large pill */
   .center-tabs { display: flex; align-items: center; gap: 4px; background: transparent; }
 
+  /* ---------- Dotted world map (Map view) ---------- */
+  .wmap {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--border-hairline);
+    border-radius: 20px;
+    padding: 28px 28px 18px;
+    box-shadow:
+      0 1px 2px rgba(3, 52, 110, 0.04),
+      0 8px 24px -8px rgba(3, 52, 110, 0.10),
+      0 24px 48px -24px rgba(3, 52, 110, 0.08);
+  }
+  .wmap-svg { display: block; width: 100%; height: auto; }
+  .wmap-dot { fill: var(--brand-100); }
+
+  .wmap-pin .wmap-halo,
+  .wmap-pin .wmap-core {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform .2s var(--ease-standard), fill .15s;
+  }
+  .wmap-pin.tag-fast .wmap-core { fill: var(--success); }
+  .wmap-pin.tag-fast .wmap-halo { fill: rgba(22, 163, 74, 0.16); }
+  .wmap-pin.tag-evisa .wmap-core { fill: var(--brand-500); }
+  .wmap-pin.tag-evisa .wmap-halo { fill: rgba(3, 52, 110, 0.14); }
+  .wmap-pin.on .wmap-core { transform: scale(1.35); }
+  .wmap-pin.on .wmap-halo { animation: wmap-pulse 1.6s var(--ease-standard) infinite; }
+  @keyframes wmap-pulse {
+    0% { transform: scale(0.7); opacity: 0.9; }
+    80%, 100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  .wmap-hit {
+    position: absolute;
+    width: 28px; height: 28px;
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .wmap-hit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(3, 52, 110, 0.4);
+  }
+
+  .wmap-panel {
+    position: absolute;
+    width: 250px;
+    z-index: 5;
+    animation: wmap-panel-in .18s var(--ease-standard);
+  }
+  @keyframes wmap-panel-in {
+    from { opacity: 0; translate: 0 4px; }
+    to { opacity: 1; translate: 0 0; }
+  }
+
+  .wmap-legend {
+    display: flex; align-items: center; gap: 18px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-hairline);
+    font: 500 12px/1.2 var(--font-sans);
+    color: var(--fg-2);
+  }
+  .wmap-key { display: inline-flex; align-items: center; gap: 7px; }
+  .wmap-key::before {
+    content: "";
+    width: 8px; height: 8px; border-radius: 999px;
+  }
+  .wmap-key.tag-fast::before { background: var(--success); }
+  .wmap-key.tag-evisa::before { background: var(--brand-500); }
+  .wmap-hint { margin-left: auto; font-weight: 400; color: var(--fg-3); }
+
   /* ====================================================
      Site footer — VIZA design system
      ==================================================== */
@@ -715,6 +787,18 @@
 
     /* Country cards render 2-up on a phone */
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+    /* Map view: preview card becomes a centered overlay (pin-anchored inline
+       position can't fit a 250px panel on a phone — !important overrides it) */
+    .wmap { padding: 16px 12px 12px; }
+    .wmap-panel {
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: min(250px, 76vw);
+    }
+    .wmap-legend { flex-wrap: wrap; gap: 10px 18px; }
+    .wmap-hint { margin-left: 0; flex-basis: 100%; }
 
     /* Footer: 2 columns */
     .site-foot { padding: 0 20px; }
