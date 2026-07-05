@@ -24,6 +24,7 @@ const OPENAI_FIELD_GUIDANCE_MODEL =
 const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === "1";
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
 const MAX_HISTORY_MESSAGES = 8;
+const OPTION_CONTEXT_VALUE_LIMIT = 12;
 
 const STANDARD_IDENTITY_FIELD_SOURCE: SourceBody = {
   title: "Standard passport identity-field guidance",
@@ -204,6 +205,151 @@ function normalizeOptions(
       };
     })
     .filter((option) => option.value.trim() || option.text.trim());
+}
+
+function normalizeComparableText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9\u3400-\u9fff]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function optionCoreTokens(option: FieldOption): string[] {
+  const normalized = normalizeComparableText(`${option.value} ${option.text}`);
+  const stopWords = new Set([
+    "ward",
+    "commune",
+    "district",
+    "province",
+    "city",
+    "town",
+    "option",
+    "select",
+    "phuong",
+    "xa",
+    "quan",
+    "huyen",
+    "tinh",
+    "thanh",
+    "pho",
+  ]);
+  return normalized
+    .split(" ")
+    .filter((token) => token.length >= 2 && !stopWords.has(token));
+}
+
+function relevantAnswerEntries(allAnswers?: Record<string, string>): Array<[string, string]> {
+  if (!allAnswers) return [];
+  return Object.entries(allAnswers)
+    .filter(([, value]) => typeof value === "string" && value.trim())
+    .slice(0, OPTION_CONTEXT_VALUE_LIMIT);
+}
+
+function fieldQuestionEvidence(reqBody: FieldGuidanceRequest): string {
+  return [
+    reqBody.question,
+    reqBody.answer,
+    ...relevantAnswerEntries(reqBody.allAnswers).flatMap(([key, value]) => [key, value]),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
+}
+
+function findQuestionMatchingOption(
+  reqBody: FieldGuidanceRequest,
+  field: FieldGuidanceField
+): FieldOption | null {
+  const options = normalizeOptions(field.options);
+  if (options.length === 0) return null;
+
+  const evidence = normalizeComparableText(fieldQuestionEvidence(reqBody));
+  if (!evidence) return null;
+
+  let best: { option: FieldOption; score: number } | null = null;
+  for (const option of options) {
+    const optionText = normalizeComparableText(`${option.value} ${option.text}`);
+    if (optionText && evidence.includes(optionText)) {
+      return option;
+    }
+
+    const tokens = optionCoreTokens(option);
+    if (tokens.length === 0) continue;
+    const matched = tokens.filter((token) => evidence.includes(token));
+    const score = matched.length / tokens.length;
+    if (matched.length >= 2 && score >= 0.6 && (!best || score > best.score)) {
+      best = { option, score };
+    }
+  }
+
+  return best?.option ?? null;
+}
+
+function questionOptionContext(
+  reqBody: FieldGuidanceRequest,
+  field: FieldGuidanceField
+): string {
+  const options = normalizeOptions(field.options);
+  const optionLines = options
+    .slice(0, 30)
+    .map((option) => `${option.value}: ${option.text}`)
+    .join("\n");
+  const answerLines = relevantAnswerEntries(reqBody.allAnswers)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("\n");
+  const matchedOption = findQuestionMatchingOption(reqBody, field);
+
+  return [
+    optionLines ? `Official options for this exact field:\n${optionLines}` : "Official options for this exact field: none",
+    reqBody.answer?.trim() ? `Current saved answer: ${reqBody.answer.trim()}` : "Current saved answer: empty",
+    answerLines ? `Other filled answers that may help resolve this field:\n${answerLines}` : "Other filled answers: none",
+    matchedOption
+      ? `Deterministic option match from the user's question/current answers: ${matchedOption.value}: ${matchedOption.text}`
+      : "Deterministic option match from the user's question/current answers: none",
+  ].join("\n\n");
+}
+
+function optionSelectionQuestionFallback(
+  reqBody: FieldGuidanceRequest,
+  field: FieldGuidanceField,
+  locale: "zh" | "en"
+): string | null {
+  if (!["select", "radio", "checkbox", "country"].includes(field.fieldType)) return null;
+  const questionText = `${reqBody.question ?? ""} ${reqBody.answer ?? ""}`;
+  if (!/(选项|选择|which|option|select|choose|应该选|该选)/i.test(questionText)) return null;
+
+  const matchedOption = findQuestionMatchingOption(reqBody, field);
+  if (matchedOption) {
+    return locale === "zh"
+      ? `这个地址/答案最匹配当前题目的官方选项“${matchedOption.text || matchedOption.value}”（保存值：${matchedOption.value || matchedOption.text}）。建议优先选择这个选项；如果官方页面动态下拉里的文字与 VIZA 当前显示不一致，请以官方页面当前显示的 ward/commune 选项为准。`
+      : `This address or answer best matches the current field option "${matchedOption.text || matchedOption.value}" (saved value: ${matchedOption.value || matchedOption.text}). Select that option first; if the official portal's live dropdown differs from VIZA, follow the live official ward/commune option.`;
+  }
+
+  return locale === "zh"
+    ? "我现在不能从你提供的信息中可靠匹配到唯一选项。请先核对地址所属的省/市、区/县和 ward/commune，再从官方下拉选项中选择完全对应或最接近的一项；不要随便选默认值。"
+    : "I cannot reliably match a single option from the information provided. Check the province/city, district, and ward/commune for the address, then choose the exact or closest official dropdown option; do not pick a default value blindly.";
+}
+
+function buildQuestionRetrievalQuery(
+  reqBody: FieldGuidanceRequest,
+  field: FieldGuidanceField
+): string {
+  return [
+    field.stepName,
+    field.label,
+    field.fieldName,
+    field.placeholder,
+    reqBody.question,
+    reqBody.answer,
+    ...relevantAnswerEntries(reqBody.allAnswers).flatMap(([key, value]) => [key, value]),
+    "visa application form field option official ward commune address dropdown field answer norms",
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
 }
 
 function getLocale(locale?: string | null): "zh" | "en" {
@@ -1052,6 +1198,7 @@ async function generateQuestionReply(
 ): Promise<{ reply: string; aiUsed: boolean }> {
   const fallback =
     standardIdentityQuestionFallback(reqBody, field, locale) ??
+    optionSelectionQuestionFallback(reqBody, field, locale) ??
     (locale === "zh"
       ? `关于“${field.label}”：${guidance.summary} 可以参考示例：${guidance.examples.slice(0, 2).join("；")}。${validation.messages[0] ?? ""}`
       : `For "${field.label}": ${guidance.summary} Examples: ${guidance.examples.slice(0, 2).join("; ")}. ${validation.messages[0] ?? ""}`);
@@ -1070,6 +1217,7 @@ async function generateQuestionReply(
   const relevantContext = [standardContext ? `Standard field source:\n${standardContext}` : null, context]
     .filter(Boolean)
     .join("\n\n");
+  const optionContext = questionOptionContext(reqBody, field);
   const conversation = history.map((message) => ({
     role: message.role,
     content: message.content,
@@ -1082,12 +1230,12 @@ async function generateQuestionReply(
       messages: [
         {
           role: "system",
-          content: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. For standard identity/passport fields, the passport or official document text is the answer; never infer a passport issuing authority from the pickup city, residence city, or application country. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
+          content: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the user asks which option to choose and the field has official options, compare the user's question, current answer, and other filled answers against those exact options first. If one option clearly matches, state that option directly before explaining uncertainty. Do not answer only with generic field meaning when the user asked for an option. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. For standard identity/passport fields, the passport or official document text is the answer; never infer a passport issuing authority from the pickup city, residence city, or application country. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
         },
         ...conversation,
         {
           role: "user",
-          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant context:\n${relevantContext || "No source context found."}`,
+          content: `Active application scope: ${activeScopeLabel(reqBody)}\n\nQuestion: ${question}\n\nField: ${JSON.stringify(field)}\n\nQuestion-specific field context:\n${optionContext}\n\nCurrent guidance: ${JSON.stringify(guidance)}\n\nValidation: ${JSON.stringify(validation)}\n\nRelevant RAG context:\n${relevantContext || "No source context found."}`,
         },
       ],
     });
@@ -1201,6 +1349,18 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     );
     const history = sanitizeHistory(body.history);
     const trimmedQuestion = body.question?.trim();
+    const questionKnowledge = trimmedQuestion && !DISABLE_RETRIEVAL
+      ? await retrieveVisaKnowledge({
+          query: buildQuestionRetrievalQuery(body, field),
+          country: body.country,
+          visaType: body.visaType,
+          intent: "form_intake",
+          matchCount: 5,
+        })
+      : null;
+    const questionChunks = questionKnowledge
+      ? [...questionKnowledge.chunks, ...staticGuidance.chunks]
+      : staticGuidance.chunks;
     const replyResult = trimmedQuestion
       ? await generateQuestionReply(
           trimmedQuestion,
@@ -1210,15 +1370,18 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           validation,
           history,
           locale,
-          staticGuidance.chunks
+          questionChunks
         )
       : null;
+    const sources = questionKnowledge
+      ? [...staticGuidance.sources, ...mapSources(questionKnowledge.chunks)]
+      : staticGuidance.sources;
 
     res.status(200).json({
       guidance: staticGuidance.guidance,
       validation,
       reply: replyResult?.reply,
-      sources: staticGuidance.sources,
+      sources,
       confidence: staticGuidance.confidence,
       aiUsed: staticGuidance.aiUsed || Boolean(replyResult?.aiUsed),
       cached: staticGuidance.cached,
