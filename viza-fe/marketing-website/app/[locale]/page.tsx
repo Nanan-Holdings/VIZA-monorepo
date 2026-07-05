@@ -207,7 +207,7 @@ export default function ExplorePage() {
       <a className={`card-c ${featured ? "featured" : ""}`} href={visaHref(c.slug)} style={{ textDecoration: "none", color: "inherit", display: hidden ? "none" : undefined }}>
         <div className="card-img">
           <div className="photo" style={{ backgroundImage: `url('${c.img}')` }}></div>
-          <span className={`card-tag ${isFast ? "tag-fast" : "tag-evisa"}`}>{isFast ? t("explore.fastTrack") : c.type}</span>
+          {isFast && <span className="card-tag tag-fast">{t("explore.fastTrack")}</span>}
           <button
             className={`card-fav ${fav ? "on" : ""}`}
             aria-label={t("explore.save")}
