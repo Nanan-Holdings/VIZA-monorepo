@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ClipboardList, FileText, Headphones } from "lucide-react";
+import { Globe } from "lucide-react";
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -53,59 +53,6 @@ function MenuItem({
   );
 }
 
-function LucideSettings() {
-  return (
-    <div className="relative shrink-0 size-[16px]" data-name="lucide/settings-2">
-      <svg
-        className="block size-full"
-        fill="none"
-        preserveAspectRatio="none"
-        viewBox="0 0 16 16"
-      >
-        <g id="lucide/settings-2">
-          <path
-            d="M9.33333 11.3333H3.33333M9.33333 11.3333C9.33333 12.4379 10.2288 13.3333 11.3333 13.3333C12.4379 13.3333 13.3333 12.4379 13.3333 11.3333C13.3333 10.2288 12.4379 9.33333 11.3333 9.33333C10.2288 9.33333 9.33333 10.2288 9.33333 11.3333ZM12.6667 4.66667H6.66667M6.66667 4.66667C6.66667 5.77124 5.77124 6.66667 4.66667 6.66667C3.5621 6.66667 2.66667 5.77124 2.66667 4.66667C2.66667 3.5621 3.5621 2.66667 4.66667 2.66667C5.77124 2.66667 6.66667 3.5621 6.66667 4.66667Z"
-            id="Vector"
-            stroke="var(--stroke-0, #3D3D3D)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.33"
-          />
-        </g>
-      </svg>
-    </div>
-  );
-}
-
-function LucideInfo() {
-  return (
-    <div className="relative shrink-0 size-[16px]" data-name="lucide/info">
-      <svg
-        className="block size-full"
-        fill="none"
-        preserveAspectRatio="none"
-        viewBox="0 0 16 16"
-      >
-        <g clipPath="url(#clip0_1_82)" id="lucide/info">
-          <path
-            d="M8 10.6667V8M8 5.33333H8.00667M14.6667 8C14.6667 11.6819 11.6819 14.6667 8 14.6667C4.3181 14.6667 1.33333 11.6819 1.33333 8C1.33333 4.3181 4.3181 1.33333 8 1.33333C11.6819 1.33333 14.6667 4.3181 14.6667 8Z"
-            id="Vector"
-            stroke="var(--stroke-0, #3D3D3D)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.33"
-          />
-        </g>
-        <defs>
-          <clipPath id="clip0_1_82">
-            <rect fill="white" height="16" width="16" />
-          </clipPath>
-        </defs>
-      </svg>
-    </div>
-  );
-}
-
 function LucideLogOut() {
   return (
     <div className="relative shrink-0 size-[16px]" data-name="lucide/log-out">
@@ -150,31 +97,25 @@ interface AnimatedMenuProps {
   onLogout: () => void | Promise<void>;
   isLoggingOut?: boolean;
   showInviteFriends?: boolean;
-  applicationHref?: string;
-  applicationLabel?: string;
   onClose?: () => void;
 }
 
+// Status / Application / Settings / Support live in the top nav bar — the
+// dropdown only carries destinations that have no nav tab.
 export function AnimatedMenu({
   onLogout,
   isLoggingOut = false,
   showInviteFriends = false,
-  applicationHref = "/client/application",
-  applicationLabel,
   onClose,
 }: AnimatedMenuProps) {
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("menu");
-  const isInSettings = pathname.startsWith("/client/settings");
+  const isInDestinations = pathname.startsWith("/client/destinations");
   const isInInviteFriends = pathname.startsWith("/client/invite-friends");
-  const isInHelp = pathname.startsWith("/client/help");
-  const isInStatus = pathname.startsWith("/client/status");
-  const isInApplication = pathname.startsWith("/client/application") || pathname.startsWith("/client/documents");
-  const isInSupport = pathname.startsWith("/client/support");
 
-  const handleSettings = () => {
-    router.push("/client/settings");
+  const handleChangeCountry = () => {
+    router.push("/client/destinations");
     onClose?.();
   };
 
@@ -183,26 +124,7 @@ export function AnimatedMenu({
     onClose?.();
   };
 
-  const handleHelp = () => {
-    router.push("/client/help");
-    onClose?.();
-  };
-
-  const handleStatus = () => {
-    router.push("/client/status");
-    onClose?.();
-  };
-
-  const handleApplication = () => {
-    router.push(applicationHref);
-    onClose?.();
-  };
-
-  const handleSupport = () => {
-    router.push("/client/support");
-    onClose?.();
-  };
-
+  // Index 0 = switch-country item; invite-friends (when shown) takes index 1.
   const menuItemBaseIndex = showInviteFriends ? 1 : 0;
 
   return (
@@ -217,57 +139,25 @@ export function AnimatedMenu({
         className="absolute border border-[#efefef] border-solid inset-0 pointer-events-none rounded-[16px] shadow-[0px_0px_8px_0px_rgba(171,171,171,0.25)]"
       />
 
+      <MenuItem
+        icon={<Globe className="h-4 w-4" />}
+        label={t("changeCountry")}
+        backgroundColor={isInDestinations ? "bg-[#efefef]" : "bg-white"}
+        index={0}
+        onClick={handleChangeCountry}
+      />
+
       {showInviteFriends && (
         <>
           <MenuItem
             icon={<LucideUserPlus />}
             label={t("inviteFriends")}
             backgroundColor={isInInviteFriends ? "bg-[#efefef]" : "bg-white"}
-            index={0}
+            index={1}
             onClick={handleInviteFriends}
           />
         </>
       )}
-
-      <MenuItem
-        icon={<ClipboardList className="h-4 w-4" />}
-        label={t("status")}
-        backgroundColor={isInStatus ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex}
-        onClick={handleStatus}
-      />
-
-      <MenuItem
-        icon={<FileText className="h-4 w-4" />}
-        label={applicationLabel ?? t("documents")}
-        backgroundColor={isInApplication ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex + 1}
-        onClick={handleApplication}
-      />
-
-      <MenuItem
-        icon={<Headphones className="h-4 w-4" />}
-        label={t("support")}
-        backgroundColor={isInSupport ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex + 2}
-        onClick={handleSupport}
-      />
-
-      <MenuItem
-        icon={<LucideSettings />}
-        label={t("settings")}
-        backgroundColor={isInSettings ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex + 3}
-        onClick={handleSettings}
-      />
-
-      <MenuItem
-        icon={<LucideInfo />}
-        label={t("help")}
-        backgroundColor={isInHelp ? "bg-[#efefef]" : "bg-white"}
-        index={menuItemBaseIndex + 4}
-        onClick={handleHelp}
-      />
 
       <div className="w-full h-px bg-[#efefef]" />
 
@@ -275,7 +165,7 @@ export function AnimatedMenu({
         icon={<LucideLogOut />}
         label={isLoggingOut ? t("loggingOut") : t("logout")}
         backgroundColor="bg-white"
-        index={menuItemBaseIndex + 5}
+        index={menuItemBaseIndex + 1}
         onClick={onLogout}
         textColor="text-red-500"
       />

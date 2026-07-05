@@ -21,6 +21,9 @@ import {
 } from "@/app/actions/user-package";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isCountryLaunched } from "@/lib/launched-countries";
+import type { DestinationApplicationProgress } from "@/lib/client/application-progress";
+
+export type { DestinationApplicationProgress };
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -46,14 +49,6 @@ function matchesDestinationSearch(destination: PopularVisaDestination, normalize
     ...(destination.searchAliases ?? []),
   ].join(" ").toLowerCase();
   return searchableText.includes(normalizedSearch);
-}
-
-export interface DestinationApplicationProgress {
-  applicationId: string;
-  status: string;
-  percent: number;
-  label: string;
-  updatedAt: string | null;
 }
 
 export function PopularDestinationsSection({

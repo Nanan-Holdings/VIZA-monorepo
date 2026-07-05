@@ -18,29 +18,24 @@ import { RecentActivitySection, type ActivityEvent } from "@/components/client/h
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { SubscriptionPlanCard } from "@/components/client/home/SubscriptionPlanCard";
+import { getApplicationPaymentRecords } from "@/app/actions/application-lifecycle";
 import {
-  PopularDestinationsSection,
-  type DestinationApplicationProgress,
-} from "@/components/client/home/PopularDestinationsSection";
-import { getUserVisaPackages, type UserVisaPackage } from "@/app/actions/user-package";
-import {
-  getApplicationPaymentRecords,
-  type ApplicationPaymentRecord,
-} from "@/app/actions/application-lifecycle";
-import {
+  getDestinationDisplayNameForLocale,
   getFormVisaType,
-  getVisaDestinationKey,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
+import {
+  getRecentApplicationFormHref,
+  readApplicationFormTarget,
+} from "@/lib/client/recent-application-form";
+import {
+  getNextApplicationHref,
+  type ApplicationRow,
+  type DocumentRow,
+  type PaymentRow,
+} from "@/lib/client/application-progress";
 import { resolveHomeDocumentLabel } from "./home-activity";
 import { isIgnorableDashboardLoadError } from "./home-load-errors";
-import { isChineseLocale } from "@/lib/i18n/locale";
-import { evaluateShowIf, isRequiredUnlessSatisfied } from "@/lib/form-utils";
-import {
-  dbRowToFormField,
-  type VisaFormFieldDbRow,
-  type VisaFormFieldRow,
-} from "@/types/visa-form-fields";
 
 // ---------------------------------------------------------------------------
 // Loading / error states
@@ -77,38 +72,6 @@ function ErrorState({ message }: { message: string }) {
 // ---------------------------------------------------------------------------
 // Interfaces & Helper Logic
 // ---------------------------------------------------------------------------
-
-interface ApplicationRow {
-  id: string;
-  status: string;
-  country: string;
-  visa_type: string;
-  visa_package_id: string | null;
-  submission_result_status: string | null;
-  submitted_at: string | null;
-  created_at: string;
-  updated_at: string | null;
-}
-
-interface DocumentRow {
-  id: string;
-  application_id: string;
-  document_type: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AnswerRow {
-  application_id: string;
-  field_name: string;
-  value_text: string | null;
-  updated_at: string | null;
-}
-
-type FormFieldSchemaMap = Map<string, VisaFormFieldRow[]>;
-
-type PaymentRow = ApplicationPaymentRecord;
 
 interface ApplicantProfileSummary {
   full_name: string | null;
@@ -224,230 +187,6 @@ function buildUniversalInfoProgress(
   };
 }
 
-function getProgressLabel(
-  status: string,
-  percent: number,
-  isZh: boolean,
-  submissionResultStatus?: string | null,
-): string {
-  const normalizedResultStatus = submissionResultStatus?.toLowerCase() ?? "";
-  if (["waiting", "processing"].includes(normalizedResultStatus)) {
-    return isZh ? "正在提交" : "Submitting";
-  }
-  if (status === "approved") return isZh ? "已批准" : "Approved";
-  if (status === "submitted") return isZh ? "已提交" : "Submitted";
-  if (status === "rejected") return isZh ? "需要处理" : "Needs attention";
-  if (percent >= 70) return isZh ? "接近完成" : "Almost complete";
-  if (percent >= 30) return isZh ? "填写中" : "In progress";
-  return isZh ? "已开始" : "Started";
-}
-
-const FORM_COMPLETE_STATUSES = new Set([
-  "payment_pending",
-  "submitted",
-  "submitted_to_government",
-  "biometrics_pending",
-  "approved",
-  "rejected",
-  "delivered",
-  "staff_action_required",
-]);
-
-const PAID_PAYMENT_STATUSES = new Set(["paid", "succeeded", "success", "complete", "completed"]);
-
-const TERMINAL_PROGRESS_STATUSES = new Set([
-  "submitted",
-  "submitted_to_government",
-  "biometrics_pending",
-  "approved",
-  "delivered",
-]);
-
-const NEAR_COMPLETE_STATUSES = new Set([
-  "payment_pending",
-  "staff_action_required",
-]);
-
-const SUBMISSION_IN_FLIGHT_STATUSES = new Set([
-  "waiting",
-  "processing",
-  "ready",
-  "succeeded",
-  "success",
-]);
-
-function buildApplicationHref(application: ApplicationRow): string {
-  const params = new URLSearchParams({
-    country: application.country,
-    visaType: application.visa_type,
-  });
-  return `/client/application?${params.toString()}`;
-}
-
-function buildCheckoutHref(application: ApplicationRow): string {
-  const params = new URLSearchParams();
-  if (application.visa_package_id) params.set("packageId", application.visa_package_id);
-  params.set("applicationId", application.id);
-  return `/client/checkout?${params.toString()}`;
-}
-
-function buildStatusHref(application: ApplicationRow): string {
-  const params = new URLSearchParams({ applicationId: application.id });
-  return `/client/status?${params.toString()}`;
-}
-
-function isFormComplete(application: ApplicationRow): boolean {
-  return Boolean(application.submitted_at) || FORM_COMPLETE_STATUSES.has(application.status.toLowerCase());
-}
-
-function isPaymentComplete(application: ApplicationRow, payments: PaymentRow[]): boolean {
-  return payments.some((payment) => {
-    const matchesApplication = payment.application_id === application.id;
-    const matchesPackage = Boolean(application.visa_package_id && payment.visa_package_id === application.visa_package_id);
-    return (matchesApplication || matchesPackage) && PAID_PAYMENT_STATUSES.has(payment.status.toLowerCase());
-  });
-}
-
-function hasCompletedAnswer(answer: AnswerRow): boolean {
-  const value = answer.value_text;
-  if (!value) return false;
-  const normalized = value.trim();
-  if (!normalized) return false;
-  if (normalized === "[]" || normalized === "{}" || normalized === "null") return false;
-  return true;
-}
-
-function buildAnswerValues(answers: AnswerRow[]): Record<string, string> {
-  return answers.reduce<Record<string, string>>((values, answer) => {
-    if (hasCompletedAnswer(answer)) values[answer.field_name] = answer.value_text!.trim();
-    return values;
-  }, {});
-}
-
-function getFormCompletionPercent(
-  fields: VisaFormFieldRow[] | undefined,
-  answers: AnswerRow[],
-): number {
-  const answerValues = buildAnswerValues(answers);
-  const answeredNames = new Set(Object.keys(answerValues));
-
-  if (!fields || fields.length === 0) {
-    const answeredFieldCount = answeredNames.size;
-    if (answeredFieldCount === 0) return 0;
-    return Math.min(100, Math.round((answeredFieldCount / 25) * 100));
-  }
-
-  const visibleFields = fields.filter((field) => evaluateShowIf(field, answerValues, fields));
-  const requiredFields = visibleFields.filter(
-    (field) => field.required && !isRequiredUnlessSatisfied(field, answerValues),
-  );
-  const fieldsToMeasure = requiredFields.length > 0 ? requiredFields : visibleFields;
-  if (fieldsToMeasure.length === 0) return answeredNames.size > 0 ? 100 : 0;
-
-  const completedCount = fieldsToMeasure.filter((field) => answeredNames.has(field.fieldName)).length;
-  const fieldCompletionPercent = Math.round((completedCount / fieldsToMeasure.length) * 100);
-  const visibleStepNumbers = new Set(visibleFields.map((field) => field.stepNumber));
-  const answeredStepNumbers = new Set(
-    visibleFields
-      .filter((field) => answeredNames.has(field.fieldName))
-      .map((field) => field.stepNumber),
-  );
-  const stepCoveragePercent =
-    visibleStepNumbers.size > 0
-      ? Math.round((answeredStepNumbers.size / visibleStepNumbers.size) * 100)
-      : 0;
-
-  return Math.max(fieldCompletionPercent, stepCoveragePercent);
-}
-
-function getApplicationProgressPercent(
-  application: ApplicationRow,
-  appDocs: DocumentRow[],
-  appAnswers: AnswerRow[],
-  fields: VisaFormFieldRow[] | undefined,
-): number {
-  const normalizedStatus = application.status.toLowerCase();
-  const normalizedSubmissionResultStatus = application.submission_result_status?.toLowerCase() ?? "";
-  if (
-    application.submitted_at ||
-    TERMINAL_PROGRESS_STATUSES.has(normalizedStatus) ||
-    SUBMISSION_IN_FLIGHT_STATUSES.has(normalizedSubmissionResultStatus)
-  ) {
-    return 100;
-  }
-  if (normalizedStatus === "rejected") return 85;
-  if (NEAR_COMPLETE_STATUSES.has(normalizedStatus)) return 95;
-
-  const formPercent = getFormCompletionPercent(fields, appAnswers);
-  const uploadedDocumentCount = appDocs.filter((document) => document.status !== "missing").length;
-  const documentPercent = Math.min(100, uploadedDocumentCount * 25);
-  const startedBase = appAnswers.length > 0 || appDocs.length > 0 ? 5 : 0;
-  const percent = startedBase + formPercent * 0.8 + documentPercent * 0.15;
-
-  return Math.min(95, Math.max(startedBase > 0 ? 10 : 0, Math.round(percent)));
-}
-
-function getNextApplicationHref(application: ApplicationRow, payments: PaymentRow[]): string {
-  if (!isFormComplete(application)) return buildApplicationHref(application);
-  if (application.country === "south_korea" && application.visa_type === "KR_C39_SHORT_TERM_VISIT") {
-    return buildApplicationHref(application);
-  }
-  if (!isPaymentComplete(application, payments)) return buildCheckoutHref(application);
-  return buildStatusHref(application);
-}
-
-function buildApplicationProgress(
-  applications: ApplicationRow[],
-  documents: DocumentRow[],
-  answers: AnswerRow[],
-  fieldSchemas: FormFieldSchemaMap,
-  isZh: boolean,
-): Record<string, DestinationApplicationProgress> {
-  const docsByApplication = new Map<string, DocumentRow[]>();
-  const answersByApplication = new Map<string, AnswerRow[]>();
-
-  for (const document of documents) {
-    const existing = docsByApplication.get(document.application_id) ?? [];
-    existing.push(document);
-    docsByApplication.set(document.application_id, existing);
-  }
-
-  for (const answer of answers) {
-    if (!hasCompletedAnswer(answer)) continue;
-    const existing = answersByApplication.get(answer.application_id) ?? [];
-    existing.push(answer);
-    answersByApplication.set(answer.application_id, existing);
-  }
-
-  return applications.reduce<Record<string, DestinationApplicationProgress>>((progress, application) => {
-    const appAnswers = answersByApplication.get(application.id) ?? [];
-    const appDocs = docsByApplication.get(application.id) ?? [];
-    const fields = fieldSchemas.get(getFormVisaType(application.visa_type).toLowerCase());
-    const percent = getApplicationProgressPercent(application, appDocs, appAnswers, fields);
-    const updatedAt = application.updated_at ?? application.submitted_at ?? application.created_at;
-    const destinationKey = getVisaDestinationKey(application.country, application.visa_type);
-    const existing = progress[destinationKey];
-    const existingUpdatedAt = existing?.updatedAt ? Date.parse(existing.updatedAt) : 0;
-    const candidateUpdatedAt = updatedAt ? Date.parse(updatedAt) : 0;
-    if (
-      existing &&
-      (existing.percent > percent ||
-        (existing.percent === percent && existingUpdatedAt >= candidateUpdatedAt))
-    ) {
-      return progress;
-    }
-
-    progress[destinationKey] = {
-      applicationId: application.id,
-      status: application.status,
-      percent,
-      label: getProgressLabel(application.status, percent, isZh, application.submission_result_status),
-      updatedAt,
-    };
-    return progress;
-  }, {});
-}
-
 // ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
@@ -455,13 +194,12 @@ function buildApplicationProgress(
 export default function HomePage() {
   const t = useTranslations("home");
   const locale = useLocale();
-  const isZh = isChineseLocale(locale);
   const PAGE_SCALE = 1;
   const [applicantName, setApplicantName] = useState<string | null>(null);
-  
+  // Country code of the current application, shown in the hero subtitle.
+  const [heroCountry, setHeroCountry] = useState<string | null>(null);
+
   // 核心业务状态
-  const [applicationProgress, setApplicationProgress] = useState<Record<string, DestinationApplicationProgress>>({});
-  const [visaPackages, setVisaPackages] = useState<UserVisaPackage[]>([]);
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [universalInfoProgress, setUniversalInfoProgress] = useState<UniversalInfoProgress>({
     completedCount: 0,
@@ -587,10 +325,6 @@ export default function HomePage() {
           return;
         }
 
-        const packages = await getUserVisaPackages();
-        if (!isLatestRequest()) return;
-        setVisaPackages(packages);
-
         const { data: profile } = await supabase
           .from("applicant_profiles")
           .select("*")
@@ -606,7 +340,6 @@ export default function HomePage() {
         const profileTyped = profile as { id: string; full_name: string | null } | null;
         if (!profileTyped) {
           if (authName) setApplicantName(authName);
-          setApplicationProgress({});
           setActivityEvents([]);
           return;
         }
@@ -621,11 +354,25 @@ export default function HomePage() {
 
         if (!isLatestRequest()) return;
         const loadedApplications = (appRows ?? []) as ApplicationRow[];
+
+        // Current application = last-visited form context, else newest application.
+        const formTarget = readApplicationFormTarget(getRecentApplicationFormHref());
+        const currentApplication =
+          loadedApplications.find((application) => {
+            if (formTarget?.applicationId) return application.id === formTarget.applicationId;
+            if (!formTarget?.country || !formTarget.visaType) return false;
+            return (
+              application.country.toLowerCase() === formTarget.country.toLowerCase() &&
+              getFormVisaType(application.visa_type).toLowerCase() ===
+                getFormVisaType(formTarget.visaType).toLowerCase()
+            );
+          }) ?? loadedApplications[0] ?? null;
+        setHeroCountry(currentApplication?.country ?? null);
+
         if (loadedApplications.length === 0) {
           setUniversalInfoProgress(
             buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
           );
-          setApplicationProgress({});
           setActivityEvents([]);
           return;
         }
@@ -634,25 +381,12 @@ export default function HomePage() {
         const packageIds = loadedApplications
           .map((app) => app.visa_package_id)
           .filter((id): id is string => Boolean(id));
-        const visaTypes = [
-          ...new Set(loadedApplications.map((app) => getFormVisaType(app.visa_type))),
-        ];
 
-        const [{ data: docs }, { data: answers }, { data: fieldRows }, loadedPayments] = await Promise.all([
+        const [{ data: docs }, loadedPayments] = await Promise.all([
           supabase
             .from("application_documents")
             .select("id, application_id, document_type, status, created_at, updated_at")
             .in("application_id", applicationIds),
-          supabase
-            .from("visa_application_answers")
-            .select("application_id, field_name, value_text, updated_at")
-            .in("application_id", applicationIds),
-          supabase
-            .from("visa_form_fields")
-            .select("*")
-            .in("visa_type", visaTypes)
-            .order("step_number", { ascending: true })
-            .order("display_order", { ascending: true }),
           getApplicationPaymentRecords(applicationIds, packageIds),
         ]);
 
@@ -664,22 +398,13 @@ export default function HomePage() {
         setUniversalInfoProgress(
           buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null, hasPassportUpload),
         );
-        const loadedAnswers = (answers ?? []) as AnswerRow[];
-        const fieldSchemas = ((fieldRows ?? []) as VisaFormFieldDbRow[]).reduce<FormFieldSchemaMap>(
-          (schemas, row) => {
-            const key = row.visa_type.toLowerCase();
-            const existing = schemas.get(key) ?? [];
-            existing.push(dbRowToFormField(row));
-            schemas.set(key, existing);
-            return schemas;
-          },
-          new Map(),
+        // Recent activity is scoped to the current application only — other
+        // applications are visible from /client/destinations.
+        const currentApplications = currentApplication ? [currentApplication] : [];
+        const currentDocuments = loadedDocuments.filter(
+          (document) => document.application_id === currentApplication?.id,
         );
-
-        setApplicationProgress(
-          buildApplicationProgress(loadedApplications, loadedDocuments, loadedAnswers, fieldSchemas, isZh),
-        );
-        setActivityEvents(buildActivityEvents(loadedApplications, loadedDocuments, loadedPayments));
+        setActivityEvents(buildActivityEvents(currentApplications, currentDocuments, loadedPayments));
       } catch (loadError) {
         if (!isLatestRequest()) return;
         if (isIgnorableDashboardLoadError(loadError)) {
@@ -697,7 +422,7 @@ export default function HomePage() {
         if (showLoading && isLatestRequest() && !keepLoadingForRetry) setIsLoading(false);
       }
     },
-    [buildActivityEvents, isZh, t],
+    [buildActivityEvents, t],
   );
 
   useEffect(() => {
@@ -714,11 +439,9 @@ export default function HomePage() {
 
     void fetchData();
     const channel = supabase
-      .channel("home-application-progress-realtime")
+      .channel("home-activity-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "visa_application_answers" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "application_documents" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_visa_packages" }, scheduleRefresh)
       .subscribe();
 
     return () => {
@@ -785,7 +508,13 @@ export default function HomePage() {
           <p className="mb-0 text-[rgba(255,255,255,0.65)]">
             {t("welcomeBack", { name: applicantName?.split(" ")[0] || "there" })}
           </p>
-          <p>{t("vizaApplication")}</p>
+          <p>
+            {heroCountry
+              ? t("vizaApplicationForCountry", {
+                  country: getDestinationDisplayNameForLocale(heroCountry, locale),
+                })
+              : t("vizaApplication")}
+          </p>
         </motion.div>
 
         {/* ── 核心改变：完全移除了 p2 的流程图，把你的三个磨砂玻璃面板提上来到 p2 绝佳悬浮位置 ── */}
@@ -802,15 +531,9 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* ── 下方顺畅衔接：热门目的地签证表单进度流 ── */}
-        <PopularDestinationsSection
-          selectedPackages={visaPackages}
-          applicationProgress={applicationProgress}
-        />
-
-        {/* Recent Activity Heading */}
+        {/* Recent Activity Heading — 与 hero 底部保持充足间距 */}
         <motion.p
-          className="my-8 w-full max-w-[1090px] font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d] sm:my-10"
+          className="mt-16 mb-8 w-full max-w-[1090px] font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d] sm:mb-10 sm:mt-20 xl:mt-24"
           initial="hidden"
           animate="visible"
           variants={activityHeadingVariants}
