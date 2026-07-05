@@ -55,7 +55,7 @@
     },
     "careers": {
       "title": "Careers at VIZA",
-      "description": "Help us make borders disappear, one application at a time. Engineering, design, operations, and consulting roles in Singapore, San Francisco, Dubai, and London.",
+      "description": "Help us make borders disappear, one application at a time. Engineering, design, operations, and consulting roles in Shanghai and Singapore.",
       "rightCta": "See roles"
     },
     "contact": {
@@ -267,6 +267,8 @@
     "resultsCount": "Showing <b>{count}</b> destinations <dot></dot> sorted by <b>{sort}</b>",
     "grid": "Grid",
     "map": "Map",
+    "mapLegendEvisa": "e-Visa & visitor visas",
+    "mapHint": "Hover a highlighted dot to preview a destination",
     "sectionTitle": "For {country} passports",
     "seeAll": "See all {n}",
     "footnote": "Government visa fees are charged separately and vary by country.",
@@ -417,10 +419,8 @@
     "hero": {
       "nowHiring": "Now hiring in",
       "cities": [
-        "Singapore",
-        "San Francisco",
-        "Dubai",
-        "London"
+        "Shanghai",
+        "Singapore"
       ],
       "sep": "/",
       "openRoles": "28 open roles",
@@ -487,7 +487,7 @@
       {
         "value": "340",
         "suffix": "",
-        "label": "People across Singapore, San Francisco, Dubai & London"
+        "label": "People across Shanghai & Singapore"
       }
     ],
     "mission": {
@@ -557,23 +557,23 @@
     "inside": {
       "eyebrow": "Inside VIZA",
       "title": "What it actually<br></br>looks like to work here.",
-      "lead": "We have offices in four cities because we hire close to where applications get filed. We’re loud about wins, quiet about politics, and honest about how much we still have to build.",
+      "lead": "We have offices in two cities because we hire close to where applications get filed. We’re loud about wins, quiet about politics, and honest about how much we still have to build.",
       "photos": [
         {
           "label": "photo · singapore HQ — open floor",
-          "mark": "Marina Boulevard, SG"
+          "mark": "Pasir Panjang Rd, SG"
         },
         {
           "label": "photo · consultant queue floor",
-          "mark": "Mission Street, SF"
+          "mark": "Kangcheng Rd, Shanghai"
         },
         {
           "label": "photo · whiteboard session",
           "mark": "Tech offsite, Bali"
         },
         {
-          "label": "photo · dubai ops floor",
-          "mark": "Sheikh Zayed Rd, DXB"
+          "label": "photo · shanghai ops floor",
+          "mark": "Minhang District, Shanghai"
         },
         {
           "label": "photo · team dinner",
@@ -581,7 +581,7 @@
         },
         {
           "label": "photo · embassy partner visit",
-          "mark": "Goswell Road, London"
+          "mark": "Pasir Panjang Rd, SG"
         }
       ],
       "pull": "“We hire people who have an opinion about visas before they join. By month two, you’ll have a stronger one.”",
@@ -649,9 +649,9 @@
       "viewRole": "View role",
       "locations": {
         "sg": "Singapore",
-        "sf": "San Francisco",
-        "ldn": "London",
-        "dxb": "Dubai"
+        "sf": "Shanghai",
+        "ldn": "Singapore",
+        "dxb": "Shanghai"
       },
       "jobs": {
         "backendPayments": "Senior Backend Engineer — Payments",
@@ -775,44 +775,26 @@
     },
     "offices": {
       "eyebrow": "Where we work",
-      "title": "Four offices, one product.",
+      "title": "Two offices, one product.",
       "lead": "We hire close to embassies, partners, and the markets we serve. Every office has both engineers and operations — we don’t separate the teams that build from the ones who run the floor.",
       "cards": [
+        {
+          "photo": "photo · shanghai",
+          "open": "6 open",
+          "name": "Shanghai",
+          "addr1": "No. 67, Kangcheng Road, Lane 958,",
+          "addr2": "Xinsong Road, Minhang District, Shanghai",
+          "tz": "GMT+8 · China operations",
+          "since": "Since 2023"
+        },
         {
           "photo": "photo · singapore HQ",
           "open": "12 open",
           "name": "Singapore",
-          "addr1": "1 Marina Boulevard, #20-01",
-          "addr2": "Singapore 018989",
-          "tz": "GMT+8 · 142 people",
+          "addr1": "225 Pasir Panjang Rd,",
+          "addr2": "Singapore",
+          "tz": "GMT+8 · Asia-Pacific HQ",
           "since": "HQ · since 2021"
-        },
-        {
-          "photo": "photo · san francisco",
-          "open": "8 open",
-          "name": "San Francisco",
-          "addr1": "301 Mission Street",
-          "addr2": "San Francisco, CA 94105",
-          "tz": "PST · 78 people",
-          "since": "Since 2023"
-        },
-        {
-          "photo": "photo · dubai",
-          "open": "5 open",
-          "name": "Dubai",
-          "addr1": "M16 — Al Makateb Building,",
-          "addr2": "Al Quoz 3, Sheikh Zayed Rd",
-          "tz": "GMT+4 · 64 people",
-          "since": "Since 2023"
-        },
-        {
-          "photo": "photo · london",
-          "open": "3 open",
-          "name": "London",
-          "addr1": "Suite 203, Davina House,",
-          "addr2": "137-149 Goswell Road, EC1V 7ET",
-          "tz": "GMT · 56 people",
-          "since": "Since 2024"
         }
       ]
     },
@@ -840,9 +822,7 @@
       "prodHelpline": "VIZA Emergency Helpline",
       "prodStudent": "Student Visa",
       "officeSg": "Singapore — HQ",
-      "officeSf": "San Francisco",
-      "officeDxb": "Dubai",
-      "officeLdn": "London",
+      "officeSf": "Shanghai",
       "copyright": "© VIZA, All rights reserved"
     }
   },
@@ -879,10 +859,10 @@
         "tag": "Voice · 7 languages",
         "title": "Phone",
         "sub": "For urgent visa issues — talk to a consultant",
-        "asiaLabel": "Asia · primary",
+        "asiaLabel": "Singapore · primary",
         "asiaLangs": "English · 普通话 · Bahasa · हिन्दी · Tagalog",
-        "americasLabel": "Americas & Europe",
-        "americasLangs": "English · Español · Français · Português",
+        "americasLabel": "China · Shanghai",
+        "americasLangs": "普通话 · English",
         "hours": "24/7 emergency line · always live",
         "action": "Tap to dial ↗"
       },
@@ -1002,29 +982,17 @@
       "email": "Email",
       "address": "Address",
       "maps": "Open in Maps →",
+      "cn": {
+        "status": "Online · 6 consultants",
+        "title": "Shanghai",
+        "sub": "China operations",
+        "tz": "GMT+8 · 9am–8pm"
+      },
       "sg": {
         "status": "Online · 9 consultants",
         "title": "Singapore — HQ",
         "sub": "Asia-Pacific operations",
         "tz": "GMT+8 · 9am–8pm"
-      },
-      "us": {
-        "status": "Online · 6 consultants",
-        "title": "San Francisco",
-        "sub": "Americas operations",
-        "tz": "PST · 8am–6pm"
-      },
-      "ae": {
-        "status": "Online · 5 consultants",
-        "title": "Dubai",
-        "sub": "Middle East & Africa",
-        "tz": "GMT+4 · 9am–8pm"
-      },
-      "gb": {
-        "status": "Reopens 8am GMT",
-        "title": "London",
-        "sub": "UK & Schengen filing",
-        "tz": "GMT · 8am–6pm"
       }
     },
     "emergency": {
@@ -1060,7 +1028,7 @@
       },
       "q6": {
         "q": "I’m a partner / agent / OTA. Different inbox?",
-        "a": "Yes — please email <a>partners@viza.travel</a> directly. Partnerships are handled by a dedicated BD team and routed separately from consumer queries."
+        "a": "Yes — please email <a>sales@kelin.studio</a> directly. Partnerships are handled by a dedicated BD team and routed separately from consumer queries."
       }
     }
   },
@@ -1299,7 +1267,7 @@
         "intro": "Privacy questions, requests, complaints — same address.",
         "email": "<strong>Email:</strong> <a>privacy@viza.com</a>",
         "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.com</a>",
-        "address": "<strong>Mailing address:</strong> 1 Marina Boulevard, #20-01, Singapore 018989",
+        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
       }
     },
@@ -1470,7 +1438,7 @@
         "title": "Contact",
         "legal": "<strong>Legal questions:</strong> <a>legal@viza.com</a>",
         "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.com</a>",
-        "address": "<strong>Mailing address:</strong> 1 Marina Boulevard, #20-01, Singapore 018989",
+        "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN:</strong> 202312345A"
       }
     },
@@ -1762,7 +1730,7 @@
       "items": {
         "inapp": "<strong>In-app.</strong> Open any application in your VIZA dashboard, scroll to <em>Money & receipts</em>, click <em>Open refund claim</em>. Pre-filled with your case ID.",
         "email": "<strong>By email.</strong> Reply to any thread from your consultant, or write to <link>refunds@viza.co</link> with the application reference.",
-        "person": "<strong>In person.</strong> Walk into any VIZA office — Singapore, Dubai, London, or San Francisco — between 09:00 and 18:00 local time. Bring your passport."
+        "person": "<strong>In person.</strong> Walk into any VIZA office — Shanghai or Singapore — between 09:00 and 18:00 local time. Bring your passport."
       },
       "escalate": "Unhappy with the outcome? Every decision can be escalated to our refunds committee, chaired by our Chief Customer Officer, who reviews disputed cases weekly. From there, Singapore CASE mediation is available at no cost to you."
     },
@@ -2139,9 +2107,7 @@
       "prodStudent": "Student Visa",
       "offices": "Offices",
       "officeSg": "Singapore — HQ",
-      "officeSf": "San Francisco",
-      "officeDubai": "Dubai",
-      "officeLondon": "London",
+      "officeSf": "Shanghai",
       "copyright": "© VIZA, All rights reserved"
     }
   },
