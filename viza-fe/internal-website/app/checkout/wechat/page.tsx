@@ -12,12 +12,15 @@ interface PageProps {
     country?: string;
     visa?: string;
     locale?: string;
+    email?: string;
+    name?: string;
   }>;
 }
 
 /**
  * Unauthenticated landing for the WeChat Pay Native checkout. The
- * marketing site links here with `?country=<code>&visa=<type>&locale=`.
+ * marketing site links here with `?country=<code>&visa=<type>&locale=`
+ * plus optional `email` / `name` prefill collected by the /apply wizard.
  *
  * Server Component: validates the package is WeChat-eligible, then
  * hands a typed prop bundle to the client form. No auth required —
@@ -28,6 +31,8 @@ export default async function WechatCheckoutPage({ searchParams }: PageProps) {
   const country = params.country?.trim();
   const visa = params.visa?.trim();
   const locale = params.locale === "zh-CN" ? "zh-CN" : "en";
+  const initialEmail = params.email?.trim() ?? "";
+  const initialName = params.name?.trim() ?? "";
 
   if (!country || !visa) {
     redirect("/client/login");
@@ -61,6 +66,8 @@ export default async function WechatCheckoutPage({ searchParams }: PageProps) {
         visaType={visa}
         locale={locale}
         amountFen={totalFen}
+        initialEmail={initialEmail}
+        initialName={initialName}
       />
     </main>
   );

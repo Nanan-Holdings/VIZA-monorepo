@@ -9,6 +9,9 @@ interface Props {
   locale: "en" | "zh-CN";
   amountCents: number;
   currency: string;
+  /** Prefill collected by the marketing /apply wizard (optional). */
+  initialEmail?: string;
+  initialName?: string;
 }
 
 const COPY = {
@@ -42,10 +45,12 @@ export function CardCheckoutForm({
   locale,
   amountCents,
   currency,
+  initialEmail = "",
+  initialName = "",
 }: Props) {
   const t = COPY[locale];
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 

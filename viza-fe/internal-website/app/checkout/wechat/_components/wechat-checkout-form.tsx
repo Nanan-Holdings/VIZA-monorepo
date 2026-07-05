@@ -12,6 +12,9 @@ interface Props {
   visaType: string;
   locale: "en" | "zh-CN";
   amountFen: number;
+  /** Prefill collected by the marketing /apply wizard (optional). */
+  initialEmail?: string;
+  initialName?: string;
 }
 
 type Step = "form" | "qr" | "paid" | "error";
@@ -57,12 +60,14 @@ export function WechatCheckoutForm({
   visaType,
   locale,
   amountFen,
+  initialEmail = "",
+  initialName = "",
 }: Props) {
   const t = COPY[locale];
   const router = useRouter();
   const [step, setStep] = useState<Step>("form");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
