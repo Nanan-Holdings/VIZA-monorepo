@@ -744,3 +744,73 @@
   }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     ==================================================== */
+
+  @media (max-width: 1000px) {
+    /* Summary rail drops below the content */
+    .frame.with-summary { grid-template-columns: 1fr; }
+    .frame.with-summary .summary { position: static; }
+  }
+
+  @media (max-width: 720px) {
+    .nav-inner { padding: 12px 16px; }
+    .frame { padding: 24px 16px 160px; }
+    .step { padding: 24px 18px; }
+    .step-head h1 { font-size: clamp(22px, 5.5vw, 30px); }
+
+    .progress-inner { padding: 14px 16px; }
+    .pstep + .pconn { margin: 0 8px; max-width: 48px; }
+
+    .actions-inner { padding: 12px 16px; flex-wrap: wrap; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; margin-top: 56px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 48px 0 40px;
+    }
+    .site-foot .foot-apps { flex-wrap: wrap; }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 24px 0 32px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 600px) {
+    .tips { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    /* AI extraction: scan visual stacks above the checklist */
+    .extract-inline { flex-direction: column; align-items: flex-start; gap: 16px; }
+    /* Review card: one field per row */
+    .review-grid { grid-template-columns: 1fr; }
+    .review-grid .review-field:nth-child(odd) { border-right: 0; }
+    .review-grid .review-field:nth-child(2) { border-top: 1px solid var(--border-hairline); }
+  }
+
+  @media (max-width: 560px) {
+    .breadcrumb { display: none; }
+    /* Progress bar: show the label only for the current step */
+    .pstep .lab { display: none; }
+    .pstep.current .lab { display: block; }
+  }
+
+  @media (max-width: 480px) {
+    /* Date strip stays a 7-up calendar row; shrink so it fits */
+    .date-strip { gap: 4px; }
+    .date-pill { padding: 10px 2px; border-radius: 8px; }
+    .date-pill .day { font-size: 15px; }
+    .date-pill .dow { font-size: 9px; letter-spacing: 0.02em; }
+    .date-pill .mon { font-size: 9px; }
+
+    .phone-grp { grid-template-columns: 1fr; }
+
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+    .site-foot .foot-apps { grid-column: auto; }
+  }
