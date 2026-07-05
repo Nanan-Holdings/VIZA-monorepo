@@ -60,10 +60,13 @@ const FIELD_ORDER = [
   ["Inviter", ["inviter_name", "inviter_full_name"]],
 ] as const;
 
-const TEMPLATE_BY_LANGUAGE: Record<NonNullable<RenderOptions["templateLanguage"]>, string> = {
-  zh: "visa-application-form-ch.pdf",
-  en: "visa-application-form-en.pdf",
-};
+// Template paths must stay fully literal (no variable path segments): the
+// build-time file tracer otherwise falls back to bundling the entire
+// project directory into this route's serverless function.
+const TEMPLATE_ZH_PATH = path.join(process.cwd(), "lib/korea-c39/templates/visa-application-form-ch.pdf");
+const TEMPLATE_ZH_REPO_PATH = path.join(process.cwd(), "viza-fe/internal-website/lib/korea-c39/templates/visa-application-form-ch.pdf");
+const TEMPLATE_EN_PATH = path.join(process.cwd(), "lib/korea-c39/templates/visa-application-form-en.pdf");
+const TEMPLATE_EN_REPO_PATH = path.join(process.cwd(), "viza-fe/internal-website/lib/korea-c39/templates/visa-application-form-en.pdf");
 
 type DrawCtx = {
   font: PDFFont;
@@ -175,11 +178,10 @@ function readAny(answers: KoreaAnswerMap, keys: readonly string[]): string {
 }
 
 async function loadOfficialTemplate(language: NonNullable<RenderOptions["templateLanguage"]>): Promise<Uint8Array | null> {
-  const templateFile = TEMPLATE_BY_LANGUAGE[language];
-  const candidates = [
-    path.join(process.cwd(), "lib", "korea-c39", "templates", templateFile),
-    path.join(process.cwd(), "viza-fe", "internal-website", "lib", "korea-c39", "templates", templateFile),
-  ];
+  const candidates =
+    language === "zh"
+      ? [TEMPLATE_ZH_PATH, TEMPLATE_ZH_REPO_PATH]
+      : [TEMPLATE_EN_PATH, TEMPLATE_EN_REPO_PATH];
   for (const templatePath of candidates) {
     try {
       const bytes = await readFile(templatePath);
