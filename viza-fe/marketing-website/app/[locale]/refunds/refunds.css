@@ -637,3 +637,92 @@
   .site-foot .legal a { color: var(--fg-2); }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Heading step-down (fluid) */
+  .hero h1 { font-size: clamp(30px, 7.5vw, 64px); }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+    .promise { grid-template-columns: repeat(2, 1fr); gap: 8px 24px; }
+    .promise-cell { border-right: 0; padding: 14px 0; }
+    .promise-cell:not(:first-child) { padding-left: 0; }
+    /* TOC moves above the content */
+    .layout { grid-template-columns: 1fr; gap: 32px; }
+    .toc { position: static; }
+  }
+
+  @media (max-width: 720px) {
+    .hero h1 { letter-spacing: -1.2px; }
+    .crumbs { padding: 16px 20px 0; }
+    .hero { padding: 20px 20px 32px; }
+    .promise { padding: 20px; }
+    .layout { padding: 40px 20px 56px; }
+    .content h2 { font-size: clamp(24px, 6vw, 34px); }
+
+    /* Scenario matrix: scenario title spans the row, the three
+       fee cells stay 3-up so they keep lining up with the
+       gov/service/partner column headers */
+    .matrix-row { grid-template-columns: repeat(3, 1fr); }
+    .matrix-row .mc { padding: 14px 12px; font-size: 13px; }
+    .matrix-head .mc { padding: 12px; }
+    .matrix-row .mc:first-child {
+      grid-column: 1 / -1;
+      border-right: 0;
+      border-bottom: 1px dashed var(--border-hairline);
+    }
+    .matrix-head .mc:first-child { border-bottom: 1px solid var(--border-hairline); }
+
+    /* Timeline: 2-up; the horizontal connector line makes no sense wrapped */
+    .timeline { grid-template-columns: repeat(2, 1fr); gap: 24px 0; padding: 24px 8px; }
+    .timeline::before { display: none; }
+    .tl-dot { margin-bottom: 10px; }
+
+    .final-cta { flex-direction: column; align-items: flex-start; padding: 28px 24px; gap: 20px; }
+    .final-cta::before { width: 200px; height: 200px; right: -60px; top: -60px; }
+    .final-cta .ctas { flex-wrap: wrap; }
+
+    .faq summary { padding: 16px 20px; }
+    .faq .answer { padding: 0 20px 20px; }
+
+    .updated-strip { padding: 0 20px 8px; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 48px 0 40px;
+    }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 20px 0 32px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 600px) {
+    /* Fee anatomy: keep the proportional 38/32/30 bar but shrink its
+       labels; stack the legend as rows (fk labels identify each row) */
+    .fee-anatomy { padding: 20px 16px; }
+    .fa-bar { height: 44px; }
+    .fa-seg { font-size: 11px; letter-spacing: 0; padding: 0 4px; text-align: center; }
+    .fa-legend { grid-template-columns: 1fr; gap: 14px; }
+  }
+
+  @media (max-width: 560px) {
+    .promise { grid-template-columns: 1fr; gap: 0; }
+    .promise-cell { border-bottom: 1px solid var(--border-hairline); }
+    .promise-cell:last-child { border-bottom: 0; }
+  }
+
+  @media (max-width: 480px) {
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+  }
