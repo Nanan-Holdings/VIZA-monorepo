@@ -723,3 +723,65 @@
   }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Note: page nav is the shared SiteNav component — the
+     .nav-inner rules above are legacy and not treated here.
+     ==================================================== */
+
+  /* Heading step-downs (fluid, effective on all viewports) */
+  .hero h1 { font-size: clamp(28px, 7vw, 52px); }
+  .reviews-head .score { font-size: clamp(36px, 9vw, 56px); }
+
+  @media (max-width: 720px) {
+    .visa-grid { padding: 0 20px; }
+
+    .hero { padding: 32px 0 44px; }
+    .hero h1 { letter-spacing: -1px; }
+    .hero .lede { font-size: 16px; }
+
+    /* Fixed-column grids collapse */
+    .hero-meta { grid-template-columns: repeat(2, 1fr); }
+    .reasons { grid-template-columns: 1fr; }
+    .reviews { grid-template-columns: 1fr; }
+    /* Country cards: 2-up on mobile (never 1 stacked, never 4 crushed) */
+    .nearby { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    /* .glance stays 2-up: items are small key/value tiles */
+    .glance { gap: 10px; }
+    .glance .g { padding: 14px; }
+
+    .reviews-head { grid-template-columns: 1fr; align-items: start; gap: 16px; }
+    .reviews-head .platforms { flex-wrap: wrap; }
+
+    section.block > h2 { font-size: 24px; letter-spacing: -0.6px; }
+    .col-main { padding-bottom: 64px; }
+
+    /* Bottom AI bar fits the phone width */
+    .ai-bar { width: calc(100vw - 32px); bottom: 16px; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; margin-top: 56px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 48px 0 40px;
+    }
+    .site-foot .foot-apps { flex-wrap: wrap; }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 24px 0 32px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 600px) {
+    .docs { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+    .site-foot .foot-apps { grid-column: auto; }
+  }
