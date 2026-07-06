@@ -25,6 +25,8 @@ applicant info, and help pages.
   refresh/abort handling.
 - `home/home-activity.ts`: safe activity-feed helpers, including document type
   label fallback for unknown uploads.
+- `session-check-errors.ts`: safe client-shell session-check error
+  classification for transient browser fetch/abort failures.
 - `application/page.tsx`: status hub by default; direct `country`/`visaType`
   links open the application form workflow.
 - `arrival-cards/**`: country-specific digital arrival-card preview entries
@@ -114,6 +116,7 @@ accessible component state.
 - `viza-fe/internal-website/frontend.md`
 - `viza-fe/internal-website/proxy.ts`
 - `viza-fe/internal-website/app/client/layout.tsx`
+- `viza-fe/internal-website/app/client/session-check-errors.ts`
 - `viza-fe/internal-website/app/client/home/page.tsx`
 - `viza-fe/internal-website/app/client/application/page.tsx`
 - `viza-fe/internal-website/app/client/arrival-cards/AGENTS.md`

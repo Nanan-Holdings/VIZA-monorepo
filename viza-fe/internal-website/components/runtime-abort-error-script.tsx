@@ -14,6 +14,22 @@ export const runtimeAbortErrorScript = `
     return message.indexOf("signal is aborted") !== -1 || message.indexOf("operation was aborted") !== -1;
   }
 
+  function isIgnorableConsoleAbort(args) {
+    if (!args || args.length === 0) return false;
+    for (var i = 0; i < args.length; i += 1) {
+      if (isAbortError(args[i])) return true;
+    }
+    return false;
+  }
+
+  if (window.console && typeof window.console.error === "function") {
+    var originalConsoleError = window.console.error;
+    window.console.error = function () {
+      if (isIgnorableConsoleAbort(arguments)) return;
+      return originalConsoleError.apply(window.console, arguments);
+    };
+  }
+
   window.addEventListener("unhandledrejection", function (event) {
     if (!isAbortError(event.reason)) return;
     event.preventDefault();
