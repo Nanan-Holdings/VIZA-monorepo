@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
-import { fillVietnamPreviousVisitRows } from "../conditional-fields.js";
+import {
+  fillVietnamConditionalRepeatGroups,
+  fillVietnamPreviousVisitRows,
+} from "../conditional-fields.js";
 import { pickRadio, tickCheckbox } from "../fillers.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 
@@ -377,3 +380,141 @@ test("vn.conditional-fields browser: every mapped Ant yes/no control selects the
     await browser.close();
   }
 });
+
+test("vn.conditional-fields browser: fills every mapped dynamic table after selecting Yes", { timeout: 20_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderIdlessQuestion(
+            "Have you ever used any other passports to enter into Viet Nam?",
+            "other-passports",
+          )}
+          ${renderTable("other-passports-table", ["Passport", "Full name", "Date of birth", "Nationality"])}
+          ${renderIdlessQuestion(
+            "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
+            "contacts",
+          )}
+          ${renderTable("contacts-table", ["Name of hosting organization", "Telephone number", "Address", "Purpose"])}
+          ${renderIdlessQuestion(
+            "Do you have relatives who currently reside in Viet Nam?",
+            "relatives",
+          )}
+          ${renderTable("relatives-table", ["Full name", "Date of birth", "Nationality", "Relationship", "Address"])}
+          <script>
+            document.querySelectorAll("[data-question]").forEach((question) => {
+              question.querySelectorAll(".ant-radio-wrapper").forEach((label) => {
+                label.addEventListener("change", () => {
+                  const group = label.closest(".ant-radio-group");
+                  group.querySelectorAll(".ant-radio-wrapper").forEach((candidate) => {
+                    const checked = candidate === label && candidate.querySelector("input").checked;
+                    candidate.classList.toggle("ant-radio-wrapper-checked", checked);
+                    candidate.querySelector(".ant-radio").classList.toggle("ant-radio-checked", checked);
+                  });
+                  document.querySelector("#" + question.dataset.question + "-table").style.display =
+                    label.innerText.trim() === "Yes" && label.querySelector("input").checked ? "table" : "none";
+                });
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    const answers = {
+      has_other_passports_used_for_vietnam: "yes",
+      other_vietnam_passport_number: "E1234567",
+      other_vietnam_passport_full_name: "ZHANG SAN",
+      other_vietnam_passport_date_of_birth: "1990-05-06",
+      other_vietnam_passport_nationality: "China",
+      has_contact_in_vietnam: "yes",
+      contact_hosting_organization_name: "VIZA Vietnam",
+      contact_hosting_organization_phone: "+84901234567",
+      contact_hosting_organization_address: "Hanoi",
+      contact_hosting_organization_purpose: "Tourism assistance",
+      has_relatives_in_vietnam: "yes",
+      relative_full_name: "NGUYEN VAN A",
+      relative_date_of_birth: "1988-02-03",
+      relative_nationality: "China",
+      relative_relationship: "Friend",
+      relative_residential_address: "Da Nang",
+    };
+
+    await pickRadio(page, "basic_ttcnDaDungHcKhacVaoVn", "Yes");
+    await fillVietnamConditionalRepeatGroups(page, answers, "has_other_passports_used_for_vietnam");
+    await pickRadio(page, "basic_ttcdCoCqTcCaNhanLienHe", "Yes");
+    await fillVietnamConditionalRepeatGroups(page, answers, "has_contact_in_vietnam");
+    await pickRadio(page, "basic_ttcdCoThanNhan", "Yes");
+    await fillVietnamConditionalRepeatGroups(page, answers, "has_relatives_in_vietnam");
+
+    assert.equal(await page.locator('[data-question="other-passports"] input[value="yes"]').isChecked(), true);
+    assert.equal(await page.locator('[data-question="other-passports"] input[value="no"]').isChecked(), false);
+    assert.equal(await page.locator("#other-passports-table tbody tr").locator("input").nth(0).inputValue(), "E1234567");
+    assert.equal(await page.locator("#other-passports-table tbody tr").locator("input").nth(1).inputValue(), "ZHANG SAN");
+    assert.equal(await page.locator("#other-passports-table tbody tr").locator("input").nth(2).inputValue(), "06/05/1990");
+    assert.equal(await page.locator("#other-passports-table tbody tr").locator("input").nth(3).inputValue(), "China");
+
+    assert.equal(await page.locator('[data-question="contacts"] input[value="yes"]').isChecked(), true);
+    assert.equal(await page.locator('[data-question="contacts"] input[value="no"]').isChecked(), false);
+    assert.equal(await page.locator("#contacts-table tbody tr").locator("input").nth(0).inputValue(), "VIZA Vietnam");
+    assert.equal(await page.locator("#contacts-table tbody tr").locator("input").nth(1).inputValue(), "+84901234567");
+    assert.equal(await page.locator("#contacts-table tbody tr").locator("input").nth(2).inputValue(), "Hanoi");
+    assert.equal(await page.locator("#contacts-table tbody tr").locator("input").nth(3).inputValue(), "Tourism assistance");
+
+    assert.equal(await page.locator('[data-question="relatives"] input[value="yes"]').isChecked(), true);
+    assert.equal(await page.locator('[data-question="relatives"] input[value="no"]').isChecked(), false);
+    assert.equal(await page.locator("#relatives-table tbody tr").locator("input").nth(0).inputValue(), "NGUYEN VAN A");
+    assert.equal(await page.locator("#relatives-table tbody tr").locator("input").nth(1).inputValue(), "03/02/1988");
+    assert.equal(await page.locator("#relatives-table tbody tr").locator("input").nth(2).inputValue(), "China");
+    assert.equal(await page.locator("#relatives-table tbody tr").locator("input").nth(3).inputValue(), "Friend");
+    assert.equal(await page.locator("#relatives-table tbody tr").locator("input").nth(4).inputValue(), "Da Nang");
+  } finally {
+    await browser.close();
+  }
+});
+
+function renderIdlessQuestion(question: string, tableId: string): string {
+  return `
+    <div class="pt-5 border-b" data-question="${tableId}">
+      <div class="ant-col ant-col-24 flex justify-between pb-5">
+        <div>${question}</div>
+        <div>
+          <div class="ant-radio-group ant-radio-group-outline">
+            <label class="ant-radio-wrapper ant-radio-wrapper-checked">
+              <span class="ant-radio ant-radio-checked"><input type="radio" class="ant-radio-input" value="no" checked /></span>
+              <span>No</span>
+            </label>
+            <label class="ant-radio-wrapper">
+              <span class="ant-radio"><input type="radio" class="ant-radio-input" value="yes" /></span>
+              <span>Yes</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTable(id: string, headers: string[]): string {
+  return `
+    <table id="${id}" style="display:none">
+      <thead>
+        <tr>
+          <th>No</th>
+          ${headers.map((header) => `<th>${header}</th>`).join("")}
+          <th>Add/delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          ${headers.map((header) => `<td><input aria-label="${header}" /></td>`).join("")}
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}

@@ -47,7 +47,11 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
-  onResubmit?: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => Promise<void> | void;
+  onResubmit?: (
+    mode: SubmissionMode,
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    supplementalAnswers?: Record<string, string>,
+  ) => Promise<void> | void;
 }
 
 interface SubmissionStatusSnapshot {
@@ -952,13 +956,14 @@ export function SubmissionStatusStep({
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    supplementalAnswers?: Record<string, string>,
   ) => {
     if (!applicationId) return;
     setRetryError(null);
     setResubmitting(true);
     try {
       if (onResubmit) {
-        await onResubmit(mode, vietnamPaymentCard);
+        await onResubmit(mode, vietnamPaymentCard, supplementalAnswers);
         setSnapshot(null);
         return;
       }
@@ -969,6 +974,7 @@ export function SubmissionStatusStep({
           mode,
           country: snapshot?.country ?? country,
           visaType: snapshot?.visaType ?? visaType,
+          ...(supplementalAnswers ? { supplementalAnswers } : {}),
         }),
       });
       const body = (await response.json().catch(() => null)) as {

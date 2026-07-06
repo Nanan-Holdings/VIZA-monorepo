@@ -14,7 +14,7 @@ import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
 import {
-  fillVietnamPreviousVisitRows,
+  fillVietnamConditionalRepeatGroups,
   validateVietnamConditionalAnswers,
 } from "./conditional-fields";
 import { uncheckedVietnamDeclarationIndexes } from "./declaration";
@@ -380,9 +380,7 @@ async function fillVietnamApplicationOnce(
         if (fieldName === "intended_province_city") {
           await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
         }
-        if (fieldName === "visited_vietnam_in_last_year") {
-          filled += (await fillVietnamPreviousVisitRows(page, input.answers)) * 3;
-        }
+        filled += await fillVietnamConditionalRepeatGroups(page, input.answers, fieldName);
         filled++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

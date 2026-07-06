@@ -3021,11 +3021,10 @@ async function continueFromIndonesiaOtpPage(
   diagnostics: string[],
 ): Promise<boolean> {
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  const isOfficialOtpUrl = /\/web\/application-detail-otp\//i.test(page.url());
-  if (!isOfficialOtpUrl && !/enter otp code|otp code|one time password|authentication code|verification code|kode otp|kode verifikasi/i.test(text)) {
+  if (!shouldSubmitIndonesiaPortalEmailOtp({ url: page.url(), text })) {
     return false;
   }
-  if (!/evisa\.imigrasi\.go\.id/i.test(page.url())) return false;
+  await dismissIndonesiaDialogs(page, diagnostics);
   await capturePaymentArtifact(page, input, diagnostics, "otp");
 
   const code = await waitForIndonesiaOtpCode(input, diagnostics);
@@ -3072,6 +3071,7 @@ async function continueFromIndonesiaOtpPage(
     .getByRole("button", { name: /^submit$/i })
     .or(page.locator("#btn-submit-otp, #btn-submit, button[type='submit'], a.btn-primary:has-text('Submit')"))
     .first();
+  await dismissIndonesiaDialogs(page, diagnostics);
   if (await submit.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await submit.click({ timeout: 10_000 });
   } else {
@@ -3082,6 +3082,15 @@ async function continueFromIndonesiaOtpPage(
   await dismissIndonesiaDialogs(page, diagnostics);
   diagnostics.push("indonesia_otp_filled_and_submitted");
   return true;
+}
+
+export function shouldSubmitIndonesiaPortalEmailOtp(input: {
+  url: string | null | undefined;
+  text?: string | null;
+}): boolean {
+  const url = input.url ?? "";
+  if (!/evisa\.imigrasi\.go\.id/i.test(url)) return false;
+  return /\/web\/application-detail-otp\//i.test(url);
 }
 
 async function continueFromIndonesiaPaymentDetail(
@@ -3396,7 +3405,7 @@ export async function probeIndonesiaPortal(
         advanced = true;
       }
 
-      if (!advanced && (/\/web\/application-detail-otp\//i.test(url) || /enter otp code|otp code|one time password|authentication code|verification code|kode otp|kode verifikasi/i.test(text))) {
+      if (!advanced && shouldSubmitIndonesiaPortalEmailOtp({ url, text })) {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
       }
 
@@ -3455,7 +3464,8 @@ export async function probeIndonesiaPortal(
         });
       } else if (state === "payment_required") {
         advanced =
-          await continueFromIndonesiaOtpPage(page, input, session.diagnostics) ||
+          (shouldSubmitIndonesiaPortalEmailOtp({ url, text }) &&
+            await continueFromIndonesiaOtpPage(page, input, session.diagnostics)) ||
           await continueFromIndonesiaPaymentDetail(page, session.diagnostics);
       } else if (state === "official_application_started" || state === "application_form_visible") {
         advanced =
@@ -3501,7 +3511,7 @@ export async function probeIndonesiaPortal(
       }
     }
 
-    if (state === "payment_required" && input.userPaymentHandoff?.enabled) {
+    if ((state === "payment_required" || state === "payment_otp_required") && input.userPaymentHandoff?.enabled) {
       await capturePaymentArtifact(page, input, session.diagnostics, "payment");
       const paymentResult = await waitForUserPaymentCompletion(page, input, session.diagnostics);
       title = paymentResult.title;

@@ -343,6 +343,14 @@ function getSubmissionServiceLocalUrl(): string {
   return `http://127.0.0.1:${port}`;
 }
 
+function getSubmissionServiceLocalUrlCandidates(): string[] {
+  const urls = [
+    getSubmissionServiceLocalUrl(),
+    "http://127.0.0.1:18080",
+  ].map((value) => value.replace(/\/+$/, ""));
+  return Array.from(new Set(urls));
+}
+
 function officialFeeCardSessionPath(application: ApplicationRow): "vietnam" | "indonesia" {
   return isIndonesiaEVisaApplication(application.country, application.visa_type) ? "indonesia" : "vietnam";
 }
@@ -351,43 +359,47 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
   | { ok: false; error: string }
 > {
-  try {
-    const countryPath = officialFeeCardSessionPath(application);
-    const response = await fetch(`${getSubmissionServiceLocalUrl()}/local/${countryPath}/card-session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        applicationId,
-        card: {
-          pan: card.pan,
-          expiry: card.expiry,
-          cvv: card.cvv,
-          holderName: card.holderName,
-        },
-      }),
-      cache: "no-store",
-    });
-    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-    if (!response.ok) {
-      return {
-        ok: false,
-        error:
+  const countryPath = officialFeeCardSessionPath(application);
+  const attempts: string[] = [];
+  for (const baseUrl of getSubmissionServiceLocalUrlCandidates()) {
+    const endpoint = `${baseUrl}/local/${countryPath}/card-session`;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId,
+          card: {
+            pan: card.pan,
+            expiry: card.expiry,
+            cvv: card.cvv,
+            holderName: card.holderName,
+          },
+        }),
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!response.ok) {
+        const reason =
           typeof payload?.error === "string"
             ? payload.error
-            : `submission-service card session returned ${response.status}`,
+            : `HTTP ${response.status}`;
+        attempts.push(`${endpoint} -> ${response.status} ${reason}`);
+        continue;
+      }
+      return {
+        ok: true,
+        redactedCard: payload?.redactedCard ?? null,
+        expiresAtIso: typeof payload?.expiresAtIso === "string" ? payload.expiresAtIso : null,
       };
+    } catch (error) {
+      attempts.push(`${endpoint} -> ${error instanceof Error ? error.message : String(error)}`);
     }
-    return {
-      ok: true,
-      redactedCard: payload?.redactedCard ?? null,
-      expiresAtIso: typeof payload?.expiresAtIso === "string" ? payload.expiresAtIso : null,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
   }
+  return {
+    ok: false,
+    error: attempts.join("; ") || "submission-service card session endpoint unavailable",
+  };
 }
 
 async function enqueueIndonesiaOfficialFeeCardJob(input: {
