@@ -6,6 +6,7 @@ import {
   normalizeIndonesiaAnswers,
   runIndonesiaLiveSubmission,
 } from "../index";
+import { shouldSubmitIndonesiaPortalEmailOtp } from "../runner";
 import {
   shouldDirectNavigateIndonesiaStepOne,
   actionForIndonesiaPortalState,
@@ -190,4 +191,21 @@ test("does not bypass Indonesia official step 1 submit by default", () => {
   assert.equal(shouldDirectNavigateIndonesiaStepOne(""), false);
   assert.equal(shouldDirectNavigateIndonesiaStepOne("false"), false);
   assert.equal(shouldDirectNavigateIndonesiaStepOne("true"), true);
+});
+
+test("does not auto-submit bank payment OTP with email OTP automation", () => {
+  assert.equal(
+    shouldSubmitIndonesiaPortalEmailOtp({
+      url: `${INDONESIA_C1_PORTAL_URL}payment/otp`,
+      text: "Enter OTP Code OTP Code Submit",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldSubmitIndonesiaPortalEmailOtp({
+      url: `${INDONESIA_C1_PORTAL_URL}web/application-detail-otp/abc123`,
+      text: "Enter OTP Code OTP Code Submit",
+    }),
+    true,
+  );
 });

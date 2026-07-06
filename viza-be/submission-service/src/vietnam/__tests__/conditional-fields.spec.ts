@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  collectVietnamContactRows,
+  collectVietnamOtherPassportRows,
   collectVietnamPreviousVisitRows,
+  collectVietnamRelativeRows,
   validateVietnamConditionalAnswers,
 } from "../conditional-fields.js";
 
@@ -44,6 +47,49 @@ test("vn.conditional-fields: blocks incomplete prior Viet Nam table rows", () =>
   assert.equal(errors.length, 1);
   assert.equal(errors[0]?.fieldName, "visited_vietnam_last_year[1]");
   assert.match(errors[0]?.message ?? "", /To date/);
+});
+
+test("vn.conditional-fields: collects every mapped Yes conditional repeat group", () => {
+  const answers = {
+    has_other_passports_used_for_vietnam: "yes",
+    other_vietnam_passport_number: "E1234567",
+    other_vietnam_passport_full_name: "ZHANG SAN",
+    other_vietnam_passport_date_of_birth: "1990-05-06",
+    other_vietnam_passport_nationality: "chn",
+    has_contact_in_vietnam: "yes",
+    contact_hosting_organization_name: "VIZA Vietnam",
+    contact_hosting_organization_phone: "+84901234567",
+    contact_hosting_organization_address: "Hanoi",
+    contact_hosting_organization_purpose: "Tourism assistance",
+    has_relatives_in_vietnam: "yes",
+    relative_full_name: "NGUYEN VAN A",
+    relative_date_of_birth: "1988-02-03",
+    relative_nationality: "china",
+    relative_relationship: "Friend",
+    relative_residential_address: "Da Nang",
+  };
+
+  assert.deepEqual(collectVietnamOtherPassportRows(answers), [
+    { values: ["E1234567", "ZHANG SAN", "06/05/1990", "China"] },
+  ]);
+  assert.deepEqual(collectVietnamContactRows(answers), [
+    { values: ["VIZA Vietnam", "+84901234567", "Hanoi", "Tourism assistance"] },
+  ]);
+  assert.deepEqual(collectVietnamRelativeRows(answers), [
+    { values: ["NGUYEN VAN A", "03/02/1988", "China", "Friend", "Da Nang"] },
+  ]);
+  assert.deepEqual(validateVietnamConditionalAnswers(answers), []);
+});
+
+test("vn.conditional-fields: blocks mapped Yes conditional groups when row fields are missing", () => {
+  const errors = validateVietnamConditionalAnswers({
+    has_contact_in_vietnam: "yes",
+    contact_hosting_organization_name: "VIZA Vietnam",
+  });
+
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0]?.fieldName, "vietnam_contacts[1]");
+  assert.match(errors[0]?.message ?? "", /Telephone number/);
 });
 
 test("vn.conditional-fields: blocks unsupported Yes conditional groups instead of dropping child details", () => {

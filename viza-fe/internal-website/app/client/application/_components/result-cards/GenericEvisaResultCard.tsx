@@ -42,6 +42,7 @@ export function GenericEvisaResultCard({
   const portalUrl = result.portalUrl;
   const checkpoint = (result as GenericEvisaSubmissionResult & { checkpoint?: string }).checkpoint;
   const userPaymentRequired = result.country === "ID" && checkpoint === "user_payment_required";
+  const indonesiaAutopayCheckpoint = result.country === "ID" && result.status === "stopped_at_pay" && userPaymentRequired;
   const isIndonesiaHomePaymentUrl =
     result.country === "ID" &&
     portalUrl !== undefined &&
@@ -86,8 +87,10 @@ export function GenericEvisaResultCard({
         : isZh ? `${country}申请已准备好` : `${country} application prepared`;
 
   const badge =
-    result.status === "stopped_at_pay"
-      ? isZh ? "等待付款" : "Action required: payment"
+    indonesiaAutopayCheckpoint
+      ? isZh ? "等待银行验证" : "Waiting for bank verification"
+      : result.status === "stopped_at_pay"
+        ? isZh ? "等待付款" : "Action required: payment"
       : result.status === "form_ready_for_agency"
         ? isZh ? "下载并提交" : "Download & submit"
         : isZh ? "已提交" : "Submitted";
@@ -107,11 +110,11 @@ export function GenericEvisaResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {result.status === "stopped_at_pay"
             ? isZh
-              ? userPaymentRequired
-                ? `官方付款窗口已经打开。请在那个窗口里完成银行卡付款和 OTP 验证，完成后 VIZA 会继续跟踪结果。`
+              ? indonesiaAutopayCheckpoint
+                ? "VIZA 已经把你的银行卡提交到官方付款页，并会继续自动推进付款。若银行弹出 OTP / 3DS 验证，请只在官方窗口输入验证码；完成后 VIZA 会继续跟踪结果。"
                 : `我们已把你的${country}申请推进到官网付款节点。请在官方页面完成付款，付款后 VIZA 会继续跟踪结果并在这里保存获批签证。`
-              : userPaymentRequired
-                ? "The official payment window is open. Complete card payment and OTP verification there; VIZA will keep tracking the result."
+              : indonesiaAutopayCheckpoint
+                ? "VIZA has submitted your one-time card to the official payment page and will keep advancing the payment. If the bank shows OTP / 3DS verification, enter only that code in the official window; VIZA will keep tracking the result."
                 : `We prepared your ${country} application and stopped at the government payment step. Complete the payment to finalize; we monitor the outcome and store your approved visa here.`
             : result.status === "form_ready_for_agency"
               ? isZh
@@ -142,14 +145,14 @@ export function GenericEvisaResultCard({
                 <a href={portalUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   {isIndonesiaPaymentGatewayUrl
-                    ? isZh ? "重新打开官方银行卡付款页" : "Reopen official card payment page"
+                    ? isZh ? "查看官方银行验证页" : "View official bank verification page"
                     : isZh ? "打开官方付款页" : "Open official payment page"}
                 </a>
               </Button>
             ) : null}
             <Button type="button" className="w-full" onClick={() => window.location.reload()}>
               <RotateCw className="mr-2 h-4 w-4" />
-              {isZh ? "我已完成付款，刷新状态" : "I finished payment, refresh status"}
+              {isZh ? "我已完成银行验证，刷新状态" : "I finished bank verification, refresh status"}
             </Button>
             <Button
               type="button"
@@ -166,8 +169,8 @@ export function GenericEvisaResultCard({
                 <ExternalLink className="mr-2 h-4 w-4" />
               )}
               {locatingPayment
-                ? isZh ? "正在重新生成付款页" : "Regenerating payment page"
-                : isZh ? "付款超时，重新生成付款页" : "Payment timed out, regenerate payment page"}
+                ? isZh ? "正在重新自动付款" : "Restarting automated payment"
+                : isZh ? "付款超时，重新自动付款" : "Payment timed out, restart automated payment"}
             </Button>
             {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
           </div>
