@@ -140,3 +140,14 @@ viza-be/submission-service/vn-recon-out-v3/
 /output/
 **/output/
 viza-be/submission-service/artifacts/
+
+# local env files
+.env
+.env.*
+*.env
+*.env.*
+viza-fe/internal-website/.env.local
+viza-fe/internal-website/.env.local.bak
+!.env.example
+!*.env.example
+
