@@ -433,7 +433,7 @@ export default async function AdminApplicationsPage({ searchParams }: PageProps)
   ];
 
   return (
-    <div className="w-full space-y-6 p-6 md:p-8">
+    <div className="w-full space-y-6 p-4 sm:p-6 md:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#232323]">{copy.list.title}</h1>

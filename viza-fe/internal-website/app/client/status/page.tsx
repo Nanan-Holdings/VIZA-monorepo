@@ -444,7 +444,7 @@ function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[8px] border border-[#edf1f6] bg-white px-4 py-3">
       <p className="text-[12px] font-medium text-[#8a94a3]">{label}</p>
-      <p className="mt-1 break-words text-[15px] font-semibold text-[#26364a]">{value}</p>
+      <p className="mt-1 break-words [overflow-wrap:anywhere] text-[15px] font-semibold text-[#26364a]">{value}</p>
     </div>
   );
 }

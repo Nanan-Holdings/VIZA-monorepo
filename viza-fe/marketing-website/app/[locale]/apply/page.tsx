@@ -1,6 +1,6 @@
 "use client";
 import "./apply.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
@@ -28,6 +28,56 @@ type PassportExtraction = {
 };
 
 type ExtractStage = "idle" | "reading" | "extracting" | "verifying" | "done";
+
+/**
+ * The six identity fields the visitor must confirm before checkout. Every
+ * one is required — extraction may leave any of them empty (partial read),
+ * in which case the field opens in edit mode and blocks step 2 → 3.
+ */
+type PassportField =
+  | "surname"
+  | "givenNames"
+  | "passportNumber"
+  | "dob"
+  | "nationality"
+  | "expiryDate";
+
+const REQUIRED_PASSPORT_FIELDS: PassportField[] = [
+  "surname",
+  "givenNames",
+  "passportNumber",
+  "dob",
+  "nationality",
+  "expiryDate",
+];
+
+const EMPTY_FIELDS: Record<PassportField, string> = {
+  surname: "",
+  givenNames: "",
+  passportNumber: "",
+  dob: "",
+  nationality: "",
+  expiryDate: "",
+};
+
+/** Recognition result: fully read vs. readable-but-incomplete. */
+type ScanOutcome = "success" | "partial";
+
+/** Terminal scan failures that keep the visitor on step 1 with a retry. */
+type ScanFailure = "notPassport" | "unreadable" | "network";
+
+/** Backend warning codes we can explain to the visitor. */
+const KNOWN_WARNINGS = ["expired", "unreadable_mrz", "photo_too_blurry"] as const;
+type KnownWarning = (typeof KNOWN_WARNINGS)[number];
+
+type Step = 1 | 2 | 3;
+type Speed = "standard" | "express" | "superrush";
+type Addon = "insurance" | "esim";
+
+// Base price: government fee (50) + VIZA processing (32) − first-time discount (10).
+const BASE_PRICE = 50 + 32 - 10;
+const SPEED_PRICE: Record<Speed, number> = { standard: 0, express: 28, superrush: 89 };
+const ADDON_PRICE: Record<Addon, number> = { insurance: 32, esim: 12 };
 
 // ISO 3166-1 alpha-3 → { alpha-2, English name }. Covers the destinations and
 // passport-issuing countries most relevant to the apply flow; falls back to the
@@ -80,9 +130,90 @@ function CountryDisplay({ alpha3 }: { alpha3: string }) {
   );
 }
 
+const CheckMark = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+);
+
+const PencilIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+);
+
+/**
+ * One cell of the passport review card. Displays the extracted value with a
+ * hover pencil; clicking the pencil (or being flagged missing after a
+ * partial scan) swaps the value for an inline input/select. Missing fields
+ * are highlighted and block the continue-to-checkout action.
+ */
+function ReviewField({
+  label,
+  value,
+  display,
+  editing,
+  invalid,
+  requiredMsg,
+  editLabel,
+  type = "text",
+  options,
+  onEdit,
+  onChange,
+  onDone,
+}: {
+  label: string;
+  value: string;
+  display: React.ReactNode;
+  editing: boolean;
+  invalid: boolean;
+  requiredMsg: string;
+  editLabel: string;
+  type?: "text" | "date" | "select";
+  options?: { value: string; label: string }[];
+  onEdit: () => void;
+  onChange: (v: string) => void;
+  onDone: () => void;
+}) {
+  return (
+    <div className={`review-field${invalid ? " missing" : ""}`}>
+      <div className="k">{label}</div>
+      {editing ? (
+        <div className="v">
+          {type === "select" ? (
+            <select
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onDone}
+              aria-label={label}
+            >
+              <option value="">—</option>
+              {options?.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type={type}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onDone}
+              onKeyDown={(e) => { if (e.key === "Enter") onDone(); }}
+              aria-label={label}
+            />
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="v">{display}</div>
+          <button className="edit" type="button" aria-label={editLabel} onClick={onEdit}>
+            <PencilIcon />
+          </button>
+        </>
+      )}
+      {invalid && !editing && <div className="req-note">{requiredMsg}</div>}
+    </div>
+  );
+}
+
 export default function ApplyPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const goStepRef = useRef<(n: number) => void>(() => {});
 
   // The wizard is country-aware: /apply?country=<slug> drives the destination
   // identity (name, flag, visa type) and the final-step checkout deep-links.
@@ -97,17 +228,55 @@ export default function ApplyPage() {
 
   const locale = useLocale();
   const tA = useTranslations("apply");
+  const tF = useTranslations("footer");
   const tc = useTranslations("countries");
   const countryName = tc.has(country.slug) ? tc(country.slug) : country.name;
 
+  // -------------- WIZARD STATE --------------
+  const [step, setStep] = useState<Step>(1);
+  const [uploadMode, setUploadMode] = useState<"upload" | "capture">("upload");
+  const [dragOver, setDragOver] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(2);
+  const [speed, setSpeed] = useState<Speed>("express");
+  const [addons, setAddons] = useState<Record<Addon, boolean>>({ insurance: false, esim: false });
+
+  const goStep = useCallback((n: Step) => {
+    setStep(n);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const toggleAddon = useCallback((a: Addon) => {
+    setAddons((prev) => ({ ...prev, [a]: !prev[a] }));
+  }, []);
+
   const [extractStage, setExtractStage] = useState<ExtractStage>("idle");
   const [extracted, setExtracted] = useState<PassportExtraction | null>(null);
-  const [extractError, setExtractError] = useState<string | null>(null);
+  const [scanOutcome, setScanOutcome] = useState<ScanOutcome | null>(null);
+  const [scanFailure, setScanFailure] = useState<ScanFailure | null>(null);
+  const [scanFailureDetail, setScanFailureDetail] = useState<string | null>(null);
+
+  // Editable copy of the extraction — the review card writes here, so the
+  // visitor can correct misreads and fill anything the scan missed.
+  const [fields, setFields] = useState<Record<PassportField, string>>(EMPTY_FIELDS);
+  const [editing, setEditing] = useState<Partial<Record<PassportField, boolean>>>({});
+
+  // Contact details (step 2) — required before checkout.
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dialCode, setDialCode] = useState("+65");
+  const [consent, setConsent] = useState(true);
+  const [triedContinue, setTriedContinue] = useState(false);
+
+  const setField = useCallback((f: PassportField, value: string) => {
+    setFields((prev) => ({ ...prev, [f]: value }));
+  }, []);
 
   const runExtraction = useCallback(async (file: File) => {
     if (!file) return;
     setExtracted(null);
-    setExtractError(null);
+    setScanOutcome(null);
+    setScanFailure(null);
+    setScanFailureDetail(null);
     setExtractStage("reading");
 
     const form = new FormData();
@@ -134,12 +303,48 @@ export default function ApplyPage() {
       const data = body.extracted;
       if (!data) throw new Error("Empty response");
 
+      // ---- Outcome classification ----
+      const warnings = data.warnings ?? [];
+      if (warnings.includes("not_a_passport")) {
+        setScanFailure("notPassport");
+        setExtractStage("idle");
+        return;
+      }
+
+      const nextFields: Record<PassportField, string> = {
+        surname: data.surname ?? "",
+        givenNames: data.givenNames ?? "",
+        passportNumber: data.passportNumber ?? "",
+        dob: data.dob ?? "",
+        nationality: data.nationality ?? "",
+        expiryDate: data.expiryDate ?? "",
+      };
+      const missing = REQUIRED_PASSPORT_FIELDS.filter((f) => !nextFields[f].trim());
+
+      // Nothing usable came back — treat as a failed scan, not a partial one.
+      if (missing.length === REQUIRED_PASSPORT_FIELDS.length) {
+        setScanFailure("unreadable");
+        setExtractStage("idle");
+        return;
+      }
+
+      const outcome: ScanOutcome =
+        missing.length > 0 || data.confidence !== "high" || warnings.length > 0
+          ? "partial"
+          : "success";
+
       setExtractStage("verifying");
       // Brief verifying stage so users see the third checkmark animate in
       // before the page jumps to step 2.
       await new Promise((r) => setTimeout(r, 600));
 
       setExtracted(data);
+      setFields(nextFields);
+      // Missing fields open in edit mode so the visitor lands straight on
+      // "complete these" rather than a wall of em-dashes.
+      setEditing(Object.fromEntries(missing.map((f) => [f, true])));
+      setScanOutcome(outcome);
+      setTriedContinue(false);
       setExtractStage("done");
 
       try {
@@ -148,12 +353,13 @@ export default function ApplyPage() {
         // sessionStorage may be blocked (private mode, etc.) — non-fatal.
       }
 
-      setTimeout(() => goStepRef.current(2), 400);
+      setTimeout(() => goStep(2), 400);
     } catch (err) {
-      setExtractError(err instanceof Error ? err.message : String(err));
+      setScanFailure("network");
+      setScanFailureDetail(err instanceof Error ? err.message : String(err));
       setExtractStage("idle");
     }
-  }, []);
+  }, [goStep]);
 
   const onFilePicked = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,7 +378,7 @@ export default function ApplyPage() {
   const onDzDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
-      e.currentTarget.classList.remove("drag");
+      setDragOver(false);
       if (extractStage !== "idle") return;
       const file = e.dataTransfer.files?.[0];
       if (file) runExtraction(file);
@@ -182,192 +388,45 @@ export default function ApplyPage() {
 
   const onDzDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.currentTarget.classList.add("drag");
+    setDragOver(true);
   }, []);
 
   const onDzDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.currentTarget.classList.remove("drag");
+    setDragOver(false);
   }, []);
 
-  useEffect(() => {
-    // -------------- STATE --------------
-    let currentStep = 1;
-    const steps: Record<number, { name: string; next: string }> = {
-      1: { name: tA('step1Name'), next: tA('continue') },
-      2: { name: tA('step2Name'), next: tA('continueToCheckout') },
-      3: { name: tA('step3Name'), next: tA('continue') }
-    };
-    let canProceed = false;
-
-    // -------------- NAVIGATION --------------
-    function goStep(n: number) {
-      currentStep = n;
-      document.querySelectorAll('.step-pane').forEach(p => {
-        const el = p as HTMLElement;
-        el.classList.toggle('active', Number(el.dataset.pane) === n);
-      });
-      document.querySelectorAll('.pstep').forEach(r => {
-        const el = r as HTMLElement;
-        const i = Number(el.dataset.step);
-        el.classList.toggle('done', i < n);
-        el.classList.toggle('current', i === n);
-        const num = el.querySelector('.num');
-        if (!num) return;
-        if (i < n) num.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        else num.textContent = String(i);
-      });
-      const conns = document.querySelectorAll('#progressBar .pconn');
-      conns.forEach((c, idx) => c.classList.toggle('done', idx < n - 1));
-      const actMeta = document.getElementById('actMeta');
-      const btnNextLabel = document.getElementById('btnNextLabel');
-      const btnBack = document.getElementById('btnBack');
-      if (actMeta) actMeta.textContent = `${tA('stepOf', { n })} · ${steps[n].name}`;
-      if (btnNextLabel) btnNextLabel.textContent = steps[n].next;
-      if (btnBack) (btnBack as HTMLElement).style.visibility = n === 1 ? 'hidden' : 'visible';
-      // Step 3 = checkout: payment method is chosen via the inline card/WeChat
-      // buttons, so hide the bottom Next button there.
-      const btnNextToggle = document.getElementById('btnNext');
-      if (btnNextToggle) (btnNextToggle as HTMLElement).style.display = n === 3 ? 'none' : '';
-      canProceed = (n === 2 || n === 3);
-      syncNext();
-
-      const frame = document.getElementById('frame');
-      if (frame) frame.classList.toggle('with-summary', n === 3);
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    goStepRef.current = goStep;
-
-    function syncNext() {
-      const btn = document.getElementById('btnNext') as HTMLButtonElement | null;
-      if (btn) btn.disabled = !canProceed;
-    }
-    const btnBackEl = document.getElementById('btnBack');
-    const onBack = () => { if (currentStep > 1) goStep(currentStep - 1); };
-    if (btnBackEl) btnBackEl.addEventListener('click', onBack);
-
-    const btnNextEl = document.getElementById('btnNext');
-    const onNext = () => {
-      if (!canProceed) return;
-      // Step 3 is the checkout step — payment method (card / WeChat) is chosen
-      // via the inline buttons that deep-link to the portal checkout, so the
-      // bottom Next button does nothing here (it is also hidden in goStep).
-      if (currentStep === 3) return;
-      goStep(currentStep + 1);
-    };
-    if (btnNextEl) btnNextEl.addEventListener('click', onNext);
-
-    // Upload mode segmented switch — visual only.
-    const segBtns = document.querySelectorAll('#uploadSeg button');
-    const segHandlers: Array<() => void> = [];
-    segBtns.forEach(b => {
-      const handler = () => {
-        segBtns.forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-      };
-      segHandlers.push(handler);
-      b.addEventListener('click', handler);
+  // -------------- STEP 3: dates (base date fixed to the demo window) --------------
+  const isZh = locale.toLowerCase().startsWith("zh");
+  const dayNames = isZh
+    ? ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const monthNames = isZh
+    ? ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
+    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const arrivalDates = useMemo(() => {
+    const today = new Date("2026-05-08T00:00:00");
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return d;
     });
-
-    // -------------- STEP 3: dates + upgrades --------------
-    function buildDates() {
-      const strip = document.getElementById('dateStrip');
-      if (!strip) return;
-      const today = new Date('2026-05-08T00:00:00');
-      const isZh = locale.toLowerCase().startsWith('zh');
-      const days = isZh
-        ? ['周日','周一','周二','周三','周四','周五','周六']
-        : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const months = isZh
-        ? ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
-        : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      let html = '';
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(today); d.setDate(today.getDate() + i);
-        html += `<div class="date-pill ${i===2?'active':''}" data-d="${i}"><div class="dow">${days[d.getDay()]}</div><div class="day">${d.getDate()}</div><div class="mon">${months[d.getMonth()]}</div></div>`;
-      }
-      strip.innerHTML = html;
-      strip.querySelectorAll('.date-pill').forEach(p => p.addEventListener('click', () => {
-        strip.querySelectorAll('.date-pill').forEach(x => x.classList.remove('active'));
-        p.classList.add('active');
-      }));
-    }
-    buildDates();
-
-    function bindUpgrades() {
-      const speedPrice: Record<string, number> = { standard: 0, express: 28, superrush: 89 };
-      const addonPrice: Record<string, number> = { insurance: 32, esim: 12 };
-
-      document.querySelectorAll('.upgrade').forEach(u => {
-        const el = u as HTMLElement;
-        el.addEventListener('click', () => {
-          if (el.dataset.group === 'speed') {
-            document.querySelectorAll('.upgrade[data-group="speed"]').forEach(s => s.classList.remove('active'));
-            el.classList.add('active');
-          } else {
-            el.classList.toggle('active');
-          }
-          recompute();
-        });
-      });
-
-      function recompute() {
-        const base = 50 + 32 - 10;
-        const activeSpeed = document.querySelector('.upgrade[data-group="speed"].active') as HTMLElement | null;
-        const speed = activeSpeed ? (activeSpeed.dataset.up || 'standard') : 'standard';
-        const speedAdd = speedPrice[speed] || 0;
-        let addons = 0;
-        ['insurance','esim'].forEach(a => {
-          const el = document.querySelector(`.upgrade[data-up="${a}"]`);
-          if (el && el.classList.contains('active')) addons += addonPrice[a];
-        });
-        const total = base + speedAdd + addons;
-        const sumTotal = document.getElementById('sumTotal');
-        if (sumTotal) sumTotal.textContent = 'SGD ' + total.toFixed(2);
-        if (currentStep === 3) {
-          const lbl = document.getElementById('btnNextLabel');
-          if (lbl) lbl.textContent = 'Pay SGD ' + total.toFixed(2);
-        }
-        const er = document.getElementById('sumExpressRow');
-        const parts: string[] = [];
-        if (speed !== 'standard') parts.push(speed === 'express' ? tA('express') : tA('superRush'));
-        const insEl = document.querySelector('.upgrade[data-up="insurance"]');
-        const esimEl = document.querySelector('.upgrade[data-up="esim"]');
-        if (insEl && insEl.classList.contains('active')) parts.push(tA('insurance'));
-        if (esimEl && esimEl.classList.contains('active')) parts.push(tA('esim'));
-        if (er) {
-          const k = er.querySelector('.k');
-          const v = er.querySelector('.v');
-          if (k) k.textContent = parts.length ? parts.join(' + ') : tA('upgrades');
-          if (v) v.textContent = parts.length ? '+ SGD ' + (speedAdd + addons).toFixed(2) : '—';
-        }
-
-        const etaMap: Record<string, string> = { standard: '12 May 2026, 8:00 AM SGT', express: '8 May 2026, 3:00 PM SGT', superrush: '6 May 2026, 6:00 PM SGT' };
-        const sumEta = document.getElementById('sumEta');
-        if (sumEta) sumEta.textContent = etaMap[speed] || etaMap.express;
-      }
-      recompute();
-    }
-    bindUpgrades();
-
-    const helpBubble = document.getElementById('helpBubble');
-    const onHelp = () => alert(tA('helpAlert'));
-    if (helpBubble) helpBubble.addEventListener('click', onHelp);
-
-    goStep(1);
-
-    return () => {
-      if (btnBackEl) btnBackEl.removeEventListener('click', onBack);
-      if (btnNextEl) btnNextEl.removeEventListener('click', onNext);
-      if (helpBubble) helpBubble.removeEventListener('click', onHelp);
-      segBtns.forEach((b, i) => b.removeEventListener('click', segHandlers[i]));
-    };
-    // One-time wizard setup. tA/locale are stable for the page's lifetime
-    // (locale change remounts via route), and adding them would re-run this
-    // effect every render and reset the wizard to step 1.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // -------------- DERIVED PRICING / SUMMARY --------------
+  const speedAdd = SPEED_PRICE[speed];
+  const addonsAdd = (addons.insurance ? ADDON_PRICE.insurance : 0) + (addons.esim ? ADDON_PRICE.esim : 0);
+  const total = BASE_PRICE + speedAdd + addonsAdd;
+
+  const upgradeParts: string[] = [];
+  if (speed !== "standard") upgradeParts.push(speed === "express" ? tA("express") : tA("superRush"));
+  if (addons.insurance) upgradeParts.push(tA("insurance"));
+  if (addons.esim) upgradeParts.push(tA("esim"));
+
+  const sumEta =
+    speed === "standard" ? tA("etaStandard") :
+    speed === "superrush" ? tA("etaSuperrush") :
+    tA("etaExpress");
 
   // -------------- DERIVED EXTRACTION VIEW STATE --------------
   const isUploading = extractStage !== "idle";
@@ -381,14 +440,121 @@ export default function ApplyPage() {
     extractStage === "verifying" ? tA("stVerifying") :
     tA("continue");
 
-  useEffect(() => {
-    const lbl = document.getElementById("btnNextLabel");
-    if (lbl && isUploading) lbl.textContent = stageBtnLabel;
-  }, [isUploading, stageBtnLabel]);
+  // -------------- DERIVED WIZARD CHROME --------------
+  const stepNames: Record<Step, string> = {
+    1: tA("step1Name"),
+    2: tA("step2Name"),
+    3: tA("step3Name"),
+  };
+  const stepNext: Record<Step, string> = {
+    1: tA("continue"),
+    2: tA("continueToCheckout"),
+    3: tA("continue"),
+  };
 
-  const showWarning =
-    extracted !== null &&
-    (extracted.confidence !== "high" || (extracted.warnings ?? []).length > 0);
+  // Step 3 = checkout: payment method is chosen via the inline card/WeChat
+  // buttons, so the bottom Next button is hidden there (label kept in sync
+  // with the running total to mirror the ported design).
+  const nextLabel =
+    step === 3 ? tA("payAmount", { amount: total.toFixed(2) }) :
+    step === 1 && isUploading ? stageBtnLabel :
+    stepNext[step];
+
+  const canProceed = step === 2 || step === 3;
+
+  // -------------- STEP 2 VALIDATION --------------
+  const missingFields = useMemo(
+    () => REQUIRED_PASSPORT_FIELDS.filter((f) => !fields[f].trim()),
+    [fields],
+  );
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneValid = phone.replace(/\D/g, "").length >= 5;
+  const step2Valid = missingFields.length === 0 && emailValid && phoneValid && consent;
+
+  const fullName = `${fields.givenNames} ${fields.surname}`.trim();
+
+  const onBack = useCallback(() => {
+    setStep((s) => {
+      if (s > 1) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return (s - 1) as Step;
+      }
+      return s;
+    });
+  }, []);
+
+  const onNext = useCallback(() => {
+    if (!canProceed) return;
+    // Step 3 is the checkout step — payment method (card / WeChat) is chosen
+    // via the inline buttons that deep-link to the portal checkout, so the
+    // bottom Next button does nothing here (it is also hidden).
+    if (step === 3) return;
+    if (step === 2) {
+      if (!step2Valid) {
+        // Surface what's blocking: open every missing passport field in edit
+        // mode and switch the inline validation messages on.
+        setTriedContinue(true);
+        setEditing((prev) => ({
+          ...prev,
+          ...Object.fromEntries(missingFields.map((f) => [f, true])),
+        }));
+        return;
+      }
+      try {
+        sessionStorage.setItem(
+          "viza.passport.extracted",
+          JSON.stringify({ ...extracted, ...fields }),
+        );
+        sessionStorage.setItem(
+          "viza.apply.contact",
+          JSON.stringify({ email: email.trim(), phone: `${dialCode} ${phone.trim()}` }),
+        );
+      } catch {
+        // sessionStorage may be blocked — non-fatal.
+      }
+    }
+    goStep((step + 1) as Step);
+  }, [canProceed, step, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone]);
+
+  const showWarning = scanOutcome === "partial";
+  const knownWarnings = (extracted?.warnings ?? []).filter((w): w is KnownWarning =>
+    (KNOWN_WARNINGS as readonly string[]).includes(w),
+  );
+
+  // -------------- REVIEW CARD CONFIG --------------
+  const nationalityOptions = useMemo(() => {
+    const opts = Object.entries(COUNTRY_MAP)
+      .map(([a3, v]) => ({ value: a3, label: v.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    // Preserve an extracted alpha-3 we don't have a friendly name for.
+    const current = fields.nationality.toUpperCase();
+    if (current && !COUNTRY_MAP[current]) {
+      opts.push({ value: fields.nationality, label: fields.nationality });
+    }
+    return opts;
+  }, [fields.nationality]);
+
+  const reviewFieldDefs: {
+    f: PassportField;
+    label: string;
+    type?: "text" | "date" | "select";
+    display: React.ReactNode;
+  }[] = [
+    { f: "surname", label: tA("fSurname"), display: fields.surname || "—" },
+    { f: "givenNames", label: tA("fGiven"), display: fields.givenNames || "—" },
+    { f: "passportNumber", label: tA("fPassport"), display: fields.passportNumber || "—" },
+    { f: "dob", label: tA("fDob"), type: "date", display: formatDateDisplay(fields.dob) },
+    {
+      f: "nationality",
+      label: tA("fNationality"),
+      type: "select",
+      display: fields.nationality ? <CountryDisplay alpha3={fields.nationality} /> : "—",
+    },
+    { f: "expiryDate", label: tA("fExpires"), type: "date", display: formatDateDisplay(fields.expiryDate) },
+  ];
+
+  const pstepClass = (n: Step) =>
+    `pstep${n < step ? " done" : ""}${n === step ? " current" : ""}`;
 
   return (
     <>
@@ -396,29 +562,29 @@ export default function ApplyPage() {
 
       <div className="progress-bar">
         <div className="progress-inner" id="progressBar">
-          <div className="pstep current" data-step="1">
-            <span className="num">1</span>
+          <div className={pstepClass(1)} data-step="1">
+            <span className="num">{step > 1 ? <CheckMark /> : "1"}</span>
             <span className="lab">{tA("step1Name")}</span>
           </div>
-          <span className="pconn"></span>
-          <div className="pstep" data-step="2">
-            <span className="num">2</span>
+          <span className={`pconn${step > 1 ? " done" : ""}`}></span>
+          <div className={pstepClass(2)} data-step="2">
+            <span className="num">{step > 2 ? <CheckMark /> : "2"}</span>
             <span className="lab">{tA("step2Name")}</span>
           </div>
-          <span className="pconn"></span>
-          <div className="pstep" data-step="3">
+          <span className={`pconn${step > 2 ? " done" : ""}`}></span>
+          <div className={pstepClass(3)} data-step="3">
             <span className="num">3</span>
             <span className="lab">{tA("step3Name")}</span>
           </div>
         </div>
       </div>
 
-      <div className="frame" id="frame">
+      <div className={`frame${step === 3 ? " with-summary" : ""}`} id="frame">
 
         <main className="main">
 
           {/* ============= STEP 1: UPLOAD ============= */}
-          <section className="step step-pane active" data-pane="1">
+          <section className={`step step-pane${step === 1 ? " active" : ""}`} data-pane="1">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 1 })}</div>
               <h1>{tA("s1Title")}</h1>
@@ -426,21 +592,33 @@ export default function ApplyPage() {
             </header>
 
             <div className="seg" id="uploadSeg" style={{ display: isUploading ? "none" : undefined }}>
-              <button className="active" data-mode="upload" type="button">
+              <button
+                className={uploadMode === "upload" ? "active" : ""}
+                data-mode="upload"
+                type="button"
+                onClick={() => setUploadMode("upload")}
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 {tA("segUpload")}
               </button>
-              <button data-mode="capture" type="button">
+              <button
+                className={uploadMode === "capture" ? "active" : ""}
+                data-mode="capture"
+                type="button"
+                onClick={() => setUploadMode("capture")}
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 {tA("segCapture")}
               </button>
             </div>
 
-            {/* Hidden file input — clicked via dropzone */}
+            {/* Hidden file input — clicked via dropzone. In "Take photo"
+                mode the capture hint opens the camera directly on mobile. */}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              capture={uploadMode === "capture" ? "environment" : undefined}
               hidden
               onChange={onFilePicked}
             />
@@ -449,7 +627,7 @@ export default function ApplyPage() {
             {!isUploading && (
               <div id="uploadView">
                 <div
-                  className="dropzone"
+                  className={`dropzone${dragOver ? " drag" : ""}`}
                   id="dz"
                   onClick={onDzClick}
                   onDrop={onDzDrop}
@@ -478,20 +656,26 @@ export default function ApplyPage() {
                   </div>
                 </div>
 
-                {extractError && (
-                  <div
-                    role="alert"
-                    style={{
-                      marginTop: 16,
-                      padding: "12px 14px",
-                      borderRadius: 10,
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      color: "#991b1b",
-                      font: "500 13px/1.45 var(--font-sans)",
-                    }}
-                  >
-                    {tA("errReadFail", { detail: extractError })}
+                {scanFailure && (
+                  <div className="scan-failed" role="alert">
+                    <div className="sf-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    </div>
+                    <div className="sf-body">
+                      <div className="sf-title">{tA("failTitle")}</div>
+                      <div className="sf-text">
+                        {scanFailure === "notPassport" && tA("failNotPassport")}
+                        {scanFailure === "unreadable" && tA("failUnreadable")}
+                        {scanFailure === "network" && tA("errReadFail", { detail: scanFailureDetail ?? "" })}
+                      </div>
+                      <button
+                        className="sf-retry"
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {tA("tryAgain")}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -551,7 +735,7 @@ export default function ApplyPage() {
           </section>
 
           {/* ============= STEP 2: CONFIRM ============= */}
-          <section className="step step-pane" data-pane="2">
+          <section className={`step step-pane${step === 2 ? " active" : ""}`} data-pane="2">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 2 })}</div>
               <h1>{tA("s2Title")}</h1>
@@ -571,10 +755,30 @@ export default function ApplyPage() {
                   background: "#fef3c7",
                   color: "#92400e",
                   border: "1px solid #fde68a",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 6,
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                {extracted.confidence === "low" ? tA("warnLow") : tA("warnMed")}
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  {missingFields.length > 0
+                    ? tA("warnPartial")
+                    : extracted.confidence === "low"
+                      ? tA("warnLow")
+                      : tA("warnMed")}
+                </span>
+                {knownWarnings.length > 0 && (
+                  <ul style={{ margin: 0, paddingLeft: 26, font: "400 12px/1.6 var(--font-sans)" }}>
+                    {knownWarnings.map((w) => (
+                      <li key={w}>
+                        {w === "expired" && tA("warnExpired")}
+                        {w === "unreadable_mrz" && tA("warnMrz")}
+                        {w === "photo_too_blurry" && tA("warnBlurry")}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -587,38 +791,23 @@ export default function ApplyPage() {
                 <span className="verified"><span className="dot"></span> {tA("autoExtracted")}</span>
               </div>
               <div className="review-grid">
-                <div className="review-field">
-                  <div className="k">{tA("fSurname")}</div>
-                  <div className="v">{extracted?.surname || "—"}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fGiven")}</div>
-                  <div className="v">{extracted?.givenNames || "—"}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fPassport")}</div>
-                  <div className="v">{extracted?.passportNumber || "—"}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fDob")}</div>
-                  <div className="v">{formatDateDisplay(extracted?.dob ?? "")}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fNationality")}</div>
-                  <div className="v">
-                    {extracted ? <CountryDisplay alpha3={extracted.nationality} /> : "—"}
-                  </div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
-                <div className="review-field">
-                  <div className="k">{tA("fExpires")}</div>
-                  <div className="v">{formatDateDisplay(extracted?.expiryDate ?? "")}</div>
-                  <button className="edit" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
-                </div>
+                {reviewFieldDefs.map(({ f, label, type, display }) => (
+                  <ReviewField
+                    key={f}
+                    label={label}
+                    value={fields[f]}
+                    display={display}
+                    type={type}
+                    options={f === "nationality" ? nationalityOptions : undefined}
+                    editing={!!editing[f]}
+                    invalid={!fields[f].trim()}
+                    requiredMsg={tA("fieldRequired")}
+                    editLabel={tA("editField", { field: label })}
+                    onEdit={() => setEditing((prev) => ({ ...prev, [f]: true }))}
+                    onChange={(v) => setField(f, v)}
+                    onDone={() => setEditing((prev) => ({ ...prev, [f]: false }))}
+                  />
+                ))}
               </div>
             </div>
 
@@ -627,32 +816,84 @@ export default function ApplyPage() {
 
             <div className="field-row">
               <div className="field">
-                <label>{tA("email")} <span className="req">*</span></label>
-                <input type="email" placeholder="you@example.com" />
+                <label htmlFor="applyEmail">{tA("email")} <span className="req">*</span></label>
+                <input
+                  id="applyEmail"
+                  type="email"
+                  placeholder={tA("emailPh")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={triedContinue && !emailValid ? "invalid" : undefined}
+                />
+                {triedContinue && !emailValid && (
+                  <div className="req-note">{tA("emailInvalid")}</div>
+                )}
               </div>
               <div className="field">
-                <label>{tA("phone")} <span className="req">*</span></label>
+                <label htmlFor="applyPhone">{tA("phone")} <span className="req">*</span></label>
                 <div className="phone-grp">
-                  <select defaultValue="🇸🇬 +65">
-                    <option>🇸🇬 +65</option>
-                    <option>🇲🇾 +60</option>
-                    <option>🇮🇩 +62</option>
+                  <select
+                    value={dialCode}
+                    onChange={(e) => setDialCode(e.target.value)}
+                    aria-label={tA("phone")}
+                  >
+                    <option value="+65">🇸🇬 +65</option>
+                    <option value="+60">🇲🇾 +60</option>
+                    <option value="+62">🇮🇩 +62</option>
+                    <option value="+86">🇨🇳 +86</option>
+                    <option value="+852">🇭🇰 +852</option>
+                    <option value="+886">🇹🇼 +886</option>
                   </select>
-                  <input type="tel" placeholder="9123 4567" />
+                  <input
+                    id="applyPhone"
+                    type="tel"
+                    placeholder={tA("phonePh")}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={triedContinue && !phoneValid ? "invalid" : undefined}
+                  />
                 </div>
+                {triedContinue && !phoneValid && (
+                  <div className="req-note">{tA("phoneInvalid")}</div>
+                )}
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '8px' }}>
-              <input type="checkbox" id="consent" defaultChecked style={{ height: '18px', width: '18px', marginTop: '2px' }}/>
+              <input
+                type="checkbox"
+                id="consent"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                style={{ height: '18px', width: '18px', marginTop: '2px' }}
+              />
               <label htmlFor="consent" style={{ font: '400 13px/1.5 var(--font-sans)', color: 'var(--fg-2)', cursor: 'pointer' }}>
                 {tA("consent", { country: countryName })}
               </label>
             </div>
+            {triedContinue && !consent && (
+              <div className="req-note" style={{ marginTop: 6 }}>{tA("consentRequired")}</div>
+            )}
+            {triedContinue && !step2Valid && (
+              <div
+                role="alert"
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: "#fef3c7",
+                  border: "1px solid #fde68a",
+                  color: "#92400e",
+                  font: "500 13px/1.45 var(--font-sans)",
+                }}
+              >
+                {tA("completeBeforeCheckout")}
+              </div>
+            )}
           </section>
 
           {/* ============= STEP 3: CHECKOUT ============= */}
-          <section className="step step-pane" data-pane="3">
+          <section className={`step step-pane${step === 3 ? " active" : ""}`} data-pane="3">
             <header className="step-head">
               <div className="step-eyebrow">{tA("stepOf", { n: 3 })}</div>
               <h1>{tA("s3Title")}</h1>
@@ -660,43 +901,56 @@ export default function ApplyPage() {
             </header>
 
             <h2 className="checkout-h2">{tA("arrival", { country: countryName })}</h2>
-            <div className="date-strip" id="dateStrip"></div>
+            <div className="date-strip" id="dateStrip">
+              {arrivalDates.map((d, i) => (
+                <div
+                  key={i}
+                  className={`date-pill${i === selectedDate ? " active" : ""}`}
+                  data-d={i}
+                  onClick={() => setSelectedDate(i)}
+                >
+                  <div className="dow">{dayNames[d.getDay()]}</div>
+                  <div className="day">{d.getDate()}</div>
+                  <div className="mon">{monthNames[d.getMonth()]}</div>
+                </div>
+              ))}
+            </div>
 
             <h2 className="checkout-h2">{tA("speed")}</h2>
             <div id="speedGroup">
-              <div className="upgrade" data-up="standard" data-group="speed">
+              <div className={`upgrade${speed === "standard" ? " active" : ""}`} data-up="standard" data-group="speed" onClick={() => setSpeed("standard")}>
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <div className="txt"><div className="tt">{tA("stdTitle")}</div><div className="ts">{tA("stdSub")}</div></div>
                 <div className="price"><span className="free">{tA("included")}</span></div>
-                <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div className="check"><CheckMark /></div>
               </div>
-              <div className="upgrade active" data-up="express" data-group="speed">
+              <div className={`upgrade${speed === "express" ? " active" : ""}`} data-up="express" data-group="speed" onClick={() => setSpeed("express")}>
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
                 <div className="txt"><div className="tt">{tA("expTitle")} <span className="recom">{tA("recommended")}</span></div><div className="ts">{tA("expSub")}</div></div>
                 <div className="price">+ SGD 28</div>
-                <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div className="check"><CheckMark /></div>
               </div>
-              <div className="upgrade" data-up="superrush" data-group="speed">
+              <div className={`upgrade${speed === "superrush" ? " active" : ""}`} data-up="superrush" data-group="speed" onClick={() => setSpeed("superrush")}>
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg></div>
                 <div className="txt"><div className="tt">{tA("rushTitle")}</div><div className="ts">{tA("rushSub")}</div></div>
                 <div className="price">+ SGD 89</div>
-                <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div className="check"><CheckMark /></div>
               </div>
             </div>
 
             <h2 className="checkout-h2">{tA("addons")}</h2>
             <div>
-              <div className="upgrade" data-up="insurance">
+              <div className={`upgrade${addons.insurance ? " active" : ""}`} data-up="insurance" onClick={() => toggleAddon("insurance")}>
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
                 <div className="txt"><div className="tt">{tA("insTitle")}</div><div className="ts">{tA("insSub")}</div></div>
                 <div className="price">+ SGD 32</div>
-                <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div className="check"><CheckMark /></div>
               </div>
-              <div className="upgrade" data-up="esim">
+              <div className={`upgrade${addons.esim ? " active" : ""}`} data-up="esim" onClick={() => toggleAddon("esim")}>
                 <div className="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/></svg></div>
                 <div className="txt"><div className="tt">{tA("esimTitle", { country: countryName })}</div><div className="ts">{tA("esimSub")}</div></div>
                 <div className="price">+ SGD 12</div>
-                <div className="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div className="check"><CheckMark /></div>
               </div>
             </div>
 
@@ -710,8 +964,18 @@ export default function ApplyPage() {
               {tA("paySub")}
             </p>
             <div style={{ display: 'grid', gap: '10px', maxWidth: '420px' }}>
-              <PayByCardButton country={country.portalCountry} visaType={country.visaType} />
-              <WechatPayButton country={country.portalCountry} visaType={country.visaType} />
+              <PayByCardButton
+                country={country.portalCountry}
+                visaType={country.visaType}
+                email={email.trim() || undefined}
+                fullName={fullName || undefined}
+              />
+              <WechatPayButton
+                country={country.portalCountry}
+                visaType={country.visaType}
+                email={email.trim() || undefined}
+                fullName={fullName || undefined}
+              />
             </div>
           </section>
 
@@ -729,18 +993,21 @@ export default function ApplyPage() {
 
           <div className="sum-eta">
             <div className="lab">{tA("guaranteedBy")}</div>
-            <div className="val" id="sumEta">8 May 2026, 3:00 PM SGT</div>
+            <div className="val" id="sumEta">{sumEta}</div>
             <div className="sub"><span className="dot"></span> {tA("onTimeRefund")}</div>
           </div>
 
           <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">SGD 50.00</span></div>
           <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">SGD 32.00</span></div>
-          <div className="price-row" id="sumExpressRow"><span className="k">{tA("expressUpgrade")}</span><span className="v">+ SGD 28.00</span></div>
+          <div className="price-row" id="sumExpressRow">
+            <span className="k">{upgradeParts.length ? upgradeParts.join(" + ") : tA("upgrades")}</span>
+            <span className="v">{upgradeParts.length ? tA("upgradeAmount", { amount: (speedAdd + addonsAdd).toFixed(2) }) : "—"}</span>
+          </div>
           <div className="price-row discount"><span className="k">{tA("firstDiscount")}</span><span className="v">−SGD 10.00</span></div>
 
           <div className="price-total">
             <span className="k">{tA("total")}</span>
-            <span className="v" id="sumTotal">SGD 100.00</span>
+            <span className="v" id="sumTotal">{tA("totalAmount", { amount: total.toFixed(2) })}</span>
           </div>
 
           <div className="price-foot">
@@ -751,22 +1018,28 @@ export default function ApplyPage() {
 
       </div>
 
-      <div className="help-bubble" id="helpBubble">
+      <a className="help-bubble" id="helpBubble" href="/contact">
         <img src="https://i.pravatar.cc/64?img=47" alt=""/>
         <div>
           <div className="ht">{tA("helpOnline")}</div>
           <div className="hs">{tA("helpTap")}</div>
         </div>
         <span className="pulse"></span>
-      </div>
+      </a>
 
       <div className="actions">
         <div className="actions-inner">
           <div className="actions-meta">
-            <span id="actMeta">{`${tA("stepOf", { n: 1 })} · ${tA("step1Name")}`}</span>
+            <span id="actMeta">{`${tA("stepOf", { n: step })} · ${stepNames[step]}`}</span>
           </div>
           <div className="actions-buttons">
-            <button className="btn-back" id="btnBack" type="button" style={{ visibility: 'hidden' }}>
+            <button
+              className="btn-back"
+              id="btnBack"
+              type="button"
+              style={{ visibility: step === 1 ? 'hidden' : 'visible' }}
+              onClick={onBack}
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               {tA("back")}
             </button>
@@ -774,9 +1047,11 @@ export default function ApplyPage() {
               className="btn-next"
               id="btnNext"
               type="button"
-              disabled
+              disabled={!canProceed}
+              style={{ display: step === 3 ? 'none' : undefined }}
+              onClick={onNext}
             >
-              <span id="btnNextLabel">{tA("continue")}</span>
+              <span id="btnNextLabel">{nextLabel}</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
@@ -789,68 +1064,60 @@ export default function ApplyPage() {
         <div className="foot-main">
           <div className="foot-brand">
             <a className="foot-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA"/></a>
-            <p className="foot-tag">VIZA helps you plan, apply, and track visas seamlessly across the world.</p>
+            <p className="foot-tag">{tF("tagline")}</p>
 
-            <div className="ask-ai">Ask AI about VIZA</div>
+            <div className="ask-ai">{tF("askAi")}</div>
             <div className="ai-chips">
-              <button className="ai-chip c1" type="button" title="Ask in your AI assistant">
+              <button className="ai-chip c1" type="button" title={tF("askAi")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
               </button>
-              <button className="ai-chip c2" type="button" title="Ask in your AI assistant">
+              <button className="ai-chip c2" type="button" title={tF("askAi")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
               </button>
-              <button className="ai-chip c3" type="button" title="Ask in your AI assistant">
+              <button className="ai-chip c3" type="button" title={tF("askAi")}>
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 13.8 8.4 20 10.5 13.8 12.6 12 19 10.2 12.6 4 10.5 10.2 8.4 12 2Z"/></svg>
               </button>
-              <button className="ai-chip c4" type="button" title="Ask in your AI assistant">
+              <button className="ai-chip c4" type="button" title={tF("askAi")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
               </button>
             </div>
           </div>
 
           <div className="col-company">
-            <h4 className="col-head">Company</h4>
+            <h4 className="col-head">{tF("company")}</h4>
             <ul className="col-list">
-              <li><a href="/careers">Careers</a></li>
-              <li><a href="/contact">Contact</a></li>
-              <li><a href="/security">Security</a></li>
-              <li><a href="/refunds">Refunds Policy</a></li>
-              <li><a href="/status">Status</a></li>
-              <li><a href="/legal/privacy">Privacy</a></li>
-              <li><a href="/legal/terms">Terms</a></li>
+              <li><a href="/careers">{tF("careers")}</a></li>
+              <li><a href="/contact">{tF("contact")}</a></li>
+              <li><a href="/security">{tF("security")}</a></li>
+              <li><a href="/refunds">{tF("refundsPolicy")}</a></li>
+              <li><a href="/status">{tF("status")}</a></li>
+              <li><a href="/legal/privacy">{tF("privacy")}</a></li>
+              <li><a href="/legal/terms">{tF("terms")}</a></li>
             </ul>
           </div>
 
           <div className="col-products">
-            <h4 className="col-head">Products</h4>
+            <h4 className="col-head">{tF("product")}</h4>
             <ul className="col-list">
-              <li><a href="#">U.S. Mock Interview</a></li>
-              <li><a href="#">Visa Requirements</a></li>
-              <li><a href="#">Schengen Appointment Checker</a></li>
-              <li><a href="#">Visa Photo Creator</a></li>
-              <li><a href="#">VIZA Emergency Helpline</a></li>
-              <li><a href="#">Student Visa</a></li>
+              <li><a href="#">{tF("prodMockInterview")}</a></li>
+              <li><a href="#">{tF("prodVisaReq")}</a></li>
+              <li><a href="#">{tF("prodSchengen")}</a></li>
+              <li><a href="#">{tF("prodPhoto")}</a></li>
+              <li><a href="#">{tF("prodHelpline")}</a></li>
+              <li><a href="#">{tF("prodStudent")}</a></li>
             </ul>
           </div>
 
           <div className="col-offices">
-            <h4 className="col-head">Offices</h4>
+            <h4 className="col-head">{tF("offices")}</h4>
             <ul className="col-list">
               <li className="office-row">
                 <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>1 Marina Boulevard, #20-01,<br/>Singapore 018989</span>
+                <span>中国（上海）自由贸易试验区罗山路1502弄<br/>No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China</span>
               </li>
               <li className="office-row">
                 <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>301 Mission Street, San Francisco,<br/>CA 94105, USA</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>M16 — Al Makateb Building,<br/>Al Quoz 3, Sheikh Zayed Rd, Dubai</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>Suite 203, Davina House,<br/>137-149 Goswell Road, London EC1V 7ET</span>
+                <span>225 Pasir Panjang Rd,<br/>Singapore</span>
               </li>
             </ul>
           </div>
@@ -869,11 +1136,11 @@ export default function ApplyPage() {
 
         <div className="foot-bottom">
           <div className="legal">
-            <span>© VIZA, All rights reserved</span>
+            <span>{tF("copyright")}</span>
             <span className="sep"></span>
-            <a href="#">Privacy</a>
+            <a href="#">{tF("privacy")}</a>
             <span className="sep"></span>
-            <a href="#">Terms</a>
+            <a href="#">{tF("terms")}</a>
           </div>
           <div className="foot-mark">
             <img src="/assets/viza-logo-black.svg" alt="VIZA"/>

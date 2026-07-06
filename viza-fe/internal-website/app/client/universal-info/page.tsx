@@ -1653,7 +1653,7 @@ export default function UniversalInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+    <div className="min-h-screen bg-[#fcfcfc] pb-16 pt-8">
       <main className="mx-auto flex w-full max-w-[1080px] flex-col gap-6">
         <Link
           href="/client/home"

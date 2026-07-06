@@ -1,5 +1,16 @@
 # Handover — Marketing site: language switcher, Chinese default, React rewrite
 
+> **STATUS (2026-07-05): COMPLETE.** All ported-HTML pages are now idiomatic React with
+> next-intl copy in `messages/en.json` + `messages/zh-CN.json`:
+> homepage, `apply`, `careers`, `contact`, `status`, `security`, `refunds`,
+> `legal/privacy`, `legal/terms`, and the shared `SiteNav`. Zero `getElementById`
+> remains in `app/` pages; `security` + both legal pages became server components.
+> Verified: type-check ✅ lint ✅ build ✅ and every page 200s in en + zh-CN with no
+> `MISSING_MESSAGE` and real Chinese copy.
+> Remaining follow-ups: (1) zh-CN legal/refunds policy prose needs legal review;
+> (2) `VisaCountryRich` section chrome is still inlined English (tracked in package
+> CLAUDE.md); (3) optional pixel diff against the claude.ai design `explore.html`.
+
 > Hand this to a **terminal Claude Code session** (`claude` in a real terminal), because the
 > remaining work needs `/design-login` + the `DesignSync` MCP, which aren't available in the
 > desktop/web app environment.

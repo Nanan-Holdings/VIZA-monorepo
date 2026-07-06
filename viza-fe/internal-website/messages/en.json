@@ -19,6 +19,7 @@
     "inviteFriends": "Invite Friends"
   },
   "menu": {
+    "changeCountry": "Switch Application Country",
     "inviteFriends": "Invite Friends",
     "status": "Status",
     "documents": "Documents",
@@ -28,6 +29,19 @@
     "logout": "Logout",
     "loggingOut": "Logging out..."
   },
+  "destinationsPage": {
+    "backToHome": "Back to Home",
+    "title": "Change country",
+    "subtitle": "Switch between your visa applications, or start a new destination below.",
+    "myApplications": "My applications",
+    "loading": "Loading your applications...",
+    "noApplications": "You haven't started any applications yet — choose a destination below to begin.",
+    "current": "Current",
+    "notStarted": "Not started",
+    "continue": "Continue",
+    "start": "Start",
+    "progressAriaLabel": "Application progress"
+  },
   "session": {
     "invalidatedTitle": "Session No Longer Active",
     "invalidatedBody": "Another applicant view was opened in a different tab. This session has stopped displaying for security.",
@@ -36,6 +50,7 @@
   "home": {
     "welcomeBack": "Welcome back, {name}.",
     "vizaApplication": "Here is your VIZA Application",
+    "vizaApplicationForCountry": "This is your {country} visa application",
     "recentActivity": "Recent Activity",
     "noRecentActivity": "No recent activity yet. Start your application to see updates here.",
     "loadingDashboard": "Loading your dashboard...",
@@ -3675,7 +3690,11 @@
         "arrivalCardSubmission": {
           "title": "Free arrival card submission",
           "description": "Redeem 1,000 points for one free arrival card submission for eligible destinations.",
-          "countries": ["Singapore", "Malaysia", "Thailand"]
+          "countries": [
+            "Singapore",
+            "Malaysia",
+            "Thailand"
+          ]
         },
         "priorityChecklist": {
           "title": "Priority checklist preparation",
@@ -3739,115 +3758,115 @@
         "description": "Send a support request if something needs human follow-up."
       }
     },
-  "payment": {
-    "selected": "Default",
-    "pendingVerification": "Verification pending",
-    "setDefault": "Set as default",
-    "manage": "Manage accounts",
-    "manageSelected": "Managing",
-    "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
-    "managerHints": {
-      "bank_card": "Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
-      "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
-      "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
-    },
-    "boundCount": "{count} bound",
-    "defaultAccount": "Default: {account}",
-    "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
-    "addTitle": "Add payment account",
-    "cardAddTitle": "Add card",
-    "qrAddTitle": "Scan to bind account",
-    "editTitle": "Edit payment account",
-    "addAccount": "Add account",
-    "verifyWithStripe": "Open secure verification",
-    "verifyWithAirwallex": "Load secure card element",
-    "generateQr": "Generate binding QR",
-    "regenerateQr": "Regenerate QR",
-    "checkQrStatus": "Check binding status",
-    "saveEdit": "Save changes",
-    "cancelEdit": "Cancel edit",
-    "edit": "Edit",
-    "delete": "Delete",
-    "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
-    "stripeHint": "Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
-    "cardHint": "Card details are entered only in the Airwallex hosted secure element. VIZA does not receive or store the full card number, expiry, or CVV.",
-    "cardElementPreparing": "Loading the Airwallex secure card element.",
-    "completeCardBinding": "Complete card binding",
-    "cardIdentifier": "Card · secure verification pending",
-    "qrAlt": "Payment account binding QR code",
-    "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
-    "qrExpires": "QR code expires at {time}.",
-    "qrHint": {
-      "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
-      "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
-    },
-    "fields": {
-      "label": "Account name",
-      "identifier": "Identifier",
-      "nickname": "Nickname",
-      "cardNumber": "Card number",
-      "cvv": "CVV"
-    },
-    "placeholders": {
-      "bank_card": {
-        "label": "For example: DBS debit card",
-        "identifier": "For example: ending in 5857",
-        "nickname": "For example: DBS debit card",
-        "cardNumber": "Enter card number",
-        "cvv": "3 or 4 digit security code"
+    "payment": {
+      "selected": "Default",
+      "pendingVerification": "Verification pending",
+      "setDefault": "Set as default",
+      "manage": "Manage accounts",
+      "manageSelected": "Managing",
+      "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
+      "managerHints": {
+        "bank_card": "Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
+        "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
+        "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
       },
-      "wechat_pay": {
-        "label": "For example: My WeChat",
-        "identifier": "For example: WeChat nickname or phone suffix"
+      "boundCount": "{count} bound",
+      "defaultAccount": "Default: {account}",
+      "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
+      "addTitle": "Add payment account",
+      "cardAddTitle": "Add card",
+      "qrAddTitle": "Scan to bind account",
+      "editTitle": "Edit payment account",
+      "addAccount": "Add account",
+      "verifyWithStripe": "Open secure verification",
+      "verifyWithAirwallex": "Load secure card element",
+      "generateQr": "Generate binding QR",
+      "regenerateQr": "Regenerate QR",
+      "checkQrStatus": "Check binding status",
+      "saveEdit": "Save changes",
+      "cancelEdit": "Cancel edit",
+      "edit": "Edit",
+      "delete": "Delete",
+      "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+      "stripeHint": "Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
+      "cardHint": "Card details are entered only in the Airwallex hosted secure element. VIZA does not receive or store the full card number, expiry, or CVV.",
+      "cardElementPreparing": "Loading the Airwallex secure card element.",
+      "completeCardBinding": "Complete card binding",
+      "cardIdentifier": "Card · secure verification pending",
+      "qrAlt": "Payment account binding QR code",
+      "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
+      "qrExpires": "QR code expires at {time}.",
+      "qrHint": {
+        "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
+        "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
       },
-      "alipay": {
-        "label": "For example: My Alipay",
-        "identifier": "For example: Alipay account note"
+      "fields": {
+        "label": "Account name",
+        "identifier": "Identifier",
+        "nickname": "Nickname",
+        "cardNumber": "Card number",
+        "cvv": "CVV"
+      },
+      "placeholders": {
+        "bank_card": {
+          "label": "For example: DBS debit card",
+          "identifier": "For example: ending in 5857",
+          "nickname": "For example: DBS debit card",
+          "cardNumber": "Enter card number",
+          "cvv": "3 or 4 digit security code"
+        },
+        "wechat_pay": {
+          "label": "For example: My WeChat",
+          "identifier": "For example: WeChat nickname or phone suffix"
+        },
+        "alipay": {
+          "label": "For example: My Alipay",
+          "identifier": "For example: Alipay account note"
+        }
+      },
+      "messages": {
+        "required": "Enter an account name and identifier.",
+        "nicknameRequired": "Enter a card nickname.",
+        "cardNumberInvalid": "Enter a valid card number.",
+        "cvvInvalid": "Enter a valid CVV.",
+        "added": "Payment account added.",
+        "updated": "Payment account updated.",
+        "deleted": "Payment account deleted.",
+        "defaultUpdated": "Default payment account updated.",
+        "stripeUnavailable": "Hosted card verification is not configured, so card verification is unavailable.",
+        "stripeStartFailed": "Could not start card verification. Please try again later.",
+        "stripeRedirect": "Opening the hosted secure verification page.",
+        "stripeReturned": "Card verification returned. The payment service will update the binding status after confirmation.",
+        "stripeCancelled": "Card verification was cancelled. The card is not fully bound yet.",
+        "cardUnavailable": "Airwallex card verification is not configured, so card verification is unavailable.",
+        "cardStartFailed": "Could not start Airwallex card verification. Please try again later.",
+        "cardReady": "The secure card element is ready. Enter the card details to complete binding.",
+        "cardElementFailed": "Could not load the secure card element. Refresh and try again.",
+        "cardBindFailed": "Card binding was not completed. Check the card details and try again.",
+        "cardBound": "The card was verified by Airwallex and bound successfully.",
+        "walletBindingUnavailable": "Wallet account binding is not configured yet. Use wallet QR codes at checkout after the order is created.",
+        "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
+        "qrReady": "QR code generated. Scan it with the matching app.",
+        "qrStatusFailed": "Could not check binding status. Please try again later.",
+        "qrExpired": "This QR code has expired. Generate a new one.",
+        "qrPending": "No scan result has been received yet. Scan first, then check again.",
+        "qrBound": "QR binding completed."
+      },
+      "methods": {
+        "bank_card": {
+          "title": "Card",
+          "description": "Enter a nickname, then complete binding in the Airwallex hosted card element."
+        },
+        "wechat_pay": {
+          "title": "WeChat Pay",
+          "description": "Bind by scanning a QR code with WeChat."
+        },
+        "alipay": {
+          "title": "Alipay",
+          "description": "Bind by scanning a QR code with Alipay."
+        }
       }
     },
-    "messages": {
-      "required": "Enter an account name and identifier.",
-      "nicknameRequired": "Enter a card nickname.",
-      "cardNumberInvalid": "Enter a valid card number.",
-      "cvvInvalid": "Enter a valid CVV.",
-      "added": "Payment account added.",
-      "updated": "Payment account updated.",
-      "deleted": "Payment account deleted.",
-      "defaultUpdated": "Default payment account updated.",
-      "stripeUnavailable": "Hosted card verification is not configured, so card verification is unavailable.",
-      "stripeStartFailed": "Could not start card verification. Please try again later.",
-      "stripeRedirect": "Opening the hosted secure verification page.",
-      "stripeReturned": "Card verification returned. The payment service will update the binding status after confirmation.",
-      "stripeCancelled": "Card verification was cancelled. The card is not fully bound yet.",
-      "cardUnavailable": "Airwallex card verification is not configured, so card verification is unavailable.",
-      "cardStartFailed": "Could not start Airwallex card verification. Please try again later.",
-      "cardReady": "The secure card element is ready. Enter the card details to complete binding.",
-      "cardElementFailed": "Could not load the secure card element. Refresh and try again.",
-      "cardBindFailed": "Card binding was not completed. Check the card details and try again.",
-      "cardBound": "The card was verified by Airwallex and bound successfully.",
-      "walletBindingUnavailable": "Wallet account binding is not configured yet. Use wallet QR codes at checkout after the order is created.",
-      "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
-      "qrReady": "QR code generated. Scan it with the matching app.",
-      "qrStatusFailed": "Could not check binding status. Please try again later.",
-      "qrExpired": "This QR code has expired. Generate a new one.",
-      "qrPending": "No scan result has been received yet. Scan first, then check again.",
-      "qrBound": "QR binding completed."
-    },
-    "methods": {
-      "bank_card": {
-        "title": "Card",
-        "description": "Enter a nickname, then complete binding in the Airwallex hosted card element."
-      },
-      "wechat_pay": {
-        "title": "WeChat Pay",
-        "description": "Bind by scanning a QR code with WeChat."
-      },
-      "alipay": {
-        "title": "Alipay",
-        "description": "Bind by scanning a QR code with Alipay."
-      }
-    }
-  },
     "travelers": {
       "title": "Frequent travelers",
       "description": "Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",

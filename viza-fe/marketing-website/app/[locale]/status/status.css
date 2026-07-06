@@ -658,3 +658,79 @@
   .site-foot .legal a { color: var(--fg-2); }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Heading step-down (fluid) */
+  .hero h1 { font-size: clamp(30px, 7.5vw, 60px); }
+
+  @media (max-width: 900px) {
+    /* Console stacks under hero copy */
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; align-items: start; }
+  }
+
+  @media (max-width: 720px) {
+    .hero h1 { letter-spacing: -1.2px; }
+    .hero-inner { padding: 40px 20px 56px; }
+    /* 640px decorative circle scales down */
+    .hero::after { width: 360px; height: 360px; right: -120px; bottom: -140px; }
+
+    /* Console stat columns stack */
+    .console { padding: 20px 18px 18px; }
+    .console-numbers { grid-template-columns: 1fr; gap: 12px; }
+    .console-num { padding: 0; border-left: 0; }
+
+    /* Sticky sub-nav: wrap, search takes its own row */
+    .subnav-inner { padding: 12px 20px; flex-wrap: wrap; gap: 10px; }
+    .sub-tabs { flex-wrap: wrap; }
+    .search-box { margin-left: 0; width: 100%; order: 10; }
+
+    .page { padding: 32px 20px 56px; }
+
+    /* Featured row + portal rows: stack the 320px/1fr/auto grid */
+    .feat { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+    .row { grid-template-columns: 1fr; gap: 14px; padding: 16px 20px 20px; }
+    .row-stat { text-align: left; min-width: 0; }
+
+    .panel-head { padding: 18px 20px 14px; }
+    .panel-section-head { flex-direction: column; align-items: flex-start; gap: 12px; margin: 40px 0 16px; }
+    .panel-section-head .legend { flex-wrap: wrap; }
+
+    /* Incidents */
+    .day-group { padding: 18px 20px 20px; }
+    .incident { grid-template-columns: 1fr; gap: 12px; }
+
+    /* Subscribe / SLA strip stacks */
+    .strip { grid-template-columns: 1fr; }
+    .strip .left { padding: 24px 20px; }
+    .strip .right { padding: 24px 20px; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 44px 0 36px;
+    }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 20px 0 28px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 480px) {
+    /* Incident event rows: time + tag on line one, description full width */
+    .ev { grid-template-columns: 92px 1fr; gap: 8px 12px; }
+    .ev .desc { grid-column: 1 / -1; }
+
+    .strip .right .form-row { flex-direction: column; }
+
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+  }

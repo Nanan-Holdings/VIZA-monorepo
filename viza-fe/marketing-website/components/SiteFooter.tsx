@@ -11,11 +11,9 @@ import { useTranslations } from "next-intl";
 export default function SiteFooter() {
   const t = useTranslations("footer");
 
-  const offices = [
-    "1 Marina Boulevard, #20-01, Singapore 018989",
-    "301 Mission Street, San Francisco, CA 94105, USA",
-    "M16 — Al Makateb Building, Al Quoz 3, Sheikh Zayed Rd, Dubai",
-    "Suite 203, Davina House, 137-149 Goswell Road, London EC1V 7ET",
+  const offices: Array<[string, string]> = [
+    ["中国（上海）自由贸易试验区罗山路1502弄", "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China"],
+    ["225 Pasir Panjang Rd,", "Singapore"],
   ];
 
   return (
@@ -78,10 +76,10 @@ export default function SiteFooter() {
         <div className="col-offices">
           <h4 className="col-head">{t("offices")}</h4>
           <ul className="col-list">
-            {offices.map((addr) => (
-              <li className="office-row" key={addr}>
+            {offices.map(([line1, line2]) => (
+              <li className="office-row" key={line2}>
                 <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <span>{addr}</span>
+                <span>{line1}<br />{line2}</span>
               </li>
             ))}
           </ul>

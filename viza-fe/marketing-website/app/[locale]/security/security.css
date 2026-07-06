@@ -692,3 +692,95 @@
   .site-foot .legal a { color: var(--fg-2); }
   .site-foot .legal a:hover { color: var(--brand-500); }
   .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Heading step-downs (fluid) */
+  .hero h1 { font-size: clamp(30px, 7.5vw, 64px); }
+  .sec-head h2 { font-size: clamp(30px, 5.5vw, 44px); }
+
+  @media (max-width: 900px) {
+    /* Clearance stamp stacks under hero copy */
+    .hero-inner { grid-template-columns: 1fr; gap: 48px; }
+    .hero-stats { grid-template-columns: repeat(2, 1fr); gap: 24px 20px; }
+    .hstat { padding: 0; border-left: 0; }
+    .doc-grid { grid-template-columns: 1fr; gap: 32px; }
+    .vdp { grid-template-columns: 1fr; }
+    .vdp-right { min-height: 380px; border-left: 0; border-top: 1px solid rgba(255,255,255,0.08); padding: 28px 20px; }
+  }
+
+  @media (max-width: 720px) {
+    .hero h1 { letter-spacing: -1.2px; }
+    .hero-inner { padding: 56px 20px 48px; }
+    .hero-stats { padding: 0 20px 56px; }
+
+    .clearance-wrap { min-height: 0; }
+    .clearance { width: min(380px, 100%); }
+    /* Keep floating chips inside the viewport */
+    .float-1 { right: 0; }
+    .float-2 { left: 0; }
+
+    .section { padding: 56px 20px; }
+    .sec-head { margin-bottom: 32px; }
+
+    /* Documents: 2-up cards */
+    .doc-cards { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    /* Features grid: single column */
+    .feat-grid { grid-template-columns: 1fr; }
+    .feat-grid .feat-cell {
+      border-right: 0;
+      border-bottom: 1px solid var(--border-hairline);
+      padding: 24px 20px 28px;
+    }
+    .feat-grid .feat-cell:last-child { border-bottom: 0; }
+
+    .vdp-left { padding: 32px 24px 36px; }
+    .vdp-left h2 { font-size: clamp(28px, 6.5vw, 44px); }
+
+    .listpair { grid-template-columns: 1fr; gap: 16px; }
+    .listcol { padding: 24px 20px; }
+
+    .scope-grid { grid-template-columns: 1fr; }
+    .scope-col { padding: 28px 20px 32px; }
+    .scope-col + .scope-col { border-left: 0; border-top: 1px solid var(--border-hairline); }
+
+    .pledge-grid { grid-template-columns: 1fr; gap: 16px; }
+    .pledge { padding: 24px 20px 28px; }
+
+    .legal-strip { grid-template-columns: 1fr; gap: 16px; }
+
+    .cta-strip {
+      margin-left: 20px; margin-right: 20px; margin-bottom: 56px;
+      grid-template-columns: 1fr;
+      padding: 32px 24px;
+      gap: 24px;
+    }
+    .cta-strip .right { align-items: flex-start; }
+    .cta-strip .right .mail { font-size: 15px; word-break: break-all; }
+
+    /* Footer: 2 columns */
+    .site-foot { padding: 0 20px; }
+    .site-foot .foot-main {
+      grid-template-columns: 1fr 1fr;
+      gap: 40px 24px;
+      padding: 44px 0 36px;
+    }
+    .site-foot .foot-bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 20px 0 28px;
+    }
+    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
+  }
+
+  @media (max-width: 480px) {
+    .hero-stats { grid-template-columns: 1fr; gap: 20px; }
+    .hstat .k { max-width: none; }
+    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
+  }
