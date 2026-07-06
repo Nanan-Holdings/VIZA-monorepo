@@ -114,7 +114,8 @@ function isIndonesiaPaymentCheckpointQueue(queue: QueueRow | null): boolean {
     queueStatus.startsWith("id_c1_payment_") ||
     queueStatus.startsWith("id_b1_evoa_payment_") ||
     checkpoint === "payment_page_visible" ||
-    actionType === "official_fee_payment_required"
+    actionType === "official_fee_payment_required" ||
+    actionType === "official_fee_otp_required"
   );
 }
 
@@ -196,14 +197,16 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
     ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
     : isIndonesiaPayment
       ? checkpoint === "user_payment_required"
-        ? "The official Indonesia payment window is open. Complete card payment and OTP verification in that visible official browser window."
+        ? actionType === "official_fee_otp_required"
+          ? "The official Indonesia bank OTP/3DS verification page is open. Enter the bank OTP in that visible official browser window."
+          : "The official Indonesia payment window is open. Complete card payment and OTP verification in that visible official browser window."
         : "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
       : "The official portal needs action before VIZA can continue.";
   const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
     return {
       country: isIndonesiaPayment ? "ID" : "VN",
-      status: actionType === "payment_required" || actionType === "official_fee_payment_required"
+      status: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
         ? "stopped_at_pay"
         : actionType,
       mode: "live_assisted",
@@ -220,7 +223,7 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
         status: "open",
         instructions: isIndonesiaPayment ? instructionText : instruction,
       },
-      paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required"
+      paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
         ? "manual_required"
         : "not_required",
       applicationCountry: application.country,

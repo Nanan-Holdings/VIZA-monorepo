@@ -126,7 +126,7 @@ test("classifies Indonesia portal login and registration gates", () => {
       title: "Enter OTP Code",
       text: "Enter OTP Code OTP Code Submit",
     }),
-    "payment_required",
+    "payment_otp_required",
   );
   assert.equal(
     classifyIndonesiaPortalSnapshot({
@@ -142,7 +142,7 @@ test("classifies Indonesia portal login and registration gates", () => {
       title: "Bayar Sekarang",
       text: "Bayar / Enter OTP",
     }),
-    "payment_required",
+    "payment_otp_required",
   );
   assert.equal(
     classifyIndonesiaPortalSnapshot({
@@ -178,6 +178,10 @@ test("maps portal states to actionable automation checkpoints", () => {
   assert.equal(
     actionForIndonesiaPortalState("payment_required").actionType,
     "official_fee_payment_required",
+  );
+  assert.equal(
+    actionForIndonesiaPortalState("payment_otp_required").actionType,
+    "official_fee_otp_required",
   );
 });
 

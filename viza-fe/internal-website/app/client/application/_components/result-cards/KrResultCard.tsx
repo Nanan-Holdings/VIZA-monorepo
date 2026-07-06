@@ -40,6 +40,9 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
   const [officialStatus, setOfficialStatus] = useState<NonNullable<KrSubmissionResult["officialEformStatus"]>>(
     result.officialEformPdfStoragePath ? "ready" : normalizeOfficialEformStatus(result.officialEformStatus),
   );
+  const [officialApplicationNumber, setOfficialApplicationNumber] = useState<string | null>(
+    result.officialEformApplicationNumber ?? null,
+  );
   const defaultOfficialMessage = isZh
     ? "官方 e-Form 需要通过 Korea Visa Portal 生成带条码 PDF。若官网要求人工选择馆别、上传文件或验证，请在官方页面完成后再回到 VIZA 下载。"
     : "The official barcode e-Form must be generated through Korea Visa Portal. If the portal asks for post selection, uploads, or verification, complete it on the official page and return to VIZA for download.";
@@ -52,6 +55,15 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     : currentPdfUrl;
   const officialPortalUrl = result.officialEformPortalUrl ?? "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
 
+  const openOfficialEformPath = async (path: string) => {
+    const response = await fetch(`/api/applications/${applicationId}/artifact-url?path=${encodeURIComponent(path)}`, {
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
+    if (!response.ok || !payload?.url) throw new Error(payload?.error ?? `Request failed: ${response.status}`);
+    window.open(payload.url, "_blank", "noopener,noreferrer");
+  };
+
   const requestOfficialEform = async () => {
     if (busy) return;
     setBusy(true);
@@ -61,10 +73,12 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
       const response = await fetch(`/api/applications/${applicationId}/korea-official-eform`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finalReviewApproved: true }),
       });
       const payload = (await response.json().catch(() => null)) as {
         status?: string;
         officialEformPdfStoragePath?: string | null;
+        officialEformApplicationNumber?: string | null;
         manualAction?: {
           instructions?: string;
           evidence?: {
@@ -76,10 +90,19 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
         error?: string;
       } | null;
       if (!response.ok) throw new Error(payload?.error ?? `Request failed: ${response.status}`);
-      setOfficialPath(payload?.officialEformPdfStoragePath ?? null);
+      const nextPath = payload?.officialEformPdfStoragePath ?? null;
+      setOfficialPath(nextPath);
       setOfficialStatus(normalizeOfficialEformStatus(payload?.status ?? "manual_action_required"));
-      setOfficialMessage(payload?.manualAction?.instructions ?? defaultOfficialMessage);
+      setOfficialApplicationNumber(payload?.officialEformApplicationNumber ?? null);
+      setOfficialMessage(
+        nextPath
+          ? isZh
+            ? "官方 Korea Visa Portal 已生成带条码 e-Form PDF。"
+            : "The official Korea Visa Portal barcode e-Form PDF has been generated."
+          : payload?.manualAction?.instructions ?? defaultOfficialMessage,
+      );
       setOfficialEvidence(payload?.manualAction?.evidence ?? null);
+      if (nextPath) await openOfficialEformPath(nextPath);
     } catch (error) {
       setOfficialError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -92,12 +115,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     setBusy(true);
     setOfficialError(null);
     try {
-      const response = await fetch(`/api/applications/${applicationId}/artifact-url?path=${encodeURIComponent(officialPath)}`, {
-        cache: "no-store",
-      });
-      const payload = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
-      if (!response.ok || !payload?.url) throw new Error(payload?.error ?? `Request failed: ${response.status}`);
-      window.open(payload.url, "_blank", "noopener,noreferrer");
+      await openOfficialEformPath(officialPath);
     } catch (error) {
       setOfficialError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -143,6 +161,11 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
           </div>
           {officialMessage ? <p className="mt-1 leading-6 text-muted-foreground">{officialMessage}</p> : null}
           {officialError ? <p className="mt-1 text-red-600">{officialError}</p> : null}
+          {officialApplicationNumber ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isZh ? "官方申请号：" : "Official application no.:"} {officialApplicationNumber}
+            </p>
+          ) : null}
           {officialEvidence?.screenshotPath ? (
             <p className="mt-2 break-all text-xs text-muted-foreground">
               {isZh ? "官网填写截图：" : "Official fill screenshot:"}{" "}
@@ -166,7 +189,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               {officialPath
                 ? isZh ? "下载官方 e-Form PDF" : "Download official e-Form PDF"
-                : isZh ? "生成官方 e-Form" : "Generate official e-Form"}
+                : isZh ? "生成并下载官方 e-Form" : "Generate and download official e-Form"}
             </Button>
             <Button asChild variant="outline">
               <a href={officialPortalUrl} target="_blank" rel="noopener noreferrer">

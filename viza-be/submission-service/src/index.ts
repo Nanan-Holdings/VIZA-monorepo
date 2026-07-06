@@ -6776,8 +6776,11 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         state: string;
         diagnostics: string[];
       }) => {
-        const message =
-          "Official Indonesia payment/OTP page is open in a visible browser window. Complete card payment and bank verification in that official window.";
+        const isOtpCheckpoint = snapshot.state === "payment_otp_required";
+        const actionType = isOtpCheckpoint ? "official_fee_otp_required" : "official_fee_payment_required";
+        const message = isOtpCheckpoint
+          ? "Official Indonesia bank OTP/3DS verification is open in a visible browser window. Enter the bank OTP in that official window."
+          : "Official Indonesia payment/OTP page is open in a visible browser window. Complete card payment and bank verification in that official window.";
         await supabase
           .from("submission_queue")
           .update({
@@ -6790,7 +6793,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
             official_portal_url: snapshot.url,
             vn_result_payload: {
               ...(item.vn_result_payload ?? {}),
-              actionType: "official_fee_payment_required",
+              actionType,
               actionInstructions: message,
               checkpoint: "user_payment_required",
               message,
@@ -6930,7 +6933,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     }
 
     const isPaymentAuthorizationRequired =
-      result.status === "action_required" && result.actionType === "official_fee_payment_required";
+      result.status === "action_required" &&
+      (result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required");
 
     const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
@@ -6938,7 +6942,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       : result.status === "action_required"
         ? "action_required"
         : failedStatus;
-    const currentStage = result.actionType === "official_fee_payment_required"
+    const currentStage = result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required"
       ? userPaymentHandoffEnabled
         ? "user_payment_required"
         : "payment_page_visible"

@@ -14,6 +14,12 @@ import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
 const MIN_SELECT_MATCH_SCORE = 88;
+const VN_IDLESS_RADIO_QUESTIONS: Record<string, string> = {
+  basic_ttcnCoQtKhac: "Do you have multiple nationalities?",
+  basic_ttcnViPhamPl: "Violation of the Vietnamese laws/regulations (if any)",
+  basic_ttcdDaDenVn: "Have you been to Viet Nam in the last 01 year?",
+  basic_ttcdCoThanNhan: "Do you have relatives who currently reside in Viet Nam?",
+};
 
 async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(SETTLE_MS);
@@ -225,7 +231,21 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
   const target = page.locator(`#${cssEscape(domId)}`).first();
   const formItem = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-form-item ')][1]");
   const radioGroup = target.locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-radio-group ')][1]");
-  const root = (await formItem.count()) > 0 ? formItem : (await radioGroup.count()) > 0 ? radioGroup : page.locator("body");
+  const questionText = VN_IDLESS_RADIO_QUESTIONS[domId];
+  const idlessQuestionRoot = questionText
+    ? page
+        .locator(".pt-5.border-b, .ant-row.ant-form-item, .ant-col.ant-col-24.flex.justify-between.pb-5")
+        .filter({ hasText: new RegExp(escapeRegex(questionText), "i") })
+        .first()
+    : null;
+  const root =
+    (await formItem.count()) > 0
+      ? formItem
+      : (await radioGroup.count()) > 0
+        ? radioGroup
+        : idlessQuestionRoot && (await idlessQuestionRoot.count()) > 0
+          ? idlessQuestionRoot
+          : page.locator("body");
   const exactText = new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i");
   const option = root
     .locator(".ant-radio-wrapper, label.ant-radio-button-wrapper, label")
@@ -240,9 +260,15 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
   if ((await input.count()) > 0) {
     await input.evaluate((element) => {
       const radio = element as HTMLInputElement;
+      const group = radio.closest(".ant-radio-group");
       const checkedDescriptor =
         Object.getOwnPropertyDescriptor(Object.getPrototypeOf(radio), "checked") ||
         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "checked");
+      for (const peer of Array.from(group?.querySelectorAll<HTMLInputElement>('input[type="radio"]') ?? [])) {
+        if (peer === radio) continue;
+        if (checkedDescriptor?.set) checkedDescriptor.set.call(peer, false);
+        else peer.checked = false;
+      }
       if (checkedDescriptor?.set) checkedDescriptor.set.call(radio, true);
       else radio.checked = true;
       radio.dispatchEvent(new Event("input", { bubbles: true }));
