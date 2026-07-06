@@ -18,6 +18,8 @@ echo Close this window or press Ctrl+C when you are done.
 echo.
 
 cd /d "%WORKER_DIR%"
+set "PORT=18080"
+set "ID_LOCAL_CARD_SESSION_ENABLED=true"
 npm run dev
 
 echo.

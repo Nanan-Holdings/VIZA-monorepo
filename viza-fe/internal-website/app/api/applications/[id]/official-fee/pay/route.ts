@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  isIndonesiaEVisaApplication,
+  queueProviderForApplication,
+  queueStatusForApplication,
+} from "@/lib/submission-queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -338,12 +343,17 @@ function getSubmissionServiceLocalUrl(): string {
   return `http://127.0.0.1:${port}`;
 }
 
-async function registerOneTimeCardSession(applicationId: string, card: OneTimeCardInput): Promise<
+function officialFeeCardSessionPath(application: ApplicationRow): "vietnam" | "indonesia" {
+  return isIndonesiaEVisaApplication(application.country, application.visa_type) ? "indonesia" : "vietnam";
+}
+
+async function registerOneTimeCardSession(applicationId: string, application: ApplicationRow, card: OneTimeCardInput): Promise<
   | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
   | { ok: false; error: string }
 > {
   try {
-    const response = await fetch(`${getSubmissionServiceLocalUrl()}/local/vietnam/card-session`, {
+    const countryPath = officialFeeCardSessionPath(application);
+    const response = await fetch(`${getSubmissionServiceLocalUrl()}/local/${countryPath}/card-session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -378,6 +388,103 @@ async function registerOneTimeCardSession(applicationId: string, card: OneTimeCa
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+async function enqueueIndonesiaOfficialFeeCardJob(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  application: ApplicationRow;
+  applicationId: string;
+  profileId: string;
+  userId: string;
+  cardSession: { redactedCard: unknown; expiresAtIso: string | null };
+}): Promise<Response> {
+  const now = new Date().toISOString();
+  const queueStatus = queueStatusForApplication(input.application.country, input.application.visa_type, "live_assisted");
+  const provider = queueProviderForApplication(input.application.country, input.application.visa_type, "live_assisted");
+  if (!provider || !queueStatus.startsWith("id_")) {
+    return NextResponse.json({ error: "Unsupported Indonesia official payment application." }, { status: 422 });
+  }
+
+  const { data: queue, error: queueError } = await input.admin
+    .from("submission_queue")
+    .insert({
+      application_id: input.applicationId,
+      user_id: input.userId,
+      status: queueStatus,
+      mode: "live_assisted",
+      provider,
+      current_stage: "payment_authorized",
+      manual_action_status: "completed",
+      payment_status: "authorized",
+      official_status: "payment_authorized",
+      vn_result_payload: {
+        status: "payment_authorized",
+        oneTimeCardSession: {
+          present: true,
+          expiresAtIso: input.cardSession.expiresAtIso,
+          redactedCard: input.cardSession.redactedCard,
+        },
+      },
+      attempts: 0,
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+  if (queueError || !queue) {
+    return NextResponse.json({ error: queueError?.message ?? "Could not enqueue Indonesia payment job." }, { status: 500 });
+  }
+
+  const [applicationUpdateResult, eventResult] = await Promise.all([
+    input.admin
+      .from("applications")
+      .update({
+        official_fee_status: "official_fee_payment_queued",
+        updated_at: now,
+      })
+      .eq("id", input.applicationId),
+    input.admin.from("application_events").insert(
+      {
+        application_id: input.applicationId,
+        applicant_id: input.profileId,
+        auth_user_id: input.userId,
+        event_type: "official_fee_payment_queued",
+        actor_type: "user",
+        actor_id: input.userId,
+        source: "official_fee",
+        visibility: "staff",
+        idempotency_key: `official-fee-payment-queued:${input.applicationId}:indonesia:${(queue as { id: string }).id}`,
+        message: "Indonesia official-fee payment job was queued from the client confirmation tab.",
+        metadata: {
+          queue_id: (queue as { id: string }).id,
+          queue_status: queueStatus,
+          one_time_card_session: true,
+          redacted_card: input.cardSession.redactedCard,
+        },
+        occurred_at: now,
+        created_at: now,
+      },
+    ),
+  ]);
+
+  if (applicationUpdateResult.error && !isSchemaMissing(applicationUpdateResult.error)) {
+    return NextResponse.json({ error: applicationUpdateResult.error.message }, { status: 500 });
+  }
+  if (eventResult.error && !isSchemaMissing(eventResult.error) && !isDuplicateKey(eventResult.error)) {
+    return NextResponse.json({ error: eventResult.error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    queueId: (queue as { id: string }).id,
+    queueStatus,
+    provider,
+    cardSession: {
+      expiresAtIso: input.cardSession.expiresAtIso,
+      redactedCard: input.cardSession.redactedCard,
+    },
+    schemaWarning: applicationUpdateResult.error ? "official_fee_application_columns_missing" : null,
+  });
 }
 
 export async function POST(
@@ -426,8 +533,36 @@ export async function POST(
   if (application.applicant_id !== profile.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!isVietnamEVisa(application)) {
-    return NextResponse.json({ error: "Official payment queue is only enabled for Vietnam e-Visa." }, { status: 422 });
+  const isVietnamApplication = isVietnamEVisa(application);
+  const isIndonesiaApplication = isIndonesiaEVisaApplication(application.country, application.visa_type);
+  if (!isVietnamApplication && !isIndonesiaApplication) {
+    return NextResponse.json({ error: "Official payment queue is only enabled for Vietnam and Indonesia e-Visa applications." }, { status: 422 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as unknown;
+  const card = normalizeCardBody(body);
+  if (!card) {
+    return NextResponse.json({ error: "请输入本次付款使用的银行卡号、有效期和 CVV。VIZA 不会保存这些信息。" }, { status: 400 });
+  }
+
+  if (isIndonesiaApplication) {
+    const cardSession = await registerOneTimeCardSession(applicationId, application, card);
+    if (!cardSession.ok) {
+      return NextResponse.json(
+        {
+          error: `无法把一次性银行卡会话发送给本机 submission-service：${cardSession.error}。请确认已运行 Indonesia submission worker，且端口与 SUBMISSION_SERVICE_LOCAL_URL 匹配。`,
+        },
+        { status: 503 },
+      );
+    }
+    return enqueueIndonesiaOfficialFeeCardJob({
+      admin,
+      application,
+      applicationId,
+      profileId: profile.id,
+      userId: user.id,
+      cardSession,
+    });
   }
 
   const { data: intent, error: intentError } = await admin
@@ -493,13 +628,7 @@ export async function POST(
     return NextResponse.json({ error: `Official fee intent is not payable from status ${intentRow.status ?? "(empty)"}.` }, { status: 409 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as unknown;
-  const card = normalizeCardBody(body);
-  if (!card) {
-    return NextResponse.json({ error: "请输入本次付款使用的银行卡号、有效期和 CVV。VIZA 不会保存这些信息。" }, { status: 400 });
-  }
-
-  const cardSession = await registerOneTimeCardSession(applicationId, card);
+  const cardSession = await registerOneTimeCardSession(applicationId, application, card);
   if (!cardSession.ok) {
     return NextResponse.json(
       {

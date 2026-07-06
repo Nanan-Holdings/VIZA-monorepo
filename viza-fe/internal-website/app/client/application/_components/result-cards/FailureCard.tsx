@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
+import { AlertTriangle, CreditCard, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -14,8 +14,16 @@ interface FailureCardProps {
   applicationId?: string;
   errorMessage?: string;
   retryModes?: Array<{ mode: SubmissionMode; label: string }>;
-  onRetry?: (mode: SubmissionMode) => Promise<void> | void;
+  onRetry?: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => Promise<void> | void;
   showFranceAccount?: boolean;
+  requiresVietnamPaymentCard?: boolean;
+}
+
+export interface VietnamOneTimePaymentCard {
+  pan: string;
+  expiry: string;
+  cvv: string;
+  holderName: string;
 }
 
 type FvOfficialAccount = {
@@ -117,6 +125,7 @@ export function FailureCard({
   retryModes,
   onRetry,
   showFranceAccount = false,
+  requiresVietnamPaymentCard = false,
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
@@ -124,12 +133,31 @@ export function FailureCard({
   const [localWorkerError, setLocalWorkerError] = useState<string | null>(null);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardHolderName, setCardHolderName] = useState("");
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
+  const cardReady =
+    !requiresVietnamPaymentCard ||
+    (
+      cardNumber.replace(/\D/g, "").length >= 12 &&
+      cardExpiry.trim().length >= 4 &&
+      cardCvv.replace(/\D/g, "").length >= 3
+    );
+  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresVietnamPaymentCard
+    ? {
+        pan: cardNumber,
+        expiry: cardExpiry,
+        cvv: cardCvv,
+        holderName: cardHolderName,
+      }
+    : undefined;
 
   useEffect(() => {
     if (!applicationId || !showFranceAccount) return;
@@ -163,7 +191,10 @@ export function FailureCard({
     if (!onRetry) return;
     setRetryingMode(mode);
     try {
-      await onRetry(mode);
+      await onRetry(mode, vietnamPaymentCard);
+      if (requiresVietnamPaymentCard) {
+        setCardCvv("");
+      }
     } finally {
       setRetryingMode(null);
     }
@@ -233,6 +264,75 @@ export function FailureCard({
             {errorMessage}
           </pre>
         )}
+        {requiresVietnamPaymentCard && (
+          <div className="space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4">
+            <div className="flex items-start gap-3">
+              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-foreground">
+                  {isZh ? "补填本次官方付款银行卡" : "Add one-time official payment card"}
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {isZh
+                    ? "重新提交越南 e-Visa 前，请补填本次付款使用的银行卡号、有效期和 CVV。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存。"
+                    : "Before retrying Vietnam e-Visa submission, enter the card number, expiry, and CVV for this payment. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
+                <input
+                  value={cardNumber}
+                  onChange={(event) => setCardNumber(event.target.value)}
+                  autoComplete="cc-number"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
+                <input
+                  value={cardExpiry}
+                  onChange={(event) => setCardExpiry(event.target.value)}
+                  autoComplete="cc-exp"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder="MM/YY"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">CVV</span>
+                <input
+                  value={cardCvv}
+                  onChange={(event) => setCardCvv(event.target.value)}
+                  autoComplete="cc-csc"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder="CVV"
+                />
+              </label>
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
+                <input
+                  value={cardHolderName}
+                  onChange={(event) => setCardHolderName(event.target.value)}
+                  autoComplete="cc-name"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
+                />
+              </label>
+            </div>
+            {!cardReady && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {isZh
+                  ? "请填写银行卡号、有效期和 CVV 后再提交。"
+                  : "Enter the card number, expiry, and CVV before submitting."}
+              </p>
+            )}
+          </div>
+        )}
         {applicationId && onRetry && (
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
             {workerPickupError ? (
@@ -253,6 +353,7 @@ export function FailureCard({
                   onClick={() => {
                     void handleRetry(item.mode).catch(() => undefined);
                   }}
+                  disabled={!cardReady}
                   loading={retryingMode === item.mode}
                   loadingText={isZh ? "正在提交" : "Submitting"}
                 >

@@ -19,7 +19,7 @@ import {
   type SubmissionVisualStage,
   type SubmissionVisualStatus,
 } from "./WaitingCard";
-import { FailureCard } from "./FailureCard";
+import { FailureCard, type VietnamOneTimePaymentCard } from "./FailureCard";
 import { UsResultCard } from "./UsResultCard";
 import { FrResultCard } from "./FrResultCard";
 import { UkResultCard } from "./UkResultCard";
@@ -46,7 +46,7 @@ interface SubmissionStatusStepProps {
   visaType: string | null;
   status: SubmissionResultStatus | null;
   result: SubmissionResult | null;
-  onResubmit?: (mode: SubmissionMode) => Promise<void> | void;
+  onResubmit?: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => Promise<void> | void;
 }
 
 interface SubmissionStatusSnapshot {
@@ -939,13 +939,16 @@ export function SubmissionStatusStep({
   const [retryError, setRetryError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
 
-  const handleRetry = useCallback(async (mode: SubmissionMode) => {
+  const handleRetry = useCallback(async (
+    mode: SubmissionMode,
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+  ) => {
     if (!applicationId) return;
     setRetryError(null);
     setResubmitting(true);
     try {
       if (onResubmit) {
-        await onResubmit(mode);
+        await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
         return;
       }
@@ -1054,6 +1057,10 @@ export function SubmissionStatusStep({
     snapshot?.visaType ?? visaType,
   );
   const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
+  const isVietnamSubmission = isVietnamEVisaApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
     : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission
@@ -1223,6 +1230,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
+          requiresVietnamPaymentCard={isVietnamSubmission}
         />
       </div>
     );
@@ -1241,6 +1249,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
+          requiresVietnamPaymentCard={isVietnamSubmission}
         />
       </div>
     );
@@ -1268,6 +1277,7 @@ export function SubmissionStatusStep({
           }
           retryModes={retryModes}
           onRetry={handleRetry}
+          requiresVietnamPaymentCard={isVietnamSubmission}
         />
       </div>
     );

@@ -37,6 +37,7 @@ Before changing this route, read:
 - `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `app/actions/application-lifecycle.ts`: creates and reads per-user application progress summaries.
+- `app/client/application/_components/result-cards/__tests__`: focused regression tests for confirmation/result cards.
 
 ## Guardrails
 
