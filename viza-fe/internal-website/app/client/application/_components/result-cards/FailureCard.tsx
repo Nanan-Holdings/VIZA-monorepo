@@ -340,11 +340,11 @@ export function FailureCard({
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
             {workerPickupError ? (
               <BrandActionButton
-                onClick={() => {
-                  void handleLocalWorkerRetry();
-                }}
-                disabled={!cardReady}
-                loading={localWorkerStarting}
+                  onClick={() => {
+                    void handleLocalWorkerRetry();
+                  }}
+                  disabled={!cardReady}
+                  loading={localWorkerStarting}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >
                 <RotateCw className="mr-2 h-4 w-4" />
