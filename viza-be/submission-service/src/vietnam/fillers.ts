@@ -239,13 +239,14 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
   const input = option.locator("input[type='radio']").first();
   if ((await input.count()) > 0) {
     await input.evaluate((element) => {
+      const radio = element as HTMLInputElement;
       const checkedDescriptor =
-        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "checked") ||
+        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(radio), "checked") ||
         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "checked");
-      if (checkedDescriptor?.set) checkedDescriptor.set.call(element, true);
-      else element.checked = true;
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-      element.dispatchEvent(new Event("change", { bubbles: true }));
+      if (checkedDescriptor?.set) checkedDescriptor.set.call(radio, true);
+      else radio.checked = true;
+      radio.dispatchEvent(new Event("input", { bubbles: true }));
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
     });
   }
   await settle(page);
