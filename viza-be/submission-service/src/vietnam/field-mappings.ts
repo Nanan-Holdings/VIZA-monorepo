@@ -248,6 +248,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   religion: { domId: "basic_ttcnTonGiao", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   place_of_birth: { domId: "basic_ttcnNoiSinh", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   has_multiple_nationalities: { domId: "basic_ttcnCoQtKhac", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
+  has_other_passports_used_for_vietnam: { domId: "basic_ttcnDaDungHcKhacVaoVn", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
   has_violated_vietnam_laws: { domId: "basic_ttcnViPhamPl", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
 
   // 2. Requested Information
@@ -290,6 +291,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   intended_border_gate_of_entry: { domId: "basic_ttcdNcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_border_gate_of_exit: { domId: "basic_ttcdXcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   declaration_temporary_residence: { domId: "basic_ttcdCqTcCamDoan", type: "checkbox", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  has_contact_in_vietnam: { domId: "basic_ttcdCoCqTcCaNhanLienHe", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
   visited_vietnam_in_last_year: { domId: "basic_ttcdDaDenVn", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
   has_relatives_in_vietnam: { domId: "basic_ttcdCoThanNhan", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
 

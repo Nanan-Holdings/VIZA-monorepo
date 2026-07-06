@@ -14,7 +14,11 @@ interface FailureCardProps {
   applicationId?: string;
   errorMessage?: string;
   retryModes?: Array<{ mode: SubmissionMode; label: string }>;
-  onRetry?: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => Promise<void> | void;
+  onRetry?: (
+    mode: SubmissionMode,
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+    supplementalAnswers?: Record<string, string>,
+  ) => Promise<void> | void;
   showFranceAccount?: boolean;
   requiresOfficialPaymentCard?: boolean;
   requiresVietnamPaymentCard?: boolean;
@@ -65,7 +69,42 @@ const VALIDATION_LABELS: Record<string, string> = {
   "answers.declaration_temporary_residence": "临时居住申报承诺 / Temporary residence declaration",
   "answers.visited_vietnam_in_last_year": "过去一年是否到访越南 / Previous Viet Nam visit",
   "answers.has_relatives_in_vietnam": "是否有亲属在越南 / Relatives in Viet Nam",
+  "answers.relative_date_of_birth": "在越亲属出生日期 / Relative date of birth",
+  "answers.relative_nationality": "在越亲属国籍 / Relative nationality",
+  "answers.relative_relationship": "与在越亲属关系 / Relative relationship",
   "answers.final_declaration": "最终声明确认 / Final declaration",
+};
+
+type SupplementalAnswerField = {
+  fieldName: string;
+  labelZh: string;
+  labelEn: string;
+  placeholder: string;
+  autoComplete?: string;
+  inputMode?: "text" | "numeric";
+};
+
+const VIETNAM_RELATIVE_SUPPLEMENTAL_FIELDS: Record<string, SupplementalAnswerField> = {
+  "date of birth": {
+    fieldName: "relative_date_of_birth",
+    labelZh: "在越亲属出生日期",
+    labelEn: "Relative date of birth",
+    placeholder: "YYYY-MM-DD",
+    autoComplete: "off",
+    inputMode: "numeric",
+  },
+  nationality: {
+    fieldName: "relative_nationality",
+    labelZh: "在越亲属国籍",
+    labelEn: "Relative nationality",
+    placeholder: "China",
+  },
+  relationship: {
+    fieldName: "relative_relationship",
+    labelZh: "与在越亲属关系",
+    labelEn: "Relationship",
+    placeholder: "Friend",
+  },
 };
 
 function parseValidationError(errorMessage?: string): { title: string; fields: string[] } | null {
@@ -87,6 +126,23 @@ function parseValidationError(errorMessage?: string): { title: string; fields: s
       : "Dry-run validation found missing information.",
     fields: rawFields.map((field) => VALIDATION_LABELS[field] ?? field),
   };
+}
+
+function parseSupplementalAnswerFields(errorMessage?: string): SupplementalAnswerField[] {
+  const normalized = errorMessage?.match(/relatives_in_vietnam\[\d+\]:.*?incomplete:\s*([^.]+)/i)?.[1];
+  if (!normalized) return [];
+
+  const seen = new Set<string>();
+  return normalized
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .map((label) => VIETNAM_RELATIVE_SUPPLEMENTAL_FIELDS[label])
+    .filter((field): field is SupplementalAnswerField => Boolean(field))
+    .filter((field) => {
+      if (seen.has(field.fieldName)) return false;
+      seen.add(field.fieldName);
+      return true;
+    });
 }
 
 function isWorkerPickupError(errorMessage?: string): boolean {
@@ -139,6 +195,8 @@ export function FailureCard({
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [cardHolderName, setCardHolderName] = useState("");
+  const supplementalFields = parseSupplementalAnswerFields(errorMessage);
+  const [supplementalAnswers, setSupplementalAnswers] = useState<Record<string, string>>({});
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
@@ -153,6 +211,7 @@ export function FailureCard({
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
+  const supplementalReady = supplementalFields.every((field) => supplementalAnswers[field.fieldName]?.trim());
   const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
     ? {
         pan: cardNumber,
@@ -192,9 +251,20 @@ export function FailureCard({
 
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry) return;
+    if (!cardReady || !supplementalReady) return;
     setRetryingMode(mode);
     try {
-      await onRetry(mode, vietnamPaymentCard);
+      const nextSupplementalAnswers =
+        supplementalFields.length > 0
+          ? Object.fromEntries(
+              supplementalFields.map((field) => [field.fieldName, supplementalAnswers[field.fieldName]?.trim() ?? ""]),
+            )
+          : undefined;
+      if (nextSupplementalAnswers) {
+        await onRetry(mode, vietnamPaymentCard, nextSupplementalAnswers);
+      } else {
+        await onRetry(mode, vietnamPaymentCard);
+      }
       if (requiresPaymentCard) {
         setCardCvv("");
       }
@@ -336,6 +406,45 @@ export function FailureCard({
             )}
           </div>
         )}
+        {supplementalFields.length > 0 && (
+          <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="text-sm font-semibold text-foreground">
+              {isZh ? "补填官方必填信息" : "Add missing official information"}
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {isZh
+                ? "官网要求亲属信息表这一行继续补全以下字段。填写后会保存到本次申请答案，再重新提交。"
+                : "The official relatives table needs these missing fields. They will be saved to this application before retrying."}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {supplementalFields.map((field) => (
+                <label key={field.fieldName} className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    {isZh ? field.labelZh : field.labelEn}
+                  </span>
+                  <input
+                    value={supplementalAnswers[field.fieldName] ?? ""}
+                    onChange={(event) =>
+                      setSupplementalAnswers((current) => ({
+                        ...current,
+                        [field.fieldName]: event.target.value,
+                      }))
+                    }
+                    autoComplete={field.autoComplete}
+                    inputMode={field.inputMode}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                    placeholder={field.placeholder}
+                  />
+                </label>
+              ))}
+            </div>
+            {!supplementalReady && (
+              <p className="rounded-md border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
+                {isZh ? "请补全以上官方必填信息后再提交。" : "Complete the missing official fields before submitting."}
+              </p>
+            )}
+          </div>
+        )}
         {applicationId && onRetry && (
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
             {workerPickupError ? (
@@ -343,7 +452,7 @@ export function FailureCard({
                   onClick={() => {
                     void handleLocalWorkerRetry();
                   }}
-                  disabled={!cardReady}
+                  disabled={!cardReady || !supplementalReady}
                   loading={localWorkerStarting}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >
@@ -357,7 +466,7 @@ export function FailureCard({
                   onClick={() => {
                     void handleRetry(item.mode).catch(() => undefined);
                   }}
-                  disabled={!cardReady}
+                  disabled={!cardReady || !supplementalReady}
                   loading={retryingMode === item.mode}
                   loadingText={isZh ? "正在提交" : "Submitting"}
                 >

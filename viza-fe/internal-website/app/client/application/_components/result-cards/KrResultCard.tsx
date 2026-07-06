@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarCheck, Download, ExternalLink, FileCheck2, Loader2, MapPin } from "lucide-react";
+import { CalendarCheck, Download, FileCheck2, Loader2, MapPin } from "lucide-react";
 import { useLocale } from "next-intl";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +15,6 @@ interface KrResultCardProps {
   applicationId: string;
   result: KrSubmissionResult;
 }
-
-type OfficialEformEvidence = NonNullable<NonNullable<KrSubmissionResult["manualAction"]>["evidence"]>;
 
 function normalizeOfficialEformStatus(value: string | null | undefined): NonNullable<KrSubmissionResult["officialEformStatus"]> {
   if (
@@ -46,14 +44,18 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
   const defaultOfficialMessage = isZh
     ? "官方 e-Form 需要通过 Korea Visa Portal 生成带条码 PDF。若官网要求人工选择馆别、上传文件或验证，请在官方页面完成后再回到 VIZA 下载。"
     : "The official barcode e-Form must be generated through Korea Visa Portal. If the portal asks for post selection, uploads, or verification, complete it on the official page and return to VIZA for download.";
-  const [officialMessage, setOfficialMessage] = useState<string | null>(result.manualAction ? defaultOfficialMessage : null);
-  const [officialEvidence, setOfficialEvidence] = useState<OfficialEformEvidence | null>(result.manualAction?.evidence ?? null);
+  const generationIncompleteMessage = isZh
+    ? "本次还没有生成新的官方 PDF。请再次点击生成；如果连续失败，VIZA 会保留为未完成状态，不会把旧 PDF 当作新结果。"
+    : "A new official PDF was not generated yet. Click Generate again; VIZA will keep this incomplete instead of reusing an old PDF.";
+  const readyOfficialMessage = isZh
+    ? "官方 Korea Visa Portal 已生成带条码 e-Form PDF。"
+    : "The official Korea Visa Portal barcode e-Form PDF has been generated.";
+  const [officialMessage, setOfficialMessage] = useState<string | null>(
+    result.officialEformPdfStoragePath ? readyOfficialMessage : result.manualAction ? defaultOfficialMessage : null,
+  );
   const [officialError, setOfficialError] = useState<string | null>(null);
-  const currentPdfUrl = `/api/applications/${applicationId}/kr-annex17-pdf`;
-  const downloadUrl = result.annex17PdfUrl?.includes(`/api/applications/${applicationId}/`)
-    ? result.annex17PdfUrl
-    : currentPdfUrl;
-  const officialPortalUrl = result.officialEformPortalUrl ?? "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
+  const officialReady = officialStatus === "ready" && Boolean(officialPath);
+  const officialWorking = officialStatus === "processing" || officialStatus === "queued";
 
   const openOfficialEformPath = async (path: string) => {
     const response = await fetch(`/api/applications/${applicationId}/artifact-url?path=${encodeURIComponent(path)}`, {
@@ -68,12 +70,19 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     if (busy) return;
     setBusy(true);
     setOfficialError(null);
-    setOfficialMessage(null);
+    setOfficialPath(null);
+    setOfficialApplicationNumber(null);
+    setOfficialStatus("processing");
+    setOfficialMessage(
+      isZh
+        ? "正在启动 Korea Visa Portal 自动填写并生成官方 PDF..."
+        : "Starting Korea Visa Portal automation to fill and generate the official PDF...",
+    );
     try {
       const response = await fetch(`/api/applications/${applicationId}/korea-official-eform`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ finalReviewApproved: true }),
+        body: JSON.stringify({ finalReviewApproved: true, regenerateOfficialEform: true }),
       });
       const payload = (await response.json().catch(() => null)) as {
         status?: string;
@@ -92,18 +101,15 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
       if (!response.ok) throw new Error(payload?.error ?? `Request failed: ${response.status}`);
       const nextPath = payload?.officialEformPdfStoragePath ?? null;
       setOfficialPath(nextPath);
-      setOfficialStatus(normalizeOfficialEformStatus(payload?.status ?? "manual_action_required"));
+      setOfficialStatus(nextPath ? "ready" : normalizeOfficialEformStatus(payload?.status ?? "manual_action_required"));
       setOfficialApplicationNumber(payload?.officialEformApplicationNumber ?? null);
       setOfficialMessage(
         nextPath
-          ? isZh
-            ? "官方 Korea Visa Portal 已生成带条码 e-Form PDF。"
-            : "The official Korea Visa Portal barcode e-Form PDF has been generated."
-          : payload?.manualAction?.instructions ?? defaultOfficialMessage,
+          ? readyOfficialMessage
+          : generationIncompleteMessage,
       );
-      setOfficialEvidence(payload?.manualAction?.evidence ?? null);
-      if (nextPath) await openOfficialEformPath(nextPath);
     } catch (error) {
+      setOfficialStatus("failed");
       setOfficialError(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
@@ -155,9 +161,11 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
 
         <div className="rounded-md border border-brand-100 bg-brand-50 p-3 text-sm">
           <div className="font-medium text-foreground">
-            {officialPath
-              ? isZh ? "官方 e-Form PDF 已可下载" : "Official e-Form PDF is ready"
-              : isZh ? "需要生成官方 e-Form PDF" : "Official e-Form PDF required"}
+            {officialWorking
+              ? isZh ? "正在生成官方 e-Form PDF" : "Generating official e-Form PDF"
+              : officialReady
+                ? isZh ? "官方 e-Form PDF 已可下载" : "Official e-Form PDF is ready"
+                : isZh ? "需要生成官方 e-Form PDF" : "Official e-Form PDF required"}
           </div>
           {officialMessage ? <p className="mt-1 leading-6 text-muted-foreground">{officialMessage}</p> : null}
           {officialError ? <p className="mt-1 text-red-600">{officialError}</p> : null}
@@ -166,58 +174,27 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
               {isZh ? "官方申请号：" : "Official application no.:"} {officialApplicationNumber}
             </p>
           ) : null}
-          {officialEvidence?.screenshotPath ? (
-            <p className="mt-2 break-all text-xs text-muted-foreground">
-              {isZh ? "官网填写截图：" : "Official fill screenshot:"}{" "}
-              <a
-                className="underline underline-offset-2"
-                href={`/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(officialEvidence.screenshotPath)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {isZh ? "查看证据" : "View evidence"}
-              </a>
-            </p>
-          ) : null}
-          {officialEvidence?.missingUploads?.length ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isZh ? "仍需上传：" : "Still needs upload:"} {officialEvidence.missingUploads.join(", ")}
-            </p>
-          ) : null}
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <Button type="button" onClick={officialPath ? downloadOfficialEform : requestOfficialEform} disabled={busy}>
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {officialPath
-                ? isZh ? "下载官方 e-Form PDF" : "Download official e-Form PDF"
-                : isZh ? "生成并下载官方 e-Form" : "Generate and download official e-Form"}
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <Button type="button" onClick={requestOfficialEform} disabled={busy}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCheck2 className="mr-2 h-4 w-4" />}
+              {isZh ? "生成 PDF" : "Generate PDF"}
+            </Button>
+            <Button type="button" variant="outline" onClick={downloadOfficialEform} disabled={busy || !officialPath}>
+              <Download className="mr-2 h-4 w-4" />
+              {isZh ? "下载 PDF" : "Download PDF"}
             </Button>
             <Button asChild variant="outline">
-              <a href={officialPortalUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {isZh ? "打开 Korea Visa Portal" : "Open Korea Visa Portal"}
-              </a>
+              <Link href={`/client/applications/${applicationId}/korea-appointment`}>
+                <CalendarCheck className="mr-2 h-4 w-4" />
+                {isZh ? "预约面签" : "Book appointment"}
+              </Link>
             </Button>
           </div>
-          {officialStatus && officialStatus !== "ready" ? (
+          {officialWorking ? (
             <div className="mt-2 text-xs text-muted-foreground">
-              {isZh ? "当前状态：" : "Current status:"} {officialStatus}
+              {isZh ? "自动化运行中，请勿关闭页面。" : "Automation is running. Keep this page open."}
             </div>
           ) : null}
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Button asChild variant="outline">
-            <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-              <Download className="mr-2 h-4 w-4" />
-              {isZh ? "备用 Annex-17 PDF" : "Fallback Annex-17 PDF"}
-            </a>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/client/applications/${applicationId}/korea-appointment`}>
-              <CalendarCheck className="mr-2 h-4 w-4" />
-              {isZh ? "预约 KVAC 时间" : "Book KVAC appointment"}
-            </Link>
-          </Button>
         </div>
       </CardContent>
     </Card>

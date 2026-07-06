@@ -16,7 +16,9 @@ const SETTLE_MS = 200;
 const MIN_SELECT_MATCH_SCORE = 88;
 const VN_IDLESS_RADIO_QUESTIONS: Record<string, string> = {
   basic_ttcnCoQtKhac: "Do you have multiple nationalities?",
+  basic_ttcnDaDungHcKhacVaoVn: "Have you ever used any other passports to enter into Viet Nam?",
   basic_ttcnViPhamPl: "Violation of the Vietnamese laws/regulations (if any)",
+  basic_ttcdCoCqTcCaNhanLienHe: "Agency/Organization/Individual that the applicant plans to contact when enter into Viet Nam?",
   basic_ttcdDaDenVn: "Have you been to Viet Nam in the last 01 year?",
   basic_ttcdCoThanNhan: "Do you have relatives who currently reside in Viet Nam?",
 };

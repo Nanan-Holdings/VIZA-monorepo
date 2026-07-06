@@ -1,10 +1,15 @@
 import type { Locator, Page } from "@playwright/test";
-import { toDdMmYyyy } from "./fillers.js";
+import { pickSelect, toDdMmYyyy } from "./fillers.js";
+import { getVnPortalOptionText } from "./field-mappings.js";
 
 export interface VietnamPreviousVisitRow {
   fromDate: string;
   toDate: string;
   purpose: string;
+}
+
+export interface VietnamConditionalRepeatRow {
+  values: string[];
 }
 
 export interface VietnamConditionalValidationError {
@@ -13,6 +18,86 @@ export interface VietnamConditionalValidationError {
 }
 
 const MAX_REPEAT_ROWS = 5;
+
+type RepeatColumnType = "text" | "date" | "country";
+
+interface RepeatColumnConfig {
+  answerNames: string[];
+  label: string;
+  type: RepeatColumnType;
+}
+
+interface RepeatGroupConfig {
+  triggerField: string;
+  rowFieldName: string;
+  description: string;
+  tableDescription: string;
+  headers: RegExp[];
+  columns: RepeatColumnConfig[];
+}
+
+const PREVIOUS_VISIT_GROUP: RepeatGroupConfig = {
+  triggerField: "visited_vietnam_in_last_year",
+  rowFieldName: "visited_vietnam_last_year",
+  description: "prior Viet Nam travel",
+  tableDescription: "Prior Viet Nam travel",
+  headers: [/From date/i, /To date/i, /Purpose of trip/i],
+  columns: [
+    { answerNames: ["visited_vietnam_from_date"], label: "From date", type: "date" },
+    { answerNames: ["visited_vietnam_to_date"], label: "To date", type: "date" },
+    { answerNames: ["visited_vietnam_trip_purpose"], label: "Purpose of trip", type: "text" },
+  ],
+};
+
+const OTHER_PASSPORT_GROUP: RepeatGroupConfig = {
+  triggerField: "has_other_passports_used_for_vietnam",
+  rowFieldName: "other_passports_used_for_vietnam",
+  description: "other passports used to enter Viet Nam",
+  tableDescription: "Other passport used for Viet Nam entry",
+  headers: [/Passport/i, /Full name/i, /Date of birth/i, /Nationality/i],
+  columns: [
+    { answerNames: ["other_vietnam_passport_number"], label: "Passport", type: "text" },
+    { answerNames: ["other_vietnam_passport_full_name"], label: "Full name", type: "text" },
+    { answerNames: ["other_vietnam_passport_date_of_birth"], label: "Date of birth", type: "date" },
+    { answerNames: ["other_vietnam_passport_nationality"], label: "Nationality", type: "country" },
+  ],
+};
+
+const VIETNAM_CONTACT_GROUP: RepeatGroupConfig = {
+  triggerField: "has_contact_in_vietnam",
+  rowFieldName: "vietnam_contacts",
+  description: "Viet Nam contact rows",
+  tableDescription: "Viet Nam contact",
+  headers: [/Name of hosting organization|Name/i, /Telephone number|Phone/i, /Address/i, /Purpose/i],
+  columns: [
+    { answerNames: ["contact_hosting_organization_name"], label: "Name of hosting organization", type: "text" },
+    { answerNames: ["contact_hosting_organization_phone"], label: "Telephone number", type: "text" },
+    { answerNames: ["contact_hosting_organization_address"], label: "Address", type: "text" },
+    { answerNames: ["contact_hosting_organization_purpose"], label: "Purpose", type: "text" },
+  ],
+};
+
+const VIETNAM_RELATIVE_GROUP: RepeatGroupConfig = {
+  triggerField: "has_relatives_in_vietnam",
+  rowFieldName: "relatives_in_vietnam",
+  description: "relatives in Viet Nam rows",
+  tableDescription: "Relatives in Viet Nam",
+  headers: [/Full name/i, /Date of birth/i, /Nationality/i, /Relationship/i, /Address|Residential address/i],
+  columns: [
+    { answerNames: ["relative_full_name", "relative_full_name_in_vn"], label: "Full name", type: "text" },
+    { answerNames: ["relative_date_of_birth"], label: "Date of birth", type: "date" },
+    { answerNames: ["relative_nationality"], label: "Nationality", type: "country" },
+    { answerNames: ["relative_relationship"], label: "Relationship", type: "text" },
+    { answerNames: ["relative_residential_address", "relative_address_in_vn"], label: "Address", type: "text" },
+  ],
+};
+
+const CONDITIONAL_REPEAT_GROUPS = [
+  PREVIOUS_VISIT_GROUP,
+  OTHER_PASSPORT_GROUP,
+  VIETNAM_CONTACT_GROUP,
+  VIETNAM_RELATIVE_GROUP,
+];
 
 function normalizeAnswer(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -29,21 +114,29 @@ function repeatFieldName(baseName: string, index: number): string {
 export function collectVietnamPreviousVisitRows(
   answers: Record<string, string>,
 ): VietnamPreviousVisitRow[] {
-  const rows: VietnamPreviousVisitRow[] = [];
+  return collectVietnamRepeatRows(answers, PREVIOUS_VISIT_GROUP).map((row) => ({
+    fromDate: row.values[0] ?? "",
+    toDate: row.values[1] ?? "",
+    purpose: row.values[2] ?? "",
+  }));
+}
 
-  for (let index = 0; index < MAX_REPEAT_ROWS; index++) {
-    const fromDate = answers[repeatFieldName("visited_vietnam_from_date", index)]?.trim() ?? "";
-    const toDate = answers[repeatFieldName("visited_vietnam_to_date", index)]?.trim() ?? "";
-    const purpose = answers[repeatFieldName("visited_vietnam_trip_purpose", index)]?.trim() ?? "";
-    if (!fromDate && !toDate && !purpose) continue;
-    rows.push({
-      fromDate: toDdMmYyyy(fromDate),
-      toDate: toDdMmYyyy(toDate),
-      purpose,
-    });
-  }
+export function collectVietnamOtherPassportRows(
+  answers: Record<string, string>,
+): VietnamConditionalRepeatRow[] {
+  return collectVietnamRepeatRows(answers, OTHER_PASSPORT_GROUP);
+}
 
-  return rows;
+export function collectVietnamContactRows(
+  answers: Record<string, string>,
+): VietnamConditionalRepeatRow[] {
+  return collectVietnamRepeatRows(answers, VIETNAM_CONTACT_GROUP);
+}
+
+export function collectVietnamRelativeRows(
+  answers: Record<string, string>,
+): VietnamConditionalRepeatRow[] {
+  return collectVietnamRepeatRows(answers, VIETNAM_RELATIVE_GROUP);
 }
 
 export function validateVietnamConditionalAnswers(
@@ -51,35 +144,32 @@ export function validateVietnamConditionalAnswers(
 ): VietnamConditionalValidationError[] {
   const errors: VietnamConditionalValidationError[] = [];
 
-  if (isVietnamYes(answers.visited_vietnam_in_last_year)) {
-    const rows = collectVietnamPreviousVisitRows(answers);
+  for (const group of CONDITIONAL_REPEAT_GROUPS) {
+    if (!isVietnamYes(answers[group.triggerField])) continue;
+    const rows = collectVietnamRepeatRows(answers, group);
     if (rows.length === 0) {
       errors.push({
-        fieldName: "visited_vietnam_in_last_year",
-        message:
-          "User answered Yes for prior Viet Nam travel, but the official From date / To date / Purpose of trip row fields are missing.",
+        fieldName: group.triggerField,
+        message: `User answered Yes for ${group.description}, but the official ${group.columns
+          .map((column) => column.label)
+          .join(" / ")} row fields are missing.`,
       });
     }
     rows.forEach((row, index) => {
-      const missing = [
-        row.fromDate ? null : "From date",
-        row.toDate ? null : "To date",
-        row.purpose ? null : "Purpose of trip",
-      ].filter((value): value is string => Boolean(value));
+      const missing = group.columns
+        .map((column, columnIndex) => (row.values[columnIndex] ? null : column.label))
+        .filter((value): value is string => Boolean(value));
       if (missing.length > 0) {
         errors.push({
-          fieldName: `visited_vietnam_last_year[${index + 1}]`,
-          message: `Prior Viet Nam travel row ${index + 1} is incomplete: ${missing.join(", ")}.`,
+          fieldName: `${group.rowFieldName}[${index + 1}]`,
+          message: `${group.tableDescription} row ${index + 1} is incomplete: ${missing.join(", ")}.`,
         });
       }
     });
   }
 
   const unsupportedYesGroups: Array<[string, string]> = [
-    ["has_other_passports_used_for_vietnam", "other passports used to enter Viet Nam"],
     ["has_violated_vietnam_laws", "Viet Nam law violation details"],
-    ["has_contact_in_vietnam", "Viet Nam contact rows"],
-    ["has_relatives_in_vietnam", "relatives in Viet Nam rows"],
     ["has_relatives", "relatives in Viet Nam rows"],
   ];
   for (const [fieldName, description] of unsupportedYesGroups) {
@@ -98,46 +188,143 @@ export async function fillVietnamPreviousVisitRows(
   page: Page,
   answers: Record<string, string>,
 ): Promise<number> {
-  const rows = collectVietnamPreviousVisitRows(answers);
+  return fillVietnamRepeatRows(page, answers, PREVIOUS_VISIT_GROUP);
+}
+
+export async function fillVietnamOtherPassportRows(
+  page: Page,
+  answers: Record<string, string>,
+): Promise<number> {
+  return fillVietnamRepeatRows(page, answers, OTHER_PASSPORT_GROUP);
+}
+
+export async function fillVietnamContactRows(
+  page: Page,
+  answers: Record<string, string>,
+): Promise<number> {
+  return fillVietnamRepeatRows(page, answers, VIETNAM_CONTACT_GROUP);
+}
+
+export async function fillVietnamRelativeRows(
+  page: Page,
+  answers: Record<string, string>,
+): Promise<number> {
+  return fillVietnamRepeatRows(page, answers, VIETNAM_RELATIVE_GROUP);
+}
+
+export async function fillVietnamConditionalRepeatGroups(
+  page: Page,
+  answers: Record<string, string>,
+  triggerFieldName: string,
+): Promise<number> {
+  const group = CONDITIONAL_REPEAT_GROUPS.find((candidate) => candidate.triggerField === triggerFieldName);
+  if (!group) return 0;
+  const filledRows: number = await fillVietnamRepeatRows(page, answers, group);
+  return filledRows * group.columns.length;
+}
+
+function collectVietnamRepeatRows(
+  answers: Record<string, string>,
+  group: RepeatGroupConfig,
+): VietnamConditionalRepeatRow[] {
+  const rows: VietnamConditionalRepeatRow[] = [];
+
+  for (let index = 0; index < MAX_REPEAT_ROWS; index++) {
+    const values = group.columns.map((column) => readRepeatColumnValue(answers, column, index));
+    if (values.every((value) => !value)) continue;
+    rows.push({ values });
+  }
+
+  return rows;
+}
+
+function readRepeatColumnValue(
+  answers: Record<string, string>,
+  column: RepeatColumnConfig,
+  index: number,
+): string {
+  for (const answerName of column.answerNames) {
+    const raw = answers[repeatFieldName(answerName, index)]?.trim() ?? "";
+    if (!raw) continue;
+    if (column.type === "date") return toDdMmYyyy(raw);
+    if (column.type === "country") return getVietnamRepeatCountryOptionText(answerName, raw);
+    return raw;
+  }
+  return "";
+}
+
+function getVietnamRepeatCountryOptionText(answerName: string, raw: string): string {
+  const mapped = getVnPortalOptionText(answerName, raw);
+  if (mapped !== raw) return mapped;
+  const normalized = raw.trim().toLowerCase();
+  if (["chn", "cn", "china", "chinese"].includes(normalized)) return "China";
+  return raw;
+}
+
+async function fillVietnamRepeatRows(
+  page: Page,
+  answers: Record<string, string>,
+  group: RepeatGroupConfig,
+): Promise<number> {
+  const rows = collectVietnamRepeatRows(answers, group);
   if (rows.length === 0) return 0;
 
-  const table = page
-    .locator("table")
-    .filter({ hasText: /From date/i })
-    .filter({ hasText: /To date/i })
-    .filter({ hasText: /Purpose of trip/i })
-    .first();
-  await table.waitFor({ state: "visible", timeout: 7_500 });
+  let table = page.locator("table");
+  for (const header of group.headers) {
+    table = table.filter({ hasText: header });
+  }
+  const visibleTable = table.first();
+  await visibleTable.waitFor({ state: "visible", timeout: 7_500 });
 
   for (let index = 0; index < rows.length; index++) {
-    await ensureVietnamTableRowCount(page, table, index + 1);
-    const row = table.locator("tbody tr:not([aria-hidden='true'])").nth(index);
-    await setVietnamTableInputValue(row.locator("td").nth(1).locator("input").first(), rows[index].fromDate);
-    await setVietnamTableInputValue(row.locator("td").nth(2).locator("input").first(), rows[index].toDate);
-    await setVietnamTableInputValue(row.locator("td").nth(3).locator("input, textarea").first(), rows[index].purpose);
-    await page.waitForTimeout(150);
+    await ensureVietnamTableRowCount(page, visibleTable, index + 1);
+    const row = visibleTable.locator("tbody tr:not([aria-hidden='true'])").nth(index);
+    await setVietnamTableRowValues(page, row, rows[index].values);
+    await page.waitForTimeout(150).catch(() => undefined);
   }
 
   return rows.length;
 }
 
-async function setVietnamTableInputValue(input: Locator, value: string): Promise<void> {
-  await input.waitFor({ state: "attached", timeout: 5_000 });
-  await input.evaluate(
-    (element, nextValue) => {
-      const inputElement = element as HTMLInputElement | HTMLTextAreaElement;
+async function setVietnamTableRowValues(
+  page: Page,
+  row: Locator,
+  values: string[],
+): Promise<void> {
+  const selectTargets = await row.evaluate((rowElement, rowValues) => {
+    const targets: Array<{ domId: string; value: string }> = [];
+    const cells = Array.from(rowElement.querySelectorAll<HTMLTableCellElement>("td"));
+
+    rowValues.forEach((value, index) => {
+      const cell = cells[index + 1];
+      if (!cell) {
+        throw new Error(`Vietnam dynamic table cell ${index + 1} not found.`);
+      }
+      const selectInput = cell.querySelector<HTMLInputElement>(".ant-select input[id]");
+      if (selectInput?.id) {
+        targets.push({ domId: selectInput.id, value });
+        return;
+      }
+      const inputElement = cell.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
+      if (!inputElement) {
+        throw new Error(`Vietnam dynamic table cell ${index + 1} input not found.`);
+      }
       const descriptor =
         Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inputElement), "value") ||
         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value") ||
         Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value");
-      if (descriptor?.set) descriptor.set.call(inputElement, nextValue);
-      else inputElement.value = nextValue;
-      inputElement.dispatchEvent(new InputEvent("input", { bubbles: true, data: nextValue, inputType: "insertText" }));
+      if (descriptor?.set) descriptor.set.call(inputElement, value);
+      else inputElement.value = value;
+      inputElement.dispatchEvent(new Event("input", { bubbles: true }));
       inputElement.dispatchEvent(new Event("change", { bubbles: true }));
       inputElement.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
-    },
-    value,
-  );
+    });
+    return targets;
+  }, values);
+
+  for (const target of selectTargets) {
+    await pickSelect(page, target.domId, target.value);
+  }
 }
 
 async function ensureVietnamTableRowCount(

@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { getImpersonationSession } from "@/lib/impersonation-session";
@@ -5,6 +7,7 @@ import type { KrSubmissionResult } from "@/lib/submission-result";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const OFFICIAL_EFORM_URL = "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
+let localKoreaEformWorkerStart: Promise<void> | null = null;
 
 interface ApplicationRow {
   id: string;
@@ -25,11 +28,69 @@ function submissionServiceBaseUrl() {
   return (process.env.KR_EFORM_SUBMISSION_SERVICE_URL ?? "http://127.0.0.1:8081").replace(/\/$/u, "");
 }
 
+function isLocalSubmissionService(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function isConnectivityError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message === "fetch failed" || message.includes("ECONNREFUSED") || message.includes("Failed to fetch");
+}
+
+async function waitForLocalKoreaEformWorker(baseUrl: string) {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${baseUrl}/local/korea-eform/generate`, { cache: "no-store" });
+      if (response.ok) return;
+    } catch {
+      // Keep polling until the local dev worker has finished booting.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error("Timed out waiting for local Korea e-Form worker to start");
+}
+
+async function ensureLocalKoreaEformWorker(baseUrl: string) {
+  if (!isLocalSubmissionService(baseUrl) || process.env.KR_EFORM_SUBMISSION_SERVICE_AUTOSTART === "false") return;
+  localKoreaEformWorkerStart ??= (async () => {
+    const serviceCwd =
+      process.env.KR_EFORM_SUBMISSION_SERVICE_CWD ??
+      path.resolve(process.cwd(), "..", "..", "viza-be", "submission-service");
+    const port = new URL(baseUrl).port || "8081";
+    const isWindows = process.platform === "win32";
+    const child = spawn(isWindows ? "cmd.exe" : "npm", isWindows ? ["/d", "/s", "/c", "npm run korea-eform:local"] : ["run", "korea-eform:local"], {
+      cwd: serviceCwd,
+      env: {
+        ...process.env,
+        PORT: port,
+        KR_VISA_PORTAL_EFORM_LOCAL_ENABLED: "true",
+        KR_VISA_PORTAL_EFORM_LIVE_ENABLED: "true",
+        KR_VISA_PORTAL_EFORM_SECOND_PAGE_ENABLED: "true",
+      },
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.unref();
+    await waitForLocalKoreaEformWorker(baseUrl);
+  })().catch((error) => {
+    localKoreaEformWorkerStart = null;
+    throw error;
+  });
+  await localKoreaEformWorkerStart;
+}
+
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const url = `${submissionServiceBaseUrl()}${path}`;
+  const baseUrl = submissionServiceBaseUrl();
+  const url = `${baseUrl}${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
-  try {
+  const send = async () => {
     const response = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -46,6 +107,15 @@ async function postSubmissionService<T>(path: string, body: Record<string, unkno
     }
     if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
     return payload as T;
+  };
+  try {
+    try {
+      return await send();
+    } catch (error) {
+      if (!isConnectivityError(error)) throw error;
+      await ensureLocalKoreaEformWorker(baseUrl);
+      return await send();
+    }
   } finally {
     clearTimeout(timeout);
   }
@@ -183,13 +253,20 @@ async function requireApplication(applicationId: string): Promise<AuthResult> {
 }
 
 function responsePayload(result: KrSubmissionResult) {
+  const manualActionInstructions = result.manualAction?.instructions ?? "";
+  const manualAction =
+    manualActionInstructions.includes("KR_VISA_PORTAL_EFORM_LOCAL_ENABLED") ||
+    manualActionInstructions.includes("localhost endpoint") ||
+    manualActionInstructions.includes("gated submission-service runner")
+      ? null
+      : result.manualAction ?? null;
   return {
     status: result.officialEformPdfStoragePath ? "ready" : result.officialEformStatus ?? "not_started",
     portalUrl: result.officialEformPortalUrl ?? OFFICIAL_EFORM_URL,
     officialEformPdfStoragePath: result.officialEformPdfStoragePath ?? null,
     officialEformApplicationNumber: result.officialEformApplicationNumber ?? null,
     annex17PdfUrl: result.annex17PdfUrl,
-    manualAction: result.manualAction ?? null,
+    manualAction,
   };
 }
 
@@ -212,8 +289,9 @@ export async function POST(
   if (!auth.ok) return auth.response;
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const finalReviewApproved = body.finalReviewApproved === true;
+  const regenerateOfficialEform = body.regenerateOfficialEform === true;
   const current = asKrResult(auth.application.submission_result, id);
-  if (current.officialEformPdfStoragePath) {
+  if (current.officialEformPdfStoragePath && !regenerateOfficialEform) {
     return NextResponse.json(responsePayload({ ...current, officialEformStatus: "ready", status: "official_eform_ready" }));
   }
 
@@ -223,7 +301,7 @@ export async function POST(
     const serviceResult = await postSubmissionService<KoreaEformServiceResponse>("/local/korea-eform/generate", {
       applicationId: id,
       answers,
-      officialPdfStoragePath: current.officialEformPdfStoragePath ?? null,
+      officialPdfStoragePath: regenerateOfficialEform ? null : current.officialEformPdfStoragePath ?? null,
       finalReviewApproved,
     });
     if (serviceResult.status === "official_eform_ready") {
@@ -244,6 +322,8 @@ export async function POST(
         status: "official_eform_required",
         officialEformStatus: "manual_action_required",
         officialEformPortalUrl: serviceResult.portalUrl,
+        officialEformPdfStoragePath: regenerateOfficialEform ? null : current.officialEformPdfStoragePath,
+        officialEformApplicationNumber: regenerateOfficialEform ? null : current.officialEformApplicationNumber,
         manualAction: {
           type: serviceResult.manualActionType,
           status: "open",
@@ -252,22 +332,19 @@ export async function POST(
         },
       };
     }
-  } catch (err) {
-    const errMessage = err instanceof Error ? err.message : String(err);
-    const runnerHint =
-      errMessage === "fetch failed" || errMessage.includes("ECONNREFUSED") || errMessage.includes("Failed to fetch")
-        ? "本机 official e-Form worker 没有运行或端口不可达。请启动 viza-be/submission-service 的 localhost endpoint（默认 http://127.0.0.1:8081），并设置 KR_VISA_PORTAL_EFORM_LOCAL_ENABLED=true；VIZA 不会用备用 Annex-17 冒充官网条码 PDF。"
-        : `官方 e-Form runner 返回错误：${errMessage}`;
+  } catch {
     next = {
       ...current,
       status: "official_eform_required",
       officialEformStatus: "manual_action_required",
       officialEformPortalUrl: OFFICIAL_EFORM_URL,
+      officialEformPdfStoragePath: regenerateOfficialEform ? null : current.officialEformPdfStoragePath,
+      officialEformApplicationNumber: regenerateOfficialEform ? null : current.officialEformApplicationNumber,
       manualAction: {
         type: "official_eform_portal_review_required",
         status: "open",
         instructions:
-          `${runnerHint} Official Korea Visa Portal e-Form automation did not complete; use the official portal link, or start the gated submission-service runner and click Generate again.`,
+          "本次还没有生成新的官方 PDF。请再次点击生成；如果连续失败，VIZA 会保留为未完成状态，不会把旧 PDF 当作新结果。",
       },
     };
   }
