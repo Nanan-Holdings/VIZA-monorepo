@@ -122,6 +122,7 @@ describe("legacy application step copilot coverage", () => {
 
   it("transliterates common Chinese names in dynamic bilingual fields", () => {
     expect(toOfficialEnglishValue("李小明")).toBe("LI XIAOMING");
+    expect(toOfficialEnglishValue("陈季军")).toBe("CHENJIJUN");
     expect(toOfficialEnglishValue("软件工程师")).toBe("Software engineer");
     expect(toOfficialEnglishValue("硬件工程师")).toBe("Hardware engineer");
     expect(toOfficialEnglishValue("长沙")).toBe("Changsha");
