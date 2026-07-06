@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  FEATURED_VISA_DESTINATIONS,
   SEARCHABLE_VISA_DESTINATIONS,
   getVisaPackageTitle,
   getVisaPackageTitleZh,
@@ -66,9 +67,21 @@ describe("arrival card destination labels", () => {
     );
     expect(getVisaTypeDisplayNameZh("VN_PREARRIVAL_DECLARATION")).toBe("越南入境前申报");
     expect(getVisaPackageTitle("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe(
-      "Vietnam Vietnam Pre-Arrival Information Declaration",
+      "Vietnam Pre-Arrival Information Declaration",
     );
-    expect(getVisaPackageTitleZh("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe("越南越南入境前申报");
+    expect(getVisaPackageTitleZh("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe("越南入境前申报");
+
+    const vietnamSchemas = SEARCHABLE_VISA_DESTINATIONS.filter(
+      (destination) => destination.country === "vietnam" && destination.kind !== "group",
+    );
+    expect(vietnamSchemas.map((destination) => destination.visaType).sort()).toEqual([
+      "VN_PREARRIVAL_DECLARATION",
+      "evisa_tourism",
+    ].sort());
+
+    const vietnamFeatured = FEATURED_VISA_DESTINATIONS.find((destination) => destination.country === "vietnam");
+    expect(vietnamFeatured?.kind).toBe("group");
+    expect(vietnamFeatured?.countryCount).toBe(2);
   });
 
   test("South Korea C-3-9 search card is clickable as paper/KVAC assisted flow", () => {

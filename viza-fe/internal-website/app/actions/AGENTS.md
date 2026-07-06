@@ -14,6 +14,8 @@ application lifecycle state.
 - `client-auth.ts`: client auth/session helpers and signout.
 - `application-lifecycle.ts`: lifecycle/status summaries derived from existing
   application, answer, document, and queue tables.
+- `client-home-dashboard.ts`: server-side home dashboard reads using the same
+  client session/profile identity resolution as authenticated customer routes.
 - `application-group.ts`: group application and team companion creation,
   companion review state, and authorized companion application reads.
 - `visa-application-answers.ts`: draft app creation and dynamic answer storage.
