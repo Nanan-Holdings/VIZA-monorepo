@@ -18,7 +18,7 @@ import { RecentActivitySection, type ActivityEvent } from "@/components/client/h
 import { QuickActionsCard } from "@/components/client/home/QuickActionsCard";
 import { UniversalInfoCard } from "@/components/client/home/UniversalInfoCard";
 import { SubscriptionPlanCard } from "@/components/client/home/SubscriptionPlanCard";
-import { getApplicationPaymentRecords } from "@/app/actions/application-lifecycle";
+import { getClientHomeDashboardData } from "@/app/actions/client-home-dashboard";
 import {
   getDestinationDisplayNameForLocale,
   getFormVisaType,
@@ -317,24 +317,19 @@ export default function HomePage() {
       setError(null);
 
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
+        const dashboard = await getClientHomeDashboardData();
+        if (!dashboard.authenticated) {
           if (showLoading && isLatestRequest()) setIsLoading(false);
           return;
         }
 
-        const { data: profile } = await supabase
-          .from("applicant_profiles")
-          .select("*")
-          .eq("auth_user_id", user.id)
-          .maybeSingle();
+        if (dashboard.error) throw new Error(dashboard.error);
 
-        const authName = user.user_metadata?.full_name || user.user_metadata?.name || null;
+        const profile = dashboard.profile;
+        const authName = dashboard.authEmail?.split("@")[0] ?? null;
         if (!isLatestRequest()) return;
         setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
+          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail),
         );
 
         const profileTyped = profile as { id: string; full_name: string | null } | null;
@@ -346,14 +341,8 @@ export default function HomePage() {
 
         setApplicantName(profileTyped.full_name || authName);
 
-        const { data: appRows } = await supabase
-          .from("applications")
-          .select("id, status, country, visa_type, visa_package_id, submission_result_status, submitted_at, created_at, updated_at")
-          .eq("applicant_id", profileTyped.id)
-          .order("created_at", { ascending: false });
-
         if (!isLatestRequest()) return;
-        const loadedApplications = (appRows ?? []) as ApplicationRow[];
+        const loadedApplications = dashboard.applications as ApplicationRow[];
 
         // Current application = last-visited form context, else newest application.
         const formTarget = readApplicationFormTarget(getRecentApplicationFormHref());
@@ -371,32 +360,20 @@ export default function HomePage() {
 
         if (loadedApplications.length === 0) {
           setUniversalInfoProgress(
-            buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null),
+            buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail),
           );
           setActivityEvents([]);
           return;
         }
 
-        const applicationIds = loadedApplications.map((app) => app.id);
-        const packageIds = loadedApplications
-          .map((app) => app.visa_package_id)
-          .filter((id): id is string => Boolean(id));
-
-        const [{ data: docs }, loadedPayments] = await Promise.all([
-          supabase
-            .from("application_documents")
-            .select("id, application_id, document_type, status, created_at, updated_at")
-            .in("application_id", applicationIds),
-          getApplicationPaymentRecords(applicationIds, packageIds),
-        ]);
-
         if (!isLatestRequest()) return;
-        const loadedDocuments = (docs ?? []) as DocumentRow[];
+        const loadedDocuments = dashboard.documents as DocumentRow[];
+        const loadedPayments = dashboard.payments as PaymentRow[];
         const hasPassportUpload = loadedDocuments.some(
           (document) => PASSPORT_DOCUMENT_TYPES.has(document.document_type) && document.status !== "missing",
         );
         setUniversalInfoProgress(
-          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, user.email ?? null, hasPassportUpload),
+          buildUniversalInfoProgress(profile as ApplicantProfileSummary | null, dashboard.authEmail, hasPassportUpload),
         );
         // Recent activity is scoped to the current application only — other
         // applications are visible from /client/destinations.

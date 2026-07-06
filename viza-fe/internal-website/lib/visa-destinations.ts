@@ -19,6 +19,7 @@ export type PopularVisaDestination = {
 
 export type VisaDestinationRegionId =
   | "indonesia"
+  | "vietnam"
   | "north-america"
   | "south-america"
   | "middle-east"
@@ -685,6 +686,20 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     flag: "🇻🇳",
     region: "Asia",
   }),
+  destination({
+    country: "vietnam",
+    countryName: "Vietnam",
+    countryNameZh: "越南",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    visaName: "Pre-Arrival Information Declaration",
+    visaNameZh: "入境前申报",
+    description: "Official pre-arrival information declaration for eligible Vietnam arrivals.",
+    descriptionZh: "适合符合条件旅客入境越南前填写的官方入境信息申报。",
+    flag: "🇻🇳",
+    region: "Asia",
+    supportLabel: "Vietnam pre-arrival declaration",
+    searchAliases: ["Vietnam arrival card", "Pre-arrival", "prearrival.immigration.gov.vn"],
+  }),
 ]);
 
 export const SCHENGEN_GROUP_DESTINATION: PopularVisaDestination = {
@@ -719,6 +734,15 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
     descriptionZh: "选择要申请的印尼签证类别，并加载对应申请表。",
     flag: "🇮🇩",
     countries: ["indonesia"],
+  },
+  {
+    id: "vietnam",
+    name: "Vietnam",
+    nameZh: "越南",
+    description: "Choose the Vietnam visa or arrival-card schema you want to complete.",
+    descriptionZh: "选择要填写的越南签证或入境卡类别，并加载对应表单。",
+    flag: "🇻🇳",
+    countries: ["vietnam"],
   },
   {
     id: "north-america",
@@ -835,20 +859,20 @@ function destinationIdsForCountries(countries: string[]): string[] {
 
 function regionGroupToDestination(group: VisaDestinationRegionGroup): PopularVisaDestination {
   const destinations = getVisaDestinationsForRegion(group.id);
-  const isIndonesiaGroup = group.id === "indonesia";
+  const isSchemaChoiceGroup = group.id === "indonesia" || group.id === "vietnam";
   return {
     id: `region-${group.id}`,
     country: group.id,
     countryName: group.name,
     countryNameZh: group.nameZh,
     visaType: "REGION_GROUP",
-    visaName: isIndonesiaGroup ? "Choose visa category" : "Browse destination forms",
-    visaNameZh: isIndonesiaGroup ? "选择签证类别" : "浏览分区签证表单",
+    visaName: isSchemaChoiceGroup ? "Choose application category" : "Browse destination forms",
+    visaNameZh: isSchemaChoiceGroup ? "选择申请类别" : "浏览分区签证表单",
     description: group.description,
     descriptionZh: group.descriptionZh,
     flag: group.flag,
     region: group.name,
-    supportLabel: isIndonesiaGroup ? "Visa categories" : "Destination region",
+    supportLabel: isSchemaChoiceGroup ? "Application categories" : "Destination region",
     kind: "group",
     href: group.href,
     countryCount: destinations.length,
@@ -876,9 +900,11 @@ export const VISA_DESTINATION_REGION_GROUPS: VisaDestinationRegionGroup[] = DEST
 }));
 
 const INDONESIA_DESTINATION_GROUP = VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === "indonesia");
+const VIETNAM_DESTINATION_GROUP = VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === "vietnam");
 
 export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
   ...(INDONESIA_DESTINATION_GROUP ? [regionGroupToDestination(INDONESIA_DESTINATION_GROUP)] : []),
+  ...(VIETNAM_DESTINATION_GROUP ? [regionGroupToDestination(VIETNAM_DESTINATION_GROUP)] : []),
   ...[
     "united_states",
     "united_kingdom",
@@ -892,7 +918,7 @@ export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
 
 export const DESTINATION_REGION_GROUP_DESTINATIONS: PopularVisaDestination[] =
   VISA_DESTINATION_REGION_GROUPS
-    .filter((group) => group.id !== "indonesia")
+    .filter((group) => group.id !== "indonesia" && group.id !== "vietnam")
     .map(regionGroupToDestination);
 
 export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
@@ -903,6 +929,7 @@ export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
 export const SEARCHABLE_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
   ...SELECTABLE_VISA_DESTINATIONS,
   ...(INDONESIA_DESTINATION_GROUP ? [regionGroupToDestination(INDONESIA_DESTINATION_GROUP)] : []),
+  ...(VIETNAM_DESTINATION_GROUP ? [regionGroupToDestination(VIETNAM_DESTINATION_GROUP)] : []),
   ...DESTINATION_REGION_GROUP_DESTINATIONS,
 ]);
 
