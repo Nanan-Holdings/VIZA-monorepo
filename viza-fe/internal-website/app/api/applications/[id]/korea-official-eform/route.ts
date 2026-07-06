@@ -290,6 +290,10 @@ export async function POST(
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const finalReviewApproved = body.finalReviewApproved === true;
   const regenerateOfficialEform = body.regenerateOfficialEform === true;
+  const pdfLanguage =
+    body.pdfLanguage === "en" || body.pdfLanguage === "ko" || body.pdfLanguage === "zh-CN"
+      ? body.pdfLanguage
+      : "zh-CN";
   const current = asKrResult(auth.application.submission_result, id);
   if (current.officialEformPdfStoragePath && !regenerateOfficialEform) {
     return NextResponse.json(responsePayload({ ...current, officialEformStatus: "ready", status: "official_eform_ready" }));
@@ -303,6 +307,7 @@ export async function POST(
       answers,
       officialPdfStoragePath: regenerateOfficialEform ? null : current.officialEformPdfStoragePath ?? null,
       finalReviewApproved,
+      pdfLanguage,
     });
     if (serviceResult.status === "official_eform_ready") {
       next = {

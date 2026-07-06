@@ -48,8 +48,8 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     ? "本次还没有生成新的官方 PDF。请再次点击生成；如果连续失败，VIZA 会保留为未完成状态，不会把旧 PDF 当作新结果。"
     : "A new official PDF was not generated yet. Click Generate again; VIZA will keep this incomplete instead of reusing an old PDF.";
   const readyOfficialMessage = isZh
-    ? "官方 Korea Visa Portal 已生成带条码 e-Form PDF。"
-    : "The official Korea Visa Portal barcode e-Form PDF has been generated.";
+    ? "官方 Korea Visa Portal 已按中文界面生成带条码 e-Form PDF。"
+    : "The official Korea Visa Portal barcode e-Form PDF has been generated with the Chinese portal view.";
   const [officialMessage, setOfficialMessage] = useState<string | null>(
     result.officialEformPdfStoragePath ? readyOfficialMessage : result.manualAction ? defaultOfficialMessage : null,
   );
@@ -82,7 +82,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
       const response = await fetch(`/api/applications/${applicationId}/korea-official-eform`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ finalReviewApproved: true, regenerateOfficialEform: true }),
+        body: JSON.stringify({ finalReviewApproved: true, regenerateOfficialEform: true, pdfLanguage: "zh-CN" }),
       });
       const payload = (await response.json().catch(() => null)) as {
         status?: string;

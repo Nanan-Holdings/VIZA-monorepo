@@ -16,6 +16,8 @@ import {
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
 
+type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
+
 /**
  * DEP-004: minimal HTTP server for Cloud Run health probes.
  *
@@ -272,11 +274,16 @@ async function handleKoreaEformGenerate(req: http.IncomingMessage, res: http.Ser
     const answers = body.answers && typeof body.answers === "object" && !Array.isArray(body.answers)
       ? (body.answers as Record<string, string | null | undefined>)
       : {};
+    const pdfLanguage: KoreaEformPdfLanguage =
+      body.pdfLanguage === "en" || body.pdfLanguage === "ko" || body.pdfLanguage === "zh-CN"
+        ? body.pdfLanguage
+        : "zh-CN";
     const input = {
       applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
       answers,
       officialPdfStoragePath: typeof body.officialPdfStoragePath === "string" ? body.officialPdfStoragePath : null,
       finalReviewApproved: body.finalReviewApproved === true,
+      pdfLanguage,
     };
 
     if (!envEnabled(process.env.KR_VISA_PORTAL_EFORM_LIVE_ENABLED)) {

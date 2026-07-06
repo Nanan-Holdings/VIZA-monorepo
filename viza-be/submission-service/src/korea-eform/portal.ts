@@ -14,6 +14,7 @@ export interface KoreaOfficialEformFillOptions {
   visitingPostName?: string | null;
   visitingPostCode?: string | null;
   documents?: KoreaOfficialEformDocumentPaths;
+  pdfLanguage?: "zh-CN" | "en" | "ko" | null;
 }
 
 export interface KoreaOfficialEformFillResult {
@@ -407,12 +408,31 @@ async function waitForOfficialUploadSettle(page: Page) {
   await page.waitForTimeout(1200);
 }
 
+async function applyOfficialPortalLanguage(page: Page, language: KoreaOfficialEformFillOptions["pdfLanguage"]) {
+  const target = language ?? "zh-CN";
+  const targetCode = target === "zh-CN" ? "CH" : target === "en" ? "EN" : "KO";
+  const currentCode = await page.evaluate(() => (globalThis as unknown as { gfv_seLang?: string }).gfv_seLang).catch(() => null);
+  if (currentCode === targetCode) return;
+
+  const selector = target === "zh-CN" ? "#top_a_lang_ch" : target === "en" ? "#top_a_lang_en" : "#top_a_lang_ko";
+  const languageLink = page.locator(selector);
+  if ((await languageLink.count()) === 0) return;
+
+  await Promise.all([
+    page.waitForLoadState("domcontentloaded").catch(() => undefined),
+    page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => undefined),
+    languageLink.click(),
+  ]);
+  await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+}
+
 export async function fillKoreaOfficialEformFirstPage(
   page: Page,
   payload: KoreaOfficialEformPayload,
   options: KoreaOfficialEformFillOptions = {},
 ): Promise<KoreaOfficialEformFillResult> {
   await page.goto(KOREA_VISA_PORTAL_EFORM_URL, { waitUntil: "domcontentloaded" });
+  await applyOfficialPortalLanguage(page, options.pdfLanguage);
   const applyLink = page.locator("#applyVisa");
   if (await applyLink.count()) {
     await applyLink.click();
