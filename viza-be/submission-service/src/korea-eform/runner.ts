@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import {
+  completeKoreaOfficialEformAndDownloadPdf,
   fillKoreaOfficialEformFirstPage,
   fillKoreaOfficialEformSecondPage,
   type KoreaOfficialEformFillOptions,
@@ -37,6 +38,7 @@ export type KoreaOfficialEformResult =
       applicationId: string;
       portalUrl: string;
       officialPdfStoragePath: string;
+      officialEformApplicationNumber?: string | null;
       message: string;
     }
   | {
@@ -211,6 +213,20 @@ export async function runKoreaOfficialEformLiveFill(
     await nextButton.click();
     await page.waitForLoadState("domcontentloaded").catch(() => undefined);
     const secondPageResult = await fillKoreaOfficialEformSecondPage(page, input.answers);
+
+    if (input.finalReviewApproved) {
+      const completion = await completeKoreaOfficialEformAndDownloadPdf(page, input.applicationId);
+      return {
+        status: "official_eform_ready",
+        applicationId: input.applicationId,
+        portalUrl: page.url(),
+        officialPdfStoragePath: completion.officialPdfStoragePath,
+        officialEformApplicationNumber: completion.applicationNumber,
+        message: completion.applicationNumber
+          ? `Official Korea Visa Portal e-Form generated and downloaded. Application No.: ${completion.applicationNumber}`
+          : "Official Korea Visa Portal e-Form generated and downloaded.",
+      };
+    }
 
     return {
       status: "manual_required",

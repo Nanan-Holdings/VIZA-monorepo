@@ -24,6 +24,13 @@ export interface KoreaOfficialEformFillResult {
   nextCheckpoint: "official_eform_portal_review_required";
 }
 
+export interface KoreaOfficialEformCompletionResult {
+  applicationNumber: string | null;
+  officialPdfStoragePath: string;
+  officialPdfLocalPath: string;
+  successMessage: string | null;
+}
+
 interface FieldAssignment {
   selector: string;
   value: string;
@@ -198,6 +205,9 @@ export function buildKoreaOfficialEformSecondPagePlan(
   const travelledOutside = isYes(readAnswer(answers, ["travelled_outside_5y"]));
   const travellingWithFamily = isYes(readAnswer(answers, ["travelling_with_family"]));
   const receivedAssistance = isYes(readAnswer(answers, ["received_form_assistance"]));
+  const addressInKorea = readAnswer(answers, ["address_in_korea"], "100 Toegye-ro, Jung-gu, Seoul");
+  const addressInKoreaDetail = readAnswer(answers, ["address_in_korea_detail"], "Hotel");
+  const koreaPostalCode = readAnswer(answers, ["address_in_korea_postal_code", "korea_postal_code"], "04631");
 
   const fields: FieldAssignment[] = [
     { selector: "#LAST_SCH_NM", value: readAnswer(answers, ["school_name"]) },
@@ -208,8 +218,16 @@ export function buildKoreaOfficialEformSecondPagePlan(
     { selector: "#JOB_TEL_NO", value: readAnswer(answers, ["employer_telephone"]) },
     { selector: "#APPL_SOJ_DUR", value: readAnswer(answers, ["intended_period_of_stay"]) },
     { selector: "#ENTRY_EXP_YMD", value: compactDate(readAnswer(answers, ["intended_date_of_entry"]) || null) },
-    { selector: "#RNM_ENG_BS_ADDR", value: readAnswer(answers, ["address_in_korea"]) },
-    { selector: "#RNM_ENG_DET_ADDR", value: readAnswer(answers, ["address_in_korea_detail"]) },
+    { selector: "#ZIP", value: koreaPostalCode },
+    { selector: "#SOJ_EXP_REGION_DTL", value: addressInKorea },
+    { selector: "#RNM_BS_ADDR", value: addressInKorea },
+    { selector: "#RNM_DET_ADDR", value: addressInKoreaDetail },
+    { selector: "#JIBUN_BS_ADDR", value: addressInKorea },
+    { selector: "#JIBUN_DET_ADDR", value: addressInKoreaDetail },
+    { selector: "#RNM_ENG_BS_ADDR", value: addressInKorea },
+    { selector: "#RNM_ENG_DET_ADDR", value: addressInKoreaDetail },
+    { selector: "#JIBUN_ENG_BS_ADDR", value: addressInKorea },
+    { selector: "#JIBUN_ENG_DET_ADDR", value: addressInKoreaDetail },
     { selector: "#SOJ_EXP_REGION_TEL_NO", value: readAnswer(answers, ["contact_in_korea"]) },
     { selector: "#VISIT_COST", value: readAnswer(answers, ["estimated_travel_costs_usd", "visit_cost_usd", "visit_cost"]) },
     { selector: "#COST_PAMNT_EK_NM", value: readAnswer(answers, ["payer_name", "cost_payer_name"]) },
@@ -445,4 +463,59 @@ export async function fillKoreaOfficialEformSecondPage(
     ...(await assignFields(page, plan.fields)),
   ];
   return { filledSelectors };
+}
+
+function parseKoreaApplicationNumber(value: string | null): string | null {
+  return value?.match(/CP\d+ON\d+/i)?.[0] ?? null;
+}
+
+async function uploadOfficialEformPdf(applicationId: string, applicationNumber: string | null, filePath: string) {
+  const { supabase } = await import("../supabase");
+  const buffer = await fs.readFile(filePath);
+  const suffix = applicationNumber ?? Date.now().toString();
+  const storagePath = `korea/${applicationId}/official-eform-${suffix}.pdf`;
+  const { error } = await supabase.storage.from("submission-artifacts").upload(storagePath, buffer, {
+    contentType: "application/pdf",
+    upsert: false,
+  });
+  if (error) {
+    throw new Error(`Korea official e-Form PDF upload failed: ${error.message}`);
+  }
+  return storagePath;
+}
+
+export async function completeKoreaOfficialEformAndDownloadPdf(
+  page: Page,
+  applicationId: string,
+): Promise<KoreaOfficialEformCompletionResult> {
+  await page.locator("#APPLY_VISA").waitFor({ state: "visible", timeout: 15000 });
+  await page.locator("#APPLY_VISA").click();
+
+  await page.locator("#confirmTrue").waitFor({ state: "visible", timeout: 15000 });
+  await page.locator("#confirmTrue").click();
+
+  await page.locator("#alertClose").waitFor({ state: "visible", timeout: 45000 });
+  const successMessage = await page.locator(".ui-dialog").innerText().catch(() => null);
+  const applicationNumber = parseKoreaApplicationNumber(successMessage);
+  await page.locator("#alertClose").click();
+  await page.waitForTimeout(3000);
+
+  await page.locator("#PRINT_BTN").waitFor({ state: "visible", timeout: 30000 });
+  const downloadPromise = page.waitForEvent("download", { timeout: 60000 });
+  await page.locator("#PRINT_BTN").click();
+  const download = await downloadPromise;
+
+  const outputDir = path.resolve(process.cwd(), "output", "playwright");
+  await fs.mkdir(outputDir, { recursive: true });
+  const safeNumber = applicationNumber ?? Date.now().toString();
+  const officialPdfLocalPath = path.join(outputDir, `korea-official-eform-${applicationId}-${safeNumber}.pdf`);
+  await download.saveAs(officialPdfLocalPath);
+  const officialPdfStoragePath = await uploadOfficialEformPdf(applicationId, applicationNumber, officialPdfLocalPath);
+
+  return {
+    applicationNumber,
+    officialPdfStoragePath,
+    officialPdfLocalPath,
+    successMessage,
+  };
 }

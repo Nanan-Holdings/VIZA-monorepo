@@ -302,6 +302,7 @@ export interface KrSubmissionResult {
   applicationId: string;
   annex17PdfUrl: string;
   officialEformPdfStoragePath?: string | null;
+  officialEformApplicationNumber?: string | null;
   officialEformPortalUrl?: string | null;
   officialEformStatus?:
     | "not_started"

@@ -3154,7 +3154,10 @@ async function waitForUserPaymentCompletion(
       notified = true;
     }
 
-    await page.waitForTimeout(5_000);
+    await page.waitForTimeout(5_000).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      diagnostics.push(`indonesia_user_payment_wait_interrupted ${message}`.slice(0, 180));
+    });
     if (page.isClosed()) {
       diagnostics.push("indonesia_user_payment_window_closed");
       break;

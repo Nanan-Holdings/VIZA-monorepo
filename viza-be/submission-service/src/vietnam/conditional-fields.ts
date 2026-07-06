@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { toDdMmYyyy } from "./fillers.js";
 
 export interface VietnamPreviousVisitRow {
@@ -111,16 +111,33 @@ export async function fillVietnamPreviousVisitRows(
 
   for (let index = 0; index < rows.length; index++) {
     await ensureVietnamTableRowCount(page, table, index + 1);
-    const row = table.locator("tbody tr").nth(index);
-    await row.locator("td").nth(1).locator("input").first().fill(rows[index].fromDate);
-    await row.locator("td").nth(1).locator("input").first().press("Enter").catch(() => undefined);
-    await row.locator("td").nth(2).locator("input").first().fill(rows[index].toDate);
-    await row.locator("td").nth(2).locator("input").first().press("Enter").catch(() => undefined);
-    await row.locator("td").nth(3).locator("input, textarea").first().fill(rows[index].purpose);
+    const row = table.locator("tbody tr:not([aria-hidden='true'])").nth(index);
+    await setVietnamTableInputValue(row.locator("td").nth(1).locator("input").first(), rows[index].fromDate);
+    await setVietnamTableInputValue(row.locator("td").nth(2).locator("input").first(), rows[index].toDate);
+    await setVietnamTableInputValue(row.locator("td").nth(3).locator("input, textarea").first(), rows[index].purpose);
     await page.waitForTimeout(150);
   }
 
   return rows.length;
+}
+
+async function setVietnamTableInputValue(input: Locator, value: string): Promise<void> {
+  await input.waitFor({ state: "attached", timeout: 5_000 });
+  await input.evaluate(
+    (element, nextValue) => {
+      const inputElement = element as HTMLInputElement | HTMLTextAreaElement;
+      const descriptor =
+        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inputElement), "value") ||
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value") ||
+        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value");
+      if (descriptor?.set) descriptor.set.call(inputElement, nextValue);
+      else inputElement.value = nextValue;
+      inputElement.dispatchEvent(new InputEvent("input", { bubbles: true, data: nextValue, inputType: "insertText" }));
+      inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+      inputElement.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    },
+    value,
+  );
 }
 
 async function ensureVietnamTableRowCount(
@@ -129,7 +146,7 @@ async function ensureVietnamTableRowCount(
   expectedRows: number,
 ): Promise<void> {
   for (let attempt = 0; attempt < expectedRows; attempt++) {
-    const currentRows = await table.locator("tbody tr").count();
+    const currentRows = await table.locator("tbody tr:not([aria-hidden='true'])").count();
     if (currentRows >= expectedRows) return;
 
     const addButton = page

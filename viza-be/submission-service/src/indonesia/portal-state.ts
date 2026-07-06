@@ -8,6 +8,7 @@ export type IndonesiaPortalStateId =
   | "captcha_required"
   | "application_form_visible"
   | "payment_required"
+  | "payment_otp_required"
   | "submitted_or_approved"
   | "portal_blocked"
   | "unknown";
@@ -40,6 +41,19 @@ export function classifyIndonesiaPortalSnapshot(
   ) {
     return "account_registration_form_visible";
   }
+  if (
+    /\/otp\b/i.test(snapshot.url) ||
+    text.includes("enter otp") ||
+    text.includes("otp code") ||
+    text.includes("one time password") ||
+    text.includes("authentication code") ||
+    text.includes("verification code") ||
+    text.includes("kode otp") ||
+    text.includes("kode verifikasi") ||
+    text.includes("3ds")
+  ) {
+    return "payment_otp_required";
+  }
   if (/\/(pay|payment|checkout|invoice|billing|otp)/i.test(snapshot.url)) {
     return "payment_required";
   }
@@ -61,15 +75,6 @@ export function classifyIndonesiaPortalSnapshot(
     text.includes("the main purpose of my visit to indonesia is")
   ) {
     return "visa_selection_visible";
-  }
-  if (
-    text.includes("enter otp") ||
-    text.includes("otp code") ||
-    text.includes("one time password") ||
-    text.includes("authentication code") ||
-    text.includes("3ds")
-  ) {
-    return "payment_required";
   }
   if (
     url.includes("front/login") ||
@@ -106,8 +111,7 @@ export function classifyIndonesiaPortalSnapshot(
     text.includes("bayar") ||
     text.includes("checkout") ||
     text.includes("credit card") ||
-    text.includes("debit card") ||
-    text.includes("one time password")
+    text.includes("debit card")
   ) {
     return "payment_required";
   }
@@ -198,6 +202,13 @@ export function actionForIndonesiaPortalState(
         actionType: "official_fee_payment_required",
         instruction:
           "The Indonesia official portal reached payment or bank OTP. Keep the visible official browser window open and let the applicant complete card authentication there.",
+        implementationStatus: "partial",
+      };
+    case "payment_otp_required":
+      return {
+        actionType: "official_fee_otp_required",
+        instruction:
+          "The Indonesia official portal reached bank OTP or 3DS verification. Keep the visible official browser window open and have the applicant enter the bank OTP there.",
         implementationStatus: "partial",
       };
     case "submitted_or_approved":
