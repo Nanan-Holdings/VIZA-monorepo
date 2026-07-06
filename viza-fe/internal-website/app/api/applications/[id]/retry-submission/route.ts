@@ -62,7 +62,6 @@ type RetrySubmissionRequest = {
   mode: SubmissionMode | null;
   country: string | null;
   visaType: string | null;
-  supplementalAnswers: Record<string, string>;
 };
 
 type RetryQueueInsertResult = {
@@ -160,59 +159,19 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
       mode?: unknown;
       country?: unknown;
       visaType?: unknown;
-      supplementalAnswers?: unknown;
     };
     return {
       mode: body.mode === "live_assisted" || body.mode === "dry_run" ? body.mode : null,
       country: typeof body.country === "string" && body.country.trim() ? body.country : null,
       visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
-      supplementalAnswers: normalizeSupplementalAnswers(body.supplementalAnswers),
     };
   } catch {
     return {
       mode: null,
       country: null,
       visaType: null,
-      supplementalAnswers: {},
     };
   }
-}
-
-function normalizeSupplementalAnswers(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const answers: Record<string, string> = {};
-  for (const [rawKey, rawValue] of Object.entries(value)) {
-    const key = rawKey.trim();
-    if (!/^[a-zA-Z0-9_]+(?:__\d+)?$/.test(key)) continue;
-    const text =
-      typeof rawValue === "string"
-        ? rawValue.trim()
-        : typeof rawValue === "number" || typeof rawValue === "boolean"
-          ? String(rawValue)
-          : "";
-    if (!text) continue;
-    answers[key] = text.slice(0, 500);
-  }
-  return answers;
-}
-
-async function saveRetrySupplementalAnswers(input: {
-  admin: ReturnType<typeof createAdminClient>;
-  applicationId: string;
-  answers: Record<string, string>;
-  now: string;
-}): Promise<string | null> {
-  const rows = Object.entries(input.answers).map(([fieldName, value]) => ({
-    application_id: input.applicationId,
-    field_name: fieldName,
-    value_text: value,
-    updated_at: input.now,
-  }));
-  if (rows.length === 0) return null;
-  const { error } = await input.admin
-    .from("visa_application_answers")
-    .upsert(rows, { onConflict: "application_id,field_name" });
-  return error?.message ?? null;
 }
 
 function envEnabled(...keys: string[]): boolean {
@@ -1338,16 +1297,6 @@ export async function POST(
       alreadySubmitted: true,
       result: ownedApplication.submission_result,
     });
-  }
-
-  const supplementalSaveError = await saveRetrySupplementalAnswers({
-    admin,
-    applicationId,
-    answers: requestedSubmission.supplementalAnswers,
-    now,
-  });
-  if (supplementalSaveError) {
-    return NextResponse.json({ error: supplementalSaveError }, { status: 500 });
   }
 
   let queueStatus = queueStatusForApplication(

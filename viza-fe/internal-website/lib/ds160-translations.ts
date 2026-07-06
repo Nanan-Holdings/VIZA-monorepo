@@ -1457,6 +1457,7 @@ const COMMON_CHINESE_PINYIN: Record<string, string> = {
   鸿: "HONG",
   姜: "JIANG",
   江: "JIANG",
+  季: "JI",
   蒋: "JIANG",
   金: "JIN",
   孔: "KONG",
