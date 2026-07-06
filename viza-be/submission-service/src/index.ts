@@ -238,6 +238,11 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "vn_live_assisted_processing",
   "vn_payment_pending",
   "vn_payment_processing",
+  "vn_prearrival_dry_run_pending",
+  "vn_prearrival_dry_run_processing",
+  "vn_prearrival_live_assisted_scheduled",
+  "vn_prearrival_live_assisted_pending",
+  "vn_prearrival_live_assisted_processing",
   "sgac_dry_run_pending",
   "sgac_dry_run_processing",
   "sgac_live_assisted_pending",
@@ -364,7 +369,9 @@ async function fetchPendingItems(input: {
       let query = supabase
         .from("submission_queue")
         .select("*")
-        .in("status", STALE_QUEUE_STATUSES.filter((status) => status.endsWith("_pending") || status === "pending"))
+        .in("status", STALE_QUEUE_STATUSES.filter((status) =>
+          status.endsWith("_pending") || status.endsWith("_scheduled") || status === "pending"
+        ))
         .lt("attempts", MAX_ATTEMPTS)
         .order("created_at", { ascending: true })
         .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
@@ -411,7 +418,9 @@ async function selectPendingItemsFallback(input: {
   const query = supabase
     .from("submission_queue")
     .select("*")
-    .in("status", STALE_QUEUE_STATUSES.filter((status) => status.endsWith("_pending") || status === "pending"))
+    .in("status", STALE_QUEUE_STATUSES.filter((status) =>
+      status.endsWith("_pending") || status.endsWith("_scheduled") || status === "pending"
+    ))
     .lt("attempts", MAX_ATTEMPTS)
     .order("created_at", { ascending: true })
     .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
@@ -6132,6 +6141,197 @@ async function uploadArrivalCardArtifacts(input: {
   return uploaded;
 }
 
+async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Promise<void> {
+  console.log(
+    `[vn-prearrival] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "vn_prearrival_live_assisted_processing",
+      current_stage: "mapping_answers",
+      heartbeat_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "processing");
+
+  let artifactOwnerId: string | null = null;
+  let payloadSummary: DigitalArrivalCardSubmissionResult["payloadSummary"] | undefined;
+
+  async function writeFailure(input: {
+    status: DigitalArrivalCardSubmissionResult["status"];
+    code: string;
+    message: string;
+    portalSummary: string;
+    missingFields?: string[];
+    screenshotPaths?: string[];
+    logs?: string[];
+  }): Promise<void> {
+    const screenshotArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country: "VN",
+      kind: "vn-prearrival-screenshot",
+      ext: "png",
+      contentType: "image/png",
+      paths: input.screenshotPaths ?? [],
+    });
+    const result: DigitalArrivalCardSubmissionResult = {
+      country: "VN",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      status: input.status,
+      mode: "live_assisted",
+      provider: "vietnam_prearrival_live",
+      applicationId: item.application_id,
+      submitted: false,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
+      portalResponseSummary: input.portalSummary,
+      errorDetails: {
+        code: input.code,
+        message: input.message,
+        missingFields: input.missingFields,
+      },
+      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: input.logs ?? [], traces: [] },
+      payloadSummary,
+    };
+    await writeSubmissionResult(item.application_id, result, "failed");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "vn_prearrival_live_assisted_failed",
+        attempts: item.attempts + 1,
+        last_error: input.message,
+        error_code: input.code,
+        error_message: input.message,
+        current_stage: input.status === "validation_failed" ? "validation_failed" : "official_portal_failed",
+        live_screenshot_url: screenshotArtifacts[0] ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  }
+
+  try {
+    const { profile, application } = await loadApplicantData(item.application_id);
+    artifactOwnerId = profile.auth_user_id ?? null;
+    if (!isVietnamPrearrivalApplicationMetadata(application)) {
+      throw new Error(
+        `Vietnam Pre-Arrival live submission requires VN_PREARRIVAL_DECLARATION; got country=${application.country} visa_type=${application.visa_type}`,
+      );
+    }
+
+    const answers = await loadDs160Answers(item.application_id);
+    const arrivalCardApplication = buildCountrySubmissionApplication(profile, application, answers);
+    const provider = getCountrySubmissionProvider(application.country, application.visa_type);
+    if (!provider || provider.countryCode !== "VN") {
+      throw new Error("Vietnam Pre-Arrival country submission provider is not registered.");
+    }
+
+    const validation = provider.validate(arrivalCardApplication);
+    const payload = provider.mapToSubmissionPayload(arrivalCardApplication, {
+      dryRun: false,
+      idempotencyKey: `vn-prearrival-live:${item.id}`,
+    });
+    payloadSummary = arrivalCardPayloadSummary(payload);
+
+    if (!validation.ok) {
+      await writeFailure({
+        status: "validation_failed",
+        code: "vn_prearrival_validation_failed",
+        message: `Vietnam Pre-Arrival live validation failed: missing ${validation.missingRequiredFields.join(", ")}.`,
+        portalSummary: "Vietnam Pre-Arrival was not submitted because required VIZA form data is missing.",
+        missingFields: validation.missingRequiredFields,
+      });
+      return;
+    }
+
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: "running_vn_prearrival_portal",
+        official_portal_url: VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
+        heartbeat_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    const portalResult = await runVietnamPrearrivalPortalSubmission(
+      normalizeVnPrearrivalPortalPayload(payload),
+      {
+        headless: process.env.VN_PREARRIVAL_PLAYWRIGHT_HEADLESS !== "false",
+        stopBeforeSubmit: process.env.VN_PREARRIVAL_STOP_BEFORE_SUBMIT === "1",
+      },
+    );
+    const screenshotArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country: "VN",
+      kind: "vn-prearrival-screenshot",
+      ext: "png",
+      contentType: "image/png",
+      paths: portalResult.screenshots,
+    });
+    const result: DigitalArrivalCardSubmissionResult = {
+      country: "VN",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      status: portalResult.submitted ? "submitted" : "official_portal_error",
+      mode: "live_assisted",
+      provider: "vietnam_prearrival_live",
+      applicationId: item.application_id,
+      submitted: portalResult.submitted,
+      confirmationNumber: portalResult.confirmationNumber ?? null,
+      referenceNumber: portalResult.referenceNumber ?? null,
+      portalUrl: portalResult.portalUrl,
+      portalResponseSummary: portalResult.portalResponseSummary,
+      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: portalResult.logs, traces: [] },
+      payloadSummary,
+    };
+    await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: portalResult.submitted ? "done" : "vn_prearrival_live_assisted_failed",
+        last_error: portalResult.submitted ? null : portalResult.portalResponseSummary,
+        error_code: portalResult.submitted ? null : "vn_prearrival_not_submitted",
+        error_message: portalResult.submitted ? null : portalResult.portalResponseSummary,
+        current_stage: portalResult.submitted ? "submitted" : "official_portal_error",
+        official_portal_url: portalResult.portalUrl,
+        official_confirmation_number_encrypted: portalResult.confirmationNumber
+          ? encryptSecret(portalResult.confirmationNumber)
+          : null,
+        live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
+        live_screenshot_url: screenshotArtifacts[0] ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const validationError = err instanceof VnPrearrivalPortalValidationError;
+    const portalError = err instanceof VnPrearrivalPortalError;
+    await writeFailure({
+      status: validationError ? "validation_failed" : "official_portal_error",
+      code: validationError
+        ? err.code
+        : portalError
+          ? err.code
+          : "vn_prearrival_live_worker_error",
+      message: errorMsg,
+      portalSummary:
+        portalError && err.portalSummary
+          ? err.portalSummary
+          : validationError
+            ? "Vietnam Pre-Arrival was not submitted because VIZA could not map all required data into the official portal payload."
+            : "Vietnam Pre-Arrival submission failed before an official confirmation could be captured.",
+      missingFields: validationError ? err.missingFields : undefined,
+      screenshotPaths: portalError ? err.screenshotPaths : [],
+      logs: portalError ? err.logs : [],
+    });
+  }
+}
+
 async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code: ArrivalCardCode): Promise<void> {
   const isMdac = code === "MDAC";
   const isTdac = code === "TDAC";
@@ -6849,7 +7049,9 @@ async function processDryRunItem(
               ? "tdac_dry_run_processing"
               : item.status === "phetravel_dry_run_pending"
                 ? "phetravel_dry_run_processing"
-                : "processing",
+                : item.status === "vn_prearrival_dry_run_pending"
+                  ? "vn_prearrival_dry_run_processing"
+                  : "processing",
       updated_at: new Date().toISOString(),
     })
     .eq("id", item.id);
@@ -6878,6 +7080,9 @@ async function processDryRunItem(
     const isMdacDryRun = isMdacQueueItem(item, application) && item.status.startsWith("mdac_dry_run_");
     const isTdacDryRun = isTdacQueueItem(item, application) && item.status.startsWith("tdac_dry_run_");
     const isPhEtravelDryRun = isPhEtravelQueueItem(item, application) && item.status.startsWith("phetravel_dry_run_");
+    const isVietnamPrearrivalDryRun =
+      isVietnamPrearrivalQueueItem(item, application) &&
+      item.status.startsWith("vn_prearrival_dry_run_");
     const validationFailed =
       result.status === "unsupported" &&
       result.message.startsWith("Dry-run validation failed:");
@@ -6896,6 +7101,11 @@ async function processDryRunItem(
       const liveJobId = await enqueueDigitalArrivalCardLiveAfterDryRun(item, code, answers);
       console.log(
         `[${arrivalCardLogCode(code)}] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
+      );
+    } else if (result.status === "submitted_mock" && isVietnamPrearrivalDryRun) {
+      const liveJobId = await enqueueVietnamPrearrivalLiveAfterDryRun(item, answers);
+      console.log(
+        `[vn-prearrival] Dry-run passed for application=${redactIdentifier(item.application_id)}; queued live job=${redactIdentifier(liveJobId)}`,
       );
     } else {
       await writeSubmissionResult(item.application_id, result, resultStatus);
@@ -7058,6 +7268,11 @@ async function processPendingQueueItem(rawItem: SubmissionQueueItem): Promise<vo
     if (dueItem) {
       await processDigitalArrivalCardLiveItem(dueItem, "PH_ETRAVEL");
     }
+  } else if (isVietnamPrearrivalJob(item)) {
+    const dueItem = await promoteVietnamPrearrivalScheduledIfDue(item);
+    if (dueItem) {
+      await processVietnamPrearrivalLiveItem(dueItem);
+    }
   } else if (isIndonesiaJob(item)) {
     await processIndonesiaItem(item);
   } else if (isAuJob(item)) {
@@ -7198,6 +7413,10 @@ async function main(): Promise<void> {
   // DEP-003: fail fast on misconfiguration before doing any work.
   validateEnv();
 
+  // DEP-004: local handoff endpoints and Cloud Run probes should be available
+  // before slower runner configuration logging and queue startup complete.
+  startHealthServer({ isWorkerStarted: () => runnerStarted });
+
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);
   if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
@@ -7273,9 +7492,6 @@ async function main(): Promise<void> {
   if (usAppointmentStartError) {
     console.warn(`[main] US appointment runner startup check blocked: ${usAppointmentStartError}`);
   }
-
-  // DEP-004: health server for Cloud Run probes (/health, /ready).
-  startHealthServer({ isWorkerStarted: () => runnerStarted });
 
   if (/^(1|true|yes|on)$/i.test(process.env.SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY ?? "")) {
     runnerStarted = true;

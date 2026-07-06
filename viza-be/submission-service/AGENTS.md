@@ -116,7 +116,7 @@ filling and one-shot submission for the applicant.
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.
 - `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC,
-  TDAC, and PH eTravel can use a configured Browser API/CDP endpoint such as
+  TDAC, PH eTravel, and Vietnam Pre-Arrival can use a configured Browser API/CDP endpoint such as
   Bright Data Scraping Browser before local Chromium. PH eTravel is
   Cloudflare-protected and now accepts the global `BRIGHTDATA_BROWSER_API_*`
   endpoint by default when no PH-specific endpoint is configured; when a
@@ -170,6 +170,14 @@ filling and one-shot submission for the applicant.
   `ph_etravel_accounts` by applicant before creating a new official account;
   do not mint a fresh inbox-alias account when a prior PH eTravel account row
   exists.
+- `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
+  Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
+  declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival
+  window, uses only `https://prearrival.immigration.gov.vn/`, and must fail
+  with structured validation/portal errors instead of falling back dropdown or
+  boolean values. Health declaration automation stays disabled until an
+  official Ministry of Health electronic declaration system is confirmed
+  active.
 - `src/korea-eform/**`: Korea Visa Portal official e-Form/barcode PDF runner
   scaffold. `src/korea-eform/documents.ts` downloads uploaded applicant photo
   and passport scan files from `application-documents` for official portal
@@ -260,6 +268,7 @@ filling and one-shot submission for the applicant.
 | Malaysia MDAC | Live dispatch + portal evidence | Dry-run validates `MY_MDAC_ARRIVAL_CARD`; live worker dispatches to the official MDAC portal and records exact portal block/error evidence. Current official-form completion depends on MDAC portal reachability from the runner network/session. |
 | Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
 | Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
+| Vietnam Pre-Arrival | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `VN_PREARRIVAL_DECLARATION`; live worker dispatches to `https://prearrival.immigration.gov.vn/`, records portal mismatch/error evidence, and must not mark success without official QR/reference evidence. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |

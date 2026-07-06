@@ -399,6 +399,44 @@ const PH_ETRAVEL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
+const WHEN_VN_PREARRIVAL_PURPOSE_OTHER = {
+  key: "answers.purpose_of_entry",
+  equals: "other",
+};
+const WHEN_VN_HEALTH_GUIDANCE_ACTIVE = {
+  key: "answers.health_declaration_status",
+  equals: "active_guidance_applies",
+};
+
+const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("official_free_acknowledgement", "Official free-service acknowledgement", "metadata"),
+  arrivalCardField("prearrival_window_acknowledgement", "72-hour submission-window acknowledgement", "metadata"),
+  arrivalCardField("health_declaration_status", "Health declaration guidance status", "metadata"),
+  arrivalCardField("health_guidance_acknowledgement", "Health declaration guidance acknowledgement", "metadata", WHEN_VN_HEALTH_GUIDANCE_ACTIVE),
+  arrivalCardField("full_name", "Full name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("email_address", "Email", "contact"),
+  arrivalCardField("phone_country_code", "Phone country code", "contact"),
+  arrivalCardField("phone_number", "Phone", "contact"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_issue_date", "Passport issue date", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("entry_permission_type", "Entry permission type", "passport"),
+  arrivalCardField("arrival_date", "Arrival date", "trip"),
+  arrivalCardField("transport_mode", "Transport mode", "trip"),
+  arrivalCardField("flight_or_transport_number", "Flight / vehicle / vessel number", "trip"),
+  arrivalCardField("entry_port", "Entry port", "trip"),
+  arrivalCardField("country_boarded", "Country/region boarded", "trip"),
+  arrivalCardField("purpose_of_entry", "Purpose of entry", "trip"),
+  arrivalCardField("purpose_of_entry_other", "Other purpose of entry", "trip", WHEN_VN_PREARRIVAL_PURPOSE_OTHER),
+  arrivalCardField("address_in_vietnam", "Address in Viet Nam", "trip"),
+  arrivalCardField("province_city", "Province/city", "trip"),
+  arrivalCardField("is_group_submission", "Group submission flag", "trip"),
+  arrivalCardField("final_declaration", "Final declaration", "security"),
+];
+
 const CONFIGS: ProviderConfig[] = [
   {
     countryCode: "US",
@@ -683,6 +721,28 @@ const CONFIGS: ProviderConfig[] = [
     includeAllAnswersInPayload: true,
     dryRunConfirmationPrefix: "DRYRUN-PHETRAVEL",
     notes: "Dry-run validates Philippines eTravel traveller, trip, health, customs, currency, and declaration data. Live assisted submission uses only etravel.gov.ph and stays separate from PH_TEMPORARY_VISITOR_VISA.",
+  },
+  {
+    countryCode: "VN",
+    countryAliases: ["vn", "vietnam", "viet_nam"],
+    displayName: "Vietnam Pre-Arrival Information Declaration",
+    supportedVisaTypes: ["VN_PREARRIVAL_DECLARATION"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/index.ts", "src/vn-prearrival/**"],
+    schemaFiles: [
+      "../agent-backend/scripts/seed-vn-prearrival-declaration-form-fields.ts",
+      "../agent-backend/scripts/vn-prearrival/**",
+    ],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/vn-prearrival/normalize.ts"],
+    automationFiles: ["src/vn-prearrival/runner.ts"],
+    requiredFields: VN_PREARRIVAL_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-VNPREARRIVAL",
+    notes: "Dry-run validates Vietnam Pre-Arrival traveller, passport, arrival, stay, 72-hour window, and health-guidance acknowledgement data. Live assisted submission uses only prearrival.immigration.gov.vn and stays separate from VN_E_VISA.",
   },
   {
     countryCode: "SG",
