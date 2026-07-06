@@ -96,6 +96,7 @@ type KoreaEformServiceResponse =
       status: "official_eform_ready";
       portalUrl: string;
       officialPdfStoragePath: string;
+      officialEformApplicationNumber?: string | null;
       message: string;
     }
   | {
@@ -125,6 +126,8 @@ function asKrResult(value: unknown, applicationId: string): KrSubmissionResult {
           : `/api/applications/${applicationId}/kr-annex17-pdf`,
       officialEformPdfStoragePath:
         typeof value.officialEformPdfStoragePath === "string" ? value.officialEformPdfStoragePath : null,
+      officialEformApplicationNumber:
+        typeof value.officialEformApplicationNumber === "string" ? value.officialEformApplicationNumber : null,
       officialEformPortalUrl:
         typeof value.officialEformPortalUrl === "string" ? value.officialEformPortalUrl : OFFICIAL_EFORM_URL,
       officialEformStatus:
@@ -184,6 +187,7 @@ function responsePayload(result: KrSubmissionResult) {
     status: result.officialEformPdfStoragePath ? "ready" : result.officialEformStatus ?? "not_started",
     portalUrl: result.officialEformPortalUrl ?? OFFICIAL_EFORM_URL,
     officialEformPdfStoragePath: result.officialEformPdfStoragePath ?? null,
+    officialEformApplicationNumber: result.officialEformApplicationNumber ?? null,
     annex17PdfUrl: result.annex17PdfUrl,
     manualAction: result.manualAction ?? null,
   };
@@ -200,12 +204,14 @@ export async function GET(
 }
 
 export async function POST(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await ctx.params;
   const auth = await requireApplication(id);
   if (!auth.ok) return auth.response;
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const finalReviewApproved = body.finalReviewApproved === true;
   const current = asKrResult(auth.application.submission_result, id);
   if (current.officialEformPdfStoragePath) {
     return NextResponse.json(responsePayload({ ...current, officialEformStatus: "ready", status: "official_eform_ready" }));
@@ -218,7 +224,7 @@ export async function POST(
       applicationId: id,
       answers,
       officialPdfStoragePath: current.officialEformPdfStoragePath ?? null,
-      finalReviewApproved: false,
+      finalReviewApproved,
     });
     if (serviceResult.status === "official_eform_ready") {
       next = {
@@ -227,6 +233,7 @@ export async function POST(
         officialEformStatus: "ready",
         officialEformPortalUrl: serviceResult.portalUrl,
         officialEformPdfStoragePath: serviceResult.officialPdfStoragePath,
+        officialEformApplicationNumber: serviceResult.officialEformApplicationNumber,
         manualAction: undefined,
       };
     } else if (serviceResult.status === "validation_failed") {
@@ -269,7 +276,7 @@ export async function POST(
     .from("applications")
     .update({
       submission_result: next as unknown as Record<string, unknown>,
-      submission_result_status: "needs_user_action",
+      submission_result_status: next.status === "official_eform_ready" ? "completed" : "needs_user_action",
       submission_result_updated_at: new Date().toISOString(),
     })
     .eq("id", id);

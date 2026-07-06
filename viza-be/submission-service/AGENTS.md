@@ -183,6 +183,10 @@ filling and one-shot submission for the applicant.
   and passport scan files from `application-documents` for official portal
   upload. Live automation must be explicitly env-gated and must not mark
   success until the official portal-generated PDF is captured in storage.
+- `scripts/start-korea-eform-local.ts` / `npm run korea-eform:local`: local-only
+  health-server entrypoint for the Korea official e-Form endpoint on port 8081.
+  It enables the gated local e-Form runner for browser-click smoke tests and
+  still requires the official portal PDF to be downloaded before success.
 - `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
   `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
   e-Form completion behind the gated `src/korea-eform/**` automation.
