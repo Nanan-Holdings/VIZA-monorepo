@@ -30,6 +30,7 @@ export interface KoreaOfficialEformInput {
   answers: Record<string, string | null | undefined>;
   officialPdfStoragePath?: string | null;
   finalReviewApproved?: boolean;
+  pdfLanguage?: "zh-CN" | "en" | "ko" | null;
 }
 
 export type KoreaOfficialEformResult =
@@ -202,7 +203,10 @@ export async function runKoreaOfficialEformLiveFill(
     };
   }
 
-  const fillResult = await fillKoreaOfficialEformFirstPage(page, payload, options);
+  const fillResult = await fillKoreaOfficialEformFirstPage(page, payload, {
+    ...options,
+    pdfLanguage: options.pdfLanguage ?? input.pdfLanguage ?? "zh-CN",
+  });
   const canContinueToSecondPage =
     process.env.KR_VISA_PORTAL_EFORM_SECOND_PAGE_ENABLED === "true" &&
     fillResult.missingUploads.length === 0;
