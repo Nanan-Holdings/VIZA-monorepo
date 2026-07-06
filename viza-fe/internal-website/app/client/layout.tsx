@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import { SimplifiedFormProvider } from "@/lib/context/simplified-form-context";
+import { isIgnorableClientSessionCheckError } from "./session-check-errors";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
 // Browsers can copy sessionStorage into target=_blank tabs, so every stored
@@ -252,7 +253,9 @@ function ClientLayoutContent({
         setSessionValid(true);
       }
     } catch (error) {
-      console.error("Error checking session:", error);
+      if (!isIgnorableClientSessionCheckError(error)) {
+        console.error("Error checking session:", error);
+      }
       // On transient errors (network, server), let the user through rather than
       // permanently locking the tab. If the session is truly invalid, the next
       // server action or API call will redirect to login.
