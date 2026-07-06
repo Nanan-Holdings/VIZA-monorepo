@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
 import { fillVietnamPreviousVisitRows } from "../conditional-fields.js";
 import { pickRadio, tickCheckbox } from "../fillers.js";
+import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
   const browser = await chromium.launch({ headless: true });
@@ -170,12 +171,12 @@ test("vn.conditional-fields browser: Yes dispatches input/change so Vue reveals 
 test("vn.conditional-fields browser: every mapped Ant yes/no control selects the exact requested value", async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
-  const radioDomIds = [
-    "basic_ttcnCoQtKhac",
-    "basic_ttcnViPhamPl",
-    "basic_ttcdDaDenVn",
-    "basic_ttcdCoThanNhan",
-  ];
+  const radioDomIds = Object.values(VN_FIELD_MAPPINGS)
+    .filter((mapping) => mapping.type === "radio" && mapping.optionLabels?.yes === "Yes" && mapping.optionLabels?.no === "No")
+    .map((mapping) => mapping.domId);
+  const checkboxDomIds = Object.values(VN_FIELD_MAPPINGS)
+    .filter((mapping) => mapping.type === "checkbox")
+    .map((mapping) => mapping.domId);
   try {
     await page.setContent(`
       <!doctype html>
@@ -199,10 +200,16 @@ test("vn.conditional-fields browser: every mapped Ant yes/no control selects the
               `,
             )
             .join("")}
-          <label class="ant-checkbox-wrapper">
-            <span class="ant-checkbox"><input id="basic_ttcdCqTcCamDoan" type="checkbox" /></span>
-            <span>I agree</span>
-          </label>
+          ${checkboxDomIds
+            .map(
+              (domId) => `
+                <label class="ant-checkbox-wrapper">
+                  <span class="ant-checkbox"><input id="${domId}" type="checkbox" /></span>
+                  <span>I agree</span>
+                </label>
+              `,
+            )
+            .join("")}
           <script>
             document.querySelectorAll(".ant-radio-wrapper").forEach((label) => {
               label.addEventListener("change", () => {
@@ -225,10 +232,12 @@ test("vn.conditional-fields browser: every mapped Ant yes/no control selects the
       assert.equal(await page.locator(`input[name="${domId}"][value="no"]`).isChecked(), false, domId);
     }
 
-    await tickCheckbox(page, "basic_ttcdCqTcCamDoan", "yes");
-    assert.equal(await page.locator("#basic_ttcdCqTcCamDoan").isChecked(), true);
-    await tickCheckbox(page, "basic_ttcdCqTcCamDoan", "no");
-    assert.equal(await page.locator("#basic_ttcdCqTcCamDoan").isChecked(), false);
+    for (const domId of checkboxDomIds) {
+      await tickCheckbox(page, domId, "yes");
+      assert.equal(await page.locator(`#${domId}`).isChecked(), true, domId);
+      await tickCheckbox(page, domId, "no");
+      assert.equal(await page.locator(`#${domId}`).isChecked(), false, domId);
+    }
   } finally {
     await browser.close();
   }

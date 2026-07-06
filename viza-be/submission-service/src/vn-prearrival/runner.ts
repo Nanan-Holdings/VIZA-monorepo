@@ -136,7 +136,6 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(1_000);
 }
-
 export async function runVietnamPrearrivalPortalSubmission(
   payload: VnPrearrivalPortalPayload,
   options: {
