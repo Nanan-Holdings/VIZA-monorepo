@@ -116,7 +116,50 @@ test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("germany", "EU_SCHENGEN_C_SHORT_STAY")?.countryCode, "SCHENGEN");
   assert.equal(getCountrySubmissionProvider("indonesia", "ID_C1_TOURIST")?.countryCode, "ID");
   assert.equal(getCountrySubmissionProvider("indonesia", "ID_B1_EVOA")?.countryCode, "ID");
+  assert.equal(getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION")?.countryCode, "VN");
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
+});
+
+test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", async () => {
+  const application = baseApplication({
+    countryCode: "vietnam",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    answers: {
+      official_free_acknowledgement: "true",
+      prearrival_window_acknowledgement: "true",
+      health_declaration_status: "inactive_no_routine_health_declaration",
+      full_name: "ALEX TAN",
+      date_of_birth: "1999-01-15",
+      sex: "male",
+      nationality: "Singapore",
+      email_address: "test.viza.user@example.com",
+      phone_country_code: "+65",
+      phone_number: "91234567",
+      passport_number: "TEST123456",
+      passport_issue_date: "2023-01-01",
+      passport_expiry_date: "2033-01-01",
+      entry_permission_type: "e_visa",
+      arrival_date: "2026-10-01",
+      transport_mode: "air",
+      flight_or_transport_number: "VN650",
+      entry_port: "tan_son_nhat_int_airport",
+      country_boarded: "Singapore",
+      purpose_of_entry: "tourism",
+      address_in_vietnam: "1 Nguyen Hue Street, Ho Chi Minh City",
+      province_city: "HO CHI MINH CITY",
+      is_group_submission: "false",
+      final_declaration: "true",
+    },
+  });
+  const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
+  assert.ok(provider);
+  assert.equal(provider.validate(application).ok, true);
+  const result = await runDryRunSubmission(application, {
+    dryRun: true,
+    idempotencyKey: "registry-vn-prearrival",
+  });
+  assert.equal(result.status, "submitted_mock");
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VNPREARRIVAL-/);
 });
 
 test("registry: valid base profile dry-runs with a mock confirmation", async () => {
