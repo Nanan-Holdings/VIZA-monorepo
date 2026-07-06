@@ -51,6 +51,10 @@ function matchesDestinationSearch(destination: PopularVisaDestination, normalize
   return searchableText.includes(normalizedSearch);
 }
 
+function isSchemaChoiceCountry(country: string): boolean {
+  return country === "indonesia" || country === "vietnam";
+}
+
 export function PopularDestinationsSection({
   selectedPackages,
   applicationProgress,
@@ -69,7 +73,7 @@ export function PopularDestinationsSection({
   const searchResults = normalizedSearch
     ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
         matchesDestinationSearch(destination, normalizedSearch) &&
-        (destination.country !== "indonesia" || destination.kind === "group")
+        (!isSchemaChoiceCountry(destination.country) || destination.kind === "group")
       )
     : [];
 
@@ -119,19 +123,19 @@ export function PopularDestinationsSection({
         : selected
           ? t("open")
           : t("start");
-    const isIndonesiaVisaGroup = isGroup && destination.country === "indonesia";
+    const isSchemaChoiceGroup = isGroup && isSchemaChoiceCountry(destination.country);
     const progressLabel = progress
       ? progress.label
-      : selected
-        ? t("addedNotStarted")
-        : isGroup
-          ? isIndonesiaVisaGroup
+        : selected
+          ? t("addedNotStarted")
+          : isGroup
+          ? isSchemaChoiceGroup
             ? t("categoryCount", { count: destination.countryCount ?? 0 })
             : t("countriesCount", { count: destination.countryCount ?? 0 })
           : t("readyToStart");
     const progressPill = isGroup
       ? (destination.countryCount ?? 0) > 0
-        ? isIndonesiaVisaGroup
+        ? isSchemaChoiceGroup
           ? t("chooseCategory")
           : t("chooseCountry")
         : t("comingSoon")
