@@ -30,7 +30,7 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
-import { toBilingualSeedRow } from "./bilingual-seed-row";
+import { toBilingualSeedRow, type BilingualSeedRow } from "./bilingual-seed-row";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,7 +58,7 @@ interface FieldDef {
   display_order: number;
   placeholder?: string;
   validation_rules?: Record<string, unknown>;
-  options?: Array<{ value: string; text: string }>;
+  options?: Array<{ value: string; text: string; label_zh?: string; label_en?: string; official_label?: string }>;
   conditional_logic?: Record<string, unknown>;
 }
 
@@ -66,6 +66,238 @@ const YES_NO = [
   { value: "yes", text: "Yes" },
   { value: "no", text: "No" },
 ];
+
+const FIELD_LABEL_ZH: Record<string, string> = {
+  family_name_en: "姓（按护照英文大写）",
+  given_names_en: "名（按护照英文大写）",
+  name_in_chinese_characters: "中文姓名/汉字姓名",
+  sex: "性别",
+  date_of_birth: "出生日期",
+  nationality: "国籍",
+  country_of_birth: "出生国家/地区",
+  national_identity_no: "本国身份证号码",
+  has_used_other_names: "是否曾使用其他姓名出入韩国？",
+  other_family_name: "曾用姓",
+  other_given_name: "曾用名",
+  is_dual_national: "是否拥有多个国籍？",
+  other_nationalities: "其他国籍国家/地区",
+  period_of_stay: "停留期限类别",
+  status_of_stay: "拟申请停留资格",
+  passport_type: "护照类型",
+  passport_type_other: "其他护照类型（请说明）",
+  passport_no: "护照号码",
+  passport_country: "护照签发国家/地区",
+  passport_place_of_issue: "护照签发地点",
+  passport_date_of_issue: "护照签发日期",
+  passport_date_of_expiry: "护照有效期至",
+  has_other_passport: "是否持有其他有效护照？",
+  other_passport_type: "其他护照类型",
+  other_passport_type_other: "其他护照类型说明",
+  other_passport_no: "其他护照号码",
+  other_passport_country: "其他护照签发国家/地区",
+  other_passport_expiry: "其他护照有效期至",
+  home_country_address: "本国住址",
+  current_address_same_as_home: "当前居住地址是否与本国住址相同？",
+  current_residential_address: "当前居住地址（如不同）",
+  cell_phone: "手机号码",
+  telephone: "固定电话",
+  email: "电子邮箱",
+  emergency_full_name: "紧急联系人姓名",
+  emergency_country_of_residence: "紧急联系人居住国家/地区",
+  emergency_telephone: "紧急联系人电话",
+  emergency_relationship: "紧急联系人与申请人的关系",
+  marital_status: "当前婚姻状况",
+  spouse_family_name_en: "配偶姓（英文）",
+  spouse_given_names_en: "配偶名（英文）",
+  spouse_dob: "配偶出生日期",
+  spouse_nationality: "配偶国籍",
+  spouse_address: "配偶居住地址",
+  spouse_contact_no: "配偶联系电话",
+  has_children: "是否有子女？",
+  number_of_children: "子女数量",
+  highest_education: "最高学历",
+  highest_education_other: "其他最高学历（请说明）",
+  school_name: "最近就读学校名称",
+  school_location: "学校所在地（城市/省份/国家）",
+  employment_status: "当前职业/就业状态",
+  employment_status_other: "其他职业/就业状态（请说明）",
+  employer_name: "公司/机构/学校名称",
+  employer_position: "职位/课程",
+  employer_address: "公司/机构/学校地址",
+  employer_telephone: "公司/机构/学校联系电话",
+  purpose_of_visit: "赴韩目的",
+  purpose_of_visit_other: "其他赴韩目的（请说明）",
+  intended_period_of_stay: "拟在韩停留天数",
+  intended_date_of_entry: "拟入境韩国日期",
+  address_in_korea: "在韩停留地址（含酒店）",
+  contact_in_korea: "在韩联系电话",
+  travelled_to_korea_5y: "过去5年内是否访问过韩国？",
+  korea_visit_count: "过去5年访问韩国次数",
+  korea_visit_purpose: "上次/既往赴韩目的",
+  korea_visit_start_date: "既往赴韩停留开始日期",
+  korea_visit_end_date: "既往赴韩停留结束日期",
+  travelled_outside_5y: "过去5年内是否访问过居住国以外的国家/地区（韩国除外）？",
+  foreign_trip_country: "境外旅行国家/地区",
+  foreign_trip_purpose: "境外旅行目的",
+  foreign_trip_start_date: "境外旅行开始日期",
+  foreign_trip_end_date: "境外旅行结束日期",
+  has_family_in_korea: "是否有家属目前在韩国停留？",
+  family_in_korea_full_name: "在韩家属姓名（英文）",
+  family_in_korea_dob: "在韩家属出生日期",
+  family_in_korea_nationality: "在韩家属国籍",
+  family_in_korea_relationship: "与在韩家属的关系",
+  travelling_with_family: "是否与家属一同赴韩？",
+  family_with_full_name: "同行家属姓名（英文）",
+  family_with_dob: "同行家属出生日期",
+  family_with_nationality: "同行家属国籍",
+  family_with_relationship: "与同行家属的关系",
+  has_inviter: "是否有人/机构邀请你赴韩？",
+  inviter_name: "邀请人/机构名称",
+  inviter_dob_or_brn: "邀请人出生日期或机构营业登记号",
+  inviter_relationship: "邀请人与申请人的关系",
+  inviter_address: "邀请人在韩国地址",
+  inviter_phone: "邀请人联系电话",
+  estimated_travel_costs_usd: "预计旅行费用（美元）",
+  payer_name: "费用支付人/机构名称",
+  payer_relationship: "费用支付人与申请人的关系",
+  payer_support_type: "费用支持类型",
+  payer_contact: "费用支付人联系电话",
+  received_form_assistance: "是否有人协助填写本申请表？",
+  assistant_full_name: "协助填写人姓名",
+  assistant_dob: "协助填写人出生日期",
+  assistant_telephone: "协助填写人电话",
+  assistant_relationship: "协助填写人与申请人的关系",
+  application_date: "申请日期",
+  declaration_consent: "本人声明本申请表所填内容真实、正确，并知悉任何虚假陈述可能导致拒签或被拒绝入境韩国。",
+};
+
+const FIELD_PLACEHOLDER_ZH: Record<string, string> = {
+  family_name_en: "请按护照填写英文姓",
+  given_names_en: "请按护照填写英文名",
+  name_in_chinese_characters: "中国大陆申请人请填写中文姓名",
+  national_identity_no: "中国大陆居民请填写18位身份证号",
+  other_nationalities: "例如：中国香港、中国澳门",
+  passport_no: "请按护照填写",
+  cell_phone: "请填写含国家/地区代码的号码",
+  telephone: "请填写含国家/地区代码的号码",
+  emergency_telephone: "请填写含国家/地区代码的号码",
+  emergency_relationship: "例如：父母、配偶、兄弟姐妹",
+  number_of_children: "例如：2",
+  employer_telephone: "请填写含国家/地区代码的号码",
+  purpose_of_visit: "C-3-9 通常选择旅游/过境或探亲访友",
+  intended_period_of_stay: "C-3-9 最多90天",
+  contact_in_korea: "请填写含韩国国家代码 +82 的号码",
+  korea_visit_count: "例如：3",
+  has_family_in_korea: "配偶、子女、父母、兄弟姐妹",
+  family_in_korea_relationship: "例如：配偶、父母、兄弟姐妹、子女",
+  family_with_relationship: "例如：配偶、父母、兄弟姐妹、子女",
+  has_inviter: "韩国公民、在韩外国人、公司或机构",
+  inviter_dob_or_brn: "YYYY/MM/DD 或10位营业登记号",
+  inviter_relationship: "例如：朋友、商务伙伴、亲属",
+  inviter_phone: "请填写含韩国国家代码 +82 的号码",
+  estimated_travel_costs_usd: "例如：3000",
+  payer_relationship: "例如：本人、雇主、父母",
+  payer_support_type: "例如：现金、住宿、全部费用",
+  payer_contact: "请填写含国家/地区代码的号码",
+  assistant_telephone: "请填写含国家/地区代码的号码",
+  assistant_relationship: "例如：代理、家人、朋友",
+};
+
+const GLOBAL_OPTION_LABEL_ZH: Record<string, string> = {
+  yes: "是",
+  no: "否",
+  other: "其他",
+};
+
+const OPTION_LABEL_ZH_BY_FIELD: Record<string, Record<string, string>> = {
+  sex: {
+    male: "男",
+    female: "女",
+  },
+  passport_type: {
+    diplomatic: "外交护照",
+    official: "公务护照",
+    regular: "普通护照",
+    other: "其他",
+  },
+  other_passport_type: {
+    diplomatic: "外交护照",
+    official: "公务护照",
+    regular: "普通护照",
+    other: "其他",
+  },
+  period_of_stay: {
+    short_term: "短期（90天以内）",
+    long_term: "长期（90天以上）",
+  },
+  status_of_stay: {
+    "C-3-9": "C-3-9（短期一般访问）",
+  },
+  marital_status: {
+    married: "已婚",
+    divorced: "离婚",
+    single: "未婚",
+  },
+  highest_education: {
+    masters_or_doctoral: "硕士/博士",
+    bachelors: "本科",
+    high_school: "高中",
+    other: "其他",
+  },
+  employment_status: {
+    entrepreneur: "企业家/经营者",
+    self_employed: "自雇",
+    employed: "公司职员",
+    civil_servant: "公务员",
+    student: "学生",
+    retired: "退休",
+    unemployed: "无业",
+    other: "其他",
+  },
+  purpose_of_visit: {
+    tourism_transit: "旅游/过境",
+    meeting_conference: "会议/会展",
+    medical_tourism: "医疗旅游",
+    business_trip: "短期商务",
+    study_training: "学习/培训",
+    work: "就业活动",
+    trade_investment_ict: "贸易/投资/公司内部派驻",
+    visiting_family_relatives_friends: "探亲访友",
+    marriage_migrant: "结婚移民",
+    diplomatic_official: "外交/公务",
+    other: "其他",
+  },
+  declaration_consent: {
+    yes: "我同意",
+  },
+};
+
+function localizeKoreaOption(
+  fieldName: string,
+  option: NonNullable<BilingualSeedRow["options"]>[number],
+): NonNullable<BilingualSeedRow["options"]>[number] {
+  const value = typeof option === "string" ? option : option.value;
+  const labelZh = OPTION_LABEL_ZH_BY_FIELD[fieldName]?.[value] ?? GLOBAL_OPTION_LABEL_ZH[value.toLowerCase()];
+  if (!labelZh) return option;
+  if (typeof option === "string") {
+    return { value, text: option, label_en: option, official_label: option, label_zh: labelZh };
+  }
+  return { ...option, label_zh: labelZh };
+}
+
+function localizeKoreaRow(row: BilingualSeedRow): BilingualSeedRow {
+  const labelZh = FIELD_LABEL_ZH[row.field_name];
+  const placeholderZh = FIELD_PLACEHOLDER_ZH[row.field_name];
+  return {
+    ...row,
+    validation_rules: {
+      ...(row.validation_rules ?? {}),
+      ...(labelZh ? { label_zh: labelZh } : {}),
+      ...(placeholderZh ? { placeholder_zh: placeholderZh } : {}),
+    },
+    options: row.options?.map((option) => localizeKoreaOption(row.field_name, option)) ?? row.options,
+  };
+}
 
 // ── Reusable gate constants ────────────────────────────────────────────────
 const HAS_USED_OTHER_NAMES = "has_used_other_names === yes";
@@ -315,7 +547,7 @@ async function seed() {
     console.log(`Cleared existing ${VISA_TYPE} fields`);
   }
 
-  const rows = FIELDS.map((f) => toBilingualSeedRow(VISA_TYPE, f));
+  const rows = FIELDS.map((f) => localizeKoreaRow(toBilingualSeedRow(VISA_TYPE, f)));
 
   const BATCH = 20;
   let total = 0;

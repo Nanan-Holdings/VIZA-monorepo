@@ -603,6 +603,58 @@ const PARITY_PATCH_BY_FIELD_NAME = new Map(
   [...OFFICIAL_PARITY_FIELDS, ...LEGACY_PARITY_PATCHES].map((patch) => [patch.fieldName, patch]),
 );
 
+const OFFICIAL_RELATIVE_FIELD_NAMES = [
+  "has_relatives_in_vietnam",
+  "relative_full_name_in_vn",
+  "relative_date_of_birth",
+  "relative_nationality",
+  "relative_relationship",
+  "relative_address_in_vn",
+] as const;
+
+function canonicalVietnamRelativeField(fieldName: string, existing?: VisaFormFieldRow): VisaFormFieldRow {
+  const patch = OFFICIAL_PARITY_FIELDS.find((item) => item.fieldName === fieldName);
+  if (!patch) {
+    if (existing) return existing;
+    throw new Error(`Missing Vietnam relatives parity patch for ${fieldName}`);
+  }
+  return existing ? applyFieldPatch(existing, patch) : createField(patch);
+}
+
+function normalizeVietnamRelativesGroup(stepMap: Map<number, WizardStep>): void {
+  const existingByName = new Map<string, VisaFormFieldRow>();
+
+  for (const step of stepMap.values()) {
+    const keptFields: VisaFormFieldRow[] = [];
+    for (const field of step.fields) {
+      if (OFFICIAL_RELATIVE_FIELD_NAMES.includes(field.fieldName as typeof OFFICIAL_RELATIVE_FIELD_NAMES[number])) {
+        existingByName.set(field.fieldName, field);
+        continue;
+      }
+      keptFields.push(field);
+    }
+    step.fields = keptFields;
+  }
+
+  const trigger = canonicalVietnamRelativeField(
+    "has_relatives_in_vietnam",
+    existingByName.get("has_relatives_in_vietnam"),
+  );
+  const targetStepNumber = trigger.stepNumber || 6;
+  const targetStep = stepMap.get(targetStepNumber) ?? {
+    stepNumber: targetStepNumber,
+    stepName: trigger.stepName ?? "Trip Information",
+    fields: [],
+  };
+
+  targetStep.fields.push(
+    ...OFFICIAL_RELATIVE_FIELD_NAMES.map((fieldName) =>
+      canonicalVietnamRelativeField(fieldName, existingByName.get(fieldName)),
+    ),
+  );
+  stepMap.set(targetStepNumber, targetStep);
+}
+
 export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): WizardStep[] {
   const stepMap = new Map<number, WizardStep>();
   const fieldNames = new Set<string>();
@@ -713,6 +765,8 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
       });
     }
   }
+
+  normalizeVietnamRelativesGroup(stepMap);
 
   return Array.from(stepMap.values())
     .map((step) => ({
