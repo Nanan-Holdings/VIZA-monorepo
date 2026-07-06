@@ -46,3 +46,6 @@ smoke-test helpers for the VIZA monorepo.
   and unsafe `NEXT_PUBLIC_` names without printing values.
 - `doctor-env.ts`: cross-platform env doctor used by package scripts and the
   internal website wrapper.
+- `__tests__/start-all-vn-autopay.test.mjs`: static regression coverage for
+  the global `dev:all:with-db` startup chain, especially the Vietnam
+  one-time card-session submission-service handoff and matching frontend env.

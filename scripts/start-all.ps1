@@ -694,6 +694,14 @@ if ($submissionAlreadyRunning -and !(Test-HttpProbe -Uri $submissionCardSessionU
   $submissionAlreadyRunning = $false
 }
 
+$frontendNeedsRestartForSubmissionServiceEnv = $frontendAlreadyRunning
+if ($frontendNeedsRestartForSubmissionServiceEnv) {
+  Write-Warn "frontend is already running; restarting it so SUBMISSION_SERVICE_LOCAL_URL and Vietnam live-submission env match this start-all run."
+  Stop-ProcessesByPath -Path $frontendDir
+  Start-Sleep -Seconds 2
+  $frontendAlreadyRunning = $false
+}
+
 if ($Reset) {
   $agentAlreadyRunning = $false
   $marketingAlreadyRunning = $false
