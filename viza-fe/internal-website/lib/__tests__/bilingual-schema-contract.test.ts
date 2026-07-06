@@ -187,4 +187,47 @@ describe("bilingual schema contract", () => {
       expect(isEnglishOnlyText(labelZh)).toBe(false);
     }
   });
+
+  it("keeps Korea C-3-9 curated Chinese labels and options specific", () => {
+    const samples = [
+      field({
+        visaType: "KR_C39_SHORT_TERM_VISIT",
+        fieldName: "is_dual_national",
+        label: "Are you a citizen of more than one country?",
+        fieldType: "radio",
+        validationRules: { label_zh: "是否拥有多个国籍？" },
+        options: [{ value: "yes", text: "Yes", label_zh: "是" }, { value: "no", text: "No", label_zh: "否" }],
+      }),
+      field({
+        visaType: "KR_C39_SHORT_TERM_VISIT",
+        fieldName: "emergency_telephone",
+        label: "Emergency contact — telephone",
+        validationRules: { label_zh: "紧急联系人电话", placeholder_zh: "请填写含国家/地区代码的号码" },
+      }),
+      field({
+        visaType: "KR_C39_SHORT_TERM_VISIT",
+        fieldName: "number_of_children",
+        label: "Number of children",
+        validationRules: { label_zh: "子女数量" },
+      }),
+      field({
+        visaType: "KR_C39_SHORT_TERM_VISIT",
+        fieldName: "marital_status",
+        label: "Current marital status",
+        fieldType: "radio",
+        validationRules: { label_zh: "当前婚姻状况" },
+        options: [
+          { value: "married", text: "Married", label_zh: "已婚" },
+          { value: "divorced", text: "Divorced", label_zh: "离婚" },
+          { value: "single", text: "Single", label_zh: "未婚" },
+        ],
+      }),
+    ].map(normalizeBilingualFormField);
+
+    expect(resolveLocalizedFieldLabel(samples[0], "zh")).toBe("是否拥有多个国籍？");
+    expect(resolveLocalizedFieldLabel(samples[1], "zh")).toBe("紧急联系人电话");
+    expect(resolveLocalizedFieldLabel(samples[2], "zh")).toBe("子女数量");
+    expect(resolveOptionDisplayLabel(samples[3].options, "single", "zh")).toBe("未婚");
+    expect(resolveOptionDisplayLabel(samples[3].options, "single", "zh")).not.toBe("单次");
+  });
 });
