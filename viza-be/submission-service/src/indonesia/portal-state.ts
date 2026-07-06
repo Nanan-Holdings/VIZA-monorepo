@@ -18,6 +18,10 @@ export interface IndonesiaPortalSnapshot {
   text?: string | null;
 }
 
+export function shouldDirectNavigateIndonesiaStepOne(value: string | null | undefined): boolean {
+  return value?.trim().toLowerCase() === "true";
+}
+
 function normalizeText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 }

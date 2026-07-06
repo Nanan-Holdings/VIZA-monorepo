@@ -147,6 +147,24 @@ describe("queueStatusForVisaType", () => {
     );
   });
 
+  it("routes Vietnam Pre-Arrival declarations separately from Vietnam eVisa", () => {
+    expect(isDigitalArrivalCardApplication("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe(true);
+    expect(queueStatusForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "dry_run")).toBe(
+      "vn_prearrival_dry_run_pending",
+    );
+    expect(queueStatusForApplication("VN", "VN_PREARRIVAL_DECLARATION", "live_assisted")).toBe(
+      "vn_prearrival_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "dry_run")).toBe(
+      "vietnam_prearrival_dry_run",
+    );
+    expect(queueProviderForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "live_assisted")).toBe(
+      "vietnam_prearrival_live",
+    );
+    expect(submitModeForPrimaryApplicationAction("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe("live_assisted");
+    expect(queueProviderForApplication("vietnam", "VN_E_VISA", "live_assisted")).toBe("vietnam_evisa_live");
+  });
+
   it("does not let retry supersede active processing arrival-card jobs", () => {
     expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).toContain("tdac_live_assisted_pending");
     expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).toContain("tdac_live_assisted_failed");

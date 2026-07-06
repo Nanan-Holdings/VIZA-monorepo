@@ -894,17 +894,18 @@ function FinalConfirmationPanel({
   const isTdac = liveAssistedTarget === "tdac";
   const isPhEtravel = liveAssistedTarget === "phetravel";
   const isIndonesia = liveAssistedTarget === "indonesia";
-  const vietnamCardReady =
-    !isVietnam ||
+  const requiresOneTimeOfficialPaymentCard = isVietnam || isIndonesia;
+  const oneTimeOfficialPaymentCardReady =
+    !requiresOneTimeOfficialPaymentCard ||
     (
       cardNumber.replace(/\D/g, "").length >= 12 &&
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
-  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !vietnamCardReady;
+  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !oneTimeOfficialPaymentCardReady;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
-    : isVietnam && !vietnamCardReady
+    : requiresOneTimeOfficialPaymentCard && !oneTimeOfficialPaymentCardReady
       ? (isZh
           ? "请先填写本次官方付款使用的银行卡号、有效期和 CVV。"
           : "Enter the one-time official payment card number, expiry, and CVV before submitting.")
@@ -944,7 +945,7 @@ function FinalConfirmationPanel({
 
   const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
   const submitDisabled = hasLiveAssistedTarget ? liveDisabled : baseDisabled;
-  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = isVietnam
+  const officialPaymentCard: VietnamOneTimePaymentCard | undefined = requiresOneTimeOfficialPaymentCard
     ? {
         pan: cardNumber,
         expiry: cardExpiry,
@@ -1048,7 +1049,7 @@ function FinalConfirmationPanel({
         </div>
       )}
 
-      {isVietnam && (
+      {requiresOneTimeOfficialPaymentCard && (
         <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5">
           <div className="flex items-start gap-3">
             <CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
@@ -1058,8 +1059,8 @@ function FinalConfirmationPanel({
               </h3>
               <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
                 {isZh
-                  ? "越南 e-Visa 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。"
-                  : "Vietnam e-Visa submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
+                  ? `${isIndonesia ? "印度尼西亚 e-Visa" : "越南 e-Visa"} 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。`
+                  : `${isIndonesia ? "Indonesia e-Visa" : "Vietnam e-Visa"} submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to the local submission-service memory session and are not stored.`}
               </p>
             </div>
           </div>
@@ -1108,7 +1109,7 @@ function FinalConfirmationPanel({
               />
             </label>
           </div>
-          {!vietnamCardReady && (
+          {!oneTimeOfficialPaymentCardReady && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {isZh
                 ? "请填写银行卡号、有效期和 CVV 后再提交。"
@@ -1122,8 +1123,8 @@ function FinalConfirmationPanel({
         type="button"
         disabled={submitDisabled}
         onClick={() => {
-          void Promise.resolve(onSubmit(submitMode, vietnamPaymentCard)).finally(() => {
-            if (isVietnam) setCardCvv("");
+          void Promise.resolve(onSubmit(submitMode, officialPaymentCard)).finally(() => {
+            if (requiresOneTimeOfficialPaymentCard) setCardCvv("");
           });
         }}
         className={cn(
@@ -1372,7 +1373,7 @@ async function insertSubmissionQueueJob(
   };
 }
 
-async function insertVietnamSubmissionQueueJobWithCard(
+async function insertOfficialFeeSubmissionQueueJobWithCard(
   applicationId: string,
   card: VietnamOneTimePaymentCard | undefined,
 ): Promise<SubmissionQueueJobResult> {
@@ -1396,12 +1397,13 @@ async function insertVietnamSubmissionQueueJobWithCard(
     error?: unknown;
     queueId?: unknown;
     queueStatus?: unknown;
+    provider?: unknown;
   } | null;
   if (!response.ok) {
     throw new Error(
       typeof payload?.error === "string"
         ? payload.error
-        : `Vietnam official-fee queue creation failed with ${response.status}`,
+        : `Official-fee queue creation failed with ${response.status}`,
     );
   }
 
@@ -1410,7 +1412,7 @@ async function insertVietnamSubmissionQueueJobWithCard(
     scheduledFor: null,
     jobId: typeof payload?.queueId === "string" ? payload.queueId : null,
     queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_live_assisted_pending",
-    provider: "vietnam_evisa_live",
+    provider: typeof payload?.provider === "string" ? payload.provider : "vietnam_evisa_live",
     submissionResultStatus: "waiting",
     submissionResult: null,
   };
@@ -2662,8 +2664,8 @@ export default function ApplicationPage() {
       const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
 
       if (!isJpTourist && !isKrC39) {
-        const queueJob = mode === "live_assisted" && isVietnamEVisa
-          ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
+        const queueJob = mode === "live_assisted" && (isVietnamEVisa || isIndonesiaEVisa)
+          ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
           : await (async () => {
               await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
               // Standard automated-submission countries enqueue a job for the
@@ -2805,8 +2807,8 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      const queueJob = mode === "live_assisted" && isVietnamEVisa
-        ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
+      const queueJob = mode === "live_assisted" && (isVietnamEVisa || isIndonesiaEVisa)
+        ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
         : await (async () => {
             await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
             return insertSubmissionQueueJob(supabase, {
