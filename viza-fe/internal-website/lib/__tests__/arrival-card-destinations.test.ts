@@ -60,6 +60,17 @@ describe("arrival card destination labels", () => {
     expect(isCountryLaunched("ph")).toBe(true);
   });
 
+  test("Vietnam Pre-Arrival declaration has standalone arrival-card labels", () => {
+    expect(getVisaTypeDisplayName("VN_PREARRIVAL_DECLARATION")).toBe(
+      "Vietnam Pre-Arrival Information Declaration",
+    );
+    expect(getVisaTypeDisplayNameZh("VN_PREARRIVAL_DECLARATION")).toBe("越南入境前申报");
+    expect(getVisaPackageTitle("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe(
+      "Vietnam Vietnam Pre-Arrival Information Declaration",
+    );
+    expect(getVisaPackageTitleZh("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe("越南越南入境前申报");
+  });
+
   test("South Korea C-3-9 search card is clickable as paper/KVAC assisted flow", () => {
     const southKorea = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "south_korea");
     expect(southKorea?.visaType).toBe("KR_C39_SHORT_TERM_VISIT");

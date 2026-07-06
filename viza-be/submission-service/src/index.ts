@@ -98,6 +98,7 @@ import {
 } from "./vietnam/status-check";
 import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
 import { consumeVietnamCardSession } from "./vietnam/card-session.js";
+import { consumeIndonesiaCardSession } from "./indonesia/card-session.js";
 import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
@@ -175,6 +176,13 @@ import {
 } from "./ph-etravel/normalize";
 import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
+import {
+  VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
+  VnPrearrivalPortalValidationError,
+  normalizeVnPrearrivalPortalPayload,
+} from "./vn-prearrival/normalize";
+import { evaluateVietnamPrearrivalSubmissionWindow } from "./vn-prearrival/date-window";
+import { VnPrearrivalPortalError, runVietnamPrearrivalPortalSubmission } from "./vn-prearrival/runner";
 import {
   choosePhEtravelAccountPlan,
   loadPhEtravelAccount,
@@ -292,7 +300,8 @@ function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("sgac_dry_run_") ||
     item.status.startsWith("mdac_dry_run_") ||
     item.status.startsWith("tdac_dry_run_") ||
-    item.status.startsWith("phetravel_dry_run_")
+    item.status.startsWith("phetravel_dry_run_") ||
+    item.status.startsWith("vn_prearrival_dry_run_")
   );
 }
 
@@ -303,6 +312,7 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("ds160_proof_") ||
     item.status.startsWith("france_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
+    item.status.startsWith("vn_prearrival_live_assisted_") ||
     item.status.startsWith("sgac_live_assisted_") ||
     item.status.startsWith("mdac_live_assisted_") ||
     item.status.startsWith("tdac_live_assisted_") ||
@@ -313,6 +323,7 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("phetravel_live_assisted_") ||
     item.provider === "france_visas_live" ||
     item.provider === "vietnam_evisa_live" ||
+    item.provider === "vietnam_prearrival_live" ||
     item.provider === "sg_arrival_card_live" ||
     item.provider === "malaysia_mdac_live" ||
     item.provider === "thailand_tdac_live" ||
@@ -424,10 +435,13 @@ function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "id_b1_evoa_live_assisted_pending") return 0;
   if (item.status === "phetravel_live_assisted_scheduled") return 0;
   if (item.status === "phetravel_live_assisted_pending") return 0;
+  if (item.status === "vn_prearrival_live_assisted_scheduled") return 0;
+  if (item.status === "vn_prearrival_live_assisted_pending") return 0;
   if (item.status === "sgac_dry_run_pending") return 1;
   if (item.status === "mdac_dry_run_pending") return 1;
   if (item.status === "tdac_dry_run_pending") return 1;
   if (item.status === "phetravel_dry_run_pending") return 1;
+  if (item.status === "vn_prearrival_dry_run_pending") return 1;
   if (item.status === "vn_live_assisted_pending") return 2;
   if (item.status === "vn_dry_run_pending") return 3;
   return 10;
@@ -486,6 +500,14 @@ function isPhEtravelJob(item: SubmissionQueueItem): boolean {
     item.status === "phetravel_live_assisted_pending" ||
     item.status === "phetravel_live_assisted_scheduled" ||
     item.provider === "philippines_etravel_live"
+  );
+}
+
+function isVietnamPrearrivalJob(item: SubmissionQueueItem): boolean {
+  return (
+    item.status === "vn_prearrival_live_assisted_pending" ||
+    item.status === "vn_prearrival_live_assisted_scheduled" ||
+    item.provider === "vietnam_prearrival_live"
   );
 }
 
@@ -741,6 +763,7 @@ const VIETNAM_EVISA_TYPES = new Set([
   "TOURIST_E_VISA",
   "TOURIST_EVISA",
 ]);
+const VIETNAM_PREARRIVAL_TYPES = new Set(["VN_PREARRIVAL_DECLARATION"]);
 
 const SINGAPORE_COUNTRY_ALIASES = new Set(["SG", "SINGAPORE"]);
 const SG_ARRIVAL_CARD_TYPES = new Set(["SG_ARRIVAL_CARD"]);
@@ -797,6 +820,14 @@ function isPhilippinesEtravelApplicationMetadata(application: QueueRoutingApplic
   );
 }
 
+function isVietnamPrearrivalApplicationMetadata(application: QueueRoutingApplication | null): boolean {
+  if (!application) return false;
+  return (
+    VIETNAM_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country)) &&
+    VIETNAM_PREARRIVAL_TYPES.has(normalizeQueueRoutingValue(application.visa_type))
+  );
+}
+
 function isSgArrivalCardQueueItem(
   item: SubmissionQueueItem,
   application: QueueRoutingApplication | null = null,
@@ -835,7 +866,7 @@ function isTdacQueueItem(
 
 function isVietnamQueueMetadata(item: SubmissionQueueItem, application: QueueRoutingApplication | null): boolean {
   return (
-    item.status.startsWith("vn_") ||
+    (item.status.startsWith("vn_") && !item.status.startsWith("vn_prearrival_")) ||
     item.provider === "vietnam_evisa_live" ||
     item.provider === "vietnam_evisa_dry_run" ||
     isVietnamApplicationMetadata(application)
@@ -913,6 +944,18 @@ function isPhEtravelQueueItem(
   );
 }
 
+function isVietnamPrearrivalQueueItem(
+  item: SubmissionQueueItem,
+  application: QueueRoutingApplication | null = null,
+): boolean {
+  return (
+    item.status.startsWith("vn_prearrival_") ||
+    item.provider === "vietnam_prearrival_dry_run" ||
+    item.provider === "vietnam_prearrival_live" ||
+    isVietnamPrearrivalApplicationMetadata(application)
+  );
+}
+
 async function normalizeSgacQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
   const application = await loadQueueRoutingApplication(item.application_id);
   if (!isSgArrivalCardQueueItem(item, application)) return item;
@@ -964,10 +1007,12 @@ async function normalizeDigitalArrivalCardQueueItem(item: SubmissionQueueItem): 
   const isMdac = isMdacQueueItem(item, application);
   const isTdac = isTdacQueueItem(item, application);
   const isPhEtravel = isPhEtravelQueueItem(item, application);
-  if (!isMdac && !isTdac && !isPhEtravel) return item;
+  const isVnPrearrival = isVietnamPrearrivalQueueItem(item, application);
+  if (!isMdac && !isTdac && !isPhEtravel && !isVnPrearrival) return item;
   if (isMdac && item.status === "mdac_live_assisted_scheduled") return item;
   if (isTdac && item.status === "tdac_live_assisted_scheduled") return item;
   if (isPhEtravel && item.status === "phetravel_live_assisted_scheduled") return item;
+  if (isVnPrearrival && item.status === "vn_prearrival_live_assisted_scheduled") return item;
 
   const liveRequested = isLiveAssistedQueueItem(item);
   const expectedStatus: SubmissionQueueItem["status"] = isMdac
@@ -978,9 +1023,13 @@ async function normalizeDigitalArrivalCardQueueItem(item: SubmissionQueueItem): 
       ? liveRequested
         ? "tdac_live_assisted_pending"
         : "tdac_dry_run_pending"
-      : liveRequested
-        ? "phetravel_live_assisted_pending"
-        : "phetravel_dry_run_pending";
+      : isPhEtravel
+        ? liveRequested
+          ? "phetravel_live_assisted_pending"
+          : "phetravel_dry_run_pending"
+        : liveRequested
+          ? "vn_prearrival_live_assisted_pending"
+          : "vn_prearrival_dry_run_pending";
   const expectedProvider = isMdac
     ? liveRequested
       ? "malaysia_mdac_live"
@@ -989,9 +1038,13 @@ async function normalizeDigitalArrivalCardQueueItem(item: SubmissionQueueItem): 
       ? liveRequested
         ? "thailand_tdac_live"
         : "thailand_tdac_dry_run"
-      : liveRequested
-        ? "philippines_etravel_live"
-        : "philippines_etravel_dry_run";
+      : isPhEtravel
+        ? liveRequested
+          ? "philippines_etravel_live"
+          : "philippines_etravel_dry_run"
+        : liveRequested
+          ? "vietnam_prearrival_live"
+          : "vietnam_prearrival_dry_run";
   const expectedMode = liveRequested ? "live_assisted" : "dry_run";
 
   if (item.status === expectedStatus && item.provider === expectedProvider && item.mode === expectedMode) {
@@ -1444,6 +1497,9 @@ function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): Subm
   if (status.startsWith("uk_")) return "uk_prefill_failed";
   if (status.startsWith("vn_live_assisted_")) return "vn_live_assisted_failed";
   if (status.startsWith("vn_dry_run_")) return "vn_dry_run_failed";
+  if (status.startsWith("vn_prearrival_live_assisted_")) return "vn_prearrival_live_assisted_failed";
+  if (status.startsWith("vn_prearrival_dry_run_")) return "vn_prearrival_dry_run_failed";
+  if (status.startsWith("vn_prearrival_")) return "vn_prearrival_blocked";
   if (status.startsWith("vn_")) return "vn_prefill_failed";
   if (status.startsWith("sgac_live_assisted_")) return "sgac_live_assisted_failed";
   if (status.startsWith("sgac_dry_run_")) return "sgac_dry_run_failed";
@@ -5191,6 +5247,36 @@ function buildScheduledPhEtravelResult(input: {
   };
 }
 
+function buildScheduledVietnamPrearrivalResult(input: {
+  applicationId: string;
+  arrivalDate: string | null | undefined;
+  earliestSubmissionDate: string;
+}): DigitalArrivalCardSubmissionResult & { scheduledFor: string } {
+  return {
+    country: "VN",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    status: "scheduled",
+    mode: "live_assisted",
+    provider: "vietnam_prearrival_live",
+    applicationId: input.applicationId,
+    submitted: false,
+    confirmationNumber: null,
+    referenceNumber: null,
+    portalUrl: VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
+    portalResponseSummary:
+      `Vietnam Pre-Arrival Information Declaration is scheduled for the 72-hour pre-arrival window on ${input.earliestSubmissionDate}.`,
+    scheduledFor: input.earliestSubmissionDate,
+    artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
+    payloadSummary: {
+      arrivalDate: input.arrivalDate ?? null,
+      departureDate: null,
+      modeOfTravel: null,
+      transportNumber: null,
+      accommodationAddressProvided: false,
+    },
+  };
+}
+
 async function enqueueSgacLiveAfterDryRun(
   item: SubmissionQueueItem,
   answers: Record<string, string>,
@@ -5325,6 +5411,58 @@ async function enqueueDigitalArrivalCardLiveAfterDryRun(
               departureDate: departureDateAnswer,
               earliestSubmissionDate: window.earliestSubmissionDate,
             }),
+      "scheduled",
+    );
+  } else {
+    await setSubmissionStatus(item.application_id, "waiting");
+  }
+  const row = data as { id?: string | null } | null;
+  return row?.id ?? null;
+}
+
+async function enqueueVietnamPrearrivalLiveAfterDryRun(
+  item: SubmissionQueueItem,
+  answers: Record<string, string>,
+): Promise<string | null> {
+  const now = new Date().toISOString();
+  const arrivalDateAnswer = answers.arrival_date ?? answers.intended_arrival_date;
+  const window = evaluateVietnamPrearrivalSubmissionWindow(arrivalDateAnswer);
+  if (window.status === "past") {
+    throw new Error("Vietnam Pre-Arrival declaration arrival date is already in the past. Please update the travel dates before submitting.");
+  }
+  if (window.status === "invalid") {
+    throw new Error("Vietnam Pre-Arrival declaration arrival date must use YYYY-MM-DD.");
+  }
+  const scheduled = window.status === "scheduled";
+  const { data, error } = await supabase
+    .from("submission_queue")
+    .insert({
+      application_id: item.application_id,
+      status: scheduled ? "vn_prearrival_live_assisted_scheduled" : "vn_prearrival_live_assisted_pending",
+      mode: "live_assisted",
+      provider: "vietnam_prearrival_live",
+      attempts: 0,
+      last_error: null,
+      current_stage: scheduled ? "scheduled_for_vn_prearrival_window" : "queued_after_dry_run",
+      heartbeat_at: scheduled ? null : now,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    throw new Error(`Vietnam Pre-Arrival dry-run passed but live submission could not be queued: ${error.message}`);
+  }
+
+  if (scheduled) {
+    await writeSubmissionResult(
+      item.application_id,
+      buildScheduledVietnamPrearrivalResult({
+        applicationId: item.application_id,
+        arrivalDate: arrivalDateAnswer,
+        earliestSubmissionDate: window.earliestSubmissionDate,
+      }),
       "scheduled",
     );
   } else {
@@ -5586,6 +5724,70 @@ async function promotePhEtravelScheduledIfDue(item: SubmissionQueueItem): Promis
     ...item,
     status: "phetravel_live_assisted_pending",
     current_stage: "phetravel_window_open",
+    heartbeat_at: now,
+    updated_at: now,
+  };
+}
+
+async function promoteVietnamPrearrivalScheduledIfDue(item: SubmissionQueueItem): Promise<SubmissionQueueItem | null> {
+  if (item.status !== "vn_prearrival_live_assisted_scheduled") return item;
+  const answers = await loadDs160Answers(item.application_id);
+  const arrivalDateAnswer = answers.arrival_date ?? answers.intended_arrival_date;
+  const window = evaluateVietnamPrearrivalSubmissionWindow(arrivalDateAnswer);
+  if (window.status === "scheduled") {
+    await supabase
+      .from("submission_queue")
+      .update({
+        current_stage: "scheduled_for_vn_prearrival_window",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await writeSubmissionResult(
+      item.application_id,
+      buildScheduledVietnamPrearrivalResult({
+        applicationId: item.application_id,
+        arrivalDate: arrivalDateAnswer,
+        earliestSubmissionDate: window.earliestSubmissionDate,
+      }),
+      "scheduled",
+    );
+    return null;
+  }
+
+  if (window.status === "past" || window.status === "invalid") {
+    const message = window.status === "past"
+      ? "Vietnam Pre-Arrival scheduled submission missed the official 72-hour window because the arrival date is in the past."
+      : "Vietnam Pre-Arrival scheduled submission cannot run because the arrival date is invalid.";
+    await supabase
+      .from("submission_queue")
+      .update({
+        status: "vn_prearrival_live_assisted_failed",
+        last_error: message,
+        error_code: `vn_prearrival_arrival_date_${window.status}`,
+        error_message: message,
+        current_stage: "validation_failed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+    await markSubmissionFailed(item.application_id, message);
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "vn_prearrival_live_assisted_pending",
+      current_stage: "vn_prearrival_window_open",
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  await setSubmissionStatus(item.application_id, "waiting");
+  return {
+    ...item,
+    status: "vn_prearrival_live_assisted_pending",
+    current_stage: "vn_prearrival_window_open",
     heartbeat_at: now,
     updated_at: now,
   };
@@ -5880,6 +6082,7 @@ function arrivalCardPayloadSummary(payload: SubmissionPayload): DigitalArrivalCa
     payload.countrySpecific.address_in_malaysia ??
     payload.countrySpecific.address_in_thailand ??
     payload.countrySpecific.philippines_address ??
+    payload.countrySpecific.address_in_vietnam ??
     payload.trip.accommodationAddress ??
     "";
   return {
@@ -5889,6 +6092,7 @@ function arrivalCardPayloadSummary(payload: SubmissionPayload): DigitalArrivalCa
     transportNumber:
       payload.countrySpecific.transport_number ??
       payload.countrySpecific.flight_number ??
+      payload.countrySpecific.flight_or_transport_number ??
       payload.countrySpecific.vehicle_or_vessel_number ??
       null,
     accommodationAddressProvided: Boolean(accommodationAddress.trim()),
@@ -5898,7 +6102,7 @@ function arrivalCardPayloadSummary(payload: SubmissionPayload): DigitalArrivalCa
 async function uploadArrivalCardArtifacts(input: {
   authUserId: string | null;
   applicationId: string;
-  country: "MY" | "TH" | "PH";
+  country: "MY" | "TH" | "PH" | "VN";
   kind: string;
   ext: "png" | "pdf";
   contentType: string;
@@ -6355,12 +6559,17 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       });
     }
     const userPaymentHandoffEnabled = readBooleanEnv("INDONESIA_USER_PAYMENT_HANDOFF_ENABLED", true);
+    const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
+      item.application_id,
+      readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false),
+    );
     const portalProbeHeadless = userPaymentHandoffEnabled
       ? false
       : readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true);
     const userPaymentHandoff = {
       enabled: userPaymentHandoffEnabled,
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
+      oneTimeCard: oneTimeIndonesiaCard,
       onWaitingForUser: async (snapshot: {
         url: string;
         title: string | null;
@@ -6959,6 +7168,21 @@ async function consumeVietnamCardSessionWithGrace(
   while (!card && Date.now() < deadline) {
     await sleepMs(500);
     card = consumeVietnamCardSession(applicationId);
+  }
+  return card;
+}
+
+async function consumeIndonesiaCardSessionWithGrace(
+  applicationId: string,
+  enabled: boolean,
+  waitMs = 15_000,
+): Promise<ReturnType<typeof consumeIndonesiaCardSession>> {
+  if (!enabled) return null;
+  const deadline = Date.now() + Math.max(0, waitMs);
+  let card = consumeIndonesiaCardSession(applicationId);
+  while (!card && Date.now() < deadline) {
+    await sleepMs(500);
+    card = consumeIndonesiaCardSession(applicationId);
   }
   return card;
 }

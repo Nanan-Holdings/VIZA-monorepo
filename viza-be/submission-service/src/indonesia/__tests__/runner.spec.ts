@@ -7,6 +7,7 @@ import {
   runIndonesiaLiveSubmission,
 } from "../index";
 import {
+  shouldDirectNavigateIndonesiaStepOne,
   actionForIndonesiaPortalState,
   classifyIndonesiaPortalSnapshot,
 } from "../portal-state";
@@ -133,7 +134,7 @@ test("classifies Indonesia portal login and registration gates", () => {
       title: "Indonesia eVisa",
       text: "Passport Travel Document Application Form",
     }),
-    "payment_required",
+    "application_form_visible",
   );
   assert.equal(
     classifyIndonesiaPortalSnapshot({
@@ -178,4 +179,11 @@ test("maps portal states to actionable automation checkpoints", () => {
     actionForIndonesiaPortalState("payment_required").actionType,
     "official_fee_payment_required",
   );
+});
+
+test("does not bypass Indonesia official step 1 submit by default", () => {
+  assert.equal(shouldDirectNavigateIndonesiaStepOne(undefined), false);
+  assert.equal(shouldDirectNavigateIndonesiaStepOne(""), false);
+  assert.equal(shouldDirectNavigateIndonesiaStepOne("false"), false);
+  assert.equal(shouldDirectNavigateIndonesiaStepOne("true"), true);
 });
