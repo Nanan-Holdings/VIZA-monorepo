@@ -236,9 +236,20 @@ export async function pickRadio(page: Page, domId: string, optionText: string): 
     throw new Error(`Ant radio option not found for ${domId}: ${optionText}`);
   }
   await option.click({ timeout: SHORT_TIMEOUT });
+  const input = option.locator("input[type='radio']").first();
+  if ((await input.count()) > 0) {
+    await input.evaluate((element) => {
+      const checkedDescriptor =
+        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "checked") ||
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "checked");
+      if (checkedDescriptor?.set) checkedDescriptor.set.call(element, true);
+      else element.checked = true;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
   await settle(page);
 
-  const input = option.locator("input[type='radio']").first();
   const confirmed =
     ((await input.count()) > 0 && (await input.isChecked())) ||
     (await option.evaluate((element) =>

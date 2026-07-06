@@ -30,6 +30,7 @@ const CAPTCHA_INPUT_SELECTOR = [
   "input[placeholder*='security code' i]",
   "input[placeholder*='mã xác nhận' i]",
   "input[placeholder*='ma xac nhan' i]",
+  "input[type='text']",
 ].join(", ");
 
 const DEFAULT_VN_CAPTCHA_TIMEOUT_MS = 180_000;
@@ -129,31 +130,23 @@ async function locateVietnamCaptchaImage(
   if ((await direct.count().catch(() => 0)) > 0 && (await direct.isVisible().catch(() => false))) {
     return (await direct.elementHandle()) as ElementHandle<HTMLElement | SVGElement> | null;
   }
-  const handle = await page.evaluateHandle((input) => {
-    const visible = (element: Element | null): element is HTMLElement | SVGElement => {
-      if (!element) return false;
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 10 && rect.height > 10;
-    };
-    const inputRect = input.getBoundingClientRect();
-    const candidates = Array.from(document.querySelectorAll<HTMLElement | SVGElement>("img, canvas, svg"))
-      .filter(visible)
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        const dx = Math.abs(rect.left - inputRect.right);
-        const dy = Math.abs(rect.top + rect.height / 2 - (inputRect.top + inputRect.height / 2));
-        const labelBonus = /captcha|security|code|xác nhận/i.test(
-          `${element.getAttribute("src") ?? ""} ${element.getAttribute("alt") ?? ""} ${element.getAttribute("class") ?? ""}`,
-        )
-          ? -100
-          : 0;
-        return { element, score: dx + dy * 2 + labelBonus };
-      })
-      .sort((left, right) => left.score - right.score);
-    return candidates[0]?.element ?? null;
-  }, inputHandle);
-  return handle.asElement() as ElementHandle<HTMLElement | SVGElement> | null;
+  const inputBox = await inputHandle.boundingBox();
+  if (!inputBox) return null;
+  const handles = await page.locator("img, canvas, svg").elementHandles();
+  let best: { handle: ElementHandle<HTMLElement | SVGElement>; score: number } | null = null;
+  for (const handle of handles as Array<ElementHandle<HTMLElement | SVGElement>>) {
+    const box = await handle.boundingBox().catch(() => null);
+    if (!box || box.width <= 10 || box.height <= 10) continue;
+    const metadata = await handle.evaluate((element) =>
+      `${element.getAttribute("src") ?? ""} ${element.getAttribute("alt") ?? ""} ${element.getAttribute("class") ?? ""}`,
+    ).catch(() => "");
+    const dx = Math.abs(box.x - (inputBox.x + inputBox.width));
+    const dy = Math.abs(box.y + box.height / 2 - (inputBox.y + inputBox.height / 2));
+    const labelBonus = /captcha|security|code|xác nhận/i.test(metadata) ? -100 : 0;
+    const score = dx + dy * 2 + labelBonus;
+    if (!best || score < best.score) best = { handle, score };
+  }
+  return best?.handle ?? null;
 }
 
 async function refreshVietnamCaptcha(page: Page, input: ReturnType<Page["locator"]>): Promise<void> {

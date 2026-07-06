@@ -9,6 +9,7 @@ import type {
   GenericSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
+  VnSubmissionResult,
 } from "@/lib/submission-result";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,13 +88,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isVietnamPaymentCheckpointResult(
   result: SubmissionResult | null,
-): result is Extract<SubmissionResult, { country: "VN" }> {
+): result is VnSubmissionResult {
   if (!result || result.country !== "VN") return false;
+  if (isDigitalArrivalCardResult(result)) return false;
+  const record = result as VnSubmissionResult;
   return (
-    result.status === "stopped_at_pay" ||
-    result.checkpoint === "payment_page_visible" ||
-    result.manualAction?.type === "payment_required" ||
-    Boolean(result.registrationCode)
+    record.status === "stopped_at_pay" ||
+    record.checkpoint === "payment_page_visible" ||
+    record.manualAction?.type === "payment_required" ||
+    Boolean(record.registrationCode)
   );
 }
 
@@ -243,7 +246,8 @@ function isDigitalArrivalCardResult(result: SubmissionResult): result is Digital
   return (
     (result.country === "MY" && "visaType" in result && result.visaType === "MY_MDAC_ARRIVAL_CARD") ||
     (result.country === "TH" && "visaType" in result && result.visaType === "TH_TDAC_ARRIVAL_CARD") ||
-    (result.country === "PH" && "visaType" in result && result.visaType === "PH_ETRAVEL_ARRIVAL_CARD")
+    (result.country === "PH" && "visaType" in result && result.visaType === "PH_ETRAVEL_ARRIVAL_CARD") ||
+    (result.country === "VN" && "visaType" in result && result.visaType === "VN_PREARRIVAL_DECLARATION")
   );
 }
 
@@ -1061,6 +1065,10 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
+  const isIndonesiaSubmission = isIndonesiaEVisaApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
     : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission
@@ -1230,7 +1238,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresVietnamPaymentCard={isVietnamSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
         />
       </div>
     );
@@ -1249,7 +1257,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresVietnamPaymentCard={isVietnamSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
         />
       </div>
     );
@@ -1277,7 +1285,7 @@ export function SubmissionStatusStep({
           }
           retryModes={retryModes}
           onRetry={handleRetry}
-          requiresVietnamPaymentCard={isVietnamSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
         />
       </div>
     );
@@ -1392,6 +1400,9 @@ function renderSubmissionResultCard(
         <UkResultCard applicationId={applicationId} result={result} />
       ) : null;
     case "VN":
+      if (isDigitalArrivalCardResult(result)) {
+        return <DigitalArrivalCardResultCard result={result} />;
+      }
       return <VnResultCard applicationId={applicationId} result={result} jobId={jobId} />;
     case "SG":
       return <SgArrivalCardResultCard result={result} />;

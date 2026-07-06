@@ -16,6 +16,7 @@ interface FailureCardProps {
   retryModes?: Array<{ mode: SubmissionMode; label: string }>;
   onRetry?: (mode: SubmissionMode, vietnamPaymentCard?: VietnamOneTimePaymentCard) => Promise<void> | void;
   showFranceAccount?: boolean;
+  requiresOfficialPaymentCard?: boolean;
   requiresVietnamPaymentCard?: boolean;
 }
 
@@ -125,6 +126,7 @@ export function FailureCard({
   retryModes,
   onRetry,
   showFranceAccount = false,
+  requiresOfficialPaymentCard = false,
   requiresVietnamPaymentCard = false,
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
@@ -143,14 +145,15 @@ export function FailureCard({
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
+  const requiresPaymentCard = requiresOfficialPaymentCard || requiresVietnamPaymentCard;
   const cardReady =
-    !requiresVietnamPaymentCard ||
+    !requiresPaymentCard ||
     (
       cardNumber.replace(/\D/g, "").length >= 12 &&
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
-  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresVietnamPaymentCard
+  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
     ? {
         pan: cardNumber,
         expiry: cardExpiry,
@@ -192,7 +195,7 @@ export function FailureCard({
     setRetryingMode(mode);
     try {
       await onRetry(mode, vietnamPaymentCard);
-      if (requiresVietnamPaymentCard) {
+      if (requiresPaymentCard) {
         setCardCvv("");
       }
     } finally {
@@ -264,7 +267,7 @@ export function FailureCard({
             {errorMessage}
           </pre>
         )}
-        {requiresVietnamPaymentCard && (
+        {requiresPaymentCard && (
           <div className="space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4">
             <div className="flex items-start gap-3">
               <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
@@ -274,8 +277,8 @@ export function FailureCard({
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "重新提交越南 e-Visa 前，请补填本次付款使用的银行卡号、有效期和 CVV。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存。"
-                    : "Before retrying Vietnam e-Visa submission, enter the card number, expiry, and CVV for this payment. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
+                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期和 CVV。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存。"
+                    : "Before retrying, enter the card number, expiry, and CVV for this official payment. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
                 </p>
               </div>
             </div>
@@ -340,6 +343,7 @@ export function FailureCard({
                 onClick={() => {
                   void handleLocalWorkerRetry();
                 }}
+                disabled={!cardReady}
                 loading={localWorkerStarting}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >
