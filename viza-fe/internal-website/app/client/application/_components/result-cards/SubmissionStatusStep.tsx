@@ -50,7 +50,6 @@ interface SubmissionStatusStepProps {
   onResubmit?: (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
-    supplementalAnswers?: Record<string, string>,
   ) => Promise<void> | void;
 }
 
@@ -434,6 +433,10 @@ function GenericResultCard({
   const [manualAction, setManualAction] = useState<ManualAction | null>(null);
   const [manualActionError, setManualActionError] = useState<string | null>(null);
   const [completingManualAction, setCompletingManualAction] = useState(false);
+  const [indonesiaCardNumber, setIndonesiaCardNumber] = useState("");
+  const [indonesiaCardExpiry, setIndonesiaCardExpiry] = useState("");
+  const [indonesiaCardCvv, setIndonesiaCardCvv] = useState("");
+  const [indonesiaCardLast4, setIndonesiaCardLast4] = useState<string | null>(null);
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
   const isDs160Action =
@@ -467,6 +470,13 @@ function GenericResultCard({
     isFranceVisasVisaType(applicationVisaType ?? result.visaType);
   const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
+  const indonesiaPaymentAction =
+    isIndonesiaAction &&
+    (result.actionType === "official_fee_otp_required" || result.actionType === "official_fee_payment_required");
+  const indonesiaCardReady =
+    indonesiaCardNumber.replace(/\D/g, "").length >= 12 &&
+    indonesiaCardExpiry.trim().length >= 4 &&
+    indonesiaCardCvv.replace(/\D/g, "").length >= 3;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = isIndonesiaAction
     ? result.actionType === "official_fee_otp_required"
@@ -571,6 +581,39 @@ function GenericResultCard({
     }
   };
 
+  const restartIndonesiaOfficialPayment = async () => {
+    if (!applicationId || !indonesiaCardReady) return;
+    setStartingLive(true);
+    setLiveError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          card: {
+            pan: indonesiaCardNumber,
+            expiry: indonesiaCardExpiry,
+            cvv: indonesiaCardCvv,
+          },
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : `official-fee/pay returned ${response.status}`);
+      }
+      const cardSession = payload?.cardSession as Record<string, unknown> | undefined;
+      const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
+      setIndonesiaCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
+      setIndonesiaCardNumber("");
+      setIndonesiaCardCvv("");
+      window.setTimeout(() => window.location.reload(), 250);
+    } catch (error) {
+      setLiveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setStartingLive(false);
+    }
+  };
+
   const completeManualAction = async () => {
     if (!jobId || !manualAction || completingManualAction) return;
     setCompletingManualAction(true);
@@ -652,11 +695,63 @@ function GenericResultCard({
                       : "This is the previous dry-run result. You can start the France-Visas live assisted fill from here; if a new account is needed, VIZA will use a dedicated email alias and 2captcha for the registration image CAPTCHA.")}
               </span>
             </div>
+            {indonesiaPaymentAction ? (
+              <div className="mt-3 space-y-3 rounded-md border border-brand-100 bg-white p-3">
+                <div className="text-sm font-semibold text-foreground">
+                  {isZh ? "重新自动付款银行卡" : "Restart automated payment card"}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
+                    <input
+                      value={indonesiaCardNumber}
+                      onChange={(event) => setIndonesiaCardNumber(event.target.value)}
+                      autoComplete="cc-number"
+                      inputMode="numeric"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
+                    <input
+                      value={indonesiaCardExpiry}
+                      onChange={(event) => setIndonesiaCardExpiry(event.target.value)}
+                      autoComplete="cc-exp"
+                      inputMode="numeric"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder="MM/YY"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs text-muted-foreground">CVV</span>
+                    <input
+                      value={indonesiaCardCvv}
+                      onChange={(event) => setIndonesiaCardCvv(event.target.value)}
+                      autoComplete="cc-csc"
+                      inputMode="numeric"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder="CVV"
+                    />
+                  </label>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {isZh
+                    ? "卡号和 CVV 只用于本次官方付款，会发送到本机 submission-service 的短时内存会话；不会保存到数据库、日志或个人资料。"
+                    : "Card number and CVV are used only for this official payment through a short-lived local submission-service session."}
+                </p>
+                {indonesiaCardLast4 ? (
+                  <p className="text-xs text-brand-600">
+                    {isZh ? `已刷新一次性卡会话：尾号 ${indonesiaCardLast4}` : `One-time card session refreshed: ending ${indonesiaCardLast4}`}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <Button
               type="button"
               className="mt-3 w-full"
-              onClick={startLiveAssisted}
-              disabled={startingLive}
+              onClick={indonesiaPaymentAction ? restartIndonesiaOfficialPayment : startLiveAssisted}
+              disabled={startingLive || (indonesiaPaymentAction && !indonesiaCardReady)}
             >
               {startingLive ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -668,7 +763,9 @@ function GenericResultCard({
                 : liveTarget === "ds160"
                   ? (isZh ? "提交" : "Submit")
                   : liveTarget === "indonesia"
-                    ? (isZh ? "继续自动申请" : "Continue automated application")
+                    ? indonesiaPaymentAction
+                      ? (isZh ? "重新自动付款" : "Restart automated payment")
+                      : (isZh ? "继续自动申请" : "Continue automated application")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
             </Button>
           </div>
@@ -956,14 +1053,13 @@ export function SubmissionStatusStep({
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
     vietnamPaymentCard?: VietnamOneTimePaymentCard,
-    supplementalAnswers?: Record<string, string>,
   ) => {
     if (!applicationId) return;
     setRetryError(null);
     setResubmitting(true);
     try {
       if (onResubmit) {
-        await onResubmit(mode, vietnamPaymentCard, supplementalAnswers);
+        await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
         return;
       }
@@ -974,7 +1070,6 @@ export function SubmissionStatusStep({
           mode,
           country: snapshot?.country ?? country,
           visaType: snapshot?.visaType ?? visaType,
-          ...(supplementalAnswers ? { supplementalAnswers } : {}),
         }),
       });
       const body = (await response.json().catch(() => null)) as {
