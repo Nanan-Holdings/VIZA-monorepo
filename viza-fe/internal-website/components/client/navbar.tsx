@@ -4,12 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { MotionConfig, motion } from "motion/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MessageCircle, Plane, Mic, FileCheck } from "lucide-react";
+import { MessageCircle, Plane, Mic } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedMenu } from "@/components/client/animated-menu";
 import { LanguageSelector } from "@/components/client/language-selector";
 import { AnimatedTabPill } from "@/components/ui/animated-tab-pill";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { svgPaths } from "@/components/client/constants";
 import { cn } from "@/lib/utils";
@@ -17,10 +17,7 @@ import {
   getApplicationLifecycleSummaries,
   type ApplicationLifecycleSummary,
 } from "@/app/actions/application-lifecycle";
-import {
-  getFormVisaType,
-  getVisaPackageTitle,
-} from "@/lib/visa-destinations";
+import { getFormVisaType } from "@/lib/visa-destinations";
 import {
   buildApplicationFormHref,
   getRecentApplicationFormHref,
@@ -99,7 +96,6 @@ export function NavBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const locale = useLocale();
   const t = useTranslations("nav");
   const [navColor, setNavColor] = useState<string>("#000000");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -228,18 +224,6 @@ export function NavBar({
     return applicationSummaries[0] ?? null;
   }, [applicationSummaries, currentApplicationTarget]);
 
-  const applicationMenuName = currentApplication
-    ? locale.toLowerCase().startsWith("zh")
-      ? `${currentApplication.countryNameZh || currentApplication.countryName}${currentApplication.visaTypeLabelZh || currentApplication.visaTypeLabel}`
-      : `${currentApplication.countryName} ${currentApplication.visaTypeLabel}`
-    : currentApplicationTarget?.country && currentApplicationTarget.visaType
-      ? getVisaPackageTitle(
-          currentApplicationTarget.country,
-          getFormVisaType(currentApplicationTarget.visaType),
-          locale,
-        )
-    : null;
-  const applicationMenuLabel = applicationMenuName ? `${t("application")}(${applicationMenuName})` : t("application");
   const applicationMenuHref = currentApplicationTarget?.href ?? (currentApplication
     ? `/client/application?country=${encodeURIComponent(currentApplication.country)}&visaType=${encodeURIComponent(currentApplication.visaType)}`
     : "/client/application");
@@ -385,8 +369,6 @@ export function NavBar({
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0 border-0 bg-transparent shadow-none">
                   <AnimatedMenu
-                    applicationHref={applicationMenuHref}
-                    applicationLabel={applicationMenuLabel}
                     onLogout={onLogout}
                     isLoggingOut={isLoggingOut}
                     showInviteFriends
@@ -471,8 +453,6 @@ export function NavBar({
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-auto p-0 border-0 bg-transparent shadow-none">
                   <AnimatedMenu
-                    applicationHref={applicationMenuHref}
-                    applicationLabel={applicationMenuLabel}
                     onLogout={onLogout}
                     isLoggingOut={isLoggingOut}
                     showInviteFriends

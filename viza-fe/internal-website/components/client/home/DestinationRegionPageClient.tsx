@@ -96,7 +96,7 @@ export function DestinationRegionPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+    <div className="min-h-screen bg-[#fcfcfc] pb-16 pt-8">
       <main className="mx-auto flex w-full max-w-[1090px] flex-col gap-6">
         <Link
           href="/client/home"
@@ -110,7 +110,7 @@ export function DestinationRegionPageClient({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[14px] font-semibold text-[#03346E]">{isZh ? region.name : "Destination region"}</p>
-              <h1 className="mt-2 font-heading text-[34px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
+              <h1 className="mt-2 font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
                 {isZh ? region.nameZh : region.name}
               </h1>
               <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[#667085]">
@@ -135,7 +135,7 @@ export function DestinationRegionPageClient({
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {
               const selected = isSelectedDestination(destination, selectedPackages);
               const loading = isPending && pendingDestinationId === destination.id;
@@ -152,7 +152,7 @@ export function DestinationRegionPageClient({
                   onClick={() => handleSelect(destination)}
                   disabled={loading}
                   className={[
-                    "group flex min-h-[164px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
+                    "group flex min-h-[144px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[164px] sm:p-5",
                     selected
                       ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
                       : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
@@ -160,12 +160,12 @@ export function DestinationRegionPageClient({
                   ].join(" ")}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[34px] leading-none" aria-hidden="true">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <span className="text-[26px] leading-none sm:text-[34px]" aria-hidden="true">
                         {destination.flag}
                       </span>
                       <div>
-                        <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
+                        <p className="font-heading text-[16px] font-medium leading-tight text-[#222] sm:text-[18px]">
                           {countryName}
                         </p>
                         <p className="mt-1 text-[13px] font-medium text-[#637083]">

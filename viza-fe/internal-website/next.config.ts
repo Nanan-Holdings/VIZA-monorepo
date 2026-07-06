@@ -34,6 +34,26 @@ const nextConfig: NextConfig = {
     ],
   },
   output: "standalone",
+  outputFileTracingRoot: projectRoot,
+  outputFileTracingIncludes: {
+    "/api/applications/[id]/kr-annex17-pdf": ["./lib/korea-c39/templates/**"],
+  },
+  outputFileTracingExcludes: {
+    "*": ["./public/**", "./screenshots/**"],
+  },
+  async rewrites() {
+    return [
+      // Travel imagery lives in Supabase Storage (bucket travel-images);
+      // /travel/* URLs are preserved for code, DB rows, and cached clients.
+      // afterFiles semantics: anything still in public/travel (e.g. the
+      // fallback svg) is served locally and wins over this proxy.
+      {
+        source: "/travel/:path*",
+        destination:
+          "https://oyjxdzsoejraedqghndi.supabase.co/storage/v1/object/public/travel-images/:path*",
+      },
+    ];
+  },
   turbopack: {
     root: projectRoot,
   },

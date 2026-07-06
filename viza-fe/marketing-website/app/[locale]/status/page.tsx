@@ -1,433 +1,197 @@
 "use client";
 
-import { useEffect } from "react";
+import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import "./status.css";
 
+// ----- Data -----
+// Status: op | deg | part | maj
+type PortalStatus = "op" | "deg" | "part" | "maj";
+interface PortalBanner {
+  type: "red" | "amber";
+}
+interface Portal {
+  iso: string;
+  status: PortalStatus;
+  uptime: number;
+  banner?: PortalBanner;
+}
+// Copy (names, subtitles, banner text) lives in the `status.portals` messages, keyed by ISO code.
+const PORTALS: Portal[] = [
+  { iso: "AE", status: "op", uptime: 88.84 },
+  { iso: "AM", status: "op", uptime: 100 },
+  { iso: "AU", status: "op", uptime: 48.95 },
+  { iso: "AZ", status: "op", uptime: 92.64 },
+  { iso: "DE", status: "op", uptime: 98.28 },
+  { iso: "DK", status: "op", uptime: 100 },
+  { iso: "EG", status: "op", uptime: 68.49 },
+  { iso: "FI", status: "op", uptime: 97.78 },
+  { iso: "FR", status: "op", uptime: 79.11 },
+  { iso: "GB", status: "maj", uptime: 40.15, banner: { type: "red" } },
+  { iso: "GE", status: "op", uptime: 100 },
+  { iso: "GR", status: "op", uptime: 89.69 },
+  { iso: "HK", status: "op", uptime: 95.71 },
+  { iso: "ID", status: "op", uptime: 93.47 },
+  { iso: "IN", status: "op", uptime: 100 },
+  { iso: "JO", status: "op", uptime: 91.87 },
+  { iso: "KE", status: "op", uptime: 93.64 },
+  { iso: "KH", status: "op", uptime: 97.01 },
+  { iso: "LK", status: "op", uptime: 99.78 },
+  { iso: "MA", status: "op", uptime: 76.54 },
+  { iso: "TH", status: "op", uptime: 84.2 },
+];
+
+// PRNG so the 90-day bars are deterministic per row
+function mulberry(seed: number) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s: string) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// Compute the 90-day bar classes for a row given uptime and seed (pure + deterministic)
+function barsFor(uptime: number, seed: string, statusFinal: PortalStatus): PortalStatus[] {
+  const rng = mulberry(hashStr(seed));
+  const targetIssues = Math.round((90 * (100 - uptime)) / 100); // proportional
+  // distribute issues somewhat clustered
+  const issueDays = new Set<number>();
+  while (issueDays.size < targetIssues) {
+    // cluster near middle/end for realism
+    const r = rng();
+    const idx = Math.floor(Math.pow(r, 1.2) * 90); // bias slightly toward 0..89
+    issueDays.add(idx);
+  }
+  const out: PortalStatus[] = [];
+  for (let d = 0; d < 90; d++) {
+    let cls: PortalStatus = "op";
+    if (issueDays.has(d)) {
+      const sev = rng();
+      if (sev < 0.5) cls = "deg";
+      else if (sev < 0.85) cls = "part";
+      else cls = "maj";
+    }
+    // today (d=89) reflects current status
+    if (d === 89 && statusFinal !== "op") cls = statusFinal;
+    out.push(cls);
+  }
+  return out;
+}
+
+function pctClass(uptime: number) {
+  if (uptime < 60) return "maj";
+  if (uptime < 80) return "part";
+  if (uptime < 95) return "deg";
+  return "";
+}
+
+// ----- Incidents -----
+// (timeline curated from the past two weeks; dates/times/descriptions live in
+// the `status.incidents.days` messages, zipped with this structure by index)
+type IncidentTag = "identified" | "investigating" | "resolved";
+interface IncidentItem {
+  iso: string;
+  tags: IncidentTag[]; // one per event, in order
+}
+interface IncidentDay {
+  count: number;
+  items: IncidentItem[];
+}
+const INCIDENTS: IncidentDay[] = [
+  {
+    count: 2,
+    items: [
+      { iso: "EG", tags: ["resolved"] },
+      { iso: "ID", tags: ["resolved"] },
+    ],
+  },
+  {
+    count: 2,
+    items: [
+      { iso: "EG", tags: ["identified", "investigating", "investigating"] },
+      { iso: "ID", tags: ["identified", "investigating"] },
+    ],
+  },
+  {
+    count: 1,
+    items: [{ iso: "AE", tags: ["identified", "resolved", "identified", "resolved"] }],
+  },
+  {
+    count: 2,
+    items: [
+      { iso: "AE", tags: ["investigating", "resolved", "identified", "resolved"] },
+      { iso: "GB", tags: ["resolved", "identified", "investigating"] },
+    ],
+  },
+  {
+    count: 2,
+    items: [
+      { iso: "AE", tags: ["identified", "resolved", "identified", "resolved"] },
+      { iso: "GB", tags: ["resolved", "identified"] },
+    ],
+  },
+  {
+    count: 3,
+    items: [
+      { iso: "AE", tags: ["identified", "resolved"] },
+      { iso: "GB", tags: ["identified", "resolved", "identified"] },
+      { iso: "TH", tags: ["identified", "resolved"] },
+    ],
+  },
+  {
+    count: 1,
+    items: [{ iso: "AE", tags: ["identified", "resolved"] }],
+  },
+  {
+    count: 5,
+    items: [
+      { iso: "AE", tags: ["identified", "resolved"] },
+      { iso: "AU", tags: ["resolved"] },
+      { iso: "GB", tags: ["resolved"] },
+      { iso: "ID", tags: ["identified", "investigating", "resolved"] },
+      { iso: "TH", tags: ["resolved", "identified", "resolved"] },
+    ],
+  },
+];
+
+/** Localized incident copy, mirrored (by index) from `INCIDENTS`. */
+interface LocalizedIncidentDay {
+  date: string;
+  items: { events: { time: string; desc: string }[] }[];
+}
+
+type SubTab = "current" | "incidents" | "subscribe";
+
 export default function StatusPage() {
-  useEffect(() => {
-    // --- nav pill ---
-    const tabsEl = document.getElementById("navTabs");
-    const pill = document.getElementById("navPill") as HTMLElement | null;
-    function movePill(target: HTMLElement | null) {
-      if (!target || !pill || !tabsEl) return;
-      const r = target.getBoundingClientRect();
-      const pr = tabsEl.getBoundingClientRect();
-      pill.style.left = r.left - pr.left + "px";
-      pill.style.width = r.width + "px";
-    }
-    void movePill;
-    // no active nav tab on status page; hide indicator
-    if (pill) pill.style.display = "none";
+  const t = useTranslations("status");
 
-    // ----- Data -----
-    // Status: op | deg | part | maj
-    type PortalStatus = "op" | "deg" | "part" | "maj";
-    interface PortalBanner {
-      type: "red" | "amber";
-      text: string;
-      link: string;
-    }
-    interface Portal {
-      iso: string;
-      name: string;
-      sub: string;
-      status: PortalStatus;
-      uptime: number;
-      note?: string;
-      banner?: PortalBanner;
-    }
-    const PORTALS: Portal[] = [
-      { iso: "AE", name: "United Arab Emirates", sub: "GDRFA · ICA portals", status: "op", uptime: 88.84 },
-      { iso: "AM", name: "Armenia", sub: "e-Visa portal", status: "op", uptime: 100 },
-      { iso: "AU", name: "Australia", sub: "ImmiAccount", status: "op", uptime: 48.95, note: "Repeated availability dips overnight (AET). 7-day pattern monitored." },
-      { iso: "AZ", name: "Azerbaijan", sub: "ASAN Visa", status: "op", uptime: 92.64 },
-      { iso: "DE", name: "Germany", sub: "VIDEX · consulate slots", status: "op", uptime: 98.28 },
-      { iso: "DK", name: "Denmark", sub: "newtodenmark.dk", status: "op", uptime: 100 },
-      { iso: "EG", name: "Egypt", sub: "e-Visa Portal", status: "op", uptime: 68.49 },
-      { iso: "FI", name: "Finland", sub: "EnterFinland", status: "op", uptime: 97.78 },
-      { iso: "FR", name: "France", sub: "France-Visas", status: "op", uptime: 79.11 },
-      { iso: "GB", name: "United Kingdom", sub: "UKVCAS · UK Visas", status: "maj", uptime: 40.15, banner: { type: "red", text: "Some application types are facing an outage.", link: "View incident timeline" } },
-      { iso: "GE", name: "Georgia", sub: "evisa.gov.ge", status: "op", uptime: 100 },
-      { iso: "GR", name: "Greece", sub: "AEGEAN · consular", status: "op", uptime: 89.69 },
-      { iso: "HK", name: "Hong Kong", sub: "Immigration eVisa", status: "op", uptime: 95.71 },
-      { iso: "ID", name: "Indonesia", sub: "e-Visa Indonesia", status: "op", uptime: 93.47 },
-      { iso: "IN", name: "India", sub: "Indian Visa Online", status: "op", uptime: 100 },
-      { iso: "JO", name: "Jordan", sub: "gateway.jo", status: "op", uptime: 91.87 },
-      { iso: "KE", name: "Kenya", sub: "eCitizen / eVisa", status: "op", uptime: 93.64 },
-      { iso: "KH", name: "Cambodia", sub: "evisa.gov.kh", status: "op", uptime: 97.01 },
-      { iso: "LK", name: "Sri Lanka", sub: "ETA portal", status: "op", uptime: 99.78 },
-      { iso: "MA", name: "Morocco", sub: "evisa.gov.ma", status: "op", uptime: 76.54 },
-      { iso: "TH", name: "Thailand", sub: "Thailand e-Visa", status: "op", uptime: 84.2 },
-    ];
+  const [search, setSearch] = useState("");
+  const [activeSub, setActiveSub] = useState<SubTab>("current");
 
-    // PRNG so the 90-day bars are deterministic per row
-    function mulberry(seed: number) {
-      return function () {
-        seed |= 0;
-        seed = (seed + 0x6d2b79f5) | 0;
-        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-    function hashStr(s: string) {
-      let h = 2166136261;
-      for (let i = 0; i < s.length; i++) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return h >>> 0;
-    }
+  // 90-day bars are static per row — compute once
+  const portalBars = useMemo(() => new Map(PORTALS.map((p) => [p.iso, barsFor(p.uptime, p.iso, p.status)])), []);
+  const atlysBars = useMemo(() => barsFor(99.5, "atlys-platform", "op"), []);
 
-    // Render 90-day bar for a row given uptime and seed
-    function bars(uptime: number, seed: string, statusFinal: PortalStatus) {
-      const rng = mulberry(hashStr(seed));
-      const out: string[] = [];
-      const targetIssues = Math.round((90 * (100 - uptime)) / 100); // proportional
-      // distribute issues somewhat clustered
-      const issueDays = new Set<number>();
-      while (issueDays.size < targetIssues) {
-        // cluster near middle/end for realism
-        const r = rng();
-        const idx = Math.floor(Math.pow(r, 1.2) * 90); // bias slightly toward 0..89
-        issueDays.add(idx);
-      }
-      for (let d = 0; d < 90; d++) {
-        let cls: PortalStatus = "op";
-        if (issueDays.has(d)) {
-          const sev = rng();
-          if (sev < 0.5) cls = "deg";
-          else if (sev < 0.85) cls = "part";
-          else cls = "maj";
-        }
-        // today (d=89) reflects current status
-        if (d === 89 && statusFinal !== "op") cls = statusFinal;
-        out.push(`<div class="uptime-bar ${cls === "op" ? "" : cls}" title="Day ${d - 89}"></div>`);
-      }
-      return out.join("");
-    }
+  const incidentDays = t.raw("incidents.days") as LocalizedIncidentDay[];
 
-    function statusLabel(s: PortalStatus) {
-      return ({ op: "Operational", deg: "Degraded", part: "Partial outage", maj: "Major outage" } as const)[s];
-    }
-    function pctClass(uptime: number) {
-      if (uptime < 60) return "maj";
-      if (uptime < 80) return "part";
-      if (uptime < 95) return "deg";
-      return "";
-    }
+  const f = search.trim().toLowerCase();
+  const visiblePortals = PORTALS.filter(
+    (p) => !f || t(`portals.${p.iso}.name`).toLowerCase().includes(f) || p.iso.toLowerCase().includes(f),
+  );
 
-    function renderPortals(filter = "") {
-      const list = document.getElementById("portalList");
-      if (!list) return;
-      const f = filter.trim().toLowerCase();
-      const rows = PORTALS.filter((p) => !f || p.name.toLowerCase().includes(f) || p.iso.toLowerCase().includes(f));
-      list.innerHTML = rows
-        .map((p) => {
-          const bannerHtml = p.banner
-            ? `<div class="row-banner ${p.banner.type === "red" ? "" : "amber"}">
-             <span>${p.banner.text}</span>
-             <a href="#incidents">${p.banner.link} →</a>
-           </div>`
-            : "";
-          return `
-        <div class="row" data-name="${p.name.toLowerCase()}">
-          <div class="row-title">
-            <div class="iso">${p.iso}</div>
-            <div class="ti">
-              <h5>${p.name}</h5>
-              <div class="sub">${p.sub}</div>
-            </div>
-          </div>
-          <div class="uptime">
-            <div class="uptime-bars">${bars(p.uptime, p.iso, p.status)}</div>
-            <div class="uptime-foot">
-              <span>90 days ago</span>
-              <strong>${p.uptime.toFixed(2)}% uptime</strong>
-              <span>Today</span>
-            </div>
-          </div>
-          <div class="row-stat">
-            <div class="pct ${pctClass(p.uptime)}">${statusLabel(p.status)}</div>
-            <div class="lbl">${p.status === "op" ? "No active issues" : "Active incident"}</div>
-          </div>
-          ${bannerHtml}
-        </div>
-      `;
-        })
-        .join("");
-      // Also build the Atlys featured row's bars
-      const atlysBars = document.querySelector<HTMLElement>('.feat .uptime-bars[data-row="atlys"]');
-      if (atlysBars && !atlysBars.dataset.rendered) {
-        atlysBars.innerHTML = bars(99.5, "atlys-platform", "op");
-        atlysBars.dataset.rendered = "1";
-      }
-    }
-    renderPortals();
-
-    const searchInput = document.getElementById("countrySearch") as HTMLInputElement | null;
-    const onSearchInput = (e: Event) => renderPortals((e.target as HTMLInputElement).value);
-    if (searchInput) searchInput.addEventListener("input", onSearchInput);
-
-    // ----- Incidents -----
-    // (timeline curated from the past two weeks)
-    type IncidentTag = "identified" | "investigating" | "resolved";
-    interface IncidentEvent {
-      t: string;
-      tag: IncidentTag;
-      desc: string;
-    }
-    interface IncidentItem {
-      iso: string;
-      name: string;
-      events: IncidentEvent[];
-    }
-    interface IncidentDay {
-      date: string;
-      count: number;
-      items: IncidentItem[];
-    }
-    const INCIDENTS: IncidentDay[] = [
-      {
-        date: "May 10, 2026",
-        count: 2,
-        items: [
-          { iso: "EG", name: "Egypt", events: [{ t: "May 10, 3:05 PM", tag: "resolved", desc: "This incident has been resolved. Service has returned to normal operations." }] },
-          { iso: "ID", name: "Indonesia", events: [{ t: "May 10, 5:05 PM", tag: "resolved", desc: "This incident has been resolved. Service has returned to normal operations." }] },
-        ],
-      },
-      {
-        date: "May 9, 2026",
-        count: 2,
-        items: [
-          {
-            iso: "EG",
-            name: "Egypt",
-            events: [
-              { t: "May 9, 10:50 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 10, 12:20 AM", tag: "investigating", desc: "Severity escalated from degraded to partial outage." },
-              { t: "May 10, 2:50 AM", tag: "investigating", desc: "Severity escalated from partial outage to major outage." },
-            ],
-          },
-          {
-            iso: "ID",
-            name: "Indonesia",
-            events: [
-              { t: "May 9, 3:05 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 9, 7:20 PM", tag: "investigating", desc: "Severity escalated from partial outage to major outage." },
-            ],
-          },
-        ],
-      },
-      {
-        date: "May 8, 2026",
-        count: 1,
-        items: [
-          {
-            iso: "AE",
-            name: "United Arab Emirates",
-            events: [
-              { t: "May 8, 1:05 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 8, 2:05 PM", tag: "resolved", desc: "This incident has been resolved. Service has returned to normal operations." },
-              { t: "May 8, 2:50 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 8, 7:35 PM", tag: "resolved", desc: "This incident has been resolved. Service has returned to normal operations." },
-            ],
-          },
-        ],
-      },
-      {
-        date: "May 5, 2026",
-        count: 2,
-        items: [
-          {
-            iso: "AE",
-            name: "United Arab Emirates",
-            events: [
-              { t: "May 5, 1:36 PM", tag: "investigating", desc: "Severity escalated from degraded to partial outage." },
-              { t: "May 5, 4:50 PM", tag: "resolved", desc: "This incident has been resolved." },
-              { t: "May 5, 9:20 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 5, 10:20 PM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-          {
-            iso: "GB",
-            name: "United Kingdom",
-            events: [
-              { t: "May 5, 2:43 PM", tag: "resolved", desc: "This incident has been resolved." },
-              { t: "May 5, 3:35 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 5, 7:35 PM", tag: "investigating", desc: "Severity escalated from partial outage to major outage." },
-            ],
-          },
-        ],
-      },
-      {
-        date: "May 4, 2026",
-        count: 2,
-        items: [
-          {
-            iso: "AE",
-            name: "United Arab Emirates",
-            events: [
-              { t: "May 4, 4:05 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 4, 5:05 PM", tag: "resolved", desc: "This incident has been resolved." },
-              { t: "May 4, 7:36 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 4, 8:35 PM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-          {
-            iso: "GB",
-            name: "United Kingdom",
-            events: [
-              { t: "May 4, 12:05 PM", tag: "resolved", desc: "This incident has been resolved." },
-              { t: "May 4, 1:50 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-            ],
-          },
-        ],
-      },
-      {
-        date: "May 2, 2026",
-        count: 3,
-        items: [
-          {
-            iso: "AE",
-            name: "United Arab Emirates",
-            events: [
-              { t: "May 2, 6:35 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 2, 7:50 PM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-          {
-            iso: "GB",
-            name: "United Kingdom",
-            events: [
-              { t: "May 2, 9:20 AM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 2, 10:20 AM", tag: "resolved", desc: "This incident has been resolved." },
-              { t: "May 2, 8:20 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-            ],
-          },
-          {
-            iso: "TH",
-            name: "Thailand",
-            events: [
-              { t: "May 2, 8:20 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 3, 12:05 AM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-        ],
-      },
-      {
-        date: "May 1, 2026",
-        count: 1,
-        items: [
-          {
-            iso: "AE",
-            name: "United Arab Emirates",
-            events: [
-              { t: "May 1, 2:05 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 1, 3:05 PM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-        ],
-      },
-      {
-        date: "April 30, 2026",
-        count: 5,
-        items: [
-          {
-            iso: "AE",
-            name: "United Arab Emirates",
-            events: [
-              { t: "Apr 30, 8:20 AM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "Apr 30, 9:50 AM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-          { iso: "AU", name: "Australia", events: [{ t: "Apr 30, 3:05 PM", tag: "resolved", desc: "This incident has been resolved." }] },
-          { iso: "GB", name: "United Kingdom", events: [{ t: "Apr 30, 4:51 PM", tag: "resolved", desc: "This incident has been resolved." }] },
-          {
-            iso: "ID",
-            name: "Indonesia",
-            events: [
-              { t: "Apr 30, 1:20 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "Apr 30, 2:37 PM", tag: "investigating", desc: "Severity escalated from degraded to partial outage." },
-              { t: "Apr 30, 8:20 PM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-          {
-            iso: "TH",
-            name: "Thailand",
-            events: [
-              { t: "Apr 30, 6:50 PM", tag: "resolved", desc: "This incident has been resolved." },
-              { t: "Apr 30, 7:50 PM", tag: "identified", desc: "We are investigating elevated failure rates." },
-              { t: "May 1, 12:20 AM", tag: "resolved", desc: "This incident has been resolved." },
-            ],
-          },
-        ],
-      },
-    ];
-
-    function renderIncidents() {
-      const c = document.getElementById("incidentList");
-      if (!c) return;
-      c.innerHTML = INCIDENTS.map(
-        (day) => `
-      <div class="day-group">
-        <div class="day-head">
-          <span class="date">${day.date}</span>
-          <span class="count"><strong>${day.count}</strong> ${day.count === 1 ? "country" : "countries"} faced performance issues</span>
-        </div>
-        ${day.items
-          .map(
-            (it) => `
-          <div class="incident">
-            <div class="incident-country">
-              <div class="iso">${it.iso}</div>
-              <div class="ni">
-                <h5>${it.name}</h5>
-                <div class="when">${it.events.length} event${it.events.length > 1 ? "s" : ""}</div>
-              </div>
-            </div>
-            <div class="incident-events">
-              ${it.events
-                .map(
-                  (e) => `
-                <div class="ev">
-                  <span class="time">${e.t}</span>
-                  <span class="tag ${e.tag}"><span class="d"></span>${e.tag[0].toUpperCase() + e.tag.slice(1)}</span>
-                  <span class="desc">${e.desc}</span>
-                </div>
-              `,
-                )
-                .join("")}
-            </div>
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-    `,
-      ).join("");
-    }
-    renderIncidents();
-
-    // Sub-tab active state via scroll
-    const subTabs = document.querySelectorAll<HTMLElement>(".sub-tab");
-    const onSubTabClick = (t: HTMLElement) => () => {
-      subTabs.forEach((x) => x.classList.remove("active"));
-      t.classList.add("active");
-    };
-    const handlers: Array<{ el: HTMLElement; fn: () => void }> = [];
-    subTabs.forEach((t) => {
-      const fn = onSubTabClick(t);
-      t.addEventListener("click", fn);
-      handlers.push({ el: t, fn });
-    });
-
-    return () => {
-      if (searchInput) searchInput.removeEventListener("input", onSearchInput);
-      handlers.forEach(({ el, fn }) => el.removeEventListener("click", fn));
-    };
-  }, []);
+  const renderBars = (bars: PortalStatus[]) =>
+    bars.map((cls, d) => <div key={d} className={`uptime-bar ${cls === "op" ? "" : cls}`} title={t("dayTitle", { n: d - 89 })}></div>);
 
   return (
     <>
@@ -438,27 +202,26 @@ export default function StatusPage() {
       <section className="hero" data-screen-label="Hero">
         <div className="hero-inner">
           <div className="crumb">
-            <a href="/">Transparency</a>
+            <a href="/">{t("crumbHome")}</a>
             <span className="arr">›</span>
-            <span className="here">System Status</span>
+            <span className="here">{t("crumbHere")}</span>
           </div>
 
           <div className="hero-grid">
             <div>
               <h1>
-                On time, <em>guaranteed.</em>
-                <br />
-                Or you{'’'}ll be the first to know.
+                {t.rich("hero.title", {
+                  em: (chunks) => <em>{chunks}</em>,
+                  br: () => <br />,
+                })}
               </h1>
-              <p className="lead">
-                A real-time dashboard for VIZA and every government visa portal we file against — whether it{'’'}s up, slow, or buckling under a 9pm Monday rush. We publish what we see, the moment we see it.
-              </p>
+              <p className="lead">{t("hero.lead")}</p>
             </div>
 
             <div className="console">
               <div className="console-head">
-                <span>VIZA Reliability · Live</span>
-                <span className="live">On time</span>
+                <span>{t("console.title")}</span>
+                <span className="live">{t("console.live")}</span>
               </div>
               <div className="console-body">
                 <div className="console-state">
@@ -468,8 +231,8 @@ export default function StatusPage() {
                     </svg>
                   </div>
                   <h2>
-                    All systems operational
-                    <small>Last refresh 12 seconds ago · monitored every 30s</small>
+                    {t("console.allOperational")}
+                    <small>{t("console.lastRefresh")}</small>
                   </h2>
                 </div>
                 <div className="console-numbers">
@@ -478,15 +241,15 @@ export default function StatusPage() {
                       99.5
                       <small style={{ fontSize: "14px", color: "#5eead4" }}>%</small>
                     </div>
-                    <div className="k">Atlys, 90&#8209;day</div>
+                    <div className="k">{t("console.kAtlys")}</div>
                   </div>
                   <div className="console-num">
                     <div className="v">21</div>
-                    <div className="k">Portals monitored</div>
+                    <div className="k">{t("console.kPortals")}</div>
                   </div>
                   <div className="console-num">
                     <div className="v">1</div>
-                    <div className="k">Active incident</div>
+                    <div className="k">{t("console.kIncidents")}</div>
                   </div>
                 </div>
               </div>
@@ -499,14 +262,14 @@ export default function StatusPage() {
       <div className="subnav">
         <div className="subnav-inner">
           <div className="sub-tabs">
-            <a className="sub-tab active" href="#current">
-              Current status <span className="cnt">21</span>
+            <a className={`sub-tab ${activeSub === "current" ? "active" : ""}`} href="#current" onClick={() => setActiveSub("current")}>
+              {t("subnav.current")} <span className="cnt">21</span>
             </a>
-            <a className="sub-tab" href="#incidents">
-              Past incidents
+            <a className={`sub-tab ${activeSub === "incidents" ? "active" : ""}`} href="#incidents" onClick={() => setActiveSub("incidents")}>
+              {t("subnav.incidents")}
             </a>
-            <a className="sub-tab" href="#subscribe">
-              Subscribe
+            <a className={`sub-tab ${activeSub === "subscribe" ? "active" : ""}`} href="#subscribe" onClick={() => setActiveSub("subscribe")}>
+              {t("subnav.subscribe")}
             </a>
           </div>
           <div className="search-box">
@@ -514,14 +277,14 @@ export default function StatusPage() {
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <input id="countrySearch" type="search" placeholder="Search for countries" />
+            <input id="countrySearch" type="search" placeholder={t("subnav.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <a className="btn-sub" href="#subscribe">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 4h16v16H4z" />
               <path d="m22 7-10 6L2 7" />
             </svg>
-            Subscribe to updates
+            {t("subnav.subscribeBtn")}
           </a>
         </div>
       </div>
@@ -531,30 +294,33 @@ export default function StatusPage() {
         {/* Atlys (VIZA) row */}
         <section className="panel">
           <div className="panel-head">
-            <h3>VIZA platform</h3>
+            <h3>{t("platform.title")}</h3>
             <span className="meta">
-              <span className="pulse"></span>Monitored 30s · 12 services
+              <span className="pulse"></span>
+              {t("platform.meta")}
             </span>
           </div>
           <div className="feat">
             <div className="feat-title">
               <div className="mark">VZ</div>
               <div className="ti">
-                <h4>Atlys application platform</h4>
-                <div className="sub">Web · iOS · Android · Consultant console</div>
+                <h4>{t("platform.name")}</h4>
+                <div className="sub">{t("platform.sub")}</div>
               </div>
             </div>
             <div className="uptime">
-              <div className="uptime-bars" data-up="99.5" data-row="atlys"></div>
+              <div className="uptime-bars" data-up="99.5" data-row="atlys">
+                {renderBars(atlysBars)}
+              </div>
               <div className="uptime-foot">
-                <span>90 days ago</span>
-                <strong>99.5% uptime</strong>
-                <span>Today</span>
+                <span>{t("uptime.ago")}</span>
+                <strong>{t("uptime.pct", { pct: "99.5" })}</strong>
+                <span>{t("uptime.today")}</span>
               </div>
             </div>
             <div className="row-stat">
-              <div className="pct">Operational</div>
-              <div className="lbl">No active issues</div>
+              <div className="pct">{t("statusLabels.op")}</div>
+              <div className="lbl">{t("noIssues")}</div>
             </div>
           </div>
         </section>
@@ -562,82 +328,155 @@ export default function StatusPage() {
         {/* Government portals */}
         <div className="panel-section-head">
           <div>
-            <h2>Government portals</h2>
-            <p>We poll each portal continuously and surface what we observe — so you don{'’'}t have to refresh a 2003-era webform yourself.</p>
+            <h2>{t("portalsHead.title")}</h2>
+            <p>{t("portalsHead.lead")}</p>
           </div>
           <div className="legend">
             <span className="legend-item">
-              <span className="legend-sw op"></span>Operational
+              <span className="legend-sw op"></span>
+              {t("statusLabels.op")}
             </span>
             <span className="legend-item">
-              <span className="legend-sw de"></span>Degraded
+              <span className="legend-sw de"></span>
+              {t("statusLabels.deg")}
             </span>
             <span className="legend-item">
-              <span className="legend-sw pa"></span>Partial outage
+              <span className="legend-sw pa"></span>
+              {t("statusLabels.part")}
             </span>
             <span className="legend-item">
-              <span className="legend-sw mj"></span>Major outage
+              <span className="legend-sw mj"></span>
+              {t("statusLabels.maj")}
             </span>
           </div>
         </div>
 
         <section className="panel" id="portalList">
-          {/* rendered by JS */}
+          {visiblePortals.map((p) => (
+            <div className="row" data-name={t(`portals.${p.iso}.name`).toLowerCase()} key={p.iso}>
+              <div className="row-title">
+                <div className="iso">{p.iso}</div>
+                <div className="ti">
+                  <h5>{t(`portals.${p.iso}.name`)}</h5>
+                  <div className="sub">{t(`portals.${p.iso}.sub`)}</div>
+                </div>
+              </div>
+              <div className="uptime">
+                <div className="uptime-bars">{renderBars(portalBars.get(p.iso) ?? [])}</div>
+                <div className="uptime-foot">
+                  <span>{t("uptime.ago")}</span>
+                  <strong>{t("uptime.pct", { pct: p.uptime.toFixed(2) })}</strong>
+                  <span>{t("uptime.today")}</span>
+                </div>
+              </div>
+              <div className="row-stat">
+                <div className={`pct ${pctClass(p.uptime)}`}>{t(`statusLabels.${p.status}`)}</div>
+                <div className="lbl">{p.status === "op" ? t("noIssues") : t("activeIncident")}</div>
+              </div>
+              {p.banner && (
+                <div className={`row-banner ${p.banner.type === "red" ? "" : "amber"}`}>
+                  <span>{t(`portals.${p.iso}.bannerText`)}</span>
+                  <a href="#incidents">{t(`portals.${p.iso}.bannerLink`)} →</a>
+                </div>
+              )}
+            </div>
+          ))}
         </section>
 
         {/* Past incidents */}
         <div className="panel-section-head" id="incidents">
           <div>
-            <h2>Past incidents</h2>
-            <p>Every event we logged, in plain words. We don{'’'}t hide them — we link to them.</p>
+            <h2>{t("incidentsHead.title")}</h2>
+            <p>{t("incidentsHead.lead")}</p>
           </div>
           <div className="legend">
             <span className="legend-item">
-              <span className="legend-sw de"></span>Identified
+              <span className="legend-sw de"></span>
+              {t("tags.identified")}
             </span>
             <span className="legend-item">
-              <span className="legend-sw pa"></span>Investigating
+              <span className="legend-sw pa"></span>
+              {t("tags.investigating")}
             </span>
             <span className="legend-item">
-              <span className="legend-sw op"></span>Resolved
+              <span className="legend-sw op"></span>
+              {t("tags.resolved")}
             </span>
           </div>
         </div>
 
         <section className="panel" id="incidentList">
-          {/* rendered by JS */}
+          {INCIDENTS.map((day, di) => {
+            const loc = incidentDays[di];
+            return (
+              <div className="day-group" key={loc.date}>
+                <div className="day-head">
+                  <span className="date">{loc.date}</span>
+                  <span className="count">
+                    {t.rich("incidents.count", {
+                      count: day.count,
+                      strong: (chunks) => <strong>{chunks}</strong>,
+                    })}
+                  </span>
+                </div>
+                {day.items.map((it, ii) => (
+                  <div className="incident" key={it.iso}>
+                    <div className="incident-country">
+                      <div className="iso">{it.iso}</div>
+                      <div className="ni">
+                        <h5>{t(`portals.${it.iso}.name`)}</h5>
+                        <div className="when">{t("incidents.events", { count: it.tags.length })}</div>
+                      </div>
+                    </div>
+                    <div className="incident-events">
+                      {it.tags.map((tag, ei) => (
+                        <div className="ev" key={ei}>
+                          <span className="time">{loc.items[ii].events[ei].time}</span>
+                          <span className={`tag ${tag}`}>
+                            <span className="d"></span>
+                            {t(`tags.${tag}`)}
+                          </span>
+                          <span className="desc">{loc.items[ii].events[ei].desc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </section>
 
         {/* Subscribe strip */}
         <section className="strip" id="subscribe">
           <div className="left">
             <h3>
-              Be the first
-              <br />
-              to hear when something breaks.
+              {t.rich("subscribe.title", {
+                br: () => <br />,
+              })}
             </h3>
-            <p>Pick the countries you care about and we{'’'}ll send you a single, plain-English update when their portals — or ours — go down or come back online.</p>
+            <p>{t("subscribe.lead")}</p>
           </div>
           <div className="right">
-            <label style={{ fontSize: "13px", color: "var(--fg-2)" }}>Get incident updates by email</label>
+            <label style={{ fontSize: "13px", color: "var(--fg-2)" }}>{t("subscribe.emailLabel")}</label>
             <div className="form-row">
-              <input type="email" placeholder="you@example.com" />
-              <button className="btn-go">Subscribe</button>
+              <input type="email" placeholder={t("subscribe.emailPlaceholder")} />
+              <button className="btn-go">{t("subscribe.button")}</button>
             </div>
-            <div style={{ fontSize: "12px", color: "var(--fg-2)", marginTop: "4px" }}>Or follow status via:</div>
+            <div style={{ fontSize: "12px", color: "var(--fg-2)", marginTop: "4px" }}>{t("subscribe.follow")}</div>
             <div className="chan">
               <span className="chan-chip">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 4h16c1 0 2 1 2 2v12c0 1-1 2-2 2H4c-1 0-2-1-2-2V6c0-1 1-2 2-2z" />
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
-                Email digest
+                {t("subscribe.chipEmail")}
               </span>
               <span className="chan-chip">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                 </svg>
-                SMS &amp; WhatsApp
+                {t("subscribe.chipSms")}
               </span>
               <span className="chan-chip">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -645,14 +484,14 @@ export default function StatusPage() {
                   <path d="M4 4a23 23 0 0 1 23 23" />
                   <circle cx="5" cy="26" r="2" />
                 </svg>
-                RSS feed
+                {t("subscribe.chipRss")}
               </span>
               <span className="chan-chip">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 11.5C21 17 12 22 12 22S3 17 3 11.5a9 9 0 0 1 18 0z" />
                   <circle cx="12" cy="11" r="3" />
                 </svg>
-                Webhook for ops
+                {t("subscribe.chipWebhook")}
               </span>
             </div>
           </div>
@@ -667,48 +506,48 @@ export default function StatusPage() {
             <a className="foot-logo" href="/">
               <img src="/assets/viza-logo-black.svg" alt="VIZA" />
             </a>
-            <p className="foot-tag">VIZA helps you plan, apply, and track visas seamlessly across the world.</p>
+            <p className="foot-tag">{t("footer.tagline")}</p>
           </div>
           <div className="col-company">
-            <h4 className="col-head">Company</h4>
+            <h4 className="col-head">{t("footer.company")}</h4>
             <ul className="col-list">
               <li>
-                <a href="/careers">Careers</a>
+                <a href="/careers">{t("footer.careers")}</a>
               </li>
               <li>
-                <a href="/contact">Contact</a>
+                <a href="/contact">{t("footer.contact")}</a>
               </li>
               <li>
-                <a href="/security">Security</a>
+                <a href="/security">{t("footer.security")}</a>
               </li>
               <li>
-                <a href="/status">System status</a>
+                <a href="/status">{t("footer.systemStatus")}</a>
               </li>
               <li>
-                <a href="/refunds">Refunds Policy</a>
+                <a href="/refunds">{t("footer.refunds")}</a>
               </li>
               <li>
-                <a href="/legal/privacy">Privacy</a>
+                <a href="/legal/privacy">{t("footer.privacy")}</a>
               </li>
               <li>
-                <a href="/legal/terms">Terms</a>
+                <a href="/legal/terms">{t("footer.terms")}</a>
               </li>
             </ul>
           </div>
           <div className="col-products">
-            <h4 className="col-head">Products</h4>
+            <h4 className="col-head">{t("footer.products")}</h4>
             <ul className="col-list">
               <li>
-                <a href="/">Visa Requirements</a>
+                <a href="/">{t("footer.prodVisaReq")}</a>
               </li>
               <li>
-                <a href="#">Schengen Appointment Checker</a>
+                <a href="#">{t("footer.prodSchengen")}</a>
               </li>
               <li>
-                <a href="#">Visa Photo Creator</a>
+                <a href="#">{t("footer.prodPhoto")}</a>
               </li>
               <li>
-                <a href="#">VIZA Emergency Helpline</a>
+                <a href="#">{t("footer.prodHelpline")}</a>
               </li>
             </ul>
           </div>
@@ -716,11 +555,11 @@ export default function StatusPage() {
         <div className="foot-rule"></div>
         <div className="foot-bottom">
           <div className="legal">
-            <span>© VIZA, All rights reserved</span>
+            <span>{t("footer.copyright")}</span>
             <span className="sep"></span>
-            <a href="#">Privacy</a>
+            <a href="#">{t("footer.privacy")}</a>
             <span className="sep"></span>
-            <a href="#">Terms</a>
+            <a href="#">{t("footer.terms")}</a>
           </div>
           <div className="foot-mark">
             <img src="/assets/viza-logo-black.svg" alt="VIZA" />

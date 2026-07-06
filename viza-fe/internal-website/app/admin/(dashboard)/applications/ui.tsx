@@ -102,7 +102,7 @@ export function FieldValue({
   return (
     <div>
       <dt className="text-xs font-medium uppercase tracking-[0.04em] text-[#7a7a7a]">{label}</dt>
-      <dd className={cn("mt-1 break-words text-sm font-medium text-[#232323]", mono && "font-mono text-xs")}>
+      <dd className={cn("mt-1 break-words [overflow-wrap:anywhere] text-sm font-medium text-[#232323]", mono && "font-mono text-xs")}>
         {value || fallback}
       </dd>
     </div>
