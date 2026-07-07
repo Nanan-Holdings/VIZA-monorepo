@@ -18,6 +18,14 @@ services:
         value: "8080"
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Passport-scan OCR (POST /api/passport-scan/extract) runs on OpenAI
+      # vision, not Anthropic — without this the route returns 500
+      # "OCR service not configured". Optional model override defaults to
+      # gpt-4o-mini in code.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_PASSPORT_SCAN_MODEL
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
