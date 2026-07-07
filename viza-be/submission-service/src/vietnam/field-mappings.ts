@@ -54,6 +54,9 @@ const SEX_LABELS = { male: "Male", m: "Male", female: "Female", f: "Female" };
 const COUNTRY_NAME_BY_NORMALIZED = Object.fromEntries(
   Object.values(VN_COUNTRY_NAME_BY_ALPHA3).map((name) => [normalizeCountryLookupKey(name), name]),
 );
+const COUNTRY_ALPHA3_BY_NORMALIZED_NAME = Object.fromEntries(
+  Object.entries(VN_COUNTRY_NAME_BY_ALPHA3).map(([alpha3, name]) => [normalizeCountryLookupKey(name), alpha3]),
+);
 const NATIONALITY_DEMONYM_LABELS: Record<string, string> = {
   chinese: "China",
   hungarian: "Hungary",
@@ -223,6 +226,14 @@ export function normalizeVnCountryOptionText(rawValue: string): string | null {
   }
   const lookup = normalizeCountryLookupKey(trimmed);
   return COUNTRY_NAME_BY_NORMALIZED[lookup] ?? NATIONALITY_DEMONYM_LABELS[lookup] ?? null;
+}
+
+export function getVnCountryAlpha3ForOptionText(rawValue: string): string | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+  const alpha3 = trimmed.toUpperCase();
+  if (/^[A-Z0-9-]{1,3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) return alpha3;
+  return COUNTRY_ALPHA3_BY_NORMALIZED_NAME[normalizeCountryLookupKey(trimmed)] ?? null;
 }
 
 function buildCountryOptionLabels(extra: Record<string, string> = {}): Record<string, string> {

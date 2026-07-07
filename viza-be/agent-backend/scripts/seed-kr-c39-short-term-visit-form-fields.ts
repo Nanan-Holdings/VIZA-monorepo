@@ -1,23 +1,17 @@
 /**
  * Seed script: visa_form_fields for Korea C-3-9 Short-Term General Visa.
  *
- * Field definitions mirror Korean Annex 17 (별지 제17호서식) "사증발급신청서 /
- * VISA APPLICATION FORM", revision 2022.2.7. The form is the legally-defined
- * application template under the Enforcement Rules of the Immigration
- * Control Act and is identical for all C-3-x sub-categories — the
- * sub-category code is recorded in field 2.2 only. Source:
- * https://www.visa.go.kr/downfile/VisaapplicationForm_EN.pdf (bilingual
- * KR/EN, 5 pages, 12 sections).
+ * Field definitions mirror the Korea Visa Portal Chinese e-Form flow used by
+ * mainland-China applicants. The printable Annex-17 PDF remains a fallback,
+ * but the primary schema follows the official portal screens: consular post
+ * search, application purpose options, personal/passport/contact details,
+ * visit address search/reason, invitation company, expenses, and form helper.
  *
  * Scope: C-3-9 Short-Term General Visit (≤90 days, multi-purpose,
  * single-entry) intended for mainland-China (PRC) residents who submit
- * through the local Korea Visa Application Center (KVAC.com.cn-operated)
- * since visa.go.kr self-service is not directly accessible to PRC
- * residents. The schema is form-content only — submission to KVAC happens
- * out-of-band (paper / counter intake), so there is no submission
- * automation target. Other Tourism-eligible nationalities can also use
- * this schema; their submission channel (visa.go.kr self-service or
- * embassy direct) is tracked in the gap report rather than the schema.
+ * through the local Korea Visa Application Center / consular channel. The
+ * schema feeds official Korea Visa Portal e-Form automation first, then KVAC
+ * appointment guidance.
  *
  * Document uploads (photo 35x45mm, signature, hukou, employment cert,
  * bank statement, etc.) are intentionally out of schema per playbook §5.6
@@ -272,6 +266,115 @@ const OPTION_LABEL_ZH_BY_FIELD: Record<string, Record<string, string>> = {
   },
 };
 
+Object.assign(FIELD_LABEL_ZH, {
+  applying_consulate: "选择使领馆",
+  national_identity_no: "国家身份证号码",
+  has_used_other_names: "是否有曾用名？",
+  other_family_name: "曾用姓",
+  other_given_name: "曾用名",
+  is_dual_national: "是否双重国籍？",
+  other_nationalities: "双重国籍的国籍",
+  has_other_passport: "是否持有两种护照？",
+  home_address_street: "本国地址 - 街道",
+  home_address_city: "本国地址 - 城市",
+  home_address_state: "本国地址 - 省/州",
+  home_address_country: "本国地址 - 国家",
+  applying_country_same_as_residence: "申请签证时所在国家是否与现居住国相同？",
+  applying_country: "申请签证时申请人所在国家",
+  has_inviting_company: "是否有邀请公司？",
+  is_visa_portal_member: "是否加入签证门户网站会员？",
+  invitation_company_portal_id: "邀请公司签证网站账号",
+  invitation_company_business_registration_no: "事业者登录号码",
+  invitation_company_name: "邀请公司名",
+  invitation_company_representative_name: "代表姓名",
+  invitation_company_relationship: "关系",
+  invitation_company_address: "邀请公司地址",
+  invitation_company_phone: "邀请公司电话号码",
+  purpose_of_visit: "入境目的",
+  expected_korea_visit_count: "预计访韩次数",
+  korea_address_mode: "计划停留地点填写方式",
+  korea_address_search_keyword: "韩国地址搜索关键词",
+  korea_address_detail: "详细地址",
+  korea_no_address_reason: "未输入事由",
+  contact_in_korea: "在韩联系方式",
+  visit_cost_usd: "访问经费（美元标准）",
+  cost_payer_name: "经费支付者姓名/公司（团体）名",
+  cost_payer_relationship: "经费支付者关系",
+  cost_payer_support_type: "支援内容",
+  cost_payer_contact: "经费支付者联系方式",
+  received_form_assistance: "该申请书是否有人辅助您一同填写？",
+});
+
+Object.assign(FIELD_PLACEHOLDER_ZH, {
+  applying_consulate: "请选择将递交材料的使领馆/签证申请中心",
+  national_identity_no: "选填；中国大陆居民可填写18位身份证号",
+  other_nationalities: "请填写其他国籍国家/地区",
+  home_address_street: "Street",
+  home_address_city: "City",
+  home_address_state: "State",
+  home_address_country: "Country",
+  korea_address_search_keyword: "输入酒店、道路名或地点关键词",
+  korea_address_detail: "房间号/酒店名/补充地址",
+  contact_in_korea: "请填写韩国当地联系电话",
+});
+
+Object.assign(OPTION_LABEL_ZH_BY_FIELD, {
+  applying_consulate: {
+    china_embassy: "驻中国大使馆（北京）",
+    shanghai_consulate: "驻上海总领事馆",
+    guangzhou_consulate: "驻广州总领事馆",
+    wuhan_consulate: "驻武汉总领事馆",
+    xian_consulate: "驻西安总领事馆",
+    shenyang_consulate: "驻沈阳总领事馆",
+    chengdu_consulate: "驻成都总领事馆",
+    qingdao_consulate: "驻青岛总领事馆",
+  },
+  highest_education: {
+    high_school: "高中毕业",
+    bachelors: "大学毕业",
+    masters_or_doctoral: "硕士/博士",
+    other: "其他",
+  },
+  employment_status: {
+    entrepreneur: "企业家",
+    self_employed: "个体户",
+    employed: "上班人员",
+    civil_servant: "公务员",
+    student: "学生",
+    retired: "退休人员",
+    unemployed: "无业人员",
+    other: "其他",
+  },
+  purpose_of_visit: {
+    tourism_transit: "观光/过境",
+    meeting_conference: "参加会议",
+    medical_tourism: "医疗观光",
+    business_trip: "短期商务",
+    study_training: "留学/研修",
+    work: "就业活动",
+    trade_investment_ict: "贸易/投资/派驻",
+    visiting_family_relatives_friends: "探亲",
+    overseas_korean_visit: "外籍同胞 长、短期访问",
+    marriage_migrant: "结婚移民",
+    diplomatic_official: "外交/公务",
+    other: "其他",
+  },
+  expected_korea_visit_count: {
+    single: "1次(Single)",
+    double: "2次(Double)",
+    multiple: "3次以上(Multiple)",
+  },
+  korea_address_mode: {
+    official_search: "搜索并选择韩国地址",
+    undecided: "未定",
+    address_not_found: "地址不存在",
+  },
+  korea_no_address_reason: {
+    undecided: "未定",
+    address_not_found: "地址不存在",
+  },
+});
+
 function localizeKoreaOption(
   fieldName: string,
   option: NonNullable<BilingualSeedRow["options"]>[number],
@@ -306,6 +409,7 @@ const PASSPORT_TYPE_OTHER = "passport_type === other";
 const HAS_OTHER_PASSPORT = "has_other_passport === yes";
 const OTHER_PASSPORT_TYPE_OTHER = "other_passport_type === other";
 const HAS_DIFFERENT_RESIDENTIAL_ADDRESS = "current_address_same_as_home === no";
+const APPLYING_COUNTRY_DIFFERS = "applying_country_same_as_residence === no";
 const IS_MARRIED = "marital_status === married";
 const HAS_CHILDREN = "has_children === yes";
 const EDUCATION_OTHER = "highest_education === other";
@@ -318,6 +422,9 @@ const TRAVELLED_OUTSIDE_5Y = "travelled_outside_5y === yes";
 const HAS_FAMILY_IN_KOREA = "has_family_in_korea === yes";
 const TRAVELLING_WITH_FAMILY = "travelling_with_family === yes";
 const HAS_INVITER = "has_inviter === yes";
+const HAS_INVITING_COMPANY = "has_inviting_company === yes";
+const KOREA_ADDRESS_OFFICIAL_SEARCH = "korea_address_mode === official_search";
+const KOREA_ADDRESS_NO_DIRECT_INPUT = "korea_address_mode in [undecided, address_not_found]";
 const RECEIVED_FORM_ASSISTANCE = "received_form_assistance === yes";
 
 // ── Enum option tables ─────────────────────────────────────────────────────
@@ -383,6 +490,7 @@ const PURPOSE_OF_VISIT_OPTIONS = [
   { value: "work", text: "Work" },
   { value: "trade_investment_ict", text: "Trade / Investment / Intra-Company Transfer" },
   { value: "visiting_family_relatives_friends", text: "Visiting Family / Relatives / Friends" },
+  { value: "overseas_korean_visit", text: "Overseas Korean long-/short-term visit" },
   { value: "marriage_migrant", text: "Marriage Migrant" },
   { value: "diplomatic_official", text: "Diplomatic / Official" },
   { value: "other", text: "Other" },
@@ -393,143 +501,155 @@ const STATUS_OF_STAY_OPTIONS = [
   { value: "C-3-9", text: "C-3-9 (Short-Term General)" },
 ];
 
+const CONSULATE_OPTIONS = [
+  { value: "china_embassy", text: "Embassy of the Republic of Korea in China (Beijing)" },
+  { value: "shanghai_consulate", text: "Consulate General of the Republic of Korea in Shanghai" },
+  { value: "guangzhou_consulate", text: "Consulate General of the Republic of Korea in Guangzhou" },
+  { value: "wuhan_consulate", text: "Consulate General of the Republic of Korea in Wuhan" },
+  { value: "xian_consulate", text: "Consulate General of the Republic of Korea in Xi'an" },
+  { value: "shenyang_consulate", text: "Consulate General of the Republic of Korea in Shenyang" },
+  { value: "chengdu_consulate", text: "Consulate General of the Republic of Korea in Chengdu" },
+  { value: "qingdao_consulate", text: "Consulate General of the Republic of Korea in Qingdao" },
+];
+
+const EXPECTED_KOREA_VISIT_COUNT_OPTIONS = [
+  { value: "single", text: "Single" },
+  { value: "double", text: "Double" },
+  { value: "multiple", text: "Multiple" },
+];
+
+const KOREA_ADDRESS_MODE_OPTIONS = [
+  { value: "official_search", text: "Search and select official Korea address" },
+  { value: "undecided", text: "Undecided" },
+  { value: "address_not_found", text: "Address not found" },
+];
+
+const KOREA_NO_ADDRESS_REASON_OPTIONS = [
+  { value: "undecided", text: "Undecided" },
+  { value: "address_not_found", text: "Address not found" },
+];
+
 const FIELDS: FieldDef[] = [
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 1: Personal Details  (Annex-17 §1)
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "family_name_en", label: "Family name (in passport, block letters)", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 1, placeholder: "As shown in passport", validation_rules: { maxLength: 50, inline_group: "applicant_name" } },
-  { field_name: "given_names_en", label: "Given names (in passport, block letters)", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 2, placeholder: "As shown in passport", validation_rules: { maxLength: 80, inline_group: "applicant_name" } },
-  { field_name: "name_in_chinese_characters", label: "Name in Chinese characters / 漢字姓名", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 3, placeholder: "Required for PRC applicants", validation_rules: { maxLength: 30 } },
-  { field_name: "sex", label: "Sex", field_type: "radio", required: true, step_number: 1, step_name: "Personal Details", display_order: 4, options: SEX_OPTIONS },
-  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Personal Details", display_order: 5, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
-  { field_name: "nationality", label: "Nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Details", display_order: 6, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "country_of_birth", label: "Country of birth", field_type: "country", required: true, step_number: 1, step_name: "Personal Details", display_order: 7, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "national_identity_no", label: "National Identity No.", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 8, placeholder: "PRC residents: 18-digit ID", validation_rules: { maxLength: 30 } },
-  { field_name: "has_used_other_names", label: "Have you ever used other names to enter or depart Korea?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Details", display_order: 9, options: YES_NO },
-  { field_name: "other_family_name", label: "Other family name", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 10, conditional_logic: { showIf: HAS_USED_OTHER_NAMES }, validation_rules: { maxLength: 50, inline_group: "other_name", block_group: "other_names" } },
-  { field_name: "other_given_name", label: "Other given name", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 11, conditional_logic: { showIf: HAS_USED_OTHER_NAMES }, validation_rules: { maxLength: 80, inline_group: "other_name", block_group: "other_names" } },
-  { field_name: "is_dual_national", label: "Are you a citizen of more than one country?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Details", display_order: 12, options: YES_NO },
-  { field_name: "other_nationalities", label: "List the other countries of citizenship", field_type: "text", required: true, step_number: 1, step_name: "Personal Details", display_order: 13, conditional_logic: { showIf: IS_DUAL_NATIONAL }, placeholder: "e.g. Hong Kong SAR, Macao SAR", validation_rules: { maxLength: 200 } },
+  { field_name: "applying_consulate", label: "Consular office / overseas mission", field_type: "select", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 1, options: CONSULATE_OPTIONS, validation_rules: { official_eform_selector: "#RES_NM", official_search_required: true } },
+  { field_name: "period_of_stay", label: "Period of Stay", field_type: "radio", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 2, options: PERIOD_OF_STAY_OPTIONS, validation_rules: { locked_value: "short_term" } },
+  { field_name: "status_of_stay", label: "Status of Stay", field_type: "select", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 3, options: STATUS_OF_STAY_OPTIONS, validation_rules: { locked_value: "C-3-9" } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 2: Visa Category & Passport  (Annex-17 §2 + §3)
-  // §2 is hard-locked to short_term + C-3-9 for this package.
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "period_of_stay", label: "Period of Stay", field_type: "radio", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 1, options: PERIOD_OF_STAY_OPTIONS, validation_rules: { locked_value: "short_term" } },
-  { field_name: "status_of_stay", label: "Status of Stay", field_type: "select", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 2, options: STATUS_OF_STAY_OPTIONS, validation_rules: { locked_value: "C-3-9" } },
-  { field_name: "passport_type", label: "Passport type", field_type: "radio", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 3, options: PASSPORT_TYPE_OPTIONS },
-  { field_name: "passport_type_other", label: "Passport type — Other (please specify)", field_type: "text", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 4, conditional_logic: { showIf: PASSPORT_TYPE_OTHER }, validation_rules: { maxLength: 80 } },
-  { field_name: "passport_no", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 5, placeholder: "As shown in passport", validation_rules: { maxLength: 20 } },
-  { field_name: "passport_country", label: "Country of passport", field_type: "country", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 6, validation_rules: { source: "ISO3166-1" } },
-  { field_name: "passport_place_of_issue", label: "Place of issue", field_type: "text", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 7, validation_rules: { maxLength: 80 } },
-  { field_name: "passport_date_of_issue", label: "Date of issue", field_type: "date", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 8, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "passport_dates" } },
-  { field_name: "passport_date_of_expiry", label: "Date of expiry", field_type: "date", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 9, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "passport_dates" } },
-  { field_name: "has_other_passport", label: "Do you currently hold any other valid passport?", field_type: "radio", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 10, options: YES_NO },
-  { field_name: "other_passport_type", label: "Other passport — type", field_type: "radio", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 11, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, options: PASSPORT_TYPE_OPTIONS, validation_rules: { block_group: "other_passport" } },
-  { field_name: "other_passport_type_other", label: "Other passport — type other (please specify)", field_type: "text", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 12, conditional_logic: { showIf: `${HAS_OTHER_PASSPORT} && ${OTHER_PASSPORT_TYPE_OTHER}` }, validation_rules: { maxLength: 80, block_group: "other_passport" } },
-  { field_name: "other_passport_no", label: "Other passport — number", field_type: "text", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 13, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, validation_rules: { maxLength: 20, block_group: "other_passport" } },
-  { field_name: "other_passport_country", label: "Other passport — country of passport", field_type: "country", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 14, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, validation_rules: { source: "ISO3166-1", block_group: "other_passport" } },
-  { field_name: "other_passport_expiry", label: "Other passport — date of expiry", field_type: "date", required: true, step_number: 2, step_name: "Visa Category & Passport", display_order: 15, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "other_passport" } },
+  { field_name: "family_name_en", label: "Family name (in passport, block letters)", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 1, placeholder: "As shown in passport", validation_rules: { maxLength: 50, inline_group: "applicant_name" } },
+  { field_name: "given_names_en", label: "Given names (in passport, block letters)", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 2, placeholder: "As shown in passport", validation_rules: { maxLength: 80, inline_group: "applicant_name" } },
+  { field_name: "name_in_chinese_characters", label: "Name in Chinese characters / 漢字姓名", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 3, placeholder: "Required for PRC applicants", validation_rules: { maxLength: 30 } },
+  { field_name: "sex", label: "Sex", field_type: "radio", required: true, step_number: 2, step_name: "Personal Details", display_order: 4, options: SEX_OPTIONS },
+  { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 2, step_name: "Personal Details", display_order: 5, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
+  { field_name: "nationality", label: "Nationality", field_type: "country", required: true, step_number: 2, step_name: "Personal Details", display_order: 6, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "country_of_birth", label: "Country of birth", field_type: "country", required: true, step_number: 2, step_name: "Personal Details", display_order: 7, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "national_identity_no", label: "National Identity No.", field_type: "text", required: false, step_number: 2, step_name: "Personal Details", display_order: 8, placeholder: "Optional", validation_rules: { maxLength: 30 } },
+  { field_name: "has_used_other_names", label: "Have you ever used any other names?", field_type: "radio", required: true, step_number: 2, step_name: "Personal Details", display_order: 9, options: YES_NO },
+  { field_name: "other_family_name", label: "Other family name", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 10, conditional_logic: { showIf: HAS_USED_OTHER_NAMES }, validation_rules: { maxLength: 50, inline_group: "other_name", block_group: "other_names" } },
+  { field_name: "other_given_name", label: "Other given name", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 11, conditional_logic: { showIf: HAS_USED_OTHER_NAMES }, validation_rules: { maxLength: 80, inline_group: "other_name", block_group: "other_names" } },
+  { field_name: "is_dual_national", label: "Are you a citizen of more than one country?", field_type: "radio", required: true, step_number: 2, step_name: "Personal Details", display_order: 12, options: YES_NO },
+  { field_name: "other_nationalities", label: "Other nationality", field_type: "country", required: true, step_number: 2, step_name: "Personal Details", display_order: 13, conditional_logic: { showIf: IS_DUAL_NATIONAL }, validation_rules: { source: "ISO3166-1" } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 3: Contact & Emergency Contact  (Annex-17 §4)
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "home_country_address", label: "Home country address", field_type: "textarea", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 1, validation_rules: { maxLength: 300 } },
-  { field_name: "current_address_same_as_home", label: "Is your current residential address the same as your home country address?", field_type: "radio", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 2, options: YES_NO },
-  { field_name: "current_residential_address", label: "Current residential address (if different from home)", field_type: "textarea", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 3, conditional_logic: { showIf: HAS_DIFFERENT_RESIDENTIAL_ADDRESS }, validation_rules: { maxLength: 300 } },
-  { field_name: "cell_phone", label: "Cell phone (mobile)", field_type: "text", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 4, placeholder: "Including country code", validation_rules: { maxLength: 30, inline_group: "phones" } },
-  { field_name: "telephone", label: "Telephone (landline)", field_type: "text", required: false, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 5, placeholder: "Including country code", validation_rules: { maxLength: 30, inline_group: "phones" } },
-  { field_name: "email", label: "Email address", field_type: "text", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 6, placeholder: "name@example.com", validation_rules: { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
-  { field_name: "emergency_full_name", label: "Emergency contact — full name", field_type: "text", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 7, validation_rules: { maxLength: 120, block_group: "emergency_contact" } },
-  { field_name: "emergency_country_of_residence", label: "Emergency contact — country of residence", field_type: "country", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 8, validation_rules: { source: "ISO3166-1", block_group: "emergency_contact" } },
-  { field_name: "emergency_telephone", label: "Emergency contact — telephone", field_type: "text", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 9, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "emergency_contact" } },
-  { field_name: "emergency_relationship", label: "Emergency contact — relationship to applicant", field_type: "text", required: true, step_number: 3, step_name: "Contact & Emergency Contact", display_order: 10, placeholder: "e.g. parent, spouse, sibling", validation_rules: { maxLength: 60, block_group: "emergency_contact" } },
+  { field_name: "passport_type", label: "Passport type", field_type: "radio", required: true, step_number: 3, step_name: "Passport", display_order: 1, options: PASSPORT_TYPE_OPTIONS },
+  { field_name: "passport_type_other", label: "Passport type — Other (please specify)", field_type: "text", required: true, step_number: 3, step_name: "Passport", display_order: 2, conditional_logic: { showIf: PASSPORT_TYPE_OTHER }, validation_rules: { maxLength: 80 } },
+  { field_name: "passport_no", label: "Passport number", field_type: "text", required: true, step_number: 3, step_name: "Passport", display_order: 3, placeholder: "As shown in passport", validation_rules: { maxLength: 20 } },
+  { field_name: "passport_country", label: "Country of passport", field_type: "country", required: true, step_number: 3, step_name: "Passport", display_order: 4, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "passport_place_of_issue", label: "Place of issue", field_type: "text", required: false, step_number: 3, step_name: "Passport", display_order: 5, validation_rules: { maxLength: 80 } },
+  { field_name: "passport_date_of_issue", label: "Date of issue", field_type: "date", required: true, step_number: 3, step_name: "Passport", display_order: 6, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "passport_dates" } },
+  { field_name: "passport_date_of_expiry", label: "Date of expiry", field_type: "date", required: true, step_number: 3, step_name: "Passport", display_order: 7, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "passport_dates" } },
+  { field_name: "has_other_passport", label: "Do you hold more than one passport?", field_type: "radio", required: true, step_number: 3, step_name: "Passport", display_order: 8, options: YES_NO },
+  { field_name: "other_passport_type", label: "Other passport — type", field_type: "radio", required: true, step_number: 3, step_name: "Passport", display_order: 9, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, options: PASSPORT_TYPE_OPTIONS, validation_rules: { block_group: "other_passport" } },
+  { field_name: "other_passport_type_other", label: "Other passport — type other (please specify)", field_type: "text", required: true, step_number: 3, step_name: "Passport", display_order: 10, conditional_logic: { showIf: `${HAS_OTHER_PASSPORT} && ${OTHER_PASSPORT_TYPE_OTHER}` }, validation_rules: { maxLength: 80, block_group: "other_passport" } },
+  { field_name: "other_passport_no", label: "Other passport — number", field_type: "text", required: true, step_number: 3, step_name: "Passport", display_order: 11, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, validation_rules: { maxLength: 20, block_group: "other_passport" } },
+  { field_name: "other_passport_country", label: "Other passport — issuing country", field_type: "country", required: true, step_number: 3, step_name: "Passport", display_order: 12, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, validation_rules: { source: "ISO3166-1", block_group: "other_passport" } },
+  { field_name: "other_passport_expiry", label: "Other passport — date of expiry", field_type: "date", required: true, step_number: 3, step_name: "Passport", display_order: 13, conditional_logic: { showIf: HAS_OTHER_PASSPORT }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "other_passport" } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 4: Marital & Family  (Annex-17 §5)
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "marital_status", label: "Current marital status", field_type: "radio", required: true, step_number: 4, step_name: "Marital & Family", display_order: 1, options: MARITAL_STATUS_OPTIONS },
-  { field_name: "spouse_family_name_en", label: "Spouse — family name (English)", field_type: "text", required: true, step_number: 4, step_name: "Marital & Family", display_order: 2, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 50, inline_group: "spouse_name", block_group: "spouse" } },
-  { field_name: "spouse_given_names_en", label: "Spouse — given names (English)", field_type: "text", required: true, step_number: 4, step_name: "Marital & Family", display_order: 3, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 80, inline_group: "spouse_name", block_group: "spouse" } },
-  { field_name: "spouse_dob", label: "Spouse — date of birth", field_type: "date", required: true, step_number: 4, step_name: "Marital & Family", display_order: 4, conditional_logic: { showIf: IS_MARRIED }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "spouse" } },
-  { field_name: "spouse_nationality", label: "Spouse — nationality", field_type: "country", required: true, step_number: 4, step_name: "Marital & Family", display_order: 5, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { source: "ISO3166-1", block_group: "spouse" } },
-  { field_name: "spouse_address", label: "Spouse — residential address", field_type: "textarea", required: true, step_number: 4, step_name: "Marital & Family", display_order: 6, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 300, block_group: "spouse" } },
-  { field_name: "spouse_contact_no", label: "Spouse — contact number", field_type: "text", required: true, step_number: 4, step_name: "Marital & Family", display_order: 7, conditional_logic: { showIf: IS_MARRIED }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "spouse" } },
-  { field_name: "has_children", label: "Do you have any children?", field_type: "radio", required: true, step_number: 4, step_name: "Marital & Family", display_order: 8, options: YES_NO },
-  { field_name: "number_of_children", label: "Number of children", field_type: "text", required: true, step_number: 4, step_name: "Marital & Family", display_order: 9, conditional_logic: { showIf: HAS_CHILDREN }, placeholder: "e.g. 2", validation_rules: { pattern: "^[0-9]{1,2}$" } },
+  { field_name: "home_address_street", label: "Home address — street", field_type: "text", required: true, step_number: 4, step_name: "Contact Details", display_order: 1, validation_rules: { maxLength: 120, inline_group: "home_address" } },
+  { field_name: "home_address_city", label: "Home address — city", field_type: "text", required: true, step_number: 4, step_name: "Contact Details", display_order: 2, validation_rules: { maxLength: 80, inline_group: "home_address" } },
+  { field_name: "home_address_state", label: "Home address — state / province", field_type: "text", required: true, step_number: 4, step_name: "Contact Details", display_order: 3, validation_rules: { maxLength: 80, inline_group: "home_address" } },
+  { field_name: "home_address_country", label: "Home address — country", field_type: "country", required: true, step_number: 4, step_name: "Contact Details", display_order: 4, validation_rules: { source: "ISO3166-1", inline_group: "home_address" } },
+  { field_name: "telephone", label: "Telephone (landline)", field_type: "text", required: true, step_number: 4, step_name: "Contact Details", display_order: 5, placeholder: "Including country code", validation_rules: { maxLength: 30, inline_group: "phones" } },
+  { field_name: "cell_phone", label: "Cell phone (mobile)", field_type: "text", required: true, step_number: 4, step_name: "Contact Details", display_order: 6, placeholder: "Including country code", validation_rules: { maxLength: 30, inline_group: "phones" } },
+  { field_name: "email", label: "Email address", field_type: "text", required: true, step_number: 4, step_name: "Contact Details", display_order: 7, placeholder: "name@example.com", validation_rules: { maxLength: 120, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" } },
+  { field_name: "applying_country_same_as_residence", label: "Is the country where you are applying for the visa the same as your current country of residence?", field_type: "radio", required: true, step_number: 4, step_name: "Contact Details", display_order: 8, options: YES_NO },
+  { field_name: "applying_country", label: "Country where applicant is applying for visa", field_type: "country", required: true, step_number: 4, step_name: "Contact Details", display_order: 9, conditional_logic: { showIf: APPLYING_COUNTRY_DIFFERS }, validation_rules: { source: "ISO3166-1" } },
+  { field_name: "emergency_full_name", label: "Emergency contact — full name", field_type: "text", required: false, step_number: 4, step_name: "Contact Details", display_order: 10, validation_rules: { maxLength: 120, block_group: "emergency_contact" } },
+  { field_name: "emergency_country_of_residence", label: "Emergency contact — country of residence", field_type: "country", required: false, step_number: 4, step_name: "Contact Details", display_order: 11, validation_rules: { source: "ISO3166-1", block_group: "emergency_contact" } },
+  { field_name: "emergency_telephone", label: "Emergency contact — telephone", field_type: "text", required: false, step_number: 4, step_name: "Contact Details", display_order: 12, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "emergency_contact" } },
+  { field_name: "emergency_relationship", label: "Emergency contact — relationship to applicant", field_type: "text", required: false, step_number: 4, step_name: "Contact Details", display_order: 13, placeholder: "e.g. parent, spouse, sibling", validation_rules: { maxLength: 60, block_group: "emergency_contact" } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 5: Education & Employment  (Annex-17 §6 + §7)
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "highest_education", label: "Highest education completed", field_type: "radio", required: true, step_number: 5, step_name: "Education & Employment", display_order: 1, options: HIGHEST_EDUCATION_OPTIONS },
-  { field_name: "highest_education_other", label: "Highest education — Other (please specify)", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 2, conditional_logic: { showIf: EDUCATION_OTHER }, validation_rules: { maxLength: 120 } },
-  { field_name: "school_name", label: "Name of school (most recent)", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 3, validation_rules: { maxLength: 120, block_group: "school" } },
-  { field_name: "school_location", label: "School location (city / province / country)", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 4, validation_rules: { maxLength: 200, block_group: "school" } },
-  { field_name: "employment_status", label: "Current occupation / employment status", field_type: "radio", required: true, step_number: 5, step_name: "Education & Employment", display_order: 5, options: EMPLOYMENT_STATUS_OPTIONS },
-  { field_name: "employment_status_other", label: "Employment status — Other (please specify)", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 6, conditional_logic: { showIf: EMPLOYMENT_STATUS_OTHER }, validation_rules: { maxLength: 120 } },
-  { field_name: "employer_name", label: "Company / institution / school name", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 7, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, validation_rules: { maxLength: 120, block_group: "employer" } },
-  { field_name: "employer_position", label: "Position / course", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 8, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, validation_rules: { maxLength: 80, block_group: "employer" } },
-  { field_name: "employer_address", label: "Company / institution / school address", field_type: "textarea", required: true, step_number: 5, step_name: "Education & Employment", display_order: 9, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, validation_rules: { maxLength: 300, block_group: "employer" } },
-  { field_name: "employer_telephone", label: "Company / institution / school telephone", field_type: "text", required: true, step_number: 5, step_name: "Education & Employment", display_order: 10, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "employer" } },
+  { field_name: "marital_status", label: "Current marital status", field_type: "radio", required: true, step_number: 5, step_name: "Marital & Family", display_order: 1, options: MARITAL_STATUS_OPTIONS },
+  { field_name: "spouse_family_name_en", label: "Spouse — family name (English)", field_type: "text", required: true, step_number: 5, step_name: "Marital & Family", display_order: 2, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 50, inline_group: "spouse_name", block_group: "spouse" } },
+  { field_name: "spouse_given_names_en", label: "Spouse — given names (English)", field_type: "text", required: true, step_number: 5, step_name: "Marital & Family", display_order: 3, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 80, inline_group: "spouse_name", block_group: "spouse" } },
+  { field_name: "spouse_dob", label: "Spouse — date of birth", field_type: "date", required: true, step_number: 5, step_name: "Marital & Family", display_order: 4, conditional_logic: { showIf: IS_MARRIED }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "spouse" } },
+  { field_name: "spouse_nationality", label: "Spouse — nationality", field_type: "country", required: true, step_number: 5, step_name: "Marital & Family", display_order: 5, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { source: "ISO3166-1", block_group: "spouse" } },
+  { field_name: "spouse_address", label: "Spouse — residential address", field_type: "textarea", required: true, step_number: 5, step_name: "Marital & Family", display_order: 6, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 300, block_group: "spouse" } },
+  { field_name: "spouse_contact_no", label: "Spouse — contact number", field_type: "text", required: true, step_number: 5, step_name: "Marital & Family", display_order: 7, conditional_logic: { showIf: IS_MARRIED }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "spouse" } },
+  { field_name: "has_children", label: "Do you have any children?", field_type: "radio", required: true, step_number: 5, step_name: "Marital & Family", display_order: 8, options: YES_NO },
+  { field_name: "number_of_children", label: "Number of children", field_type: "text", required: true, step_number: 5, step_name: "Marital & Family", display_order: 9, conditional_logic: { showIf: HAS_CHILDREN }, placeholder: "e.g. 2", validation_rules: { pattern: "^[0-9]{1,2}$" } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 6: Trip & Visit  (Annex-17 §8.1–8.5)
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "purpose_of_visit", label: "Purpose of visit to Korea", field_type: "select", required: true, step_number: 6, step_name: "Trip & Visit", display_order: 1, options: PURPOSE_OF_VISIT_OPTIONS, placeholder: "C-3-9 typically: Tourism / Transit or Visiting Family / Relatives / Friends" },
-  { field_name: "purpose_of_visit_other", label: "Purpose of visit — Other (please specify)", field_type: "text", required: true, step_number: 6, step_name: "Trip & Visit", display_order: 2, conditional_logic: { showIf: PURPOSE_OTHER }, validation_rules: { maxLength: 200 } },
-  { field_name: "intended_period_of_stay", label: "Intended period of stay (days)", field_type: "text", required: true, step_number: 6, step_name: "Trip & Visit", display_order: 3, placeholder: "Maximum 90 for C-3-9", validation_rules: { pattern: "^(?:[1-9]|[1-8][0-9]|90)$" } },
-  { field_name: "intended_date_of_entry", label: "Intended date of entry into Korea", field_type: "date", required: true, step_number: 6, step_name: "Trip & Visit", display_order: 4, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
-  { field_name: "address_in_korea", label: "Address in Korea (incl. hotels)", field_type: "textarea", required: true, step_number: 6, step_name: "Trip & Visit", display_order: 5, validation_rules: { maxLength: 300 } },
-  { field_name: "contact_in_korea", label: "Contact number in Korea", field_type: "text", required: true, step_number: 6, step_name: "Trip & Visit", display_order: 6, placeholder: "Including country code +82", validation_rules: { maxLength: 30 } },
+  { field_name: "highest_education", label: "Highest education completed", field_type: "radio", required: false, step_number: 6, step_name: "Education & Employment", display_order: 1, options: HIGHEST_EDUCATION_OPTIONS },
+  { field_name: "highest_education_other", label: "Highest education — Other (please specify)", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 2, conditional_logic: { showIf: EDUCATION_OTHER }, validation_rules: { maxLength: 120 } },
+  { field_name: "school_name", label: "Name of school (most recent)", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 3, validation_rules: { maxLength: 120, block_group: "school" } },
+  { field_name: "school_location", label: "School location (city / province / country)", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 4, validation_rules: { maxLength: 200, block_group: "school" } },
+  { field_name: "employment_status", label: "Current occupation / employment status", field_type: "radio", required: false, step_number: 6, step_name: "Education & Employment", display_order: 5, options: EMPLOYMENT_STATUS_OPTIONS },
+  { field_name: "employment_status_other", label: "Employment status — Other (please specify)", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 6, conditional_logic: { showIf: EMPLOYMENT_STATUS_OTHER }, validation_rules: { maxLength: 120 } },
+  { field_name: "employer_name", label: "Company / institution / school name", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 7, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, validation_rules: { maxLength: 120, block_group: "employer" } },
+  { field_name: "employer_position", label: "Position / course", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 8, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, validation_rules: { maxLength: 80, block_group: "employer" } },
+  { field_name: "employer_address", label: "Company / institution / school address", field_type: "textarea", required: false, step_number: 6, step_name: "Education & Employment", display_order: 9, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, validation_rules: { maxLength: 300, block_group: "employer" } },
+  { field_name: "employer_telephone", label: "Company / institution / school telephone", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 10, conditional_logic: { showIf: IS_EMPLOYED_OR_STUDYING }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "employer" } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 7: Travel History & Family in/with Korea  (Annex-17 §8.6–8.9)
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "travelled_to_korea_5y", label: "Have you travelled to Korea in the last 5 years?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 1, options: YES_NO },
-  { field_name: "korea_visit_count", label: "Number of times visited Korea (last 5 years)", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 2, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, placeholder: "e.g. 3", validation_rules: { pattern: "^[0-9]{1,2}$" } },
-  { field_name: "korea_visit_purpose", label: "Prior Korea visit — purpose", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 3, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "korea_visits", max_items: 10 } },
-  { field_name: "korea_visit_start_date", label: "Prior Korea visit — period start", field_type: "date", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 4, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "korea_visits", inline_group: "korea_visit_dates" } },
-  { field_name: "korea_visit_end_date", label: "Prior Korea visit — period end", field_type: "date", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 5, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "korea_visits", inline_group: "korea_visit_dates" } },
-  { field_name: "travelled_outside_5y", label: "Have you travelled outside your country of residence (excl. Korea) in the last 5 years?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 6, options: YES_NO },
-  { field_name: "foreign_trip_country", label: "Foreign trip — country", field_type: "country", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 7, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "foreign_trips_5y", max_items: 10 } },
-  { field_name: "foreign_trip_purpose", label: "Foreign trip — purpose", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 8, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "foreign_trips_5y" } },
-  { field_name: "foreign_trip_start_date", label: "Foreign trip — period start", field_type: "date", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 9, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "foreign_trips_5y", inline_group: "foreign_trip_dates" } },
-  { field_name: "foreign_trip_end_date", label: "Foreign trip — period end", field_type: "date", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 10, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "foreign_trips_5y", inline_group: "foreign_trip_dates" } },
-  { field_name: "has_family_in_korea", label: "Do you have any family members currently staying in Korea?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 11, options: YES_NO, placeholder: "Spouse, children, parents, siblings" },
-  { field_name: "family_in_korea_full_name", label: "Family in Korea — full name (English)", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 12, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "family_in_korea", max_items: 10 } },
-  { field_name: "family_in_korea_dob", label: "Family in Korea — date of birth", field_type: "date", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 13, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "family_in_korea" } },
-  { field_name: "family_in_korea_nationality", label: "Family in Korea — nationality", field_type: "country", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 14, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "family_in_korea" } },
-  { field_name: "family_in_korea_relationship", label: "Family in Korea — relationship to applicant", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 15, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, placeholder: "e.g. spouse, parent, sibling, child", validation_rules: { maxLength: 60, repeatable: true, repeat_group: "family_in_korea" } },
-  { field_name: "travelling_with_family", label: "Are you travelling to Korea with any family members?", field_type: "radio", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 16, options: YES_NO },
-  { field_name: "family_with_full_name", label: "Travelling-with family — full name (English)", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 17, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "family_travelling_with", max_items: 10 } },
-  { field_name: "family_with_dob", label: "Travelling-with family — date of birth", field_type: "date", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 18, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "family_travelling_with" } },
-  { field_name: "family_with_nationality", label: "Travelling-with family — nationality", field_type: "country", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 19, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "family_travelling_with" } },
-  { field_name: "family_with_relationship", label: "Travelling-with family — relationship to applicant", field_type: "text", required: true, step_number: 7, step_name: "Travel History & Family", display_order: 20, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, placeholder: "e.g. spouse, parent, sibling, child", validation_rules: { maxLength: 60, repeatable: true, repeat_group: "family_travelling_with" } },
+  { field_name: "purpose_of_visit", label: "Purpose of visit to Korea", field_type: "radio", required: true, step_number: 7, step_name: "Visit Information", display_order: 1, options: PURPOSE_OF_VISIT_OPTIONS },
+  { field_name: "purpose_of_visit_other", label: "Purpose of visit — Other (please specify)", field_type: "text", required: false, step_number: 7, step_name: "Visit Information", display_order: 2, conditional_logic: { showIf: PURPOSE_OTHER }, validation_rules: { maxLength: 200 } },
+  { field_name: "expected_korea_visit_count", label: "Expected number of visits to Korea", field_type: "radio", required: true, step_number: 7, step_name: "Visit Information", display_order: 3, options: EXPECTED_KOREA_VISIT_COUNT_OPTIONS },
+  { field_name: "intended_period_of_stay", label: "Intended period of stay (days)", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 4, placeholder: "Maximum 90 for C-3-9", validation_rules: { pattern: "^(?:[1-9]|[1-8][0-9]|90)$", inline_group: "visit_dates" } },
+  { field_name: "intended_date_of_entry", label: "Intended date of entry into Korea", field_type: "date", required: true, step_number: 7, step_name: "Visit Information", display_order: 5, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "visit_dates" } },
+  { field_name: "korea_address_mode", label: "Address in Korea input mode", field_type: "radio", required: true, step_number: 7, step_name: "Visit Information", display_order: 6, options: KOREA_ADDRESS_MODE_OPTIONS },
+  { field_name: "korea_address_search_keyword", label: "Korea address search keyword", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 7, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 120 } },
+  { field_name: "address_in_korea", label: "Selected official address in Korea", field_type: "textarea", required: true, step_number: 7, step_name: "Visit Information", display_order: 8, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 300, source: "korea_visa_portal_address_search" } },
+  { field_name: "korea_address_detail", label: "Address detail in Korea", field_type: "text", required: false, step_number: 7, step_name: "Visit Information", display_order: 9, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 120 } },
+  { field_name: "korea_no_address_reason", label: "Reason for no address input", field_type: "select", required: true, step_number: 7, step_name: "Visit Information", display_order: 10, conditional_logic: { showIf: KOREA_ADDRESS_NO_DIRECT_INPUT }, options: KOREA_NO_ADDRESS_REASON_OPTIONS },
+  { field_name: "contact_in_korea", label: "Contact number in Korea", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 11, placeholder: "Including country code +82", validation_rules: { maxLength: 30 } },
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STEP 8: Invitation, Funding, Form Assistance & Declaration  (Annex-17 §9–§12)
-  // Annex-17 §12.3 (applicant signature) is intentionally out of schema —
-  // the form is paper-signed at KVAC. Photo §1.0 is also out of schema (file
-  // upload via application_documents).
-  // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "has_inviter", label: "Is anyone inviting you to Korea?", field_type: "radio", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 1, options: YES_NO, placeholder: "Korean national, foreign resident in Korea, company, or institute" },
-  { field_name: "inviter_name", label: "Inviter — name (person or organisation)", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 2, conditional_logic: { showIf: HAS_INVITER }, validation_rules: { maxLength: 120, block_group: "inviter" } },
-  { field_name: "inviter_dob_or_brn", label: "Inviter — date of birth or business registration number", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 3, conditional_logic: { showIf: HAS_INVITER }, placeholder: "YYYY/MM/DD or 10-digit BRN", validation_rules: { maxLength: 30, block_group: "inviter" } },
-  { field_name: "inviter_relationship", label: "Inviter — relationship to applicant", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 4, conditional_logic: { showIf: HAS_INVITER }, placeholder: "e.g. friend, business partner, relative", validation_rules: { maxLength: 80, block_group: "inviter" } },
-  { field_name: "inviter_address", label: "Inviter — address in Korea", field_type: "textarea", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 5, conditional_logic: { showIf: HAS_INVITER }, validation_rules: { maxLength: 300, block_group: "inviter" } },
-  { field_name: "inviter_phone", label: "Inviter — phone number", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 6, conditional_logic: { showIf: HAS_INVITER }, placeholder: "Including country code +82", validation_rules: { maxLength: 30, block_group: "inviter" } },
-  { field_name: "estimated_travel_costs_usd", label: "Estimated travel costs (USD)", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 7, placeholder: "e.g. 3000", validation_rules: { pattern: "^[0-9]{1,8}$" } },
-  { field_name: "payer_name", label: "Payer — name (person or organisation)", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 8, validation_rules: { maxLength: 120, block_group: "payer" } },
-  { field_name: "payer_relationship", label: "Payer — relationship to applicant", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 9, placeholder: "e.g. self, employer, parent", validation_rules: { maxLength: 80, block_group: "payer" } },
-  { field_name: "payer_support_type", label: "Payer — type of support", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 10, placeholder: "e.g. cash, accommodation, all-in", validation_rules: { maxLength: 120, block_group: "payer" } },
-  { field_name: "payer_contact", label: "Payer — contact number", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 11, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "payer" } },
-  { field_name: "received_form_assistance", label: "Did you receive assistance completing this application?", field_type: "radio", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 12, options: YES_NO },
-  { field_name: "assistant_full_name", label: "Assistant — full name", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 13, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, validation_rules: { maxLength: 120, block_group: "assistant" } },
-  { field_name: "assistant_dob", label: "Assistant — date of birth", field_type: "date", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 14, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "assistant" } },
-  { field_name: "assistant_telephone", label: "Assistant — telephone", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 15, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "assistant" } },
-  { field_name: "assistant_relationship", label: "Assistant — relationship to applicant", field_type: "text", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 16, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "e.g. agent, family, friend", validation_rules: { maxLength: 80, block_group: "assistant" } },
-  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 17, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
-  { field_name: "declaration_consent", label: "I declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into the Republic of Korea.", field_type: "checkbox", required: true, step_number: 8, step_name: "Invitation, Funding & Declaration", display_order: 18, options: [{ value: "yes", text: "I agree" }] },
+  { field_name: "travelled_to_korea_5y", label: "Have you travelled to Korea in the last 5 years?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 1, options: YES_NO },
+  { field_name: "korea_visit_count", label: "Number of times visited Korea (last 5 years)", field_type: "text", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 2, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, placeholder: "e.g. 3", validation_rules: { pattern: "^[0-9]{1,2}$" } },
+  { field_name: "korea_visit_purpose", label: "Prior Korea visit — purpose", field_type: "text", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 3, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "korea_visits", max_items: 10 } },
+  { field_name: "travelled_outside_5y", label: "Have you travelled outside your country of residence (excl. Korea) in the last 5 years?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 4, options: YES_NO },
+  { field_name: "foreign_trip_country", label: "Foreign trip — country", field_type: "country", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 5, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "foreign_trips_5y", max_items: 10 } },
+  { field_name: "foreign_trip_purpose", label: "Foreign trip — purpose", field_type: "text", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 6, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "foreign_trips_5y" } },
+  { field_name: "foreign_trip_start_date", label: "Foreign trip — period start", field_type: "date", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 7, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "foreign_trips_5y", inline_group: "foreign_trip_dates" } },
+  { field_name: "foreign_trip_end_date", label: "Foreign trip — period end", field_type: "date", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 8, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "foreign_trips_5y", inline_group: "foreign_trip_dates" } },
+  { field_name: "has_family_in_korea", label: "Do you have any family members currently staying in Korea?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 9, options: YES_NO, placeholder: "Spouse, children, parents, siblings" },
+  { field_name: "family_in_korea_full_name", label: "Family in Korea — full name (English)", field_type: "text", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 10, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "family_in_korea", max_items: 10 } },
+  { field_name: "family_in_korea_dob", label: "Family in Korea — date of birth", field_type: "date", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 11, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "family_in_korea" } },
+  { field_name: "family_in_korea_nationality", label: "Family in Korea — nationality", field_type: "country", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 12, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "family_in_korea" } },
+  { field_name: "family_in_korea_relationship", label: "Family in Korea — relationship to applicant", field_type: "text", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 13, conditional_logic: { showIf: HAS_FAMILY_IN_KOREA }, placeholder: "e.g. spouse, parent, sibling, child", validation_rules: { maxLength: 60, repeatable: true, repeat_group: "family_in_korea" } },
+  { field_name: "travelling_with_family", label: "Are you travelling to Korea with any family members?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 14, options: YES_NO },
+  { field_name: "family_with_full_name", label: "Travelling-with family — full name (English)", field_type: "text", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 15, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "family_travelling_with", max_items: 10 } },
+  { field_name: "family_with_dob", label: "Travelling-with family — date of birth", field_type: "date", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 16, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", repeatable: true, repeat_group: "family_travelling_with" } },
+  { field_name: "family_with_nationality", label: "Travelling-with family — nationality", field_type: "country", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 17, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "family_travelling_with" } },
+  { field_name: "family_with_relationship", label: "Travelling-with family — relationship to applicant", field_type: "text", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 18, conditional_logic: { showIf: TRAVELLING_WITH_FAMILY }, placeholder: "e.g. spouse, parent, sibling, child", validation_rules: { maxLength: 60, repeatable: true, repeat_group: "family_travelling_with" } },
+
+  { field_name: "has_inviting_company", label: "Do you have an inviting company?", field_type: "radio", required: true, step_number: 9, step_name: "Invitation Company", display_order: 1, options: YES_NO },
+  { field_name: "is_visa_portal_member", label: "Is the inviting company a visa portal website member?", field_type: "radio", required: false, step_number: 9, step_name: "Invitation Company", display_order: 2, conditional_logic: { showIf: HAS_INVITING_COMPANY }, options: YES_NO },
+  { field_name: "invitation_company_portal_id", label: "Inviting company visa website account", field_type: "text", required: false, step_number: 9, step_name: "Invitation Company", display_order: 3, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 60, block_group: "invitation_company" } },
+  { field_name: "invitation_company_business_registration_no", label: "Business registration number", field_type: "text", required: false, step_number: 9, step_name: "Invitation Company", display_order: 4, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 30, block_group: "invitation_company", official_search_required: true } },
+  { field_name: "invitation_company_name", label: "Inviting company name", field_type: "text", required: false, step_number: 9, step_name: "Invitation Company", display_order: 5, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 120, block_group: "invitation_company" } },
+  { field_name: "invitation_company_representative_name", label: "Representative name", field_type: "text", required: false, step_number: 9, step_name: "Invitation Company", display_order: 6, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 120, block_group: "invitation_company" } },
+  { field_name: "invitation_company_relationship", label: "Relationship", field_type: "text", required: true, step_number: 9, step_name: "Invitation Company", display_order: 7, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 80, block_group: "invitation_company" } },
+  { field_name: "invitation_company_address", label: "Inviting company address", field_type: "textarea", required: false, step_number: 9, step_name: "Invitation Company", display_order: 8, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 300, block_group: "invitation_company" } },
+  { field_name: "invitation_company_phone", label: "Inviting company phone number", field_type: "text", required: false, step_number: 9, step_name: "Invitation Company", display_order: 9, conditional_logic: { showIf: HAS_INVITING_COMPANY }, validation_rules: { maxLength: 30, block_group: "invitation_company" } },
+
+  { field_name: "visit_cost_usd", label: "Travel expenses (USD)", field_type: "text", required: false, step_number: 10, step_name: "Expenses & Assistance", display_order: 1, placeholder: "e.g. 3000", validation_rules: { pattern: "^[0-9]{0,8}$" } },
+  { field_name: "cost_payer_name", label: "Payer — name / company / organization", field_type: "text", required: false, step_number: 10, step_name: "Expenses & Assistance", display_order: 2, validation_rules: { maxLength: 120, block_group: "payer" } },
+  { field_name: "cost_payer_relationship", label: "Payer — relationship to applicant", field_type: "text", required: false, step_number: 10, step_name: "Expenses & Assistance", display_order: 3, validation_rules: { maxLength: 80, block_group: "payer" } },
+  { field_name: "cost_payer_support_type", label: "Payer — support details", field_type: "text", required: false, step_number: 10, step_name: "Expenses & Assistance", display_order: 4, validation_rules: { maxLength: 120, block_group: "payer" } },
+  { field_name: "cost_payer_contact", label: "Payer — contact method", field_type: "text", required: false, step_number: 10, step_name: "Expenses & Assistance", display_order: 5, validation_rules: { maxLength: 80, block_group: "payer" } },
+  { field_name: "received_form_assistance", label: "Did anyone assist you with filling out this application?", field_type: "radio", required: false, step_number: 10, step_name: "Expenses & Assistance", display_order: 6, options: YES_NO },
+  { field_name: "assistant_full_name", label: "Assistant — English full name", field_type: "text", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 7, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, validation_rules: { maxLength: 120, block_group: "assistant" } },
+  { field_name: "assistant_dob", label: "Assistant — date of birth", field_type: "date", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 8, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "assistant" } },
+  { field_name: "assistant_telephone", label: "Assistant — contact method", field_type: "text", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 9, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "assistant" } },
+  { field_name: "assistant_relationship", label: "Assistant — relationship to applicant", field_type: "text", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 10, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "e.g. agent, family, friend", validation_rules: { maxLength: 80, block_group: "assistant" } },
+  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 11, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
+  { field_name: "declaration_consent", label: "I declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into the Republic of Korea.", field_type: "checkbox", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 12, options: [{ value: "yes", text: "I agree" }] },
 ];
 
 // ─── Seed Runner ──────────────────────────────────────────────────────────

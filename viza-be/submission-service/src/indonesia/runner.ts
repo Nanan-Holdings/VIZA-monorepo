@@ -476,6 +476,13 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
     if (await swal.isVisible({ timeout: 1_000 }).catch(() => false)) {
       const text = await page.locator(".swal2-container").first().innerText({ timeout: 1_000 }).catch(() => "");
       sawExistingApplicationWarning ||= isExistingApplicationWarningText(text);
+      if (isExpiredIndonesiaApplicationText(text)) {
+        diagnostics.push("indonesia_dialog_detected_expired_application");
+      }
+      if (isExistingApplicationWarningText(text)) {
+        diagnostics.push(`indonesia_dialog_existing_application_warning_visible ${text.replace(/\s+/g, " ").trim().slice(0, 80)}`);
+        return true;
+      }
       await swal.click({ timeout: 5_000, force: true }).catch(() => undefined);
       diagnostics.push(`indonesia_dialog_confirmed ${text.replace(/\s+/g, " ").trim().slice(0, 80)}`);
       await page.waitForTimeout(1_000);
@@ -500,10 +507,6 @@ async function acceptIndonesiaExistingApplicationCancellationWarning(
 ): Promise<boolean> {
   const accepted = await page
     .evaluate(() => {
-      const normalized = (document.body.innerText || document.body.textContent || "").replace(/\s+/g, " ");
-      if (!/Currently the foreigner has a visa application/i.test(normalized)) return false;
-      if (!/cancell?ing my current visa|cancelled from the previous visa application/i.test(normalized)) return false;
-
       const visible = (element: Element): boolean => {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -512,19 +515,27 @@ async function acceptIndonesiaExistingApplicationCancellationWarning(
           rect.width > 0 &&
           rect.height > 0;
       };
+      const container = Array.from(document.querySelectorAll<HTMLElement>(".swal2-container, .swal2-popup"))
+        .find((candidate) => visible(candidate) && /Currently the foreigner has a visa application/i.test(candidate.innerText || candidate.textContent || ""));
+      if (!container) return false;
+      const normalized = (container.innerText || container.textContent || "").replace(/\s+/g, " ");
+      if (!/Currently the foreigner has a visa application/i.test(normalized)) return false;
+      if (!/cancell?ing my current visa|cancelled from the previous visa application/i.test(normalized)) return false;
 
-      const checkboxes = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='checkbox']"))
+      const checkboxes = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='checkbox']"))
         .filter((checkbox) => !checkbox.disabled && visible(checkbox));
       const checkbox = checkboxes[0] ?? null;
       if (!checkbox) return false;
       checkbox.scrollIntoView({ block: "center", inline: "center" });
+      if (!checkbox.checked) {
+        checkbox.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      }
       checkbox.checked = true;
-      checkbox.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       checkbox.dispatchEvent(new Event("input", { bubbles: true }));
       checkbox.dispatchEvent(new Event("change", { bubbles: true }));
 
       const controls = Array.from(
-        document.querySelectorAll<HTMLElement>("button, a, input[type='button'], input[type='submit'], [role='button']"),
+        container.querySelectorAll<HTMLElement>("button, a, input[type='button'], input[type='submit'], [role='button']"),
       ).filter(visible);
       const next = controls.find((control) => /next/i.test((control.innerText || control.textContent || (control as HTMLInputElement).value || "").trim()));
       if (!next) return false;
@@ -1654,21 +1665,30 @@ async function continueFromApplicationStepOne(
       await page.waitForTimeout(5_000);
       await dismissIndonesiaDialogs(page, diagnostics);
     }
-    if (/\/step_1\b/i.test(page.url()) && process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") {
+    const shouldUseStepOneFallbacks = async (): Promise<boolean> => {
+      if (!/\/step_1\b/i.test(page.url())) return false;
+      if (process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") return true;
+      const invalidControls = await visibleInvalidControlNames(page);
+      if (invalidControls.length > 0) return false;
+      diagnostics.push("indonesia_step_1_no_visible_validation_trying_fallbacks");
+      return true;
+    };
+
+    if (await shouldUseStepOneFallbacks()) {
       const fallbackClicked = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_1");
       if (!fallbackClicked) {
         diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
       }
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 10_000 }).catch(() => undefined);
     }
-    if (/\/step_1\b/i.test(page.url()) && process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") {
+    if (await shouldUseStepOneFallbacks()) {
       await submitIndonesiaStepOneFormFallback(page, diagnostics);
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 15_000 }).catch(() => undefined);
       await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
       await page.waitForTimeout(3_000);
       await dismissIndonesiaDialogs(page, diagnostics);
     }
-    if (/\/step_1\b/i.test(page.url()) && process.env.INDONESIA_STEP_1_USE_LEGACY_FALLBACKS === "true") {
+    if (await shouldUseStepOneFallbacks()) {
       await submitIndonesiaStepOneOfficialAjax(page, input, diagnostics);
       await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 20_000 }).catch(() => undefined);
       await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
@@ -2349,9 +2369,13 @@ function isExistingApplicationWarningText(value: string): boolean {
     /application\s+that\s+is\s+being\s+verified/i.test(value);
 }
 
-function isExpiredIndonesiaApplicationText(value: string): boolean {
+export function isExpiredIndonesiaApplicationText(value: string): boolean {
   const normalized = clean(value)?.toLowerCase() ?? "";
   return /application\s+expired/i.test(normalized) ||
+    /payment[_\s-]*expired/i.test(normalized) ||
+    /sas\.messages\.payment_expired/i.test(normalized) ||
+    /payment\s+has\s+expired/i.test(normalized) ||
+    /payment\s+is\s+expired/i.test(normalized) ||
     /\bstatus\s*[:\s]+expired\b/i.test(normalized) ||
     /\bexpired\b/i.test(normalized) && /transaction number|visitor visa number|passport number|visa type|action/i.test(normalized) ||
     /expired\s+application/i.test(normalized) ||
@@ -2363,8 +2387,18 @@ function isExpiredIndonesiaApplicationText(value: string): boolean {
     /permohonan\s+kedaluwarsa/i.test(normalized) ||
     /sudah\s+kadaluarsa/i.test(normalized) ||
     /telah\s+kedaluwarsa/i.test(normalized) ||
+    /pembayaran.*(?:kedaluwarsa|kadaluarsa)/i.test(normalized) ||
     /expired.*step/i.test(normalized) ||
     /tanggal\s+berakhir/i.test(normalized);
+}
+
+function hasExpiredIndonesiaApplicationDiagnostic(diagnostics: string[], fromIndex: number): boolean {
+  return diagnostics
+    .slice(fromIndex)
+    .some((entry) =>
+      entry === "indonesia_dialog_detected_expired_application" ||
+      isExpiredIndonesiaApplicationText(entry)
+    );
 }
 
 function isExpiredIndonesiaPortalUrl(value: string | null | undefined): boolean {
@@ -2384,6 +2418,7 @@ function isReusableIndonesiaApplicationUrl(value: string | null | undefined): va
   if (!cleanUrl) return false;
   if (!/^https:\/\/evisa\.imigrasi\.go\.id\//i.test(cleanUrl)) return false;
   if (/\/web\/visa-selection\b/i.test(cleanUrl)) return false;
+  if (/\/web\/application-detail-otp\//i.test(cleanUrl)) return false;
   if (/\/application_add\//i.test(cleanUrl) && !/\/step_[23]\b/i.test(cleanUrl)) return false;
   return /\/web\/applications\/.+\/list\b/i.test(cleanUrl) ||
     /\/application_add\/visa\/.+\/step_[23]\b/i.test(cleanUrl) ||
@@ -2913,25 +2948,63 @@ function decodeHtmlEntities(value: string): string {
     .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)));
 }
 
-function extractIndonesiaOtpCode(row: IndonesiaInboundEmailRow): string | null {
-  const htmlText = decodeHtmlEntities(row.html ?? "")
+function normalizeQuotedPrintableText(value: string): string {
+  return value
+    .replace(/=\r?\n/g, "")
+    .replace(/=C2=A0/gi, " ")
+    .replace(/=20/gi, " ")
+    .replace(/=0D=0A/gi, " ")
+    .replace(/=0A/gi, " ")
+    .replace(/=0D/gi, " ")
+    .replace(/=([0-9A-F]{2})/gi, (_match, hex) => {
+      const code = Number.parseInt(hex, 16);
+      return Number.isFinite(code) ? String.fromCharCode(code) : "";
+    });
+}
+
+function isLikelyIndonesiaOtpCode(value: string | null | undefined): value is string {
+  const cleanValue = value?.trim().toUpperCase();
+  if (!cleanValue || !/^[A-Z0-9]{4,8}$/.test(cleanValue)) return false;
+  if (/^[A-Z]+$/.test(cleanValue) && !/^[A-Z]{6}$/.test(cleanValue)) return false;
+  return !new Set([
+    "SYSTEM",
+    "PORTAL",
+    "PLEASE",
+    "VERIFY",
+    "LOGIN",
+    "EVISA",
+    "VISA",
+    "CODE",
+    "EMAIL",
+    "MINUTE",
+    "SECONDS",
+    "INDONESIA",
+  ]).has(cleanValue);
+}
+
+export function extractIndonesiaOtpCode(row: IndonesiaInboundEmailRow): string | null {
+  const subject = normalizeQuotedPrintableText(row.subject ?? "");
+  const text = normalizeQuotedPrintableText(row.text ?? "");
+  const htmlText = decodeHtmlEntities(normalizeQuotedPrintableText(row.html ?? ""))
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<[^>]+>/g, " ");
-  const haystack = `${row.subject ?? ""} ${row.text ?? ""} ${htmlText}`
+  const haystack = `${subject} ${text} ${htmlText}`
     .replace(/=\s+/g, "")
     .replace(/\s+/g, " ")
     .trim();
   const afterCodePrompt =
+    haystack.match(/use\s+the\s+code[^A-Z0-9]{0,40}([A-Z0-9]{4,8})\s+to\b/i)?.[1] ??
+    haystack.match(/(?:otp|one[-\s]?time\s+password|verification\s+code|security\s+code)[^A-Z0-9]{0,80}([A-Z0-9]{4,8})/i)?.[1] ??
     haystack.match(/code\s+(?:below|di bawah ini)[^A-Z0-9]{0,120}([A-Z0-9]{4,8})/i)?.[1] ??
     haystack.match(/login process\.\s*([A-Z0-9]{4,8})/i)?.[1] ??
     haystack.match(/proses login\.\s*([A-Z0-9]{4,8})/i)?.[1] ??
     null;
-  if (afterCodePrompt && /[A-Z]/i.test(afterCodePrompt) && /\d/.test(afterCodePrompt)) {
+  if (isLikelyIndonesiaOtpCode(afterCodePrompt)) {
     return afterCodePrompt.toUpperCase();
   }
   const candidates = haystack.match(/\b[A-Z0-9]{6}\b/gi) ?? [];
-  const candidate = candidates.find((value) => /[A-Z]/i.test(value) && /\d/.test(value));
+  const candidate = candidates.find((value) => isLikelyIndonesiaOtpCode(value) && /\d/.test(value));
   return candidate?.toUpperCase() ?? null;
 }
 
@@ -3378,12 +3451,18 @@ export async function probeIndonesiaPortal(
     }
     let url = page.url();
     let state = classifyIndonesiaPortalSnapshot({ url, title, text });
+    let expiredDiagnosticCursor = 0;
     for (let step = 0; step < 18; step += 1) {
       const beforeUrl = url;
       const beforeState = state;
       let advanced = false;
 
-      if (isExpiredIndonesiaApplicationText(text) || isExpiredIndonesiaPortalUrl(url)) {
+      if (
+        isExpiredIndonesiaApplicationText(text) ||
+        isExpiredIndonesiaPortalUrl(url) ||
+        hasExpiredIndonesiaApplicationDiagnostic(session.diagnostics, expiredDiagnosticCursor)
+      ) {
+        expiredDiagnosticCursor = session.diagnostics.length;
         session.diagnostics.push("indonesia_running_flow_detected_expired");
         savedApplicationUrl = null;
         await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
@@ -3512,6 +3591,13 @@ export async function probeIndonesiaPortal(
     }
 
     if ((state === "payment_required" || state === "payment_otp_required") && input.userPaymentHandoff?.enabled) {
+      const openedPaymentPage = await continueFromIndonesiaPaymentDetail(page, session.diagnostics);
+      if (openedPaymentPage) {
+        title = await page.title().catch(() => null);
+        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+        url = page.url();
+        state = classifyIndonesiaPortalSnapshot({ url, title, text });
+      }
       await capturePaymentArtifact(page, input, session.diagnostics, "payment");
       const paymentResult = await waitForUserPaymentCompletion(page, input, session.diagnostics);
       title = paymentResult.title;

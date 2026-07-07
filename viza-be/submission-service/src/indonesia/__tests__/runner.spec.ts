@@ -6,7 +6,7 @@ import {
   normalizeIndonesiaAnswers,
   runIndonesiaLiveSubmission,
 } from "../index";
-import { shouldSubmitIndonesiaPortalEmailOtp } from "../runner";
+import { extractIndonesiaOtpCode, isExpiredIndonesiaApplicationText, shouldSubmitIndonesiaPortalEmailOtp } from "../runner";
 import {
   shouldDirectNavigateIndonesiaStepOne,
   actionForIndonesiaPortalState,
@@ -97,6 +97,28 @@ test("treats VIZA-managed Indonesia alias with a vault password as a reusable po
   );
 });
 
+test("detects Indonesia payment-expired portal dialog keys", () => {
+  assert.equal(isExpiredIndonesiaApplicationText("Failed sas.messages.payment_expired OK"), true);
+  assert.equal(isExpiredIndonesiaApplicationText("Payment has expired. Please create a new application."), true);
+  assert.equal(isExpiredIndonesiaApplicationText("Status: Expired"), true);
+  assert.equal(isExpiredIndonesiaApplicationText("Payment is waiting for OTP verification"), false);
+});
+
+test("extracts Indonesia email OTP from quoted-printable portal wording", () => {
+  assert.equal(
+    extractIndonesiaOtpCode({
+      id: "mail-1",
+      subject: "Indonesia Immigration One Platform System - OTP",
+      text:
+        "Dear applicant, We received a login request. Use the co=\\r\\n" +
+        "de A1B2C3 to complete the login process. This code is valid for 5 minutes.",
+      html: null,
+      received_at: "2026-07-07T00:00:00Z",
+    }),
+    "A1B2C3",
+  );
+});
+
 test("classifies Indonesia portal login and registration gates", () => {
   assert.equal(
     classifyIndonesiaPortalSnapshot({
@@ -175,6 +197,14 @@ test("classifies Indonesia portal login and registration gates", () => {
       url: `${INDONESIA_C1_PORTAL_URL}web/payment/checkout`,
       title: "Indonesia eVisa",
       text: "Waiting for payment",
+    }),
+    "payment_required",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/application/abc/detail`,
+      title: "Visa Application",
+      text: "Waiting For Payment Make a Payment Payment Information OTP Code",
     }),
     "payment_required",
   );

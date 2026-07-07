@@ -151,6 +151,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const hasObservedSlots = (snapshot?.slots ?? []).some((slot) => ["observed", "user_selected", "selected"].includes(slot.status));
   const canRestartSmsForReschedule = changeManualAction?.action_type === "official_reschedule_required";
   const changeMetadata = (changeManualAction ?? cancellationAction)?.metadata_redacted_json ?? null;
+  const cancellationIntent = cancellationAction?.metadata_redacted_json?.intent === "reschedule" ? "reschedule" : "cancel";
   const officialChangeSearchUrl =
     (typeof changeMetadata?.bookingSearchUrl === "string" ? changeMetadata.bookingSearchUrl : null) ??
     center?.bookingSearchUrl ??
@@ -163,8 +164,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         ? "VIZA 会在后台打开官网“预先预约查询”，用申请资料里的访问者名和手机号查询已有预约；查到记录后会回到本页让你确认是否取消。"
         : "VIZA opens the official appointment query in the background using the applicant name and mobile number from this application. If a record is found, this page asks you to confirm cancellation."
       : isZh
-        ? "改约会重新走官网短信验证并读取新时段；你仍需要先选择新时间，再授权最后提交。原预约不要在官网中手动取消，除非你确认要走取消后重约。"
-        : "Rescheduling restarts official SMS verification and reads new slots. You still choose a new slot and approve the final submit. Do not manually cancel the existing booking unless you intend to cancel-and-rebook."
+        ? "官网没有独立改约入口；VIZA 会先查询并取消旧预约，拿到官方取消证据后，再开放重新发送验证码和选择新时段。"
+        : "The official site does not expose a standalone reschedule entry. VIZA first queries and cancels the old booking, then enables fresh SMS verification and new slot selection after official cancellation evidence is captured."
     : null;
   const isCancelled = snapshot?.job?.status === "appointment_cancelled";
 
@@ -187,23 +188,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   }, [applicationId, effectiveCenterCode]);
 
   const requestReschedule = useCallback(async () => {
-    setBusy("request-reschedule");
-    setError(null);
-    try {
-      setSnapshot(await requestSnapshot(applicationId, "request-reschedule", undefined, undefined, effectiveCenterCode ?? undefined));
-      setBusy("request-live-booking");
-      setSnapshot(await requestSnapshot(applicationId, "request-live-booking", undefined, undefined, effectiveCenterCode ?? undefined));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      try {
-        setSnapshot(await requestSnapshot(applicationId, undefined, undefined, undefined, effectiveCenterCode ?? undefined));
-      } catch {
-        // Keep the original action error visible if the follow-up refresh also fails.
-      }
-    } finally {
-      setBusy(null);
-    }
-  }, [applicationId, effectiveCenterCode]);
+    await run("request-reschedule");
+  }, [run]);
 
   const chooseCenter = useCallback(async (nextCenterCode: string) => {
     setSelectedCenterCode(nextCenterCode);
@@ -752,8 +738,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               </div>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {isZh
-                  ? "改约和取消都在 VIZA 页面发起。后端会进入官网执行对应步骤；需要验证码或最终取消确认时，页面会在这里继续让你操作。"
-                  : "Reschedule and cancellation both start inside VIZA. The backend operates the official site; SMS or final cancellation confirmation remains on this page."}
+                  ? "官网公开规则提示不可重复预约。改约会先取消旧预约，拿到官方取消证据后，再重新发送验证码选择新时间。"
+                  : "Official rules warn against duplicate bookings. Rescheduling first cancels the old booking, then restarts SMS verification and new slot selection after official cancellation evidence is captured."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
@@ -762,8 +748,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   onClick={() => void requestReschedule()}
                   disabled={Boolean(busy)}
                 >
-                  {busy === "request-reschedule" || busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-                  {isZh ? "申请改约" : "Request reschedule"}
+                  {busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                  {isZh ? "申请改约（先取消旧预约）" : "Reschedule: cancel old booking first"}
                 </Button>
                 <Button
                   size="sm"
@@ -794,11 +780,11 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                   {changeManualAction.action_type === "official_reschedule_required" ? (
                     <Button
                       size="sm"
-                      onClick={() => void run("request-live-booking")}
-                      disabled={Boolean(busy) || center?.liveBookingMode !== "sms_sync_supported"}
+                      onClick={() => void requestReschedule()}
+                      disabled={Boolean(busy)}
                     >
-                      {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-                      {isZh ? "重新发送官网验证码" : "Send a fresh official code"}
+                      {busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      {isZh ? "继续查询并取消旧预约" : "Continue old-booking cancellation"}
                     </Button>
                   ) : null}
                   {changeManualAction.action_type === "official_cancel_required" ? (
@@ -820,15 +806,21 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>
                 {cancellationAction.action_type === "official_cancel_confirmation_required"
-                  ? isZh ? "已查到官网预约，等待确认取消" : "Official booking found, confirm cancellation"
+                  ? cancellationIntent === "reschedule"
+                    ? isZh ? "已查到旧预约，确认取消后改约" : "Old booking found; cancel before rescheduling"
+                    : isZh ? "已查到官网预约，等待确认取消" : "Official booking found, confirm cancellation"
                   : isZh ? "取消查询需要人工确认" : "Cancellation query needs review"}
               </AlertTitle>
               <AlertDescription className="space-y-3">
                 <p>
                   {cancellationAction.action_type === "official_cancel_confirmation_required"
                     ? isZh
-                      ? "后端已经在官网查询到预约记录。点击下方按钮后，worker 会继续在官网点击取消并保存官方截图证据。"
-                      : "The backend found the official booking. Click below to let the worker cancel it on the official site and save evidence."
+                      ? cancellationIntent === "reschedule"
+                        ? "后端已经在官网查询到旧预约。点击下方按钮后，worker 会先取消旧预约并保存官方截图证据，然后你可以重新发送验证码选择新时间。"
+                        : "后端已经在官网查询到预约记录。点击下方按钮后，worker 会继续在官网点击取消并保存官方截图证据。"
+                      : cancellationIntent === "reschedule"
+                        ? "The backend found the old booking. Click below to cancel it on the official site and save evidence, then restart SMS verification for a new slot."
+                        : "The backend found the official booking. Click below to let the worker cancel it on the official site and save evidence."
                     : isZh
                       ? "后端已在官网完成查询，但没有识别到可自动点击的取消按钮。请查看证据后等待人工处理。"
                       : "The backend completed the official query but did not detect an automatable cancellation button. Review the evidence and wait for manual handling."}
@@ -845,7 +837,9 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                       disabled={Boolean(busy)}
                     >
                       {busy === "confirm-cancel-official" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                      {isZh ? "确认取消预约" : "Confirm cancellation"}
+                      {cancellationIntent === "reschedule"
+                        ? isZh ? "确认取消旧预约" : "Cancel old booking"
+                        : isZh ? "确认取消预约" : "Confirm cancellation"}
                     </Button>
                   ) : null}
                   {cancellationAction.action_type === "official_cancel_manual_checkpoint" ? (

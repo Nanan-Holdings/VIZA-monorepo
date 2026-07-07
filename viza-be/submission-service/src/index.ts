@@ -6717,10 +6717,6 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
-    const preparedPortalAccount = hasPreparedIndonesiaPortalAccount({
-      email: managedVaultEmail,
-      password: managedVaultPassword,
-    });
 
     const existingAliasDomain = parseAliasDomain(managedVaultEmail);
     const aliasDomains = parseIndonesiaManagedAliasDomains(existingAliasDomain);
@@ -6759,6 +6755,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         note: "VIZA-managed Indonesia eVisa portal password",
       });
     }
+    const preparedPortalAccount = hasPreparedIndonesiaPortalAccount({
+      email: managedVaultEmail,
+      password: vaultPortalPassword,
+    });
     const userPaymentHandoffEnabled = readBooleanEnv("INDONESIA_USER_PAYMENT_HANDOFF_ENABLED", true);
     const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
       item.application_id,
