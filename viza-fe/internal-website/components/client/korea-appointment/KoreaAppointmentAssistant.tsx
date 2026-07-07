@@ -186,6 +186,25 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     }
   }, [applicationId, effectiveCenterCode]);
 
+  const requestReschedule = useCallback(async () => {
+    setBusy("request-reschedule");
+    setError(null);
+    try {
+      setSnapshot(await requestSnapshot(applicationId, "request-reschedule", undefined, undefined, effectiveCenterCode ?? undefined));
+      setBusy("request-live-booking");
+      setSnapshot(await requestSnapshot(applicationId, "request-live-booking", undefined, undefined, effectiveCenterCode ?? undefined));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      try {
+        setSnapshot(await requestSnapshot(applicationId, undefined, undefined, undefined, effectiveCenterCode ?? undefined));
+      } catch {
+        // Keep the original action error visible if the follow-up refresh also fails.
+      }
+    } finally {
+      setBusy(null);
+    }
+  }, [applicationId, effectiveCenterCode]);
+
   const chooseCenter = useCallback(async (nextCenterCode: string) => {
     setSelectedCenterCode(nextCenterCode);
     setBusy("refresh-status");
@@ -740,10 +759,10 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => void run("request-reschedule")}
+                  onClick={() => void requestReschedule()}
                   disabled={Boolean(busy)}
                 >
-                  {busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                  {busy === "request-reschedule" || busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                   {isZh ? "申请改约" : "Request reschedule"}
                 </Button>
                 <Button
@@ -827,6 +846,16 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                     >
                       {busy === "confirm-cancel-official" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                       {isZh ? "确认取消预约" : "Confirm cancellation"}
+                    </Button>
+                  ) : null}
+                  {cancellationAction.action_type === "official_cancel_manual_checkpoint" ? (
+                    <Button
+                      size="sm"
+                      onClick={() => void run("start-cancel-query")}
+                      disabled={Boolean(busy)}
+                    >
+                      {busy === "start-cancel-query" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      {isZh ? "重新查询取消入口" : "Retry cancellation query"}
                     </Button>
                   ) : null}
                   {typeof cancellationAction.metadata_redacted_json?.screenshotPath === "string" ? (

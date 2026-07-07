@@ -53,6 +53,10 @@ Important patterns to mirror in the Playwright runner:
   manual checkpoint when the gateway asks for them.
 - Preserve `validationErrors`, `fieldFallbacks`, CAPTCHA telemetry, trace, and
   final screenshot in the queue payload for frontend evidence and schema tuning.
+- `country-options.ts` contains the alpha-3 country-name index used to normalize
+  Vietnam e-Visa nationality answers before Ant Select filling. Keep it aligned
+  with captured official/standard country option text when nationality dropdown
+  options are refreshed.
 - Before marking the Vietnam flow verified, run the user-facing browser path:
   click the frontend submit/retry button, confirm the worker picks up the queue
   and the UI progresses, then preserve the official portal trace/screenshot and

@@ -1,3 +1,5 @@
+import { VN_COUNTRY_NAME_BY_ALPHA3 } from "./country-options.js";
+
 /**
  * Vietnam e-Visa field-name → live DOM id mapping.
  *
@@ -49,12 +51,22 @@ export interface VnFieldFallbackRecord {
 
 const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
 const SEX_LABELS = { male: "Male", m: "Male", female: "Female", f: "Female" };
-const NATIONALITY_LABELS = {
-  chn: "China",
-  cn: "China",
-  china: "China",
+const COUNTRY_NAME_BY_NORMALIZED = Object.fromEntries(
+  Object.values(VN_COUNTRY_NAME_BY_ALPHA3).map((name) => [normalizeCountryLookupKey(name), name]),
+);
+const NATIONALITY_DEMONYM_LABELS: Record<string, string> = {
   chinese: "China",
+  hungarian: "Hungary",
+  panamanian: "Panama",
+  vietnamese: "Vietnam",
+  american: VN_COUNTRY_NAME_BY_ALPHA3.USA,
+  british: VN_COUNTRY_NAME_BY_ALPHA3.GBR,
 };
+const NATIONALITY_LABELS = buildCountryOptionLabels({
+  cn: "China",
+  prc: "China",
+  chinese: "China",
+});
 const PASSPORT_TYPE_LABELS = {
   ordinary_passport: "Ordinary passport",
   diplomatic_passport: "Diplomatic passport",
@@ -173,6 +185,13 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
   const normalizedSlug = normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const explicit = mapping?.optionLabels?.[normalized];
   if (explicit) return explicit;
+  const countryText = normalizeVnCountryOptionText(rawValue);
+  if (
+    countryText &&
+    (mapping?.type === "country" || fieldName.toLowerCase().includes("nationality"))
+  ) {
+    return countryText;
+  }
   if (fieldName === "intended_province_city" && PROVINCE_LABELS[normalized]) {
     return PROVINCE_LABELS[normalized];
   }
@@ -193,6 +212,38 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
       .replace(/\bSeaport\b/g, "Seaport");
   }
   return rawValue;
+}
+
+export function normalizeVnCountryOptionText(rawValue: string): string | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+  const alpha3 = trimmed.toUpperCase();
+  if (/^[A-Z]{3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) {
+    return VN_COUNTRY_NAME_BY_ALPHA3[alpha3];
+  }
+  const lookup = normalizeCountryLookupKey(trimmed);
+  return COUNTRY_NAME_BY_NORMALIZED[lookup] ?? NATIONALITY_DEMONYM_LABELS[lookup] ?? null;
+}
+
+function buildCountryOptionLabels(extra: Record<string, string> = {}): Record<string, string> {
+  const labels: Record<string, string> = {};
+  for (const [alpha3, name] of Object.entries(VN_COUNTRY_NAME_BY_ALPHA3)) {
+    labels[alpha3.toLowerCase()] = name;
+    labels[normalizeCountryLookupKey(name)] = name;
+  }
+  return { ...labels, ...extra };
+}
+
+function normalizeCountryLookupKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(citizen|national|nationality|passport|holder|of|the)\b/g, " ")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 export function getVnFieldFallbackValue(fieldName: string): string | null {

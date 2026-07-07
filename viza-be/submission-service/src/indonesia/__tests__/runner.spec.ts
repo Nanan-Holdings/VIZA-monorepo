@@ -12,6 +12,7 @@ import {
   actionForIndonesiaPortalState,
   classifyIndonesiaPortalSnapshot,
 } from "../portal-state";
+import { hasPreparedIndonesiaPortalAccount } from "../managed-account";
 
 test("normalizes Indonesia C1 tourist answers to the official eVisa portal", () => {
   const normalized = normalizeIndonesiaAnswers({
@@ -70,6 +71,30 @@ test("stops at payment authorization after the managed alias is prepared", async
   assert.equal(result.status, "action_required");
   assert.equal(result.actionType, "official_fee_payment_required");
   assert.equal(result.implementationStatus, "partial");
+});
+
+test("treats VIZA-managed Indonesia alias with a vault password as a reusable portal account", () => {
+  assert.equal(
+    hasPreparedIndonesiaPortalAccount({
+      email: "appl-0123456789abcdefghijklmnop@haggstorm.com",
+      password: "portal-password",
+    }),
+    true,
+  );
+  assert.equal(
+    hasPreparedIndonesiaPortalAccount({
+      email: "traveler@example.com",
+      password: "portal-password",
+    }),
+    true,
+  );
+  assert.equal(
+    hasPreparedIndonesiaPortalAccount({
+      email: "appl-0123456789abcdefghijklmnop@haggstorm.com",
+      password: null,
+    }),
+    false,
+  );
 });
 
 test("classifies Indonesia portal login and registration gates", () => {

@@ -1435,7 +1435,7 @@ export async function POST(
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
-  if (action === "request-reschedule" || action === "request-cancel") {
+  if (action === "request-reschedule") {
     const job = await latestJob(auth.admin, id);
     if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
     try {
@@ -1445,11 +1445,38 @@ export async function POST(
         auth.profile.id,
         job,
         routing,
-        action === "request-reschedule" ? "reschedule" : "cancel",
+        "reschedule",
       );
     } catch (error) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Could not create Korea appointment change checkpoint." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "request-cancel") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
+    try {
+      await createOrReuseAppointmentChangeCheckpoint(auth.admin, id, auth.profile.id, job, routing, "cancel");
+      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing);
+    } catch (error) {
+      if (isSubmissionRunnerUnavailable(error)) {
+        await createWorkerUnavailableCheckpoint(
+          auth.admin,
+          id,
+          auth.profile.id,
+          job,
+          routing,
+          "cancel",
+          submissionServiceErrorMessage(error),
+        );
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      }
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Could not start Korea KVAC cancellation inside VIZA." },
         { status: 409 },
       );
     }
