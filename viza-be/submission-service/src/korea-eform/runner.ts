@@ -1,9 +1,12 @@
 import type { Page } from "playwright";
 import {
+  auditKoreaOfficialEformFirstPageFill,
+  auditKoreaOfficialEformSecondPageFill,
   completeKoreaOfficialEformAndDownloadPdf,
   fillKoreaOfficialEformFirstPage,
   fillKoreaOfficialEformSecondPage,
   type KoreaOfficialEformFillOptions,
+  type KoreaOfficialEformFillAuditItem,
 } from "./portal";
 
 export const KOREA_VISA_PORTAL_EFORM_URL = "https://www.visa.go.kr/openPage.do?MENU_ID=10204";
@@ -75,6 +78,7 @@ export type KoreaOfficialEformResult =
       evidence?: {
         filledSelectors?: string[];
         missingUploads?: string[];
+        fillAuditFailures?: KoreaOfficialEformFillAuditItem[];
         screenshotPath?: string;
       };
     }
@@ -264,9 +268,12 @@ export async function runKoreaOfficialEformLiveFill(
     ...options,
     pdfLanguage: options.pdfLanguage ?? input.pdfLanguage ?? "zh-CN",
   });
+  const firstPageAudit = await auditKoreaOfficialEformFirstPageFill(page, payload, options);
+  const firstPageAuditFailures = firstPageAudit.filter((item) => !item.ok);
   const canContinueToSecondPage =
     process.env.KR_VISA_PORTAL_EFORM_SECOND_PAGE_ENABLED === "true" &&
-    fillResult.missingUploads.length === 0;
+    fillResult.missingUploads.length === 0 &&
+    firstPageAuditFailures.length === 0;
 
   if (canContinueToSecondPage) {
     const nextButton = page.locator("#REG_STEP1");
@@ -274,6 +281,25 @@ export async function runKoreaOfficialEformLiveFill(
     await nextButton.click();
     await page.waitForLoadState("domcontentloaded").catch(() => undefined);
     const secondPageResult = await fillKoreaOfficialEformSecondPage(page, input.answers);
+    const secondPageAudit = await auditKoreaOfficialEformSecondPageFill(page, input.answers);
+    const secondPageAuditFailures = secondPageAudit.filter((item) => !item.ok);
+
+    if (secondPageAuditFailures.length > 0) {
+      return {
+        status: "manual_required",
+        applicationId: input.applicationId,
+        portalUrl: page.url(),
+        manualActionType: "official_eform_portal_review_required",
+        message:
+          "Korea Visa Portal e-Form was filled, but VIZA detected official-page fields that did not retain their values. Review the audit failures before final submission.",
+        payload,
+        evidence: {
+          filledSelectors: [...fillResult.filledSelectors, ...secondPageResult.filledSelectors],
+          missingUploads: fillResult.missingUploads,
+          fillAuditFailures: secondPageAuditFailures,
+        },
+      };
+    }
 
     if (input.finalReviewApproved) {
       const completion = await completeKoreaOfficialEformAndDownloadPdf(page, input.applicationId);
@@ -300,6 +326,7 @@ export async function runKoreaOfficialEformLiveFill(
       evidence: {
         filledSelectors: [...fillResult.filledSelectors, ...secondPageResult.filledSelectors],
         missingUploads: fillResult.missingUploads,
+        fillAuditFailures: [],
       },
     };
   }
@@ -315,6 +342,7 @@ export async function runKoreaOfficialEformLiveFill(
     evidence: {
       filledSelectors: fillResult.filledSelectors,
       missingUploads: fillResult.missingUploads,
+      fillAuditFailures: firstPageAuditFailures,
     },
   };
 }
