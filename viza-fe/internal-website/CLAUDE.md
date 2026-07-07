@@ -1673,7 +1673,7 @@ link. Guest rails set it `true`; authenticated rails leave it `false`.
 - Authenticated only (the visitor is already in `/client/*`); `guest_checkout=false`.
 
 ### Guest card checkout — Stripe, unauthenticated
-- **Pre-payment, unauthenticated.** Marketing CTAs deep-link to `/checkout/card?country=&visa=&locale=`. Visitor enters email + name; we upsert `applicant_profiles`, draft an `applications` row, and create a `pending` `order` with `guest_checkout=true`.
+- **Pre-payment, unauthenticated.** Marketing CTAs deep-link to `/checkout/card?country=&visa=&locale=` (+ optional `email`/`name`/`prefill`). Visitor enters email + name; we upsert `applicant_profiles`, draft an `applications` row, and create a `pending` `order` with `guest_checkout=true`. The `prefill` param is the base64url wizard payload from the marketing /apply funnel (passport OCR, phone, arrival date, speed tier, add-ons) — decoded + persisted server-side by `lib/checkout/prefill.ts` into `applicant_profiles`, `applications.arrival_date`, and `visa_application_answers` (`passport_name`, `speed_tier`, `addons`). Best-effort: never blocks checkout.
 - Server action: `app/actions/card-checkout.ts` → `startCardCheckout({country, visaType, email, fullName, locale})` — mints a Stripe Checkout session via `lib/stripe/client.ts` with `metadata.order_id` + `metadata.guest_checkout=1`.
 - Checkout UI: `app/checkout/card/page.tsx` + `_components/card-checkout-form.tsx`; success → `app/checkout/card/check-your-email`.
 - Webhook: the **guest branch** of `app/api/stripe/webhook/route.ts` (`handleGuestCheckoutSession`) routes guest sessions to the order-model `lib/stripe/handle-event.ts#applyStripeEvent` + `runPostPaidSideEffects(orderId, "card")`, bypassing the authenticated payment_records path.
@@ -1686,7 +1686,7 @@ link. Guest rails set it `true`; authenticated rails leave it `false`.
 - Server action: `app/actions/wechat-checkout.ts` → `startWechatCheckout({country, visaType, email, fullName, locale})`.
 - Checkout UI: `app/checkout/wechat/page.tsx` + `_components/wechat-checkout-form.tsx` (renders a QR generated server-side via `qrcode` and polls `/api/wechat-pay/status/[orderId]`).
 - Webhook: `app/api/wechat-pay/notify/route.ts` — on `kind === "paid"` calls the shared `runPostPaidSideEffects(orderId, "wechat")`. Responds `{code:"SUCCESS"}` per WeChat Pay spec.
-- Pricing: `lib/pricing.ts` — packages opt in by setting `wechatPayTotalFen`; lookup via `wechatPricingFor()`. Phase 1 only `indonesia/B211A` is enabled.
+- Pricing: `lib/pricing.ts` — packages opt in by setting `wechatPayTotalFen`; lookup via `wechatPricingFor()`. All packages now carry a placeholder CNY total (≈ USD total × 7.2, MKT-013) — ops to revise before launch.
 - DB: migration `viza-be/agent-backend/drizzle/0086_wechat_pay.sql` adds `wechat_out_trade_no`, `wechat_prepay_id`, `wechat_transaction_id`, `wechat_payer_openid` to `order`.
 - Env vars: `WECHAT_PAY_MCH_ID`, `WECHAT_PAY_APP_ID`, `WECHAT_PAY_API_V3_KEY`, `WECHAT_PAY_MERCHANT_SERIAL_NO`, `WECHAT_PAY_PRIVATE_KEY`, `WECHAT_PAY_NOTIFY_URL`, optional `WECHAT_PAY_PLATFORM_CERT_CACHE_TTL_S` (default 3600s).
 
