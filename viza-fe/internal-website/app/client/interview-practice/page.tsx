@@ -87,7 +87,7 @@ function StartPage({ onStart }: { onStart: () => void }) {
 
       {/* Nav */}
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between">
-        <span className="text-white font-bold text-[15px] tracking-tight">VIZA</span>
+        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
         <span className="text-white text-[12px] font-semibold border-b border-white pb-0.5">模拟面试</span>
       </nav>
 
@@ -249,7 +249,7 @@ function ChecklistPage({ onConfirm, onBack }: { onConfirm: () => void; onBack: (
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col">
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-white font-bold text-[15px] tracking-tight">VIZA</span>
+        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
         <button onClick={onBack} className="text-white/60 text-[12px] hover:text-white transition-colors">← 返回</button>
       </nav>
 
@@ -521,7 +521,7 @@ function InterviewPage({
       `}</style>
 
       <nav className="bg-[#03346E] px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-white font-bold text-[15px] tracking-tight">VIZA</span>
+        <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-[15px] w-auto" />
         <div className="flex items-center gap-1.5 bg-white/12 border border-white/20 rounded-full px-3 py-1">
           <div className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_4px_#4ade80]" />
           <span className="text-white/90 text-[10px] font-medium">B1/B2 旅游签证 · 模拟进行中</span>
@@ -812,7 +812,7 @@ function ReportPage({ report, onRetry }: { report: InterviewReport; onRetry: () 
       <div className="bg-[#02213F] px-8 pt-5 pb-7">
         {/* nav */}
         <div className="flex items-center justify-between mb-7">
-          <span className="text-white font-bold text-[16px] tracking-[3px]">VIZA</span>
+          <img src="/logo/viza-logo-white.svg" alt="VIZA" className="h-4 w-auto" />
           <span className="text-[rgba(255,255,255,0.45)] text-[12px]">B1/B2 签证模拟面试</span>
         </div>
         {/* hero body */}

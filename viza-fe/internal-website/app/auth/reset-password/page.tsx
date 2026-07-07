@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -128,7 +130,7 @@ export default function ResetPasswordPage() {
           <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100/80 overflow-hidden">
             <div className="px-8 pt-10 pb-6 text-center border-b border-gray-50">
               <div className="inline-flex items-center justify-center mb-4">
-                <span className="text-4xl font-bold tracking-tight text-gray-900">VIZA</span>
+                <Image src="/logo/viza-logo-blue.svg" alt="VIZA" width={100} height={30} priority />
               </div>
               <p className="text-sm text-gray-500 font-medium">
                 VIZA Operations Access
@@ -185,7 +187,7 @@ export default function ResetPasswordPage() {
           <div className="px-8 pt-10 pb-6 text-center border-b border-gray-50">
             {/* Brand Logo */}
             <div className="inline-flex items-center justify-center mb-4">
-              <span className="text-4xl font-bold tracking-tight text-gray-900">VIZA</span>
+              <Image src="/logo/viza-logo-blue.svg" alt="VIZA" width={100} height={30} priority />
             </div>
 
             {/* Subtitle */}
