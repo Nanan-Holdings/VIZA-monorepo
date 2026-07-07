@@ -12,6 +12,8 @@ interface Props {
   /** Prefill collected by the marketing /apply wizard (optional). */
   initialEmail?: string;
   initialName?: string;
+  /** Opaque wizard payload, forwarded to the server action verbatim. */
+  prefill?: string;
 }
 
 const COPY = {
@@ -47,6 +49,7 @@ export function CardCheckoutForm({
   currency,
   initialEmail = "",
   initialName = "",
+  prefill = "",
 }: Props) {
   const t = COPY[locale];
   const [name, setName] = useState(initialName);
@@ -70,6 +73,7 @@ export function CardCheckoutForm({
         email,
         fullName: name,
         locale,
+        prefill: prefill || undefined,
       });
       // Hand off to Stripe's hosted checkout page.
       window.location.href = out.url;
@@ -80,16 +84,22 @@ export function CardCheckoutForm({
   };
 
   return (
-    <div className="w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-sm">
-      <h1 className="text-xl font-medium text-foreground">{t.title}</h1>
-      <p className="text-sm text-muted-foreground mt-2">{t.subtitle}</p>
-      <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-sm text-muted-foreground">
-          {country} · {visaType}
-        </span>
-        <span className="text-lg font-medium text-brand-500">{amount}</span>
+    <div className="w-full max-w-md mt-6 rounded-2xl border border-brand-100 bg-white shadow-[0_8px_30px_rgba(3,52,110,0.08)] overflow-hidden">
+      <div className="px-7 pt-7">
+        <h1 className="text-2xl font-semibold tracking-tight text-brand-500">
+          {t.title}
+        </h1>
+        <p className="text-sm leading-relaxed text-muted-foreground mt-2">
+          {t.subtitle}
+        </p>
       </div>
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <div className="mx-7 mt-5 flex items-center justify-between rounded-xl bg-brand-50/70 border border-brand-100 px-4 py-3">
+        <span className="text-sm font-medium text-foreground capitalize">
+          {country.replace(/_/g, " ")} · {visaType}
+        </span>
+        <span className="text-lg font-semibold text-brand-500">{amount}</span>
+      </div>
+      <form onSubmit={handleSubmit} className="px-7 pb-7 mt-5 space-y-4">
         <label className="block">
           <span className="text-sm text-foreground">{t.nameLabel}</span>
           <input
@@ -112,7 +122,7 @@ export function CardCheckoutForm({
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-md bg-brand-500 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-400 disabled:opacity-50"
+          className="w-full rounded-full bg-brand-500 px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-brand-400 disabled:opacity-50"
         >
           {submitting ? t.submitting : t.submit}
         </button>
@@ -121,7 +131,13 @@ export function CardCheckoutForm({
             {errMsg}
           </p>
         )}
-        <p className="text-xs text-muted-foreground text-center">{t.secure}</p>
+        <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground text-center">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          {t.secure}
+        </p>
       </form>
     </div>
   );
