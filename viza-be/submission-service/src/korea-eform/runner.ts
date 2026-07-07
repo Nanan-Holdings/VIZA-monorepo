@@ -15,13 +15,31 @@ export interface KoreaOfficialEformPayload {
   dateOfBirth: string | null;
   gender: "male" | "female" | null;
   nationality: string | null;
+  nationalIdentityNo: string | null;
   passportNumber: string | null;
   passportExpiryDate: string | null;
   passportIssueDate: string | null;
+  passportPlaceOfIssue: string | null;
   email: string | null;
   phone: string | null;
   homeAddress: string | null;
-  purpose: "tourism_transit" | "event" | "medical" | "business" | "family_visit" | "other";
+  homeAddressStreet: string | null;
+  homeAddressCity: string | null;
+  homeAddressState: string | null;
+  homeAddressCountry: string | null;
+  purpose:
+    | "tourism_transit"
+    | "meeting_conference"
+    | "medical_tourism"
+    | "business_trip"
+    | "study_training"
+    | "work"
+    | "trade_investment_ict"
+    | "visiting_family_relatives_friends"
+    | "overseas_korean_visit"
+    | "marriage_migrant"
+    | "diplomatic_official"
+    | "other";
   stayStatus: "C-3";
 }
 
@@ -83,6 +101,39 @@ function normalizeGender(value: string | null): KoreaOfficialEformPayload["gende
   return null;
 }
 
+function joinHomeAddress(answers: Record<string, string | null | undefined>): string | null {
+  const direct = readFirst(answers, ["home_address", "home_country_address", "current_address", "current_residential_address", "residential_address"]);
+  if (direct) return direct;
+  const parts = [
+    readFirst(answers, ["home_address_street"]),
+    readFirst(answers, ["home_address_city"]),
+    readFirst(answers, ["home_address_state"]),
+    readFirst(answers, ["home_address_country"]),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function normalizePurpose(value: string | null): KoreaOfficialEformPayload["purpose"] {
+  const normalized = value?.trim().toLowerCase();
+  const allowed = new Set<KoreaOfficialEformPayload["purpose"]>([
+    "tourism_transit",
+    "meeting_conference",
+    "medical_tourism",
+    "business_trip",
+    "study_training",
+    "work",
+    "trade_investment_ict",
+    "visiting_family_relatives_friends",
+    "overseas_korean_visit",
+    "marriage_migrant",
+    "diplomatic_official",
+    "other",
+  ]);
+  return allowed.has(normalized as KoreaOfficialEformPayload["purpose"])
+    ? (normalized as KoreaOfficialEformPayload["purpose"])
+    : "tourism_transit";
+}
+
 export function buildKoreaOfficialEformPayload(input: KoreaOfficialEformInput): KoreaOfficialEformPayload {
   const answers = input.answers;
   return {
@@ -92,13 +143,19 @@ export function buildKoreaOfficialEformPayload(input: KoreaOfficialEformInput): 
     dateOfBirth: readFirst(answers, ["date_of_birth", "birth_date"]),
     gender: normalizeGender(readFirst(answers, ["gender", "sex"])),
     nationality: readFirst(answers, ["nationality", "current_nationality"]),
+    nationalIdentityNo: readFirst(answers, ["national_identity_no", "national_id_number"]),
     passportNumber: readFirst(answers, ["passport_number", "passport_no"]),
     passportExpiryDate: readFirst(answers, ["passport_expiry_date", "passport_expiration_date", "passport_date_of_expiry"]),
     passportIssueDate: readFirst(answers, ["passport_issue_date", "passport_date_of_issue"]),
+    passportPlaceOfIssue: readFirst(answers, ["passport_place_of_issue", "passport_issue_place"]),
     email: readFirst(answers, ["email", "email_address"]),
     phone: readFirst(answers, ["phone", "mobile_phone", "mobile_number", "cell_phone"]),
-    homeAddress: readFirst(answers, ["home_address", "home_country_address", "current_address", "current_residential_address", "residential_address"]),
-    purpose: "tourism_transit",
+    homeAddress: joinHomeAddress(answers),
+    homeAddressStreet: readFirst(answers, ["home_address_street"]),
+    homeAddressCity: readFirst(answers, ["home_address_city"]),
+    homeAddressState: readFirst(answers, ["home_address_state"]),
+    homeAddressCountry: readFirst(answers, ["home_address_country"]),
+    purpose: normalizePurpose(readFirst(answers, ["purpose_of_visit"])),
     stayStatus: "C-3",
   };
 }

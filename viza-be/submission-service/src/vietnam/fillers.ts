@@ -10,6 +10,7 @@
 
 import type { Page } from "@playwright/test";
 import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
+import { getVnCountryAlpha3ForOptionText } from "./field-mappings.js";
 
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
@@ -47,9 +48,10 @@ export async function fillText(page: Page, domId: string, value: string): Promis
  *   3. Click the `.ant-select-item-option` whose text matches.
  */
 export async function pickSelect(page: Page, domId: string, optionText: string): Promise<void> {
+  const searchTerms = buildAntSelectSearchTerms(optionText);
   await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const result = await page.evaluate(
-    async ({ domId, optionText }) => {
+    async ({ domId, optionText, searchTerms }) => {
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       const normalize = (value: string) =>
         value
@@ -192,16 +194,16 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
         await sleep(500);
       };
-      const search = async () => {
+      const search = async (searchTerm: string) => {
         await open();
         input.focus();
         input.click();
         setNativeValue(input, "");
         input.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
         await sleep(80);
-        setNativeValue(input, optionText);
-        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: optionText, inputType: "insertText" }));
-        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: optionText.slice(-1) || "a" }));
+        setNativeValue(input, searchTerm);
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: searchTerm, inputType: "insertText" }));
+        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: searchTerm.slice(-1) || "a" }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
         await sleep(1200);
       };
@@ -221,21 +223,26 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       let optionList = await waitForOptions(1_800);
       let best = rank(optionList.map((option) => option.text))[0];
       if (!best || best.score < 88) {
-        await search();
-        optionList = await waitForOptions(2_500);
-        best = rank(optionList.map((option) => option.text))[0];
+        for (const searchTerm of searchTerms) {
+          await search(searchTerm);
+          optionList = await waitForOptions(2_500);
+          best = rank(optionList.map((option) => option.text))[0];
+          if (best && best.score >= 88) break;
+        }
       }
       if (!best || best.score < 88) {
-        await search();
-        await submitWithKeyboard();
-        const keyboardText = currentSelectText(select, input);
-        const keyboardScore = rank([keyboardText])[0]?.score ?? -1;
-        if (keyboardScore >= 88) {
-          return {
-            ok: true,
-            reason: undefined,
-            candidates: [keyboardText],
-          };
+        for (const searchTerm of searchTerms) {
+          await search(searchTerm);
+          await submitWithKeyboard();
+          const keyboardText = currentSelectText(select, input);
+          const keyboardScore = rank([keyboardText])[0]?.score ?? -1;
+          if (keyboardScore >= 88) {
+            return {
+              ok: true,
+              reason: undefined,
+              candidates: [keyboardText],
+            };
+          }
         }
         return {
           ok: false,
@@ -257,14 +264,279 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         candidates: confirmed ? [selected.text] : [selected.text, currentText],
       };
     },
-    { domId, optionText },
+    { domId, optionText, searchTerms },
   );
   if (!result.ok) {
+    const retry = await pickSelectWithPlaywright(page, domId, optionText, searchTerms);
+    if (retry.ok) {
+      await settle(page);
+      return;
+    }
     throw new Error(
-      `Ant select option not found for ${domId}: ${optionText}; ${result.reason}; candidates=${result.candidates.join(", ")}`,
+      `Ant select option not found for ${domId}: ${optionText}; ${retry.reason ?? result.reason}; candidates=${[
+        ...result.candidates,
+        ...retry.candidates,
+      ]
+        .filter((candidate, index, candidates) => candidate && candidates.indexOf(candidate) === index)
+        .join(", ")}`,
     );
   }
   await settle(page);
+}
+
+async function pickSelectWithPlaywright(
+  page: Page,
+  domId: string,
+  optionText: string,
+  searchTerms: string[],
+): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
+  const input = page.locator(`#${cssEscape(domId)}`).first();
+  const select = input.locator(
+    "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]",
+  );
+  const selector = select.locator(".ant-select-selector").first();
+  if ((await input.count()) === 0 || (await select.count()) === 0 || (await selector.count()) === 0) {
+    return { ok: false, reason: "playwright_select_not_found", candidates: [] };
+  }
+
+  await input.evaluate((element) => {
+    const selectRoot = element.closest(".ant-select") as HTMLElement | null;
+    selectRoot?.scrollIntoView({ block: "center", inline: "center" });
+    const cell = element.closest("td") as HTMLElement | null;
+    cell?.scrollIntoView({ block: "center", inline: "center" });
+  });
+  await page.waitForTimeout(150);
+  await selector.click({ timeout: SHORT_TIMEOUT, force: true });
+  await page.waitForTimeout(250);
+  await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+  await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  for (const searchTerm of searchTerms) {
+    await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await page.waitForTimeout(150);
+    await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+    await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+    await page.keyboard.type(searchTerm, { delay: 20 });
+    await page.waitForTimeout(700);
+
+    let candidates = await readVisibleSelectCandidates(page);
+    const exactOption = page
+      .locator(".ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option")
+      .filter({ hasText: new RegExp(`^\\s*${escapeRegex(optionText)}\\s*$`, "i") })
+      .first();
+    if ((await exactOption.count()) > 0) {
+      await exactOption.click({ timeout: SHORT_TIMEOUT, force: true });
+    } else {
+      const scrolled = await wheelAndClickSelectOption(page, optionText);
+      if (scrolled.candidates.length > candidates.length) {
+        candidates = scrolled.candidates;
+      }
+      if (!scrolled.ok) {
+        await page.keyboard.press("ArrowDown").catch(() => undefined);
+        await page.keyboard.press("Enter").catch(() => undefined);
+      }
+    }
+    await page.waitForTimeout(500);
+    const confirmed = await selectDisplayMatches(page, domId, optionText);
+    if (confirmed) return { ok: true, candidates };
+
+    if (candidates.length === 0) {
+      await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+      await page.waitForTimeout(300);
+      candidates = await readVisibleSelectCandidates(page);
+    }
+    if (searchTerm === searchTerms[searchTerms.length - 1]) {
+      return { ok: false, reason: "playwright_selection_not_confirmed", candidates };
+    }
+  }
+  return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
+}
+
+async function wheelAndClickSelectOption(
+  page: Page,
+  optionText: string,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  const seen: string[] = [];
+  for (let step = 0; step < 160; step++) {
+    const clicked = await clickVisibleSelectOptionIfPresent(page, optionText);
+    for (const candidate of clicked.candidates) {
+      if (!seen.includes(candidate)) seen.push(candidate);
+    }
+    if (clicked.ok) return { ok: true, candidates: seen };
+
+    const box = await page.evaluate(() => {
+      const visible = (element: HTMLElement) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          !element.classList.contains("ant-select-dropdown-hidden") &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+        .filter(visible)
+        .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
+      if (!panel) return null;
+      const target = panel.querySelector<HTMLElement>(".rc-virtual-list-holder") ?? panel;
+      const rect = target.getBoundingClientRect();
+      return {
+        x: Math.max(1, rect.left + rect.width / 2),
+        y: Math.max(1, rect.top + Math.min(rect.height / 2, 120)),
+      };
+    });
+    if (!box) break;
+    await dispatchWheelOnVisibleSelect(page, 480);
+    await page.mouse.move(box.x, box.y).catch(() => undefined);
+    await page.mouse.wheel(0, 360).catch(() => undefined);
+    if (step % 5 === 4) {
+      await page.keyboard.press("PageDown").catch(() => undefined);
+    } else {
+      await page.keyboard.press("ArrowDown").catch(() => undefined);
+    }
+    await page.waitForTimeout(80);
+  }
+  return { ok: false, candidates: seen.slice(0, 40) };
+}
+
+async function dispatchWheelOnVisibleSelect(page: Page, deltaY: number): Promise<void> {
+  await page.evaluate((delta) => {
+    const visible = (element: HTMLElement) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        !element.classList.contains("ant-select-dropdown-hidden") &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+    const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+      .filter(visible)
+      .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
+    const holder = panel?.querySelector<HTMLElement>(".rc-virtual-list-holder");
+    if (!holder) return;
+    holder.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: delta }));
+    holder.scrollTop += delta;
+    holder.dispatchEvent(new Event("scroll", { bubbles: true }));
+  }, deltaY).catch(() => undefined);
+}
+
+async function clickVisibleSelectOptionIfPresent(
+  page: Page,
+  optionText: string,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  return page.evaluate(async ({ optionText: expected }) => {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const normalize = (value: string) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    const visible = (element: HTMLElement) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        !element.classList.contains("ant-select-dropdown-hidden") &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+    const dispatchRealClick = (target: HTMLElement) => {
+      for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
+        const EventCtor = type === "pointerdown" ? window.PointerEvent || window.MouseEvent : window.MouseEvent;
+        target.dispatchEvent(new EventCtor(type, { bubbles: true, cancelable: true, button: 0 }));
+      }
+      target.click();
+    };
+    const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+      .filter(visible)
+      .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
+    if (!panel) return { ok: false, candidates: [] as string[] };
+    const candidates: string[] = [];
+    const items = Array.from(panel.querySelectorAll<HTMLElement>(".ant-select-item-option, [role='option']"))
+      .map((option) => {
+        const content = option.querySelector<HTMLElement>(".ant-select-item-option-content") ?? option;
+        const text = (option.getAttribute("title") || content.innerText || content.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        return { option, content, text };
+      })
+      .filter((item) => item.text && !item.option.classList.contains("ant-select-item-option-disabled"));
+    for (const item of items) {
+      if (!candidates.includes(item.text)) candidates.push(item.text);
+      if (normalize(item.text) === normalize(expected)) {
+        item.option.scrollIntoView({ block: "nearest" });
+        await sleep(80);
+        dispatchRealClick(item.content);
+        return { ok: true, candidates };
+      }
+    }
+    return { ok: false, candidates };
+  }, { optionText });
+}
+
+async function selectDisplayMatches(page: Page, domId: string, optionText: string): Promise<boolean> {
+  return page.evaluate(
+    ({ domId: id, optionText: expected }) => {
+      const normalize = (value: string) =>
+        value
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
+      const input = document.querySelector<HTMLInputElement>(`#${CSS.escape(id)}`);
+      const select = input?.closest<HTMLElement>(".ant-select");
+      if (!input || !select) return false;
+      const text = [
+        select.querySelector<HTMLElement>(".ant-select-selection-item")?.innerText,
+        select.querySelector<HTMLElement>(".ant-select-selection-item")?.getAttribute("title"),
+        select.querySelector<HTMLInputElement>("input[type='hidden']")?.value,
+        input.value,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return normalize(text) === normalize(expected) || normalize(text).includes(normalize(expected));
+    },
+    { domId, optionText },
+  );
+}
+
+async function readVisibleSelectCandidates(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const visible = (element: HTMLElement) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        !element.classList.contains("ant-select-dropdown-hidden") &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+    return Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+      .filter(visible)
+      .flatMap((dropdown) =>
+        Array.from(dropdown.querySelectorAll<HTMLElement>(".ant-select-item-option, [role='option']"))
+          .map((option) => {
+            const content = option.querySelector<HTMLElement>(".ant-select-item-option-content") ?? option;
+            return (option.getAttribute("title") || content.innerText || content.textContent || "")
+              .replace(/\s+/g, " ")
+              .trim();
+          })
+          .filter(Boolean),
+      )
+      .filter((candidate, index, candidates) => candidates.indexOf(candidate) === index)
+      .slice(0, 20);
+  });
 }
 
 /**
@@ -383,6 +655,15 @@ function cssEscape(id: string): string {
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function buildAntSelectSearchTerms(optionText: string): string[] {
+  const terms = new Set<string>();
+  const alpha3 = getVnCountryAlpha3ForOptionText(optionText);
+  if (alpha3) terms.add(alpha3);
+  const trimmed = optionText.trim();
+  if (trimmed) terms.add(trimmed);
+  return Array.from(terms);
 }
 
 

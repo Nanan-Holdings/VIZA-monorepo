@@ -103,11 +103,23 @@ function splitAddress(address: string | null): { street: string; city: string; s
   };
 }
 
+function payloadAddress(payload: KoreaOfficialEformPayload): { street: string; city: string; state: string; country: string } {
+  if (payload.homeAddressStreet || payload.homeAddressCity || payload.homeAddressState || payload.homeAddressCountry) {
+    return {
+      street: payload.homeAddressStreet ?? payload.homeAddress ?? "",
+      city: payload.homeAddressCity ?? payload.homeAddressStreet ?? payload.homeAddress ?? "",
+      state: payload.homeAddressState ?? payload.homeAddressCity ?? "",
+      country: payload.homeAddressCountry ?? "CHINA",
+    };
+  }
+  return splitAddress(payload.homeAddress);
+}
+
 export function buildKoreaOfficialEformFirstPagePlan(
   payload: KoreaOfficialEformPayload,
   options: KoreaOfficialEformFillOptions = {},
 ): { fields: FieldAssignment[]; radios: RadioAssignment[]; selects: FieldAssignment[] } {
-  const address = splitAddress(payload.homeAddress);
+  const address = payloadAddress(payload);
   const nationality = normalizeCountryName(payload.nationality);
   const nationalityCode = normalizeCountryCode(payload.nationality);
   const postName = options.visitingPostName?.trim() || "주 중국 대사관";
@@ -142,8 +154,9 @@ export function buildKoreaOfficialEformFirstPagePlan(
       { selector: "#EXPR_YMD", value: compactDate(payload.passportExpiryDate) },
       { selector: "#ISS_NAT_NM", value: nationality },
       { selector: "#ISS_NAT_CD", value: nationalityCode },
-      { selector: "#ISS_PLACE", value: nationality },
+      { selector: "#ISS_PLACE", value: payload.passportPlaceOfIssue ?? "" },
       { selector: "#ISS_YMD", value: compactDate(payload.passportIssueDate) },
+      { selector: "#NAT_ID_NO", value: payload.nationalIdentityNo ?? "" },
       { selector: "#ADDR_STREET", value: address.street },
       { selector: "#ADDR_CITY", value: address.city },
       { selector: "#ADDR_STATE", value: address.state },
@@ -193,22 +206,35 @@ export function buildKoreaOfficialEformSecondPagePlan(
     work: "#ENT_PURP_KIND_CD6",
     trade_investment_ict: "#ENT_PURP_KIND_CD7",
     visiting_family_relatives_friends: "#ENT_PURP_KIND_CD8",
+    overseas_korean_visit: "#ENT_PURP_KIND_CD9",
     marriage_migrant: "#ENT_PURP_KIND_CD10",
     diplomatic_official: "#ENT_PURP_KIND_CD11",
     other: "#ENT_PURP_KIND_CD12",
+  };
+  const visitCountMap: Record<string, string> = {
+    single: "#APPL_VISA_GB_S",
+    "1": "#APPL_VISA_GB_S",
+    double: "#APPL_VISA_GB_D",
+    "2": "#APPL_VISA_GB_D",
+    multiple: "#APPL_VISA_GB_M",
+    "3": "#APPL_VISA_GB_M",
+    "3plus": "#APPL_VISA_GB_M",
   };
 
   const marital = readAnswer(answers, ["marital_status"], "single").toLowerCase();
   const education = readAnswer(answers, ["highest_education"], "bachelors").toLowerCase();
   const job = readAnswer(answers, ["employment_status"], "employed").toLowerCase();
   const purpose = readAnswer(answers, ["purpose_of_visit"], "tourism_transit").toLowerCase();
+  const expectedVisitCount = readAnswer(answers, ["expected_korea_visit_count", "planned_korea_visit_count"], "single").toLowerCase();
   const travelledToKorea = isYes(readAnswer(answers, ["travelled_to_korea_5y"]));
   const travelledOutside = isYes(readAnswer(answers, ["travelled_outside_5y"]));
   const travellingWithFamily = isYes(readAnswer(answers, ["travelling_with_family"]));
   const receivedAssistance = isYes(readAnswer(answers, ["received_form_assistance"]));
+  const koreaAddressMode = readAnswer(answers, ["korea_address_mode"], "official_search").toLowerCase();
   const addressInKorea = readAnswer(answers, ["address_in_korea"], "100 Toegye-ro, Jung-gu, Seoul");
-  const addressInKoreaDetail = readAnswer(answers, ["address_in_korea_detail"], "Hotel");
+  const addressInKoreaDetail = readAnswer(answers, ["korea_address_detail", "address_in_korea_detail"], "Hotel");
   const koreaPostalCode = readAnswer(answers, ["address_in_korea_postal_code", "korea_postal_code"], "04631");
+  const noAddressReason = readAnswer(answers, ["korea_no_address_reason"], koreaAddressMode === "address_not_found" ? "地址不存在" : koreaAddressMode === "undecided" ? "未定" : "");
 
   const fields: FieldAssignment[] = [
     { selector: "#LAST_SCH_NM", value: readAnswer(answers, ["school_name"]) },
@@ -219,16 +245,6 @@ export function buildKoreaOfficialEformSecondPagePlan(
     { selector: "#JOB_TEL_NO", value: readAnswer(answers, ["employer_telephone"]) },
     { selector: "#APPL_SOJ_DUR", value: readAnswer(answers, ["intended_period_of_stay"]) },
     { selector: "#ENTRY_EXP_YMD", value: compactDate(readAnswer(answers, ["intended_date_of_entry"]) || null) },
-    { selector: "#ZIP", value: koreaPostalCode },
-    { selector: "#SOJ_EXP_REGION_DTL", value: addressInKorea },
-    { selector: "#RNM_BS_ADDR", value: addressInKorea },
-    { selector: "#RNM_DET_ADDR", value: addressInKoreaDetail },
-    { selector: "#JIBUN_BS_ADDR", value: addressInKorea },
-    { selector: "#JIBUN_DET_ADDR", value: addressInKoreaDetail },
-    { selector: "#RNM_ENG_BS_ADDR", value: addressInKorea },
-    { selector: "#RNM_ENG_DET_ADDR", value: addressInKoreaDetail },
-    { selector: "#JIBUN_ENG_BS_ADDR", value: addressInKorea },
-    { selector: "#JIBUN_ENG_DET_ADDR", value: addressInKoreaDetail },
     { selector: "#SOJ_EXP_REGION_TEL_NO", value: readAnswer(answers, ["contact_in_korea"]) },
     { selector: "#VISIT_COST", value: readAnswer(answers, ["estimated_travel_costs_usd", "visit_cost_usd", "visit_cost"]) },
     { selector: "#COST_PAMNT_EK_NM", value: readAnswer(answers, ["payer_name", "cost_payer_name"]) },
@@ -236,6 +252,21 @@ export function buildKoreaOfficialEformSecondPagePlan(
     { selector: "#COST_PAMNT_DETAIL", value: readAnswer(answers, ["payer_support_type", "cost_payer_support_type"]) },
     { selector: "#COST_PAMNT_TEL_NO", value: readAnswer(answers, ["payer_contact", "cost_payer_contact"]) },
   ];
+
+  if (koreaAddressMode === "official_search") {
+    fields.push(
+      { selector: "#ZIP", value: koreaPostalCode },
+      { selector: "#SOJ_EXP_REGION_DTL", value: addressInKorea },
+      { selector: "#RNM_BS_ADDR", value: addressInKorea },
+      { selector: "#RNM_DET_ADDR", value: addressInKoreaDetail },
+      { selector: "#JIBUN_BS_ADDR", value: addressInKorea },
+      { selector: "#JIBUN_DET_ADDR", value: addressInKoreaDetail },
+      { selector: "#RNM_ENG_BS_ADDR", value: addressInKorea },
+      { selector: "#RNM_ENG_DET_ADDR", value: addressInKoreaDetail },
+      { selector: "#JIBUN_ENG_BS_ADDR", value: addressInKorea },
+      { selector: "#JIBUN_ENG_DET_ADDR", value: addressInKoreaDetail },
+    );
+  }
 
   if (purpose === "other") {
     fields.push({ selector: "#ENT_PURP_KIND_DETAIL", value: readAnswer(answers, ["purpose_of_visit_other"]) });
@@ -272,14 +303,14 @@ export function buildKoreaOfficialEformSecondPagePlan(
   return {
     selects: [
       { selector: "#APPL_SOJ_DUR_GB", value: "D" },
-      { selector: "#noAddr", value: "" },
+      { selector: "#noAddr", value: noAddressReason },
     ],
     radios: [
       { selector: maritalMap[marital] ?? "#MARI_STS_CD_S" },
       { selector: educationMap[education] ?? "#LAST_DEGREE_2" },
       { selector: jobMap[job] ?? "#JOB_CD_3" },
       { selector: purposeMap[purpose] ?? "#ENT_PURP_KIND_CD1" },
-      { selector: "#APPL_VISA_GB_S" },
+      { selector: visitCountMap[expectedVisitCount] ?? "#APPL_VISA_GB_S" },
       { selector: travelledToKorea ? "#BF_VISIT_Y" : "#BF_VISIT_N" },
       { selector: travelledOutside ? "#VISIT_NAT_Y" : "#VISIT_NAT_N" },
       { selector: travellingWithFamily ? "#ENT_FML_Y" : "#ENT_FML_N" },
@@ -295,7 +326,17 @@ async function assignFields(page: Page, assignments: FieldAssignment[]): Promise
     for (const item of items) {
       const element = document.querySelector(item.selector) as HTMLInputElement | HTMLSelectElement | null;
       if (!element) continue;
-      element.value = item.value;
+      if (element instanceof HTMLSelectElement) {
+        const normalized = item.value.trim().toLowerCase();
+        const matchingOption = Array.from(element.options).find((option) => {
+          const value = option.value.trim().toLowerCase();
+          const text = option.textContent?.trim().toLowerCase() ?? "";
+          return value === normalized || text === normalized || text.includes(normalized);
+        });
+        element.value = matchingOption?.value ?? item.value;
+      } else {
+        element.value = item.value;
+      }
       element.dispatchEvent(new Event("input", { bubbles: true }));
       element.dispatchEvent(new Event("change", { bubbles: true }));
       changed.push(item.selector);

@@ -35,6 +35,18 @@ export function classifyIndonesiaPortalSnapshot(
 
   if (!text) return "unknown";
   if (
+    /\/web\/application\/.+\/detail/i.test(snapshot.url) &&
+    (
+      text.includes("waiting for payment") ||
+      text.includes("make a payment") ||
+      text.includes("payment information") ||
+      text.includes("menunggu pembayaran") ||
+      text.includes("belum bayar")
+    )
+  ) {
+    return "payment_required";
+  }
+  if (
     text.includes("front/register/wna") ||
     text.includes("fill out the form to register an account") ||
     (text.includes("biography passport page") && text.includes("account information"))
