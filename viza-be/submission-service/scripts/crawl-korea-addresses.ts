@@ -79,7 +79,7 @@ function parseArgs(): CrawlArgs {
     out: path.resolve(readFlag("out", path.join("output", "korea-addresses.jsonl")) ?? path.join("output", "korea-addresses.jsonl")),
     keywords,
     language,
-    maxPages: Number.parseInt(readFlag("max-pages", "10") ?? "10", 10),
+    maxPages: Number.parseInt(readFlag("max-pages", "1000000") ?? "1000000", 10),
     countPerPage: Number.parseInt(readFlag("count-per-page", "100") ?? "100", 10),
     delayMs: Number.parseInt(readFlag("delay-ms", "500") ?? "500", 10),
     resume: hasFlag("resume"),

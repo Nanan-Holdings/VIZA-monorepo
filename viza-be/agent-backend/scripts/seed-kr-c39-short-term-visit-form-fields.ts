@@ -289,7 +289,6 @@ Object.assign(FIELD_LABEL_ZH, {
   korea_address_mode: "计划停留地点填写方式",
   korea_address_search_keyword: "韩国地址搜索关键词",
   korea_address_detail: "详细地址",
-  korea_no_address_reason: "未输入事由",
   contact_in_korea: "在韩联系方式",
   visit_cost_usd: "访问经费（美元标准）",
   cost_payer_name: "经费支付者姓名/公司（团体）名",
@@ -363,10 +362,6 @@ Object.assign(OPTION_LABEL_ZH_BY_FIELD, {
     undecided: "未定",
     address_not_found: "地址不存在",
   },
-  korea_no_address_reason: {
-    undecided: "未定",
-    address_not_found: "地址不存在",
-  },
 });
 
 function localizeKoreaOption(
@@ -415,7 +410,6 @@ const HAS_FAMILY_IN_KOREA = "has_family_in_korea === yes";
 const TRAVELLING_WITH_FAMILY = "travelling_with_family === yes";
 const HAS_INVITING_COMPANY = "has_inviting_company === yes";
 const KOREA_ADDRESS_OFFICIAL_SEARCH = "korea_address_mode === official_search";
-const KOREA_ADDRESS_NO_DIRECT_INPUT = "korea_address_mode in [undecided, address_not_found]";
 const RECEIVED_FORM_ASSISTANCE = "received_form_assistance === yes";
 
 // ── Enum option tables ─────────────────────────────────────────────────────
@@ -515,32 +509,6 @@ const KOREA_ADDRESS_MODE_OPTIONS = [
   { value: "address_not_found", text: "Address not found" },
 ];
 
-const KOREA_NO_ADDRESS_REASON_OPTIONS = [
-  { value: "undecided", text: "Undecided" },
-  { value: "address_not_found", text: "Address not found" },
-];
-
-const KOREA_ADDRESS_OPTIONS = [
-  {
-    value: "100 Toegye-ro, Jung-gu, Seoul",
-    text: "100 Toegye-ro, Jung-gu, Seoul",
-    label_zh: "首尔特别市中区退溪路100",
-    official_label: "서울특별시 중구 퇴계로 100",
-  },
-  {
-    value: "110 Sejong-daero, Jung-gu, Seoul",
-    text: "110 Sejong-daero, Jung-gu, Seoul",
-    label_zh: "首尔特别市中区世宗大路110",
-    official_label: "서울특별시 중구 세종대로 110",
-  },
-  {
-    value: "864 Eonju-ro, Gangnam-gu, Seoul",
-    text: "864 Eonju-ro, Gangnam-gu, Seoul",
-    label_zh: "首尔特别市江南区彦州路864",
-    official_label: "서울특별시 강남구 언주로 864",
-  },
-];
-
 const FIELDS: FieldDef[] = [
   { field_name: "applying_consulate", label: "Consular office / overseas mission", field_type: "select", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 1, options: CONSULATE_OPTIONS, validation_rules: { official_eform_selector: "#RES_NM", official_search_required: true } },
   { field_name: "period_of_stay", label: "Period of Stay", field_type: "radio", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 2, options: PERIOD_OF_STAY_OPTIONS, validation_rules: { locked_value: "short_term" } },
@@ -613,9 +581,8 @@ const FIELDS: FieldDef[] = [
   { field_name: "intended_date_of_entry", label: "Intended date of entry into Korea", field_type: "date", required: true, step_number: 7, step_name: "Visit Information", display_order: 5, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "visit_dates" } },
   { field_name: "korea_address_mode", label: "Address in Korea input mode", field_type: "radio", required: true, step_number: 7, step_name: "Visit Information", display_order: 6, options: KOREA_ADDRESS_MODE_OPTIONS },
   { field_name: "korea_address_search_keyword", label: "Korea address search keyword", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 7, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 120 } },
-  { field_name: "address_in_korea", label: "Selected official address in Korea", field_type: "select", required: true, step_number: 7, step_name: "Visit Information", display_order: 8, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, options: KOREA_ADDRESS_OPTIONS, validation_rules: { source: "korea_visa_portal_address_search" } },
+  { field_name: "address_in_korea", label: "Selected official address in Korea", field_type: "select", required: true, step_number: 7, step_name: "Visit Information", display_order: 8, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, options: [], validation_rules: { source: "korea_visa_portal_address_search", dependent_on: "korea_address_search_keyword" } },
   { field_name: "korea_address_detail", label: "Address detail in Korea", field_type: "text", required: false, step_number: 7, step_name: "Visit Information", display_order: 9, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 120 } },
-  { field_name: "korea_no_address_reason", label: "Reason for no address input", field_type: "select", required: true, step_number: 7, step_name: "Visit Information", display_order: 10, conditional_logic: { showIf: KOREA_ADDRESS_NO_DIRECT_INPUT }, options: KOREA_NO_ADDRESS_REASON_OPTIONS },
   { field_name: "contact_in_korea", label: "Contact number in Korea", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 11, placeholder: "Including country code +82", validation_rules: { maxLength: 30 } },
 
   { field_name: "travelled_to_korea_5y", label: "Have you travelled to Korea in the last 5 years?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 1, options: YES_NO },

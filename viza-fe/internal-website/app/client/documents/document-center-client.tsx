@@ -1366,8 +1366,8 @@ export function DocumentCenterClient({
                 <p className="max-w-3xl text-muted-foreground">
                   {isKoreaC39
                     ? isZh
-                      ? "韩国 C-3-9 当前只需要在这里上传证件照；其他递签材料按官网 e-Form 和预约中心要求线下携带。"
-                      : "For Korea C-3-9, upload only the passport-size photo here. Bring the other in-person materials according to the official e-Form and appointment-center checklist."
+                      ? "韩国 C-3-9 可在这里上传证件照用于资料完整性检查；官方 e-Form 和预约中心材料以线下携带为准。"
+                      : "For Korea C-3-9, you can upload a passport-size photo here for completeness checks. Bring official e-Form and appointment-center materials in person."
                     : isZh
                       ? "在这个表单内完成必需材料和可选补充材料。旅行行程可手动上传，也可从旅行 AI 选择已生成的英语 PDF。"
                       : "Complete required and optional supporting documents inside this form. Travel itinerary evidence can be uploaded manually or selected from an existing Travel AI English PDF."}

@@ -1,4 +1,4 @@
-import { VN_COUNTRY_NAME_BY_ALPHA3 } from "./country-options.js";
+import { VN_COUNTRY_NAME_BY_ALPHA3, VN_COUNTRY_OPTION_ORDER } from "./country-options.js";
 
 /**
  * Vietnam e-Visa field-name → live DOM id mapping.
@@ -234,6 +234,14 @@ export function getVnCountryAlpha3ForOptionText(rawValue: string): string | null
   const alpha3 = trimmed.toUpperCase();
   if (/^[A-Z0-9-]{1,3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) return alpha3;
   return COUNTRY_ALPHA3_BY_NORMALIZED_NAME[normalizeCountryLookupKey(trimmed)] ?? null;
+}
+
+export function getVnCountryOptionIndex(rawValue: string): number | null {
+  const optionText = normalizeVnCountryOptionText(rawValue) ?? rawValue.trim();
+  if (!optionText) return null;
+  const normalized = normalizeCountryLookupKey(optionText);
+  const index = VN_COUNTRY_OPTION_ORDER.findIndex((candidate) => normalizeCountryLookupKey(candidate) === normalized);
+  return index >= 0 ? index : null;
 }
 
 function buildCountryOptionLabels(extra: Record<string, string> = {}): Record<string, string> {
