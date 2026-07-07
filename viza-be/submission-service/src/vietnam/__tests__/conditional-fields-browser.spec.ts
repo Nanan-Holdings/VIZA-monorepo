@@ -626,6 +626,9 @@ test("vn.conditional-fields browser: selects Panama from a virtualized official 
 
     const display = page.locator(".ant-select-selection-item").first();
     assert.equal((await display.innerText()).trim(), "Panama");
+    const searchedTerms = await page.evaluate(() => (window as unknown as { searchedTerms?: string[] }).searchedTerms ?? []);
+    assert.equal(searchedTerms.includes("PAN"), false);
+    assert.equal(searchedTerms.includes("Panama"), true);
   } finally {
     await browser.close();
   }
@@ -794,6 +797,7 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
         };
 
         const refreshSearch = () => {
+          window.searchedTerms = [...(window.searchedTerms || []), input.value];
           filteredOptions = options.slice();
           list.style.height = (filteredOptions.length * itemHeight) + "px";
           render();

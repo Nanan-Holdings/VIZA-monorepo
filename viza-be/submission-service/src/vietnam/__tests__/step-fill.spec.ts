@@ -110,5 +110,5 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(getVnPortalOptionText("nationality", "VNM"), "Viet Nam");
   assert.equal(getVnCountryAlpha3ForOptionText("Panama"), "PAN");
   assert.equal(getVnCountryOptionIndex("Panama"), 141);
-  assert.deepEqual(buildAntSelectSearchTerms("Panama"), ["PAN", "Panama"]);
+  assert.deepEqual(buildAntSelectSearchTerms("Panama"), ["Panama"]);
 });

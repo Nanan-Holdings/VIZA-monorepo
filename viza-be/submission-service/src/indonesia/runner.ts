@@ -3430,7 +3430,7 @@ async function payFinpayIndonesiaWithOneTimeCard(
   const expiry = page.locator("#expired[name='expiry'], input#expired").first();
   const cvv = page.locator("#cvv[name='cvc'], input#cvv").first();
   const payButton = page.locator("#btn_pay").or(page.getByRole("button", { name: /bayar\s+sekarang|pay now|pay/i })).first();
-  const expiryValue = `${card.expiryMonth}/${card.expiryYear.slice(-2)}`;
+  const expiryValue = `${card.expiryMonth}${card.expiryYear.slice(-2)}`;
 
   try {
     await cardNumber.click({ timeout: 5_000 });
@@ -3488,6 +3488,7 @@ async function payFinpayIndonesiaWithOneTimeCard(
     }
     await payButton.click({ timeout: 10_000 });
     diagnostics.push("indonesia_one_time_card_finpay_pay_clicked");
+    await acceptFinpayBillingTermsIfShown(page, diagnostics);
     await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
     await page.waitForTimeout(5_000);
     return true;
@@ -3495,6 +3496,96 @@ async function payFinpayIndonesiaWithOneTimeCard(
     diagnostics.push(`indonesia_one_time_card_finpay_fill_error ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
     return false;
   }
+}
+
+async function acceptFinpayBillingTermsIfShown(page: Page, diagnostics: string[]): Promise<boolean> {
+  const modalVisible = await page
+    .getByText("Pemohon & Tagihan", { exact: false })
+    .isVisible({ timeout: 5_000 })
+    .catch(() => false);
+  if (!modalVisible) return false;
+
+  const checked = await page
+    .evaluate(() => {
+      const isVisible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const checkbox = Array.from(document.querySelectorAll<HTMLInputElement>("input[type='checkbox']"))
+        .find((input) => isVisible(input) && !input.disabled);
+      if (!checkbox) return false;
+      if (!checkbox.checked) checkbox.click();
+      return checkbox.checked;
+    })
+    .catch(() => false);
+  diagnostics.push(`indonesia_one_time_card_finpay_terms_checked ${checked ? "yes" : "no"}`);
+  if (!checked) return false;
+
+  const continueButton = page
+    .getByRole("button", { name: /setuju|lanjutkan|agree|continue/i })
+    .or(page.locator("button").filter({ hasText: /setuju|lanjutkan|agree|continue/i }))
+    .first();
+  if (!(await continueButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
+    diagnostics.push("indonesia_one_time_card_finpay_terms_continue_not_found");
+    return false;
+  }
+  const buttonEnabled = await continueButton.isEnabled({ timeout: 5_000 }).catch(() => false);
+  if (!buttonEnabled) {
+    diagnostics.push("indonesia_one_time_card_finpay_terms_continue_disabled");
+    return false;
+  }
+  let clicked = true;
+  await continueButton.click({ timeout: 10_000 }).catch((error: unknown) => {
+    clicked = false;
+    diagnostics.push(`indonesia_one_time_card_finpay_terms_continue_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+  });
+  if (!clicked) return false;
+  diagnostics.push("indonesia_one_time_card_finpay_terms_continue_clicked");
+  await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+  await page
+    .waitForFunction(
+      () => {
+        const visible = (element: Element): boolean => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0;
+        };
+        const visibleDialog = Array.from(document.querySelectorAll("div,section,article"))
+          .find((element) => visible(element) && (element.textContent ?? "").includes("Pemohon & Tagihan"));
+        return !visibleDialog;
+      },
+      undefined,
+      { timeout: 10_000 },
+    )
+    .catch(() => undefined);
+  const afterTerms = await page.evaluate(() => ({
+    url: window.location.href,
+    stillVisible: Array.from(document.querySelectorAll("div,section,article")).some((element) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        (element.textContent ?? "").includes("Pemohon & Tagihan");
+    }),
+    hasFailureText: /payment failed|pembayaran gagal|your payment failed/i.test(document.body?.innerText ?? ""),
+    hasOtpText: /otp|3ds|3d secure|verification|authentication|kode/i.test(document.body?.innerText ?? ""),
+  })).catch(() => null);
+  if (afterTerms) {
+    diagnostics.push(
+      `indonesia_one_time_card_finpay_terms_after stillVisible=${afterTerms.stillVisible ? "yes" : "no"} hasFailure=${afterTerms.hasFailureText ? "yes" : "no"} hasOtp=${afterTerms.hasOtpText ? "yes" : "no"} url=${afterTerms.url}`.slice(0, 260),
+    );
+  }
+  await page.waitForTimeout(3_000);
+  return true;
 }
 
 function firstConfiguredEndpoint(envNames: string[]): string | null {

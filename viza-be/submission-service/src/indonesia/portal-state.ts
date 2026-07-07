@@ -9,6 +9,7 @@ export type IndonesiaPortalStateId =
   | "application_form_visible"
   | "payment_required"
   | "payment_otp_required"
+  | "payment_failed"
   | "submitted_or_approved"
   | "portal_blocked"
   | "unknown";
@@ -34,6 +35,14 @@ export function classifyIndonesiaPortalSnapshot(
   const url = normalizeText(snapshot.url);
 
   if (!text) return "unknown";
+  if (
+    /\/pg\/payment\/card\/result\/failed/i.test(snapshot.url) ||
+    text.includes("payment failed") ||
+    text.includes("your payment failed") ||
+    text.includes("pembayaran gagal")
+  ) {
+    return "payment_failed";
+  }
   if (
     /\/web\/application\/.+\/detail/i.test(snapshot.url) &&
     (
@@ -222,6 +231,13 @@ export function actionForIndonesiaPortalState(
         instruction:
           "The Indonesia official portal reached bank OTP or 3DS verification. Keep the visible official browser window open and have the applicant enter the bank OTP there.",
         implementationStatus: "partial",
+      };
+    case "payment_failed":
+      return {
+        actionType: "official_fee_payment_failed",
+        instruction:
+          "The Indonesia official payment gateway returned a failed payment result before bank OTP/3DS could be completed. Use a different card or retry after the official gateway cooldown.",
+        implementationStatus: "blocked",
       };
     case "submitted_or_approved":
       return {

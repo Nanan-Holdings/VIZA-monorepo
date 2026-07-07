@@ -6688,6 +6688,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   const paymentPendingStatus: SubmissionQueueItem["status"] = isB1
     ? "id_b1_evoa_payment_pending"
     : "id_c1_payment_pending";
+  const paymentFailedStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_payment_failed"
+    : "id_c1_payment_failed";
 
   console.log(
     `[indonesia] Processing ${provider} application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
@@ -6936,14 +6939,21 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const isPaymentAuthorizationRequired =
       result.status === "action_required" &&
       (result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required");
+    const isPaymentFailed =
+      result.status === "action_required" &&
+      result.actionType === "official_fee_payment_failed";
 
-    const resultStatus = result.status === "action_required" ? "action_required" : "unsupported";
+    const resultStatus = isPaymentFailed ? "failed" : result.status === "action_required" ? "action_required" : "unsupported";
     const nextQueueStatus = isPaymentAuthorizationRequired
       ? paymentPendingStatus
-      : result.status === "action_required"
+      : isPaymentFailed
+        ? paymentFailedStatus
+        : result.status === "action_required"
         ? "action_required"
         : failedStatus;
-    const currentStage = result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required"
+    const currentStage = isPaymentFailed
+      ? "official_fee_payment_failed"
+      : result.actionType === "official_fee_payment_required" || result.actionType === "official_fee_otp_required"
       ? userPaymentHandoffEnabled
         ? "user_payment_required"
         : "payment_page_visible"
@@ -6974,7 +6984,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         current_stage: currentStage,
         official_portal_url: portalUrl,
         manual_action_status: result.status === "action_required"
-          ? userPaymentHandoffEnabled && isPaymentAuthorizationRequired
+          ? isPaymentFailed
+            ? "payment_failed"
+            : userPaymentHandoffEnabled && isPaymentAuthorizationRequired
             ? "user_payment_required"
             : "pending"
           : null,

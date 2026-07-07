@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -124,6 +124,8 @@ interface DynamicFormFieldProps {
   forceWhiteBackground?: boolean;
   disabled?: boolean;
   displayLocale?: "zh" | "en";
+  onSearchQuery?: (query: string) => void;
+  searching?: boolean;
 }
 
 function getMaxLengthRule(field: VisaFormFieldRow): number | undefined {
@@ -208,6 +210,8 @@ function SearchableSelectControl({
   disabled,
   whiteControlClass,
   sideLocale,
+  onSearchQuery,
+  searching,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -216,6 +220,8 @@ function SearchableSelectControl({
   disabled: boolean;
   whiteControlClass: string;
   sideLocale: "zh" | "en";
+  onSearchQuery?: (query: string) => void;
+  searching?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -232,6 +238,12 @@ function SearchableSelectControl({
     ? "搜索中文、英文或官方选项..."
     : "Search Chinese, English, or official option...";
   const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
+
+  useEffect(() => {
+    if (!open || !onSearchQuery) return;
+    const timer = window.setTimeout(() => onSearchQuery(query), 250);
+    return () => window.clearTimeout(timer);
+  }, [onSearchQuery, open, query]);
 
   return (
     <Popover
@@ -281,7 +293,11 @@ function SearchableSelectControl({
           className="overscroll-auto overflow-y-auto p-1"
           style={{ maxHeight: "min(220px, calc(100vh - 270px))" }}
         >
-          {matchedOptions.length === 0 ? (
+          {searching ? (
+            <div className="px-3 py-3 text-[14px] text-gray-500">
+              {sideLocale === "zh" ? "正在搜索官方地址..." : "Searching official addresses..."}
+            </div>
+          ) : matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (
             matchedOptions.map((option, index) => (
@@ -539,6 +555,8 @@ export function DynamicFormField({
   forceWhiteBackground = false,
   disabled = false,
   displayLocale,
+  onSearchQuery,
+  searching = false,
 }: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
   const locale = useLocale();
@@ -689,6 +707,8 @@ export function DynamicFormField({
         );
       }
       const opts = normaliseOptions(options, sideLocale);
+      const rules = field.validationRules as { remote_search?: unknown } | null;
+      const usesRemoteSearch = rules?.remote_search === true;
       if (isEmptyDependentSelect(field, opts)) {
         const dependentMessage = sideLocale === "zh"
           ? "请先选择上级选项，或联系 VIZA 检查官方下拉列表。"
@@ -707,7 +727,7 @@ export function DynamicFormField({
           </FieldWrapper>
         );
       }
-      if (opts.length >= SEARCHABLE_SELECT_MIN_OPTIONS) {
+      if (usesRemoteSearch || opts.length >= SEARCHABLE_SELECT_MIN_OPTIONS) {
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
             <SearchableSelectControl
@@ -718,6 +738,8 @@ export function DynamicFormField({
               disabled={disabled}
               whiteControlClass={whiteControlClass}
               sideLocale={sideLocale}
+              onSearchQuery={onSearchQuery}
+              searching={searching}
             />
           </FieldWrapper>
         );
