@@ -2696,7 +2696,10 @@ async function continueFromApplicationStepThree(
     await next.click({ timeout: 15_000 });
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(4_000);
-    await dismissIndonesiaDialogs(page, diagnostics);
+    const sawExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
+    if (sawExistingApplicationWarning) {
+      await acceptIndonesiaExistingApplicationCancellationWarning(page, diagnostics);
+    }
     diagnostics.push("indonesia_step_3_submitted");
   } else {
     const fallbackSubmitted = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_3");
@@ -2704,7 +2707,10 @@ async function continueFromApplicationStepThree(
       diagnostics.push("indonesia_step_3_fallback_submitted");
       await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(4_000);
-      await dismissIndonesiaDialogs(page, diagnostics);
+      const sawExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
+      if (sawExistingApplicationWarning) {
+        await acceptIndonesiaExistingApplicationCancellationWarning(page, diagnostics);
+      }
     } else {
       await captureApplicationStepArtifact(page, input, diagnostics, 3);
     }
@@ -2993,13 +2999,16 @@ export function extractIndonesiaOtpCode(row: IndonesiaInboundEmailRow): string |
     .replace(/=\s+/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  const afterCodePrompt =
-    haystack.match(/use\s+the\s+code[^A-Z0-9]{0,40}([A-Z0-9]{4,8})\s+to\b/i)?.[1] ??
-    haystack.match(/(?:otp|one[-\s]?time\s+password|verification\s+code|security\s+code)[^A-Z0-9]{0,80}([A-Z0-9]{4,8})/i)?.[1] ??
-    haystack.match(/code\s+(?:below|di bawah ini)[^A-Z0-9]{0,120}([A-Z0-9]{4,8})/i)?.[1] ??
-    haystack.match(/login process\.\s*([A-Z0-9]{4,8})/i)?.[1] ??
-    haystack.match(/proses login\.\s*([A-Z0-9]{4,8})/i)?.[1] ??
-    null;
+  const promptCandidates = [
+    haystack.match(/use\s+the\s+code[^A-Z0-9]{0,40}([A-Z0-9]{4,8})\s+to\b/i)?.[1],
+    haystack.match(/use\s+the\s+code\s+below\s+to\s+continue\s+the\s+login\s+process[^A-Z0-9]{0,400}([A-Z0-9]{6})\b/i)?.[1],
+    haystack.match(/gunakan\s+kode\s+di\s+bawah\s+ini\s+untuk\s+melanjutkan\s+proses\s+login[^A-Z0-9]{0,400}([A-Z0-9]{6})\b/i)?.[1],
+    haystack.match(/(?:otp|one[-\s]?time\s+password|verification\s+code|security\s+code)[^A-Z0-9]{0,80}([A-Z0-9]{4,8})/i)?.[1],
+    haystack.match(/code\s+(?:below|di bawah ini)[^A-Z0-9]{0,120}([A-Z0-9]{4,8})/i)?.[1],
+    haystack.match(/login process\.\s*([A-Z0-9]{4,8})/i)?.[1],
+    haystack.match(/proses login\.\s*([A-Z0-9]{4,8})/i)?.[1],
+  ];
+  const afterCodePrompt = promptCandidates.find((value) => isLikelyIndonesiaOtpCode(value)) ?? null;
   if (isLikelyIndonesiaOtpCode(afterCodePrompt)) {
     return afterCodePrompt.toUpperCase();
   }
@@ -3103,38 +3112,39 @@ async function continueFromIndonesiaOtpPage(
   const code = await waitForIndonesiaOtpCode(input, diagnostics);
   if (!code) return false;
 
-  const filled = await page.evaluate((otp) => {
-    const controls = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
-      .filter((input) => {
-        const style = window.getComputedStyle(input);
-        const rect = input.getBoundingClientRect();
-        return !input.disabled &&
-          input.type !== "hidden" &&
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0;
-      });
-    const oneCharInputs = controls.filter((input) => input.maxLength === 1 || input.getAttribute("maxlength") === "1");
-    const targets = oneCharInputs.length >= otp.length ? oneCharInputs : controls;
-    if (targets.length >= otp.length) {
-      for (let index = 0; index < otp.length; index += 1) {
-        targets[index].focus();
-        targets[index].value = otp[index];
-        targets[index].dispatchEvent(new Event("input", { bubbles: true }));
-        targets[index].dispatchEvent(new Event("change", { bubbles: true }));
-        targets[index].dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: otp[index] }));
-      }
-      return true;
+  const otpInputs = page.locator(".js-otp-input");
+  const otpInputCount = await otpInputs.count().catch(() => 0);
+  let filled = false;
+  if (otpInputCount >= code.length) {
+    for (let index = 0; index < code.length; index += 1) {
+      const inputBox = otpInputs.nth(index);
+      await inputBox.click({ timeout: 5_000 }).catch(() => undefined);
+      await inputBox.fill(code[index] ?? "", { timeout: 5_000 }).catch(() => undefined);
+      await inputBox.press("Tab", { timeout: 1_000 }).catch(() => undefined);
     }
-    const first = targets[0];
-    if (!first) return false;
-    first.focus();
-    first.value = otp;
-    first.dispatchEvent(new Event("input", { bubbles: true }));
-    first.dispatchEvent(new Event("change", { bubbles: true }));
-    return true;
-  }, code);
+    filled = true;
+  } else {
+    filled = await page.evaluate((otp) => {
+      const controls = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
+        .filter((input) => {
+          const style = window.getComputedStyle(input);
+          const rect = input.getBoundingClientRect();
+          return !input.disabled &&
+            input.type !== "hidden" &&
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0;
+        });
+      const first = controls[0];
+      if (!first) return false;
+      first.focus();
+      first.value = otp;
+      first.dispatchEvent(new Event("input", { bubbles: true }));
+      first.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }, code);
+  }
   if (!filled) {
     diagnostics.push("indonesia_otp_inputs_not_found");
     return false;
@@ -3204,21 +3214,23 @@ async function waitForUserPaymentCompletion(
   text: string;
   url: string;
 }> {
+  let activePage = page;
   const waitTimeoutMs = Math.max(
     30_000,
     Number(input.userPaymentHandoff?.waitTimeoutMs ?? process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? 10 * 60 * 1000),
   );
   const deadline = Date.now() + waitTimeoutMs;
   let notified = false;
-  let title = await page.title().catch(() => null);
-  let text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  let url = page.url();
+  let title = await activePage.title().catch(() => null);
+  let text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  let url = activePage.url();
   let state = classifyIndonesiaPortalSnapshot({ url, title, text });
   if (input.userPaymentHandoff?.oneTimeCard) {
-    await payIndonesiaPortalWithOneTimeCard(page, input.userPaymentHandoff.oneTimeCard, diagnostics);
-    title = await page.title().catch(() => null);
-    text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    url = page.url();
+    await payIndonesiaPortalWithOneTimeCard(activePage, input.userPaymentHandoff.oneTimeCard, diagnostics);
+    activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
+    title = await activePage.title().catch(() => null);
+    text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    url = activePage.url();
     state = classifyIndonesiaPortalSnapshot({ url, title, text });
   } else {
     diagnostics.push("indonesia_one_time_card_not_available_for_payment_page");
@@ -3236,18 +3248,22 @@ async function waitForUserPaymentCompletion(
       notified = true;
     }
 
-    await page.waitForTimeout(5_000).catch((error: unknown) => {
+    await activePage.waitForTimeout(5_000).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       diagnostics.push(`indonesia_user_payment_wait_interrupted ${message}`.slice(0, 180));
     });
-    if (page.isClosed()) {
-      diagnostics.push("indonesia_user_payment_window_closed");
-      break;
+    if (activePage.isClosed()) {
+      activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
+      if (activePage.isClosed()) {
+        diagnostics.push("indonesia_user_payment_window_closed");
+        break;
+      }
     }
 
-    title = await page.title().catch(() => null);
-    text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    url = page.url();
+    activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
+    title = await activePage.title().catch(() => null);
+    text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    url = activePage.url();
     state = classifyIndonesiaPortalSnapshot({ url, title, text });
     if (state === "submitted_or_approved") {
       diagnostics.push("indonesia_user_payment_completed");
@@ -3266,11 +3282,53 @@ async function waitForUserPaymentCompletion(
   return { state, title, text, url };
 }
 
+async function resolveActiveIndonesiaPaymentPage(page: Page, diagnostics: string[]): Promise<Page> {
+  const currentContext = page.context();
+  const pages = currentContext.pages().filter((candidate) => !candidate.isClosed());
+  if (pages.length === 0) return page;
+
+  const candidates = await Promise.all(
+    pages.map(async (candidate) => {
+      const candidateUrl = candidate.url();
+      const candidateTitle = await candidate.title().catch(() => null);
+      const candidateText = await candidate.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+      const state = classifyIndonesiaPortalSnapshot({
+        url: candidateUrl,
+        title: candidateTitle,
+        text: candidateText,
+      });
+      const paymentSignals = [
+        isPaymentGatewayOrFlowUrl(candidateUrl) ? 4 : 0,
+        state === "payment_otp_required" ? 5 : 0,
+        state === "payment_required" ? 3 : 0,
+        /otp|3ds|3d secure|authentication|verification|kode|bank|bayar|finpay/i.test(`${candidateTitle ?? ""} ${candidateText}`) ? 2 : 0,
+        candidate === page && !page.isClosed() ? 1 : 0,
+      ];
+      return {
+        page: candidate,
+        score: paymentSignals.reduce((sum, value) => sum + value, 0),
+        url: candidateUrl,
+      };
+    }),
+  );
+  candidates.sort((a, b) => b.score - a.score);
+  const selected = candidates[0];
+  if (selected && selected.page !== page && selected.score > 0) {
+    diagnostics.push(`indonesia_user_payment_switched_page ${selected.url}`.slice(0, 180));
+    return selected.page;
+  }
+  return !page.isClosed() ? page : pages[pages.length - 1] ?? page;
+}
+
 async function payIndonesiaPortalWithOneTimeCard(
   page: Page,
   card: IndonesiaOneTimeCard,
   diagnostics: string[],
 ): Promise<boolean> {
+  if (await payFinpayIndonesiaWithOneTimeCard(page, card, diagnostics)) {
+    return true;
+  }
+
   const filled = await page
     .evaluate((paymentCard) => {
       const visible = (element: Element): boolean => {
@@ -3356,6 +3414,87 @@ async function payIndonesiaPortalWithOneTimeCard(
   }
   diagnostics.push("indonesia_one_time_card_pay_button_not_found");
   return true;
+}
+
+async function payFinpayIndonesiaWithOneTimeCard(
+  page: Page,
+  card: IndonesiaOneTimeCard,
+  diagnostics: string[],
+): Promise<boolean> {
+  const cardNumber = page.locator("#number[name='number'], input#number").first();
+  if (!(await cardNumber.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    return false;
+  }
+
+  const holder = page.locator("#fullname[name='name'], input#fullname").first();
+  const expiry = page.locator("#expired[name='expiry'], input#expired").first();
+  const cvv = page.locator("#cvv[name='cvc'], input#cvv").first();
+  const payButton = page.locator("#btn_pay").or(page.getByRole("button", { name: /bayar\s+sekarang|pay now|pay/i })).first();
+  const expiryValue = `${card.expiryMonth}/${card.expiryYear.slice(-2)}`;
+
+  try {
+    await cardNumber.click({ timeout: 5_000 });
+    await cardNumber.fill("");
+    await cardNumber.type(card.pan, { delay: 15 });
+    await page
+      .waitForFunction(
+        () => {
+          const required = ["#fullname", "#expired", "#cvv"]
+            .map((selector) => document.querySelector<HTMLInputElement>(selector));
+          return required.every((input) => input && !input.disabled && !input.readOnly);
+        },
+        undefined,
+        { timeout: 10_000 },
+      )
+      .catch(() => undefined);
+
+    const holderEnabled = await holder.isEnabled({ timeout: 1_000 }).catch(() => false);
+    const expiryEnabled = await expiry.isEnabled({ timeout: 1_000 }).catch(() => false);
+    const cvvEnabled = await cvv.isEnabled({ timeout: 1_000 }).catch(() => false);
+    diagnostics.push(
+      `indonesia_one_time_card_finpay_enabled holder=${holderEnabled ? "yes" : "no"} expiry=${expiryEnabled ? "yes" : "no"} cvv=${cvvEnabled ? "yes" : "no"}`,
+    );
+    if (!holderEnabled || !expiryEnabled || !cvvEnabled) {
+      diagnostics.push("indonesia_one_time_card_finpay_locked_after_card_number");
+      return false;
+    }
+
+    if (card.holderName) {
+      await holder.fill("");
+      await holder.type(card.holderName, { delay: 10 });
+    }
+    await expiry.fill("");
+    await expiry.type(expiryValue, { delay: 20 });
+    await cvv.fill("");
+    await cvv.type(card.cvv, { delay: 20 });
+
+    const values = await page.evaluate(() => ({
+      cardLength: document.querySelector<HTMLInputElement>("#number")?.value.replace(/\D/g, "").length ?? 0,
+      holderLength: document.querySelector<HTMLInputElement>("#fullname")?.value.trim().length ?? 0,
+      expiryLength: document.querySelector<HTMLInputElement>("#expired")?.value.trim().length ?? 0,
+      cvvLength: document.querySelector<HTMLInputElement>("#cvv")?.value.trim().length ?? 0,
+    }));
+    diagnostics.push(
+      `indonesia_one_time_card_finpay_fields card=${values.cardLength >= 12 ? "yes" : "no"} holder=${values.holderLength > 0 ? "yes" : "no"} expiry=${values.expiryLength > 0 ? "yes" : "no"} cvv=${values.cvvLength > 0 ? "yes" : "no"}`,
+    );
+    if (values.cardLength < 12 || values.expiryLength === 0 || values.cvvLength === 0 || (card.holderName && values.holderLength === 0)) {
+      diagnostics.push("indonesia_one_time_card_finpay_payment_form_not_completed");
+      return false;
+    }
+
+    if (!(await payButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      diagnostics.push("indonesia_one_time_card_finpay_pay_button_not_found");
+      return true;
+    }
+    await payButton.click({ timeout: 10_000 });
+    diagnostics.push("indonesia_one_time_card_finpay_pay_clicked");
+    await page.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+    await page.waitForTimeout(5_000);
+    return true;
+  } catch (error) {
+    diagnostics.push(`indonesia_one_time_card_finpay_fill_error ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+    return false;
+  }
 }
 
 function firstConfiguredEndpoint(envNames: string[]): string | null {

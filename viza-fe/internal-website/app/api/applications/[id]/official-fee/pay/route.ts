@@ -339,13 +339,14 @@ function normalizeCardBody(body: unknown): OneTimeCardInput | null {
 function getSubmissionServiceLocalUrl(): string {
   const configured = process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim();
   if (configured) return configured.replace(/\/+$/, "");
-  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "18080";
+  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "8085";
   return `http://127.0.0.1:${port}`;
 }
 
 function getSubmissionServiceLocalUrlCandidates(): string[] {
   const urls = [
     getSubmissionServiceLocalUrl(),
+    "http://127.0.0.1:8085",
     "http://127.0.0.1:18080",
   ].map((value) => value.replace(/\/+$/, ""));
   return Array.from(new Set(urls));

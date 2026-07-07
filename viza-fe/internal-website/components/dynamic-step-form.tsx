@@ -1769,6 +1769,7 @@ export function DynamicStepForm({
     return init;
   });
   const [manualEnglishValueKeys, setManualEnglishValueKeys] = useState<Record<string, boolean>>({});
+  const [koreaAddressOptions, setKoreaAddressOptions] = useState<VisaFormFieldOption[]>([]);
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
@@ -1787,6 +1788,47 @@ export function DynamicStepForm({
   useEffect(() => {
     onDraftChangeRef.current = onDraftChange;
   }, [onDraftChange]);
+
+  const hasKoreaAddressSearchField = useMemo(
+    () =>
+      visaType === "KR_C39_SHORT_TERM_VISIT" &&
+      step.fields.some(
+        (field) =>
+          field.fieldName === "address_in_korea" &&
+          (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search",
+      ),
+    [step.fields, visaType],
+  );
+
+  useEffect(() => {
+    if (!hasKoreaAddressSearchField) return;
+    const keyword = values.korea_address_search_keyword?.trim() ?? "";
+    if (keyword.length < 2) {
+      setKoreaAddressOptions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/korea-addresses?keyword=${encodeURIComponent(keyword)}&limit=100`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        setKoreaAddressOptions(Array.isArray(payload.options) ? payload.options : []);
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          setKoreaAddressOptions([]);
+        }
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [hasKoreaAddressSearchField, values.korea_address_search_keyword]);
 
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
@@ -2278,6 +2320,21 @@ export function DynamicStepForm({
       fieldOptions = field.fieldName === "intended_ward_commune"
         ? localizeVietnamWardOptions(dynamicOptions)
         : dynamicOptions;
+    }
+    if (
+      field.fieldName === "address_in_korea" &&
+      (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search"
+    ) {
+      const selectedValue = values[valueKey]?.trim();
+      const hasSelectedValue =
+        selectedValue &&
+        koreaAddressOptions.some((option) => {
+          if (typeof option === "string") return option === selectedValue;
+          return option.value === selectedValue;
+        });
+      fieldOptions = selectedValue && !hasSelectedValue
+        ? [{ value: selectedValue, text: selectedValue }, ...koreaAddressOptions]
+        : koreaAddressOptions;
     }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);

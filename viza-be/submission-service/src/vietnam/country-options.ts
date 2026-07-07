@@ -212,3 +212,4 @@ export const VN_COUNTRY_NAME_BY_ALPHA3: Record<string, string> = {
   "ZWE": "Zimbabwe",
 };
 
+export const VN_COUNTRY_OPTION_ORDER: string[] = Object.values(VN_COUNTRY_NAME_BY_ALPHA3);
