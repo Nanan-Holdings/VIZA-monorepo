@@ -331,6 +331,20 @@ const VIETNAM_E_VISA_REQUIREMENTS: DocumentRequirement[] = [
   },
 ];
 
+const KOREA_C39_REQUIREMENTS: DocumentRequirement[] = [
+  {
+    key: "photo",
+    documentType: "photo",
+    labelEn: "Passport-size photo",
+    labelZh: "证件照",
+    description: "Recent 3.5cm x 4.5cm passport-style photo for the Korea visa application.",
+    required: true,
+    sortOrder: 10,
+    accept: [".jpg", ".jpeg", ".png", ".webp"],
+    source: "fallback",
+  },
+];
+
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -382,6 +396,14 @@ function getStringArray(record: JsonRecord, keys: string[]): string[] {
 
 function isVietnamEVisaDocumentApplication(application: ApplicationRow): boolean {
   return isVietnamEVisaQueueApplication(application.country, application.visa_type);
+}
+
+function isKoreaC39DocumentApplication(application: ApplicationRow): boolean {
+  return (
+    application.country === "south_korea" &&
+    resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) ===
+      "KR_C39_SHORT_TERM_VISIT"
+  );
 }
 
 function cloneRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
@@ -888,6 +910,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
 
   if (isVietnamEVisaDocumentApplication(application)) {
     return { source: "fallback" as const, requirements: cloneRequirements(VIETNAM_E_VISA_REQUIREMENTS) };
+  }
+
+  if (isKoreaC39DocumentApplication(application)) {
+    return { source: "fallback" as const, requirements: cloneRequirements(KOREA_C39_REQUIREMENTS) };
   }
 
   return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };

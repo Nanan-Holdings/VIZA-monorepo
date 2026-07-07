@@ -64,7 +64,6 @@ const YES_NO = [
 const FIELD_LABEL_ZH: Record<string, string> = {
   family_name_en: "姓（按护照英文大写）",
   given_names_en: "名（按护照英文大写）",
-  name_in_chinese_characters: "中文姓名/汉字姓名",
   sex: "性别",
   date_of_birth: "出生日期",
   nationality: "国籍",
@@ -107,8 +106,6 @@ const FIELD_LABEL_ZH: Record<string, string> = {
   spouse_nationality: "配偶国籍",
   spouse_address: "配偶居住地址",
   spouse_contact_no: "配偶联系电话",
-  has_children: "是否有子女？",
-  number_of_children: "子女数量",
   highest_education: "最高学历",
   highest_education_other: "其他最高学历（请说明）",
   school_name: "最近就读学校名称",
@@ -161,14 +158,12 @@ const FIELD_LABEL_ZH: Record<string, string> = {
   assistant_dob: "协助填写人出生日期",
   assistant_telephone: "协助填写人电话",
   assistant_relationship: "协助填写人与申请人的关系",
-  application_date: "申请日期",
   declaration_consent: "本人声明本申请表所填内容真实、正确，并知悉任何虚假陈述可能导致拒签或被拒绝入境韩国。",
 };
 
 const FIELD_PLACEHOLDER_ZH: Record<string, string> = {
   family_name_en: "请按护照填写英文姓",
   given_names_en: "请按护照填写英文名",
-  name_in_chinese_characters: "中国大陆申请人请填写中文姓名",
   national_identity_no: "中国大陆居民请填写18位身份证号",
   other_nationalities: "例如：中国香港、中国澳门",
   passport_no: "请按护照填写",
@@ -176,7 +171,6 @@ const FIELD_PLACEHOLDER_ZH: Record<string, string> = {
   telephone: "请填写含国家/地区代码的号码",
   emergency_telephone: "请填写含国家/地区代码的号码",
   emergency_relationship: "例如：父母、配偶、兄弟姐妹",
-  number_of_children: "例如：2",
   employer_telephone: "请填写含国家/地区代码的号码",
   purpose_of_visit: "C-3-9 通常选择旅游/过境或探亲访友",
   intended_period_of_stay: "C-3-9 最多90天",
@@ -275,10 +269,10 @@ Object.assign(FIELD_LABEL_ZH, {
   is_dual_national: "是否双重国籍？",
   other_nationalities: "双重国籍的国籍",
   has_other_passport: "是否持有两种护照？",
-  home_address_street: "本国地址 - 街道",
-  home_address_city: "本国地址 - 城市",
-  home_address_state: "本国地址 - 省/州",
-  home_address_country: "本国地址 - 国家",
+  home_address_street: "家庭地址 - 街道",
+  home_address_city: "家庭地址 - 城市",
+  home_address_state: "家庭地址 - 省/州",
+  home_address_country: "家庭地址 - 国家",
   applying_country_same_as_residence: "申请签证时所在国家是否与现居住国相同？",
   applying_country: "申请签证时申请人所在国家",
   has_inviting_company: "是否有邀请公司？",
@@ -408,10 +402,8 @@ const IS_DUAL_NATIONAL = "is_dual_national === yes";
 const PASSPORT_TYPE_OTHER = "passport_type === other";
 const HAS_OTHER_PASSPORT = "has_other_passport === yes";
 const OTHER_PASSPORT_TYPE_OTHER = "other_passport_type === other";
-const HAS_DIFFERENT_RESIDENTIAL_ADDRESS = "current_address_same_as_home === no";
 const APPLYING_COUNTRY_DIFFERS = "applying_country_same_as_residence === no";
 const IS_MARRIED = "marital_status === married";
-const HAS_CHILDREN = "has_children === yes";
 const EDUCATION_OTHER = "highest_education === other";
 // 7.2 employer block hides for unemployed / retired (Annex 17 §7 instruction)
 const IS_EMPLOYED_OR_STUDYING = "employment_status not in [unemployed, retired]";
@@ -421,7 +413,6 @@ const TRAVELLED_TO_KOREA_5Y = "travelled_to_korea_5y === yes";
 const TRAVELLED_OUTSIDE_5Y = "travelled_outside_5y === yes";
 const HAS_FAMILY_IN_KOREA = "has_family_in_korea === yes";
 const TRAVELLING_WITH_FAMILY = "travelling_with_family === yes";
-const HAS_INVITER = "has_inviter === yes";
 const HAS_INVITING_COMPANY = "has_inviting_company === yes";
 const KOREA_ADDRESS_OFFICIAL_SEARCH = "korea_address_mode === official_search";
 const KOREA_ADDRESS_NO_DIRECT_INPUT = "korea_address_mode in [undecided, address_not_found]";
@@ -529,6 +520,27 @@ const KOREA_NO_ADDRESS_REASON_OPTIONS = [
   { value: "address_not_found", text: "Address not found" },
 ];
 
+const KOREA_ADDRESS_OPTIONS = [
+  {
+    value: "100 Toegye-ro, Jung-gu, Seoul",
+    text: "100 Toegye-ro, Jung-gu, Seoul",
+    label_zh: "首尔特别市中区退溪路100",
+    official_label: "서울특별시 중구 퇴계로 100",
+  },
+  {
+    value: "110 Sejong-daero, Jung-gu, Seoul",
+    text: "110 Sejong-daero, Jung-gu, Seoul",
+    label_zh: "首尔特别市中区世宗大路110",
+    official_label: "서울특별시 중구 세종대로 110",
+  },
+  {
+    value: "864 Eonju-ro, Gangnam-gu, Seoul",
+    text: "864 Eonju-ro, Gangnam-gu, Seoul",
+    label_zh: "首尔特别市江南区彦州路864",
+    official_label: "서울특별시 강남구 언주로 864",
+  },
+];
+
 const FIELDS: FieldDef[] = [
   { field_name: "applying_consulate", label: "Consular office / overseas mission", field_type: "select", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 1, options: CONSULATE_OPTIONS, validation_rules: { official_eform_selector: "#RES_NM", official_search_required: true } },
   { field_name: "period_of_stay", label: "Period of Stay", field_type: "radio", required: true, step_number: 1, step_name: "Official e-Form Route", display_order: 2, options: PERIOD_OF_STAY_OPTIONS, validation_rules: { locked_value: "short_term" } },
@@ -536,7 +548,6 @@ const FIELDS: FieldDef[] = [
 
   { field_name: "family_name_en", label: "Family name (in passport, block letters)", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 1, placeholder: "As shown in passport", validation_rules: { maxLength: 50, inline_group: "applicant_name" } },
   { field_name: "given_names_en", label: "Given names (in passport, block letters)", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 2, placeholder: "As shown in passport", validation_rules: { maxLength: 80, inline_group: "applicant_name" } },
-  { field_name: "name_in_chinese_characters", label: "Name in Chinese characters / 漢字姓名", field_type: "text", required: true, step_number: 2, step_name: "Personal Details", display_order: 3, placeholder: "Required for PRC applicants", validation_rules: { maxLength: 30 } },
   { field_name: "sex", label: "Sex", field_type: "radio", required: true, step_number: 2, step_name: "Personal Details", display_order: 4, options: SEX_OPTIONS },
   { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 2, step_name: "Personal Details", display_order: 5, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
   { field_name: "nationality", label: "Nationality", field_type: "country", required: true, step_number: 2, step_name: "Personal Details", display_order: 6, validation_rules: { source: "ISO3166-1" } },
@@ -583,8 +594,6 @@ const FIELDS: FieldDef[] = [
   { field_name: "spouse_nationality", label: "Spouse — nationality", field_type: "country", required: true, step_number: 5, step_name: "Marital & Family", display_order: 5, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { source: "ISO3166-1", block_group: "spouse" } },
   { field_name: "spouse_address", label: "Spouse — residential address", field_type: "textarea", required: true, step_number: 5, step_name: "Marital & Family", display_order: 6, conditional_logic: { showIf: IS_MARRIED }, validation_rules: { maxLength: 300, block_group: "spouse" } },
   { field_name: "spouse_contact_no", label: "Spouse — contact number", field_type: "text", required: true, step_number: 5, step_name: "Marital & Family", display_order: 7, conditional_logic: { showIf: IS_MARRIED }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "spouse" } },
-  { field_name: "has_children", label: "Do you have any children?", field_type: "radio", required: true, step_number: 5, step_name: "Marital & Family", display_order: 8, options: YES_NO },
-  { field_name: "number_of_children", label: "Number of children", field_type: "text", required: true, step_number: 5, step_name: "Marital & Family", display_order: 9, conditional_logic: { showIf: HAS_CHILDREN }, placeholder: "e.g. 2", validation_rules: { pattern: "^[0-9]{1,2}$" } },
 
   { field_name: "highest_education", label: "Highest education completed", field_type: "radio", required: false, step_number: 6, step_name: "Education & Employment", display_order: 1, options: HIGHEST_EDUCATION_OPTIONS },
   { field_name: "highest_education_other", label: "Highest education — Other (please specify)", field_type: "text", required: false, step_number: 6, step_name: "Education & Employment", display_order: 2, conditional_logic: { showIf: EDUCATION_OTHER }, validation_rules: { maxLength: 120 } },
@@ -604,14 +613,14 @@ const FIELDS: FieldDef[] = [
   { field_name: "intended_date_of_entry", label: "Intended date of entry into Korea", field_type: "date", required: true, step_number: 7, step_name: "Visit Information", display_order: 5, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", inline_group: "visit_dates" } },
   { field_name: "korea_address_mode", label: "Address in Korea input mode", field_type: "radio", required: true, step_number: 7, step_name: "Visit Information", display_order: 6, options: KOREA_ADDRESS_MODE_OPTIONS },
   { field_name: "korea_address_search_keyword", label: "Korea address search keyword", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 7, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 120 } },
-  { field_name: "address_in_korea", label: "Selected official address in Korea", field_type: "textarea", required: true, step_number: 7, step_name: "Visit Information", display_order: 8, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 300, source: "korea_visa_portal_address_search" } },
+  { field_name: "address_in_korea", label: "Selected official address in Korea", field_type: "select", required: true, step_number: 7, step_name: "Visit Information", display_order: 8, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, options: KOREA_ADDRESS_OPTIONS, validation_rules: { source: "korea_visa_portal_address_search" } },
   { field_name: "korea_address_detail", label: "Address detail in Korea", field_type: "text", required: false, step_number: 7, step_name: "Visit Information", display_order: 9, conditional_logic: { showIf: KOREA_ADDRESS_OFFICIAL_SEARCH }, validation_rules: { maxLength: 120 } },
   { field_name: "korea_no_address_reason", label: "Reason for no address input", field_type: "select", required: true, step_number: 7, step_name: "Visit Information", display_order: 10, conditional_logic: { showIf: KOREA_ADDRESS_NO_DIRECT_INPUT }, options: KOREA_NO_ADDRESS_REASON_OPTIONS },
   { field_name: "contact_in_korea", label: "Contact number in Korea", field_type: "text", required: true, step_number: 7, step_name: "Visit Information", display_order: 11, placeholder: "Including country code +82", validation_rules: { maxLength: 30 } },
 
   { field_name: "travelled_to_korea_5y", label: "Have you travelled to Korea in the last 5 years?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 1, options: YES_NO },
   { field_name: "korea_visit_count", label: "Number of times visited Korea (last 5 years)", field_type: "text", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 2, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, placeholder: "e.g. 3", validation_rules: { pattern: "^[0-9]{1,2}$" } },
-  { field_name: "korea_visit_purpose", label: "Prior Korea visit — purpose", field_type: "text", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 3, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "korea_visits", max_items: 10 } },
+  { field_name: "korea_visit_purpose", label: "Prior Korea visit — purpose", field_type: "text", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 3, conditional_logic: { showIf: TRAVELLED_TO_KOREA_5Y }, validation_rules: { maxLength: 120 } },
   { field_name: "travelled_outside_5y", label: "Have you travelled outside your country of residence (excl. Korea) in the last 5 years?", field_type: "radio", required: true, step_number: 8, step_name: "Travel History & Family", display_order: 4, options: YES_NO },
   { field_name: "foreign_trip_country", label: "Foreign trip — country", field_type: "country", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 5, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "foreign_trips_5y", max_items: 10 } },
   { field_name: "foreign_trip_purpose", label: "Foreign trip — purpose", field_type: "text", required: false, step_number: 8, step_name: "Travel History & Family", display_order: 6, conditional_logic: { showIf: TRAVELLED_OUTSIDE_5Y }, validation_rules: { maxLength: 120, repeatable: true, repeat_group: "foreign_trips_5y" } },
@@ -648,7 +657,6 @@ const FIELDS: FieldDef[] = [
   { field_name: "assistant_dob", label: "Assistant — date of birth", field_type: "date", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 8, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD", block_group: "assistant" } },
   { field_name: "assistant_telephone", label: "Assistant — contact method", field_type: "text", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 9, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "Including country code", validation_rules: { maxLength: 30, block_group: "assistant" } },
   { field_name: "assistant_relationship", label: "Assistant — relationship to applicant", field_type: "text", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 10, conditional_logic: { showIf: RECEIVED_FORM_ASSISTANCE }, placeholder: "e.g. agent, family, friend", validation_rules: { maxLength: 80, block_group: "assistant" } },
-  { field_name: "application_date", label: "Date of application", field_type: "date", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 11, placeholder: "YYYY/MM/DD", validation_rules: { format: "YYYY/MM/DD" } },
   { field_name: "declaration_consent", label: "I declare that the statements made in this application are true and correct, and I understand that any false statement may result in refusal of the visa or denial of entry into the Republic of Korea.", field_type: "checkbox", required: true, step_number: 10, step_name: "Expenses & Assistance", display_order: 12, options: [{ value: "yes", text: "I agree" }] },
 ];
 
