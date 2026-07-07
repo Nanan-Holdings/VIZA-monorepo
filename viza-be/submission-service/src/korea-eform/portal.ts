@@ -41,6 +41,14 @@ interface RadioAssignment {
   selector: string;
 }
 
+export interface KoreaOfficialEformFillAuditItem {
+  selector: string;
+  expected: string;
+  actual: string | null;
+  ok: boolean;
+  reason?: "missing_selector" | "empty_value" | "value_mismatch" | "radio_not_checked";
+}
+
 const MAX_OFFICIAL_UPLOAD_BYTES = 500 * 1024;
 const TARGET_OFFICIAL_UPLOAD_BYTES = 480 * 1024;
 
@@ -156,7 +164,7 @@ export function buildKoreaOfficialEformFirstPagePlan(
       { selector: "#ISS_NAT_CD", value: nationalityCode },
       { selector: "#ISS_PLACE", value: payload.passportPlaceOfIssue ?? "" },
       { selector: "#ISS_YMD", value: compactDate(payload.passportIssueDate) },
-      { selector: "#NAT_ID_NO", value: payload.nationalIdentityNo ?? "" },
+      { selector: "#IDENTITY_NO", value: payload.nationalIdentityNo ?? "" },
       { selector: "#ADDR_STREET", value: address.street },
       { selector: "#ADDR_CITY", value: address.city },
       { selector: "#ADDR_STATE", value: address.state },
@@ -197,20 +205,6 @@ export function buildKoreaOfficialEformSecondPagePlan(
     unemployed: "#JOB_CD_7",
     other: "#JOB_CD_8",
   };
-  const purposeMap: Record<string, string> = {
-    tourism_transit: "#ENT_PURP_KIND_CD1",
-    meeting_conference: "#ENT_PURP_KIND_CD2",
-    medical_tourism: "#ENT_PURP_KIND_CD3",
-    business_trip: "#ENT_PURP_KIND_CD4",
-    study_training: "#ENT_PURP_KIND_CD5",
-    work: "#ENT_PURP_KIND_CD6",
-    trade_investment_ict: "#ENT_PURP_KIND_CD7",
-    visiting_family_relatives_friends: "#ENT_PURP_KIND_CD8",
-    overseas_korean_visit: "#ENT_PURP_KIND_CD9",
-    marriage_migrant: "#ENT_PURP_KIND_CD10",
-    diplomatic_official: "#ENT_PURP_KIND_CD11",
-    other: "#ENT_PURP_KIND_CD12",
-  };
   const visitCountMap: Record<string, string> = {
     single: "#APPL_VISA_GB_S",
     "1": "#APPL_VISA_GB_S",
@@ -224,7 +218,6 @@ export function buildKoreaOfficialEformSecondPagePlan(
   const marital = readAnswer(answers, ["marital_status"], "single").toLowerCase();
   const education = readAnswer(answers, ["highest_education"], "bachelors").toLowerCase();
   const job = readAnswer(answers, ["employment_status"], "employed").toLowerCase();
-  const purpose = readAnswer(answers, ["purpose_of_visit"], "tourism_transit").toLowerCase();
   const expectedVisitCount = readAnswer(answers, ["expected_korea_visit_count", "planned_korea_visit_count"], "single").toLowerCase();
   const travelledToKorea = isYes(readAnswer(answers, ["travelled_to_korea_5y"]));
   const travelledOutside = isYes(readAnswer(answers, ["travelled_outside_5y"]));
@@ -268,9 +261,6 @@ export function buildKoreaOfficialEformSecondPagePlan(
     );
   }
 
-  if (purpose === "other") {
-    fields.push({ selector: "#ENT_PURP_KIND_DETAIL", value: readAnswer(answers, ["purpose_of_visit_other"]) });
-  }
   if (education === "other") {
     fields.push({ selector: "#LAST_DEGREE_DETAIL", value: readAnswer(answers, ["highest_education_other"]) });
   }
@@ -309,7 +299,6 @@ export function buildKoreaOfficialEformSecondPagePlan(
       { selector: maritalMap[marital] ?? "#MARI_STS_CD_S" },
       { selector: educationMap[education] ?? "#LAST_DEGREE_2" },
       { selector: jobMap[job] ?? "#JOB_CD_3" },
-      { selector: purposeMap[purpose] ?? "#ENT_PURP_KIND_CD1" },
       { selector: visitCountMap[expectedVisitCount] ?? "#APPL_VISA_GB_S" },
       { selector: travelledToKorea ? "#BF_VISIT_Y" : "#BF_VISIT_N" },
       { selector: travelledOutside ? "#VISIT_NAT_Y" : "#VISIT_NAT_N" },
@@ -360,6 +349,95 @@ async function assignRadios(page: Page, assignments: RadioAssignment[]): Promise
     return changed;
   }, assignments);
   return filled;
+}
+
+async function auditFieldAssignments(page: Page, assignments: FieldAssignment[]): Promise<KoreaOfficialEformFillAuditItem[]> {
+  return page.evaluate((items) => {
+    return items
+      .filter((item) => item.value.trim().length > 0)
+      .map((item) => {
+        const element = document.querySelector(item.selector) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+        if (!element) {
+          return {
+            selector: item.selector,
+            expected: item.value,
+            actual: null,
+            ok: false,
+            reason: "missing_selector" as const,
+          };
+        }
+
+        const actualValue = element.value.trim();
+        const actualText = element instanceof HTMLSelectElement
+          ? element.options[element.selectedIndex]?.textContent?.trim() || actualValue
+          : actualValue;
+        const expected = item.value.trim();
+        const normalizedActual = actualText.toLowerCase();
+        const normalizedActualValue = actualValue.toLowerCase();
+        const normalizedExpected = expected.toLowerCase();
+        const ok = normalizedActualValue === normalizedExpected ||
+          normalizedActual === normalizedExpected ||
+          normalizedActual.includes(normalizedExpected) ||
+          normalizedExpected.includes(normalizedActual);
+
+        return {
+          selector: item.selector,
+          expected,
+          actual: actualText,
+          ok,
+          reason: ok ? undefined : actualText ? ("value_mismatch" as const) : ("empty_value" as const),
+        };
+      });
+  }, assignments);
+}
+
+async function auditRadioAssignments(page: Page, assignments: RadioAssignment[]): Promise<KoreaOfficialEformFillAuditItem[]> {
+  return page.evaluate((items) => {
+    return items.map((item) => {
+      const element = document.querySelector(item.selector) as HTMLInputElement | null;
+      if (!element) {
+        return {
+          selector: item.selector,
+          expected: "checked",
+          actual: null,
+          ok: false,
+          reason: "missing_selector" as const,
+        };
+      }
+      return {
+        selector: item.selector,
+        expected: "checked",
+        actual: element.checked ? "checked" : "unchecked",
+        ok: element.checked,
+        reason: element.checked ? undefined : ("radio_not_checked" as const),
+      };
+    });
+  }, assignments);
+}
+
+export async function auditKoreaOfficialEformFirstPageFill(
+  page: Page,
+  payload: KoreaOfficialEformPayload,
+  options: KoreaOfficialEformFillOptions = {},
+): Promise<KoreaOfficialEformFillAuditItem[]> {
+  const plan = buildKoreaOfficialEformFirstPagePlan(payload, options);
+  return [
+    ...(await auditFieldAssignments(page, plan.selects)),
+    ...(await auditRadioAssignments(page, plan.radios)),
+    ...(await auditFieldAssignments(page, plan.fields)),
+  ];
+}
+
+export async function auditKoreaOfficialEformSecondPageFill(
+  page: Page,
+  answers: Record<string, string | null | undefined>,
+): Promise<KoreaOfficialEformFillAuditItem[]> {
+  const plan = buildKoreaOfficialEformSecondPagePlan(answers);
+  return [
+    ...(await auditFieldAssignments(page, plan.selects)),
+    ...(await auditRadioAssignments(page, plan.radios)),
+    ...(await auditFieldAssignments(page, plan.fields)),
+  ];
 }
 
 function isCompressibleImage(filePath: string) {

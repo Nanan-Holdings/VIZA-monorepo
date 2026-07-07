@@ -248,8 +248,8 @@ export function FailureCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {workerPickupError
             ? (isZh
-                ? "这不是 ICA 表单内容错误，而是本地 submission-service worker 没有运行或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
-                : "This is not an ICA form-data error. The local submission-service worker was not running or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
+                ? "这不是表单内容错误，而是本地 submission-service worker 没有运行、端口未匹配，或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
+                : "This is not a form-data error. The local submission-service worker was not running, was on a different port, or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
             : (isZh
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}

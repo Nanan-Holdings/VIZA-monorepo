@@ -347,7 +347,8 @@ function getSubmissionServiceLocalUrlCandidates(): string[] {
   const urls = [
     getSubmissionServiceLocalUrl(),
     "http://127.0.0.1:8085",
-    "http://127.0.0.1:18080",
+    ...Array.from({ length: 41 }, (_, index) => `http://127.0.0.1:${18080 + index}`),
+    "http://127.0.0.1:8080",
   ].map((value) => value.replace(/\/+$/, ""));
   return Array.from(new Set(urls));
 }
