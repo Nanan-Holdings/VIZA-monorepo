@@ -15,6 +15,8 @@ interface Props {
   /** Prefill collected by the marketing /apply wizard (optional). */
   initialEmail?: string;
   initialName?: string;
+  /** Opaque wizard payload, forwarded to the server action verbatim. */
+  prefill?: string;
 }
 
 type Step = "form" | "qr" | "paid" | "error";
@@ -62,6 +64,7 @@ export function WechatCheckoutForm({
   amountFen,
   initialEmail = "",
   initialName = "",
+  prefill = "",
 }: Props) {
   const t = COPY[locale];
   const router = useRouter();
@@ -122,6 +125,7 @@ export function WechatCheckoutForm({
         email,
         fullName: name,
         locale,
+        prefill: prefill || undefined,
       });
       const dataUrl = await QRCode.toDataURL(out.codeUrl, {
         margin: 1,
@@ -233,7 +237,7 @@ export function WechatCheckoutForm({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full max-w-md rounded-xl border border-border bg-white p-6 shadow-sm">
+    <div className="w-full max-w-md mt-6 rounded-2xl border border-brand-100 bg-white p-7 shadow-[0_8px_30px_rgba(3,52,110,0.08)]">
       {children}
     </div>
   );

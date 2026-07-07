@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { pricingFor } from "@/lib/pricing";
 import { CardCheckoutForm } from "./_components/card-checkout-form";
@@ -11,6 +12,7 @@ interface PageProps {
     locale?: string;
     email?: string;
     name?: string;
+    prefill?: string;
   }>;
 }
 
@@ -30,6 +32,7 @@ export default async function CardCheckoutPage({ searchParams }: PageProps) {
   const locale = params.locale === "zh-CN" ? "zh-CN" : "en";
   const initialEmail = params.email?.trim() ?? "";
   const initialName = params.name?.trim() ?? "";
+  const prefill = params.prefill?.trim() ?? "";
 
   if (!country || !visa) {
     redirect("/client/login");
@@ -58,7 +61,10 @@ export default async function CardCheckoutPage({ searchParams }: PageProps) {
   const amountCents = pricing.agencyFeeCents + passthroughGovt;
 
   return (
-    <main className="min-h-screen bg-bg-1 flex items-center justify-center px-6 py-12">
+    <main className="min-h-screen bg-gradient-to-b from-brand-50 to-white flex flex-col items-center px-6 py-10">
+      <div className="w-full max-w-md">
+        <Image src="/logo/viza-logo-blue.svg" alt="VIZA" width={80} height={24} priority />
+      </div>
       <CardCheckoutForm
         country={country}
         visaType={visa}
@@ -67,6 +73,7 @@ export default async function CardCheckoutPage({ searchParams }: PageProps) {
         currency={pricing.currency}
         initialEmail={initialEmail}
         initialName={initialName}
+        prefill={prefill}
       />
     </main>
   );

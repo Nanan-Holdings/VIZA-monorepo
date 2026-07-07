@@ -1,6 +1,10 @@
 "use server";
 
 import { withAdmin } from "@/lib/auth/with-admin";
+import {
+  applyCheckoutPrefill,
+  decodeCheckoutPrefill,
+} from "@/lib/checkout/prefill";
 import { wechatPricingFor, WechatPayNotSupportedError } from "@/lib/pricing";
 import {
   createNativeOrder,
@@ -25,6 +29,8 @@ export interface StartWechatCheckoutInput {
   fullName: string;
   /** Marketing-side locale; persisted on the profile for the magic-link mail. */
   locale: "en" | "zh-CN";
+  /** Base64url wizard payload from the marketing /apply funnel (see lib/checkout/prefill.ts). */
+  prefill?: string;
 }
 
 export interface StartWechatCheckoutOutput {
@@ -174,6 +180,17 @@ export async function startWechatCheckout(
             description: `WeChat Pay — ${input.country}/${input.visaType}`,
           },
         ]);
+      }
+
+      // 3b. Persist wizard prefill (passport OCR, arrival date, tier) —
+      //     best-effort, never blocks the payment redirect.
+      const prefill = decodeCheckoutPrefill(input.prefill);
+      if (prefill) {
+        await applyCheckoutPrefill(
+          admin,
+          { applicantId, applicationId },
+          prefill,
+        );
       }
 
       // 4. Native unifiedorder. out_trade_no is regenerated on every
