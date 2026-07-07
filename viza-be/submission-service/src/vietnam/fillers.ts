@@ -47,6 +47,7 @@ export async function fillText(page: Page, domId: string, value: string): Promis
  *   3. Click the `.ant-select-item-option` whose text matches.
  */
 export async function pickSelect(page: Page, domId: string, optionText: string): Promise<void> {
+  await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const result = await page.evaluate(
     async ({ domId, optionText }) => {
       const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -109,6 +110,16 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         if (descriptor?.set) descriptor.set.call(input, value);
         else input.value = value;
       };
+      const currentSelectText = (select: HTMLElement, input: HTMLInputElement) =>
+        [
+          select.querySelector<HTMLElement>(".ant-select-selection-item")?.innerText,
+          select.querySelector<HTMLElement>(".ant-select-selection-item")?.getAttribute("title"),
+          select.querySelector<HTMLElement>(".ant-select-selection-overflow")?.textContent,
+          select.querySelector<HTMLInputElement>("input[type='hidden']")?.value,
+          input.value,
+        ]
+          .filter(Boolean)
+          .join(" ");
       const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(`#${CSS.escape(domId)}`));
       const pairs = inputs
         .map((input) => ({
@@ -148,7 +159,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       };
       const readOptions = () =>
         readDropdowns().flatMap((dropdown) =>
-          Array.from(dropdown.querySelectorAll<HTMLElement>(".ant-select-item-option"))
+          Array.from(dropdown.querySelectorAll<HTMLElement>("[role='option'], .ant-select-item-option"))
             .filter((option) => !option.classList.contains("ant-select-item-option-disabled"))
             .map((option) => {
               const content = option.querySelector<HTMLElement>(".ant-select-item-option-content") ?? option;
@@ -159,8 +170,20 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
             })
             .filter((option) => option.text),
         );
+      const waitForOptions = async (timeoutMs: number) => {
+        const deadline = Date.now() + timeoutMs;
+        let options = readOptions();
+        while (options.length === 0 && Date.now() < deadline) {
+          await sleep(80);
+          options = readOptions();
+        }
+        return options;
+      };
       const open = async () => {
         document.activeElement instanceof HTMLElement && document.activeElement.blur();
+        document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        document.body.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        await sleep(50);
         dispatchRealClick(selector);
         await sleep(120);
         input.focus();
@@ -170,7 +193,9 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         await sleep(500);
       };
       const search = async () => {
+        await open();
         input.focus();
+        input.click();
         setNativeValue(input, "");
         input.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
         await sleep(80);
@@ -180,16 +205,38 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         input.dispatchEvent(new Event("change", { bubbles: true }));
         await sleep(1200);
       };
+      const submitWithKeyboard = async () => {
+        input.focus();
+        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+        await sleep(100);
+        input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter", code: "Enter", keyCode: 13 }));
+        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter", code: "Enter", keyCode: 13 }));
+        await sleep(500);
+        input.blur();
+        input.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+      };
 
       await open();
-      let optionList = readOptions();
+      let optionList = await waitForOptions(1_800);
       let best = rank(optionList.map((option) => option.text))[0];
       if (!best || best.score < 88) {
         await search();
-        optionList = readOptions();
+        optionList = await waitForOptions(2_500);
         best = rank(optionList.map((option) => option.text))[0];
       }
       if (!best || best.score < 88) {
+        await search();
+        await submitWithKeyboard();
+        const keyboardText = currentSelectText(select, input);
+        const keyboardScore = rank([keyboardText])[0]?.score ?? -1;
+        if (keyboardScore >= 88) {
+          return {
+            ok: true,
+            reason: undefined,
+            candidates: [keyboardText],
+          };
+        }
         return {
           ok: false,
           reason: "option_not_found",
@@ -202,13 +249,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       input.blur();
       input.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
       await sleep(500);
-      const currentText = [
-        select.querySelector<HTMLElement>(".ant-select-selection-item")?.innerText,
-        select.querySelector<HTMLElement>(".ant-select-selection-item")?.getAttribute("title"),
-        input.value,
-      ]
-        .filter(Boolean)
-        .join(" ");
+      const currentText = currentSelectText(select, input);
       const confirmed = (rank([currentText])[0]?.score ?? -1) >= 88;
       return {
         ok: confirmed,

@@ -11,6 +11,9 @@ Directorate General of Immigration eVisa portal.
 - Route both C1 and B1 to `https://evisa.imigrasi.go.id/` by default. Treat
   VFS Indonesia e-VoA as fallback recon only, not the primary B1 runner.
 - Keep portal probing/classification in `runner.ts` and `portal-state.ts`.
+- `managed-account.ts` owns the pure account-reuse decision. VIZA-managed
+  `appl-*` aliases with vault passwords are valid prepared portal accounts and
+  should be reused instead of forcing a new registration/recon pass.
 - Never log official account passwords, portal OTPs, card data, CAPTCHA tokens,
   or full applicant document paths.
 - Use VIZA-managed inbox aliases through `ensureApplicantInboxAlias`; do not

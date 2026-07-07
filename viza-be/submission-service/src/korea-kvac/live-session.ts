@@ -275,21 +275,119 @@ async function extractConfirmationNumber(page: Page) {
   return null;
 }
 
-async function findOfficialCancelButton(page: Page) {
-  const candidates = [
-    page.locator("button, a, input[type='button'], input[type='submit']").filter({
-      hasText: /取消预约|预约取消|取消|Cancel|예약취소|취소/i,
-    }).last(),
-    page.locator("[onclick*='cancel' i], [onclick*='Cancel'], [onclick*='예약취소'], [onclick*='취소']").last(),
-  ];
+async function findOfficialActionControl(page: Page, action: "cancel" | "reschedule") {
+  const selector = `[data-viza-kvac-action-target="${action}"]`;
+  const tagged = await page.evaluate((targetAction) => {
+    const attr = "data-viza-kvac-action-target";
+    document.querySelectorAll(`[${attr}]`).forEach((element) => element.removeAttribute(attr));
 
-  for (const candidate of candidates) {
-    if ((await candidate.count().catch(() => 0)) === 0) continue;
-    const visible = await candidate.isVisible().catch(() => false);
-    const enabled = await candidate.isEnabled().catch(() => true);
-    if (visible && enabled) return candidate;
-  }
-  return null;
+    const positivePatterns =
+      targetAction === "cancel"
+        ? [
+            /取消预约|预约取消|取消申请|撤销预约|取消/i,
+            /cancel(?:lation)?|delete|remove/i,
+            /예약\s*취소|예약취소|취소/i,
+          ]
+        : [
+            /改约|变更预约|预约变更|修改预约|重新预约/i,
+            /reschedule|change|modify/i,
+            /예약\s*변경|예약변경|변경|수정/i,
+          ];
+    const intentPattern =
+      targetAction === "cancel"
+        ? /cancel|cancle|delete|remove|del|cncl|예약취소|취소|取消|撤销/i
+        : /reschedule|change|modify|update|예약변경|변경|수정|改约|变更|修改/i;
+    const bookingContextPattern = /book|booking|reserve|reservation|rsrv|visit|appoint|appointment|예약|预.?约|受理/i;
+    const negativePattern = /关闭|返回|上一步|닫기|이전|back|close|reset|clear|home|print|download|search|query|조회|查询|打印|下载/i;
+
+    const candidates = Array.from(
+      document.querySelectorAll(
+        [
+          "button",
+          "a",
+          "input[type='button']",
+          "input[type='submit']",
+          "input[type='image']",
+          "[role='button']",
+          "[onclick]",
+          "img[onclick]",
+        ].join(","),
+      ),
+    );
+
+    const isVisible = (element: Element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+
+    const textFor = (element: Element) => {
+      const parts: string[] = [];
+      const htmlElement = element as HTMLElement;
+      parts.push(htmlElement.innerText ?? "", element.textContent ?? "");
+      if (element instanceof HTMLInputElement) {
+        parts.push(element.value, element.name, element.id, element.type, element.src);
+      }
+      if (element instanceof HTMLAnchorElement) parts.push(element.href);
+      if (element instanceof HTMLImageElement) parts.push(element.alt, element.src);
+      parts.push(
+        element.getAttribute("title") ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("alt") ?? "",
+        element.getAttribute("onclick") ?? "",
+        element.getAttribute("href") ?? "",
+        element.id,
+        element.className.toString(),
+      );
+      element.querySelectorAll("img,[alt],[title],[aria-label]").forEach((child) => {
+        parts.push(
+          child.textContent ?? "",
+          child.getAttribute("alt") ?? "",
+          child.getAttribute("title") ?? "",
+          child.getAttribute("aria-label") ?? "",
+          child.getAttribute("src") ?? "",
+        );
+      });
+      return parts.filter(Boolean).join(" ");
+    };
+
+    let best: HTMLElement | null = null;
+    let bestScore = 0;
+    for (const element of candidates) {
+      if (!(element instanceof HTMLElement) || !isVisible(element)) continue;
+      const text = textFor(element).replace(/\s+/g, " ").trim();
+      if (!text) continue;
+
+      let score = 0;
+      if (positivePatterns.some((pattern) => pattern.test(text))) score += 8;
+      if (intentPattern.test(text)) score += 5;
+      if (bookingContextPattern.test(text)) score += 3;
+      if (/(onclick|href|id|name|class)/i.test(text) && intentPattern.test(text)) score += 2;
+      if (negativePattern.test(text)) score -= 5;
+      if (element instanceof HTMLInputElement && /reset|hidden/i.test(element.type)) score -= 8;
+      if (element.hasAttribute("disabled") || element.getAttribute("aria-disabled") === "true") score -= 10;
+
+      if (score > bestScore) {
+        best = element;
+        bestScore = score;
+      }
+    }
+
+    if (!best || bestScore < 6) return false;
+    best.setAttribute(attr, targetAction);
+    return true;
+  }, action);
+
+  if (!tagged) return null;
+  const candidate = page.locator(selector).first();
+  const visible = await candidate.isVisible().catch(() => false);
+  const enabled = await candidate.isEnabled().catch(() => true);
+  return visible && enabled ? candidate : null;
+}
+
+async function findOfficialCancelButton(page: Page) {
+  return findOfficialActionControl(page, "cancel");
 }
 
 export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsInput): Promise<KoreaKvacStartSmsResult> {
