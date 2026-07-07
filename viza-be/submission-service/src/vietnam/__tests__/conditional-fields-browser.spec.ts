@@ -555,7 +555,9 @@ test("vn.conditional-fields browser: selects exact country values in official dy
               input.addEventListener("input", () => {
                 const needle = input.value.trim().toLowerCase();
                 dropdown.querySelectorAll("[role='option']").forEach((option) => {
-                  option.style.display = !needle || option.textContent.toLowerCase().includes(needle) ? "" : "none";
+                  const searchableValue = option.dataset.value || "";
+                  option.style.display =
+                    !needle || searchableValue.toLowerCase().includes(needle) ? "" : "none";
                 });
               });
               dropdown.querySelectorAll("[role='option']").forEach((option) => {
@@ -675,6 +677,11 @@ function renderOfficialDynamicTable(
 
 function renderAntSelect(inputId: string, options: string[]): string {
   const listId = `${inputId}_list`;
+  const officialValues: Record<string, string> = {
+    China: "CHN",
+    Hungary: "HUN",
+    Panama: "PAN",
+  };
   return `
     <div class="ant-select">
       <div class="ant-select-selector">
@@ -689,7 +696,7 @@ function renderAntSelect(inputId: string, options: string[]): string {
         ${options
           .map(
             (option) => `
-              <div class="ant-select-item-option" role="option" title="${option}">
+              <div class="ant-select-item-option" role="option" title="${option}" data-value="${officialValues[option] ?? option}">
                 <div class="ant-select-item-option-content">${option}</div>
               </div>
             `,

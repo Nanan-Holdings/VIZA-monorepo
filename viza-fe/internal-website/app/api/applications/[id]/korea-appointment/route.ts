@@ -638,7 +638,7 @@ async function createWorkerUnavailableCheckpoint(
   const instruction = kind === "cancel"
     ? "VIZA 已创建站内取消任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新点击站内查询取消入口；用户不需要跳转到官网操作。"
     : kind === "reschedule"
-      ? "VIZA 已创建站内改约任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新发送官网验证码；用户不需要跳转到官网操作。"
+      ? "VIZA 已创建站内改约任务，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页继续查询并取消旧预约；取消成功后才会重新发送验证码选择新时间。"
       : "VIZA 已保留站内预约流程，但本地 Korea KVAC worker 暂时不可达。请启动 submission-service 并启用 KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED=true 后，在本页重新发送官网验证码；用户不需要跳转到官网操作。";
   const metadata = {
     centerCode: routing.recommended.code,
@@ -646,7 +646,7 @@ async function createWorkerUnavailableCheckpoint(
     bookingUrl: routing.recommended.bookingUrl,
     bookingSearchUrl: routing.recommended.bookingSearchUrl,
     officialUrl: routing.recommended.officialUrl,
-    nextStep: kind === "cancel" ? "restart_worker_and_retry_cancel_query" : "restart_worker_and_resend_sms",
+    nextStep: kind === "cancel" || kind === "reschedule" ? "restart_worker_and_retry_cancel_query" : "restart_worker_and_resend_sms",
     workerBaseUrl: submissionServiceBaseUrl(),
     workerUnavailable: true,
     error: rawError,
@@ -827,6 +827,7 @@ async function startOfficialCancellationQuery(
   userId: string,
   job: AppointmentJobRow,
   routing: ReturnType<typeof resolveKvacCenter>,
+  intent: "cancel" | "reschedule" = "cancel",
 ) {
   if (!routing.recommended.bookingSearchUrl) {
     throw new Error("This Korea center does not expose a supported official cancellation query page.");
@@ -874,6 +875,7 @@ async function startOfficialCancellationQuery(
         screenshotPath: result.screenshotPath,
         officialMessage: result.officialMessage,
         canCancel: result.canCancel === true,
+        intent,
       },
     })
     .select("id")
@@ -899,6 +901,7 @@ async function startOfficialCancellationQuery(
       centerCode: routing.recommended.code,
       screenshotPath: result.screenshotPath,
       canCancel: result.canCancel === true,
+      intent,
     },
   });
 }
@@ -1447,9 +1450,22 @@ export async function POST(
         routing,
         "reschedule",
       );
+      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, "reschedule");
     } catch (error) {
+      if (isSubmissionRunnerUnavailable(error)) {
+        await createWorkerUnavailableCheckpoint(
+          auth.admin,
+          id,
+          auth.profile.id,
+          job,
+          routing,
+          "reschedule",
+          submissionServiceErrorMessage(error),
+        );
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      }
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Could not create Korea appointment change checkpoint." },
+        { error: error instanceof Error ? error.message : "Could not start Korea KVAC reschedule cancellation step." },
         { status: 409 },
       );
     }
@@ -1461,7 +1477,7 @@ export async function POST(
     if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
     try {
       await createOrReuseAppointmentChangeCheckpoint(auth.admin, id, auth.profile.id, job, routing, "cancel");
-      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing);
+      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, "cancel");
     } catch (error) {
       if (isSubmissionRunnerUnavailable(error)) {
         await createWorkerUnavailableCheckpoint(
@@ -1487,7 +1503,17 @@ export async function POST(
     const job = await latestJob(auth.admin, id);
     if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
     try {
-      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing);
+      const { data: rescheduleAction, error: rescheduleErr } = await auth.admin
+        .from("appointment_manual_actions")
+        .select("id")
+        .eq("job_id", job.id)
+        .eq("action_type", "official_reschedule_required")
+        .in("status", ["pending", "in_progress"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (rescheduleErr) throw new Error(rescheduleErr.message);
+      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, rescheduleAction ? "reschedule" : "cancel");
     } catch (error) {
       if (isSubmissionRunnerUnavailable(error)) {
         await createWorkerUnavailableCheckpoint(

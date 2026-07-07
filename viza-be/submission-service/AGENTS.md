@@ -181,8 +181,12 @@ filling and one-shot submission for the applicant.
 - `src/korea-eform/**`: Korea Visa Portal official e-Form/barcode PDF runner
   scaffold. `src/korea-eform/documents.ts` downloads uploaded applicant photo
   and passport scan files from `application-documents` for official portal
-  upload. Live automation must be explicitly env-gated and must not mark
-  success until the official portal-generated PDF is captured in storage.
+  upload. `src/korea-eform/address-search.ts` calls the official Juso address
+  APIs used by the Korea Visa Portal address popup, and
+  `scripts/crawl-korea-addresses.ts` / `npm run korea-addresses:crawl` provide
+  a resumable JSONL crawler for nationwide Korea stay-address options. Live
+  automation must be explicitly env-gated and must not mark success until the
+  official portal-generated PDF is captured in storage.
 - `scripts/start-korea-eform-local.ts` / `npm run korea-eform:local`: local-only
   health-server entrypoint for the Korea official e-Form endpoint on port 8081.
   It enables the gated local e-Form runner for browser-click smoke tests and

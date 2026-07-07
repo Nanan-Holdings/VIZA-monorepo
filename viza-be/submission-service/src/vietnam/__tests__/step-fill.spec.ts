@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildAntSelectSearchTerms,
   buildAntSelectOptionRegex,
   isAcceptableAntSelectMatch,
   rankAntSelectCandidates,
   resolveStepPlan,
 } from "../fillers.js";
 import {
+  getVnCountryAlpha3ForOptionText,
   getVnPortalOptionText,
   normalizeVnCountryOptionText,
   VN_FIELD_MAPPINGS,
@@ -95,7 +97,16 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(normalizeVnCountryOptionText("PAN"), "Panama");
   assert.equal(normalizeVnCountryOptionText("Panama"), "Panama");
   assert.equal(normalizeVnCountryOptionText("Panamanian"), "Panama");
+  assert.equal(normalizeVnCountryOptionText("VNM"), "Viet Nam");
+  assert.equal(normalizeVnCountryOptionText("CZE"), "Czech Republic");
+  assert.equal(
+    normalizeVnCountryOptionText("GBR"),
+    "United Kingdom of Great Britain and Northern Ireland",
+  );
   assert.equal(getVnPortalOptionText("nationality", "HUN"), "Hungary");
   assert.equal(getVnPortalOptionText("other_vietnam_passport_nationality", "HUN"), "Hungary");
   assert.equal(getVnPortalOptionText("relative_nationality", "PAN"), "Panama");
+  assert.equal(getVnPortalOptionText("nationality", "VNM"), "Viet Nam");
+  assert.equal(getVnCountryAlpha3ForOptionText("Panama"), "PAN");
+  assert.deepEqual(buildAntSelectSearchTerms("Panama"), ["PAN", "Panama"]);
 });
