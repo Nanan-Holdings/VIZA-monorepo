@@ -364,6 +364,10 @@ function localizeActionText(value: string | null | undefined, isZh: boolean): st
     return "等待官方费用授权";
   }
 
+  if (normalized === "official_fee_payment_failed") {
+    return "官方付款失败，可重新自动付款";
+  }
+
   if (normalized === "official_fee_otp_required") {
     return "等待银行 OTP 验证";
   }
@@ -472,7 +476,9 @@ function GenericResultCard({
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
   const indonesiaPaymentAction =
     isIndonesiaAction &&
-    (result.actionType === "official_fee_otp_required" || result.actionType === "official_fee_payment_required");
+    (result.actionType === "official_fee_otp_required" ||
+      result.actionType === "official_fee_payment_required" ||
+      result.actionType === "official_fee_payment_failed");
   const indonesiaCardReady =
     indonesiaCardNumber.replace(/\D/g, "").length >= 12 &&
     indonesiaCardExpiry.trim().length >= 4 &&
@@ -481,6 +487,8 @@ function GenericResultCard({
   const title = isIndonesiaAction
     ? result.actionType === "official_fee_otp_required"
       ? (isZh ? "等待银行 OTP 验证" : "Waiting for bank OTP verification")
+      : result.actionType === "official_fee_payment_failed"
+      ? (isZh ? "官方付款失败，可重新自动付款" : "Official payment failed; automated retry is available")
       : result.actionType === "official_fee_payment_required"
       ? (isZh ? "等待官方费用授权" : "Waiting for official-fee authorization")
       : (isZh ? "印尼自动申请正在准备" : "Indonesia automated application is preparing")

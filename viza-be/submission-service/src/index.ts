@@ -4510,6 +4510,7 @@ async function persistVietnamProgressStage(
 
 async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const liveAssisted = item.status !== "vn_dry_run_pending" && item.mode !== "dry_run";
+  const processingStatus = liveAssisted ? "vn_live_assisted_processing" : "vn_prefill_processing";
   const runId = createRunId(liveAssisted ? "vn-live" : "vn-dry");
   console.log(
     `[vn] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
@@ -4525,7 +4526,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   await updateVnQueueRow(
     item.id,
     {
-      status: liveAssisted ? "vn_live_assisted_processing" : "vn_prefill_processing",
+      status: processingStatus,
       mode: liveAssisted ? "live_assisted" : "dry_run",
       provider: liveAssisted ? "vietnam_evisa_live" : "vietnam_evisa_dry_run",
       current_stage: "starting",
@@ -4535,11 +4536,24 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       updated_at: now,
     },
     {
-      status: liveAssisted ? "vn_live_assisted_processing" : "vn_prefill_processing",
+      status: processingStatus,
       updated_at: now,
     },
   );
   await setSubmissionStatus(item.application_id, "processing");
+
+  const heartbeatTimer = setInterval(() => {
+    const heartbeatAt = new Date().toISOString();
+    void supabase
+      .from("submission_queue")
+      .update({
+        heartbeat_at: heartbeatAt,
+        updated_at: heartbeatAt,
+      })
+      .eq("id", item.id)
+      .eq("status", processingStatus);
+  }, 60_000);
+  heartbeatTimer.unref?.();
 
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
@@ -4866,6 +4880,8 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       await sendFailureAlert(item.application_id, `[VN] ${errorMsg}`);
     }
     console.error(`[vn] Unhandled error in ${runId}:`, errorMsg);
+  } finally {
+    clearInterval(heartbeatTimer);
   }
 }
 

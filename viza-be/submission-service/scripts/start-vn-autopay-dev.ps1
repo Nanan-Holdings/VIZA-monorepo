@@ -55,6 +55,10 @@ function Resolve-HealthPort {
     return [int]$env:PORT
   }
 
+  if (Test-PortAvailable -Port 8085) {
+    return 8085
+  }
+
   foreach ($candidate in 18080..18120) {
     if (Test-PortAvailable -Port $candidate) {
       return $candidate
@@ -121,6 +125,7 @@ try {
   Write-Host "Starting submission-service with Vietnam autopay enabled for this process only."
   Write-Host "Health server port: $env:PORT"
   Write-Host "Local one-time card session endpoint enabled on http://127.0.0.1:$env:PORT/local/vietnam/card-session."
+  Write-Host "If the frontend runs in another terminal, set SUBMISSION_SERVICE_LOCAL_URL=http://127.0.0.1:$env:PORT or restart it after this script prints the port."
   if ($FixedCard) {
     Write-Host "Fixed-card values were not written to disk. Stop this terminal to clear them."
   } else {
