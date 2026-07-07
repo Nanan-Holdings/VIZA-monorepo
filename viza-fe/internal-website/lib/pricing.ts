@@ -50,6 +50,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 8000, // ≈ SAR 300 tourist e-visa (ops to revise)
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 128900,
   },
   {
     country: "france",
@@ -58,6 +61,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 9000, // ≈ EUR 90 Schengen short-stay; applicant pays at VAC
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "italy",
@@ -66,6 +72,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 9000, // ≈ EUR 90 Schengen short-stay; applicant pays at VFS
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   // Big Five
   {
@@ -85,6 +94,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 18500,
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "united_kingdom",
@@ -93,6 +105,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 13500,
     currency: "GBP",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "european_union",
@@ -101,6 +116,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 9000,
     currency: "EUR",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "vietnam",
@@ -109,6 +127,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 2500,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 89300,
   },
   // Asia-Pacific
   {
@@ -118,6 +139,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 19000,
     currency: "AUD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "japan",
@@ -126,6 +150,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 0,
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "indonesia",
@@ -134,6 +161,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 15000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 179300,
   },
   {
     country: "indonesia",
@@ -142,6 +172,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 5000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 107300,
   },
   {
     country: "south_korea",
@@ -150,6 +183,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 4000,
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "thailand",
@@ -158,6 +194,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 4000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 100100,
   },
   {
     country: "malaysia",
@@ -166,6 +205,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 1500,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 82100,
   },
   {
     country: "singapore",
@@ -174,6 +216,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 3000,
     currency: "SGD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "hong_kong",
@@ -182,6 +227,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 23000,
     currency: "HKD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "macau",
@@ -190,6 +238,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 10000,
     currency: "MOP",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "new_zealand",
@@ -198,6 +249,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 27200,
     currency: "NZD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "philippines",
@@ -206,6 +260,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 3000,
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "cambodia",
@@ -214,6 +271,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 3600,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 97200,
   },
   {
     country: "laos",
@@ -222,6 +282,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 5000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 107300,
   },
   {
     country: "sri_lanka",
@@ -230,6 +293,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 5000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 107300,
   },
   {
     country: "india",
@@ -238,6 +304,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 2500,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 89300,
   },
   {
     country: "maldives",
@@ -246,6 +315,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 0,
     currency: "USD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   // EMEA + Americas
   {
@@ -255,6 +327,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 2500,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 89300,
   },
   {
     country: "russia",
@@ -263,6 +338,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 5200,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 108700,
   },
   {
     country: "turkey",
@@ -271,6 +349,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 5000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 107300,
   },
   {
     country: "united_arab_emirates",
@@ -279,6 +360,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 9000,
     currency: "USD",
     govtFeeChannel: "viza_passthrough",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 136100,
   },
   {
     country: "canada",
@@ -287,6 +371,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 10000,
     currency: "CAD",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
   {
     country: "south_africa",
@@ -295,6 +382,9 @@ export const PACKAGE_PRICING: PackagePricing[] = [
     govtFeeCents: 4750,
     currency: "ZAR",
     govtFeeChannel: "portal_direct",
+    // MKT-013: placeholder CNY total ≈ USD-collected total × 7.2 —
+    // ops to revise before launch (mirrors the indonesia/B211A note).
+    wechatPayTotalFen: 71300,
   },
 ];
 
