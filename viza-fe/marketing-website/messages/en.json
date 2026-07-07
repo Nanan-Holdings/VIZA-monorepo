@@ -934,7 +934,9 @@
       "messagePh": "A few lines is fine. If you have a flight date, an application reference (VIZA-XXXX-XXXX), or a screenshot of a portal error, include it.",
       "consent": "I agree to VIZA processing my message and contact details under the <a>Privacy Policy</a>. We never share your passport details with third parties.",
       "submit": "Send brief",
-      "demoAlert": "Demo only — your brief would now be routed to the right desk."
+      "sending": "Sending…",
+      "success": "Thanks — your brief is in. We'll reply to your email shortly.",
+      "error": "Couldn't send your brief right now. Please retry, or reach us on WhatsApp / email."
     },
     "aside": {
       "promiseTitle": "Response promise",

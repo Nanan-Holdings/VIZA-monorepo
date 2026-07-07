@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 import "./contact.css";
@@ -154,6 +154,46 @@ const FAQ_IDS = ["q1", "q2", "q3", "q4", "q5", "q6"] as const;
 export default function ContactPage() {
   const t = useTranslations("contact");
   const tf = useTranslations("footer");
+  const locale = useLocale();
+  const [formStatus, setFormStatus] = useState<
+    "idle" | "sending" | "success" | "error"
+  >("idle");
+
+  async function submitBrief(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (formStatus === "sending") return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const reasonsChecked = data.getAll("reason").map(String);
+    setFormStatus("sending");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: data.get("fullName"),
+          email: data.get("email"),
+          phone: [data.get("dialCode"), data.get("phone")]
+            .filter(Boolean)
+            .join(" ")
+            .trim(),
+          preferredChannel: data.get("preferredChannel"),
+          passportNationality: data.get("passportNationality"),
+          destination: data.get("destination"),
+          reasons: reasonsChecked,
+          message: data.get("message"),
+          website: data.get("website"), // honeypot
+          locale,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean };
+      if (!res.ok || !json.ok) throw new Error("send failed");
+      setFormStatus("success");
+      form.reset();
+    } catch {
+      setFormStatus("error");
+    }
+  }
 
   const channelOptions = t.raw("form.channelOptions") as string[];
   const passportOptions = t.raw("form.passportOptions") as string[];
@@ -325,13 +365,7 @@ export default function ContactPage() {
         </div>
 
         <div className="contact-form-wrap">
-          <form
-            className="form-shell"
-            onSubmit={(event) => {
-              event.preventDefault();
-              alert(t("form.demoAlert"));
-            }}
-          >
+          <form className="form-shell" onSubmit={submitBrief}>
             <div className="form-head">
               <div>
                 <h3>{t("form.cardTitle")}</h3>
@@ -346,11 +380,11 @@ export default function ContactPage() {
             <div className="form-row">
               <div className="field">
                 <label>{t("form.fullName")} <span className="req">▲</span></label>
-                <input type="text" placeholder={t("form.fullNamePh")} />
+                <input type="text" name="fullName" required placeholder={t("form.fullNamePh")} />
               </div>
               <div className="field">
                 <label>{t("form.email")} <span className="req">▲</span></label>
-                <input type="email" placeholder={t("form.emailPh")} />
+                <input type="email" name="email" required placeholder={t("form.emailPh")} />
               </div>
             </div>
 
@@ -358,17 +392,17 @@ export default function ContactPage() {
               <div className="field">
                 <label>{t("form.phone")}</label>
                 <div className="phone-combo">
-                  <select>
+                  <select name="dialCode">
                     {DIAL_CODES.map((code) => (
                       <option key={code}>{code}</option>
                     ))}
                   </select>
-                  <input type="tel" placeholder={t("form.phonePh")} />
+                  <input type="tel" name="phone" placeholder={t("form.phonePh")} />
                 </div>
               </div>
               <div className="field">
                 <label>{t("form.preferredChannel")}</label>
-                <select>
+                <select name="preferredChannel">
                   {channelOptions.map((opt) => (
                     <option key={opt}>{opt}</option>
                   ))}
@@ -379,7 +413,7 @@ export default function ContactPage() {
             <div className="form-row">
               <div className="field">
                 <label>{t("form.passport")} <span className="req">▲</span></label>
-                <select>
+                <select name="passportNationality">
                   {passportOptions.map((opt) => (
                     <option key={opt}>{opt}</option>
                   ))}
@@ -387,7 +421,7 @@ export default function ContactPage() {
               </div>
               <div className="field">
                 <label>{t("form.destination")}</label>
-                <select>
+                <select name="destination">
                   {destinationOptions.map((opt) => (
                     <option key={opt}>{opt}</option>
                   ))}
@@ -401,7 +435,7 @@ export default function ContactPage() {
                 <div className="reasons">
                   {reasons.map((reason, i) => (
                     <label className="reason" key={reason}>
-                      <input type="checkbox" defaultChecked={i === 1} />
+                      <input type="checkbox" name="reason" value={reason} defaultChecked={i === 1} />
                       <span className="ck"></span>
                       {reason}
                     </label>
@@ -413,17 +447,38 @@ export default function ContactPage() {
             <div className="form-row solo">
               <div className="field">
                 <label>{t("form.message")} <span className="req">▲</span></label>
-                <textarea placeholder={t("form.messagePh")}></textarea>
+                <textarea name="message" required placeholder={t("form.messagePh")}></textarea>
               </div>
             </div>
 
+            {/* Honeypot — hidden from humans, filled by naive bots. */}
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: "absolute", left: "-9999px", height: 0, width: 0, opacity: 0 }}
+            />
+
+            {formStatus === "success" && (
+              <p role="status" style={{ margin: "10px 0 0", fontSize: "13px", color: "var(--brand-500)" }}>
+                {t("form.success")}
+              </p>
+            )}
+            {formStatus === "error" && (
+              <p role="alert" style={{ margin: "10px 0 0", fontSize: "13px", color: "#b3261e" }}>
+                {t("form.error")}
+              </p>
+            )}
+
             <div className="form-foot">
               <label className="consent">
-                <input type="checkbox" defaultChecked />
+                <input type="checkbox" required defaultChecked />
                 <span>{t.rich("form.consent", { a: (chunks: ReactNode) => <a href="#">{chunks}</a> })}</span>
               </label>
-              <button className="btn-submit" type="submit">
-                {t("form.submit")}
+              <button className="btn-submit" type="submit" disabled={formStatus === "sending"}>
+                {formStatus === "sending" ? t("form.sending") : t("form.submit")}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               </button>
             </div>
