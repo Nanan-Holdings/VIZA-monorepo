@@ -1063,6 +1063,9 @@ export function DocumentCenterClient({
       (view) => isTravelItineraryRequirement(view.requirement)
     ) ?? null;
   const isVietnamEVisa = isVietnamEVisaApplication(selectedApplication);
+  const isKoreaC39 =
+    selectedApplication?.country === "south_korea" &&
+    selectedApplication.visaType === "KR_C39_SHORT_TERM_VISIT";
   const passportView =
     documentViews.find((view) => isPassportRequirement(view.requirement)) ?? null;
   const photoView =
@@ -1361,9 +1364,13 @@ export function DocumentCenterClient({
                   {isZh ? "材料" : "Documents"}
                 </h1>
                 <p className="max-w-3xl text-muted-foreground">
-                  {isZh
-                    ? "在这个表单内完成必需材料和可选补充材料。旅行行程可手动上传，也可从旅行 AI 选择已生成的英语 PDF。"
-                    : "Complete required and optional supporting documents inside this form. Travel itinerary evidence can be uploaded manually or selected from an existing Travel AI English PDF."}
+                  {isKoreaC39
+                    ? isZh
+                      ? "韩国 C-3-9 当前只需要在这里上传证件照；其他递签材料按官网 e-Form 和预约中心要求线下携带。"
+                      : "For Korea C-3-9, upload only the passport-size photo here. Bring the other in-person materials according to the official e-Form and appointment-center checklist."
+                    : isZh
+                      ? "在这个表单内完成必需材料和可选补充材料。旅行行程可手动上传，也可从旅行 AI 选择已生成的英语 PDF。"
+                      : "Complete required and optional supporting documents inside this form. Travel itinerary evidence can be uploaded manually or selected from an existing Travel AI English PDF."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-medium">

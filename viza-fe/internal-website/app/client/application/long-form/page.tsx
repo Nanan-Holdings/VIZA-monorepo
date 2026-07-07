@@ -187,6 +187,19 @@ const INDONESIA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   Declaration: "声明确认",
 };
 
+const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Official e-Form Route": "官方 e-Form 路线",
+  "Personal Details": "个人信息",
+  Passport: "护照",
+  "Contact Details": "联系方式",
+  "Marital & Family": "婚姻与家庭",
+  "Education & Employment": "教育与就业",
+  "Visit Information": "访问信息",
+  "Travel History & Family": "旅行历史与家属",
+  "Invitation Company": "邀请公司",
+  "Expenses & Assistance": "费用与协助",
+};
+
 type StepSectionKey = ApplicationStepSectionKey;
 type StepSectionDef = ApplicationStepSection<StepDef>;
 
@@ -241,6 +254,10 @@ function localizeDynamicStepName(
     (options.visaType === "ID_C1_TOURIST" || options.visaType === "ID_B1_EVOA")
   ) {
     return INDONESIA_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
+  if (options.isZhInterface && options.visaType === "KR_C39_SHORT_TERM_VISIT") {
+    return KOREA_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 
   const translationKey = getDynamicStepTranslationCandidates(stepName)
@@ -400,18 +417,15 @@ function MobileStepBar({
 
 function GroupedStepSidebar({
   sections,
-  steps,
   currentStep,
   completedStepIds,
   onStepClick,
 }: {
   sections: StepSectionDef[];
-  steps: StepDef[];
   currentStep: number;
   completedStepIds: ReadonlySet<number>;
   onStepClick: StepClickHandler;
 }) {
-  const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const getStatus = useCallback((stepId: number): StepStatus => {
     return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
@@ -439,10 +453,9 @@ function GroupedStepSidebar({
   return (
     <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="space-y-3">
-        {sections.map((section) => {
+        {sections.map((section, sectionIndex) => {
           if (section.steps.length === 1) {
             const step = section.steps[0];
-            const stepIndex = currentStepIndexById.get(step.id) ?? 0;
             const status = getStatus(step.id);
             const isSelected = step.id === currentStep;
 
@@ -468,7 +481,7 @@ function GroupedStepSidebar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
@@ -488,7 +501,6 @@ function GroupedStepSidebar({
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
           const isExpanded = expandedSections[section.id] ?? activeInSection;
-          const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
             return completedStepIds.has(step.id);
           }).length;
@@ -521,7 +533,7 @@ function GroupedStepSidebar({
                   {sectionComplete ? (
                     <Check className="h-4 w-4" strokeWidth={3} />
                   ) : (
-                    firstIndex + 1
+                    sectionIndex + 1
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -553,7 +565,6 @@ function GroupedStepSidebar({
                   />
                   <div className="relative space-y-0.5">
                     {section.steps.map((step) => {
-                      const stepIndex = currentStepIndexById.get(step.id) ?? 0;
                       const status = getStatus(step.id);
                       const isSelected = step.id === currentStep;
 
@@ -569,10 +580,10 @@ function GroupedStepSidebar({
                             isSelected ? "bg-[#f5f9ff]" : "hover:bg-gray-50"
                           )}
                         >
-                          {/* Numbered marker — circle for in-progress/locked, bare check icon for complete */}
+                          {/* Child marker: substeps do not consume the main step numbers. */}
                           <span
                             className={cn(
-                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-sm font-semibold tabular-nums transition-all",
+                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center transition-all",
                               status === "complete" && "text-[#03346E]",
                               status === "in_progress" && "rounded-full border-2 border-[#03346E] bg-white text-[#03346E] shadow-[0_0_0_3px_rgba(3,52,110,0.14)]",
                               status === "locked" && "rounded-full border-2 border-gray-200 bg-white text-gray-400"
@@ -580,8 +591,10 @@ function GroupedStepSidebar({
                           >
                             {status === "complete" ? (
                               <Check className="h-5 w-5" strokeWidth={3} />
+                            ) : status === "in_progress" ? (
+                              <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
-                              stepIndex + 1
+                              <span className="h-2 w-2 rounded-full bg-gray-300" />
                             )}
                           </span>
                           <p
@@ -679,10 +692,9 @@ function GroupedMobileStepBar({
       </div>
 
       <div className="space-y-3">
-        {sections.map((section) => {
+        {sections.map((section, sectionIndex) => {
           if (section.steps.length === 1) {
             const step = section.steps[0];
-            const stepIndex = currentStepIndexById.get(step.id) ?? 0;
             const status = getStatus(step.id);
 
             return (
@@ -707,7 +719,7 @@ function GroupedMobileStepBar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -728,7 +740,6 @@ function GroupedMobileStepBar({
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
           const isExpanded = expandedSections[section.id] ?? activeInSection;
-          const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
             return completedStepIds.has(step.id);
           }).length;
@@ -760,7 +771,7 @@ function GroupedMobileStepBar({
                   {sectionComplete ? (
                     <Check className="h-4 w-4" strokeWidth={3} />
                   ) : (
-                    firstIndex + 1
+                    sectionIndex + 1
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -792,7 +803,6 @@ function GroupedMobileStepBar({
                   />
                   <div className="relative space-y-0.5">
                     {section.steps.map((step) => {
-                      const stepIndex = currentStepIndexById.get(step.id) ?? 0;
                       const status = getStatus(step.id);
                       const isSelected = step.id === currentStep;
 
@@ -808,10 +818,10 @@ function GroupedMobileStepBar({
                             isSelected ? "bg-[#f5f9ff]" : "active:bg-gray-50"
                           )}
                         >
-                          {/* Numbered marker — bare check for complete, circle otherwise */}
+                          {/* Child marker: substeps do not consume the main step numbers. */}
                           <span
                             className={cn(
-                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-sm font-semibold tabular-nums transition-all",
+                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center transition-all",
                               status === "complete" && "text-[#03346E]",
                               status === "in_progress" && "rounded-full border-2 border-[#03346E] bg-white text-[#03346E] shadow-[0_0_0_3px_rgba(3,52,110,0.14)]",
                               status === "locked" && "rounded-full border-2 border-gray-200 bg-white text-gray-400"
@@ -819,8 +829,10 @@ function GroupedMobileStepBar({
                           >
                             {status === "complete" ? (
                               <Check className="h-5 w-5" strokeWidth={3} />
+                            ) : status === "in_progress" ? (
+                              <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
-                              stepIndex + 1
+                              <span className="h-2 w-2 rounded-full bg-gray-300" />
                             )}
                           </span>
                           <p
@@ -1866,7 +1878,7 @@ export default function ApplicationPage() {
         {
           id: reviewStepIndex,
           sourceName: "Review",
-          name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
+          name: tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
         ...(showTeamStep
@@ -1882,7 +1894,7 @@ export default function ApplicationPage() {
         {
           id: statusStepIndex,
           sourceName: "Confirmation",
-          name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : "Confirmation",
+          name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : isZhInterface ? "确认" : "Confirmation",
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ]
@@ -2963,7 +2975,6 @@ export default function ApplicationPage() {
       {useDynamic ? (
         <GroupedStepSidebar
           sections={groupedSections}
-          steps={effectiveSteps}
           currentStep={currentStep}
           completedStepIds={completedStepIds}
           onStepClick={handleStepNavigation}
