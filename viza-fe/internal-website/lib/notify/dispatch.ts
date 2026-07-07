@@ -130,6 +130,7 @@ export async function sendTransitionNotification(
           to: a.email,
           subject: tpl.subject,
           text: tpl.text,
+          html: tpl.html,
         });
         await admin.from("notification_event_log").insert({
           applicant_id: applicantId,

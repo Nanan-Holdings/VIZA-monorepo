@@ -200,8 +200,11 @@ export async function provisionAccountAndMagicLink(
       const magicLink = linkData.properties.action_link;
 
       // 4. Mail it (locale per applicant profile).
-      const locale: TemplateLocale =
-        profile.language_pref === "zh-CN" ? "zh-CN" : "en";
+      const locale: TemplateLocale = (["zh-CN", "vi", "es"] as const).includes(
+        profile.language_pref as "zh-CN" | "vi" | "es",
+      )
+        ? (profile.language_pref as TemplateLocale)
+        : "en";
       const rendered = renderTemplate(
         "paid_welcome",
         {
@@ -219,6 +222,7 @@ export async function provisionAccountAndMagicLink(
         to: profile.email,
         subject: rendered.subject,
         text: rendered.text,
+        html: rendered.html,
       });
     },
   );
