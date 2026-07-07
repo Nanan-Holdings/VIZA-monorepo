@@ -208,6 +208,14 @@ test("classifies Indonesia portal login and registration gates", () => {
     }),
     "payment_required",
   );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: "https://live.finpay.id/pg/payment/card/result/failed?orderId=abc&orderAmount=500000",
+      title: "Payment Failed",
+      text: "Payment Failed Your payment failed. Please try again later.",
+    }),
+    "payment_failed",
+  );
 });
 
 test("maps portal states to actionable automation checkpoints", () => {
@@ -238,6 +246,10 @@ test("maps portal states to actionable automation checkpoints", () => {
   assert.equal(
     actionForIndonesiaPortalState("payment_otp_required").actionType,
     "official_fee_otp_required",
+  );
+  assert.equal(
+    actionForIndonesiaPortalState("payment_failed").actionType,
+    "official_fee_payment_failed",
   );
 });
 

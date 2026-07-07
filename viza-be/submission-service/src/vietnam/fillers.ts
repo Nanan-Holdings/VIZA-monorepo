@@ -705,8 +705,6 @@ function escapeRegex(value: string): string {
 
 export function buildAntSelectSearchTerms(optionText: string): string[] {
   const terms = new Set<string>();
-  const alpha3 = getVnCountryAlpha3ForOptionText(optionText);
-  if (alpha3) terms.add(alpha3);
   const trimmed = optionText.trim();
   if (trimmed) terms.add(trimmed);
   return Array.from(terms);

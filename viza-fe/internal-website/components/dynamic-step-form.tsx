@@ -1770,6 +1770,8 @@ export function DynamicStepForm({
   });
   const [manualEnglishValueKeys, setManualEnglishValueKeys] = useState<Record<string, boolean>>({});
   const [koreaAddressOptions, setKoreaAddressOptions] = useState<VisaFormFieldOption[]>([]);
+  const [koreaAddressSearchQuery, setKoreaAddressSearchQuery] = useState("");
+  const [koreaAddressSearching, setKoreaAddressSearching] = useState(false);
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
@@ -1802,15 +1804,17 @@ export function DynamicStepForm({
 
   useEffect(() => {
     if (!hasKoreaAddressSearchField) return;
-    const keyword = values.korea_address_search_keyword?.trim() ?? "";
+    const keyword = koreaAddressSearchQuery.trim();
     if (keyword.length < 2) {
       setKoreaAddressOptions([]);
+      setKoreaAddressSearching(false);
       return;
     }
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
+        setKoreaAddressSearching(true);
         const response = await fetch(`/api/korea-addresses?keyword=${encodeURIComponent(keyword)}&limit=100`, {
           signal: controller.signal,
         });
@@ -1821,6 +1825,10 @@ export function DynamicStepForm({
         if ((error as { name?: string }).name !== "AbortError") {
           setKoreaAddressOptions([]);
         }
+      } finally {
+        if (!controller.signal.aborted) {
+          setKoreaAddressSearching(false);
+        }
       }
     }, 350);
 
@@ -1828,7 +1836,7 @@ export function DynamicStepForm({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [hasKoreaAddressSearchField, values.korea_address_search_keyword]);
+  }, [hasKoreaAddressSearchField, koreaAddressSearchQuery]);
 
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
@@ -2351,6 +2359,9 @@ export function DynamicStepForm({
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
 
     const renderSide = (side: BilingualSide) => {
+      const isKoreaAddressSearchSelect =
+        field.fieldName === "address_in_korea" &&
+        (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: `${valueKey}-${side}`,
@@ -2379,6 +2390,8 @@ export function DynamicStepForm({
           forceWhiteBackground={forceWhiteBackground}
           disabled={lt24Disabled || tdacTransitCheckboxLocked}
           displayLocale={side}
+          onSearchQuery={isKoreaAddressSearchSelect ? setKoreaAddressSearchQuery : undefined}
+          searching={isKoreaAddressSearchSelect ? koreaAddressSearching : false}
         />
       );
     };
