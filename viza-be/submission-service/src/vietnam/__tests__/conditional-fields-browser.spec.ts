@@ -798,8 +798,9 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
 
         const refreshSearch = () => {
           window.searchedTerms = [...(window.searchedTerms || []), input.value];
-          filteredOptions = options.slice();
+          filteredOptions = input.value.trim() ? [] : options.slice();
           list.style.height = (filteredOptions.length * itemHeight) + "px";
+          holder.scrollTop = 0;
           render();
         };
         const show = () => {

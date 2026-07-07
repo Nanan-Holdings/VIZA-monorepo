@@ -113,13 +113,12 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         if (descriptor?.set) descriptor.set.call(input, value);
         else input.value = value;
       };
-      const currentSelectText = (select: HTMLElement, input: HTMLInputElement) =>
+      const currentSelectText = (select: HTMLElement) =>
         [
           select.querySelector<HTMLElement>(".ant-select-selection-item")?.innerText,
           select.querySelector<HTMLElement>(".ant-select-selection-item")?.getAttribute("title"),
           select.querySelector<HTMLElement>(".ant-select-selection-overflow")?.textContent,
           select.querySelector<HTMLInputElement>("input[type='hidden']")?.value,
-          input.value,
         ]
           .filter(Boolean)
           .join(" ");
@@ -235,7 +234,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         for (const searchTerm of searchTerms) {
           await search(searchTerm);
           await submitWithKeyboard();
-          const keyboardText = currentSelectText(select, input);
+          const keyboardText = currentSelectText(select);
           const keyboardScore = rank([keyboardText])[0]?.score ?? -1;
           if (keyboardScore >= 88) {
             return {
@@ -257,7 +256,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       input.blur();
       input.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
       await sleep(500);
-      const currentText = currentSelectText(select, input);
+      const currentText = currentSelectText(select);
       const confirmed = (rank([currentText])[0]?.score ?? -1) >= 88;
       return {
         ok: confirmed,
@@ -312,6 +311,18 @@ async function pickSelectWithPlaywright(
   await page.waitForTimeout(250);
   await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
   await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
+  if (optionIndex !== null) {
+    await openFullSelectListForIndexedScroll(page, domId);
+    let candidates = await readVisibleSelectCandidates(page);
+    const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
+    if (indexed.candidates.length > candidates.length) {
+      candidates = indexed.candidates;
+    }
+    await page.waitForTimeout(500);
+    if (indexed.ok && (await selectDisplayMatches(page, domId, optionText))) {
+      return { ok: true, candidates };
+    }
+  }
   for (const searchTerm of searchTerms) {
     await selector.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
     await page.waitForTimeout(150);
@@ -352,6 +363,35 @@ async function pickSelectWithPlaywright(
     }
   }
   return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
+}
+
+async function openFullSelectListForIndexedScroll(page: Page, domId: string): Promise<void> {
+  await page.evaluate((id) => {
+    const input = document.querySelector<HTMLInputElement>(`#${CSS.escape(id)}`);
+    const select = input?.closest<HTMLElement>(".ant-select");
+    const selector = select?.querySelector<HTMLElement>(".ant-select-selector") ?? select;
+    if (!input || !selector) return;
+    const dispatchRealClick = (target: HTMLElement) => {
+      for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
+        const EventCtor = type === "pointerdown" ? window.PointerEvent || window.MouseEvent : window.MouseEvent;
+        target.dispatchEvent(new EventCtor(type, { bubbles: true, cancelable: true, button: 0 }));
+      }
+      target.click();
+    };
+    const descriptor =
+      Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value") ||
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value");
+    if (descriptor?.set) descriptor.set.call(input, "");
+    else input.value = "";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    dispatchRealClick(selector);
+    input.focus();
+    input.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+    input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "ArrowDown", code: "ArrowDown" }));
+  }, domId).catch(() => undefined);
+  await page.waitForTimeout(500);
 }
 
 async function scrollToIndexedSelectOption(
@@ -540,12 +580,11 @@ async function selectDisplayMatches(page: Page, domId: string, optionText: strin
           .trim();
       const input = document.querySelector<HTMLInputElement>(`#${CSS.escape(id)}`);
       const select = input?.closest<HTMLElement>(".ant-select");
-      if (!input || !select) return false;
+      if (!select) return false;
       const text = [
         select.querySelector<HTMLElement>(".ant-select-selection-item")?.innerText,
         select.querySelector<HTMLElement>(".ant-select-selection-item")?.getAttribute("title"),
         select.querySelector<HTMLInputElement>("input[type='hidden']")?.value,
-        input.value,
       ]
         .filter(Boolean)
         .join(" ");
