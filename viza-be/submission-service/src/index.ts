@@ -194,6 +194,7 @@ import {
   INDONESIA_C1_PORTAL_URL,
   runIndonesiaLiveSubmission,
 } from "./indonesia";
+import { hasPreparedIndonesiaPortalAccount } from "./indonesia/managed-account";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -6716,10 +6717,10 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const answers = await loadDs160Answers(item.application_id);
     const managedVaultEmail = await applicantVault.get(profile.id, "indonesia.portal.email", vaultOpts);
     const managedVaultPassword = await applicantVault.get(profile.id, "indonesia.portal.password", vaultOpts);
-    const preparedPortalAccount =
-      Boolean(managedVaultEmail) &&
-      Boolean(managedVaultPassword) &&
-      !managedVaultEmail?.match(/^appl-/i);
+    const preparedPortalAccount = hasPreparedIndonesiaPortalAccount({
+      email: managedVaultEmail,
+      password: managedVaultPassword,
+    });
 
     const existingAliasDomain = parseAliasDomain(managedVaultEmail);
     const aliasDomains = parseIndonesiaManagedAliasDomains(existingAliasDomain);

@@ -476,6 +476,136 @@ test("vn.conditional-fields browser: fills every mapped dynamic table after sele
   }
 });
 
+test("vn.conditional-fields browser: selects exact country values in official dynamic table dropdowns", { timeout: 20_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderIdlessQuestion(
+            "Have you ever used any other passports to enter into Viet Nam?",
+            "other-passports",
+          )}
+          ${renderOfficialDynamicTable("other-passports-table", [
+            { header: "Passport", inputId: "basic_hcKhac_0_soHoChieu" },
+            { header: "Full name", inputId: "basic_hcKhac_0_hoTen" },
+            { header: "Date of birth", inputId: "basic_hcKhac_0_ngaySinhStr" },
+            {
+              header: "Nationality",
+              inputId: "basic_hcKhac_0_quocTich",
+              selectOptions: ["China", "Hungary", "Panama"],
+            },
+          ])}
+          ${renderIdlessQuestion(
+            "Do you have relatives who currently reside in Viet Nam?",
+            "relatives",
+          )}
+          ${renderOfficialDynamicTable("relatives-table", [
+            { header: "Full name", inputId: "basic_thanNhanOVn_0_hoTen" },
+            { header: "Date of birth", inputId: "basic_thanNhanOVn_0_ngaySinhStr" },
+            {
+              header: "Nationality",
+              inputId: "basic_thanNhanOVn_0_quocTich",
+              selectOptions: ["China", "Hungary", "Panama"],
+            },
+            { header: "Relationship", inputId: "basic_thanNhanOVn_0_quanHe" },
+            { header: "Residential address", inputId: "basic_thanNhanOVn_0_diaChi" },
+          ])}
+          <script>
+            document.querySelectorAll("[data-question]").forEach((question) => {
+              question.querySelectorAll(".ant-radio-wrapper").forEach((label) => {
+                label.addEventListener("change", () => {
+                  const group = label.closest(".ant-radio-group");
+                  group.querySelectorAll(".ant-radio-wrapper").forEach((candidate) => {
+                    const checked = candidate === label && candidate.querySelector("input").checked;
+                    candidate.classList.toggle("ant-radio-wrapper-checked", checked);
+                    candidate.querySelector(".ant-radio").classList.toggle("ant-radio-checked", checked);
+                  });
+                  document.querySelector("#" + question.dataset.question + "-table").style.display =
+                    label.innerText.trim() === "Yes" && label.querySelector("input").checked ? "table" : "none";
+                });
+              });
+            });
+
+            document.querySelectorAll(".ant-select").forEach((select) => {
+              const input = select.querySelector("input[role='combobox']");
+              const display = select.querySelector(".ant-select-selection-item");
+              const dropdown = document.getElementById(input.getAttribute("aria-controls")).closest(".ant-select-dropdown");
+              const open = () => {
+                dropdown.classList.remove("ant-select-dropdown-hidden");
+                input.setAttribute("aria-expanded", "true");
+              };
+              const close = () => {
+                dropdown.classList.add("ant-select-dropdown-hidden");
+                input.setAttribute("aria-expanded", "false");
+              };
+              select.querySelector(".ant-select-selector").addEventListener("mousedown", open);
+              select.querySelector(".ant-select-selector").addEventListener("click", open);
+              input.addEventListener("focus", open);
+              input.addEventListener("keydown", (event) => {
+                if (event.key === "ArrowDown") open();
+                if (event.key === "Enter") {
+                  const firstVisible = Array.from(dropdown.querySelectorAll("[role='option']"))
+                    .find((option) => option.style.display !== "none");
+                  firstVisible?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+                }
+              });
+              input.addEventListener("input", () => {
+                const needle = input.value.trim().toLowerCase();
+                dropdown.querySelectorAll("[role='option']").forEach((option) => {
+                  option.style.display = !needle || option.textContent.toLowerCase().includes(needle) ? "" : "none";
+                });
+              });
+              dropdown.querySelectorAll("[role='option']").forEach((option) => {
+                option.addEventListener("click", () => {
+                  const value = option.textContent.trim();
+                  display.textContent = value;
+                  display.setAttribute("title", value);
+                  input.value = "";
+                  input.dispatchEvent(new Event("change", { bubbles: true }));
+                  close();
+                });
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    const answers = {
+      has_other_passports_used_for_vietnam: "yes",
+      other_vietnam_passport_number: "E1234567",
+      other_vietnam_passport_full_name: "ZHANG SAN",
+      other_vietnam_passport_date_of_birth: "1990-05-06",
+      other_vietnam_passport_nationality: "HUN",
+      has_relatives_in_vietnam: "yes",
+      relative_full_name: "NGUYEN VAN A",
+      relative_date_of_birth: "1988-02-03",
+      relative_nationality: "PAN",
+      relative_relationship: "Father",
+      relative_residential_address: "Da Nang",
+    };
+
+    await pickRadio(page, "basic_ttcnDaDungHcKhacVaoVn", "Yes");
+    await fillVietnamConditionalRepeatGroups(page, answers, "has_other_passports_used_for_vietnam");
+    await pickRadio(page, "basic_ttcdCoThanNhan", "Yes");
+    await fillVietnamConditionalRepeatGroups(page, answers, "has_relatives_in_vietnam");
+
+    const otherPassportNationality = page
+      .locator("#basic_hcKhac_0_quocTich")
+      .locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]");
+    const relativeNationality = page
+      .locator("#basic_thanNhanOVn_0_quocTich")
+      .locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]");
+    assert.equal((await otherPassportNationality.innerText()).trim(), "Hungary");
+    assert.equal((await relativeNationality.innerText()).trim(), "Panama");
+  } finally {
+    await browser.close();
+  }
+});
+
 function renderIdlessQuestion(question: string, tableId: string): string {
   return `
     <div class="pt-5 border-b" data-question="${tableId}">
@@ -516,5 +646,56 @@ function renderTable(id: string, headers: string[]): string {
         </tr>
       </tbody>
     </table>
+  `;
+}
+
+function renderOfficialDynamicTable(
+  id: string,
+  columns: Array<{ header: string; inputId: string; selectOptions?: string[] }>,
+): string {
+  return `
+    <table id="${id}" style="display:none">
+      <thead>
+        <tr>
+          <th>No</th>
+          ${columns.map((column) => `<th>${column.header}</th>`).join("")}
+          <th>Add/delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          ${columns.map((column) => `<td>${column.selectOptions ? renderAntSelect(column.inputId, column.selectOptions) : `<input id="${column.inputId}" aria-label="${column.header}" />`}</td>`).join("")}
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}
+
+function renderAntSelect(inputId: string, options: string[]): string {
+  const listId = `${inputId}_list`;
+  return `
+    <div class="ant-select">
+      <div class="ant-select-selector">
+        <span class="ant-select-selection-item" title=""></span>
+        <span class="ant-select-selection-search">
+          <input id="${inputId}" class="ant-select-selection-search-input" role="combobox" aria-controls="${listId}" aria-owns="${listId}" aria-expanded="false" />
+        </span>
+      </div>
+    </div>
+    <div class="ant-select-dropdown ant-select-dropdown-hidden">
+      <div id="${listId}" role="listbox">
+        ${options
+          .map(
+            (option) => `
+              <div class="ant-select-item-option" role="option" title="${option}">
+                <div class="ant-select-item-option-content">${option}</div>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    </div>
   `;
 }

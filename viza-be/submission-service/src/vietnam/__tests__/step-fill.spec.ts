@@ -6,7 +6,11 @@ import {
   rankAntSelectCandidates,
   resolveStepPlan,
 } from "../fillers.js";
-import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
+import {
+  getVnPortalOptionText,
+  normalizeVnCountryOptionText,
+  VN_FIELD_MAPPINGS,
+} from "../field-mappings.js";
 import { toPortalDateForField } from "../run.js";
 
 /**
@@ -82,4 +86,16 @@ test("vn.step-fill: weak airport overlap is not accepted as a final select match
   )[0];
   assert.ok(weakMatch, "candidate is ranked");
   assert.equal(isAcceptableAntSelectMatch(weakMatch.score), false);
+});
+
+test("vn.step-fill: country dropdown values normalize to official option text", () => {
+  assert.equal(normalizeVnCountryOptionText("HUN"), "Hungary");
+  assert.equal(normalizeVnCountryOptionText("Hungary"), "Hungary");
+  assert.equal(normalizeVnCountryOptionText("Hungarian"), "Hungary");
+  assert.equal(normalizeVnCountryOptionText("PAN"), "Panama");
+  assert.equal(normalizeVnCountryOptionText("Panama"), "Panama");
+  assert.equal(normalizeVnCountryOptionText("Panamanian"), "Panama");
+  assert.equal(getVnPortalOptionText("nationality", "HUN"), "Hungary");
+  assert.equal(getVnPortalOptionText("other_vietnam_passport_nationality", "HUN"), "Hungary");
+  assert.equal(getVnPortalOptionText("relative_nationality", "PAN"), "Panama");
 });
