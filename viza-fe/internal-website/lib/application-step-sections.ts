@@ -77,11 +77,13 @@ export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "nam
   if (rawSourceName.includes("审核")) return "review";
 
   if (sourceName.startsWith("required information")) return "personal";
+  if (sourceName.startsWith("official e form route")) return "personal";
   if (sourceName.startsWith("personal information")) return "personal";
   if (sourceName.startsWith("personal details")) return "personal";
   if (sourceName.startsWith("traveller information")) return "personal";
   if (sourceName.startsWith("requested information")) return "travel";
   if (sourceName.startsWith("travel information")) return "travel";
+  if (sourceName.startsWith("visit information")) return "travel";
   if (sourceName.startsWith("information about the trip")) return "travel";
   if (sourceName.startsWith("trip details")) return "travel";
   if (sourceName.startsWith("trip information")) return "travel";
@@ -94,16 +96,22 @@ export function getApplicationStepSectionKey(step: Pick<ApplicationStepRef, "nam
   if (sourceName.startsWith("travel history")) return "previousTravel";
   if (sourceName.startsWith("previous u s travel") || sourceName.startsWith("previous us travel")) return "previousTravel";
   if (sourceName.startsWith("contact information")) return "addressAndPhone";
+  if (sourceName.startsWith("contact details")) return "addressAndPhone";
   if (sourceName.startsWith("address and phone")) return "addressAndPhone";
   if (sourceName.startsWith("contact details residence") || sourceName.startsWith("contact details and residence")) return "addressAndPhone";
   if (sourceName.includes("passport information")) return "passport";
+  if (sourceName === "passport") return "passport";
   if (sourceName.startsWith("travel document identity") || sourceName.startsWith("travel document and identity")) return "passport";
   if (sourceName.includes("us contact information") || sourceName.includes("us point of contact")) return "usContact";
   if (sourceName.startsWith("family information")) return "family";
+  if (sourceName.startsWith("marital family")) return "family";
   if (sourceName.startsWith("eu eea ch family member")) return "family";
   if (sourceName.includes("work education training") || sourceName.includes("work and education")) return "workEducationTraining";
+  if (sourceName.startsWith("education employment")) return "workEducationTraining";
   if (sourceName.startsWith("occupation")) return "workEducationTraining";
   if (sourceName.startsWith("financial support")) return "travel";
+  if (sourceName.startsWith("invitation company")) return "travel";
+  if (sourceName.startsWith("expenses assistance")) return "travel";
   if (sourceName.startsWith("health declaration")) return "securityAndBackground";
   if (sourceName.startsWith("official submission checklist")) return "securityAndBackground";
   if (sourceName.startsWith("declaration")) return "securityAndBackground";
