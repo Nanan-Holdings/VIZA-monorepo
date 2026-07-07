@@ -191,6 +191,11 @@ filling and one-shot submission for the applicant.
   health-server entrypoint for the Korea official e-Form endpoint on port 8081.
   It enables the gated local e-Form runner for browser-click smoke tests and
   still requires the official portal PDF to be downloaded before success.
+- `scripts/audit-korea-eform-fill.ts` / `npm run korea-eform:audit`: real
+  Korea Visa Portal fill-retention smoke. It fills the official e-Form, reads
+  each selector/radio back from the DOM, and writes screenshots plus
+  `output/playwright/korea-eform-audit-report.json` so selector drift is caught
+  before the frontend reports a generated PDF.
 - `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
   `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
   e-Form completion behind the gated `src/korea-eform/**` automation.

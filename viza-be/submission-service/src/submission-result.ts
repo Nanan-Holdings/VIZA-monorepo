@@ -93,6 +93,18 @@ export interface FrSubmissionResult {
       | "official_portal_error";
     status: "open" | "completed";
     instructions: string;
+    evidence?: {
+      filledSelectors?: string[];
+      missingUploads?: string[];
+      screenshotPath?: string | null;
+      fillAuditFailures?: Array<{
+        selector: string;
+        expected: string;
+        actual: string | null;
+        ok: boolean;
+        reason?: "missing_selector" | "empty_value" | "value_mismatch" | "radio_not_checked";
+      }>;
+    };
   };
   paymentStatus?: "not_required" | "manual_required" | "blocked" | "paid";
   appointmentStatus?: "not_required" | "manual_required" | "blocked" | "booked";

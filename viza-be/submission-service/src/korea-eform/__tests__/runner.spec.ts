@@ -18,6 +18,7 @@ const completeAnswers = {
   date_of_birth: "1997-04-09",
   gender: "male",
   nationality: "CHINA P. R.",
+  national_identity_number: "110101199001011234",
   passport_number: "E12345678",
   passport_expiry_date: "2032-01-01",
   passport_issue_date: "2022-01-01",
@@ -108,6 +109,7 @@ test("Korea official e-Form first-page plan targets official portal selectors", 
   assert.equal(fieldMap.get("#GIV_NM"), "SAN");
   assert.equal(fieldMap.get("#BIRTH_YMD"), "19970409");
   assert.equal(fieldMap.get("#PASS_NO"), "E12345678");
+  assert.equal(fieldMap.get("#IDENTITY_NO"), "110101199001011234");
   assert.equal(fieldMap.get("#NAT_CD"), "CHN");
   assert.equal(fieldMap.get("#REG_OVERSEA_RES_CD"), "CP");
   assert.equal(selectMap.get("#EFORM_STAY"), "C3");
@@ -136,6 +138,7 @@ test("Korea official e-Form second-page plan targets official portal selectors",
   assert.equal(fieldMap.get("#RNM_ENG_BS_ADDR"), "100 Toegye-ro, Jung-gu, Seoul");
   assert.equal(fieldMap.get("#SOJ_EXP_REGION_TEL_NO"), "+82 2 1234 5678");
   assert.equal(fieldMap.get("#VISIT_COST"), "1000");
+  assert.ok(!radioSelectors.includes("#ENT_PURP_KIND_CD1"));
 });
 
 test("Korea official e-Form validation names missing official fields", () => {

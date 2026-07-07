@@ -595,6 +595,11 @@ export async function fillKoreaOfficialEformSecondPage(
   answers: Record<string, string | null | undefined>,
 ): Promise<{ filledSelectors: string[] }> {
   await page.waitForSelector("#MARI_STS_CD_S, #MARI_STS_CD_M, #MARI_STS_CD_D", { timeout: 15000 });
+  await Promise.all([
+    page.waitForSelector("#LAST_SCH_NM", { timeout: 15000 }),
+    page.waitForSelector("#VISIT_COST", { timeout: 15000 }),
+    page.waitForSelector("#DOC_WRIT_HELP_N, #DOC_WRIT_HELP_Y", { timeout: 15000 }),
+  ]);
   const plan = buildKoreaOfficialEformSecondPagePlan(answers);
   const filledSelectors = [
     ...(await assignFields(page, plan.selects)),

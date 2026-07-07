@@ -1225,6 +1225,14 @@ const TERMINAL_SUBMISSION_RESULT_STATUSES = [
   "form_ready_for_agency",
 ] as const;
 
+function applicationStatusForQueuedSubmission(queueJob: SubmissionQueueJobResult): "processing" | "submitted" {
+  return TERMINAL_SUBMISSION_RESULT_STATUSES.includes(
+    queueJob.submissionResultStatus as (typeof TERMINAL_SUBMISSION_RESULT_STATUSES)[number],
+  )
+    ? "submitted"
+    : "processing";
+}
+
 function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
   const message = (error.message ?? "").toLowerCase();
   return (
@@ -1250,7 +1258,7 @@ async function markApplicationSubmissionQueued(
   const { data: updatedApplication, error: updateError } = await supabase
     .from("applications")
     .update({
-      status: "submitted",
+      status: applicationStatusForQueuedSubmission(input.queueJob),
       submitted_at: input.submittedAt,
       submission_result_status: input.queueJob.submissionResultStatus,
       submission_result: input.queueJob.submissionResult,

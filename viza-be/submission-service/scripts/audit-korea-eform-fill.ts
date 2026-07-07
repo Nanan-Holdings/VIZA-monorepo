@@ -97,10 +97,15 @@ async function main() {
       await nextButton.waitFor({ state: "visible", timeout: 8000 });
       await nextButton.click();
       await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-      await fillKoreaOfficialEformSecondPage(page, answers);
+      const secondFill = await fillKoreaOfficialEformSecondPage(page, answers);
       secondAudit = await auditKoreaOfficialEformSecondPageFill(page, answers);
       secondScreenshot = path.join(outputDir, "korea-eform-audit-second-page.png");
       await page.screenshot({ path: secondScreenshot, fullPage: true });
+      await fs.writeFile(
+        path.join(outputDir, "korea-eform-audit-second-page-filled-selectors.json"),
+        `${JSON.stringify(secondFill.filledSelectors, null, 2)}\n`,
+        "utf8",
+      );
     } catch (error) {
       secondPageError = error instanceof Error ? error.message : String(error);
     }

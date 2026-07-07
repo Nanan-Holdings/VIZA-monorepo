@@ -285,6 +285,7 @@ export interface KrSubmissionResult {
   applicationId: string;
   annex17PdfUrl: string;
   officialEformPdfStoragePath?: string | null;
+  officialEformApplicationNumber?: string | null;
   officialEformPortalUrl?: string | null;
   officialEformStatus?:
     | "not_started"
@@ -296,12 +297,25 @@ export interface KrSubmissionResult {
   manualAction?: {
     type:
       | "official_eform_generation_required"
+      | "official_eform_first_page_filled"
       | "official_eform_portal_review_required"
       | "official_eform_unsupported_for_post"
       | "official_eform_download_required"
       | "official_portal_error";
     status: "open" | "completed";
     instructions: string;
+    evidence?: {
+      filledSelectors?: string[];
+      missingUploads?: string[];
+      screenshotPath?: string | null;
+      fillAuditFailures?: Array<{
+        selector: string;
+        expected: string;
+        actual: string | null;
+        ok: boolean;
+        reason?: "missing_selector" | "empty_value" | "value_mismatch" | "radio_not_checked";
+      }>;
+    };
   };
   recommendedCenter?: {
     code: string;
