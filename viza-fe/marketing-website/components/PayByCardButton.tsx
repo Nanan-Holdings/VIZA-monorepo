@@ -15,6 +15,9 @@ interface Props {
   /** Prefill for the portal checkout form (collected by the /apply wizard). */
   email?: string;
   fullName?: string;
+  /** Base64url wizard payload (passport OCR, arrival date, tier) — opaque here,
+   *  decoded server-side by the portal (lib/checkout/prefill.ts). */
+  prefill?: string;
 }
 
 /**
@@ -33,6 +36,7 @@ export function PayByCardButton({
   className,
   email,
   fullName,
+  prefill,
 }: Props) {
   const locale = useLocale();
   const t = useTranslations("cta");
@@ -41,7 +45,8 @@ export function PayByCardButton({
       `&visa=${encodeURIComponent(visaType)}` +
       `&locale=${encodeURIComponent(locale)}` +
       (email ? `&email=${encodeURIComponent(email)}` : "") +
-      (fullName ? `&name=${encodeURIComponent(fullName)}` : ""),
+      (fullName ? `&name=${encodeURIComponent(fullName)}` : "") +
+      (prefill ? `&prefill=${encodeURIComponent(prefill)}` : ""),
   );
 
   const base =

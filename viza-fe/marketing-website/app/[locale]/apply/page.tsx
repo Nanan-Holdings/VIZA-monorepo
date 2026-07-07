@@ -405,7 +405,8 @@ export default function ApplyPage() {
     ? ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
     : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const arrivalDates = useMemo(() => {
-    const today = new Date("2026-05-08T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
@@ -472,6 +473,42 @@ export default function ApplyPage() {
   const step2Valid = missingFields.length === 0 && emailValid && phoneValid && consent;
 
   const fullName = `${fields.givenNames} ${fields.surname}`.trim();
+
+  // Wizard payload for the portal checkout: everything the visitor gave us
+  // (passport OCR + corrections, phone, arrival date, tier, add-ons),
+  // base64url-encoded so it survives as one opaque query param. The portal
+  // decodes and persists it server-side (lib/checkout/prefill.ts) so the
+  // OCR work isn't thrown away at the payment hand-off.
+  const checkoutPrefill = useMemo(() => {
+    const arrival = arrivalDates[selectedDate];
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const payload = {
+      surname: fields.surname || undefined,
+      givenNames: fields.givenNames || undefined,
+      passportNumber: fields.passportNumber || undefined,
+      dob: fields.dob || undefined,
+      nationality: fields.nationality || undefined,
+      expiryDate: fields.expiryDate || undefined,
+      issueDate: extracted?.issueDate || undefined,
+      issuingCountry: extracted?.issuingCountry || undefined,
+      sex: extracted?.sex || undefined,
+      phone: phone.trim() ? `${dialCode} ${phone.trim()}` : undefined,
+      arrivalDate: arrival ? iso(arrival) : undefined,
+      speed,
+      addons: (Object.keys(addons) as Addon[]).filter((a) => addons[a]),
+    };
+    try {
+      const json = JSON.stringify(payload);
+      // UTF-8-safe base64url (btoa alone chokes on non-Latin-1 names).
+      const bytes = new TextEncoder().encode(json);
+      let bin = "";
+      bytes.forEach((b) => { bin += String.fromCharCode(b); });
+      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    } catch {
+      return undefined;
+    }
+  }, [fields, extracted, phone, dialCode, arrivalDates, selectedDate, speed, addons]);
 
   const onBack = useCallback(() => {
     setStep((s) => {
@@ -969,12 +1006,14 @@ export default function ApplyPage() {
                 visaType={country.visaType}
                 email={email.trim() || undefined}
                 fullName={fullName || undefined}
+                prefill={checkoutPrefill}
               />
               <WechatPayButton
                 country={country.portalCountry}
                 visaType={country.visaType}
                 email={email.trim() || undefined}
                 fullName={fullName || undefined}
+                prefill={checkoutPrefill}
               />
             </div>
           </section>
