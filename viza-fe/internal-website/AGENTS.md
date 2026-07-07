@@ -159,6 +159,7 @@ comments.
   `app/api/applications/[id]/korea-official-eform/**`,
   `app/api/applications/[id]/kr-annex17-pdf/**`,
   `app/api/applications/[id]/korea-appointment/**`,
+  `app/api/korea-addresses/**`,
   `app/client/applications/[applicationId]/korea-appointment/**`,
   `components/client/korea-appointment/**`, and `lib/korea-c39/**`.
   It prioritizes Korea Visa Portal barcode e-Form generation/download, keeps

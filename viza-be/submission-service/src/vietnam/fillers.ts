@@ -10,7 +10,7 @@
 
 import type { Page } from "@playwright/test";
 import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
-import { getVnCountryAlpha3ForOptionText } from "./field-mappings.js";
+import { getVnCountryAlpha3ForOptionText, getVnCountryOptionIndex } from "./field-mappings.js";
 
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
@@ -49,6 +49,7 @@ export async function fillText(page: Page, domId: string, value: string): Promis
  */
 export async function pickSelect(page: Page, domId: string, optionText: string): Promise<void> {
   const searchTerms = buildAntSelectSearchTerms(optionText);
+  const optionIndex = getVnCountryOptionIndex(optionText);
   await page.evaluate("window.__name = window.__name || ((fn) => fn)");
   const result = await page.evaluate(
     async ({ domId, optionText, searchTerms }) => {
@@ -267,7 +268,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
     { domId, optionText, searchTerms },
   );
   if (!result.ok) {
-    const retry = await pickSelectWithPlaywright(page, domId, optionText, searchTerms);
+    const retry = await pickSelectWithPlaywright(page, domId, optionText, searchTerms, optionIndex);
     if (retry.ok) {
       await settle(page);
       return;
@@ -289,6 +290,7 @@ async function pickSelectWithPlaywright(
   domId: string,
   optionText: string,
   searchTerms: string[],
+  optionIndex: number | null,
 ): Promise<{ ok: boolean; reason?: string; candidates: string[] }> {
   const input = page.locator(`#${cssEscape(domId)}`).first();
   const select = input.locator(
@@ -326,7 +328,8 @@ async function pickSelectWithPlaywright(
     if ((await exactOption.count()) > 0) {
       await exactOption.click({ timeout: SHORT_TIMEOUT, force: true });
     } else {
-      const scrolled = await wheelAndClickSelectOption(page, optionText);
+      const indexed = optionIndex === null ? { ok: false, candidates: [] } : await scrollToIndexedSelectOption(page, optionText, optionIndex);
+      const scrolled = indexed.ok ? indexed : await wheelAndClickSelectOption(page, optionText);
       if (scrolled.candidates.length > candidates.length) {
         candidates = scrolled.candidates;
       }
@@ -349,6 +352,49 @@ async function pickSelectWithPlaywright(
     }
   }
   return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
+}
+
+async function scrollToIndexedSelectOption(
+  page: Page,
+  optionText: string,
+  optionIndex: number,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  const seen: string[] = [];
+  const itemHeights = [32, 34, 36, 38, 40, 42, 44, 46, 48];
+  for (const itemHeight of itemHeights) {
+    await page.evaluate(
+      ({ index, itemHeight }) => {
+        const visible = (element: HTMLElement) => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            !element.classList.contains("ant-select-dropdown-hidden") &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+        const panel = Array.from(document.querySelectorAll<HTMLElement>(".ant-select-dropdown"))
+          .filter(visible)
+          .find((dropdown) => dropdown.querySelector(".ant-select-item-option, [role='option']"));
+        const holder = panel?.querySelector<HTMLElement>(".rc-virtual-list-holder");
+        const targetScrollTop = Math.max(0, (index - 3) * itemHeight);
+        if (holder) {
+          holder.scrollTop = targetScrollTop;
+          holder.dispatchEvent(new Event("scroll", { bubbles: true }));
+        }
+      },
+      { index: optionIndex, itemHeight },
+    ).catch(() => undefined);
+    await page.waitForTimeout(260);
+    const clicked = await clickVisibleSelectOptionIfPresent(page, optionText);
+    for (const candidate of clicked.candidates) {
+      if (!seen.includes(candidate)) seen.push(candidate);
+    }
+    if (clicked.ok) return { ok: true, candidates: seen };
+  }
+  return { ok: false, candidates: seen.slice(0, 40) };
 }
 
 async function wheelAndClickSelectOption(

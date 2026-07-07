@@ -9,6 +9,7 @@ import {
 } from "../fillers.js";
 import {
   getVnCountryAlpha3ForOptionText,
+  getVnCountryOptionIndex,
   getVnPortalOptionText,
   normalizeVnCountryOptionText,
   VN_FIELD_MAPPINGS,
@@ -108,5 +109,6 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(getVnPortalOptionText("relative_nationality", "PAN"), "Panama");
   assert.equal(getVnPortalOptionText("nationality", "VNM"), "Viet Nam");
   assert.equal(getVnCountryAlpha3ForOptionText("Panama"), "PAN");
+  assert.equal(getVnCountryOptionIndex("Panama"), 141);
   assert.deepEqual(buildAntSelectSearchTerms("Panama"), ["PAN", "Panama"]);
 });

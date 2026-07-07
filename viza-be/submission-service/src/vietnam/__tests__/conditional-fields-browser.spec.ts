@@ -5,7 +5,8 @@ import {
   fillVietnamConditionalRepeatGroups,
   fillVietnamPreviousVisitRows,
 } from "../conditional-fields.js";
-import { pickRadio, tickCheckbox } from "../fillers.js";
+import { pickRadio, pickSelect, tickCheckbox } from "../fillers.js";
+import { VN_COUNTRY_OPTION_ORDER } from "../country-options.js";
 import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
 
 test("vn.conditional-fields browser: clicking Yes fills the revealed prior-visit table", async () => {
@@ -608,6 +609,28 @@ test("vn.conditional-fields browser: selects exact country values in official dy
   }
 });
 
+test("vn.conditional-fields browser: selects Panama from a virtualized official country dropdown", { timeout: 20_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          ${renderVirtualAntSelect("basic_thanNhanOVn_0_quocTich", VN_COUNTRY_OPTION_ORDER)}
+        </body>
+      </html>
+    `);
+
+    await pickSelect(page, "basic_thanNhanOVn_0_quocTich", "Panama");
+
+    const display = page.locator(".ant-select-selection-item").first();
+    assert.equal((await display.innerText()).trim(), "Panama");
+  } finally {
+    await browser.close();
+  }
+});
+
 function renderIdlessQuestion(question: string, tableId: string): string {
   return `
     <div class="pt-5 border-b" data-question="${tableId}">
@@ -704,5 +727,103 @@ function renderAntSelect(inputId: string, options: string[]): string {
           .join("")}
       </div>
     </div>
+  `;
+}
+
+function renderVirtualAntSelect(inputId: string, options: string[]): string {
+  const listId = `${inputId}_list`;
+  return `
+    <div class="ant-select">
+      <div class="ant-select-selector">
+        <span class="ant-select-selection-item" title=""></span>
+        <span class="ant-select-selection-search">
+          <input id="${inputId}" class="ant-select-selection-search-input" role="combobox" aria-controls="${listId}" aria-owns="${listId}" aria-expanded="false" />
+        </span>
+      </div>
+    </div>
+    <div class="ant-select-dropdown ant-select-dropdown-hidden">
+      <div class="rc-virtual-list-holder" style="height: 256px; overflow-y: auto;">
+        <div id="${listId}" class="rc-virtual-list-holder-inner" role="listbox"></div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const options = ${JSON.stringify(options)};
+        const itemHeight = 40;
+        const input = document.getElementById(${JSON.stringify(inputId)});
+        const select = input.closest(".ant-select");
+        const selector = select.querySelector(".ant-select-selector");
+        const display = select.querySelector(".ant-select-selection-item");
+        const dropdown = document.getElementById(input.getAttribute("aria-controls")).closest(".ant-select-dropdown");
+        const holder = dropdown.querySelector(".rc-virtual-list-holder");
+        const list = dropdown.querySelector(".rc-virtual-list-holder-inner");
+        let open = false;
+        let filteredOptions = options.slice();
+
+        holder.style.height = "256px";
+        list.style.position = "relative";
+        list.style.height = (filteredOptions.length * itemHeight) + "px";
+
+        const render = () => {
+          const start = Math.max(0, Math.floor(holder.scrollTop / itemHeight) - 1);
+          const end = Math.min(filteredOptions.length, start + 10);
+          list.innerHTML = "";
+          for (let index = start; index < end; index += 1) {
+            const option = filteredOptions[index];
+            const node = document.createElement("div");
+            node.className = "ant-select-item-option";
+            node.setAttribute("role", "option");
+            node.setAttribute("title", option);
+            node.style.position = "absolute";
+            node.style.top = (index * itemHeight) + "px";
+            node.style.height = itemHeight + "px";
+            node.style.lineHeight = itemHeight + "px";
+            const content = document.createElement("div");
+            content.className = "ant-select-item-option-content";
+            content.textContent = option;
+            node.appendChild(content);
+            node.addEventListener("click", () => {
+              display.textContent = option;
+              display.setAttribute("title", option);
+              input.value = "";
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+              close();
+            });
+            list.appendChild(node);
+          }
+        };
+
+        const refreshSearch = () => {
+          filteredOptions = options.slice();
+          list.style.height = (filteredOptions.length * itemHeight) + "px";
+          render();
+        };
+        const show = () => {
+          open = true;
+          dropdown.classList.remove("ant-select-dropdown-hidden");
+          input.setAttribute("aria-expanded", "true");
+          render();
+        };
+        const close = () => {
+          open = false;
+          dropdown.classList.add("ant-select-dropdown-hidden");
+          input.setAttribute("aria-expanded", "false");
+        };
+
+        holder.addEventListener("scroll", render);
+        selector.addEventListener("mousedown", show);
+        selector.addEventListener("click", show);
+        input.addEventListener("focus", show);
+        input.addEventListener("input", refreshSearch);
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown") show();
+          if (event.key === "Enter") {
+            const first = list.querySelector("[role='option']");
+            first?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+          }
+        });
+        render();
+      })();
+    </script>
   `;
 }
