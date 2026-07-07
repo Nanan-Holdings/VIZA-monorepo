@@ -325,6 +325,13 @@ export interface KrSubmissionResult {
       filledSelectors?: string[];
       missingUploads?: string[];
       screenshotPath?: string | null;
+      fillAuditFailures?: Array<{
+        selector: string;
+        expected: string;
+        actual: string | null;
+        ok: boolean;
+        reason?: "missing_selector" | "empty_value" | "value_mismatch" | "radio_not_checked";
+      }>;
     };
   };
   recommendedCenter?: {
