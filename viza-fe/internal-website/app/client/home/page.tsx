@@ -24,6 +24,7 @@ import {
   getFormVisaType,
   getVisaPackageTitle,
 } from "@/lib/visa-destinations";
+import { getCountryHeroTheme, heroGradientCss } from "@/lib/client/country-hero-theme";
 import {
   getRecentApplicationFormHref,
   readApplicationFormTarget,
@@ -443,6 +444,9 @@ export default function HomePage() {
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
 
+  // Hero background + graphic reflect the current application's country.
+  const heroTheme = getCountryHeroTheme(heroCountry);
+
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.5 } },
@@ -463,13 +467,15 @@ export default function HomePage() {
         width: `${100 / PAGE_SCALE}vw`,
       }}
     >
-      {/* Hero Background - 恢复标准高度，完美衬托单层卡片 */}
+      {/* Hero Background — gradient + graphic vary by the current country. */}
       <div className="absolute top-0 left-0 right-0 h-[720px] xl:h-[538px] overflow-hidden z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#03346E] to-[#3D6DAD]" />
+        <div className="absolute inset-0" style={{ backgroundImage: heroGradientCss(heroTheme) }} />
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.05)] mix-blend-hard-light" />
-        <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[600px]">
-          <img alt="" className="w-full h-full object-contain object-bottom" src="/figma-assets/hero-background.png" />
-        </div>
+        {heroTheme.image && (
+          <div className="absolute h-[900px] left-1/2 -translate-x-1/2 bottom-0 w-[600px] blur-sm">
+            <img alt="" className="w-full h-full object-contain object-bottom" src={heroTheme.image} />
+          </div>
+        )}
         <div className="absolute inset-0 bg-[rgba(0,0,0,0.08)]" />
       </div>
 
