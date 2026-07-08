@@ -32,6 +32,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/passport-ocr/**`, `app/api/translations/**`,
   `app/api/translate/**`, and
   `app/api/external-submission/**`.
+- Vietnam Pre-Arrival official dropdown lookup is proxied through
+  `app/api/vn-prearrival/options/**`; this route may read official category
+  options but must not submit declarations or pretend a session-gated official
+  list is complete when the portal returns an auth/session error.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
@@ -217,6 +221,7 @@ Smoke URLs:
 - `app/api/translate/*`
 - `app/api/stripe/*`
 - `app/api/travel/*`
+- `app/api/vn-prearrival/options/*`
 - `components/ui/*`
 - `components/smooth-progress.tsx`
 - `components/runtime-abort-error-guard.tsx`

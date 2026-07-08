@@ -10,6 +10,10 @@ Guardrails:
 - Use only the official portal `https://prearrival.immigration.gov.vn/`.
 - Do not submit or report success unless the official portal returns a
   confirmation/QR/reference.
+- Use the VIZA-managed alias email for official OTP and confirmation delivery;
+  keep the traveller's real email only as the forwarding target.
+- Download the official PDF when available and save the QR code as evidence so
+  the frontend can surface official artifacts from Supabase Storage.
 - Do not implement health declaration automation until an official Ministry of
   Health electronic declaration system is confirmed active.
 - Do not fallback dropdown or boolean values. If an official field cannot be

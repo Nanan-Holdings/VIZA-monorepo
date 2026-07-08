@@ -103,6 +103,40 @@ async function selectNearLabel(page: Page, labels: RegExp[], value: string): Pro
   return false;
 }
 
+async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
+  const qrLocator = page.locator("canvas, img[alt*='QR' i], img[src*='qr' i]").first();
+  if (!(await qrLocator.isVisible().catch(() => false))) return null;
+  const filePath = path.join(dir, "confirmation-qr.png");
+  try {
+    await qrLocator.screenshot({ path: filePath });
+    logs.push("vn_prearrival_qr_saved");
+    return filePath;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`vn_prearrival_qr_save_failed ${message}`);
+    return null;
+  }
+}
+
+async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]): Promise<string | null> {
+  const downloadButton = page.getByText(/download pdf pre-arrival information|download pdf/i).first();
+  if (!(await downloadButton.isVisible().catch(() => false))) return null;
+  try {
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 15_000 }),
+      downloadButton.click(),
+    ]);
+    const filePath = path.join(dir, "vietnam-prearrival-confirmation.pdf");
+    await download.saveAs(filePath);
+    logs.push("vn_prearrival_pdf_downloaded");
+    return filePath;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`vn_prearrival_pdf_download_failed ${message}`);
+    return null;
+  }
+}
+
 async function handleCaptchaGate(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/captcha verification|enter captcha|captcha/i.test(bodyText)) return;
@@ -174,27 +208,39 @@ export async function runVietnamPrearrivalPortalSubmission(
 
     const missingControls: string[] = [];
     const fillTasks: Array<[RegExp[], string, string]> = [
-      [[/full name/i, /họ.*tên/i], payload.fullName, "full_name"],
+      [[/passport number/i, /số hộ chiếu/i], payload.passportNumber, "passport_number"],
+      [[/date of expiry/i, /expiry/i], payload.passportExpiryDate, "passport_expiry_date"],
+      [[/surname/i], payload.surname ?? "", "surname"],
+      [[/given name/i], payload.givenName, "given_name"],
       [[/date of birth/i, /ngày sinh/i], payload.dateOfBirth, "date_of_birth"],
       [[/nationality/i, /quốc tịch/i], payload.nationality, "nationality"],
       [[/email/i], payload.emailAddress, "email_address"],
       [[/phone/i, /điện thoại/i], `${payload.phoneCountryCode}${payload.phoneNumber}`, "phone_number"],
-      [[/passport/i, /hộ chiếu/i], payload.passportNumber, "passport_number"],
-      [[/arrival date/i, /ngày nhập cảnh/i], payload.arrivalDate, "arrival_date"],
-      [[/flight|transport/i, /chuyến bay|phương tiện/i], payload.flightOrTransportNumber, "flight_or_transport_number"],
-      [[/address.*viet/i, /địa chỉ/i], payload.addressInVietnam, "address_in_vietnam"],
+      [[/number/i], payload.visaNumber, "visa_number"],
+      [[/departure country before arrival/i], payload.departureCountryBeforeArrival, "departure_country_before_arrival"],
+      [[/flight number/i, /chuyến bay/i], payload.flightNumber ?? "", "flight_number"],
+      [[/vehicle identification number/i], payload.vehicleIdentificationNumber ?? "", "vehicle_identification_number"],
+      [[/accommodation address/i, /địa chỉ/i], payload.accommodationAddress, "accommodation_address"],
+      [[/workplace information/i], payload.workplaceInformation ?? "", "workplace_information"],
     ];
     for (const [labels, value, field] of fillTasks) {
+      if (!value && (field === "surname" || field === "workplace_information" || field === "vehicle_identification_number")) continue;
       if (!(await fillNearLabel(page, labels, value))) missingControls.push(field);
     }
 
     const selectTasks: Array<[RegExp[], string, string]> = [
-      [[/sex|gender/i, /giới tính/i], payload.sex, "sex"],
-      [[/entry port|border gate|port of entry/i, /cửa khẩu/i], payload.entryPort, "entry_port"],
-      [[/purpose/i, /mục đích/i], payload.purposeOfEntry, "purpose_of_entry"],
-      [[/transport mode|mode of transport/i, /loại phương tiện/i], payload.transportMode, "transport_mode"],
+      [[/passport type/i], payload.passportType, "passport_type"],
+      [[/sex|gender/i, /giới tính/i], payload.gender, "gender"],
+      [[/visa type|purpose/i], payload.visaType, "visa_type"],
+      [[/purpose of travel/i, /mục đích/i], payload.purposeOfTravel, "purpose_of_travel"],
+      [[/mode of travel|mode of transport/i, /loại phương tiện/i], payload.modeOfTravel, "mode_of_travel"],
+      [[/border gate|port of entry/i, /cửa khẩu/i], payload.borderGateAirport ?? payload.landBorderGate ?? payload.seaPort ?? "", "border_gate"],
+      [[/type of accommodation/i], payload.accommodationType, "accommodation_type"],
+      [[/province.*city/i], payload.provinceCityOfHotel, "province_city_of_hotel"],
+      [[/ward.*commune/i], payload.wardCommuneOfHotel, "ward_commune_of_hotel"],
     ];
     for (const [labels, value, field] of selectTasks) {
+      if (!value) continue;
       if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
     }
 
@@ -237,6 +283,9 @@ export async function runVietnamPrearrivalPortalSubmission(
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
     const submitScreenshot = await saveScreenshot(page, tempDir, "after-submit", logs);
     if (submitScreenshot) screenshots.push(submitScreenshot);
+    const qrPath = await saveQrArtifact(page, tempDir, logs);
+    if (qrPath) screenshots.push(qrPath);
+    const pdfPath = await downloadConfirmationPdf(page, tempDir, logs);
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
     const confirmationNumber =
       bodyText.match(/\b(?:VN|PAI|QR)[A-Z0-9-]{6,}\b/i)?.[0] ??
@@ -262,7 +311,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         ? `Vietnam Pre-Arrival confirmation captured: ${confirmationNumber}.`
         : "Vietnam Pre-Arrival QR confirmation was captured.",
       screenshots,
-      pdfs: [],
+      pdfs: pdfPath ? [pdfPath] : [],
       logs,
     };
   } finally {
