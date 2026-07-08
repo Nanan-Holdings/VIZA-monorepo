@@ -17,6 +17,23 @@ function loadTranslationCache(): MdacZhTranslationCache {
 
 const TRANSLATION_CACHE = loadTranslationCache();
 
+const CITY_VALUE_ZH_OVERRIDES: Record<string, string> = {
+  // MDAC has a few official city options whose English values differ but whose
+  // machine translations collapse into the same Chinese label. Keep ambiguous
+  // or non-localized official placeholders in English so users can distinguish
+  // the exact official option that will be submitted.
+  "0514": "LINGGI",
+  "0522": "林茂",
+  "0700": "P PINANG",
+  "0707": "牛汝莪",
+  "0715": "PULAU PINANG",
+  "0722": "日落洞",
+  "0849": "和丰",
+  "0865": "SG SIPUT (U)",
+  "1305": "柏卡奴",
+  "1332": "PEKENU",
+};
+
 const STATE_ZH_OVERRIDES: Record<string, string> = {
   JOHOR: "柔佛",
   KEDAH: "吉打",
@@ -554,6 +571,8 @@ function mdacOptionLabelZh(kind: MdacOptionKind, option: MdacOption): string {
     return STATE_ZH_OVERRIDES[normalizeKey(option.official_label ?? option.label_en)] ?? option.label_zh;
   }
   if (kind === "city") {
+    const valueOverride = CITY_VALUE_ZH_OVERRIDES[option.value];
+    if (valueOverride) return valueOverride;
     const cached = TRANSLATION_CACHE.city?.[option.value];
     const override = CITY_ZH_OVERRIDES[normalizeKey(option.label_en)];
     const zh = override ?? (cached ? cleanZh(cached) : null);
