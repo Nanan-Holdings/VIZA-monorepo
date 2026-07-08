@@ -42,8 +42,8 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     result.officialEformApplicationNumber ?? null,
   );
   const defaultOfficialMessage = isZh
-    ? "官方 e-Form 需要通过 Korea Visa Portal 生成带条码 PDF。若官网要求人工选择馆别、上传文件或验证，请在官方页面完成后再回到 VIZA 下载。"
-    : "The official barcode e-Form must be generated through Korea Visa Portal. If the portal asks for post selection, uploads, or verification, complete it on the official page and return to VIZA for download.";
+    ? "官方 e-Form 必须通过 Korea Visa Portal 自动生成带条码 PDF；如果官网自动化失败，VIZA 会直接显示错误，不会生成备用 PDF。"
+    : "The official barcode e-Form must be generated through Korea Visa Portal automation. If the official automation fails, VIZA shows the error and does not generate a backup PDF.";
   const generationIncompleteMessage = isZh
     ? "本次还没有生成新的官方 PDF。请再次点击生成；如果连续失败，VIZA 会保留为未完成状态，不会把旧 PDF 当作新结果。"
     : "A new official PDF was not generated yet. Click Generate again; VIZA will keep this incomplete instead of reusing an old PDF.";
@@ -51,9 +51,11 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
     ? "官方 Korea Visa Portal 已按中文界面生成带条码 e-Form PDF。"
     : "The official Korea Visa Portal barcode e-Form PDF has been generated with the Chinese portal view.";
   const [officialMessage, setOfficialMessage] = useState<string | null>(
-    result.officialEformPdfStoragePath ? readyOfficialMessage : result.manualAction ? defaultOfficialMessage : null,
+    result.officialEformPdfStoragePath ? readyOfficialMessage : defaultOfficialMessage,
   );
-  const [officialError, setOfficialError] = useState<string | null>(null);
+  const [officialError, setOfficialError] = useState<string | null>(
+    result.officialEformStatus === "failed" ? result.manualAction?.instructions ?? generationIncompleteMessage : null,
+  );
   const officialReady = officialStatus === "ready" && Boolean(officialPath);
   const officialWorking = officialStatus === "processing" || officialStatus === "queued";
 
@@ -110,6 +112,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
       );
     } catch (error) {
       setOfficialStatus("failed");
+      setOfficialMessage(null);
       setOfficialError(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
@@ -155,7 +158,7 @@ export function KrResultCard({ applicationId, result }: KrResultCardProps) {
 
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>{isZh ? "优先生成并打印 Korea Visa Portal 带条码官方 e-Form。" : "Generate and print the Korea Visa Portal official barcode e-Form first."}</li>
-          <li>{isZh ? "如官网不支持所选领区，再使用 Annex-17 备用表格并人工确认。" : "Use the Annex-17 fallback only if the portal does not support the selected post."}</li>
+          <li>{isZh ? "官网生成失败时直接报错；不会提供备用 PDF。" : "If official generation fails, VIZA reports the error and does not provide a backup PDF."}</li>
           <li>{isZh ? "在推荐 KVAC 中心选择预约时间，按确认单携带材料递交。" : "Choose an appointment at the recommended KVAC center and bring the confirmation plus documents."}</li>
         </ol>
 

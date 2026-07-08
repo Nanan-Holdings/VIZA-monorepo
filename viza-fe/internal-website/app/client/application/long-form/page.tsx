@@ -2742,7 +2742,7 @@ export default function ApplicationPage() {
           country: "KR",
           status: "form_ready_for_kvac",
           applicationId,
-          annex17PdfUrl: `/api/applications/${applicationId}/kr-annex17-pdf`,
+          annex17PdfUrl: null,
           officialEformPortalUrl: "https://www.visa.go.kr/openPage.do?MENU_ID=10204",
           officialEformStatus: "not_started",
         };

@@ -18,6 +18,7 @@ export interface KoreaOfficialEformPayload {
   dateOfBirth: string | null;
   gender: "male" | "female" | null;
   nationality: string | null;
+  countryOfBirth: string | null;
   nationalIdentityNo: string | null;
   passportNumber: string | null;
   passportExpiryDate: string | null;
@@ -146,7 +147,8 @@ export function buildKoreaOfficialEformPayload(input: KoreaOfficialEformInput): 
     givenNames: readFirst(answers, ["given_names", "given_names_en", "given_name", "first_name"]),
     dateOfBirth: readFirst(answers, ["date_of_birth", "birth_date"]),
     gender: normalizeGender(readFirst(answers, ["gender", "sex"])),
-    nationality: readFirst(answers, ["nationality", "current_nationality"]),
+    nationality: readFirst(answers, ["nationality", "nationality_country", "current_nationality"]),
+    countryOfBirth: readFirst(answers, ["country_of_birth", "birth_country", "place_of_birth_country"]),
     nationalIdentityNo: readFirst(answers, ["national_identity_no", "national_identity_number", "national_id_number"]),
     passportNumber: readFirst(answers, ["passport_number", "passport_no"]),
     passportExpiryDate: readFirst(answers, ["passport_expiry_date", "passport_expiration_date", "passport_date_of_expiry"]),

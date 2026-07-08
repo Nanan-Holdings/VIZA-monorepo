@@ -32,6 +32,7 @@ interface RepeatGroupConfig {
   rowFieldName: string;
   description: string;
   tableDescription: string;
+  question?: RegExp;
   headers: RegExp[];
   columns: RepeatColumnConfig[];
 }
@@ -60,6 +61,18 @@ const OTHER_PASSPORT_GROUP: RepeatGroupConfig = {
     { answerNames: ["other_vietnam_passport_full_name"], label: "Full name", type: "text" },
     { answerNames: ["other_vietnam_passport_date_of_birth"], label: "Date of birth", type: "date" },
     { answerNames: ["other_vietnam_passport_nationality"], label: "Nationality", type: "country" },
+  ],
+};
+
+const MULTIPLE_NATIONALITY_GROUP: RepeatGroupConfig = {
+  triggerField: "has_multiple_nationalities",
+  rowFieldName: "multiple_nationalities",
+  description: "multiple nationalities",
+  tableDescription: "Multiple nationalities",
+  question: /Do you have multiple nationalities\?/i,
+  headers: [/Nationality/i],
+  columns: [
+    { answerNames: ["other_nationality", "other_nationality_country"], label: "Nationality", type: "country" },
   ],
 };
 
@@ -94,6 +107,7 @@ const VIETNAM_RELATIVE_GROUP: RepeatGroupConfig = {
 
 const CONDITIONAL_REPEAT_GROUPS = [
   PREVIOUS_VISIT_GROUP,
+  MULTIPLE_NATIONALITY_GROUP,
   OTHER_PASSPORT_GROUP,
   VIETNAM_CONTACT_GROUP,
   VIETNAM_RELATIVE_GROUP,
@@ -125,6 +139,12 @@ export function collectVietnamOtherPassportRows(
   answers: Record<string, string>,
 ): VietnamConditionalRepeatRow[] {
   return collectVietnamRepeatRows(answers, OTHER_PASSPORT_GROUP);
+}
+
+export function collectVietnamMultipleNationalityRows(
+  answers: Record<string, string>,
+): VietnamConditionalRepeatRow[] {
+  return collectVietnamRepeatRows(answers, MULTIPLE_NATIONALITY_GROUP);
 }
 
 export function collectVietnamContactRows(
@@ -269,11 +289,7 @@ async function fillVietnamRepeatRows(
   const rows = collectVietnamRepeatRows(answers, group);
   if (rows.length === 0) return 0;
 
-  let table = page.locator("table");
-  for (const header of group.headers) {
-    table = table.filter({ hasText: header });
-  }
-  const visibleTable = table.first();
+  const visibleTable = await findVietnamRepeatTable(page, group);
   await visibleTable.waitFor({ state: "visible", timeout: 7_500 });
 
   for (let index = 0; index < rows.length; index++) {
@@ -284,6 +300,31 @@ async function fillVietnamRepeatRows(
   }
 
   return rows.length;
+}
+
+async function findVietnamRepeatTable(page: Page, group: RepeatGroupConfig): Promise<Locator> {
+  if (group.question) {
+    const questionRoot = page
+      .locator("[data-question], .pt-5.border-b, .ant-row.ant-form-item, .ant-col.ant-col-24.flex.justify-between.pb-5")
+      .filter({ hasText: group.question })
+      .first();
+    const tableAfterQuestion = questionRoot.locator("xpath=following::table[1]");
+    await tableAfterQuestion.waitFor({ state: "visible", timeout: 2_500 }).catch(() => undefined);
+    if ((await tableAfterQuestion.count()) > 0 && await tableHasHeaders(tableAfterQuestion, group.headers)) {
+      return tableAfterQuestion;
+    }
+  }
+
+  let table = page.locator("table");
+  for (const header of group.headers) {
+    table = table.filter({ hasText: header });
+  }
+  return table.first();
+}
+
+async function tableHasHeaders(table: Locator, headers: RegExp[]): Promise<boolean> {
+  const text = await table.locator("thead, tr").first().innerText({ timeout: 1_000 }).catch(() => "");
+  return headers.every((header) => header.test(text));
 }
 
 async function setVietnamTableRowValues(
