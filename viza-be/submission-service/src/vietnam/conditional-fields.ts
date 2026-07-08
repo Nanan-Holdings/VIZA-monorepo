@@ -294,9 +294,12 @@ async function setVietnamTableRowValues(
   const selectTargets = await row.evaluate((rowElement, rowValues) => {
     const targets: Array<{ domId: string; value: string }> = [];
     const cells = Array.from(rowElement.querySelectorAll<HTMLTableCellElement>("td"));
+    const firstCell = cells[0];
+    const firstCellHasField = Boolean(firstCell?.querySelector(".ant-select input[id], input, textarea"));
+    const valueCellOffset = !firstCellHasField && cells.length > rowValues.length ? 1 : 0;
 
     rowValues.forEach((value, index) => {
-      const cell = cells[index + 1];
+      const cell = cells[index + valueCellOffset];
       if (!cell) {
         throw new Error(`Vietnam dynamic table cell ${index + 1} not found.`);
       }
