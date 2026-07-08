@@ -190,10 +190,7 @@ function asKrResult(value: unknown, applicationId: string): KrSubmissionResult {
       country: "KR",
       status: typeof value.status === "string" ? (value.status as KrSubmissionResult["status"]) : "official_eform_required",
       applicationId,
-      annex17PdfUrl:
-        typeof value.annex17PdfUrl === "string"
-          ? value.annex17PdfUrl
-          : `/api/applications/${applicationId}/kr-annex17-pdf`,
+      annex17PdfUrl: null,
       officialEformPdfStoragePath:
         typeof value.officialEformPdfStoragePath === "string" ? value.officialEformPdfStoragePath : null,
       officialEformApplicationNumber:
@@ -218,7 +215,7 @@ function asKrResult(value: unknown, applicationId: string): KrSubmissionResult {
     country: "KR",
     status: "official_eform_required",
     applicationId,
-    annex17PdfUrl: `/api/applications/${applicationId}/kr-annex17-pdf`,
+    annex17PdfUrl: null,
     officialEformPortalUrl: OFFICIAL_EFORM_URL,
     officialEformStatus: "not_started",
     manualAction: {
@@ -265,9 +262,24 @@ function responsePayload(result: KrSubmissionResult) {
     portalUrl: result.officialEformPortalUrl ?? OFFICIAL_EFORM_URL,
     officialEformPdfStoragePath: result.officialEformPdfStoragePath ?? null,
     officialEformApplicationNumber: result.officialEformApplicationNumber ?? null,
-    annex17PdfUrl: result.annex17PdfUrl,
     manualAction,
   };
+}
+
+async function persistKrResult(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  result: KrSubmissionResult,
+): Promise<string | null> {
+  const { error } = await admin
+    .from("applications")
+    .update({
+      submission_result: result as unknown as Record<string, unknown>,
+      submission_result_status: result.status === "official_eform_ready" ? "completed" : "needs_user_action",
+      submission_result_updated_at: new Date().toISOString(),
+    })
+    .eq("id", applicationId);
+  return error?.message ?? null;
 }
 
 export async function GET(
@@ -317,6 +329,7 @@ export async function POST(
         officialEformPortalUrl: serviceResult.portalUrl,
         officialEformPdfStoragePath: serviceResult.officialPdfStoragePath,
         officialEformApplicationNumber: serviceResult.officialEformApplicationNumber,
+        annex17PdfUrl: null,
         manualAction: undefined,
       };
     } else if (serviceResult.status === "validation_failed") {
@@ -325,44 +338,53 @@ export async function POST(
       next = {
         ...current,
         status: "official_eform_required",
-        officialEformStatus: "manual_action_required",
+        officialEformStatus: "failed",
         officialEformPortalUrl: serviceResult.portalUrl,
-        officialEformPdfStoragePath: regenerateOfficialEform ? null : current.officialEformPdfStoragePath,
-        officialEformApplicationNumber: regenerateOfficialEform ? null : current.officialEformApplicationNumber,
+        officialEformPdfStoragePath: null,
+        officialEformApplicationNumber: null,
+        annex17PdfUrl: null,
         manualAction: {
-          type: serviceResult.manualActionType,
+          type: "official_portal_error",
           status: "open",
           instructions: serviceResult.message,
           evidence: serviceResult.evidence,
         },
       };
+      const persistError = await persistKrResult(auth.admin, id, next);
+      if (persistError) return NextResponse.json({ error: persistError }, { status: 500 });
+      return NextResponse.json(
+        {
+          ...responsePayload(next),
+          error: serviceResult.message,
+          manualActionType: serviceResult.manualActionType,
+        },
+        { status: 502 },
+      );
     }
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     next = {
       ...current,
       status: "official_eform_required",
-      officialEformStatus: "manual_action_required",
+      officialEformStatus: "failed",
       officialEformPortalUrl: OFFICIAL_EFORM_URL,
-      officialEformPdfStoragePath: regenerateOfficialEform ? null : current.officialEformPdfStoragePath,
-      officialEformApplicationNumber: regenerateOfficialEform ? null : current.officialEformApplicationNumber,
+      officialEformPdfStoragePath: null,
+      officialEformApplicationNumber: null,
+      annex17PdfUrl: null,
       manualAction: {
-        type: "official_eform_portal_review_required",
+        type: "official_portal_error",
         status: "open",
         instructions:
-          "本次还没有生成新的官方 PDF。请再次点击生成；如果连续失败，VIZA 会保留为未完成状态，不会把旧 PDF 当作新结果。",
+          message || "Official Korea Visa Portal e-Form automation failed before producing a new PDF.",
       },
     };
+    const persistError = await persistKrResult(auth.admin, id, next);
+    if (persistError) return NextResponse.json({ error: persistError }, { status: 500 });
+    return NextResponse.json({ ...responsePayload(next), error: next.manualAction?.instructions }, { status: 502 });
   }
 
-  const { error } = await auth.admin
-    .from("applications")
-    .update({
-      submission_result: next as unknown as Record<string, unknown>,
-      submission_result_status: next.status === "official_eform_ready" ? "completed" : "needs_user_action",
-      submission_result_updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const persistError = await persistKrResult(auth.admin, id, next);
+  if (persistError) return NextResponse.json({ error: persistError }, { status: 500 });
 
   return NextResponse.json(responsePayload(next));
 }

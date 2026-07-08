@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   collectVietnamContactRows,
+  collectVietnamMultipleNationalityRows,
   collectVietnamOtherPassportRows,
   collectVietnamPreviousVisitRows,
   collectVietnamRelativeRows,
@@ -51,6 +52,8 @@ test("vn.conditional-fields: blocks incomplete prior Viet Nam table rows", () =>
 
 test("vn.conditional-fields: collects every mapped Yes conditional repeat group", () => {
   const answers = {
+    has_multiple_nationalities: "yes",
+    other_nationality: "HUN",
     has_other_passports_used_for_vietnam: "yes",
     other_vietnam_passport_number: "E1234567",
     other_vietnam_passport_full_name: "ZHANG SAN",
@@ -69,6 +72,9 @@ test("vn.conditional-fields: collects every mapped Yes conditional repeat group"
     relative_residential_address: "Da Nang",
   };
 
+  assert.deepEqual(collectVietnamMultipleNationalityRows(answers), [
+    { values: ["Hungary"] },
+  ]);
   assert.deepEqual(collectVietnamOtherPassportRows(answers), [
     { values: ["E1234567", "ZHANG SAN", "06/05/1990", "China"] },
   ]);

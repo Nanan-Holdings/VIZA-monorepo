@@ -16,7 +16,7 @@ export async function runOne(applicationId: string, _jobId?: string): Promise<Di
     country: "KR",
     status: "form_ready_for_kvac",
     applicationId,
-    annex17PdfUrl: `/api/applications/${applicationId}/kr-annex17-pdf`,
+    annex17PdfUrl: null,
     officialEformPortalUrl: KOREA_VISA_PORTAL_EFORM_URL,
     officialEformStatus: "manual_action_required",
     recommendedCenter: BEIJING_KVAC,
@@ -24,7 +24,7 @@ export async function runOne(applicationId: string, _jobId?: string): Promise<Di
       type: "official_eform_generation_required",
       status: "open",
       instructions:
-        "Korea C-3-9 is ready for KVAC paper intake. Generate the Korea Visa Portal barcode e-Form when live e-Form automation is enabled; use the official Annex-17 PDF fallback meanwhile.",
+        "Korea C-3-9 requires the official Korea Visa Portal barcode e-Form PDF. If official e-Form automation is unavailable or fails, VIZA must show the error and must not generate a backup PDF.",
     },
     appointmentStatus: "not_started",
   };

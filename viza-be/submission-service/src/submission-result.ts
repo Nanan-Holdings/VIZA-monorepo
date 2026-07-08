@@ -304,7 +304,7 @@ export interface KrSubmissionResult {
   country: "KR";
   status: "form_ready_for_kvac" | "official_eform_required" | "official_eform_ready";
   applicationId: string;
-  annex17PdfUrl: string;
+  annex17PdfUrl?: string | null;
   officialEformPdfStoragePath?: string | null;
   officialEformApplicationNumber?: string | null;
   officialEformPortalUrl?: string | null;

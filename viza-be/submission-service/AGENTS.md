@@ -226,6 +226,12 @@ filling and one-shot submission for the applicant.
   terminal unless `-FixedCard` is passed. The setup script may save only
   non-sensitive card metadata such as last4/expiry/holder in ignored local
   files. Full PAN and CVV must not be committed, logged, or stored in `.env`.
+- `scripts/start-local-official-helpers.ps1` / `npm run local:official-helpers`:
+  local watchdog for developer smoke testing across official-helper endpoints.
+  It keeps the submission-service running with Vietnam and Indonesia one-time
+  card-session endpoints plus Korea local helper endpoints enabled, prefers
+  port 18080, falls back when that port is already occupied, and restarts the
+  worker if it exits. It must not read, log, or persist PAN/CVV values.
 - `scripts/start-us-appointment-user-chrome.ps1`: local helper that starts the
   Chrome with a CDP port for the USVisaScheduling runner. If normal Chrome is
   already running, it starts an isolated VIZA automation profile under

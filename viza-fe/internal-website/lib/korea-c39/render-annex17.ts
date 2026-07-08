@@ -32,12 +32,12 @@ const REQUIRED_FIELDS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["given_names", ["given_names", "given_name", "first_name"]],
   ["date_of_birth", ["date_of_birth", "dob"]],
   ["sex", ["sex", "gender"]],
-  ["nationality", ["nationality"]],
+  ["nationality", ["nationality", "nationality_country", "current_nationality"]],
   ["passport_number", ["passport_number"]],
   ["passport_issue_date", ["passport_issue_date"]],
   ["passport_expiry_date", ["passport_expiry_date", "passport_expiration_date"]],
   ["email_address", ["email_address", "email"]],
-  ["mobile_phone", ["mobile_phone", "mobile_number", "telephone_number"]],
+  ["mobile_phone", ["mobile_phone", "mobile_number", "telephone_number", "phone", "cell_phone"]],
   ["purpose_of_visit", ["purpose_of_visit"]],
   ["intended_date_of_entry", ["intended_date_of_entry", "arrival_date"]],
   ["intended_period_of_stay", ["intended_period_of_stay", "intended_length_of_stay"]],
@@ -48,7 +48,7 @@ const FIELD_ORDER = [
   ["Full name", ["family_name", "surname", "last_name"], ["given_names", "given_name", "first_name"]],
   ["Date of birth", ["date_of_birth", "dob"]],
   ["Sex", ["sex", "gender"]],
-  ["Nationality", ["nationality"]],
+  ["Nationality", ["nationality", "nationality_country", "current_nationality"]],
   ["Passport number", ["passport_number"]],
   ["Passport issue / expiry", ["passport_issue_date"], ["passport_expiry_date"]],
   ["Email", ["email_address", "email"]],
@@ -217,9 +217,9 @@ async function renderOfficialTemplate(
     if (["female", "f", "woman", "女"].includes(sex)) drawCheck(page1, ctx, 552, 486);
     else drawCheck(page1, ctx, 462, 486);
     drawText(page1, ctx, formatDate(readAny(answers, ["date_of_birth", "dob"])), 204, 448, { size: 10 });
-    drawText(page1, ctx, readAny(answers, ["nationality", "current_nationality"]) || "CHINA", 392, 448, { size: 10 });
-    drawText(page1, ctx, readAny(answers, ["country_of_birth", "place_of_birth_country"]) || "CHINA", 210, 420, { size: 9 });
-    drawText(page1, ctx, readAny(answers, ["national_id_number", "identity_number"]), 430, 420, { size: 9 });
+    drawText(page1, ctx, readAny(answers, ["nationality", "nationality_country", "current_nationality"]) || "CHINA", 392, 448, { size: 10 });
+    drawText(page1, ctx, readAny(answers, ["country_of_birth", "birth_country", "place_of_birth_country"]) || "CHINA", 210, 420, { size: 9 });
+    drawText(page1, ctx, readAny(answers, ["national_identity_no", "national_identity_number", "national_id_number", "identity_number"]), 430, 420, { size: 9 });
     drawCheck(page1, ctx, yesNo(readAny(answers, ["has_used_other_names"])) ? 186 : 111, 375);
     drawCheck(page1, ctx, yesNo(readAny(answers, ["has_multiple_nationalities"])) ? 526 : 444, 350);
     drawCheck(page1, ctx, 319, 260);
@@ -229,7 +229,7 @@ async function renderOfficialTemplate(
   if (page2) {
     drawCheck(page2, ctx, 259, 732);
     drawText(page2, ctx, readAny(answers, ["passport_number"]), 178, 702, { size: 10 });
-    drawText(page2, ctx, readAny(answers, ["passport_issuing_country", "passport_issue_country", "nationality"]) || "CHINA", 353, 702, { size: 9 });
+    drawText(page2, ctx, readAny(answers, ["passport_country", "passport_issuing_country", "passport_issue_country", "nationality", "nationality_country"]) || "CHINA", 353, 702, { size: 9 });
     drawText(page2, ctx, readAny(answers, ["passport_place_of_issue", "passport_issue_place"]), 500, 702, { size: 9 });
     drawText(page2, ctx, formatDate(readAny(answers, ["passport_issue_date"])), 178, 672, { size: 9 });
     drawText(page2, ctx, formatDate(readAny(answers, ["passport_expiry_date", "passport_expiration_date"])), 387, 672, { size: 9 });

@@ -130,6 +130,8 @@ export function buildKoreaOfficialEformFirstPagePlan(
   const address = payloadAddress(payload);
   const nationality = normalizeCountryName(payload.nationality);
   const nationalityCode = normalizeCountryCode(payload.nationality);
+  const countryOfBirth = normalizeCountryName(payload.countryOfBirth ?? payload.nationality);
+  const countryOfBirthCode = normalizeCountryCode(payload.countryOfBirth ?? payload.nationality);
   const postName = options.visitingPostName?.trim() || "주 중국 대사관";
   const postCode = options.visitingPostCode?.trim() || "CP";
 
@@ -156,8 +158,8 @@ export function buildKoreaOfficialEformFirstPagePlan(
       { selector: "#BIRTH_YMD", value: compactDate(payload.dateOfBirth) },
       { selector: "#NAT_NM", value: nationality },
       { selector: "#NAT_CD", value: nationalityCode },
-      { selector: "#PLA_BIRTH_NM", value: nationality },
-      { selector: "#PLA_BIRTH", value: nationalityCode },
+      { selector: "#PLA_BIRTH_NM", value: countryOfBirth },
+      { selector: "#PLA_BIRTH", value: countryOfBirthCode },
       { selector: "#PASS_NO", value: payload.passportNumber ?? "" },
       { selector: "#EXPR_YMD", value: compactDate(payload.passportExpiryDate) },
       { selector: "#ISS_NAT_NM", value: nationality },

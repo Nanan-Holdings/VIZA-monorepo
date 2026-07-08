@@ -343,13 +343,22 @@ function getSubmissionServiceLocalUrl(): string {
   return `http://127.0.0.1:${port}`;
 }
 
-function getSubmissionServiceLocalUrlCandidates(): string[] {
-  const urls = [
-    getSubmissionServiceLocalUrl(),
+function getSubmissionServiceLocalUrlCandidates(countryPath: "vietnam" | "indonesia"): string[] {
+  const configured = getSubmissionServiceLocalUrl();
+  const indonesiaUrls = [
+    configured,
+    ...Array.from({ length: 41 }, (_, index) => `http://127.0.0.1:${18080 + index}`),
+    "http://127.0.0.1:8085",
+    "http://127.0.0.1:8080",
+  ];
+  const vietnamUrls = [
+    configured,
     "http://127.0.0.1:8085",
     ...Array.from({ length: 41 }, (_, index) => `http://127.0.0.1:${18080 + index}`),
     "http://127.0.0.1:8080",
-  ].map((value) => value.replace(/\/+$/, ""));
+  ];
+  const urls = (countryPath === "indonesia" ? indonesiaUrls : vietnamUrls)
+    .map((value) => value.replace(/\/+$/, ""));
   return Array.from(new Set(urls));
 }
 
@@ -363,7 +372,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
 > {
   const countryPath = officialFeeCardSessionPath(application);
   const attempts: string[] = [];
-  for (const baseUrl of getSubmissionServiceLocalUrlCandidates()) {
+  for (const baseUrl of getSubmissionServiceLocalUrlCandidates(countryPath)) {
     const endpoint = `${baseUrl}/local/${countryPath}/card-session`;
     try {
       const response = await fetch(endpoint, {
@@ -398,9 +407,17 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
       attempts.push(`${endpoint} -> ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  console.error("Could not register one-time official-fee card session", {
+    applicationId,
+    countryPath,
+    attempts,
+  });
   return {
     ok: false,
-    error: attempts.join("; ") || "submission-service card session endpoint unavailable",
+    error:
+      countryPath === "indonesia"
+        ? "本机 Indonesia submission worker 没有运行，或未开启 Indonesia 一次性银行卡会话端点。请启动 scripts/start-indonesia-submission-worker.cmd 后重试。"
+        : "本机 submission-service 没有运行，或未开启一次性银行卡会话端点。请启动对应 submission worker 后重试。",
   };
 }
 
@@ -564,7 +581,7 @@ export async function POST(
     if (!cardSession.ok) {
       return NextResponse.json(
         {
-          error: `无法把一次性银行卡会话发送给本机 submission-service：${cardSession.error}。请确认已运行 Indonesia submission worker，且端口与 SUBMISSION_SERVICE_LOCAL_URL 匹配。`,
+          error: cardSession.error,
         },
         { status: 503 },
       );

@@ -15,6 +15,7 @@ const answers: Record<string, string> = {
   date_of_birth: "1997-04-09",
   gender: "male",
   nationality: "CHINA P. R.",
+  country_of_birth: "CHINA P. R.",
   national_identity_no: "110101199704091234",
   passport_number: "E12345678",
   passport_expiry_date: "2032-01-01",
