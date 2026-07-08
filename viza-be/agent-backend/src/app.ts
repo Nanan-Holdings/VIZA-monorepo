@@ -37,8 +37,14 @@ const app = express();
 
 // Middleware
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body limit raised from the 100kb default: the passport-scan OCR route
+// (POST /api/passport-scan/extract) receives base64-encoded images that
+// reach several MB. Without this, express.json() rejects the body before
+// the route runs and the error handler returns a bare 500. 15mb comfortably
+// covers the route's own 8mb-base64 cap (which still enforces the real limit
+// with a clean 413).
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
