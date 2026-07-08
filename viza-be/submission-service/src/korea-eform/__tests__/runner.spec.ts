@@ -18,6 +18,7 @@ const completeAnswers = {
   date_of_birth: "1997-04-09",
   gender: "male",
   nationality: "CHINA P. R.",
+  country_of_birth: "CHINA P. R.",
   national_identity_number: "110101199001011234",
   passport_number: "E12345678",
   passport_expiry_date: "2032-01-01",
@@ -111,6 +112,7 @@ test("Korea official e-Form first-page plan targets official portal selectors", 
   assert.equal(fieldMap.get("#PASS_NO"), "E12345678");
   assert.equal(fieldMap.get("#IDENTITY_NO"), "110101199001011234");
   assert.equal(fieldMap.get("#NAT_CD"), "CHN");
+  assert.equal(fieldMap.get("#PLA_BIRTH"), "CHN");
   assert.equal(fieldMap.get("#REG_OVERSEA_RES_CD"), "CP");
   assert.equal(selectMap.get("#EFORM_STAY"), "C3");
   assert.equal(selectMap.get("#PASS_NO_KIND"), "OR");

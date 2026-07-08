@@ -3220,24 +3220,27 @@ async function waitForUserPaymentCompletion(
     Number(input.userPaymentHandoff?.waitTimeoutMs ?? process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? 10 * 60 * 1000),
   );
   const deadline = Date.now() + waitTimeoutMs;
-  let notified = false;
+  let lastNotifiedState: IndonesiaPortalStateId | null = null;
   let title = await activePage.title().catch(() => null);
   let text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   let url = activePage.url();
-  let state = classifyIndonesiaPortalSnapshot({ url, title, text });
+  let state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
   if (input.userPaymentHandoff?.oneTimeCard) {
     await payIndonesiaPortalWithOneTimeCard(activePage, input.userPaymentHandoff.oneTimeCard, diagnostics);
     activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
     title = await activePage.title().catch(() => null);
     text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     url = activePage.url();
-    state = classifyIndonesiaPortalSnapshot({ url, title, text });
+    state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
   } else {
     diagnostics.push("indonesia_one_time_card_not_available_for_payment_page");
   }
 
   while (Date.now() < deadline) {
-    if (!notified) {
+    if (
+      (state === "payment_required" || state === "payment_otp_required") &&
+      state !== lastNotifiedState
+    ) {
       await input.userPaymentHandoff?.onWaitingForUser?.({
         url,
         title,
@@ -3245,7 +3248,7 @@ async function waitForUserPaymentCompletion(
         diagnostics,
       });
       diagnostics.push("indonesia_user_payment_handoff_waiting");
-      notified = true;
+      lastNotifiedState = state;
     }
 
     await activePage.waitForTimeout(5_000).catch((error: unknown) => {
@@ -3264,22 +3267,35 @@ async function waitForUserPaymentCompletion(
     title = await activePage.title().catch(() => null);
     text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     url = activePage.url();
-    state = classifyIndonesiaPortalSnapshot({ url, title, text });
+    state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
     if (state === "submitted_or_approved") {
       diagnostics.push("indonesia_user_payment_completed");
       break;
     }
-    if (state !== "payment_required") {
+    if (state !== "payment_required" && state !== "payment_otp_required") {
       diagnostics.push(`indonesia_user_payment_state_changed ${state}`);
       break;
     }
   }
 
-  if (state === "payment_required" && Date.now() >= deadline) {
+  if ((state === "payment_required" || state === "payment_otp_required") && Date.now() >= deadline) {
     diagnostics.push("indonesia_user_payment_wait_timeout");
   }
 
   return { state, title, text, url };
+}
+
+export function normalizeIndonesiaPaymentWaitState(
+  state: IndonesiaPortalStateId,
+  diagnostics: readonly string[],
+): IndonesiaPortalStateId {
+  if (
+    state === "payment_required" &&
+    diagnostics.some((entry) => /indonesia_one_time_card_finpay_terms_after\b.*hasOtp=yes/i.test(entry))
+  ) {
+    return "payment_otp_required";
+  }
+  return state;
 }
 
 async function resolveActiveIndonesiaPaymentPage(page: Page, diagnostics: string[]): Promise<Page> {

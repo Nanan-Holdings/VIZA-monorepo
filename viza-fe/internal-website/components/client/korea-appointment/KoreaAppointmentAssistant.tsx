@@ -208,25 +208,6 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     if (!selectedCenterCode && center?.code) setSelectedCenterCode(center.code);
   }, [center?.code, selectedCenterCode]);
 
-  const downloadFilledForm = useCallback(async () => {
-    setBusy("download-form");
-    setError(null);
-    const pdfUrl = `/api/applications/${applicationId}/kr-annex17-pdf`;
-    try {
-      const response = await fetch(pdfUrl, { cache: "no-store" });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string; missingFields?: string[] } | null;
-        const missing = body?.missingFields?.length ? `: ${body.missingFields.join(", ")}` : "";
-        throw new Error(`${body?.error ?? `PDF request failed: ${response.status}`}${missing}`);
-      }
-      window.location.href = pdfUrl;
-      setBusy(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setBusy(null);
-    }
-  }, [applicationId]);
-
   useEffect(() => {
     void run();
   }, [run]);
@@ -297,10 +278,6 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void downloadFilledForm()} disabled={Boolean(busy)}>
-            {busy === "download-form" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {isZh ? "备用 Annex-17（非官网）" : "Fallback Annex-17 (not official)"}
-          </Button>
           <Button asChild variant="outline">
             <a href="https://www.visa.go.kr/openPage.do?MENU_ID=10204" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="mr-2 h-4 w-4" />

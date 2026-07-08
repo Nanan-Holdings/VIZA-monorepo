@@ -6,7 +6,12 @@ import {
   normalizeIndonesiaAnswers,
   runIndonesiaLiveSubmission,
 } from "../index";
-import { extractIndonesiaOtpCode, isExpiredIndonesiaApplicationText, shouldSubmitIndonesiaPortalEmailOtp } from "../runner";
+import {
+  extractIndonesiaOtpCode,
+  isExpiredIndonesiaApplicationText,
+  normalizeIndonesiaPaymentWaitState,
+  shouldSubmitIndonesiaPortalEmailOtp,
+} from "../runner";
 import {
   shouldDirectNavigateIndonesiaStepOne,
   actionForIndonesiaPortalState,
@@ -274,5 +279,20 @@ test("does not auto-submit bank payment OTP with email OTP automation", () => {
       text: "Enter OTP Code OTP Code Submit",
     }),
     true,
+  );
+});
+
+test("keeps Indonesia Finpay handoff in bank OTP state once OTP is detected", () => {
+  assert.equal(
+    normalizeIndonesiaPaymentWaitState("payment_required", [
+      "indonesia_one_time_card_finpay_terms_after stillVisible=yes hasFailure=no hasOtp=yes url=https://live.finpay.id/pg/payment/card/id/v4/access/test",
+    ]),
+    "payment_otp_required",
+  );
+  assert.equal(
+    normalizeIndonesiaPaymentWaitState("payment_required", [
+      "indonesia_one_time_card_finpay_terms_after stillVisible=yes hasFailure=no hasOtp=no url=https://live.finpay.id/pg/payment/card/id/v4/access/test",
+    ]),
+    "payment_required",
   );
 });
