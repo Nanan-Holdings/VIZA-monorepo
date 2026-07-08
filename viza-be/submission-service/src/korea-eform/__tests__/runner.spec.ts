@@ -111,8 +111,12 @@ test("Korea official e-Form first-page plan targets official portal selectors", 
   assert.equal(fieldMap.get("#BIRTH_YMD"), "19970409");
   assert.equal(fieldMap.get("#PASS_NO"), "E12345678");
   assert.equal(fieldMap.get("#IDENTITY_NO"), "110101199001011234");
-  assert.equal(fieldMap.get("#NAT_CD"), "CHN");
-  assert.equal(fieldMap.get("#PLA_BIRTH"), "CHN");
+  assert.equal(fieldMap.get("#NAT_NM"), "CHINA P. R.");
+  assert.equal(fieldMap.get("#NAT_CD"), "112");
+  assert.equal(fieldMap.get("#PLA_BIRTH_NM"), "CHINA P. R.");
+  assert.equal(fieldMap.get("#PLA_BIRTH"), "112");
+  assert.equal(fieldMap.get("#ISS_NAT_NM"), "CHINA P. R.");
+  assert.equal(fieldMap.get("#ISS_NAT_CD"), "112");
   assert.equal(fieldMap.get("#REG_OVERSEA_RES_CD"), "CP");
   assert.equal(selectMap.get("#EFORM_STAY"), "C3");
   assert.equal(selectMap.get("#PASS_NO_KIND"), "OR");
