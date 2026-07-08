@@ -36,6 +36,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/vn-prearrival/options/**`; this route may read official category
   options but must not submit declarations or pretend a session-gated official
   list is complete when the portal returns an auth/session error.
+  `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
+  guards the local country-code dropdown fallback used when the official
+  category endpoint is session-gated.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
@@ -232,6 +235,7 @@ Smoke URLs:
 - `components/client/korea-appointment/*`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
+- `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
 - `hooks/use-smooth-progress.ts`

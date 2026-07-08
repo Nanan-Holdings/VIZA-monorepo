@@ -115,6 +115,8 @@ type DateFieldRules = {
 type LengthRules = {
   maxLength?: number;
   max_length?: number;
+  helper_zh?: string;
+  helper_en?: string;
 };
 
 interface DynamicFormFieldProps {
@@ -134,6 +136,17 @@ function getMaxLengthRule(field: VisaFormFieldRow): number | undefined {
   return typeof rawMaxLength === "number" && Number.isFinite(rawMaxLength) && rawMaxLength > 0
     ? rawMaxLength
     : undefined;
+}
+
+function getHelperTextRule(field: VisaFormFieldRow, sideLocale: "zh" | "en"): string | undefined {
+  const rules = field.validationRules as LengthRules | null;
+  const helper = sideLocale === "zh" ? rules?.helper_zh : rules?.helper_en;
+  return typeof helper === "string" && helper.trim() ? helper.trim() : undefined;
+}
+
+function joinHelperText(...parts: Array<string | undefined>): string | undefined {
+  const filtered = parts.filter((part): part is string => Boolean(part?.trim()));
+  return filtered.length > 0 ? filtered.join("\n") : undefined;
 }
 
 function FieldWrapper({
@@ -569,11 +582,13 @@ export function DynamicFormField({
   const doesNotApplyLabel = sideLocale === "zh" ? t("dynamicField.doesNotApply") : "Does not apply";
   const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
   const maxLength = getMaxLengthRule(field);
+  const configuredHelperText = getHelperTextRule(field, sideLocale);
   const lengthHelperText = maxLength
     ? sideLocale === "zh"
       ? `最多 ${maxLength} 个字符，当前 ${value.length}/${maxLength}`
       : `Maximum ${maxLength} characters, currently ${value.length}/${maxLength}`
     : undefined;
+  const helperText = joinHelperText(configuredHelperText, lengthHelperText);
 
   switch (fieldType) {
     case "date": {
@@ -632,7 +647,7 @@ export function DynamicFormField({
       ) : null;
 
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           {dateAllowYearOnly && !dateIsDoNotKnow && !dateIsDoesNotApply && (
             <div className="mb-1 flex flex-wrap items-center gap-4 text-[13px] text-gray-700">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -681,7 +696,7 @@ export function DynamicFormField({
       const isUsState = source === "US_STATES";
       if (isCountry) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <CountryDropdown
               placeholder={localizedPlaceholder ?? selectFallback}
               defaultValue={value}
@@ -695,7 +710,7 @@ export function DynamicFormField({
       }
       if (isUsState) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <RegionSelect
               countryCode="US"
               placeholder={localizedPlaceholder ?? selectFallback}
@@ -714,7 +729,7 @@ export function DynamicFormField({
           ? "请先选择上级选项，或联系 VIZA 检查官方下拉列表。"
           : "Select the parent option first, or contact VIZA to check the official dropdown list.";
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <div
               className={cn(
                 "flex min-h-12 items-center rounded-lg border border-red-200 px-3 text-[14px] leading-5 text-red-700",
@@ -729,7 +744,7 @@ export function DynamicFormField({
       }
       if (usesRemoteSearch || opts.length >= SEARCHABLE_SELECT_MIN_OPTIONS) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <SearchableSelectControl
               value={value}
               onChange={onChange}
@@ -745,7 +760,7 @@ export function DynamicFormField({
         );
       }
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           <Select value={value} onValueChange={onChange} disabled={disabled}>
             <SelectTrigger className={`h-12 rounded-lg border-[#e8e8e8] text-[15px] focus:ring-1 focus:ring-[#03346E] focus:border-[#03346E] data-[placeholder]:text-muted-foreground ${whiteControlClass} ${disabled ? "opacity-70 cursor-not-allowed" : ""}`}>
               <SelectValue placeholder={localizedPlaceholder ?? selectFallback} />
@@ -765,7 +780,7 @@ export function DynamicFormField({
     case "multi_select": {
       const opts = normaliseOptions(options, sideLocale);
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           <SearchableMultiSelectControl
             value={value}
             onChange={onChange}
@@ -781,7 +796,7 @@ export function DynamicFormField({
 
     case "textarea":
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           <Textarea
             value={value}
             onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
@@ -804,23 +819,26 @@ export function DynamicFormField({
           || normalisedValue === "on";
 
       return (
-        <div className="flex items-center gap-3">
-          <Checkbox
-            id={field.fieldName}
-            checked={isChecked}
-            onCheckedChange={(checked) => onChange(checked ? checkedValue : "")}
-          />
-          <Label htmlFor={field.fieldName} className="text-[14px] font-medium text-gray-700 cursor-pointer">
-            {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
-          </Label>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              id={field.fieldName}
+              checked={isChecked}
+              onCheckedChange={(checked) => onChange(checked ? checkedValue : "")}
+            />
+            <Label htmlFor={field.fieldName} className="text-[14px] font-medium text-gray-700 cursor-pointer">
+              {label}
+              {required && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+          </div>
+          {helperText ? <p className="whitespace-pre-line text-[12px] leading-5 text-gray-500">{helperText}</p> : null}
         </div>
       );
       }
 
     case "file":
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           <div className={`h-12 rounded-lg border border-dashed border-[#e8e8e8] flex items-center justify-center text-[14px] text-gray-400 ${forceWhiteBackground ? "bg-white" : "bg-gray-50"}`}>
             {t("upload")}: {label}
           </div>
@@ -831,7 +849,7 @@ export function DynamicFormField({
       {
         const isSchengenMemberState = usesSchengenMemberStateList(field);
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <CountryDropdown
               placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
               defaultValue={value}
@@ -847,7 +865,7 @@ export function DynamicFormField({
     case "radio": {
       const opts = normaliseOptions(options, sideLocale);
       return (
-        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+        <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           <div className={`flex ${opts.length <= 2 ? "flex-row gap-6" : "flex-col gap-2"}`}>
             {opts.map((opt) => (
               <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-[14px]">
@@ -870,7 +888,7 @@ export function DynamicFormField({
     default: // text, number, email, tel, etc.
       if (isSsnField(field)) {
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <SsnSegmentedInput
               value={value}
               onChange={onChange}
@@ -925,7 +943,7 @@ export function DynamicFormField({
         ) : null;
 
         return (
-          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={lengthHelperText}>
+          <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             {hasSideCheckbox ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">{inputNode}</div>
