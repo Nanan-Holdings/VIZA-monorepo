@@ -563,6 +563,22 @@ const COUNTRY_VALUE_ALIASES: Record<string, string> = {
   美国: "USA",
 };
 
+function getVnPrearrivalOfficialSource(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { official_source?: unknown } | null;
+  const source = typeof rules?.official_source === "string" ? rules.official_source : "";
+  return source.startsWith("prearrival_category:") ? source : null;
+}
+
+function getVnPrearrivalDependsOn(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { depends_on?: unknown; dependsOn?: unknown } | null;
+  const dependsOn = rules?.depends_on ?? rules?.dependsOn;
+  return typeof dependsOn === "string" && dependsOn.trim() ? dependsOn.trim() : null;
+}
+
+function vnPrearrivalOptionKey(field: VisaFormFieldRow): string {
+  return `${field.fieldName}:${getVnPrearrivalOfficialSource(field) ?? ""}`;
+}
+
 function findCanonicalOptionValue(
   options: VisaFormFieldRow["options"],
   rawValue: string | null | undefined,
@@ -1772,6 +1788,9 @@ export function DynamicStepForm({
   const [koreaAddressOptions, setKoreaAddressOptions] = useState<VisaFormFieldOption[]>([]);
   const [koreaAddressSearchQuery, setKoreaAddressSearchQuery] = useState("");
   const [koreaAddressSearching, setKoreaAddressSearching] = useState(false);
+  const [vnPrearrivalQueries, setVnPrearrivalQueries] = useState<Record<string, string>>({});
+  const [vnPrearrivalOptions, setVnPrearrivalOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
+  const [vnPrearrivalSearching, setVnPrearrivalSearching] = useState<Record<string, boolean>>({});
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
@@ -1837,6 +1856,66 @@ export function DynamicStepForm({
       window.clearTimeout(timer);
     };
   }, [hasKoreaAddressSearchField, koreaAddressSearchQuery]);
+
+  const vnPrearrivalRemoteFields = useMemo(
+    () =>
+      visaType === "VN_PREARRIVAL_DECLARATION"
+        ? step.fields.filter((field) => Boolean(getVnPrearrivalOfficialSource(field)))
+        : [],
+    [step.fields, visaType],
+  );
+
+  useEffect(() => {
+    if (vnPrearrivalRemoteFields.length === 0) return;
+    const entries = Object.entries(vnPrearrivalQueries);
+    if (entries.length === 0) return;
+
+    const controller = new AbortController();
+    const timers = entries.map(([key, keyword]) => window.setTimeout(async () => {
+      const field = vnPrearrivalRemoteFields.find((candidate) => vnPrearrivalOptionKey(candidate) === key);
+      const source = field ? getVnPrearrivalOfficialSource(field) : null;
+      if (!field || !source) return;
+      const parentKey = getVnPrearrivalDependsOn(field);
+      const parent = parentKey ? valuesRef.current[parentKey] ?? "" : "";
+      if (source.endsWith("administrative_unit_level2") && !parent.trim()) {
+        setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
+        setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
+        return;
+      }
+
+      try {
+        setVnPrearrivalSearching((current) => ({ ...current, [key]: true }));
+        const params = new URLSearchParams({
+          source,
+          keyword,
+          limit: "100",
+        });
+        if (parent.trim()) params.set("parent", parent.trim());
+        const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        setVnPrearrivalOptions((current) => ({
+          ...current,
+          [key]: Array.isArray(payload.options) ? payload.options : [],
+        }));
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
+        }
+      }
+    }, 300));
+
+    return () => {
+      controller.abort();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [vnPrearrivalQueries, vnPrearrivalRemoteFields]);
 
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
@@ -2344,6 +2423,23 @@ export function DynamicStepForm({
         ? [{ value: selectedValue, text: selectedValue }, ...koreaAddressOptions]
         : koreaAddressOptions;
     }
+    const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);
+    const vnPrearrivalKey = vnPrearrivalSource ? vnPrearrivalOptionKey(field) : null;
+    if (vnPrearrivalKey) {
+      const remoteOptions = vnPrearrivalOptions[vnPrearrivalKey] ?? [];
+      const selectedValue = values[valueKey]?.trim();
+      const hasSelectedValue =
+        selectedValue &&
+        remoteOptions.some((option) => {
+          if (typeof option === "string") return option === selectedValue;
+          return option.value === selectedValue;
+        });
+      fieldOptions = remoteOptions.length > 0 || (field.validationRules as { remote_search?: unknown } | null)?.remote_search === true
+        ? selectedValue && !hasSelectedValue
+          ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
+          : remoteOptions
+        : fieldOptions;
+    }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);
     }
@@ -2362,6 +2458,7 @@ export function DynamicStepForm({
       const isKoreaAddressSearchSelect =
         field.fieldName === "address_in_korea" &&
         (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
+      const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey);
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: `${valueKey}-${side}`,
@@ -2390,8 +2487,20 @@ export function DynamicStepForm({
           forceWhiteBackground={forceWhiteBackground}
           disabled={lt24Disabled || tdacTransitCheckboxLocked}
           displayLocale={side}
-          onSearchQuery={isKoreaAddressSearchSelect ? setKoreaAddressSearchQuery : undefined}
-          searching={isKoreaAddressSearchSelect ? koreaAddressSearching : false}
+          onSearchQuery={
+            isKoreaAddressSearchSelect
+              ? setKoreaAddressSearchQuery
+              : isVnPrearrivalRemoteSelect && vnPrearrivalKey
+                ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
+                : undefined
+          }
+          searching={
+            isKoreaAddressSearchSelect
+              ? koreaAddressSearching
+              : vnPrearrivalKey
+                ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
+                : false
+          }
         />
       );
     };

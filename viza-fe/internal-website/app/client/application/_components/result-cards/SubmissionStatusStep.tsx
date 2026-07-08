@@ -32,8 +32,10 @@ import {
   isDs160VisaType,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
+  isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
+  isVietnamPrearrivalApplication,
   isVietnamEVisaApplication,
   isIndonesiaEVisaApplication,
   type SubmissionMode,
@@ -113,11 +115,14 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const hasOfficialPdfDownload =
-    result.country === "TH" &&
+    (result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
     Boolean(
       result.artifacts?.logs?.some((log) =>
-        log.includes("tdac_pdf_downloaded") || log.includes("tdac_confirmation_page_pdf_saved"),
+        log.includes("tdac_pdf_downloaded") ||
+        log.includes("tdac_confirmation_page_pdf_saved") ||
+        log.includes("vn_prearrival_pdf_downloaded") ||
+        log.includes("vn_prearrival_confirmation_page_pdf_saved"),
       ),
     );
   const pdfPath = hasOfficialPdfDownload ? storedPdfPath : null;
@@ -126,7 +131,9 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
       ? { label: "MDAC", countryParam: "malaysia" }
       : result.country === "TH"
         ? { label: "TDAC", countryParam: "thailand" }
-        : { label: "eTravel", countryParam: "philippines" };
+        : result.country === "VN"
+          ? { label: "Vietnam Pre-Arrival", countryParam: "vietnam" }
+          : { label: "eTravel", countryParam: "philippines" };
   const countryLabel = arrivalCardMeta.label;
   const countryParam = arrivalCardMeta.countryParam;
   const pdfUrl = pdfPath
@@ -228,6 +235,10 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
                 ? isZh
                   ? "菲律宾 eTravel 通常返回 QR code / 参考号；当前没有可下载的官方 PDF。"
                   : "The Philippines eTravel portal usually returns a QR code/reference; no official downloadable PDF is available for this submission."
+                : result.country === "VN"
+                  ? isZh
+                    ? "越南入境前申报通常返回 QR code，并在官网提供 PDF 下载；当前这次提交没有可下载的 PDF artifact。"
+                    : "Vietnam Pre-Arrival usually returns a QR code and an official PDF download; no downloadable PDF artifact is available for this submission."
               : isZh
                 ? "当前没有可下载的官方确认 PDF。"
                 : "No official downloadable confirmation PDF is available for this submission."}
@@ -297,7 +308,9 @@ function isArrivalCardTarget(country: string | null | undefined, visaType: strin
   return (
     isSgArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
-    isThailandTdacApplication(country, visaType)
+    isThailandTdacApplication(country, visaType) ||
+    isPhilippinesEtravelApplication(country, visaType) ||
+    isVietnamPrearrivalApplication(country, visaType)
   );
 }
 
@@ -410,7 +423,9 @@ function supportsLiveRetry(country: string | null | undefined, visaType: string 
     isIndonesiaEVisaApplication(country, visaType) ||
     isSgArrivalCardApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
-    isThailandTdacApplication(country, visaType)
+    isThailandTdacApplication(country, visaType) ||
+    isPhilippinesEtravelApplication(country, visaType) ||
+    isVietnamPrearrivalApplication(country, visaType)
   );
 }
 
@@ -1180,13 +1195,17 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
+  const isVnPrearrivalSubmission = isVietnamPrearrivalApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
   const isIndonesiaSubmission = isIndonesiaEVisaApplication(
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
-    : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission
+    : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission || isVnPrearrivalSubmission
     ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
     : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
       ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]

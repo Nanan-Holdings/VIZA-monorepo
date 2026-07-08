@@ -2,38 +2,44 @@ import type { SubmissionPayload } from "../country-submissions/types";
 
 export const VN_PREARRIVAL_OFFICIAL_PORTAL_URL = "https://prearrival.immigration.gov.vn/";
 
+export type VnPrearrivalTravelMode = "air" | "land" | "sea";
+
 export interface VnPrearrivalPortalPayload {
   applicationId: string;
-  fullName: string;
+  expectedArrivalDate: string;
+  passportType: string;
+  passportNumber: string;
+  passportExpiryDate: string;
+  gender: string;
+  surname: string | null;
+  givenName: string;
   dateOfBirth: string;
-  sex: string;
   nationality: string;
   emailAddress: string;
+  realEmailAddress: string | null;
   phoneCountryCode: string;
   phoneNumber: string;
-  passportNumber: string;
-  passportIssueDate: string;
-  passportExpiryDate: string;
-  entryPermissionType: string;
-  entryPermissionNumber: string | null;
-  arrivalDate: string;
-  transportMode: string;
-  flightOrTransportNumber: string;
-  entryPort: string;
-  countryBoarded: string;
-  purposeOfEntry: string;
-  purposeOfEntryOther: string | null;
-  addressInVietnam: string;
-  provinceCity: string;
-  wardCommune: string | null;
-  contactInVietnamName: string | null;
-  contactInVietnamPhone: string | null;
-  isGroupSubmission: boolean;
+  visaInformationAcknowledgement: boolean;
+  visaType: string;
+  visaNumber: string;
+  visaIssueDate: string | null;
+  visaExpiryDate: string;
+  visaIssuedPlace: string | null;
+  departureCountryBeforeArrival: string;
+  purposeOfTravel: string;
+  modeOfTravel: VnPrearrivalTravelMode;
+  flightNumber: string | null;
+  borderGateAirport: string | null;
+  vehicleIdentificationNumber: string | null;
+  landBorderGate: string | null;
+  seaPort: string | null;
+  accommodationType: string;
+  provinceCityOfHotel: string;
+  wardCommuneOfHotel: string;
+  accommodationAddress: string;
+  workplaceInformation: string | null;
+  departureDateFromVietnam: string | null;
   finalDeclaration: boolean;
-  officialFreeAcknowledgement: boolean;
-  prearrivalWindowAcknowledgement: boolean;
-  healthDeclarationStatus: string;
-  healthGuidanceAcknowledgement: boolean;
 }
 
 export class VnPrearrivalPortalValidationError extends Error {
@@ -66,61 +72,79 @@ function requireBooleanTrue(payload: SubmissionPayload, key: string, missing: st
   return value;
 }
 
+function travelMode(value: string, missing: string[]): VnPrearrivalTravelMode {
+  if (value === "air" || value === "land" || value === "sea") return value;
+  missing.push("answers.mode_of_travel");
+  return "air";
+}
+
+function airportFromFlightNumber(flightNumber: string): string | null {
+  const suffix = flightNumber.match(/_([A-Z]{3})$/i)?.[1];
+  return suffix ? suffix.toUpperCase() : null;
+}
+
 export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): VnPrearrivalPortalPayload {
   const missing: string[] = [];
   if (payload.countryCode !== "VN") missing.push("countryCode");
   if (payload.visaType !== "VN_PREARRIVAL_DECLARATION") missing.push("visaType");
 
-  const purposeOfEntry = requireAnswer(payload, "purpose_of_entry", missing);
-  const healthDeclarationStatus = answer(payload, "health_declaration_status") || "inactive_no_routine_health_declaration";
-  const isGroupSubmission = booleanAnswer(payload, "is_group_submission");
-  if (isGroupSubmission) {
-    missing.push("answers.is_group_submission(v1_individual_only)");
+  const modeOfTravel = travelMode(requireAnswer(payload, "mode_of_travel", missing), missing);
+  const flightNumber = modeOfTravel === "air" ? requireAnswer(payload, "flight_number", missing) : null;
+  const borderGateAirport = modeOfTravel === "air" ? requireAnswer(payload, "border_gate_airport", missing) : null;
+  if (!flightNumber && borderGateAirport) {
+    missing.push("answers.border_gate_airport(locked_by_flight_number)");
   }
+  if (flightNumber && borderGateAirport) {
+    const derivedAirport = airportFromFlightNumber(flightNumber);
+    if (!derivedAirport || derivedAirport !== borderGateAirport.toUpperCase()) {
+      missing.push("answers.border_gate_airport(locked_by_flight_number)");
+    }
+  }
+
+  const vehicleIdentificationNumber =
+    modeOfTravel === "land" || modeOfTravel === "sea"
+      ? requireAnswer(payload, "vehicle_identification_number", missing)
+      : null;
+  const landBorderGate = modeOfTravel === "land" ? requireAnswer(payload, "land_border_gate", missing) : null;
+  const seaPort = modeOfTravel === "sea" ? requireAnswer(payload, "sea_port", missing) : null;
 
   const normalized: VnPrearrivalPortalPayload = {
     applicationId: payload.applicationId,
-    fullName: requireAnswer(payload, "full_name", missing),
+    expectedArrivalDate: requireAnswer(payload, "expected_arrival_date", missing),
+    passportType: requireAnswer(payload, "passport_type", missing),
+    passportNumber: requireAnswer(payload, "passport_number", missing),
+    passportExpiryDate: requireAnswer(payload, "passport_expiry_date", missing),
+    gender: requireAnswer(payload, "gender", missing),
+    surname: answer(payload, "surname") || null,
+    givenName: requireAnswer(payload, "given_name", missing),
     dateOfBirth: requireAnswer(payload, "date_of_birth", missing),
-    sex: requireAnswer(payload, "sex", missing),
     nationality: requireAnswer(payload, "nationality", missing),
-    emailAddress: requireAnswer(payload, "email_address", missing),
+    emailAddress: requireAnswer(payload, "alias_email_address", missing),
+    realEmailAddress: answer(payload, "real_email_address") || answer(payload, "email_address") || null,
     phoneCountryCode: requireAnswer(payload, "phone_country_code", missing),
     phoneNumber: requireAnswer(payload, "phone_number", missing),
-    passportNumber: requireAnswer(payload, "passport_number", missing),
-    passportIssueDate: requireAnswer(payload, "passport_issue_date", missing),
-    passportExpiryDate: requireAnswer(payload, "passport_expiry_date", missing),
-    entryPermissionType: requireAnswer(payload, "entry_permission_type", missing),
-    entryPermissionNumber: answer(payload, "entry_permission_number") || null,
-    arrivalDate: requireAnswer(payload, "arrival_date", missing),
-    transportMode: requireAnswer(payload, "transport_mode", missing),
-    flightOrTransportNumber: requireAnswer(payload, "flight_or_transport_number", missing),
-    entryPort: requireAnswer(payload, "entry_port", missing),
-    countryBoarded: requireAnswer(payload, "country_boarded", missing),
-    purposeOfEntry,
-    purposeOfEntryOther: answer(payload, "purpose_of_entry_other") || null,
-    addressInVietnam: requireAnswer(payload, "address_in_vietnam", missing),
-    provinceCity: requireAnswer(payload, "province_city", missing),
-    wardCommune: answer(payload, "ward_commune") || null,
-    contactInVietnamName: answer(payload, "contact_in_vietnam_name") || null,
-    contactInVietnamPhone: answer(payload, "contact_in_vietnam_phone") || null,
-    isGroupSubmission,
+    visaInformationAcknowledgement: requireBooleanTrue(payload, "visa_information_acknowledgement", missing),
+    visaType: requireAnswer(payload, "visa_type", missing),
+    visaNumber: requireAnswer(payload, "visa_number", missing),
+    visaIssueDate: answer(payload, "visa_issue_date") || null,
+    visaExpiryDate: requireAnswer(payload, "visa_expiry_date", missing),
+    visaIssuedPlace: answer(payload, "visa_issued_place") || null,
+    departureCountryBeforeArrival: requireAnswer(payload, "departure_country_before_arrival", missing),
+    purposeOfTravel: requireAnswer(payload, "purpose_of_travel", missing),
+    modeOfTravel,
+    flightNumber,
+    borderGateAirport,
+    vehicleIdentificationNumber,
+    landBorderGate,
+    seaPort,
+    accommodationType: requireAnswer(payload, "accommodation_type", missing),
+    provinceCityOfHotel: requireAnswer(payload, "province_city_of_hotel", missing),
+    wardCommuneOfHotel: requireAnswer(payload, "ward_commune_of_hotel", missing),
+    accommodationAddress: requireAnswer(payload, "accommodation_address", missing),
+    workplaceInformation: answer(payload, "workplace_information") || null,
+    departureDateFromVietnam: answer(payload, "departure_date_from_vietnam") || null,
     finalDeclaration: requireBooleanTrue(payload, "final_declaration", missing),
-    officialFreeAcknowledgement: requireBooleanTrue(payload, "official_free_acknowledgement", missing),
-    prearrivalWindowAcknowledgement: requireBooleanTrue(payload, "prearrival_window_acknowledgement", missing),
-    healthDeclarationStatus,
-    healthGuidanceAcknowledgement: booleanAnswer(payload, "health_guidance_acknowledgement"),
   };
-
-  if (purposeOfEntry === "other" && !normalized.purposeOfEntryOther) {
-    missing.push("answers.purpose_of_entry_other");
-  }
-  if (
-    healthDeclarationStatus === "active_guidance_applies" &&
-    !normalized.healthGuidanceAcknowledgement
-  ) {
-    missing.push("answers.health_guidance_acknowledgement");
-  }
 
   if (missing.length > 0) {
     throw new VnPrearrivalPortalValidationError(
