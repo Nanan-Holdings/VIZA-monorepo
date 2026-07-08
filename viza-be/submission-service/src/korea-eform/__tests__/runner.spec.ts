@@ -92,6 +92,22 @@ test("Korea official e-Form payload accepts Annex-17 seed field aliases", () => 
   assert.deepEqual(validateKoreaOfficialEformPayload(payload), []);
 });
 
+test("Korea official e-Form payload prefers application form contact/address over profile fallback aliases", () => {
+  const payload = buildKoreaOfficialEformPayload({
+    applicationId: "app-1",
+    answers: {
+      ...completeAnnex17Answers,
+      phone: "+86 13312345678",
+      mobile_phone: "+8619974931995",
+      home_address: "Old Profile Address, Anguilla",
+      home_country_address: "Yuhua District, Changsha, Changsha, Hunan, China, 410021",
+    },
+  });
+
+  assert.equal(payload.phone, "+8619974931995");
+  assert.equal(payload.homeAddress, "Yuhua District, Changsha, Changsha, Hunan, China, 410021");
+});
+
 test("Korea official e-Form first-page plan targets official portal selectors", () => {
   const payload = buildKoreaOfficialEformPayload({
     applicationId: "app-1",
@@ -125,12 +141,32 @@ test("Korea official e-Form first-page plan targets official portal selectors", 
   assert.ok(radioSelectors.includes("#INVIT_YN1"));
 });
 
+test("Korea official e-Form first-page plan corrects inconsistent split home country from full address", () => {
+  const payload = buildKoreaOfficialEformPayload({
+    applicationId: "app-1",
+    answers: {
+      ...completeAnswers,
+      home_country_address: "Yuhua District, Changsha, Changsha, Hunan, China, 410021",
+      home_address_street: "Yuhua District, Changsha, Changsha, Hunan, China, 410021",
+      home_address_city: "Hunan",
+      home_address_state: "Hunan",
+      home_address_country: "Anguilla",
+    },
+  });
+  const plan = buildKoreaOfficialEformFirstPagePlan(payload);
+  const fieldMap = new Map(plan.fields.map((field) => [field.selector, field.value]));
+
+  assert.equal(fieldMap.get("#ADDR_CNTR_NM"), "CHINA P. R.");
+  assert.equal(fieldMap.get("#ADDR_CNTR_CD"), "112");
+});
+
 test("Korea official e-Form second-page plan targets official portal selectors", () => {
   const plan = buildKoreaOfficialEformSecondPagePlan(completeAnnex17Answers);
   const fieldMap = new Map(plan.fields.map((field) => [field.selector, field.value]));
   const radioSelectors = plan.radios.map((radio) => radio.selector);
 
   assert.ok(radioSelectors.includes("#MARI_STS_CD_S"));
+  assert.ok(radioSelectors.includes("#CHLDRN_YN2"));
   assert.ok(radioSelectors.includes("#LAST_DEGREE_2"));
   assert.ok(radioSelectors.includes("#JOB_CD_3"));
   assert.ok(radioSelectors.includes("#BF_VISIT_N"));
@@ -145,6 +181,40 @@ test("Korea official e-Form second-page plan targets official portal selectors",
   assert.equal(fieldMap.get("#SOJ_EXP_REGION_TEL_NO"), "+82 2 1234 5678");
   assert.equal(fieldMap.get("#VISIT_COST"), "1000");
   assert.ok(!radioSelectors.includes("#ENT_PURP_KIND_CD1"));
+});
+
+test("Korea official e-Form second-page plan maps children yes/no and count", () => {
+  const plan = buildKoreaOfficialEformSecondPagePlan({
+    ...completeAnnex17Answers,
+    has_children: "yes",
+    number_of_children: "2",
+  });
+  const fieldMap = new Map(plan.fields.map((field) => [field.selector, field.value]));
+  const radioSelectors = plan.radios.map((radio) => radio.selector);
+
+  assert.ok(radioSelectors.includes("#CHLDRN_YN1"));
+  assert.equal(fieldMap.get("#CHLDRN_NB"), "2");
+});
+
+test("Korea official e-Form second-page plan uses school details for student employment block", () => {
+  const plan = buildKoreaOfficialEformSecondPagePlan({
+    ...completeAnnex17Answers,
+    employment_status: "student",
+    school_name: "Test University",
+    school_location: "Beijing, China",
+    employer_name: "explain",
+    employer_position: "superior",
+    employer_address: "",
+    employer_telephone: "中国",
+    phone: "+86 13312345678",
+    mobile_phone: "+8619974931995",
+  });
+  const fieldMap = new Map(plan.fields.map((field) => [field.selector, field.value]));
+
+  assert.equal(fieldMap.get("#COMPY_NM"), "Test University");
+  assert.equal(fieldMap.get("#POSI_NM"), "Student");
+  assert.equal(fieldMap.get("#COMPY_ADDR"), "Beijing, China");
+  assert.equal(fieldMap.get("#JOB_TEL_NO"), "+8619974931995");
 });
 
 test("Korea official e-Form validation names missing official fields", () => {
