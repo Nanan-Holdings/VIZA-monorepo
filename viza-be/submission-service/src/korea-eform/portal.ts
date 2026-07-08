@@ -61,14 +61,14 @@ function compactDate(value: string | null): string {
 
 function normalizeCountryName(value: string | null): string {
   const normalized = value?.trim();
-  if (!normalized) return "CHINA";
-  if (/china|chinese|中国|中國/i.test(normalized)) return "CHINA";
+  if (!normalized) return "CHINA P. R.";
+  if (/china|chinese|中国|中國|chn/i.test(normalized)) return "CHINA P. R.";
   return normalized.toUpperCase();
 }
 
 function normalizeCountryCode(value: string | null): string {
   const normalized = normalizeCountryName(value);
-  if (normalized === "CHINA") return "CHN";
+  if (normalized === "CHINA P. R.") return "112";
   return "";
 }
 
@@ -95,7 +95,7 @@ function splitAddress(address: string | null): { street: string; city: string; s
       country: "CHINA",
     };
   }
-  if (parts.length === 2 && normalizeCountryName(parts[1]) === "CHINA") {
+  if (parts.length === 2 && normalizeCountryName(parts[1]) === "CHINA P. R.") {
     return {
       street: fallback,
       city: fallback,
