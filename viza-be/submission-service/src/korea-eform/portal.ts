@@ -111,16 +111,41 @@ function splitAddress(address: string | null): { street: string; city: string; s
   };
 }
 
+function inferCountryFromAddress(address: string | null): string | null {
+  if (!address) return null;
+  if (/china|chinese|中国|中國|chn/i.test(address)) return "CHINA P. R.";
+  return null;
+}
+
 function payloadAddress(payload: KoreaOfficialEformPayload): { street: string; city: string; state: string; country: string } {
   if (payload.homeAddressStreet || payload.homeAddressCity || payload.homeAddressState || payload.homeAddressCountry) {
+    const countryFromFullAddress = inferCountryFromAddress(
+      [
+        payload.homeAddress,
+        payload.homeAddressStreet,
+        payload.homeAddressCity,
+        payload.homeAddressState,
+        payload.homeAddressCountry,
+      ].filter(Boolean).join(", "),
+    );
     return {
       street: payload.homeAddressStreet ?? payload.homeAddress ?? "",
       city: payload.homeAddressCity ?? payload.homeAddressStreet ?? payload.homeAddress ?? "",
       state: payload.homeAddressState ?? payload.homeAddressCity ?? "",
-      country: payload.homeAddressCountry ?? "CHINA",
+      country: countryFromFullAddress ?? payload.homeAddressCountry ?? "CHINA",
     };
   }
   return splitAddress(payload.homeAddress);
+}
+
+function readPhoneLikeAnswer(answers: Record<string, string | null | undefined>, keys: string[], fallback = "") {
+  for (const key of keys) {
+    const value = answers[key]?.trim();
+    if (!value) continue;
+    const digits = value.replace(/\D/g, "");
+    if (digits.length >= 5) return value;
+  }
+  return fallback;
 }
 
 export function buildKoreaOfficialEformFirstPagePlan(
@@ -221,6 +246,7 @@ export function buildKoreaOfficialEformSecondPagePlan(
   const education = readAnswer(answers, ["highest_education"], "bachelors").toLowerCase();
   const job = readAnswer(answers, ["employment_status"], "employed").toLowerCase();
   const expectedVisitCount = readAnswer(answers, ["expected_korea_visit_count", "planned_korea_visit_count"], "single").toLowerCase();
+  const hasChildren = isYes(readAnswer(answers, ["has_children"], "no"));
   const travelledToKorea = isYes(readAnswer(answers, ["travelled_to_korea_5y"]));
   const travelledOutside = isYes(readAnswer(answers, ["travelled_outside_5y"]));
   const travellingWithFamily = isYes(readAnswer(answers, ["travelling_with_family"]));
@@ -230,14 +256,27 @@ export function buildKoreaOfficialEformSecondPagePlan(
   const addressInKoreaDetail = readAnswer(answers, ["korea_address_detail", "address_in_korea_detail"], "Hotel");
   const koreaPostalCode = readAnswer(answers, ["address_in_korea_postal_code", "korea_postal_code"], "04631");
   const noAddressReason = readAnswer(answers, ["korea_no_address_reason"], koreaAddressMode === "address_not_found" ? "地址不存在" : koreaAddressMode === "undecided" ? "未定" : "");
+  const applicantPhone = readPhoneLikeAnswer(answers, ["mobile_phone", "cell_phone", "mobile_number", "phone", "telephone"]);
+  const employmentName = job === "student"
+    ? readAnswer(answers, ["school_name", "employer_name"])
+    : readAnswer(answers, ["employer_name"]);
+  const employmentPosition = job === "student"
+    ? readAnswer(answers, ["school_course", "course"], "Student")
+    : readAnswer(answers, ["employer_position"]);
+  const employmentAddress = job === "student"
+    ? readAnswer(answers, ["school_location", "employer_address"])
+    : readAnswer(answers, ["employer_address"]);
+  const employmentTelephone = job === "student"
+    ? readPhoneLikeAnswer(answers, ["school_telephone", "school_phone", "employer_telephone"], applicantPhone)
+    : readPhoneLikeAnswer(answers, ["employer_telephone"], applicantPhone);
 
   const fields: FieldAssignment[] = [
     { selector: "#LAST_SCH_NM", value: readAnswer(answers, ["school_name"]) },
     { selector: "#LAST_SCH_ADDR", value: readAnswer(answers, ["school_location"]) },
-    { selector: "#COMPY_NM", value: readAnswer(answers, ["employer_name"]) },
-    { selector: "#POSI_NM", value: readAnswer(answers, ["employer_position"]) },
-    { selector: "#COMPY_ADDR", value: readAnswer(answers, ["employer_address"]) },
-    { selector: "#JOB_TEL_NO", value: readAnswer(answers, ["employer_telephone"]) },
+    { selector: "#COMPY_NM", value: employmentName },
+    { selector: "#POSI_NM", value: employmentPosition },
+    { selector: "#COMPY_ADDR", value: employmentAddress },
+    { selector: "#JOB_TEL_NO", value: employmentTelephone },
     { selector: "#APPL_SOJ_DUR", value: readAnswer(answers, ["intended_period_of_stay"]) },
     { selector: "#ENTRY_EXP_YMD", value: compactDate(readAnswer(answers, ["intended_date_of_entry"]) || null) },
     { selector: "#SOJ_EXP_REGION_TEL_NO", value: readAnswer(answers, ["contact_in_korea"]) },
@@ -269,6 +308,9 @@ export function buildKoreaOfficialEformSecondPagePlan(
   if (job === "other") {
     fields.push({ selector: "#JOB_DETAIL", value: readAnswer(answers, ["employment_status_other"]) });
   }
+  if (hasChildren) {
+    fields.push({ selector: "#CHLDRN_NB", value: readAnswer(answers, ["number_of_children", "children_count"]) });
+  }
   if (travelledToKorea) {
     fields.push(
       { selector: "#BF_VISIT_CNT", value: readAnswer(answers, ["korea_visit_count"]) },
@@ -299,6 +341,7 @@ export function buildKoreaOfficialEformSecondPagePlan(
     ],
     radios: [
       { selector: maritalMap[marital] ?? "#MARI_STS_CD_S" },
+      { selector: hasChildren ? "#CHLDRN_YN1" : "#CHLDRN_YN2" },
       { selector: educationMap[education] ?? "#LAST_DEGREE_2" },
       { selector: jobMap[job] ?? "#JOB_CD_3" },
       { selector: visitCountMap[expectedVisitCount] ?? "#APPL_VISA_GB_S" },

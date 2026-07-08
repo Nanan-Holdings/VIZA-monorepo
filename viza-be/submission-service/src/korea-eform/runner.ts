@@ -107,7 +107,7 @@ function normalizeGender(value: string | null): KoreaOfficialEformPayload["gende
 }
 
 function joinHomeAddress(answers: Record<string, string | null | undefined>): string | null {
-  const direct = readFirst(answers, ["home_address", "home_country_address", "current_address", "current_residential_address", "residential_address"]);
+  const direct = readFirst(answers, ["home_country_address", "current_address", "current_residential_address", "residential_address", "home_address"]);
   if (direct) return direct;
   const parts = [
     readFirst(answers, ["home_address_street"]),
@@ -155,7 +155,7 @@ export function buildKoreaOfficialEformPayload(input: KoreaOfficialEformInput): 
     passportIssueDate: readFirst(answers, ["passport_issue_date", "passport_date_of_issue"]),
     passportPlaceOfIssue: readFirst(answers, ["passport_place_of_issue", "passport_issue_place"]),
     email: readFirst(answers, ["email", "email_address"]),
-    phone: readFirst(answers, ["phone", "mobile_phone", "mobile_number", "cell_phone"]),
+    phone: readFirst(answers, ["mobile_phone", "cell_phone", "mobile_number", "phone"]),
     homeAddress: joinHomeAddress(answers),
     homeAddressStreet: readFirst(answers, ["home_address_street"]),
     homeAddressCity: readFirst(answers, ["home_address_city"]),
