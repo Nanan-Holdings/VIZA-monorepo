@@ -49,4 +49,50 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     });
     expect(VN_PREARRIVAL_AIRPORT_OPTIONS.map((option) => option.value)).toEqual(["SGN", "HAN", "DAD", "CXR", "PQC"]);
   });
+
+  it("does not ask for a passport image inside the official question list", () => {
+    expect(fieldNames).not.toContain("passport_image");
+  });
+
+  it("uses Chinese step names for the Vietnam pre-arrival frontend tabs", () => {
+    expect([...new Set(VN_PREARRIVAL_FORM_FIELDS.map((field) => field.step_name))]).toEqual([
+      "旅客信息",
+      "行程信息",
+      "确认申报",
+    ]);
+  });
+
+  it("shows the official visa information note and where to find the visa number", () => {
+    const acknowledgement = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_information_acknowledgement");
+    const visaNumber = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "visa_number");
+
+    expect(acknowledgement?.validation_rules).toMatchObject({
+      helper_zh: expect.stringContaining("所选签证类型决定"),
+      helper_en: expect.stringContaining("selected visa type determines"),
+    });
+    expect(visaNumber?.validation_rules).toMatchObject({
+      helper_zh: expect.stringContaining("电子签证"),
+      helper_en: expect.stringContaining("e-visa"),
+    });
+  });
+
+  it("uses official hotel dropdown only for hotels and free-text address for residential or others", () => {
+    const hotelAddress = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "hotel_accommodation_address");
+    const freeTextAddress = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "accommodation_address");
+
+    expect(hotelAddress).toMatchObject({
+      field_type: "select",
+      required: true,
+      conditional_logic: { showIf: "accommodation_type === hotel" },
+      validation_rules: expect.objectContaining({
+        official_source: "prearrival_category:hotel",
+        remote_search: true,
+      }),
+    });
+    expect(freeTextAddress).toMatchObject({
+      field_type: "text",
+      required: true,
+      conditional_logic: { showIf: "accommodation_type in [residential, others]" },
+    });
+  });
 });

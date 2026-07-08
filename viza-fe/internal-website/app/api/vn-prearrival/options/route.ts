@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const OFFICIAL_BASE = "https://prearrival.immigration.gov.vn/bio-management-service";
-const SEARCH_SOURCES = new Set(["flight", "hotel"]);
 const FIND_ALL_SOURCES = new Set([
   "nationality",
   "country_code",
@@ -14,6 +13,8 @@ const FIND_ALL_SOURCES = new Set([
   "airport",
   "border_gate",
   "port",
+  "flight",
+  "hotel",
 ]);
 
 type OfficialOption = {
@@ -21,9 +22,15 @@ type OfficialOption = {
   value?: unknown;
   vn_value?: unknown;
   en_value?: unknown;
+  vietnam_value?: unknown;
+  english_value?: unknown;
+  cn_value?: unknown;
   name?: unknown;
   airport?: unknown;
   airline?: unknown;
+  visa_type?: unknown;
+  ward?: unknown;
+  province_city?: unknown;
 };
 
 type VisaFormOption = {
@@ -57,10 +64,24 @@ function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function zhRegionName(alpha2: string): string {
+  try {
+    return new Intl.DisplayNames(["zh-CN"], { type: "region" }).of(alpha2.toUpperCase()) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function optionFromOfficial(item: OfficialOption, source: string): VisaFormOption | null {
-  const code = stringValue(item.code) || stringValue(item.value);
-  const enValue = stringValue(item.en_value) || stringValue(item.name) || code;
-  const vnValue = stringValue(item.vn_value) || enValue;
+  const code = stringValue(item.code);
+  const rawValue = stringValue(item.value);
+  const enValue =
+    stringValue(item.en_value) ||
+    stringValue(item.english_value) ||
+    stringValue(item.name) ||
+    code ||
+    rawValue;
+  const vnValue = stringValue(item.cn_value) || stringValue(item.vn_value) || stringValue(item.vietnam_value) || enValue;
   if (!code && !enValue) return null;
 
   const airport = stringValue(item.airport);
@@ -68,15 +89,20 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
   const officialLabel = source === "flight" && airport
     ? `${enValue} - ${airport}`
     : enValue;
-  const value = source === "flight" && airport
-    ? `${enValue}_${airport}`
-    : code || enValue;
+  const value = source === "country_code" && rawValue
+    ? rawValue
+    : source === "flight"
+      ? code || (airport ? `${enValue}_${airport}` : enValue)
+      : code || rawValue || enValue;
+  const labelZh = source === "country_code"
+    ? `${zhRegionName(code) || vnValue.replace(/\s*\(\+\d+\)\s*$/, "") || enValue} (${rawValue || value})`
+    : vnValue;
 
   return {
     value,
     text: officialLabel,
     label_en: officialLabel,
-    label_zh: vnValue,
+    label_zh: labelZh,
     official_label: officialLabel,
     ...(airport ? { airport } : {}),
     ...(airline ? { airline } : {}),
@@ -99,24 +125,24 @@ async function fetchOfficialJson(path: string, init?: RequestInit): Promise<unkn
   return response.json();
 }
 
-async function loadSearchOptions(source: string, keyword: string, limit: number): Promise<VisaFormOption[]> {
-  const body = {
-    keyword,
-    filters: {},
-    page: 0,
-    size: limit,
-    sorts: [{ key: "code", asc: true }],
-  };
-  const json = await fetchOfficialJson(`/category/searchCategory/${source}`, {
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-  return officialItems(json).map((item) => optionFromOfficial(item, source)).filter(Boolean) as VisaFormOption[];
+async function loadFindAllOptions(source: string, parent = ""): Promise<VisaFormOption[]> {
+  const json = await fetchOfficialJson(`/category/findAllActive/${source}`);
+  const items = source === "hotel" && parent
+    ? officialItems(json).filter((item) => stringValue(item.ward) === parent || stringValue(item.province_city) === parent)
+    : officialItems(json);
+  return items.map((item) => optionFromOfficial(item, source)).filter(Boolean) as VisaFormOption[];
 }
 
-async function loadFindAllOptions(source: string): Promise<VisaFormOption[]> {
-  const json = await fetchOfficialJson(`/category/findAllActive/${source}`);
-  return officialItems(json).map((item) => optionFromOfficial(item, source)).filter(Boolean) as VisaFormOption[];
+function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): VisaFormOption[] {
+  const query = keyword.trim().toLowerCase();
+  if (!query) return options;
+  return options.filter((option) =>
+    [option.value, option.text, option.label_en, option.label_zh, option.official_label, option.airport, option.airline]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(query),
+  );
 }
 
 async function loadAdministrativeOptions(level: "level1" | "level2", parent: string, limit: number): Promise<VisaFormOption[]> {
@@ -142,14 +168,12 @@ export async function GET(request: Request) {
 
   try {
     let options: VisaFormOption[];
-    if (SEARCH_SOURCES.has(source)) {
-      options = await loadSearchOptions(source, keyword, limit);
-    } else if (source === "administrative_unit_level1") {
+    if (source === "administrative_unit_level1") {
       options = await loadAdministrativeOptions("level1", "", limit);
     } else if (source === "administrative_unit_level2") {
       options = parent ? await loadAdministrativeOptions("level2", parent, limit) : [];
     } else if (FIND_ALL_SOURCES.has(source)) {
-      options = (await loadFindAllOptions(source)).slice(0, limit);
+      options = filterOptionsByKeyword(await loadFindAllOptions(source, parent), keyword).slice(0, limit);
     } else {
       return NextResponse.json({ error: "Unsupported Vietnam Pre-Arrival option source", totalCount: 0, options: [] }, { status: 400 });
     }
@@ -159,3 +183,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: message, totalCount: 0, options: [] }, { status: 502 });
   }
 }
+
+export const __testables = {
+  filterOptionsByKeyword,
+  optionFromOfficial,
+};

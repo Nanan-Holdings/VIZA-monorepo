@@ -26,6 +26,7 @@ import {
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
+import { countries } from "country-data-list";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -78,6 +79,58 @@ const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
 };
 
 type BilingualSide = "zh" | "en";
+
+interface CountryDataListCountry {
+  alpha2: string;
+  countryCallingCodes: string[];
+  name: string;
+  status: string;
+}
+
+let phoneCountryCodeOptionsCache: VisaFormFieldOption[] | null = null;
+
+function getChineseRegionName(alpha2: string): string {
+  try {
+    return new Intl.DisplayNames(["zh-CN"], { type: "region" }).of(alpha2.toUpperCase()) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
+  if (phoneCountryCodeOptionsCache) return phoneCountryCodeOptionsCache;
+
+  const seen = new Set<string>();
+  phoneCountryCodeOptionsCache = (countries.all as CountryDataListCountry[])
+    .filter((country) => country.status !== "deleted")
+    .flatMap((country) =>
+      country.countryCallingCodes
+        .filter((code) => /^\+\d+$/.test(code))
+        .map((code) => ({ country, code })),
+    )
+    .filter(({ country, code }) => {
+      const key = `${country.alpha2}:${code}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => {
+      const codeCompare = Number(a.code.slice(1)) - Number(b.code.slice(1));
+      return codeCompare || a.country.name.localeCompare(b.country.name);
+    })
+    .map(({ country, code }) => {
+      const labelZh = `${getChineseRegionName(country.alpha2) || country.name} (${code})`;
+      return {
+      value: code,
+      text: `(${code}) ${country.name}`,
+      label_en: `(${code}) ${country.name}`,
+      label_zh: labelZh,
+      official_label: `(${code})`,
+      };
+    });
+
+  return phoneCountryCodeOptionsCache;
+}
 
 interface BilingualTextValue {
   zh: string;
@@ -2402,6 +2455,9 @@ export function DynamicStepForm({
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
+    if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
+      fieldOptions = getPhoneCountryCodeOptions();
+    }
     const dynamicOptions = getDynamicDependentOptions(field, values);
     if (dynamicOptions) {
       fieldOptions = field.fieldName === "intended_ward_commune"
@@ -2435,7 +2491,9 @@ export function DynamicStepForm({
           return option.value === selectedValue;
         });
       fieldOptions = remoteOptions.length > 0 || (field.validationRules as { remote_search?: unknown } | null)?.remote_search === true
-        ? selectedValue && !hasSelectedValue
+        ? field.fieldName === "phone_country_code" && remoteOptions.length === 0
+          ? fieldOptions
+          : selectedValue && !hasSelectedValue
           ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
           : remoteOptions
         : fieldOptions;
