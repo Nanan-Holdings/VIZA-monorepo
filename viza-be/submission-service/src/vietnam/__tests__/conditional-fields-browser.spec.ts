@@ -490,15 +490,15 @@ test("vn.conditional-fields browser: selects exact country values in official dy
             "other-passports",
           )}
           ${renderOfficialDynamicTable("other-passports-table", [
-            { header: "Passport", inputId: "basic_hcKhac_0_soHoChieu" },
-            { header: "Full name", inputId: "basic_hcKhac_0_hoTen" },
-            { header: "Date of birth", inputId: "basic_hcKhac_0_ngaySinhStr" },
+            { header: "Passport", inputId: "basic_qtKhac_0_soHoChieu" },
+            { header: "Full name", inputId: "basic_qtKhac_0_hoTen" },
+            { header: "Date of birth", inputId: "basic_qtKhac_0_ngaySinhStr" },
             {
               header: "Nationality",
-              inputId: "basic_hcKhac_0_quocTich",
+              inputId: "basic_qtKhac_0_quocTich",
               selectOptions: ["China", "Hungary", "Panama"],
             },
-          ])}
+          ], { includeNumberColumn: false })}
           ${renderIdlessQuestion(
             "Do you have relatives who currently reside in Viet Nam?",
             "relatives",
@@ -597,7 +597,7 @@ test("vn.conditional-fields browser: selects exact country values in official dy
     await fillVietnamConditionalRepeatGroups(page, answers, "has_relatives_in_vietnam");
 
     const otherPassportNationality = page
-      .locator("#basic_hcKhac_0_quocTich")
+      .locator("#basic_qtKhac_0_quocTich")
       .locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' ant-select ')][1]");
     const relativeNationality = page
       .locator("#basic_thanNhanOVn_0_quocTich")
@@ -609,7 +609,7 @@ test("vn.conditional-fields browser: selects exact country values in official dy
   }
 });
 
-test("vn.conditional-fields browser: selects Panama from a virtualized official country dropdown", { timeout: 20_000 }, async () => {
+test("vn.conditional-fields browser: selects Panama from a virtualized official country dropdown", { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
@@ -629,6 +629,10 @@ test("vn.conditional-fields browser: selects Panama from a virtualized official 
     const searchedTerms = await page.evaluate(() => (window as unknown as { searchedTerms?: string[] }).searchedTerms ?? []);
     assert.equal(searchedTerms.includes("PAN"), false);
     assert.equal(searchedTerms.includes("Panama"), true);
+    assert.equal(searchedTerms.includes("Panam"), true);
+    assert.equal(searchedTerms.includes("Pana"), true);
+    assert.equal(searchedTerms.includes("Pan"), true);
+    assert.equal(searchedTerms.includes("Pa"), true);
   } finally {
     await browser.close();
   }
@@ -680,19 +684,21 @@ function renderTable(id: string, headers: string[]): string {
 function renderOfficialDynamicTable(
   id: string,
   columns: Array<{ header: string; inputId: string; selectOptions?: string[] }>,
+  options: { includeNumberColumn?: boolean } = {},
 ): string {
+  const includeNumberColumn = options.includeNumberColumn ?? true;
   return `
     <table id="${id}" style="display:none">
       <thead>
         <tr>
-          <th>No</th>
+          ${includeNumberColumn ? "<th>No</th>" : ""}
           ${columns.map((column) => `<th>${column.header}</th>`).join("")}
           <th>Add/delete</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td>1</td>
+          ${includeNumberColumn ? "<td>1</td>" : ""}
           ${columns.map((column) => `<td>${column.selectOptions ? renderAntSelect(column.inputId, column.selectOptions) : `<input id="${column.inputId}" aria-label="${column.header}" />`}</td>`).join("")}
           <td></td>
         </tr>
@@ -762,6 +768,7 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
         const list = dropdown.querySelector(".rc-virtual-list-holder-inner");
         let open = false;
         let filteredOptions = options.slice();
+        let activeIndex = -1;
 
         holder.style.height = "256px";
         list.style.position = "relative";
@@ -781,6 +788,9 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
             node.style.top = (index * itemHeight) + "px";
             node.style.height = itemHeight + "px";
             node.style.lineHeight = itemHeight + "px";
+            if (index === activeIndex) {
+              node.classList.add("ant-select-item-option-active");
+            }
             const content = document.createElement("div");
             content.className = "ant-select-item-option-content";
             content.textContent = option;
@@ -796,11 +806,44 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
           }
         };
 
+        const scrollActiveIntoView = () => {
+          if (activeIndex < 0) return;
+          const top = activeIndex * itemHeight;
+          if (top < holder.scrollTop) {
+            holder.scrollTop = top;
+          } else if (top + itemHeight > holder.scrollTop + holder.clientHeight) {
+            holder.scrollTop = top - holder.clientHeight + itemHeight;
+          }
+          render();
+        };
+
         const refreshSearch = () => {
-          window.searchedTerms = [...(window.searchedTerms || []), input.value];
-          filteredOptions = input.value.trim() ? [] : options.slice();
+          const needle = input.value.trim();
+          const lowerNeedle = needle.toLowerCase();
+          window.searchedTerms = [...(window.searchedTerms || []), needle];
+          if (!needle) {
+            filteredOptions = options.slice();
+          } else if (lowerNeedle === "pa") {
+            const visibleOfficialMatches = new Set([
+              "Nepal",
+              "Pakistan",
+              "Palau",
+              "Palestine",
+              "Panama",
+              "Papua New Guinea",
+              "Paraguay",
+            ]);
+            filteredOptions = options.filter((option) => visibleOfficialMatches.has(option));
+          } else if (lowerNeedle === "hu") {
+            filteredOptions = options.filter((option) => option === "Hungary");
+          } else if (lowerNeedle === "tr") {
+            filteredOptions = options.filter((option) => option === "China");
+          } else {
+            filteredOptions = [];
+          }
           list.style.height = (filteredOptions.length * itemHeight) + "px";
           holder.scrollTop = 0;
+          activeIndex = -1;
           render();
         };
         const show = () => {
@@ -821,10 +864,24 @@ function renderVirtualAntSelect(inputId: string, options: string[]): string {
         input.addEventListener("focus", show);
         input.addEventListener("input", refreshSearch);
         input.addEventListener("keydown", (event) => {
-          if (event.key === "ArrowDown") show();
+          if (event.key === "Home") {
+            activeIndex = -1;
+            holder.scrollTop = 0;
+            render();
+          }
+          if (event.key === "ArrowDown") {
+            show();
+            activeIndex = Math.min(filteredOptions.length - 1, activeIndex + 1);
+            scrollActiveIntoView();
+          }
           if (event.key === "Enter") {
-            const first = list.querySelector("[role='option']");
-            first?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            const activeOption = filteredOptions[activeIndex];
+            if (!activeOption) return;
+            display.textContent = activeOption;
+            display.setAttribute("title", activeOption);
+            input.value = "";
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            close();
           }
         });
         render();

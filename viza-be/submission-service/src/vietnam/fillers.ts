@@ -10,7 +10,11 @@
 
 import type { Page } from "@playwright/test";
 import type { VnFieldType, VnFieldMapping } from "./field-mappings.js";
-import { getVnCountryAlpha3ForOptionText, getVnCountryOptionIndex } from "./field-mappings.js";
+import {
+  getVnCountryAlpha3ForOptionText,
+  getVnCountryOptionIndex,
+  getVnCountrySearchTextForOptionText,
+} from "./field-mappings.js";
 
 const SHORT_TIMEOUT = 5_000;
 const SETTLE_MS = 200;
@@ -201,11 +205,16 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
         setNativeValue(input, "");
         input.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
         await sleep(80);
-        setNativeValue(input, searchTerm);
-        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: searchTerm, inputType: "insertText" }));
-        input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: searchTerm.slice(-1) || "a" }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-        await sleep(1200);
+        let current = "";
+        for (const char of searchTerm) {
+          current += char;
+          setNativeValue(input, current);
+          input.dispatchEvent(new InputEvent("input", { bubbles: true, data: char, inputType: "insertText" }));
+          input.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: char }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          await sleep(90);
+        }
+        await sleep(900);
       };
       const submitWithKeyboard = async () => {
         input.focus();
@@ -225,7 +234,7 @@ export async function pickSelect(page: Page, domId: string, optionText: string):
       if (!best || best.score < 88) {
         for (const searchTerm of searchTerms) {
           await search(searchTerm);
-          optionList = await waitForOptions(2_500);
+          optionList = await waitForOptions(900);
           best = rank(optionList.map((option) => option.text))[0];
           if (best && best.score >= 88) break;
         }
@@ -314,6 +323,12 @@ async function pickSelectWithPlaywright(
   if (optionIndex !== null) {
     await openFullSelectListForIndexedScroll(page, domId);
     let candidates = await readVisibleSelectCandidates(page);
+    const keyboardIndexed = await selectIndexedOptionWithKeyboard(page, domId, optionText, optionIndex);
+    if (keyboardIndexed.candidates.length > candidates.length) {
+      candidates = keyboardIndexed.candidates;
+    }
+    if (keyboardIndexed.ok) return { ok: true, candidates };
+
     const indexed = await scrollToIndexedSelectOption(page, optionText, optionIndex);
     if (indexed.candidates.length > candidates.length) {
       candidates = indexed.candidates;
@@ -328,7 +343,9 @@ async function pickSelectWithPlaywright(
     await page.waitForTimeout(150);
     await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
     await input.fill("", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
-    await page.keyboard.type(searchTerm, { delay: 20 });
+    if (searchTerm) {
+      await page.keyboard.type(searchTerm, { delay: 20 });
+    }
     await page.waitForTimeout(700);
 
     let candidates = await readVisibleSelectCandidates(page);
@@ -363,6 +380,32 @@ async function pickSelectWithPlaywright(
     }
   }
   return { ok: false, reason: "playwright_selection_not_confirmed", candidates: [] };
+}
+
+async function selectIndexedOptionWithKeyboard(
+  page: Page,
+  domId: string,
+  optionText: string,
+  optionIndex: number,
+): Promise<{ ok: boolean; candidates: string[] }> {
+  await openFullSelectListForIndexedScroll(page, domId);
+  const candidates = await readVisibleSelectCandidates(page);
+  const input = page.locator(`#${cssEscape(domId)}`).first();
+  await input.click({ timeout: SHORT_TIMEOUT, force: true }).catch(() => undefined);
+  await page.keyboard.press("Home").catch(() => undefined);
+  await page.waitForTimeout(80);
+  for (let step = 0; step <= optionIndex; step += 1) {
+    await page.keyboard.press("ArrowDown").catch(() => undefined);
+    if (step % 20 === 19) {
+      await page.waitForTimeout(20);
+    }
+  }
+  await page.keyboard.press("Enter").catch(() => undefined);
+  await page.waitForTimeout(650);
+  if (await selectDisplayMatches(page, domId, optionText)) {
+    return { ok: true, candidates };
+  }
+  return { ok: false, candidates };
 }
 
 async function openFullSelectListForIndexedScroll(page: Page, domId: string): Promise<void> {
@@ -744,9 +787,19 @@ function escapeRegex(value: string): string {
 
 export function buildAntSelectSearchTerms(optionText: string): string[] {
   const terms = new Set<string>();
-  const trimmed = optionText.trim();
-  if (trimmed) terms.add(trimmed);
+  const officialSearchText = getVnCountrySearchTextForOptionText(optionText);
+  addProgressiveAntSelectSearchTerms(terms, optionText);
+  addProgressiveAntSelectSearchTerms(terms, officialSearchText);
+  terms.add("");
   return Array.from(terms);
+}
+
+function addProgressiveAntSelectSearchTerms(terms: Set<string>, value: string | null): void {
+  const trimmed = value?.trim() ?? "";
+  for (let length = trimmed.length; length >= 1; length -= 1) {
+    const term = trimmed.slice(0, length).replace(/[^A-Za-z0-9]+$/g, "");
+    if (term) terms.add(term);
+  }
 }
 
 
