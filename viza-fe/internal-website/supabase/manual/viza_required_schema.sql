@@ -932,7 +932,7 @@ WITH fields(field_name, label, field_type, required, step_number, step_name, dis
       'Personal Information',
       12,
       'Enter passport',
-      '{"label_zh":"曾用于入境越南的其他护照号码","repeatable":true,"repeat_group":"other_passports_used_for_vietnam","max_items":5,"maxLength":64}'::jsonb,
+      '{"label_zh":"曾用于入境越南的其他护照号码","repeatable":true,"repeat_group":"other_passports_used_for_vietnam","max_items":5,"maxLength":9}'::jsonb,
       NULL,
       '{"showIf":"has_other_passports_used_for_vietnam === yes"}'::jsonb
     ),

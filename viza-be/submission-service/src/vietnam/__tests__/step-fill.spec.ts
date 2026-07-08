@@ -10,6 +10,7 @@ import {
 import {
   getVnCountryAlpha3ForOptionText,
   getVnCountryOptionIndex,
+  getVnCountrySearchTextForOptionText,
   getVnPortalOptionText,
   normalizeVnCountryOptionText,
   VN_FIELD_MAPPINGS,
@@ -110,5 +111,37 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(getVnPortalOptionText("nationality", "VNM"), "Viet Nam");
   assert.equal(getVnCountryAlpha3ForOptionText("Panama"), "PAN");
   assert.equal(getVnCountryOptionIndex("Panama"), 141);
-  assert.deepEqual(buildAntSelectSearchTerms("Panama"), ["Panama"]);
+  assert.equal(getVnCountrySearchTextForOptionText("China"), "Trung Quốc");
+  assert.equal(getVnCountrySearchTextForOptionText("Hungary"), "Hung-ga-ri");
+  assert.equal(getVnCountrySearchTextForOptionText("Panama"), "Pa-na-ma");
+  assert.deepEqual(buildAntSelectSearchTerms("China").slice(0, 6), [
+    "China",
+    "Chin",
+    "Chi",
+    "Ch",
+    "C",
+    "Trung Quốc",
+  ]);
+  assert.deepEqual(buildAntSelectSearchTerms("Hungary").slice(0, 7), [
+    "Hungary",
+    "Hungar",
+    "Hunga",
+    "Hung",
+    "Hun",
+    "Hu",
+    "H",
+  ]);
+  assert.deepEqual(buildAntSelectSearchTerms("Panama"), [
+    "Panama",
+    "Panam",
+    "Pana",
+    "Pan",
+    "Pa",
+    "P",
+    "Pa-na-ma",
+    "Pa-na-m",
+    "Pa-na",
+    "Pa-n",
+    "",
+  ]);
 });

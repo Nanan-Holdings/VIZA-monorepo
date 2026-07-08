@@ -85,7 +85,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
       repeatable: true,
       repeat_group: "other_passports_used_for_vietnam",
       max_items: 5,
-      maxLength: 64,
+      maxLength: 9,
     },
     conditionalLogic: { showIf: "has_other_passports_used_for_vietnam === yes" },
   },
