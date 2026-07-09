@@ -175,6 +175,9 @@ const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 };
 
 const INDONESIA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Upload passport and photo": "上传护照和照片",
+  "Application form": "申请表",
+  "Review and submit": "审核并提交",
   Traveller: "旅客信息",
   "Traveller Information": "旅客信息",
   Passport: "护照",
@@ -3072,7 +3075,7 @@ export default function ApplicationPage() {
                   </h2>
                   {/* Panel card */}
                   <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
-                    {step.id === firstFormStepId && (
+                    {step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
                       <PassportOcrUpload
                         applicationId={appState.applicationId}
                         className="mb-6"
