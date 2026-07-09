@@ -76,4 +76,13 @@ describe("Vietnam pre-arrival official option mapping", () => {
 
     expect(__testables.filterOptionsByKeyword(options, "CN")[0]?.value).toBe("+86");
   });
+
+  it("prioritizes exact dialing-code matches before substring matches", () => {
+    const options = [
+      { value: "+965", text: "Kuwait (+965)", label_en: "Kuwait (+965)", label_zh: "科威特 (+965)", official_label: "Kuwait (+965)", code: "KW" },
+      { value: "+65", text: "Singapore (+65)", label_en: "Singapore (+65)", label_zh: "新加坡 (+65)", official_label: "Singapore (+65)", code: "SG" },
+    ];
+
+    expect(__testables.filterOptionsByKeyword(options, "65")[0]?.value).toBe("+65");
+  });
 });

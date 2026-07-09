@@ -187,6 +187,13 @@ const INDONESIA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   Declaration: "声明确认",
 };
 
+const VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Passenger Information": "旅客信息",
+  "Trip Information": "行程信息",
+  Review: "审核申请",
+  Confirmation: "确认",
+};
+
 const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Official e-Form Route": "官方 e-Form 路线",
   "Personal Details": "个人信息",
@@ -239,6 +246,10 @@ function localizeDynamicStepName(
     translate: ReturnType<typeof useTranslations>;
   },
 ): string {
+  if (options.visaType === "VN_PREARRIVAL_DECLARATION") {
+    return VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
   if (
     options.isZhInterface &&
     (options.visaType === "SG_ARRIVAL_CARD" ||
@@ -1886,7 +1897,9 @@ export default function ApplicationPage() {
         {
           id: reviewStepIndex,
           sourceName: "Review",
-          name: tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
+          name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
+            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Review
+            : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
         ...(showTeamStep
@@ -1902,7 +1915,9 @@ export default function ApplicationPage() {
         {
           id: statusStepIndex,
           sourceName: "Confirmation",
-          name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : isZhInterface ? "确认" : "Confirmation",
+          name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
+            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Confirmation
+            : tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : isZhInterface ? "确认" : "Confirmation",
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ]

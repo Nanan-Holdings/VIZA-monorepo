@@ -45,7 +45,7 @@ function payload(overrides: Record<string, string> = {}): SubmissionPayload {
       accommodation_type: "hotel",
       province_city_of_hotel: "Ho Chi Minh City",
       ward_commune_of_hotel: "Ben Nghe Ward",
-      accommodation_address: "1 Dong Khoi",
+      hotel_accommodation_address: "KSHCM_0001",
       final_declaration: "true",
       ...overrides,
     },
@@ -58,6 +58,19 @@ test("normalizes Vietnam Pre-Arrival portal payload without fallback", () => {
   assert.equal(normalized.realEmailAddress, "traveller@example.com");
   assert.equal(normalized.flightNumber, "VN0650_SGN");
   assert.equal(normalized.borderGateAirport, "SGN");
+  assert.equal(normalized.accommodationAddress, "KSHCM_0001");
+});
+
+test("normalizes non-hotel Vietnam Pre-Arrival accommodation from free-text address", () => {
+  const normalized = normalizeVnPrearrivalPortalPayload(payload({
+    accommodation_type: "residential",
+    province_city_of_hotel: "",
+    ward_commune_of_hotel: "",
+    hotel_accommodation_address: "",
+    accommodation_address: "Friend apartment, Hanoi",
+  }));
+
+  assert.equal(normalized.accommodationAddress, "Friend apartment, Hanoi");
 });
 
 test("rejects unsupported or missing Vietnam Pre-Arrival values with field list", () => {
