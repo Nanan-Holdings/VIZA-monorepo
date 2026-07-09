@@ -392,6 +392,37 @@ function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function getVietnamNow(): Date {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000);
+}
+
+function formatOfficialDateFromUtcDate(date: Date): string {
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function getVnPrearrivalArrivalDateOptions(): VisaFormFieldOption[] {
+  const vietnamNow = getVietnamNow();
+  const startOfVietnamToday = Date.UTC(
+    vietnamNow.getUTCFullYear(),
+    vietnamNow.getUTCMonth(),
+    vietnamNow.getUTCDate(),
+  );
+  return Array.from({ length: 3 }, (_, index) => {
+    const date = new Date(startOfVietnamToday + index * 24 * 60 * 60 * 1000);
+    const value = formatOfficialDateFromUtcDate(date);
+    return {
+      value,
+      text: value,
+      label_en: value,
+      label_zh: value,
+      official_label: value,
+    };
+  });
+}
+
 function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
@@ -710,6 +741,15 @@ function isSameCalendarDayValue(left?: string, right?: string): boolean {
   return Boolean(leftDate && rightDate && startOfDay(leftDate).getTime() === startOfDay(rightDate).getTime());
 }
 
+function getAirportCodeFromFlightValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const underscoreMatch = trimmed.match(/_([A-Z]{3})$/);
+  if (underscoreMatch) return underscoreMatch[1];
+  const dashMatch = trimmed.match(/-\s*([A-Z]{3})$/);
+  return dashMatch?.[1] ?? "";
+}
+
 function normalizeTdacTransitValue(values: Record<string, string>): Record<string, string> {
   const sameDayTransit = isSameCalendarDayValue(values.arrival_date, values.departure_date);
   const next: Record<string, string> = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
@@ -873,6 +913,8 @@ function getLocalFieldIssue(
     pattern?: string;
     allow_year_only?: boolean;
     min_date?: "today";
+    max_days_from_today?: number;
+    submission_window_hours?: number;
     not_before_today?: boolean;
     not_before_field?: string;
     after_or_equal_field?: string;
@@ -945,9 +987,24 @@ function getLocalFieldIssue(
   }
 
   if (currentDate && (rules?.min_date === "today" || rules?.not_before_today)) {
-    const today = startOfDay(new Date());
+    const today = startOfDay(getVietnamNow());
     if (startOfDay(currentDate) < today) {
       return issue("error", isZh ? "日期不能早于今天" : "Date cannot be earlier than today");
+    }
+  }
+
+  if (currentDate && typeof rules?.max_days_from_today === "number") {
+    const today = startOfDay(getVietnamNow());
+    const maxDate = startOfDay(new Date(today));
+    maxDate.setDate(maxDate.getDate() + Math.max(0, rules.max_days_from_today));
+    if (startOfDay(currentDate) > maxDate) {
+      const hours = rules.submission_window_hours ?? (rules.max_days_from_today + 1) * 24;
+      return issue(
+        "error",
+        isZh
+          ? `此申报只能在入境前 ${hours} 小时内填写`
+          : `This declaration can only be completed within ${hours} hours before arrival`,
+      );
     }
   }
 
@@ -1931,9 +1988,15 @@ export function DynamicStepForm({
   const vnPrearrivalRemoteFields = useMemo(
     () =>
       visaType === "VN_PREARRIVAL_DECLARATION"
-        ? step.fields.filter((field) => Boolean(getVnPrearrivalOfficialSource(field)))
+        ? step.fields.filter((field) => {
+            const source = getVnPrearrivalOfficialSource(field);
+            if (!source) return false;
+            if (field.fieldName === "phone_country_code") return false;
+            const parentKey = getVnPrearrivalDependsOn(field);
+            return getVnPrearrivalStaticOptions(source, parentKey ? values[parentKey] ?? "" : "") === null;
+          })
         : [],
-    [step.fields, visaType],
+    [step.fields, values, visaType],
   );
   const vnPrearrivalParentSnapshot = useMemo(
     () =>
@@ -2262,6 +2325,13 @@ export function DynamicStepForm({
 
     setValues((prev) => {
       const next = { ...prev, [fieldName]: value };
+      if (visaType === "VN_PREARRIVAL_DECLARATION" && fieldName === "expected_arrival_date") {
+        next.flight_number = "";
+        next.border_gate_airport = "";
+      }
+      if (visaType === "VN_PREARRIVAL_DECLARATION" && fieldName === "flight_number") {
+        next.border_gate_airport = getAirportCodeFromFlightValue(value);
+      }
       const dependents = getDependentFields(fieldName);
       for (const dep of dependents) {
         const depField = step.fields.find((f) => f.fieldName === dep);
@@ -2496,6 +2566,9 @@ export function DynamicStepForm({
   // Required validation: only check visible fields (and all instances of repeat groups)
   const requiredFilled = visibleFields
     .filter((f) => isRequiredField(f))
+    // File fields are mirrored from official portals for parity, but the
+    // actual upload state is managed by Document Center.
+    .filter((f) => f.fieldType !== "file")
     // Annex-I-style starred fields: required_unless exempts the field when its
     // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
     // skip fields 21/22/30/31/32 of the Schengen form).
@@ -2512,6 +2585,7 @@ export function DynamicStepForm({
     });
 
   const blockingErrorsClear = visibleFields.every((f) => {
+    if (f.fieldType === "file") return true;
     const group = getRepeatGroup(f);
     if (group) {
       const count = groupCounts[group] ?? 1;
@@ -2559,16 +2633,27 @@ export function DynamicStepForm({
     }
     const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);
     const vnPrearrivalKey = vnPrearrivalSource ? vnPrearrivalOptionKey(field) : null;
+    const isVnPrearrivalArrivalDateField =
+      visaType === "VN_PREARRIVAL_DECLARATION" && field.fieldName === "expected_arrival_date";
+    let hasVnPrearrivalStaticOptions = false;
+    if (visaType === "VN_PREARRIVAL_DECLARATION" && field.fieldName === "phone_country_code") {
+      hasVnPrearrivalStaticOptions = true;
+    }
+    if (isVnPrearrivalArrivalDateField) {
+      fieldOptions = getVnPrearrivalArrivalDateOptions();
+      hasVnPrearrivalStaticOptions = true;
+    }
     if (vnPrearrivalSource) {
       const parentKey = getVnPrearrivalDependsOn(field);
       const staticOptions = getVnPrearrivalStaticOptions(vnPrearrivalSource, parentKey ? values[parentKey] ?? "" : "");
       if (staticOptions) {
+        hasVnPrearrivalStaticOptions = true;
         fieldOptions = field.fieldName === "phone_country_code" && staticOptions.length === 0
           ? fieldOptions
           : staticOptions;
       }
     }
-    if (vnPrearrivalKey) {
+    if (vnPrearrivalKey && !hasVnPrearrivalStaticOptions) {
       const remoteOptions = vnPrearrivalOptions[vnPrearrivalKey] ?? [];
       const selectedValue = values[valueKey]?.trim();
       const hasSelectedValue =
@@ -2603,10 +2688,15 @@ export function DynamicStepForm({
       const isKoreaAddressSearchSelect =
         field.fieldName === "address_in_korea" &&
         (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
-      const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey);
+      const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
+      const vnReadOnlyRules = field.validationRules as { read_only?: boolean; locked_by?: string } | null;
+      const isVnPrearrivalReadOnly =
+        visaType === "VN_PREARRIVAL_DECLARATION" &&
+        Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && values[vnReadOnlyRules.locked_by]));
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: `${valueKey}-${side}`,
+        fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
         label: getLocalizedFieldLabel(field, side),
         required: isRequiredField(field),
         placeholder: getLocalizedPlaceholder(
@@ -2630,7 +2720,7 @@ export function DynamicStepForm({
             handleChange(valueKey, nextValue);
           }}
           forceWhiteBackground={forceWhiteBackground}
-          disabled={lt24Disabled || tdacTransitCheckboxLocked}
+          disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
           displayLocale={side}
           onSearchQuery={
             isKoreaAddressSearchSelect
@@ -2659,6 +2749,7 @@ export function DynamicStepForm({
 
     const guidanceField: VisaFormFieldRow = {
       ...field,
+      fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };

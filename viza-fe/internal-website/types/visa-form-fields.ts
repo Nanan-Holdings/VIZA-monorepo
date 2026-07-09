@@ -10,6 +10,10 @@ export type VisaFormFieldOption =
       label_zh?: string;
       label_en?: string;
       official_label?: string;
+      searchText?: string;
+      code?: string;
+      airport?: string;
+      airline?: string;
     };
 
 export interface VisaFormFieldRow {

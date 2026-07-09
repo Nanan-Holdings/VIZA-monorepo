@@ -1,16 +1,12 @@
 /**
- * Seed script: visa_form_fields for Indonesia C1 Tourist Single Entry Visa.
+ * Seed script: visa_form_fields for Indonesia B1 e-VoA.
  *
- * This mirrors the official Indonesia eVisa portal controls observed in the
- * live C1 flow:
- *   1. Upload passport bio page and newest formal photo.
- *   2. Fill personal information, passport information, Indonesia stay
- *      address, payment method, and official supporting document upload.
- *   3. Review declarations and submit.
+ * B1 and C1 are separate VIZA packages, but both are submitted through the
+ * official Indonesia eVisa portal and share the same applicant form controls.
  *
  * Official portal: https://evisa.imigrasi.go.id/
  *
- * Run: npx tsx scripts/seed-id-c1-tourist-form-fields.ts
+ * Run: npx tsx scripts/seed-id-b1-evoa-form-fields.ts
  */
 
 import * as dotenv from "dotenv";
@@ -40,9 +36,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 seedIndonesiaOfficialEVisaFields({
   supabase,
-  visaType: "ID_C1_TOURIST",
+  visaType: "ID_B1_EVOA",
   fields: INDONESIA_OFFICIAL_EVISA_FIELDS.map((field) =>
-    toBilingualSeedRow("ID_C1_TOURIST", field),
+    toBilingualSeedRow("ID_B1_EVOA", field),
   ),
 }).catch((err) => {
   console.error(err);
