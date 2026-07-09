@@ -8,6 +8,7 @@ import {
 } from "../index";
 import {
   extractIndonesiaOtpCode,
+  isIndonesiaBillingCodeOnlyPaymentSnapshot,
   isExpiredIndonesiaApplicationText,
   normalizeIndonesiaPaymentWaitState,
   shouldSubmitIndonesiaPortalEmailOtp,
@@ -104,9 +105,30 @@ test("treats VIZA-managed Indonesia alias with a vault password as a reusable po
 
 test("detects Indonesia payment-expired portal dialog keys", () => {
   assert.equal(isExpiredIndonesiaApplicationText("Failed sas.messages.payment_expired OK"), true);
-  assert.equal(isExpiredIndonesiaApplicationText("Payment has expired. Please create a new application."), true);
+  assert.equal(isExpiredIndonesiaApplicationText("Payment has expired. Please create a new application."), false);
   assert.equal(isExpiredIndonesiaApplicationText("Status: Expired"), true);
   assert.equal(isExpiredIndonesiaApplicationText("Payment is waiting for OTP verification"), false);
+  assert.equal(
+    isExpiredIndonesiaApplicationText("Visa Application Waiting For Payment If the billing has expired, the application will be cancelled."),
+    false,
+  );
+});
+
+test("detects Indonesia C1 billing-code-only payment pages as not card-payable", () => {
+  assert.equal(
+    isIndonesiaBillingCodeOnlyPaymentSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}front/application/49df3a52-ee47-456c-b8ef-890f814cbfe7`,
+      text: "Visa Application Waiting For Payment Billing Code 820260709556906 Payment Instruction Print Invoice",
+    }),
+    true,
+  );
+  assert.equal(
+    isIndonesiaBillingCodeOnlyPaymentSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}front/application/49df3a52-ee47-456c-b8ef-890f814cbfe7`,
+      text: "Visa Application Waiting For Payment Make a Payment Credit Card Number CVV",
+    }),
+    false,
+  );
 });
 
 test("extracts Indonesia email OTP from quoted-printable portal wording", () => {
@@ -279,6 +301,20 @@ test("does not auto-submit bank payment OTP with email OTP automation", () => {
       text: "Enter OTP Code OTP Code Submit",
     }),
     true,
+  );
+  assert.equal(
+    shouldSubmitIndonesiaPortalEmailOtp({
+      url: `${INDONESIA_C1_PORTAL_URL}front/login/otp`,
+      text: "Enter OTP Code Use the code below to continue the login process Submit",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldSubmitIndonesiaPortalEmailOtp({
+      url: `${INDONESIA_C1_PORTAL_URL}front/login/otp`,
+      text: "Payment OTP Code Bank 3DS verification Card CVV Submit",
+    }),
+    false,
   );
 });
 

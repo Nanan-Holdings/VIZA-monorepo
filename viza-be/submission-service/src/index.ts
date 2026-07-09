@@ -6762,6 +6762,13 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       /itinerary/i,
       /flight/i,
     ]);
+    const bankStatementPath = firstLocalDocumentPathMatching(localDocPaths, [
+      /bank.*statement/i,
+      /personal.*bank/i,
+      /financial.*statement/i,
+      /proof.*fund/i,
+      /funds?/i,
+    ]);
     const passportSupportPath = firstLocalDocumentPathMatching(localDocPaths, [
       /passport.*pdf/i,
       /passport_bio_page/i,
@@ -6864,6 +6871,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         passportImagePath,
         photoImagePath,
         returnTicketPath,
+        bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
+          ? bankStatementPath
+          : undefined,
         passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
           ? passportSupportPath
           : undefined,
@@ -6913,6 +6923,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
           passportImagePath,
           photoImagePath,
           returnTicketPath,
+          bankStatementPath: bankStatementPath && /\.pdf$/i.test(bankStatementPath)
+            ? bankStatementPath
+            : undefined,
           passportSupportPath: passportSupportPath && /\.pdf$/i.test(passportSupportPath)
             ? passportSupportPath
             : undefined,

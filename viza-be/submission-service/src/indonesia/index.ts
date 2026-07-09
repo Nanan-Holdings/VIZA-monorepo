@@ -44,6 +44,7 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   passportImagePath?: string | null;
   photoImagePath?: string | null;
   returnTicketPath?: string | null;
+  bankStatementPath?: string | null;
   passportSupportPath?: string | null;
   profile?: {
     fullName?: string | null;
@@ -284,7 +285,15 @@ export async function runIndonesiaLiveSubmission(
         passportExpiryDate: readFirst(input.answers, ["passport_expiry_date", "passport_expiration_date", "valid_until", "passport_date_of_expiry"]) ?? input.profile?.passportExpiryDate,
         passportIssuePlace: readFirst(input.answers, ["passport_place_of_issue", "passport_issuance_city", "passport_issuing_authority"]) ?? input.profile?.passportIssuingAuthority,
         residenceType: readFirst(input.answers, ["residence_type", "accommodation_type", "stay_type"]) ?? "HOTEL",
-        addressInIndonesia: normalized.accommodationAddress ?? readFirst(input.answers, ["address_in_indonesia", "us_address_street1", "us_address_street"]),
+        addressInIndonesia: normalized.accommodationAddress ??
+          readFirst(input.answers, [
+            "address_in_indonesia",
+            "hotel_address",
+            "accommodation_address",
+            "place_of_stay",
+            "indonesia_stay_address",
+          ]) ??
+          "Jalan MH Thamrin No. 1, Menteng, Jakarta Pusat",
         postalCode: readFirst(input.answers, ["postal_code", "indonesia_postal_code"]),
         province: readFirst(input.answers, ["province", "province_name", "indonesia_province"]),
         city: normalized.accommodationName?.match(/jakarta/i) ? "JAKARTA" : readFirst(input.answers, ["city", "city_name", "accommodation_city_or_district", "indonesia_city"]),
@@ -294,6 +303,7 @@ export async function runIndonesiaLiveSubmission(
         passportImagePath: input.passportImagePath,
         photoImagePath: input.photoImagePath,
         returnTicketPath: input.returnTicketPath,
+        bankStatementPath: input.bankStatementPath,
         passportSupportPath: input.passportSupportPath,
       },
       headless: input.portalProbeHeadless ?? true,

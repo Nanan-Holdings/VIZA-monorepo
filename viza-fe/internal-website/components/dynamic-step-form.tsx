@@ -26,6 +26,7 @@ import {
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
+import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 import { countries } from "country-data-list";
 
 interface DynamicStepFormProps {
@@ -630,6 +631,23 @@ function getVnPrearrivalDependsOn(field: VisaFormFieldRow): string | null {
 
 function vnPrearrivalOptionKey(field: VisaFormFieldRow): string {
   return `${field.fieldName}:${getVnPrearrivalOfficialSource(field) ?? ""}`;
+}
+
+function getVnPrearrivalLoadingText(source: string | null, side: BilingualSide): string {
+  if (!source) return side === "zh" ? "正在加载官方选项..." : "Loading official options...";
+  if (source.endsWith(":flight")) {
+    return side === "zh" ? "正在加载官方航班列表..." : "Loading official flight list...";
+  }
+  if (source.endsWith(":hotel")) {
+    return side === "zh" ? "正在加载官方酒店地址..." : "Loading official hotel addresses...";
+  }
+  if (source.endsWith(":country_code")) {
+    return side === "zh" ? "正在加载电话区号..." : "Loading country calling codes...";
+  }
+  if (source.endsWith(":visa_issue_place")) {
+    return side === "zh" ? "正在加载对应签证类型的签发地点..." : "Loading issue places for this visa type...";
+  }
+  return side === "zh" ? "正在加载官方选项..." : "Loading official options...";
 }
 
 function findCanonicalOptionValue(
@@ -1917,6 +1935,32 @@ export function DynamicStepForm({
         : [],
     [step.fields, visaType],
   );
+  const vnPrearrivalParentSnapshot = useMemo(
+    () =>
+      vnPrearrivalRemoteFields
+        .map((field) => {
+          const parentKey = getVnPrearrivalDependsOn(field);
+          return parentKey ? `${parentKey}:${values[parentKey] ?? ""}` : "";
+        })
+        .join("|"),
+    [values, vnPrearrivalRemoteFields],
+  );
+
+  useEffect(() => {
+    if (vnPrearrivalRemoteFields.length === 0) return;
+    setVnPrearrivalQueries((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const field of vnPrearrivalRemoteFields) {
+        const key = vnPrearrivalOptionKey(field);
+        if (!(key in next)) {
+          next[key] = "";
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [vnPrearrivalRemoteFields]);
 
   useEffect(() => {
     if (vnPrearrivalRemoteFields.length === 0) return;
@@ -1930,6 +1974,14 @@ export function DynamicStepForm({
       if (!field || !source) return;
       const parentKey = getVnPrearrivalDependsOn(field);
       const parent = parentKey ? valuesRef.current[parentKey] ?? "" : "";
+      const waitsForKeyword =
+        (source.endsWith(":flight") || source.endsWith(":hotel")) &&
+        keyword.trim().length < 2;
+      if (waitsForKeyword) {
+        setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
+        setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
+        return;
+      }
       if (source.endsWith("administrative_unit_level2") && !parent.trim()) {
         setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
         setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
@@ -1941,7 +1993,7 @@ export function DynamicStepForm({
         const params = new URLSearchParams({
           source,
           keyword,
-          limit: "100",
+          limit: source.endsWith(":flight") || source.endsWith(":hotel") ? "100" : "10000",
         });
         if (parent.trim()) params.set("parent", parent.trim());
         const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`, {
@@ -1949,10 +2001,36 @@ export function DynamicStepForm({
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        const options = Array.isArray(payload.options) ? payload.options : [];
         setVnPrearrivalOptions((current) => ({
           ...current,
-          [key]: Array.isArray(payload.options) ? payload.options : [],
+          [key]: options,
         }));
+        if (field.fieldName === "phone_country_code") {
+          const currentValue = valuesRef.current[field.fieldName]?.trim();
+          const matchingCodeOption = currentValue
+            ? options.find((option) => {
+                if (typeof option === "string") return false;
+                const optionWithCode = option as { value?: string; code?: string };
+                return optionWithCode.code === currentValue && optionWithCode.value !== currentValue;
+              })
+            : null;
+          if (matchingCodeOption && typeof matchingCodeOption !== "string") {
+            const normalizedValue = (matchingCodeOption as { value: string }).value;
+            valuesRef.current = { ...valuesRef.current, [field.fieldName]: normalizedValue };
+            setValues((current) => ({ ...current, [field.fieldName]: normalizedValue }));
+          }
+        }
+        if (options.length > 0 && getVnPrearrivalDependsOn(field)) {
+          const currentValue = valuesRef.current[field.fieldName]?.trim();
+          const stillValid = currentValue
+            ? options.some((option) => typeof option !== "string" && option.value === currentValue)
+            : true;
+          if (currentValue && !stillValid) {
+            valuesRef.current = { ...valuesRef.current, [field.fieldName]: "" };
+            setValues((current) => ({ ...current, [field.fieldName]: "" }));
+          }
+        }
       } catch (error) {
         if ((error as { name?: string }).name !== "AbortError") {
           setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
@@ -1968,7 +2046,7 @@ export function DynamicStepForm({
       controller.abort();
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [vnPrearrivalQueries, vnPrearrivalRemoteFields]);
+  }, [vnPrearrivalParentSnapshot, vnPrearrivalQueries, vnPrearrivalRemoteFields]);
 
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
@@ -2481,6 +2559,15 @@ export function DynamicStepForm({
     }
     const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);
     const vnPrearrivalKey = vnPrearrivalSource ? vnPrearrivalOptionKey(field) : null;
+    if (vnPrearrivalSource) {
+      const parentKey = getVnPrearrivalDependsOn(field);
+      const staticOptions = getVnPrearrivalStaticOptions(vnPrearrivalSource, parentKey ? values[parentKey] ?? "" : "");
+      if (staticOptions) {
+        fieldOptions = field.fieldName === "phone_country_code" && staticOptions.length === 0
+          ? fieldOptions
+          : staticOptions;
+      }
+    }
     if (vnPrearrivalKey) {
       const remoteOptions = vnPrearrivalOptions[vnPrearrivalKey] ?? [];
       const selectedValue = values[valueKey]?.trim();
@@ -2490,7 +2577,7 @@ export function DynamicStepForm({
           if (typeof option === "string") return option === selectedValue;
           return option.value === selectedValue;
         });
-      fieldOptions = remoteOptions.length > 0 || (field.validationRules as { remote_search?: unknown } | null)?.remote_search === true
+      fieldOptions = remoteOptions.length > 0
         ? field.fieldName === "phone_country_code" && remoteOptions.length === 0
           ? fieldOptions
           : selectedValue && !hasSelectedValue
@@ -2558,6 +2645,13 @@ export function DynamicStepForm({
               : vnPrearrivalKey
                 ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
                 : false
+          }
+          loadingText={
+            isKoreaAddressSearchSelect
+              ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
+              : isVnPrearrivalRemoteSelect
+                ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
+                : undefined
           }
         />
       );

@@ -128,6 +128,7 @@ interface DynamicFormFieldProps {
   displayLocale?: "zh" | "en";
   onSearchQuery?: (query: string) => void;
   searching?: boolean;
+  loadingText?: string;
 }
 
 function getMaxLengthRule(field: VisaFormFieldRow): number | undefined {
@@ -184,11 +185,11 @@ function FieldWrapper({
 function normaliseOptions(
   opts: VisaFormFieldRow["options"],
   side: "zh" | "en",
-): Array<{ value: string; text: string }> {
+): Array<{ value: string; text: string; searchText: string }> {
   const localizedOptions = resolveLocalizedOptions(opts, side);
   if (!localizedOptions || !Array.isArray(localizedOptions)) return [];
   return localizedOptions.map((o) => {
-    if (typeof o === "string") return { value: o, text: cleanOptionDisplayText(o) };
+    if (typeof o === "string") return { value: o, text: cleanOptionDisplayText(o), searchText: o };
     if (typeof o === "object" && o !== null) {
       const obj = o as { value?: string; text?: string; label_en?: string; label_zh?: string; official_label?: string };
       const text = side === "zh"
@@ -197,9 +198,10 @@ function normaliseOptions(
       return {
         value: obj.value ?? "",
         text: cleanOptionDisplayText(text),
+        searchText: [obj.value, obj.text, obj.label_en, obj.label_zh, obj.official_label].filter(Boolean).join(" "),
       };
     }
-    return { value: String(o), text: cleanOptionDisplayText(String(o)) };
+    return { value: String(o), text: cleanOptionDisplayText(String(o)), searchText: String(o) };
   });
 }
 
@@ -225,16 +227,18 @@ function SearchableSelectControl({
   sideLocale,
   onSearchQuery,
   searching,
+  loadingText,
 }: {
   value: string;
   onChange: (value: string) => void;
-  options: Array<{ value: string; text: string }>;
+  options: Array<{ value: string; text: string; searchText?: string }>;
   placeholder: string;
   disabled: boolean;
   whiteControlClass: string;
   sideLocale: "zh" | "en";
   onSearchQuery?: (query: string) => void;
   searching?: boolean;
+  loadingText?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -242,11 +246,25 @@ function SearchableSelectControl({
   const normalizedQuery = normalizeSearchText(query);
   const matchedOptions = useMemo(() => {
     if (!normalizedQuery) return options;
-    return options.filter((option) => {
-      const haystack = normalizeSearchText(`${option.text} ${option.value}`);
-      return haystack.includes(normalizedQuery);
-    });
+    return options
+      .filter((option) => {
+        const haystack = normalizeSearchText(`${option.text} ${option.value} ${option.searchText ?? ""}`);
+        return haystack.includes(normalizedQuery);
+      })
+      .sort((left, right) => {
+        const rank = (option: { value: string; text: string }) => {
+          const normalizedValue = normalizeSearchText(option.value);
+          const valueWithoutPlus = normalizedValue.replace(/^\+/, "");
+          const normalizedText = normalizeSearchText(option.text);
+          if (normalizedValue === normalizedQuery || valueWithoutPlus === normalizedQuery) return 0;
+          if (normalizedText.startsWith(normalizedQuery)) return 1;
+          if (normalizedText.includes(`(${normalizedQuery})`) || normalizedText.includes(`(+${normalizedQuery})`)) return 2;
+          return 3;
+        };
+        return rank(left) - rank(right);
+      });
   }, [normalizedQuery, options]);
+  const visibleOptions = matchedOptions.slice(0, 100);
   const searchPlaceholder = sideLocale === "zh"
     ? "搜索中文、英文或官方选项..."
     : "Search Chinese, English, or official option...";
@@ -306,14 +324,14 @@ function SearchableSelectControl({
           className="overscroll-auto overflow-y-auto p-1"
           style={{ maxHeight: "min(220px, calc(100vh - 270px))" }}
         >
-          {searching ? (
+          {searching && options.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">
-              {sideLocale === "zh" ? "正在搜索官方地址..." : "Searching official addresses..."}
+              {loadingText ?? (sideLocale === "zh" ? "正在加载官方选项..." : "Loading official options...")}
             </div>
           ) : matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (
-            matchedOptions.map((option, index) => (
+            visibleOptions.map((option, index) => (
               <button
                 key={`${option.value}-${option.text}-${index}`}
                 type="button"
@@ -570,6 +588,7 @@ export function DynamicFormField({
   displayLocale,
   onSearchQuery,
   searching = false,
+  loadingText,
 }: DynamicFormFieldProps) {
   const t = useTranslations("applicationSteps");
   const locale = useLocale();
@@ -755,6 +774,7 @@ export function DynamicFormField({
               sideLocale={sideLocale}
               onSearchQuery={onSearchQuery}
               searching={searching}
+              loadingText={loadingText}
             />
           </FieldWrapper>
         );
