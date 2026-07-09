@@ -107,6 +107,13 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
       : null;
   const landBorderGate = modeOfTravel === "land" ? requireAnswer(payload, "land_border_gate", missing) : null;
   const seaPort = modeOfTravel === "sea" ? requireAnswer(payload, "sea_port", missing) : null;
+  const accommodationType = requireAnswer(payload, "accommodation_type", missing);
+  const usesHotelDropdown = accommodationType === "hotel";
+  const provinceCityOfHotel = usesHotelDropdown ? requireAnswer(payload, "province_city_of_hotel", missing) : "";
+  const wardCommuneOfHotel = usesHotelDropdown ? requireAnswer(payload, "ward_commune_of_hotel", missing) : "";
+  const accommodationAddress = usesHotelDropdown
+    ? requireAnswer(payload, "hotel_accommodation_address", missing)
+    : requireAnswer(payload, "accommodation_address", missing);
 
   const normalized: VnPrearrivalPortalPayload = {
     applicationId: payload.applicationId,
@@ -137,10 +144,10 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
     vehicleIdentificationNumber,
     landBorderGate,
     seaPort,
-    accommodationType: requireAnswer(payload, "accommodation_type", missing),
-    provinceCityOfHotel: requireAnswer(payload, "province_city_of_hotel", missing),
-    wardCommuneOfHotel: requireAnswer(payload, "ward_commune_of_hotel", missing),
-    accommodationAddress: requireAnswer(payload, "accommodation_address", missing),
+    accommodationType,
+    provinceCityOfHotel,
+    wardCommuneOfHotel,
+    accommodationAddress,
     workplaceInformation: answer(payload, "workplace_information") || null,
     departureDateFromVietnam: answer(payload, "departure_date_from_vietnam") || null,
     finalDeclaration: requireBooleanTrue(payload, "final_declaration", missing),

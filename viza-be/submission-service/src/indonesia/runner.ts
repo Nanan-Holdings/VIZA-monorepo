@@ -90,6 +90,7 @@ export interface IndonesiaApplicationFormInput {
   passportImagePath?: string | null;
   photoImagePath?: string | null;
   returnTicketPath?: string | null;
+  bankStatementPath?: string | null;
   passportSupportPath?: string | null;
 }
 
@@ -316,9 +317,9 @@ function visaPatternFor(
   visaType?: IndonesiaPortalProbeInput["visaType"],
 ): RegExp {
   if (provider === "indonesia_b1_evoa_live" || visaType === "ID_B1_EVOA") {
-    return /^B1\s+-\s+Tourist/i;
+    return /^B1\b/i;
   }
-  return /^C1\s+-\s+Tourist Single Entry/i;
+  return /^C1\b/i;
 }
 
 async function selectNativeOptionByText(
@@ -1281,23 +1282,52 @@ async function continueFromVisaSelection(
   page: Page,
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
-): Promise<void> {
+): Promise<boolean> {
   const passportCountry = normalizeCountryLabel(input.passportCountry);
-  await selectNativeOptionByText(page, "#selectCountry", new RegExp(`^${passportCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
-  await selectNativeOptionByText(page, "#selectParentActivity", new RegExp(`^${INDONESIA_GENERAL_VISIT_PARENT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
-  await selectNativeOptionByText(page, "#selectActivity", new RegExp(`^${INDONESIA_TOURISM_ACTIVITY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"));
+  const countrySelected = await selectNativeOptionByText(page, "#selectCountry", new RegExp(`^${passportCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"))
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(`indonesia_visa_selection_country_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return false;
+    });
+  if (!countrySelected) return false;
+  const parentSelected = await selectNativeOptionByText(page, "#selectParentActivity", new RegExp(`^${INDONESIA_GENERAL_VISIT_PARENT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"))
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(`indonesia_visa_selection_parent_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return false;
+    });
+  if (!parentSelected) return false;
+  const activitySelected = await selectNativeOptionByText(page, "#selectActivity", new RegExp(`^${INDONESIA_TOURISM_ACTIVITY.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"))
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(`indonesia_visa_selection_activity_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return false;
+    });
+  if (!activitySelected) return false;
   const visaLabel = await selectNativeOptionByText(
     page,
     "#selectVisa",
     visaPatternFor(input.provider, input.visaType),
-  );
+  ).catch((error: unknown) => {
+    diagnostics.push(`indonesia_visa_selection_visa_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+    return null;
+  });
+  if (!visaLabel) return false;
   diagnostics.push(`indonesia_visa_selection_completed visa=${visaLabel}`);
 
   const applicationLink = page.locator('a.btn.btn-primary[href*="application_add"]').first();
-  await applicationLink.waitFor({ state: "attached", timeout: 20_000 });
+  const linkReady = await applicationLink.waitFor({ state: "attached", timeout: 20_000 })
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(`indonesia_visa_selection_application_link_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return false;
+    });
+  if (!linkReady) return false;
   const href = await applicationLink.getAttribute("href");
   if (!href || href === "javascript:void(0);") {
-    throw new Error("Indonesia official portal did not expose an application_add URL after visa selection");
+    diagnostics.push("indonesia_visa_selection_application_link_missing");
+    return false;
   }
   const applicationUrl = new URL(href, page.url()).toString();
   await page.goto(applicationUrl, {
@@ -1306,6 +1336,7 @@ async function continueFromVisaSelection(
   });
   await page.waitForTimeout(2_000);
   diagnostics.push("indonesia_official_application_url_opened");
+  return true;
 }
 
 async function continueFromAccountLogin(
@@ -1376,6 +1407,10 @@ async function continueFromAccountLogin(
   await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
   if (/\/front\/login/i.test(page.url())) {
+    if (await continueFromIndonesiaOtpPage(page, input, diagnostics)) {
+      diagnostics.push("indonesia_account_login_otp_submitted");
+      return true;
+    }
     const solvedRetryCaptcha = await solveIndonesiaRecaptchaIfPresent(page, diagnostics, "login_retry").catch((error: unknown) => {
       diagnostics.push(`indonesia_recaptcha_login_retry_failed ${error instanceof Error ? error.message : String(error)}`);
       return false;
@@ -1387,6 +1422,10 @@ async function continueFromAccountLogin(
         await page.waitForTimeout(3_000);
         if (!/\/front\/login/i.test(page.url())) {
           diagnostics.push("indonesia_account_login_submitted_after_recaptcha_retry");
+          return true;
+        }
+        if (await continueFromIndonesiaOtpPage(page, input, diagnostics)) {
+          diagnostics.push("indonesia_account_login_otp_submitted_after_recaptcha_retry");
           return true;
         }
       }
@@ -1408,9 +1447,11 @@ async function continueFromAccountLogin(
       diagnostics.push(`indonesia_account_login_messages ${visibleMessages.join(" | ").slice(0, 300)}`);
     }
     if (visibleMessages.some((message) => /authenticated failed|invalid|incorrect|failed/i.test(message))) {
+      await captureRegistrationArtifact(page, input, diagnostics);
       diagnostics.push("indonesia_account_login_failed_try_registration");
       return false;
     }
+    await captureRegistrationArtifact(page, input, diagnostics);
     diagnostics.push("indonesia_account_login_still_on_login_try_registration");
     return false;
   }
@@ -1715,7 +1756,7 @@ async function continueFromApplicationStepOne(
       return false;
     }
     diagnostics.push("indonesia_step_1_uploaded_and_advanced");
-    await page.waitForURL((nextUrl) => /\/step_[23]\b|\/web\/applications\/.+\/list\b/i.test(nextUrl.toString()), {
+    await page.waitForURL((nextUrl) => /\/step_[23]\b|\/(?:web|front)\/applications\/.+\/list\b/i.test(nextUrl.toString()), {
       timeout: 10_000,
     }).catch(() => undefined);
     await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
@@ -1748,6 +1789,7 @@ async function fillIndonesiaStayAndSupportFieldsIfPresent(
   touched = await fillIfPresent(page, "#email", input.accountEmail ?? application.email) || touched;
   touched = await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email) || touched;
   touched = await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath) || touched;
+  touched = await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath) || touched;
   if (touched) diagnostics.push(`${label}_stay_support_fields_filled`);
   return touched;
 }
@@ -2327,7 +2369,7 @@ async function navigateToDerivedPaymentUrlFromApplicationsList(
   diagnostics: string[],
 ): Promise<boolean> {
   const currentUrl = page.url();
-  const match = /\/web\/applications\/([^/]+)\/list/i.exec(currentUrl);
+  const match = /\/(?:web|front)\/applications\/([^/]+)\/list/i.exec(currentUrl);
   if (!match?.[1]) return false;
   const appId = match[1];
   let base: string | null = null;
@@ -2371,23 +2413,21 @@ function isExistingApplicationWarningText(value: string): boolean {
 
 export function isExpiredIndonesiaApplicationText(value: string): boolean {
   const normalized = clean(value)?.toLowerCase() ?? "";
+  if (/waiting\s+for\s+payment|menunggu\s+pembayaran|make\s+a\s+payment/i.test(normalized)) {
+    return false;
+  }
   return /application\s+expired/i.test(normalized) ||
     /payment[_\s-]*expired/i.test(normalized) ||
     /sas\.messages\.payment_expired/i.test(normalized) ||
-    /payment\s+has\s+expired/i.test(normalized) ||
-    /payment\s+is\s+expired/i.test(normalized) ||
     /\bstatus\s*[:\s]+expired\b/i.test(normalized) ||
     /\bexpired\b/i.test(normalized) && /transaction number|visitor visa number|passport number|visa type|action/i.test(normalized) ||
     /expired\s+application/i.test(normalized) ||
-    /expired.*visa/i.test(normalized) ||
-    /visa\s+application\s+.*\bexpired\b/i.test(normalized) ||
     /permohonan\s+terkadaluarsa/i.test(normalized) ||
     /permohonan\s+telah\s+kedaluwarsa/i.test(normalized) ||
     /permohonan\s+kadaluarsa/i.test(normalized) ||
     /permohonan\s+kedaluwarsa/i.test(normalized) ||
     /sudah\s+kadaluarsa/i.test(normalized) ||
     /telah\s+kedaluwarsa/i.test(normalized) ||
-    /pembayaran.*(?:kedaluwarsa|kadaluarsa)/i.test(normalized) ||
     /expired.*step/i.test(normalized) ||
     /tanggal\s+berakhir/i.test(normalized);
 }
@@ -2417,10 +2457,10 @@ function isReusableIndonesiaApplicationUrl(value: string | null | undefined): va
   const cleanUrl = clean(value);
   if (!cleanUrl) return false;
   if (!/^https:\/\/evisa\.imigrasi\.go\.id\//i.test(cleanUrl)) return false;
-  if (/\/web\/visa-selection\b/i.test(cleanUrl)) return false;
-  if (/\/web\/application-detail-otp\//i.test(cleanUrl)) return false;
+  if (/\/(?:web|front)\/visa-selection\b/i.test(cleanUrl)) return false;
+  if (/\/(?:web|front)\/application-detail-otp\//i.test(cleanUrl)) return false;
   if (/\/application_add\//i.test(cleanUrl) && !/\/step_[23]\b/i.test(cleanUrl)) return false;
-  return /\/web\/applications\/.+\/list\b/i.test(cleanUrl) ||
+  return /\/(?:web|front)\/applications\/.+\/list\b/i.test(cleanUrl) ||
     /\/application_add\/visa\/.+\/step_[23]\b/i.test(cleanUrl) ||
     /pay|payment|checkout/i.test(cleanUrl);
 }
@@ -2456,6 +2496,45 @@ async function reopenIndonesiaPortalFromScratch(
     timeout: input.timeoutMs ?? 60_000,
   });
   await page.waitForTimeout(1500);
+}
+
+export function isIndonesiaBillingCodeOnlyPaymentSnapshot(input: {
+  url: string | null | undefined;
+  text: string | null | undefined;
+}): boolean {
+  const url = input.url ?? "";
+  const text = (input.text ?? "").replace(/\s+/g, " ").trim();
+  if (!/evisa\.imigrasi\.go\.id/i.test(url)) return false;
+  if (!/waiting\s+for\s+payment|menunggu\s+pembayaran/i.test(text)) return false;
+  if (!/billing\s+code|kode\s+billing/i.test(text)) return false;
+  if (!/print\s+invoice/i.test(text)) return false;
+  if (/make\s+a\s+payment|pay\s+by\s+card|credit\s+card\s+number|nomor\s+kartu|cardholder|cvv|kode\s+keamanan/i.test(text)) {
+    return false;
+  }
+  return true;
+}
+
+async function isIndonesiaBillingCodeOnlyPaymentPage(page: Page): Promise<boolean> {
+  const text = await page.locator("body").innerText({ timeout: 3_000 }).catch(() => "");
+  if (!isIndonesiaBillingCodeOnlyPaymentSnapshot({ url: page.url(), text })) return false;
+  return page
+    .evaluate(() => {
+      const hasBillingCode = Boolean(document.querySelector<HTMLInputElement>("#billingCode")?.value?.trim());
+      const controls = Array.from(document.querySelectorAll<HTMLElement>("a,button,[role='button'],input[type='button'],input[type='submit']"))
+        .map((element) => [
+          element.textContent ?? "",
+          element.getAttribute("href") ?? "",
+          element.getAttribute("id") ?? "",
+          element.getAttribute("class") ?? "",
+          element.getAttribute("onclick") ?? "",
+        ].join(" ").replace(/\s+/g, " "));
+      const hasCardPaymentControl = controls.some((description) =>
+        /make\s+a\s+payment|pay\s+by\s+card|credit\s+card|debit\s+card|finpay|card/i.test(description) &&
+        !/print\s+invoice/i.test(description),
+      );
+      return hasBillingCode && !hasCardPaymentControl;
+    })
+    .catch(() => true);
 }
 
 async function findSavedIndonesiaApplicationUrl(
@@ -2506,7 +2585,7 @@ async function findSavedIndonesiaApplicationUrl(
   }
   unique.sort((a, b) => {
     const score = (value: string): number => {
-      if (isPaymentGatewayOrFlowUrl(value) || /\/web\/applications\/.+\/list\b/i.test(value)) return 0;
+      if (isPaymentGatewayOrFlowUrl(value) || /\/(?:web|front)\/applications\/.+\/list\b/i.test(value)) return 0;
       if (/\/step_3\b/i.test(value)) return 1;
       if (/\/step_2\b/i.test(value)) return 2;
       return 3;
@@ -2564,6 +2643,29 @@ async function continueFromApplicationStepTwo(
     diagnostics.push("indonesia_step_2_missing_application_input");
     return false;
   }
+  const selectedOnlinePayment = await page
+    .evaluate(() => {
+      const online = document.querySelector<HTMLInputElement>("#paymentMethod-ONLINE");
+      const offline = document.querySelector<HTMLInputElement>("#paymentMethod-OFFLINE");
+      if (!online) return "missing";
+      online.checked = true;
+      online.setAttribute("checked", "checked");
+      online.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      online.dispatchEvent(new Event("input", { bubbles: true }));
+      online.dispatchEvent(new Event("change", { bubbles: true }));
+      if (offline) {
+        offline.checked = false;
+        offline.removeAttribute("checked");
+        offline.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      const selected = document.querySelector<HTMLInputElement>("input[name='paymentMethod']:checked");
+      return selected?.id ?? "none";
+    })
+    .catch((error: unknown) => {
+      diagnostics.push(`indonesia_step_2_payment_method_select_error ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+      return "error";
+    });
+  diagnostics.push(`indonesia_step_2_payment_method_selected ${selectedOnlinePayment}`);
   await input.onStage?.("step_2_started", {
     url: page.url(),
     title: await page.title().catch(() => null),
@@ -2608,6 +2710,11 @@ async function continueFromApplicationStepTwo(
 
   await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath);
   await input.onStage?.("step_2_uploaded_return_ticket", {
+    url: page.url(),
+    title: await page.title().catch(() => null),
+  });
+  await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath);
+  await input.onStage?.("step_2_uploaded_bank_statement", {
     url: page.url(),
     title: await page.title().catch(() => null),
   });
@@ -2715,7 +2822,7 @@ async function continueFromApplicationStepThree(
       await captureApplicationStepArtifact(page, input, diagnostics, 3);
     }
   }
-  if (/\/web\/applications\/.+\/list\b/i.test(page.url())) {
+  if (/\/(?:web|front)\/applications\/.+\/list\b/i.test(page.url())) {
     await continueFromApplicationList(page, input, diagnostics);
   }
   return true;
@@ -2727,7 +2834,7 @@ async function continueFromApplicationList(
   diagnostics: string[],
   options: { onExpiredApplication?: () => void } = {},
 ): Promise<boolean> {
-  if (!/\/web\/applications\/.+\/list\b/i.test(page.url())) return false;
+  if (!/\/(?:web|front)\/applications\/.+\/list\b/i.test(page.url())) return false;
   await input.onStage?.("application_list_visible", {
     url: page.url(),
     title: await page.title().catch(() => null),
@@ -2821,7 +2928,7 @@ async function navigateToWaitingPaymentDetail(page: Page, diagnostics: string[])
         if (!/waiting\s+for\s+payment|menunggu\s+pembayaran|belum\s+bayar/i.test(text)) continue;
         const link = Array.from(row.querySelectorAll<HTMLAnchorElement>("a[href]"))
           .map((anchor) => anchor.getAttribute("href") ?? "")
-          .find((value) => /\/web\/application\/.+\/detail/i.test(value));
+          .find((value) => /\/(?:web\/application\/.+\/detail|front\/application\/[a-f0-9-]+)/i.test(value));
         if (link) return link;
       }
       return null;
@@ -2835,8 +2942,8 @@ async function navigateToWaitingPaymentDetail(page: Page, diagnostics: string[])
   await page.goto(new URL(href, page.url()).toString(), { waitUntil: "domcontentloaded", timeout: 30_000 }).catch((error: unknown) => {
     diagnostics.push(`indonesia_application_list_waiting_payment_detail_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
   });
-  return /\/web\/application\/.+\/detail/i.test(page.url()) ||
-    /\/web\/application-detail-otp\//i.test(page.url());
+  return /\/(?:web\/application\/.+\/detail|front\/application\/[a-f0-9-]+)/i.test(page.url()) ||
+    /\/(?:web|front)\/application-detail-otp\//i.test(page.url());
 }
 
 async function submitIndonesiaDraftApplicationFromList(page: Page, diagnostics: string[]): Promise<boolean> {
@@ -3103,7 +3210,8 @@ async function continueFromIndonesiaOtpPage(
   diagnostics: string[],
 ): Promise<boolean> {
   const text = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  if (!shouldSubmitIndonesiaPortalEmailOtp({ url: page.url(), text })) {
+  const otpControlsVisible = await hasIndonesiaPortalEmailOtpControls(page);
+  if (!shouldSubmitIndonesiaPortalEmailOtp({ url: page.url(), text }) && !otpControlsVisible) {
     return false;
   }
   await dismissIndonesiaDialogs(page, diagnostics);
@@ -3167,26 +3275,64 @@ async function continueFromIndonesiaOtpPage(
   return true;
 }
 
+async function hasIndonesiaPortalEmailOtpControls(page: Page): Promise<boolean> {
+  return page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const controls = Array.from(document.querySelectorAll<HTMLInputElement>("input"))
+        .filter((input) => !input.disabled && input.type !== "hidden" && visible(input));
+      if (controls.some((input) => {
+        const haystack = `${input.id} ${input.name} ${input.placeholder} ${input.autocomplete} ${input.className}`;
+        return /otp|one.?time|verification.?code|kode/i.test(haystack);
+      })) {
+        return true;
+      }
+      return controls.filter((input) => {
+        const maxLength = Number(input.getAttribute("maxlength") ?? input.maxLength);
+        return maxLength === 1 || maxLength === 6;
+      }).length >= 4;
+    })
+    .catch(() => false);
+}
+
 export function shouldSubmitIndonesiaPortalEmailOtp(input: {
   url: string | null | undefined;
   text?: string | null;
 }): boolean {
   const url = input.url ?? "";
+  const text = (input.text ?? "").replace(/\s+/g, " ").trim().toLowerCase();
   if (!/evisa\.imigrasi\.go\.id/i.test(url)) return false;
-  return /\/web\/application-detail-otp\//i.test(url);
+  if (
+    /\/payment\/otp\b|\/(?:web|front)\/payment\b|\/pg\/payment\b|finpay/i.test(url) ||
+    /\b(payment|pembayaran|bayar|bank|3ds|3d secure|card|kartu|cvv|rp\s*\d)/i.test(text)
+  ) {
+    return false;
+  }
+  if (/\/(?:web|front)\/application-detail-otp\//i.test(url)) return true;
+  return (
+    /\/front\/login|\/login|\/otp|verification/i.test(url) &&
+    /\b(enter otp|otp code|one time password|verification code|authentication code|kode otp|kode verifikasi|login process|masuk ke akun)\b/i.test(text)
+  );
 }
 
 async function continueFromIndonesiaPaymentDetail(
   page: Page,
   diagnostics: string[],
 ): Promise<boolean> {
-  if (!/\/web\/application\/.+\/detail/i.test(page.url())) return false;
+  if (!/\/(?:web\/application\/.+\/detail|front\/application\/[a-f0-9-]+)/i.test(page.url())) return false;
   const href = await page
     .evaluate(() => {
       const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
       const makePayment = links.find((link) =>
         /make\s+a\s+payment|payment/i.test((link.innerText || link.textContent || "").replace(/\s+/g, " ")) &&
-        /\/web\/payment\//i.test(link.getAttribute("href") ?? ""),
+        /\/(?:web|front)\/payment\//i.test(link.getAttribute("href") ?? ""),
       );
       return makePayment?.getAttribute("href") ?? null;
     })
@@ -3201,7 +3347,7 @@ async function continueFromIndonesiaPaymentDetail(
     diagnostics.push(`indonesia_payment_detail_make_payment_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
   });
   await page.waitForTimeout(3_000);
-  return page.url() !== targetUrl || /\/web\/payment\//i.test(page.url()) || isPaymentGatewayOrFlowUrl(page.url());
+  return page.url() !== targetUrl || /\/(?:web|front)\/payment\//i.test(page.url()) || isPaymentGatewayOrFlowUrl(page.url());
 }
 
 async function waitForUserPaymentCompletion(
@@ -3695,6 +3841,17 @@ export async function probeIndonesiaPortal(
       title = await page.title().catch(() => null);
       text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
     }
+    if (
+      savedApplicationUrl &&
+      input.userPaymentHandoff?.oneTimeCard &&
+      await isIndonesiaBillingCodeOnlyPaymentPage(page)
+    ) {
+      session.diagnostics.push("indonesia_starting_url_billing_code_only_restarting_for_card_payment");
+      savedApplicationUrl = null;
+      await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+      title = await page.title().catch(() => null);
+      text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+    }
     let url = page.url();
     let state = classifyIndonesiaPortalSnapshot({ url, title, text });
     let expiredDiagnosticCursor = 0;
@@ -3730,7 +3887,26 @@ export async function probeIndonesiaPortal(
         advanced = true;
       }
 
-      if (!advanced && shouldSubmitIndonesiaPortalEmailOtp({ url, text })) {
+      if (
+        !advanced &&
+        state === "payment_required" &&
+        input.userPaymentHandoff?.oneTimeCard &&
+        await isIndonesiaBillingCodeOnlyPaymentPage(page)
+      ) {
+        session.diagnostics.push("indonesia_running_flow_detected_billing_code_only_restarting_for_card_payment");
+        savedApplicationUrl = null;
+        await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+        title = await page.title().catch(() => null);
+        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+        url = page.url();
+        state = classifyIndonesiaPortalSnapshot({ url, title, text });
+        advanced = true;
+      }
+
+      if (!advanced && (
+        shouldSubmitIndonesiaPortalEmailOtp({ url, text }) ||
+        await hasIndonesiaPortalEmailOtpControls(page)
+      )) {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
       }
 
@@ -3762,9 +3938,8 @@ export async function probeIndonesiaPortal(
             advanced = true;
           }
         }
-      } else if (state === "visa_selection_visible" || url.includes("/web/visa-selection")) {
-        await continueFromVisaSelection(page, input, session.diagnostics);
-        advanced = true;
+      } else if (state === "visa_selection_visible" || /\/(?:web|front)\/visa-selection/i.test(url)) {
+        advanced = await continueFromVisaSelection(page, input, session.diagnostics);
       } else if (state === "login_required" || state === "registration_required") {
         advanced = await continueFromAccountGate(page, input, session.diagnostics);
         if (advanced && savedApplicationUrl) {
@@ -3781,7 +3956,7 @@ export async function probeIndonesiaPortal(
         advanced = await continueFromApplicationStepTwo(page, input, session.diagnostics);
       } else if (/\/step_3\b/i.test(url)) {
         advanced = await continueFromApplicationStepThree(page, input, session.diagnostics);
-      } else if (/\/web\/applications\/.+\/list\b/i.test(url)) {
+      } else if (/\/(?:web|front)\/applications\/.+\/list\b/i.test(url)) {
         advanced = await continueFromApplicationList(page, input, session.diagnostics, {
           onExpiredApplication: () => {
             savedApplicationUrl = null;
