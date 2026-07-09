@@ -1962,8 +1962,18 @@ export default function ApplicationPage() {
   } satisfies Record<StepSectionKey, string>;
 
   const groupedSections = useMemo(
-    () => (useDynamic ? buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles) : []),
-    [dynamicSectionTitles, sourceOrderedSteps, useDynamic],
+    () => {
+      if (!useDynamic) return [];
+      const sections = buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles);
+      if (!isIndonesiaEVisa) return sections;
+
+      return sections.map((section, index) =>
+        index === 0 && section.key === "review"
+          ? { ...section, title: isZhInterface ? "申请" : "Apply" }
+          : section,
+      );
+    },
+    [dynamicSectionTitles, isIndonesiaEVisa, isZhInterface, sourceOrderedSteps, useDynamic],
   );
 
   // Final list of steps in display order: flattened from grouped sections so
