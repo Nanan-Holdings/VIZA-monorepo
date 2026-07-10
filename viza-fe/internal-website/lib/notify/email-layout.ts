@@ -44,7 +44,7 @@ export function escapeHtml(s: string): string {
  */
 function logoUrl(): string {
   const origin = (
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.haggstorm.com"
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.viza.it.com"
   ).replace(/\/+$/, "");
   return `${origin}/logo/viza-logo-blue.svg`;
 }
@@ -70,7 +70,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
 
   const footer =
     input.footer ??
-    `VIZA · <a href="https://haggstorm.com" style="color: ${BRAND_400}; text-decoration: none;">haggstorm.com</a>`;
+    `VIZA · <a href="https://viza.it.com" style="color: ${BRAND_400}; text-decoration: none;">viza.it.com</a>`;
 
   return `<!DOCTYPE html>
 <html>

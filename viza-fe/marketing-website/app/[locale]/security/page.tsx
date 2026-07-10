@@ -246,7 +246,7 @@ export default async function SecurityPage({ params }: { params: Promise<{ local
             </div>
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-              <a className="btn-hero-primary" href="mailto:security@viza.com">
+              <a className="btn-hero-primary" href="mailto:security@viza.it.com">
                 {t("vdp.ctaEmail")}
                 <ArrowIcon />
               </a>
@@ -402,7 +402,7 @@ export default async function SecurityPage({ params }: { params: Promise<{ local
         </div>
         <div className="right">
           <span className="lead">{t("cta.lead")}</span>
-          <a className="mail" href="mailto:security@viza.com">
+          <a className="mail" href="mailto:security@viza.it.com">
             <span className="ic">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>
             </span>

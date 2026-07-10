@@ -1217,7 +1217,7 @@
             "text": "— 向新加坡个人数据保护委员会（PDPC）、您当地的监管机构或任何有管辖权的数据保护监管机构投诉。"
           }
         ],
-        "requests": "请求会在 30 天内答复。请发送邮件至 <a>privacy@viza.com</a>，或使用门户内的请求表单。"
+        "requests": "请求会在 30 天内答复。请发送邮件至 <a>privacy@viza.it.com</a>，或使用门户内的请求表单。"
       },
       "security": {
         "num": "§ 07",
@@ -1267,8 +1267,8 @@
         "num": "§ 12",
         "title": "联系我们",
         "intro": "隐私问题、请求、投诉——均由同一地址受理。",
-        "email": "<strong>电子邮箱：</strong><a>privacy@viza.com</a>",
-        "dpo": "<strong>数据保护官：</strong><a>dpo@viza.com</a>",
+        "email": "<strong>电子邮箱：</strong><a>privacy@viza.it.com</a>",
+        "dpo": "<strong>数据保护官：</strong><a>dpo@viza.it.com</a>",
         "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>新加坡 PDPC：</strong><a>pdpc.gov.sg</a>"
       }
@@ -1320,7 +1320,7 @@
         "item1": "您必须年满 18 周岁方可以本人名义开设账户。",
         "item2": "账户凭据仅限本人使用，不得共享。",
         "item3": "您对在您账户下进行的一切操作负责。",
-        "item4": "如怀疑存在未经授权的访问，请立即发送邮件至 <a>security@viza.com</a> 通知我们。",
+        "item4": "如怀疑存在未经授权的访问，请立即发送邮件至 <a>security@viza.it.com</a> 通知我们。",
         "item5": "在法律要求或为防止欺诈时，我们可随时核验您的身份。"
       },
       "service": {
@@ -1438,8 +1438,8 @@
       "contact": {
         "num": "§ 15",
         "title": "联系方式",
-        "legal": "<strong>法律问题：</strong><a>legal@viza.com</a>",
-        "privacy": "<strong>隐私 / 数据请求：</strong><a>privacy@viza.com</a>",
+        "legal": "<strong>法律问题：</strong><a>legal@viza.it.com</a>",
+        "privacy": "<strong>隐私 / 数据请求：</strong><a>privacy@viza.it.com</a>",
         "address": "<strong>邮寄地址：</strong>225 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN：</strong>202312345A"
       }
@@ -1944,7 +1944,7 @@
       "tag": "▲ 漏洞披露计划 · 向所有研究者开放",
       "title": "发现了什么？<br></br><em>我们想听您说。</em>",
       "p1": "用户和合作伙伴的安全是我们的一切。如果您认为自己发现了影响 VIZA 服务的真实漏洞，请直接告诉我们——我们会以尊重、高效的方式与您一起修复它。",
-      "p2": "请将您的发现发送至 <strong>security@viza.com</strong>。即使问题已被知晓或不在范围内，我们也会在一个工作日内确认收到。",
+      "p2": "请将您的发现发送至 <strong>security@viza.it.com</strong>。即使问题已被知晓或不在范围内，我们也会在一个工作日内确认收到。",
       "meta": {
         "ack": {
           "k": "确认时间",
@@ -1963,15 +1963,15 @@
           "v": "0xVIZA · 2026"
         }
       },
-      "ctaEmail": "发邮件至 security@viza.com",
+      "ctaEmail": "发邮件至 security@viza.it.com",
       "ctaScope": "查看范围说明",
       "terminal": {
-        "title": "draft-report · security@viza.com",
+        "title": "draft-report · security@viza.it.com",
         "l1": "# 漏洞报告",
         "typeKey": "type:",
         "typeVal": "authentication-bypass",
         "urlKey": "url:",
-        "urlVal": "https://viza.com/apply/...",
+        "urlVal": "https://viza.it.com/apply/...",
         "reproKey": "repro:",
         "reproVal": "[步骤 1–4]",
         "impactKey": "impact:",
@@ -2080,7 +2080,7 @@
         },
         "updates": {
           "title": "计划更新",
-          "body": "VIZA 保留随时修改或终止本计划的权利。如果不确定您的研究是否符合政策，请在行动<em>之前</em>通过 security@viza.com 联系我们。",
+          "body": "VIZA 保留随时修改或终止本计划的权利。如果不确定您的研究是否符合政策，请在行动<em>之前</em>通过 security@viza.it.com 联系我们。",
           "meta": "最近修订 · 2026 年 5 月"
         }
       }
@@ -2089,7 +2089,7 @@
       "title": "发现异常？<br></br>告诉我们的安全团队。",
       "body": "我们宁可把一个小问题听两遍，也不愿错过一个大问题。报告会直达安全团队的真人——没有工单门户，没有分诊机器人。",
       "lead": "直达安全团队",
-      "email": "security@viza.com",
+      "email": "security@viza.it.com",
       "small": "响应中位时间——全年无休，24 小时以内。"
     },
     "footer": {

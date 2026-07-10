@@ -19,7 +19,7 @@ const STATIC_ROUTES = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.com").replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com").replace(/\/$/, "");
   const now = new Date();
 
   const visaRoutes = LAUNCHED_COUNTRIES.map((c) => visaHref(c.slug));

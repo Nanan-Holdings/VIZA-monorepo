@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   const to =
     process.env.CONTACT_INBOX_EMAIL ?? process.env.NOTIFY_FROM_EMAIL;
   const from =
-    process.env.NOTIFY_FROM_EMAIL ?? "VIZA <onboarding@resend.dev>";
+    process.env.NOTIFY_FROM_EMAIL ?? "VIZA <noreply@viza.it.com>";
   if (!to) {
     console.error("[contact] CONTACT_INBOX_EMAIL / NOTIFY_FROM_EMAIL not set");
     return NextResponse.json({ ok: false, error: "not_configured" }, { status: 500 });

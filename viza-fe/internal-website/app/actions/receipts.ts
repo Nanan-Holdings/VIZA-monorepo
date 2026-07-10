@@ -182,7 +182,7 @@ export async function mailReceiptOnPaid(orderId: string): Promise<void> {
   const pdfOrder = toPdfOrder(order, lines, app, profile);
   const pdf = buildReceiptPdf(pdfOrder);
   await sendEmail({
-    from: "VIZA <receipts@haggstorm.com>",
+    from: "VIZA <receipts@viza.it.com>",
     to: profile.email,
     subject: `Your VIZA receipt — order ${order.id}`,
     text:
