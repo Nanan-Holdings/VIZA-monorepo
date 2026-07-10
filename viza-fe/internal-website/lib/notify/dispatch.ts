@@ -126,7 +126,7 @@ export async function sendTransitionNotification(
     if (prefs.channel_email && a.email) {
       try {
         const result = await sendEmail({
-          from: "VIZA <updates@haggstorm.com>",
+          from: "VIZA <updates@viza.it.com>",
           to: a.email,
           subject: tpl.subject,
           text: tpl.text,

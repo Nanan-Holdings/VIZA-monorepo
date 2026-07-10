@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { withAdmin } from "@/lib/auth/with-admin";
 import {
   applyCheckoutPrefill,
@@ -7,6 +8,12 @@ import {
 } from "@/lib/checkout/prefill";
 import { pricingFor } from "@/lib/pricing";
 import { createCheckoutSession } from "@/lib/stripe/client";
+import {
+  getPhotonPayClient,
+  getPhotonPaySiteId,
+  isPhotonPayEnabled,
+} from "@/lib/photonpay/client";
+import { encodeReqId } from "@/lib/photonpay/reqid";
 
 /**
  * Pre-authentication guest card checkout (Stripe Checkout).
@@ -51,9 +58,25 @@ function stripeAmount(amountCents: number, currency: string): number {
     : amountCents;
 }
 
+// PhotonPay expects the ISO 4217 smallest unit — same arithmetic as Stripe's.
+function minorUnits(amountCents: number, currency: string): number {
+  return stripeAmount(amountCents, currency);
+}
+
+// PhotonPay's risk engine rejects empty/loopback/private shopper IPs; fall back
+// to a routable placeholder for local dev.
+function shopperIpFrom(hdrs: { get(name: string): string | null }): string {
+  const xff = (hdrs.get("x-forwarded-for") ?? "").split(",")[0].trim();
+  const ip = xff || (hdrs.get("x-real-ip") ?? "").trim();
+  if (!ip || /^(::1|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)) {
+    return "203.0.113.10";
+  }
+  return ip;
+}
+
 function siteUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.haggstorm.com"
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.viza.it.com"
   ).replace(/\/+$/, "");
 }
 
@@ -204,9 +227,66 @@ export async function startCardCheckout(
       await applyCheckoutPrefill(admin, { applicantId, applicationId }, prefill);
     }
 
-    // 4. Mint the Stripe Checkout session. success → check-your-email;
-    //    cancel → back to the guest checkout page.
+    // 4. Mint the checkout session. success → check-your-email;
+    //    cancel → back to the guest checkout page. PhotonPay is used when it is
+    //    the configured gateway; otherwise Stripe (kept as a fallback).
     const origin = siteUrl();
+    const successUrl = `${origin}/checkout/card/check-your-email?locale=${input.locale}`;
+    const cancelUrl = `${origin}/checkout/card?country=${encodeURIComponent(
+      input.country,
+    )}&visa=${encodeURIComponent(input.visaType)}&locale=${input.locale}`;
+
+    if (isPhotonPayEnabled()) {
+      const photon = getPhotonPayClient();
+      const siteId = getPhotonPaySiteId();
+      if (!photon || !siteId) {
+        throw new Error("PhotonPay is enabled but PHOTONPAY_* env is incomplete");
+      }
+      const reqId = encodeReqId(orderId, Date.now().toString(36));
+      const hdrs = await headers();
+      const notifyUrl =
+        process.env.PHOTONPAY_NOTIFY_URL ?? `${origin}/api/webhooks/photonpay`;
+      const session = await photon.createCashierSession({
+        reqId,
+        amountMinor: minorUnits(totalCents, pricing.currency),
+        currency: pricing.currency,
+        siteId,
+        goods: [
+          {
+            name: `VIZA — ${input.country}/${input.visaType}`,
+            virtual: true,
+            price: (totalCents / 100).toFixed(2),
+            quantity: "1",
+          },
+        ],
+        shopper: {
+          id: applicantId,
+          nickName: fullName,
+          platform: "pc",
+          shopperIp: shopperIpFrom(hdrs),
+          email,
+        },
+        risk: { fingerprintId: orderId, platform: "pc", retryTimes: "1" },
+        notifyUrl,
+        redirectUrl: successUrl,
+        autoRedirect: true,
+      });
+      if (!session.payRedirectUrl) {
+        throw new Error("PhotonPay did not return a hosted checkout URL");
+      }
+      await admin
+        .from("order")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+      return {
+        orderId,
+        url: session.payRedirectUrl,
+        amountCents: totalCents,
+        currency: pricing.currency,
+      };
+    }
+
+    // Default gateway: Stripe Checkout.
     const session = await createCheckoutSession({
       amountCents: stripeAmount(totalCents, pricing.currency),
       currency: pricing.currency,
@@ -215,10 +295,8 @@ export async function startCardCheckout(
       orderId,
       customerEmail: email,
       guestCheckout: true,
-      successUrl: `${origin}/checkout/card/check-your-email?locale=${input.locale}`,
-      cancelUrl: `${origin}/checkout/card?country=${encodeURIComponent(
-        input.country,
-      )}&visa=${encodeURIComponent(input.visaType)}&locale=${input.locale}`,
+      successUrl,
+      cancelUrl,
     });
 
     await admin

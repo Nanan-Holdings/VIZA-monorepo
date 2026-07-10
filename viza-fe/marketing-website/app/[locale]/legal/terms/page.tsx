@@ -81,7 +81,7 @@ export default async function TermsPage({
               <li>{t("sections.account.item1")}</li>
               <li>{t("sections.account.item2")}</li>
               <li>{t("sections.account.item3")}</li>
-              <li>{t.rich("sections.account.item4", { a: (chunks) => <a href="mailto:security@viza.com">{chunks}</a> })}</li>
+              <li>{t.rich("sections.account.item4", { a: (chunks) => <a href="mailto:security@viza.it.com">{chunks}</a> })}</li>
               <li>{t("sections.account.item5")}</li>
             </ul>
           </section>
@@ -198,8 +198,8 @@ export default async function TermsPage({
             <span className="section-num">{t("sections.contact.num")}</span>
             <h2>{t("sections.contact.title")}</h2>
             <ul>
-              <li>{t.rich("sections.contact.legal", { strong, a: (chunks) => <a href="mailto:legal@viza.com">{chunks}</a> })}</li>
-              <li>{t.rich("sections.contact.privacy", { strong, a: (chunks) => <a href="mailto:privacy@viza.com">{chunks}</a> })}</li>
+              <li>{t.rich("sections.contact.legal", { strong, a: (chunks) => <a href="mailto:legal@viza.it.com">{chunks}</a> })}</li>
+              <li>{t.rich("sections.contact.privacy", { strong, a: (chunks) => <a href="mailto:privacy@viza.it.com">{chunks}</a> })}</li>
               <li>{t.rich("sections.contact.address", { strong })}</li>
               <li>{t.rich("sections.contact.uen", { strong })}</li>
             </ul>

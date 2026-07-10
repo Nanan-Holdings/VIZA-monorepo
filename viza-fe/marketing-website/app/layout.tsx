@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { switzer, geist } from "./fonts";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://viza.it.com"),
   title: {
     default: "VIZA — AI-powered visa applications",
     template: "%s · VIZA",

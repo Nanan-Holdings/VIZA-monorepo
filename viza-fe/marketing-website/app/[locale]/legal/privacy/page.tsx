@@ -138,7 +138,7 @@ export default async function PrivacyPage({
             </ul>
             <p>
               {t.rich("sections.rights.requests", {
-                a: (chunks) => <a href="mailto:privacy@viza.com">{chunks}</a>,
+                a: (chunks) => <a href="mailto:privacy@viza.it.com">{chunks}</a>,
               })}
             </p>
           </section>
@@ -188,8 +188,8 @@ export default async function PrivacyPage({
             <h2>{t("sections.contact.title")}</h2>
             <p>{t("sections.contact.intro")}</p>
             <ul>
-              <li>{t.rich("sections.contact.email", { strong, a: (chunks) => <a href="mailto:privacy@viza.com">{chunks}</a> })}</li>
-              <li>{t.rich("sections.contact.dpo", { strong, a: (chunks) => <a href="mailto:dpo@viza.com">{chunks}</a> })}</li>
+              <li>{t.rich("sections.contact.email", { strong, a: (chunks) => <a href="mailto:privacy@viza.it.com">{chunks}</a> })}</li>
+              <li>{t.rich("sections.contact.dpo", { strong, a: (chunks) => <a href="mailto:dpo@viza.it.com">{chunks}</a> })}</li>
               <li>{t.rich("sections.contact.address", { strong })}</li>
               <li>{t.rich("sections.contact.pdpc", { strong, a: (chunks) => <a href="https://www.pdpc.gov.sg" target="_blank" rel="noopener">{chunks}</a> })}</li>
             </ul>

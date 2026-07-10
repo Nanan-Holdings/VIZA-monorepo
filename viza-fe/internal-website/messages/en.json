@@ -4216,7 +4216,7 @@
       },
       "contactSupport": {
         "question": "How do I contact support?",
-        "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com."
+        "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.it.com."
       }
     }
   },
@@ -4307,7 +4307,7 @@
       "hidePassword": "Hide password",
       "unexpectedError": "Could not create your account. Please try again.",
       "thankYou": "Thanks. We will email you if you are eligible for access.",
-      "urgentAccess": "For urgent access, contact support at support@viza.com.",
+      "urgentAccess": "For urgent access, contact support at support@viza.it.com.",
       "backToLogin": "Back to Login",
       "privacyPolicy": "Privacy Policy",
       "termsOfService": "Terms of Service",
@@ -4473,7 +4473,7 @@
       },
       "contact": {
         "title": "Contact us",
-        "p1": "If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.com."
+        "p1": "If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.it.com."
       }
     }
   },
@@ -4538,7 +4538,7 @@
       },
       "contact": {
         "title": "Contact us",
-        "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.com."
+        "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.it.com."
       }
     }
   },
