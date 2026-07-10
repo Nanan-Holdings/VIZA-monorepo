@@ -175,7 +175,7 @@ async function sendProofEmail(input: {
   const applicationLabel =
     typeof input.result.applicationId === "string" ? input.result.applicationId : input.applicationId;
   const sent = await sendEmail({
-    from: "VIZA <updates@haggstorm.com>",
+    from: "VIZA <updates@viza.it.com>",
     to: input.to,
     subject: `DS-160 confirmation ${applicationLabel}`,
     text:

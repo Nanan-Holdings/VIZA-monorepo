@@ -8,6 +8,6 @@ export function cn(...inputs: ClassValue[]) {
 export function portalUrl(path = "/client/login"): string {
   const base =
     process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/$/, "") ??
-    "https://app.viza.com";
+    "https://app.viza.it.com";
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }

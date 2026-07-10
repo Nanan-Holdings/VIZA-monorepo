@@ -101,7 +101,7 @@ function labelFor(country: string, locale: TemplateLocale): string {
 }
 
 function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.haggstorm.com";
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.viza.it.com";
 }
 
 export async function provisionAccountAndMagicLink(
@@ -218,7 +218,7 @@ export async function provisionAccountAndMagicLink(
       );
 
       await sendEmail({
-        from: process.env.NOTIFY_FROM_EMAIL ?? "VIZA <welcome@haggstorm.com>",
+        from: process.env.NOTIFY_FROM_EMAIL ?? "VIZA <welcome@viza.it.com>",
         to: profile.email,
         subject: rendered.subject,
         text: rendered.text,

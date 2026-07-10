@@ -1217,7 +1217,7 @@
             "text": "— with the Singapore PDPC, your local supervisory authority, or any data protection regulator with jurisdiction."
           }
         ],
-        "requests": "Requests are answered within 30 days. Email <a>privacy@viza.com</a> or use the in-portal request form."
+        "requests": "Requests are answered within 30 days. Email <a>privacy@viza.it.com</a> or use the in-portal request form."
       },
       "security": {
         "num": "§ 07",
@@ -1267,8 +1267,8 @@
         "num": "§ 12",
         "title": "Contact us",
         "intro": "Privacy questions, requests, complaints — same address.",
-        "email": "<strong>Email:</strong> <a>privacy@viza.com</a>",
-        "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.com</a>",
+        "email": "<strong>Email:</strong> <a>privacy@viza.it.com</a>",
+        "dpo": "<strong>Data Protection Officer:</strong> <a>dpo@viza.it.com</a>",
         "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
         "pdpc": "<strong>Singapore PDPC:</strong> <a>pdpc.gov.sg</a>"
       }
@@ -1320,7 +1320,7 @@
         "item1": "You must be at least 18 to open an account in your own name.",
         "item2": "Account credentials are personal and must not be shared.",
         "item3": "You are responsible for everything done under your account.",
-        "item4": "Notify us immediately at <a>security@viza.com</a> if you suspect unauthorised access.",
+        "item4": "Notify us immediately at <a>security@viza.it.com</a> if you suspect unauthorised access.",
         "item5": "We may verify your identity at any point as required by law or to prevent fraud."
       },
       "service": {
@@ -1438,8 +1438,8 @@
       "contact": {
         "num": "§ 15",
         "title": "Contact",
-        "legal": "<strong>Legal questions:</strong> <a>legal@viza.com</a>",
-        "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.com</a>",
+        "legal": "<strong>Legal questions:</strong> <a>legal@viza.it.com</a>",
+        "privacy": "<strong>Privacy / data requests:</strong> <a>privacy@viza.it.com</a>",
         "address": "<strong>Mailing address:</strong> 225 Pasir Panjang Rd, Singapore",
         "uen": "<strong>UEN:</strong> 202312345A"
       }
@@ -1944,7 +1944,7 @@
       "tag": "▲ Vulnerability disclosure · open to all researchers",
       "title": "Found something?<br></br><em>We want to hear about it.</em>",
       "p1": "The security of our users and partners is everything. If you believe you’ve identified a genuine vulnerability affecting VIZA services, we’d like you to tell us about it directly — and we’ll work with you respectfully and quickly to fix it.",
-      "p2": "Email your findings to <strong>security@viza.com</strong>. We’ll acknowledge receipt within one business day, even if it turns out to be already-known or out-of-scope.",
+      "p2": "Email your findings to <strong>security@viza.it.com</strong>. We’ll acknowledge receipt within one business day, even if it turns out to be already-known or out-of-scope.",
       "meta": {
         "ack": {
           "k": "Acknowledged in",
@@ -1963,15 +1963,15 @@
           "v": "0xVIZA · 2026"
         }
       },
-      "ctaEmail": "Email security@viza.com",
+      "ctaEmail": "Email security@viza.it.com",
       "ctaScope": "Read the scope",
       "terminal": {
-        "title": "draft-report · security@viza.com",
+        "title": "draft-report · security@viza.it.com",
         "l1": "# vulnerability report",
         "typeKey": "type:",
         "typeVal": "authentication-bypass",
         "urlKey": "url:",
-        "urlVal": "https://viza.com/apply/...",
+        "urlVal": "https://viza.it.com/apply/...",
         "reproKey": "repro:",
         "reproVal": "[steps 1–4]",
         "impactKey": "impact:",
@@ -2080,7 +2080,7 @@
         },
         "updates": {
           "title": "Program updates",
-          "body": "VIZA reserves the right to modify or terminate this program at any time. If you are unsure whether your research aligns with the policy, please contact us at security@viza.com <em>before</em> you proceed.",
+          "body": "VIZA reserves the right to modify or terminate this program at any time. If you are unsure whether your research aligns with the policy, please contact us at security@viza.it.com <em>before</em> you proceed.",
           "meta": "last revised · May 2026"
         }
       }
@@ -2089,7 +2089,7 @@
       "title": "See something off?<br></br>Tell our security team.",
       "body": "We’d rather hear about a small finding twice than miss a big one once. Reports go straight to a real human on the security team — no ticketing portal, no triage robot.",
       "lead": "Direct to security",
-      "email": "security@viza.com",
+      "email": "security@viza.it.com",
       "small": "Median response — under 24 hours, every day of the week."
     },
     "footer": {

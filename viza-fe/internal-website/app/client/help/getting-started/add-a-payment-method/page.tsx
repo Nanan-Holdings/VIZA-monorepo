@@ -25,7 +25,7 @@ export default function AddPaymentMethodPage() {
             {
               type: "list",
               items: [
-                "Contact our support team via the Concierge tab or by emailing support@viza.com.",
+                "Contact our support team via the Concierge tab or by emailing support@viza.it.com.",
                 "Let the team know the payment method you'd like to use (credit card, bank transfer, or GCash).",
                 "The team will securely record your details and confirm setup.",
               ],

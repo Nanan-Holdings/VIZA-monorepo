@@ -4302,7 +4302,7 @@
       },
       "contactSupport": {
         "question": "如何联系客服？",
-        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.com 联系我们。"
+        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.it.com 联系我们。"
       }
     }
   },
@@ -4393,7 +4393,7 @@
       "hidePassword": "隐藏密码",
       "unexpectedError": "无法创建账户，请重试。",
       "thankYou": "谢谢。如果您符合访问条件，我们将通过电子邮件通知您。",
-      "urgentAccess": "如需紧急访问，请联系 support@viza.com。",
+      "urgentAccess": "如需紧急访问，请联系 support@viza.it.com。",
       "backToLogin": "返回登录",
       "privacyPolicy": "隐私政策",
       "termsOfService": "服务条款",
@@ -4559,7 +4559,7 @@
       },
       "contact": {
         "title": "联系我们",
-        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.com。"
+        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.it.com。"
       }
     }
   },
@@ -4624,7 +4624,7 @@
       },
       "contact": {
         "title": "联系我们",
-        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.com。"
+        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.it.com。"
       }
     }
   },

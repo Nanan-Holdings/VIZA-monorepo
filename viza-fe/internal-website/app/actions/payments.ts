@@ -124,7 +124,7 @@ export async function startCheckoutForApplication(
       (pricing.govtFeeChannel === "viza_passthrough" ? pricing.govtFeeCents : 0);
 
     const origin =
-      process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.haggstorm.com";
+      process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.viza.it.com";
     const session = await createCheckoutSession({
       amountCents: stripeAmount(totalForCheckout, pricing.currency),
       currency: pricing.currency,

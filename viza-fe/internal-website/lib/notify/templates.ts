@@ -40,7 +40,7 @@ export interface TemplateContext {
   magicLink?: string;
 }
 
-const FOOTER = `\n\n— VIZA · haggstorm.com\nManage notifications: /client/account/notifications`;
+const FOOTER = `\n\n— VIZA · viza.it.com\nManage notifications: /client/account/notifications`;
 
 export interface RenderedTemplate {
   subject: string;
@@ -286,7 +286,7 @@ function renderPaidWelcome(
     subject,
     text:
       `${greeting}\n\n${body}\n\n${ctx.magicLink}\n\n(${copy.finePrint})\n` +
-      `\n— VIZA · haggstorm.com`,
+      `\n— VIZA · viza.it.com`,
     html: renderEmailLayout({
       title: subject,
       bodyHtml: emailBody(copy.heading, [
