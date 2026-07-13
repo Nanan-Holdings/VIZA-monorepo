@@ -42,6 +42,15 @@ const AGENCY_USD = 9900;
  * follow-on per-variant table.
  */
 export const PACKAGE_PRICING: PackagePricing[] = [
+  {
+    country: "viza_test",
+    visaType: "TEST_CHECKOUT",
+    agencyFeeCents: 50,
+    govtFeeCents: 0,
+    currency: "USD",
+    govtFeeChannel: "portal_direct",
+    wechatPayTotalFen: 360,
+  },
   // MKT-007: launch countries previously missing from pricing.
   {
     country: "saudi_arabia",
