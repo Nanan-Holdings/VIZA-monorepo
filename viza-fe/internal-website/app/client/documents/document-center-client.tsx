@@ -99,6 +99,8 @@ const REQUIREMENT_LABEL_ZH: Record<string, string> = {
   passport: "护照资料页",
   photo: "证件照",
   travel_itinerary: "旅行行程",
+  return_ticket: "返程或续程机票",
+  passport_validity_support: "护照有效期支持材料",
   bank_statement: "资金证明",
   flight_booking: "机票预订",
   hotel_booking: "住宿预订",
@@ -109,6 +111,8 @@ const REQUIREMENT_LABEL_EN: Record<string, string> = {
   passport: "Passport bio page",
   photo: "Passport-size photo",
   travel_itinerary: "Travel itinerary",
+  return_ticket: "Return or onward ticket",
+  passport_validity_support: "Passport validity support document",
   bank_statement: "Proof of funds",
   flight_booking: "Flight booking",
   hotel_booking: "Accommodation booking",
@@ -119,6 +123,9 @@ const REQUIREMENT_DESCRIPTION_ZH: Record<string, string> = {
   passport: "护照资料页的清晰扫描件或照片。",
   photo: "近期证件照，需符合目的地照片规范。",
   travel_itinerary: "按天的行程安排，包含日期、城市与主要活动。",
+  return_ticket: "官网要求提供返程机票或前往其他国家的续程机票，PDF 格式。",
+  passport_validity_support:
+    "官网支持材料：护照有效期至少 6 个月。若不是普通护照，旅行证件有效期需至少 12 个月。",
   bank_statement: "近期银行对账单或等效资金证明。",
   flight_booking: "如有，请提供机票预订或往返信息。",
   hotel_booking: "如有，请提供住宿预订或住宿确认。",
@@ -130,6 +137,10 @@ const REQUIREMENT_DESCRIPTION_EN: Record<string, string> = {
   photo: "A recent passport-style photo that follows the destination rules.",
   travel_itinerary:
     "A day-by-day itinerary with dates, cities, and main activities.",
+  return_ticket:
+    "Official requirement: return ticket or onward ticket to continue the journey to another country. PDF format.",
+  passport_validity_support:
+    "Official support document: passport valid for at least 6 months. Travel documents other than passports must be valid for at least 12 months.",
   bank_statement: "Recent bank statements or equivalent proof of funds.",
   flight_booking:
     "If available, provide flight bookings or round-trip travel details.",
@@ -675,7 +686,7 @@ function RequirementRow({
   const Icon =
     requirement.documentType === "photo"
       ? Camera
-      : requirement.documentType === "travel_itinerary"
+      : requirement.documentType === "travel_itinerary" || requirement.documentType === "return_ticket"
         ? Plane
         : FileText;
   const label = getRequirementLabel(requirement, isZh);

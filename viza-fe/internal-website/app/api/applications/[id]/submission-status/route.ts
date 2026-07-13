@@ -119,6 +119,20 @@ function isIndonesiaPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   );
 }
 
+function isIndonesiaPassportScanInvalidDataQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType") ?? queue.error_code;
+  const combined = [
+    checkpoint,
+    actionType,
+    queue.error_message,
+    queue.last_error,
+  ].filter(Boolean).join(" ");
+  return /step_1_passport_scan_invalid_data|official_passport_scan_invalid_data|indonesia_passport_scan_invalid_data/i.test(combined);
+}
+
 function normalizeVisaType(visaType: string | null | undefined): string {
   return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
 }
@@ -549,6 +563,18 @@ export function deriveNonTerminalStatus(
         queueMessage ??
         "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page.",
       error: queueMessage,
+    };
+  }
+
+  if (isIndonesiaPassportScanInvalidDataQueue(queue)) {
+    const message =
+      "Indonesia official portal could not read required fields from the passport image. Please upload a clearer, well-lit, landscape passport bio page image and retry.";
+    return {
+      status: "needs_user_action",
+      stage: "confirming_result",
+      progress: 99,
+      message,
+      error: message,
     };
   }
 
