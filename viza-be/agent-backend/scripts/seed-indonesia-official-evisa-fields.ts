@@ -233,7 +233,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
   },
   {
     field_name: "passport_country",
-    label: "Nationality",
+    label: "Passport/Country/Region",
     field_type: "country",
     required: true,
     step_number: 2,
@@ -242,9 +242,10 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     validation_rules: {
       official_field_id: "country_id",
       official_field_name: "country_id",
-      label_zh: "国籍",
-      official_label_zh: "Nationality",
+      label_zh: "护照所属国家/地区",
+      official_label_zh: "Passport/Country/Region",
       source: "ISO3166-1",
+      official_sync_targets: ["issuing_country"],
     },
   },
   {

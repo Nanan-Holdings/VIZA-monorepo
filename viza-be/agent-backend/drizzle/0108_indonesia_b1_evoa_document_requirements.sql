@@ -71,7 +71,7 @@ CROSS JOIN (
       'passport_validity_support',
       'Passport validity support document',
       '护照有效期支持材料',
-      'Official support document: passport valid for at least 6 months. For travel documents other than passports, validity must be at least 12 months. VIZA can generate this PDF from the passport bio page when possible.',
+      'Official support document: passport valid for at least 6 months. For travel documents other than passports, validity must be at least 12 months. PDF format only. VIZA can generate this PDF from the passport bio page when possible.',
       false,
       40,
       '{"document_type":"passport_validity_support","accept":[".pdf"],"source":"official_evisa_portal","auto_generatable":true}'::jsonb

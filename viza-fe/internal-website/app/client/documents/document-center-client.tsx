@@ -125,7 +125,7 @@ const REQUIREMENT_DESCRIPTION_ZH: Record<string, string> = {
   travel_itinerary: "按天的行程安排，包含日期、城市与主要活动。",
   return_ticket: "官网要求提供返程机票或前往其他国家的续程机票，PDF 格式。",
   passport_validity_support:
-    "官网支持材料：护照有效期至少 6 个月。若不是普通护照，旅行证件有效期需至少 12 个月。",
+    "官网支持材料：护照有效期至少 6 个月。若不是普通护照，旅行证件有效期需至少 12 个月。仅接受 PDF。",
   bank_statement: "近期银行对账单或等效资金证明。",
   flight_booking: "如有，请提供机票预订或往返信息。",
   hotel_booking: "如有，请提供住宿预订或住宿确认。",
@@ -140,7 +140,7 @@ const REQUIREMENT_DESCRIPTION_EN: Record<string, string> = {
   return_ticket:
     "Official requirement: return ticket or onward ticket to continue the journey to another country. PDF format.",
   passport_validity_support:
-    "Official support document: passport valid for at least 6 months. Travel documents other than passports must be valid for at least 12 months.",
+    "Official support document: passport valid for at least 6 months. Travel documents other than passports must be valid for at least 12 months. PDF format only.",
   bank_statement: "Recent bank statements or equivalent proof of funds.",
   flight_booking:
     "If available, provide flight bookings or round-trip travel details.",
