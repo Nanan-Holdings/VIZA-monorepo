@@ -43,7 +43,10 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_OPS_ALERT_TO: ${{ secrets.RESEND_OPS_ALERT_TO }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      IMAGE: ${{ env.SUBMISSION_IMAGE_REPOSITORY }}:${{ inputs.image_sha }}
+      # GitHub does not expose the workflow-level `env` context while it
+      # evaluates a job-level env map, so keep this immutable registry prefix
+      # literal here rather than making the workflow invalid before deploy.
+      IMAGE: ghcr.io/nanan-holdings/viza-submission-service:${{ inputs.image_sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
