@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import type { SgacPortalPayload } from "./normalize";
 import {
@@ -12,6 +13,12 @@ import {
 } from "../captcha";
 
 export const SGAC_OFFICIAL_PORTAL_URL = "https://eservices.ica.gov.sg/sgarrivalcard/fvipa";
+
+const SGAC_CAPTCHA_MAX_ATTEMPTS = readPositiveIntegerEnv("SGAC_CAPTCHA_MAX_ATTEMPTS", 10);
+const SGAC_CAPTCHA_SOLVE_TIMEOUT_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_SOLVE_TIMEOUT_MS", 150_000);
+const SGAC_CAPTCHA_REFRESH_WAIT_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_REFRESH_WAIT_MS", 30_000);
+const SGAC_CAPTCHA_SUBMIT_WAIT_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_SUBMIT_WAIT_MS", 30_000);
+const SGAC_CAPTCHA_SETTLE_MS = readPositiveIntegerEnv("SGAC_CAPTCHA_SETTLE_MS", 1_500);
 
 export class SgacPortalError extends Error {
   readonly code: string;
@@ -54,6 +61,11 @@ interface Handles {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readPositiveIntegerEnv(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 async function screenshot(page: Page, artifactDir: string, name: string): Promise<string> {
@@ -157,6 +169,10 @@ async function captureSecurityCaptchaImage(dialog: ReturnType<Page["locator"]>):
   return await dialog.screenshot({ timeout: 10_000 });
 }
 
+function captchaImageFingerprint(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
 async function containsLikelyCaptchaImage(dialog: Locator): Promise<boolean> {
   const images = dialog.locator("canvas, img");
   const count = await images.count();
@@ -227,13 +243,67 @@ function captchaSolveErrorSummary(error: unknown): string {
   return String(error);
 }
 
-async function refreshSecurityCaptcha(dialog: Locator, page: Page): Promise<void> {
-  const tryAnotherText = dialog.getByText(/Try another text/i).last();
-  if (await tryAnotherText.isVisible().catch(() => false)) {
-    await tryAnotherText.click().catch(() => undefined);
-  } else {
-    await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
+async function clickSecurityCaptchaRefreshControl(dialog: Locator, page: Page): Promise<boolean> {
+  const textRefresh = dialog.getByText(/Try another text|Refresh|Reload|Another/i).last();
+  if (await textRefresh.isVisible().catch(() => false)) {
+    await textRefresh.click({ timeout: 10_000 }).catch(() => undefined);
+    return true;
   }
+
+  const refreshControls = [
+    dialog.getByRole("button", { name: /Try another text|Refresh|Reload|Another/i }).last(),
+    dialog.locator("button, a, [role='button']").filter({ hasText: /Try another text|Refresh|Reload|Another/i }).last(),
+  ];
+  for (const control of refreshControls) {
+    if (await control.isVisible().catch(() => false)) {
+      await control.click({ timeout: 10_000 }).catch(() => undefined);
+      return true;
+    }
+  }
+
+  const iconRefresh = dialog.locator("[class*='refresh'], [class*='reload'], [aria-label*='refresh' i], [aria-label*='reload' i]").last();
+  if (await iconRefresh.isVisible().catch(() => false)) {
+    await iconRefresh.click({ timeout: 10_000 }).catch(() => undefined);
+    return true;
+  }
+
+  await clickVisibleRoleButton(page, /^Next$/i).catch(() => undefined);
+  return false;
+}
+
+async function refreshSecurityCaptcha(
+  target: SecurityVerificationTarget,
+  page: Page,
+  logs: string[],
+  attempt: number,
+  previousFingerprint?: string,
+): Promise<SecurityVerificationTarget | null> {
+  await target.input.fill("").catch(() => undefined);
+  const clickedRefresh = await clickSecurityCaptchaRefreshControl(target.dialog, page);
+  await page.waitForTimeout(1_000);
+
+  const deadline = Date.now() + SGAC_CAPTCHA_REFRESH_WAIT_MS;
+  let latestTarget: SecurityVerificationTarget | null = null;
+  while (Date.now() < deadline) {
+    latestTarget = await waitForSecurityVerificationTarget(page, 2_000);
+    if (!latestTarget) continue;
+
+    if (!previousFingerprint) return latestTarget;
+    const refreshedBuffer = await captureSecurityCaptchaImage(latestTarget.dialog).catch(() => null);
+    if (!refreshedBuffer) {
+      await page.waitForTimeout(500);
+      continue;
+    }
+    const refreshedFingerprint = captchaImageFingerprint(refreshedBuffer);
+    if (refreshedFingerprint !== previousFingerprint) {
+      logs.push(`sgac_captcha_refreshed attempt=${attempt} clickedRefresh=${clickedRefresh}`);
+      return latestTarget;
+    }
+    await page.waitForTimeout(750);
+  }
+
+  logs.push(`sgac_captcha_refresh_did_not_change_image attempt=${attempt} clickedRefresh=${clickedRefresh}`);
+  return latestTarget ?? await waitForSecurityVerificationTarget(page, 2_000);
 }
 
 async function solveSecurityVerificationIfPresent(
@@ -257,16 +327,18 @@ async function solveSecurityVerificationIfPresent(
     return;
   }
 
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
+  for (let attempt = 1; attempt <= SGAC_CAPTCHA_MAX_ATTEMPTS; attempt += 1) {
     const target = attempt === 1 ? initialTarget : await waitForSecurityVerificationTarget(page, 30_000);
     if (!target) {
       logs.push(`sgac_captcha_dialog_missing attempt=${attempt}`);
       break;
     }
-    const { dialog, input: captchaInput } = target;
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(SGAC_CAPTCHA_SETTLE_MS);
+    const { dialog } = target;
     const captchaBuffer = await captureSecurityCaptchaImage(dialog);
-    const solve = await solveImageCaptcha(captchaBuffer, 120_000, {
+    const captchaFingerprint = captchaImageFingerprint(captchaBuffer);
+    logs.push(`sgac_captcha_attempt attempt=${attempt} imageHash=${captchaFingerprint.slice(0, 12)} bytes=${captchaBuffer.length}`);
+    const solve = await solveImageCaptcha(captchaBuffer, SGAC_CAPTCHA_SOLVE_TIMEOUT_MS, {
       comment: "ICA SG Arrival Card security verification",
     }).catch(async (error: unknown) => {
       const summary = captchaSolveErrorSummary(error);
@@ -278,41 +350,51 @@ async function solveSecurityVerificationIfPresent(
           portalSummary: await visibleBodySummary(page),
         });
       }
-      await refreshSecurityCaptcha(dialog, page);
-      await waitForSecurityVerificationTarget(page, 30_000);
+      await refreshSecurityCaptcha(target, page, logs, attempt, captchaFingerprint);
       return null;
     });
     if (!solve) continue;
+    const answer = solve.text.trim();
+    if (!answer) {
+      logs.push(`sgac_captcha_empty_solver_answer attempt=${attempt} solveId=${solve.solveId}`);
+      await reportBadCaptcha(solve.solveId).catch(() => undefined);
+      await refreshSecurityCaptcha(target, page, logs, attempt, captchaFingerprint);
+      continue;
+    }
     logs.push(`sgac_captcha_solved attempt=${attempt} solveId=${solve.solveId}`);
-    await captchaInput.fill(solve.text.trim());
-    await dialog.getByRole("button", { name: /^Submit$/i }).last().click({ timeout: 20_000 });
+    const fillTarget = await waitForSecurityVerificationTarget(page, 10_000) ?? target;
+    await fillTarget.input.fill("");
+    await fillTarget.input.fill(answer);
+    await fillTarget.dialog.getByRole("button", { name: /^Submit$/i }).last().click({ timeout: 20_000 });
 
     await Promise.race([
       page.waitForFunction(
         () => !/Security Verification|Enter text here/i.test(document.body.innerText),
         null,
-        { timeout: 20_000 },
+        { timeout: SGAC_CAPTCHA_SUBMIT_WAIT_MS },
       ),
-      page.waitForTimeout(20_000),
+      page.waitForTimeout(SGAC_CAPTCHA_SUBMIT_WAIT_MS),
     ]);
     const body = await visibleBodySummary(page, 4000);
     if (/Incorrect captcha/i.test(body)) {
       logs.push(`sgac_captcha_wrong_answer attempt=${attempt}`);
       await reportBadCaptcha(solve.solveId).catch(() => undefined);
       await screenshot(page, artifactDir, `sgac-captcha-wrong-answer-${attempt}`).catch(() => "");
-      await refreshSecurityCaptcha(dialog, page);
-      await waitForSecurityVerificationTarget(page, 30_000);
+      const latestTarget = await waitForSecurityVerificationTarget(page, 5_000) ?? fillTarget;
+      await refreshSecurityCaptcha(latestTarget, page, logs, attempt, captchaFingerprint);
       continue;
     }
     if (!/Security Verification|Enter text here/i.test(body)) return;
 
     logs.push(`sgac_captcha_retry_required attempt=${attempt}`);
+    await reportBadCaptcha(solve.solveId).catch(() => undefined);
     await screenshot(page, artifactDir, `sgac-captcha-retry-${attempt}`).catch(() => "");
-    await refreshSecurityCaptcha(dialog, page);
+    const latestTarget = await waitForSecurityVerificationTarget(page, 5_000) ?? fillTarget;
+    await refreshSecurityCaptcha(latestTarget, page, logs, attempt, captchaFingerprint);
   }
 
   const shot = await screenshot(page, artifactDir, "sgac-captcha-failed");
-  throw new SgacPortalError("ICA SGAC security verification CAPTCHA could not be solved after refreshed retry attempts.", {
+  throw new SgacPortalError(`ICA SGAC security verification CAPTCHA could not be solved after ${SGAC_CAPTCHA_MAX_ATTEMPTS} refreshed retry attempts.`, {
     code: "sgac_captcha_unsolvable",
     screenshotPaths: [shot],
     portalSummary: await visibleBodySummary(page),

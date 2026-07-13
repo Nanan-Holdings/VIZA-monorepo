@@ -30,6 +30,15 @@ test("SGAC CAPTCHA solver refreshes and retries transient 2captcha failures", ()
   assert.match(source, /sgac_captcha_unsolvable/);
 });
 
+test("SGAC CAPTCHA solver waits for refreshed images and refinds the active input", () => {
+  const source = readFileSync(path.join(__dirname, "..", "runner.ts"), "utf8");
+  assert.match(source, /SGAC_CAPTCHA_MAX_ATTEMPTS/);
+  assert.match(source, /captchaImageFingerprint/);
+  assert.match(source, /sgac_captcha_refreshed/);
+  assert.match(source, /const fillTarget = await waitForSecurityVerificationTarget/);
+  assert.match(source, /sgac_captcha_empty_solver_answer/);
+});
+
 test("SGAC runner reports official declaration-limit errors explicitly", () => {
   const source = readFileSync(path.join(__dirname, "..", "runner.ts"), "utf8");
   assert.match(source, /maximum allowable SGAC declaration count/);
