@@ -79,6 +79,20 @@ const BASE_PRICE = 50 + 32 - 10;
 const SPEED_PRICE: Record<Speed, number> = { standard: 0, express: 28, superrush: 89 };
 const ADDON_PRICE: Record<Addon, number> = { insurance: 32, esim: 12 };
 
+const TEST_CHECKOUT_VISA_TYPE = "TEST_CHECKOUT";
+const TEST_CHECKOUT_PASSPORT: PassportExtraction = {
+  surname: "ZHANG",
+  givenNames: "EDWARD TEST",
+  dob: "1990-01-01",
+  sex: "Male",
+  nationality: "SGP",
+  passportNumber: "TEST0001",
+  issuingCountry: "SGP",
+  issueDate: "2026-01-01",
+  expiryDate: "2036-01-01",
+  confidence: "high",
+};
+
 // ISO 3166-1 alpha-3 → { alpha-2, English name }. Covers the destinations and
 // passport-issuing countries most relevant to the apply flow; falls back to the
 // raw alpha-3 code if a country isn't listed.
@@ -225,6 +239,7 @@ export default function ApplyPage() {
     if (c && countryBySlug(c)) setCountrySlug(c);
   }, []);
   const country = countryBySlug(countrySlug) ?? countryBySlug("indonesia")!;
+  const isTestCheckout = country.visaType === TEST_CHECKOUT_VISA_TYPE;
 
   const locale = useLocale();
   const tA = useTranslations("apply");
@@ -259,6 +274,23 @@ export default function ApplyPage() {
   // visitor can correct misreads and fill anything the scan missed.
   const [fields, setFields] = useState<Record<PassportField, string>>(EMPTY_FIELDS);
   const [editing, setEditing] = useState<Partial<Record<PassportField, boolean>>>({});
+
+  useEffect(() => {
+    if (!isTestCheckout) return;
+    setExtracted(TEST_CHECKOUT_PASSPORT);
+    setFields({
+      surname: TEST_CHECKOUT_PASSPORT.surname,
+      givenNames: TEST_CHECKOUT_PASSPORT.givenNames,
+      passportNumber: TEST_CHECKOUT_PASSPORT.passportNumber,
+      dob: TEST_CHECKOUT_PASSPORT.dob,
+      nationality: TEST_CHECKOUT_PASSPORT.nationality,
+      expiryDate: TEST_CHECKOUT_PASSPORT.expiryDate,
+    });
+    setEditing({});
+    setScanOutcome("success");
+    setScanFailure(null);
+    setExtractStage("done");
+  }, [isTestCheckout]);
 
   // Contact details (step 2) — required before checkout.
   const [email, setEmail] = useState("");
@@ -430,7 +462,7 @@ export default function ApplyPage() {
     tA("etaExpress");
 
   // -------------- DERIVED EXTRACTION VIEW STATE --------------
-  const isUploading = extractStage !== "idle";
+  const isUploading = !isTestCheckout && extractStage !== "idle";
   const rowDoneReading = extractStage === "extracting" || extractStage === "verifying" || extractStage === "done";
   const rowDoneExtracting = extractStage === "verifying" || extractStage === "done";
   const rowDoneVerifying = extractStage === "done";
@@ -461,7 +493,7 @@ export default function ApplyPage() {
     step === 1 && isUploading ? stageBtnLabel :
     stepNext[step];
 
-  const canProceed = step === 2 || step === 3;
+  const canProceed = (step === 1 && isTestCheckout) || step === 2 || step === 3;
 
   // -------------- STEP 2 VALIDATION --------------
   const missingFields = useMemo(
@@ -522,6 +554,10 @@ export default function ApplyPage() {
 
   const onNext = useCallback(() => {
     if (!canProceed) return;
+    if (step === 1 && isTestCheckout) {
+      goStep(2);
+      return;
+    }
     // Step 3 is the checkout step — payment method (card / WeChat) is chosen
     // via the inline buttons that deep-link to the portal checkout, so the
     // bottom Next button does nothing here (it is also hidden).
@@ -551,7 +587,7 @@ export default function ApplyPage() {
       }
     }
     goStep((step + 1) as Step);
-  }, [canProceed, step, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone]);
+  }, [canProceed, step, isTestCheckout, goStep, step2Valid, missingFields, extracted, fields, email, dialCode, phone]);
 
   const showWarning = scanOutcome === "partial";
   const knownWarnings = (extracted?.warnings ?? []).filter((w): w is KnownWarning =>
