@@ -110,6 +110,14 @@ export async function runTaiwanEntryPermitPortalSubmission(payload: TaiwanEntryP
           portalResponseSummary: "Taiwan NIA kept the session at the email-verification page after the code was entered. The official code may have expired or been rejected; no application form was opened.",
         };
       }
+      const termsNext = page.getByRole("button", { name: "下一步", exact: true });
+      if (await termsNext.isVisible().catch(() => false)) {
+        await termsNext.click({ timeout: 10_000 });
+        await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+        await page.waitForTimeout(750);
+        const afterTerms = await screenshot(page, dir, "terms-advanced", logs); if (afterTerms) screenshots.push(afterTerms);
+        logs.push("tw_entry_permit_terms_advanced");
+      }
       const postVerificationControls = await page.locator("input, select, textarea, button")
         .evaluateAll((controls) => controls.map((control) => ({
           tag: control.tagName.toLowerCase(),

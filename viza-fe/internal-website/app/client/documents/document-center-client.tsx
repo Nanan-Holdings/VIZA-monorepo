@@ -127,7 +127,7 @@ const REQUIREMENT_DESCRIPTION_ZH: Record<string, string> = {
   return_ticket: "官网要求提供返程机票或前往其他国家的续程机票，PDF 格式。",
   passport_validity_support:
     "官网支持材料：护照有效期至少 6 个月。若不是普通护照，旅行证件有效期需至少 12 个月。仅接受 PDF。",
-  bank_statement: "C1 官网要求：最近 3 个月的个人银行对账单，须显示申请人姓名、账单周期和账户余额，余额至少 USD 2,000 或等值金额；仅接受 PDF。",
+  bank_statement: "近期银行对账单或等效资金证明。具体金额、时限及格式以所选目的地签证包的官方要求为准。",
   flight_booking: "如有，请提供机票预订或往返信息。",
   hotel_booking: "如有，请提供住宿预订或住宿确认。",
 };
@@ -143,7 +143,7 @@ const REQUIREMENT_DESCRIPTION_EN: Record<string, string> = {
   passport_validity_support:
     "Official support document: passport valid for at least 6 months. Travel documents other than passports must be valid for at least 12 months. PDF format only.",
   bank_statement:
-    "Official C1 requirement: personal bank statement for the last 3 months showing the applicant name, statement period, and account balance, with a minimum amount of USD 2,000 or equivalent. PDF format only.",
+    "Recent bank statements or equivalent proof of funds. The required amount, period, and format depend on the selected destination package.",
   flight_booking:
     "If available, provide flight bookings or round-trip travel details.",
   hotel_booking:

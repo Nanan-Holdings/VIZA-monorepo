@@ -131,15 +131,26 @@ async function completeNationalityGate(page: Page, nationality: string): Promise
 
   await input.fill(nationality);
   // The official nationality control is an autocomplete rather than a native
-  // select. Commit the first exact prefix match before progressing.
-  await input.press("ArrowDown");
-  await input.press("Enter");
+  // select. Click its returned option and confirm the input accepted it before
+  // continuing; typing alone leaves the official Next action on the same page.
+  const nationalityOption = page.getByText(nationality, { exact: true });
+  try {
+    await nationalityOption.waitFor({ state: "visible", timeout: 10_000 });
+  } catch {
+    return false;
+  }
+  const optionCount = await nationalityOption.count().catch(() => 0);
+  if (optionCount !== 1) return false;
+  await nationalityOption.click();
+  if ((await input.inputValue()) !== nationality) return false;
+
   const next = page.getByText("Next", { exact: true });
   const nextCount = await next.count().catch(() => 0);
   if (nextCount !== 1) return false;
   await next.click();
   await page.waitForTimeout(1_500);
-  return true;
+  const afterNextBody = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  return !/select your nationality/i.test(afterNextBody) || /captcha/i.test(afterNextBody);
 }
 
 async function clickOfficialPrimaryAction(page: Page, labels: string[]): Promise<boolean> {
