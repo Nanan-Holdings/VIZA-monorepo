@@ -80,6 +80,7 @@ const SPEED_PRICE: Record<Speed, number> = { standard: 0, express: 28, superrush
 const ADDON_PRICE: Record<Addon, number> = { insurance: 32, esim: 12 };
 
 const TEST_CHECKOUT_VISA_TYPE = "TEST_CHECKOUT";
+const TEST_CHECKOUT_TOTAL_SGD = 1;
 const TEST_CHECKOUT_PASSPORT: PassportExtraction = {
   surname: "ZHANG",
   givenNames: "EDWARD TEST",
@@ -290,6 +291,8 @@ export default function ApplyPage() {
     setScanOutcome("success");
     setScanFailure(null);
     setExtractStage("done");
+    setSpeed("standard");
+    setAddons({ insurance: false, esim: false });
   }, [isTestCheckout]);
 
   // Contact details (step 2) — required before checkout.
@@ -447,14 +450,17 @@ export default function ApplyPage() {
   }, []);
 
   // -------------- DERIVED PRICING / SUMMARY --------------
-  const speedAdd = SPEED_PRICE[speed];
-  const addonsAdd = (addons.insurance ? ADDON_PRICE.insurance : 0) + (addons.esim ? ADDON_PRICE.esim : 0);
-  const total = BASE_PRICE + speedAdd + addonsAdd;
+  const summaryGovFee = isTestCheckout ? 0 : 50;
+  const summaryVizaFee = isTestCheckout ? TEST_CHECKOUT_TOTAL_SGD : 32;
+  const summaryDiscount = isTestCheckout ? 0 : 10;
+  const speedAdd = isTestCheckout ? 0 : SPEED_PRICE[speed];
+  const addonsAdd = isTestCheckout ? 0 : (addons.insurance ? ADDON_PRICE.insurance : 0) + (addons.esim ? ADDON_PRICE.esim : 0);
+  const total = summaryGovFee + summaryVizaFee - summaryDiscount + speedAdd + addonsAdd;
 
   const upgradeParts: string[] = [];
-  if (speed !== "standard") upgradeParts.push(speed === "express" ? tA("express") : tA("superRush"));
-  if (addons.insurance) upgradeParts.push(tA("insurance"));
-  if (addons.esim) upgradeParts.push(tA("esim"));
+  if (!isTestCheckout && speed !== "standard") upgradeParts.push(speed === "express" ? tA("express") : tA("superRush"));
+  if (!isTestCheckout && addons.insurance) upgradeParts.push(tA("insurance"));
+  if (!isTestCheckout && addons.esim) upgradeParts.push(tA("esim"));
 
   const sumEta =
     speed === "standard" ? tA("etaStandard") :
@@ -1072,13 +1078,15 @@ export default function ApplyPage() {
             <div className="sub"><span className="dot"></span> {tA("onTimeRefund")}</div>
           </div>
 
-          <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">SGD 50.00</span></div>
-          <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">SGD 32.00</span></div>
+          <div className="price-row"><span className="k">{tA("govFee")}</span><span className="v">{tA("totalAmount", { amount: summaryGovFee.toFixed(2) })}</span></div>
+          <div className="price-row"><span className="k">{tA("vizaProcessing")}</span><span className="v">{tA("totalAmount", { amount: summaryVizaFee.toFixed(2) })}</span></div>
           <div className="price-row" id="sumExpressRow">
             <span className="k">{upgradeParts.length ? upgradeParts.join(" + ") : tA("upgrades")}</span>
             <span className="v">{upgradeParts.length ? tA("upgradeAmount", { amount: (speedAdd + addonsAdd).toFixed(2) }) : "—"}</span>
           </div>
-          <div className="price-row discount"><span className="k">{tA("firstDiscount")}</span><span className="v">−SGD 10.00</span></div>
+          {summaryDiscount > 0 && (
+            <div className="price-row discount"><span className="k">{tA("firstDiscount")}</span><span className="v">−{tA("totalAmount", { amount: summaryDiscount.toFixed(2) })}</span></div>
+          )}
 
           <div className="price-total">
             <span className="k">{tA("total")}</span>
