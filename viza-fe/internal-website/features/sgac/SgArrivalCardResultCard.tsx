@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [startingAgain, setStartingAgain] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const successful = result.submitted && result.status === "submitted";
@@ -19,30 +18,6 @@ export function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmi
   const pdfUrl = pdfPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`sg-arrival-card-${confirmationNumber ?? result.applicationId}.pdf`)}`
     : null;
-
-  const downloadPdf = useCallback(async () => {
-    if (!pdfUrl) return;
-    setDownloadingPdf(true);
-    setActionError(null);
-    try {
-      const response = await fetch(pdfUrl, { credentials: "include" });
-      if (!response.ok) throw new Error(`PDF download failed with ${response.status}`);
-      const blob = await response.blob();
-      if (blob.size < 10_000) throw new Error("Downloaded PDF is unexpectedly small.");
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = `sg-arrival-card-${confirmationNumber ?? result.applicationId}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setDownloadingPdf(false);
-    }
-  }, [confirmationNumber, pdfUrl, result.applicationId]);
 
   const startAgain = useCallback(async () => {
     setStartingAgain(true);
@@ -98,9 +73,11 @@ export function SgArrivalCardResultCard({ result }: { result: SgArrivalCardSubmi
 
         <div className="grid gap-3 sm:grid-cols-2">
           {successful && pdfUrl ? (
-            <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
-              {downloadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            <Button asChild type="button">
+              <a href={pdfUrl} download={`sg-arrival-card-${confirmationNumber ?? result.applicationId}.pdf`}>
+                <Download className="mr-2 h-4 w-4" />
               {isZh ? "下载确认 PDF" : "Download confirmation PDF"}
+              </a>
             </Button>
           ) : null}
           <Button type="button" variant={successful && pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
