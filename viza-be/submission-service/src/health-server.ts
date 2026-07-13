@@ -15,6 +15,7 @@ import {
 } from "./korea-kvac/live-session.js";
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
+import { observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
 
 type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
 
@@ -351,6 +352,22 @@ async function handleFranceTlsCheckSlots(req: http.IncomingMessage, res: http.Se
   }
 }
 
+async function handleJapanVfsSingaporeObserve(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    sendJson(res, 200, { ok: true, ...(await observeJapanVfsSingaporeSlots()) });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
@@ -410,6 +427,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/local/france-tls/check-slots") {
       void handleFranceTlsCheckSlots(req, res);
+      return;
+    }
+    if (req.method === "POST" && url === "/local/japan-vfs-sg/observe") {
+      void handleJapanVfsSingaporeObserve(req, res);
       return;
     }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {
@@ -476,6 +497,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/local/japan-vfs-sg/observe") {
+      if (!envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED) || !isLocalRequest(req)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
     sendJson(res, 404, { error: "not_found" });
   });
 
@@ -486,6 +515,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
     if (envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) endpoints.push("/local/korea-eform/generate");
     if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
+    if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);
   });

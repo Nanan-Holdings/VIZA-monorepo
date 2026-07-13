@@ -221,6 +221,8 @@ filling and one-shot submission for the applicant.
 - `src/jp-vfs-sg/**`: Japan VFS/JVAC Singapore observer. It uses an authorized
   Browser API/CDP session, records redacted page state, and stops at official
   login, CAPTCHA/WAF, identity verification, payment, or selector drift.
+  The localhost-only observation endpoint is `/local/japan-vfs-sg/observe`
+  and requires `JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED=true`.
 - `scripts/smoke-korea-kvac-centers.ts`: local Korea KVAC/consulate reachability
   smoke for all mainland China filing channels. It opens the official booking
   or guidance entry for each center and saves evidence screenshots without
@@ -230,9 +232,13 @@ filling and one-shot submission for the applicant.
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
   `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`,
-  `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
+  `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`,
+  `scripts/run-tw-entry-permit-smoke.ts`: local live smoke
   entry points for official portal reach/fill validation. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
+  The Taiwan smoke only sends an official verification email when both
+  `--send-email` and `TW_ENTRY_PERMIT_EMAIL_VERIFICATION_ENABLED=true` are set;
+  its placeholder profile must never be submitted as a permit application.
 - `scripts/setup-vn-card-profile.ps1` and `scripts/start-vn-autopay-dev.ps1`:
   local-only Vietnam official-fee payment helpers. The dev start script enables
   one-time frontend card sessions by default and reads no card values in the
@@ -301,6 +307,7 @@ filling and one-shot submission for the applicant.
 | Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
 | Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
 | Vietnam Pre-Arrival | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `VN_PREARRIVAL_DECLARATION`; live worker dispatches to `https://prearrival.immigration.gov.vn/`, records portal mismatch/error evidence, and must not mark success without official QR/reference evidence. |
+| Taiwan overseas-China tourist entry permit | Email-gate + selector-recon scaffold | `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` validates Singapore eligibility and uses the VIZA inbox alias at the official NIA email gate. Keep final submission/payment disabled until a controlled authorized session maps the post-verification form; never report success without an official reference. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
 | Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
@@ -412,6 +419,7 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
 - `viza-be/submission-service/src/france-tls/*`
+- `viza-be/submission-service/src/tw-entry-permit/*`
 - `viza-be/submission-service/scripts/run-france-tls-live-smoke.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/browser-api.spec.ts`
 - `viza-be/submission-service/src/france-tls/__tests__/recaptcha-grid.spec.ts`

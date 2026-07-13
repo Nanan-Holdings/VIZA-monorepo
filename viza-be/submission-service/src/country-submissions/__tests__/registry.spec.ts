@@ -117,7 +117,23 @@ test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("indonesia", "ID_C1_TOURIST")?.countryCode, "ID");
   assert.equal(getCountrySubmissionProvider("indonesia", "ID_B1_EVOA")?.countryCode, "ID");
   assert.equal(getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION")?.countryCode, "VN");
+  assert.equal(getCountrySubmissionProvider("taiwan", "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT")?.countryCode, "TW");
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
+});
+
+test("registry: Taiwan entry permit requires the Singapore eligibility route and declaration", async () => {
+  const answers = {
+    eligibility_route: "work_one_year", permit_type: "single", singapore_residence_pass_number: "EP123", singapore_residence_expiry_date: "2030-01-01",
+    surname: "ZHANG", given_names: "SAN", chinese_name: "张三", date_of_birth: "1990-01-01", gender: "male", passport_number: "E12345678", passport_expiry_date: "2030-01-01",
+    real_email_address: "user@example.com", phone_country_code: "+65", phone_number: "81234567", singapore_residential_address: "Singapore", intended_arrival_date: "2027-01-01", intended_departure_date: "2027-01-10", taiwan_accommodation_address: "Taipei", official_declaration: "true",
+  };
+  const application = baseApplication({ countryCode: "taiwan", visaType: "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT", answers });
+  const provider = getCountrySubmissionProvider("taiwan", "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT");
+  assert.ok(provider);
+  assert.equal(provider.validate(application).ok, true);
+  const result = await runDryRunSubmission(application);
+  assert.equal(result.status, "submitted_mock");
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-TW-ENTRY-/);
 });
 
 test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", async () => {

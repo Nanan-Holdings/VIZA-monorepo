@@ -100,6 +100,9 @@ The current internal automation migrations are:
   official document checklist, replacing the generic proof-of-funds fallback
   with passport/photo, return-or-onward ticket, and passport-validity support
   materials.
+- `0109_taiwan_overseas_cn_tourism_entry_permit.sql`: Taiwan package catalog
+  and official document requirements for mainland Chinese passport holders
+  resident in Singapore; keep it separate from Taiwan arrival-card concepts.
 
 ## Guardrails
 
