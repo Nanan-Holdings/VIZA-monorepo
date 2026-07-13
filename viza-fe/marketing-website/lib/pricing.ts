@@ -38,6 +38,7 @@ const FX_TO_SGD: Record<GovtCurrency, number> = {
 
 /** Keyed by the CountryMeta.visaType (lib/countries.ts). Mirrors PACKAGE_PRICING. */
 export const PRICING: Record<string, MarketingPricing> = {
+  TEST_CHECKOUT: { visaType: "TEST_CHECKOUT", agencyUsdCents: 50, govtCents: 0, govtCurrency: "USD" },
   B211A: { visaType: "B211A", agencyUsdCents: AGENCY_USD_CENTS, govtCents: 15000, govtCurrency: "USD" },
   EG_E_VISA: { visaType: "EG_E_VISA", agencyUsdCents: AGENCY_USD_CENTS, govtCents: 2500, govtCurrency: "USD" },
   AU_VISITOR_600: { visaType: "AU_VISITOR_600", agencyUsdCents: AGENCY_USD_CENTS, govtCents: 19000, govtCurrency: "AUD" },

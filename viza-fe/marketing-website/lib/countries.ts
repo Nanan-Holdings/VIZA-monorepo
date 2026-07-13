@@ -39,6 +39,7 @@ export interface CountryMeta {
 const HERO = (slug: string, ext = "jpg") => `/assets/heroes/${slug}.${ext}`;
 
 export const COUNTRIES: CountryMeta[] = [
+  { slug: "viza-test", portalCountry: "viza_test", name: "VIZA Test", city: "Live checkout test", flagCode: "sg", type: "Test checkout", visaType: "TEST_CHECKOUT", validity: "Demo only", image: HERO("japan"), tag: "fast", launched: true },
   { slug: "indonesia", portalCountry: "indonesia", name: "Indonesia", city: "Bali · Jakarta", flagCode: "id", type: "e-Visa", visaType: "B211A", validity: "90 days", image: HERO("indonesia"), tag: "fast", launched: true, featured: true },
   { slug: "egypt", portalCountry: "egypt", name: "Egypt", city: "Cairo · Giza", flagCode: "eg", type: "e-Visa", visaType: "EG_E_VISA", validity: "90 days", image: HERO("egypt", "avif"), tag: "fast", launched: true },
   { slug: "australia", portalCountry: "australia", name: "Australia", city: "Sydney · Melbourne", flagCode: "au", type: "Visitor 600", visaType: "AU_VISITOR_600", validity: "1 year", image: HERO("australia"), tag: "evisa", launched: true },
