@@ -45,8 +45,16 @@ jobs:
           context: viza-be/submission-service
           file: viza-be/submission-service/Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/viza-submission-service:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/viza-submission-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke packaged Playwright runtime
+        if: github.event_name == 'pull_request'
+        run: |
+          docker run --rm --entrypoint node \
+            ghcr.io/${{ github.repository_owner }}/viza-submission-service:${{ github.sha }} \
+            -e "const { chromium } = require('@playwright/test'); chromium.launch({ headless: true }).then(async b => { await b.close(); console.log('playwright-ok'); }).catch(e => { console.error(e); process.exit(1); })"

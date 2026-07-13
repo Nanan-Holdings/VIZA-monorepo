@@ -1,0 +1,29 @@
+# Rendered by scripts/fly/deploy-country.sh. Do not put credentials here.
+app = "__APP_NAME__"
+primary_region = "__REGION__"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  RUNNER_JOB_COUNTRY = "__COUNTRY__"
+  SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "false"
+  SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "true"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/ready"
+
+[[vm]]
+  cpu_kind = "performance"
+  cpus = 2
+  memory_mb = 2048
