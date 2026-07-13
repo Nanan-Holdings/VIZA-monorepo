@@ -51,6 +51,10 @@ export interface IndonesiaPortalProbeResult {
 const INDONESIA_GENERAL_VISIT_PARENT = "General, Family, or Social";
 const INDONESIA_TOURISM_ACTIVITY = "Tourism, Family Visit, and Transit";
 
+function isIndonesiaB1Input(input: IndonesiaPortalProbeInput): boolean {
+  return input.provider === "indonesia_b1_evoa_live" || input.visaType === "ID_B1_EVOA";
+}
+
 export interface IndonesiaAccountRegistrationInput {
   fullName?: string | null;
   gender?: string | null;
@@ -477,6 +481,9 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
     if (await swal.isVisible({ timeout: 1_000 }).catch(() => false)) {
       const text = await page.locator(".swal2-container").first().innerText({ timeout: 1_000 }).catch(() => "");
       sawExistingApplicationWarning ||= isExistingApplicationWarningText(text);
+      if (isIndonesiaPassportInvalidDataText(text)) {
+        diagnostics.push("indonesia_passport_scan_invalid_data");
+      }
       if (isExpiredIndonesiaApplicationText(text)) {
         diagnostics.push("indonesia_dialog_detected_expired_application");
       }
@@ -500,6 +507,15 @@ async function dismissIndonesiaDialogs(page: Page, diagnostics: string[]): Promi
     return sawExistingApplicationWarning;
   }
   return sawExistingApplicationWarning;
+}
+
+function isIndonesiaPassportInvalidDataText(value: string): boolean {
+  return /invalid\s+data/i.test(value) &&
+    /unable\s+to\s+read\s+several\s+fields\s+from\s+your\s+passport/i.test(value);
+}
+
+function hasIndonesiaPassportInvalidDataDiagnostic(diagnostics: string[]): boolean {
+  return diagnostics.some((entry) => entry === "indonesia_passport_scan_invalid_data");
 }
 
 async function acceptIndonesiaExistingApplicationCancellationWarning(
@@ -1653,7 +1669,21 @@ async function continueFromApplicationStepOne(
     title: await page.title().catch(() => null),
   });
   await completeIndonesiaPassportBiodataUpload(page, passportPath, diagnostics);
+  if (hasIndonesiaPassportInvalidDataDiagnostic(diagnostics)) {
+    await input.onStage?.("step_1_passport_scan_invalid_data", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
   await waitForIndonesiaMrzScannerReady(page, input, diagnostics);
+  if (hasIndonesiaPassportInvalidDataDiagnostic(diagnostics)) {
+    await input.onStage?.("step_1_passport_scan_invalid_data", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
+  }
 
   await input.onStage?.("step_1_uploading_photo", {
     url: page.url(),
@@ -1789,7 +1819,9 @@ async function fillIndonesiaStayAndSupportFieldsIfPresent(
   touched = await fillIfPresent(page, "#email", input.accountEmail ?? application.email) || touched;
   touched = await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email) || touched;
   touched = await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath) || touched;
-  touched = await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath) || touched;
+  if (!isIndonesiaB1Input(input)) {
+    touched = await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath) || touched;
+  }
   if (touched) diagnostics.push(`${label}_stay_support_fields_filled`);
   return touched;
 }
@@ -2713,11 +2745,15 @@ async function continueFromApplicationStepTwo(
     url: page.url(),
     title: await page.title().catch(() => null),
   });
-  await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath);
-  await input.onStage?.("step_2_uploaded_bank_statement", {
-    url: page.url(),
-    title: await page.title().catch(() => null),
-  });
+  if (!isIndonesiaB1Input(input)) {
+    await setFilesIfPresent(page, "#attachment-C1-1", application.bankStatementPath);
+    await input.onStage?.("step_2_uploaded_bank_statement", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+  } else {
+    diagnostics.push("indonesia_step_2_skipped_bank_statement_for_b1");
+  }
   const passportSupportPath = application.passportSupportPath ?? await makeImagePdf(page, application.passportImagePath, diagnostics);
   await setFilesIfPresent(page, "#support-paspor", passportSupportPath);
   await input.onStage?.("step_2_uploaded_support_passport", {
@@ -4027,8 +4063,16 @@ export async function probeIndonesiaPortal(
       state = paymentResult.state;
     }
 
+    const passportInvalidDataBlocked = hasIndonesiaPassportInvalidDataDiagnostic(session.diagnostics);
     const stepOneValidationBlocked = hasIndonesiaStepOneValidationBlock(session.diagnostics);
-    const action = stepOneValidationBlocked
+    const action = passportInvalidDataBlocked
+      ? {
+          actionType: "official_passport_scan_invalid_data",
+          instruction:
+            "The Indonesia official portal could not read required fields from the passport image. Upload a clearer, well-lit, landscape passport bio page image and retry.",
+          implementationStatus: "partial" as const,
+        }
+      : stepOneValidationBlocked
       ? {
           actionType: "official_step_1_validation_blocked",
           instruction:

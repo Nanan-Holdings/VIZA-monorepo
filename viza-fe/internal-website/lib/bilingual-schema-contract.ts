@@ -16,6 +16,7 @@ type FieldLike = Pick<
 >;
 
 type OptionObject = Extract<VisaFormFieldOption, { value: string }>;
+const LOCALIZED_OPTIONS_CACHE = new WeakMap<VisaFormFieldOption[], Partial<Record<BilingualSide, VisaFormFieldOption[]>>>();
 
 export const VAGUE_CHINESE_LABELS = new Set([
   "声明",
@@ -1100,7 +1101,9 @@ export function resolveLocalizedOptions(
   side: BilingualSide,
 ): VisaFormFieldOption[] | null {
   if (!options) return null;
-  return options.map((option) => {
+  const cached = LOCALIZED_OPTIONS_CACHE.get(options)?.[side];
+  if (cached) return cached;
+  const localized = options.map((option) => {
     const normalized = normalizeBilingualOption(option);
     const normalizedObject = normalized as OptionObject;
     return {
@@ -1108,6 +1111,10 @@ export function resolveLocalizedOptions(
       text: side === "zh" ? normalizedObject.label_zh : normalizedObject.label_en,
     };
   });
+  const nextCache = LOCALIZED_OPTIONS_CACHE.get(options) ?? {};
+  nextCache[side] = localized;
+  LOCALIZED_OPTIONS_CACHE.set(options, nextCache);
+  return localized;
 }
 
 export function resolveOptionDisplayLabel(

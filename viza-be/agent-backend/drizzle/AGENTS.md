@@ -94,6 +94,12 @@ The current internal automation migrations are:
 - `0105_submission_queue_claim_locks.sql`: legacy `submission_queue` claim
   leases and service-role RPC using `FOR UPDATE SKIP LOCKED` for horizontally
   scaled submission-service workers.
+- `0107_indonesia_official_evisa_packages.sql`: Indonesia C1 and B1 official
+  eVisa package catalog rows and provider metadata.
+- `0108_indonesia_b1_evoa_document_requirements.sql`: Indonesia B1 e-VoA
+  official document checklist, replacing the generic proof-of-funds fallback
+  with passport/photo, return-or-onward ticket, and passport-validity support
+  materials.
 
 ## Guardrails
 

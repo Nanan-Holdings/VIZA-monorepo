@@ -6763,6 +6763,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       /passport.*photo/i,
     ]);
     const returnTicketPath = firstLocalDocumentPathMatching(localDocPaths, [
+      /return_ticket/i,
+      /onward_ticket/i,
       /(return|onward).*ticket/i,
       /(flight|travel).*itinerary/i,
       /travel_itinerary/i,

@@ -1642,6 +1642,7 @@ export default function ApplicationPage() {
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const initialStepResolvedRef = useRef(false);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
+  const draftVersionTimerRef = useRef<number | null>(null);
   const navigationSaveInFlightRef = useRef(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const activeStepPanelRef = useRef<HTMLDivElement | null>(null);
@@ -1733,8 +1734,17 @@ export default function ApplicationPage() {
 
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
-    setDraftVersion((version) => version + 1);
+    // Let a large official select close before recalculating outer step visibility.
+    if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
+    draftVersionTimerRef.current = window.setTimeout(() => {
+      draftVersionTimerRef.current = null;
+      setDraftVersion((version) => version + 1);
+    }, 120);
     setSubmitMissingFields([]);
+  }, []);
+
+  useEffect(() => () => {
+    if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
   }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
