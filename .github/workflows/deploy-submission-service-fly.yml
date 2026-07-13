@@ -50,6 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Expose Fly CLI under the deployment-script command name
+        shell: bash
+        run: |
+          # setup-flyctl provides `flyctl`; deployment scripts use the
+          # documented `fly` command. Add a job-local compatibility alias.
+          if ! command -v fly >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/fly-bin"
+            ln -s "$(command -v flyctl)" "$RUNNER_TEMP/fly-bin/fly"
+            echo "$RUNNER_TEMP/fly-bin" >> "$GITHUB_PATH"
+          fi
       - name: Deploy country workers
         shell: bash
         run: |
