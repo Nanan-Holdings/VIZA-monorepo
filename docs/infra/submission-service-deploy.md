@@ -8,7 +8,8 @@ second attempt from submitting the same application.
 
 ## Prerequisites
 
-- Create the Fly organization and add a protected GitHub `production`
+- Create the Fly organization and add a protected GitHub
+  `production-submission_service`
   environment. Set `FLY_API_TOKEN` and `FLY_ORG` only in that environment.
 - Make the immutable GHCR image readable by Fly before deploying it. Do not use
   a mutable `latest` tag for production.
@@ -24,9 +25,12 @@ second attempt from submitting the same application.
 ## First rollout
 
 1. Merge the image workflow and publish a commit-SHA image.
-2. Add the required Fly secrets to `viza-submission-legacy` and to each pilot
-   `viza-runner-<country>` app. Country workers must set neither proxy nor
-   Browser API endpoints in TOML; Fly Secrets inject them at runtime.
+2. The protected deployment workflow copies the three boot-required secrets
+   (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+   `SUBMISSION_RESULT_SECRET_KEY`) from its GitHub Environment into each new
+   Fly app. Add feature secrets (for example Bright Data, 2captcha, Resend)
+   to the Fly app before enabling the relevant live flow. Country workers must
+   set neither proxy nor Browser API endpoints in TOML.
 3. From GitHub Actions, run **deploy-submission-service-fly**, provide the full
    published SHA, choose one verified pilot country, and enable the legacy
    worker. Production environment approval is required.
