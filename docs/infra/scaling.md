@@ -44,35 +44,20 @@ the future `/admin/queue` page read from it.
 - On any `running > cap` violation, emails OPS via Resend
   (`RESEND_OPS_ALERT_TO`) and exits 1.
 
-## Drivers (pick one when we land scale)
+## Fly Machines driver
 
-The autoscaler emits a per-country `desired` count; the driver
-translates that into actual machines. Three options ranked by
-operational fit:
-
-1. **Fly Machines** — one app per country (`viza-runner-vn`,
-   `viza-runner-uk`, …); driver calls `fly scale count <n>`. Lowest
-   spin-up (sub-second) and per-region pinning is a one-line
-   `--region` flag, which matches INFRA-004's residential-proxy
-   geography.
-2. **Cloud Run jobs** — single image, the autoscaler creates an
-   execution per queue tick. Loses the warm-Chromium advantage but
-   billing is simplest.
-3. **k8s HPA** — one Deployment per country with a custom metric
-   adapter pointing at `runner_queue_depth`. Most flexible, highest
-   ops weight; fits if we already operate a cluster for other
-   reasons.
-
-Production target: Fly Machines (option 1). Documented here so the
-choice doesn't drift; the actual driver lives in the deploy repo.
+Production uses one Fly app per country (`viza-runner-<country>`). The
+committed driver is `viza-be/submission-service/scripts/fly/scale-workers.sh`;
+it consumes the autoscaler's JSON and calls `fly scale count`. Non-paused
+countries retain one warm machine so polling never depends on a local computer;
+paused countries scale to zero. The deployment and scheduled driver run from
+the protected GitHub `production` environment.
 
 ## Schedule
 
-Run the autoscaler every minute. Suggested cron:
-
-```
-* * * * * cd /opt/viza && npx tsx viza-be/agent-backend/scripts/autoscale-runners.ts --json | flyctl …
-```
+GitHub Actions runs the autoscaler every five minutes via
+`.github/workflows/scale-submission-service-fly.yml`; it is also manually
+dispatchable for incident response.
 
 `runner_concurrency_cap` writes are infrequent — when ops bumps a
 cap, the autoscaler picks it up at the next tick.

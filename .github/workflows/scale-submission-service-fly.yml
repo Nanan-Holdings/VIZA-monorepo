@@ -1,0 +1,35 @@
+name: scale-submission-service-fly
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scale:
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_OPS_ALERT_TO: ${{ secrets.RESEND_OPS_ALERT_TO }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: viza-be/agent-backend/package-lock.json
+      - run: npm ci
+        working-directory: viza-be/agent-backend
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Calculate and apply worker counts
+        run: |
+          npx tsx scripts/autoscale-runners.ts --json > "$RUNNER_TEMP/runner-decisions.json"
+          bash ../submission-service/scripts/fly/scale-workers.sh "$RUNNER_TEMP/runner-decisions.json"
+        working-directory: viza-be/agent-backend
