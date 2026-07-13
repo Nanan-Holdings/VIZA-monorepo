@@ -16,6 +16,7 @@ type Action =
   | "request-cancel"
   | "start-cancel-query"
   | "confirm-cancel-official"
+  | "restart-without-booking-record"
   | "refresh-status";
 
 interface AppointmentJobRow {
@@ -1518,6 +1519,69 @@ export async function POST(
         { status: 409 },
       );
     }
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "restart-without-booking-record") {
+    const existingJob = await latestJob(auth.admin, id);
+    if (existingJob) {
+      const { error: expireErr } = await auth.admin
+        .from("appointment_manual_actions")
+        .update({ status: "expired", completed_at: new Date().toISOString() })
+        .eq("job_id", existingJob.id)
+        .in("action_type", [
+          "official_reschedule_required",
+          "official_cancel_required",
+          "official_cancel_confirmation_required",
+          "official_cancel_manual_checkpoint",
+        ])
+        .in("status", ["pending", "in_progress"]);
+      if (expireErr) throw new Error(expireErr.message);
+    }
+
+    const { data: restartedJob, error: restartErr } = await auth.admin
+      .from("appointment_assistance_jobs")
+      .insert({
+        application_id: id,
+        user_id: auth.profile.id,
+        country_code: "KR",
+        visa_type: "KR_C39_SHORT_TERM_VISIT",
+        applying_country_code: "CN",
+        applying_post_city: routing.recommended.nameEn,
+        scheduling_provider: "kvac_cn",
+        status: "not_started",
+        mode: "live_assisted",
+        user_preferences_json: {
+          routing,
+          centerCode: routing.recommended.code,
+          restartedWithoutBookingRecord: true,
+          source: "korea_c39_v1",
+        },
+        requires_user_action: false,
+        idempotency_key: `korea-kvac:${id}:${randomUUID()}`,
+      })
+      .select("*")
+      .single();
+    if (restartErr || !restartedJob) throw new Error(restartErr?.message ?? "Could not restart Korea appointment flow.");
+
+    const { error: applicationErr } = await auth.admin
+      .from("applications")
+      .update({
+        appointment_assistance_status: "not_started",
+        appointment_assistance_job_id: restartedJob.id,
+        appointment_confirmation_id: null,
+      })
+      .eq("id", id);
+    if (applicationErr) throw new Error(applicationErr.message);
+
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: restartedJob.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "appointment_restart_without_booking_record",
+      event_message: "Applicant restarted Korea appointment flow after confirming there is no valid VIZA appointment record. No official cancellation action was sent.",
+      metadata_redacted_json: { previousJobId: existingJob?.id ?? null },
+    });
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
