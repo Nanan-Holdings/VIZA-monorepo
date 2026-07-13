@@ -6,6 +6,7 @@ import { createArrivalCardBrowserSession, type ArrivalCardBrowserSession } from 
 import { TW_ENTRY_PERMIT_OFFICIAL_PORTAL_URL, type TaiwanEntryPermitPortalPayload } from "./normalize";
 import { solveTaiwanNiaImageCaptcha } from "./captcha";
 import { extractTaiwanNiaVerificationCode, isTaiwanNiaVerificationEmail } from "./email-verification";
+import { fillTaiwanPlaceholderDraft } from "./placeholder-draft";
 
 export interface TaiwanEntryPermitPortalResult {
   submitted: boolean;
@@ -16,6 +17,9 @@ export interface TaiwanEntryPermitPortalResult {
   pdfs: string[];
   logs: string[];
   postVerificationControls?: Array<{ tag: string; name: string; type: string }>;
+  postVerificationSelectOptions?: Record<string, Array<{ value: string; label: string }>>;
+  postVerificationRadioValues?: Record<string, string[]>;
+  placeholderFill?: { filled: number; selected: number; uploaded: number };
   checkpoint: "email_verification" | "official_form_recon" | "payment" | "submitted" | "official_portal_error";
 }
 
@@ -53,7 +57,7 @@ async function closeSession(session: ArrivalCardBrowserSession): Promise<void> {
  * controlled test account maps every post-verification control. It never
  * claims a permit was submitted without an official reference.
  */
-export async function runTaiwanEntryPermitPortalSubmission(payload: TaiwanEntryPermitPortalPayload, options: { headless?: boolean; stopBeforeSubmit?: boolean; sendVerificationCode?: boolean; applicantId?: string; emailTimeoutMs?: number; onProgress?: (stage: string) => void } = {}): Promise<TaiwanEntryPermitPortalResult> {
+export async function runTaiwanEntryPermitPortalSubmission(payload: TaiwanEntryPermitPortalPayload, options: { headless?: boolean; stopBeforeSubmit?: boolean; sendVerificationCode?: boolean; applicantId?: string; emailTimeoutMs?: number; fillPlaceholderDraft?: boolean; onProgress?: (stage: string) => void } = {}): Promise<TaiwanEntryPermitPortalResult> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-tw-entry-${payload.applicationId}-`));
   let session: ArrivalCardBrowserSession | null = null;
   const logs: string[] = [];
@@ -87,7 +91,7 @@ export async function runTaiwanEntryPermitPortalSubmission(payload: TaiwanEntryP
       await page.waitForTimeout(800);
       const afterSend = await screenshot(page, dir, "verification-code-requested", logs); if (afterSend) screenshots.push(afterSend);
       const { inbox } = await import("../inbox/wait-for-message");
-      const message = await inbox.waitForMessage(options.applicantId, isTaiwanNiaVerificationEmail, options.emailTimeoutMs ?? 180_000, { since: startedAt });
+      const message = await inbox.waitForMessage(options.applicantId, isTaiwanNiaVerificationEmail, options.emailTimeoutMs ?? 180_000, { since: startedAt, includeProcessed: true });
       const code = extractTaiwanNiaVerificationCode(message);
       if (!code) {
         return { submitted: false, portalUrl: page.url(), portalResponseSummary: "Taiwan NIA verification email arrived but did not contain a recognized verification code.", referenceNumber: null, screenshots, pdfs: [], logs, checkpoint: "email_verification" };
@@ -112,10 +116,23 @@ export async function runTaiwanEntryPermitPortalSubmission(payload: TaiwanEntryP
           name: control.getAttribute("name") ?? "",
           type: control.getAttribute("type") ?? "",
         })).filter((control) => control.name || control.tag === "button"));
+      const postVerificationSelectOptions = await page.locator("select[name]").evaluateAll((selects) => Object.fromEntries(
+        selects.map((select) => [select.getAttribute("name") ?? "", Array.from((select as HTMLSelectElement).options)
+          .map((option) => ({ value: option.value, label: option.textContent?.trim() ?? "" }))
+          .filter((option) => option.value || option.label)]),
+      ));
+      const postVerificationRadioValues = await page.locator("input[type='radio'][name]").evaluateAll((radios) => {
+        const values: Record<string, string[]> = {};
+        for (const radio of radios as HTMLInputElement[]) {
+          (values[radio.name] ??= []).push(radio.value);
+        }
+        return values;
+      });
       logs.push(`tw_entry_permit_post_verification_controls=${postVerificationControls.length}`);
+      const placeholderFill = options.fillPlaceholderDraft ? await fillTaiwanPlaceholderDraft(page) : undefined;
       options.onProgress?.("post_verification_form_reached");
       return {
-        submitted: false, portalUrl: page.url(), referenceNumber: null, screenshots, pdfs: [], logs, checkpoint: "official_form_recon", postVerificationControls,
+        submitted: false, portalUrl: page.url(), referenceNumber: null, screenshots, pdfs: [], logs, checkpoint: "official_form_recon", postVerificationControls, postVerificationSelectOptions, postVerificationRadioValues, placeholderFill,
         portalResponseSummary: "Taiwan NIA email verification completed in the controlled session. The post-verification form remains at selector-recon stage; no permit submission was attempted.",
       };
     }
