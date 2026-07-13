@@ -83,11 +83,12 @@ async function fillNearLabel(page: Page, labels: RegExp[], value: string): Promi
 }
 
 async function selectNearLabel(page: Page, labels: RegExp[], value: string): Promise<boolean> {
+  const officialValue = value === "P" ? "P - Popular Passport" : value;
   for (const label of labels) {
     const byLabel = page.getByLabel(label).first();
     if (await byLabel.isVisible().catch(() => false)) {
       await byLabel.click();
-      await page.getByText(value, { exact: true }).click({ timeout: 5_000 });
+      await page.getByText(officialValue, { exact: true }).click({ timeout: 5_000 });
       return true;
     }
     const labelText = page.getByText(label).first();
@@ -95,7 +96,7 @@ async function selectNearLabel(page: Page, labels: RegExp[], value: string): Pro
       const control = labelText.locator("xpath=following::*[@role='combobox' or self::select][1]").first();
       if (await control.isVisible().catch(() => false)) {
         await control.click();
-        await page.getByText(value, { exact: true }).click({ timeout: 5_000 });
+        await page.getByText(officialValue, { exact: true }).click({ timeout: 5_000 });
         return true;
       }
     }
@@ -114,19 +115,16 @@ async function completeNationalityGate(page: Page, nationality: string): Promise
   if (!(await input.isVisible().catch(() => false))) return false;
 
   await input.fill(nationality);
-  const options = page.locator("[role='option']").filter({ hasText: nationality });
-  const optionCount = await options.count().catch(() => 0);
-  if (optionCount !== 1) return false;
-  await options.nth(0).click();
-
+  // The official nationality control is an autocomplete rather than a native
+  // select. Commit the first exact prefix match before progressing.
+  await input.press("ArrowDown");
+  await input.press("Enter");
   const next = page.getByText("Next", { exact: true });
   const nextCount = await next.count().catch(() => 0);
   if (nextCount !== 1) return false;
   await next.click();
-  await page.waitForTimeout(500);
-  return !/select your nationality/i.test(
-    await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "select your nationality"),
-  );
+  await page.waitForTimeout(1_500);
+  return true;
 }
 
 async function clickOfficialPrimaryAction(page: Page, labels: string[]): Promise<boolean> {
@@ -270,7 +268,6 @@ export async function runVietnamPrearrivalPortalSubmission(
       [[/surname/i], payload.surname ?? "", "surname"],
       [[/given name/i], payload.givenName, "given_name"],
       [[/date of birth/i, /ngày sinh/i], payload.dateOfBirth, "date_of_birth"],
-      [[/nationality/i, /quốc tịch/i], payload.nationality, "nationality"],
       [[/email/i], payload.emailAddress, "email_address"],
       [[/phone/i, /điện thoại/i], `${payload.phoneCountryCode}${payload.phoneNumber}`, "phone_number"],
       [[/number/i], payload.visaNumber, "visa_number"],

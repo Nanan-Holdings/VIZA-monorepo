@@ -266,13 +266,29 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     },
   },
   {
+    field_name: "mother_name",
+    label: "Mothers Name",
+    field_type: "text",
+    required: true,
+    step_number: 2,
+    step_name: "Application form",
+    display_order: 7,
+    validation_rules: {
+      official_field_id: "mother_name",
+      official_field_name: "mother_name",
+      label_zh: "母亲姓名",
+      official_label_zh: "Mothers Name",
+      maxLength: 100,
+    },
+  },
+  {
     field_name: "document_travel_id",
     label: "Document Type",
     field_type: "select",
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 7,
+    display_order: 8,
     options: TRAVEL_DOCUMENT_OPTIONS,
     validation_rules: {
       official_field_id: "document_travel_id",
@@ -289,7 +305,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 8,
+    display_order: 9,
     validation_rules: {
       official_field_id: "number",
       official_field_name: "passport_number",
@@ -307,7 +323,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 9,
+    display_order: 10,
     validation_rules: {
       official_field_id: "country_id",
       official_field_name: "country_id",
@@ -324,7 +340,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 10,
+    display_order: 11,
     placeholder: "DD/MM/YYYY",
     validation_rules: {
       official_field_id: "release_date",
@@ -341,7 +357,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 11,
+    display_order: 12,
     placeholder: "DD/MM/YYYY",
     validation_rules: {
       official_field_id: "expired_date",
@@ -355,17 +371,17 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
   },
   {
     field_name: "passport_place_of_issue",
-    label: "Place of Issue",
+    label: "Issuing Country",
     field_type: "text",
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 12,
+    display_order: 13,
     validation_rules: {
       official_field_id: "release_place",
       official_field_name: "release_place",
-      label_zh: "签发地点",
-      official_label_zh: "Place of Issue",
+      label_zh: "签发国家",
+      official_label_zh: "Issuing Country",
       maxLength: 80,
     },
   },
@@ -376,7 +392,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 13,
+    display_order: 14,
     options: RESIDENCE_TYPE_OPTIONS,
     validation_rules: {
       official_field_id: "residence_type_id",
@@ -393,7 +409,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 14,
+    display_order: 15,
     validation_rules: {
       official_field_id: "address",
       official_field_name: "address",
@@ -409,7 +425,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 15,
+    display_order: 16,
     validation_rules: {
       official_field_id: "postal_code",
       official_field_name: "postal_code",
@@ -429,7 +445,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: false,
     step_number: 2,
     step_name: "Application form",
-    display_order: 16,
+    display_order: 17,
     validation_rules: {
       official_field_id: "province_name",
       official_field_name: "province_name",
@@ -446,7 +462,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: false,
     step_number: 2,
     step_name: "Application form",
-    display_order: 17,
+    display_order: 18,
     validation_rules: {
       official_field_id: "city_name",
       official_field_name: "city_name",
@@ -463,7 +479,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: false,
     step_number: 2,
     step_name: "Application form",
-    display_order: 18,
+    display_order: 19,
     validation_rules: {
       official_field_id: "district_name",
       official_field_name: "district_name",
@@ -480,7 +496,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: false,
     step_number: 2,
     step_name: "Application form",
-    display_order: 19,
+    display_order: 20,
     validation_rules: {
       official_field_id: "village_name",
       official_field_name: "village_name",
@@ -497,7 +513,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 20,
+    display_order: 21,
     placeholder: "Upload the required PDF supporting document for the official portal.",
     validation_rules: {
       official_field_id: "attachment-C1-1",
@@ -515,7 +531,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     required: true,
     step_number: 2,
     step_name: "Application form",
-    display_order: 21,
+    display_order: 22,
     placeholder: "Managed official eVisa account email",
     validation_rules: {
       official_field_id: "email",
