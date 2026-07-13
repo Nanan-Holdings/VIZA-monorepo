@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { countries } from "country-data-list";
 import staticOptions from "@/lib/vn-prearrival/official-static-options.json";
+import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
+import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
 
 export const dynamic = "force-dynamic";
 
@@ -210,48 +212,6 @@ function issuePlaceMatchesVisaType(item: OfficialOption, parent: string): boolea
   return visaTypes.length === 0 || visaTypes.includes(parent);
 }
 
-function hotelLocationLabel(value: string, fallback: string): string {
-  return value || fallback;
-}
-
-function deriveHotelProvinceOptions(items: OfficialOption[]): VisaFormOption[] {
-  const byCode = new Map<string, string>();
-  for (const item of items) {
-    const code = stringValue(item.province_city);
-    if (!code || byCode.has(code)) continue;
-    const label = stringValue(item.en_value).split(",").map((part) => part.trim()).filter(Boolean).at(-1) ?? code;
-    byCode.set(code, label);
-  }
-  return Array.from(byCode.entries()).map(([code, label]) => ({
-    value: code,
-    text: hotelLocationLabel(label, code),
-    label_en: hotelLocationLabel(label, code),
-    label_zh: hotelLocationLabel(label, code),
-    official_label: hotelLocationLabel(label, code),
-    code,
-  }));
-}
-
-function deriveHotelWardOptions(items: OfficialOption[], provinceCode: string): VisaFormOption[] {
-  const byCode = new Map<string, string>();
-  for (const item of items) {
-    if (provinceCode && stringValue(item.province_city) !== provinceCode) continue;
-    const code = stringValue(item.ward);
-    if (!code || byCode.has(code)) continue;
-    const parts = stringValue(item.en_value).split(",").map((part) => part.trim()).filter(Boolean);
-    const label = parts.length >= 2 ? parts[parts.length - 2] : code;
-    byCode.set(code, label ?? code);
-  }
-  return Array.from(byCode.entries()).map(([code, label]) => ({
-    value: code,
-    text: hotelLocationLabel(label, code),
-    label_en: hotelLocationLabel(label, code),
-    label_zh: hotelLocationLabel(label, code),
-    official_label: hotelLocationLabel(label, code),
-    code,
-  }));
-}
-
 async function loadFindAllOptions(source: string, parent = ""): Promise<VisaFormOption[]> {
   if (source === "country_code") return localCountryCodeOptions();
   const rawItems = await loadOfficialItems(source);
@@ -259,7 +219,7 @@ async function loadFindAllOptions(source: string, parent = ""): Promise<VisaForm
     ? rawItems.filter((item) => issuePlaceMatchesVisaType(item, parent))
     : rawItems;
   const items = source === "hotel" && parent
-    ? visaTypeFilteredItems.filter((item) => stringValue(item.ward) === parent || stringValue(item.province_city) === parent)
+    ? visaTypeFilteredItems.filter((item) => stringValue(item.ward) === parent)
     : visaTypeFilteredItems;
   return items.map((item) => optionFromOfficial(item, source)).filter(Boolean) as VisaFormOption[];
 }
@@ -292,14 +252,6 @@ function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): Vis
     });
 }
 
-async function loadAdministrativeOptions(level: "level1" | "level2", parent: string, limit: number): Promise<VisaFormOption[]> {
-  const hotels = await loadOfficialItems("hotel");
-  const options = level === "level1"
-    ? deriveHotelProvinceOptions(hotels)
-    : deriveHotelWardOptions(hotels, parent);
-  return options.slice(0, limit);
-}
-
 void Promise.allSettled(
   ["visa_issue_place", "hotel", "airport", "port", "visa_type", "purpose"].map((source) => loadOfficialItems(source)),
 );
@@ -315,10 +267,15 @@ export async function GET(request: Request) {
 
   try {
     let options: VisaFormOption[];
-    if (source === "administrative_unit_level1") {
-      options = filterOptionsByKeyword(await loadAdministrativeOptions("level1", "", 10000), keyword).slice(0, limit);
+    const localOfficialOptions = getVnPrearrivalStaticOptions(source, parent);
+    if (localOfficialOptions !== null) {
+      options = filterOptionsByKeyword(localOfficialOptions as VisaFormOption[], keyword).slice(0, limit);
+    } else if (source === "administrative_unit_level1") {
+      options = filterOptionsByKeyword(getVnPrearrivalAdministrativeOptions("level1"), keyword).slice(0, limit);
     } else if (source === "administrative_unit_level2") {
-      options = parent ? filterOptionsByKeyword(await loadAdministrativeOptions("level2", parent, 10000), keyword).slice(0, limit) : [];
+      options = parent
+        ? filterOptionsByKeyword(getVnPrearrivalAdministrativeOptions("level2", parent), keyword).slice(0, limit)
+        : [];
     } else if (FIND_ALL_SOURCES.has(source)) {
       options = filterOptionsByKeyword(await loadFindAllOptions(source, parent), keyword).slice(0, limit);
     } else {

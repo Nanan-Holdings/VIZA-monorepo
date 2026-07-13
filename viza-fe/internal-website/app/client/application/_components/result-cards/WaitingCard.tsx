@@ -111,6 +111,20 @@ function phaseIndexForStage(stage: SubmissionVisualStage | null | undefined): nu
   }
 }
 
+function localizeProgressMessage(message: string | null | undefined, isZh: boolean): string | null {
+  if (!message) return null;
+  if (
+    /official portal could not read required fields from the passport image|official_passport_scan_invalid_data|step_1_passport_scan_invalid_data/i.test(
+      message,
+    )
+  ) {
+    return isZh
+      ? "印尼官网无法读取护照图片里的必要字段。请重新上传更清晰、光线充足、横向放置的护照资料页，然后重试。"
+      : "Indonesia official portal could not read required fields from the passport image. Upload a clearer, well-lit, landscape passport bio page image and retry.";
+  }
+  return message;
+}
+
 /**
  * WaitingCard — renders while applications.submission_result_status is
  * `waiting` or `processing`. Phase progresses on a soft timer; the realtime
@@ -232,7 +246,9 @@ export function WaitingCard({
   }, [applicationId, isFrance]);
 
   const progressMessage = (() => {
-    if (failedStatus && error) return error;
+    const localizedError = localizeProgressMessage(error, isZh);
+    const localizedMessage = localizeProgressMessage(message, isZh);
+    if (failedStatus && localizedError) return localizedError;
     if (normalizeStatus(status) === "stalled") {
       return isZh
         ? "仍在等待检查点或结果，但后台任务最近没有更新。请稍后重试或联系支持。"
@@ -243,7 +259,7 @@ export function WaitingCard({
         ? "流程已暂停，等待您或工作人员完成官网上的必要操作。"
         : "The flow is paused while a required official-portal action is completed.";
     }
-    if (message) return message;
+    if (localizedMessage) return localizedMessage;
     if (activePhase.id === "confirming" && !isVisuallyComplete) {
       return isZh
         ? "仍在等待检查点或结果，请稍候。"

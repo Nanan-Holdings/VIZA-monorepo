@@ -345,6 +345,57 @@ const KOREA_C39_REQUIREMENTS: DocumentRequirement[] = [
   },
 ];
 
+const INDONESIA_B1_EVOA_REQUIREMENTS: DocumentRequirement[] = [
+  {
+    key: "passport_copy",
+    documentType: "passport_copy",
+    labelEn: "Passport bio page",
+    labelZh: "护照资料页",
+    description:
+      "Official requirement: upload a sharp, in-focus, landscape passport bio page photo or scan. It must not be ghosted, covered, cropped, folded, or blurry.",
+    required: true,
+    sortOrder: 10,
+    accept: [".pdf", ".jpg", ".jpeg", ".png", ".webp"],
+    source: "fallback",
+  },
+  {
+    key: "photo",
+    documentType: "photo",
+    labelEn: "Newest formal photo",
+    labelZh: "近期证件照",
+    description:
+      "Official requirement: JPEG/JPG/PNG color photo, minimum 400x600px, maximum 2MB, proper composition. Head including hair to chin should be 50%-60% of image height; eye height should be 50%-60%. Avoid blurry, non-face, expression, too-close, or too-far photos.",
+    required: true,
+    sortOrder: 20,
+    accept: [".jpg", ".jpeg", ".png"],
+    source: "fallback",
+  },
+  {
+    key: "return_ticket",
+    documentType: "return_ticket",
+    labelEn: "Return or onward ticket",
+    labelZh: "返程或续程机票",
+    description:
+      "Official requirement: return ticket or onward ticket to continue the journey to another country. PDF format.",
+    required: true,
+    sortOrder: 30,
+    accept: [".pdf"],
+    source: "fallback",
+  },
+  {
+    key: "passport_validity_support",
+    documentType: "passport_validity_support",
+    labelEn: "Passport validity support document",
+    labelZh: "护照有效期支持材料",
+    description:
+      "Official support document: passport valid for at least 6 months. For travel documents other than passports, validity must be at least 12 months. VIZA can generate this PDF from the passport bio page when possible.",
+    required: false,
+    sortOrder: 40,
+    accept: [".pdf"],
+    source: "fallback",
+  },
+];
+
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -403,6 +454,13 @@ function isKoreaC39DocumentApplication(application: ApplicationRow): boolean {
     application.country === "south_korea" &&
     resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) ===
       "KR_C39_SHORT_TERM_VISIT"
+  );
+}
+
+function isIndonesiaB1EvoaDocumentApplication(application: ApplicationRow): boolean {
+  return (
+    application.country.toLowerCase() === "indonesia" &&
+    resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) === "ID_B1_EVOA"
   );
 }
 
@@ -914,6 +972,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
 
   if (isKoreaC39DocumentApplication(application)) {
     return { source: "fallback" as const, requirements: cloneRequirements(KOREA_C39_REQUIREMENTS) };
+  }
+
+  if (isIndonesiaB1EvoaDocumentApplication(application)) {
+    return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_B1_EVOA_REQUIREMENTS) };
   }
 
   return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };

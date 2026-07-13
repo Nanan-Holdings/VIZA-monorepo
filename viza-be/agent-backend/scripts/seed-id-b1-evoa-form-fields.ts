@@ -1,8 +1,10 @@
 /**
  * Seed script: visa_form_fields for Indonesia B1 e-VoA.
  *
- * B1 and C1 are separate VIZA packages, but both are submitted through the
- * official Indonesia eVisa portal and share the same applicant form controls.
+ * B1 and C1 are separate VIZA packages. B1 is still submitted through the
+ * official Indonesia eVisa portal, but the user-facing VIZA intake hides
+ * controls that the B1 official flow derives from passport/address parsing or
+ * does not ask for.
  *
  * Official portal: https://evisa.imigrasi.go.id/
  *
@@ -34,12 +36,24 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const B1_HIDDEN_OR_NOT_APPLICABLE_FIELDS = new Set([
+  "passport_bio_page_upload",
+  "formal_photo_upload",
+  "document_travel_id",
+  "passport_issue_date",
+  "province_name",
+  "city_name",
+  "district_name",
+  "village_name",
+  "bank_statement_upload",
+]);
+
 seedIndonesiaOfficialEVisaFields({
   supabase,
   visaType: "ID_B1_EVOA",
-  fields: INDONESIA_OFFICIAL_EVISA_FIELDS.map((field) =>
-    toBilingualSeedRow("ID_B1_EVOA", field),
-  ),
+  fields: INDONESIA_OFFICIAL_EVISA_FIELDS
+    .filter((field) => !B1_HIDDEN_OR_NOT_APPLICABLE_FIELDS.has(field.field_name))
+    .map((field) => toBilingualSeedRow("ID_B1_EVOA", field)),
 }).catch((err) => {
   console.error(err);
   process.exit(1);

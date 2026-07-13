@@ -602,6 +602,10 @@ export function DynamicFormField({
   const [dateModeByField, setDateModeByField] = useState<Record<string, "full" | "year">>({});
   const maxLength = getMaxLengthRule(field);
   const configuredHelperText = getHelperTextRule(field, sideLocale);
+  const normalizedSelectOptions = useMemo(
+    () => fieldType === "select" ? normaliseOptions(options, sideLocale) : [],
+    [fieldType, options, sideLocale],
+  );
   const lengthHelperText = maxLength
     ? sideLocale === "zh"
       ? `最多 ${maxLength} 个字符，当前 ${value.length}/${maxLength}`
@@ -740,7 +744,7 @@ export function DynamicFormField({
           </FieldWrapper>
         );
       }
-      const opts = normaliseOptions(options, sideLocale);
+      const opts = normalizedSelectOptions;
       const rules = field.validationRules as { remote_search?: unknown } | null;
       const usesRemoteSearch = rules?.remote_search === true;
       if (isEmptyDependentSelect(field, opts)) {

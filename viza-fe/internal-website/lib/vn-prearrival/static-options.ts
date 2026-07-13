@@ -18,26 +18,7 @@ type OfficialOption = {
 };
 
 const sources = staticOptions.sources as Record<string, OfficialOption[] | undefined>;
-
-const ADMIN_ZH_BY_CODE: Record<string, string> = {
-  "01": "河内市",
-  "11": "奠边府市",
-  "22": "广宁省",
-  "31": "海防市",
-  "38": "清化市",
-  "40": "乂安省",
-  "46": "承天顺化省",
-  "48": "岘港市",
-  "51": "广义市",
-  "52": "嘉莱省",
-  "56": "庆和省",
-  "66": "得乐省",
-  "68": "林同省",
-  "79": "胡志明市",
-  "91": "安江省",
-  "92": "芹苴市",
-  "96": "金瓯市",
-};
+const STATIC_OPTIONS_CACHE = new Map<string, VisaFormFieldOption[] | null>();
 
 const PLACE_ZH_OVERRIDES: Record<string, string> = {
   "Abu Dhabi": "阿布扎比",
@@ -106,19 +87,31 @@ const PLACE_ZH_OVERRIDES: Record<string, string> = {
   "New Delhi": "新德里",
   "New Zealand": "新西兰",
   "North Korea": "朝鲜",
+  Netherlands: "荷兰",
+  Nigeria: "尼日利亚",
+  Norway: "挪威",
   Osaka: "大阪",
+  Pakistan: "巴基斯坦",
   Pakse: "巴色",
+  Panama: "巴拿马",
   Peru: "秘鲁",
   "Permanent Residence Card": "永久居留卡",
   Perth: "珀斯",
   Philippine: "菲律宾",
+  Philippines: "菲律宾",
   "Phnom Penh": "金边",
   "Papua New Guinea": "巴布亚新几内亚",
+  Poland: "波兰",
+  Portugal: "葡萄牙",
   "Preah Sihanouk": "西哈努克",
+  Qatar: "卡塔尔",
+  Romania: "罗马尼亚",
   Russia: "俄罗斯",
   "Saudi Arabia": "沙特阿拉伯",
+  "San Francisco": "旧金山",
   "Sao Paulo": "圣保罗",
   "Savannakhet": "沙湾拿吉",
+  Serbia: "塞尔维亚",
   Shanghai: "上海",
   "Siem Reap": "暹粒",
   Singapore: "新加坡",
@@ -131,11 +124,22 @@ const PLACE_ZH_OVERRIDES: Record<string, string> = {
   Sweden: "瑞典",
   Switzerland: "瑞士",
   Thailand: "泰国",
+  "Thái Lan": "泰国",
+  Tanzania: "坦桑尼亚",
   Tokyo: "东京",
+  Turkey: "土耳其",
+  Ukraine: "乌克兰",
   UAE: "阿联酋",
+  "United Kingdom": "英国",
+  "United States": "美国",
   "United States of America": "美国",
+  USA: "美国",
+  Uzbekistan: "乌兹别克斯坦",
   Vientiane: "万象",
   Vietnam: "越南",
+  Vladivostok: "符拉迪沃斯托克",
+  "Washington D.C.": "华盛顿哥伦比亚特区",
+  Yemen: "也门",
 };
 
 const AIRPORT_ZH_BY_CODE: Record<string, string> = {
@@ -177,30 +181,6 @@ function translateIssuePlace(enValue: string): string {
   const consulate = enValue.match(/^Consulate General of Vietnam in (.+)$/);
   if (consulate) return `越南驻${translatePlaceName(consulate[1])}总领事馆`;
   return translatePlaceName(enValue);
-}
-
-function translateAdminName(code: string, enLabel: string, vnLabel: string): string {
-  if (ADMIN_ZH_BY_CODE[code]) return ADMIN_ZH_BY_CODE[code];
-  const label = enLabel || vnLabel || code;
-  return label
-    .replace(/\s+City$/i, "市")
-    .replace(/\s+Province$/i, "省");
-}
-
-function translateWardName(enLabel: string, vnLabel: string): string {
-  if (vnLabel) {
-    return vnLabel
-      .replace(/^Phường\s+/i, "")
-      .replace(/^Xã\s+/i, "")
-      .replace(/^Thị trấn\s+/i, "")
-      .concat(vnLabel.toLowerCase().startsWith("xã ") ? "社" : "坊");
-  }
-  const cleaned = enLabel
-    .replace(/\s+Ward$/i, " Ward")
-    .replace(/\s+Commune$/i, " Commune");
-  return cleaned
-    .replace(/\s+Ward$/i, "坊")
-    .replace(/\s+Commune$/i, "社");
 }
 
 function optionFromOfficial(item: OfficialOption, source: string): VisaFormFieldOption | null {
@@ -250,59 +230,32 @@ function issuePlaceMatchesVisaType(item: OfficialOption, visaType: string): bool
   return visaTypes.length === 0 || visaTypes.includes(visaType);
 }
 
-function deriveHotelProvinceOptions(items: OfficialOption[]): VisaFormFieldOption[] {
-  const byCode = new Map<string, { en: string; vn: string }>();
-  for (const item of items) {
-    const code = stringValue(item.province_city);
-    if (!code || byCode.has(code)) continue;
-    const enParts = stringValue(item.en_value).split(",").map((part) => part.trim()).filter(Boolean);
-    const vnParts = stringValue(item.vn_value).split(",").map((part) => part.trim()).filter(Boolean);
-    byCode.set(code, { en: enParts.at(-1) ?? code, vn: vnParts.at(-1) ?? "" });
-  }
-  return Array.from(byCode.entries()).map(([code, label]) => ({
-    value: code,
-    text: label.en,
-    label_en: label.en,
-    label_zh: translateAdminName(code, label.en, label.vn),
-    official_label: label.en,
-    searchText: `${code} ${label.en} ${label.vn} ${translateAdminName(code, label.en, label.vn)}`,
-  }));
-}
-
-function deriveHotelWardOptions(items: OfficialOption[], provinceCode: string): VisaFormFieldOption[] {
-  const byCode = new Map<string, { en: string; vn: string }>();
-  for (const item of items) {
-    if (provinceCode && stringValue(item.province_city) !== provinceCode) continue;
-    const code = stringValue(item.ward);
-    if (!code || byCode.has(code)) continue;
-    const enParts = stringValue(item.en_value).split(",").map((part) => part.trim()).filter(Boolean);
-    const vnParts = stringValue(item.vn_value).split(",").map((part) => part.trim()).filter(Boolean);
-    const en = enParts.length >= 2 ? enParts[enParts.length - 2] : code;
-    const vn = vnParts.length >= 2 ? vnParts[vnParts.length - 2] : "";
-    byCode.set(code, { en: en ?? code, vn });
-  }
-  return Array.from(byCode.entries()).map(([code, label]) => ({
-    value: code,
-    text: label.en,
-    label_en: label.en,
-    label_zh: translateWardName(label.en, label.vn),
-    official_label: label.en,
-    searchText: `${code} ${label.en} ${label.vn} ${translateWardName(label.en, label.vn)}`,
-  }));
-}
-
 export function getVnPrearrivalStaticOptions(source: string, parent = ""): VisaFormFieldOption[] | null {
   const normalizedSource = source.replace(/^prearrival_category:/, "");
-  const hotelItems = sources.hotel ?? [];
-  if (normalizedSource === "administrative_unit_level1") return deriveHotelProvinceOptions(hotelItems);
-  if (normalizedSource === "administrative_unit_level2") return parent ? deriveHotelWardOptions(hotelItems, parent) : [];
+  const cacheKey = `${normalizedSource}:${parent}`;
+  if (STATIC_OPTIONS_CACHE.has(cacheKey)) return STATIC_OPTIONS_CACHE.get(cacheKey) ?? null;
+  if (normalizedSource === "administrative_unit_level1") {
+    // Administrative units live server-side so the client never infers them
+    // from hotel strings and always receives the full local snapshot.
+    STATIC_OPTIONS_CACHE.set(cacheKey, null);
+    return null;
+  }
+  if (normalizedSource === "administrative_unit_level2") {
+    STATIC_OPTIONS_CACHE.set(cacheKey, null);
+    return null;
+  }
 
   const rawItems = sources[normalizedSource];
-  if (!rawItems) return null;
+  if (!rawItems) {
+    STATIC_OPTIONS_CACHE.set(cacheKey, null);
+    return null;
+  }
   const items = normalizedSource === "visa_issue_place"
     ? rawItems.filter((item) => issuePlaceMatchesVisaType(item, parent))
     : normalizedSource === "hotel" && parent
-      ? rawItems.filter((item) => stringValue(item.ward) === parent || stringValue(item.province_city) === parent)
+      ? rawItems.filter((item) => stringValue(item.ward) === parent)
       : rawItems;
-  return items.map((item) => optionFromOfficial(item, normalizedSource)).filter(Boolean) as VisaFormFieldOption[];
+  const options = items.map((item) => optionFromOfficial(item, normalizedSource)).filter(Boolean) as VisaFormFieldOption[];
+  STATIC_OPTIONS_CACHE.set(cacheKey, options);
+  return options;
 }

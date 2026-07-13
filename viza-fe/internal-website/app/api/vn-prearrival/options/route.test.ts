@@ -41,6 +41,19 @@ describe("Vietnam pre-arrival official option mapping", () => {
     });
   });
 
+  it("serves the official static Chinese issue-place translation instead of a machine-translated fragment", async () => {
+    const { GET } = await import("./route");
+    const response = await GET(new Request("http://localhost/api/vn-prearrival/options?source=prearrival_category%3Avisa_issue_place&parent=EV"));
+    const payload = await response.json() as { options: Array<{ label_zh: string; label_en: string }> };
+
+    expect(payload.options).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label_en: "Vietnam Immigration Department - Ministry of Public Security",
+        label_zh: "越南出入境管理局 - 公安部",
+      }),
+    ]));
+  });
+
   it("uses Chinese country code labels from the hardcoded translation helper", () => {
     expect(
       __testables.optionFromOfficial(
