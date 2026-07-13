@@ -155,6 +155,11 @@ function Get-PortListener {
   return Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 
+function Get-PortConnection {
+  param([int]$Port)
+  return Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
 function Get-ProcessInfo {
   param([int]$ProcessId)
   return Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
@@ -201,6 +206,90 @@ function Test-HttpProbe {
   } catch {
     return $false
   }
+}
+
+function Test-TcpPortBindable {
+  param([int]$Port)
+
+  $listener = $null
+  try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $Port)
+    $listener.Start()
+    return $true
+  } catch {
+    return $false
+  } finally {
+    if ($listener) {
+      $listener.Stop()
+    }
+  }
+}
+
+function Format-PortOwner {
+  param([int]$Port)
+
+  $connection = Get-PortConnection -Port $Port
+  if (!$connection) {
+    return "unknown owner"
+  }
+
+  $process = Get-ProcessInfo -ProcessId $connection.OwningProcess
+  $processName = if ($process) { $process.Name } else { "unknown" }
+  return "PID $($connection.OwningProcess) ($processName, state $($connection.State))"
+}
+
+function Set-UriPort {
+  param(
+    [string]$Uri,
+    [int]$Port
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Uri)) {
+    return ""
+  }
+
+  $builder = [System.UriBuilder]::new($Uri)
+  $builder.Port = $Port
+  return $builder.Uri.AbsoluteUri
+}
+
+function Resolve-AutoPort {
+  param(
+    [string]$Name,
+    [int]$Port,
+    [bool]$Explicit,
+    [string]$HealthUri = "",
+    [string[]]$ExpectedContent = @(),
+    [int]$SearchLimit = 50
+  )
+
+  if (Test-HttpProbe -Uri $HealthUri -ExpectedContent $ExpectedContent) {
+    return $Port
+  }
+
+  if (Test-TcpPortBindable -Port $Port) {
+    return $Port
+  }
+
+  $owner = Format-PortOwner -Port $Port
+  if ($Explicit) {
+    throw "$Name port $Port is not bindable ($owner). Choose a different -TravelPort or stop the owning process."
+  }
+
+  for ($candidate = $Port + 1; $candidate -le ($Port + $SearchLimit); $candidate++) {
+    $candidateHealthUri = Set-UriPort -Uri $HealthUri -Port $candidate
+    if (Test-HttpProbe -Uri $candidateHealthUri -ExpectedContent $ExpectedContent) {
+      Write-Warn "$Name port $Port is not bindable ($owner); reusing $Name on port $candidate."
+      return $candidate
+    }
+
+    if (Test-TcpPortBindable -Port $candidate) {
+      Write-Warn "$Name port $Port is not bindable ($owner); using port $candidate for this run."
+      return $candidate
+    }
+  }
+
+  throw "$Name port $Port is not bindable ($owner), and no free port was found between $($Port + 1) and $($Port + $SearchLimit)."
 }
 
 function Assert-PortAvailableOrExpected {
@@ -655,6 +744,14 @@ New-Item -ItemType Directory -Force -Path $runLogDir | Out-Null
 Assert-ServiceInputs
 Start-DatabaseServices
 Invoke-VizaRequiredMigrations
+
+$travelPortExplicit = $PSBoundParameters.ContainsKey("TravelPort")
+$TravelPort = Resolve-AutoPort `
+  -Name "travel-service" `
+  -Port $TravelPort `
+  -Explicit $travelPortExplicit `
+  -HealthUri "http://127.0.0.1:$TravelPort/openapi.json" `
+  -ExpectedContent @('"/generate"', '"/chat"', '"/flight-options"')
 
 $frontendAlreadyRunning = Assert-PortAvailableOrExpected `
   -Name "frontend" `
