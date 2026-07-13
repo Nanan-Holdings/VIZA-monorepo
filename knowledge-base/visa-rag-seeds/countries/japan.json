@@ -97,6 +97,12 @@
           "content": "Tourism evidence can include passport, visa application form or eVISA data, photo, itinerary, flight/transport plan, hotel booking, funds/employment evidence, and agency or residence-specific checklist documents. Workflow guardrails: For Chinese residents, VIZA should check the current eVISA/agency route and jurisdiction before promising direct online submission."
         },
         {
+          "id": "japan_singapore_jvac_chinese_residents",
+          "title": "新加坡中国护照持有人：JVAC/VFS 旅游签证递交",
+          "tags": ["japan", "singapore", "vfs", "jvac", "chinese-passport", "appointment"],
+          "content": "日本驻新加坡使馆说明：仅在新加坡长期居留者可在当地申请，短期访客须在本国或常住地申请；一般应在出行前三个月内递交，JVAC 处理在材料无问题时至少需要 10 个工作日。签证申请递交与取件由 Japan Visa Application Centre (VFS) 处理，申请人应先完成表格和材料，再预约。中国普通护照长期居留者的旅游单次/双次材料通常包括有效护照、签证申请表、近六个月白底照片、新加坡长期准证、在职/ACRA 资料、IRAS 或近期银行材料、往返航班信息及逐日行程；多次签还须说明理由并提供适用的财力/关系证明。最终以 VFS 最新 checklist 为准。官方来源：https://www.sg.emb-japan.go.jp/itpr_en/visit.html ; https://www.sg.emb-japan.go.jp/itpr_en/visa_documents.html ; https://visa.vfsglobal.com/sgp/en/jpn/apply-visa"
+        },
+        {
           "id": "standard_passport_identity_field_rules",
           "title": "Standard passport identity-field answer rules",
           "tags": [

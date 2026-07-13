@@ -81,6 +81,23 @@ const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
 
 type BilingualSide = "zh" | "en";
 
+type IndonesiaPostalLookup =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "resolved"; summaryZh: string; summaryEn: string }
+  | { status: "invalid" | "unavailable"; messageZh: string; messageEn: string };
+
+function isIndonesiaOfficialEVisaContext(country: string | null | undefined, visaType: string | undefined): boolean {
+  const normalizedCountry = country?.trim().toLowerCase();
+  return (normalizedCountry === "indonesia" || normalizedCountry === "id") &&
+    (visaType === "ID_B1_EVOA" || visaType === "ID_C1_TOURIST");
+}
+
+function normalizeIndonesiaPhoneNumber(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits ? `+${digits}` : "";
+}
+
 interface CountryDataListCountry {
   alpha2: string;
   countryCallingCodes: string[];
@@ -149,6 +166,11 @@ type FieldIssueSeverity = "ok" | "warning" | "error";
 interface FieldIssue {
   severity: FieldIssueSeverity;
   message: string;
+}
+
+function isIndonesiaPostalAutoFillField(field: VisaFormFieldRow): boolean {
+  const rules = field.validationRules as { auto_filled_by?: string } | null;
+  return rules?.auto_filled_by === "postal_code";
 }
 
 const TEXT_EDITING_INPUT_TYPES = new Set([
@@ -1942,9 +1964,14 @@ export function DynamicStepForm({
   const [vnPrearrivalQueries, setVnPrearrivalQueries] = useState<Record<string, string>>({});
   const [vnPrearrivalOptions, setVnPrearrivalOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
   const [vnPrearrivalSearching, setVnPrearrivalSearching] = useState<Record<string, boolean>>({});
+  const [indonesiaPostalLookup, setIndonesiaPostalLookup] = useState<IndonesiaPostalLookup>({ status: "idle" });
   const isVnPrearrivalStep = useMemo(
     () => isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field)),
     [step.fields, visaType],
+  );
+  const isIndonesiaOfficialEVisa = useMemo(
+    () => isIndonesiaOfficialEVisaContext(country, visaType),
+    [country, visaType],
   );
 
   const valuesRef = useRef(values);
@@ -1964,6 +1991,80 @@ export function DynamicStepForm({
   useEffect(() => {
     onDraftChangeRef.current = onDraftChange;
   }, [onDraftChange]);
+
+  useEffect(() => {
+    if (!isIndonesiaOfficialEVisa || !step.fields.some((field) => field.fieldName === "postal_code")) {
+      setIndonesiaPostalLookup({ status: "idle" });
+      return;
+    }
+
+    const postalCode = values.postal_code?.replace(/\D/g, "") ?? "";
+    if (!postalCode) {
+      setIndonesiaPostalLookup({ status: "idle" });
+      return;
+    }
+    if (postalCode.length !== 5) {
+      setIndonesiaPostalLookup({
+        status: "invalid",
+        messageZh: "请输入住宿地址对应的 5 位印尼邮政编码。",
+        messageEn: "Enter the 5-digit Indonesian postal code for your accommodation.",
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIndonesiaPostalLookup({ status: "checking" });
+      try {
+        const response = await fetch(`/api/indonesia/postal-code?postalCode=${postalCode}`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json() as {
+          ok?: boolean;
+          messageZh?: string;
+          messageEn?: string;
+          location?: { province: string; city: string; district: string; village: string };
+        };
+        if (!response.ok || !payload.ok || !payload.location) {
+          setIndonesiaPostalLookup({
+            status: response.status === 503 ? "unavailable" : "invalid",
+            messageZh: payload.messageZh ?? "无法识别该印尼邮政编码。",
+            messageEn: payload.messageEn ?? "This Indonesian postal code could not be recognized.",
+          });
+          return;
+        }
+
+        const { province, city, district, village } = payload.location;
+        const nextValues = {
+          ...valuesRef.current,
+          postal_code: postalCode,
+          province_name: province,
+          city_name: city,
+          district_name: district,
+          village_name: village,
+        };
+        valuesRef.current = nextValues;
+        setValues(nextValues);
+        setIndonesiaPostalLookup({
+          status: "resolved",
+          summaryZh: `已自动填写：${province} / ${city} / ${district} / ${village}`,
+          summaryEn: `Auto-filled: ${province} / ${city} / ${district} / ${village}`,
+        });
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setIndonesiaPostalLookup({
+          status: "unavailable",
+          messageZh: "暂时无法校验印尼邮政编码，请稍后重试。",
+          messageEn: "Indonesia postal-code validation is temporarily unavailable. Please try again shortly.",
+        });
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [isIndonesiaOfficialEVisa, step.fields, values.postal_code]);
 
   useEffect(() => {
     if (!isVnPrearrivalStep || !step.fields.some((field) => field.fieldName === "expected_arrival_date")) return;
@@ -2376,12 +2477,17 @@ export function DynamicStepForm({
   );
 
   const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
-    if (options?.recordUndo !== false && valuesRef.current[fieldName] !== value) {
+    const normalizedValue = isIndonesiaOfficialEVisa && fieldName === "mobile_phone"
+      ? normalizeIndonesiaPhoneNumber(value)
+      : isIndonesiaOfficialEVisa && fieldName === "postal_code"
+        ? value.replace(/\D/g, "").slice(0, 5)
+        : value;
+    if (options?.recordUndo !== false && valuesRef.current[fieldName] !== normalizedValue) {
       pushUndoSnapshot();
     }
 
     setValues((prev) => {
-      const next = { ...prev, [fieldName]: value };
+      const next = { ...prev, [fieldName]: normalizedValue };
       if (isVnPrearrivalStep && fieldName === "expected_arrival_date") {
         next.flight_number = "";
         next.border_gate_airport = "";
@@ -2403,7 +2509,7 @@ export function DynamicStepForm({
       }
 
       // Clear inline-group sibling value fields when LESS_THAN_24_HOURS is selected
-      if (value === "LESS_THAN_24_HOURS") {
+      if (normalizedValue === "LESS_THAN_24_HOURS") {
         const baseFieldName = fieldName.replace(/__\d+$/, "");
         const suffix = fieldName.substring(baseFieldName.length);
         const changedField = step.fields.find((f) => f.fieldName === baseFieldName);
@@ -2547,6 +2653,7 @@ export function DynamicStepForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (indonesiaPostalLookupBlocksContinue) return;
     const stepData = filterCurrentStepValues(step.fields, values, groupCounts);
     onDraftChangeRef.current?.(stepData);
     onComplete(stepData);
@@ -2603,6 +2710,7 @@ export function DynamicStepForm({
   }, [gatingToggles, values]);
 
   const visibleFields = step.fields.filter((f) => {
+      if (isIndonesiaPostalAutoFillField(f)) return false;
       if (isGatedByUnansweredToggle(f)) return false;
       if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
       return evaluateShowIf(f, values, step.fields);
@@ -2653,6 +2761,11 @@ export function DynamicStepForm({
     }
     return getLocalFieldIssue(f, f.fieldName, values[f.fieldName] ?? "", values, locale).severity !== "error";
   });
+  const indonesiaPostalLookupBlocksContinue = isIndonesiaOfficialEVisa &&
+    step.fields.some((field) => field.fieldName === "postal_code") &&
+    (indonesiaPostalLookup.status === "checking" ||
+      indonesiaPostalLookup.status === "invalid" ||
+      indonesiaPostalLookup.status === "unavailable");
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
@@ -2815,7 +2928,13 @@ export function DynamicStepForm({
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
-    const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
+    const localIssue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
+    const issue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
+      ? {
+          severity: indonesiaPostalLookup.status === "checking" ? "warning" as const : "error" as const,
+          message: isChineseInterface ? indonesiaPostalLookup.messageZh : indonesiaPostalLookup.messageEn,
+        }
+      : localIssue;
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
     const buttonLabel = panelOpen
@@ -2835,6 +2954,9 @@ export function DynamicStepForm({
             {renderSide("en")}
           </div>
           <div className="mt-2 flex items-center justify-end gap-2">
+            {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+              <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
+            )}
             {issue.severity !== "ok" && (
               <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                 {issue.message}
@@ -2903,6 +3025,11 @@ export function DynamicStepForm({
               />
             ) : null}
             <div className="flex items-center justify-end gap-2">
+              {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+                <span className="text-[13px] font-medium text-emerald-700">
+                  {indonesiaPostalLookup.summaryZh}
+                </span>
+              )}
               {issue.severity !== "ok" && (
                 <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                   {issue.message}
@@ -2953,6 +3080,7 @@ export function DynamicStepForm({
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyboardShortcuts} className="flex flex-col gap-3">
       {step.fields.map((field) => {
+        if (isIndonesiaPostalAutoFillField(field)) return null;
         // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
         if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
         // Hide fields gated by an unanswered toggle (e.g. travel plans)
@@ -2974,7 +3102,8 @@ export function DynamicStepForm({
                 !getRepeatGroup(f) &&
                 getBlockGroup(f) === bg &&
                 (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
-                !isGatedByUnansweredToggle(f),
+                !isGatedByUnansweredToggle(f) &&
+                !isIndonesiaPostalAutoFillField(f),
             );
 
             if (blockFields.length === 0) return null;
@@ -3015,7 +3144,8 @@ export function DynamicStepForm({
                 !getRepeatGroup(f) &&
                 getInlineGroup(f) === ig &&
                 (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
-                !isGatedByUnansweredToggle(f)
+                !isGatedByUnansweredToggle(f) &&
+                !isIndonesiaPostalAutoFillField(f)
             );
 
             if (inlineFields.length <= 1) {
@@ -3038,7 +3168,8 @@ export function DynamicStepForm({
         const groupFields = repeatGroupFields[group] ?? [];
         // Check if at least one field in group is visible
         const visibleGroupFields = groupFields.filter((f) =>
-          evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)
+          !isIndonesiaPostalAutoFillField(f) &&
+            (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields))
         );
         if (visibleGroupFields.length === 0) return null;
 
@@ -3094,7 +3225,7 @@ export function DynamicStepForm({
 
       <BrandActionButton
         type="submit"
-        disabled={!requiredFilled || !blockingErrorsClear}
+        disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
         loading={saving}
         loadingText={tButtons("saving")}
         className="mt-2"

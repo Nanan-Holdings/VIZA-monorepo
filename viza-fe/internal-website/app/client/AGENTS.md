@@ -65,6 +65,10 @@ applicant info, and help pages.
   reference capture. It reads backend-observed TLS slots, keeps user slot
   selection and final approval explicit, and records only redacted one-time TLS
   service-fee authorization metadata.
+- `applications/[applicationId]/japan-appointment/page.tsx`: Japan tourism
+  VFS/JVAC Singapore preflight for eligible Chinese long-term residents; VFS
+  login, verification, slot choice, and final confirmation remain official actions.
+  service-fee authorization metadata.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 
@@ -133,6 +137,7 @@ accessible component state.
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/korea-appointment/rules/page.tsx`
 - `viza-fe/internal-website/app/client/applications/[applicationId]/france-appointment/page.tsx`
+- `viza-fe/internal-website/app/client/applications/[applicationId]/japan-appointment/page.tsx`
 - `viza-fe/internal-website/components/client/us-appointment/AGENTS.md`
 - `viza-fe/internal-website/components/client/france-appointment/AGENTS.md`
 - `viza-fe/internal-website/components/client/korea-appointment/KoreaAppointmentAssistant.tsx`

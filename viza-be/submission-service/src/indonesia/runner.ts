@@ -648,6 +648,16 @@ function digitsOnly(value: string | null | undefined): string | null {
   return valueDigits || null;
 }
 
+export function normalizeIndonesiaMobilePhone(value: string | null | undefined): string | null {
+  const digits = digitsOnly(value);
+  return digits ? `+${digits}` : null;
+}
+
+export function normalizeIndonesiaPostalCode(value: string | null | undefined): string | null {
+  const digits = digitsOnly(value);
+  return digits && /^\d{5}$/.test(digits) ? digits : null;
+}
+
 function officialSafeText(value: string | null | undefined, fallback: string | null = null): string | null {
   const source = clean(value) ?? fallback;
   if (!source) return null;
@@ -676,13 +686,32 @@ async function fillTextInputValue(page: Page, selector: string, value: string | 
   return true;
 }
 
-async function fillPostalCodeAndWaitForAddress(page: Page, postalCode: string | null | undefined): Promise<boolean> {
-  const code = digitsOnly(postalCode) ?? "10310";
+function hasIndonesiaPostalValidationBlock(diagnostics: string[]): boolean {
+  return diagnostics.some((entry) =>
+    entry === "indonesia_postal_code_invalid_format" ||
+    entry === "indonesia_postal_code_not_found" ||
+    entry === "indonesia_postal_code_region_not_populated",
+  );
+}
+
+async function fillPostalCodeAndWaitForAddress(
+  page: Page,
+  postalCode: string | null | undefined,
+  diagnostics: string[],
+): Promise<boolean> {
+  const code = normalizeIndonesiaPostalCode(postalCode);
+  if (!code) {
+    diagnostics.push("indonesia_postal_code_invalid_format");
+    return false;
+  }
   const postal = page.locator("#postal_code").first();
   if ((await postal.count().catch(() => 0)) === 0) return false;
   await postal.fill(code, { timeout: 10_000 });
+  await postal.dispatchEvent("input");
+  await postal.dispatchEvent("change");
   await postal.dispatchEvent("keyup");
-  await page.waitForFunction(
+  await postal.blur().catch(() => undefined);
+  const populated = await page.waitForFunction(
     () => {
       const ids = ["province_id", "city_id", "district_id", "village_id"];
       return ids.every((id) => {
@@ -692,7 +721,17 @@ async function fillPostalCodeAndWaitForAddress(page: Page, postalCode: string | 
     },
     undefined,
     { timeout: 12_000 },
-  ).catch(() => undefined);
+  ).then(() => true).catch(() => false);
+  const portalText = await page.locator("body").innerText({ timeout: 3_000 }).catch(() => "");
+  if (/data postal code not found|postal code not found/i.test(portalText)) {
+    diagnostics.push("indonesia_postal_code_not_found");
+    return false;
+  }
+  if (!populated) {
+    diagnostics.push("indonesia_postal_code_region_not_populated");
+    return false;
+  }
+  diagnostics.push(`indonesia_postal_code_resolved ${code}`);
   return true;
 }
 
@@ -1558,7 +1597,7 @@ async function fillForeignerAccountRegistration(
   await fillIfPresent(page, "#birthday", toIndonesiaDate(registration.dateOfBirth));
   const phoneCountry = normalizeCountryLabel(registration.phoneCodeCountry ?? registration.passportCountry);
   await selectNativeOptionByText(page, "#phone_code", new RegExp(phoneCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).catch(() => undefined);
-  await fillIfPresent(page, "#mobile_phone", digitsOnly(registration.mobilePhone));
+  await fillIfPresent(page, "#mobile_phone", normalizeIndonesiaMobilePhone(registration.mobilePhone));
   await fillIfPresent(page, "#mother", registration.motherName ?? "UNKNOWN");
   await fillIfPresent(page, "#number", registration.passportNumber);
   await selectNativeOptionByText(
@@ -1815,7 +1854,9 @@ async function fillIndonesiaStayAndSupportFieldsIfPresent(
     new RegExp(application.residenceType ?? "HOTEL", "i"),
   ).then(() => true).catch(() => touched);
   touched = await fillIfPresent(page, "#address", application.addressInIndonesia) || touched;
-  touched = await fillPostalCodeAndWaitForAddress(page, application.postalCode) || touched;
+  const postalResolved = await fillPostalCodeAndWaitForAddress(page, application.postalCode, diagnostics);
+  if (!postalResolved) return false;
+  touched = postalResolved || touched;
   touched = await fillIfPresent(page, "#email", input.accountEmail ?? application.email) || touched;
   touched = await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email) || touched;
   touched = await setFilesIfPresent(page, "#attachment-return_ticket", application.returnTicketPath) || touched;
@@ -2719,7 +2760,7 @@ async function continueFromApplicationStepTwo(
   }
   await fillIfPresent(page, "#birth_place", application.birthPlace);
   await setDateValue(page, "#birthday", application.dateOfBirth);
-  await fillIfPresent(page, "#mobile_phone", digitsOnly(application.mobilePhone));
+  await fillIfPresent(page, "#mobile_phone", normalizeIndonesiaMobilePhone(application.mobilePhone));
   await selectNativeOptionByText(page, "#document_travel_id", /^Passport$/i).catch(() => undefined);
   await fillIfPresent(page, "#number", application.passportNumber);
   await selectNativeOptionByText(
@@ -2739,7 +2780,7 @@ async function continueFromApplicationStepTwo(
   await fillIfPresent(page, "#release_place", application.passportIssuePlace ?? application.passportCountry);
   await selectNativeOptionByText(page, "#residence_type_id", new RegExp(application.residenceType ?? "HOTEL", "i")).catch(() => undefined);
   await fillIfPresent(page, "#address", application.addressInIndonesia);
-  await fillPostalCodeAndWaitForAddress(page, application.postalCode);
+  if (!await fillPostalCodeAndWaitForAddress(page, application.postalCode, diagnostics)) return false;
   await fillIfPresent(page, "#email", input.accountEmail ?? application.email);
   await fillIfPresent(page, "#email_confirmation", input.accountEmail ?? application.email);
   await input.onStage?.("step_2_filled_text_fields", {
@@ -4035,6 +4076,7 @@ export async function probeIndonesiaPortal(
       if (
         /\/step_2\b/i.test(url) &&
         (beforeUrl === url && beforeState === state || !advanced) &&
+        !hasIndonesiaPostalValidationBlock(session.diagnostics) &&
         !session.diagnostics.includes("indonesia_step_2_state_machine_direct_step_3_attempted")
       ) {
         await captureApplicationStepArtifact(page, input, session.diagnostics, 2);
@@ -4072,7 +4114,15 @@ export async function probeIndonesiaPortal(
 
     const passportInvalidDataBlocked = hasIndonesiaPassportInvalidDataDiagnostic(session.diagnostics);
     const stepOneValidationBlocked = hasIndonesiaStepOneValidationBlock(session.diagnostics);
-    const action = passportInvalidDataBlocked
+    const postalValidationBlocked = hasIndonesiaPostalValidationBlock(session.diagnostics);
+    const action = postalValidationBlocked
+      ? {
+          actionType: "official_postal_code_validation_failed",
+          instruction:
+            "The Indonesia official portal could not resolve the accommodation postal code. Confirm the 5-digit postal code for the Indonesian address, then retry so the portal can fill province, city, district, and village.",
+          implementationStatus: "partial" as const,
+        }
+      : passportInvalidDataBlocked
       ? {
           actionType: "official_passport_scan_invalid_data",
           instruction:

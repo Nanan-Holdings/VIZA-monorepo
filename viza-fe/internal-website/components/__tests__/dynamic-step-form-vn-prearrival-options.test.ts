@@ -107,4 +107,17 @@ describe("Vietnam pre-arrival dynamic form options", () => {
     );
     expect(wards).not.toEqual(expect.arrayContaining([expect.objectContaining({ value: "48033" })]));
   });
+
+  it("keeps only official business accommodation records and localizes their Chinese display", () => {
+    const hotels = getVnPrearrivalStaticOptions("prearrival_category:hotel") ?? [];
+    const hotelObjects = hotels.filter((hotel): hotel is Exclude<typeof hotel, string> => typeof hotel !== "string");
+    const hoiAnHotel = hotelObjects.find((hotel) => hotel.value === "KSDN_60");
+
+    expect(hotels).toHaveLength(1811);
+    expect(hotelObjects.some((hotel) => hotel.value.includes("_REAL_"))).toBe(false);
+    expect(hoiAnHotel).toMatchObject({
+      label_en: "T & D Hoi An House, Group 46, Hau Xa Hamlet, Thanh Ha Village, Hoi An, Quang Nam",
+      label_zh: "T & D Maison 会安，第46街区后舍，清河，会安，广南",
+    });
+  });
 });
