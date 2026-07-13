@@ -281,12 +281,14 @@ function departureDateForOfficial(answers: Record<string, string>) {
 async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string, routingInput?: KvacRoutingInput) {
   const job = await latestJob(admin, applicationId);
   const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, routingInput));
-  if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null };
+  if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null, changeIntent: null };
 
   const [
     { data: slots, error: slotsErr },
     { data: confirmation, error: confirmationErr },
+    { data: application, error: applicationErr },
     { data: manualAction, error: manualActionErr },
+    { data: rescheduleAction, error: rescheduleActionErr },
   ] = await Promise.all([
     admin
       .from("appointment_slots")
@@ -302,6 +304,11 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .limit(1)
       .maybeSingle(),
     admin
+      .from("applications")
+      .select("appointment_confirmation_id")
+      .eq("id", applicationId)
+      .maybeSingle(),
+    admin
       .from("appointment_manual_actions")
       .select("id, job_id, action_type, status, instruction, expires_at, created_at, metadata_redacted_json")
       .eq("job_id", job.id)
@@ -309,10 +316,21 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    admin
+      .from("appointment_manual_actions")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("action_type", "official_reschedule_required")
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (slotsErr) throw new Error(slotsErr.message);
   if (confirmationErr) throw new Error(confirmationErr.message);
+  if (applicationErr) throw new Error(applicationErr.message);
   if (manualActionErr) throw new Error(manualActionErr.message);
+  if (rescheduleActionErr) throw new Error(rescheduleActionErr.message);
   const normalizedConfirmation = confirmation
     ? {
         ...confirmation,
@@ -321,7 +339,34 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
           : null,
       }
     : null;
-  return { routing, job, slots: slots ?? [], confirmation: normalizedConfirmation, manualAction: (manualAction as AppointmentManualActionRow | null) ?? null };
+
+  // VIZA only treats a persisted official confirmation as an existing appointment.
+  // Historical change checkpoints without one must not trigger a slow official lookup
+  // or block the applicant from starting a new appointment.
+  const hasVizaAppointmentRecord = Boolean(
+    application?.appointment_confirmation_id === normalizedConfirmation?.id
+      && normalizedConfirmation?.confirmation_number
+      && normalizedConfirmation.raw_confirmation_redacted_json?.mode !== "dry_run"
+      && !normalizedConfirmation.confirmation_number.startsWith("KR-DRYRUN-"),
+  );
+  const pendingChangeActionTypes = new Set([
+    "official_reschedule_required",
+    "official_cancel_required",
+    "official_cancel_confirmation_required",
+    "official_cancel_manual_checkpoint",
+  ]);
+  const actionableManualAction = !hasVizaAppointmentRecord && pendingChangeActionTypes.has(manualAction?.action_type ?? "")
+    ? null
+    : (manualAction as AppointmentManualActionRow | null) ?? null;
+
+  return {
+    routing,
+    job,
+    slots: slots ?? [],
+    confirmation: normalizedConfirmation,
+    manualAction: actionableManualAction,
+    changeIntent: hasVizaAppointmentRecord && rescheduleAction ? "reschedule" : null,
+  };
 }
 
 function dryRunSlots(centerCode: string) {
@@ -803,6 +848,12 @@ async function completeOfficialFinalBooking(
     current_manual_action: null,
     updated_at: new Date().toISOString(),
   }).eq("id", job.id);
+  await admin.from("appointment_manual_actions").update({
+    status: "completed",
+    completed_at: new Date().toISOString(),
+  }).eq("job_id", job.id)
+    .eq("action_type", "official_reschedule_required")
+    .in("status", ["pending", "in_progress"]);
   await admin.from("applications").update({
     appointment_assistance_status: "appointment_booked",
     appointment_confirmation_id: confirmation.id,
