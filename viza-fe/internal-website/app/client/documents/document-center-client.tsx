@@ -41,6 +41,7 @@ import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-clien
 import { runFaceMatch, type FaceMatchActionResult } from "@/app/actions/face-match";
 import {
   loadDocumentCenterData,
+  reuseUniversalProfileDocument,
   type ApplicationDocument,
   type DocumentApplication,
   type DocumentCenterData,
@@ -126,7 +127,7 @@ const REQUIREMENT_DESCRIPTION_ZH: Record<string, string> = {
   return_ticket: "官网要求提供返程机票或前往其他国家的续程机票，PDF 格式。",
   passport_validity_support:
     "官网支持材料：护照有效期至少 6 个月。若不是普通护照，旅行证件有效期需至少 12 个月。仅接受 PDF。",
-  bank_statement: "近期银行对账单或等效资金证明。",
+  bank_statement: "C1 官网要求：最近 3 个月的个人银行对账单，须显示申请人姓名、账单周期和账户余额，余额至少 USD 2,000 或等值金额；仅接受 PDF。",
   flight_booking: "如有，请提供机票预订或往返信息。",
   hotel_booking: "如有，请提供住宿预订或住宿确认。",
 };
@@ -141,7 +142,8 @@ const REQUIREMENT_DESCRIPTION_EN: Record<string, string> = {
     "Official requirement: return ticket or onward ticket to continue the journey to another country. PDF format.",
   passport_validity_support:
     "Official support document: passport valid for at least 6 months. Travel documents other than passports must be valid for at least 12 months. PDF format only.",
-  bank_statement: "Recent bank statements or equivalent proof of funds.",
+  bank_statement:
+    "Official C1 requirement: personal bank statement for the last 3 months showing the applicant name, statement period, and account balance, with a minimum amount of USD 2,000 or equivalent. PDF format only.",
   flight_booking:
     "If available, provide flight bookings or round-trip travel details.",
   hotel_booking:
@@ -207,7 +209,9 @@ function sanitizeFilename(name: string): string {
 }
 
 function getRequirementAccept(requirement: DocumentRequirement): string {
-  if (isIndonesiaB1OfficialPdfRequirement(requirement)) return ".pdf,application/pdf";
+  if (isIndonesiaB1OfficialPdfRequirement(requirement) || isIndonesiaC1OfficialPdfRequirement(requirement)) {
+    return ".pdf,application/pdf";
+  }
   if (requirement.accept.length > 0) return requirement.accept.join(",");
   if (requirement.documentType === "photo") return ".jpg,.jpeg,.png";
   return DEFAULT_ACCEPT;
@@ -217,6 +221,10 @@ function isIndonesiaB1OfficialPdfRequirement(requirement: DocumentRequirement): 
   return [requirement.key, requirement.documentType].some((value) =>
     value === "return_ticket" || value === "passport_validity_support",
   );
+}
+
+function isIndonesiaC1OfficialPdfRequirement(requirement: DocumentRequirement): boolean {
+  return requirement.key === "bank_statement" || requirement.documentType === "bank_statement";
 }
 
 function isPdfFile(file: File): boolean {
@@ -684,6 +692,7 @@ function RequirementRow({
   onFileChange,
   isZh,
   extraAction,
+  onReuseProfileDocument,
 }: {
   view: DocumentViewState;
   busy: boolean;
@@ -692,6 +701,7 @@ function RequirementRow({
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   isZh: boolean;
   extraAction?: ReactNode;
+  onReuseProfileDocument?: () => void;
 }) {
   const { requirement, document, status } = view;
   const Icon =
@@ -783,6 +793,11 @@ function RequirementRow({
                 ? "上传"
                 : "Upload"}
           </Button>
+          {onReuseProfileDocument && !document && (
+            <Button type="button" variant="outline" onClick={onReuseProfileDocument} disabled={busy}>
+              {isZh ? "使用已保存资料" : "Use saved profile file"}
+            </Button>
+          )}
           {extraAction}
           <input
             ref={inputRef}
@@ -1182,6 +1197,25 @@ export function DocumentCenterClient({
     }
   }
 
+  async function reuseProfileDocument(requirement: DocumentRequirement) {
+    if (!selectedApplication) return;
+    const key = getDocumentKey(requirement);
+    setBusyTarget({ type: "upload", key });
+    setError(null);
+    const result = await reuseUniversalProfileDocument({
+      applicationId: selectedApplication.id,
+      documentType: requirement.documentType,
+      requirementKey: requirement.key,
+      required: requirement.required,
+    });
+    if (!result.ok) {
+      setError(result.error || formatUploadError(new Error(result.error), isZh));
+      setBusyTarget(null);
+      return;
+    }
+    await refreshData();
+  }
+
   async function handleFileChange(
     requirement: DocumentRequirement,
     event: ChangeEvent<HTMLInputElement>
@@ -1189,10 +1223,10 @@ export function DocumentCenterClient({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (isIndonesiaB1OfficialPdfRequirement(requirement) && !isPdfFile(file)) {
+    if ((isIndonesiaB1OfficialPdfRequirement(requirement) || isIndonesiaC1OfficialPdfRequirement(requirement)) && !isPdfFile(file)) {
       setError(isZh
-        ? "印尼 B1 的返程/续程机票和护照有效期支持材料仅接受 PDF 文件。"
-        : "Indonesia B1 return/onward tickets and passport-validity support documents must be PDF files.");
+        ? "印尼官网要求该材料仅接受 PDF 文件。"
+        : "This Indonesia official document must be uploaded as a PDF file.");
       return;
     }
     if (
@@ -1581,6 +1615,11 @@ export function DocumentCenterClient({
                     }
                     isZh={isZh}
                     extraAction={renderTravelAiAction(view)}
+                    onReuseProfileDocument={
+                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo"].includes(view.requirement.documentType)
+                        ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
                   />
                 );
               })}
@@ -1617,8 +1656,13 @@ export function DocumentCenterClient({
                       onFileChange={(event) =>
                         handleFileChange(view.requirement, event)
                       }
-                      isZh={isZh}
-                      extraAction={renderTravelAiAction(view)}
+                    isZh={isZh}
+                    extraAction={renderTravelAiAction(view)}
+                    onReuseProfileDocument={
+                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo"].includes(view.requirement.documentType)
+                        ? () => void reuseProfileDocument(view.requirement)
+                        : undefined
+                    }
                     />
                   );
                 })}

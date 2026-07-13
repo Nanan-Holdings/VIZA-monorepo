@@ -74,6 +74,14 @@ interface Snapshot {
     confirmation_screenshot_url?: string | null;
     raw_confirmation_redacted_json?: { mode?: string } | null;
   } | null;
+  appointmentHistory: Array<{
+    id: string;
+    confirmation_number: string | null;
+    appointment_date: string | null;
+    appointment_time: string | null;
+    appointment_location: string | null;
+    raw_confirmation_redacted_json?: { mode?: string } | null;
+  }>;
 }
 
 type Stage =
@@ -147,6 +155,11 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const cancellationIntent = cancellationAction?.metadata_redacted_json?.intent === "reschedule" ? "reschedule" : "cancel";
   const cancellationReady = cancellationAction?.action_type === "official_cancel_confirmation_required";
   const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
+  const savedAppointment = snapshot?.appointmentHistory.find((record) => (
+    Boolean(record.confirmation_number)
+      && record.raw_confirmation_redacted_json?.mode !== "dry_run"
+      && !record.confirmation_number?.startsWith("KR-DRYRUN-")
+  )) ?? null;
 
   const run = useCallback(async (action?: string, slotId?: string, code?: string, centerCode?: string) => {
     setBusy(action ?? "load");
@@ -234,10 +247,8 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             </label>
             {center ? <div className="rounded-[8px] border bg-muted/30 p-4 text-sm"><div className="font-medium">{centerName}</div><div className="mt-1 text-muted-foreground">{center.addressZh}</div><div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full border bg-white px-3 py-1">{serviceLabel}</span><span className="rounded-full border bg-white px-3 py-1">{center.acceptsWalkIn === true ? (isZh ? "可现场取号" : "Walk-in allowed") : center.acceptsWalkIn === false ? (isZh ? "仅预约递交" : "Appointment only") : (isZh ? "现场规则以公告为准" : "Check current walk-in notice")}</span></div></div> : null}
             {snapshot?.routing.basis === "ambiguous" ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription>{isZh ? "请确认领区是否与可证明的现居住地或户籍地一致。" : "Confirm that the selected center matches your provable residence or hukou."}</AlertDescription></Alert> : null}
-            <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy) || !center} className="w-full sm:w-auto">
-              {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
-              {isSmsCenter ? (isZh ? "继续发送官方验证码" : "Continue to official SMS") : (isZh ? "查看该中心办理方式" : "View center filing method")}
-            </Button>
+            {snapshot?.appointmentHistory.length ? <div className="rounded-[8px] border bg-muted/30 p-4 text-sm"><div className="font-medium">{isZh ? "VIZA 已保存的预约记录" : "Appointments saved in VIZA"}</div>{snapshot.appointmentHistory.map((record) => <div key={record.id} className="mt-2 border-t pt-2 text-muted-foreground"><span className="font-medium text-foreground">{record.appointment_date} {record.appointment_time}</span><span className="mx-2">{record.appointment_location}</span><span className="text-xs">{isZh ? "确认号：" : "Confirmation: "}{record.confirmation_number ?? (isZh ? "待官方确认" : "Pending official confirmation")}</span></div>)}</div> : null}
+            {savedAppointment ? <div className="rounded-[8px] border border-amber-200 bg-amber-50/50 p-4"><div className="font-medium text-foreground">{isZh ? "此申请已有预约" : "This application already has an appointment"}</div><p className="mt-1 text-sm leading-6 text-muted-foreground">{isZh ? "如需改变现有预约，请选择改约或取消。系统会先在官网查询该确认记录，最终取消前仍会请你确认。" : "To change the existing appointment, choose reschedule or cancel. VIZA will first query the official record and will ask you before any final cancellation."}</p><div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" onClick={() => void run("request-reschedule")} disabled={Boolean(busy) || !center}>{busy === "request-reschedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}{isZh ? "改约" : "Reschedule"}</Button><Button variant="outline" onClick={() => void run("request-cancel")} disabled={Boolean(busy) || !center}>{busy === "request-cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{isZh ? "取消预约" : "Cancel appointment"}</Button></div>{busy === "request-reschedule" || busy === "request-cancel" ? <p role="status" aria-live="polite" className="mt-3 text-sm text-muted-foreground">{isZh ? "正在准备官网预约查询，请勿重复点击。" : "Preparing the official appointment query. Do not click again."}</p> : null}</div> : <><Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy) || !center} className="w-full sm:w-auto">{busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}{isSmsCenter ? (isZh ? "继续发送官方验证码" : "Continue to official SMS") : (isZh ? "查看该中心办理方式" : "View center filing method")}</Button>{busy === "request-live-booking" ? <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{isZh ? "正在连接官方预约页面并发送验证码，请勿重复点击。" : "Connecting to the official booking page and sending the code. Do not click again."}</p> : null}</>}
           </CardContent>
         </Card>
       ) : null}
