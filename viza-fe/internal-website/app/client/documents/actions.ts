@@ -421,6 +421,18 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
     accept: [".jpg", ".jpeg", ".png"],
     source: "fallback",
   },
+  {
+    key: "bank_statement",
+    documentType: "bank_statement",
+    labelEn: "Personal bank statement with minimum USD 2,000 or equivalent",
+    labelZh: "个人银行对账单（最低 USD 2,000 或等值金额）",
+    description:
+      "Official C1 requirement: personal bank statement for the last 3 months showing the applicant name, statement period, and account balance, with a minimum amount of USD 2,000 or equivalent. PDF format only.",
+    required: true,
+    sortOrder: 30,
+    accept: [".pdf"],
+    source: "fallback",
+  },
 ];
 
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
@@ -1019,6 +1031,13 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
   const adminClient = createAdminClient();
   const packageId = packageRow?.id ?? application.visa_package_id;
 
+  // The official C1 intake owns this fixed set of documents. Do not allow an
+  // older generic package checklist to reintroduce duplicate uploads or omit
+  // the required three-month financial statement.
+  if (isIndonesiaC1TouristDocumentApplication(application)) {
+    return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_C1_TOURIST_REQUIREMENTS) };
+  }
+
   if (packageId) {
     const { data, error } = await adminClient
       .from("document_requirements")
@@ -1333,6 +1352,83 @@ export interface RecordDocumentUploadInput {
   scope?: "application" | "universal_profile";
 }
 
+export async function reuseUniversalProfileDocument(input: {
+  applicationId: string;
+  documentType: string;
+  requirementKey: string;
+  required: boolean;
+}): Promise<DocumentMutationResult> {
+  try {
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const application = await getOwnedApplication(input.applicationId, contextResult.context.applicantId);
+    if (!application) return { ok: false, code: "not_found", error: "Application not found" };
+
+    const types = PASSPORT_DOCUMENT_TYPES.includes(input.documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number])
+      ? [...PASSPORT_DOCUMENT_TYPES]
+      : [input.documentType];
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from("universal_profile_documents")
+      .select("storage_path, filename, document_type, status")
+      .eq("applicant_id", contextResult.context.applicantId)
+      .in("document_type", types)
+      .neq("status", "missing")
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return { ok: false, code: "server_error", error: error.message };
+
+    let reusableDocument = data;
+    if (!reusableDocument?.storage_path) {
+      const { data: ownedApplications, error: ownedApplicationsError } = await adminClient
+        .from("applications")
+        .select("id")
+        .eq("applicant_id", contextResult.context.applicantId);
+      if (ownedApplicationsError) {
+        return { ok: false, code: "server_error", error: ownedApplicationsError.message };
+      }
+      const applicationIds = (ownedApplications ?? []).map((row: { id: string }) => row.id).filter(Boolean);
+      if (applicationIds.length > 0) {
+        const { data: applicationDocument, error: applicationDocumentError } = await adminClient
+          .from("application_documents")
+          .select("storage_path, filename, document_type, status")
+          .in("application_id", applicationIds)
+          .in("document_type", types)
+          .neq("status", "missing")
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        if (applicationDocumentError) {
+          return { ok: false, code: "server_error", error: applicationDocumentError.message };
+        }
+        reusableDocument = applicationDocument;
+      }
+    }
+    if (!reusableDocument?.storage_path) {
+      return { ok: false, code: "not_found", error: "No saved profile document is available" };
+    }
+
+    return recordDocumentUpload({
+      applicationId: input.applicationId,
+      documentType: input.documentType,
+      requirementKey: input.requirementKey,
+      filename: reusableDocument.filename ?? `${input.documentType}-profile-document`,
+      storagePath: reusableDocument.storage_path,
+      required: input.required,
+      source: "manual_upload",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: "server_error",
+      error: error instanceof Error ? error.message : "Failed to reuse profile document",
+    };
+  }
+}
+
 const APPLICATION_DOCUMENTS_BUCKET = "application-documents";
 const APPLICATION_DOCUMENTS_MAX_BYTES = 50 * 1024 * 1024;
 const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -1530,6 +1626,27 @@ async function validateIndonesiaB1OfficialPdfUpload(input: {
   return null;
 }
 
+async function validateIndonesiaC1BankStatementUpload(input: {
+  application: ApplicationRow;
+  documentType: string;
+  requirementKey: string;
+  file: File;
+}): Promise<string | null> {
+  if (!isIndonesiaC1TouristDocumentApplication(input.application)) return null;
+  if (![input.documentType, input.requirementKey].includes("bank_statement")) return null;
+
+  const filename = input.file.name.toLowerCase();
+  const mimeType = input.file.type.toLowerCase();
+  if (!filename.endsWith(".pdf") || (mimeType && mimeType !== "application/pdf")) {
+    return "Indonesia C1 personal bank statements must be uploaded as PDF files.";
+  }
+  const header = new Uint8Array(await input.file.slice(0, 5).arrayBuffer());
+  if (header.length !== 5 || String.fromCharCode(...header) !== "%PDF-") {
+    return "Indonesia C1 personal bank statements must be valid PDF files.";
+  }
+  return null;
+}
+
 function isIndonesiaC1RegistrationImageDocument(documentType: string, requirementKey: string): boolean {
   return [documentType, requirementKey].some((value) =>
     ["passport_copy", "passport_bio_page", "passport_bio_page_upload", "photo", "formal_photo", "formal_photo_upload"].includes(value),
@@ -1610,6 +1727,16 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
     });
     if (indonesiaPdfUploadError) {
       return { ok: false, code: "invalid_request", error: indonesiaPdfUploadError };
+    }
+
+    const indonesiaC1BankStatementUploadError = await validateIndonesiaC1BankStatementUpload({
+      application,
+      documentType,
+      requirementKey,
+      file,
+    });
+    if (indonesiaC1BankStatementUploadError) {
+      return { ok: false, code: "invalid_request", error: indonesiaC1BankStatementUploadError };
     }
 
     const indonesiaC1ImageUploadError = await validateIndonesiaC1RegistrationImageUpload({

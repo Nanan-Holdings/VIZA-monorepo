@@ -104,6 +104,21 @@ async function selectNearLabel(page: Page, labels: RegExp[], value: string): Pro
   return false;
 }
 
+async function selectOfficialRadio(page: Page, value: string): Promise<boolean> {
+  const radio = page.getByRole("radio", { name: value, exact: true });
+  const radioCount = await radio.count().catch(() => 0);
+  if (radioCount === 1 && (await radio.isVisible().catch(() => false))) {
+    await radio.check();
+    return true;
+  }
+
+  const label = page.getByText(value, { exact: true });
+  const labelCount = await label.count().catch(() => 0);
+  if (labelCount !== 1 || !(await label.isVisible().catch(() => false))) return false;
+  await label.click();
+  return true;
+}
+
 async function completeNationalityGate(page: Page, nationality: string): Promise<boolean> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/select your nationality/i.test(bodyText)) return true;
@@ -260,6 +275,9 @@ export async function runVietnamPrearrivalPortalSubmission(
         logs,
       );
     }
+    // The official portal can present the image CAPTCHA again after the
+    // nationality screen. Do not treat the modal as an empty declaration form.
+    await handleCaptchaGate(page, screenshots, logs, tempDir);
 
     const missingControls: string[] = [];
     const fillTasks: Array<[RegExp[], string, string]> = [
@@ -284,18 +302,24 @@ export async function runVietnamPrearrivalPortalSubmission(
 
     const selectTasks: Array<[RegExp[], string, string]> = [
       [[/passport type/i], payload.passportType, "passport_type"],
-      [[/sex|gender/i, /giới tính/i], payload.gender, "gender"],
       [[/visa type|purpose/i], payload.visaType, "visa_type"],
       [[/purpose of travel/i, /mục đích/i], payload.purposeOfTravel, "purpose_of_travel"],
-      [[/mode of travel|mode of transport/i, /loại phương tiện/i], payload.modeOfTravel, "mode_of_travel"],
       [[/border gate|port of entry/i, /cửa khẩu/i], payload.borderGateAirport ?? payload.landBorderGate ?? payload.seaPort ?? "", "border_gate"],
-      [[/type of accommodation/i], payload.accommodationType, "accommodation_type"],
       [[/province.*city/i], payload.provinceCityOfHotel, "province_city_of_hotel"],
       [[/ward.*commune/i], payload.wardCommuneOfHotel, "ward_commune_of_hotel"],
     ];
     for (const [labels, value, field] of selectTasks) {
       if (!value) continue;
       if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+    }
+
+    const radioTasks: Array<[string, string]> = [
+      [payload.gender, "gender"],
+      [payload.modeOfTravel, "mode_of_travel"],
+      [payload.accommodationType, "accommodation_type"],
+    ];
+    for (const [value, field] of radioTasks) {
+      if (!(await selectOfficialRadio(page, value))) missingControls.push(field);
     }
 
     const fillScreenshot = await saveScreenshot(page, tempDir, "after-fill-attempt", logs);

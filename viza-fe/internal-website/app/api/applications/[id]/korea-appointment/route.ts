@@ -233,6 +233,7 @@ async function postSubmissionService<T>(path: string, body: Record<string, unkno
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
   });
   const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || !payload) {
@@ -282,11 +283,12 @@ function departureDateForOfficial(answers: Record<string, string>) {
 async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string, routingInput?: KvacRoutingInput) {
   const job = await latestJob(admin, applicationId);
   const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, routingInput));
-  if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null, changeIntent: null };
+  if (!job) return { routing, job: null, slots: [], confirmation: null, appointmentHistory: [], manualAction: null, changeIntent: null };
 
   const [
     { data: slots, error: slotsErr },
     { data: confirmation, error: confirmationErr },
+    { data: appointmentHistory, error: appointmentHistoryErr },
     { data: application, error: applicationErr },
     { data: manualAction, error: manualActionErr },
     { data: rescheduleAction, error: rescheduleActionErr },
@@ -304,6 +306,13 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    admin
+      .from("appointment_confirmations")
+      .select("id, confirmation_number, appointment_date, appointment_time, appointment_location, created_at, raw_confirmation_redacted_json")
+      .eq("application_id", applicationId)
+      .eq("country_code", "KR")
+      .order("created_at", { ascending: false })
+      .limit(5),
     admin
       .from("applications")
       .select("appointment_confirmation_id")
@@ -329,6 +338,7 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
   ]);
   if (slotsErr) throw new Error(slotsErr.message);
   if (confirmationErr) throw new Error(confirmationErr.message);
+  if (appointmentHistoryErr) throw new Error(appointmentHistoryErr.message);
   if (applicationErr) throw new Error(applicationErr.message);
   if (manualActionErr) throw new Error(manualActionErr.message);
   if (rescheduleActionErr) throw new Error(rescheduleActionErr.message);
@@ -363,6 +373,7 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     job,
     slots: slots ?? [],
     confirmation: normalizedConfirmation,
+    appointmentHistory: appointmentHistory ?? [],
     manualAction: actionableManualAction,
     changeIntent: hasVizaAppointmentRecord && rescheduleAction ? "reschedule" : null,
   };

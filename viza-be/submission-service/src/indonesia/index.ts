@@ -29,6 +29,7 @@ export interface NormalizedIndonesiaSubmission {
   documentTravelType: string | null;
   passportCountry: string | null;
   email: string | null;
+  phoneCountryCode: string | null;
   mobileNumber: string | null;
   arrivalDate: string | null;
   departureDate: string | null;
@@ -176,7 +177,9 @@ export function normalizeIndonesiaAnswers(
       "contact_email",
       "applicant_email",
     ]),
+    phoneCountryCode: readFirst(answers, ["phone_country_code", "phone_code", "mobile_phone_country_code"]),
     mobileNumber: readFirst(answers, [
+      "mobile_phone",
       "mobile_number",
       "phone",
       "telephone_number",
@@ -269,6 +272,7 @@ export async function runIndonesiaLiveSubmission(
         gender: readFirst(input.answers, ["gender", "sex"]) ?? input.profile?.gender,
         birthPlace: readFirst(input.answers, ["birth_place", "place_of_birth"]) ?? input.profile?.placeOfBirth,
         dateOfBirth: readFirst(input.answers, ["date_of_birth", "birth_date", "birthday"]) ?? input.profile?.dateOfBirth,
+        phoneCountryCode: normalized.phoneCountryCode,
         phoneCodeCountry: normalized.passportCountry ?? input.profile?.passportIssuingCountry ?? input.profile?.nationality,
         mobilePhone: normalized.mobileNumber ?? input.profile?.phone,
         motherName: normalized.motherFullName,
