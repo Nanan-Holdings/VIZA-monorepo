@@ -16,3 +16,21 @@ fly secrets set --app "$app" --detach \
   "SUPABASE_URL=$SUPABASE_URL" \
   "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY" \
   "SUBMISSION_RESULT_SECRET_KEY=$SUBMISSION_RESULT_SECRET_KEY"
+
+# Capability secrets are optional: only inject a value when the protected CI
+# environment actually provides it. This prevents an empty GitHub secret from
+# overwriting an operator-managed Fly secret and keeps credentials out of the
+# image, rendered Fly config, and logs.
+optional=(
+  MDAC_BROWSER_API_ENDPOINT
+  MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT
+  TWOCAPTCHA_API_KEY
+  RESEND_API_KEY
+  RESEND_OPS_ALERT_TO
+  SLACK_WEBHOOK_URL
+)
+for key in "${optional[@]}"; do
+  if [[ -n "${!key:-}" ]]; then
+    fly secrets set --app "$app" --detach "$key=${!key}"
+  fi
+done

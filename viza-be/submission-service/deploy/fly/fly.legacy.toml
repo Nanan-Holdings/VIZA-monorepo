@@ -7,9 +7,9 @@ primary_region = "sin"
   PORT = "8080"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
-  # Malaysia pilot safety gate: process queue state and evidence, but never
-  # perform the irreversible official MDAC final-submit action.
-  MDAC_STOP_BEFORE_SUBMIT = "1"
+  # Fly has no interactive display. The MDAC worker must use the browser
+  # provider configured through secrets (or its container Chromium) headlessly.
+  MDAC_WORKER_PLAYWRIGHT_HEADLESS = "true"
 
 [http_service]
   internal_port = 8080
