@@ -62,6 +62,10 @@ explicitly reintroduces another provider.
   `VN_PREARRIVAL_DECLARATION`. Keep the top-level
   `scripts/seed-*-form-fields.ts` files as command entries and keep country
   packages separate from visa flows.
+- Taiwan entry-permit seed: `scripts/tw-entry-permit/**` and
+  `scripts/seed-tw-overseas-cn-tourism-entry-permit-form-fields.ts` own
+  `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` for Chinese mainland passport holders
+  resident in Singapore. It is an entry permit, not an arrival card.
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
 

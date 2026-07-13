@@ -365,3 +365,7 @@ Manual checks:
 - AI guidance has no Markdown formatting artifacts
 - photo upload copy is country-specific where RAG/source data exists
 - review is read-only and complete
+
+# Taiwan overseas-China tourist entry permit
+
+`TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` is a separate Taiwan product for Chinese mainland passport holders resident in Singapore who apply for tourism. It is not an arrival card. Its DB-driven form must keep the Chinese/English two-column contract, select exactly one Singapore eligibility route, collect the matching evidence, require a mainland passport with at least six months validity and a recent white-background photo, and obtain an explicit official-submission declaration. The submission runner uses a VIZA-managed alias at the NIA email-verification boundary; it must return a structured recon checkpoint until an authorized controlled session maps every post-verification official field. Never mark an application submitted merely because the email page loaded.
