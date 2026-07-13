@@ -80,6 +80,7 @@ import {
   isSgArrivalCardApplication,
   isThailandTdacApplication,
   isVietnamEVisaApplication,
+  isVietnamPrearrivalApplication,
   queueProviderForApplication,
   queueStatusForApplication,
   submissionQueueRequiresServerEnqueue,
@@ -113,6 +114,11 @@ const VN_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED === "true" &&
   process.env.NEXT_PUBLIC_VN_SUBMISSION_MODE === "live_assisted";
 
+// Vietnam Pre-Arrival is a free declaration with its own runner, so it must
+// not inherit the e-Visa payment-gated live configuration.
+const VN_PREARRIVAL_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false";
+
 const SGAC_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
 
@@ -132,6 +138,7 @@ type LiveAssistedTarget =
   | "ds160"
   | "france"
   | "vietnam"
+  | "vn_prearrival"
   | "sgac"
   | "mdac"
   | "tdac"
@@ -915,6 +922,7 @@ function FinalConfirmationPanel({
   const hasLiveAssistedTarget = liveAssistedTarget !== null;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
+  const isVietnamPrearrival = liveAssistedTarget === "vn_prearrival";
   const isSgac = liveAssistedTarget === "sgac";
   const isMdac = liveAssistedTarget === "mdac";
   const isTdac = liveAssistedTarget === "tdac";
@@ -944,6 +952,10 @@ function FinalConfirmationPanel({
           ? (isZh
               ? "本地 Vietnam live assisted 环境未启用。请确认 VN_LIVE_SUBMISSION_ENABLED 和 VN_SUBMISSION_MODE。"
               : "Vietnam live assisted is not enabled locally. Check VN_LIVE_SUBMISSION_ENABLED and VN_SUBMISSION_MODE.")
+          : isVietnamPrearrival
+            ? (isZh
+                ? "本地越南入境前申报自动提交已关闭。请确认 VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED。"
+                : "Vietnam Pre-Arrival live submission is disabled locally. Check VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED.")
           : isSgac
             ? (isZh
                 ? "本地 SG Arrival Card live handoff 已关闭。请确认 SGAC_LIVE_SUBMISSION_ENABLED。"
@@ -994,6 +1006,10 @@ function FinalConfirmationPanel({
       ? (isZh
           ? "越南 e-Visa 会打开官网并使用已保存答案填写；验证码、付款或官网风控会作为后续状态展示。"
           : "Vietnam e-Visa opens the official portal and uses saved answers to fill it. CAPTCHA, payment, or portal risk checks are surfaced as follow-up status.")
+      : isVietnamPrearrival
+        ? (isZh
+            ? "提交后会创建越南入境前申报官方提交任务，使用已保存答案填写官网表单，并在本页显示进度、确认编号、PDF 和二维码。"
+            : "Submitting creates a Vietnam Pre-Arrival official-submission task using your saved answers. Progress, the confirmation number, PDF, and QR code appear here.")
       : isSgac
         ? (isZh
             ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
@@ -1766,6 +1782,7 @@ export default function ApplicationPage() {
     isFranceVisasVisaType(resolvedVisaType) &&
     ["france", "fr", "法国"].includes(normalizedCountryForLive);
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
+  const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
@@ -1777,6 +1794,8 @@ export default function ApplicationPage() {
       ? "france"
       : isVietnamEVisa
         ? "vietnam"
+        : isVietnamPrearrival
+          ? "vn_prearrival"
         : isSgArrivalCard
           ? "sgac"
           : isMalaysiaMdac
@@ -1794,6 +1813,8 @@ export default function ApplicationPage() {
       ? FRANCE_LIVE_ASSISTED_ENABLED
       : liveAssistedTarget === "vietnam"
         ? VN_LIVE_ASSISTED_ENABLED
+        : liveAssistedTarget === "vn_prearrival"
+          ? VN_PREARRIVAL_LIVE_ASSISTED_ENABLED
         : liveAssistedTarget === "sgac"
           ? SGAC_LIVE_ASSISTED_ENABLED
           : liveAssistedTarget === "mdac"

@@ -370,3 +370,7 @@ npm run type-check
 - Step 29 process switching and save UX：VIZA process 切换现在会保存 active session id 到 `sessionStorage["viza_chat_session_id"]`，页面刷新后会在 session 列表可用后恢复上次选中的 process；断线排队消息会带目标 `sessionId`，重连后不会误发到当前/其他 process；rename 编辑态从小图标保存改为明确的 Save / Cancel 按钮。
 
 当前 Playwright 复查没有使用登录态测试账号，因此覆盖的是 route-level smoke test。完整对话级验证还需要一个可用 client 测试账号或浏览器登录态。
+
+## Taiwan entry-permit route
+
+Taiwan is supported only for `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: Chinese mainland passport holders resident in Singapore who seek tourism entry. VIZA AI must state this boundary, avoid collecting form fields in chat, and redirect eligible users to `/client/application?country=taiwan&visaType=TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`.

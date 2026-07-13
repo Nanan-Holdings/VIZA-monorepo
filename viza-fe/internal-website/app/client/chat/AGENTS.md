@@ -112,6 +112,8 @@ Session-level state is persisted as hidden `visa_chat_messages` rows with `role=
 - `viza-be/agent-backend/scripts/ingest-country-visa-rag.ts`: generic ingestion script that writes one or more country seeds to `visa_documents` and `visa_chunks`; run all countries with `npm run ingest:all-visa-rag` or one country with `npm run ingest:country-visa-rag -- --country japan`.
 - `viza-be/agent-backend/scripts/run-visa-agent-evals.ts`: deterministic robustness harness. Run with `npm run test:visa-agent-evals` or `npm run test:visa-agent-robustness` after routing, prompt, state, or RAG changes. Current suite covers 60 prompt evals plus 38 branch assertions for intent, RAG document type mapping, country routing, visa type fallback, state merge, compact interpretation, plain-text output guardrails, and no-inline-form prompt guardrails.
 
+- Taiwan is supported only for `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: mainland Chinese passport holders resident in Singapore applying for tourism. Chat must state this scope and redirect to `/client/application?country=taiwan&visaType=TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`, never collect its fields inline.
+
 Each country seed should have exactly one `documentType="form_requirements"` document. These chunks are the RAG bridge for industrial form-filling agents: official application channel, fields to collect before filling, supporting document uploads, and review/submission guardrails.
 
 Application blocks in VIZA chat should use `blockType="application_redirect"` and a `redirectUrl` to `/client/application?country=...&visaType=...`. Legacy `trip_basics`, `traveller_identity`, and `visa_route_specific` payloads may still exist in old histories, but `BlockMessage` should render them as redirect CTAs rather than inline forms.

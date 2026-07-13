@@ -2929,12 +2929,18 @@ export function DynamicStepForm({
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
     const localIssue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
-    const issue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
-      ? {
-          severity: indonesiaPostalLookup.status === "checking" ? "warning" as const : "error" as const,
-          message: isChineseInterface ? indonesiaPostalLookup.messageZh : indonesiaPostalLookup.messageEn,
-        }
-      : localIssue;
+    const postalLookupIssue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
+      ? indonesiaPostalLookup.status === "checking"
+        ? {
+            severity: "warning" as const,
+            message: isChineseInterface ? "正在核验印尼邮政编码..." : "Checking the Indonesian postal code...",
+          }
+        : {
+            severity: "error" as const,
+            message: isChineseInterface ? indonesiaPostalLookup.messageZh : indonesiaPostalLookup.messageEn,
+          }
+      : null;
+    const issue = postalLookupIssue ?? localIssue;
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
     const buttonLabel = panelOpen

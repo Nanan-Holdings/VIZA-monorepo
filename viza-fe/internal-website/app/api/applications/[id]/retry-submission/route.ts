@@ -20,6 +20,7 @@ import {
   isSgArrivalCardApplication,
   isThailandTdacApplication,
   isVietnamEVisaApplication,
+  isVietnamPrearrivalApplication,
   queueProviderForApplication,
   queueStatusForApplication,
   retryQueueInsertCanUseLegacyPayload,
@@ -215,6 +216,12 @@ function isFranceLiveRetryApplication(country: string | null, visaType: string |
 }
 
 function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
+  if (isVietnamPrearrivalApplication(country, visaType)) {
+    return (
+      process.env.VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false"
+    );
+  }
   if (isVietnamEVisaApplication(country, visaType)) {
     return (
       envEnabled("VN_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED") &&
