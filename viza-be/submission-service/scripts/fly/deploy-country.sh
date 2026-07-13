@@ -21,4 +21,5 @@ sed -e "s/__APP_NAME__/$app/g" -e "s/__COUNTRY__/$country/g" -e "s/__REGION__/$r
   "$root/deploy/fly/fly.country.toml.template" > "$rendered"
 
 fly apps create "$app" --org "$FLY_ORG" 2>/dev/null || fly status --app "$app" >/dev/null
+"$root/scripts/fly/sync-runtime-secrets.sh" "$app"
 fly deploy --app "$app" --config "$rendered" --image "$image" --strategy immediate
