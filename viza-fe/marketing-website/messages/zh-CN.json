@@ -331,6 +331,7 @@
     }
   },
   "cities": {
+    "viza-test": "生产支付测试",
     "indonesia": "巴厘岛 · 雅加达",
     "egypt": "开罗 · 吉萨",
     "australia": "悉尼 · 墨尔本",
@@ -349,6 +350,7 @@
     "india": "德里 · 孟买"
   },
   "validity": {
+    "viza-test": "仅用于演示",
     "indonesia": "90 天",
     "egypt": "90 天",
     "australia": "1 年",
@@ -386,6 +388,7 @@
     "TH": "泰国"
   },
   "countries": {
+    "viza-test": "VIZA 测试",
     "indonesia": "印度尼西亚",
     "egypt": "埃及",
     "australia": "澳大利亚",
@@ -404,6 +407,7 @@
     "india": "印度"
   },
   "visaTypes": {
+    "Test checkout": "测试支付",
     "e-Visa": "电子签证",
     "Standard Visitor": "标准访客签证",
     "Visitor 600": "600类访客签证",
