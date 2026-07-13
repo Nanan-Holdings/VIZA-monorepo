@@ -68,6 +68,7 @@ export interface IndonesiaAccountRegistrationInput {
   passportCountry?: string | null;
   passportIssueDate?: string | null;
   passportExpiryDate?: string | null;
+  passportIssuingCountry?: string | null;
   passportIssuePlace?: string | null;
   passportImagePath?: string | null;
   photoImagePath?: string | null;
@@ -84,6 +85,7 @@ export interface IndonesiaApplicationFormInput {
   passportCountry?: string | null;
   passportIssueDate?: string | null;
   passportExpiryDate?: string | null;
+  passportIssuingCountry?: string | null;
   passportIssuePlace?: string | null;
   residenceType?: string | null;
   addressInIndonesia?: string | null;
@@ -1615,7 +1617,14 @@ async function fillForeignerAccountRegistration(
   await page.waitForTimeout(2_000);
   await fillIfPresent(page, "#release_date", toIndonesiaDate(registration.passportIssueDate));
   await fillIfPresent(page, "#expired_date", toIndonesiaDate(registration.passportExpiryDate));
-  await fillIfPresent(page, "#release_place", officialSafeText(registration.passportIssuePlace ?? registration.passportCountry, "CHINA"));
+  await fillIfPresent(
+    page,
+    "#release_place",
+    officialSafeText(
+      registration.passportIssuingCountry ?? registration.passportIssuePlace ?? registration.passportCountry,
+      "CHINA",
+    ),
+  );
   await fillIfPresent(page, "#username", input.accountEmail);
   await fillIfPresent(page, "#confirm_email", input.accountEmail);
   await fillIfPresent(page, "#password", input.accountPassword);
@@ -2787,7 +2796,11 @@ async function continueFromApplicationStepTwo(
   ).catch(() => undefined);
   await setDateValue(page, "#release_date", application.passportIssueDate);
   await setDateValue(page, "#expired_date", application.passportExpiryDate);
-  await fillIfPresent(page, "#release_place", application.passportIssuePlace ?? application.passportCountry);
+  await fillIfPresent(
+    page,
+    "#release_place",
+    application.passportIssuingCountry ?? application.passportIssuePlace ?? application.passportCountry,
+  );
   await selectNativeOptionByText(page, "#residence_type_id", new RegExp(application.residenceType ?? "HOTEL", "i")).catch(() => undefined);
   await fillIfPresent(page, "#address", application.addressInIndonesia);
   if (!await fillPostalCodeAndWaitForAddress(page, application.postalCode, diagnostics)) return false;

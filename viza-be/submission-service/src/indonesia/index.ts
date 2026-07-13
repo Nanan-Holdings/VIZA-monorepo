@@ -276,6 +276,7 @@ export async function runIndonesiaLiveSubmission(
         passportCountry: normalized.passportCountry ?? input.profile?.passportIssuingCountry ?? input.profile?.nationality,
         passportIssueDate: readFirst(input.answers, ["passport_issue_date", "passport_issuance_date"]) ?? input.profile?.passportIssueDate,
         passportExpiryDate: readFirst(input.answers, ["passport_expiry_date", "passport_expiration_date"]) ?? input.profile?.passportExpiryDate,
+        passportIssuingCountry: readFirst(input.answers, ["passport_issuing_country", "issuing_country"]) ?? input.profile?.passportIssuingCountry,
         passportIssuePlace: readFirst(input.answers, ["passport_place_of_issue", "passport_issuance_city", "passport_issuing_authority"]) ?? input.profile?.passportIssuingAuthority,
         passportImagePath: input.passportImagePath,
         photoImagePath: input.photoImagePath,
@@ -291,6 +292,7 @@ export async function runIndonesiaLiveSubmission(
         passportCountry: normalized.passportCountry ?? input.profile?.passportIssuingCountry ?? input.profile?.nationality,
         passportIssueDate: readFirst(input.answers, ["passport_issue_date", "passport_issuance_date", "date_of_issue", "passport_date_of_issue"]) ?? input.profile?.passportIssueDate,
         passportExpiryDate: readFirst(input.answers, ["passport_expiry_date", "passport_expiration_date", "valid_until", "passport_date_of_expiry"]) ?? input.profile?.passportExpiryDate,
+        passportIssuingCountry: readFirst(input.answers, ["passport_issuing_country", "issuing_country"]) ?? input.profile?.passportIssuingCountry,
         passportIssuePlace: readFirst(input.answers, ["passport_place_of_issue", "passport_issuance_city", "passport_issuing_authority"]) ?? input.profile?.passportIssuingAuthority,
         residenceType: readFirst(input.answers, ["residence_type", "accommodation_type", "stay_type"]) ?? "HOTEL",
         addressInIndonesia: normalized.accommodationAddress ??

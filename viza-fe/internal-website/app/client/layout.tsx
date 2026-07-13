@@ -22,6 +22,14 @@ const CLIENT_SESSION_RECORD_KEY = "client_session_record";
 const CLIENT_TAB_NAME_PREFIX = "viza-client-tab:";
 const LEGACY_SESSION_USER_KEY = "impersonation_user_id";
 const LEGACY_SESSION_INVALIDATED_KEY = "impersonation_session_invalidated";
+const FORM_REQUEST_CHECK_TIMEOUT_MS = 6_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Form request check timed out")), timeoutMs)),
+  ]);
+}
 
 type ClientSessionKind = "impersonation" | "supabase";
 
@@ -201,7 +209,7 @@ function ClientLayoutContent({
     }
 
     try {
-      const response = await fetch("/api/client/session", { cache: "no-store" });
+      const response = await withTimeout(fetch("/api/client/session", { cache: "no-store" }), FORM_REQUEST_CHECK_TIMEOUT_MS);
       if (!response.ok) {
         throw new Error("Failed to check session");
       }
@@ -305,11 +313,11 @@ function ClientLayoutContent({
         const userId = await getAuthenticatedUserId();
         if (userId) {
           // This will create a form request if the user hasn't filled the form before
-          await createFirstLoginFormRequestIfNeeded(userId);
+          await withTimeout(createFirstLoginFormRequestIfNeeded(userId), FORM_REQUEST_CHECK_TIMEOUT_MS);
         }
 
         // Then check for any pending requests
-        const result = await getPendingFormRequests();
+        const result = await withTimeout(getPendingFormRequests(), FORM_REQUEST_CHECK_TIMEOUT_MS);
         if (result.success && result.data && result.data.length > 0) {
           const aboutMeRequest = result.data.find((r) => r.form_type === "about_me");
           if (aboutMeRequest) {
