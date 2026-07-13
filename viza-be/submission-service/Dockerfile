@@ -24,7 +24,9 @@ WORKDIR /app
 
 # ---- build deps layer ----
 COPY package.json package-lock.json* ./
-RUN npm ci
+# TypeScript is a dev dependency, but this build stage deliberately compiles
+# the source before the smaller production runtime is assembled.
+RUN npm ci --include=dev
 
 # ---- src layer ----
 COPY tsconfig.json ./
