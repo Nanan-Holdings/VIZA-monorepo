@@ -25,8 +25,8 @@ smoke-test helpers for the VIZA monorepo.
   submission worker, travel service, optional database services, logs, health
   checks, targeted VIZA Supabase migrations, automatic portal opening, and
   stop support. It starts the submission worker with the local-only Vietnam
-  one-time card-session endpoint enabled and points the frontend at the same
-  submission-service port; card numbers and CVV must still never be written to
+  and Indonesia one-time card-session endpoints enabled and points the frontend
+  at the same submission-service port; card numbers and CVV must still never be written to
   scripts, env files, logs, or committed files. Use `-SkipVizaMigrations` to
   skip migration apply during local startup or `-RequireVizaMigrations` when
   stale DB metadata must fail fast.
