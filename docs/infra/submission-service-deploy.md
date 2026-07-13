@@ -1,85 +1,70 @@
-# submission-service Deploy Runbook
+# Submission-service Fly Machines deploy runbook
 
-Artifact for **DEP-002**. How to build the image, deploy the Cloud Run service,
-and inject env via Secret Manager. **No console deploy is performed by the
-agent — these are operator commands.**
+`submission-service` is a persistent Playwright worker. Production runs one
+always-on Fly Machine per supported `runner_job` country plus one dedicated
+legacy `submission_queue` worker. The workers are independent of developer
+machines and use database leases and country concurrency caps to prevent a
+second attempt from submitting the same application.
 
-Related: `deploy/cloudrun-service.yaml` (DEP-001), `.env.example` (SEC-006),
-`src/config/validate-env.ts` (DEP-003), `/health` + `/ready` (DEP-004),
-`.github/workflows/submission-service-image.yml` (DEP-005).
+## Prerequisites
 
-## 1. Build + push the image (GHCR)
+- Create the Fly organization and add a protected GitHub `production`
+  environment. Set `FLY_API_TOKEN` and `FLY_ORG` only in that environment.
+- Make the immutable GHCR image readable by Fly before deploying it. Do not use
+  a mutable `latest` tag for production.
+- In every Fly app, set only the secrets needed by enabled flows. Required:
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+  `SUBMISSION_RESULT_SECRET_KEY`. Feature secrets can include Resend,
+  2captcha, IMAP, Bright Data proxy/Browser API, and country-specific enabled
+  runner settings. Never put values in TOML, GitHub workflow files, logs, or
+  application code.
+- Apply the database migrations that provide `runner_job`, country concurrency
+  caps, and lease recovery before allowing more than one worker.
 
-CI does this automatically on push to `main` (DEP-005), tagging with the commit
-SHA. To build manually:
+## First rollout
 
-```bash
-SHA=$(git rev-parse --short HEAD)
-docker build -f viza-be/submission-service/Dockerfile \
-  -t ghcr.io/<org>/viza-submission-service:$SHA \
-  viza-be/submission-service
-docker push ghcr.io/<org>/viza-submission-service:$SHA
-```
+1. Merge the image workflow and publish a commit-SHA image.
+2. Add the required Fly secrets to `viza-submission-legacy` and to each pilot
+   `viza-runner-<country>` app. Country workers must set neither proxy nor
+   Browser API endpoints in TOML; Fly Secrets inject them at runtime.
+3. From GitHub Actions, run **deploy-submission-service-fly**, provide the full
+   published SHA, choose one verified pilot country, and enable the legacy
+   worker. Production environment approval is required.
+4. Confirm each app's `/health` and `/ready` endpoints, then click the real
+   frontend submit button for an authorized test application. Confirm queue
+   claim, progress, final result and the redacted official evidence in storage.
+5. Add countries one at a time after their authorized smoke succeeds. The
+   deployment workflow's `all` option is only for the already verified set.
 
-## 2. Create Secret Manager secrets
+## Scaling and operations
 
-One secret per credential. Names must match `valueFrom.secretKeyRef.name` in
-`deploy/cloudrun-service.yaml`:
+- `scale-submission-service-fly` runs every five minutes and converts
+  `runner_queue_depth` decisions into `fly scale count` calls. A non-paused
+  country retains one warm machine so newly queued jobs are noticed; a paused
+  country scales to zero.
+- The database remains the concurrency authority. The worker's country scope,
+  claim lease and `runner_concurrency_cap` must not be bypassed by raising Fly
+  machine counts.
+- Inspect `/ready`, Fly logs, `runner_queue_depth`, and failed/dead-letter
+  jobs before retrying. Portal, CAPTCHA, payment, MFA and user-confirmation
+  checkpoints keep their existing behavior; cloud hosting does not bypass them.
+- Rotate a secret by updating the Fly app secret and redeploying the same image
+  through the protected workflow. Revoke the previous credential after smoke
+  verification.
 
-```bash
-for s in supabase-url supabase-service-role-key submission-result-secret-key \
-         resend-api-key twocaptcha-api-key imap-password; do
-  printf '%s' "<value>" | gcloud secrets create "$s" --data-file=- 2>/dev/null \
-    || printf '%s' "<value>" | gcloud secrets versions add "$s" --data-file=-
-done
-# Grant the runtime service account access:
-gcloud secrets add-iam-policy-binding supabase-service-role-key \
-  --member="serviceAccount:<runtime-sa>@<project>.iam.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-```
+## Rollback and recovery
 
-## 3. Deploy the Cloud Run service
+- Roll back by redeploying the previous known-good immutable SHA through the
+  same workflow. Do not revert or delete queue rows.
+- To stop a country immediately, mark it paused in `runner_concurrency_cap` and
+  run the scale workflow; investigate the stored error and evidence before
+  unpausing.
+- If a worker crashes, its lease expires and another eligible worker safely
+  reclaims the job. Use the existing queue requeue tooling only after verifying
+  the official portal did not already accept the application.
 
-Edit `deploy/cloudrun-service.yaml`: set `REPLACE_ORG` and `REPLACE_SHA`, then:
+## Migration completion criteria
 
-```bash
-gcloud run services replace viza-be/submission-service/deploy/cloudrun-service.yaml \
-  --region us-central1
-```
-
-The manifest sets `minScale: 1` (persistent poller) and probes `/health`
-(liveness) + `/ready` (DB reachable + worker started).
-
-## 4. Required env vars
-
-All consumed by the service — full list with placeholders in
-`viza-be/submission-service/.env.example`. Required (boot-blocking, enforced by
-`validate-env.ts`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-`SUBMISSION_RESULT_SECRET_KEY`. Feature-gated (warn if absent):
-
-| Group | Vars |
-| --- | --- |
-| Supabase | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
-| LLM (if used) | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` |
-| Email/alerts | `RESEND_API_KEY`, `RESEND_OPS_ALERT_TO`, `SLACK_WEBHOOK_URL` |
-| Captcha | `TWOCAPTCHA_API_KEY` |
-| Inbox (e-visa retrieval) | `IMAP_HOST`, `IMAP_PORT`, `IMAP_EMAIL`, `IMAP_PASSWORD` |
-| Proxy pool | Bright Data / `proxy_pool` config (per RUN-CORE-006) |
-| Queue tuning | `RUNNER_CONCURRENCY_JSON`, `RUNNER_PAUSED_COUNTRIES` |
-| Runtime | `PORT` (Cloud Run sets 8080), `NODE_ENV` |
-
-## 5. Graceful shutdown (ties to QUE-002)
-
-On `SIGTERM` (Cloud Run scale-down / redeploy) the service aborts the
-runner_job consumer's `AbortController`, so `pollAndRun` stops claiming new jobs
-and exits cleanly; in-flight jobs finish or fall back to their lease for
-recovery (QUE-008). Cloud Run's default 10s grace is enough to stop claiming;
-set `timeoutSeconds` appropriately for long in-flight runs.
-
-## 6. Verify
-
-```bash
-SERVICE_URL=$(gcloud run services describe viza-submission-service --region us-central1 --format='value(status.url)')
-curl -fsS "$SERVICE_URL/health"   # {"status":"ok"}
-curl -fsS "$SERVICE_URL/ready"    # {"status":"ready",...} once DB reachable + worker started
-```
+The local worker may be retired only after a browser-click smoke demonstrates
+frontend enqueue → Fly claim → official result/artifact → frontend status for
+each enabled pilot country. Keep unsupported and gated country flows disabled.

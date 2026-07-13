@@ -65,6 +65,15 @@ filling and one-shot submission for the applicant.
   single-runner local maximum is 10 via `SUBMISSION_SERVICE_MAX_CONCURRENCY`;
   wider product-scale concurrency uses `src/submission-queue-claim.ts` and
   migration `0105_submission_queue_claim_locks.sql` for DB-level leases.
+- Cloud worker topology: `RUNNER_JOB_COUNTRY` scopes a Fly worker to one
+  `runner_job` country bucket, while `SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED`
+  must remain false there. Only the dedicated legacy worker may poll
+  `submission_queue` during the migration.
+- `deploy/fly/` contains credential-free Fly templates and country mappings.
+  Production endpoints and keys belong only in Fly Secrets.
+- `scripts/fly/` renders and deploys country workers, deploys the dedicated
+  legacy worker, and applies autoscaler decisions. These scripts require
+  operator-provided Fly authentication and must never create or print secrets.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple

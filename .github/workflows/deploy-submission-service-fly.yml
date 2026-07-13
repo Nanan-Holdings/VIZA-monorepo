@@ -1,0 +1,48 @@
+name: deploy-submission-service-fly
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: Full immutable Git SHA already published to GHCR
+        required: true
+        type: string
+      countries:
+        description: Comma-separated country slugs, or "all"
+        required: true
+        default: all
+        type: string
+      deploy_legacy_worker:
+        description: Deploy the one legacy submission_queue worker
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_ORG: ${{ secrets.FLY_ORG }}
+      IMAGE: ghcr.io/${{ github.repository_owner }}/viza-submission-service:${{ inputs.image_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy country workers
+        shell: bash
+        run: |
+          if [[ "${{ inputs.countries }}" == "all" ]]; then
+            countries=$(jq -r '.countries[]' viza-be/submission-service/deploy/fly/countries.json)
+          else
+            countries=$(tr ',' '\n' <<< "${{ inputs.countries }}" | xargs -n1)
+          fi
+          while read -r country; do
+            bash viza-be/submission-service/scripts/fly/deploy-country.sh "$country" "$IMAGE"
+          done <<< "$countries"
+      - name: Deploy legacy worker
+        if: inputs.deploy_legacy_worker
+        run: bash viza-be/submission-service/scripts/fly/deploy-legacy.sh "$IMAGE"

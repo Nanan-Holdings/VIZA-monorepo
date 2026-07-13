@@ -294,6 +294,13 @@ const RUNNER_JOB_CONSUMER_ENABLED = readBooleanEnv(
   "SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED",
   true,
 );
+// Cloud country workers consume only their runner_job bucket. Keep legacy
+// submission_queue polling on by default for backwards-compatible local runs.
+const LEGACY_SUBMISSION_QUEUE_ENABLED = readBooleanEnv(
+  "SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED",
+  true,
+);
+const RUNNER_JOB_COUNTRY = process.env.RUNNER_JOB_COUNTRY?.trim().toLowerCase() || undefined;
 
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
@@ -7474,6 +7481,12 @@ async function main(): Promise<void> {
   if (!RUNNER_JOB_CONSUMER_ENABLED) {
     console.log("[main] runner_job consumer disabled by env");
   }
+  if (!LEGACY_SUBMISSION_QUEUE_ENABLED) {
+    console.log("[main] Legacy submission_queue polling disabled by env");
+  }
+  if (RUNNER_JOB_COUNTRY) {
+    console.log(`[main] runner_job country scope=${RUNNER_JOB_COUNTRY}`);
+  }
   const ds160Config = loadDs160SubmissionConfig();
   console.log(
     [
@@ -7545,15 +7558,19 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Run immediately on start, then on interval
-  await poll();
-  setInterval(poll, POLL_INTERVAL_MS);
+  // Country-scoped cloud workers must not also contend for the legacy queue.
+  // A single dedicated legacy worker retains this consumer during migration.
+  if (LEGACY_SUBMISSION_QUEUE_ENABLED) {
+    await poll();
+    setInterval(poll, POLL_INTERVAL_MS);
+  }
 
   // QUE-002: start the runner_job consumer (does not block the legacy poll).
   if (RUNNER_JOB_CONSUMER_ENABLED) {
     console.log(`[main] runner_job consumer active (workerId=${RUNNER_WORKER_ID})`);
     runnerStarted = true;
     void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
+      country: RUNNER_JOB_COUNTRY,
       signal: runnerAbort.signal,
     }).catch((err) => {
       console.error("[main] runner_job consumer crashed", err);

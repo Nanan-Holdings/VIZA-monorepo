@@ -13,7 +13,7 @@
 #   docker run --rm <image> npm run smoke:ceac
 
 # Pinned Playwright base. Bump together with package.json @playwright/test.
-FROM mcr.microsoft.com/playwright:v1.50.0-jammy AS base
+FROM mcr.microsoft.com/playwright:v1.41.0-jammy AS build
 
 ENV NODE_ENV=production \
     NPM_CONFIG_FUND=false \
@@ -22,20 +22,29 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-# ---- deps layer ----
+# ---- build deps layer ----
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev || npm install --omit=dev
+RUN npm ci
 
 # ---- src layer ----
 COPY tsconfig.json ./
 COPY src ./src
 COPY scripts ./scripts
 
-# Compile to /app/dist for the worker entrypoint.
-COPY tsconfig.json ./
-RUN npx --no-install tsc --outDir dist --module CommonJS --target ES2022 \
-      --esModuleInterop true --skipLibCheck true --resolveJsonModule true \
-      || true
+RUN npm run build
+
+FROM mcr.microsoft.com/playwright:v1.41.0-jammy AS runtime
+
+ENV NODE_ENV=production \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev
+COPY --from=build /app/dist ./dist
 
 # Default user: keep playwright's pre-baked `pwuser` so chromium can sandbox.
 USER pwuser
