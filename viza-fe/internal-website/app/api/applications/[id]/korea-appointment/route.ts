@@ -339,7 +339,6 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
           : null,
       }
     : null;
-
   // VIZA only treats a persisted official confirmation as an existing appointment.
   // Historical change checkpoints without one must not trigger a slow official lookup
   // or block the applicant from starting a new appointment.
@@ -358,7 +357,6 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
   const actionableManualAction = !hasVizaAppointmentRecord && pendingChangeActionTypes.has(manualAction?.action_type ?? "")
     ? null
     : (manualAction as AppointmentManualActionRow | null) ?? null;
-
   return {
     routing,
     job,
