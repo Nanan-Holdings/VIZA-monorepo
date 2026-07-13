@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileCheck2, AlertTriangle } from "lucide-react";
+import { Download, FileCheck2, AlertTriangle, CalendarCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,9 @@ interface JpResultCardProps {
 }
 
 /**
- * JP_TOURIST result card — terminal state for the paper-form-via-agency
- * journey. The applicant has finished the wizard; VIZA renders MOFA Form A
- * (Application for Visa) as a PDF on demand. The applicant downloads,
- * prints, and hands the form (with supporting documents) to a designated
- * travel agency in mainland China — the agency delivers it to the Japanese
- * Embassy / Consulate-General. evisa.mofa.go.jp self-service is not open
- * to PRC residents, so there is no portal to drive.
+ * Japan tourist form completion. Mainland-China residents continue through
+ * an accredited agency, while eligible long-term Singapore residents can use
+ * the VFS/JVAC appointment preparation path.
  */
 export function JpResultCard({ applicationId, result }: JpResultCardProps) {
   const downloadUrl = result.formAPdfUrl || `/api/applications/${applicationId}/jp-form-a-pdf`;
@@ -31,7 +27,7 @@ export function JpResultCard({ applicationId, result }: JpResultCardProps) {
             <FileCheck2 className="h-5 w-5 text-brand-500" />
             Japan Tourist Visa — your form is ready
           </CardTitle>
-          <Badge variant="secondary">Hand to agency</Badge>
+          <Badge variant="secondary">Choose your submission route</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -39,11 +35,9 @@ export function JpResultCard({ applicationId, result }: JpResultCardProps) {
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Mainland-China residents must submit Japan Tourist Visa
-              applications through a Japanese-government-designated travel
-              agency (JVAC China). Download the filled MOFA Application for
-              Visa form (Form A), print it, sign it, and hand it to the
-              agency along with the required supporting documents.
+              If you are a long-term Singapore resident with a Chinese ordinary
+              passport, complete the VFS/JVAC appointment check below. Applicants
+              residing in mainland China should use a designated travel agency.
             </p>
           </div>
         </div>
@@ -69,6 +63,12 @@ export function JpResultCard({ applicationId, result }: JpResultCardProps) {
           <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
             <Download className="mr-2 h-4 w-4" />
             Download MOFA Application for Visa (Form A)
+          </a>
+        </Button>
+        <Button asChild variant="outline" className="w-full">
+          <a href={`/client/applications/${applicationId}/japan-appointment`}>
+            <CalendarCheck className="mr-2 h-4 w-4" />
+            新加坡长期居留者：准备 VFS/JVAC 预约
           </a>
         </Button>
       </CardContent>

@@ -189,13 +189,14 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
     step_number: 2,
     step_name: "Application form",
     display_order: 6,
-    placeholder: "Including country code",
+    placeholder: "+Country code and number",
     validation_rules: {
       official_field_id: "mobile_phone",
       official_field_name: "mobile_phone",
       label_zh: "手机号码",
       official_label_zh: "Phone Number",
-      maxLength: 30,
+      maxLength: 16,
+      pattern: "^\\+\\d{6,15}$",
     },
   },
   {
@@ -344,7 +345,11 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
       official_field_name: "postal_code",
       label_zh: "邮政编码",
       official_label_zh: "Postal Code",
-      maxLength: 12,
+      placeholder_zh: "输入 5 位邮编后自动填写地区",
+      placeholder_en: "Enter 5 digits to auto-fill the region",
+      maxLength: 5,
+      pattern: "^\\d{5}$",
+      official_lookup: "indonesia_postal_code",
     },
   },
   {
@@ -361,6 +366,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
       label_zh: "省",
       official_label_zh: "Province",
       maxLength: 80,
+      auto_filled_by: "postal_code",
     },
   },
   {
@@ -377,6 +383,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
       label_zh: "城市",
       official_label_zh: "City",
       maxLength: 80,
+      auto_filled_by: "postal_code",
     },
   },
   {
@@ -393,6 +400,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
       label_zh: "区/县",
       official_label_zh: "District",
       maxLength: 80,
+      auto_filled_by: "postal_code",
     },
   },
   {
@@ -409,6 +417,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
       label_zh: "村/街区",
       official_label_zh: "Village",
       maxLength: 80,
+      auto_filled_by: "postal_code",
     },
   },
   {

@@ -4,6 +4,8 @@ This directory is the source of truth for country-level visa RAG knowledge.
 
 Each file in `countries/*.json` owns one country's visitor/tourism visa knowledge and should evolve with that country's dedicated form-filling workflow. Keep country-specific rules, official source URLs, application-route notes, form-intake context, and future form-flow context in the same country seed instead of adding a shared multi-country seed.
 
+`countries/taiwan.json` is limited to `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: Chinese mainland passport holders resident in Singapore applying for tourism. It is not a Taiwan arrival-card or a generic visitor-visa seed.
+
 Every country seed should include exactly one `documentType: "form_requirements"` document. This document is the bridge between RAG and future form automation: it describes the official application channel, the form fields VIZA should collect before filling, the supporting documents/uploads to prepare, and review/submission guardrails.
 
 Each `form_requirements` document should also carry the shared

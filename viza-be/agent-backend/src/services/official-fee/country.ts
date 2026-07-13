@@ -58,6 +58,7 @@ const COUNTRY_CODE_BY_KNOWLEDGE_COUNTRY: Record<SupportedKnowledgeCountry, strin
   switzerland: "CH",
   sweden: "SE",
   thailand: "TH",
+  taiwan: "TW",
   turkey: "TR",
   uk: "GB",
   united_arab_emirates: "AE",

@@ -399,42 +399,87 @@ const PH_ETRAVEL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
-const WHEN_VN_PREARRIVAL_PURPOSE_OTHER = {
-  key: "answers.purpose_of_entry",
-  equals: "other",
+// This must stay in lockstep with agent-backend/scripts/vn-prearrival/form-fields.ts
+// and vn-prearrival/normalize.ts. The previous generic arrival-card field list
+// predated the dedicated Vietnam Pre-Arrival schema, so valid saved answers were
+// incorrectly reported as missing at the final confirmation step.
+const WHEN_VN_PREARRIVAL_AIR = {
+  key: "answers.mode_of_travel",
+  equals: "air",
 };
-const WHEN_VN_HEALTH_GUIDANCE_ACTIVE = {
-  key: "answers.health_declaration_status",
-  equals: "active_guidance_applies",
+const WHEN_VN_PREARRIVAL_LAND = {
+  key: "answers.mode_of_travel",
+  equals: "land",
+};
+const WHEN_VN_PREARRIVAL_SEA = {
+  key: "answers.mode_of_travel",
+  equals: "sea",
+};
+const WHEN_VN_PREARRIVAL_NON_AIR = {
+  key: "answers.mode_of_travel",
+  notEquals: "air",
+};
+const WHEN_VN_PREARRIVAL_HOTEL = {
+  key: "answers.accommodation_type",
+  equals: "hotel",
+};
+const WHEN_VN_PREARRIVAL_NON_HOTEL = {
+  key: "answers.accommodation_type",
+  notEquals: "hotel",
 };
 
 const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
-  arrivalCardField("official_free_acknowledgement", "Official free-service acknowledgement", "metadata"),
-  arrivalCardField("prearrival_window_acknowledgement", "72-hour submission-window acknowledgement", "metadata"),
-  arrivalCardField("health_declaration_status", "Health declaration guidance status", "metadata"),
-  arrivalCardField("health_guidance_acknowledgement", "Health declaration guidance acknowledgement", "metadata", WHEN_VN_HEALTH_GUIDANCE_ACTIVE),
-  arrivalCardField("full_name", "Full name", "personal"),
-  arrivalCardField("date_of_birth", "Date of birth", "personal"),
-  arrivalCardField("sex", "Sex", "personal"),
-  arrivalCardField("nationality", "Nationality", "personal"),
-  arrivalCardField("email_address", "Email", "contact"),
-  arrivalCardField("phone_country_code", "Phone country code", "contact"),
-  arrivalCardField("phone_number", "Phone", "contact"),
+  arrivalCardField("expected_arrival_date", "Expected arrival date", "trip"),
+  arrivalCardField("passport_type", "Passport type", "passport"),
   arrivalCardField("passport_number", "Passport number", "passport"),
-  arrivalCardField("passport_issue_date", "Passport issue date", "passport"),
   arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
-  arrivalCardField("entry_permission_type", "Entry permission type", "passport"),
-  arrivalCardField("arrival_date", "Arrival date", "trip"),
-  arrivalCardField("transport_mode", "Transport mode", "trip"),
-  arrivalCardField("flight_or_transport_number", "Flight / vehicle / vessel number", "trip"),
-  arrivalCardField("entry_port", "Entry port", "trip"),
-  arrivalCardField("country_boarded", "Country/region boarded", "trip"),
-  arrivalCardField("purpose_of_entry", "Purpose of entry", "trip"),
-  arrivalCardField("purpose_of_entry_other", "Other purpose of entry", "trip", WHEN_VN_PREARRIVAL_PURPOSE_OTHER),
-  arrivalCardField("address_in_vietnam", "Address in Viet Nam", "trip"),
-  arrivalCardField("province_city", "Province/city", "trip"),
-  arrivalCardField("is_group_submission", "Group submission flag", "trip"),
+  arrivalCardField("gender", "Gender", "personal"),
+  arrivalCardField("given_name", "Given name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("phone_country_code", "Phone country code", "contact"),
+  arrivalCardField("phone_number", "Phone number", "contact"),
+  arrivalCardField("alias_email_address", "VIZA alias email", "contact"),
+  arrivalCardField("visa_information_acknowledgement", "Visa information acknowledgement", "passport"),
+  arrivalCardField("visa_type", "Visa type / purpose", "passport"),
+  arrivalCardField("visa_number", "Visa number", "passport"),
+  arrivalCardField("visa_expiry_date", "Visa expiry date", "passport"),
+  arrivalCardField("departure_country_before_arrival", "Departure country before arrival", "trip"),
+  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
+  arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
+  arrivalCardField("flight_number", "Flight number", "trip", WHEN_VN_PREARRIVAL_AIR),
+  arrivalCardField("border_gate_airport", "Arrival airport", "trip", WHEN_VN_PREARRIVAL_AIR),
+  arrivalCardField("vehicle_identification_number", "Vehicle identification number", "trip", WHEN_VN_PREARRIVAL_NON_AIR),
+  arrivalCardField("land_border_gate", "Land border gate", "trip", WHEN_VN_PREARRIVAL_LAND),
+  arrivalCardField("sea_port", "Sea port", "trip", WHEN_VN_PREARRIVAL_SEA),
+  arrivalCardField("accommodation_type", "Accommodation type", "trip"),
+  arrivalCardField("province_city_of_hotel", "Hotel province / city", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField("ward_commune_of_hotel", "Hotel ward / commune", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField("hotel_accommodation_address", "Hotel accommodation address", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField("accommodation_address", "Accommodation address", "trip", WHEN_VN_PREARRIVAL_NON_HOTEL),
   arrivalCardField("final_declaration", "Final declaration", "security"),
+];
+
+const TW_ENTRY_PERMIT_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("eligibility_route", "Singapore eligibility route", "metadata"),
+  arrivalCardField("permit_type", "Entry permit type", "metadata"),
+  arrivalCardField("singapore_residence_pass_number", "Singapore residence pass number", "metadata"),
+  arrivalCardField("singapore_residence_expiry_date", "Singapore residence pass expiry date", "metadata"),
+  arrivalCardField("surname", "Surname", "personal"),
+  arrivalCardField("given_names", "Given names", "personal"),
+  arrivalCardField("chinese_name", "Chinese name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("gender", "Gender", "personal"),
+  arrivalCardField("passport_number", "Mainland passport number", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("real_email_address", "Applicant contact email", "contact"),
+  arrivalCardField("phone_country_code", "Phone country code", "contact"),
+  arrivalCardField("phone_number", "Phone number", "contact"),
+  arrivalCardField("singapore_residential_address", "Singapore residential address", "contact"),
+  arrivalCardField("intended_arrival_date", "Intended arrival date", "trip"),
+  arrivalCardField("intended_departure_date", "Intended departure date", "trip"),
+  arrivalCardField("taiwan_accommodation_address", "Taiwan accommodation address", "trip"),
+  arrivalCardField("official_declaration", "Official declaration", "security"),
 ];
 
 const CONFIGS: ProviderConfig[] = [
@@ -742,7 +787,26 @@ const CONFIGS: ProviderConfig[] = [
     requiredFields: VN_PREARRIVAL_REQUIRED_FIELDS,
     includeAllAnswersInPayload: true,
     dryRunConfirmationPrefix: "DRYRUN-VNPREARRIVAL",
-    notes: "Dry-run validates Vietnam Pre-Arrival traveller, passport, arrival, stay, 72-hour window, and health-guidance acknowledgement data. Live assisted submission uses only prearrival.immigration.gov.vn and stays separate from VN_E_VISA.",
+    notes: "Dry-run validates the dedicated Vietnam Pre-Arrival traveller, passport, arrival, and accommodation schema. Live assisted submission uses only prearrival.immigration.gov.vn and stays separate from VN_E_VISA.",
+  },
+  {
+    countryCode: "TW",
+    countryAliases: ["tw", "taiwan"],
+    displayName: "Taiwan Overseas Chinese Mainland Tourist Entry Permit",
+    supportedVisaTypes: ["TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/tw-entry-permit/**"],
+    schemaFiles: ["../agent-backend/scripts/seed-tw-overseas-cn-tourism-entry-permit-form-fields.ts"],
+    mapperFiles: ["src/tw-entry-permit/normalize.ts"],
+    automationFiles: ["src/tw-entry-permit/runner.ts"],
+    requiredFields: TW_ENTRY_PERMIT_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-TW-ENTRY",
+    notes: "For mainland Chinese passport holders resident in Singapore only. Live runner reaches the official NIA email gate with a managed alias and returns a safe selector-recon checkpoint until the session-gated post-verification form is mapped.",
   },
   {
     countryCode: "SG",

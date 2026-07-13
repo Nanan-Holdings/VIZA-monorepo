@@ -207,9 +207,20 @@ function sanitizeFilename(name: string): string {
 }
 
 function getRequirementAccept(requirement: DocumentRequirement): string {
+  if (isIndonesiaB1OfficialPdfRequirement(requirement)) return ".pdf,application/pdf";
   if (requirement.accept.length > 0) return requirement.accept.join(",");
   if (requirement.documentType === "photo") return ".jpg,.jpeg,.png";
   return DEFAULT_ACCEPT;
+}
+
+function isIndonesiaB1OfficialPdfRequirement(requirement: DocumentRequirement): boolean {
+  return [requirement.key, requirement.documentType].some((value) =>
+    value === "return_ticket" || value === "passport_validity_support",
+  );
+}
+
+function isPdfFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith(".pdf") && (!file.type || file.type === "application/pdf");
 }
 
 function getDocumentKey(requirement: DocumentRequirement): string {
@@ -1178,6 +1189,12 @@ export function DocumentCenterClient({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (isIndonesiaB1OfficialPdfRequirement(requirement) && !isPdfFile(file)) {
+      setError(isZh
+        ? "印尼 B1 的返程/续程机票和护照有效期支持材料仅接受 PDF 文件。"
+        : "Indonesia B1 return/onward tickets and passport-validity support documents must be PDF files.");
+      return;
+    }
     if (
       isVietnamEVisa &&
       isVietnamOfficialImageRequirement(requirement) &&

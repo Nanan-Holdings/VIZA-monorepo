@@ -464,6 +464,29 @@ function isIndonesiaB1EvoaDocumentApplication(application: ApplicationRow): bool
   );
 }
 
+function isIndonesiaB1OfficialPdfDocument(documentType: string, requirementKey?: string): boolean {
+  return [documentType, requirementKey].some((value) =>
+    value === "return_ticket" || value === "passport_validity_support",
+  );
+}
+
+function forceIndonesiaB1PdfRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
+  return requirements.map((requirement) =>
+    isIndonesiaB1OfficialPdfDocument(requirement.documentType, requirement.key)
+      ? { ...requirement, accept: [".pdf"] }
+      : requirement,
+  );
+}
+
+function normalizeRequirementsForApplication(
+  application: ApplicationRow,
+  requirements: DocumentRequirement[],
+): DocumentRequirement[] {
+  return isIndonesiaB1EvoaDocumentApplication(application)
+    ? forceIndonesiaB1PdfRequirements(requirements)
+    : requirements;
+}
+
 function cloneRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
   return requirements.map((requirement) => ({
     ...requirement,
@@ -942,7 +965,7 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     if (!error && data && data.length > 0) {
       return {
         source: "document_requirements" as const,
-        requirements: (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements),
+        requirements: normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements)),
       };
     }
   }
@@ -957,7 +980,7 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
   if (!error && data && data.length > 0) {
     return {
       source: "document_requirements" as const,
-      requirements: (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements),
+        requirements: normalizeRequirementsForApplication(application, (data as DocumentRequirementRow[]).map(normalizeRequirementRow).sort(sortRequirements)),
     };
   }
 
@@ -1418,6 +1441,27 @@ async function validateVietnamOfficialImageUpload(input: {
   return validation.ok ? null : buildOfficialImageValidationMessage(validation.issues, "zh");
 }
 
+async function validateIndonesiaB1OfficialPdfUpload(input: {
+  application: ApplicationRow;
+  documentType: string;
+  requirementKey: string;
+  file: File;
+}): Promise<string | null> {
+  if (!isIndonesiaB1EvoaDocumentApplication(input.application)) return null;
+  if (!isIndonesiaB1OfficialPdfDocument(input.documentType, input.requirementKey)) return null;
+
+  const filename = input.file.name.toLowerCase();
+  const mimeType = input.file.type.toLowerCase();
+  if (!filename.endsWith(".pdf") || (mimeType && mimeType !== "application/pdf")) {
+    return "Indonesia B1 return/onward ticket and passport-validity support documents must be PDF files.";
+  }
+  const header = new Uint8Array(await input.file.slice(0, 5).arrayBuffer());
+  if (header.length !== 5 || String.fromCharCode(...header) !== "%PDF-") {
+    return "Indonesia B1 return/onward ticket and passport-validity support documents must be valid PDF files.";
+  }
+  return null;
+}
+
 export type UploadApplicationDocumentResult =
   | { ok: true; storagePath: string; filename: string }
   | {
@@ -1452,6 +1496,16 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
     const vietnamImageUploadError = await validateVietnamOfficialImageUpload({ application, documentType, file });
     if (vietnamImageUploadError) {
       return { ok: false, code: "invalid_request", error: vietnamImageUploadError };
+    }
+
+    const indonesiaPdfUploadError = await validateIndonesiaB1OfficialPdfUpload({
+      application,
+      documentType,
+      requirementKey,
+      file,
+    });
+    if (indonesiaPdfUploadError) {
+      return { ok: false, code: "invalid_request", error: indonesiaPdfUploadError };
     }
 
     const adminClient = createAdminClient();

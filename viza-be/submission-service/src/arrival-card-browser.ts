@@ -29,7 +29,7 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
   return null;
 }
 
-export type ArrivalCardBrowserPrefix = "MDAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL";
+export type ArrivalCardBrowserPrefix = "MDAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT";
 
 export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [
@@ -131,7 +131,7 @@ export async function createArrivalCardBrowserSession(options: {
   }
 
   const channel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim()
-    || (["MDAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL"].includes(options.prefix) ? "chrome" : undefined);
+    || (["MDAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL", "TW_ENTRY_PERMIT"].includes(options.prefix) ? "chrome" : undefined);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
   const headless = options.headless ?? (explicitHeadless ? explicitHeadless !== "false" : true);
   const browser = await chromium.launch({ channel, headless });

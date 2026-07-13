@@ -6,14 +6,9 @@
  * worldwide for Short-Term Stay (Tourism) applications. Source:
  * https://www.mofa.go.jp/files/000124525.pdf (MOFA Form A, English).
  *
- * Scope: Tourist Short-Term Stay only, intended for mainland-China (PRC)
- * residents who submit through a designated travel agency (JVAC China)
- * since evisa.mofa.go.jp is not directly accessible to PRC residents.
- * The schema is form-content only — submission to the agency happens
- * out-of-band (paper / agency upload), so there is no submission
- * automation target. Other Tourism-eligible nationalities can also use
- * this schema; their submission channel (embassy or eVisa portal) is
- * tracked in the gap report rather than the schema.
+ * Scope: Tourist Short-Term Stay. Chinese nationals who are long-term
+ * Singapore residents can use the VFS/JVAC Singapore appointment assistant;
+ * mainland-China residents are routed to a designated travel agency.
  *
  * Document uploads (passport bio page, photo, itinerary, financial
  * proof, employer letter, travel insurance) are intentionally out of
@@ -114,6 +109,22 @@ const PURPOSE_OF_VISIT_OPTIONS = [
   { value: "tourism", text: "Tourism" },
 ];
 
+const VISA_REQUEST_TYPE_OPTIONS = [
+  { value: "single_entry", text: "Single entry" },
+  { value: "double_entry", text: "Double entry (two trips within 6 months)" },
+  { value: "multiple_entry", text: "Multiple entry" },
+];
+
+const SINGAPORE_PASS_OPTIONS = [
+  { value: "pr", text: "Singapore Permanent Resident" },
+  { value: "employment_pass", text: "Employment Pass" },
+  { value: "s_pass", text: "S Pass" },
+  { value: "work_permit", text: "Work Permit" },
+  { value: "dependent_pass", text: "Dependent Pass" },
+  { value: "long_term_visit_pass", text: "Long-Term Visit Pass" },
+  { value: "student_pass", text: "Student Pass" },
+];
+
 const ACCOMMODATION_TYPE_OPTIONS = [
   { value: "hotel", text: "Hotel" },
   { value: "inviter_residence", text: "Residence of inviter" },
@@ -186,16 +197,19 @@ const FIELDS: FieldDef[] = [
   // ═════════════════════════════════════════════════════════════════════════
   // STEP 5: Trip Details  (MOFA Form A items 16-21)
   // ═════════════════════════════════════════════════════════════════════════
-  { field_name: "purpose_of_visit", label: "Purpose of visit to Japan", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 1, options: PURPOSE_OF_VISIT_OPTIONS },
-  { field_name: "intended_arrival_date", label: "Intended date of arrival in Japan", field_type: "date", required: true, step_number: 5, step_name: "Trip Details", display_order: 2, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
-  { field_name: "intended_length_of_stay", label: "Intended length of stay in Japan (days)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 3, placeholder: "e.g. 7", validation_rules: { pattern: "^(?:[1-9][0-9]?|[12][0-9]{2}|30)$", inline_group: "trip_dates" } },
-  { field_name: "port_of_entry", label: "Port of entry into Japan", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 4, placeholder: "e.g. Narita International Airport", validation_rules: { maxLength: 80 } },
-  { field_name: "carrier_name", label: "Name of ship or airline", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 5, placeholder: "e.g. ANA, JAL, Air China", validation_rules: { maxLength: 80 } },
-  { field_name: "accommodation_type", label: "Type of accommodation in Japan", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 6, options: ACCOMMODATION_TYPE_OPTIONS },
-  { field_name: "accommodation_name", label: "Name of hotel or person hosting you", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 7, validation_rules: { maxLength: 120, block_group: "accommodation_details" } },
-  { field_name: "accommodation_address", label: "Address of hotel or host in Japan", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 8, validation_rules: { maxLength: 200, block_group: "accommodation_details" } },
-  { field_name: "accommodation_phone", label: "Telephone of hotel or host", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 9, validation_rules: { maxLength: 30, block_group: "accommodation_details" } },
-  { field_name: "expense_bearer", label: "Who will cover the expenses for your visit?", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 10, options: EXPENSE_BEARER_OPTIONS },
+  { field_name: "visa_request_type", label: "Requested tourist visa entry type", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 1, options: VISA_REQUEST_TYPE_OPTIONS },
+  { field_name: "singapore_long_term_pass_type", label: "Singapore long-term pass type (for Singapore JVAC applicants)", field_type: "select", required: false, step_number: 5, step_name: "Trip Details", display_order: 2, options: SINGAPORE_PASS_OPTIONS },
+  { field_name: "singapore_long_term_pass_expiry_date", label: "Singapore long-term pass expiry date", field_type: "date", required: false, step_number: 5, step_name: "Trip Details", display_order: 3, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY" } },
+  { field_name: "purpose_of_visit", label: "Purpose of visit to Japan", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 4, options: PURPOSE_OF_VISIT_OPTIONS },
+  { field_name: "intended_arrival_date", label: "Intended date of arrival in Japan", field_type: "date", required: true, step_number: 5, step_name: "Trip Details", display_order: 5, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
+  { field_name: "intended_length_of_stay", label: "Intended length of stay in Japan (days)", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 6, placeholder: "e.g. 7", validation_rules: { pattern: "^(?:[1-9][0-9]?|[12][0-9]{2}|30)$", inline_group: "trip_dates" } },
+  { field_name: "port_of_entry", label: "Port of entry into Japan", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 7, placeholder: "e.g. Narita International Airport", validation_rules: { maxLength: 80 } },
+  { field_name: "carrier_name", label: "Name of ship or airline", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 8, placeholder: "e.g. ANA, JAL, Air China", validation_rules: { maxLength: 80 } },
+  { field_name: "accommodation_type", label: "Type of accommodation in Japan", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 9, options: ACCOMMODATION_TYPE_OPTIONS },
+  { field_name: "accommodation_name", label: "Name of hotel or person hosting you", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 10, validation_rules: { maxLength: 120, block_group: "accommodation_details" } },
+  { field_name: "accommodation_address", label: "Address of hotel or host in Japan", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 11, validation_rules: { maxLength: 200, block_group: "accommodation_details" } },
+  { field_name: "accommodation_phone", label: "Telephone of hotel or host", field_type: "text", required: true, step_number: 5, step_name: "Trip Details", display_order: 12, validation_rules: { maxLength: 30, block_group: "accommodation_details" } },
+  { field_name: "expense_bearer", label: "Who will cover the expenses for your visit?", field_type: "select", required: true, step_number: 5, step_name: "Trip Details", display_order: 13, options: EXPENSE_BEARER_OPTIONS },
 
   // ═════════════════════════════════════════════════════════════════════════
   // STEP 6: Inviter / Guarantor in Japan  (MOFA Form A items 25-31)
