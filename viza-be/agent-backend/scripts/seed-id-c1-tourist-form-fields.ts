@@ -3,10 +3,13 @@
  *
  * This mirrors the official Indonesia eVisa portal controls observed in the
  * live C1 flow:
- *   1. Upload passport bio page and newest formal photo.
- *   2. Fill personal information, passport information, Indonesia stay
- *      address, payment method, and official supporting document upload.
- *   3. Review declarations and submit.
+ *   1. Fill personal information, passport information, Indonesia stay
+ *      address, and payment method.
+ *   2. Review declarations and submit.
+ *
+ * Passport, photo, and the C1 financial statement are intentionally managed
+ * in VIZA Document Center. This prevents duplicate upload screens while
+ * preserving the official portal's required file constraints.
  *
  * Official portal: https://evisa.imigrasi.go.id/
  *
@@ -38,12 +41,18 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const C1_DOCUMENT_CENTER_FIELDS = new Set([
+  "passport_bio_page_upload",
+  "formal_photo_upload",
+  "bank_statement_upload",
+]);
+
 seedIndonesiaOfficialEVisaFields({
   supabase,
   visaType: "ID_C1_TOURIST",
-  fields: INDONESIA_OFFICIAL_EVISA_FIELDS.map((field) =>
-    toBilingualSeedRow("ID_C1_TOURIST", field),
-  ),
+  fields: INDONESIA_OFFICIAL_EVISA_FIELDS
+    .filter((field) => !C1_DOCUMENT_CENTER_FIELDS.has(field.field_name))
+    .map((field) => toBilingualSeedRow("ID_C1_TOURIST", field)),
 }).catch((err) => {
   console.error(err);
   process.exit(1);

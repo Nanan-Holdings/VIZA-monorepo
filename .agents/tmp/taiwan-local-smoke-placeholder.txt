@@ -1,4 +1,0 @@
-VIZA LOCAL TEST ONLY
-
-This is a synthetic placeholder document for local Taiwan entry-permit UI smoke testing.
-It contains no personal, financial, passport, travel-booking, or official application information.

@@ -61,6 +61,7 @@ export interface IndonesiaAccountRegistrationInput {
   gender?: string | null;
   birthPlace?: string | null;
   dateOfBirth?: string | null;
+  phoneCountryCode?: string | null;
   phoneCodeCountry?: string | null;
   mobilePhone?: string | null;
   motherName?: string | null;
@@ -129,6 +130,18 @@ function normalizeCountryLabel(value: string | null | undefined): string {
 function clean(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizePhoneCountryCode(value: string | null | undefined): string | null {
+  const digits = value?.replace(/\D/g, "") ?? "";
+  return digits ? `+${digits}` : null;
+}
+
+function mobileNumberWithoutCountryCode(value: string | null | undefined, phoneCountryCode?: string | null): string | null {
+  const digits = value?.replace(/\D/g, "") ?? "";
+  const codeDigits = phoneCountryCode?.replace(/\D/g, "") ?? "";
+  if (!digits) return null;
+  return codeDigits && digits.startsWith(codeDigits) ? digits.slice(codeDigits.length) : digits;
 }
 
 function isIndonesiaPortalHomeUrl(value: string | null | undefined): boolean {
@@ -1603,9 +1616,22 @@ async function fillForeignerAccountRegistration(
   }
   await fillIfPresent(page, "#birth_place", officialSafeText(registration.birthPlace));
   await fillIfPresent(page, "#birthday", toIndonesiaDate(registration.dateOfBirth));
+  const phoneCountryCode = normalizePhoneCountryCode(registration.phoneCountryCode);
   const phoneCountry = normalizeCountryLabel(registration.phoneCodeCountry ?? registration.passportCountry);
-  await selectNativeOptionByText(page, "#phone_code", new RegExp(phoneCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")).catch(() => undefined);
-  await fillIfPresent(page, "#mobile_phone", normalizeIndonesiaMobilePhone(registration.mobilePhone));
+  const phonePattern = phoneCountryCode
+    ? new RegExp(`${phoneCountryCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\D|$)`, "i")
+    : new RegExp(phoneCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  const phoneCodeSelected = await selectNativeOptionByText(page, "#phone_code", phonePattern)
+    .then(() => true)
+    .catch(() => false);
+  if (!phoneCodeSelected && phoneCountryCode) {
+    await selectNativeOptionByText(
+      page,
+      "#phone_code",
+      new RegExp(phoneCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    ).catch(() => undefined);
+  }
+  await fillIfPresent(page, "#mobile_phone", mobileNumberWithoutCountryCode(registration.mobilePhone, phoneCountryCode));
   await fillIfPresent(page, "#mother", registration.motherName ?? "UNKNOWN");
   await fillIfPresent(page, "#number", registration.passportNumber);
   await selectNativeOptionByText(

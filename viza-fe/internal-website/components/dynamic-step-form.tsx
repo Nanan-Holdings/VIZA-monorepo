@@ -93,9 +93,8 @@ function isIndonesiaOfficialEVisaContext(country: string | null | undefined, vis
     (visaType === "ID_B1_EVOA" || visaType === "ID_C1_TOURIST");
 }
 
-function normalizeIndonesiaPhoneNumber(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  return digits ? `+${digits}` : "";
+function normalizeIndonesiaMobileNumber(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 15);
 }
 
 interface CountryDataListCountry {
@@ -2478,7 +2477,7 @@ export function DynamicStepForm({
 
   const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
     const normalizedValue = isIndonesiaOfficialEVisa && fieldName === "mobile_phone"
-      ? normalizeIndonesiaPhoneNumber(value)
+      ? normalizeIndonesiaMobileNumber(value)
       : isIndonesiaOfficialEVisa && fieldName === "postal_code"
         ? value.replace(/\D/g, "").slice(0, 5)
         : value;
