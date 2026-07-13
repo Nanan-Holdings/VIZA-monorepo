@@ -281,12 +281,13 @@ function departureDateForOfficial(answers: Record<string, string>) {
 async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string, routingInput?: KvacRoutingInput) {
   const job = await latestJob(admin, applicationId);
   const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, routingInput));
-  if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null };
+  if (!job) return { routing, job: null, slots: [], confirmation: null, manualAction: null, changeIntent: null };
 
   const [
     { data: slots, error: slotsErr },
     { data: confirmation, error: confirmationErr },
     { data: manualAction, error: manualActionErr },
+    { data: rescheduleAction, error: rescheduleActionErr },
   ] = await Promise.all([
     admin
       .from("appointment_slots")
@@ -309,10 +310,20 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    admin
+      .from("appointment_manual_actions")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("action_type", "official_reschedule_required")
+      .in("status", ["pending", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   if (slotsErr) throw new Error(slotsErr.message);
   if (confirmationErr) throw new Error(confirmationErr.message);
   if (manualActionErr) throw new Error(manualActionErr.message);
+  if (rescheduleActionErr) throw new Error(rescheduleActionErr.message);
   const normalizedConfirmation = confirmation
     ? {
         ...confirmation,
@@ -321,7 +332,14 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
           : null,
       }
     : null;
-  return { routing, job, slots: slots ?? [], confirmation: normalizedConfirmation, manualAction: (manualAction as AppointmentManualActionRow | null) ?? null };
+  return {
+    routing,
+    job,
+    slots: slots ?? [],
+    confirmation: normalizedConfirmation,
+    manualAction: (manualAction as AppointmentManualActionRow | null) ?? null,
+    changeIntent: rescheduleAction ? "reschedule" : null,
+  };
 }
 
 function dryRunSlots(centerCode: string) {
@@ -803,6 +821,12 @@ async function completeOfficialFinalBooking(
     current_manual_action: null,
     updated_at: new Date().toISOString(),
   }).eq("id", job.id);
+  await admin.from("appointment_manual_actions").update({
+    status: "completed",
+    completed_at: new Date().toISOString(),
+  }).eq("job_id", job.id)
+    .eq("action_type", "official_reschedule_required")
+    .in("status", ["pending", "in_progress"]);
   await admin.from("applications").update({
     appointment_assistance_status: "appointment_booked",
     appointment_confirmation_id: confirmation.id,
