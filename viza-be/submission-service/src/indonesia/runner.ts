@@ -56,6 +56,7 @@ function isIndonesiaB1Input(input: IndonesiaPortalProbeInput): boolean {
 }
 
 export interface IndonesiaAccountRegistrationInput {
+  documentTravelType?: string | null;
   fullName?: string | null;
   gender?: string | null;
   birthPlace?: string | null;
@@ -73,6 +74,7 @@ export interface IndonesiaAccountRegistrationInput {
 }
 
 export interface IndonesiaApplicationFormInput {
+  documentTravelType?: string | null;
   fullName?: string | null;
   gender?: string | null;
   birthPlace?: string | null;
@@ -1581,7 +1583,11 @@ async function fillForeignerAccountRegistration(
   }
 
   const registration = input.registration;
-  await selectNativeOptionByText(page, "#document_travel_id", /^Passport$/i).catch(() => undefined);
+  await selectNativeOptionByText(
+    page,
+    "#document_travel_id",
+    new RegExp(`^${(registration.documentTravelType ?? "Passport").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+  ).catch(() => undefined);
   await setFilesIfPresent(page, "#attachment", registration.passportImagePath);
   await setFilesIfPresent(page, "#initial_file", registration.passportImagePath);
   await waitForHiddenValue(page, "#path_attachment", diagnostics, "indonesia_account_passport_upload");
@@ -2761,7 +2767,11 @@ async function continueFromApplicationStepTwo(
   await fillIfPresent(page, "#birth_place", application.birthPlace);
   await setDateValue(page, "#birthday", application.dateOfBirth);
   await fillIfPresent(page, "#mobile_phone", normalizeIndonesiaMobilePhone(application.mobilePhone));
-  await selectNativeOptionByText(page, "#document_travel_id", /^Passport$/i).catch(() => undefined);
+  await selectNativeOptionByText(
+    page,
+    "#document_travel_id",
+    new RegExp(`^${(application.documentTravelType ?? "Passport").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+  ).catch(() => undefined);
   await fillIfPresent(page, "#number", application.passportNumber);
   await selectNativeOptionByText(
     page,

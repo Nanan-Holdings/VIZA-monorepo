@@ -44,6 +44,7 @@ test("normalizes Indonesia C1 tourist answers to the official eVisa portal", () 
       given_name: "Ada",
       surname: "Lovelace",
       passport_number: "P1234567",
+      document_travel_id: "Diplomatic Passport",
       email_address: "ada@example.com",
       intended_date_of_entry: "2026-08-01",
     },
@@ -55,6 +56,7 @@ test("normalizes Indonesia C1 tourist answers to the official eVisa portal", () 
   assert.equal(normalized.portalUrl, INDONESIA_C1_PORTAL_URL);
   assert.equal(normalized.fullName, "Ada Lovelace");
   assert.equal(normalized.passportNumber, "P1234567");
+  assert.equal(normalized.documentTravelType, "Diplomatic Passport");
   assert.equal(normalized.officialReference, "REF-C1");
 });
 

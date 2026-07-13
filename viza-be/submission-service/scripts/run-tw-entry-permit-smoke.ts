@@ -4,9 +4,15 @@ import { supabase } from "../src/supabase";
 import { runTaiwanEntryPermitPortalSubmission } from "../src/tw-entry-permit/runner";
 
 const SEND_EMAIL = process.argv.includes("--send-email");
+const FILL_PLACEHOLDERS = process.argv.includes("--fill-placeholders");
 const TEST_EMAIL = "czz19974931995@gmail.com";
 
 async function main(): Promise<void> {
+  // The local Playwright/IMAP combination can leave only unref'd handles while
+  // an official page is navigating. Keep this CLI alive until the runner has
+  // returned a structured checkpoint.
+  const keepAlive = setInterval(() => undefined, 1_000);
+  try {
   if (SEND_EMAIL && process.env.TW_ENTRY_PERMIT_EMAIL_VERIFICATION_ENABLED !== "true") {
     throw new Error("Set TW_ENTRY_PERMIT_EMAIL_VERIFICATION_ENABLED=true before running --send-email.");
   }
@@ -34,7 +40,9 @@ async function main(): Promise<void> {
     headless: true,
     stopBeforeSubmit: true,
     sendVerificationCode: SEND_EMAIL,
+    fillPlaceholderDraft: FILL_PLACEHOLDERS,
     applicantId: profile.data.id,
+    onProgress: (stage) => console.log(`[tw-entry-permit] ${stage}`),
   });
   console.log(JSON.stringify({
     submitted: result.submitted,
@@ -42,9 +50,15 @@ async function main(): Promise<void> {
     origin: new URL(result.portalUrl).origin,
     referenceNumberCaptured: Boolean(result.referenceNumber),
     postVerificationControls: result.postVerificationControls,
+    postVerificationSelectOptions: result.postVerificationSelectOptions,
+    postVerificationRadioValues: result.postVerificationRadioValues,
+    placeholderFill: result.placeholderFill,
     screenshotsCaptured: result.screenshots.length,
     logs: result.logs.filter((entry) => entry.startsWith("tw_entry_permit_")),
   }, null, 2));
+  } finally {
+    clearInterval(keepAlive);
+  }
 }
 
 main().catch((error) => {

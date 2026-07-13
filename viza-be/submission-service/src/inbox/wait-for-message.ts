@@ -38,6 +38,8 @@ export interface WaitForMessageOpts {
   since?: string;
   /** Mark the matched row processed=true on resolution. Default true. */
   markProcessed?: boolean;
+  /** Include already-consumed mail when an external ingest worker owns marking. */
+  includeProcessed?: boolean;
   /** Override clock — used in tests. */
   now?: () => number;
 }
@@ -78,17 +80,19 @@ async function loadAlias(applicantId: string): Promise<string> {
 async function fetchUnprocessedSince(
   alias: string,
   since: string,
+  includeProcessed = false,
 ): Promise<InboundMessage[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("inbound_email")
     .select(
       "id, to_addr, from_addr, subject, message_id, text, html, headers, raw_size, r2_key, spam_score, received_at, processed",
     )
     .eq("to_addr", alias)
     .gte("received_at", since)
-    .eq("processed", false)
     .order("received_at", { ascending: true })
     .limit(20);
+  if (!includeProcessed) query = query.eq("processed", false);
+  const { data, error } = await query;
   if (error) {
     throw new Error(`waitForMessage poll failed: ${error.message}`);
   }
@@ -124,10 +128,10 @@ export async function waitForMessage(
 
   const deadline = now() + timeoutMs;
   while (now() < deadline) {
-    const rows = await fetchUnprocessedSince(alias, since);
+    const rows = await fetchUnprocessedSince(alias, since, opts.includeProcessed);
     for (const row of rows) {
       if (predicate(row)) {
-        if (opts.markProcessed !== false) {
+        if (opts.markProcessed !== false && !row.processed) {
           await markProcessed(row.id);
         }
         return row;

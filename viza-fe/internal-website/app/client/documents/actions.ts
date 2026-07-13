@@ -396,6 +396,33 @@ const INDONESIA_B1_EVOA_REQUIREMENTS: DocumentRequirement[] = [
   },
 ];
 
+const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
+  {
+    key: "passport_copy",
+    documentType: "passport_copy",
+    labelEn: "Passport bio page",
+    labelZh: "护照资料页",
+    description:
+      "Official registration requirement: JPEG/JPG/PNG only. Upload a clear, complete bio page. The eVisa is electronically linked to this travel document and is valid only when travelling with it.",
+    required: true,
+    sortOrder: 10,
+    accept: [".jpg", ".jpeg", ".png"],
+    source: "fallback",
+  },
+  {
+    key: "photo",
+    documentType: "photo",
+    labelEn: "Latest color photo",
+    labelZh: "近期彩色证件照",
+    description:
+      "Official registration requirement: latest color photo facing forward, 4 x 6 cm, at least 400 x 600 pixels, in JPEG/JPG/PNG only.",
+    required: true,
+    sortOrder: 20,
+    accept: [".jpg", ".jpeg", ".png"],
+    source: "fallback",
+  },
+];
+
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -464,6 +491,13 @@ function isIndonesiaB1EvoaDocumentApplication(application: ApplicationRow): bool
   );
 }
 
+function isIndonesiaC1TouristDocumentApplication(application: ApplicationRow): boolean {
+  return (
+    application.country.toLowerCase() === "indonesia" &&
+    resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) === "ID_C1_TOURIST"
+  );
+}
+
 function isIndonesiaB1OfficialPdfDocument(documentType: string, requirementKey?: string): boolean {
   return [documentType, requirementKey].some((value) =>
     value === "return_ticket" || value === "passport_validity_support",
@@ -478,13 +512,43 @@ function forceIndonesiaB1PdfRequirements(requirements: DocumentRequirement[]): D
   );
 }
 
+function forceIndonesiaC1RegistrationImageRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
+  return requirements.map((requirement) => {
+    if ([requirement.key, requirement.documentType].some((value) =>
+      ["passport_copy", "passport_bio_page", "passport_bio_page_upload"].includes(value),
+    )) {
+      return {
+        ...requirement,
+        accept: [".jpg", ".jpeg", ".png"],
+        description:
+          "Official registration requirement: JPEG/JPG/PNG only. Upload a clear, complete bio page. The eVisa is electronically linked to this travel document and is valid only when travelling with it.",
+      };
+    }
+    if ([requirement.key, requirement.documentType].some((value) =>
+      ["photo", "formal_photo", "formal_photo_upload"].includes(value),
+    )) {
+      return {
+        ...requirement,
+        accept: [".jpg", ".jpeg", ".png"],
+        description:
+          "Official registration requirement: latest color photo facing forward, 4 x 6 cm, at least 400 x 600 pixels, in JPEG/JPG/PNG only.",
+      };
+    }
+    return requirement;
+  });
+}
+
 function normalizeRequirementsForApplication(
   application: ApplicationRow,
   requirements: DocumentRequirement[],
 ): DocumentRequirement[] {
-  return isIndonesiaB1EvoaDocumentApplication(application)
-    ? forceIndonesiaB1PdfRequirements(requirements)
-    : requirements;
+  if (isIndonesiaB1EvoaDocumentApplication(application)) {
+    return forceIndonesiaB1PdfRequirements(requirements);
+  }
+  if (isIndonesiaC1TouristDocumentApplication(application)) {
+    return forceIndonesiaC1RegistrationImageRequirements(requirements);
+  }
+  return requirements;
 }
 
 function cloneRequirements(requirements: DocumentRequirement[]): DocumentRequirement[] {
@@ -1001,6 +1065,10 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
     return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_B1_EVOA_REQUIREMENTS) };
   }
 
+  if (isIndonesiaC1TouristDocumentApplication(application)) {
+    return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_C1_TOURIST_REQUIREMENTS) };
+  }
+
   return { source: "fallback" as const, requirements: FALLBACK_REQUIREMENTS };
 }
 
@@ -1462,6 +1530,42 @@ async function validateIndonesiaB1OfficialPdfUpload(input: {
   return null;
 }
 
+function isIndonesiaC1RegistrationImageDocument(documentType: string, requirementKey: string): boolean {
+  return [documentType, requirementKey].some((value) =>
+    ["passport_copy", "passport_bio_page", "passport_bio_page_upload", "photo", "formal_photo", "formal_photo_upload"].includes(value),
+  );
+}
+
+function isIndonesiaC1PortraitDocument(documentType: string, requirementKey: string): boolean {
+  return [documentType, requirementKey].some((value) =>
+    ["photo", "formal_photo", "formal_photo_upload"].includes(value),
+  );
+}
+
+async function validateIndonesiaC1RegistrationImageUpload(input: {
+  application: ApplicationRow;
+  documentType: string;
+  requirementKey: string;
+  file: File;
+}): Promise<string | null> {
+  if (!isIndonesiaC1TouristDocumentApplication(input.application)) return null;
+  if (!isIndonesiaC1RegistrationImageDocument(input.documentType, input.requirementKey)) return null;
+
+  const filename = input.file.name.toLowerCase();
+  const mimeType = input.file.type.toLowerCase();
+  const allowedMimeTypes = new Set(["image/jpeg", "image/png"]);
+  if (!/\.(?:jpe?g|png)$/.test(filename) || (mimeType && !allowedMimeTypes.has(mimeType))) {
+    return "Indonesia C1 official account registration accepts the passport bio page and photo in JPEG/JPG/PNG format only.";
+  }
+
+  if (!isIndonesiaC1PortraitDocument(input.documentType, input.requirementKey)) return null;
+  const signals = await readVietnamOfficialImageSignals({ file: input.file, runPassportOcr: false });
+  if (!signals.width || !signals.height || signals.width < 400 || signals.height < 600) {
+    return "Indonesia C1 official account registration requires a color portrait photo of at least 400 x 600 pixels.";
+  }
+  return null;
+}
+
 export type UploadApplicationDocumentResult =
   | { ok: true; storagePath: string; filename: string }
   | {
@@ -1506,6 +1610,16 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
     });
     if (indonesiaPdfUploadError) {
       return { ok: false, code: "invalid_request", error: indonesiaPdfUploadError };
+    }
+
+    const indonesiaC1ImageUploadError = await validateIndonesiaC1RegistrationImageUpload({
+      application,
+      documentType,
+      requirementKey,
+      file,
+    });
+    if (indonesiaC1ImageUploadError) {
+      return { ok: false, code: "invalid_request", error: indonesiaC1ImageUploadError };
     }
 
     const adminClient = createAdminClient();
