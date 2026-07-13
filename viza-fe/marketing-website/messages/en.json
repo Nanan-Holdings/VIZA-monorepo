@@ -331,6 +331,7 @@
     }
   },
   "cities": {
+    "viza-test": "Live checkout test",
     "indonesia": "Bali · Jakarta",
     "egypt": "Cairo · Giza",
     "australia": "Sydney · Melbourne",
@@ -349,6 +350,7 @@
     "india": "Delhi · Mumbai"
   },
   "validity": {
+    "viza-test": "Demo only",
     "indonesia": "90 days",
     "egypt": "90 days",
     "australia": "1 year",
@@ -386,6 +388,7 @@
     "TH": "Thailand"
   },
   "countries": {
+    "viza-test": "VIZA Test",
     "indonesia": "Indonesia",
     "egypt": "Egypt",
     "australia": "Australia",
@@ -404,6 +407,7 @@
     "india": "India"
   },
   "visaTypes": {
+    "Test checkout": "Test checkout",
     "e-Visa": "e-Visa",
     "Standard Visitor": "Standard Visitor",
     "Visitor 600": "Visitor 600",
