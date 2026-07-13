@@ -103,6 +103,48 @@ async function selectNearLabel(page: Page, labels: RegExp[], value: string): Pro
   return false;
 }
 
+async function completeNationalityGate(page: Page, nationality: string): Promise<boolean> {
+  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  if (!/select your nationality/i.test(bodyText)) return true;
+
+  const inputs = page.locator("input");
+  const inputCount = await inputs.count().catch(() => 0);
+  if (inputCount !== 1) return false;
+  const input = inputs.nth(0);
+  if (!(await input.isVisible().catch(() => false))) return false;
+
+  await input.fill(nationality);
+  const options = page.locator("[role='option']").filter({ hasText: nationality });
+  const optionCount = await options.count().catch(() => 0);
+  if (optionCount !== 1) return false;
+  await options.nth(0).click();
+
+  const next = page.getByText("Next", { exact: true });
+  const nextCount = await next.count().catch(() => 0);
+  if (nextCount !== 1) return false;
+  await next.click();
+  await page.waitForTimeout(500);
+  return !/select your nationality/i.test(
+    await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "select your nationality"),
+  );
+}
+
+async function clickOfficialPrimaryAction(page: Page, labels: string[]): Promise<boolean> {
+  for (const label of labels) {
+    // The landing page hydrates its cards after the initial DOM load. Let the
+    // exact control wait for hydration instead of treating a zero early count
+    // as a missing official action.
+    const action = page.getByText(label, { exact: true });
+    try {
+      await action.click({ timeout: 15_000 });
+      return true;
+    } catch {
+      // Try the next localized official label.
+    }
+  }
+  return false;
+}
+
 async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
   const qrLocator = page.locator("canvas, img[alt*='QR' i], img[src*='qr' i]").first();
   if (!(await qrLocator.isVisible().catch(() => false))) return null;
@@ -193,18 +235,33 @@ export async function runVietnamPrearrivalPortalSubmission(
     const loadedScreenshot = await saveScreenshot(page, tempDir, "loaded", logs);
     if (loadedScreenshot) screenshots.push(loadedScreenshot);
 
-    const openedDeclaration = await clickFirstVisible(page, [
-      /create\s*&\s*submit pre-arrival information/i,
-      /submit pre-arrival information/i,
-      /pre-arrival information/i,
-      /khai báo/i,
-      /tiếp tục/i,
+    // The header itself includes "Pre-arrival Information". Match only the
+    // official primary action so the landing page is never mistaken for the form.
+    const openedDeclaration = await clickOfficialPrimaryAction(page, [
+      "Create & Submit Pre-arrival Information",
+      "Khai báo thông tin trước khi nhập cảnh",
     ]);
-    if (openedDeclaration) {
-      await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-      await page.waitForTimeout(1_000);
+    if (!openedDeclaration) {
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival primary declaration action was not found on the official landing page.",
+        "vn_prearrival_start_control_not_found",
+        "The official portal loaded, but its declaration start control could not be matched. No submission was attempted.",
+        screenshots,
+        logs,
+      );
     }
+    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
     await handleCaptchaGate(page, screenshots, logs, tempDir);
+    if (!(await completeNationalityGate(page, payload.nationality))) {
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival nationality selection could not be completed on the official portal.",
+        "vn_prearrival_nationality_gate_not_completed",
+        "The official portal requires a nationality selection before the declaration form. No submission was attempted.",
+        screenshots,
+        logs,
+      );
+    }
 
     const missingControls: string[] = [];
     const fillTasks: Array<[RegExp[], string, string]> = [

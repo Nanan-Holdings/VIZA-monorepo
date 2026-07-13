@@ -26,6 +26,7 @@ export interface NormalizedIndonesiaSubmission {
   fullName: string | null;
   motherFullName: string | null;
   passportNumber: string | null;
+  documentTravelType: string | null;
   passportCountry: string | null;
   email: string | null;
   mobileNumber: string | null;
@@ -157,6 +158,11 @@ export function normalizeIndonesiaAnswers(
       "travel_document_number",
       "passport_no",
     ]),
+    documentTravelType: readFirst(answers, [
+      "document_travel_id",
+      "document_type",
+      "travel_document_type",
+    ]),
     passportCountry: readFirst(answers, [
       "passport_country",
       "passport_issuing_country",
@@ -258,6 +264,7 @@ export async function runIndonesiaLiveSubmission(
       accountEmail: managedEmail,
       accountPassword: managedPassword,
       registration: {
+        documentTravelType: normalized.documentTravelType,
         fullName: normalized.fullName ?? input.profile?.fullName,
         gender: readFirst(input.answers, ["gender", "sex"]) ?? input.profile?.gender,
         birthPlace: readFirst(input.answers, ["birth_place", "place_of_birth"]) ?? input.profile?.placeOfBirth,
@@ -274,6 +281,7 @@ export async function runIndonesiaLiveSubmission(
         photoImagePath: input.photoImagePath,
       },
       application: {
+        documentTravelType: normalized.documentTravelType,
         fullName: normalized.fullName ?? input.profile?.fullName,
         gender: readFirst(input.answers, ["gender", "sex"]) ?? input.profile?.gender,
         birthPlace: readFirst(input.answers, ["birth_place", "place_of_birth", "city_of_birth", "birth_city"]) ?? input.profile?.placeOfBirth,
