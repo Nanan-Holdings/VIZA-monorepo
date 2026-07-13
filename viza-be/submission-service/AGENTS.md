@@ -72,8 +72,9 @@ filling and one-shot submission for the applicant.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
 - `scripts/fly/` renders and deploys country workers, deploys the dedicated
-  legacy worker, and applies autoscaler decisions. These scripts require
-  operator-provided Fly authentication and must never create or print secrets.
+  legacy worker, syncs the three boot-required runtime secrets, and applies
+  autoscaler decisions. These scripts require operator-provided Fly
+  authentication and must never print or persist secret values.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple

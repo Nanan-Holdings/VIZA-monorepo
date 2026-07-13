@@ -20,14 +20,14 @@ function resetEnv(): void {
 
 test.afterEach(resetEnv);
 
-test("PH eTravel does not use global Browser API endpoints unless explicitly opted in", () => {
+test("PH eTravel uses a country endpoint before the configured global Browser API", () => {
   resetEnv();
   process.env.BRIGHTDATA_BROWSER_WS = "wss://global-browser.example";
 
-  assert.equal(resolveArrivalCardBrowserEndpoint("PH_ETRAVEL"), null);
-
-  process.env.PH_ETRAVEL_USE_GLOBAL_BROWSER_API = "true";
   assert.equal(resolveArrivalCardBrowserEndpoint("PH_ETRAVEL"), "wss://global-browser.example");
+
+  process.env.PH_ETRAVEL_BROWSER_API_ENDPOINT = "wss://country-browser.example";
+  assert.equal(resolveArrivalCardBrowserEndpoint("PH_ETRAVEL"), "wss://country-browser.example");
 });
 
 test("PH eTravel can resolve a local Chrome CDP endpoint before launching a fresh browser", () => {
