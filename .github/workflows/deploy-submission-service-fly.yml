@@ -1,5 +1,9 @@
 name: deploy-submission-service-fly
 
+env:
+  # Must match the lowercase GHCR repository emitted by the image workflow.
+  SUBMISSION_IMAGE_REPOSITORY: ghcr.io/nanan-holdings/viza-submission-service
+
 on:
   workflow_dispatch:
     inputs:
@@ -31,7 +35,7 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUBMISSION_RESULT_SECRET_KEY: ${{ secrets.SUBMISSION_RESULT_SECRET_KEY }}
-      IMAGE: ghcr.io/${{ github.repository_owner }}/viza-submission-service:${{ inputs.image_sha }}
+        IMAGE: ${{ env.SUBMISSION_IMAGE_REPOSITORY }}:${{ inputs.image_sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
