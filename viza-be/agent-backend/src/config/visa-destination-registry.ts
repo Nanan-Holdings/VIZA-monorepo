@@ -53,6 +53,7 @@ export type SupportedKnowledgeCountry =
   | 'switzerland'
   | 'sweden'
   | 'thailand'
+  | 'taiwan'
   | 'turkey'
   | 'uk'
   | 'united_arab_emirates'
@@ -153,6 +154,7 @@ export const VISA_DESTINATION_REGISTRY: Record<
   switzerland: destination('switzerland', 'Switzerland', ['瑞士', 'switzerland', 'swiss', 'zurich', 'geneva', '苏黎世', '日内瓦'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   sweden: destination('sweden', 'Sweden', ['瑞典', 'sweden', 'stockholm', '斯德哥尔摩'], SCHENGEN_VISITOR_TYPE, { isSchengen: true }),
   thailand: destination('thailand', 'Thailand', ['泰国', 'thailand', 'bangkok', 'phuket', 'chiang mai', '曼谷', '普吉', '清迈', 'tdac', 'thailand digital arrival card'], 'TH_TDAC_ARRIVAL_CARD'),
+  taiwan: destination('taiwan', 'Taiwan', ['台湾', '中國台灣', '中国台湾', 'taiwan', 'taipei', '台北', '入台证', '入臺證', 'taiwan entry permit'], 'TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT'),
   turkey: destination('turkey', 'Turkiye', ['土耳其', 'turkey', 'turkiye', 'istanbul', '伊斯坦布尔'], 'evisa_tourism_business'),
   uk: destination('uk', 'United Kingdom', ['英国', '英签', 'united kingdom', 'britain', 'england', 'london', '伦敦'], 'standard_visitor'),
   united_arab_emirates: destination('united_arab_emirates', 'United Arab Emirates', ['阿联酋', '迪拜', '阿布扎比', 'uae', 'united arab emirates', 'dubai', 'abu dhabi'], 'visa_free_or_tourist_visa'),
@@ -226,6 +228,7 @@ export const VISA_SERVICE_COUNTRIES = new Set<SupportedKnowledgeCountry>([
   'switzerland',
   'sweden',
   'thailand',
+  'taiwan',
   'turkey',
   'uk',
   'united_arab_emirates',

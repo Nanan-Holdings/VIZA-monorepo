@@ -39,6 +39,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
   guards the local country-code dropdown fallback used when the official
   category endpoint is session-gated.
+- Indonesia eVisa postal-code preflight is proxied through
+  `app/api/indonesia/postal-code/**`. It may only validate and derive the
+  province/city/district/village display values; the official eVisa portal
+  remains the final authority and portal-side rejection must be surfaced to
+  the applicant.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
@@ -58,6 +63,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   use China USVisaScheduling gated assisted-live with VIZA-created appointment
   account credentials, select observed official slots, approve payment/final
   booking, and display confirmation/status snapshots from the DB.
+- Japan VFS/JVAC Singapore appointment preparation under
+  `app/client/applications/[applicationId]/japan-appointment/**`,
+  `components/client/japan-appointment/**`, and `lib/japan-vfs-sg.ts`.
+  It is limited to Chinese ordinary-passport holders with a Singapore long-term
+  pass that covers their return date and must keep official VFS actions explicit.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
@@ -232,6 +242,7 @@ Smoke URLs:
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
 - `components/client/us-appointment/*`
+- `components/client/japan-appointment/*`
 - `components/client/korea-appointment/*`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
@@ -249,6 +260,7 @@ Smoke URLs:
 - `lib/visa-form-schema-aliases.ts`
 - `lib/__tests__/universal-profile-prefill.test.ts`
 - `lib/us-appointment/*`
+- `lib/japan-vfs-sg.ts`
 - `lib/korea-c39/*`
 - `lib/client/recent-application-form.ts`
 - `lib/runtime-abort-errors.ts`

@@ -218,6 +218,9 @@ filling and one-shot submission for the applicant.
   `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
   `/local/korea-kvac/sms/complete`; the final endpoint may report success only
   after the official portal returns a confirmation number.
+- `src/jp-vfs-sg/**`: Japan VFS/JVAC Singapore observer. It uses an authorized
+  Browser API/CDP session, records redacted page state, and stops at official
+  login, CAPTCHA/WAF, identity verification, payment, or selector drift.
 - `scripts/smoke-korea-kvac-centers.ts`: local Korea KVAC/consulate reachability
   smoke for all mainland China filing channels. It opens the official booking
   or guidance entry for each center and saves evidence screenshots without

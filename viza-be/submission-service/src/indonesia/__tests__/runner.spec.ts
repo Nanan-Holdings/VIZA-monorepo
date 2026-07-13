@@ -10,9 +10,24 @@ import {
   extractIndonesiaOtpCode,
   isIndonesiaBillingCodeOnlyPaymentSnapshot,
   isExpiredIndonesiaApplicationText,
+  normalizeIndonesiaMobilePhone,
+  normalizeIndonesiaPostalCode,
   normalizeIndonesiaPaymentWaitState,
   shouldSubmitIndonesiaPortalEmailOtp,
 } from "../runner";
+
+test("preserves the international plus sign for Indonesia mobile fields", () => {
+  assert.equal(normalizeIndonesiaMobilePhone("+86 133 1234 5678"), "+8613312345678");
+  assert.equal(normalizeIndonesiaMobilePhone("8613312345678"), "+8613312345678");
+  assert.equal(normalizeIndonesiaMobilePhone(null), null);
+});
+
+test("accepts only five-digit Indonesia postal codes before official form entry", () => {
+  assert.equal(normalizeIndonesiaPostalCode("10310"), "10310");
+  assert.equal(normalizeIndonesiaPostalCode("10 310"), "10310");
+  assert.equal(normalizeIndonesiaPostalCode("22121A"), "22121");
+  assert.equal(normalizeIndonesiaPostalCode("1031"), null);
+});
 import {
   shouldDirectNavigateIndonesiaStepOne,
   actionForIndonesiaPortalState,
