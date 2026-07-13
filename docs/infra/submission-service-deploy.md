@@ -19,6 +19,12 @@ second attempt from submitting the same application.
   2captcha, IMAP, Bright Data proxy/Browser API, and country-specific enabled
   runner settings. Never put values in TOML, GitHub workflow files, logs, or
   application code.
+- For the Malaysia MDAC live pilot, also add these protected GitHub Environment
+  secrets when the related provider is enabled: `MDAC_BROWSER_API_ENDPOINT`
+  (or `MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT`), `TWOCAPTCHA_API_KEY`,
+  `RESEND_API_KEY`, and `RESEND_OPS_ALERT_TO`. The deploy workflow copies only
+  non-empty optional values to Fly Secrets. Browser API endpoints are secrets
+  because they embed credentials.
 - Apply the database migrations that provide `runner_job`, country concurrency
   caps, and lease recovery before allowing more than one worker.
 
@@ -27,10 +33,12 @@ second attempt from submitting the same application.
 1. Merge the image workflow and publish a commit-SHA image.
 2. The protected deployment workflow copies the three boot-required secrets
    (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
-   `SUBMISSION_RESULT_SECRET_KEY`) from its GitHub Environment into each new
-   Fly app. Add feature secrets (for example Bright Data, 2captcha, Resend)
-   to the Fly app before enabling the relevant live flow. Country workers must
-   set neither proxy nor Browser API endpoints in TOML.
+   `SUBMISSION_RESULT_SECRET_KEY`) and any non-empty supported feature secrets
+   from its GitHub Environment into each new Fly app. For the MDAC pilot, add
+   the MDAC Browser API and 2captcha secrets to that environment before the
+   deploy. The legacy Fly worker runs headlessly and has no local-display
+   dependency. Country workers must set neither proxy nor Browser API endpoints
+   in TOML.
 3. From GitHub Actions, run **deploy-submission-service-fly**, provide the full
    published SHA, choose one verified pilot country, and enable the legacy
    worker. Production environment approval is required.

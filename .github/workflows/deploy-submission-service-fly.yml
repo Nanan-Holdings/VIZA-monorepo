@@ -35,6 +35,14 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUBMISSION_RESULT_SECRET_KEY: ${{ secrets.SUBMISSION_RESULT_SECRET_KEY }}
+      # Optional capabilities are forwarded only when populated. The sync
+      # script deliberately never overwrites Fly secrets with blank values.
+      MDAC_BROWSER_API_ENDPOINT: ${{ secrets.MDAC_BROWSER_API_ENDPOINT }}
+      MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT: ${{ secrets.MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT }}
+      TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_OPS_ALERT_TO: ${{ secrets.RESEND_OPS_ALERT_TO }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       IMAGE: ${{ env.SUBMISSION_IMAGE_REPOSITORY }}:${{ inputs.image_sha }}
     steps:
       - uses: actions/checkout@v4
