@@ -2727,6 +2727,13 @@ async function continueFromApplicationStepTwo(
     "#country_id",
     new RegExp(`^${normalizeCountryLabel(application.passportCountry).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
   ).catch(() => undefined);
+  // The official form may render this additional field for special travel
+  // documents. For a normal passport it must match Passport/Country/Region.
+  await selectNativeOptionByText(
+    page,
+    "#issuing_country, select[name='issuing_country'], select[name='passport_issuing_country']",
+    new RegExp(`^${normalizeCountryLabel(application.passportCountry).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+  ).catch(() => undefined);
   await setDateValue(page, "#release_date", application.passportIssueDate);
   await setDateValue(page, "#expired_date", application.passportExpiryDate);
   await fillIfPresent(page, "#release_place", application.passportIssuePlace ?? application.passportCountry);

@@ -388,7 +388,7 @@ const INDONESIA_B1_EVOA_REQUIREMENTS: DocumentRequirement[] = [
     labelEn: "Passport validity support document",
     labelZh: "护照有效期支持材料",
     description:
-      "Official support document: passport valid for at least 6 months. For travel documents other than passports, validity must be at least 12 months. VIZA can generate this PDF from the passport bio page when possible.",
+      "Official support document: passport valid for at least 6 months. For travel documents other than passports, validity must be at least 12 months. PDF format only. VIZA can generate this PDF from the passport bio page when possible.",
     required: false,
     sortOrder: 40,
     accept: [".pdf"],

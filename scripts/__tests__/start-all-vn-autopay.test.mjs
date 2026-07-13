@@ -10,7 +10,10 @@ test("start-all restarts an existing frontend so Vietnam card-session env is inj
   assert.match(script, /\$frontendAlreadyRunning\s*=\s*\$false/u);
 });
 
-test("start-all starts submission-service and frontend with matching card-session URL", () => {
+test("start-all starts submission-service and frontend with matching Vietnam and Indonesia card-session settings", () => {
   assert.match(script, /\$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'/u);
+  assert.match(script, /\$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'/u);
   assert.match(script, /\$env:SUBMISSION_SERVICE_LOCAL_URL = 'http:\/\/127\.0\.0\.1:\$SubmissionPort'/u);
+  assert.match(script, /\$env:NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'/u);
+  assert.match(script, /local\/indonesia\/card-session/u);
 });

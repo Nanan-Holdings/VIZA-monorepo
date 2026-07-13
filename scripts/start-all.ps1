@@ -783,9 +783,13 @@ $submissionAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $submissionServiceDir `
   -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
   -ExpectedContent @('"status":"ok"')
-$submissionCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session"
-if ($submissionAlreadyRunning -and !(Test-HttpProbe -Uri $submissionCardSessionUri -ExpectedContent @('"enabled":true'))) {
-  Write-Warn "submission-service is running but Vietnam card-session endpoint is not enabled; restarting it with local autopay env."
+$submissionVietnamCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session"
+$submissionIndonesiaCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/indonesia/card-session"
+$submissionCardSessionEndpointsReady =
+  (Test-HttpProbe -Uri $submissionVietnamCardSessionUri -ExpectedContent @('"enabled":true')) -and
+  (Test-HttpProbe -Uri $submissionIndonesiaCardSessionUri -ExpectedContent @('"enabled":true'))
+if ($submissionAlreadyRunning -and !$submissionCardSessionEndpointsReady) {
+  Write-Warn "submission-service is running but the Vietnam/Indonesia card-session endpoints are not both enabled; restarting it with local payment env."
   Stop-ProcessesByPath -Path $submissionServiceDir
   Start-Sleep -Seconds 2
   $submissionAlreadyRunning = $false
@@ -793,7 +797,7 @@ if ($submissionAlreadyRunning -and !(Test-HttpProbe -Uri $submissionCardSessionU
 
 $frontendNeedsRestartForSubmissionServiceEnv = $frontendAlreadyRunning
 if ($frontendNeedsRestartForSubmissionServiceEnv) {
-  Write-Warn "frontend is already running; restarting it so SUBMISSION_SERVICE_LOCAL_URL and Vietnam live-submission env match this start-all run."
+  Write-Warn "frontend is already running; restarting it so SUBMISSION_SERVICE_LOCAL_URL and live-submission env match this start-all run."
   Stop-ProcessesByPath -Path $frontendDir
   Start-Sleep -Seconds 2
   $frontendAlreadyRunning = $false
@@ -821,23 +825,23 @@ if (!$agentAlreadyRunning) {
 if (!$submissionAlreadyRunning) {
   $submissionProcess = Find-RunningProcessByPath -Path $submissionServiceDir
   if ($submissionProcess) {
-    if (Test-HttpProbe -Uri $submissionCardSessionUri -ExpectedContent @('"enabled":true')) {
+    if ($submissionCardSessionEndpointsReady) {
       Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
     } else {
-      Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but Vietnam card-session endpoint is not ready; restarting it."
+      Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but the Vietnam/Indonesia card-session endpoints are not ready; restarting it."
       Stop-ProcessesByPath -Path $submissionServiceDir
       Start-Sleep -Seconds 2
-      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
+      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
       $started += Start-ManagedProcess `
-        -Name "submission-service worker with Vietnam autopay" `
+        -Name "submission-service worker with Vietnam and Indonesia local payments" `
         -SafeName "submission-service" `
         -WorkingDirectory $submissionServiceDir `
         -Command $submissionCommand
     }
   } else {
-    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
+    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
     $started += Start-ManagedProcess `
-      -Name "submission-service worker with Vietnam autopay" `
+      -Name "submission-service worker with Vietnam and Indonesia local payments" `
       -SafeName "submission-service" `
       -WorkingDirectory $submissionServiceDir `
       -Command $submissionCommand
@@ -866,7 +870,7 @@ if (!$marketingAlreadyRunning) {
 }
 
 if (!$frontendAlreadyRunning) {
-  $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; `$env:SUBMISSION_SERVICE_LOCAL_URL = 'http://127.0.0.1:$SubmissionPort'; `$env:NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_VN_SUBMISSION_MODE = 'live_assisted'; npm run dev -- -p $FrontendPort"
+  $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; `$env:SUBMISSION_SERVICE_LOCAL_URL = 'http://127.0.0.1:$SubmissionPort'; `$env:NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_VN_SUBMISSION_MODE = 'live_assisted'; `$env:INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'; npm run dev -- -p $FrontendPort"
   $started += Start-ManagedProcess `
     -Name "frontend" `
     -SafeName "frontend" `
@@ -880,7 +884,8 @@ foreach ($process in $started) {
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
-Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri $submissionCardSessionUri -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri $submissionVietnamCardSessionUri -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "Indonesia one-time card session endpoint" -Uri $submissionIndonesiaCardSessionUri -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds
