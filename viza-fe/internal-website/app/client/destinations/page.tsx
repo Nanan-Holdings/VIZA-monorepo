@@ -58,6 +58,7 @@ export default function DestinationsPage() {
   >({});
   const [isLoading, setIsLoading] = useState(true);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const target = readApplicationFormTarget(getRecentApplicationFormHref());
@@ -67,6 +68,7 @@ export default function DestinationsPage() {
   }, []);
 
   const fetchData = useCallback(async () => {
+    setLoadError(null);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -139,8 +141,14 @@ export default function DestinationsPage() {
           isZh,
         ),
       );
-    } catch (loadError) {
-      console.error("Failed to load destinations page", loadError);
+    } catch {
+      // A short-lived client/Supabase connection failure should not be promoted
+      // to a Next.js development overlay while the applicant is changing pages.
+      setLoadError(
+        isZh
+          ? "暂时无法加载申请记录，请刷新页面后重试。"
+          : "We could not load your application records. Refresh the page and try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -262,6 +270,10 @@ export default function DestinationsPage() {
             <div className="mt-8 flex items-center gap-3 text-[#667085]">
               <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
               <span className="text-[14px]">{t("loading")}</span>
+            </div>
+          ) : loadError ? (
+            <div className="mt-8 rounded-[16px] border border-[#f4c7c3] bg-[#fff8f7] px-5 py-4 text-[14px] text-[#b42318]">
+              {loadError}
             </div>
           ) : ongoing.length === 0 && purchased.length === 0 ? (
             <div className="mt-8 rounded-[16px] border border-dashed border-[#dce5f0] bg-white px-5 py-10 text-center">

@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getImpersonationSession } from "@/lib/impersonation-session";
+import { getClientSessionFromRequest } from "@/lib/client-session";
 
 const ARTIFACT_BUCKET = "submission-artifacts";
 
@@ -17,13 +18,14 @@ function belongsToApplication(path: string, applicationId: string): boolean {
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await ctx.params;
   const { searchParams } = new URL(request.url);
   const path = normalizeArtifactPath(searchParams.get("path"));
   const downloadName = searchParams.get("download")?.trim() || undefined;
+  const inline = searchParams.get("inline") === "1";
 
   if (!applicationId || !path) {
     return NextResponse.json({ error: "Missing application id or artifact path" }, { status: 400 });
@@ -44,19 +46,23 @@ export async function GET(
 
   const impersonation = await getImpersonationSession();
   if (!impersonation) {
-    const supabase = await createClient();
-    const { data: auth } = await supabase.auth.getUser();
-    const userId = auth.user?.id;
-    if (!userId) {
+    const legacySession = await getClientSessionFromRequest(request);
+    let authUserId: string | null = null;
+    if (!legacySession) {
+      const supabase = await createClient();
+      const { data: auth } = await supabase.auth.getUser();
+      authUserId = auth.user?.id ?? null;
+    }
+    if (!legacySession && !authUserId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile } = await admin
+    const profileQuery = admin
       .from("applicant_profiles")
-      .select("auth_user_id")
-      .eq("id", app.applicant_id)
-      .maybeSingle();
-    if (!profile || profile.auth_user_id !== userId) {
+      .select("id, auth_user_id")
+      .eq("id", app.applicant_id);
+    const { data: profile } = await profileQuery.maybeSingle();
+    if (!profile || (legacySession ? profile.id !== legacySession.userId : profile.auth_user_id !== authUserId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
@@ -71,9 +77,13 @@ export async function GET(
 
   const headers = new Headers();
   headers.set("Content-Type", file.type || "application/octet-stream");
+  const filename = (downloadName || path.split("/").at(-1) || "submission-artifact").replace(/"/g, "");
+  // Only stored images may be rendered inline. PDFs and other artifacts remain downloads.
   headers.set(
     "Content-Disposition",
-    `attachment; filename="${(downloadName || path.split("/").at(-1) || "submission-artifact").replace(/"/g, "")}"`,
+    inline && file.type.startsWith("image/")
+      ? `inline; filename="${filename}"`
+      : `attachment; filename="${filename}"`,
   );
   headers.set("Cache-Control", "private, no-store");
   return new NextResponse(file, { headers });
