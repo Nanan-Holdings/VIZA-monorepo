@@ -6287,6 +6287,7 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       {
         headless: process.env.VN_PREARRIVAL_PLAYWRIGHT_HEADLESS !== "false",
         stopBeforeSubmit: process.env.VN_PREARRIVAL_STOP_BEFORE_SUBMIT === "1",
+        applicantId: profile.id,
       },
     );
     const screenshotArtifacts = await uploadArrivalCardArtifacts({
@@ -6310,7 +6311,20 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       referenceNumber: portalResult.referenceNumber ?? null,
       portalUrl: portalResult.portalUrl,
       portalResponseSummary: portalResult.portalResponseSummary,
-      artifacts: { screenshots: screenshotArtifacts, pdfs: [], logs: portalResult.logs, traces: [] },
+      artifacts: {
+        screenshots: screenshotArtifacts,
+        pdfs: await uploadArrivalCardArtifacts({
+          authUserId: artifactOwnerId,
+          applicationId: item.application_id,
+          country: "VN",
+          kind: "vn-prearrival-confirmation",
+          ext: "pdf",
+          contentType: "application/pdf",
+          paths: portalResult.pdfs,
+        }),
+        logs: portalResult.logs,
+        traces: [],
+      },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");

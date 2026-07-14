@@ -262,6 +262,12 @@ function isCancellationSessionExpired(error: unknown) {
   return /cancellation session is missing or expired|cancellation button is no longer visible/i.test(submissionServiceErrorMessage(error));
 }
 
+function officialQueryShowsNoAppointmentRecord(result: KoreaKvacCancelQueryResponse) {
+  return result.status === "cancellation_manual_checkpoint"
+    && result.canCancel !== true
+    && /查询明细不存在|no appointment (?:record|detail|found)|booking (?:record|detail) (?:does not exist|not found)/i.test(result.officialMessage ?? "");
+}
+
 function applicantNameForOfficial(answers: Record<string, string>) {
   const fullName = firstAnswer(answers, ["full_name_en", "full_name", "applicant_name", "booker_name"]);
   if (fullName) return fullName;
@@ -887,7 +893,7 @@ async function startOfficialCancellationQuery(
   job: AppointmentJobRow,
   routing: ReturnType<typeof resolveKvacCenter>,
   intent: "cancel" | "reschedule" = "cancel",
-) {
+): Promise<KoreaKvacCancelQueryResponse> {
   if (!routing.recommended.bookingSearchUrl) {
     throw new Error("This Korea center does not expose a supported official cancellation query page.");
   }
@@ -906,6 +912,22 @@ async function startOfficialCancellationQuery(
     mobilePhone,
   });
   if (!result.ok || !result.status) throw new Error("Official Korea KVAC cancellation query did not return a usable status.");
+
+  if (officialQueryShowsNoAppointmentRecord(result)) {
+    await markOfficialCancellationCompleted(
+      admin,
+      applicationId,
+      userId,
+      job,
+      routing,
+      {
+        screenshotPath: result.screenshotPath,
+        officialMessage: result.officialMessage,
+        eventMessage: "Korea KVAC cancellation was verified by a fresh official query: no appointment record was returned.",
+      },
+    );
+    return result;
+  }
 
   const actionType = result.status === "cancellation_confirmation_required"
     ? "official_cancel_confirmation_required"
@@ -963,6 +985,70 @@ async function startOfficialCancellationQuery(
       intent,
     },
   });
+  return result;
+}
+
+async function markOfficialCancellationCompleted(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+  userId: string,
+  job: AppointmentJobRow,
+  routing: ReturnType<typeof resolveKvacCenter>,
+  evidence: {
+    screenshotPath?: string | null;
+    officialMessage?: string;
+    eventMessage: string;
+  },
+) {
+  const completedAt = new Date().toISOString();
+  const { error: actionErr } = await admin
+    .from("appointment_manual_actions")
+    .update({
+      status: "completed",
+      completed_at: completedAt,
+      user_input_redacted_json: { approved: true, source: "viza_cancel_authorization" },
+      metadata_redacted_json: {
+        centerCode: routing.recommended.code,
+        screenshotPath: evidence.screenshotPath ?? null,
+        officialMessage: evidence.officialMessage ?? null,
+      },
+    })
+    .eq("job_id", job.id)
+    .in("action_type", [
+      "official_cancel_required",
+      "official_cancel_confirmation_required",
+      "official_cancel_manual_checkpoint",
+    ])
+    .in("status", ["pending", "in_progress"]);
+  if (actionErr) throw new Error(actionErr.message);
+
+  const { error: jobErr } = await admin.from("appointment_assistance_jobs").update({
+    status: "appointment_cancelled",
+    requires_user_action: false,
+    current_manual_action: null,
+    updated_at: completedAt,
+  }).eq("id", job.id);
+  if (jobErr) throw new Error(jobErr.message);
+
+  const { error: applicationErr } = await admin.from("applications").update({
+    appointment_assistance_status: "appointment_cancelled",
+    appointment_assistance_job_id: job.id,
+  }).eq("id", applicationId);
+  if (applicationErr) throw new Error(applicationErr.message);
+
+  const { error: auditErr } = await admin.from("appointment_audit_events").insert({
+    job_id: job.id,
+    application_id: applicationId,
+    user_id: userId,
+    event_type: "appointment_cancelled",
+    event_message: evidence.eventMessage,
+    metadata_redacted_json: {
+      centerCode: routing.recommended.code,
+      screenshotPath: evidence.screenshotPath ?? null,
+      officialMessage: evidence.officialMessage ?? null,
+    },
+  });
+  if (auditErr) throw new Error(auditErr.message);
 }
 
 async function confirmOfficialCancellation(
@@ -978,40 +1064,10 @@ async function confirmOfficialCancellation(
   if (!result.ok || result.status !== "appointment_cancelled") {
     throw new Error("Official Korea KVAC cancellation did not return a confirmed cancellation result.");
   }
-  await admin.from("appointment_manual_actions").update({
-    status: "completed",
-    completed_at: new Date().toISOString(),
-    user_input_redacted_json: { approved: true },
-    metadata_redacted_json: {
-      centerCode: routing.recommended.code,
-      officialSessionId: result.officialSessionId ?? job.id,
-      screenshotPath: result.screenshotPath,
-      officialMessage: result.officialMessage,
-    },
-  }).eq("job_id", job.id)
-    .eq("action_type", "official_cancel_confirmation_required")
-    .in("status", ["pending", "in_progress"]);
-  await admin.from("appointment_assistance_jobs").update({
-    status: "appointment_cancelled",
-    requires_user_action: false,
-    current_manual_action: null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", job.id);
-  await admin.from("applications").update({
-    appointment_assistance_status: "appointment_cancelled",
-    appointment_assistance_job_id: job.id,
-  }).eq("id", applicationId);
-  await admin.from("appointment_audit_events").insert({
-    job_id: job.id,
-    application_id: applicationId,
-    user_id: userId,
-    event_type: "appointment_cancelled",
-    event_message: "Korea KVAC appointment cancellation was confirmed on the official portal.",
-    metadata_redacted_json: {
-      centerCode: routing.recommended.code,
-      screenshotPath: result.screenshotPath,
-      officialMessage: result.officialMessage,
-    },
+  await markOfficialCancellationCompleted(admin, applicationId, userId, job, routing, {
+    screenshotPath: result.screenshotPath,
+    officialMessage: result.officialMessage,
+    eventMessage: "Korea KVAC appointment cancellation was confirmed on the official portal.",
   });
 }
 
@@ -1599,7 +1655,10 @@ export async function POST(
     if (!job) return NextResponse.json({ error: "Existing Korea appointment job is required." }, { status: 400 });
     try {
       await createOrReuseAppointmentChangeCheckpoint(auth.admin, id, auth.profile.id, job, routing, "cancel");
-      await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, "cancel");
+      const cancellationQuery = await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, "cancel");
+      if (cancellationQuery.status === "cancellation_confirmation_required") {
+        await confirmOfficialCancellation(auth.admin, id, auth.profile.id, job, routing);
+      }
     } catch (error) {
       if (isSubmissionRunnerUnavailable(error)) {
         await createWorkerUnavailableCheckpoint(
