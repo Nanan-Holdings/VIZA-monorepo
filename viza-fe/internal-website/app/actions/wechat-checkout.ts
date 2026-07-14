@@ -5,7 +5,13 @@ import {
   applyCheckoutPrefill,
   decodeCheckoutPrefill,
 } from "@/lib/checkout/prefill";
-import { wechatPricingFor, WechatPayNotSupportedError } from "@/lib/pricing";
+import {
+  isFreePackage,
+  pricingFor,
+  wechatPricingFor,
+  WechatPayNotSupportedError,
+} from "@/lib/pricing";
+import { completeFreeOrder } from "@/lib/checkout/free-order";
 import {
   createNativeOrder,
   generateOutTradeNo,
@@ -37,6 +43,11 @@ export interface StartWechatCheckoutOutput {
   orderId: string;
   codeUrl: string;
   amountFen: number;
+  /**
+   * Set for zero-total (free demo) packages: no QR is issued — the order
+   * is already paid and the form should navigate here instead.
+   */
+  redirectUrl?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,17 +61,27 @@ export async function startWechatCheckout(
   if (!fullName) throw new Error("Name required");
 
   // Resolve pricing up-front so an unsupported package surfaces before
-  // any DB writes.
-  let pricingRes;
-  try {
-    pricingRes = wechatPricingFor(input.country, input.visaType);
-  } catch (err) {
-    if (err instanceof WechatPayNotSupportedError) {
-      throw new Error(err.message);
-    }
-    throw err;
+  // any DB writes. Zero-total (free demo) packages skip WeChat Pay
+  // entirely, so they don't need a wechatPayTotalFen.
+  const basePricing = pricingFor(input.country, input.visaType);
+  if (!basePricing) {
+    throw new Error(
+      `No pricing for package ${input.country}/${input.visaType}`,
+    );
   }
-  const { pricing, totalFen } = pricingRes;
+  const free = isFreePackage(basePricing);
+  let pricing = basePricing;
+  let totalFen = 0;
+  if (!free) {
+    try {
+      ({ pricing, totalFen } = wechatPricingFor(input.country, input.visaType));
+    } catch (err) {
+      if (err instanceof WechatPayNotSupportedError) {
+        throw new Error(err.message);
+      }
+      throw err;
+    }
+  }
 
   return withAdmin(
     "system",
@@ -191,6 +212,19 @@ export async function startWechatCheckout(
           { applicantId, applicationId },
           prefill,
         );
+      }
+
+      // 4a. Free demo package — nothing to collect: mark the order paid,
+      //     run the post-paid side-effects, and send the visitor straight
+      //     to the check-your-email page (no QR).
+      if (free) {
+        await completeFreeOrder(admin, orderId);
+        return {
+          orderId,
+          codeUrl: "",
+          amountFen: 0,
+          redirectUrl: `/checkout/wechat/check-your-email?locale=${input.locale}`,
+        };
       }
 
       // 4. Native unifiedorder. out_trade_no is regenerated on every

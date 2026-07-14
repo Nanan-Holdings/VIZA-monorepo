@@ -127,6 +127,11 @@ export function WechatCheckoutForm({
         locale,
         prefill: prefill || undefined,
       });
+      // Free demo package: the order is already paid — no QR to scan.
+      if (out.redirectUrl) {
+        router.push(out.redirectUrl);
+        return;
+      }
       const dataUrl = await QRCode.toDataURL(out.codeUrl, {
         margin: 1,
         width: 256,
@@ -140,7 +145,12 @@ export function WechatCheckoutForm({
     }
   };
 
-  const amount = CNY_FORMAT.format(amountFen / 100);
+  const amount =
+    amountFen === 0
+      ? locale === "zh-CN"
+        ? "免费"
+        : "Free"
+      : CNY_FORMAT.format(amountFen / 100);
 
   if (step === "paid") {
     return (

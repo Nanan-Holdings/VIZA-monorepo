@@ -43,13 +43,15 @@ const AGENCY_USD = 9900;
  */
 export const PACKAGE_PRICING: PackagePricing[] = [
   {
+    // Free demo flow: marketing advertises /visa/viza-test as Free, so
+    // checkout collects nothing — both rails skip the payment provider
+    // for zero-total packages (see isFreePackage + completeFreeOrder).
     country: "viza_test",
     visaType: "TEST_CHECKOUT",
-    agencyFeeCents: 50,
+    agencyFeeCents: 0,
     govtFeeCents: 0,
     currency: "USD",
     govtFeeChannel: "portal_direct",
-    wechatPayTotalFen: 360,
   },
   // MKT-007: launch countries previously missing from pricing.
   {
@@ -406,6 +408,15 @@ export function pricingFor(
       (p) => p.country === country && p.visaType === visaType,
     ) ?? null
   );
+}
+
+/**
+ * True when the package collects nothing at checkout (free demo flows,
+ * e.g. viza_test). Both guest checkout rails skip the payment provider
+ * for these and mark the order paid directly.
+ */
+export function isFreePackage(pricing: PackagePricing): boolean {
+  return pricing.agencyFeeCents === 0 && pricing.govtFeeCents === 0;
 }
 
 export function totalCents(pricing: PackagePricing): number {

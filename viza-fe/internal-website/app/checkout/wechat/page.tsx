@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import {
+  isFreePackage,
+  pricingFor,
   wechatPricingFor,
   WechatPayNotSupportedError,
 } from "@/lib/pricing";
@@ -41,9 +43,14 @@ export default async function WechatCheckoutPage({ searchParams }: PageProps) {
     redirect("/client/login");
   }
 
-  let totalFen: number;
+  // Zero-total (free demo) packages skip WeChat Pay entirely — the form
+  // submits, the order is marked paid, and the visitor is redirected.
+  const basePricing = pricingFor(country, visa);
+  const free = basePricing ? isFreePackage(basePricing) : false;
+
+  let totalFen = 0;
   try {
-    totalFen = wechatPricingFor(country, visa).totalFen;
+    if (!free) totalFen = wechatPricingFor(country, visa).totalFen;
   } catch (err) {
     if (err instanceof WechatPayNotSupportedError) {
       return (
