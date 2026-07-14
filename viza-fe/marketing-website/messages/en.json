@@ -233,6 +233,8 @@
     "helpTap": "Tap to chat with your VIZA consultant",
     "payAmount": "Pay SGD {amount}",
     "totalAmount": "SGD {amount}",
+    "payFree": "Free — no payment needed",
+    "totalFree": "Free",
     "upgradeAmount": "+ SGD {amount}",
     "etaStandard": "12 May 2026, 8:00 AM SGT",
     "etaExpress": "8 May 2026, 3:00 PM SGT",

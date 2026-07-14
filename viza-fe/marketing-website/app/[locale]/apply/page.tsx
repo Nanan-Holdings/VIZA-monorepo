@@ -81,7 +81,7 @@ const SPEED_PRICE: Record<Speed, number> = { standard: 0, express: 28, superrush
 const ADDON_PRICE: Record<Addon, number> = { insurance: 32, esim: 12 };
 
 const TEST_CHECKOUT_VISA_TYPE = "TEST_CHECKOUT";
-const TEST_CHECKOUT_TOTAL_SGD = 1;
+const TEST_CHECKOUT_TOTAL_SGD = 0;
 const TEST_CHECKOUT_PASSPORT: PassportExtraction = {
   surname: "ZHANG",
   givenNames: "EDWARD TEST",
@@ -495,7 +495,7 @@ export default function ApplyPage() {
   // buttons, so the bottom Next button is hidden there (label kept in sync
   // with the running total to mirror the ported design).
   const nextLabel =
-    step === 3 ? tA("payAmount", { amount: total.toFixed(2) }) :
+    step === 3 ? (total === 0 ? tA("payFree") : tA("payAmount", { amount: total.toFixed(2) })) :
     step === 1 && isUploading ? stageBtnLabel :
     stepNext[step];
 
@@ -1090,7 +1090,7 @@ export default function ApplyPage() {
 
           <div className="price-total">
             <span className="k">{tA("total")}</span>
-            <span className="v" id="sumTotal">{tA("totalAmount", { amount: total.toFixed(2) })}</span>
+            <span className="v" id="sumTotal">{total === 0 ? tA("totalFree") : tA("totalAmount", { amount: total.toFixed(2) })}</span>
           </div>
 
           <div className="price-foot">
