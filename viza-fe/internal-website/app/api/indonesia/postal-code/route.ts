@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  assessIndonesiaAccommodationAddress,
   normalizeIndonesiaPostalCode,
   parseIndonesiaPostalDirectoryResponse,
 } from "@/lib/indonesia-postal-code";
@@ -10,6 +11,7 @@ const POSTAL_DIRECTORY_URL = "https://carikodepos.id/api/postal-codes";
 
 export async function GET(request: NextRequest) {
   const postalCode = normalizeIndonesiaPostalCode(request.nextUrl.searchParams.get("postalCode"));
+  const address = request.nextUrl.searchParams.get("address") ?? "";
   if (!postalCode) {
     return NextResponse.json(
       {
@@ -42,7 +44,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, postalCode, location });
+    return NextResponse.json({
+      ok: true,
+      postalCode,
+      location,
+      addressCheck: assessIndonesiaAccommodationAddress(address, location),
+    });
   } catch {
     return NextResponse.json(
       {
