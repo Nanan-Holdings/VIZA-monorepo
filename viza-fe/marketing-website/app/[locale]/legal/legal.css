@@ -123,20 +123,6 @@
   color: var(--fg-1);
 }
 
-.legal-foot {
-  border-top: 1px solid var(--border-hairline);
-  background: #fff;
-}
-.legal-foot-inner {
-  max-width: 1280px; margin: 0 auto;
-  padding: 24px 40px;
-  display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;
-  font: 400 12px/1 var(--font-sans);
-  color: var(--fg-2);
-}
-.legal-foot a { color: var(--fg-2); }
-.legal-foot a:hover { color: var(--brand-500); }
-
 /* ====================================================
    Mobile responsive overrides (appended; cascade wins)
    ==================================================== */
@@ -155,5 +141,4 @@
   .legal-hero h1 { letter-spacing: -1px; }
   .legal-body { padding: 32px 20px 56px; }
   .legal-section h2 { font-size: clamp(22px, 5.5vw, 28px); }
-  .legal-foot-inner { padding: 20px 20px; }
 }

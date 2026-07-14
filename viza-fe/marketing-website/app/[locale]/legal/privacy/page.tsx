@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import SiteNav from "@/components/SiteNav";
 import "../legal.css";
+import SiteFooter from "@/components/SiteFooter";
 
 const TOC_IDS = [
   "scope",
@@ -197,14 +198,7 @@ export default async function PrivacyPage({
         </main>
       </div>
 
-      <footer className="legal-foot">
-        <div className="legal-foot-inner">
-          <span>{t("footer.copyright")}</span>
-          <span>
-            <a href="/legal/terms">{t("footer.terms")}</a> {'·'} <a href="/refunds">{t("footer.refunds")}</a> {'·'} <a href="/security">{t("footer.security")}</a>
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

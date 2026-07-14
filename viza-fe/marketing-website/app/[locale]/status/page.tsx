@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
 import "./status.css";
+import SiteFooter from "@/components/SiteFooter";
 
 // ----- Data -----
 // Status: op | deg | part | maj
@@ -498,74 +499,7 @@ export default function StatusPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="site-foot" data-screen-label="Footer">
-        <div className="foot-rule"></div>
-        <div className="foot-main">
-          <div className="foot-brand">
-            <a className="foot-logo" href="/">
-              <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-            </a>
-            <p className="foot-tag">{t("footer.tagline")}</p>
-          </div>
-          <div className="col-company">
-            <h4 className="col-head">{t("footer.company")}</h4>
-            <ul className="col-list">
-              <li>
-                <a href="/careers">{t("footer.careers")}</a>
-              </li>
-              <li>
-                <a href="/contact">{t("footer.contact")}</a>
-              </li>
-              <li>
-                <a href="/security">{t("footer.security")}</a>
-              </li>
-              <li>
-                <a href="/status">{t("footer.systemStatus")}</a>
-              </li>
-              <li>
-                <a href="/refunds">{t("footer.refunds")}</a>
-              </li>
-              <li>
-                <a href="/legal/privacy">{t("footer.privacy")}</a>
-              </li>
-              <li>
-                <a href="/legal/terms">{t("footer.terms")}</a>
-              </li>
-            </ul>
-          </div>
-          <div className="col-products">
-            <h4 className="col-head">{t("footer.products")}</h4>
-            <ul className="col-list">
-              <li>
-                <a href="/">{t("footer.prodVisaReq")}</a>
-              </li>
-              <li>
-                <a href="#">{t("footer.prodSchengen")}</a>
-              </li>
-              <li>
-                <a href="#">{t("footer.prodPhoto")}</a>
-              </li>
-              <li>
-                <a href="#">{t("footer.prodHelpline")}</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="foot-rule"></div>
-        <div className="foot-bottom">
-          <div className="legal">
-            <span>{t("footer.copyright")}</span>
-            <span className="sep"></span>
-            <a href="#">{t("footer.privacy")}</a>
-            <span className="sep"></span>
-            <a href="#">{t("footer.terms")}</a>
-          </div>
-          <div className="foot-mark">
-            <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }
