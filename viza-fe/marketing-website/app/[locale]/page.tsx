@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { CircleFlag } from "react-circle-flags";
 import { useTranslations } from "next-intl";
 import { COUNTRIES as COUNTRY_META, visaHref } from "@/lib/countries";
-import { displayFeeSGD } from "@/lib/pricing";
+import { displayFeeSGD, totalSgd } from "@/lib/pricing";
 import LanguageToggle from "@/components/LanguageToggle";
 import SiteFooter from "@/components/SiteFooter";
 import VisaWorldMap from "@/components/VisaWorldMap";
@@ -182,7 +182,7 @@ export default function ExplorePage() {
         city: t(`cities.${c.slug}`),
         type: t(`visaTypes.${c.type}`),
         valid: t(`validity.${c.slug}`),
-        fee: displayFeeSGD(c.visaType) ?? t("explore.seePricing"),
+        fee: totalSgd(c.visaType) === 0 ? t("visa.priceFree") : displayFeeSGD(c.visaType) ?? t("explore.seePricing"),
         tag: c.tag,
         img: c.image,
         flagCode: c.flagCode,

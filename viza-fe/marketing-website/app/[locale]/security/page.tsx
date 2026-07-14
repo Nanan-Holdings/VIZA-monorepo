@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import SiteNav from "@/components/SiteNav";
 import "./security.css";
+import SiteFooter from "@/components/SiteFooter";
 
 const NBSP = "\u00A0"; // matches the original &nbsp; entities
 
@@ -412,56 +413,7 @@ export default async function SecurityPage({ params }: { params: Promise<{ local
         </div>
       </div>
 
-      {/* ============================= FOOTER ============================= */}
-      {/* Kept inline: this page's footer layout differs from components/SiteFooter.tsx. */}
-      <footer className="site-foot" data-screen-label="Footer">
-        <div className="foot-rule"></div>
-        <div className="foot-main">
-          <div className="foot-brand">
-            <a className="foot-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></a>
-            <p className="foot-tag">{t("footer.tagline")}</p>
-          </div>
-          <div className="col-company">
-            <h4 className="col-head">{t("footer.company")}</h4>
-            <ul className="col-list">
-              <li><a href="/careers">{t("footer.careers")}</a></li>
-              <li><a href="/contact">{t("footer.contact")}</a></li>
-              <li><a href="/security">{t("footer.security")}</a></li>
-              <li><a href="/refunds">{t("footer.refunds")}</a></li>
-              <li><a href="/legal/privacy">{t("footer.privacy")}</a></li>
-              <li><a href="/legal/terms">{t("footer.terms")}</a></li>
-            </ul>
-          </div>
-          <div className="col-products">
-            <h4 className="col-head">{t("footer.products")}</h4>
-            <ul className="col-list">
-              <li><a href="/">{t("footer.prodVisaReq")}</a></li>
-              <li><a href="#">{t("footer.prodSchengen")}</a></li>
-              <li><a href="#">{t("footer.prodPhoto")}</a></li>
-              <li><a href="#">{t("footer.prodHelpline")}</a></li>
-              <li><a href="#">{t("footer.prodStudent")}</a></li>
-            </ul>
-          </div>
-          <div className="col-offices">
-            <h4 className="col-head">{t("footer.offices")}</h4>
-            <ul className="col-list">
-              <li><a href="#">{t("footer.officeSf")}</a></li>
-              <li><a href="#">{t("footer.officeSg")}</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="foot-rule"></div>
-        <div className="foot-bottom">
-          <div className="legal">
-            <span>{t("footer.copyright")}</span>
-            <span className="sep"></span>
-            <a href="#">{t("footer.privacy")}</a>
-            <span className="sep"></span>
-            <a href="#">{t("footer.terms")}</a>
-          </div>
-          <div className="foot-mark"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }

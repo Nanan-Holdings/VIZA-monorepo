@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CircleFlag } from "react-circle-flags";
 import SiteNav from "@/components/SiteNav";
 import "./contact.css";
+import SiteFooter from "@/components/SiteFooter";
 
 /* ----------------------------- Fake QR code ------------------------------ */
 /**
@@ -153,7 +154,6 @@ const FAQ_IDS = ["q1", "q2", "q3", "q4", "q5", "q6"] as const;
 
 export default function ContactPage() {
   const t = useTranslations("contact");
-  const tf = useTranslations("footer");
   const locale = useLocale();
   const [formStatus, setFormStatus] = useState<
     "idle" | "sending" | "success" | "error"
@@ -597,57 +597,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* ============================== FOOTER ============================== */}
-      {/* Bespoke contact-page footer — intentionally simpler than <SiteFooter/> (no AI chips / app badges); labels reuse the shared `footer` namespace. */}
-      <footer className="site-foot" data-screen-label="Footer">
-        <div className="foot-rule"></div>
-        <div className="foot-main">
-          <div className="foot-brand">
-            <a className="foot-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></a>
-            <p className="foot-tag">{tf("tagline")}</p>
-          </div>
-          <div>
-            <h4 className="col-head">{tf("company")}</h4>
-            <ul className="col-list">
-              <li><a href="/careers">{tf("careers")}</a></li>
-              <li><a href="/contact">{tf("contact")}</a></li>
-              <li><a href="/security">{tf("security")}</a></li>
-              <li><a href="/refunds">{tf("refundsPolicy")}</a></li>
-              <li><a href="/legal/privacy">{tf("privacy")}</a></li>
-              <li><a href="/legal/terms">{tf("terms")}</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="col-head">{tf("product")}</h4>
-            <ul className="col-list">
-              <li><a href="/">{tf("prodVisaReq")}</a></li>
-              <li><a href="#">{tf("prodSchengen")}</a></li>
-              <li><a href="#">{tf("prodPhoto")}</a></li>
-              <li><a href="#">{tf("prodHelpline")}</a></li>
-              <li><a href="#">{tf("prodStudent")}</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="col-head">{tf("offices")}</h4>
-            <ul className="col-list">
-              {DESKS.map((desk) => (
-                <li key={desk.id}><a href="#desks">{t(`desks.${desk.id}.title`)}</a></li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div className="foot-rule"></div>
-        <div className="foot-bottom">
-          <div className="legal">
-            <span>{tf("copyright")}</span>
-            <span className="sep"></span>
-            <a href="#">{tf("privacy")}</a>
-            <span className="sep"></span>
-            <a href="#">{tf("terms")}</a>
-          </div>
-          <div className="foot-mark"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }

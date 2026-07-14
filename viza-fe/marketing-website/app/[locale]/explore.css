@@ -588,142 +588,6 @@
   .wmap-hint { margin-left: auto; font-weight: 400; color: var(--fg-3); }
 
   /* ====================================================
-     Site footer — VIZA design system
-     ==================================================== */
-  .site-foot {
-    background: #fafafa;
-    margin-top: 96px;
-    padding: 0 40px;
-    font-family: var(--font-sans);
-  }
-  .site-foot .foot-rule {
-    max-width: 1280px; margin: 0 auto;
-    height: 1px;
-    background-image: linear-gradient(to right, var(--border-hairline) 50%, transparent 0%);
-    background-size: 8px 1px; background-repeat: repeat-x;
-    position: relative;
-  }
-  .site-foot .foot-rule::before,
-  .site-foot .foot-rule::after {
-    content: ""; position: absolute; top: -2px;
-    width: 5px; height: 5px; border-radius: 999px;
-    background: var(--border-hairline);
-  }
-  .site-foot .foot-rule::before { left: 0; }
-  .site-foot .foot-rule::after  { right: 0; }
-
-  .site-foot .foot-main {
-    max-width: 1280px; margin: 0 auto;
-    padding: 72px 0 64px;
-    display: grid;
-    grid-template-columns: 1.45fr 1fr 1.05fr 1.1fr;
-    gap: 48px;
-  }
-  .site-foot .foot-brand .foot-logo img { height: 22px; }
-  .site-foot .foot-brand .foot-tag {
-    margin-top: 22px; max-width: 320px;
-    font-size: 14px; line-height: 1.55;
-    color: var(--fg-2); letter-spacing: -0.01em;
-  }
-
-  .site-foot .ask-ai {
-    margin-top: 30px;
-    font: 500 14px/1 var(--font-heading);
-    letter-spacing: -0.2px;
-    color: var(--fg-1);
-  }
-  .site-foot .ai-chips {
-    display: flex; gap: 10px;
-    margin-top: 14px;
-  }
-  .site-foot .ai-chip {
-    width: 40px; height: 40px; border-radius: 999px;
-    background: #fff;
-    border: 1px solid var(--border-hairline);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--fg-1);
-    transition: border-color .15s, transform .15s, box-shadow .15s;
-    cursor: pointer;
-  }
-  .site-foot .ai-chip:hover {
-    border-color: var(--brand-300);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px -4px rgba(3,52,110,0.14);
-  }
-  .site-foot .ai-chip svg { width: 16px; height: 16px; }
-  .site-foot .ai-chip.c1 { color: var(--brand-500); }
-  .site-foot .ai-chip.c2 { color: #b35a1f; }
-  .site-foot .ai-chip.c3 { color: #6b46c1; }
-  .site-foot .ai-chip.c4 { color: #0f4c3a; }
-
-  .site-foot .col-head {
-    font: 500 13px/1 var(--font-heading);
-    letter-spacing: 0.02em;
-    color: var(--fg-1);
-    margin: 4px 0 22px;
-  }
-  .site-foot .col-list {
-    list-style: none; padding: 0; margin: 0;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .site-foot .col-list a {
-    color: var(--fg-2);
-    font-size: 14px; letter-spacing: -0.01em;
-    transition: color .12s;
-  }
-  .site-foot .col-list a:hover { color: var(--brand-500); }
-
-  .site-foot .col-offices .col-list {
-    gap: 16px;
-  }
-  .site-foot .office-row {
-    display: flex; align-items: flex-start; gap: 10px;
-    color: var(--fg-2);
-    font-size: 13.5px; line-height: 1.5;
-    max-width: 280px;
-  }
-  .site-foot .office-pin {
-    flex: 0 0 auto; margin-top: 2px;
-    color: var(--brand-400);
-  }
-
-  .site-foot .foot-apps {
-    grid-column: 1 / span 2;
-    display: flex; gap: 12px;
-    margin-top: 8px;
-  }
-  .site-foot .app-badge {
-    display: inline-flex;
-    text-decoration: none;
-    transition: transform .15s;
-  }
-  .site-foot .app-badge:hover { transform: translateY(-1px); }
-  .site-foot .app-badge img {
-    height: 48px; width: auto; display: block;
-    border-radius: 10px;
-  }
-
-  .site-foot .foot-bottom {
-    max-width: 1280px; margin: 0 auto;
-    padding: 28px 0 40px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 24px;
-  }
-  .site-foot .legal {
-    display: flex; align-items: center; gap: 18px;
-    font-size: 13px; color: var(--fg-2);
-  }
-  .site-foot .legal .sep {
-    width: 3px; height: 3px; border-radius: 999px;
-    background: #d6d6d6;
-  }
-  .site-foot .legal a {
-    color: var(--fg-2);
-  }
-  .site-foot .legal a:hover { color: var(--brand-500); }
-  .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
-
-  /* ====================================================
      Mobile responsive overrides (appended; cascade wins)
      ==================================================== */
 
@@ -799,22 +663,6 @@
     }
     .wmap-legend { flex-wrap: wrap; gap: 10px 18px; }
     .wmap-hint { margin-left: 0; flex-basis: 100%; }
-
-    /* Footer: 2 columns */
-    .site-foot { padding: 0 20px; }
-    .site-foot .foot-main {
-      grid-template-columns: 1fr 1fr;
-      gap: 40px 24px;
-      padding: 48px 0 40px;
-    }
-    .site-foot .foot-apps { flex-wrap: wrap; }
-    .site-foot .foot-bottom {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 14px;
-      padding: 24px 0 32px;
-    }
-    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
   }
 
   @media (max-width: 480px) {
@@ -823,8 +671,4 @@
     .stat .k { font-size: 9px; letter-spacing: 0.04em; }
     .stat .v { font-size: 12px; }
     .card-body { padding: 12px 12px 14px; }
-
-    /* Footer: single column */
-    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
-    .site-foot .foot-apps { grid-column: auto; }
   }

@@ -2,8 +2,9 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
+import SiteFooter from "@/components/SiteFooter";
 import { LAUNCHED_COUNTRIES, visaHref, type CountryMeta } from "@/lib/countries";
-import { displayFeeSGD } from "@/lib/pricing";
+import { displayFeeSGD, totalSgd } from "@/lib/pricing";
 import "./visa-template.css";
 
 const FLAG_CDN = "https://hatscripts.github.io/circle-flags/flags";
@@ -21,7 +22,7 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
   const tt = useTranslations("visaTypes");
   const locale = useLocale();
   const applyHref = `${locale === "en" ? "" : `/${locale}`}/apply?country=${encodeURIComponent(country.slug)}`;
-  const fee = displayFeeSGD(country.visaType) ?? t("seePricing");
+  const fee = totalSgd(country.visaType) === 0 ? t("priceFree") : displayFeeSGD(country.visaType) ?? t("seePricing");
   const nearby = LAUNCHED_COUNTRIES.filter((c) => c.slug !== country.slug).slice(0, 4);
   // Localized name/type with English data as the fallback.
   const localName = tc.has(country.slug) ? tc(country.slug) : country.name;
@@ -97,6 +98,7 @@ export default function VisaCountryTemplate({ country }: { country: CountryMeta 
           </aside>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }

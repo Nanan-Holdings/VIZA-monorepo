@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import "./site-footer.css";
 
 /**
  * Shared marketing-site footer (ported 1:1 from the design `explore.html` footer).

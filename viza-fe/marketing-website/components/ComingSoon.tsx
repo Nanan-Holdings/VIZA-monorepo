@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
+import SiteFooter from "@/components/SiteFooter";
 import { portalUrl } from "@/lib/utils";
 import "./visa-template.css";
 
@@ -22,6 +23,7 @@ export default function ComingSoon({ name }: { name: string }) {
           <a className="vt-btn secondary" href={portalUrl("/signup")}>{t("notifyMe")}</a>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }
