@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assessIndonesiaAccommodationAddress,
   normalizeIndonesiaPostalCode,
   parseIndonesiaPostalDirectoryResponse,
 } from "@/lib/indonesia-postal-code";
@@ -31,5 +32,23 @@ describe("Indonesia postal-code validation", () => {
       city: "KOTA ADM. JAKARTA PUSAT",
       province: "DKI JAKARTA",
     });
+  });
+});
+
+describe("Indonesia accommodation address validation", () => {
+  const location = {
+    postalCode: "10310",
+    village: "Menteng",
+    district: "Menteng",
+    city: "KOTA ADM. JAKARTA PUSAT",
+    province: "DKI JAKARTA",
+  };
+
+  it("rejects an address explicitly located outside Indonesia", () => {
+    expect(assessIndonesiaAccommodationAddress("Yuhua District, Changsha, China", location).status).toBe("invalid");
+  });
+
+  it("accepts an address that matches the postal-code location", () => {
+    expect(assessIndonesiaAccommodationAddress("Jl. H. Agus Salim, Menteng, Jakarta", location).status).toBe("valid");
   });
 });

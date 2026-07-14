@@ -1367,7 +1367,9 @@ export async function reuseUniversalProfileDocument(input: {
 
     const types = PASSPORT_DOCUMENT_TYPES.includes(input.documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number])
       ? [...PASSPORT_DOCUMENT_TYPES]
-      : [input.documentType];
+      : input.documentType === "photo"
+        ? ["photo", "formal_photo", "formal_photo_upload", "passport_photo", "portrait_photo"]
+        : [input.documentType];
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("universal_profile_documents")
@@ -1379,9 +1381,13 @@ export async function reuseUniversalProfileDocument(input: {
       .limit(1)
       .maybeSingle();
 
-    if (error) return { ok: false, code: "server_error", error: error.message };
+    // Older databases may not have the universal document table yet. The
+    // application-document fallback below remains a valid reusable source.
+    if (error && !isMissingUniversalProfileDocumentsError(error)) {
+      return { ok: false, code: "server_error", error: error.message };
+    }
 
-    let reusableDocument = data;
+    let reusableDocument = error ? null : data;
     if (!reusableDocument?.storage_path) {
       const { data: ownedApplications, error: ownedApplicationsError } = await adminClient
         .from("applications")

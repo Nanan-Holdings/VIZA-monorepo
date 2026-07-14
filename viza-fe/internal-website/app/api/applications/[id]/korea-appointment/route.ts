@@ -233,7 +233,9 @@ async function postSubmissionService<T>(path: string, body: Record<string, unkno
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
+    // Official KVAC pages can take longer than a typical JSON API while the
+    // browser waits for the appointment-query result.
+    signal: AbortSignal.timeout(120_000),
   });
   const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || !payload) {
@@ -350,15 +352,14 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
           : null,
       }
     : null;
-  // VIZA only treats a persisted official confirmation as an existing appointment.
-  // Historical change checkpoints without one must not trigger a slow official lookup
-  // or block the applicant from starting a new appointment.
-  const hasVizaAppointmentRecord = Boolean(
-    application?.appointment_confirmation_id === normalizedConfirmation?.id
-      && normalizedConfirmation?.confirmation_number
-      && normalizedConfirmation.raw_confirmation_redacted_json?.mode !== "dry_run"
-      && !normalizedConfirmation.confirmation_number.startsWith("KR-DRYRUN-"),
-  );
+  // A reschedule or cancellation may be started by a newer helper job than the
+  // one that originally created the official confirmation. Use the application's
+  // persisted confirmation history, rather than only the latest job pointer.
+  const hasVizaAppointmentRecord = (appointmentHistory ?? []).some((record) => (
+    Boolean(record.confirmation_number)
+    && record.raw_confirmation_redacted_json?.mode !== "dry_run"
+    && !record.confirmation_number.startsWith("KR-DRYRUN-")
+  ));
   const pendingChangeActionTypes = new Set([
     "official_reschedule_required",
     "official_cancel_required",

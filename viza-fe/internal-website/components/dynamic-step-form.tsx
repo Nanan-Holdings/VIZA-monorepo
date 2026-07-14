@@ -209,6 +209,12 @@ function isTextLikeField(field: VisaFormFieldRow): boolean {
   return field.fieldType === "text" || field.fieldType === "textarea";
 }
 
+function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
+  // Postal codes are structured identifiers. Translating them can replace a
+  // valid numeric value with a place name and breaks the official lookup.
+  return isTextLikeField(field) && field.fieldName !== "postal_code";
+}
+
 function hasChineseText(value: string): boolean {
   return /[\u3400-\u9fff]/.test(value);
 }
@@ -309,7 +315,7 @@ function RealtimeTranslationStatusLine({
     >
       {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
       <span>{message}</span>
-      {status === "failed" && error ? <span className="sr-only">{error}</span> : null}
+      {status === "failed" && error ? <span className="text-[12px] font-normal">{error}</span> : null}
       {(status === "failed" || status === "user_edited") ? (
         <button
           type="button"
@@ -1942,7 +1948,7 @@ export function DynamicStepForm({
     const init: Record<string, BilingualTextValue> = {};
     const normalizedPrefill = normalizeTdacStepValues(step.fields, { ...prefill }, visaType);
     for (const field of step.fields) {
-      if (!isTextLikeField(field)) continue;
+      if (!usesBilingualTextPair(field)) continue;
       const group = getRepeatGroup(field);
       if (group) {
         const count = groupCounts[group] ?? 1;
@@ -2015,7 +2021,10 @@ export function DynamicStepForm({
     const timer = window.setTimeout(async () => {
       setIndonesiaPostalLookup({ status: "checking" });
       try {
-        const response = await fetch(`/api/indonesia/postal-code?postalCode=${postalCode}`, {
+        const address = valuesRef.current.address_in_indonesia?.trim() ?? "";
+        const query = new URLSearchParams({ postalCode });
+        if (address) query.set("address", address);
+        const response = await fetch(`/api/indonesia/postal-code?${query.toString()}`, {
           signal: controller.signal,
         });
         const payload = await response.json() as {
@@ -2023,12 +2032,22 @@ export function DynamicStepForm({
           messageZh?: string;
           messageEn?: string;
           location?: { province: string; city: string; district: string; village: string };
+          addressCheck?: { status?: "valid" | "invalid" | "indeterminate"; messageZh?: string; messageEn?: string };
         };
         if (!response.ok || !payload.ok || !payload.location) {
           setIndonesiaPostalLookup({
             status: response.status === 503 ? "unavailable" : "invalid",
             messageZh: payload.messageZh ?? "无法识别该印尼邮政编码。",
             messageEn: payload.messageEn ?? "This Indonesian postal code could not be recognized.",
+          });
+          return;
+        }
+
+        if (payload.addressCheck?.status === "invalid") {
+          setIndonesiaPostalLookup({
+            status: "invalid",
+            messageZh: payload.addressCheck.messageZh ?? "住宿地址必须位于印度尼西亚。",
+            messageEn: payload.addressCheck.messageEn ?? "The accommodation address must be in Indonesia.",
           });
           return;
         }
@@ -2063,7 +2082,7 @@ export function DynamicStepForm({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [isIndonesiaOfficialEVisa, step.fields, values.postal_code]);
+  }, [isIndonesiaOfficialEVisa, step.fields, values.address_in_indonesia, values.postal_code]);
 
   useEffect(() => {
     if (!isVnPrearrivalStep || !step.fields.some((field) => field.fieldName === "expected_arrival_date")) return;
@@ -2342,7 +2361,7 @@ export function DynamicStepForm({
         valuesChanged = true;
       }
 
-      if (isTextLikeField(field)) {
+      if (usesBilingualTextPair(field)) {
         const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
         const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
         if (!pairWasEdited) {
@@ -2372,7 +2391,7 @@ export function DynamicStepForm({
       }
     }
     for (const field of step.fields) {
-      if (!isTextLikeField(field)) continue;
+      if (!usesBilingualTextPair(field)) continue;
       const group = getRepeatGroup(field);
       const keys = group
         ? Array.from({ length: groupCountsRef.current[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
@@ -2579,7 +2598,7 @@ export function DynamicStepForm({
     setTextPairs((prev) => {
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
-        if (isTextLikeField(field)) {
+        if (usesBilingualTextPair(field)) {
           next[instanceKey(field.fieldName, count - 1)] = { zh: "", en: "" };
         }
       }
@@ -2614,13 +2633,13 @@ export function DynamicStepForm({
       const fields = repeatGroupFields[group] ?? [];
       for (let i = instanceIdx; i < count - 1; i++) {
         for (const field of fields) {
-          if (isTextLikeField(field)) {
+          if (usesBilingualTextPair(field)) {
             next[instanceKey(field.fieldName, i)] = next[instanceKey(field.fieldName, i + 1)] ?? { zh: "", en: "" };
           }
         }
       }
       for (const field of fields) {
-        if (isTextLikeField(field)) {
+        if (usesBilingualTextPair(field)) {
           delete next[instanceKey(field.fieldName, count - 1)];
         }
       }
@@ -2854,7 +2873,7 @@ export function DynamicStepForm({
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
     const tdacTransitCheckboxLocked =
       visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
-    const isTextLike = isTextLikeField(field);
+    const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
 

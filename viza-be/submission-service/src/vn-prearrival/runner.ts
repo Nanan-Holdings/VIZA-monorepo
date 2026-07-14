@@ -82,8 +82,46 @@ async function fillNearLabel(page: Page, labels: RegExp[], value: string): Promi
   return false;
 }
 
+function officialOptionValue(value: string): string {
+  const officialValues: Record<string, string> = {
+    P: "P - Popular Passport",
+    EV: "Electronic Visa (E-Visa)",
+    "18A-131": "Vietnam Immigration Department - Ministry of Public Security",
+    male: "Male",
+    female: "Female",
+    other: "Other",
+    air: "Air",
+    land: "Land",
+    sea: "Sea",
+    hotel: "Hotel",
+    residential: "Residential",
+    others: "Others",
+    business_trip: "Business trip",
+    travel: "Travel",
+    study_abroad: "Study abroad",
+    work: "Work",
+    transit: "Transit",
+  };
+  return officialValues[value] ?? value;
+}
+
+async function fillLabeledInputAt(page: Page, label: RegExp, index: number, value: string): Promise<boolean> {
+  const inputs = page.getByLabel(label);
+  const count = await inputs.count().catch(() => 0);
+  if (count <= index) return false;
+  const input = inputs.nth(index);
+  if (!(await input.isVisible().catch(() => false))) return false;
+  await input.fill(value);
+  return true;
+}
+
+function officialDate(value: string): string {
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return isoDate ? `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}` : value;
+}
+
 async function selectNearLabel(page: Page, labels: RegExp[], value: string): Promise<boolean> {
-  const officialValue = value === "P" ? "P - Popular Passport" : value;
+  const officialValue = officialOptionValue(value);
   for (const label of labels) {
     const byLabel = page.getByLabel(label).first();
     if (await byLabel.isVisible().catch(() => false)) {
@@ -105,14 +143,15 @@ async function selectNearLabel(page: Page, labels: RegExp[], value: string): Pro
 }
 
 async function selectOfficialRadio(page: Page, value: string): Promise<boolean> {
-  const radio = page.getByRole("radio", { name: value, exact: true });
+  const officialValue = officialOptionValue(value);
+  const radio = page.getByRole("radio", { name: officialValue, exact: true });
   const radioCount = await radio.count().catch(() => 0);
   if (radioCount === 1 && (await radio.isVisible().catch(() => false))) {
     await radio.check();
     return true;
   }
 
-  const label = page.getByText(value, { exact: true });
+  const label = page.getByText(officialValue, { exact: true });
   const labelCount = await label.count().catch(() => 0);
   if (labelCount !== 1 || !(await label.isVisible().catch(() => false))) return false;
   await label.click();
@@ -167,6 +206,14 @@ async function clickOfficialPrimaryAction(page: Page, labels: string[]): Promise
     }
   }
   return false;
+}
+
+async function clickOfficialButton(page: Page, name: string): Promise<boolean> {
+  const button = page.getByRole("button", { name, exact: true });
+  const buttonCount = await button.count().catch(() => 0);
+  if (buttonCount !== 1 || !(await button.isVisible().catch(() => false))) return false;
+  await button.click({ timeout: 15_000 });
+  return true;
 }
 
 async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
@@ -236,6 +283,18 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(1_000);
 }
+
+async function waitForPassengerForm(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    const passengerHeading = page.getByText(/passenger information/i);
+    const headingCount = await passengerHeading.count().catch(() => 0);
+    if (headingCount > 0 && (await passengerHeading.first().isVisible().catch(() => false))) return true;
+    await page.waitForTimeout(2_000);
+  }
+  return false;
+}
+
 export async function runVietnamPrearrivalPortalSubmission(
   payload: VnPrearrivalPortalPayload,
   options: {
@@ -288,48 +347,82 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
     // The official portal can present the image CAPTCHA again after the
     // nationality screen. Do not treat the modal as an empty declaration form.
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    if (!(await waitForPassengerForm(page, screenshots, logs, tempDir))) {
+      const waitingScreenshot = await saveScreenshot(page, tempDir, "passenger-form-not-ready", logs);
+      if (waitingScreenshot) screenshots.push(waitingScreenshot);
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival passenger form did not load after nationality and CAPTCHA verification.",
+        "vn_prearrival_passenger_form_not_ready",
+        "The official portal did not render the passenger-information form after verification. No submission was attempted.",
+        screenshots,
+        logs,
+      );
+    }
 
     const missingControls: string[] = [];
-    const fillTasks: Array<[RegExp[], string, string]> = [
+    const passengerFillTasks: Array<[RegExp[], string, string]> = [
       [[/passport number/i, /số hộ chiếu/i], payload.passportNumber, "passport_number"],
-      [[/date of expiry/i, /expiry/i], payload.passportExpiryDate, "passport_expiry_date"],
       [[/surname/i], payload.surname ?? "", "surname"],
       [[/given name/i], payload.givenName, "given_name"],
-      [[/date of birth/i, /ngày sinh/i], payload.dateOfBirth, "date_of_birth"],
+      [[/date of birth/i, /ngày sinh/i], officialDate(payload.dateOfBirth), "date_of_birth"],
       [[/email/i], payload.emailAddress, "email_address"],
       [[/phone/i, /điện thoại/i], `${payload.phoneCountryCode}${payload.phoneNumber}`, "phone_number"],
-      [[/number/i], payload.visaNumber, "visa_number"],
+      [[/^number\b/i], payload.visaNumber, "visa_number"],
+      [[/^date of issue/i], payload.visaIssueDate ? officialDate(payload.visaIssueDate) : "", "visa_issue_date"],
+    ];
+    for (const [labels, value, field] of passengerFillTasks) {
+      if (!value && (field === "surname" || field === "visa_issue_date")) continue;
+      if (!(await fillNearLabel(page, labels, value))) missingControls.push(field);
+    }
+    if (!(await fillLabeledInputAt(page, /^date of expiry/i, 0, officialDate(payload.passportExpiryDate)))) {
+      missingControls.push("passport_expiry_date");
+    }
+    if (!(await fillLabeledInputAt(page, /^date of expiry/i, 1, officialDate(payload.visaExpiryDate)))) {
+      missingControls.push("visa_expiry_date");
+    }
+
+    const passengerSelectTasks: Array<[RegExp[], string, string]> = [
+      [[/passport type/i], payload.passportType, "passport_type"],
+      [[/visa type|purpose/i], payload.visaType, "visa_type"],
+      [[/issued place/i], payload.visaIssuedPlace ?? "", "visa_issued_place"],
+    ];
+    for (const [labels, value, field] of passengerSelectTasks) {
+      if (!value) continue;
+      if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+    }
+
+    if (!(await selectOfficialRadio(page, payload.gender))) missingControls.push("gender");
+    if (!(await clickFirstVisible(page, [/^i have read and understood this information\.?$/i]))) {
+      missingControls.push("visa_information_acknowledgement");
+    }
+
+    if (missingControls.length === 0 && !(await clickOfficialButton(page, "Trip Information"))) {
+      missingControls.push("trip_information_next");
+    }
+    await page.waitForTimeout(1_000);
+
+    const tripFillTasks: Array<[RegExp[], string, string]> = [
       [[/departure country before arrival/i], payload.departureCountryBeforeArrival, "departure_country_before_arrival"],
       [[/flight number/i, /chuyến bay/i], payload.flightNumber ?? "", "flight_number"],
       [[/vehicle identification number/i], payload.vehicleIdentificationNumber ?? "", "vehicle_identification_number"],
       [[/accommodation address/i, /địa chỉ/i], payload.accommodationAddress, "accommodation_address"],
       [[/workplace information/i], payload.workplaceInformation ?? "", "workplace_information"],
     ];
-    for (const [labels, value, field] of fillTasks) {
-      if (!value && (field === "surname" || field === "workplace_information" || field === "vehicle_identification_number")) continue;
+    for (const [labels, value, field] of tripFillTasks) {
+      if (!value && (field === "workplace_information" || field === "vehicle_identification_number")) continue;
       if (!(await fillNearLabel(page, labels, value))) missingControls.push(field);
     }
-
-    const selectTasks: Array<[RegExp[], string, string]> = [
-      [[/passport type/i], payload.passportType, "passport_type"],
-      [[/visa type|purpose/i], payload.visaType, "visa_type"],
+    const tripSelectTasks: Array<[RegExp[], string, string]> = [
       [[/purpose of travel/i, /mục đích/i], payload.purposeOfTravel, "purpose_of_travel"],
       [[/border gate|port of entry/i, /cửa khẩu/i], payload.borderGateAirport ?? payload.landBorderGate ?? payload.seaPort ?? "", "border_gate"],
       [[/province.*city/i], payload.provinceCityOfHotel, "province_city_of_hotel"],
       [[/ward.*commune/i], payload.wardCommuneOfHotel, "ward_commune_of_hotel"],
     ];
-    for (const [labels, value, field] of selectTasks) {
+    for (const [labels, value, field] of tripSelectTasks) {
       if (!value) continue;
       if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
     }
-
-    const radioTasks: Array<[string, string]> = [
-      [payload.gender, "gender"],
-      [payload.modeOfTravel, "mode_of_travel"],
-      [payload.accommodationType, "accommodation_type"],
-    ];
-    for (const [value, field] of radioTasks) {
+    for (const [value, field] of [[payload.modeOfTravel, "mode_of_travel"], [payload.accommodationType, "accommodation_type"]] as const) {
       if (!(await selectOfficialRadio(page, value))) missingControls.push(field);
     }
 

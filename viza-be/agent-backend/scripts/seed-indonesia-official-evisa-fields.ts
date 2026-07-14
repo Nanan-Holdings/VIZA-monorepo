@@ -392,7 +392,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
   {
     field_name: "passport_place_of_issue",
     label: "Issuing Country",
-    field_type: "text",
+    field_type: "country",
     required: true,
     step_number: 2,
     step_name: "Application form",
@@ -402,7 +402,7 @@ export const INDONESIA_OFFICIAL_EVISA_FIELDS: BilingualSeedField[] = [
       official_field_name: "release_place",
       label_zh: "签发国家",
       official_label_zh: "Issuing Country",
-      maxLength: 80,
+      source: "ISO3166-1",
     },
   },
   {
