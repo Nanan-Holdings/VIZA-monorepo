@@ -258,6 +258,10 @@ function isSubmissionRunnerUnavailable(error: unknown) {
   return /fetch failed|ECONNREFUSED|ECONNRESET|Failed to fetch|terminated|AbortError|failed \(404\)|not[_ ]found/i.test(message);
 }
 
+function isCancellationSessionExpired(error: unknown) {
+  return /cancellation session is missing or expired|cancellation button is no longer visible/i.test(submissionServiceErrorMessage(error));
+}
+
 function applicantNameForOfficial(answers: Record<string, string>) {
   const fullName = firstAnswer(answers, ["full_name_en", "full_name", "applicant_name", "booker_name"]);
   if (fullName) return fullName;
@@ -291,7 +295,6 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     { data: slots, error: slotsErr },
     { data: confirmation, error: confirmationErr },
     { data: appointmentHistory, error: appointmentHistoryErr },
-    { data: application, error: applicationErr },
     { data: manualAction, error: manualActionErr },
     { data: rescheduleAction, error: rescheduleActionErr },
   ] = await Promise.all([
@@ -316,11 +319,6 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .order("created_at", { ascending: false })
       .limit(5),
     admin
-      .from("applications")
-      .select("appointment_confirmation_id")
-      .eq("id", applicationId)
-      .maybeSingle(),
-    admin
       .from("appointment_manual_actions")
       .select("id, job_id, action_type, status, instruction, expires_at, created_at, metadata_redacted_json")
       .eq("job_id", job.id)
@@ -341,7 +339,6 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
   if (slotsErr) throw new Error(slotsErr.message);
   if (confirmationErr) throw new Error(confirmationErr.message);
   if (appointmentHistoryErr) throw new Error(appointmentHistoryErr.message);
-  if (applicationErr) throw new Error(applicationErr.message);
   if (manualActionErr) throw new Error(manualActionErr.message);
   if (rescheduleActionErr) throw new Error(rescheduleActionErr.message);
   const normalizedConfirmation = confirmation
@@ -1666,6 +1663,20 @@ export async function POST(
     try {
       await confirmOfficialCancellation(auth.admin, id, auth.profile.id, job, routing);
     } catch (error) {
+      if (isCancellationSessionExpired(error)) {
+        const { data: rescheduleAction, error: rescheduleErr } = await auth.admin
+          .from("appointment_manual_actions")
+          .select("id")
+          .eq("job_id", job.id)
+          .eq("action_type", "official_reschedule_required")
+          .in("status", ["pending", "in_progress"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (rescheduleErr) throw new Error(rescheduleErr.message);
+        await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, rescheduleAction ? "reschedule" : "cancel");
+        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+      }
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Could not confirm Korea KVAC cancellation." },
         { status: 409 },

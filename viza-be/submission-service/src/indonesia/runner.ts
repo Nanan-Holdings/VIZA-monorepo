@@ -1811,9 +1811,18 @@ async function continueFromApplicationStepOne(
       await dismissIndonesiaDialogs(page, diagnostics);
     } else {
       await clickIndonesiaStepOneNext(page, next, diagnostics);
-      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 30_000 }).catch(() => undefined);
+      await input.onStage?.("step_1_waiting_for_next", {
+        url: page.url(),
+        title: await page.title().catch(() => null),
+      });
+      const advancedAfterPrimaryClick = await waitForIndonesiaStepOneAdvance(page, 12_000);
+      diagnostics.push(
+        advancedAfterPrimaryClick
+          ? "indonesia_step_1_primary_next_advanced"
+          : "indonesia_step_1_primary_next_no_navigation",
+      );
       await page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => undefined);
-      await page.waitForTimeout(5_000);
+      await page.waitForTimeout(1_000);
       await dismissIndonesiaDialogs(page, diagnostics);
     }
     const shouldUseStepOneFallbacks = async (): Promise<boolean> => {
@@ -1826,11 +1835,15 @@ async function continueFromApplicationStepOne(
     };
 
     if (await shouldUseStepOneFallbacks()) {
+      await input.onStage?.("step_1_retrying_submit", {
+        url: page.url(),
+        title: await page.title().catch(() => null),
+      });
       const fallbackClicked = await clickVisibleSubmitFallback(page, diagnostics, "indonesia_step_1");
       if (!fallbackClicked) {
         diagnostics.push("indonesia_step_1_fallback_submit_not_clicked");
       }
-      await page.waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: 10_000 }).catch(() => undefined);
+      await waitForIndonesiaStepOneAdvance(page, 10_000);
     }
     if (await shouldUseStepOneFallbacks()) {
       await submitIndonesiaStepOneFormFallback(page, diagnostics);
@@ -1934,6 +1947,18 @@ async function clickIndonesiaStepOneNext(
       break;
     }
   }
+
+  try {
+    await nextLocator.first().scrollIntoViewIfNeeded({ timeout: 5_000 });
+    await nextLocator.first().click({ timeout: 10_000, noWaitAfter: true });
+    diagnostics.push("indonesia_step_1_next_playwright_clicked");
+    return;
+  } catch (error) {
+    diagnostics.push(
+      `indonesia_step_1_next_playwright_click_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+    );
+  }
+
   const box = await nextLocator.first().boundingBox({ timeout: 5_000 }).catch(() => null);
   if (box) {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
@@ -1956,6 +1981,13 @@ async function clickIndonesiaStepOneNext(
     return;
   }
   diagnostics.push("indonesia_step_1_next_click_failed");
+}
+
+async function waitForIndonesiaStepOneAdvance(page: Page, timeoutMs: number): Promise<boolean> {
+  await page
+    .waitForURL((nextUrl) => !/\/step_1\b/i.test(nextUrl.toString()), { timeout: timeoutMs })
+    .catch(() => undefined);
+  return !/\/step_1\b/i.test(page.url());
 }
 
 async function submitIndonesiaStepOneFormFallback(page: Page, diagnostics: string[]): Promise<boolean> {
