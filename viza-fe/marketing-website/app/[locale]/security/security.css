@@ -657,41 +657,6 @@
   .cta-strip .right small { font-size: 12px; color: var(--fg-2); }
 
   /* ---------- Footer (mirrors careers.html) ---------- */
-  .site-foot {
-    background: #fafafa; padding: 0 40px;
-    font-family: var(--font-sans); margin-top: 0;
-  }
-  .site-foot .foot-rule {
-    max-width: 1280px; margin: 0 auto; height: 1px;
-    background-image: linear-gradient(to right, var(--border-hairline) 50%, transparent 0%);
-    background-size: 8px 1px; background-repeat: repeat-x; position: relative;
-  }
-  .site-foot .foot-rule::before,
-  .site-foot .foot-rule::after {
-    content: ""; position: absolute; top: -2px;
-    width: 5px; height: 5px; border-radius: 999px; background: var(--border-hairline);
-  }
-  .site-foot .foot-rule::before { left: 0; } .site-foot .foot-rule::after  { right: 0; }
-  .site-foot .foot-main {
-    max-width: 1280px; margin: 0 auto;
-    padding: 64px 0 56px;
-    display: grid; grid-template-columns: 1.6fr 1fr 1.05fr 1.1fr; gap: 48px;
-  }
-  .site-foot .foot-brand .foot-logo img { height: 22px; }
-  .site-foot .foot-brand .foot-tag { margin-top: 22px; max-width: 320px; font-size: 14px; line-height: 1.55; color: var(--fg-2); }
-  .site-foot .col-head { font: 500 13px/1 var(--font-heading); color: var(--fg-1); margin: 4px 0 22px; }
-  .site-foot .col-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
-  .site-foot .col-list a { color: var(--fg-2); font-size: 14px; transition: color .12s; }
-  .site-foot .col-list a:hover { color: var(--brand-500); }
-  .site-foot .foot-bottom {
-    max-width: 1280px; margin: 0 auto; padding: 28px 0 40px;
-    display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  }
-  .site-foot .legal { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--fg-2); }
-  .site-foot .legal .sep { width: 3px; height: 3px; border-radius: 999px; background: #d6d6d6; }
-  .site-foot .legal a { color: var(--fg-2); }
-  .site-foot .legal a:hover { color: var(--brand-500); }
-  .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
 
   /* ====================================================
      Mobile responsive overrides (appended; cascade wins)
@@ -762,25 +727,9 @@
     }
     .cta-strip .right { align-items: flex-start; }
     .cta-strip .right .mail { font-size: 15px; word-break: break-all; }
-
-    /* Footer: 2 columns */
-    .site-foot { padding: 0 20px; }
-    .site-foot .foot-main {
-      grid-template-columns: 1fr 1fr;
-      gap: 40px 24px;
-      padding: 44px 0 36px;
-    }
-    .site-foot .foot-bottom {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 14px;
-      padding: 20px 0 28px;
-    }
-    .site-foot .legal { flex-wrap: wrap; row-gap: 8px; }
   }
 
   @media (max-width: 480px) {
     .hero-stats { grid-template-columns: 1fr; gap: 20px; }
     .hstat .k { max-width: none; }
-    .site-foot .foot-main { grid-template-columns: 1fr; gap: 32px; }
   }

@@ -7,6 +7,7 @@ import SiteNav from "@/components/SiteNav";
 import { PayByCardButton } from "@/components/PayByCardButton";
 import { WechatPayButton } from "@/components/WechatPayButton";
 import { countryBySlug } from "@/lib/countries";
+import SiteFooter from "@/components/SiteFooter";
 
 type PassportExtraction = {
   surname: string;
@@ -244,7 +245,6 @@ export default function ApplyPage() {
 
   const locale = useLocale();
   const tA = useTranslations("apply");
-  const tF = useTranslations("footer");
   const tc = useTranslations("countries");
   const countryName = tc.has(country.slug) ? tc(country.slug) : country.name;
 
@@ -1141,95 +1141,7 @@ export default function ApplyPage() {
         </div>
       </div>
 
-      <footer className="site-foot" data-screen-label="Footer">
-        <div className="foot-rule"></div>
-
-        <div className="foot-main">
-          <div className="foot-brand">
-            <a className="foot-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA"/></a>
-            <p className="foot-tag">{tF("tagline")}</p>
-
-            <div className="ask-ai">{tF("askAi")}</div>
-            <div className="ai-chips">
-              <button className="ai-chip c1" type="button" title={tF("askAi")}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-              </button>
-              <button className="ai-chip c2" type="button" title={tF("askAi")}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
-              </button>
-              <button className="ai-chip c3" type="button" title={tF("askAi")}>
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 13.8 8.4 20 10.5 13.8 12.6 12 19 10.2 12.6 4 10.5 10.2 8.4 12 2Z"/></svg>
-              </button>
-              <button className="ai-chip c4" type="button" title={tF("askAi")}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
-              </button>
-            </div>
-          </div>
-
-          <div className="col-company">
-            <h4 className="col-head">{tF("company")}</h4>
-            <ul className="col-list">
-              <li><a href="/careers">{tF("careers")}</a></li>
-              <li><a href="/contact">{tF("contact")}</a></li>
-              <li><a href="/security">{tF("security")}</a></li>
-              <li><a href="/refunds">{tF("refundsPolicy")}</a></li>
-              <li><a href="/status">{tF("status")}</a></li>
-              <li><a href="/legal/privacy">{tF("privacy")}</a></li>
-              <li><a href="/legal/terms">{tF("terms")}</a></li>
-            </ul>
-          </div>
-
-          <div className="col-products">
-            <h4 className="col-head">{tF("product")}</h4>
-            <ul className="col-list">
-              <li><a href="#">{tF("prodMockInterview")}</a></li>
-              <li><a href="#">{tF("prodVisaReq")}</a></li>
-              <li><a href="#">{tF("prodSchengen")}</a></li>
-              <li><a href="#">{tF("prodPhoto")}</a></li>
-              <li><a href="#">{tF("prodHelpline")}</a></li>
-              <li><a href="#">{tF("prodStudent")}</a></li>
-            </ul>
-          </div>
-
-          <div className="col-offices">
-            <h4 className="col-head">{tF("offices")}</h4>
-            <ul className="col-list">
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>中国（上海）自由贸易试验区罗山路1502弄<br/>No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>225 Pasir Panjang Rd,<br/>Singapore</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="foot-apps">
-            <a className="app-badge" href="#" aria-label="Download VIZA on the App Store">
-              <img src="/assets/app-store-badge.png" alt="Download on the App Store"/>
-            </a>
-            <a className="app-badge" href="#" aria-label="Get VIZA on Google Play">
-              <img src="/assets/google-play-badge.png" alt="Get it on Google Play"/>
-            </a>
-          </div>
-        </div>
-
-        <div className="foot-rule"></div>
-
-        <div className="foot-bottom">
-          <div className="legal">
-            <span>{tF("copyright")}</span>
-            <span className="sep"></span>
-            <a href="#">{tF("privacy")}</a>
-            <span className="sep"></span>
-            <a href="#">{tF("terms")}</a>
-          </div>
-          <div className="foot-mark">
-            <img src="/assets/viza-logo-black.svg" alt="VIZA"/>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }

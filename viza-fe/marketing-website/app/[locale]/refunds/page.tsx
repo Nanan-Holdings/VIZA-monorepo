@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import SiteNav from "@/components/SiteNav";
+import SiteFooter from "@/components/SiteFooter";
 
 /** Anchor ids, in page order — drives the TOC and the scroll-spy. */
 const SECTION_IDS = [
@@ -54,21 +55,6 @@ const FAQ_KEYS = [
 ] as const;
 const CHANGELOG_KEYS = ["v42", "v41", "v40", "v36"] as const;
 
-const PRODUCT_KEYS = [
-  "prodMockInterview",
-  "prodVisaReq",
-  "prodSchengen",
-  "prodPhoto",
-  "prodHelpline",
-  "prodStudent",
-] as const;
-
-/** Office addresses are proper nouns — intentionally untranslated (matches SiteFooter). */
-const OFFICES: Array<[string, string]> = [
-  ["中国（上海）自由贸易试验区罗山路1502弄", "No. 67, Kangcheng Road, Lane 958, Xinsong Road, Minhang District, Shanghai, China"],
-  ["225 Pasir Panjang Rd,", "Singapore"],
-];
-
 const richTags = {
   strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
   em: (chunks: ReactNode) => <em>{chunks}</em>,
@@ -92,26 +78,8 @@ const PlusIcon = () => (
   </span>
 );
 
-const OfficePin = () => (
-  <svg
-    className="office-pin"
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-    <circle cx="12" cy="10" r="3" />
-  </svg>
-);
-
 export default function RefundsPage() {
   const t = useTranslations("refunds");
-  const tf = useTranslations("footer");
 
   // --- TOC scroll-spy ---
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
@@ -503,84 +471,7 @@ export default function RefundsPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="site-foot" data-screen-label="Footer">
-        <div className="foot-rule"></div>
-        <div className="foot-main">
-          <div className="foot-brand">
-            <a className="foot-logo" href="/">
-              <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-            </a>
-            <p className="foot-tag">{tf("tagline")}</p>
-          </div>
-          <div className="col-company">
-            <h4 className="col-head">{tf("company")}</h4>
-            <ul className="col-list">
-              <li>
-                <a href="/careers">{tf("careers")}</a>
-              </li>
-              <li>
-                <a href="/contact">{tf("contact")}</a>
-              </li>
-              <li>
-                <a href="/security">{tf("security")}</a>
-              </li>
-              <li>
-                <a href="/refunds" className="here">
-                  {tf("refundsPolicy")}
-                </a>
-              </li>
-              <li>
-                <a href="/status">{tf("status")}</a>
-              </li>
-              <li>
-                <a href="/legal/privacy">{tf("privacy")}</a>
-              </li>
-              <li>
-                <a href="/legal/terms">{tf("terms")}</a>
-              </li>
-            </ul>
-          </div>
-          <div className="col-products">
-            <h4 className="col-head">{tf("product")}</h4>
-            <ul className="col-list">
-              {PRODUCT_KEYS.map((key) => (
-                <li key={key}>
-                  <a href="#">{tf(key)}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="col-offices">
-            <h4 className="col-head">{tf("offices")}</h4>
-            <ul className="col-list">
-              {OFFICES.map(([line1, line2]) => (
-                <li className="office-row" key={line2}>
-                  <OfficePin />
-                  <span>
-                    {line1}
-                    <br />
-                    {line2}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div className="foot-rule"></div>
-        <div className="foot-bottom">
-          <div className="legal">
-            <span>{tf("copyright")}</span>
-            <span className="sep"></span>
-            <a href="#">{tf("privacy")}</a>
-            <span className="sep"></span>
-            <a href="#">{tf("terms")}</a>
-          </div>
-          <div className="foot-mark">
-            <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }
