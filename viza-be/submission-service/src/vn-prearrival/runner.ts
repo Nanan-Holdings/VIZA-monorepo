@@ -284,13 +284,35 @@ async function handleCaptchaGate(page: Page, screenshots: string[], logs: string
   await page.waitForTimeout(1_000);
 }
 
-async function waitForPassengerForm(page: Page, screenshots: string[], logs: string[], tempDir: string): Promise<boolean> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+async function waitForPassengerForm(
+  page: Page,
+  nationality: string,
+  screenshots: string[],
+  logs: string[],
+  tempDir: string,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     await handleCaptchaGate(page, screenshots, logs, tempDir);
     const passengerHeading = page.getByText(/passenger information/i);
     const headingCount = await passengerHeading.count().catch(() => 0);
     if (headingCount > 0 && (await passengerHeading.first().isVisible().catch(() => false))) return true;
+    // The portal occasionally returns to the nationality gate after CAPTCHA
+    // verification. Re-select the official option rather than treating it as
+    // a completed transition.
+    if (!(await completeNationalityGate(page, nationality))) return false;
     await page.waitForTimeout(2_000);
+  }
+  return false;
+}
+
+async function waitForTripForm(page: Page): Promise<boolean> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const tripHeading = page.getByText(/trip information/i);
+    const headingCount = await tripHeading.count().catch(() => 0);
+    const purposeControl = page.getByText(/purpose of travel/i);
+    const purposeCount = await purposeControl.count().catch(() => 0);
+    if (headingCount > 0 && purposeCount > 0) return true;
+    await page.waitForTimeout(1_500);
   }
   return false;
 }
@@ -347,7 +369,7 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
     // The official portal can present the image CAPTCHA again after the
     // nationality screen. Do not treat the modal as an empty declaration form.
-    if (!(await waitForPassengerForm(page, screenshots, logs, tempDir))) {
+    if (!(await waitForPassengerForm(page, payload.nationality, screenshots, logs, tempDir))) {
       const waitingScreenshot = await saveScreenshot(page, tempDir, "passenger-form-not-ready", logs);
       if (waitingScreenshot) screenshots.push(waitingScreenshot);
       throw new VnPrearrivalPortalError(
@@ -366,7 +388,10 @@ export async function runVietnamPrearrivalPortalSubmission(
       [[/given name/i], payload.givenName, "given_name"],
       [[/date of birth/i, /ngày sinh/i], officialDate(payload.dateOfBirth), "date_of_birth"],
       [[/email/i], payload.emailAddress, "email_address"],
-      [[/phone/i, /điện thoại/i], `${payload.phoneCountryCode}${payload.phoneNumber}`, "phone_number"],
+      // The official form separates the dialling code from the local number.
+      // Supplying both here duplicates the country prefix and fails its 3-14
+      // digit validation before the Trip Information action can proceed.
+      [[/phone/i, /điện thoại/i], payload.phoneNumber.replace(/\D/g, "").replace(/^86(?=\d{3,14}$)/, ""), "phone_number"],
       [[/^number\b/i], payload.visaNumber, "visa_number"],
       [[/^date of issue/i], payload.visaIssueDate ? officialDate(payload.visaIssueDate) : "", "visa_issue_date"],
     ];
@@ -399,7 +424,9 @@ export async function runVietnamPrearrivalPortalSubmission(
     if (missingControls.length === 0 && !(await clickOfficialButton(page, "Trip Information"))) {
       missingControls.push("trip_information_next");
     }
-    await page.waitForTimeout(1_000);
+    if (missingControls.length === 0 && !(await waitForTripForm(page))) {
+      missingControls.push("trip_information_form_not_ready");
+    }
 
     const tripFillTasks: Array<[RegExp[], string, string]> = [
       [[/departure country before arrival/i], payload.departureCountryBeforeArrival, "departure_country_before_arrival"],
