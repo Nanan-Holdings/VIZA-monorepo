@@ -233,6 +233,8 @@
     "helpTap": "点击与您的 VIZA 顾问聊天",
     "payAmount": "支付 SGD {amount}",
     "totalAmount": "SGD {amount}",
+    "payFree": "免费 — 无需支付",
+    "totalFree": "免费",
     "upgradeAmount": "+ SGD {amount}",
     "etaStandard": "2026年5月12日 上午8:00（新加坡时间）",
     "etaExpress": "2026年5月8日 下午3:00（新加坡时间）",

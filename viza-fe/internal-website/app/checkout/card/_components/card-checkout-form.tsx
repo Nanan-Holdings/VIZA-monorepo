@@ -57,10 +57,15 @@ export function CardCheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  const amount = new Intl.NumberFormat(locale === "zh-CN" ? "zh-CN" : "en-US", {
-    style: "currency",
-    currency,
-  }).format(amountCents / 100);
+  const amount =
+    amountCents === 0
+      ? locale === "zh-CN"
+        ? "免费"
+        : "Free"
+      : new Intl.NumberFormat(locale === "zh-CN" ? "zh-CN" : "en-US", {
+          style: "currency",
+          currency,
+        }).format(amountCents / 100);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

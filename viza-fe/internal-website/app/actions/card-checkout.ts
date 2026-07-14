@@ -6,7 +6,8 @@ import {
   applyCheckoutPrefill,
   decodeCheckoutPrefill,
 } from "@/lib/checkout/prefill";
-import { pricingFor } from "@/lib/pricing";
+import { isFreePackage, pricingFor } from "@/lib/pricing";
+import { completeFreeOrder } from "@/lib/checkout/free-order";
 import { createCheckoutSession } from "@/lib/stripe/client";
 import {
   getPhotonPayClient,
@@ -235,6 +236,19 @@ export async function startCardCheckout(
     const cancelUrl = `${origin}/checkout/card?country=${encodeURIComponent(
       input.country,
     )}&visa=${encodeURIComponent(input.visaType)}&locale=${input.locale}`;
+
+    // Free demo package — nothing to collect: mark the order paid and run
+    // the post-paid side-effects the webhook would, then send the visitor
+    // straight to the check-your-email page.
+    if (isFreePackage(pricing)) {
+      await completeFreeOrder(admin, orderId);
+      return {
+        orderId,
+        url: successUrl,
+        amountCents: 0,
+        currency: pricing.currency,
+      };
+    }
 
     if (isPhotonPayEnabled()) {
       const photon = getPhotonPayClient();
