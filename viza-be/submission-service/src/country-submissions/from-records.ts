@@ -207,6 +207,7 @@ export function applyVietnamAnswerAliases(
 ): Record<string, string> {
   const profileName = splitProfileName(profile.full_name);
   const arrivalDate = firstValue([
+    answers.expected_arrival_date,
     answers.intended_date_of_entry,
     application.arrival_date,
     answers.intended_arrival_date,
@@ -278,6 +279,11 @@ export function applyVietnamAnswerAliases(
   setIfMissing(answers, "permanent_residential_address", [address]);
   setIfMissing(answers, "contact_address", [answers.mailing_address, address]);
   setIfMissing(answers, "telephone_number", [phone]);
+  // Vietnam Pre-Arrival uses its own expected-arrival key rather than the
+  // generic e-Visa intended-entry key. Preserve the official declaration
+  // value while also making it available to shared trip-date consumers.
+  setIfMissing(answers, "expected_arrival_date", [arrivalDate]);
+  setIfMissing(answers, "arrival_date", [answers.expected_arrival_date, arrivalDate]);
   setIfMissing(answers, "intended_date_of_entry", [arrivalDate]);
   setIfMissing(answers, "intended_length_of_stay", [
     answers.intended_length_of_stay_value,
@@ -414,7 +420,8 @@ export function buildCountrySubmissionApplication(
     normalizedCountry === "vietnam" ||
     normalizedCountry === "viet_nam" ||
     normalizedVisaType === "vn_e_visa" ||
-    normalizedVisaType === "vietnam_e_visa";
+    normalizedVisaType === "vietnam_e_visa" ||
+    normalizedVisaType === "vn_prearrival_declaration";
   if (isVietnamApplication) {
     applyVietnamAnswerAliases(normalizedAnswers, profile, application);
   }
