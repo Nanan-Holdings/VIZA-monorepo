@@ -10,25 +10,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { normalizeAuthEmailLocale } from "@/lib/i18n/locale";
 
-/**
- * Validate that an email is acceptable for OTP login.
- * VIZA allows any valid email - new users are created on first login.
- */
-export async function validateUserEmail(
-  email: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const normalizedEmail = email.toLowerCase().trim();
-    if (!normalizedEmail || !normalizedEmail.includes("@")) {
-      return { success: false, error: "Please enter a valid email address" };
-    }
-    return { success: true };
-  } catch (err) {
-    console.error("Unexpected error in validateUserEmail:", err);
-    return { success: false, error: "An unexpected error occurred" };
-  }
-}
-
 export async function prepareAuthEmailLocale(
   email: string,
   locale: string
@@ -42,48 +23,69 @@ export async function prepareAuthEmailLocale(
     const authEmailLocale = normalizeAuthEmailLocale(locale);
     const adminClient = createAdminClient();
 
-    for (let page = 1; page <= 10; page += 1) {
-      const { data, error } = await adminClient.auth.admin.listUsers({
-        page,
-        perPage: 1000,
-      });
+    // Resolve the auth user through applicant_profiles instead of paging
+    // the full auth user list — this runs on the login critical path, so
+    // it must stay O(1) as the user base grows. The locale stamp is a
+    // nice-to-have: bail out after 3s rather than gate login on it.
+    const { data: profiles, error: profileError } = await adminClient
+      .from("applicant_profiles")
+      .select("auth_user_id")
+      .ilike("email", normalizedEmail)
+      .not("auth_user_id", "is", null)
+      .limit(2)
+      .abortSignal(AbortSignal.timeout(3000));
 
-      if (error) {
-        console.error("Error preparing auth email locale:", error);
-        return { success: false };
+    if (profileError) {
+      console.error("Error preparing auth email locale:", profileError);
+      return { success: false };
+    }
+
+    // No linked profile (first-time signup, or ambiguous email match):
+    // skip silently — signInWithOtp's options.data carries the locale for
+    // newly created users.
+    if (!profiles || profiles.length !== 1 || !profiles[0].auth_user_id) {
+      return { success: true };
+    }
+
+    const authUserId = profiles[0].auth_user_id;
+    const { data: userData, error: getUserError } =
+      await adminClient.auth.admin.getUserById(authUserId);
+
+    if (getUserError || !userData?.user) {
+      console.error("Error loading auth user for email locale:", getUserError);
+      return { success: false };
+    }
+
+    const existingMetadata =
+      typeof userData.user.user_metadata === "object" &&
+      userData.user.user_metadata !== null &&
+      !Array.isArray(userData.user.user_metadata)
+        ? userData.user.user_metadata
+        : {};
+
+    if (
+      existingMetadata.locale === authEmailLocale &&
+      existingMetadata.language === authEmailLocale &&
+      existingMetadata.preferred_language === authEmailLocale
+    ) {
+      return { success: true };
+    }
+
+    const { error: updateError } = await adminClient.auth.admin.updateUserById(
+      authUserId,
+      {
+        user_metadata: {
+          ...existingMetadata,
+          locale: authEmailLocale,
+          language: authEmailLocale,
+          preferred_language: authEmailLocale,
+        },
       }
+    );
 
-      const authUser = data.users.find(
-        (user) => user.email?.toLowerCase() === normalizedEmail
-      );
-
-      if (authUser) {
-        const existingMetadata =
-          typeof authUser.user_metadata === "object" &&
-          authUser.user_metadata !== null &&
-          !Array.isArray(authUser.user_metadata)
-            ? authUser.user_metadata
-            : {};
-
-        const { error: updateError } =
-          await adminClient.auth.admin.updateUserById(authUser.id, {
-            user_metadata: {
-              ...existingMetadata,
-              locale: authEmailLocale,
-              language: authEmailLocale,
-              preferred_language: authEmailLocale,
-            },
-          });
-
-        if (updateError) {
-          console.error("Error updating auth email locale:", updateError);
-          return { success: false };
-        }
-
-        return { success: true };
-      }
-
-      if (data.users.length < 1000) break;
+    if (updateError) {
+      console.error("Error updating auth email locale:", updateError);
+      return { success: false };
     }
 
     return { success: true };
