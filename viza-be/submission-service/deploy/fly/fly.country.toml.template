@@ -26,4 +26,4 @@ primary_region = "__REGION__"
 [[vm]]
   cpu_kind = "performance"
   cpus = 2
-  memory_mb = 2048
+  memory_mb = 4096
