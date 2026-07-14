@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSessionFromRequest } from "@/lib/client-session";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,10 @@ type DerivedStatus = {
   error: string | null;
 };
 
-const PENDING_PICKUP_STALE_AFTER_MS = 45 * 1000;
+// A live official portal session can take longer than a minute to launch and
+// pass its entry CAPTCHA. Do not present a recoverable queued job as failed
+// while the worker is still allowed to claim it.
+const PENDING_PICKUP_STALE_AFTER_MS = 5 * 60 * 1000;
 const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
 
 const COMPLETED_APPLICATION_STATUSES = new Set([
@@ -637,7 +641,7 @@ export function deriveNonTerminalStatus(
 }
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -645,20 +649,28 @@ export async function GET(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  // Client routes still support the signed legacy client_session cookie. Prefer
+  // it here so status polling keeps working while a Supabase session refreshes.
+  const legacySession = await getClientSessionFromRequest(request);
+  let authUserId: string | null = null;
+  if (!legacySession) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+  }
+  if (!legacySession && !authUserId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = createAdminClient();
-  const { data: profile, error: profileError } = await admin
+  const profileQuery = admin
     .from("applicant_profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+    .select("id");
+  const { data: profile, error: profileError } = legacySession
+    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
+    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -702,8 +714,10 @@ export async function GET(
   const queue = selectQueueForSubmissionStatus((queueRows ?? []) as QueueRow[]);
   const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
   const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
-  const activeQueueOverridesTerminal =
-    isActiveQueue(queue) && isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
+  // A newly created active queue represents an explicit retry. It must always
+  // override an older terminal application result, even when the application
+  // row has not yet been updated by the worker.
+  const activeQueueOverridesTerminal = isActiveQueue(queue);
   const terminalQueueOverridesApplication =
     !activeQueueOverridesTerminal &&
     queueDerived.status !== "queued" &&

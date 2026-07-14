@@ -114,6 +114,9 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const scheduled = result.status === "scheduled";
   const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
+  const qrPath = result.country === "VN"
+    ? result.artifacts?.screenshots?.find((path) => /(?:^|[-_/])qr(?:[-_.]|$)|confirmation-qr/i.test(path)) ?? null
+    : null;
   const hasOfficialPdfDownload =
     (result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
@@ -138,6 +141,9 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const countryParam = arrivalCardMeta.countryParam;
   const pdfUrl = pdfPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(pdfPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}.pdf`)}`
+    : null;
+  const qrUrl = qrPath
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(qrPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`)}`
     : null;
 
   const downloadPdf = useCallback(async () => {
@@ -200,7 +206,42 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {referenceNumber ? (
+        {successful ? (
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center">
+            <div className="border-l-2 border-emerald-600 pl-3">
+              <div className="text-xs text-muted-foreground">
+                {result.country === "VN"
+                  ? (isZh ? "官方申报编号 / 参考号" : "Official declaration reference")
+                  : (isZh ? "申请编号 / 参考号" : "Reference number")}
+              </div>
+              <div className="mt-1 font-mono text-lg font-semibold">
+                {referenceNumber ?? (isZh ? "官网确认已保存" : "Official confirmation saved")}
+              </div>
+              {result.country === "VN" ? (
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {isZh
+                    ? "请在入境时出示此二维码或下载的官方确认文件。"
+                    : "Present this QR code or the official confirmation file when entering Vietnam."}
+                </p>
+              ) : null}
+            </div>
+            {qrUrl ? (
+              <a
+                className="block justify-self-start rounded-md border bg-white p-2 shadow-sm"
+                href={qrUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={isZh ? "查看官方二维码" : "View official QR code"}
+              >
+                <img
+                  src={qrUrl}
+                  alt={isZh ? "越南入境前申报官方二维码" : "Vietnam Pre-Arrival official QR code"}
+                  className="h-36 w-36 object-contain"
+                />
+              </a>
+            ) : null}
+          </div>
+        ) : referenceNumber ? (
           <div className="border-l-2 border-emerald-600 pl-3">
             <div className="text-xs text-muted-foreground">{isZh ? "申请编号 / 参考号" : "Reference number"}</div>
             <div className="mt-1 font-mono text-lg font-semibold">{referenceNumber}</div>
@@ -218,6 +259,14 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
             <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
               {downloadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               {isZh ? "下载确认文件" : "Download confirmation"}
+            </Button>
+          ) : null}
+          {successful && qrUrl ? (
+            <Button asChild type="button" variant={pdfUrl ? "outline" : "default"}>
+              <a href={qrUrl} download={`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`}>
+                <Download className="mr-2 h-4 w-4" />
+                {isZh ? "下载官方二维码" : "Download official QR code"}
+              </a>
             </Button>
           ) : null}
           <Button type="button" variant={pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
@@ -1210,7 +1259,7 @@ export function SubmissionStatusStep({
   useEffect(() => {
     setSnapshot(null);
     setRetryError(null);
-  }, [applicationId]);
+  }, [applicationId, country, visaType]);
 
   useEffect(() => {
     if (!applicationId) return;
@@ -1218,11 +1267,24 @@ export function SubmissionStatusStep({
     if ((failed || stalled) && snapshot?.queue) return;
 
     let cancelled = false;
+    let pollingStoppedForAuth = false;
+    const controller = new AbortController();
     const poll = async () => {
+      if (pollingStoppedForAuth) return;
+
       try {
         const response = await fetch(`/api/applications/${applicationId}/submission-status`, {
           cache: "no-store",
+          credentials: "same-origin",
+          signal: controller.signal,
         });
+        // Country switching may briefly render the outgoing application after its
+        // auth cookie has been refreshed. Do not turn that transient 401 into a
+        // failed submission for the application the user is leaving.
+        if (response.status === 401) {
+          pollingStoppedForAuth = true;
+          return;
+        }
         if (!response.ok) {
           throw new Error(`submission-status returned ${response.status}`);
         }
@@ -1265,7 +1327,7 @@ export function SubmissionStatusStep({
           });
         }
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
         const message = err instanceof Error ? err.message : String(err);
         setSnapshot((current) => ({
           status: "stalled",
@@ -1287,6 +1349,7 @@ export function SubmissionStatusStep({
     const timer = window.setInterval(poll, 3000);
     return () => {
       cancelled = true;
+      controller.abort();
       window.clearInterval(timer);
     };
   }, [

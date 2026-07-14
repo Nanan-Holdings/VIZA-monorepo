@@ -11,6 +11,7 @@ import {
   type VnPrearrivalPortalPayload,
 } from "./normalize";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
+import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 
 export interface VnPrearrivalPortalSubmissionResult {
   submitted: boolean;
@@ -105,6 +106,76 @@ function officialOptionValue(value: string): string {
   return officialValues[value] ?? value.replace(/^([A-Z0-9]+)_([A-Z]{3})$/i, "$1 - $2");
 }
 
+type OfficialStaticItem = {
+  code?: string;
+  en_value?: string;
+  english_value?: string;
+  airport?: string;
+};
+
+type AdministrativeItem = {
+  value?: string;
+  label_en?: string;
+};
+
+type OfficialStaticCatalog = {
+  sources?: Record<string, OfficialStaticItem[] | undefined>;
+};
+
+type AdministrativeCatalog = {
+  provinces?: AdministrativeItem[];
+  wards_by_province?: Record<string, AdministrativeItem[] | undefined>;
+};
+
+let officialStaticCatalog: OfficialStaticCatalog | null | undefined;
+let administrativeCatalog: AdministrativeCatalog | null | undefined;
+
+function readWorkspaceJson<T>(relativePath: string): T | null {
+  const candidates = [
+    path.resolve(process.cwd(), relativePath),
+    path.resolve(process.cwd(), "..", "..", relativePath),
+    path.resolve(__dirname, "..", "..", "..", "..", relativePath),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return JSON.parse(fs.readFileSync(candidate, "utf8")) as T;
+    } catch {
+      // Try the next monorepo/runtime layout.
+    }
+  }
+  return null;
+}
+
+function loadOfficialStaticCatalog(): OfficialStaticCatalog | null {
+  if (officialStaticCatalog !== undefined) return officialStaticCatalog;
+  officialStaticCatalog = readWorkspaceJson<OfficialStaticCatalog>(
+    "viza-fe/internal-website/lib/vn-prearrival/official-static-options.json",
+  );
+  return officialStaticCatalog;
+}
+
+function loadAdministrativeCatalog(): AdministrativeCatalog | null {
+  if (administrativeCatalog !== undefined) return administrativeCatalog;
+  administrativeCatalog = readWorkspaceJson<AdministrativeCatalog>(
+    "viza-fe/internal-website/lib/vn-prearrival/administrative-units-legacy.json",
+  );
+  return administrativeCatalog;
+}
+
+function officialCatalogLabel(source: string, value: string, parent = ""): string {
+  if (!value) return value;
+  if (source === "province") {
+    return loadAdministrativeCatalog()?.provinces?.find((item) => item.value === value)?.label_en ?? value;
+  }
+  if (source === "ward") {
+    return loadAdministrativeCatalog()?.wards_by_province?.[parent]?.find((item) => item.value === value)?.label_en ?? value;
+  }
+  const item = loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) => candidate.code === value);
+  if (!item) return officialOptionValue(value);
+  const label = item.en_value ?? item.english_value ?? value;
+  return source === "flight" && item.airport ? `${label} - ${item.airport}` : label;
+}
+
 function caseInsensitiveExactText(value: string): RegExp {
   return new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
 }
@@ -141,16 +212,29 @@ async function selectExpectedArrivalDate(page: Page, value: string): Promise<boo
   return true;
 }
 
-async function selectNearLabel(page: Page, labels: RegExp[], value: string): Promise<boolean> {
+async function selectNearLabel(
+  page: Page,
+  labels: RegExp[],
+  value: string,
+  searchValue = value,
+): Promise<boolean> {
   const officialValue = officialOptionValue(value);
   const chooseAutocompleteOption = async (control: ReturnType<Page["getByLabel"]>): Promise<void> => {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (await control.isEnabled().catch(() => false)) break;
+      await page.waitForTimeout(500);
+    }
+    if (!(await control.isEnabled().catch(() => false))) {
+      throw new Error(`Official control did not become enabled for ${officialValue}.`);
+    }
     await control.click();
     // Official Material UI controls only render the matching option after text
     // is entered. Opening the menu alone leaves large lists (countries,
     // flights, hotels, consular posts) unfiltered and can time out.
     const tagName = await control.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
-    if (tagName === "input" || tagName === "textarea") {
-      await control.fill(officialValue);
+    const editable = await control.isEditable().catch(() => false);
+    if ((tagName === "input" || tagName === "textarea") && editable) {
+      await control.fill(searchValue);
     }
     // The official site is built with Material UI. Its remote autocomplete
     // choices are listbox options, not stable text nodes, so wait for and
@@ -284,6 +368,184 @@ async function clickOfficialButton(page: Page, name: string): Promise<boolean> {
   return true;
 }
 
+function extractSixDigitCode(message: Pick<InboundMessage, "subject" | "text" | "html">): string | null {
+  const haystack = [message.subject ?? "", message.text ?? "", message.html ?? ""].join("\n");
+  return /(?<![\w-])\d{6}(?![\w-])/.exec(haystack)?.[0] ?? null;
+}
+
+async function isEmailVerificationVisible(page: Page): Promise<boolean> {
+  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  return /verify your email|sent a 6-digit code|enter it below/i.test(bodyText);
+}
+
+async function fillEmailVerificationCode(page: Page, code: string): Promise<boolean> {
+  const dialog = page.getByRole("dialog");
+  const scope = (await dialog.count().catch(() => 0)) === 1 ? dialog : page.locator("body");
+  const inputs = scope.locator("input");
+  const visibleInputs: Array<ReturnType<typeof inputs.nth>> = [];
+  const count = await inputs.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const input = inputs.nth(index);
+    if (await input.isVisible().catch(() => false)) visibleInputs.push(input);
+  }
+
+  if (visibleInputs.length >= 6) {
+    for (let index = 0; index < 6; index += 1) {
+      await visibleInputs[index].fill(code[index]);
+    }
+  } else if (visibleInputs.length === 1) {
+    await visibleInputs[0].fill(code);
+  } else {
+    return false;
+  }
+
+  const verify = scope.getByRole("button", { name: /^verify$/i });
+  const verifyCount = await verify.count().catch(() => 0);
+  if (verifyCount !== 1 || !(await verify.isVisible().catch(() => false))) return false;
+  await verify.click({ timeout: 15_000 });
+  return true;
+}
+
+async function handleEmailVerification(
+  page: Page,
+  applicantId: string | undefined,
+  requestedAfter: string,
+  screenshots: string[],
+  logs: string[],
+  tempDir: string,
+): Promise<void> {
+  if (!(await isEmailVerificationVisible(page))) return;
+
+  const screenshot = await saveScreenshot(page, tempDir, "email-verification", logs);
+  if (screenshot) screenshots.push(screenshot);
+  if (!applicantId) {
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival requested an email verification code, but the applicant inbox identity was unavailable.",
+      "vn_prearrival_otp_applicant_missing",
+      "The official portal requested email verification, but VIZA could not resolve the applicant alias inbox.",
+      screenshots,
+      logs,
+    );
+  }
+
+  logs.push("vn_prearrival_otp_wait_started");
+  const timeoutMs = Number.parseInt(process.env.VN_PREARRIVAL_OTP_TIMEOUT_MS ?? "180000", 10);
+  const message = await inbox.waitForMessage(
+    applicantId,
+    (candidate) => {
+      const content = [candidate.subject ?? "", candidate.text ?? "", candidate.html ?? ""].join("\n");
+      return /verification|verify|one[- ]?time|otp|6-digit|pre-arrival/i.test(content)
+        && extractSixDigitCode(candidate) !== null;
+    },
+    timeoutMs,
+    { since: requestedAfter, pollIntervalMs: 3_000, includeProcessed: true, markProcessed: false },
+  );
+  const code = extractSixDigitCode(message);
+  if (!code || !(await fillEmailVerificationCode(page, code))) {
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival email verification code was received but could not be entered on the official portal.",
+      "vn_prearrival_otp_fill_failed",
+      "The official email code arrived, but the verification dialog could not be completed.",
+      screenshots,
+      logs,
+    );
+  }
+
+  logs.push("vn_prearrival_otp_verified");
+  await page.waitForTimeout(1_000);
+  if (await isEmailVerificationVisible(page)) {
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival email verification dialog remained open after verification.",
+      "vn_prearrival_otp_rejected",
+      "The official portal did not accept the email verification code.",
+      screenshots,
+      logs,
+    );
+  }
+}
+
+async function openOfficialReviewPage(
+  page: Page,
+  screenshots: string[],
+  logs: string[],
+  tempDir: string,
+): Promise<void> {
+  const reviewClicked = await clickOfficialButton(page, "Review & Submit")
+    || await clickOfficialButton(page, "Review and Submit");
+  if (!reviewClicked) {
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival Review & Submit control was not found.",
+      "vn_prearrival_review_control_not_found",
+      "The official trip form was filled, but VIZA could not open the official review page.",
+      screenshots,
+      logs,
+    );
+  }
+  logs.push("vn_prearrival_review_opened");
+  const finalDeclaration = page.getByText(/^i confirm that the information is correct\.?$/i);
+  try {
+    await finalDeclaration.waitFor({ state: "visible", timeout: 15_000 });
+  } catch {
+    const blockedScreenshot = await saveScreenshot(page, tempDir, "review-not-reached", logs);
+    if (blockedScreenshot) screenshots.push(blockedScreenshot);
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival did not enter the official review page after Review & Submit was clicked.",
+      "vn_prearrival_review_page_not_reached",
+      "The official trip form rejected or did not finish its transition to the review page.",
+      screenshots,
+      logs,
+    );
+  }
+  const reviewScreenshot = await saveScreenshot(page, tempDir, "review", logs);
+  if (reviewScreenshot) screenshots.push(reviewScreenshot);
+}
+
+async function completeOfficialSubmissionFromReview(
+  page: Page,
+  applicantId: string | undefined,
+  screenshots: string[],
+  logs: string[],
+  tempDir: string,
+): Promise<void> {
+  const confirmed = await clickFirstVisible(page, [
+    /^i confirm that the information is correct\.?$/i,
+    /^tôi xác nhận.*chính xác/i,
+  ]);
+  if (!confirmed) {
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival final declaration checkbox was not found on the review page.",
+      "vn_prearrival_final_declaration_not_found",
+      "The official review page loaded, but its required final declaration could not be confirmed.",
+      screenshots,
+      logs,
+    );
+  }
+
+  const otpRequestedAfter = new Date(Date.now() - 5_000).toISOString();
+  if (!(await clickOfficialButton(page, "Submit"))) {
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival final Submit control was not found on the review page.",
+      "vn_prearrival_submit_control_not_found",
+      "The official review page was confirmed, but its final Submit control was unavailable.",
+      screenshots,
+      logs,
+    );
+  }
+  logs.push("vn_prearrival_final_submit_clicked");
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    await page.waitForTimeout(750);
+    await handleEmailVerification(page, applicantId, otpRequestedAfter, screenshots, logs, tempDir);
+    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+    if (/your submission is successful|submission is successful|acknowledgement message/i.test(bodyText)) {
+      logs.push("vn_prearrival_official_success_visible");
+      return;
+    }
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  }
+}
+
 async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
   const qrLocator = page.locator("canvas, img[alt*='QR' i], img[src*='qr' i]").first();
   if (!(await qrLocator.isVisible().catch(() => false))) return null;
@@ -385,16 +647,19 @@ async function waitForTripForm(page: Page): Promise<boolean> {
   return false;
 }
 
-async function waitForAirBorderGate(page: Page): Promise<boolean> {
-  const borderGate = page.locator("input[name='borderGate']");
+async function waitForAirBorderGate(page: Page, expectedAirport: string): Promise<boolean> {
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    const ready = await borderGate
-      .evaluate((input) => {
-        const field = input as HTMLInputElement;
-        return !field.disabled && Boolean(field.value.trim());
-      })
-      .catch(() => false);
-    if (ready) return true;
+    const labelled = page.getByLabel(/border gate|port of entry/i).first();
+    const labelledValue = await labelled.inputValue().catch(() => "");
+    if (labelledValue.trim() && labelledValue.toUpperCase().includes(expectedAirport.toUpperCase())) return true;
+
+    const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    if (
+      /border gate|port of entry/i.test(bodyText)
+      && bodyText.toUpperCase().includes(expectedAirport.toUpperCase())
+    ) return true;
+    const gateLine = bodyText.match(/Border Gate[^\n]*\n([^\n]+)/i)?.[1] ?? "";
+    if (gateLine.toUpperCase().includes(expectedAirport.toUpperCase())) return true;
     await page.waitForTimeout(1_000);
   }
   return false;
@@ -405,6 +670,7 @@ export async function runVietnamPrearrivalPortalSubmission(
   options: {
     headless?: boolean;
     stopBeforeSubmit?: boolean;
+    applicantId?: string;
   } = {},
 ): Promise<VnPrearrivalPortalSubmissionResult> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-vn-prearrival-${payload.applicationId}-`));
@@ -492,14 +758,19 @@ export async function runVietnamPrearrivalPortalSubmission(
       missingControls.push("visa_expiry_date");
     }
 
-    const passengerSelectTasks: Array<[RegExp[], string, string]> = [
+    const passengerSelectTasks: Array<[RegExp[], string, string, string?]> = [
       [[/passport type/i], payload.passportType, "passport_type"],
-      [[/visa type|purpose/i], payload.visaType, "visa_type"],
-      [[/issued place/i], payload.visaIssuedPlace ?? "", "visa_issued_place"],
+      [[/visa type\s*\/\s*purpose/i], payload.visaType, "visa_type", "Electronic Visa"],
+      [
+        [/issued place/i],
+        payload.visaIssuedPlace ? officialCatalogLabel("visa_issue_place", payload.visaIssuedPlace) : "",
+        "visa_issued_place",
+        "Vietnam Immigration Department",
+      ],
     ];
-    for (const [labels, value, field] of passengerSelectTasks) {
+    for (const [labels, value, field, searchValue] of passengerSelectTasks) {
       if (!value) continue;
-      if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+      if (!(await selectNearLabel(page, labels, value, searchValue ?? value))) missingControls.push(field);
     }
 
     if (!(await selectOfficialRadio(page, payload.gender))) missingControls.push("gender");
@@ -525,12 +796,14 @@ export async function runVietnamPrearrivalPortalSubmission(
       missingControls.push("purpose_of_travel");
     }
 
+    let verifyAirBorderGate = false;
     if (payload.modeOfTravel === "air") {
-      if (!(await selectNearLabel(page, [/flight number/i, /chuyến bay/i], payload.flightNumber ?? ""))) {
+      const flightLabel = officialCatalogLabel("flight", payload.flightNumber ?? "");
+      const flightSearchValue = (payload.flightNumber ?? "").replace(/_([A-Z]{3})$/i, "");
+      logs.push(`vn_prearrival_option_resolved field=flight_number value=${flightLabel}`);
+      if (!(await selectNearLabel(page, [/flight number/i, /chuyến bay/i], flightLabel, flightSearchValue))) {
         missingControls.push("flight_number");
-      } else if (!(await waitForAirBorderGate(page))) {
-        missingControls.push("border_gate_airport_autofill");
-      }
+      } else verifyAirBorderGate = true;
     } else {
       if (!(await fillNearLabel(page, [/vehicle identification number/i], payload.vehicleIdentificationNumber ?? ""))) {
         missingControls.push("vehicle_identification_number");
@@ -543,10 +816,16 @@ export async function runVietnamPrearrivalPortalSubmission(
 
     if (!(await selectOfficialRadio(page, payload.accommodationType))) missingControls.push("accommodation_type");
     if (payload.accommodationType === "hotel") {
+      const provinceLabel = officialCatalogLabel("province", payload.provinceCityOfHotel);
+      const wardLabel = officialCatalogLabel("ward", payload.wardCommuneOfHotel, payload.provinceCityOfHotel);
+      const accommodationLabel = officialCatalogLabel("hotel", payload.accommodationAddress);
+      logs.push(`vn_prearrival_option_resolved field=province_city_of_hotel value=${provinceLabel}`);
+      logs.push(`vn_prearrival_option_resolved field=ward_commune_of_hotel value=${wardLabel}`);
+      logs.push(`vn_prearrival_option_resolved field=accommodation_address value=${accommodationLabel}`);
       const hotelSelectTasks: Array<[RegExp[], string, string]> = [
-        [[/province.*city/i], payload.provinceCityOfHotel, "province_city_of_hotel"],
-        [[/ward.*commune/i], payload.wardCommuneOfHotel, "ward_commune_of_hotel"],
-        [[/accommodation address/i, /địa chỉ/i], payload.accommodationAddress, "accommodation_address"],
+        [[/province.*city/i], provinceLabel, "province_city_of_hotel"],
+        [[/ward.*commune/i], wardLabel, "ward_commune_of_hotel"],
+        [[/accommodation address/i, /địa chỉ/i], accommodationLabel, "accommodation_address"],
       ];
       for (const [labels, value, field] of hotelSelectTasks) {
         if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
@@ -556,6 +835,25 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
     if (payload.workplaceInformation && !(await fillNearLabel(page, [/workplace information/i], payload.workplaceInformation))) {
       missingControls.push("workplace_information");
+    }
+    if (
+      payload.departureDateFromVietnam
+      && !(await fillNearLabel(
+        page,
+        [/expected date of departure from vietnam/i, /date of departure from vietnam/i],
+        officialDate(payload.departureDateFromVietnam),
+      ))
+    ) {
+      missingControls.push("departure_date_from_vietnam");
+    }
+    if (
+      verifyAirBorderGate
+      && !(await waitForAirBorderGate(page, payload.borderGateAirport ?? ""))
+    ) {
+      // The current portal renders this locked value outside a stable input
+      // node. Let its own Review & Submit validation prove the dependency was
+      // accepted instead of rejecting a visibly populated airport field.
+      logs.push("vn_prearrival_airport_autofill_dom_value_not_observed");
     }
 
     const fillScreenshot = await saveScreenshot(page, tempDir, "after-fill-attempt", logs);
@@ -570,35 +868,21 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
+    await openOfficialReviewPage(page, screenshots, logs, tempDir);
     if (options.stopBeforeSubmit) {
       return {
         submitted: false,
         confirmationNumber: null,
         referenceNumber: null,
         portalUrl: page.url(),
-        portalResponseSummary: "Vietnam Pre-Arrival form was filled in stop-before-submit mode; no official submission was made.",
+        portalResponseSummary: "Vietnam Pre-Arrival official review page was reached in stop-before-submit mode; no official submission was made.",
         screenshots,
         pdfs: [],
         logs,
       };
     }
 
-    const submitted = await clickFirstVisible(page, [/submit/i, /gửi/i, /hoàn thành/i]);
-    if (!submitted) {
-      throw new VnPrearrivalPortalError(
-        "Vietnam Pre-Arrival submit control was not found.",
-        "vn_prearrival_submit_control_not_found",
-        "The official portal form was filled, but no exact submit control was found. No submission was attempted.",
-        screenshots,
-        logs,
-      );
-    }
-
-    // The official portal can defer its image CAPTCHA until the user presses
-    // Submit. Treat this exactly like the entry CAPTCHA before checking for a
-    // confirmation so a solved final challenge can continue to the result page.
-    await page.waitForTimeout(750);
-    await handleCaptchaGate(page, screenshots, logs, tempDir);
+    await completeOfficialSubmissionFromReview(page, options.applicantId, screenshots, logs, tempDir);
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
     const submitScreenshot = await saveScreenshot(page, tempDir, "after-submit", logs);
     if (submitScreenshot) screenshots.push(submitScreenshot);

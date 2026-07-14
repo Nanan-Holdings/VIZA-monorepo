@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
 import {
   evaluateSgacSubmissionWindow,
@@ -1214,7 +1215,7 @@ async function decidePhEtravelLiveSchedule(input: {
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -1222,22 +1223,26 @@ export async function POST(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const legacySession = await getClientSessionFromRequest(request);
+  let authUserId: string | null = null;
+  if (!legacySession) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+  }
+  if (!legacySession && !authUserId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = createAdminClient();
-  const { data: profile, error: profileError } = await admin
+  const profileQuery = admin
     .from("applicant_profiles")
-    .select(
-      "id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address",
-    )
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address");
+  const { data: profile, error: profileError } = legacySession
+    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
+    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });

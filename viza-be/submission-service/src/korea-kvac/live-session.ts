@@ -91,9 +91,18 @@ interface KoreaKvacLiveSession {
   screenshotPath: string | null;
 }
 
+interface KoreaKvacCancelSession {
+  browser: Browser;
+  page: Page;
+  applicantName: string;
+  mobilePhone: string;
+  expiresAt: number;
+  screenshotPath: string | null;
+}
+
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const sessions = new Map<string, KoreaKvacLiveSession>();
-const cancelSessions = new Map<string, { browser: Browser; page: Page; expiresAt: number; screenshotPath: string | null }>();
+const cancelSessions = new Map<string, KoreaKvacCancelSession>();
 const VISAFORKOREA_CENTER_CONFIG: Record<string, { hostPattern: RegExp; location: string; label: string }> = {
   beijing: {
     hostPattern: /visaforkorea-bj\.com/i,
@@ -478,6 +487,31 @@ function hasOfficialCancellationSuccessEvidence(text: string) {
   );
 }
 
+function hasOfficialNoAppointmentRecordEvidence(text: string) {
+  return /查询明细不存在|预约(?:记录|明细)?.{0,12}不存在|没有(?:预约|查询).*记录|(?:appointment|booking|reservation).{0,24}(?:not found|does not exist|no record)|예약.{0,24}(?:없습니다|존재하지)/i.test(
+    text,
+  );
+}
+
+async function verifyOfficialCancellationByFreshQuery(session: KoreaKvacCancelSession) {
+  const { page } = session;
+  const nameVisible = await page.locator("#booker_nm").isVisible().catch(() => false);
+  const phoneVisible = await page.locator("#booker_phone").isVisible().catch(() => false);
+  if (!nameVisible || !phoneVisible) return { verified: false, bodyText: "" };
+
+  await page.locator("#booker_nm").fill(session.applicantName, { timeout: 20_000 });
+  await page.locator("#booker_phone").fill(session.mobilePhone, { timeout: 20_000 });
+  await page.locator("button[type='submit'], input[type='submit']").first().click({ timeout: 20_000 });
+  await page.waitForTimeout(5_000);
+
+  const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  const cancelButtonStillVisible = Boolean(await findOfficialCancelButton(page));
+  return {
+    verified: !cancelButtonStillVisible && hasOfficialNoAppointmentRecordEvidence(bodyText),
+    bodyText,
+  };
+}
+
 export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsInput): Promise<KoreaKvacStartSmsResult> {
   console.log(`[korea-kvac] start official SMS session job=${input.jobId} center=${input.centerCode}`);
   cleanupExpired();
@@ -721,6 +755,8 @@ export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQu
     cancelSessions.set(input.jobId, {
       browser,
       page,
+      applicantName,
+      mobilePhone: phone,
       expiresAt: nowMs() + SESSION_TTL_MS,
       screenshotPath,
     });
@@ -776,9 +812,14 @@ export async function confirmKoreaKvacOfficialCancellation(input: { jobId: strin
     }
   }
 
-  const succeeded =
+  let succeeded =
     !cancellationButtonStillVisible &&
     (hasOfficialCancellationSuccessEvidence(bodyText) || dialogs.some(hasOfficialCancellationSuccessEvidence));
+  if (!succeeded) {
+    const verification = await verifyOfficialCancellationByFreshQuery(session);
+    if (verification.bodyText) bodyText = verification.bodyText;
+    succeeded = verification.verified;
+  }
   const screenshotPath = await screenshot(session.page, input.jobId, succeeded ? "cancelled" : "cancel-unverified");
   await cleanupCancelSession(input.jobId);
 

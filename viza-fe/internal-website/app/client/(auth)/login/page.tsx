@@ -16,6 +16,17 @@ import { useLocale, useTranslations } from 'next-intl'
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
+const AUTH_REQUEST_TIMEOUT_MS = 12_000
+
+function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error('auth_request_timeout')), AUTH_REQUEST_TIMEOUT_MS)
+    }),
+  ])
+}
+
 function getLocalizedAuthError(message: string | undefined, t: ReturnType<typeof useTranslations>) {
   const normalized = message?.toLowerCase() ?? ''
   if (
@@ -149,7 +160,7 @@ function ClientLoginContent() {
     const supabase = createClient()
     const emailLocale = normalizeAuthEmailLocale(locale)
     await prepareAuthEmailLocale(targetEmail, emailLocale)
-    const { error: authError } = await supabase.auth.signInWithOtp({
+    const { error: authError } = await withAuthTimeout(supabase.auth.signInWithOtp({
       email: targetEmail.toLowerCase().trim(),
       options: {
         shouldCreateUser: false,
@@ -160,7 +171,7 @@ function ClientLoginContent() {
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
-    })
+    }))
     if (authError) {
       setError(authError.message.includes('User not found')
         ? t('noAccountFound')
@@ -174,7 +185,7 @@ function ClientLoginContent() {
     setIsSubmitting(true)
     setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.verifyOtp({ email: email.toLowerCase().trim(), token: otpCode, type: 'email' })
+    const { error } = await withAuthTimeout(supabase.auth.verifyOtp({ email: email.toLowerCase().trim(), token: otpCode, type: 'email' }))
     if (error) { setError(error.message); setIsSubmitting(false); return }
     window.location.href = '/client/home'
   }
@@ -185,7 +196,7 @@ function ClientLoginContent() {
     setNotice(null)
     setIsSubmitting(true)
     try {
-      const result = await validateUserEmail(email)
+      const result = await withAuthTimeout(validateUserEmail(email))
       if (!result.success) { setError(result.error ?? t('noAccountWithEmail')); setIsSubmitting(false); return }
       const ok = await sendOtp(email)
       setIsSubmitting(false)
@@ -203,13 +214,13 @@ function ClientLoginContent() {
     setNotice(null)
     setIsSubmitting(true)
     try {
-      const result = await validateUserEmail(email)
+      const result = await withAuthTimeout(validateUserEmail(email))
       if (!result.success) { setError(result.error ?? t('noAccountWithEmail')); setIsSubmitting(false); return }
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await withAuthTimeout(supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password,
-      })
+      }))
       if (authError) {
         setError(getLocalizedAuthError(authError.message, t))
         setIsSubmitting(false)
