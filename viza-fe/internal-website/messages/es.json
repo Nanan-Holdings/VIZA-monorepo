@@ -3103,6 +3103,7 @@
       "authFailed": "[ES] Authentication failed. Please try again.",
       "invalidCredentials": "[ES] Email or password is incorrect. Please try again.",
       "tooManyRequests": "[ES] Too many attempts. Please try again later.",
+      "requestTimedOut": "[ES] The sign-in service is taking longer than expected. Please try again.",
       "unexpectedError": "[ES] An unexpected error occurred. Please try again.",
       "failedToResend": "[ES] Failed to resend code.",
       "checkEmail": "[ES] Check your email",

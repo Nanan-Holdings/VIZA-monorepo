@@ -6,25 +6,40 @@ import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback, Suspense, type FormEvent } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { prepareAuthEmailLocale, validateUserEmail } from '@/app/actions/client-auth'
 import createGlobe from 'cobe'
 import { AuthLanguageSwitcher } from '@/components/client/auth-language-switcher'
-import { normalizeAuthEmailLocale } from '@/lib/i18n/locale'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
-const AUTH_REQUEST_TIMEOUT_MS = 12_000
+const AUTH_REQUEST_TIMEOUT_MS = 30_000
+
+class AuthRequestTimeoutError extends Error {
+  constructor() {
+    super('auth_request_timeout')
+    this.name = 'AuthRequestTimeoutError'
+  }
+}
 
 function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      window.setTimeout(() => reject(new Error('auth_request_timeout')), AUTH_REQUEST_TIMEOUT_MS)
-    }),
-  ])
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new AuthRequestTimeoutError()), AUTH_REQUEST_TIMEOUT_MS)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout)
+        resolve(value)
+      },
+      (error: unknown) => {
+        window.clearTimeout(timeout)
+        reject(error)
+      },
+    )
+  })
+}
+
+function getAuthRequestFailureMessage(error: unknown, t: ReturnType<typeof useTranslations>) {
+  return error instanceof AuthRequestTimeoutError ? t('requestTimedOut') : t('unexpectedError')
 }
 
 function getLocalizedAuthError(message: string | undefined, t: ReturnType<typeof useTranslations>) {
@@ -42,10 +57,32 @@ function getLocalizedAuthError(message: string | undefined, t: ReturnType<typeof
   return message || t('authFailed')
 }
 
+type ClientAuthOperation = 'password' | 'send_otp' | 'verify_otp'
+
+async function requestClientAuth(
+  operation: ClientAuthOperation,
+  fields: { email: string; password?: string; token?: string },
+): Promise<{ success: boolean; error?: string }> {
+  const response = await fetch('/api/client/auth', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ operation, ...fields }),
+  })
+  const payload: unknown = await response.json().catch(() => null)
+  if (!payload || typeof payload !== 'object') {
+    return { success: false, error: 'Authentication service returned an invalid response' }
+  }
+  const result = payload as { success?: unknown; error?: unknown }
+  return {
+    success: result.success === true,
+    error: typeof result.error === 'string' ? result.error : undefined,
+  }
+}
+
 function ClientLoginContent() {
   const t = useTranslations('auth.login')
   const tp = useTranslations('auth.polaroids')
-  const locale = useLocale()
   const searchParams = useSearchParams()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointerRef = useRef({ dragging: false, startX: 0, startY: 0, phiStart: 0, thetaStart: 0 })
@@ -157,25 +194,11 @@ function ClientLoginContent() {
   }, [resendCooldown])
 
   const sendOtp = async (targetEmail: string): Promise<boolean> => {
-    const supabase = createClient()
-    const emailLocale = normalizeAuthEmailLocale(locale)
-    await prepareAuthEmailLocale(targetEmail, emailLocale)
-    const { error: authError } = await withAuthTimeout(supabase.auth.signInWithOtp({
-      email: targetEmail.toLowerCase().trim(),
-      options: {
-        shouldCreateUser: false,
-        data: {
-          locale: emailLocale,
-          language: emailLocale,
-          preferred_language: emailLocale,
-        },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    }))
-    if (authError) {
-      setError(authError.message.includes('User not found')
+    const result = await withAuthTimeout(requestClientAuth('send_otp', { email: targetEmail }))
+    if (!result.success) {
+      setError(result.error?.includes('User not found')
         ? t('noAccountFound')
-        : authError.message || t('failedToSendCode'))
+        : result.error || t('failedToSendCode'))
       return false
     }
     return true
@@ -184,10 +207,18 @@ function ClientLoginContent() {
   const verifyOtp = async (otpCode: string) => {
     setIsSubmitting(true)
     setError(null)
-    const supabase = createClient()
-    const { error } = await withAuthTimeout(supabase.auth.verifyOtp({ email: email.toLowerCase().trim(), token: otpCode, type: 'email' }))
-    if (error) { setError(error.message); setIsSubmitting(false); return }
-    window.location.href = '/client/home'
+    try {
+      const result = await withAuthTimeout(requestClientAuth('verify_otp', { email, token: otpCode }))
+      if (!result.success) {
+        setError(getLocalizedAuthError(result.error, t))
+        setIsSubmitting(false)
+        return
+      }
+      window.location.href = '/client/home'
+    } catch (err) {
+      setIsSubmitting(false)
+      setError(getAuthRequestFailureMessage(err, t))
+    }
   }
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -196,15 +227,12 @@ function ClientLoginContent() {
     setNotice(null)
     setIsSubmitting(true)
     try {
-      const result = await withAuthTimeout(validateUserEmail(email))
-      if (!result.success) { setError(result.error ?? t('noAccountWithEmail')); setIsSubmitting(false); return }
       const ok = await sendOtp(email)
       setIsSubmitting(false)
       if (ok) { setStep('otp'); setResendCooldown(60) }
     } catch (err) {
       setIsSubmitting(false)
-      setError(t('unexpectedError'))
-      console.error(err)
+      setError(getAuthRequestFailureMessage(err, t))
     }
   }
 
@@ -214,23 +242,16 @@ function ClientLoginContent() {
     setNotice(null)
     setIsSubmitting(true)
     try {
-      const result = await withAuthTimeout(validateUserEmail(email))
-      if (!result.success) { setError(result.error ?? t('noAccountWithEmail')); setIsSubmitting(false); return }
-      const supabase = createClient()
-      const { error: authError } = await withAuthTimeout(supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password,
-      }))
-      if (authError) {
-        setError(getLocalizedAuthError(authError.message, t))
+      const result = await withAuthTimeout(requestClientAuth('password', { email, password }))
+      if (!result.success) {
+        setError(getLocalizedAuthError(result.error, t))
         setIsSubmitting(false)
         return
       }
       window.location.href = '/client/home'
     } catch (err) {
       setIsSubmitting(false)
-      setError(t('unexpectedError'))
-      console.error(err)
+      setError(getAuthRequestFailureMessage(err, t))
     }
   }
 
@@ -244,8 +265,7 @@ function ClientLoginContent() {
       if (ok) setResendCooldown(60)
     } catch (err) {
       setIsSubmitting(false)
-      setError(t('failedToResend'))
-      console.error(err)
+      setError(err instanceof AuthRequestTimeoutError ? t('requestTimedOut') : t('failedToResend'))
     }
   }
 
