@@ -155,6 +155,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const cancellationIntent = cancellationAction?.metadata_redacted_json?.intent === "reschedule" ? "reschedule" : "cancel";
   const cancellationReady = cancellationAction?.action_type === "official_cancel_confirmation_required";
   const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
+  const changeOperation = busy === "request-reschedule" ? "reschedule" : busy === "request-cancel" ? "cancel" : null;
   const savedAppointment = snapshot?.appointmentHistory.find((record) => (
     Boolean(record.confirmation_number)
       && record.raw_confirmation_redacted_json?.mode !== "dry_run"
@@ -228,6 +229,25 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           <AlertTitle>{isZh ? "当前操作未完成" : "The operation did not complete"}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
+      ) : null}
+
+      {changeOperation ? (
+        <Card className="rounded-[8px] border-brand-200 bg-brand-50/40" role="status" aria-live="polite">
+          <CardContent className="space-y-4 p-5">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+              <div>
+                <div className="font-medium text-foreground">{isZh ? "正在连接官方预约中心" : "Connecting to the official appointment center"}</div>
+                <p className="mt-1 text-sm text-muted-foreground">{isZh ? (changeOperation === "reschedule" ? "正在查询原预约。找到记录后，仍会请你确认取消，再开始改约。" : "正在查询原预约。找到记录后，仍会请你确认取消。") : (changeOperation === "reschedule" ? "Checking the current booking. You will still confirm its cancellation before rescheduling." : "Checking the current booking. You will still confirm cancellation before anything is cancelled.")}</p>
+              </div>
+            </div>
+            <ol className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+              <li className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-brand-600" />{isZh ? "查询官方预约" : "Query official booking"}</li>
+              <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "等待你的最终确认" : "Wait for your final confirmation"}</li>
+              {changeOperation === "reschedule" ? <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "发送新验证码并选择时间" : "Send a new code and choose a slot"}</li> : <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "保存官方取消证据" : "Save official cancellation evidence"}</li>}
+            </ol>
+          </CardContent>
+        </Card>
       ) : null}
 
       {stage === "loading" ? (

@@ -2,7 +2,7 @@ const NON_TRANSLATABLE_FIELD_PATTERNS = [
   /(?:^|_)(passport|document|confirmation|application)_?(?:no|num|number|id|code)(?:_|$)/i,
   /(?:^|_)(date|dob|expiry|expiration|issued_at|issue_date)(?:_|$)/i,
   /(?:^|_)(email|phone|telephone|mobile|wechat|url)(?:_|$)/i,
-  /(?:^|_)(country_code|iso|iata|icao|currency|amount|price|fee)(?:_|$)/i,
+  /(?:^|_)(postal|postcode|zip|country_code|iso|iata|icao|currency|amount|price|fee)(?:_|$)/i,
   /(?:^|_)(payment|security)_?(?:answer|reference|ref|id)?(?:_|$)/i,
   /(?:^|_)(file|filename|file_name|upload)(?:_|$)/i,
   /(?:^|_)(surname|surnames|given_names?|family_name|first_name|last_name|middle_name|full_name|native_full_name)(?:_|$)/i,
