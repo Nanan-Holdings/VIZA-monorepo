@@ -102,7 +102,15 @@ function officialOptionValue(value: string): string {
     work: "Work",
     transit: "Transit",
   };
-  return officialValues[value] ?? value;
+  return officialValues[value] ?? value.replace(/^([A-Z0-9]+)_([A-Z]{3})$/i, "$1 - $2");
+}
+
+function caseInsensitiveExactText(value: string): RegExp {
+  return new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+}
+
+function normalizedOptionText(value: string): string {
+  return value.replace(/\s+/g, "").toLocaleLowerCase();
 }
 
 async function fillLabeledInputAt(page: Page, label: RegExp, index: number, value: string): Promise<boolean> {
@@ -120,22 +128,82 @@ function officialDate(value: string): string {
   return isoDate ? `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}` : value;
 }
 
+async function selectExpectedArrivalDate(page: Page, value: string): Promise<boolean> {
+  const officialValue = officialDate(value);
+  const radio = page.getByRole("radio", { name: officialValue, exact: true }).first();
+  if (await radio.isVisible().catch(() => false)) {
+    await radio.check();
+    return true;
+  }
+  const dateChoice = page.getByText(officialValue, { exact: true }).first();
+  if (!(await dateChoice.isVisible().catch(() => false))) return false;
+  await dateChoice.click();
+  return true;
+}
+
 async function selectNearLabel(page: Page, labels: RegExp[], value: string): Promise<boolean> {
   const officialValue = officialOptionValue(value);
+  const chooseAutocompleteOption = async (control: ReturnType<Page["getByLabel"]>): Promise<void> => {
+    await control.click();
+    // Official Material UI controls only render the matching option after text
+    // is entered. Opening the menu alone leaves large lists (countries,
+    // flights, hotels, consular posts) unfiltered and can time out.
+    const tagName = await control.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
+    if (tagName === "input" || tagName === "textarea") {
+      await control.fill(officialValue);
+    }
+    // The official site is built with Material UI. Its remote autocomplete
+    // choices are listbox options, not stable text nodes, so wait for and
+    // select the actual accessible option first.
+    const roleOption = page.getByRole("option", { name: caseInsensitiveExactText(officialValue) }).first();
+    try {
+      await roleOption.click({ timeout: 15_000 });
+      return;
+    } catch {
+      const options = page.getByRole("option");
+      const count = await options.count().catch(() => 0);
+      const expected = normalizedOptionText(officialValue);
+      for (let index = 0; index < count; index += 1) {
+        const option = options.nth(index);
+        const text = await option.textContent().catch(() => "");
+        if (text && normalizedOptionText(text) === expected) {
+          await option.click({ timeout: 5_000 });
+          return;
+        }
+      }
+    }
+    const exactOption = page.getByText(officialValue, { exact: true });
+    try {
+      await exactOption.click({ timeout: 15_000 });
+      return;
+    } catch {
+      // The official country data has minor title-case variations (for example
+      // "And" versus "and"). Keep the displayed official text as the source
+      // of truth while matching that harmless casing variation.
+      await page.getByText(caseInsensitiveExactText(officialValue)).click({ timeout: 15_000 });
+    }
+  };
   for (const label of labels) {
     const byLabel = page.getByLabel(label).first();
     if (await byLabel.isVisible().catch(() => false)) {
-      await byLabel.click();
-      await page.getByText(officialValue, { exact: true }).click({ timeout: 5_000 });
-      return true;
+      try {
+        await chooseAutocompleteOption(byLabel);
+        return true;
+      } catch {
+        // Continue so the caller can save an official-page diagnostic rather
+        // than aborting before the after-fill screenshot is captured.
+      }
     }
     const labelText = page.getByText(label).first();
     if (await labelText.isVisible().catch(() => false)) {
       const control = labelText.locator("xpath=following::*[@role='combobox' or self::select][1]").first();
       if (await control.isVisible().catch(() => false)) {
-        await control.click();
-        await page.getByText(officialValue, { exact: true }).click({ timeout: 5_000 });
-        return true;
+        try {
+          await chooseAutocompleteOption(control);
+          return true;
+        } catch {
+          // See the by-label path above.
+        }
       }
     }
   }
@@ -317,6 +385,21 @@ async function waitForTripForm(page: Page): Promise<boolean> {
   return false;
 }
 
+async function waitForAirBorderGate(page: Page): Promise<boolean> {
+  const borderGate = page.locator("input[name='borderGate']");
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const ready = await borderGate
+      .evaluate((input) => {
+        const field = input as HTMLInputElement;
+        return !field.disabled && Boolean(field.value.trim());
+      })
+      .catch(() => false);
+    if (ready) return true;
+    await page.waitForTimeout(1_000);
+  }
+  return false;
+}
+
 export async function runVietnamPrearrivalPortalSubmission(
   payload: VnPrearrivalPortalPayload,
   options: {
@@ -382,6 +465,9 @@ export async function runVietnamPrearrivalPortalSubmission(
     }
 
     const missingControls: string[] = [];
+    if (!(await selectExpectedArrivalDate(page, payload.expectedArrivalDate))) {
+      missingControls.push("expected_arrival_date");
+    }
     const passengerFillTasks: Array<[RegExp[], string, string]> = [
       [[/passport number/i, /số hộ chiếu/i], payload.passportNumber, "passport_number"],
       [[/surname/i], payload.surname ?? "", "surname"],
@@ -428,29 +514,48 @@ export async function runVietnamPrearrivalPortalSubmission(
       missingControls.push("trip_information_form_not_ready");
     }
 
-    const tripFillTasks: Array<[RegExp[], string, string]> = [
-      [[/departure country before arrival/i], payload.departureCountryBeforeArrival, "departure_country_before_arrival"],
-      [[/flight number/i, /chuyến bay/i], payload.flightNumber ?? "", "flight_number"],
-      [[/vehicle identification number/i], payload.vehicleIdentificationNumber ?? "", "vehicle_identification_number"],
-      [[/accommodation address/i, /địa chỉ/i], payload.accommodationAddress, "accommodation_address"],
-      [[/workplace information/i], payload.workplaceInformation ?? "", "workplace_information"],
-    ];
-    for (const [labels, value, field] of tripFillTasks) {
-      if (!value && (field === "workplace_information" || field === "vehicle_identification_number")) continue;
-      if (!(await fillNearLabel(page, labels, value))) missingControls.push(field);
+    // These controls are dependent in the official UI. In particular, an air
+    // border gate is read-only and only becomes populated after a flight option
+    // is selected from the official autocomplete list.
+    if (!(await selectOfficialRadio(page, payload.modeOfTravel))) missingControls.push("mode_of_travel");
+    if (!(await selectNearLabel(page, [/departure country before arrival/i], payload.departureCountryBeforeArrival))) {
+      missingControls.push("departure_country_before_arrival");
     }
-    const tripSelectTasks: Array<[RegExp[], string, string]> = [
-      [[/purpose of travel/i, /mục đích/i], payload.purposeOfTravel, "purpose_of_travel"],
-      [[/border gate|port of entry/i, /cửa khẩu/i], payload.borderGateAirport ?? payload.landBorderGate ?? payload.seaPort ?? "", "border_gate"],
-      [[/province.*city/i], payload.provinceCityOfHotel, "province_city_of_hotel"],
-      [[/ward.*commune/i], payload.wardCommuneOfHotel, "ward_commune_of_hotel"],
-    ];
-    for (const [labels, value, field] of tripSelectTasks) {
-      if (!value) continue;
-      if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+    if (!(await selectNearLabel(page, [/purpose of travel/i, /mục đích/i], payload.purposeOfTravel))) {
+      missingControls.push("purpose_of_travel");
     }
-    for (const [value, field] of [[payload.modeOfTravel, "mode_of_travel"], [payload.accommodationType, "accommodation_type"]] as const) {
-      if (!(await selectOfficialRadio(page, value))) missingControls.push(field);
+
+    if (payload.modeOfTravel === "air") {
+      if (!(await selectNearLabel(page, [/flight number/i, /chuyến bay/i], payload.flightNumber ?? ""))) {
+        missingControls.push("flight_number");
+      } else if (!(await waitForAirBorderGate(page))) {
+        missingControls.push("border_gate_airport_autofill");
+      }
+    } else {
+      if (!(await fillNearLabel(page, [/vehicle identification number/i], payload.vehicleIdentificationNumber ?? ""))) {
+        missingControls.push("vehicle_identification_number");
+      }
+      const borderGate = payload.landBorderGate ?? payload.seaPort ?? "";
+      if (!(await selectNearLabel(page, [/border gate|port of entry/i, /cửa khẩu/i], borderGate))) {
+        missingControls.push("border_gate");
+      }
+    }
+
+    if (!(await selectOfficialRadio(page, payload.accommodationType))) missingControls.push("accommodation_type");
+    if (payload.accommodationType === "hotel") {
+      const hotelSelectTasks: Array<[RegExp[], string, string]> = [
+        [[/province.*city/i], payload.provinceCityOfHotel, "province_city_of_hotel"],
+        [[/ward.*commune/i], payload.wardCommuneOfHotel, "ward_commune_of_hotel"],
+        [[/accommodation address/i, /địa chỉ/i], payload.accommodationAddress, "accommodation_address"],
+      ];
+      for (const [labels, value, field] of hotelSelectTasks) {
+        if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+      }
+    } else if (!(await fillNearLabel(page, [/accommodation address/i, /địa chỉ/i], payload.accommodationAddress))) {
+      missingControls.push("accommodation_address");
+    }
+    if (payload.workplaceInformation && !(await fillNearLabel(page, [/workplace information/i], payload.workplaceInformation))) {
+      missingControls.push("workplace_information");
     }
 
     const fillScreenshot = await saveScreenshot(page, tempDir, "after-fill-attempt", logs);
@@ -489,6 +594,11 @@ export async function runVietnamPrearrivalPortalSubmission(
       );
     }
 
+    // The official portal can defer its image CAPTCHA until the user presses
+    // Submit. Treat this exactly like the entry CAPTCHA before checking for a
+    // confirmation so a solved final challenge can continue to the result page.
+    await page.waitForTimeout(750);
+    await handleCaptchaGate(page, screenshots, logs, tempDir);
     await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
     const submitScreenshot = await saveScreenshot(page, tempDir, "after-submit", logs);
     if (submitScreenshot) screenshots.push(submitScreenshot);

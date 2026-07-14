@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -68,6 +68,7 @@ interface Snapshot {
     metadata_redacted_json?: Record<string, unknown> | null;
   } | null;
   changeIntent: "reschedule" | null;
+  cancellationRefreshRequired?: boolean;
   slots: Array<{
     id: string;
     appointment_date: string | null;
@@ -152,6 +153,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const rescheduleSmsStartRef = useRef(false);
 
   const center = snapshot?.routing.recommended;
   const activeCenterCode = selectedCenterCode ?? center?.code;
@@ -168,6 +170,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const isSmsCenter = center?.liveBookingMode === "sms_sync_supported";
   const changeOperation = busy === "request-reschedule" ? "reschedule" : busy === "request-cancel" ? "cancel" : null;
   const cancellingOfficialBooking = busy === "confirm-cancel-official";
+  const startingRescheduleSms = busy === "request-live-booking" && stage === "reschedule-restart";
   const savedAppointment = snapshot?.appointmentHistory.find((record) => (
     Boolean(record.confirmation_number)
       && record.raw_confirmation_redacted_json?.mode !== "dry_run"
@@ -199,6 +202,16 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   useEffect(() => {
     if (!selectedCenterCode && center?.code) setSelectedCenterCode(center.code);
   }, [center?.code, selectedCenterCode]);
+
+  useEffect(() => {
+    if (stage !== "reschedule-restart") {
+      rescheduleSmsStartRef.current = false;
+      return;
+    }
+    if (busy || rescheduleSmsStartRef.current) return;
+    rescheduleSmsStartRef.current = true;
+    void run("request-live-booking");
+  }, [busy, run, stage]);
 
   const chooseCenter = useCallback(async (nextCenterCode: string) => {
     setSelectedCenterCode(nextCenterCode);
@@ -243,20 +256,20 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </Alert>
       ) : null}
 
-      {changeOperation || cancellingOfficialBooking ? (
+      {changeOperation || cancellingOfficialBooking || startingRescheduleSms ? (
         <Card className="rounded-[8px] border-brand-200 bg-brand-50/40" role="status" aria-live="polite">
           <CardContent className="space-y-4 p-5">
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
               <div>
-                <div className="font-medium text-foreground">{cancellingOfficialBooking ? (isZh ? "正在取消官方预约" : "Cancelling the official appointment") : (isZh ? "正在连接官方预约中心" : "Connecting to the official appointment center")}</div>
-                <p className="mt-1 text-sm text-muted-foreground">{cancellingOfficialBooking ? (isZh ? "已收到你的最终确认，正在官网提交取消并保存官方证据。请勿关闭此页面或重复点击。" : "Your final confirmation was received. Submitting the official cancellation and saving evidence. Keep this page open and do not click again.") : (isZh ? (changeOperation === "reschedule" ? "正在查询原预约。找到记录后，仍会请你确认取消，再开始改约。" : "正在查询原预约。找到记录后，仍会请你确认取消。") : (changeOperation === "reschedule" ? "Checking the current booking. You will still confirm its cancellation before rescheduling." : "Checking the current booking. You will still confirm cancellation before anything is cancelled."))}</p>
+                <div className="font-medium text-foreground">{startingRescheduleSms ? (isZh ? "正在发送新的官方验证码" : "Sending a new official verification code") : cancellingOfficialBooking ? (isZh ? "正在取消官方预约" : "Cancelling the official appointment") : (isZh ? "正在连接官方预约中心" : "Connecting to the official appointment center")}</div>
+                <p className="mt-1 text-sm text-muted-foreground">{startingRescheduleSms ? (isZh ? "旧预约已确认取消，正在重新进入官方预约页面发送验证码。完成后会自动显示验证码输入页。" : "The old appointment was cancelled. Re-entering the official booking page to send a verification code; the code page will open automatically.") : cancellingOfficialBooking ? (isZh ? "已收到你的最终确认，正在官网提交取消并保存官方证据。请勿关闭此页面或重复点击。" : "Your final confirmation was received. Submitting the official cancellation and saving evidence. Keep this page open and do not click again.") : (isZh ? (changeOperation === "reschedule" ? "正在查询原预约。找到记录后，仍会请你确认取消，再开始改约。" : "正在查询原预约。找到记录后，仍会请你确认取消。") : (changeOperation === "reschedule" ? "Checking the current booking. You will still confirm its cancellation before rescheduling." : "Checking the current booking. You will still confirm cancellation before anything is cancelled."))}</p>
               </div>
             </div>
             <ol className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-              <li className="flex items-center gap-2">{cancellingOfficialBooking ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Loader2 className="h-4 w-4 animate-spin text-brand-600" />}{isZh ? "查询官方预约" : "Query official booking"}</li>
-              <li className="flex items-center gap-2">{cancellingOfficialBooking ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <span className="h-2 w-2 rounded-full bg-border" />}{isZh ? "提交官方取消" : "Submit official cancellation"}</li>
-              {cancellingOfficialBooking && cancellationIntent === "reschedule" ? <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "发送新验证码并选择时间" : "Send a new code and choose a slot"}</li> : <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "保存官方取消证据" : "Save official cancellation evidence"}</li>}
+              <li className="flex items-center gap-2">{cancellingOfficialBooking || startingRescheduleSms ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Loader2 className="h-4 w-4 animate-spin text-brand-600" />}{isZh ? "查询官方预约" : "Query official booking"}</li>
+              <li className="flex items-center gap-2">{startingRescheduleSms ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : cancellingOfficialBooking ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <span className="h-2 w-2 rounded-full bg-border" />}{isZh ? "提交官方取消" : "Submit official cancellation"}</li>
+              {cancellationIntent === "reschedule" ? <li className="flex items-center gap-2">{startingRescheduleSms ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <span className="h-2 w-2 rounded-full bg-border" />}{isZh ? "发送新验证码并选择时间" : "Send a new code and choose a slot"}</li> : <li className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-border" />{isZh ? "保存官方取消证据" : "Save official cancellation evidence"}</li>}
             </ol>
           </CardContent>
         </Card>
@@ -365,6 +378,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <p className="text-sm leading-6 text-muted-foreground">
               {cancellationReady ? (isZh ? "官方查询已找到预约记录。请在下一步确认后，VIZA 才会在官网完成取消并保存证据。此操作不能撤销。" : "The official query found the booking. VIZA only cancels it on the official portal after your next confirmation, then saves evidence. This cannot be undone.") : (isZh ? "VIZA 已完成官方查询，但官网没有提供可安全自动点击的取消控件。系统不会误报已取消；你可以重新查询，或等待人工核验。" : "VIZA completed the official query, but the portal did not expose a safely automatable cancellation control. It will not mark the booking as cancelled; retry the query or wait for review.")}
             </p>
+            {snapshot?.cancellationRefreshRequired ? (
+              <Alert>
+                <RefreshCw className="h-4 w-4" />
+                <AlertTitle>{isZh ? "官方取消会话已刷新" : "Official cancellation session refreshed"}</AlertTitle>
+                <AlertDescription>{isZh ? "原会话已过期，VIZA 已重新查询官网预约。请再次确认，系统才会提交取消。" : "The previous session expired. VIZA queried the official booking again. Confirm once more before cancellation is submitted."}</AlertDescription>
+              </Alert>
+            ) : null}
             {cancellationReady ? (
               <>
                 <Button variant="destructive" onClick={() => setCancelDialogOpen(true)} disabled={Boolean(busy)}>
@@ -407,7 +427,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
         </Card>
       ) : null}
 
-      {stage === "reschedule-restart" ? (
+      {stage === "reschedule-restart" && !startingRescheduleSms ? (
         <Card className="rounded-[8px] border-emerald-200"><CardHeader><CardTitle className="flex items-center gap-2 text-emerald-800"><CheckCircle2 className="h-5 w-5" />{isZh ? "旧预约已取消" : "Old booking cancelled"}</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{isZh ? "现在重新发送官方验证码，选择新的预约时间。" : "Now send a fresh official SMS code and choose a new appointment time."}</p><Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}{isZh ? "发送新验证码" : "Send new code"}</Button></CardContent></Card>
       ) : null}
 

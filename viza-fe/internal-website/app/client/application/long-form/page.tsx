@@ -928,7 +928,9 @@ function FinalConfirmationPanel({
   const isTdac = liveAssistedTarget === "tdac";
   const isPhEtravel = liveAssistedTarget === "phetravel";
   const isIndonesia = liveAssistedTarget === "indonesia";
-  const requiresOneTimeOfficialPaymentCard = isVietnam || isIndonesia;
+  // Indonesia opens its official payment gateway only after the application is
+  // created. A card must not block an initial submission or a pre-payment retry.
+  const requiresOneTimeOfficialPaymentCard = isVietnam;
   const oneTimeOfficialPaymentCardReady =
     !requiresOneTimeOfficialPaymentCard ||
     (
@@ -2743,7 +2745,7 @@ export default function ApplicationPage() {
       const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
 
       if (!isJpTourist && !isKrC39) {
-        const queueJob = mode === "live_assisted" && (isVietnamEVisa || isIndonesiaEVisa)
+        const queueJob = mode === "live_assisted" && isVietnamEVisa
           ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
           : await (async () => {
               await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
@@ -2886,7 +2888,7 @@ export default function ApplicationPage() {
       );
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
-      const queueJob = mode === "live_assisted" && (isVietnamEVisa || isIndonesiaEVisa)
+      const queueJob = mode === "live_assisted" && isVietnamEVisa
         ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
         : await (async () => {
             await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);

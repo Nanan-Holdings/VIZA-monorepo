@@ -1199,10 +1199,6 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
-  const isIndonesiaSubmission = isIndonesiaEVisaApplication(
-    snapshot?.country ?? country,
-    snapshot?.visaType ?? visaType,
-  );
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
     : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission || isVnPrearrivalSubmission
@@ -1372,7 +1368,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission}
         />
       </div>
     );
@@ -1391,7 +1387,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission}
         />
       </div>
     );
@@ -1419,7 +1415,7 @@ export function SubmissionStatusStep({
           }
           retryModes={retryModes}
           onRetry={handleRetry}
-          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission}
         />
       </div>
     );

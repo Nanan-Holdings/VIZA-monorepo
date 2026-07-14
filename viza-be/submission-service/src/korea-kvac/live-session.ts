@@ -390,6 +390,94 @@ async function findOfficialCancelButton(page: Page) {
   return findOfficialActionControl(page, "cancel");
 }
 
+async function findOfficialCancellationConfirmationButton(page: Page) {
+  const selector = "[data-viza-kvac-cancel-confirmation]";
+  const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  const cancellationPrompt = /要取消预约吗|确认取消|取消预约|预约取消|예약\s*취소|cancel(?:lation)?\s*(?:appointment|booking|reservation)?/i;
+  if (!cancellationPrompt.test(bodyText)) return null;
+
+  // The Beijing KVAC modal does not expose ARIA dialog semantics consistently.
+  // With its cancellation prompt visible, an exact visible confirmation control
+  // is scoped safely enough to act as the modal's final confirmation button.
+  const controls = page.locator(
+    "button, input[type='button'], input[type='submit'], [role='button'], a, [onclick], [class*='btn'], [class*='button']",
+  );
+  const controlCount = await controls.count();
+  for (let index = 0; index < controlCount; index += 1) {
+    const control = controls.nth(index);
+    const visible = await control.isVisible().catch(() => false);
+    if (!visible) continue;
+    const label = await control.evaluate((element) => {
+      const inputValue = element instanceof HTMLInputElement ? element.value : "";
+      return [
+        (element as HTMLElement).innerText ?? "",
+        element.textContent ?? "",
+        inputValue,
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+      ]
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+    });
+    if (/^(?:确认|确定|确认取消|取消确认|confirm|yes|확인)(?:\s+(?:确认|确定|确认取消|取消确认|confirm|yes|확인))*$/i.test(label)) return control;
+  }
+
+  const tagged = await page.evaluate(() => {
+    const attr = "data-viza-kvac-cancel-confirmation";
+    document.querySelectorAll(`[${attr}]`).forEach((element) => element.removeAttribute(attr));
+
+    const isVisible = (element: Element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+    const textFor = (element: Element) => {
+      const inputValue = element instanceof HTMLInputElement ? element.value : "";
+      return [
+        (element as HTMLElement).innerText ?? "",
+        element.textContent ?? "",
+        inputValue,
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+      ]
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+    const confirmationLabel = /^(?:确认|确定|确认取消|取消确认|confirm|yes|확인)(?:\s+(?:确认|确定|确认取消|取消确认|confirm|yes|확인))*$/i;
+    const controls = Array.from(
+      document.querySelectorAll("button, input[type='button'], input[type='submit'], [role='button'], a"),
+    );
+
+    for (const control of controls) {
+      if (!(control instanceof HTMLElement) || !isVisible(control)) continue;
+      if (!confirmationLabel.test(textFor(control))) continue;
+
+      let container: Element | null = control;
+      for (let depth = 0; container && depth < 8; depth += 1, container = container.parentElement) {
+        if (!isVisible(container) || !cancellationPrompt.test(textFor(container))) continue;
+        control.setAttribute(attr, "true");
+        return true;
+      }
+    }
+    return false;
+  });
+
+  if (!tagged) return null;
+  const candidate = page.locator(selector).first();
+  const visible = await candidate.isVisible().catch(() => false);
+  const enabled = await candidate.isEnabled().catch(() => true);
+  return visible && enabled ? candidate : null;
+}
+
+function hasOfficialCancellationSuccessEvidence(text: string) {
+  return /取消成功|已取消|成功取消|预约已取消|예약\s*(?:이\s*)?취소(?:\s*완료|되었습니다)?|(?:appointment|booking|reservation)\s*(?:has\s*been\s*)?cancelled|cancellation\s*(?:completed|successful)/i.test(
+    text,
+  );
+}
+
 export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsInput): Promise<KoreaKvacStartSmsResult> {
   console.log(`[korea-kvac] start official SMS session job=${input.jobId} center=${input.centerCode}`);
   cleanupExpired();
@@ -664,17 +752,49 @@ export async function confirmKoreaKvacOfficialCancellation(input: { jobId: strin
   const cancelButton = await findOfficialCancelButton(session.page);
   if (!cancelButton) throw new Error("Official cancellation button is no longer visible. Start cancellation query again.");
   await cancelButton.click({ timeout: 30_000 });
-  await session.page.waitForTimeout(5_000);
-  const screenshotPath = await screenshot(session.page, input.jobId, "cancelled");
-  const bodyText = await session.page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+  await session.page.waitForTimeout(500);
+
+  const confirmationButton = await findOfficialCancellationConfirmationButton(session.page);
+  if (!confirmationButton) {
+    const screenshotPath = await screenshot(session.page, input.jobId, "cancel-confirmation-missing");
+    await cleanupCancelSession(input.jobId);
+    throw new Error(
+      `Official KVAC cancellation confirmation dialog was not detected (${screenshotPath ?? "no screenshot"}). The appointment was not marked as cancelled.`,
+    );
+  }
+
+  await confirmationButton.click({ timeout: 30_000 });
+
+  let bodyText = "";
+  let cancellationButtonStillVisible = true;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await session.page.waitForTimeout(1_000);
+    bodyText = await session.page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+    cancellationButtonStillVisible = Boolean(await findOfficialCancelButton(session.page));
+    if (!cancellationButtonStillVisible && (hasOfficialCancellationSuccessEvidence(bodyText) || dialogs.some(hasOfficialCancellationSuccessEvidence))) {
+      break;
+    }
+  }
+
+  const succeeded =
+    !cancellationButtonStillVisible &&
+    (hasOfficialCancellationSuccessEvidence(bodyText) || dialogs.some(hasOfficialCancellationSuccessEvidence));
+  const screenshotPath = await screenshot(session.page, input.jobId, succeeded ? "cancelled" : "cancel-unverified");
   await cleanupCancelSession(input.jobId);
+
+  if (!succeeded) {
+    throw new Error(
+      "Official KVAC cancellation could not be verified from the official result page. The appointment was not marked as cancelled.",
+    );
+  }
+
   return {
     status: "appointment_cancelled",
     officialSessionId: input.jobId,
     screenshotPath,
     officialMessage:
-      dialogs.at(-1) ??
-      (bodyText ? bodyText.replace(/\s+/g, " ").slice(0, 280) : "Official cancellation click completed."),
+      [...dialogs].reverse().find(hasOfficialCancellationSuccessEvidence) ??
+      (bodyText ? bodyText.replace(/\s+/g, " ").slice(0, 280) : "Official cancellation completed."),
   };
 }
 

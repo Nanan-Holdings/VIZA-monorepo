@@ -16,29 +16,23 @@ function isLocalRequest(request: Request): boolean {
     host.startsWith("[::1]:");
 }
 
-async function isSubmissionWorkerRunning(): Promise<boolean> {
-  if (process.platform === "win32") {
-    const script = [
-      "$p = Get-CimInstance Win32_Process | Where-Object {",
-      "$_.Name -eq 'node.exe' -and",
-      "($_.CommandLine -match 'viza-be\\\\submission-service' -or $_.CommandLine -match 'ts-node-js-resolver\\.cjs')",
-      "};",
-      "if ($p) { 'running' }",
-    ].join(" ");
-    const { stdout } = await execFileAsync("powershell.exe", [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      script,
-    ]);
-    return stdout.toLowerCase().includes("running");
-  }
+function submissionServiceBaseUrl(): string {
+  const configured = process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim();
+  if (configured) return configured.replace(/\/+$/u, "");
+  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "8085";
+  return `http://127.0.0.1:${port}`;
+}
 
-  const { stdout } = await execFileAsync("sh", [
-    "-lc",
-    "ps -eo command | grep 'submission-service' | grep 'src/index.ts' | grep -v grep || true",
-  ]);
-  return stdout.trim().length > 0;
+async function isSubmissionWorkerRunning(): Promise<boolean> {
+  try {
+    const response = await fetch(`${submissionServiceBaseUrl()}/health`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(2_500),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function stopSubmissionWorker(): Promise<void> {
@@ -153,7 +147,7 @@ export async function POST(
       return NextResponse.json({ ok: true, alreadyRunning: true, restarted: false });
     }
 
-    if (restart) {
+    if (restart || !(await isSubmissionWorkerRunning())) {
       await stopSubmissionWorker();
       await new Promise((resolve) => setTimeout(resolve, 750));
     }
