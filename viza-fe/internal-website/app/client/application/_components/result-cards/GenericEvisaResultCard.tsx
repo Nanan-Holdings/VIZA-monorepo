@@ -39,18 +39,15 @@ export function GenericEvisaResultCard({
   const isZh = isChineseLocale(useLocale());
   const [locatingPayment, setLocatingPayment] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [oneTimeCardLast4, setOneTimeCardLast4] = useState<string | null>(null);
   const portalUrl = result.portalUrl;
   const checkpoint = (result as GenericEvisaSubmissionResult & { checkpoint?: string }).checkpoint;
   const userPaymentRequired = result.country === "ID" && checkpoint === "user_payment_required";
-  const indonesiaAutopayCheckpoint = result.country === "ID" && result.status === "stopped_at_pay" && userPaymentRequired;
-  const cardReady =
-    cardNumber.replace(/\D/g, "").length >= 12 &&
-    cardExpiry.trim().length >= 4 &&
-    cardCvv.replace(/\D/g, "").length >= 3;
+  // Only show the bank-verification wording after the runner explicitly records a card handoff.
+  // Reaching Finpay alone is a payment-page handoff, not a completed or initiated card payment.
+  const indonesiaAutopayCheckpoint =
+    result.country === "ID" &&
+    result.status === "stopped_at_pay" &&
+    (result as GenericEvisaSubmissionResult & { oneTimeCardSubmitted?: boolean }).oneTimeCardSubmitted === true;
   const isIndonesiaHomePaymentUrl =
     result.country === "ID" &&
     portalUrl !== undefined &&
@@ -81,38 +78,6 @@ export function GenericEvisaResultCard({
         throw new Error(typeof body?.error === "string" ? body.error : `Retry failed with ${response.status}`);
       }
       window.location.reload();
-    } catch (error) {
-      setLocateError(error instanceof Error ? error.message : String(error));
-      setLocatingPayment(false);
-    }
-  }
-
-  async function restartIndonesiaAutomatedPayment(): Promise<void> {
-    if (!applicationId || !cardReady) return;
-    setLocatingPayment(true);
-    setLocateError(null);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          card: {
-            pan: cardNumber,
-            expiry: cardExpiry,
-            cvv: cardCvv,
-          },
-        }),
-      });
-      const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!response.ok) {
-        throw new Error(typeof body?.error === "string" ? body.error : `official-fee/pay returned ${response.status}`);
-      }
-      const cardSession = body?.cardSession as Record<string, unknown> | undefined;
-      const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
-      setOneTimeCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
-      setCardNumber("");
-      setCardCvv("");
-      window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
       setLocateError(error instanceof Error ? error.message : String(error));
       setLocatingPayment(false);
@@ -185,82 +150,16 @@ export function GenericEvisaResultCard({
                 <a href={portalUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   {isIndonesiaPaymentGatewayUrl
-                    ? isZh ? "查看官方银行验证页" : "View official bank verification page"
+                    ? isZh ? "打开官方付款页" : "Open official payment page"
                     : isZh ? "打开官方付款页" : "Open official payment page"}
                 </a>
               </Button>
             ) : null}
             <Button type="button" className="w-full" onClick={() => window.location.reload()}>
               <RotateCw className="mr-2 h-4 w-4" />
-              {isZh ? "我已完成银行验证，刷新状态" : "I finished bank verification, refresh status"}
-            </Button>
-            <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
-              <div className="text-sm font-semibold text-foreground">
-                {isZh ? "重新自动付款银行卡" : "Restart automated payment card"}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1 sm:col-span-2">
-                  <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
-                  <input
-                    value={cardNumber}
-                    onChange={(event) => setCardNumber(event.target.value)}
-                    autoComplete="cc-number"
-                    inputMode="numeric"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                    placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
-                  <input
-                    value={cardExpiry}
-                    onChange={(event) => setCardExpiry(event.target.value)}
-                    autoComplete="cc-exp"
-                    inputMode="numeric"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                    placeholder="MM/YY"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs text-muted-foreground">CVV</span>
-                  <input
-                    value={cardCvv}
-                    onChange={(event) => setCardCvv(event.target.value)}
-                    autoComplete="cc-csc"
-                    inputMode="numeric"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                    placeholder="CVV"
-                  />
-                </label>
-              </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {isZh
-                  ? "卡号和 CVV 只用于本次官方付款，会发送到本机 submission-service 的短时内存会话；不会保存到数据库、日志或个人资料。"
-                  : "Card number and CVV are used only for this official payment through a short-lived local submission-service session."}
-              </p>
-              {oneTimeCardLast4 ? (
-                <p className="text-xs text-brand-600">
-                  {isZh ? `已刷新一次性卡会话：尾号 ${oneTimeCardLast4}` : `One-time card session refreshed: ending ${oneTimeCardLast4}`}
-                </p>
-              ) : null}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={!applicationId || locatingPayment || !cardReady}
-              onClick={() => {
-                void restartIndonesiaAutomatedPayment();
-              }}
-            >
-              {locatingPayment ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ExternalLink className="mr-2 h-4 w-4" />
-              )}
-              {locatingPayment
-                ? isZh ? "正在重新自动付款" : "Restarting automated payment"
-                : isZh ? "付款超时，重新自动付款" : "Payment timed out, restart automated payment"}
+              {indonesiaAutopayCheckpoint
+                ? isZh ? "我已完成银行验证，刷新状态" : "I finished bank verification, refresh status"
+                : isZh ? "我已完成官方付款，刷新状态" : "I completed the official payment, refresh status"}
             </Button>
             {locateError ? <p className="text-sm text-red-700">{locateError}</p> : null}
           </div>

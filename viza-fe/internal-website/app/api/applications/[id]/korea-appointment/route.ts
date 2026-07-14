@@ -1675,7 +1675,10 @@ export async function POST(
           .maybeSingle();
         if (rescheduleErr) throw new Error(rescheduleErr.message);
         await startOfficialCancellationQuery(auth.admin, id, auth.profile.id, job, routing, rescheduleAction ? "reschedule" : "cancel");
-        return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+        return NextResponse.json({
+          ...(await readSnapshot(auth.admin, id, routingInput)),
+          cancellationRefreshRequired: true,
+        });
       }
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Could not confirm Korea KVAC cancellation." },
