@@ -4245,6 +4245,7 @@
       "authFailed": "Authentication failed. Please try again.",
       "invalidCredentials": "Email or password is incorrect. Please try again.",
       "tooManyRequests": "Too many attempts. Please try again later.",
+      "requestTimedOut": "The sign-in service is taking longer than expected. Please try again.",
       "unexpectedError": "An unexpected error occurred. Please try again.",
       "failedToResend": "Failed to resend code.",
       "checkEmail": "Check your email",

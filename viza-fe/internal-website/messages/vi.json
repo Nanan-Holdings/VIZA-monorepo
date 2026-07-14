@@ -3103,6 +3103,7 @@
       "authFailed": "[VI] Authentication failed. Please try again.",
       "invalidCredentials": "[VI] Email or password is incorrect. Please try again.",
       "tooManyRequests": "[VI] Too many attempts. Please try again later.",
+      "requestTimedOut": "[VI] The sign-in service is taking longer than expected. Please try again.",
       "unexpectedError": "[VI] An unexpected error occurred. Please try again.",
       "failedToResend": "[VI] Failed to resend code.",
       "checkEmail": "[VI] Check your email",

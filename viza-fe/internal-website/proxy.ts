@@ -36,6 +36,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Login must be able to establish a session before client-route protection
+  // runs. This same-origin endpoint keeps browser auth calls out of Supabase
+  // CORS handling during local development.
+  if (pathname === "/api/client/auth") {
+    return NextResponse.next();
+  }
+
   // Handle client portal routes (uses Supabase auth with fallback to JWT)
   // Also handle /api/client/* routes — these serve client-authenticated endpoints
   if (pathname.startsWith("/client") || pathname.startsWith("/api/client")) {
