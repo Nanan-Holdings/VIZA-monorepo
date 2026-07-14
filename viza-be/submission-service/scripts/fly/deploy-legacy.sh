@@ -11,5 +11,5 @@ if ! fly apps create "$app" --org "$FLY_ORG"; then
   # remain visible to the operator instead of being mistaken for an app lookup.
   fly status --app "$app" >/dev/null
 fi
-"$root/scripts/fly/sync-runtime-secrets.sh" "$app"
+bash "$root/scripts/fly/sync-runtime-secrets.sh" "$app"
 fly deploy --app "$app" --config "$root/deploy/fly/fly.legacy.toml" --image "$image" --strategy immediate
