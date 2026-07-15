@@ -1,6 +1,11 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  BrowserbaseSessionError,
+  createBrowserbaseCloudSession,
+} from "./browserbase-session";
 
-export type ArrivalCardBrowserProvider = "local" | "local-cdp" | "remote-browser-api";
+export type ArrivalCardBrowserProvider = "local" | "local-cdp" | "remote-browser-api" | "browserbase";
 
 export interface ArrivalCardBrowserSession {
   browser: Browser;
@@ -8,6 +13,7 @@ export interface ArrivalCardBrowserSession {
   page: Page;
   provider: ArrivalCardBrowserProvider;
   nativeCloudflareUnblock: boolean;
+  replayUrl?: string;
   diagnostics: string[];
   close: () => Promise<void>;
 }
@@ -108,6 +114,33 @@ export async function createArrivalCardBrowserSession(options: {
       throw new ArrivalCardBrowserError(
         `${options.prefix} Browser API endpoint was configured but could not be reached; refusing to fall back to local browser for a Cloudflare-protected portal.`,
       );
+    }
+  }
+
+  if (!options.forceLocal && browserbaseEnabled(options.prefix)) {
+    try {
+      const cloudSession = await createBrowserbaseCloudSession({ prefix: options.prefix });
+      const browser = await chromium.connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
+      const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
+      const page = context.pages()[0] ?? await context.newPage();
+      diagnostics.push(
+        `${options.prefix.toLowerCase()}_browserbase_connected proxies=${cloudSession.proxiesEnabled}`,
+      );
+      return {
+        browser,
+        context,
+        page,
+        provider: "browserbase",
+        nativeCloudflareUnblock: false,
+        replayUrl: cloudSession.replayUrl,
+        diagnostics,
+        close: () => browser.close(),
+      };
+    } catch (error) {
+      const message = error instanceof BrowserbaseSessionError
+        ? error.message
+        : "Browserbase session could not be connected.";
+      throw new ArrivalCardBrowserError(message);
     }
   }
 
