@@ -13,7 +13,8 @@ import { useTranslations } from 'next-intl'
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
-const AUTH_REQUEST_TIMEOUT_MS = 30_000
+const AUTH_REQUEST_TIMEOUT_MS = 15_000
+const AUTH_RETRY_DELAY_MS = 500
 
 class AuthRequestTimeoutError extends Error {
   constructor() {
@@ -39,10 +40,16 @@ function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
 }
 
 function getAuthRequestFailureMessage(error: unknown, t: ReturnType<typeof useTranslations>) {
-  return error instanceof AuthRequestTimeoutError ? t('requestTimedOut') : t('unexpectedError')
+  return error instanceof AuthRequestTimeoutError ? t('providerUnavailable') : t('unexpectedError')
 }
 
-function getLocalizedAuthError(message: string | undefined, t: ReturnType<typeof useTranslations>) {
+function getLocalizedAuthError(
+  result: { error?: string; code?: string },
+  t: ReturnType<typeof useTranslations>,
+) {
+  if (result.code === 'provider_unavailable') return t('providerUnavailable')
+
+  const message = result.error
   const normalized = message?.toLowerCase() ?? ''
   if (
     normalized.includes('invalid login credentials') ||
@@ -58,26 +65,49 @@ function getLocalizedAuthError(message: string | undefined, t: ReturnType<typeof
 }
 
 type ClientAuthOperation = 'password' | 'send_otp' | 'verify_otp'
+type ClientAuthResult = { success: boolean; error?: string; code?: string }
+
+function waitForRetry(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, AUTH_RETRY_DELAY_MS))
+}
 
 async function requestClientAuth(
   operation: ClientAuthOperation,
   fields: { email: string; password?: string; token?: string },
-): Promise<{ success: boolean; error?: string }> {
-  const response = await fetch('/api/client/auth', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ operation, ...fields }),
-  })
-  const payload: unknown = await response.json().catch(() => null)
-  if (!payload || typeof payload !== 'object') {
-    return { success: false, error: 'Authentication service returned an invalid response' }
+): Promise<ClientAuthResult> {
+  // Retrying a password or code verification is safe. Sending a code is left
+  // to the user so an outage cannot generate duplicate email messages.
+  const maximumAttempts = operation === 'send_otp' ? 1 : 2
+
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    try {
+      const response = await fetch('/api/client/auth', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation, ...fields }),
+      })
+      const payload: unknown = await response.json().catch(() => null)
+      if (!payload || typeof payload !== 'object') {
+        return { success: false, code: 'provider_unavailable' }
+      }
+      const result = payload as { success?: unknown; error?: unknown; code?: unknown }
+      const normalized: ClientAuthResult = {
+        success: result.success === true,
+        error: typeof result.error === 'string' ? result.error : undefined,
+        code: typeof result.code === 'string' ? result.code : undefined,
+      }
+      if (normalized.code !== 'provider_unavailable' || attempt === maximumAttempts) {
+        return normalized
+      }
+    } catch {
+      if (attempt === maximumAttempts) return { success: false, code: 'provider_unavailable' }
+    }
+
+    await waitForRetry()
   }
-  const result = payload as { success?: unknown; error?: unknown }
-  return {
-    success: result.success === true,
-    error: typeof result.error === 'string' ? result.error : undefined,
-  }
+
+  return { success: false, code: 'provider_unavailable' }
 }
 
 function ClientLoginContent() {
@@ -177,6 +207,7 @@ function ClientLoginContent() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
+  const localTestSessionEnabled = process.env.NEXT_PUBLIC_ENABLE_LOCAL_TEST_SESSION === 'true'
 
   useEffect(() => {
     const errorParam = searchParams.get('error')
@@ -196,7 +227,9 @@ function ClientLoginContent() {
   const sendOtp = async (targetEmail: string): Promise<boolean> => {
     const result = await withAuthTimeout(requestClientAuth('send_otp', { email: targetEmail }))
     if (!result.success) {
-      setError(result.error?.includes('User not found')
+      setError(result.code === 'provider_unavailable'
+        ? t('providerUnavailable')
+        : result.error?.includes('User not found')
         ? t('noAccountFound')
         : result.error || t('failedToSendCode'))
       return false
@@ -210,7 +243,7 @@ function ClientLoginContent() {
     try {
       const result = await withAuthTimeout(requestClientAuth('verify_otp', { email, token: otpCode }))
       if (!result.success) {
-        setError(getLocalizedAuthError(result.error, t))
+        setError(getLocalizedAuthError(result, t))
         setIsSubmitting(false)
         return
       }
@@ -244,7 +277,7 @@ function ClientLoginContent() {
     try {
       const result = await withAuthTimeout(requestClientAuth('password', { email, password }))
       if (!result.success) {
-        setError(getLocalizedAuthError(result.error, t))
+        setError(getLocalizedAuthError(result, t))
         setIsSubmitting(false)
         return
       }
@@ -252,6 +285,28 @@ function ClientLoginContent() {
     } catch (err) {
       setIsSubmitting(false)
       setError(getAuthRequestFailureMessage(err, t))
+    }
+  }
+
+  const startLocalTestSession = async () => {
+    setError(null)
+    setNotice(null)
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/client/auth/dev-session', {
+        method: 'POST',
+        credentials: 'same-origin',
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload || typeof payload !== 'object' || payload.success !== true) {
+        setError(t('localTestSessionUnavailable'))
+        return
+      }
+      window.location.href = '/client/home'
+    } catch {
+      setError(t('localTestSessionUnavailable'))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -373,6 +428,7 @@ function ClientLoginContent() {
                 )}
                 {error && (
                   <motion.p
+                    role="alert"
                     className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-2 text-[13px] text-[#a13d2d]"
                     initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
                   >
@@ -388,6 +444,16 @@ function ClientLoginContent() {
                     ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{loginMethod === 'password' ? t('signingIn') : t('sendingCode')}</span>
                     : loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
                 </button>
+                {localTestSessionEnabled && (
+                  <button
+                    type="button"
+                    onClick={startLocalTestSession}
+                    disabled={isSubmitting}
+                    className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] border border-[#3d3d3d] bg-white font-sans text-[clamp(12px,1vw,14px)] font-medium text-[#3d3d3d] transition-colors hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {t('localTestSession')}
+                  </button>
+                )}
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>
@@ -467,8 +533,9 @@ function ClientLoginContent() {
                     ))}
                   </div>
                   {error && (
-                    <motion.p
-                      className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-3 text-[14px] text-[#a13d2d]"
+                  <motion.p
+                    role="alert"
+                    className="rounded-[12px] border border-[#f7c7ba] bg-[#ffe8e0] px-4 py-3 text-[14px] text-[#a13d2d]"
                       initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
                     >
                       {error}
