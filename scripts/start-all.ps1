@@ -2,7 +2,9 @@ param(
   [int]$FrontendPort = 3000,
   [int]$MarketingPort = 3001,
   [int]$AgentPort = 3002,
-  [int]$SubmissionPort = 8085,
+  # 8085 is commonly reserved by Windows (for example, by Hyper-V). Keep the
+  # submission worker outside the dynamic excluded-port range by default.
+  [int]$SubmissionPort = 18080,
   [int]$TravelPort = 8000,
   [int]$StartupTimeoutSeconds = 120,
   [string]$PortalPath = "/client/login",
@@ -752,6 +754,14 @@ $TravelPort = Resolve-AutoPort `
   -Explicit $travelPortExplicit `
   -HealthUri "http://127.0.0.1:$TravelPort/openapi.json" `
   -ExpectedContent @('"/generate"', '"/chat"', '"/flight-options"')
+
+$submissionPortExplicit = $PSBoundParameters.ContainsKey("SubmissionPort")
+$SubmissionPort = Resolve-AutoPort `
+  -Name "submission-service" `
+  -Port $SubmissionPort `
+  -Explicit $submissionPortExplicit `
+  -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
+  -ExpectedContent @('"status":"ok"')
 
 $frontendAlreadyRunning = Assert-PortAvailableOrExpected `
   -Name "frontend" `

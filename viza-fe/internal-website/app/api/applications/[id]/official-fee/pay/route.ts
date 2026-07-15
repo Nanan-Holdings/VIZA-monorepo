@@ -339,7 +339,7 @@ function normalizeCardBody(body: unknown): OneTimeCardInput | null {
 function getSubmissionServiceLocalUrl(): string {
   const configured = process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim();
   if (configured) return configured.replace(/\/+$/, "");
-  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "8085";
+  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "18080";
   return `http://127.0.0.1:${port}`;
 }
 
@@ -348,12 +348,12 @@ function getSubmissionServiceLocalUrlCandidates(countryPath: "vietnam" | "indone
   const indonesiaUrls = [
     configured,
     ...Array.from({ length: 41 }, (_, index) => `http://127.0.0.1:${18080 + index}`),
-    "http://127.0.0.1:8085",
+    "http://127.0.0.1:18080",
     "http://127.0.0.1:8080",
   ];
   const vietnamUrls = [
     configured,
-    "http://127.0.0.1:8085",
+    "http://127.0.0.1:18080",
     ...Array.from({ length: 41 }, (_, index) => `http://127.0.0.1:${18080 + index}`),
     "http://127.0.0.1:8080",
   ];
