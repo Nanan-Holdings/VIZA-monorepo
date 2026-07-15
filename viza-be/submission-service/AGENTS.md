@@ -232,7 +232,7 @@ filling and one-shot submission for the applicant.
   varying maturity. Check `docs/visa-packages-status.md` before extending.
 - `scripts/run-fv-smoke.ts`, `scripts/run-au-smoke.ts`,
   `scripts/run-vn-smoke.ts`, `scripts/run-sgac-smoke.ts`,
-  `scripts/run-mdac-smoke.ts`, `scripts/run-mdac-connectivity-smoke.ts`, `scripts/run-tdac-smoke.ts`,
+  `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`,
   `scripts/run-tw-entry-permit-smoke.ts`: local live smoke
   entry points for official portal reach/fill validation. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
