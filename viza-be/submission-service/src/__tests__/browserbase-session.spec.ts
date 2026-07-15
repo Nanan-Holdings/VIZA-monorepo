@@ -8,6 +8,7 @@ import {
 const ENV_NAMES = [
   "BROWSERBASE_API_KEY",
   "MDAC_BROWSERBASE_PROXIES",
+  "MDAC_BROWSERBASE_VERIFIED",
   "MDAC_BROWSERBASE_REGION",
   "MDAC_BROWSERBASE_COUNTRY",
   "PH_ETRAVEL_BROWSERBASE_COUNTRY",
@@ -74,6 +75,30 @@ test("returns a safe paid-plan error without echoing the API key", async () => {
         return true;
       },
     );
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
+
+test("requests a Verified Browser only when the country runner enables it", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  process.env.MDAC_BROWSERBASE_VERIFIED = "true";
+  try {
+    let capturedInit: RequestInit | undefined;
+    const result = await createBrowserbaseCloudSession({
+      prefix: "MDAC",
+      fetchImpl: async (_input, init) => {
+        capturedInit = init;
+        return new Response(JSON.stringify({ id: "verified-session", connectUrl: "wss://example.invalid" }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+    const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
+    assert.deepEqual(requestBody.browserSettings, { verified: true });
+    assert.equal(result.verifiedEnabled, true);
   } finally {
     restoreEnvironment(snapshot);
   }
