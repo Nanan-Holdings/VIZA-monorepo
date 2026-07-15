@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { getTravelBackendUrl } from "@/lib/travel/backend";
+
+const CACHE_HEALTH_TIMEOUT_MS = 1_500;
 
 type TravelHealthResponse = {
   ok: boolean;
@@ -32,17 +33,28 @@ async function checkCacheReachable(): Promise<boolean> {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!supabaseUrl || !serviceRoleKey) return false;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CACHE_HEALTH_TIMEOUT_MS);
   try {
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { error } = await supabase
-      .from("travel_destinations")
-      .select("id", { count: "exact", head: true })
-      .limit(1);
-    return !error;
+    // This cache check is optional for local startup. Query the REST endpoint
+    // directly so its AbortSignal bounds DNS/network failures as well.
+    const response = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/rest/v1/travel_destinations?select=id&limit=1`,
+      {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        signal: controller.signal,
+      }
+    );
+    return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
