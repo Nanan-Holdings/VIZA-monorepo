@@ -369,6 +369,9 @@ npm run france-tls:live-smoke -- --url=https://visas-fr.tlscontact.com/en-us/log
 npm run au:smoke
 # Public Vietnam form; stops before Pay/Submit:
 npm run vn:smoke
+# Read-only local/Browserbase reachability matrix for Indonesia B1/C1,
+# Vietnam eVisa, SGAC, TDAC, DS-160, and France-Visas. Never fills or submits:
+npm run portal:connectivity-smoke
 # Public arrival-card forms; stop before final Submit unless --submit is passed:
 npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts

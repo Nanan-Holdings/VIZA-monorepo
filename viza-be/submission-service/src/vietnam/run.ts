@@ -9,6 +9,10 @@
  */
 
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  connectBrowserbaseCloudBrowser,
+} from "../browserbase-session";
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
@@ -248,11 +252,19 @@ async function fillVietnamApplicationOnce(
 
   try {
     await emitProgress("browser_launching");
-    browser = await chromium.launch({
-      headless,
-      ...(options.browserChannel ? { channel: options.browserChannel } : {}),
-    });
-    context = await browser.newContext({ acceptDownloads: false });
+    if (browserbaseEnabled("VN")) {
+      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "VN" });
+      browser = cloud.browser;
+      context = cloud.context;
+      page = cloud.page;
+    } else {
+      browser = await chromium.launch({
+        headless,
+        ...(options.browserChannel ? { channel: options.browserChannel } : {}),
+      });
+      context = await browser.newContext({ acceptDownloads: false });
+      page = await context.newPage();
+    }
     if (process.env.VN_PUBLIC_API_PROXY_ENABLED !== "false") {
       await installVietnamPublicApiProxy(context, {
         onSuccess: () => {
@@ -263,7 +275,6 @@ async function fillVietnamApplicationOnce(
         },
       });
     }
-    page = await context.newPage();
     await emitProgress("browser_ready");
     page.on("console", (message) => {
       if (message.type() === "error") {

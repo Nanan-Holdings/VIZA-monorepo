@@ -1,3 +1,5 @@
+import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+
 export type BrowserbaseRegion =
   | "us-west-2"
   | "us-east-1"
@@ -10,6 +12,24 @@ export interface BrowserbaseCloudSession {
   replayUrl: string;
   proxiesEnabled: boolean;
 }
+
+export interface BrowserbaseCloudBrowser {
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+  replayUrl: string;
+  proxiesEnabled: boolean;
+}
+
+const DEFAULT_COUNTRY_BY_PREFIX: Readonly<Record<string, string>> = {
+  CEAC: "US",
+  FRANCE_VISAS: "FR",
+  INDONESIA: "ID",
+  MDAC: "MY",
+  SGAC: "SG",
+  TDAC: "TH",
+  VN: "VN",
+};
 
 export class BrowserbaseSessionError extends Error {
   readonly code = "browserbase_session_create_failed";
@@ -79,7 +99,9 @@ export async function createBrowserbaseCloudSession(options: {
 
   const proxiesEnabled = readBoolean(`${options.prefix}_BROWSERBASE_PROXIES`, true);
   const region = readRegion(`${options.prefix}_BROWSERBASE_REGION`);
-  const country = process.env[`${options.prefix}_BROWSERBASE_COUNTRY`]?.trim().toUpperCase() || "MY";
+  const country = process.env[`${options.prefix}_BROWSERBASE_COUNTRY`]?.trim().toUpperCase()
+    || DEFAULT_COUNTRY_BY_PREFIX[options.prefix]
+    || "US";
   if (!/^[A-Z]{2}$/.test(country)) {
     throw new BrowserbaseSessionError(
       `${options.prefix}_BROWSERBASE_COUNTRY must be a two-letter country code.`,
@@ -132,5 +154,21 @@ export async function createBrowserbaseCloudSession(options: {
     connectUrl: payload.connectUrl,
     replayUrl: `https://www.browserbase.com/sessions/${payload.id}`,
     proxiesEnabled,
+  };
+}
+
+export async function connectBrowserbaseCloudBrowser(options: {
+  prefix: string;
+}): Promise<BrowserbaseCloudBrowser> {
+  const cloudSession = await createBrowserbaseCloudSession(options);
+  const browser = await chromium.connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
+  const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
+  const page = context.pages()[0] ?? await context.newPage();
+  return {
+    browser,
+    context,
+    page,
+    replayUrl: cloudSession.replayUrl,
+    proxiesEnabled: cloudSession.proxiesEnabled,
   };
 }

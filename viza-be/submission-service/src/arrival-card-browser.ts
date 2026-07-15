@@ -2,7 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from "@playwri
 import {
   browserbaseEnabled,
   BrowserbaseSessionError,
-  createBrowserbaseCloudSession,
+  connectBrowserbaseCloudBrowser,
 } from "./browserbase-session";
 
 export type ArrivalCardBrowserProvider = "local" | "local-cdp" | "remote-browser-api" | "browserbase";
@@ -35,7 +35,7 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
   return null;
 }
 
-export type ArrivalCardBrowserPrefix = "MDAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT";
+export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT";
 
 export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [
@@ -119,10 +119,8 @@ export async function createArrivalCardBrowserSession(options: {
 
   if (!options.forceLocal && browserbaseEnabled(options.prefix)) {
     try {
-      const cloudSession = await createBrowserbaseCloudSession({ prefix: options.prefix });
-      const browser = await chromium.connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
-      const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
-      const page = context.pages()[0] ?? await context.newPage();
+      const cloudSession = await connectBrowserbaseCloudBrowser({ prefix: options.prefix });
+      const { browser, context, page } = cloudSession;
       diagnostics.push(
         `${options.prefix.toLowerCase()}_browserbase_connected proxies=${cloudSession.proxiesEnabled}`,
       );
@@ -167,7 +165,7 @@ export async function createArrivalCardBrowserSession(options: {
   const channel = configuredChannel === "bundled"
     ? undefined
     : configuredChannel
-      || (["MDAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL", "TW_ENTRY_PERMIT"].includes(options.prefix) ? "chrome" : undefined);
+      || (["MDAC", "SGAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL", "TW_ENTRY_PERMIT"].includes(options.prefix) ? "chrome" : undefined);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
   const headless = options.headless ?? (explicitHeadless ? explicitHeadless !== "false" : true);
   const browser = await chromium.launch({ channel, headless });
