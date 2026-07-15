@@ -1,6 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  connectBrowserbaseCloudBrowser,
+} from "../browserbase-session";
 import { solveCaptcha } from "../captcha";
 import type { IndonesiaOneTimeCard } from "./card-session";
 import {
@@ -44,7 +48,7 @@ export interface IndonesiaPortalProbeResult {
   implementationStatus: "partial" | "blocked";
   url: string;
   title: string | null;
-  browserProvider: "local" | "local-cdp" | "remote-browser-api";
+  browserProvider: "local" | "local-cdp" | "remote-browser-api" | "browserbase";
   diagnostics: string[];
 }
 
@@ -3945,7 +3949,7 @@ async function createIndonesiaProbeSession(input: IndonesiaPortalProbeInput): Pr
   browser: Browser;
   context: BrowserContext;
   page: Page;
-  provider: "local" | "local-cdp" | "remote-browser-api";
+  provider: "local" | "local-cdp" | "remote-browser-api" | "browserbase";
   diagnostics: string[];
 }> {
   const diagnostics: string[] = [];
@@ -3958,6 +3962,18 @@ async function createIndonesiaProbeSession(input: IndonesiaPortalProbeInput): Pr
     const page = await context.newPage();
     diagnostics.push("indonesia_remote_browser_api_connected");
     return { browser, context, page, provider: "remote-browser-api", diagnostics };
+  }
+
+  if (browserbaseEnabled("INDONESIA") && !input.userPaymentHandoff?.enabled) {
+    const cloud = await connectBrowserbaseCloudBrowser({ prefix: "INDONESIA" });
+    diagnostics.push(`indonesia_browserbase_connected proxies=${cloud.proxiesEnabled}`);
+    return {
+      browser: cloud.browser,
+      context: cloud.context,
+      page: cloud.page,
+      provider: "browserbase",
+      diagnostics,
+    };
   }
 
   const cdpEndpoint = firstConfiguredEndpoint([

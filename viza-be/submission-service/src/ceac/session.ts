@@ -7,6 +7,10 @@
  */
 
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  connectBrowserbaseCloudBrowser,
+} from "../browserbase-session";
 import { CEAC_GATE_MARKERS, CEAC_URLS } from "./selectors";
 import { assertPage, detectPage } from "./pages";
 import { ManualActionRequiredError, SessionBootstrapError } from "./errors";
@@ -77,14 +81,22 @@ export async function startCeacSession(
   let context: BrowserContext | null = null;
 
   try {
-    browser = await chromium.launch({
-      headless,
-    });
-    context = await browser.newContext({
-      acceptDownloads,
-      userAgent: options.userAgent ?? CEAC_DEFAULT_USER_AGENT,
-    });
-    const page = await context.newPage();
+    let page: Page;
+    if (browserbaseEnabled("CEAC")) {
+      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "CEAC" });
+      browser = cloud.browser;
+      context = cloud.context;
+      page = cloud.page;
+    } else {
+      browser = await chromium.launch({
+        headless,
+      });
+      context = await browser.newContext({
+        acceptDownloads,
+        userAgent: options.userAgent ?? CEAC_DEFAULT_USER_AGENT,
+      });
+      page = await context.newPage();
+    }
 
     try {
       await gotoCeacStartPage(page, navigationTimeoutMs);
