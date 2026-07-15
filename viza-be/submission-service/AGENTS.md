@@ -179,13 +179,24 @@ filling and one-shot submission for the applicant.
   MFA must stop with a structured checkpoint instead of being hidden. Reuse
   `ph_etravel_accounts` by applicant before creating a new official account;
   do not mint a fresh inbox-alias account when a prior PH eTravel account row
-  exists.
+  exists. `src/ph-etravel/form-filler.ts` owns the post-authenticated official
+  form state machine, reaches Review in stop-before-submit mode, and allows the
+  worker to click final Submit only when that safety stop is explicitly off.
 - `src/browserbase-session.ts`: API-key-only Browserbase session creation for
   arrival-card runners. It can request a country-targeted managed residential
   proxy and returns only a replay URL to caller-visible diagnostics; CDP
   connection URLs and signing credentials must never be logged. MDAC keeps
   this provider explicitly gated by `MDAC_BROWSERBASE_ENABLED` and defaults to
   requiring Browserbase proxy access when enabled.
+- `src/appointment-free-smoke.ts` and
+  `scripts/run-appointment-free-smoke.ts`: proxy-free Browserbase Free Plan
+  validation for China USVisaScheduling, China France TLScontact, and Japan
+  VFS/JVAC Singapore. It forces cloud concurrency 1, runs the three portals
+  sequentially, strips URL query secrets, masks form values before screenshots,
+  and classifies each portal as `pass`, `conditional`, or `proxy_required`.
+  `--application-id` validates canonical VIZA answers/documents without using
+  placeholders; `--prepare-alias` is the only option that writes an applicant
+  alias, and the smoke never pays, selects a real slot, or confirms a booking.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
   declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival
@@ -225,10 +236,13 @@ filling and one-shot submission for the applicant.
   `/local/korea-kvac/sms/complete`; the final endpoint may report success only
   after the official portal returns a confirmation number.
 - `src/jp-vfs-sg/**`: Japan VFS/JVAC Singapore observer. It uses an authorized
-  Browser API/CDP session, records redacted page state, and stops at official
+  Browser API/CDP session, validates canonical application answers when an
+  application id is supplied, optionally prepares the VIZA alias, records
+  redacted page state, and stops at official
   login, CAPTCHA/WAF, identity verification, payment, or selector drift.
-  The localhost-only observation endpoint is `/local/japan-vfs-sg/observe`
-  and requires `JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED=true`.
+  The observation endpoint is `/local/japan-vfs-sg/observe`, requires
+  `JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED=true`, and accepts remote private
+  service calls only with `JP_VFS_SG_INTERNAL_TOKEN`.
 - `scripts/smoke-korea-kvac-centers.ts`: local Korea KVAC/consulate reachability
   smoke for all mainland China filing channels. It opens the official booking
   or guidance entry for each center and saves evidence screenshots without
@@ -268,6 +282,10 @@ filling and one-shot submission for the applicant.
   with a CDP port for Philippines eTravel. It defaults to an isolated VIZA
   automation profile under `output/chrome-profiles/ph-etravel-cdp` and prints
   the `PH_ETRAVEL_CDP_ENDPOINT` value for smoke/worker runs.
+- `scripts/check-ph-etravel-browserbase-test-profile.ts`: sanitized Browserbase
+  connectivity check that authenticates only as the local VIZA test client and
+  reports whether its own profile/alias are available without printing PII,
+  passwords, tokens, or Browserbase session credentials.
 - `src/vietnam/card-session.ts` plus the health-server
   `POST /local/vietnam/card-session` endpoint: local-only one-time card handoff
   for frontend-entered Vietnam official-fee payments. It is enabled only by
@@ -372,6 +390,9 @@ npm run vn:smoke
 # Read-only local/Browserbase reachability matrix for Indonesia B1/C1,
 # Vietnam eVisa, SGAC, TDAC, DS-160, and France-Visas. Never fills or submits:
 npm run portal:connectivity-smoke
+# Browserbase Free Plan, no proxies, sequential appointment reachability.
+# Optional: -- --application-id=<authorized-id> --prepare-alias
+npm run appointment:free-smoke
 # Public arrival-card forms; stop before final Submit unless --submit is passed:
 npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts

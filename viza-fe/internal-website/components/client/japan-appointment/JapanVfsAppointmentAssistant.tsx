@@ -1,12 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CalendarCheck, CheckCircle2, ExternalLink, FileCheck2, ShieldCheck, RotateCcw, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, CalendarCheck, CheckCircle2, ExternalLink, FileCheck2, Loader2, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
+import { BrandActionButton } from "@/components/client/brand-action-button";
+import { BrandField } from "@/components/client/brand-field";
+import {
+  cancelJapanAppointmentJob,
+  checkJapanAppointmentPortal,
+  createJapanAppointmentJob,
+  getJapanAppointmentStatus,
+  JapanAppointmentApiError,
+  recordJapanAppointmentConsent,
+} from "@/lib/japan-appointment-client";
 import {
   getJapanVfsChecklist,
   getJapanVfsEligibility,
@@ -15,64 +27,110 @@ import {
   type JapanVisaRequestType,
   type SingaporePassType,
 } from "@/lib/japan-vfs-sg";
-
-const MOFA_JAPAN_VISA_FORM_URL = "https://www.mofa.go.jp/files/000124525.pdf";
+import type { JapanAppointmentSnapshot } from "@/types/japan-appointment";
 
 interface Props { applicationId: string }
+type Busy = "load" | "consent" | "create" | "check" | "cancel" | null;
+const SELECT_CLASS = "h-12 w-full rounded-lg border border-input bg-white px-3 text-[15px] outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 
 export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
+  const t = useTranslations("JapanAppointment");
+  const locale = useLocale();
   const [visaType, setVisaType] = useState<JapanVisaRequestType>("single_entry");
   const [occupation, setOccupation] = useState<JapanApplicantOccupation>("employed");
   const [passType, setPassType] = useState<SingaporePassType | "">("");
   const [passExpiry, setPassExpiry] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [consent, setConsent] = useState(false);
-  const [uploaded, setUploaded] = useState<Set<string>>(new Set());
-  const eligibility = getJapanVfsEligibility({ nationality: "China", passportType: "ordinary", singaporePassType: passType, singaporePassExpiryDate: passExpiry, intendedReturnDate: returnDate });
-  const checklist = useMemo(() => getJapanVfsChecklist(visaType, occupation), [visaType, occupation]);
-  const ready = eligibility.eligible && consent && checklist.every((item) => uploaded.has(item.id));
-  const toggle = (id: string) => setUploaded((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
+  const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
+  const [snapshot, setSnapshot] = useState<JapanAppointmentSnapshot | null>(null);
+  const [busy, setBusy] = useState<Busy>("load");
+  const [error, setError] = useState<string | null>(null);
 
-  return <main className="mx-auto w-full max-w-[1090px] space-y-5 px-4 py-8">
-    <header className="space-y-2">
-      <p className="text-sm font-medium text-brand-600">日本旅游签证 · 新加坡 JVAC</p>
-      <h1 className="font-heading text-3xl font-semibold">VFS 预约前检查</h1>
-      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">完成资格和材料检查后，VIZA 会将您带到官方 VFS 页面完成预约。具体时段与最终提交始终由您确认。</p>
-    </header>
-    <Alert className="border-amber-200 bg-amber-50"><ShieldCheck className="h-4 w-4 text-amber-700" /><AlertTitle>请在出行前 3 个月内申请</AlertTitle><AlertDescription>VFS 当前提示处理期为递交/预约后 10 个日历日；出行日在递交前不足 10 天或超过 90 天会不予受理，服务费不退。</AlertDescription></Alert>
-    <Card><CardHeader><CardTitle>1. 申请资格与签证类型</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
-      <label className="space-y-1 text-sm"><span>签证请求</span><select className="w-full rounded-md border p-2" value={visaType} onChange={(e) => setVisaType(e.target.value as JapanVisaRequestType)}><option value="single_entry">单次入境</option><option value="double_entry">双次入境（两次行程相隔不超过 6 个月）</option><option value="multiple_entry">多次入境</option></select></label>
-      <label className="space-y-1 text-sm"><span>职业状态</span><select className="w-full rounded-md border p-2" value={occupation} onChange={(e) => setOccupation(e.target.value as JapanApplicantOccupation)}><option value="employed">受雇</option><option value="self_employed">企业主/自雇</option><option value="student">学生</option><option value="retired">退休</option><option value="housewife">家庭主妇/主夫</option><option value="unemployed">待业</option></select></label>
-      <label className="space-y-1 text-sm"><span>新加坡长期准证</span><select className="w-full rounded-md border p-2" value={passType} onChange={(e) => setPassType(e.target.value as SingaporePassType)}><option value="">请选择</option><option value="pr">PR</option><option value="employment_pass">Employment Pass</option><option value="s_pass">S Pass</option><option value="work_permit">Work Permit</option><option value="dependent_pass">Dependent Pass</option><option value="long_term_visit_pass">Long-Term Visit Pass</option><option value="student_pass">Student Pass</option></select></label>
-      <label className="space-y-1 text-sm"><span>准证到期日</span><input className="w-full rounded-md border p-2" type="date" value={passExpiry} onChange={(e) => setPassExpiry(e.target.value)} /></label>
-      <label className="space-y-1 text-sm"><span>预计返回新加坡日期</span><input className="w-full rounded-md border p-2" type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} /></label>
-      <div className="self-end"><Badge variant={eligibility.eligible ? "default" : "secondary"}>{eligibility.eligible ? "资格通过" : "待补充"}</Badge><p className="mt-2 text-sm text-muted-foreground">{eligibility.reasonZh}</p></div>
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-brand-500" />2. 材料预检</CardTitle></CardHeader><CardContent className="space-y-3">
-      <p className="text-sm text-muted-foreground">材料按每位申请人分别整理为 A4 文件，不使用订书钉、别针或回形针；非英文材料请准备译文。此处确认的是准备状态，VFS 最新 checklist 为最终依据。</p>
-      <Button variant="outline" className="w-full" asChild><a href={MOFA_JAPAN_VISA_FORM_URL} target="_blank" rel="noreferrer"><FileCheck2 className="mr-2 h-4 w-4" />下载日本外务省官方签证申请表（PDF）<ExternalLink className="ml-2 h-4 w-4" /></a></Button>
-      <Button variant="outline" className="w-full" asChild><a href={`/api/applications/${applicationId}/jp-form-a-pdf`} target="_blank" rel="noreferrer"><FileCheck2 className="mr-2 h-4 w-4" />下载已填写的 VIZA 申请表（PDF）</a></Button>
-      {checklist.map((item) => <label key={item.id} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3"><Checkbox checked={uploaded.has(item.id)} onCheckedChange={() => toggle(item.id)} /><span><span className="block font-medium">{item.labelZh} <span className="font-normal text-muted-foreground">/ {item.labelEn}</span></span><span className="text-sm text-muted-foreground">{item.noteZh}</span></span></label>)}
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle>到访地点与当天准备</CardTitle></CardHeader><CardContent className="space-y-3 text-sm leading-6">
-      <p><strong>Japan Visa Application Centre（Haw Par Centre）</strong><br />180 Clemenceau Avenue, Haw Par Centre, 2nd Floor, Unit #02-01, Singapore 239922。</p>
-      <p>标准递交：周一至周五 08:30–12:00、13:30–16:30；请在预约前约 5 分钟到达。带上打印的预约信、已签名申请表、护照资料页、有效护照（至少两页相连空白页）和全部原件/复印件。</p>
-      <p>预约确认需在线支付 VFS 服务费；签证费在中心以 Nets、PayNow、PayLah 或现金支付。每位家庭成员须有独立预约。</p>
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle>3. 授权并前往 VFS</CardTitle></CardHeader><CardContent className="space-y-4">
-      <Alert className="border-amber-200 bg-amber-50"><ShieldCheck className="h-4 w-4 text-amber-700" /><AlertTitle>官方 Cloudflare 验证</AlertTitle><AlertDescription>VFS 登录页使用 Cloudflare Turnstile“请验证您是真人”。请在官方浏览器会话中自行完成验证；VIZA 不会代答或绕过验证码。</AlertDescription></Alert>
-      <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><Checkbox checked={consent} onCheckedChange={(value) => setConsent(value === true)} /><span>我确认上述材料与行程信息真实，并授权 VIZA 保存预约前检查结果。VIZA 不会保存 VFS 密码、验证码、银行卡或会话令牌。</span></label>
-      <Button className="w-full" disabled={!ready} asChild><a href={`${JAPAN_VFS_SG_OFFICIAL_URL}?application=${encodeURIComponent(applicationId)}`} target="_blank" rel="noreferrer"><CalendarCheck className="mr-2 h-4 w-4" />前往 VFS 选择时段并确认预约 <ExternalLink className="ml-2 h-4 w-4" /></a></Button>
-      {ready && <p className="flex items-center gap-2 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4" />预约前检查完成。请在官方页面完成登录、选时段及最终确认。</p>}
-    </CardContent></Card>
-    <Card><CardHeader><CardTitle>改约或取消预约</CardTitle></CardHeader><CardContent className="space-y-3 text-sm leading-6 text-muted-foreground">
-      <p>使用原 VFS 账号进入官方预约系统后操作改约或取消。取消应至少在预约日前 3 个工作日完成；少于 3 个工作日取消，VFS 服务费不退。若错过预约，VFS 提示须在原预约日期 24 小时后重新预约。</p>
-      <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" asChild><a href={JAPAN_VFS_SG_OFFICIAL_URL} target="_blank" rel="noreferrer"><RotateCcw className="mr-2 h-4 w-4" />官方改约</a></Button><Button variant="outline" asChild><a href={JAPAN_VFS_SG_OFFICIAL_URL} target="_blank" rel="noreferrer"><XCircle className="mr-2 h-4 w-4" />官方取消预约</a></Button></div>
-    </CardContent></Card>
-  </main>;
+  const eligibility = getJapanVfsEligibility({
+    nationality: "China", passportType: "ordinary", singaporePassType: passType,
+    singaporePassExpiryDate: passExpiry, intendedReturnDate: returnDate,
+  });
+  const checklist = useMemo(() => getJapanVfsChecklist(visaType, occupation), [visaType, occupation]);
+  const checklistReady = checklist.every((item) => confirmed.has(item.id));
+  const job = snapshot?.job ?? null;
+
+  const load = useCallback(async () => {
+    try { setSnapshot(await getJapanAppointmentStatus(applicationId)); }
+    catch (cause) { setError(cause instanceof JapanAppointmentApiError ? cause.message : t("errors.load")); }
+    finally { setBusy(null); }
+  }, [applicationId, t]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const action = async (kind: Exclude<Busy, "load" | null>, run: () => Promise<unknown>) => {
+    setBusy(kind); setError(null);
+    try { await run(); await load(); }
+    catch (cause) { setError(cause instanceof JapanAppointmentApiError ? cause.message : t("errors.action")); setBusy(null); }
+  };
+
+  const eligibilityPayload = {
+    singaporePassType: passType,
+    singaporePassExpiryDate: passExpiry,
+    intendedReturnDate: returnDate,
+    passportType: "ordinary",
+    visaRequestType: visaType,
+    occupation,
+    checklistConfirmed: [...confirmed],
+  };
+
+  if (busy === "load" && !snapshot) {
+    return <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4"><Loader2 className="h-12 w-12 animate-spin text-brand-500" /><p className="text-lg text-muted-foreground">{t("loading")}</p></div>;
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-4xl space-y-6 py-8">
+      <header className="space-y-2">
+        <p className="text-sm font-medium text-brand-600">{t("eyebrow")}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div><h1 className="text-3xl font-semibold">{t("title")}</h1><p className="mt-2 max-w-3xl leading-7 text-muted-foreground">{t("subtitle")}</p></div>
+          <Badge variant={job ? "default" : "secondary"}>{job ? t(`statuses.${job.status}`) : t("statuses.not_started")}</Badge>
+        </div>
+      </header>
+
+      <Alert className="border-brand-100 bg-brand-50"><ShieldCheck className="h-4 w-4 text-brand-600" /><AlertTitle>{t("free.title")}</AlertTitle><AlertDescription>{t("free.body")}</AlertDescription></Alert>
+      {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>{t("errors.title")}</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+
+      <Card><CardHeader><CardTitle>{t("eligibility.title")}</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
+        <BrandField label={t("eligibility.visaType")} htmlFor="jp-visa-type"><select id="jp-visa-type" className={SELECT_CLASS} value={visaType} onChange={(event) => setVisaType(event.target.value as JapanVisaRequestType)} disabled={Boolean(job)}><option value="single_entry">{t("visaTypes.single_entry")}</option><option value="double_entry">{t("visaTypes.double_entry")}</option><option value="multiple_entry">{t("visaTypes.multiple_entry")}</option></select></BrandField>
+        <BrandField label={t("eligibility.occupation")} htmlFor="jp-occupation"><select id="jp-occupation" className={SELECT_CLASS} value={occupation} onChange={(event) => setOccupation(event.target.value as JapanApplicantOccupation)} disabled={Boolean(job)}><option value="employed">{t("occupations.employed")}</option><option value="self_employed">{t("occupations.self_employed")}</option><option value="student">{t("occupations.student")}</option><option value="retired">{t("occupations.retired")}</option><option value="housewife">{t("occupations.housewife")}</option><option value="unemployed">{t("occupations.unemployed")}</option></select></BrandField>
+        <BrandField label={t("eligibility.passType")} htmlFor="jp-pass-type"><select id="jp-pass-type" className={SELECT_CLASS} value={passType} onChange={(event) => setPassType(event.target.value as SingaporePassType)} disabled={Boolean(job)}><option value="">{t("select")}</option>{["pr","employment_pass","s_pass","work_permit","dependent_pass","long_term_visit_pass","student_pass"].map((value) => <option key={value} value={value}>{t(`passTypes.${value}`)}</option>)}</select></BrandField>
+        <BrandField label={t("eligibility.passExpiry")}><DatePicker value={passExpiry} onChange={setPassExpiry} /></BrandField>
+        <BrandField label={t("eligibility.returnDate")}><DatePicker value={returnDate} onChange={setReturnDate} /></BrandField>
+        <div className="self-end rounded-lg border border-input p-3"><Badge variant={eligibility.eligible ? "default" : "secondary"}>{eligibility.eligible ? t("eligibility.pass") : t("eligibility.incomplete")}</Badge><p className="mt-2 text-sm text-muted-foreground">{locale === "zh" ? eligibility.reasonZh : t(eligibility.eligible ? "eligibility.passBody" : "eligibility.incompleteBody")}</p></div>
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-brand-500" />{t("documents.title")}</CardTitle></CardHeader><CardContent className="space-y-3">
+        <p className="text-sm leading-6 text-muted-foreground">{t("documents.body")}</p>
+        {checklist.map((item) => <label key={item.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3"><Checkbox checked={confirmed.has(item.id)} onCheckedChange={() => setConfirmed((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} /><span className="font-medium">{locale === "zh" ? item.labelZh : item.labelEn}</span></label>)}
+        <Button variant="outline" className="w-full" asChild><a href={`/client/documents?applicationId=${encodeURIComponent(applicationId)}`}><FileCheck2 className="mr-2 h-4 w-4" />{t("documents.manage")}</a></Button>
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>{t("workflow.title")}</CardTitle></CardHeader><CardContent className="space-y-4">
+        <label className="flex min-h-11 items-start gap-3 rounded-lg border p-3 text-sm"><Checkbox checked={consent} onCheckedChange={(value) => setConsent(value === true)} /><span>{t("workflow.consent")}</span></label>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <BrandActionButton variant="secondary" loading={busy === "consent"} loadingText={t("workflow.saving")} disabled={!consent || Boolean(job)} onClick={() => action("consent", () => recordJapanAppointmentConsent(applicationId, { ...eligibilityPayload, acceptedAt: new Date().toISOString() }))}><ShieldCheck />{t("workflow.saveConsent")}</BrandActionButton>
+          <BrandActionButton loading={busy === "create"} loadingText={t("workflow.creating")} disabled={!eligibility.eligible || !checklistReady || Boolean(job)} onClick={() => action("create", () => createJapanAppointmentJob(applicationId, eligibilityPayload))}><CalendarCheck />{t("workflow.create")}</BrandActionButton>
+          <BrandActionButton variant="secondary" loading={busy === "check"} loadingText={t("workflow.checking")} disabled={!job || busy !== null || job.status === "appointment_cancelled"} onClick={() => job && action("check", () => checkJapanAppointmentPortal(job.id))}><RefreshCw />{t("workflow.check")}</BrandActionButton>
+        </div>
+        {snapshot?.account && <Alert><CheckCircle2 className="h-4 w-4 text-emerald-600" /><AlertTitle>{t("workflow.aliasReady")}</AlertTitle><AlertDescription>{t("workflow.aliasBody")}</AlertDescription></Alert>}
+        {snapshot?.pendingManualAction && <Alert className="border-amber-200 bg-amber-50"><ShieldCheck className="h-4 w-4 text-amber-700" /><AlertTitle>{t(`checkpoints.${snapshot.pendingManualAction.actionType}`)}</AlertTitle><AlertDescription>{snapshot.pendingManualAction.instruction}</AlertDescription></Alert>}
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button variant="outline" asChild><a href={JAPAN_VFS_SG_OFFICIAL_URL} target="_blank" rel="noreferrer"><ExternalLink className="mr-2 h-4 w-4" />{t("workflow.openOfficial")}</a></Button>
+          <Button variant="outline" disabled={!job || job.status === "appointment_cancelled" || busy === "cancel"} onClick={() => job && action("cancel", () => cancelJapanAppointmentJob(job.id))}>{busy === "cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{t("workflow.cancel")}</Button>
+        </div>
+      </CardContent></Card>
+
+      <Card><CardHeader><CardTitle>{t("evidence.title")}</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2"><Detail label={t("evidence.httpStatus")} value={String(snapshot?.evidence?.httpStatus ?? "-")} /><Detail label={t("evidence.pageTitle")} value={String(snapshot?.evidence?.pageTitle ?? "-")} /><Detail label={t("evidence.observedAt")} value={String(snapshot?.evidence?.observedAt ?? "-")} /><Detail label={t("evidence.replay")} value={snapshot?.evidence?.browserbaseReplayAvailable ? t("yes") : t("no")} /></CardContent></Card>
+    </main>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-input bg-muted/30 p-3"><div className="text-xs font-medium text-muted-foreground">{label}</div><div className="mt-1 break-words text-sm text-foreground">{value}</div></div>;
 }

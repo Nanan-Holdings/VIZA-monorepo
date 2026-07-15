@@ -32,6 +32,7 @@
 		"ingest:supported-visa-rag": "tsx scripts/ingest-country-visa-rag.ts --all",
 		"ingest:faqs": "tsx scripts/ingest-faqs.ts",
 		"seed:ds160-form-fields": "tsx scripts/seed-ds160-form-fields.ts",
+		"sync:ph-etravel-options": "tsx scripts/ph-etravel/sync-official-options.ts",
 		"travel:import-geonames-destinations": "tsx scripts/import-geonames-destinations.ts",
 		"travel:import-geonames-aliases": "tsx scripts/import-geonames-aliases.ts",
 		"travel:enrich-wikidata": "tsx scripts/enrich-destinations-wikidata.ts",

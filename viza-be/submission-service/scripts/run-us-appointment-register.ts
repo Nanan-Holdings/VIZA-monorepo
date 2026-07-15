@@ -11,6 +11,7 @@ import {
   type AppointmentAccountCredentials,
 } from "../src/us-appointment";
 import { ensureApplicantInboxAlias } from "../src/inbox/alias";
+import { browserbaseEnabled } from "../src/browserbase-session";
 import { supabase } from "../src/supabase";
 import { encryptSecret } from "../src/secret-cipher";
 
@@ -247,15 +248,20 @@ async function main(): Promise<void> {
     generatedPassword,
   });
   const loadedConfig = loadUSAppointmentRunnerConfig();
+  const browserbase = !args.localBrowser && browserbaseEnabled("US_APPOINTMENT");
   const remoteEndpoint = args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint;
   const localHandoffEndpoint =
     process.env.US_APPOINTMENT_LOCAL_CDP_ENDPOINT?.trim()
     || "http://127.0.0.1:9222";
-  let browserMode: "configured" | "local" | "hybrid" = args.localBrowser ? "local" : "configured";
+  let browserMode: "browserbase" | "configured" | "local" | "hybrid" = browserbase
+    ? "browserbase"
+    : args.localBrowser
+      ? "local"
+      : "configured";
   let baseUrl = loadedConfig.baseUrl;
   let playwrightCdpEndpoint = args.localBrowser ? null : loadedConfig.playwrightCdpEndpoint;
 
-  if (!args.localBrowser && remoteEndpoint) {
+  if (!args.localBrowser && !browserbase && remoteEndpoint) {
     await assertLocalCdpReachable(localHandoffEndpoint);
     baseUrl = await waitForAuthHandoffUrl(remoteEndpoint, loadedConfig.baseUrl);
     playwrightCdpEndpoint = localHandoffEndpoint;
@@ -270,9 +276,9 @@ async function main(): Promise<void> {
     baseUrl,
   };
 
-  if (!args.localBrowser && !config.playwrightCdpEndpoint) {
+  if (!args.localBrowser && !browserbase && !config.playwrightCdpEndpoint) {
     throw new Error(
-      "US_APPOINTMENT_BROWSER_API_ENDPOINT or US_APPOINTMENT_CDP_ENDPOINT must be set. Use --local-browser only for intentional local debugging.",
+      "US_APPOINTMENT_BROWSERBASE_ENABLED, US_APPOINTMENT_BROWSER_API_ENDPOINT, or US_APPOINTMENT_CDP_ENDPOINT must be set. Use --local-browser only for intentional local debugging.",
     );
   }
 

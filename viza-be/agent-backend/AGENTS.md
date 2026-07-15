@@ -51,6 +51,14 @@ explicitly reintroduces another provider.
   submission-service `/local/france-tls/check-slots` endpoint via
   `FRANCE_TLS_SUBMISSION_SERVICE_URL`; browser automation and WAF/CDP handling
   must remain in submission-service.
+- Japan temporary-visitor appointment preparation:
+  `src/routes/japan-appointment.routes.ts` and
+  `src/services/japan-appointment/**` reuse the shared `appointment_*` tables
+  for eligible Chinese ordinary-passport holders filing through VFS/JVAC
+  Singapore. The backend validates stored VIZA answers and passport/photo
+  uploads, prepares a redacted alias account record, and delegates official
+  portal observation to submission-service. Free Plan mode stops before slot
+  selection, payment, and final booking.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
