@@ -35,11 +35,23 @@ export interface HealthServerOptions {
 }
 
 async function dbReachable(): Promise<boolean> {
+  const configuredTimeout = Number(process.env.READINESS_DB_TIMEOUT_MS ?? "3000");
+  const timeoutMs = Number.isFinite(configuredTimeout)
+    ? Math.min(Math.max(Math.floor(configuredTimeout), 500), 10_000)
+    : 3_000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const { error } = await supabase.from("runner_job").select("id", { head: true }).limit(1);
+    const { error } = await supabase
+      .from("runner_job")
+      .select("id", { head: true })
+      .limit(1)
+      .abortSignal(controller.signal);
     return !error;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
