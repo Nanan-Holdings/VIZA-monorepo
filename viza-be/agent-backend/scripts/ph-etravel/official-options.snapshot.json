@@ -1,0 +1,4015 @@
+{
+  "source": "https://ws.etravel.gov.ph",
+  "officialWebBuildId": "77f106d9c659765d93977987ceb12abaf7d43bd5",
+  "retrievedOn": "2026-07-15",
+  "endpoints": {
+    "occupations": "/api/v1/common/occupations?paginate=0&order_by=name&status_by=asc",
+    "countries": "/api/v1/common/countries?paginate=0&order_by=name&status_by=asc",
+    "arrivalPurposes": "/api/v1/common/purpose_of_visits?paginate=0&for_arrival=1&order_by=name&status_by=asc",
+    "airlines": "/api/v1/common/travel_companies?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    "arrivalPorts": "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    "sicknessSymptoms": "/api/v1/common/sickness_symptoms?paginate=0&order_by=name&status_by=asc&is_active=1",
+    "declarationChecklist": "/api/v1/common/declaration_check_lists?paginate=0"
+  },
+  "occupations": [
+    {
+      "id": 3,
+      "code": "OCC003",
+      "name": "Agriculture",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 10,
+      "code": "OCC010",
+      "name": "Airline Crew",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 15,
+      "code": "OCC015",
+      "name": "Businessman",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 2,
+      "code": "OCC002",
+      "name": "Clerical/Sales",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 11,
+      "code": "OCC011",
+      "name": "Diplomat",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 13,
+      "code": "OCC013",
+      "name": "Domestic Helper",
+      "for_arrival": 0,
+      "for_departure": 1
+    },
+    {
+      "id": 12,
+      "code": "OCC012",
+      "name": "Entertainer",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 6,
+      "code": "OCC006",
+      "name": "Housewife",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 5,
+      "code": "OCC005",
+      "name": "Military/Government Personnel",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 1,
+      "code": "OCC001",
+      "name": "Professional/Technical/Administrative",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 8,
+      "code": "OCC008",
+      "name": "Retired/Pensioner",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 9,
+      "code": "OCC009",
+      "name": "Seaman",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 7,
+      "code": "OCC007",
+      "name": "Student/Minor",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 14,
+      "code": "OCC014",
+      "name": "Unemployed",
+      "for_arrival": 1,
+      "for_departure": 1
+    },
+    {
+      "id": 4,
+      "code": "OCC004",
+      "name": "Worker/Laborer",
+      "for_arrival": 1,
+      "for_departure": 1
+    }
+  ],
+  "countries": [
+    {
+      "id": 2,
+      "code": "AF",
+      "alpha_3_code": "AFG",
+      "name": "Afghanistan",
+      "nationality": "Afghan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 3,
+      "code": "AX",
+      "alpha_3_code": "ALA",
+      "name": "Åland Islands",
+      "nationality": "Åland Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 4,
+      "code": "AL",
+      "alpha_3_code": "ALB",
+      "name": "Albania",
+      "nationality": "Albanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 5,
+      "code": "DZ",
+      "alpha_3_code": "DZA",
+      "name": "Algeria",
+      "nationality": "Algerian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 6,
+      "code": "AS",
+      "alpha_3_code": "ASM",
+      "name": "American Samoa",
+      "nationality": "American Samoan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 7,
+      "code": "AD",
+      "alpha_3_code": "AND",
+      "name": "Andorra",
+      "nationality": "Andorran",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 8,
+      "code": "AO",
+      "alpha_3_code": "AGO",
+      "name": "Angola",
+      "nationality": "Angolan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 9,
+      "code": "AI",
+      "alpha_3_code": "AIA",
+      "name": "Anguilla",
+      "nationality": "Anguillan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 10,
+      "code": "AQ",
+      "alpha_3_code": "ATA",
+      "name": "Antarctica",
+      "nationality": "Antarctic",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 11,
+      "code": "AG",
+      "alpha_3_code": "ATG",
+      "name": "Antigua and Barbuda",
+      "nationality": "Antiguan or Barbudan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 12,
+      "code": "AR",
+      "alpha_3_code": "ARG",
+      "name": "Argentina",
+      "nationality": "Argentine",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 13,
+      "code": "AM",
+      "alpha_3_code": "ARM",
+      "name": "Armenia",
+      "nationality": "Armenian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 14,
+      "code": "AW",
+      "alpha_3_code": "ABW",
+      "name": "Aruba",
+      "nationality": "Aruban",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 15,
+      "code": "AU",
+      "alpha_3_code": "AUS",
+      "name": "Australia",
+      "nationality": "Australian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 16,
+      "code": "AT",
+      "alpha_3_code": "AUT",
+      "name": "Austria",
+      "nationality": "Austrian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 17,
+      "code": "AZ",
+      "alpha_3_code": "AZE",
+      "name": "Azerbaijan",
+      "nationality": "Azerbaijani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 18,
+      "code": "BS",
+      "alpha_3_code": "BHS",
+      "name": "Bahamas",
+      "nationality": "Bahamian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 19,
+      "code": "BH",
+      "alpha_3_code": "BHR",
+      "name": "Bahrain",
+      "nationality": "Bahraini",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 20,
+      "code": "BD",
+      "alpha_3_code": "BGD",
+      "name": "Bangladesh",
+      "nationality": "Bangladeshi",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 21,
+      "code": "BB",
+      "alpha_3_code": "BRB",
+      "name": "Barbados",
+      "nationality": "Barbadian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 22,
+      "code": "BY",
+      "alpha_3_code": "BLR",
+      "name": "Belarus",
+      "nationality": "Belarusian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 23,
+      "code": "BE",
+      "alpha_3_code": "BEL",
+      "name": "Belgium",
+      "nationality": "Belgian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 24,
+      "code": "BZ",
+      "alpha_3_code": "BLZ",
+      "name": "Belize",
+      "nationality": "Belizean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 25,
+      "code": "BJ",
+      "alpha_3_code": "BEN",
+      "name": "Benin",
+      "nationality": "Beninese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 26,
+      "code": "BM",
+      "alpha_3_code": "BMU",
+      "name": "Bermuda",
+      "nationality": "Bermudian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 27,
+      "code": "BT",
+      "alpha_3_code": "BTN",
+      "name": "Bhutan",
+      "nationality": "Bhutanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 28,
+      "code": "BO",
+      "alpha_3_code": "BOL",
+      "name": "Bolivia (Plurinational State of)",
+      "nationality": "Bolivian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 29,
+      "code": "BQ",
+      "alpha_3_code": "BES",
+      "name": "Bonaire, Sint Eustatius and Saba",
+      "nationality": "Bonaire",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 30,
+      "code": "BA",
+      "alpha_3_code": "BIH",
+      "name": "Bosnia and Herzegovina",
+      "nationality": "Bosnian or Herzegovinian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 31,
+      "code": "BW",
+      "alpha_3_code": "BWA",
+      "name": "Botswana",
+      "nationality": "Motswana",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 32,
+      "code": "BV",
+      "alpha_3_code": "BVT",
+      "name": "Bouvet Island",
+      "nationality": "Bouvet Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 33,
+      "code": "BR",
+      "alpha_3_code": "BRA",
+      "name": "Brazil",
+      "nationality": "Brazilian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 34,
+      "code": "IO",
+      "alpha_3_code": "IOT",
+      "name": "British Indian Ocean Territory",
+      "nationality": "British Indian Ocean Territory",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 35,
+      "code": "BN",
+      "alpha_3_code": "BRN",
+      "name": "Brunei Darussalam",
+      "nationality": "Bruneian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 36,
+      "code": "BG",
+      "alpha_3_code": "BGR",
+      "name": "Bulgaria",
+      "nationality": "Bulgarian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 37,
+      "code": "BF",
+      "alpha_3_code": "BFA",
+      "name": "Burkina Faso",
+      "nationality": "Burkinabé",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 38,
+      "code": "BI",
+      "alpha_3_code": "BDI",
+      "name": "Burundi",
+      "nationality": "Burundian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 39,
+      "code": "CV",
+      "alpha_3_code": "CPV",
+      "name": "Cabo Verde",
+      "nationality": "Cabo Verdean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 40,
+      "code": "KH",
+      "alpha_3_code": "KHM",
+      "name": "Cambodia",
+      "nationality": "Cambodian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 41,
+      "code": "CM",
+      "alpha_3_code": "CMR",
+      "name": "Cameroon",
+      "nationality": "Cameroonian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 42,
+      "code": "CA",
+      "alpha_3_code": "CAN",
+      "name": "Canada",
+      "nationality": "Canadian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 43,
+      "code": "KY",
+      "alpha_3_code": "CYM",
+      "name": "Cayman Islands",
+      "nationality": "Caymanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 44,
+      "code": "CF",
+      "alpha_3_code": "CAF",
+      "name": "Central African Republic",
+      "nationality": "Central African",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 45,
+      "code": "TD",
+      "alpha_3_code": "TCD",
+      "name": "Chad",
+      "nationality": "Chadian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 46,
+      "code": "CL",
+      "alpha_3_code": "CHL",
+      "name": "Chile",
+      "nationality": "Chilean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 47,
+      "code": "CN",
+      "alpha_3_code": "CHN",
+      "name": "China",
+      "nationality": "Chinese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 48,
+      "code": "CX",
+      "alpha_3_code": "CXR",
+      "name": "Christmas Island",
+      "nationality": "Christmas Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 49,
+      "code": "CC",
+      "alpha_3_code": "CCK",
+      "name": "Cocos (Keeling) Islands",
+      "nationality": "Cocos Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 50,
+      "code": "CO",
+      "alpha_3_code": "COL",
+      "name": "Colombia",
+      "nationality": "Colombian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 51,
+      "code": "KM",
+      "alpha_3_code": "COM",
+      "name": "Comoros",
+      "nationality": "Comoran",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 53,
+      "code": "CD",
+      "alpha_3_code": "COD",
+      "name": "Congo (Democratic Republic of the)",
+      "nationality": "Congolese",
+      "is_under_watch_list": 1,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 52,
+      "code": "CG",
+      "alpha_3_code": "COG",
+      "name": "Congo (Republic of the)",
+      "nationality": "Congolese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 54,
+      "code": "CK",
+      "alpha_3_code": "COK",
+      "name": "Cook Islands",
+      "nationality": "Cook Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 55,
+      "code": "CR",
+      "alpha_3_code": "CRI",
+      "name": "Costa Rica",
+      "nationality": "Costa Rican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 56,
+      "code": "CI",
+      "alpha_3_code": "CIV",
+      "name": "Côte d'Ivoire",
+      "nationality": "Ivorian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 57,
+      "code": "HR",
+      "alpha_3_code": "HRV",
+      "name": "Croatia",
+      "nationality": "Croatian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 58,
+      "code": "CU",
+      "alpha_3_code": "CUB",
+      "name": "Cuba",
+      "nationality": "Cuban",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 59,
+      "code": "CW",
+      "alpha_3_code": "CUW",
+      "name": "Curaçao",
+      "nationality": "Curaçaoan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 60,
+      "code": "CY",
+      "alpha_3_code": "CYP",
+      "name": "Cyprus",
+      "nationality": "Cypriot",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 61,
+      "code": "CZ",
+      "alpha_3_code": "CZE",
+      "name": "Czech Republic",
+      "nationality": "Czech",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 62,
+      "code": "DK",
+      "alpha_3_code": "DNK",
+      "name": "Denmark",
+      "nationality": "Danish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 63,
+      "code": "DJ",
+      "alpha_3_code": "DJI",
+      "name": "Djibouti",
+      "nationality": "Djiboutian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 64,
+      "code": "DM",
+      "alpha_3_code": "DMA",
+      "name": "Dominica",
+      "nationality": "Dominican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 65,
+      "code": "DO",
+      "alpha_3_code": "DOM",
+      "name": "Dominican Republic",
+      "nationality": "Dominican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 66,
+      "code": "EC",
+      "alpha_3_code": "ECU",
+      "name": "Ecuador",
+      "nationality": "Ecuadorian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 67,
+      "code": "EG",
+      "alpha_3_code": "EGY",
+      "name": "Egypt",
+      "nationality": "Egyptian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 68,
+      "code": "SV",
+      "alpha_3_code": "SLV",
+      "name": "El Salvador",
+      "nationality": "Salvadoran",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 69,
+      "code": "GQ",
+      "alpha_3_code": "GNQ",
+      "name": "Equatorial Guinea",
+      "nationality": "Equatorial Guinean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 70,
+      "code": "ER",
+      "alpha_3_code": "ERI",
+      "name": "Eritrea",
+      "nationality": "Eritrean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 71,
+      "code": "EE",
+      "alpha_3_code": "EST",
+      "name": "Estonia",
+      "nationality": "Estonian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 72,
+      "code": "ET",
+      "alpha_3_code": "ETH",
+      "name": "Ethiopia",
+      "nationality": "Ethiopian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 73,
+      "code": "FK",
+      "alpha_3_code": "FLK",
+      "name": "Falkland Islands (Malvinas)",
+      "nationality": "Falkland Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 74,
+      "code": "FO",
+      "alpha_3_code": "FRO",
+      "name": "Faroe Islands",
+      "nationality": "Faroese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 75,
+      "code": "FJ",
+      "alpha_3_code": "FJI",
+      "name": "Fiji",
+      "nationality": "Fijian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 76,
+      "code": "FI",
+      "alpha_3_code": "FIN",
+      "name": "Finland",
+      "nationality": "Finnish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 77,
+      "code": "FR",
+      "alpha_3_code": "FRA",
+      "name": "France",
+      "nationality": "French",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 78,
+      "code": "GF",
+      "alpha_3_code": "GUF",
+      "name": "French Guiana",
+      "nationality": "French Guianese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 79,
+      "code": "PF",
+      "alpha_3_code": "PYF",
+      "name": "French Polynesia",
+      "nationality": "French Polynesian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 80,
+      "code": "TF",
+      "alpha_3_code": "ATF",
+      "name": "French Southern Territories",
+      "nationality": "French Southern Territories",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 81,
+      "code": "GA",
+      "alpha_3_code": "GAB",
+      "name": "Gabon",
+      "nationality": "Gabonese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 82,
+      "code": "GM",
+      "alpha_3_code": "GMB",
+      "name": "Gambia",
+      "nationality": "Gambian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 83,
+      "code": "GE",
+      "alpha_3_code": "GEO",
+      "name": "Georgia",
+      "nationality": "Georgian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 84,
+      "code": "DE",
+      "alpha_3_code": "DEU",
+      "name": "Germany",
+      "nationality": "German",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 85,
+      "code": "GH",
+      "alpha_3_code": "GHA",
+      "name": "Ghana",
+      "nationality": "Ghanaian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 86,
+      "code": "GI",
+      "alpha_3_code": "GIB",
+      "name": "Gibraltar",
+      "nationality": "Gibraltar",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 87,
+      "code": "GR",
+      "alpha_3_code": "GRC",
+      "name": "Greece",
+      "nationality": "Greek",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 88,
+      "code": "GL",
+      "alpha_3_code": "GRL",
+      "name": "Greenland",
+      "nationality": "Greenlandic",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 89,
+      "code": "GD",
+      "alpha_3_code": "GRD",
+      "name": "Grenada",
+      "nationality": "Grenadian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 90,
+      "code": "GP",
+      "alpha_3_code": "GLP",
+      "name": "Guadeloupe",
+      "nationality": "Guadeloupe",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 91,
+      "code": "GU",
+      "alpha_3_code": "GUM",
+      "name": "Guam",
+      "nationality": "Guamanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 92,
+      "code": "GT",
+      "alpha_3_code": "GTM",
+      "name": "Guatemala",
+      "nationality": "Guatemalan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 93,
+      "code": "GG",
+      "alpha_3_code": "GGY",
+      "name": "Guernsey",
+      "nationality": "Channel Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 94,
+      "code": "GN",
+      "alpha_3_code": "GIN",
+      "name": "Guinea",
+      "nationality": "Guinean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 95,
+      "code": "GW",
+      "alpha_3_code": "GNB",
+      "name": "Guinea-Bissau",
+      "nationality": "Bissau-Guinean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 96,
+      "code": "GY",
+      "alpha_3_code": "GUY",
+      "name": "Guyana",
+      "nationality": "Guyanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 97,
+      "code": "HT",
+      "alpha_3_code": "HTI",
+      "name": "Haiti",
+      "nationality": "Haitian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 98,
+      "code": "HM",
+      "alpha_3_code": "HMD",
+      "name": "Heard Island and McDonald Islands",
+      "nationality": "Heard Island or McDonald Islands",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 100,
+      "code": "HN",
+      "alpha_3_code": "HND",
+      "name": "Honduras",
+      "nationality": "Honduran",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 101,
+      "code": "HK",
+      "alpha_3_code": "HKG",
+      "name": "Hong Kong",
+      "nationality": "Hong Kong",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 102,
+      "code": "HU",
+      "alpha_3_code": "HUN",
+      "name": "Hungary",
+      "nationality": "Hungarian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 103,
+      "code": "IS",
+      "alpha_3_code": "ISL",
+      "name": "Iceland",
+      "nationality": "Icelandic",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 104,
+      "code": "IN",
+      "alpha_3_code": "IND",
+      "name": "India",
+      "nationality": "Indian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 105,
+      "code": "ID",
+      "alpha_3_code": "IDN",
+      "name": "Indonesia",
+      "nationality": "Indonesian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 106,
+      "code": "IR",
+      "alpha_3_code": "IRN",
+      "name": "Iran",
+      "nationality": "Iranian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 107,
+      "code": "IQ",
+      "alpha_3_code": "IRQ",
+      "name": "Iraq",
+      "nationality": "Iraqi",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 108,
+      "code": "IE",
+      "alpha_3_code": "IRL",
+      "name": "Ireland",
+      "nationality": "Irish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 109,
+      "code": "IM",
+      "alpha_3_code": "IMN",
+      "name": "Isle of Man",
+      "nationality": "Manx",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 110,
+      "code": "IL",
+      "alpha_3_code": "ISR",
+      "name": "Israel",
+      "nationality": "Israeli",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 111,
+      "code": "IT",
+      "alpha_3_code": "ITA",
+      "name": "Italy",
+      "nationality": "Italian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 112,
+      "code": "JM",
+      "alpha_3_code": "JAM",
+      "name": "Jamaica",
+      "nationality": "Jamaican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 113,
+      "code": "JP",
+      "alpha_3_code": "JPN",
+      "name": "Japan",
+      "nationality": "Japanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 114,
+      "code": "JE",
+      "alpha_3_code": "JEY",
+      "name": "Jersey",
+      "nationality": "Channel Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 115,
+      "code": "JO",
+      "alpha_3_code": "JOR",
+      "name": "Jordan",
+      "nationality": "Jordanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 116,
+      "code": "KZ",
+      "alpha_3_code": "KAZ",
+      "name": "Kazakhstan",
+      "nationality": "Kazakhstani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 117,
+      "code": "KE",
+      "alpha_3_code": "KEN",
+      "name": "Kenya",
+      "nationality": "Kenyan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 118,
+      "code": "KI",
+      "alpha_3_code": "KIR",
+      "name": "Kiribati",
+      "nationality": "I-Kiribati",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 251,
+      "code": "XK",
+      "alpha_3_code": "XKX",
+      "name": "Kosovo",
+      "nationality": "Kosovar",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 121,
+      "code": "KW",
+      "alpha_3_code": "KWT",
+      "name": "Kuwait",
+      "nationality": "Kuwaiti",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 122,
+      "code": "KG",
+      "alpha_3_code": "KGZ",
+      "name": "Kyrgyzstan",
+      "nationality": "Kyrgyzstani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 123,
+      "code": "LA",
+      "alpha_3_code": "LAO",
+      "name": "Lao People's Democratic Republic",
+      "nationality": "Lao",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 124,
+      "code": "LV",
+      "alpha_3_code": "LVA",
+      "name": "Latvia",
+      "nationality": "Latvian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 125,
+      "code": "LB",
+      "alpha_3_code": "LBN",
+      "name": "Lebanon",
+      "nationality": "Lebanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 126,
+      "code": "LS",
+      "alpha_3_code": "LSO",
+      "name": "Lesotho",
+      "nationality": "Basotho",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 127,
+      "code": "LR",
+      "alpha_3_code": "LBR",
+      "name": "Liberia",
+      "nationality": "Liberian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 128,
+      "code": "LY",
+      "alpha_3_code": "LBY",
+      "name": "Libya",
+      "nationality": "Libyan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 129,
+      "code": "LI",
+      "alpha_3_code": "LIE",
+      "name": "Liechtenstein",
+      "nationality": "Liechtenstein",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 130,
+      "code": "LT",
+      "alpha_3_code": "LTU",
+      "name": "Lithuania",
+      "nationality": "Lithuanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 131,
+      "code": "LU",
+      "alpha_3_code": "LUX",
+      "name": "Luxembourg",
+      "nationality": "Luxembourg",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 132,
+      "code": "MO",
+      "alpha_3_code": "MAC",
+      "name": "Macao",
+      "nationality": "Macanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 133,
+      "code": "MK",
+      "alpha_3_code": "MKD",
+      "name": "Macedonia (the former Yugoslav Republic of)",
+      "nationality": "Macedonian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 134,
+      "code": "MG",
+      "alpha_3_code": "MDG",
+      "name": "Madagascar",
+      "nationality": "Malagasy",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 135,
+      "code": "MW",
+      "alpha_3_code": "MWI",
+      "name": "Malawi",
+      "nationality": "Malawian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 136,
+      "code": "MY",
+      "alpha_3_code": "MYS",
+      "name": "Malaysia",
+      "nationality": "Malaysian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 137,
+      "code": "MV",
+      "alpha_3_code": "MDV",
+      "name": "Maldives",
+      "nationality": "Maldivian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 138,
+      "code": "ML",
+      "alpha_3_code": "MLI",
+      "name": "Mali",
+      "nationality": "Malian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 139,
+      "code": "MT",
+      "alpha_3_code": "MLT",
+      "name": "Malta",
+      "nationality": "Maltese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 140,
+      "code": "MH",
+      "alpha_3_code": "MHL",
+      "name": "Marshall Islands",
+      "nationality": "Marshallese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 141,
+      "code": "MQ",
+      "alpha_3_code": "MTQ",
+      "name": "Martinique",
+      "nationality": "Martiniquais",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 142,
+      "code": "MR",
+      "alpha_3_code": "MRT",
+      "name": "Mauritania",
+      "nationality": "Mauritanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 143,
+      "code": "MU",
+      "alpha_3_code": "MUS",
+      "name": "Mauritius",
+      "nationality": "Mauritian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 144,
+      "code": "YT",
+      "alpha_3_code": "MYT",
+      "name": "Mayotte",
+      "nationality": "Mahoran",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 145,
+      "code": "MX",
+      "alpha_3_code": "MEX",
+      "name": "Mexico",
+      "nationality": "Mexican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 146,
+      "code": "FM",
+      "alpha_3_code": "FSM",
+      "name": "Micronesia (Federated States of)",
+      "nationality": "Micronesian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 147,
+      "code": "MD",
+      "alpha_3_code": "MDA",
+      "name": "Moldova (Republic of)",
+      "nationality": "Moldovan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 148,
+      "code": "MC",
+      "alpha_3_code": "MCO",
+      "name": "Monaco",
+      "nationality": "Monacan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 149,
+      "code": "MN",
+      "alpha_3_code": "MNG",
+      "name": "Mongolia",
+      "nationality": "Mongolian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 150,
+      "code": "ME",
+      "alpha_3_code": "MNE",
+      "name": "Montenegro",
+      "nationality": "Montenegrin",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 151,
+      "code": "MS",
+      "alpha_3_code": "MSR",
+      "name": "Montserrat",
+      "nationality": "Montserratian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 152,
+      "code": "MA",
+      "alpha_3_code": "MAR",
+      "name": "Morocco",
+      "nationality": "Moroccan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 153,
+      "code": "MZ",
+      "alpha_3_code": "MOZ",
+      "name": "Mozambique",
+      "nationality": "Mozambican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 154,
+      "code": "MM",
+      "alpha_3_code": "MMR",
+      "name": "Myanmar",
+      "nationality": "Burmese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 155,
+      "code": "NA",
+      "alpha_3_code": "NAM",
+      "name": "Namibia",
+      "nationality": "Namibian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 156,
+      "code": "NR",
+      "alpha_3_code": "NRU",
+      "name": "Nauru",
+      "nationality": "Nauruan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 157,
+      "code": "NP",
+      "alpha_3_code": "NPL",
+      "name": "Nepal",
+      "nationality": "Nepali",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 158,
+      "code": "NL",
+      "alpha_3_code": "NLD",
+      "name": "Netherlands",
+      "nationality": "Dutch",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 159,
+      "code": "NC",
+      "alpha_3_code": "NCL",
+      "name": "New Caledonia",
+      "nationality": "New Caledonian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 160,
+      "code": "NZ",
+      "alpha_3_code": "NZL",
+      "name": "New Zealand",
+      "nationality": "New Zealand",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 161,
+      "code": "NI",
+      "alpha_3_code": "NIC",
+      "name": "Nicaragua",
+      "nationality": "Nicaraguan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 162,
+      "code": "NE",
+      "alpha_3_code": "NER",
+      "name": "Niger",
+      "nationality": "Nigerien",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 163,
+      "code": "NG",
+      "alpha_3_code": "NGA",
+      "name": "Nigeria",
+      "nationality": "Nigerian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 164,
+      "code": "NU",
+      "alpha_3_code": "NIU",
+      "name": "Niue",
+      "nationality": "Niuean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 165,
+      "code": "NF",
+      "alpha_3_code": "NFK",
+      "name": "Norfolk Island",
+      "nationality": "Norfolk Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 119,
+      "code": "KP",
+      "alpha_3_code": "PRK",
+      "name": "North Korea",
+      "nationality": "North Korean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 166,
+      "code": "MP",
+      "alpha_3_code": "MNP",
+      "name": "Northern Mariana Islands",
+      "nationality": "Northern Marianan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 167,
+      "code": "NO",
+      "alpha_3_code": "NOR",
+      "name": "Norway",
+      "nationality": "Norwegian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 168,
+      "code": "OM",
+      "alpha_3_code": "OMN",
+      "name": "Oman",
+      "nationality": "Omani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 169,
+      "code": "PK",
+      "alpha_3_code": "PAK",
+      "name": "Pakistan",
+      "nationality": "Pakistani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 170,
+      "code": "PW",
+      "alpha_3_code": "PLW",
+      "name": "Palau",
+      "nationality": "Palauan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 171,
+      "code": "PS",
+      "alpha_3_code": "PSE",
+      "name": "Palestine, State of",
+      "nationality": "Palestinian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 172,
+      "code": "PA",
+      "alpha_3_code": "PAN",
+      "name": "Panama",
+      "nationality": "Panamanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 173,
+      "code": "PG",
+      "alpha_3_code": "PNG",
+      "name": "Papua New Guinea",
+      "nationality": "Papua New Guinean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 174,
+      "code": "PY",
+      "alpha_3_code": "PRY",
+      "name": "Paraguay",
+      "nationality": "Paraguayan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 175,
+      "code": "PE",
+      "alpha_3_code": "PER",
+      "name": "Peru",
+      "nationality": "Peruvian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 1,
+      "code": "PH",
+      "alpha_3_code": "PHL",
+      "name": "Philippines",
+      "nationality": "Filipino",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 176,
+      "code": "PN",
+      "alpha_3_code": "PCN",
+      "name": "Pitcairn",
+      "nationality": "Pitcairn Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 177,
+      "code": "PL",
+      "alpha_3_code": "POL",
+      "name": "Poland",
+      "nationality": "Polish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 178,
+      "code": "PT",
+      "alpha_3_code": "PRT",
+      "name": "Portugal",
+      "nationality": "Portuguese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 179,
+      "code": "PR",
+      "alpha_3_code": "PRI",
+      "name": "Puerto Rico",
+      "nationality": "Puerto Rican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 180,
+      "code": "QA",
+      "alpha_3_code": "QAT",
+      "name": "Qatar",
+      "nationality": "Qatari",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 181,
+      "code": "RE",
+      "alpha_3_code": "REU",
+      "name": "Réunion",
+      "nationality": "Réunionese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 182,
+      "code": "RO",
+      "alpha_3_code": "ROU",
+      "name": "Romania",
+      "nationality": "Romanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 183,
+      "code": "RU",
+      "alpha_3_code": "RUS",
+      "name": "Russian Federation",
+      "nationality": "Russian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 184,
+      "code": "RW",
+      "alpha_3_code": "RWA",
+      "name": "Rwanda",
+      "nationality": "Rwandan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 185,
+      "code": "BL",
+      "alpha_3_code": "BLM",
+      "name": "Saint Barthélemy",
+      "nationality": "Barthélemois",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 186,
+      "code": "SH",
+      "alpha_3_code": "SHN",
+      "name": "Saint Helena, Ascension and Tristan da Cunha",
+      "nationality": "Saint Helenian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 187,
+      "code": "KN",
+      "alpha_3_code": "KNA",
+      "name": "Saint Kitts and Nevis",
+      "nationality": "Kittitian or Nevisian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 188,
+      "code": "LC",
+      "alpha_3_code": "LCA",
+      "name": "Saint Lucia",
+      "nationality": "Saint Lucian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 189,
+      "code": "MF",
+      "alpha_3_code": "MAF",
+      "name": "Saint Martin (French part)",
+      "nationality": "Saint-Martinoise",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 190,
+      "code": "PM",
+      "alpha_3_code": "SPM",
+      "name": "Saint Pierre and Miquelon",
+      "nationality": "Saint-Pierrais or Miquelonnais",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 191,
+      "code": "VC",
+      "alpha_3_code": "VCT",
+      "name": "Saint Vincent and the Grenadines",
+      "nationality": "Saint Vincentian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 192,
+      "code": "WS",
+      "alpha_3_code": "WSM",
+      "name": "Samoa",
+      "nationality": "Samoan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 193,
+      "code": "SM",
+      "alpha_3_code": "SMR",
+      "name": "San Marino",
+      "nationality": "Sammarinese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 194,
+      "code": "ST",
+      "alpha_3_code": "STP",
+      "name": "Sao Tome and Principe",
+      "nationality": "São Toméan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 195,
+      "code": "SA",
+      "alpha_3_code": "SAU",
+      "name": "Saudi Arabia",
+      "nationality": "Saudi Arabian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 196,
+      "code": "SN",
+      "alpha_3_code": "SEN",
+      "name": "Senegal",
+      "nationality": "Senegalese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 197,
+      "code": "RS",
+      "alpha_3_code": "SRB",
+      "name": "Serbia",
+      "nationality": "Serbian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 198,
+      "code": "SC",
+      "alpha_3_code": "SYC",
+      "name": "Seychelles",
+      "nationality": "Seychellois",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 199,
+      "code": "SL",
+      "alpha_3_code": "SLE",
+      "name": "Sierra Leone",
+      "nationality": "Sierra Leonean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 200,
+      "code": "SG",
+      "alpha_3_code": "SGP",
+      "name": "Singapore",
+      "nationality": "Singaporean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 201,
+      "code": "SX",
+      "alpha_3_code": "SXM",
+      "name": "Sint Maarten (Dutch part)",
+      "nationality": "Sint Maarten",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 202,
+      "code": "SK",
+      "alpha_3_code": "SVK",
+      "name": "Slovakia",
+      "nationality": "Slovak",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 203,
+      "code": "SI",
+      "alpha_3_code": "SVN",
+      "name": "Slovenia",
+      "nationality": "Slovenian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 204,
+      "code": "SB",
+      "alpha_3_code": "SLB",
+      "name": "Solomon Islands",
+      "nationality": "Solomon Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 205,
+      "code": "SO",
+      "alpha_3_code": "SOM",
+      "name": "Somalia",
+      "nationality": "Somali",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 206,
+      "code": "ZA",
+      "alpha_3_code": "ZAF",
+      "name": "South Africa",
+      "nationality": "South African",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 207,
+      "code": "GS",
+      "alpha_3_code": "SGS",
+      "name": "South Georgia and the South Sandwich Islands",
+      "nationality": "South Georgia or South Sandwich Islands",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 120,
+      "code": "KR",
+      "alpha_3_code": "KOR",
+      "name": "South Korea",
+      "nationality": "South Korean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 208,
+      "code": "SS",
+      "alpha_3_code": "SSD",
+      "name": "South Sudan",
+      "nationality": "South Sudanese",
+      "is_under_watch_list": 1,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 209,
+      "code": "ES",
+      "alpha_3_code": "ESP",
+      "name": "Spain",
+      "nationality": "Spanish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 210,
+      "code": "LK",
+      "alpha_3_code": "LKA",
+      "name": "Sri Lanka",
+      "nationality": "Sri Lankan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 211,
+      "code": "SD",
+      "alpha_3_code": "SDN",
+      "name": "Sudan",
+      "nationality": "Sudanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 212,
+      "code": "SR",
+      "alpha_3_code": "SUR",
+      "name": "Suriname",
+      "nationality": "Surinamese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 213,
+      "code": "SJ",
+      "alpha_3_code": "SJM",
+      "name": "Svalbard and Jan Mayen",
+      "nationality": "Svalbard",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 214,
+      "code": "SZ",
+      "alpha_3_code": "SWZ",
+      "name": "Swaziland",
+      "nationality": "Swazi",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 215,
+      "code": "SE",
+      "alpha_3_code": "SWE",
+      "name": "Sweden",
+      "nationality": "Swedish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 216,
+      "code": "CH",
+      "alpha_3_code": "CHE",
+      "name": "Switzerland",
+      "nationality": "Swiss",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 217,
+      "code": "SY",
+      "alpha_3_code": "SYR",
+      "name": "Syrian Arab Republic",
+      "nationality": "Syrian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 218,
+      "code": "TW",
+      "alpha_3_code": "TWN",
+      "name": "Taiwan",
+      "nationality": "Taiwanese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 219,
+      "code": "TJ",
+      "alpha_3_code": "TJK",
+      "name": "Tajikistan",
+      "nationality": "Tajikistani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 220,
+      "code": "TZ",
+      "alpha_3_code": "TZA",
+      "name": "Tanzania, United Republic of",
+      "nationality": "Tanzanian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 221,
+      "code": "TH",
+      "alpha_3_code": "THA",
+      "name": "Thailand",
+      "nationality": "Thai",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 222,
+      "code": "TL",
+      "alpha_3_code": "TLS",
+      "name": "Timor-Leste",
+      "nationality": "Timorese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 223,
+      "code": "TG",
+      "alpha_3_code": "TGO",
+      "name": "Togo",
+      "nationality": "Togolese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 224,
+      "code": "TK",
+      "alpha_3_code": "TKL",
+      "name": "Tokelau",
+      "nationality": "Tokelauan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 225,
+      "code": "TO",
+      "alpha_3_code": "TON",
+      "name": "Tonga",
+      "nationality": "Tongan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 226,
+      "code": "TT",
+      "alpha_3_code": "TTO",
+      "name": "Trinidad and Tobago",
+      "nationality": "Trinidadian or Tobagonian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 227,
+      "code": "TN",
+      "alpha_3_code": "TUN",
+      "name": "Tunisia",
+      "nationality": "Tunisian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 228,
+      "code": "TR",
+      "alpha_3_code": "TUR",
+      "name": "Turkey",
+      "nationality": "Turkish",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 229,
+      "code": "TM",
+      "alpha_3_code": "TKM",
+      "name": "Turkmenistan",
+      "nationality": "Turkmen",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 230,
+      "code": "TC",
+      "alpha_3_code": "TCA",
+      "name": "Turks and Caicos Islands",
+      "nationality": "Turks and Caicos Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 231,
+      "code": "TV",
+      "alpha_3_code": "TUV",
+      "name": "Tuvalu",
+      "nationality": "Tuvaluan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 232,
+      "code": "UG",
+      "alpha_3_code": "UGA",
+      "name": "Uganda",
+      "nationality": "Ugandan",
+      "is_under_watch_list": 1,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 233,
+      "code": "UA",
+      "alpha_3_code": "UKR",
+      "name": "Ukraine",
+      "nationality": "Ukrainian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 234,
+      "code": "AE",
+      "alpha_3_code": "ARE",
+      "name": "United Arab Emirates",
+      "nationality": "Emirati",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 235,
+      "code": "GB",
+      "alpha_3_code": "GBR",
+      "name": "United Kingdom of Great Britain and Northern Ireland",
+      "nationality": "British",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 236,
+      "code": "UM",
+      "alpha_3_code": "UMI",
+      "name": "United States Minor Outlying Islands",
+      "nationality": "American (UMI) United States Minor Outlying Islands",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 237,
+      "code": "US",
+      "alpha_3_code": "USA",
+      "name": "United States of America",
+      "nationality": "American (USA)",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 1
+    },
+    {
+      "id": 238,
+      "code": "UY",
+      "alpha_3_code": "URY",
+      "name": "Uruguay",
+      "nationality": "Uruguayan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 239,
+      "code": "UZ",
+      "alpha_3_code": "UZB",
+      "name": "Uzbekistan",
+      "nationality": "Uzbekistani",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 240,
+      "code": "VU",
+      "alpha_3_code": "VUT",
+      "name": "Vanuatu",
+      "nationality": "Ni-Vanuatu",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 99,
+      "code": "VA",
+      "alpha_3_code": "VAT",
+      "name": "Vatican City State",
+      "nationality": "Vatican",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 241,
+      "code": "VE",
+      "alpha_3_code": "VEN",
+      "name": "Venezuela (Bolivarian Republic of)",
+      "nationality": "Venezuelan",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 242,
+      "code": "VN",
+      "alpha_3_code": "VNM",
+      "name": "Vietnam",
+      "nationality": "Vietnamese",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 243,
+      "code": "VG",
+      "alpha_3_code": "VGB",
+      "name": "Virgin Islands (British)",
+      "nationality": "British Virgin Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 244,
+      "code": "VI",
+      "alpha_3_code": "VIR",
+      "name": "Virgin Islands (U.S.)",
+      "nationality": "U.S. Virgin Island",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 245,
+      "code": "WF",
+      "alpha_3_code": "WLF",
+      "name": "Wallis and Futuna",
+      "nationality": "Wallis and Futuna",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 246,
+      "code": "EH",
+      "alpha_3_code": "ESH",
+      "name": "Western Sahara",
+      "nationality": "Sahrawi",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 247,
+      "code": "YE",
+      "alpha_3_code": "YEM",
+      "name": "Yemen",
+      "nationality": "Yemeni",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 248,
+      "code": "ZM",
+      "alpha_3_code": "ZMB",
+      "name": "Zambia",
+      "nationality": "Zambian",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    },
+    {
+      "id": 249,
+      "code": "ZW",
+      "alpha_3_code": "ZWE",
+      "name": "Zimbabwe",
+      "nationality": "Zimbabwean",
+      "is_under_watch_list": 0,
+      "is_under_mpox_watch_list": 0,
+      "with_evisa": 0
+    }
+  ],
+  "arrivalPurposes": [
+    {
+      "id": 14,
+      "code": "OFW",
+      "name": "OFW",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 1,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 1,
+      "order": 1,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 6,
+      "code": "POV006",
+      "name": "Business/Professional",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0099bb"
+    },
+    {
+      "id": 2,
+      "code": "POV002",
+      "name": "Convention/Conference",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0088cc"
+    },
+    {
+      "id": 3,
+      "code": "POV003",
+      "name": "Education/Training/Studies",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#002299"
+    },
+    {
+      "id": 4,
+      "code": "POV004",
+      "name": "Government/Official Mission",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#003366"
+    },
+    {
+      "id": 5,
+      "code": "POV005",
+      "name": "Health/Medical Reason",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00aa88"
+    },
+    {
+      "id": 1,
+      "code": "POV001",
+      "name": "Holiday/Pleasure/Vacation",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 10,
+      "code": "POV010",
+      "name": "Incentive",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0033dd"
+    },
+    {
+      "id": 18,
+      "code": "POV017",
+      "name": "Meetings",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 12,
+      "code": "POV999",
+      "name": "Others",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00aa22"
+    },
+    {
+      "id": 9,
+      "code": "POV009",
+      "name": "Religion/Pilgrimage",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0044bb"
+    },
+    {
+      "id": 11,
+      "code": "POV011",
+      "name": "Returning Resident",
+      "for_arrival": 1,
+      "for_departure": 0,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00dd55"
+    },
+    {
+      "id": 19,
+      "code": "POV018",
+      "name": "Trade Fair/Exhibition",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 13,
+      "code": "POV012",
+      "name": "Transit",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00aa22"
+    },
+    {
+      "id": 7,
+      "code": "POV007",
+      "name": "Visit Friends/Relatives",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00bbaa"
+    },
+    {
+      "id": 8,
+      "code": "POV008",
+      "name": "Work/Employment",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00bb55"
+    }
+  ],
+  "airlines": [
+    {
+      "id": 83,
+      "transportation_type": "AIR",
+      "code": "TC0078",
+      "name": "ADVANCE JET AVIATION",
+      "theme": "#1a237e",
+      "is_active": 1
+    },
+    {
+      "id": 71,
+      "transportation_type": "AIR",
+      "code": "TC0071",
+      "name": "Aero K Airlines",
+      "theme": "#e1bee7",
+      "is_active": 1
+    },
+    {
+      "id": 91,
+      "transportation_type": "AIR",
+      "code": "MO",
+      "name": "AERO MONGOLIA",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 33,
+      "transportation_type": "AIR",
+      "code": "TC0031",
+      "name": "Air Busan",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 97,
+      "transportation_type": "AIR",
+      "code": "AC",
+      "name": "AIR CANADA",
+      "theme": "#0288d1",
+      "is_active": 1
+    },
+    {
+      "id": 34,
+      "transportation_type": "AIR",
+      "code": "TC0032",
+      "name": "Air China",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 81,
+      "transportation_type": "AIR",
+      "code": "TC0076",
+      "name": "AIR FRANCE",
+      "theme": "#1a237e",
+      "is_active": 1
+    },
+    {
+      "id": 96,
+      "transportation_type": "AIR",
+      "code": "AF",
+      "name": "Air France",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 59,
+      "transportation_type": "AIR",
+      "code": "TC0059",
+      "name": "Air Hongkong",
+      "theme": "#b71c1c",
+      "is_active": 1
+    },
+    {
+      "id": 100,
+      "transportation_type": "AIR",
+      "code": "AI",
+      "name": "Air India",
+      "theme": "#d32f2f",
+      "is_active": 1
+    },
+    {
+      "id": 110,
+      "transportation_type": "AIR",
+      "code": "NX",
+      "name": "AIR MACAU",
+      "theme": "#f44336",
+      "is_active": 1
+    },
+    {
+      "id": 35,
+      "transportation_type": "AIR",
+      "code": "TC0033",
+      "name": "Air Niugini",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 36,
+      "transportation_type": "AIR",
+      "code": "TC0034",
+      "name": "Air Seoul",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 3,
+      "transportation_type": "AIR",
+      "code": "TC003",
+      "name": "AirAsia",
+      "theme": "#de0604",
+      "is_active": 1
+    },
+    {
+      "id": 7,
+      "transportation_type": "AIR",
+      "code": "TC007",
+      "name": "AirSWIFT",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 37,
+      "transportation_type": "AIR",
+      "code": "TC0035",
+      "name": "All Nippon Airways",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 80,
+      "transportation_type": "AIR",
+      "code": "TC0044",
+      "name": "AMERICAN AIRLINES",
+      "theme": "#1a237e",
+      "is_active": 1
+    },
+    {
+      "id": 16,
+      "transportation_type": "AIR",
+      "code": "TC0015",
+      "name": "Asiana",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 109,
+      "transportation_type": "AIR",
+      "code": "5Y",
+      "name": "ATLAS AIR",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 108,
+      "transportation_type": "AIR",
+      "code": "QH",
+      "name": "BAMBOO AIRWAYS",
+      "theme": "#388e3c",
+      "is_active": 1
+    },
+    {
+      "id": 92,
+      "transportation_type": "AIR",
+      "code": "PG",
+      "name": "BANGKOK AIRWAYS",
+      "theme": "#4a148c",
+      "is_active": 1
+    },
+    {
+      "id": 87,
+      "transportation_type": "AIR",
+      "code": "Bulldog",
+      "name": "Bulldog",
+      "theme": "#1a237e",
+      "is_active": 1
+    },
+    {
+      "id": 38,
+      "transportation_type": "AIR",
+      "code": "TC0036",
+      "name": "Cathay Pacific",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 1,
+      "transportation_type": "AIR",
+      "code": "TC001",
+      "name": "Cebu Pacific",
+      "theme": "#fae123",
+      "is_active": 1
+    },
+    {
+      "id": 69,
+      "transportation_type": "AIR",
+      "code": "TC0069",
+      "name": "Central Airlines",
+      "theme": "#00bcd4",
+      "is_active": 1
+    },
+    {
+      "id": 30,
+      "transportation_type": "AIR",
+      "code": "TC0029",
+      "name": "China Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 11,
+      "transportation_type": "AIR",
+      "code": "TC0010",
+      "name": "China Eastern Flight",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 17,
+      "transportation_type": "AIR",
+      "code": "TC0016",
+      "name": "China Southern Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 74,
+      "transportation_type": "AIR",
+      "code": "TC0073",
+      "name": "Delta Air Lines Inc.",
+      "theme": "#1a237e",
+      "is_active": 1
+    },
+    {
+      "id": 39,
+      "transportation_type": "AIR",
+      "code": "TC0037",
+      "name": "Emirates Airlines",
+      "theme": "#016903",
+      "is_active": 1
+    },
+    {
+      "id": 25,
+      "transportation_type": "AIR",
+      "code": "TC0024",
+      "name": "Ethiopian Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 40,
+      "transportation_type": "AIR",
+      "code": "TC0038",
+      "name": "Etihad Airlines",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 19,
+      "transportation_type": "AIR",
+      "code": "TC0018",
+      "name": "EVA Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 41,
+      "transportation_type": "AIR",
+      "code": "TC0039",
+      "name": "FEDEX",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 104,
+      "transportation_type": "AIR",
+      "code": "FY",
+      "name": "FIREFLY AIRLINES",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 42,
+      "transportation_type": "AIR",
+      "code": "TC0040",
+      "name": "Fly Gangwon",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 77,
+      "transportation_type": "AIR",
+      "code": "TC0075",
+      "name": "GARUDA INDONESIA",
+      "theme": "#e91e63",
+      "is_active": 1
+    },
+    {
+      "id": 68,
+      "transportation_type": "AIR",
+      "code": "TC0068",
+      "name": "Greater Bay Airlines",
+      "theme": "#afb42b",
+      "is_active": 1
+    },
+    {
+      "id": 15,
+      "transportation_type": "AIR",
+      "code": "TC0014",
+      "name": "Gulf Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 43,
+      "transportation_type": "AIR",
+      "code": "TC0041",
+      "name": "Hong Kong Airlines",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 67,
+      "transportation_type": "AIR",
+      "code": "TC0067",
+      "name": "Hongkong Express",
+      "theme": "#f06292",
+      "is_active": 1
+    },
+    {
+      "id": 58,
+      "transportation_type": "AIR",
+      "code": "TC0058",
+      "name": "Hunnu Air",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 62,
+      "transportation_type": "AIR",
+      "code": "TC0062",
+      "name": "Icelandair",
+      "theme": "#03a9f4",
+      "is_active": 1
+    },
+    {
+      "id": 76,
+      "transportation_type": "AIR",
+      "code": "ICE",
+      "name": "ICELANDAIR",
+      "theme": "#2196f3",
+      "is_active": 1
+    },
+    {
+      "id": 95,
+      "transportation_type": "AIR",
+      "code": "2-ALPS",
+      "name": "IMPERIALP CLUB",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 79,
+      "transportation_type": "AIR",
+      "code": "TC041624",
+      "name": "IrAero Airlines",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 13,
+      "transportation_type": "AIR",
+      "code": "TC0012",
+      "name": "Japan Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 29,
+      "transportation_type": "AIR",
+      "code": "TC0028",
+      "name": "Jeju Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 103,
+      "transportation_type": "AIR",
+      "code": "JST",
+      "name": "JETSTAR AIRLINES",
+      "theme": "#f44336",
+      "is_active": 1
+    },
+    {
+      "id": 14,
+      "transportation_type": "AIR",
+      "code": "TC0013",
+      "name": "Jetstar Asia",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 56,
+      "transportation_type": "AIR",
+      "code": "TC0054",
+      "name": "Jetstar Japan",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 44,
+      "transportation_type": "AIR",
+      "code": "TC0042",
+      "name": "Jin Air",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 45,
+      "transportation_type": "AIR",
+      "code": "TC0043",
+      "name": "KLM Royal Dutch Airlines",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 18,
+      "transportation_type": "AIR",
+      "code": "TC0017",
+      "name": "Korean Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 53,
+      "transportation_type": "AIR",
+      "code": "TC0052",
+      "name": "Kuwait Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 64,
+      "transportation_type": "AIR",
+      "code": "TC0064",
+      "name": "LOONG AIR",
+      "theme": "#1976d2",
+      "is_active": 1
+    },
+    {
+      "id": 21,
+      "transportation_type": "AIR",
+      "code": "TC0020",
+      "name": "Malaysia Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 78,
+      "transportation_type": "AIR",
+      "code": "MEDIC89",
+      "name": "MEDIC89",
+      "theme": "#303f9f",
+      "is_active": 1
+    },
+    {
+      "id": 70,
+      "transportation_type": "AIR",
+      "code": "TC0070",
+      "name": "My Indo Airlines",
+      "theme": "#689f38",
+      "is_active": 1
+    },
+    {
+      "id": 89,
+      "transportation_type": "AIR",
+      "code": "MYW9072",
+      "name": "MyWay Airlines",
+      "theme": "#e91e63",
+      "is_active": 1
+    },
+    {
+      "id": 93,
+      "transportation_type": "AIR",
+      "code": "NA",
+      "name": "NA",
+      "theme": "#0d47a1",
+      "is_active": 1
+    },
+    {
+      "id": 99,
+      "transportation_type": "AIR",
+      "code": "ON",
+      "name": "Nauru Airlines",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 63,
+      "transportation_type": "AIR",
+      "code": "TC0063",
+      "name": "OK Air",
+      "theme": "#b71c1c",
+      "is_active": 1
+    },
+    {
+      "id": 75,
+      "transportation_type": "AIR",
+      "code": "TC0074",
+      "name": "OKAY AIRWAYS",
+      "theme": "#004d40",
+      "is_active": 1
+    },
+    {
+      "id": 27,
+      "transportation_type": "AIR",
+      "code": "TC0026",
+      "name": "Oman Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 86,
+      "transportation_type": "AIR",
+      "code": "PAF 215",
+      "name": "PAF 215",
+      "theme": "#311b92",
+      "is_active": 1
+    },
+    {
+      "id": 88,
+      "transportation_type": "AIR",
+      "code": "PAF 5157",
+      "name": "PAF 5157",
+      "theme": "#1a237e",
+      "is_active": 1
+    },
+    {
+      "id": 5,
+      "transportation_type": "AIR",
+      "code": "TC005",
+      "name": "PAL Express",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 6,
+      "transportation_type": "AIR",
+      "code": "TC006",
+      "name": "Pan Pacific Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 2,
+      "transportation_type": "AIR",
+      "code": "TC002",
+      "name": "Philippine Airlines",
+      "theme": "#CC0000",
+      "is_active": 1
+    },
+    {
+      "id": 52,
+      "transportation_type": "AIR",
+      "code": "TC0051",
+      "name": "Private",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 28,
+      "transportation_type": "AIR",
+      "code": "TC0027",
+      "name": "Qantas Airways",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 23,
+      "transportation_type": "AIR",
+      "code": "TC0022",
+      "name": "Qatar Airways",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 102,
+      "transportation_type": "AIR",
+      "code": "QQE",
+      "name": "Qatar Executive",
+      "theme": "#e91e63",
+      "is_active": 1
+    },
+    {
+      "id": 106,
+      "transportation_type": "AIR",
+      "code": "QW",
+      "name": "QINGDAO AIRLINES",
+      "theme": "#f44336",
+      "is_active": 1
+    },
+    {
+      "id": 85,
+      "transportation_type": "AIR",
+      "code": "RAAF",
+      "name": "RAAF",
+      "theme": "#ba68c8",
+      "is_active": 1
+    },
+    {
+      "id": 8,
+      "transportation_type": "AIR",
+      "code": "TC008",
+      "name": "Royal Air",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 26,
+      "transportation_type": "AIR",
+      "code": "TC0025",
+      "name": "Royal Brunei",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 22,
+      "transportation_type": "AIR",
+      "code": "TC0021",
+      "name": "Saudia",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 12,
+      "transportation_type": "AIR",
+      "code": "TC0011",
+      "name": "Scoot Flight",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 98,
+      "transportation_type": "AIR",
+      "code": "XO",
+      "name": "SEAIR INTERNATIONAL INC.",
+      "theme": "#311b92",
+      "is_active": 1
+    },
+    {
+      "id": 72,
+      "transportation_type": "AIR",
+      "code": "TC0072",
+      "name": "Shenzhen Airlines",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 46,
+      "transportation_type": "AIR",
+      "code": "TC0045",
+      "name": "Singapore Airlines",
+      "theme": "#a98544",
+      "is_active": 1
+    },
+    {
+      "id": 9,
+      "transportation_type": "AIR",
+      "code": "TC009",
+      "name": "Skyjet Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 94,
+      "transportation_type": "AIR",
+      "code": "XKY",
+      "name": "SKYWAY AIRLINES",
+      "theme": "#311b92",
+      "is_active": 1
+    },
+    {
+      "id": 47,
+      "transportation_type": "AIR",
+      "code": "TC0046",
+      "name": "STARLUX Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 101,
+      "transportation_type": "AIR",
+      "code": "RPC6388",
+      "name": "SUNLIGHT EXPRESS AIRWAYS CORP.",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 107,
+      "transportation_type": "AIR",
+      "code": "TVR",
+      "name": "TERRA AVIA",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 73,
+      "transportation_type": "AIR",
+      "code": "FD",
+      "name": "Thai AirAsia",
+      "theme": "#d32f2f",
+      "is_active": 1
+    },
+    {
+      "id": 20,
+      "transportation_type": "AIR",
+      "code": "TC0019",
+      "name": "Thai Airways",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 90,
+      "transportation_type": "AIR",
+      "code": "SL",
+      "name": "THAI LION AIR",
+      "theme": "#c2185b",
+      "is_active": 1
+    },
+    {
+      "id": 60,
+      "transportation_type": "AIR",
+      "code": "TC0060",
+      "name": "Tianjin Air Cargo",
+      "theme": "#8bc34a",
+      "is_active": 1
+    },
+    {
+      "id": 57,
+      "transportation_type": "AIR",
+      "code": "TC0057",
+      "name": "Tigerair Taiwan",
+      "theme": "#000000",
+      "is_active": 1
+    },
+    {
+      "id": 48,
+      "transportation_type": "AIR",
+      "code": "TC0047",
+      "name": "Turkish Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 49,
+      "transportation_type": "AIR",
+      "code": "TC0048",
+      "name": "Tway Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 50,
+      "transportation_type": "AIR",
+      "code": "TC0049",
+      "name": "United Airlines",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 51,
+      "transportation_type": "AIR",
+      "code": "TC0050",
+      "name": "United Parcel Service",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 65,
+      "transportation_type": "AIR",
+      "code": "TC0065",
+      "name": "VietJet Air",
+      "theme": "#303f9f",
+      "is_active": 1
+    },
+    {
+      "id": 105,
+      "transportation_type": "AIR",
+      "code": "VJ",
+      "name": "Vietjet Aviation",
+      "theme": "#880e4f",
+      "is_active": 1
+    },
+    {
+      "id": 84,
+      "transportation_type": "AIR",
+      "code": "TC0079",
+      "name": "VIETNAM AIRLINES",
+      "theme": "#0288d1",
+      "is_active": 1
+    },
+    {
+      "id": 82,
+      "transportation_type": "AIR",
+      "code": "TC0077",
+      "name": "WAMOS AIR",
+      "theme": "#9c27b0",
+      "is_active": 1
+    },
+    {
+      "id": 55,
+      "transportation_type": "AIR",
+      "code": "TC0053",
+      "name": "Xiamen",
+      "theme": "#000",
+      "is_active": 1
+    },
+    {
+      "id": 66,
+      "transportation_type": "AIR",
+      "code": "TC0066",
+      "name": "Zipair",
+      "theme": "#b71c1c",
+      "is_active": 1
+    }
+  ],
+  "arrivalPorts": [
+    {
+      "id": 40,
+      "transportation_type": "AIR",
+      "code": "TP0115",
+      "name": "Bacolod Airport",
+      "theme": "#311b92",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 76,
+      "transportation_type": "AIR",
+      "code": "DRP",
+      "name": "Bicol International Airport",
+      "theme": "#c2185b",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 23,
+      "transportation_type": "AIR",
+      "code": "TP0020",
+      "name": "Bohol-Panglao International Airport (New Bohol Int'l.)",
+      "theme": "#bf360c",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 52,
+      "transportation_type": "AIR",
+      "code": "TP127",
+      "name": "Cagayan North International Airport",
+      "theme": "#0d47a1",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 7,
+      "transportation_type": "AIR",
+      "code": "TP007",
+      "name": "Caticlan Airport (MPH)",
+      "theme": "#e91e63",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 1,
+      "transportation_type": "AIR",
+      "code": "TP001",
+      "name": "Clark International Airport (CRK)",
+      "theme": "#d7ccc8",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 2,
+      "transportation_type": "AIR",
+      "code": "TP002",
+      "name": "Davao International Airport (DVO)",
+      "theme": "#afb42b",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 37,
+      "transportation_type": "AIR",
+      "code": "TP0112",
+      "name": "General Santos Airport",
+      "theme": "#ba68c8",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 3,
+      "transportation_type": "AIR",
+      "code": "TP003",
+      "name": "Iloilo International Airport (ILO)",
+      "theme": "#fff176",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 4,
+      "transportation_type": "AIR",
+      "code": "TP004",
+      "name": "Kalibo International Airport (KLO)",
+      "theme": "#ff5722",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 10,
+      "transportation_type": "AIR",
+      "code": "TP0010",
+      "name": "Laguindingan Airport - Cagayan de Oro",
+      "theme": "#0288d1",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 5,
+      "transportation_type": "AIR",
+      "code": "TP005",
+      "name": "Laoag International Airport (LAO)",
+      "theme": "#1976d2",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 6,
+      "transportation_type": "AIR",
+      "code": "TP006",
+      "name": "Mactan–Cebu International Airport (CEB)",
+      "theme": "#607d8b",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 20,
+      "transportation_type": "AIR",
+      "code": "TP1000",
+      "name": "Ninoy Aquino International Airport T1 - (MNL)",
+      "theme": "#969696",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 21,
+      "transportation_type": "AIR",
+      "code": "TP2000",
+      "name": "Ninoy Aquino International Airport T2 - (MNL)",
+      "theme": "#d7ccc8",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 22,
+      "transportation_type": "AIR",
+      "code": "TP3000",
+      "name": "Ninoy Aquino International Airport T3 - (MNL)",
+      "theme": "#795548",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 69,
+      "transportation_type": "AIR",
+      "code": "NAIA4",
+      "name": "Ninoy Aquino International Airport T4 - (MNL)",
+      "theme": "#b71c1c",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 8,
+      "transportation_type": "AIR",
+      "code": "TP008",
+      "name": "Puerto Princesa International Airport (PPS)",
+      "theme": "#2196f3",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 30,
+      "transportation_type": "AIR",
+      "code": "SFS",
+      "name": "Subic Bay International Airport (SFS)",
+      "theme": "#d9d9d9",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 14,
+      "transportation_type": "AIR",
+      "code": "TP0014",
+      "name": "Zamboanga International Airport",
+      "theme": "#afb42b",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    }
+  ],
+  "sicknessSymptoms": [
+    {
+      "id": 15,
+      "code": "SS015",
+      "name": "Altered Mental Status",
+      "is_active": 1
+    },
+    {
+      "id": 8,
+      "code": "SS008",
+      "name": "Colds",
+      "is_active": 1
+    },
+    {
+      "id": 2,
+      "code": "SS002",
+      "name": "Cough",
+      "is_active": 1
+    },
+    {
+      "id": 14,
+      "code": "SS014",
+      "name": "Diarrhea",
+      "is_active": 1
+    },
+    {
+      "id": 17,
+      "code": "SS017",
+      "name": "Difficulty of Breathing",
+      "is_active": 1
+    },
+    {
+      "id": 22,
+      "code": "SS022",
+      "name": "Dizziness",
+      "is_active": 1
+    },
+    {
+      "id": 1,
+      "code": "SS001",
+      "name": "Fever",
+      "is_active": 1
+    },
+    {
+      "id": 5,
+      "code": "SS005",
+      "name": "Headache",
+      "is_active": 1
+    },
+    {
+      "id": 23,
+      "code": "SS023",
+      "name": "Loss of appetite",
+      "is_active": 1
+    },
+    {
+      "id": 16,
+      "code": "SS016",
+      "name": "Loss of smell",
+      "is_active": 1
+    },
+    {
+      "id": 18,
+      "code": "SS018",
+      "name": "Loss of taste",
+      "is_active": 1
+    },
+    {
+      "id": 6,
+      "code": "SS006",
+      "name": "Muscle Pain",
+      "is_active": 1
+    },
+    {
+      "id": 11,
+      "code": "SS011",
+      "name": "Nausea",
+      "is_active": 1
+    },
+    {
+      "id": 21,
+      "code": "SS021",
+      "name": "Rashes, vesicles or blisters",
+      "is_active": 1
+    },
+    {
+      "id": 7,
+      "code": "SS007",
+      "name": "Sore throat",
+      "is_active": 1
+    },
+    {
+      "id": 13,
+      "code": "SS013",
+      "name": "Vomiting",
+      "is_active": 1
+    },
+    {
+      "id": 3,
+      "code": "SS003",
+      "name": "Weakness",
+      "is_active": 1
+    }
+  ],
+  "declarationChecklist": [
+    {
+      "id": 1,
+      "description": "Philippine Currency and/or any Philippine Monetary Instrument in excess of PhP 50,000.00; (i.e. Check, Bank, Draft , etc);",
+      "notes": "If YES, please submit the original copy of prior authorization from the Bangko Sentral ng Pilipinas at the Bureau of Customs Arrival Area.",
+      "type": "CURRENCY",
+      "is_active": 1
+    },
+    {
+      "id": 2,
+      "description": "Foreign Currency and/or Foreign Monetary Instrument in excess of USD 10,000.00 or its equivalent;",
+      "notes": "If YES, please fill-out the Foreign Currency and Other Foreign Exchange-Denominated Bearer Monetary Instruments Declaration Form at the Bureau of Customs Arrival Area.",
+      "type": "CURRENCY",
+      "is_active": 1
+    },
+    {
+      "id": 3,
+      "description": "Gambling Paraphernalia;",
+      "notes": "If YES, please submit prior import permit/clearance from the Philippine Amusement and Gaming Corporation.",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 4,
+      "description": "Cosmetics, skin care products, food supplements and medicines in excess of quantities for personal use;",
+      "notes": "If YES, please submit prior important permit/clearance from the Food and Drug Administration.",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 5,
+      "description": "Dangerous drugs such as morphine, marijuana, opium, poppies or synthetic drugs;",
+      "notes": "If YES, please submit import permit/clearance from the Philippine Drug Enforcement Agency.",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 6,
+      "description": "Firearms, ammunitions and explosives;",
+      "notes": "If YES, please submit the import permit/clearance from Firearms and Explosives Office, Philippine National Police.",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 7,
+      "description": "Alcohol and/or tobacco products in commercial quantities;",
+      "notes": "",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 8,
+      "description": "Foodstuff(s), fruit(s), vegetable(s), live animal(s) (i.e. meat,eggs etc.), marine and aquatic products(s), plant(s) and/or the product(s) and their by-product(s);",
+      "notes": "If YES, please submit the import permit/clearance from the National Plant Quarantine Services/National Veterinary Quarantine Services.",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 9,
+      "description": "Mobile phones, hand-held radios and similar gadgets in excess of quantities for personal use, and radio commumication equipments;",
+      "notes": "",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 10,
+      "description": "Cremains (human ashes), human organs or tissues;",
+      "notes": "If YES, please secure clearance from the Bureau of Quarantine.",
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 11,
+      "description": "Jewelry, gold, precious metals or gems",
+      "notes": null,
+      "type": "QUANTITY",
+      "is_active": 1
+    },
+    {
+      "id": 12,
+      "description": "Other goods, not mentioned above;",
+      "notes": "If YES, please enumerate.",
+      "type": "QUANTITY",
+      "is_active": 1
+    }
+  ]
+}

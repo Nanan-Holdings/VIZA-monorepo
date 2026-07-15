@@ -5146,5 +5146,25 @@
       "button": "打开 TLS 预约助手",
       "badge": "TLScontact 中国"
     }
+  },
+  "JapanAppointment": {
+    "loading": "正在加载日本预约准备…",
+    "eyebrow": "日本短期旅游签证 · 新加坡 JVAC",
+    "title": "日本 VFS 云端准备",
+    "subtitle": "VIZA 会核验新加坡递交资格和材料、准备专属 alias 账号记录，并让云端 worker 检查官方 VFS 入口。Free Plan 阶段会停在选时段、付款和最终预约之前。",
+    "select": "请选择",
+    "yes": "可用",
+    "no": "不可用",
+    "free": { "title": "Browserbase Free Plan", "body": "日本新加坡 VFS 公共预约页已通过无代理云端测试；当前不包含 Browserbase 托管代理或内置 CAPTCHA 处理。" },
+    "eligibility": { "title": "1. 申请资格", "visaType": "签证请求", "occupation": "职业状态", "passType": "新加坡长期准证", "passExpiry": "准证到期日", "returnDate": "预计返回新加坡日期", "pass": "资格通过", "incomplete": "待补充", "passBody": "新加坡当地递交的基础资格检查已通过。", "incompleteBody": "请提供覆盖返回日期的有效长期准证。" },
+    "visaTypes": { "single_entry": "单次入境", "double_entry": "双次入境", "multiple_entry": "多次入境" },
+    "occupations": { "employed": "受雇", "self_employed": "企业主／自雇", "student": "学生", "retired": "退休", "housewife": "家庭主妇／主夫", "unemployed": "待业" },
+    "passTypes": { "pr": "永久居民 PR", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
+    "documents": { "title": "2. 材料预检", "body": "请先确认准备状态，再到材料中心上传真实护照和照片。后端只认可 VIZA 已存储的上传文件，不会把勾选框当成已上传。", "manage": "打开材料中心" },
+    "workflow": { "title": "3. 云端流程", "consent": "我确认信息真实，并授权 VIZA 准备日本 VFS 新加坡 alias／账号记录以及执行停止于预约前的云端门户检查。", "saving": "正在保存…", "saveConsent": "记录授权", "creating": "正在准备…", "create": "准备后端", "checking": "正在检查…", "check": "检查官方门户", "aliasReady": "Alias 已准备", "aliasBody": "VIZA 已准备脱敏 alias 账号记录。本页面不会暴露 VFS 密码、CAPTCHA、银行卡或会话令牌。", "openOfficial": "打开官方 VFS", "cancel": "取消准备" },
+    "evidence": { "title": "云端证据", "httpStatus": "HTTP 状态", "pageTitle": "官方页面", "observedAt": "检查时间", "replay": "Browserbase 回放" },
+    "checkpoints": { "login": "需要官方登录", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "site_policy_review": "官方政策检查点" },
+    "statuses": { "not_started": "尚未开始", "appointment_account_required": "Alias 已准备", "appointment_manual_required": "需要官方操作", "appointment_no_slots_available": "暂无时段", "appointment_cancelled": "已取消" },
+    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。" }
   }
 }

@@ -26,6 +26,10 @@ import {
   franceAppointmentApplicationRouter,
   franceAppointmentOperationsRouter,
 } from './routes/france-appointment.routes.js';
+import {
+  japanAppointmentApplicationRouter,
+  japanAppointmentOperationsRouter,
+} from './routes/japan-appointment.routes.js';
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000'
@@ -92,6 +96,10 @@ app.use('/api/us-appointment', usAppointmentOperationsRouter);
 // France Schengen TLScontact appointment assistance framework
 app.use('/api/applications', franceAppointmentApplicationRouter);
 app.use('/api/france-appointment', franceAppointmentOperationsRouter);
+
+// Japan temporary-visitor VFS/JVAC Singapore appointment preparation
+app.use('/api/applications', japanAppointmentApplicationRouter);
+app.use('/api/japan-appointment', japanAppointmentOperationsRouter);
 
 // Submission result + per-application artifact endpoints
 app.use('/api/applications', submissionResultRouter);

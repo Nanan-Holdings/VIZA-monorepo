@@ -9,6 +9,9 @@ Scope: Philippines `PH_ETRAVEL_ARRIVAL_CARD` form schema only.
   health, customs, family-member, and declaration-signature fields.
 - `official-options.ts` owns runner-facing official option values. Chinese
   labels are display-only and must not replace official English values.
+- `sync-official-options.ts` refreshes `official-options.snapshot.json` from
+  the public official eTravel common-data API. Preserve the official `code` as
+  the submitted value; airline-dependent flight numbers stay runtime-loaded.
 - `seed-form-fields.ts` replaces all `PH_ETRAVEL_ARRIVAL_CARD` rows
   idempotently.
 - Keep 9(a) visa fields out of this seed. Departure-, crew-, sea-, and

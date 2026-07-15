@@ -100,6 +100,11 @@ const DEFAULT_PAYLOAD: PhEtravelPortalPayload = {
   originCountry: "SINGAPORE",
   purposeOfTravel: "HOLIDAY",
   philippinesAddress: "Test Hotel, Manila",
+  hasRecentTravelHistory30d: false,
+  visitedCountries30d: [],
+  hasExposureToSickPerson30d: false,
+  hasBeenSick30d: false,
+  sicknessSymptoms: [],
   hasHealthSymptoms: false,
   healthSymptomsDetails: null,
   customs: {

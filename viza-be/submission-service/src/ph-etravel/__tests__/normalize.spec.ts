@@ -42,18 +42,18 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       last_name: "USER",
       passport_issuing_authority: "China",
       residence_address_line1: "Hunan",
-      purpose_of_travel: "HOLIDAY",
-      traveller_type: "AIRCRAFT_PASSENGER",
-      airline_name: "PHILIPPINE_AIRLINES",
+      purpose_of_travel: "POV001",
+      traveller_type: "AIRCRAFT PASSENGER",
+      airline_name: "TC002",
       flight_number: "PR101",
       airport_of_origin: "Singapore Changi Airport",
       flight_departure_date: "2026-06-13",
       flight_arrival_date: "2026-06-13",
-      port_of_entry: "NINOY AQUINO INTERNATIONAL AIRPORT",
-      country_of_birth: "CHINA",
-      country_of_residence: "CHINA",
-      occupation: "STUDENT_MINOR",
-      destination_type: "HOTEL_RESORT",
+      port_of_entry: "TP1000",
+      country_of_birth: "CN",
+      country_of_residence: "CN",
+      occupation: "OCC007",
+      destination_type: "HOTEL",
       destination_hotel_name: "Test Hotel",
       destination_hotel_address: "Test Hotel, Manila",
       has_recent_travel_history_30d: "no",
@@ -85,15 +85,36 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.travelType, "ARRIVAL");
   assert.equal(payload.transportType, "AIR");
   assert.equal(payload.flightNumber, "PR101");
-  assert.equal(payload.travellerType, "AIRCRAFT_PASSENGER");
-  assert.equal(payload.airlineOrVesselName, "PHILIPPINE_AIRLINES");
+  assert.equal(payload.travellerType, "AIRCRAFT PASSENGER");
+  assert.equal(payload.airlineOrVesselName, "TC002");
   assert.equal(payload.airportOfOrigin, "Singapore Changi Airport");
-  assert.equal(payload.portOfEntry, "NINOY AQUINO INTERNATIONAL AIRPORT");
+  assert.equal(payload.portOfEntry, "TP1000");
   assert.equal(payload.hasHealthSymptoms, false);
   assert.equal(payload.customs.hasCheckedBaggage, true);
   assert.equal(payload.customs.checkedBaggageCount, "1");
   assert.equal(payload.customs.hasDutiableGoods, false);
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
+});
+
+test("normalizePhEtravelPortalPayload keeps the three official health answers distinct", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      has_recent_travel_history_30d: "yes",
+      visited_country_30d: "SG",
+      visited_country_30d__2: "MY",
+      has_exposure_to_sick_person_30d: "no",
+      has_been_sick_30d: "yes",
+      sickness_symptom: "SS002",
+      sickness_symptom__2: "SS008",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.hasRecentTravelHistory30d, true);
+  assert.deepEqual(payload.visitedCountries30d, ["SG", "MY"]);
+  assert.equal(payload.hasExposureToSickPerson30d, false);
+  assert.equal(payload.hasBeenSick30d, true);
+  assert.deepEqual(payload.sicknessSymptoms, ["SS002", "SS008"]);
 });
 
 test("normalizePhEtravelPortalPayload rejects wrong country or visa type", () => {

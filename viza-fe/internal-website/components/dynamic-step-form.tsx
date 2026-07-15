@@ -723,6 +723,19 @@ function getVnPrearrivalLoadingText(source: string | null, side: BilingualSide):
   return side === "zh" ? "正在加载官方选项..." : "Loading official options...";
 }
 
+function getPhEtravelOfficialOptionSource(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { official_options_source?: unknown } | null;
+  return rules?.official_options_source === "ph_etravel:flight_numbers"
+    ? rules.official_options_source
+    : null;
+}
+
+function getPhEtravelDependsOn(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { depends_on?: unknown; dependsOn?: unknown } | null;
+  const dependsOn = rules?.depends_on ?? rules?.dependsOn;
+  return typeof dependsOn === "string" && dependsOn.trim() ? dependsOn.trim() : null;
+}
+
 function findCanonicalOptionValue(
   options: VisaFormFieldRow["options"],
   rawValue: string | null | undefined,
@@ -1969,11 +1982,15 @@ export function DynamicStepForm({
   const [vnPrearrivalQueries, setVnPrearrivalQueries] = useState<Record<string, string>>({});
   const [vnPrearrivalOptions, setVnPrearrivalOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
   const [vnPrearrivalSearching, setVnPrearrivalSearching] = useState<Record<string, boolean>>({});
+  const [phEtravelOptions, setPhEtravelOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
+  const [phEtravelSearching, setPhEtravelSearching] = useState<Record<string, boolean>>({});
   const [indonesiaPostalLookup, setIndonesiaPostalLookup] = useState<IndonesiaPostalLookup>({ status: "idle" });
   const isVnPrearrivalStep = useMemo(
     () => isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field)),
     [step.fields, visaType],
   );
+  const isPhEtravelStep = visaType === "PH_ETRAVEL_ARRIVAL_CARD"
+    || step.fields.some((field) => field.visaType === "PH_ETRAVEL_ARRIVAL_CARD");
   const isIndonesiaOfficialEVisa = useMemo(
     () => isIndonesiaOfficialEVisaContext(country, visaType),
     [country, visaType],
@@ -2286,6 +2303,55 @@ export function DynamicStepForm({
       timers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [vnPrearrivalParentSnapshot, vnPrearrivalQueries, vnPrearrivalRemoteFields]);
+
+  const phEtravelRemoteFields = useMemo(
+    () => isPhEtravelStep
+      ? step.fields.filter((field) => Boolean(getPhEtravelOfficialOptionSource(field)))
+      : [],
+    [isPhEtravelStep, step.fields],
+  );
+  const phEtravelParentSnapshot = phEtravelRemoteFields
+    .map((field) => {
+      const parentKey = getPhEtravelDependsOn(field);
+      return `${field.fieldName}:${parentKey ? values[parentKey] ?? "" : ""}`;
+    })
+    .join("|");
+
+  useEffect(() => {
+    if (phEtravelRemoteFields.length === 0) return;
+    const controller = new AbortController();
+    for (const field of phEtravelRemoteFields) {
+      const source = getPhEtravelOfficialOptionSource(field);
+      const parentKey = getPhEtravelDependsOn(field);
+      const parent = parentKey ? valuesRef.current[parentKey]?.trim() ?? "" : "";
+      if (!source || !parent) {
+        setPhEtravelOptions((current) => ({ ...current, [field.fieldName]: [] }));
+        continue;
+      }
+      void (async () => {
+        try {
+          setPhEtravelSearching((current) => ({ ...current, [field.fieldName]: true }));
+          const params = new URLSearchParams({ source, parent });
+          const response = await fetch(`/api/ph-etravel/options?${params.toString()}`, { signal: controller.signal });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const payload = await response.json() as { options?: VisaFormFieldOption[] };
+          setPhEtravelOptions((current) => ({
+            ...current,
+            [field.fieldName]: Array.isArray(payload.options) ? payload.options : [],
+          }));
+        } catch (error) {
+          if ((error as { name?: string }).name !== "AbortError") {
+            setPhEtravelOptions((current) => ({ ...current, [field.fieldName]: [] }));
+          }
+        } finally {
+          if (!controller.signal.aborted) {
+            setPhEtravelSearching((current) => ({ ...current, [field.fieldName]: false }));
+          }
+        }
+      })();
+    }
+    return () => controller.abort();
+  }, [phEtravelParentSnapshot, phEtravelRemoteFields]);
 
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
@@ -2804,6 +2870,17 @@ export function DynamicStepForm({
         ? localizeVietnamWardOptions(dynamicOptions)
         : dynamicOptions;
     }
+    const phEtravelSource = getPhEtravelOfficialOptionSource(field);
+    if (phEtravelSource) {
+      const remoteOptions = phEtravelOptions[field.fieldName] ?? [];
+      const selectedValue = values[valueKey]?.trim();
+      const hasSelectedValue = selectedValue && remoteOptions.some((option) =>
+        typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+      );
+      fieldOptions = selectedValue && !hasSelectedValue
+        ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
+        : remoteOptions;
+    }
     if (
       field.fieldName === "address_in_korea" &&
       (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search"
@@ -2925,6 +3002,8 @@ export function DynamicStepForm({
           searching={
             isKoreaAddressSearchSelect
               ? koreaAddressSearching
+              : phEtravelSource
+                ? Boolean(phEtravelSearching[field.fieldName])
               : vnPrearrivalKey
                 ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
                 : false
@@ -2932,6 +3011,8 @@ export function DynamicStepForm({
           loadingText={
             isKoreaAddressSearchSelect
               ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
+              : phEtravelSource
+                ? side === "zh" ? "正在加载菲律宾 eTravel 官方航班..." : "Loading official Philippines eTravel flights..."
               : isVnPrearrivalRemoteSelect
                 ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
                 : undefined

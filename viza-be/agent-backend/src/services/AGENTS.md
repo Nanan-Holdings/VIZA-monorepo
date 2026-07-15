@@ -25,6 +25,10 @@ conversation state, and other cross-route behavior.
   over the shared `appointment_*` data model. Requires France-Visas reference
   and user consent, enforces slot/status cooldowns, allows only user-selected
   observed slots, and stores payment state as redacted metadata.
+- `japan-appointment/**`: Japan VFS/JVAC Singapore preparation service over the
+  shared appointment tables. It validates stored answers and documents,
+  prepares a redacted alias account record, and delegates Browserbase portal
+  observation to submission-service without selecting slots or paying.
 - `korea-appointment/**`: Korea C-3-9 KVAC appointment service shell for
   slot observation, explicit user slot selection, and dry-run booking
   confirmation against the shared `appointment_*` data model.

@@ -23,14 +23,20 @@ export interface BrowserbaseCloudBrowser {
 
 const DEFAULT_COUNTRY_BY_PREFIX: Readonly<Record<string, string>> = {
   CEAC: "US",
+  FRANCE_TLS: "FR",
   FRANCE_VISAS: "FR",
   INDONESIA: "ID",
   MDAC: "MY",
+  JP_VFS_SG: "SG",
   PH_ETRAVEL: "PH",
   SGAC: "SG",
   TDAC: "TH",
   VN: "VN",
+  US_APPOINTMENT: "US",
 };
+
+let activeBrowserbaseConnections = 0;
+const browserbaseConnectionWaiters: Array<() => void> = [];
 
 export class BrowserbaseSessionError extends Error {
   readonly code = "browserbase_session_create_failed";
@@ -131,6 +137,7 @@ export async function createBrowserbaseCloudSession(options: {
   try {
     response = await fetchImpl("https://api.browserbase.com/v1/sessions", {
       method: "POST",
+      signal: AbortSignal.timeout(30_000),
       headers: {
         "Content-Type": "application/json",
         "X-BB-API-Key": apiKey,
@@ -158,18 +165,45 @@ export async function createBrowserbaseCloudSession(options: {
   };
 }
 
+function readPositiveInteger(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function acquireBrowserbaseConnection(): Promise<() => void> {
+  const limit = readPositiveInteger("BROWSERBASE_MAX_CONCURRENCY", 1);
+  if (activeBrowserbaseConnections >= limit) {
+    await new Promise<void>((resolve) => browserbaseConnectionWaiters.push(resolve));
+  }
+  activeBrowserbaseConnections += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activeBrowserbaseConnections = Math.max(0, activeBrowserbaseConnections - 1);
+    browserbaseConnectionWaiters.shift()?.();
+  };
+}
+
 export async function connectBrowserbaseCloudBrowser(options: {
   prefix: string;
 }): Promise<BrowserbaseCloudBrowser> {
-  const cloudSession = await createBrowserbaseCloudSession(options);
-  const browser = await chromium.connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
-  const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
-  const page = context.pages()[0] ?? await context.newPage();
-  return {
-    browser,
-    context,
-    page,
-    replayUrl: cloudSession.replayUrl,
-    proxiesEnabled: cloudSession.proxiesEnabled,
-  };
+  const release = await acquireBrowserbaseConnection();
+  try {
+    const cloudSession = await createBrowserbaseCloudSession(options);
+    const browser = await chromium.connectOverCDP(cloudSession.connectUrl, { timeout: 45_000 });
+    browser.once("disconnected", release);
+    const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
+    const page = context.pages()[0] ?? await context.newPage();
+    return {
+      browser,
+      context,
+      page,
+      replayUrl: cloudSession.replayUrl,
+      proxiesEnabled: cloudSession.proxiesEnabled,
+    };
+  } catch (error) {
+    release();
+    throw error;
+  }
 }
