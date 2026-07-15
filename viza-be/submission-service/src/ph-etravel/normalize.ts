@@ -56,6 +56,11 @@ export interface PhEtravelPortalPayload {
   accompaniedUnder18Count: string | null;
   accompanied18PlusCount: string | null;
   firstTimeVisitingPhilippines: boolean | null;
+  hasRecentTravelHistory30d: boolean;
+  visitedCountries30d: string[];
+  hasExposureToSickPerson30d: boolean;
+  hasBeenSick30d: boolean;
+  sicknessSymptoms: string[];
   hasHealthSymptoms: boolean;
   healthSymptomsDetails: string | null;
   customs: {
@@ -251,6 +256,15 @@ export function normalizePhEtravelPortalPayload(
     boolAnswer(answers.has_recent_travel_history_30d) ||
     boolAnswer(answers.has_exposure_to_sick_person_30d) ||
     boolAnswer(answers.has_been_sick_30d);
+  const hasRecentTravelHistory30d = boolAnswer(answers.has_recent_travel_history_30d);
+  const hasExposureToSickPerson30d = boolAnswer(answers.has_exposure_to_sick_person_30d);
+  const hasBeenSick30d = boolAnswer(answers.has_been_sick_30d);
+  const repeatedValues = (base: string): string[] => Object.entries(answers)
+    .filter(([key, value]) => (key === base || key.startsWith(`${base}__`)) && text(value))
+    .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
+    .map(([, value]) => text(value));
+  const visitedCountries30d = hasRecentTravelHistory30d ? repeatedValues("visited_country_30d") : [];
+  const sicknessSymptoms = hasBeenSick30d ? repeatedValues("sickness_symptom") : [];
   const firstName = firstText([answers.first_name]);
   const middleName = firstText([answers.middle_name]) || null;
   const lastName = firstText([answers.last_name]) || null;
@@ -381,7 +395,7 @@ export function normalizePhEtravelPortalPayload(
     firstTimeVisitingPhilippines: text(answers.first_time_visiting_philippines)
       ? boolAnswer(answers.first_time_visiting_philippines)
       : null,
-    healthSymptomsDetails: hasHealthSymptoms ? requireFirstText([answers.health_symptoms_details], "health_symptoms_details", missing) : null,
+    healthSymptomsDetails: sicknessSymptoms.join(", ") || null,
   };
 
   if (missing.length > 0) {
@@ -394,6 +408,11 @@ export function normalizePhEtravelPortalPayload(
     applicationId: payload.applicationId,
     ...mapped,
     hasHealthSymptoms,
+    hasRecentTravelHistory30d,
+    visitedCountries30d,
+    hasExposureToSickPerson30d,
+    hasBeenSick30d,
+    sicknessSymptoms,
     customs: {
       hasCheckedBaggage,
       checkedBaggageCount: optionalCount(answers.checked_baggage_count, hasCheckedBaggage),

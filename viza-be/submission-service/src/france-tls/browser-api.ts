@@ -1,6 +1,10 @@
 import { chromium, type Browser, type CDPSession, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  connectBrowserbaseCloudBrowser,
+} from "../browserbase-session";
 
-export type FranceTlsBrowserProvider = "remote-browser-api" | "local-cdp" | "local";
+export type FranceTlsBrowserProvider = "browserbase" | "remote-browser-api" | "local-cdp" | "local";
 
 export interface FranceTlsBrowserEndpoint {
   endpoint: string;
@@ -76,6 +80,15 @@ export function resolveFranceTlsBrowserEndpoint(): FranceTlsBrowserEndpoint | nu
 }
 
 export async function createFranceTlsBrowserSession(): Promise<FranceTlsBrowserSession> {
+  if (browserbaseEnabled("FRANCE_TLS")) {
+    const cloud = await connectBrowserbaseCloudBrowser({ prefix: "FRANCE_TLS" });
+    return {
+      browser: cloud.browser,
+      page: cloud.page,
+      provider: "browserbase",
+      source: "FRANCE_TLS_BROWSERBASE_ENABLED",
+    };
+  }
   const configured = resolveFranceTlsBrowserEndpoint();
   if (configured) {
     const browser = await chromium.connectOverCDP(configured.endpoint, { timeout: 45_000 });

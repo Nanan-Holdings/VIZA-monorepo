@@ -39,6 +39,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
   guards the local country-code dropdown fallback used when the official
   category endpoint is session-gated.
+- Philippines eTravel airline-dependent flight numbers are proxied read-only
+  through `app/api/ph-etravel/options/**`; the form stores the exact official
+  flight code and reloads options whenever the official airline code changes.
 - Indonesia eVisa postal-code preflight is proxied through
   `app/api/indonesia/postal-code/**`. It may only validate and derive the
   province/city/district/village display values; the official eVisa portal
@@ -65,9 +68,12 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   booking, and display confirmation/status snapshots from the DB.
 - Japan VFS/JVAC Singapore appointment preparation under
   `app/client/applications/[applicationId]/japan-appointment/**`,
-  `components/client/japan-appointment/**`, and `lib/japan-vfs-sg.ts`.
+  `components/client/japan-appointment/**`, `lib/japan-vfs-sg.ts`,
+  `lib/japan-appointment-client.ts`, and `types/japan-appointment.ts`.
   It is limited to Chinese ordinary-passport holders with a Singapore long-term
-  pass that covers their return date and must keep official VFS actions explicit.
+  pass that covers their return date, records explicit consent, validates
+  stored uploads through the backend, and displays Browserbase evidence. Free
+  Plan mode stops before slot selection, payment, and final booking.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
@@ -235,6 +241,7 @@ Smoke URLs:
 - `app/api/stripe/*`
 - `app/api/travel/*`
 - `app/api/vn-prearrival/options/*`
+- `app/api/ph-etravel/options/*`
 - `components/ui/*`
 - `components/smooth-progress.tsx`
 - `components/runtime-abort-error-guard.tsx`

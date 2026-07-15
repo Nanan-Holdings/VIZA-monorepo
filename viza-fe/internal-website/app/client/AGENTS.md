@@ -64,11 +64,12 @@ applicant info, and help pages.
   TLScontact China appointment assistant entry after France-Visas official
   reference capture. It reads backend-observed TLS slots, keeps user slot
   selection and final approval explicit, and records only redacted one-time TLS
-  service-fee authorization metadata.
 - `applications/[applicationId]/japan-appointment/page.tsx`: Japan tourism
-  VFS/JVAC Singapore preflight for eligible Chinese long-term residents; VFS
-  login, verification, slot choice, and final confirmation remain official actions.
-  service-fee authorization metadata.
+  VFS/JVAC Singapore cloud preflight for eligible Chinese long-term residents.
+  It records consent, creates the alias-backed backend job, checks the official
+  portal through Browserbase, and displays redacted evidence. VFS login,
+  verification, slot choice, payment, and final confirmation remain stopped in
+  the Free Plan phase.
 - `universal-info/page.tsx`: reusable applicant profile editor.
 - `(auth)/*`: client login/register/signup pages.
 

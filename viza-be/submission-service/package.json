@@ -21,6 +21,7 @@
     "mdac:smoke": "tsx scripts/run-mdac-smoke.ts",
     "mdac:connectivity-smoke": "node dist/mdac/connectivity-smoke.js",
     "portal:connectivity-smoke": "node dist/portal-connectivity-smoke.js",
+    "appointment:free-smoke": "tsx scripts/run-appointment-free-smoke.ts",
     "tw-entry-permit:smoke": "tsx scripts/run-tw-entry-permit-smoke.ts",
     "ph-etravel:smoke": "tsx scripts/run-ph-etravel-smoke.ts",
     "ph-etravel:chrome": "powershell -ExecutionPolicy Bypass -File scripts/start-ph-etravel-user-chrome.ps1",

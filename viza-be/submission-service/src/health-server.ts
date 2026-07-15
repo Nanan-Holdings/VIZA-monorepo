@@ -1,4 +1,5 @@
 import * as http from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
@@ -67,6 +68,17 @@ function sendJson(res: http.ServerResponse, status: number, body: Record<string,
 function isLocalRequest(req: http.IncomingMessage): boolean {
   const address = req.socket.remoteAddress ?? "";
   return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
+}
+
+function isJapanInternalRequest(req: http.IncomingMessage): boolean {
+  if (isLocalRequest(req)) return true;
+  const expected = process.env.JP_VFS_SG_INTERNAL_TOKEN?.trim();
+  const authorization = req.headers.authorization;
+  const provided = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!expected || !provided) return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(provided);
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise<unknown> {
@@ -369,12 +381,19 @@ async function handleJapanVfsSingaporeObserve(req: http.IncomingMessage, res: ht
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isJapanInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
   try {
-    sendJson(res, 200, { ok: true, ...(await observeJapanVfsSingaporeSlots()) });
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    sendJson(res, 200, {
+      ok: true,
+      ...(await observeJapanVfsSingaporeSlots({
+        applicationId: typeof body.applicationId === "string" ? body.applicationId : undefined,
+        prepareAlias: body.prepareAlias === true,
+      })),
+    });
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
   }

@@ -3,6 +3,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { dirname } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { solveCaptcha } from "../captcha";
+import {
+  browserbaseEnabled,
+  connectBrowserbaseCloudBrowser,
+} from "../browserbase-session";
 import type {
   AppointmentAccountCredentials,
   AppointmentPortalGate,
@@ -619,6 +623,17 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
   private async getPage(): Promise<Page> {
     if (this.page) return this.page;
+    if (browserbaseEnabled("US_APPOINTMENT")) {
+      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "US_APPOINTMENT" });
+      this.browser = cloud.browser;
+      this.context = cloud.context;
+      this.page = cloud.page;
+      this.connectedToUserBrowser = true;
+      if (this.shouldInstallTurnstileHook()) {
+        await this.installTurnstileHook(this.page);
+      }
+      return this.page;
+    }
     const cdpEndpoint = this.currentPlaywrightCdpEndpoint();
     if (cdpEndpoint) {
       this.browser = await chromium.connectOverCDP(cdpEndpoint, {
