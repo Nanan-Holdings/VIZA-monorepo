@@ -32,7 +32,7 @@ smoke-test helpers for the VIZA monorepo.
   stale DB metadata must fail fast.
 - `start-vn-autopay-dev.ps1`: repo-root wrapper for
   `npm run vn:autopay:dev`. It starts `viza-be/submission-service` with the
-  Vietnam one-time card-session endpoint enabled, defaulting to port 8085 so it
+  Vietnam one-time card-session endpoint enabled, defaulting to port 18080 so it
   matches the global dev stack and frontend local payment route.
 - `restart-all.ps1`: one-shot emergency restart wrapper that forwards flags to
   `start-all.ps1` with `-Reset` (stop all matching started processes and start

@@ -1,7 +1,7 @@
 param(
   [int]$FrontendPort = 3000,
   [int]$AgentPort = 3002,
-  [int]$SubmissionPort = 8085,
+  [int]$SubmissionPort = 18080,
   [int]$TravelPort = 8000,
   [switch]$NoBackend,
   [switch]$NoSubmission,
@@ -45,6 +45,23 @@ function Test-PortInUse {
   return $null -ne $connection
 }
 
+function Test-TcpPortBindable {
+  param([int]$Port)
+
+  $listener = $null
+  try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $Port)
+    $listener.Start()
+    return $true
+  } catch {
+    return $false
+  } finally {
+    if ($listener) {
+      $listener.Stop()
+    }
+  }
+}
+
 function Find-FreePort {
   param(
     [int]$PreferredPort,
@@ -55,7 +72,7 @@ function Find-FreePort {
     if ($AvoidPorts -contains $port) {
       continue
     }
-    if (!(Test-PortInUse -Port $port)) {
+    if (Test-TcpPortBindable -Port $port) {
       return $port
     }
   }
@@ -398,7 +415,7 @@ if (!$NoBackend) {
 }
 
 if (!$NoSubmission) {
-  if (Test-PortInUse -Port $SubmissionPort) {
+  if (!(Test-TcpPortBindable -Port $SubmissionPort)) {
     $SubmissionPort = Find-FreePort -PreferredPort ($SubmissionPort + 1) -AvoidPorts @($FrontendPort, $selectedAgentPort, $selectedTravelPort)
     Write-Warn "Submission service port is busy. Using $SubmissionPort."
   }
