@@ -130,8 +130,11 @@ export async function createArrivalCardBrowserSession(options: {
     };
   }
 
-  const channel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim()
-    || (["MDAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL", "TW_ENTRY_PERMIT"].includes(options.prefix) ? "chrome" : undefined);
+  const configuredChannel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim();
+  const channel = configuredChannel === "bundled"
+    ? undefined
+    : configuredChannel
+      || (["MDAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL", "TW_ENTRY_PERMIT"].includes(options.prefix) ? "chrome" : undefined);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
   const headless = options.headless ?? (explicitHeadless ? explicitHeadless !== "false" : true);
   const browser = await chromium.launch({ channel, headless });

@@ -13,7 +13,7 @@
 #   docker run --rm <image> npm run smoke:ceac
 
 # Pinned Playwright base. Bump together with package.json @playwright/test.
-FROM mcr.microsoft.com/playwright:v1.41.0-jammy AS build
+FROM mcr.microsoft.com/playwright:v1.58.2-jammy AS build
 
 ENV NODE_ENV=production \
     NPM_CONFIG_FUND=false \
@@ -35,7 +35,7 @@ COPY scripts ./scripts
 
 RUN npm run build
 
-FROM mcr.microsoft.com/playwright:v1.41.0-jammy AS runtime
+FROM mcr.microsoft.com/playwright:v1.58.2-jammy AS runtime
 
 ENV NODE_ENV=production \
     NPM_CONFIG_FUND=false \
