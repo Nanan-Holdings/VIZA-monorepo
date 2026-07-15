@@ -10,6 +10,12 @@ const ENV_NAMES = [
   "MDAC_BROWSERBASE_PROXIES",
   "MDAC_BROWSERBASE_REGION",
   "MDAC_BROWSERBASE_COUNTRY",
+  "CEAC_BROWSERBASE_COUNTRY",
+  "FRANCE_VISAS_BROWSERBASE_COUNTRY",
+  "INDONESIA_BROWSERBASE_COUNTRY",
+  "SGAC_BROWSERBASE_COUNTRY",
+  "TDAC_BROWSERBASE_COUNTRY",
+  "VN_BROWSERBASE_COUNTRY",
 ] as const;
 
 function restoreEnvironment(snapshot: Record<string, string | undefined>): void {
@@ -67,6 +73,42 @@ test("returns a safe paid-plan error without echoing the API key", async () => {
         return true;
       },
     );
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
+
+test("selects a country-specific proxy location for every migrated runner", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  const expected = {
+    CEAC: "US",
+    FRANCE_VISAS: "FR",
+    INDONESIA: "ID",
+    MDAC: "MY",
+    SGAC: "SG",
+    TDAC: "TH",
+    VN: "VN",
+  } as const;
+  try {
+    for (const [prefix, country] of Object.entries(expected)) {
+      delete process.env[`${prefix}_BROWSERBASE_COUNTRY`];
+      let capturedInit: RequestInit | undefined;
+      await createBrowserbaseCloudSession({
+        prefix,
+        fetchImpl: async (_input, init) => {
+          capturedInit = init;
+          return new Response(JSON.stringify({ id: `session-${prefix}`, connectUrl: "wss://example.invalid" }), {
+            status: 201,
+            headers: { "Content-Type": "application/json" },
+          });
+        },
+      });
+      const requestBody = JSON.parse(String(capturedInit?.body)) as {
+        proxies: Array<{ geolocation: { country: string } }>;
+      };
+      assert.equal(requestBody.proxies[0]?.geolocation.country, country);
+    }
   } finally {
     restoreEnvironment(snapshot);
   }
