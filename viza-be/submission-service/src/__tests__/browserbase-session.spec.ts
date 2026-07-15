@@ -1,0 +1,73 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  BrowserbaseSessionError,
+  createBrowserbaseCloudSession,
+} from "../browserbase-session";
+
+const ENV_NAMES = [
+  "BROWSERBASE_API_KEY",
+  "MDAC_BROWSERBASE_PROXIES",
+  "MDAC_BROWSERBASE_REGION",
+  "MDAC_BROWSERBASE_COUNTRY",
+] as const;
+
+function restoreEnvironment(snapshot: Record<string, string | undefined>): void {
+  for (const name of ENV_NAMES) {
+    const value = snapshot[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+}
+
+test("creates a Malaysia Browserbase proxy session without a project id", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  process.env.MDAC_BROWSERBASE_PROXIES = "true";
+  process.env.MDAC_BROWSERBASE_REGION = "ap-southeast-1";
+  process.env.MDAC_BROWSERBASE_COUNTRY = "MY";
+  try {
+    let capturedInit: RequestInit | undefined;
+    const result = await createBrowserbaseCloudSession({
+      prefix: "MDAC",
+      fetchImpl: async (_input, init) => {
+        capturedInit = init;
+        return new Response(JSON.stringify({ id: "session-123", connectUrl: "wss://example.invalid" }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+
+    const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
+    assert.equal("projectId" in requestBody, false);
+    assert.deepEqual(requestBody.proxies, [
+      { type: "browserbase", geolocation: { country: "MY" } },
+    ]);
+    assert.equal((capturedInit?.headers as Record<string, string>)["X-BB-API-Key"], "test-secret");
+    assert.equal(result.replayUrl, "https://www.browserbase.com/sessions/session-123");
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
+
+test("returns a safe paid-plan error without echoing the API key", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "do-not-log-this";
+  try {
+    await assert.rejects(
+      createBrowserbaseCloudSession({
+        prefix: "MDAC",
+        fetchImpl: async () => new Response("provider detail", { status: 402 }),
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof BrowserbaseSessionError);
+        assert.match(error.message, /paid Developer plan/i);
+        assert.doesNotMatch(error.message, /do-not-log-this|provider detail/);
+        return true;
+      },
+    );
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
