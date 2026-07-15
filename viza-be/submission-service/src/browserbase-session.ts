@@ -11,6 +11,7 @@ export interface BrowserbaseCloudSession {
   connectUrl: string;
   replayUrl: string;
   proxiesEnabled: boolean;
+  verifiedEnabled: boolean;
 }
 
 export interface BrowserbaseCloudBrowser {
@@ -19,6 +20,7 @@ export interface BrowserbaseCloudBrowser {
   page: Page;
   replayUrl: string;
   proxiesEnabled: boolean;
+  verifiedEnabled: boolean;
 }
 
 const DEFAULT_COUNTRY_BY_PREFIX: Readonly<Record<string, string>> = {
@@ -105,6 +107,7 @@ export async function createBrowserbaseCloudSession(options: {
   }
 
   const proxiesEnabled = readBoolean(`${options.prefix}_BROWSERBASE_PROXIES`, true);
+  const verifiedEnabled = readBoolean(`${options.prefix}_BROWSERBASE_VERIFIED`, false);
   const region = readRegion(`${options.prefix}_BROWSERBASE_REGION`);
   const country = process.env[`${options.prefix}_BROWSERBASE_COUNTRY`]?.trim().toUpperCase()
     || DEFAULT_COUNTRY_BY_PREFIX[options.prefix]
@@ -130,6 +133,9 @@ export async function createBrowserbaseCloudSession(options: {
         geolocation: { country },
       },
     ];
+  }
+  if (verifiedEnabled) {
+    body.browserSettings = { verified: true };
   }
 
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -162,6 +168,7 @@ export async function createBrowserbaseCloudSession(options: {
     connectUrl: payload.connectUrl,
     replayUrl: `https://www.browserbase.com/sessions/${payload.id}`,
     proxiesEnabled,
+    verifiedEnabled,
   };
 }
 
@@ -201,6 +208,7 @@ export async function connectBrowserbaseCloudBrowser(options: {
       page,
       replayUrl: cloudSession.replayUrl,
       proxiesEnabled: cloudSession.proxiesEnabled,
+      verifiedEnabled: cloudSession.verifiedEnabled,
     };
   } catch (error) {
     release();
