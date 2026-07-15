@@ -4,6 +4,7 @@ import * as path from "path";
 import type { Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { solveCaptcha } from "../captcha";
+import { fillPhEtravelOfficialDeclaration, PhEtravelFormFillError } from "./form-filler";
 import { PH_ETRAVEL_REFERENCE_PATTERNS } from "./official-options";
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
 import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
@@ -1287,17 +1288,6 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
     }
 
-    if (options.stopBeforeSubmit !== false) {
-      throw new PhEtravelPortalError(
-        "Philippines eTravel runner stopped before final submit because PH_ETRAVEL_STOP_BEFORE_SUBMIT is enabled.",
-        {
-          code: "ph_etravel_stopped_before_submit",
-          screenshotPaths: screenshots,
-          portalSummary: landingText.slice(0, 700),
-        },
-      );
-    }
-
     try {
       let handledRegistration = false;
       if (options.forceAccountRegistration) {
@@ -1333,14 +1323,44 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       }
     }
     screenshots.push(await saveScreenshot(page, "after-auth", logs));
+    let formResult;
+    try {
+      formResult = await fillPhEtravelOfficialDeclaration(page, payload, {
+        stopBeforeSubmit: options.stopBeforeSubmit !== false,
+        onStep: async (name) => {
+          screenshots.push(await saveScreenshot(page, name, logs));
+        },
+      });
+    } catch (error) {
+      if (error instanceof PhEtravelFormFillError) {
+        screenshots.push(await saveScreenshot(page, "form-fill-error", logs).catch(() => ""));
+        throw new PhEtravelPortalError(error.message, {
+          code: error.code,
+          screenshotPaths: screenshots.filter(Boolean),
+          portalSummary: error.portalSummary,
+        });
+      }
+      throw error;
+    }
 
-    throw new PhEtravelPortalError(
-      "Philippines eTravel official form selector mapping is incomplete; live submit is blocked until the portal flow is mapped end to end.",
-      {
-        code: "ph_etravel_selector_mapping_incomplete",
-        screenshotPaths: screenshots,
-        portalSummary: landingText.slice(0, 700),
-      },
+    if (formResult.reachedReview && !formResult.submitted) {
+      throw new PhEtravelPortalError(
+        "Philippines eTravel form was filled and reached Review; final submit was intentionally not clicked.",
+        {
+          code: "ph_etravel_stopped_before_submit",
+          screenshotPaths: screenshots,
+          portalSummary: formResult.portalText.slice(0, 700),
+        },
+      );
+    }
+
+    return buildPhEtravelSuccessFromPortalText(
+      payload,
+      formResult.portalText,
+      page.url(),
+      screenshots,
+      [],
+      logs,
     );
   } catch (error) {
     if (
