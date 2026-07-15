@@ -183,17 +183,22 @@ filling and one-shot submission for the applicant.
   form state machine, reaches Review in stop-before-submit mode, and allows the
   worker to click final Submit only when that safety stop is explicitly off.
 - `src/browserbase-session.ts`: API-key-only Browserbase session creation for
-  arrival-card runners. It can request a country-targeted managed residential
-  proxy and returns only a replay URL to caller-visible diagnostics; CDP
-  connection URLs and signing credentials must never be logged. MDAC keeps
-  this provider explicitly gated by `MDAC_BROWSERBASE_ENABLED` and defaults to
-  requiring Browserbase proxy access when enabled.
+  arrival-card and appointment runners. It can request a country-targeted
+  managed residential proxy and, for organizations explicitly approved by
+  Browserbase, a Verified Browser via the country-scoped
+  `*_BROWSERBASE_VERIFIED=true` gate. It returns only a replay URL to
+  caller-visible diagnostics; CDP connection URLs and signing credentials must
+  never be logged. MDAC keeps this provider explicitly gated by
+  `MDAC_BROWSERBASE_ENABLED` and defaults to requiring Browserbase proxy access
+  when enabled.
 - `src/appointment-free-smoke.ts` and
-  `scripts/run-appointment-free-smoke.ts`: proxy-free Browserbase Free Plan
-  validation for China USVisaScheduling, China France TLScontact, and Japan
-  VFS/JVAC Singapore. It forces cloud concurrency 1, runs the three portals
-  sequentially, strips URL query secrets, masks form values before screenshots,
-  and classifies each portal as `pass`, `conditional`, or `proxy_required`.
+  `scripts/run-appointment-free-smoke.ts`: Browserbase reachability validation
+  for China USVisaScheduling, China France TLScontact, and Japan VFS/JVAC
+  Singapore. It defaults to the proxy-free Free Plan, while the explicit
+  `--proxies` and `--verified` flags test paid proxy and approved Verified
+  sessions. It forces cloud concurrency 1, runs selected portals sequentially,
+  strips URL query secrets, masks form values before screenshots, and classifies
+  each portal as `pass`, `conditional`, or `proxy_required`.
   `--application-id` validates canonical VIZA answers/documents without using
   placeholders; `--prepare-alias` is the only option that writes an applicant
   alias, and the smoke never pays, selects a real slot, or confirms a booking.

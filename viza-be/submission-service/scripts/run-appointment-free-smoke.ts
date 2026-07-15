@@ -109,9 +109,12 @@ async function runTarget(
   target: Target,
   artifactDir: string,
   answers: Record<string, string> | null,
+  proxiesEnabled: boolean,
+  verifiedEnabled: boolean,
 ) {
   process.env[`${target.prefix}_BROWSERBASE_ENABLED`] = "true";
-  process.env[`${target.prefix}_BROWSERBASE_PROXIES`] = "false";
+  process.env[`${target.prefix}_BROWSERBASE_PROXIES`] = proxiesEnabled ? "true" : "false";
+  process.env[`${target.prefix}_BROWSERBASE_VERIFIED`] = verifiedEnabled ? "true" : "false";
   const cloud = await connectBrowserbaseCloudBrowser({ prefix: target.prefix });
   try {
     await cloud.page.setViewportSize({ width: 1440, height: 1000 }).catch(() => undefined);
@@ -148,7 +151,9 @@ async function runTarget(
     return {
       id: target.id,
       verdict: state.verdict,
-      reason: state.reason,
+      reason: proxiesEnabled && state.verdict === "proxy_required"
+        ? "The proxied cloud session was rejected by an access or region policy."
+        : state.reason,
       httpStatus: response?.status() ?? null,
       finalUrl: browserErrorPage ? "[REDACTED]" : redactOfficialUrl(cloud.page.url()),
       title,
@@ -159,6 +164,7 @@ async function runTarget(
       screenshotPath,
       browserbaseReplayAvailable: Boolean(cloud.replayUrl),
       proxiesEnabled: cloud.proxiesEnabled,
+      verifiedEnabled: cloud.verifiedEnabled,
     };
   } finally {
     await cloud.browser.close().catch(() => undefined);
@@ -173,6 +179,8 @@ async function main(): Promise<void> {
   const applicationId = readArg("application-id") ?? process.env.APPOINTMENT_FREE_SMOKE_APPLICATION_ID ?? null;
   const requestedTarget = readArg("target");
   const prepareAlias = hasArg("prepare-alias");
+  const proxiesEnabled = hasArg("proxies");
+  const verifiedEnabled = hasArg("verified");
   const selectedTargets = requestedTarget
     ? TARGETS.filter((target) => target.id === requestedTarget)
     : TARGETS;
@@ -188,15 +196,26 @@ async function main(): Promise<void> {
 
   const results = [];
   for (const target of selectedTargets) {
-    results.push(await runTarget(target, artifactDir, preflight?.answers ?? null));
+    results.push(await runTarget(
+      target,
+      artifactDir,
+      preflight?.answers ?? null,
+      proxiesEnabled,
+      verifiedEnabled,
+    ));
   }
   const verdictCounts = results.reduce<Record<AppointmentFreeSmokeVerdict, number>>(
     (counts, result) => ({ ...counts, [result.verdict]: counts[result.verdict] + 1 }),
     { pass: 0, conditional: 0, proxy_required: 0 },
   );
   const report = {
-    provider: "browserbase-free",
-    proxiesEnabled: false,
+    provider: verifiedEnabled
+      ? "browserbase-verified"
+      : proxiesEnabled
+        ? "browserbase-developer"
+        : "browserbase-free",
+    proxiesEnabled,
+    verifiedEnabled,
     maxConcurrency: 1,
     applicationPreflight: preflight
       ? {
