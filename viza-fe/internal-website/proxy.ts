@@ -16,15 +16,15 @@ export async function proxy(request: NextRequest) {
     pathname === "/client/register" ||
     pathname.startsWith("/client/register/")
   ) {
-    // Check for Supabase session first
-    const supabaseSession = await getSupabaseUserSession(request);
-    if (supabaseSession) {
+    // A valid VIZA session does not need a Supabase network request. This keeps
+    // existing local sessions usable while Supabase Auth has a transient outage.
+    const jwtSession = await getClientSessionFromRequest(request);
+    if (jwtSession) {
       return NextResponse.redirect(new URL("/client/home", request.url));
     }
 
-    // Fallback: Check for legacy JWT session
-    const jwtSession = await getClientSessionFromRequest(request);
-    if (jwtSession) {
+    const supabaseSession = await getSupabaseUserSession(request);
+    if (supabaseSession) {
       return NextResponse.redirect(new URL("/client/home", request.url));
     }
 
@@ -39,7 +39,7 @@ export async function proxy(request: NextRequest) {
   // Login must be able to establish a session before client-route protection
   // runs. This same-origin endpoint keeps browser auth calls out of Supabase
   // CORS handling during local development.
-  if (pathname === "/api/client/auth") {
+  if (pathname === "/api/client/auth" || pathname === "/api/client/auth/dev-session") {
     return NextResponse.next();
   }
 
@@ -68,17 +68,15 @@ async function handleClientRoutes(request: NextRequest, pathname: string) {
     return NextResponse.next();
   }
 
-  // 2. Try Supabase session
-  const supabaseSession = await getSupabaseUserSession(request);
-  if (supabaseSession) {
-    // Valid Supabase user session - allow access
+  // 2. A valid VIZA session remains usable if Supabase Auth is slow or down.
+  const jwtSession = await getClientSessionFromRequest(request);
+  if (jwtSession) {
     return NextResponse.next();
   }
 
-  // 3. Fallback: Try legacy JWT session (for migration period)
-  const jwtSession = await getClientSessionFromRequest(request);
-  if (jwtSession) {
-    // Valid legacy JWT session - allow access
+  // 3. Try Supabase session only when no VIZA session is available.
+  const supabaseSession = await getSupabaseUserSession(request);
+  if (supabaseSession) {
     return NextResponse.next();
   }
 
@@ -131,9 +129,12 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
       }
     );
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("supabase_session_timeout")), 2_500);
+      }),
+    ]);
 
     if (!user || !user.email) {
       return null;
@@ -143,8 +144,7 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
       userId: user.id,
       email: user.email,
     };
-  } catch (error) {
-    console.error("Error checking Supabase client session:", error);
+  } catch {
     return null;
   }
 }
