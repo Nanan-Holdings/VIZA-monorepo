@@ -90,7 +90,7 @@ test("choosePhEtravelAccountPlan creates an alias account when none exists", () 
   });
 });
 
-test("choosePhEtravelAccountPlan creates a new account after a failed prior account", () => {
+test("choosePhEtravelAccountPlan resumes the same alias after a failed prior attempt", () => {
   const plan = choosePhEtravelAccountPlan({
     existingAccount: {
       id: "acct_existing",
@@ -107,9 +107,10 @@ test("choosePhEtravelAccountPlan creates a new account after a failed prior acco
 
   assert.deepEqual(plan, {
     mode: "create_new",
-    email: "appl-new@haggstorm.com",
-    password: "new-password",
-    mpin: "654321",
+    accountId: "acct_existing",
+    email: "appl-existing@haggstorm.com",
+    password: "saved-password",
+    mpin: "123456",
   });
 });
 

@@ -30,7 +30,7 @@ export interface PhEtravelAccountPlan {
   accountId?: string;
 }
 
-const PH_ETRAVEL_NON_REUSABLE_ACCOUNT_STATUSES = new Set([
+const PH_ETRAVEL_INCOMPLETE_ACCOUNT_STATUSES = new Set([
   "pending_registration",
   "failed",
   "verification_required",
@@ -58,8 +58,8 @@ export function choosePhEtravelAccountPlan(input: {
 }): PhEtravelAccountPlan {
   const existingAccount = input.existingAccount;
   const existingStatus = existingAccount?.status?.trim().toLowerCase() ?? "";
-  const hasReusableCredentials = existingAccount?.email && existingAccount.password && !PH_ETRAVEL_NON_REUSABLE_ACCOUNT_STATUSES.has(existingStatus);
-  if (existingAccount?.email && existingAccount.status === "pending_registration") {
+  const hasExistingCredentials = Boolean(existingAccount?.email && existingAccount.password);
+  if (hasExistingCredentials && PH_ETRAVEL_INCOMPLETE_ACCOUNT_STATUSES.has(existingStatus)) {
     return {
       mode: "create_new",
       accountId: existingAccount.id,
@@ -69,7 +69,7 @@ export function choosePhEtravelAccountPlan(input: {
     };
   }
 
-  if (hasReusableCredentials) {
+  if (hasExistingCredentials) {
     return {
       mode: "reuse_existing",
       accountId: existingAccount.id,

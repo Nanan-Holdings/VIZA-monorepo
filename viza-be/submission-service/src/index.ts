@@ -6601,7 +6601,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
           await markPhEtravelPlanFailed({ applicantId: profile.id, plan: phAccountPlan });
           phAccountPlan = await loadOrCreatePhEtravelAccountPlan({
             applicantId: profile.id,
-            forceCreateNew: true,
+            existingAccount: await loadPhEtravelAccount(profile.id),
           });
           if (phAccountPlan.mode === "create_new") {
             await upsertPhEtravelAccount({
