@@ -2,7 +2,7 @@ param(
   [int]$FrontendPort = 3000,
   [int]$MarketingPort = 3001,
   [int]$AgentPort = 3002,
-  [int]$SubmissionPort = 8085,
+  [int]$SubmissionPort = 18080,
   [int]$TravelPort = 8000,
   [int]$StartupTimeoutSeconds = 120,
   [string]$PortalPath = "/client/login",

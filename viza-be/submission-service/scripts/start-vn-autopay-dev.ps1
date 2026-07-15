@@ -55,8 +55,8 @@ function Resolve-HealthPort {
     return [int]$env:PORT
   }
 
-  if (Test-PortAvailable -Port 8085) {
-    return 8085
+  if (Test-PortAvailable -Port 18080) {
+    return 18080
   }
 
   foreach ($candidate in 18080..18120) {

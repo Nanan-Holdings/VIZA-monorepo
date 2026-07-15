@@ -19,7 +19,7 @@ function isLocalRequest(request: Request): boolean {
 function submissionServiceBaseUrl(): string {
   const configured = process.env.SUBMISSION_SERVICE_LOCAL_URL?.trim();
   if (configured) return configured.replace(/\/+$/u, "");
-  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "8085";
+  const port = process.env.SUBMISSION_SERVICE_HEALTH_PORT?.trim() || "18080";
   return `http://127.0.0.1:${port}`;
 }
 

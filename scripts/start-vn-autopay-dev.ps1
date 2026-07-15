@@ -1,7 +1,7 @@
 param(
   [switch]$Headless,
   [switch]$FixedCard,
-  [int]$Port = 8085
+  [int]$Port = 18080
 )
 
 $ErrorActionPreference = "Stop"
