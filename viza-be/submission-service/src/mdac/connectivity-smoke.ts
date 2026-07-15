@@ -20,7 +20,14 @@ async function main(): Promise<void> {
     const registrationEntryVisible = await register.isVisible().catch(() => false);
     const landing = path.join(evidenceDir, "mdac-landing.png");
     await session.page.screenshot({ path: landing, fullPage: true });
-    console.log(JSON.stringify({ provider: session.provider, blocked, captcha, registrationEntryVisible, screenshots: [landing] }, null, 2));
+    console.log(JSON.stringify({
+      provider: session.provider,
+      blocked,
+      captcha,
+      registrationEntryVisible,
+      replayUrl: session.replayUrl,
+      screenshots: [landing],
+    }, null, 2));
   } finally {
     await session.close();
   }

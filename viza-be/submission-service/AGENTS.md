@@ -180,6 +180,12 @@ filling and one-shot submission for the applicant.
   `ph_etravel_accounts` by applicant before creating a new official account;
   do not mint a fresh inbox-alias account when a prior PH eTravel account row
   exists.
+- `src/browserbase-session.ts`: API-key-only Browserbase session creation for
+  arrival-card runners. It can request a country-targeted managed residential
+  proxy and returns only a replay URL to caller-visible diagnostics; CDP
+  connection URLs and signing credentials must never be logged. MDAC keeps
+  this provider explicitly gated by `MDAC_BROWSERBASE_ENABLED` and defaults to
+  requiring Browserbase proxy access when enabled.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
   declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival
