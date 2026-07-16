@@ -134,6 +134,16 @@ filling and one-shot submission for the applicant.
   selected by the applicant, and returns either a verifiable official
   confirmation number or an explicit payment/WAF/CAPTCHA/selector checkpoint.
   It must never synthesize a live confirmation number.
+- `src/jp-vfs-sg/runner.ts`: Japan VFS Singapore appointment runner. It reuses
+  one encrypted VIZA-alias portal account per application, consumes VFS account
+  verification mail through `inbound_email`, logs in, opens the official
+  booking calendar, returns observed slots, and matches only the exact
+  applicant-selected slot. Payment remains an explicit hosted-provider
+  checkpoint; a booking may be persisted only when VFS displays a real
+  confirmation/reference number.
+- `POST /internal/japan-vfs-sg/book-selected-slot`: internal-token protected
+  Japan live-booking handoff gated by `JP_VFS_SG_LIVE_BOOKING_ENABLED=true`.
+  It never logs card data or fabricates slot/payment/confirmation success.
 - `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
   alias provisioning and inbound-email verification-link extraction for
   official account registration.
@@ -250,6 +260,18 @@ filling and one-shot submission for the applicant.
   registration additionally requires both `--submit-registration` and
   `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`, then waits for the applicant
   alias activation email and stops before appointment reference submission.
+- `scripts/run-france-tls-appointment-flow.ts`: resumable, single-application
+  TLScontact operator flow. It prepares the alias account, observes and persists
+  official slots, stops for the applicant's Portal slot choice and final
+  approval, and can click the official final booking control only with both a
+  completed `final_confirmation` action, `--book-approved-slot`, and
+  `FRANCE_TLS_LIVE_BOOKING_ENABLED=true`.
+- `scripts/run-us-appointment-flow.ts`: processes one persisted
+  USVisaScheduling job at a time through the same production runner used by the
+  Fly worker. It automatically consumes alias verification mail when possible,
+  but stops for Portal slot selection and final approval; only a job already
+  transitioned to `appointment_booked` may reach the official confirmation
+  click.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
   declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival

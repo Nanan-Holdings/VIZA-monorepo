@@ -11,6 +11,7 @@ import {
 function repositoryFor(applicationPatch: Partial<JapanAppointmentApplication> = {}) {
   const jobs: JapanAppointmentJob[] = [];
   const actions: JapanAppointmentManualAction[] = [];
+  const slots: Array<import("./JapanAppointmentService").JapanAppointmentSlot> = [];
   const application: JapanAppointmentApplication = {
     id: "application-1", userId: "user-1", applicantId: "applicant-1", country: "japan",
     visaType: "TEMPORARY_VISITOR", inboxAlias: null,
@@ -36,6 +37,12 @@ function repositoryFor(applicationPatch: Partial<JapanAppointmentApplication> = 
     async getAccount() { return null; },
     async insertManualAction(input) { const action = { id: "action-1", actionType: input.actionType, status: "pending", instruction: input.instruction, metadataRedactedJson: input.metadata, createdAt: new Date(0).toISOString() }; actions.push(action); return action; },
     async getPendingManualAction() { return actions.find((action) => action.status === "pending") ?? null; },
+    async replaceObservedSlots() { return slots; },
+    async listSlots() { return slots; },
+    async selectSlot(_jobId, slotId) { return slots.find((slot) => slot.id === slotId) ?? null; },
+    async getSelectedSlot() { return slots.find((slot) => slot.status === "user_selected") ?? null; },
+    async insertConfirmation(input) { return { ...input, id: "confirmation-1", createdAt: new Date(0).toISOString() }; },
+    async getConfirmation() { return null; },
     async updateApplicationState() { return undefined; },
   };
   return { repository, actions, jobs };

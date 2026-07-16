@@ -43,7 +43,9 @@
     "notStarted": "未开始",
     "continue": "继续",
     "start": "开始",
-    "progressAriaLabel": "申请进度"
+    "progressAriaLabel": "申请进度",
+    "showAll": "展开全部 {count} 个申请",
+    "showLess": "收起"
   },
   "session": {
     "invalidatedTitle": "会话已失效",
@@ -55,6 +57,8 @@
     "vizaApplication": "这是您的VIZA申请",
     "vizaApplicationForCountry": "这是您的{country}签证申请",
     "recentActivity": "最近活动",
+    "applicationCategories": "申请类别",
+    "applicationCategoriesHint": "快速切换不同的申请类别。",
     "noRecentActivity": "暂无最近活动。开始您的申请以在此查看更新。",
     "loadingDashboard": "正在加载您的仪表板...",
     "authError": "认证失败。请重新点击链接。",
@@ -4333,8 +4337,6 @@
       "tooManyRequests": "尝试次数过多，请稍后再试。",
       "requestTimedOut": "登录服务响应较慢，请重试。",
       "providerUnavailable": "Supabase 登录服务暂时不可用。未提交你的登录信息，请稍后重试。",
-      "localTestSession": "进入本地测试会话",
-      "localTestSessionUnavailable": "本地测试会话尚未配置或暂时不可用。",
       "unexpectedError": "发生意外错误。请重试。",
       "failedToResend": "重新发送验证码失败。",
       "checkEmail": "查看您的邮箱",
@@ -4842,7 +4844,7 @@
       "slotScenarioNoSlots": "显示暂无名额",
       "aliasNoticeTitle": "VIZA 别名邮箱",
       "aliasNotice": "新建预约账号时，VIZA 使用此申请人资料分配的别名邮箱。验证邮件经 Cloudflare Email Routing 入站并从 Supabase inbound_email 消费；此流程不使用旧 IMAP 邮箱轮询。",
-      "createJob": "开始预约助手",
+      "createJob": "创建 Alias 账号并开始",
       "creating": "正在创建...",
       "recordConsent": "记录授权",
       "consentRequiredError": "请先阅读并同意授权说明。"
@@ -4905,7 +4907,7 @@
       "completing": "正在完成...",
       "instructions": {
         "consent": "请阅读并接受授权说明。",
-        "account_email_verification": "请输入邮箱中的验证码。VIZA 不会访问您的邮箱。",
+        "account_email_verification": "VIZA 会先自动从 inbound_email 读取 Alias 验证邮件；只有自动提取失败时，才需要在此输入验证码。",
         "login": "Runner 遇到不支持自动处理的官方登录或风控节点，需要人工复核。",
         "captcha": "Runner 遇到不支持自动处理的 CAPTCHA 或 MFA 节点，需要人工复核。",
         "payment": "请复核官方付款节点。只有在 VIZA 已获授权时才继续。",
@@ -4942,7 +4944,7 @@
       "selected": "已选名额：{date} {time}。请复核后再确认。",
       "approve": "批准最终步骤",
       "approving": "正在确认...",
-      "book": "请求官方预约",
+      "book": "点击官网最终确认",
       "approvedBadge": "已批准"
     },
     "results": {
@@ -5077,8 +5079,9 @@
       "title": "TLS 设置",
       "center": "TLScontact 中心",
       "referenceHint": "创建 TLS 预约任务前必须已有 France-Visas 官方申请编号；如编号缺失，后端会阻止任务创建。",
-      "createJob": "开始法国预约助手",
+      "createJob": "创建 Alias 账号并开始",
       "jobCreated": "预约任务已创建",
+      "creating": "正在创建账号并打开 TLScontact...",
       "recordConsent": "记录授权",
       "consentRequiredError": "请先阅读并同意授权说明。"
     },
@@ -5104,6 +5107,9 @@
     },
     "panel": {
       "title": "预约 runner",
+      "progressTitle": "预约进度",
+      "stepComplete": "已完成",
+      "stepPending": "待完成",
       "noJob": "请在授权并选择中心后开始。打开本页只读取状态，不会自动创建或重跑 TLS 任务。",
       "progressBody": "后端从 VIZA 表读取最新预约状态；TLS 名额检查只会在用户触发且满足后端 cooldown 后运行。",
       "provider": "预约平台",
@@ -5143,7 +5149,7 @@
       "requirement": "请先选择一个已发现的 TLS 名额，再进行最终确认。",
       "selected": "已选名额：{date} {time}。请复核 TLS 时间和支付授权后再确认。",
       "approve": "批准最终步骤",
-      "book": "请求官方预约",
+      "book": "点击官网最终确认",
       "approvedBadge": "已批准"
     },
     "results": {
@@ -5178,9 +5184,12 @@
     "documents": { "title": "2. 材料预检", "body": "请先确认准备状态，再到材料中心上传真实护照和照片。后端只认可 VIZA 已存储的上传文件，不会把勾选框当成已上传。", "manage": "打开材料中心", "passportStored": "VIZA 已存储护照", "photoStored": "VIZA 已存储照片", "profileIncomplete": "申请资料尚未完整", "profileMissing": "准备预约前，请先在申请表补齐这些字段：{fields}。" },
     "workflow": { "title": "3. 云端流程", "consent": "我确认信息真实，并授权 VIZA 准备日本 VFS 新加坡 alias／账号记录以及执行停止于预约前的云端门户检查。", "saving": "正在保存…", "saveConsent": "记录授权", "consentRecorded": "授权已记录", "consentRecordedBody": "后端已为当前申请保存本次预约准备授权。", "creating": "正在准备…", "create": "准备后端", "restart": "重新开始", "restartTitle": "本次准备已取消", "restartBody": "核对最新资料后，可以重新创建一次预约准备。", "checking": "正在检查…", "check": "检查官方门户", "aliasReady": "Alias 已准备", "aliasBody": "VIZA 已准备脱敏 alias 账号记录。本页面不会暴露 VFS 密码、CAPTCHA、银行卡或会话令牌。", "openOfficial": "打开官方 VFS", "cancel": "取消准备" },
     "evidence": { "title": "云端证据", "httpStatus": "HTTP 状态", "pageTitle": "官方页面", "observedAt": "检查时间", "replay": "Browserbase 回放" },
-    "checkpoints": { "login": "需要官方登录", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "site_policy_review": "官方政策检查点" },
-    "checkpointBodies": { "login": "官方入口可以访问，但读取预约日历前仍需要有效的 VFS 登录会话。", "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，且不会把该状态误报为预约成功。", "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。", "identity_verification": "官方网站要求申请人身份验证或一次性验证码后才能继续。", "selector_drift": "官方网站当前页面与已验证的预约状态不匹配，VIZA 已暂停等待复核。", "no_slots": "最近一次观察中，官方网站没有显示可预约时间。", "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。" },
-    "statuses": { "not_started": "尚未开始", "appointment_account_required": "Alias 已准备", "appointment_manual_required": "需要官方操作", "appointment_no_slots_available": "暂无时段", "appointment_cancelled": "已取消" },
-    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。", "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。", "consentRequired": "请先记录授权，再准备预约。", "cancelled": "本次准备已取消，请重新开始后再检查官方网站。", "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。", "sessionRequired": "登录会话已过期，请重新登录后继续。" }
+    "checkpoints": { "login": "需要官方登录", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "slot_selection": "请选择预约时间", "payment": "需要官网付款", "site_policy_review": "官方政策检查点" },
+    "checkpointBodies": { "login": "官方入口可以访问，但读取预约日历前仍需要有效的 VFS 登录会话。", "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，且不会把该状态误报为预约成功。", "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。", "identity_verification": "官方网站要求申请人身份验证或一次性验证码后才能继续。", "selector_drift": "官方网站当前页面与已验证的预约状态不匹配，VIZA 已暂停等待复核。", "no_slots": "最近一次观察中，官方网站没有显示可预约时间。", "slot_selection": "请选择后端刚观察到的一个 VFS 官方预约时间。", "payment": "请继续完成 VFS 官方托管的服务费付款步骤。", "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。" },
+    "slots": { "title": "官网预约时间", "empty": "尚未观察到官网名额。VFS 账号准备完成后，请点击“检查官方门户”。", "choose": "选择", "selected": "已选择" },
+    "payment": { "title": "VFS 服务费付款", "secureTitle": "官网安全托管付款", "secureBody": "VIZA 只保存付款会话引用和脱敏方式信息；完整卡号、CVV 和 OTP 必须保留在 VFS 官方托管付款会话中。", "brand": "付款方式", "last4": "后四位", "authorize": "授权付款交接" },
+    "final": { "title": "最终预约确认", "consent": "我已核对官网时段和付款条款，并授权 VIZA 请求最终 VFS 预约。", "approve": "批准最终预约", "book": "预约所选时段", "confirmed": "官网预约已确认", "confirmation": "确认号 {number} · {date} {time}" },
+    "statuses": { "not_started": "尚未开始", "appointment_account_required": "Alias 已准备", "appointment_manual_required": "需要官方操作", "appointment_no_slots_available": "暂无时段", "appointment_slot_selection_required": "请选择时段", "appointment_payment_required": "需要付款", "appointment_payment_completed": "付款授权已记录", "appointment_final_confirmation_approved": "最终批准已记录", "appointment_confirmation_captured": "预约已确认", "appointment_cancelled": "已取消" },
+    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。", "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。", "consentRequired": "请先记录授权，再准备预约。", "cancelled": "本次准备已取消，请重新开始后再检查官方网站。", "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。", "slotRequired": "请先选择当前可用的 VFS 官网时段。", "paymentRequired": "请先完成 VFS 安全付款授权。", "finalRequired": "提交前请批准最终预约。", "sessionRequired": "登录会话已过期，请重新登录后继续。" }
   }
 }

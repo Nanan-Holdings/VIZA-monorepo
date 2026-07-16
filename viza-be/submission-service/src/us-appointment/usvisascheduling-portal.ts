@@ -603,6 +603,8 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       page,
       US_VISA_SCHEDULING_SELECTORS.confirmationText,
     );
+    const confirmationNumber = this.extractConfirmationNumber(confirmationText);
+    if (!confirmationNumber) return null;
     return {
       job_id: job.id,
       application_id: job.application_id,
@@ -613,7 +615,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       appointment_time: selectedSlot.appointment_time,
       appointment_location: selectedSlot.appointment_location,
       appointment_type: selectedSlot.appointment_type ?? "interview",
-      confirmation_number: this.extractConfirmationNumber(confirmationText),
+      confirmation_number: confirmationNumber,
       confirmation_pdf_url: null,
       confirmation_screenshot_url: null,
       raw_confirmation_redacted_json: {

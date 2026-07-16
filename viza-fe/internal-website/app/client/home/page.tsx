@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Loader2, CircleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
@@ -122,6 +123,26 @@ const UNIVERSAL_PROFILE_FIELDS: Array<keyof ApplicantProfileSummary> = [
 ];
 
 const PASSPORT_DOCUMENT_TYPES = new Set(["passport_copy", "passport_bio_page", "passport_scan", "passport"]);
+
+const MULTI_CATEGORY_APPLICATIONS = [
+  { country: "vietnam", visaType: "evisa_tourism" },
+  { country: "vietnam", visaType: "VN_PREARRIVAL_DECLARATION" },
+  { country: "indonesia", visaType: "ID_C1_TOURIST" },
+  { country: "indonesia", visaType: "ID_B1_EVOA" },
+] as const;
+
+function getMultiCategoryCountry(country: string | null): "vietnam" | "indonesia" | null {
+  switch (country?.trim().toLowerCase()) {
+    case "vietnam":
+    case "vn":
+      return "vietnam";
+    case "indonesia":
+    case "id":
+      return "indonesia";
+    default:
+      return null;
+  }
+}
 
 function parseLegacyBirthplace(value?: string | null) {
   const parts = (value ?? "")
@@ -446,6 +467,10 @@ export default function HomePage() {
 
   // Hero background + graphic reflect the current application's country.
   const heroTheme = getCountryHeroTheme(heroCountry);
+  const multiCategoryCountry = getMultiCategoryCountry(heroCountry);
+  const multiCategoryEntries = multiCategoryCountry
+    ? MULTI_CATEGORY_APPLICATIONS.filter((entry) => entry.country === multiCategoryCountry)
+    : [];
 
   const headingVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -514,9 +539,37 @@ export default function HomePage() {
           </div>
         </motion.div>
 
+        {multiCategoryCountry && (
+          <section className="mt-12 w-full max-w-[1090px] rounded-[16px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:mt-16 sm:p-6">
+            <div>
+              <h2 className="font-heading text-[22px] font-medium tracking-[-0.5px] text-[#3d3d3d] sm:text-[26px]">
+                {t("applicationCategories")}
+              </h2>
+              <p className="mt-1 text-[14px] leading-6 text-[#667085]">{t("applicationCategoriesHint")}</p>
+            </div>
+            <p className="mt-5 text-[14px] font-semibold text-[#03346E]">
+              {getDestinationDisplayNameForLocale(multiCategoryCountry, locale)}
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {multiCategoryEntries.map((entry) => {
+                const params = new URLSearchParams({ country: entry.country, visaType: entry.visaType });
+                return (
+                  <Link
+                    key={entry.visaType}
+                    href={`/client/application?${params.toString()}`}
+                    className="flex min-h-11 items-center rounded-lg border border-[#d7e1ef] px-3 py-2 text-[13px] font-medium leading-5 text-[#03346E] transition hover:border-[#03346E] hover:bg-[#eef3fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                  >
+                    {getVisaPackageTitle(entry.country, entry.visaType, locale)}
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Recent Activity Heading — 与 hero 底部保持充足间距 */}
         <motion.p
-          className="mt-16 mb-8 w-full max-w-[1090px] font-heading text-[24px] font-medium leading-[1.3] tracking-[-0.72px] text-[#3d3d3d] sm:mb-10 sm:mt-20 sm:text-[30px] sm:tracking-[-0.9px] xl:mt-24"
+          className="mt-16 mb-8 w-full max-w-[1090px] font-heading text-[24px] font-medium leading-[1.3] tracking-[-0.72px] text-[#3d3d3d] sm:mb-10 sm:mt-20 sm:text-[30px] sm:tracking-[-0.9px]"
           initial="hidden"
           animate="visible"
           variants={activityHeadingVariants}

@@ -43,12 +43,43 @@ export interface JapanAppointmentManualAction {
   createdAt: string | null;
 }
 
+export interface JapanAppointmentSlot {
+  id: string;
+  jobId: string;
+  applicationId: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentLocation: string;
+  appointmentType: string;
+  source: string;
+  status: string;
+  observedAt: string | null;
+  metadataRedactedJson: JsonObject;
+}
+
+export interface JapanAppointmentConfirmation {
+  id: string;
+  jobId: string;
+  applicationId: string;
+  userId: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentLocation: string;
+  appointmentType: string;
+  confirmationNumber: string | null;
+  confirmationPdfUrl: string | null;
+  confirmationScreenshotUrl: string | null;
+  rawConfirmationRedactedJson: JsonObject;
+  createdAt: string | null;
+}
+
 export interface JapanAppointmentSnapshot {
   job: JapanAppointmentJob | null;
   account: JapanAppointmentAccount | null;
-  slots: [];
+  slots: JapanAppointmentSlot[];
   pendingManualAction: JapanAppointmentManualAction | null;
   evidence: JsonObject | null;
+  confirmation: JapanAppointmentConfirmation | null;
   preflight: {
     consentRecorded: boolean;
     missingApplicationFields: string[];
@@ -81,6 +112,12 @@ export interface JapanAppointmentRepository {
     metadata: JsonObject;
   }): Promise<JapanAppointmentManualAction>;
   getPendingManualAction(jobId: string): Promise<JapanAppointmentManualAction | null>;
+  replaceObservedSlots(jobId: string, slots: Omit<JapanAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt">[]): Promise<JapanAppointmentSlot[]>;
+  listSlots(jobId: string): Promise<JapanAppointmentSlot[]>;
+  selectSlot(jobId: string, slotId: string): Promise<JapanAppointmentSlot | null>;
+  getSelectedSlot(jobId: string): Promise<JapanAppointmentSlot | null>;
+  insertConfirmation(input: Omit<JapanAppointmentConfirmation, "id" | "createdAt">): Promise<JapanAppointmentConfirmation>;
+  getConfirmation(jobId: string): Promise<JapanAppointmentConfirmation | null>;
   updateApplicationState(applicationId: string, status: string, jobId?: string): Promise<void>;
 }
 
@@ -102,10 +139,17 @@ interface EligibilityInput {
 }
 
 interface RunnerResult {
-  slots?: unknown[];
+  slots?: Array<{
+    appointmentDate?: string;
+    appointmentTime?: string | null;
+    appointmentLocation?: string;
+    appointmentType?: string;
+    source?: string;
+  }>;
   checkpoint?: { type?: string; message?: string };
   evidence?: JsonObject;
   profile?: { missingFields?: string[]; aliasPrepared?: boolean };
+  confirmation?: { confirmationNumber?: string; receiptUrl?: string | null; screenshotUrl?: string | null };
 }
 
 const VALID_PASSES = new Set([
@@ -223,25 +267,28 @@ export class JapanAppointmentService {
       this.repository.findConsent(applicationId, application.userId),
     ]);
     const preflight = { ...applicationPreflight(application), consentRecorded: Boolean(consent) };
-    if (!job) return { job: null, account: null, slots: [], pendingManualAction: null, evidence: null, preflight };
+    if (!job) return { job: null, account: null, slots: [], pendingManualAction: null, evidence: null, confirmation: null, preflight };
     return this.getStatus(job.id, preflight);
   }
 
   async getStatus(jobId: string, knownPreflight?: JapanAppointmentSnapshot["preflight"]): Promise<JapanAppointmentSnapshot> {
     const job = await this.getJobOrThrow(jobId);
-    const [account, pendingManualAction, application, consent] = await Promise.all([
+    const [account, pendingManualAction, application, consent, slots, confirmation] = await Promise.all([
       this.repository.getAccount(job.applicationId, job.userId),
       this.repository.getPendingManualAction(job.id),
       this.getApplicationOrThrow(job.applicationId),
       knownPreflight ? Promise.resolve(null) : this.repository.findConsent(job.applicationId, job.userId),
+      this.repository.listSlots(job.id),
+      this.repository.getConfirmation(job.id),
     ]);
     const evidence = job.userPreferencesJson.evidence;
     return {
       job,
       account,
-      slots: [],
+      slots,
       pendingManualAction,
       evidence: evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence as JsonObject : null,
+      confirmation,
       preflight: knownPreflight ?? {
         ...applicationPreflight(application),
         consentRecorded: Boolean(consent),
@@ -272,12 +319,28 @@ export class JapanAppointmentService {
     if (!response.ok || !payload) {
       throw new JapanAppointmentServiceError(502, "japan_runner_unavailable", "The Japan cloud worker could not be reached.");
     }
+    const observedSlots = (payload.slots ?? []).flatMap((slot) => {
+      if (!slot.appointmentDate || !slot.appointmentLocation) return [];
+      return [{
+        appointmentDate: slot.appointmentDate,
+        appointmentTime: slot.appointmentTime ?? "",
+        appointmentLocation: slot.appointmentLocation,
+        appointmentType: slot.appointmentType ?? "Japan visa application submission",
+        source: slot.source ?? "vfs_jp_sg",
+        metadataRedactedJson: { provider: "vfs_japan_sg" },
+      }];
+    });
+    if (observedSlots.length > 0) await this.repository.replaceObservedSlots(job.id, observedSlots);
     const checkpointType = payload.checkpoint?.type ?? "selector_drift";
     const instruction = payload.checkpoint?.message ?? "The Japan VFS portal was reached, but an authenticated account is required before calendar access.";
     const updated = await this.repository.updateJob(job.id, {
-      status: checkpointType === "no_slots" ? "appointment_no_slots_available" : "appointment_manual_required",
+      status: observedSlots.length > 0
+        ? "appointment_slot_selection_required"
+        : checkpointType === "no_slots"
+          ? "appointment_no_slots_available"
+          : "appointment_manual_required",
       requiresUserAction: true,
-      currentManualAction: checkpointType,
+      currentManualAction: observedSlots.length > 0 ? "slot_selection" : checkpointType,
       userPreferencesJson: {
         ...job.userPreferencesJson,
         evidence: payload.evidence ?? {},
@@ -289,12 +352,103 @@ export class JapanAppointmentService {
     });
     await this.repository.insertManualAction({
       job: updated,
-      actionType: checkpointType,
-      instruction,
+      actionType: observedSlots.length > 0 ? "slot_selection" : checkpointType,
+      instruction: observedSlots.length > 0 ? "Choose one of the official VFS appointment slots." : instruction,
       metadata: { provider: "vfs_japan_sg", evidence: payload.evidence ?? {} },
     });
     await this.repository.updateApplicationState(updated.applicationId, updated.status, updated.id);
     return this.getStatus(updated.id);
+  }
+
+  async selectSlot(jobId: string, slotId: string): Promise<JapanAppointmentSnapshot> {
+    const job = await this.getJobOrThrow(jobId);
+    const selected = await this.repository.selectSlot(job.id, slotId);
+    if (!selected) throw new JapanAppointmentServiceError(404, "appointment_slot_not_found", "The selected VFS slot is no longer available.");
+    const updated = await this.repository.updateJob(job.id, {
+      status: "appointment_payment_required",
+      requiresUserAction: true,
+      currentManualAction: "payment",
+      userPreferencesJson: { ...job.userPreferencesJson, selectedSlotId: selected.id, finalConfirmationApproved: false },
+    });
+    await this.repository.updateApplicationState(updated.applicationId, updated.status, updated.id);
+    return this.getStatus(updated.id);
+  }
+
+  async recordPaymentAuthorization(jobId: string, input: { sessionId: string; redacted: JsonObject }): Promise<JapanAppointmentSnapshot> {
+    const job = await this.getJobOrThrow(jobId);
+    if (!await this.repository.getSelectedSlot(job.id)) {
+      throw new JapanAppointmentServiceError(409, "slot_required", "Select an official VFS slot before authorizing payment.");
+    }
+    const updated = await this.repository.updateJob(job.id, {
+      status: "appointment_payment_completed",
+      requiresUserAction: true,
+      currentManualAction: "final_confirmation",
+      userPreferencesJson: { ...job.userPreferencesJson, paymentSessionId: input.sessionId, paymentAuthorizationRedactedJson: input.redacted },
+    });
+    return this.getStatus(updated.id);
+  }
+
+  async approveFinalConfirmation(jobId: string): Promise<JapanAppointmentSnapshot> {
+    const job = await this.getJobOrThrow(jobId);
+    if (!await this.repository.getSelectedSlot(job.id)) throw new JapanAppointmentServiceError(409, "slot_required", "Select a VFS slot first.");
+    if (typeof job.userPreferencesJson.paymentSessionId !== "string") {
+      throw new JapanAppointmentServiceError(409, "payment_authorization_required", "Authorize the VFS service-fee payment first.");
+    }
+    const updated = await this.repository.updateJob(job.id, {
+      status: "appointment_final_confirmation_approved",
+      requiresUserAction: false,
+      currentManualAction: null,
+      userPreferencesJson: { ...job.userPreferencesJson, finalConfirmationApproved: true },
+    });
+    return this.getStatus(updated.id);
+  }
+
+  async bookSelectedSlot(jobId: string): Promise<JapanAppointmentSnapshot> {
+    const job = await this.getJobOrThrow(jobId);
+    const selected = await this.repository.getSelectedSlot(job.id);
+    if (!selected) throw new JapanAppointmentServiceError(409, "slot_required", "Select a VFS slot first.");
+    if (job.userPreferencesJson.finalConfirmationApproved !== true) {
+      throw new JapanAppointmentServiceError(409, "final_confirmation_required", "Final user approval is required before official booking.");
+    }
+    const response = await fetch(`${this.submissionServiceUrl.replace(/\/$/, "")}/internal/japan-vfs-sg/book-selected-slot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(this.internalToken ? { Authorization: `Bearer ${this.internalToken}` } : {}) },
+      body: JSON.stringify({
+        applicationId: job.applicationId,
+        jobId: job.id,
+        selectedSlot: selected,
+        paymentSessionId: job.userPreferencesJson.paymentSessionId,
+      }),
+    });
+    const payload = await response.json().catch(() => null) as ({ ok?: boolean } & RunnerResult) | null;
+    if (!response.ok || !payload) throw new JapanAppointmentServiceError(502, "japan_runner_unavailable", "The Japan booking worker could not be reached.");
+    const confirmationNumber = payload.confirmation?.confirmationNumber?.trim();
+    if (!confirmationNumber) {
+      const checkpoint = payload.checkpoint?.type ?? "site_policy_review";
+      const updated = await this.repository.updateJob(job.id, {
+        status: checkpoint === "payment" ? "appointment_payment_required" : "appointment_manual_required",
+        requiresUserAction: true,
+        currentManualAction: checkpoint,
+      });
+      await this.repository.insertManualAction({ job: updated, actionType: checkpoint, instruction: payload.checkpoint?.message ?? "VFS did not return an official confirmation.", metadata: { provider: "vfs_japan_sg" } });
+      return this.getStatus(updated.id);
+    }
+    const confirmation = await this.repository.insertConfirmation({
+      jobId: job.id,
+      applicationId: job.applicationId,
+      userId: job.userId,
+      appointmentDate: selected.appointmentDate,
+      appointmentTime: selected.appointmentTime,
+      appointmentLocation: selected.appointmentLocation,
+      appointmentType: selected.appointmentType,
+      confirmationNumber,
+      confirmationPdfUrl: payload.confirmation?.receiptUrl ?? null,
+      confirmationScreenshotUrl: payload.confirmation?.screenshotUrl ?? null,
+      rawConfirmationRedactedJson: { provider: "vfs_japan_sg", officialConfirmationVerified: true },
+    });
+    const updated = await this.repository.updateJob(job.id, { status: "appointment_confirmation_captured", requiresUserAction: false, currentManualAction: null });
+    await this.repository.updateApplicationState(updated.applicationId, updated.status, updated.id);
+    return { ...(await this.getStatus(updated.id)), confirmation };
   }
 
   async cancel(jobId: string): Promise<JapanAppointmentSnapshot> {

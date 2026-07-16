@@ -14,6 +14,8 @@ export type VisaFormFieldOption =
       code?: string;
       airport?: string;
       airline?: string;
+      province_city?: string;
+      ward?: string;
     };
 
 export interface VisaFormFieldRow {

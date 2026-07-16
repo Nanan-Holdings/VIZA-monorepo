@@ -140,6 +140,8 @@ export interface AppointmentPortalGate {
 
 export interface USAppointmentRunnerRepository {
   listCandidateJobs(limit: number): Promise<USAppointmentJobRow[]>;
+  getJob?(jobId: string): Promise<USAppointmentJobRow | null>;
+  getLatestJobForApplication?(applicationId: string): Promise<USAppointmentJobRow | null>;
   hasPendingManualAction(jobId: string): Promise<boolean>;
   getAppointmentAccountCredentials(
     job: USAppointmentJobRow,
@@ -160,6 +162,12 @@ export interface USAppointmentRunnerRepository {
   insertAuditEvent(input: AuditEventInsert): Promise<void>;
   insertSlots(input: SlotInsert[]): Promise<void>;
   getSelectedSlot(jobId: string): Promise<AppointmentSlotRow | null>;
+  hasCompletedFinalApproval(jobId: string): Promise<boolean>;
+  waitForAccountVerificationEmail?(
+    job: USAppointmentJobRow,
+    timeoutMs: number,
+  ): Promise<{ code: string | null; link: string | null }>;
+  markAppointmentAccountVerified?(job: USAppointmentJobRow): Promise<void>;
   insertConfirmation(input: ConfirmationInsert): Promise<{ id: string | null }>;
   insertStatusCheck(input: StatusCheckInsert): Promise<void>;
   updateApplicationAppointmentState(input: {
@@ -180,6 +188,13 @@ export interface USAppointmentPortalClient {
     errorCode?: string;
     errorMessage?: string;
   }>;
+  completeAccountEmailVerification?(input: {
+    emailCode?: string | null;
+    verificationLink?: string | null;
+  }): Promise<{
+    readyForSlotCapture: boolean;
+    gate?: AppointmentPortalGate;
+  }>;
   observeSlots(job: USAppointmentJobRow): Promise<SlotInsert[]>;
   captureConfirmation(
     job: USAppointmentJobRow,
@@ -187,6 +202,71 @@ export interface USAppointmentPortalClient {
   ): Promise<ConfirmationInsert | null>;
   captureStatusCheck(job: USAppointmentJobRow): Promise<StatusCheckInsert>;
   close?(): Promise<void>;
+}
+
+async function prepareAppointmentFlowWithAliasVerification(
+  job: USAppointmentJobRow,
+  repository: USAppointmentRunnerRepository,
+  config: USAppointmentRunnerConfig,
+  client: USAppointmentPortalClient,
+  credentials: AppointmentAccountCredentials | null,
+): Promise<{
+  readyForSlotCapture: boolean;
+  gate?: AppointmentPortalGate;
+  errorCode?: string;
+  errorMessage?: string;
+}> {
+  const prepared = await client.prepareAppointmentFlow(job, credentials);
+  if (
+    prepared.gate?.actionType !== "account_email_verification"
+    || !repository.waitForAccountVerificationEmail
+    || !client.completeAccountEmailVerification
+  ) {
+    return prepared;
+  }
+
+  try {
+    const verification = await repository.waitForAccountVerificationEmail(
+      job,
+      config.emailTimeoutMs,
+    );
+    if (!verification.code && !verification.link) {
+      return {
+        ...prepared,
+        gate: {
+          ...prepared.gate,
+          metadata: {
+            ...prepared.gate.metadata,
+            alias_email_automation_attempted: true,
+            alias_email_message_readable: false,
+          },
+        },
+      };
+    }
+
+    const verified = await client.completeAccountEmailVerification({
+      emailCode: verification.code,
+      verificationLink: verification.link,
+    });
+    if (verified.gate) return verified;
+
+    await repository.markAppointmentAccountVerified?.(job);
+    if (verified.readyForSlotCapture) return verified;
+
+    return client.prepareAppointmentFlow(job, credentials);
+  } catch {
+    return {
+      ...prepared,
+      gate: {
+        ...prepared.gate,
+        metadata: {
+          ...prepared.gate.metadata,
+          alias_email_automation_attempted: true,
+          alias_email_verification_completed: false,
+        },
+      },
+    };
+  }
 }
 
 export interface RunnerHandoff {
@@ -573,7 +653,13 @@ export async function processUSAppointmentJob(
         return "processed";
       }
       client = portalClient ?? await createDefaultPortalClient(job, config);
-      const prepared = await client.prepareAppointmentFlow(job, credentials);
+      const prepared = await prepareAppointmentFlowWithAliasVerification(
+        job,
+        repository,
+        config,
+        client,
+        credentials,
+      );
       if (!prepared.readyForSlotCapture) {
         if (prepared.gate) {
           await persistManualGate(job, repository, prepared.gate);
@@ -615,7 +701,13 @@ export async function processUSAppointmentJob(
     if (["appointment_payment_completed", "appointment_no_slots_available"].includes(job.status)) {
       client = portalClient ?? await createDefaultPortalClient(job, config);
       const credentials = await repository.getAppointmentAccountCredentials(job);
-      const prepared = await client.prepareAppointmentFlow(job, credentials);
+      const prepared = await prepareAppointmentFlowWithAliasVerification(
+        job,
+        repository,
+        config,
+        client,
+        credentials,
+      );
       if (!prepared.readyForSlotCapture) {
         if (prepared.gate) {
           await persistManualGate(job, repository, prepared.gate);
@@ -661,49 +753,103 @@ export async function processUSAppointmentJob(
     }
 
     if (job.status === "appointment_booked") {
-    client = portalClient ?? await createDefaultPortalClient(job, config);
-    const selectedSlot = await repository.getSelectedSlot(job.id);
-    if (!selectedSlot) {
-      await repository.updateJobStatus({
-        jobId: job.id,
-        status: "appointment_failed",
-        lastErrorCode: "selected_slot_missing",
-        lastErrorMessage: "Selected appointment slot was not found for booking.",
-      });
-      return "processed";
-    }
+      if (!await repository.hasCompletedFinalApproval(job.id)) {
+        await repository.insertManualAction({
+          job_id: job.id,
+          application_id: job.application_id,
+          user_id: job.user_id,
+          action_type: "final_confirmation",
+          status: "pending",
+          instruction: "Review the selected official slot and approve it in the VIZA Portal before booking.",
+          user_input_schema_json: {
+            type: "object",
+            properties: { approved: { type: "boolean" } },
+            required: ["approved"],
+          },
+          metadata_redacted_json: {
+            provider: "usvisascheduling",
+            final_viza_approval_required: true,
+          },
+        });
+        await repository.updateJobForManualAction({
+          jobId: job.id,
+          status: "appointment_final_confirmation_required",
+          currentManualAction: "final_confirmation",
+        });
+        await repository.updateApplicationAppointmentState({
+          applicationId: job.application_id,
+          status: "appointment_final_confirmation_required",
+          jobId: job.id,
+        });
+        return "processed";
+      }
+      client = portalClient ?? await createDefaultPortalClient(job, config);
+      const credentials = await repository.getAppointmentAccountCredentials(job);
+      const prepared = await prepareAppointmentFlowWithAliasVerification(
+        job,
+        repository,
+        config,
+        client,
+        credentials,
+      );
+      if (!prepared.readyForSlotCapture) {
+        if (prepared.gate) {
+          await persistManualGate(job, repository, prepared.gate);
+        } else {
+          await repository.updateJobStatus({
+            jobId: job.id,
+            status: "appointment_manual_required",
+            currentManualAction: "site_policy_review",
+            lastErrorCode: prepared.errorCode ?? "appointment_prepare_failed",
+            lastErrorMessage:
+              prepared.errorMessage ?? "USVisaScheduling calendar could not be prepared for final booking.",
+          });
+        }
+        return "processed";
+      }
+      const selectedSlot = await repository.getSelectedSlot(job.id);
+      if (!selectedSlot) {
+        await repository.updateJobStatus({
+          jobId: job.id,
+          status: "appointment_failed",
+          lastErrorCode: "selected_slot_missing",
+          lastErrorMessage: "Selected appointment slot was not found for booking.",
+        });
+        return "processed";
+      }
       const confirmation = await client.captureConfirmation(job, selectedSlot);
-    if (!confirmation) {
+      if (!confirmation?.confirmation_number) {
+        await repository.updateJobStatus({
+          jobId: job.id,
+          status: "appointment_manual_required",
+          currentManualAction: "site_policy_review",
+          lastErrorCode: "confirmation_missing",
+          lastErrorMessage: "Official appointment confirmation was not captured.",
+        });
+        return "processed";
+      }
+      const insertedConfirmation = await repository.insertConfirmation(confirmation);
       await repository.updateJobStatus({
         jobId: job.id,
-        status: "appointment_failed",
-        lastErrorCode: "confirmation_missing",
-        lastErrorMessage: "Official appointment confirmation was not captured.",
+        status: "appointment_confirmation_captured",
       });
-      return "processed";
-    }
-    const insertedConfirmation = await repository.insertConfirmation(confirmation);
-    await repository.updateJobStatus({
-      jobId: job.id,
-      status: "appointment_confirmation_captured",
-    });
-    await repository.updateApplicationAppointmentState({
-      applicationId: job.application_id,
-      status: "appointment_confirmation_captured",
-      jobId: job.id,
-      confirmationId: insertedConfirmation.id,
-    });
-    await repository.insertAuditEvent({
-      job_id: job.id,
-      application_id: job.application_id,
-      user_id: job.user_id,
-      event_type: "appointment_runner_confirmation_captured",
-      event_message: "USVisaScheduling runner captured appointment confirmation.",
-      metadata_redacted_json: {
-        has_pdf: Boolean(confirmation.confirmation_pdf_url),
-        has_screenshot: Boolean(confirmation.confirmation_screenshot_url),
-      },
-    });
+      await repository.updateApplicationAppointmentState({
+        applicationId: job.application_id,
+        status: "appointment_confirmation_captured",
+        jobId: job.id,
+        confirmationId: insertedConfirmation.id,
+      });
+      await repository.insertAuditEvent({
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        event_type: "appointment_runner_confirmation_captured",
+        event_message: "USVisaScheduling runner captured appointment confirmation.",
+        metadata_redacted_json: {
+          has_pdf: Boolean(confirmation.confirmation_pdf_url),
+          has_screenshot: Boolean(confirmation.confirmation_screenshot_url),
+        },
+      });
       return "processed";
     }
 

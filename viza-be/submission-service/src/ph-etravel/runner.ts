@@ -318,11 +318,20 @@ async function clickTurnstileProtectedContinue(
       const solved = await solveTurnstileIfPresent(page, logs, nativeCloudflareUnblock);
       logs.push(`ph_etravel_turnstile_before_continue attempt=${attempt} solved=${solved}`);
       if (!solved) {
-        lastText = await bodyText(page);
-        continue;
+        const officialContinueEnabled = await Promise.all(locators.map(async (locator) => {
+          const target = locator.first();
+          return await target.isVisible({ timeout: 1_000 }).catch(() => false) &&
+            await target.isEnabled({ timeout: 1_000 }).catch(() => false);
+        })).then((states) => states.some(Boolean));
+        if (!officialContinueEnabled) {
+          lastText = await bodyText(page);
+          continue;
+        }
+        logs.push(`ph_etravel_turnstile_native_success attempt=${attempt}`);
       }
     }
-    await clickFirstAvailable(page, locators);
+    const clicked = await clickFirstAvailable(page, locators);
+    logs.push(`ph_etravel_continue_click attempt=${attempt} clicked=${clicked}`);
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     lastText = await bodyText(page);
@@ -1130,10 +1139,31 @@ async function maybeCreatePhEtravelAccount(
     "input[placeholder*='Email' i]",
     "input:not([type='hidden'])",
   ], accountEmail);
-  let currentText = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
-    page.getByRole("button", { name: /continue|next|submit|send/i }),
-    page.locator("button").filter({ hasText: /continue|next|submit|send/i }),
-  ]);
+  const registrationResponses: string[] = [];
+  const captureRegistrationResponse = (response: import("@playwright/test").Response) => {
+    try {
+      const url = new URL(response.url());
+      if (!url.hostname.endsWith("etravel.gov.ph") || response.request().method() === "GET") return;
+      registrationResponses.push(`${response.request().method()} ${url.pathname} status=${response.status()}`);
+    } catch {
+      // Ignore non-URL browser responses.
+    }
+  };
+  page.on("response", captureRegistrationResponse);
+  let currentText: string;
+  try {
+    currentText = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
+      page.getByRole("button", { name: /continue|next|submit|send/i }),
+      page.locator("button").filter({ hasText: /continue|next|submit|send/i }),
+    ]);
+  } finally {
+    page.off("response", captureRegistrationResponse);
+  }
+  logs.push(
+    registrationResponses.length > 0
+      ? `ph_etravel_registration_responses ${registrationResponses.join(" | ")}`
+      : "ph_etravel_registration_responses none",
+  );
   if (/already\s+(?:registered|exists)|account\s+already/i.test(currentText)) {
     logs.push("ph_etravel_alias_account_already_exists");
     return false;
@@ -1412,6 +1442,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         code: "ph_etravel_unexpected_portal_error",
         screenshotPaths: screenshots.filter(Boolean),
         portalSummary: (await bodyText(page)).slice(0, 700),
+        logs,
       });
     }
     error.logs = logs;

@@ -46,6 +46,8 @@ type VisaFormOption = {
   code?: string;
   airport?: string;
   airline?: string;
+  province_city?: string;
+  ward?: string;
 };
 
 type CachedOfficialOptions = {
@@ -125,6 +127,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
 
   const airport = stringValue(item.airport);
   const airline = stringValue(item.airline);
+  const provinceCity = stringValue(item.province_city);
+  const ward = stringValue(item.ward);
   const officialLabel = source === "flight" && airport
     ? `${enValue} - ${airport}`
     : enValue;
@@ -146,6 +150,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
     ...(code ? { code } : {}),
     ...(airport ? { airport } : {}),
     ...(airline ? { airline } : {}),
+    ...(provinceCity ? { province_city: provinceCity } : {}),
+    ...(ward ? { ward } : {}),
   };
 }
 

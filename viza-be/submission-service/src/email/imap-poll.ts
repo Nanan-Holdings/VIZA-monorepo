@@ -36,6 +36,7 @@ export interface ImapConfig {
 export interface ReceivedEmail {
   uid: number;
   from: string;
+  to: string[];
   subject: string;
   receivedAt: Date;
   textBody: string;
@@ -46,6 +47,8 @@ export interface WaitForEmailOptions {
   config: ImapConfig;
   /** Match against the From header (full address, lower-cased). */
   from?: RegExp;
+  /** Match against any To recipient address (lower-cased). */
+  to?: RegExp;
   /** Match against the Subject header. */
   subject?: RegExp;
   /** Only consider messages received at or after this timestamp. */
@@ -103,6 +106,7 @@ export async function waitForEmail(
   const {
     config,
     from,
+    to,
     subject,
     since,
     timeoutMs = 120_000,
@@ -141,16 +145,18 @@ export async function waitForEmail(
           if (!message) continue;
 
           const fromAddr = formatFromAddress(message);
+          const toAddrs = formatToAddresses(message);
           const subj = message.envelope?.subject ?? "";
           const rawDate = message.internalDate ?? new Date();
           const receivedAt = rawDate instanceof Date ? rawDate : new Date(rawDate);
 
           if (since && receivedAt < since) continue;
           if (from && !from.test(fromAddr)) continue;
+          if (to && !toAddrs.some((address) => to.test(address))) continue;
           if (subject && !subject.test(subj)) continue;
 
           const { textBody, htmlBody } = await fetchBodies(client, uid);
-          return { uid, from: fromAddr, subject: subj, receivedAt, textBody, htmlBody };
+          return { uid, from: fromAddr, to: toAddrs, subject: subj, receivedAt, textBody, htmlBody };
         }
 
         const remaining = deadline - Date.now();
@@ -227,6 +233,12 @@ function formatFromAddress(message: FetchMessageObject): string {
   if (!first) return "";
   const addr = first.address ?? "";
   return addr.toLowerCase();
+}
+
+function formatToAddresses(message: FetchMessageObject): string[] {
+  return (message.envelope?.to ?? [])
+    .map((entry) => entry.address?.toLowerCase() ?? "")
+    .filter(Boolean);
 }
 
 async function fetchBodies(

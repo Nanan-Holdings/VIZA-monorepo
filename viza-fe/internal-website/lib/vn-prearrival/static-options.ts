@@ -258,6 +258,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
 
   const airport = stringValue(item.airport);
   const airline = stringValue(item.airline);
+  const provinceCity = stringValue(item.province_city);
+  const ward = stringValue(item.ward);
   const officialLabel = source === "flight" && airport ? `${enValue} - ${airport}` : enValue;
   const value = source === "flight"
     ? code || (airport ? `${enValue}_${airport}` : enValue)
@@ -281,6 +283,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
     searchText: `${enValue} ${zhValue} ${labelZh} ${code} ${rawValue}`,
     ...(airport ? { airport } : {}),
     ...(airline ? { airline } : {}),
+    ...(provinceCity ? { province_city: provinceCity } : {}),
+    ...(ward ? { ward } : {}),
   };
 }
 

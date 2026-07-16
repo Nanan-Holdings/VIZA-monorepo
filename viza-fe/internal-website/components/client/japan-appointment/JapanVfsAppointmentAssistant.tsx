@@ -13,11 +13,15 @@ import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField } from "@/components/client/brand-field";
 import {
   cancelJapanAppointmentJob,
+  approveJapanAppointmentFinal,
+  bookJapanAppointmentSlot,
   checkJapanAppointmentPortal,
   createJapanAppointmentJob,
   getJapanAppointmentStatus,
   JapanAppointmentApiError,
   recordJapanAppointmentConsent,
+  recordJapanAppointmentPayment,
+  selectJapanAppointmentSlot,
 } from "@/lib/japan-appointment-client";
 import {
   getJapanVfsChecklist,
@@ -30,7 +34,7 @@ import {
 import type { JapanAppointmentSnapshot } from "@/types/japan-appointment";
 
 interface Props { applicationId: string }
-type Busy = "load" | "consent" | "create" | "check" | "cancel" | null;
+type Busy = "load" | "consent" | "create" | "check" | "select" | "payment" | "approve" | "book" | "cancel" | null;
 const SELECT_CLASS = "h-12 w-full rounded-lg border border-input bg-white px-3 text-[15px] outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 
 export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
@@ -46,6 +50,9 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
   const [snapshot, setSnapshot] = useState<JapanAppointmentSnapshot | null>(null);
   const [busy, setBusy] = useState<Busy>("load");
   const [error, setError] = useState<string | null>(null);
+  const [paymentBrand, setPaymentBrand] = useState("Visa");
+  const [paymentLast4, setPaymentLast4] = useState("");
+  const [finalApproved, setFinalApproved] = useState(false);
 
   const eligibility = getJapanVfsEligibility({
     nationality: "China", passportType: "ordinary", singaporePassType: passType,
@@ -64,6 +71,9 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
     if (cause.code === "consent_required") return t("errors.consentRequired");
     if (cause.code === "appointment_cancelled") return t("errors.cancelled");
     if (cause.code === "japan_runner_unavailable") return t("errors.runnerUnavailable");
+    if (cause.code === "slot_required") return t("errors.slotRequired");
+    if (cause.code === "payment_authorization_required") return t("errors.paymentRequired");
+    if (cause.code === "final_confirmation_required") return t("errors.finalRequired");
     if (cause.code === "session_required" || cause.code === "unauthorized") return t("errors.sessionRequired");
     return t(`errors.${fallback}`);
   }, [t]);
@@ -145,6 +155,22 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
           <Button variant="outline" disabled={!activeJob || busy === "cancel"} onClick={() => activeJob && action("cancel", () => cancelJapanAppointmentJob(activeJob.id))}>{busy === "cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{t("workflow.cancel")}</Button>
         </div>
       </CardContent></Card>
+
+      {job && <Card><CardHeader><CardTitle>{t("slots.title")}</CardTitle></CardHeader><CardContent className="space-y-3">
+        {snapshot?.slots.length ? snapshot.slots.map((slot) => <div key={slot.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">{slot.appointmentDate} {slot.appointmentTime}</div><div className="text-sm text-muted-foreground">{slot.appointmentLocation}</div></div><Button variant={slot.status === "user_selected" ? "default" : "outline"} disabled={busy !== null || slot.status === "expired"} onClick={() => action("select", () => selectJapanAppointmentSlot(job.id, slot.id))}>{slot.status === "user_selected" ? t("slots.selected") : t("slots.choose")}</Button></div>) : <p className="text-sm text-muted-foreground">{t("slots.empty")}</p>}
+      </CardContent></Card>}
+
+      {job && <Card><CardHeader><CardTitle>{t("payment.title")}</CardTitle></CardHeader><CardContent className="space-y-4">
+        <Alert><ShieldCheck className="h-4 w-4" /><AlertTitle>{t("payment.secureTitle")}</AlertTitle><AlertDescription>{t("payment.secureBody")}</AlertDescription></Alert>
+        <div className="grid gap-4 sm:grid-cols-2"><BrandField label={t("payment.brand")}><input className={SELECT_CLASS} value={paymentBrand} onChange={(event) => setPaymentBrand(event.target.value)} /></BrandField><BrandField label={t("payment.last4")}><input className={SELECT_CLASS} inputMode="numeric" maxLength={4} value={paymentLast4} onChange={(event) => setPaymentLast4(event.target.value.replace(/\D/g, ""))} /></BrandField></div>
+        <Button disabled={busy !== null || paymentLast4.length !== 4 || !snapshot?.slots.some((slot) => slot.status === "user_selected")} onClick={() => action("payment", () => recordJapanAppointmentPayment(job.id, { sessionId: `jp-vfs-payment:${job.id}:${Date.now()}`, redacted: { brand: paymentBrand, last4: paymentLast4, method: "official_vfs_hosted_payment" } }))}>{busy === "payment" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("payment.authorize")}</Button>
+      </CardContent></Card>}
+
+      {job && <Card><CardHeader><CardTitle>{t("final.title")}</CardTitle></CardHeader><CardContent className="space-y-4">
+        <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><Checkbox checked={finalApproved} onCheckedChange={(value) => setFinalApproved(value === true)} /><span>{t("final.consent")}</span></label>
+        <div className="flex flex-wrap gap-3"><Button variant="outline" disabled={!finalApproved || busy !== null || job.status !== "appointment_payment_completed"} onClick={() => action("approve", () => approveJapanAppointmentFinal(job.id))}>{t("final.approve")}</Button><Button disabled={busy !== null || job.status !== "appointment_final_confirmation_approved"} onClick={() => action("book", () => bookJapanAppointmentSlot(job.id))}>{busy === "book" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("final.book")}</Button></div>
+        {snapshot?.confirmation && <Alert className="border-emerald-200 bg-emerald-50"><CheckCircle2 className="h-4 w-4 text-emerald-700" /><AlertTitle>{t("final.confirmed")}</AlertTitle><AlertDescription>{t("final.confirmation", { number: snapshot.confirmation.confirmationNumber ?? "-", date: snapshot.confirmation.appointmentDate, time: snapshot.confirmation.appointmentTime })}</AlertDescription></Alert>}
+      </CardContent></Card>}
 
       <Card><CardHeader><CardTitle>{t("evidence.title")}</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2"><Detail label={t("evidence.httpStatus")} value={String(snapshot?.evidence?.httpStatus ?? "-")} /><Detail label={t("evidence.pageTitle")} value={String(snapshot?.evidence?.pageTitle ?? "-")} /><Detail label={t("evidence.observedAt")} value={String(snapshot?.evidence?.observedAt ?? "-")} /><Detail label={t("evidence.replay")} value={snapshot?.evidence?.browserbaseReplayAvailable ? t("yes") : t("no")} /></CardContent></Card>
     </main>
