@@ -28,6 +28,7 @@ import { runOne as runKorea } from "../kr/runner.js";
 import { runOne as runCanada } from "../ca/runner.js";
 import { runOne as runTurkey } from "../tr/runner.js";
 import { runOne as runThailand } from "../th/runner.js";
+import { runOne as runSingapore } from "../sg/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
@@ -73,6 +74,7 @@ export const LAUNCH_COUNTRIES = [
   "canada",
   "turkey",
   "thailand",
+  "singapore",
   "united_arab_emirates",
   "france",
   "italy",
@@ -98,6 +100,7 @@ export const DISPATCH: Record<string, RunOne> = {
   italy: (a, j) => runItaly(a, j),
   // RUN-TH-001: dedicated Thailand runner (shared core).
   thailand: (a, j) => runThailand(a, j),
+  singapore: (a, j) => runSingapore(a, j),
   // RUN-MY-001: dedicated Malaysia eVISA/MDAC runner (replaces generic t3 scaffold).
   malaysia: (a, j) => runMalaysia(a, j),
   // RUN-TR-001 / RUN-AE-001: dedicated Türkiye + UAE runners (shared core).
@@ -133,6 +136,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   egypt: { runner: "egypt/runner.runOne", implemented: true },
   italy: { runner: "italy-vfs-cn/runner.runOne", implemented: true },
   thailand: { runner: "th/runner.runOne", implemented: true },
+  singapore: { runner: "sg/runner.runOne", implemented: true },
   malaysia: { runner: "my/runner.runOne", implemented: true },
   turkey: { runner: "tr/runner.runOne", implemented: true },
   united_arab_emirates: { runner: "ae/runner.runOne", implemented: true },
@@ -176,6 +180,7 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   ca: "canada",
   tr: "turkey",
   th: "thailand",
+  sg: "singapore",
   fr: "france",
   it: "italy",
   in: "india",

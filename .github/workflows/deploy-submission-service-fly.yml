@@ -40,7 +40,17 @@ jobs:
       # script deliberately never overwrites Fly secrets with blank values.
       MDAC_BROWSER_API_ENDPOINT: ${{ secrets.MDAC_BROWSER_API_ENDPOINT }}
       MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT: ${{ secrets.MDAC_BRIGHTDATA_BROWSER_API_ENDPOINT }}
+      TDAC_BROWSER_API_ENDPOINT: ${{ secrets.TDAC_BROWSER_API_ENDPOINT }}
+      TDAC_BRIGHTDATA_BROWSER_API_ENDPOINT: ${{ secrets.TDAC_BRIGHTDATA_BROWSER_API_ENDPOINT }}
+      SGAC_BROWSER_API_ENDPOINT: ${{ secrets.SGAC_BROWSER_API_ENDPOINT }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
       TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
+      IMAP_HOST: ${{ secrets.IMAP_HOST }}
+      IMAP_PORT: ${{ secrets.IMAP_PORT }}
+      IMAP_EMAIL: ${{ secrets.IMAP_EMAIL }}
+      IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
+      FV_EMAIL: ${{ secrets.FV_EMAIL }}
+      FV_PASSWORD: ${{ secrets.FV_PASSWORD }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_OPS_ALERT_TO: ${{ secrets.RESEND_OPS_ALERT_TO }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
