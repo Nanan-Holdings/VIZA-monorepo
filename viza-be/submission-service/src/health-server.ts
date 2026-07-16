@@ -14,6 +14,7 @@ import { loadKoreaOfficialEformDocuments } from "./korea-eform/documents.js";
 import {
   confirmKoreaKvacOfficialCancellation,
   completeKoreaKvacOfficialBooking,
+  printKoreaKvacOfficialConfirmation,
   startKoreaKvacOfficialCancelQuery,
   startKoreaKvacOfficialSmsSession,
   submitKoreaKvacOfficialSmsCode,
@@ -21,6 +22,7 @@ import {
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
 import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
+import { putJapanVfsPaymentSession } from "./jp-vfs-sg/payment-session.js";
 
 type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
 
@@ -278,6 +280,31 @@ async function handleKoreaKvacCancelQuery(req: http.IncomingMessage, res: http.S
   }
 }
 
+async function handleKoreaKvacPrintConfirmation(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isLocalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const result = await printKoreaKvacOfficialConfirmation({
+      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      centerCode: typeof body.centerCode === "string" ? body.centerCode : "",
+      bookingSearchUrl: typeof body.bookingSearchUrl === "string" ? body.bookingSearchUrl : "",
+      applicantName: typeof body.applicantName === "string" ? body.applicantName : "",
+      mobilePhone: typeof body.mobilePhone === "string" ? body.mobilePhone : "",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function handleKoreaKvacCancelConfirm(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   if (!envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) {
     sendJson(res, 404, { error: "not_found" });
@@ -470,6 +497,7 @@ async function handleJapanVfsSingaporeObserve(req: http.IncomingMessage, res: ht
       ...(await observeJapanVfsSingaporeSlots({
         applicationId: typeof body.applicationId === "string" ? body.applicationId : undefined,
         prepareAlias: body.prepareAlias === true,
+        eligibility: body.eligibility && typeof body.eligibility === "object" && !Array.isArray(body.eligibility) ? body.eligibility as Record<string, unknown> : undefined,
       })),
     });
   } catch (error) {
@@ -487,6 +515,7 @@ async function handleJapanVfsSingaporeBook(req: http.IncomingMessage, res: http.
     const result = await bookJapanVfsSingaporeSlot({
       applicationId: required(body.applicationId, "applicationId"), jobId: required(body.jobId, "jobId"),
       paymentSessionId: required(body.paymentSessionId, "paymentSessionId"),
+      eligibility: body.eligibility && typeof body.eligibility === "object" && !Array.isArray(body.eligibility) ? body.eligibility as Record<string, unknown> : undefined,
       selectedSlot: {
         appointmentDate: required(selected.appointmentDate, "selectedSlot.appointmentDate"),
         appointmentTime: typeof selected.appointmentTime === "string" ? selected.appointmentTime : null,
@@ -494,6 +523,24 @@ async function handleJapanVfsSingaporeBook(req: http.IncomingMessage, res: http.
       },
     });
     sendJson(res, 200, { ok: true, ...result });
+  } catch (error) { sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) }); }
+}
+
+async function handleJapanVfsSingaporePaymentSession(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) { sendJson(res, 404, { error: "not_found" }); return; }
+  if (!isJapanInternalRequest(req)) { sendJson(res, 403, { error: "forbidden" }); return; }
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const card = body.card && typeof body.card === "object" && !Array.isArray(body.card) ? body.card as Record<string, unknown> : {};
+    sendJson(res, 200, { ok: true, ...putJapanVfsPaymentSession({
+      jobId: typeof body.jobId === "string" ? body.jobId : "",
+      card: {
+        pan: typeof card.pan === "string" ? card.pan : null,
+        expiry: typeof card.expiry === "string" ? card.expiry : null,
+        cvv: typeof card.cvv === "string" ? card.cvv : null,
+        holderName: typeof card.holderName === "string" ? card.holderName : null,
+      },
+    }) });
   } catch (error) { sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) }); }
 }
 
@@ -546,6 +593,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleKoreaKvacCancelQuery(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/local/korea-kvac/confirmation/print") {
+      void handleKoreaKvacPrintConfirmation(req, res);
+      return;
+    }
     if (req.method === "POST" && url === "/local/korea-kvac/cancel/confirm") {
       void handleKoreaKvacCancelConfirm(req, res);
       return;
@@ -572,6 +623,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/internal/japan-vfs-sg/book-selected-slot") {
       void handleJapanVfsSingaporeBook(req, res);
+      return;
+    }
+    if (req.method === "POST" && url === "/internal/japan-vfs-sg/payment-session") {
+      void handleJapanVfsSingaporePaymentSession(req, res);
       return;
     }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {

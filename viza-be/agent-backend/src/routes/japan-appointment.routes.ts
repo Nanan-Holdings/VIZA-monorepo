@@ -38,8 +38,12 @@ const jobBody = z.object({
   }).strict(),
 }).strict();
 const paymentBody = z.object({
-  sessionId: z.string().trim().min(8).max(180),
-  redacted: z.object({ brand: z.string().trim().min(1).max(40).optional(), last4: z.string().regex(/^\d{4}$/), method: z.string().trim().min(1).max(40).optional() }).passthrough(),
+  card: z.object({
+    pan: z.string().regex(/^[\d ]{12,23}$/),
+    expiry: z.string().regex(/^\d{1,2}\s*\/\s*(?:\d{2}|\d{4})$/),
+    cvv: z.string().regex(/^\d{3,4}$/),
+    holderName: z.string().trim().min(2).max(100),
+  }).strict(),
 }).strict();
 
 function bearer(req: Request) {

@@ -46,6 +46,10 @@ function clean(value: string | null | undefined) {
   return value?.trim() ?? "";
 }
 
+function hasChineseText(value: string) {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
 function cacheKeyFor(options: {
   sourceLang: string;
   targetLang: string;
@@ -296,7 +300,10 @@ export function useRealtimeBilingualTranslate({
       return;
     }
 
-    if (isInitialEffect && targetValue.trim()) {
+    // A saved target that still contains Chinese is not a translation. This
+    // happens in legacy application data when an `_en` answer was populated
+    // from the Chinese side, so it must go through the normal translator.
+    if (isInitialEffect && targetValue.trim() && !hasChineseText(targetValue)) {
       abortCurrentRequest();
       activeSourceKeyRef.current = normalized.key;
       lastRequestedKeyRef.current = normalized.key;
@@ -306,7 +313,7 @@ export function useRealtimeBilingualTranslate({
       return;
     }
 
-    if (lastRequestedKeyRef.current === normalized.key && targetValue.trim()) {
+    if (lastRequestedKeyRef.current === normalized.key && targetValue.trim() && !hasChineseText(targetValue)) {
       abortCurrentRequest();
       activeSourceKeyRef.current = normalized.key;
       setTranslatedText(targetValue.trim());

@@ -17,6 +17,7 @@ type Action =
   | "select-slot"
   | "confirm-booking"
   | "request-live-booking"
+  | "return-to-center-selection"
   | "submit-sms-code"
   | "approve-final-booking"
   | "complete-final-booking"
@@ -244,7 +245,7 @@ async function postSubmissionService<T>(path: string, body: Record<string, unkno
     body: JSON.stringify(body),
     // Official KVAC pages can take longer than a typical JSON API while the
     // browser waits for the appointment-query result.
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(300_000),
   });
   const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || !payload) {
@@ -389,6 +390,9 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
   const normalizedConfirmation = activeConfirmation
     ? {
         ...activeConfirmation,
+        confirmation_pdf_url: activeConfirmation.confirmation_pdf_url
+          ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(activeConfirmation.confirmation_pdf_url)}&download=1`
+          : null,
         confirmation_screenshot_url: activeConfirmation.confirmation_screenshot_url
           ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(activeConfirmation.confirmation_screenshot_url)}`
           : null,
@@ -1136,6 +1140,40 @@ export async function POST(
   const routing = resolveKvacCenter(routingInput);
 
   if (action === "refresh-status") {
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "return-to-center-selection") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    const now = new Date().toISOString();
+    const { error: manualActionError } = await auth.admin
+      .from("appointment_manual_actions")
+      .update({ status: "expired" })
+      .eq("job_id", job.id)
+      .eq("action_type", "sms_verification_required")
+      .in("status", ["pending", "in_progress"]);
+    if (manualActionError) throw new Error(manualActionError.message);
+    const { error: jobError } = await auth.admin
+      .from("appointment_assistance_jobs")
+      .update({
+        status: "not_started",
+        requires_user_action: false,
+        current_manual_action: null,
+        updated_at: now,
+      })
+      .eq("id", job.id);
+    if (jobError) throw new Error(jobError.message);
+    await auth.admin.from("appointment_slots").delete().eq("job_id", job.id);
+    await auth.admin.from("applications").update({ appointment_assistance_status: "not_started" }).eq("id", id);
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "sms_verification_abandoned",
+      event_message: "Applicant returned to center selection before submitting the official SMS code.",
+      metadata_redacted_json: { centerCode: routing.recommended.code },
+    });
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 

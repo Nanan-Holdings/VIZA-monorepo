@@ -63,6 +63,16 @@ export function resolveArrivalCardLocalCdpEndpoint(prefix: ArrivalCardBrowserPre
   ]);
 }
 
+/**
+ * Uses Playwright's bundled Chromium unless an operator explicitly selects a
+ * browser channel for a runner. Production images do not necessarily include
+ * the system Chrome channel.
+ */
+export function resolveArrivalCardLaunchChannel(prefix: ArrivalCardBrowserPrefix): string | undefined {
+  const configuredChannel = process.env[`${prefix}_PLAYWRIGHT_CHANNEL`]?.trim();
+  return configuredChannel && configuredChannel !== "bundled" ? configuredChannel : undefined;
+}
+
 function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
   return /brd\.superproxy\.io/i.test(endpoint ?? "");
 }
@@ -167,11 +177,7 @@ export async function createArrivalCardBrowserSession(options: {
     };
   }
 
-  const configuredChannel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim();
-  const channel = configuredChannel === "bundled"
-    ? undefined
-    : configuredChannel
-      || (["MDAC", "SGAC", "TDAC", "PH_ETRAVEL", "VN_PREARRIVAL", "TW_ENTRY_PERMIT"].includes(options.prefix) ? "chrome" : undefined);
+  const channel = resolveArrivalCardLaunchChannel(options.prefix);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
   const headless = options.headless ?? (explicitHeadless ? explicitHeadless !== "false" : true);
   const browser = await chromium.launch({ channel, headless });

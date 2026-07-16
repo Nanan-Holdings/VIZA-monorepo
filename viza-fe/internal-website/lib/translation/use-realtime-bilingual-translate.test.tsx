@@ -192,6 +192,35 @@ describe("useRealtimeBilingualTranslate", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("retranslates an initial target that still contains Chinese", async () => {
+    const onTranslatedText = vi.fn();
+    const fetchMock = vi.fn(async () => jsonResponse({
+      ok: true,
+      translatedText: "Huang Xiaomin",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() =>
+      useRealtimeBilingualTranslate({
+        ...baseProps,
+        fieldId: "full_name",
+        sourceValue: "黄小敏",
+        targetValue: "黄小敏",
+        onTranslatedText,
+      }),
+    );
+
+    expect(result.current.status).toBe("typing");
+    await advanceAndFlush(400);
+
+    expect(result.current.status).toBe("translated");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onTranslatedText).toHaveBeenCalledWith(
+      "Huang Xiaomin",
+      { force: false, sourceText: "黄小敏" },
+    );
+  });
+
   it("keeps translated status when the parent writes the translated target value back", async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       ok: true,

@@ -40,6 +40,7 @@ const consentBodySchema = z
   .object({
     accepted: z.literal(true),
     consentSnapshot: z.record(z.unknown()).optional().default({}),
+    idempotencyKey: z.string().trim().min(8).max(160).optional(),
   })
   .strict();
 

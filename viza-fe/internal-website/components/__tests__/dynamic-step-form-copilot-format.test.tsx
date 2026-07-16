@@ -146,6 +146,28 @@ const cityOfBirthStep: WizardStep = {
   ],
 };
 
+const sgacFullNameStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Traveller Information",
+  fields: [
+    {
+      id: "field-sgac-full-name",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "full_name",
+      label: "Full Name (In Passport)",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const optionalPostcodeStep: WizardStep = {
   stepNumber: 3,
   stepName: "Accommodation Information",
@@ -172,6 +194,21 @@ const vnPrearrivalHotelHierarchyStep: WizardStep = {
   stepNumber: 2,
   stepName: "Trip Information",
   fields: [
+    {
+      id: "field-flight-number",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "flight_number",
+      label: "Flight Number",
+      fieldType: "select",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 1,
+      placeholder: "Select...",
+      validationRules: { official_source: "prearrival_category:flight" },
+      options: [{ value: "VJ5439_CXR", text: "VJ5439 - CXR" }],
+      conditionalLogic: null,
+    },
     {
       id: "field-accommodation-type",
       visaType: "VN_PREARRIVAL_DECLARATION",
@@ -692,6 +729,29 @@ describe("DynamicStepForm copilot format", () => {
     expect(onComplete).toHaveBeenCalledWith({ city_of_birth: "Hengqin, Zhuhai" });
   });
 
+  it("repairs a Chinese value accidentally saved in the SGAC English full-name field", () => {
+    const onComplete = vi.fn();
+
+    render(
+      <DynamicStepForm
+        step={sgacFullNameStep}
+        prefill={{
+          full_name: "黄小敏",
+          full_name_zh: "黄小敏",
+          full_name_en: "黄小敏",
+        }}
+        onComplete={onComplete}
+        visaType="SG_ARRIVAL_CARD"
+      />,
+    );
+
+    expect(screen.getAllByDisplayValue("黄小敏")).toHaveLength(1);
+    expect(screen.getByDisplayValue("HUANGXIAOMIN")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+    expect(onComplete).toHaveBeenCalledWith({ full_name: "HUANGXIAOMIN" });
+  });
+
   it("allows an optional formatted text field to pass after the user clears the old value", () => {
     const onComplete = vi.fn();
     render(
@@ -728,6 +788,7 @@ describe("DynamicStepForm copilot format", () => {
       <DynamicStepForm
         step={vnPrearrivalHotelHierarchyStep}
         prefill={{
+          flight_number: "MH0746_DAD",
           accommodation_type: "hotel",
           hotel_accommodation_address: "KSDN_01",
         }}
@@ -738,6 +799,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     await waitFor(() => expect(onDraftChange).toHaveBeenLastCalledWith({
+      flight_number: "MH0746_DAD",
       accommodation_type: "hotel",
       province_city_of_hotel: "48",
       ward_commune_of_hotel: "20194",
@@ -748,6 +810,7 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(continueButton);
 
     expect(onComplete).toHaveBeenCalledWith({
+      flight_number: "MH0746_DAD",
       accommodation_type: "hotel",
       province_city_of_hotel: "48",
       ward_commune_of_hotel: "20194",

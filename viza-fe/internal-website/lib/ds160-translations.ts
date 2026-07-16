@@ -1518,6 +1518,7 @@ const COMMON_CHINESE_PINYIN: Record<string, string> = {
   磊: "LEI",
   丽: "LI",
   明: "MING",
+  敏: "MIN",
   宁: "NING",
   平: "PING",
   强: "QIANG",

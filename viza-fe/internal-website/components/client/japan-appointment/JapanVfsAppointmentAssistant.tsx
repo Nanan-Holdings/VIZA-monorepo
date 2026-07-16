@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CalendarCheck, CheckCircle2, ExternalLink, FileCheck2, Loader2, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField } from "@/components/client/brand-field";
+import { reuseUniversalProfileDocument } from "@/app/client/documents/actions";
+import { uploadApplicationDocumentFromClient } from "@/lib/document-upload-client";
 import {
   cancelJapanAppointmentJob,
   approveJapanAppointmentFinal,
@@ -34,7 +36,7 @@ import {
 import type { JapanAppointmentSnapshot } from "@/types/japan-appointment";
 
 interface Props { applicationId: string }
-type Busy = "load" | "consent" | "create" | "check" | "select" | "payment" | "approve" | "book" | "cancel" | null;
+type Busy = "load" | "photo" | "consent" | "create" | "check" | "select" | "payment" | "approve" | "book" | "cancel" | null;
 const SELECT_CLASS = "h-12 w-full rounded-lg border border-input bg-white px-3 text-[15px] outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 
 export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
@@ -50,9 +52,13 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
   const [snapshot, setSnapshot] = useState<JapanAppointmentSnapshot | null>(null);
   const [busy, setBusy] = useState<Busy>("load");
   const [error, setError] = useState<string | null>(null);
-  const [paymentBrand, setPaymentBrand] = useState("Visa");
-  const [paymentLast4, setPaymentLast4] = useState("");
+  const [paymentPan, setPaymentPan] = useState("");
+  const [paymentExpiry, setPaymentExpiry] = useState("");
+  const [paymentCvv, setPaymentCvv] = useState("");
+  const [paymentHolder, setPaymentHolder] = useState("");
   const [finalApproved, setFinalApproved] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const autoPhotoAttemptedRef = useRef(false);
 
   const eligibility = getJapanVfsEligibility({
     nationality: "China", passportType: "ordinary", singaporePassType: passType,
@@ -85,6 +91,36 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
   }, [applicationId, localizedError]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!snapshot || snapshot.preflight.photoUploaded || autoPhotoAttemptedRef.current) return;
+    autoPhotoAttemptedRef.current = true;
+    setBusy("photo");
+    reuseUniversalProfileDocument({ applicationId, documentType: "photo", requirementKey: "photo", required: true })
+      .then((result) => result.ok ? load() : setError(t("documents.noProfilePhoto")))
+      .finally(() => setBusy(null));
+  }, [applicationId, load, snapshot, t]);
+
+  const replacePhoto = async (file: File) => {
+    setBusy("photo"); setError(null);
+    try {
+      if (!/^image\/(?:jpeg|png|webp)$/i.test(file.type)) throw new Error("unsupported_photo");
+      const formData = new FormData();
+      formData.set("applicationId", applicationId);
+      formData.set("documentType", "photo");
+      formData.set("requirementKey", "photo");
+      formData.set("filename", file.name);
+      formData.set("required", "true");
+      formData.set("source", "manual_upload");
+      formData.set("scope", "universal_profile");
+      formData.set("file", file);
+      const result = await uploadApplicationDocumentFromClient(formData);
+      if (!result.ok) throw new Error(result.error);
+      await load();
+    } catch {
+      setError(t("documents.photoUploadFailed"));
+    } finally { setBusy(null); }
+  };
 
   const action = async (kind: Exclude<Busy, "load" | null>, run: () => Promise<unknown>) => {
     setBusy(kind); setError(null);
@@ -134,6 +170,12 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
           <div className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{t("documents.passportStored")}</span><Badge variant={preflight.passportUploaded ? "default" : "secondary"}>{preflight.passportUploaded ? t("yes") : t("no")}</Badge></div>
           <div className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{t("documents.photoStored")}</span><Badge variant={preflight.photoUploaded ? "default" : "secondary"}>{preflight.photoUploaded ? t("yes") : t("no")}</Badge></div>
         </div>}
+        <div className="rounded-lg border border-brand-100 bg-brand-50 p-4">
+          <div className="font-medium">{t("documents.profilePhotoTitle")}</div>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{preflight?.photoUploaded ? t("documents.profilePhotoSelected") : busy === "photo" ? t("documents.profilePhotoLoading") : t("documents.profilePhotoMissing")}</p>
+          <input ref={photoInputRef} className="hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void replacePhoto(file); }} />
+          <Button type="button" variant="outline" className="mt-3" disabled={busy === "photo"} onClick={() => photoInputRef.current?.click()}>{busy === "photo" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("documents.replaceProfilePhoto")}</Button>
+        </div>
         {preflight && preflight.missingApplicationFields.length > 0 && <Alert className="border-amber-200 bg-amber-50"><AlertCircle className="h-4 w-4 text-amber-700" /><AlertTitle>{t("documents.profileIncomplete")}</AlertTitle><AlertDescription>{t("documents.profileMissing", { fields: preflight.missingApplicationFields.join(", ") })}</AlertDescription></Alert>}
         {checklist.map((item) => <label key={item.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3"><Checkbox checked={confirmed.has(item.id)} onCheckedChange={() => setConfirmed((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} /><span className="font-medium">{locale === "zh" ? item.labelZh : item.labelEn}</span></label>)}
         <Button variant="outline" className="w-full" asChild><a href={`/client/documents?applicationId=${encodeURIComponent(applicationId)}`}><FileCheck2 className="mr-2 h-4 w-4" />{t("documents.manage")}</a></Button>
@@ -162,13 +204,13 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
 
       {job && <Card><CardHeader><CardTitle>{t("payment.title")}</CardTitle></CardHeader><CardContent className="space-y-4">
         <Alert><ShieldCheck className="h-4 w-4" /><AlertTitle>{t("payment.secureTitle")}</AlertTitle><AlertDescription>{t("payment.secureBody")}</AlertDescription></Alert>
-        <div className="grid gap-4 sm:grid-cols-2"><BrandField label={t("payment.brand")}><input className={SELECT_CLASS} value={paymentBrand} onChange={(event) => setPaymentBrand(event.target.value)} /></BrandField><BrandField label={t("payment.last4")}><input className={SELECT_CLASS} inputMode="numeric" maxLength={4} value={paymentLast4} onChange={(event) => setPaymentLast4(event.target.value.replace(/\D/g, ""))} /></BrandField></div>
-        <Button disabled={busy !== null || paymentLast4.length !== 4 || !snapshot?.slots.some((slot) => slot.status === "user_selected")} onClick={() => action("payment", () => recordJapanAppointmentPayment(job.id, { sessionId: `jp-vfs-payment:${job.id}:${Date.now()}`, redacted: { brand: paymentBrand, last4: paymentLast4, method: "official_vfs_hosted_payment" } }))}>{busy === "payment" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("payment.authorize")}</Button>
+        <div className="grid gap-4 sm:grid-cols-2"><BrandField label={t("payment.holder")}><input className={SELECT_CLASS} autoComplete="cc-name" value={paymentHolder} onChange={(event) => setPaymentHolder(event.target.value)} /></BrandField><BrandField label={t("payment.cardNumber")}><input className={SELECT_CLASS} autoComplete="cc-number" inputMode="numeric" value={paymentPan} onChange={(event) => setPaymentPan(event.target.value.replace(/[^\d ]/g, ""))} /></BrandField><BrandField label={t("payment.expiry")}><input className={SELECT_CLASS} autoComplete="cc-exp" placeholder="MM/YY" value={paymentExpiry} onChange={(event) => setPaymentExpiry(event.target.value)} /></BrandField><BrandField label={t("payment.cvv")}><input className={SELECT_CLASS} autoComplete="cc-csc" inputMode="numeric" type="password" maxLength={4} value={paymentCvv} onChange={(event) => setPaymentCvv(event.target.value.replace(/\D/g, ""))} /></BrandField></div>
+        <Button disabled={busy !== null || paymentPan.replace(/\D/g, "").length < 12 || !/^\d{1,2}\s*\/\s*(?:\d{2}|\d{4})$/.test(paymentExpiry) || !/^\d{3,4}$/.test(paymentCvv) || paymentHolder.trim().length < 2 || !snapshot?.slots.some((slot) => slot.status === "user_selected")} onClick={() => action("payment", async () => { await recordJapanAppointmentPayment(job.id, { card: { pan: paymentPan, expiry: paymentExpiry, cvv: paymentCvv, holderName: paymentHolder } }); setPaymentPan(""); setPaymentExpiry(""); setPaymentCvv(""); setPaymentHolder(""); })}>{busy === "payment" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("payment.authorize")}</Button>
       </CardContent></Card>}
 
       {job && <Card><CardHeader><CardTitle>{t("final.title")}</CardTitle></CardHeader><CardContent className="space-y-4">
         <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><Checkbox checked={finalApproved} onCheckedChange={(value) => setFinalApproved(value === true)} /><span>{t("final.consent")}</span></label>
-        <div className="flex flex-wrap gap-3"><Button variant="outline" disabled={!finalApproved || busy !== null || job.status !== "appointment_payment_completed"} onClick={() => action("approve", () => approveJapanAppointmentFinal(job.id))}>{t("final.approve")}</Button><Button disabled={busy !== null || job.status !== "appointment_final_confirmation_approved"} onClick={() => action("book", () => bookJapanAppointmentSlot(job.id))}>{busy === "book" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("final.book")}</Button></div>
+        <div className="flex flex-wrap gap-3"><Button variant="outline" disabled={!finalApproved || busy !== null || job.status !== "appointment_payment_ready"} onClick={() => action("approve", () => approveJapanAppointmentFinal(job.id))}>{t("final.approve")}</Button><Button disabled={busy !== null || job.status !== "appointment_final_confirmation_approved"} onClick={() => action("book", () => bookJapanAppointmentSlot(job.id))}>{busy === "book" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("final.book")}</Button></div>
         {snapshot?.confirmation && <Alert className="border-emerald-200 bg-emerald-50"><CheckCircle2 className="h-4 w-4 text-emerald-700" /><AlertTitle>{t("final.confirmed")}</AlertTitle><AlertDescription>{t("final.confirmation", { number: snapshot.confirmation.confirmationNumber ?? "-", date: snapshot.confirmation.appointmentDate, time: snapshot.confirmation.appointmentTime })}</AlertDescription></Alert>}
       </CardContent></Card>}
 

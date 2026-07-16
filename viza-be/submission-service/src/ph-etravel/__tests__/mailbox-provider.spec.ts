@@ -55,6 +55,16 @@ test("extractPhEtravelOtpFromMessage decodes base64 MIME email codes", () => {
   assert.equal(code, "483920");
 });
 
+test("extractPhEtravelOtpFromMessage reads an emphasized standalone eGovPH code", () => {
+  const code = extractPhEtravelOtpFromMessage({
+    subject: "eGovPH Verify Email",
+    text: '<p>Your email code is below.</p><p><b style="font-size: 28px">483920</b></p><img src="https://tracking.example/123456/pixel">',
+    html: null,
+  });
+
+  assert.equal(code, "483920");
+});
+
 test("extractPhEtravelVerificationUrlFromMessage reads official verification links", () => {
   const url = extractPhEtravelVerificationUrlFromMessage({
     subject: "Confirm your eTravel account",
