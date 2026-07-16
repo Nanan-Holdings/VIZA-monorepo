@@ -387,12 +387,28 @@ async function maskedScreenshot(page: Page, name: string): Promise<string> {
   return output;
 }
 
+async function waitForRegistrationCaptchaToken(page: Page): Promise<void> {
+  const response = page.locator(
+    "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
+  ).first();
+  if (await response.count() === 0) return;
+  const solved = await page.waitForFunction(() => {
+    const element = document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+      "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
+    );
+    return Boolean(element?.value.trim());
+  }, undefined, { timeout: 60_000 }).then(() => true).catch(() => false);
+  if (!solved) {
+    throw new Error("TLS registration CAPTCHA was not solved before form submission");
+  }
+}
+
 async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccountContext): Promise<string[]> {
   await page.locator("#email, input[name='email']").first().fill(context.alias);
   await page.locator("#password, input[name='password']").first().fill(context.password);
   await page.locator("#confirm-password, input[name='passwordConfirm']").first().fill(context.password);
   const consent = page.locator("#legal-consent, input[name='legalConsent']").first();
-  if (!await consent.isChecked()) await consent.check();
+  if (!await consent.isChecked()) await consent.check({ force: true });
   for (const selector of [
     "#marketing-by-email",
     "#marketing-by-phone",
@@ -402,6 +418,7 @@ async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccoun
     const optional = page.locator(selector).first();
     if (await optional.isChecked().catch(() => false)) await optional.uncheck();
   }
+  await waitForRegistrationCaptchaToken(page);
   const evidence = [await maskedScreenshot(page, "registration-filled")];
   await page.locator("button#submit, button[type='submit']").first().click({ timeout: 15_000 });
   await settle(page);

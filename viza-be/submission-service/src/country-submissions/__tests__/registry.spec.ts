@@ -501,6 +501,89 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
   assert.equal(result.targetCountry, "SG");
 });
 
+test("from-records: prefers the latest SGAC answers over stale profile and application columns", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "OLD PROFILE NAME",
+    date_of_birth: "1980-01-01",
+    place_of_birth: "Old place",
+    gender: "female",
+    nationality: "OLD_NATIONALITY",
+    occupation: "Old occupation",
+    address: "Old profile address",
+    passport_number: "OLD123456",
+    passport_issue_date: "2020-01-01",
+    passport_expiry_date: "2030-01-01",
+    issuing_country: "OLD_COUNTRY",
+    issuing_authority: "Old authority",
+    email: "old-profile@example.com",
+    phone: "+6500000000",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "singapore",
+    visa_type: "SG_ARRIVAL_CARD",
+    status: "submitted",
+    arrival_date: "2026-08-01",
+    departure_date: "2026-08-02",
+    port_of_entry: null,
+    purpose: "old-purpose",
+    accommodation_name: "Old Hotel",
+    accommodation_address: "Old accommodation address",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: "test-package",
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const sgacApplication = buildCountrySubmissionApplication(profile, application, {
+    full_name: "LATEST PASSPORT NAME",
+    date_of_birth: "1999-06-15",
+    gender: "male",
+    nationality: "CHN",
+    passport_number: "LATEST98765",
+    passport_issue_date: "2025-01-02",
+    passport_expiry_date: "2035-01-01",
+    passport_issuing_country: "CHN",
+    email_address: "latest@example.com",
+    mobile_country_code: "86",
+    mobile_number: "13800138000",
+    residential_address: "Latest residential address",
+    occupation: "Engineer",
+    arrival_date: "2026-08-03",
+    departure_date: "2026-08-05",
+    purpose_of_travel: "holiday",
+    hotel_name: "MARINA BAY SANDS",
+    accommodation_address: "10 Bayfront Avenue",
+  });
+
+  assert.deepEqual(sgacApplication.profile, {
+    fullName: "LATEST PASSPORT NAME",
+    dateOfBirth: "1999-06-15",
+    gender: "male",
+    nationality: "CHN",
+    passportNumber: "LATEST98765",
+    passportIssueDate: "2025-01-02",
+    passportExpiryDate: "2035-01-01",
+    passportIssuingCountry: "CHN",
+    email: "latest@example.com",
+    phone: "8613800138000",
+    address: "Latest residential address",
+    occupation: "Engineer",
+    employerOrSchool: null,
+  });
+  assert.equal(sgacApplication.trip.arrivalDate, "2026-08-03");
+  assert.equal(sgacApplication.trip.departureDate, "2026-08-05");
+  assert.equal(sgacApplication.trip.purpose, "holiday");
+  assert.equal(sgacApplication.trip.accommodationName, "MARINA BAY SANDS");
+  assert.equal(sgacApplication.trip.accommodationAddress, "10 Bayfront Avenue");
+});
+
 test("registry: SG Arrival Card rejects missing purpose_of_travel without using SG visitor visa", async () => {
   const result = await runDryRunSubmission(
     baseApplication({

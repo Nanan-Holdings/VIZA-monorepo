@@ -26,6 +26,7 @@ type Action =
   | "request-cancel"
   | "start-cancel-query"
   | "confirm-cancel-official"
+  | "return-to-appointment-details"
   | "start-new-booking"
   | "restart-without-booking-record"
   | "refresh-status";
@@ -1182,6 +1183,61 @@ export async function POST(
       user_id: auth.profile.id,
       event_type: "sms_verification_abandoned",
       event_message: "Applicant returned to center selection before submitting the official SMS code.",
+      metadata_redacted_json: { centerCode: routing.recommended.code },
+    });
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "return-to-appointment-details") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    const { data: application, error: applicationReadError } = await auth.admin
+      .from("applications")
+      .select("appointment_confirmation_id")
+      .eq("id", id)
+      .single();
+    if (applicationReadError) throw new Error(applicationReadError.message);
+    if (!application?.appointment_confirmation_id) {
+      return NextResponse.json({ error: "No active appointment is available to return to." }, { status: 409 });
+    }
+
+    const now = new Date().toISOString();
+    const { error: manualActionError } = await auth.admin
+      .from("appointment_manual_actions")
+      .update({ status: "expired", completed_at: now })
+      .eq("job_id", job.id)
+      .in("action_type", [
+        "official_reschedule_required",
+        "official_cancel_required",
+        "official_cancel_confirmation_required",
+        "official_cancel_manual_checkpoint",
+      ])
+      .in("status", ["pending", "in_progress"]);
+    if (manualActionError) throw new Error(manualActionError.message);
+
+    const { error: jobError } = await auth.admin
+      .from("appointment_assistance_jobs")
+      .update({
+        status: "appointment_booked",
+        requires_user_action: false,
+        current_manual_action: null,
+        updated_at: now,
+      })
+      .eq("id", job.id);
+    if (jobError) throw new Error(jobError.message);
+
+    const { error: applicationError } = await auth.admin
+      .from("applications")
+      .update({ appointment_assistance_status: "appointment_booked" })
+      .eq("id", id);
+    if (applicationError) throw new Error(applicationError.message);
+
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "appointment_change_abandoned",
+      event_message: "Applicant returned to the active appointment without submitting an official cancellation.",
       metadata_redacted_json: { centerCode: routing.recommended.code },
     });
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));

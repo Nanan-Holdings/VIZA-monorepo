@@ -980,6 +980,35 @@ function filterCurrentStepValues(
   return filtered;
 }
 
+function buildCurrentStepAnswerPatch(
+  fields: VisaFormFieldRow[],
+  values: Record<string, string>,
+  groupCounts: Record<string, number>,
+  textPairs: Record<string, BilingualTextValue>,
+): Record<string, string> {
+  const answers = filterCurrentStepValues(fields, values, groupCounts);
+
+  for (const field of fields) {
+    if (!usesBilingualTextPair(field)) continue;
+    const group = getRepeatGroup(field);
+    const keys = group
+      ? Array.from(
+          { length: groupCounts[group] ?? 1 },
+          (_, index) => instanceKey(field.fieldName, index),
+        )
+      : [field.fieldName];
+
+    for (const key of keys) {
+      const pair = textPairs[key];
+      if (!pair) continue;
+      answers[`${key}_zh`] = pair.zh;
+      answers[`${key}_en`] = pair.en;
+    }
+  }
+
+  return answers;
+}
+
 function getLocalFieldIssue(
   field: VisaFormFieldRow,
   valueKey: string,
@@ -2555,8 +2584,10 @@ export function DynamicStepForm({
   }, [isVnPrearrivalStep, prefill, step.fields, visaType]);
 
   useEffect(() => {
-    onDraftChangeRef.current?.(filterCurrentStepValues(step.fields, values, groupCounts));
-  }, [groupCounts, step.fields, values]);
+    onDraftChangeRef.current?.(
+      buildCurrentStepAnswerPatch(step.fields, values, groupCounts, textPairs),
+    );
+  }, [groupCounts, step.fields, textPairs, values]);
 
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
@@ -2622,8 +2653,9 @@ export function DynamicStepForm({
             rules?.dependsOn === candidateParent
           ) return true;
           if (!f.conditionalLogic) {
-            const withYes = { ...values, [candidateParent]: "yes" };
-            const withNo = { ...values, [candidateParent]: "" };
+            const currentValues = valuesRef.current;
+            const withYes = { ...currentValues, [candidateParent]: "yes" };
+            const withNo = { ...currentValues, [candidateParent]: "" };
             const visibleWithYes = evaluateShowIf(f, withYes, step.fields);
             const visibleWithNo = evaluateShowIf(f, withNo, step.fields);
             if (visibleWithYes !== visibleWithNo) return true;
@@ -2644,7 +2676,7 @@ export function DynamicStepForm({
       }
       return [...dependents];
     },
-    [step.fields, values]
+    [step.fields]
   );
 
   const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
@@ -2657,52 +2689,50 @@ export function DynamicStepForm({
       pushUndoSnapshot();
     }
 
-    setValues((prev) => {
-      const next = { ...prev, [fieldName]: normalizedValue };
-      if (isVnPrearrivalStep && fieldName === "expected_arrival_date") {
-        next.flight_number = "";
-        next.border_gate_airport = "";
-      }
-      if (isVnPrearrivalStep && fieldName === "flight_number") {
-        next.border_gate_airport = getAirportCodeFromFlightValue(value);
-      }
-      const dependents = getDependentFields(fieldName);
-      for (const dep of dependents) {
-        const depField = step.fields.find((f) => f.fieldName === dep);
-        if (depField && !evaluateShowIf(depField, next, step.fields)) {
+    const next = { ...valuesRef.current, [fieldName]: normalizedValue };
+    if (isVnPrearrivalStep && fieldName === "expected_arrival_date") {
+      next.flight_number = "";
+      next.border_gate_airport = "";
+    }
+    if (isVnPrearrivalStep && fieldName === "flight_number") {
+      next.border_gate_airport = getAirportCodeFromFlightValue(value);
+    }
+    const dependents = getDependentFields(fieldName);
+    for (const dep of dependents) {
+      const depField = step.fields.find((f) => f.fieldName === dep);
+      if (depField && !evaluateShowIf(depField, next, step.fields)) {
+        next[dep] = "";
+      } else if (depField) {
+        const rules = depField.validationRules as {
+          dependent_on?: string;
+          depends_on?: string;
+          dependsOn?: string;
+        } | null;
+        if (rules?.dependent_on || rules?.depends_on || rules?.dependsOn) {
           next[dep] = "";
-        } else if (depField) {
-          const rules = depField.validationRules as {
-            dependent_on?: string;
-            depends_on?: string;
-            dependsOn?: string;
-          } | null;
-          if (rules?.dependent_on || rules?.depends_on || rules?.dependsOn) {
-            next[dep] = "";
+        }
+      }
+    }
+
+    // Clear inline-group sibling value fields when LESS_THAN_24_HOURS is selected
+    if (normalizedValue === "LESS_THAN_24_HOURS") {
+      const baseFieldName = fieldName.replace(/__\d+$/, "");
+      const suffix = fieldName.substring(baseFieldName.length);
+      const changedField = step.fields.find((f) => f.fieldName === baseFieldName);
+      if (changedField) {
+        const ig = getInlineGroup(changedField);
+        if (ig) {
+          for (const f of step.fields) {
+            if (f.fieldName === baseFieldName || getInlineGroup(f) !== ig || f.fieldType === "select") continue;
+            next[f.fieldName + suffix] = "";
           }
         }
       }
+    }
 
-      // Clear inline-group sibling value fields when LESS_THAN_24_HOURS is selected
-      if (normalizedValue === "LESS_THAN_24_HOURS") {
-        const baseFieldName = fieldName.replace(/__\d+$/, "");
-        const suffix = fieldName.substring(baseFieldName.length);
-        const changedField = step.fields.find((f) => f.fieldName === baseFieldName);
-        if (changedField) {
-          const ig = getInlineGroup(changedField);
-          if (ig) {
-            for (const f of step.fields) {
-              if (f.fieldName === baseFieldName || getInlineGroup(f) !== ig || f.fieldType === "select") continue;
-              next[f.fieldName + suffix] = "";
-            }
-          }
-        }
-      }
-
-      const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
-      valuesRef.current = normalizedNext;
-      return normalizedNext;
-    });
+    const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
+    valuesRef.current = normalizedNext;
+    setValues(normalizedNext);
   };
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
@@ -2829,7 +2859,12 @@ export function DynamicStepForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (indonesiaPostalLookupBlocksContinue) return;
-    const stepData = filterCurrentStepValues(step.fields, values, groupCounts);
+    const stepData = buildCurrentStepAnswerPatch(
+      step.fields,
+      valuesRef.current,
+      groupCountsRef.current,
+      textPairsRef.current,
+    );
     onDraftChangeRef.current?.(stepData);
     onComplete(stepData);
   };

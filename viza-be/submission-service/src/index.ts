@@ -6370,6 +6370,59 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
   }
 }
 
+async function suppressDuplicateArrivalCardQueueAfterSuccess(
+  item: SubmissionQueueItem,
+  code: ArrivalCardCode,
+): Promise<boolean> {
+  const [{ data: application, error: applicationError }, { data: completedQueues, error: queueError }] = await Promise.all([
+    supabase
+      .from("applications")
+      .select("submission_result_status, submission_result")
+      .eq("id", item.application_id)
+      .maybeSingle(),
+    supabase
+      .from("submission_queue")
+      .select("id")
+      .eq("application_id", item.application_id)
+      .eq("status", "done")
+      .neq("id", item.id)
+      .limit(1),
+  ]);
+  if (applicationError || queueError) {
+    const message = applicationError?.message ?? queueError?.message ?? "unknown lookup error";
+    console.warn(`[${arrivalCardLogCode(code)}] Could not check duplicate-success guard: ${message}`);
+    return false;
+  }
+
+  const result = application?.submission_result as { submitted?: unknown } | null;
+  const resultStatus = String(application?.submission_result_status ?? "").trim().toLowerCase();
+  const alreadySucceeded = result?.submitted === true
+    || ["completed", "complete", "submitted", "success", "done"].includes(resultStatus)
+    || Boolean(completedQueues?.length);
+  if (!alreadySucceeded) return false;
+
+  const now = new Date().toISOString();
+  const { error: updateError } = await supabase
+    .from("submission_queue")
+    .update({
+      status: "retry_superseded",
+      current_stage: "duplicate_suppressed",
+      error_code: "duplicate_retry_after_success",
+      error_message: `Suppressed duplicate retry job after ${code} official submission completed.`,
+      last_error: null,
+      heartbeat_at: now,
+      updated_at: now,
+    })
+    .eq("id", item.id);
+  if (updateError) {
+    throw new Error(`Failed to suppress duplicate ${code} queue item: ${updateError.message}`);
+  }
+  console.warn(
+    `[${arrivalCardLogCode(code)}] Suppressed duplicate queue item after an earlier official submission succeeded.`,
+  );
+  return true;
+}
+
 async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code: ArrivalCardCode): Promise<void> {
   const isMdac = code === "MDAC";
   const isTdac = code === "TDAC";
@@ -6392,6 +6445,8 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
   console.log(
     `[${logCode}] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
+
+  if (await suppressDuplicateArrivalCardQueueAfterSuccess(item, code)) return;
 
   await supabase
     .from("submission_queue")
@@ -6686,6 +6741,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       .eq("id", item.id);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    if (await suppressDuplicateArrivalCardQueueAfterSuccess(item, code)) return;
     const validationError = err instanceof MdacPortalValidationError || err instanceof TdacPortalValidationError || err instanceof PhEtravelPortalValidationError;
     const portalError = err instanceof MdacPortalError || err instanceof TdacPortalError || err instanceof PhEtravelPortalError;
     await writeFailure({
