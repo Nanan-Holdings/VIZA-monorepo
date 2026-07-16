@@ -1306,7 +1306,7 @@ async function maybeCreatePhEtravelAccount(
   // A rendered Turnstile widget includes its own legal/help text even after a
   // successful challenge. Treat only explicit challenge failures (checked
   // above) and actual non-email verification gates as registration blockers.
-  if (/sms|authenticator|egovph app|mobile number|verification failed|troubleshooting/i.test(currentText)) {
+  if (/sms verification|sms code|authenticator code|verification failed|troubleshooting/i.test(currentText)) {
     screenshots.push(await saveScreenshot(page, "official-registration-blocked", logs));
     throw new PhEtravelPortalError(
       "Official Philippines eTravel account registration needs a non-email verification step before automation can continue.",
@@ -1388,7 +1388,12 @@ async function runPhEtravelPortalSubmissionWithBrowser(
           browserSession.nativeCloudflareUnblock,
         );
         if (created) {
-          await reachAuthenticatedPhEtravelSession(page, payload, options, logs, screenshots);
+          const afterRegistrationText = await bodyText(page);
+          if (/new travel declaration|travel history|logout/i.test(afterRegistrationText)) {
+            logs.push("ph_etravel_registration_authenticated_session_retained");
+          } else {
+            await reachAuthenticatedPhEtravelSession(page, payload, options, logs, screenshots);
+          }
           handledRegistration = true;
         }
       }

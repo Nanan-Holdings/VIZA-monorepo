@@ -148,6 +148,11 @@ filling and one-shot submission for the applicant.
   Japan/Singapore registration form, fills clearly synthetic placeholder data
   through the same production selector helper, verifies the rendered values,
   masks evidence, and exits without clicking Continue or creating an account.
+- `scripts/run-japan-vfs-placeholder-account.ts`: explicit operator-only
+  Browserbase-proxy smoke that creates one clearly marked placeholder VFS
+  account for a supplied local test application, consumes managed-alias
+  activation mail when available, encrypts the generated password, and never
+  proceeds to slot selection, payment, or booking.
 - `POST /internal/japan-vfs-sg/book-selected-slot`: internal-token protected
   Japan live-booking handoff gated by `JP_VFS_SG_LIVE_BOOKING_ENABLED=true`.
   It never logs card data or fabricates slot/payment/confirmation success.

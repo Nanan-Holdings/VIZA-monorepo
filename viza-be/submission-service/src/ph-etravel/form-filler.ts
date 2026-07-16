@@ -331,7 +331,9 @@ export async function fillPhEtravelOfficialDeclaration(
 
   for (let step = 1; step <= 12; step += 1) {
     portalText = await page.locator("body").innerText().catch(() => "");
-    if (/qr\s*code|reference\s*(?:no|number)|registration\s+(?:successful|completed)/i.test(portalText)) {
+    const confirmation = /registration\s+(?:successful|completed)|successfully\s+registered|thank\s+you\s+for\s+registering/i.test(portalText) &&
+      /qr\s*code|reference\s*(?:no|number)/i.test(portalText);
+    if (confirmation) {
       await options.onStep?.("confirmation");
       return { reachedReview: true, submitted: true, portalText, filledFields: [...completed] };
     }

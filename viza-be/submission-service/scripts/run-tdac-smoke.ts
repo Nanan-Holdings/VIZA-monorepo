@@ -58,9 +58,21 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
+  const details = typeof error === "object" && error !== null
+    ? error as { code?: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] }
+    : null;
+  if (stopBeforeSubmit && details?.code === "tdac_stopped_before_submit") {
+    console.log(JSON.stringify({
+      passed: true,
+      checkpoint: details.code,
+      screenshots: details.screenshotPaths,
+      portalSummary: details.portalSummary,
+      logs: details.logs,
+    }, null, 2));
+    return;
+  }
   console.error(error instanceof Error ? error.stack ?? error.message : String(error));
-  if (typeof error === "object" && error !== null) {
-    const details = error as { code?: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] };
+  if (details) {
     console.error(JSON.stringify({
       code: details.code,
       screenshots: details.screenshotPaths,

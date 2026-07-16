@@ -35,6 +35,15 @@ async function isSubmissionWorkerRunning(): Promise<boolean> {
   }
 }
 
+async function waitForSubmissionWorker(timeoutMs = 30_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await isSubmissionWorkerRunning()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return isSubmissionWorkerRunning();
+}
+
 async function stopSubmissionWorker(): Promise<void> {
   if (process.platform !== "win32") {
     await execFileAsync("sh", [
@@ -153,8 +162,7 @@ export async function POST(
     }
 
     const started = await startSubmissionWorker();
-    await new Promise((resolve) => setTimeout(resolve, 8_000));
-    const running = await isSubmissionWorkerRunning().catch(() => false);
+    const running = await waitForSubmissionWorker();
     if (!running) {
       return NextResponse.json(
         {
