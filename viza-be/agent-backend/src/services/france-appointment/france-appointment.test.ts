@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   FranceAppointmentServiceError,
@@ -49,11 +49,17 @@ function createRepository(
       repository.actions.push(action);
       return action;
     },
+    async listManualActions(jobId: string) {
+      return repository.actions.filter((action) => action.jobId === jobId);
+    },
     async getLatestJob(applicationId: string) {
       return repository.jobs.find((job) => job.applicationId === applicationId) ?? null;
     },
     async getJob(jobId: string) {
       return repository.jobs.find((job) => job.id === jobId) ?? null;
+    },
+    async getAccountForApplication() {
+      return null;
     },
     async insertJob(input: Omit<FranceAppointmentJob, "id" | "createdAt" | "updatedAt">) {
       const job = {
@@ -189,5 +195,57 @@ describe("France appointment service", () => {
     await service.checkSlots(job.id);
     await expect(service.checkSlots(job.id)).rejects.toBeInstanceOf(FranceAppointmentServiceError);
     await expect(service.checkSlots(job.id)).rejects.toMatchObject({ code: "slot_check_rate_limited" });
+  });
+
+  it("never fabricates a dry-run confirmation for assisted-live booking", async () => {
+    const repository = createRepository();
+    const service = createFranceAppointmentService(repository, {
+      submissionServiceUrl: "http://submission.test",
+      accountPreparationEnabled: false,
+    });
+    await service.recordConsent({
+      applicationId: "app-1",
+      userId: "user-1",
+      consentSnapshot: { accepted: true },
+    });
+    const job = await service.createJob({
+      applicationId: "app-1",
+      userId: "user-1",
+      centerCode: "shanghai",
+      mode: "assisted_live",
+    });
+    repository.slots.push({
+      id: "slot-live-1",
+      jobId: job.id,
+      applicationId: job.applicationId,
+      appointmentDate: "2026-10-10",
+      appointmentTime: "09:30",
+      appointmentLocation: "TLScontact Shanghai",
+      appointmentType: "France Schengen visa application submission",
+      source: "france_tls_live",
+      status: "observed",
+      observedAt: new Date(0).toISOString(),
+      metadataRedactedJson: {},
+    });
+    await repository.updateJob(job.id, { status: "appointment_slot_selection_required" });
+    await service.selectSlot(job.id, "slot-live-1");
+    await service.approveFinalConfirmation(job.id);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      status: "payment_required",
+      checkpoint: {
+        type: "payment",
+        message: "TLScontact secure payment is required.",
+        metadataRedactedJson: { provider: "tlscontact_cn_fr" },
+      },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    try {
+      const result = await service.bookSelectedSlot(job.id);
+      expect(result.job.status).toBe("appointment_payment_required");
+      expect(result.confirmation).toBeNull();
+      expect(repository.confirmations).toHaveLength(0);
+    } finally {
+      fetchMock.mockRestore();
+    }
   });
 });

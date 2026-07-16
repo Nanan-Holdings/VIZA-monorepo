@@ -11,6 +11,11 @@ primary_region = "sin"
   # provider configured through secrets (or its container Chromium) headlessly.
   MDAC_PLAYWRIGHT_HEADLESS = "true"
   MDAC_PLAYWRIGHT_CHANNEL = "bundled"
+  # France TLS flags remain explicit production gates. Browserbase and the
+  # shared internal token are Fly Secrets, never TOML values.
+  FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"
+  FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED = "false"
+  FRANCE_TLS_LIVE_BOOKING_ENABLED = "false"
 
 [http_service]
   internal_port = 8080

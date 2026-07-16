@@ -1,4 +1,5 @@
 import type { InboundMessage } from "../inbox/wait-for-message";
+import { imapConfigFromEnv, waitForEmail } from "../email/imap-poll";
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
 const OTP_PATTERNS = [
@@ -170,6 +171,46 @@ export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddre
       );
       const url = extractPhEtravelVerificationUrlFromMessage(message);
       if (!url) throw new Error("Philippines eTravel email matched but no verification URL was found.");
+      return url;
+    },
+  };
+}
+
+/**
+ * Local smoke-test fallback for a configured IMAP inbox. The official account
+ * email should be a unique plus-address of that inbox so the registration does
+ * not reuse the mailbox's primary address. Credentials remain in local env.
+ */
+export function createPhEtravelImapMailboxProvider(): PhEtravelMailboxProvider {
+  const config = imapConfigFromEnv();
+  const waitForOfficialEmail = async (timeoutMs: number, since?: string) => waitForEmail({
+    config,
+    from: /etravel|egov|gov\.ph/i,
+    subject: /etravel|egov|verification|confirm|activate|otp|code/i,
+    since: since ? new Date(since) : new Date(Date.now() - 60_000),
+    timeoutMs,
+  });
+
+  return {
+    async waitForOtp(params) {
+      const email = await waitForOfficialEmail(params.timeoutMs, params.since);
+      const otp = extractPhEtravelOtpFromMessage({
+        subject: email.subject,
+        text: email.textBody,
+        html: email.htmlBody,
+      });
+      if (!otp) throw new Error("Philippines eTravel IMAP email matched but no OTP was found.");
+      return otp;
+    },
+
+    async waitForVerificationLink(params) {
+      const email = await waitForOfficialEmail(params.timeoutMs, params.since);
+      const url = extractPhEtravelVerificationUrlFromMessage({
+        subject: email.subject,
+        text: email.textBody,
+        html: email.htmlBody,
+      });
+      if (!url) throw new Error("Philippines eTravel IMAP email matched but no verification URL was found.");
       return url;
     },
   };

@@ -1187,13 +1187,41 @@ async function maybeCreatePhEtravelAccount(
     await page.waitForTimeout(2_000);
     currentText = await bodyText(page);
   } else if (!/password|set password|create password/i.test(currentText)) {
-    const url = await mailbox.waitForVerificationLink({ timeoutMs, since }).catch(() => null);
-    if (url) {
-      await page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: 45_000 });
+    // The current eTravel registration page may keep the email-entry screen
+    // visible while it sends either a numeric code or a verification link.
+    // Wait for both official delivery shapes instead of assuming a link.
+    type EmailVerificationResult =
+      | { kind: "otp"; otp: string }
+      | { kind: "url"; url: URL };
+    const emailVerification = await firstSuccessful<EmailVerificationResult>([
+      mailbox.waitForOtp({ timeoutMs, since }).then((otp) => ({ kind: "otp" as const, otp })),
+      mailbox.waitForVerificationLink({ timeoutMs, since }).then((url) => ({ kind: "url" as const, url })),
+    ]);
+    if (emailVerification.kind === "url") {
+      await page.goto(emailVerification.url.toString(), { waitUntil: "domcontentloaded", timeout: 45_000 });
       logs.push("ph_etravel_email_verification_link_opened");
-      await page.waitForTimeout(2_000);
-      currentText = await bodyText(page);
+    } else {
+      await fillOtpInputs(page, emailVerification.otp);
+      const clickedOtpContinue = await clickFirstEnabledAvailable(page, [
+        page.getByRole("button", { name: /verify|continue|next|submit/i }),
+        page.locator("button").filter({ hasText: /verify|continue|next|submit/i }),
+      ]);
+      if (!clickedOtpContinue) {
+        screenshots.push(await saveScreenshot(page, "registration-email-otp-continue-disabled", logs));
+        throw new PhEtravelPortalError(
+          "Official Philippines eTravel registration OTP page did not enable the continue button before timeout.",
+          {
+            code: "ph_etravel_registration_otp_continue_disabled",
+            screenshotPaths: screenshots,
+            portalSummary: (await bodyText(page)).slice(0, 700),
+          },
+        );
+      }
+      logs.push("ph_etravel_email_otp_consumed");
     }
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    currentText = await bodyText(page);
   }
 
   if (/password|set password|create password/i.test(currentText)) {
@@ -1218,7 +1246,10 @@ async function maybeCreatePhEtravelAccount(
   }
   currentText = await completeEgovPersonalInformationOnboarding(page, payload, options, logs, screenshots);
 
-  if (/sms|authenticator|egovph app|captcha|turnstile|invalid|failed/i.test(currentText)) {
+  // A rendered Turnstile widget includes its own legal/help text even after a
+  // successful challenge. Treat only explicit challenge failures (checked
+  // above) and actual non-email verification gates as registration blockers.
+  if (/sms|authenticator|egovph app|mobile number|verification failed|troubleshooting/i.test(currentText)) {
     screenshots.push(await saveScreenshot(page, "official-registration-blocked", logs));
     throw new PhEtravelPortalError(
       "Official Philippines eTravel account registration needs a non-email verification step before automation can continue.",

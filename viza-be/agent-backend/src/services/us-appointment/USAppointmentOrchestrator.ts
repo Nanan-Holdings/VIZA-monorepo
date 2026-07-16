@@ -945,9 +945,9 @@ export class USAppointmentOrchestrator {
       accountStatus: account.accountStatus,
       emailVerified: account.emailVerified,
       securityQuestions: [
-        { label: "Security answer 1", answer: "VIZA" },
-        { label: "Security answer 2", answer: "VIZA" },
-        { label: "Security answer 3", answer: "VIZA" },
+        { label: "Security answer 1", answer: "VizaAnswer1" },
+        { label: "Security answer 2", answer: "VizaAnswer2" },
+        { label: "Security answer 3", answer: "VizaAnswer3" },
       ],
       prefill: {
         ds160ConfirmationCode: getStoredDs160Code(application),

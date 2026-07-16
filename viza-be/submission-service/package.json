@@ -29,6 +29,7 @@
     "ph-etravel:smoke": "tsx scripts/run-ph-etravel-smoke.ts",
     "ph-etravel:chrome": "powershell -ExecutionPolicy Bypass -File scripts/start-ph-etravel-user-chrome.ps1",
     "us-appointment:register": "ts-node -r ./scripts/ts-node-js-resolver.cjs scripts/run-us-appointment-register.ts",
+    "us-appointment:registration-recon": "tsx scripts/run-us-appointment-registration-recon.ts",
     "korea-eform:local": "tsx scripts/start-korea-eform-local.ts",
     "korea-eform:audit": "tsx scripts/audit-korea-eform-fill.ts",
     "korea-addresses:crawl": "tsx scripts/crawl-korea-addresses.ts",

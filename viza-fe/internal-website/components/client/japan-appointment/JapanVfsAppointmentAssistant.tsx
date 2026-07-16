@@ -54,19 +54,32 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
   const checklist = useMemo(() => getJapanVfsChecklist(visaType, occupation), [visaType, occupation]);
   const checklistReady = checklist.every((item) => confirmed.has(item.id));
   const job = snapshot?.job ?? null;
+  const activeJob = job?.status === "appointment_cancelled" ? null : job;
+  const preflight = snapshot?.preflight;
+  const consentRecorded = preflight?.consentRecorded === true;
+
+  const localizedError = useCallback((cause: unknown, fallback: "load" | "action") => {
+    if (!(cause instanceof JapanAppointmentApiError)) return t(`errors.${fallback}`);
+    if (cause.code === "missing_required_fields") return t("errors.missingRequiredFields");
+    if (cause.code === "consent_required") return t("errors.consentRequired");
+    if (cause.code === "appointment_cancelled") return t("errors.cancelled");
+    if (cause.code === "japan_runner_unavailable") return t("errors.runnerUnavailable");
+    if (cause.code === "session_required" || cause.code === "unauthorized") return t("errors.sessionRequired");
+    return t(`errors.${fallback}`);
+  }, [t]);
 
   const load = useCallback(async () => {
     try { setSnapshot(await getJapanAppointmentStatus(applicationId)); }
-    catch (cause) { setError(cause instanceof JapanAppointmentApiError ? cause.message : t("errors.load")); }
+    catch (cause) { setError(localizedError(cause, "load")); }
     finally { setBusy(null); }
-  }, [applicationId, t]);
+  }, [applicationId, localizedError]);
 
   useEffect(() => { void load(); }, [load]);
 
   const action = async (kind: Exclude<Busy, "load" | null>, run: () => Promise<unknown>) => {
     setBusy(kind); setError(null);
     try { await run(); await load(); }
-    catch (cause) { setError(cause instanceof JapanAppointmentApiError ? cause.message : t("errors.action")); setBusy(null); }
+    catch (cause) { setError(localizedError(cause, "action")); setBusy(null); }
   };
 
   const eligibilityPayload = {
@@ -89,7 +102,7 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
         <p className="text-sm font-medium text-brand-600">{t("eyebrow")}</p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div><h1 className="text-3xl font-semibold">{t("title")}</h1><p className="mt-2 max-w-3xl leading-7 text-muted-foreground">{t("subtitle")}</p></div>
-          <Badge variant={job ? "default" : "secondary"}>{job ? t(`statuses.${job.status}`) : t("statuses.not_started")}</Badge>
+          <Badge variant={activeJob ? "default" : "secondary"}>{job ? t(`statuses.${job.status}`) : t("statuses.not_started")}</Badge>
         </div>
       </header>
 
@@ -107,22 +120,29 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
 
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-brand-500" />{t("documents.title")}</CardTitle></CardHeader><CardContent className="space-y-3">
         <p className="text-sm leading-6 text-muted-foreground">{t("documents.body")}</p>
+        {preflight && <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{t("documents.passportStored")}</span><Badge variant={preflight.passportUploaded ? "default" : "secondary"}>{preflight.passportUploaded ? t("yes") : t("no")}</Badge></div>
+          <div className="flex items-center justify-between rounded-lg border p-3 text-sm"><span>{t("documents.photoStored")}</span><Badge variant={preflight.photoUploaded ? "default" : "secondary"}>{preflight.photoUploaded ? t("yes") : t("no")}</Badge></div>
+        </div>}
+        {preflight && preflight.missingApplicationFields.length > 0 && <Alert className="border-amber-200 bg-amber-50"><AlertCircle className="h-4 w-4 text-amber-700" /><AlertTitle>{t("documents.profileIncomplete")}</AlertTitle><AlertDescription>{t("documents.profileMissing", { fields: preflight.missingApplicationFields.join(", ") })}</AlertDescription></Alert>}
         {checklist.map((item) => <label key={item.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3"><Checkbox checked={confirmed.has(item.id)} onCheckedChange={() => setConfirmed((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} /><span className="font-medium">{locale === "zh" ? item.labelZh : item.labelEn}</span></label>)}
         <Button variant="outline" className="w-full" asChild><a href={`/client/documents?applicationId=${encodeURIComponent(applicationId)}`}><FileCheck2 className="mr-2 h-4 w-4" />{t("documents.manage")}</a></Button>
       </CardContent></Card>
 
       <Card><CardHeader><CardTitle>{t("workflow.title")}</CardTitle></CardHeader><CardContent className="space-y-4">
         <label className="flex min-h-11 items-start gap-3 rounded-lg border p-3 text-sm"><Checkbox checked={consent} onCheckedChange={(value) => setConsent(value === true)} /><span>{t("workflow.consent")}</span></label>
+        {consentRecorded && <Alert className="border-emerald-200 bg-emerald-50"><CheckCircle2 className="h-4 w-4 text-emerald-700" /><AlertTitle>{t("workflow.consentRecorded")}</AlertTitle><AlertDescription>{t("workflow.consentRecordedBody")}</AlertDescription></Alert>}
+        {job?.status === "appointment_cancelled" && <Alert><RefreshCw className="h-4 w-4" /><AlertTitle>{t("workflow.restartTitle")}</AlertTitle><AlertDescription>{t("workflow.restartBody")}</AlertDescription></Alert>}
         <div className="grid gap-3 sm:grid-cols-3">
-          <BrandActionButton variant="secondary" loading={busy === "consent"} loadingText={t("workflow.saving")} disabled={!consent || Boolean(job)} onClick={() => action("consent", () => recordJapanAppointmentConsent(applicationId, { ...eligibilityPayload, acceptedAt: new Date().toISOString() }))}><ShieldCheck />{t("workflow.saveConsent")}</BrandActionButton>
-          <BrandActionButton loading={busy === "create"} loadingText={t("workflow.creating")} disabled={!eligibility.eligible || !checklistReady || Boolean(job)} onClick={() => action("create", () => createJapanAppointmentJob(applicationId, eligibilityPayload))}><CalendarCheck />{t("workflow.create")}</BrandActionButton>
-          <BrandActionButton variant="secondary" loading={busy === "check"} loadingText={t("workflow.checking")} disabled={!job || busy !== null || job.status === "appointment_cancelled"} onClick={() => job && action("check", () => checkJapanAppointmentPortal(job.id))}><RefreshCw />{t("workflow.check")}</BrandActionButton>
+          <BrandActionButton variant="secondary" loading={busy === "consent"} loadingText={t("workflow.saving")} disabled={!consent || consentRecorded || Boolean(activeJob)} onClick={() => action("consent", () => recordJapanAppointmentConsent(applicationId, { ...eligibilityPayload, acceptedAt: new Date().toISOString() }))}><ShieldCheck />{t("workflow.saveConsent")}</BrandActionButton>
+          <BrandActionButton loading={busy === "create"} loadingText={t("workflow.creating")} disabled={!eligibility.eligible || !checklistReady || Boolean(activeJob) || !consentRecorded || !preflight?.passportUploaded || !preflight.photoUploaded || preflight.missingApplicationFields.length > 0} onClick={() => action("create", () => createJapanAppointmentJob(applicationId, eligibilityPayload))}><CalendarCheck />{job?.status === "appointment_cancelled" ? t("workflow.restart") : t("workflow.create")}</BrandActionButton>
+          <BrandActionButton variant="secondary" loading={busy === "check"} loadingText={t("workflow.checking")} disabled={!activeJob || busy !== null} onClick={() => activeJob && action("check", () => checkJapanAppointmentPortal(activeJob.id))}><RefreshCw />{t("workflow.check")}</BrandActionButton>
         </div>
         {snapshot?.account && <Alert><CheckCircle2 className="h-4 w-4 text-emerald-600" /><AlertTitle>{t("workflow.aliasReady")}</AlertTitle><AlertDescription>{t("workflow.aliasBody")}</AlertDescription></Alert>}
-        {snapshot?.pendingManualAction && <Alert className="border-amber-200 bg-amber-50"><ShieldCheck className="h-4 w-4 text-amber-700" /><AlertTitle>{t(`checkpoints.${snapshot.pendingManualAction.actionType}`)}</AlertTitle><AlertDescription>{snapshot.pendingManualAction.instruction}</AlertDescription></Alert>}
+        {snapshot?.pendingManualAction && <Alert className="border-amber-200 bg-amber-50"><ShieldCheck className="h-4 w-4 text-amber-700" /><AlertTitle>{t(`checkpoints.${snapshot.pendingManualAction.actionType}`)}</AlertTitle><AlertDescription>{t(`checkpointBodies.${snapshot.pendingManualAction.actionType}`)}</AlertDescription></Alert>}
         <div className="grid gap-2 sm:grid-cols-2">
           <Button variant="outline" asChild><a href={JAPAN_VFS_SG_OFFICIAL_URL} target="_blank" rel="noreferrer"><ExternalLink className="mr-2 h-4 w-4" />{t("workflow.openOfficial")}</a></Button>
-          <Button variant="outline" disabled={!job || job.status === "appointment_cancelled" || busy === "cancel"} onClick={() => job && action("cancel", () => cancelJapanAppointmentJob(job.id))}>{busy === "cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{t("workflow.cancel")}</Button>
+          <Button variant="outline" disabled={!activeJob || busy === "cancel"} onClick={() => activeJob && action("cancel", () => cancelJapanAppointmentJob(activeJob.id))}>{busy === "cancel" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}{t("workflow.cancel")}</Button>
         </div>
       </CardContent></Card>
 

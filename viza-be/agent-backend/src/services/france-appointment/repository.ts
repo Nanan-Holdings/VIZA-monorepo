@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "../../db/supabase-client.js";
 import type {
+  FranceAppointmentAccount,
   FranceAppointmentApplication,
   FranceAppointmentConfirmation,
   FranceAppointmentJob,
@@ -62,6 +63,7 @@ function mapJob(row: SupabaseObject): FranceAppointmentJob {
     applyingCountryCode: "CN",
     applyingPostCity: requiredString(row.applying_post_city),
     schedulingProvider: "tlscontact_cn_fr",
+    appointmentAccountId: nullableString(row.appointment_account_id),
     status: requiredString(row.status, "appointment_failed"),
     mode: requiredString(row.mode, "dry_run") as FranceAppointmentJob["mode"],
     requiresUserAction: requiredBoolean(row.requires_user_action),
@@ -78,6 +80,18 @@ function mapJob(row: SupabaseObject): FranceAppointmentJob {
         : null,
     idempotencyKey: requiredString(row.idempotency_key),
     createdAt: nullableString(row.created_at),
+    updatedAt: nullableString(row.updated_at),
+  };
+}
+
+function mapAccount(row: SupabaseObject): FranceAppointmentAccount {
+  return {
+    id: requiredString(row.id),
+    applicationId: nullableString(row.application_id),
+    accountEmail: nullableString(row.account_email),
+    accountStatus: requiredString(row.account_status, "not_created"),
+    emailVerified: requiredBoolean(row.email_verified),
+    lastLoginAt: nullableString(row.last_login_at),
     updatedAt: nullableString(row.updated_at),
   };
 }
@@ -197,6 +211,16 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
     return mapManualAction(data as SupabaseObject);
   }
 
+  async listManualActions(jobId: string): Promise<FranceAppointmentManualAction[]> {
+    const { data, error } = await getSupabaseClient()
+      .from("appointment_manual_actions")
+      .select("*")
+      .eq("job_id", jobId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as SupabaseObject[]).map(mapManualAction);
+  }
+
   async getLatestJob(applicationId: string): Promise<FranceAppointmentJob | null> {
     const { data, error } = await getSupabaseClient()
       .from("appointment_assistance_jobs")
@@ -223,6 +247,20 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
     return data ? mapJob(data as SupabaseObject) : null;
   }
 
+  async getAccountForApplication(applicationId: string): Promise<FranceAppointmentAccount | null> {
+    const { data, error } = await getSupabaseClient()
+      .from("appointment_accounts")
+      .select("id,application_id,account_email,account_status,email_verified,last_login_at,updated_at")
+      .eq("application_id", applicationId)
+      .eq("country_code", "FR")
+      .eq("portal", "tlscontact_cn_fr")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapAccount(data as SupabaseObject) : null;
+  }
+
   async insertJob(input: Omit<FranceAppointmentJob, "id" | "createdAt" | "updatedAt">): Promise<FranceAppointmentJob> {
     const now = new Date().toISOString();
     const { data, error } = await getSupabaseClient()
@@ -236,6 +274,7 @@ export class SupabaseFranceAppointmentRepository implements FranceAppointmentRep
         applying_country_code: input.applyingCountryCode,
         applying_post_city: input.applyingPostCity,
         scheduling_provider: input.schedulingProvider,
+        appointment_account_id: input.appointmentAccountId,
         status: input.status,
         mode: input.mode,
         requires_user_action: input.requiresUserAction,

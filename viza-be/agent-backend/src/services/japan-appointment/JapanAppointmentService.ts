@@ -49,6 +49,13 @@ export interface JapanAppointmentSnapshot {
   slots: [];
   pendingManualAction: JapanAppointmentManualAction | null;
   evidence: JsonObject | null;
+  preflight: {
+    consentRecorded: boolean;
+    missingApplicationFields: string[];
+    documentTypes: string[];
+    passportUploaded: boolean;
+    photoUploaded: boolean;
+  };
 }
 
 export interface JapanAppointmentRepository {
@@ -135,6 +142,17 @@ function validatePreflight(application: JapanAppointmentApplication, eligibility
   return [...new Set(missing)];
 }
 
+function applicationPreflight(application: JapanAppointmentApplication) {
+  const missingApplicationFields = REQUIRED_FIELDS.filter((field) => !first(application, [field]));
+  const documentTypes = application.documentTypes.map((value) => value.toLowerCase());
+  return {
+    missingApplicationFields,
+    documentTypes: application.documentTypes,
+    passportUploaded: documentTypes.some((value) => value.includes("passport")),
+    photoUploaded: documentTypes.some((value) => value.includes("photo")),
+  };
+}
+
 export class JapanAppointmentService {
   private readonly submissionServiceUrl: string;
   private readonly internalToken: string | null;
@@ -176,13 +194,15 @@ export class JapanAppointmentService {
       throw new JapanAppointmentServiceError(409, "missing_required_fields", `Missing required VIZA fields: ${missingFields.join(", ")}`);
     }
     const existing = await this.repository.getLatestJob(application.id);
-    if (existing) return existing;
+    if (existing && existing.status !== "appointment_cancelled") return existing;
     const alias = await this.repository.ensureAlias(application.applicantId);
     await this.repository.ensureAccount({ applicationId: application.id, userId: input.userId, alias });
     const job = await this.repository.insertJob({
       applicationId: application.id,
       userId: input.userId,
-      idempotencyKey: input.idempotencyKey ?? `japan-vfs-sg:${application.id}:${input.userId}`,
+      idempotencyKey: existing
+        ? `${input.idempotencyKey ?? `japan-vfs-sg:${application.id}:${input.userId}`}:retry:${Date.now()}`
+        : input.idempotencyKey ?? `japan-vfs-sg:${application.id}:${input.userId}`,
       preferences: {
         provider: "vfs_japan_sg",
         aliasPrepared: true,
@@ -197,16 +217,23 @@ export class JapanAppointmentService {
   }
 
   async getStatusForApplication(applicationId: string): Promise<JapanAppointmentSnapshot> {
-    const job = await this.repository.getLatestJob(applicationId);
-    if (!job) return { job: null, account: null, slots: [], pendingManualAction: null, evidence: null };
-    return this.getStatus(job.id);
+    const application = await this.getApplicationOrThrow(applicationId);
+    const [job, consent] = await Promise.all([
+      this.repository.getLatestJob(applicationId),
+      this.repository.findConsent(applicationId, application.userId),
+    ]);
+    const preflight = { ...applicationPreflight(application), consentRecorded: Boolean(consent) };
+    if (!job) return { job: null, account: null, slots: [], pendingManualAction: null, evidence: null, preflight };
+    return this.getStatus(job.id, preflight);
   }
 
-  async getStatus(jobId: string): Promise<JapanAppointmentSnapshot> {
+  async getStatus(jobId: string, knownPreflight?: JapanAppointmentSnapshot["preflight"]): Promise<JapanAppointmentSnapshot> {
     const job = await this.getJobOrThrow(jobId);
-    const [account, pendingManualAction] = await Promise.all([
+    const [account, pendingManualAction, application, consent] = await Promise.all([
       this.repository.getAccount(job.applicationId, job.userId),
       this.repository.getPendingManualAction(job.id),
+      this.getApplicationOrThrow(job.applicationId),
+      knownPreflight ? Promise.resolve(null) : this.repository.findConsent(job.applicationId, job.userId),
     ]);
     const evidence = job.userPreferencesJson.evidence;
     return {
@@ -215,11 +242,24 @@ export class JapanAppointmentService {
       slots: [],
       pendingManualAction,
       evidence: evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence as JsonObject : null,
+      preflight: knownPreflight ?? {
+        ...applicationPreflight(application),
+        consentRecorded: Boolean(consent),
+      },
     };
   }
 
   async checkPortal(jobId: string): Promise<JapanAppointmentSnapshot> {
     const job = await this.getJobOrThrow(jobId);
+    if (job.status === "appointment_cancelled") {
+      throw new JapanAppointmentServiceError(409, "appointment_cancelled", "Start a new preparation before checking the portal.");
+    }
+    const lastObservedAt = typeof job.userPreferencesJson.lastPortalObservedAt === "string"
+      ? Date.parse(job.userPreferencesJson.lastPortalObservedAt)
+      : Number.NaN;
+    if (Number.isFinite(lastObservedAt) && Date.now() - lastObservedAt < 60_000) {
+      return this.getStatus(job.id);
+    }
     const response = await fetch(`${this.submissionServiceUrl.replace(/\/$/, "")}/local/japan-vfs-sg/observe`, {
       method: "POST",
       headers: {
@@ -238,7 +278,12 @@ export class JapanAppointmentService {
       status: checkpointType === "no_slots" ? "appointment_no_slots_available" : "appointment_manual_required",
       requiresUserAction: true,
       currentManualAction: checkpointType,
-      userPreferencesJson: { ...job.userPreferencesJson, evidence: payload.evidence ?? {}, runnerProfile: payload.profile ?? {} },
+      userPreferencesJson: {
+        ...job.userPreferencesJson,
+        evidence: payload.evidence ?? {},
+        runnerProfile: payload.profile ?? {},
+        lastPortalObservedAt: new Date().toISOString(),
+      },
       lastErrorCode: null,
       lastErrorMessage: null,
     });

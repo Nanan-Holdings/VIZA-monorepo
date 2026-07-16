@@ -59,6 +59,42 @@ export const US_VISA_SCHEDULING_SELECTORS = {
     "[data-appointment-status], .appointment-status, *:has-text('Appointment'), *:has-text('Scheduled'), *:has-text('Cancelled'), *:has-text('确认'), *:has-text('已预约'), *:has-text('取消')",
 } as const;
 
+export async function isUSVisaSchedulingRegistrationFormVisible(page: Page): Promise<boolean> {
+  const [usernameVisible, newPasswordVisible] = await Promise.all([
+    page.locator(US_VISA_SCHEDULING_SELECTORS.registrationUsernameInputs)
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page.locator(US_VISA_SCHEDULING_SELECTORS.registrationNewPasswordInputs)
+      .first()
+      .isVisible()
+      .catch(() => false),
+  ]);
+  return usernameVisible && newPasswordVisible;
+}
+
+export async function reachUSVisaSchedulingRegistrationForm(page: Page): Promise<{
+  clicked: boolean;
+  reached: boolean;
+}> {
+  if (await isUSVisaSchedulingRegistrationFormVisible(page)) {
+    return { clicked: false, reached: true };
+  }
+  const signUp = page.locator(US_VISA_SCHEDULING_SELECTORS.signUpLinks).first();
+  await signUp.waitFor({ state: "visible", timeout: 30_000 });
+  await signUp.scrollIntoViewIfNeeded().catch(() => undefined);
+  await signUp.click({ timeout: 15_000 });
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(1_000);
+  const deadline = Date.now() + 45_000;
+  let reached = false;
+  while (!reached && Date.now() < deadline) {
+    reached = await isUSVisaSchedulingRegistrationFormVisible(page);
+    if (!reached) await page.waitForTimeout(500);
+  }
+  return { clicked: true, reached };
+}
+
 interface VisibleSlotCandidate {
   text: string;
   externalSlotId: string | null;
@@ -895,10 +931,14 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     page: Page,
     credentials: AppointmentAccountCredentials,
   ): Promise<AppointmentPortalGate> {
-    if (!await this.isRegistrationVisible(page)) {
-      await this.clickFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.signUpLinks);
-      await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-      await page.waitForTimeout(1_000);
+    const registrationEntry = await reachUSVisaSchedulingRegistrationForm(page);
+    if (!registrationEntry.reached) {
+      throw new Error("USVisaScheduling registration form did not appear after clicking Sign up now.");
+    }
+    const givenName = normalizeVisibleText(credentials.givenName);
+    const surname = normalizeVisibleText(credentials.surname);
+    if (!givenName || !surname) {
+      throw new Error("US appointment registration requires the applicant's real given name and surname.");
     }
     await this.fillFirstVisible(
       page,
@@ -911,29 +951,17 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     await this.fillFirstVisible(
       page,
       US_VISA_SCHEDULING_SELECTORS.registrationGivenNameInputs,
-      normalizeVisibleText(credentials.givenName) || "VIZA",
+      givenName,
     );
     await this.fillFirstVisible(
       page,
       US_VISA_SCHEDULING_SELECTORS.registrationSurnameInputs,
-      normalizeVisibleText(credentials.surname) || "APPLICANT",
+      surname,
     );
     await this.fillSecurityQuestions(page);
     await this.clickFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.sendVerificationCodeButtons);
     await page.waitForTimeout(2_000);
     return buildAccountEmailVerificationGate(credentials.email);
-  }
-
-  private async isRegistrationVisible(page: Page): Promise<boolean> {
-    const usernameVisible = await page.locator(US_VISA_SCHEDULING_SELECTORS.registrationUsernameInputs)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    const newPasswordVisible = await page.locator(US_VISA_SCHEDULING_SELECTORS.registrationNewPasswordInputs)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    return usernameVisible && newPasswordVisible;
   }
 
   private async fillSecurityQuestions(page: Page): Promise<void> {
