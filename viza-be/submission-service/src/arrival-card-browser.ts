@@ -40,10 +40,11 @@ export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" |
 export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [
     `${prefix}_BROWSER_API_ENDPOINT`,
-    `${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`,
   ];
+  if (prefix !== "TDAC") {
+    envNames.push(`${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`);
+  }
   if (
-    prefix === "TDAC" ||
     prefix === "PH_ETRAVEL" ||
     process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true"
   ) {
@@ -92,7 +93,12 @@ export async function createArrivalCardBrowserSession(options: {
   // A country runner can explicitly opt into Browserbase to avoid a configured
   // global Browser API provider whose policy does not permit the official site.
   // Do not let that global endpoint silently win over the explicit choice.
-  const preferBrowserbase = !options.forceLocal && browserbaseEnabled(options.prefix);
+  // Bright Data rejects the Thai government portal by policy. Browserbase is
+  // therefore TDAC's default; an operator can disable it for local/CDP tests.
+  const preferBrowserbase = !options.forceLocal && browserbaseEnabled(
+    options.prefix,
+    options.prefix === "TDAC",
+  );
   const endpoint = options.forceLocal || preferBrowserbase
     ? null
     : resolveArrivalCardBrowserEndpoint(options.prefix);
@@ -133,7 +139,7 @@ export async function createArrivalCardBrowserSession(options: {
     }
   }
 
-  if (!options.forceLocal && browserbaseEnabled(options.prefix)) {
+  if (preferBrowserbase) {
     try {
       const cloudSession = await connectBrowserbaseCloudBrowser({ prefix: options.prefix });
       const { browser, context, page } = cloudSession;

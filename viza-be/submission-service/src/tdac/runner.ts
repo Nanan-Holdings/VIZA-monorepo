@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { type CDPSession, type Download, type Page } from "@playwright/test";
+import { type Download, type Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 
@@ -94,103 +94,6 @@ async function waitForArrivalButtonEnabled(page: Page, timeoutMs: number): Promi
     await page.waitForTimeout(2_000);
   }
   return arrivalButtonEnabled(page);
-}
-
-async function solveWithBrowserApiCaptchaCdp(page: Page, logs: string[], stage: string): Promise<boolean> {
-  const hasChallenge = await page
-    .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], iframe[title*='Cloudflare']")
-    .first()
-    .count()
-    .catch(() => 0);
-  if (hasChallenge === 0) {
-    logs.push(`tdac_brightdata_captcha_solve_skipped_no_challenge stage=${stage}`);
-    return false;
-  }
-
-  let session: CDPSession | null = null;
-  try {
-    logs.push(`tdac_brightdata_captcha_solve_started stage=${stage}`);
-    session = await page.context().newCDPSession(page);
-    const sendBrightDataCommand = session.send.bind(session) as unknown as (
-      method: string,
-      params?: Record<string, unknown>,
-    ) => Promise<unknown>;
-    await sendBrightDataCommand("Captcha.setAutoSolve", { autoSolve: true }).catch(() => undefined);
-    const trySolve = async (params: Record<string, unknown>): Promise<unknown | null> => {
-      try {
-        return await sendBrightDataCommand("Captcha.solve", params);
-      } catch (error) {
-        logs.push(
-          `tdac_brightdata_captcha_solve_command_failed stage=${stage} params=${JSON.stringify(params)} ${
-            error instanceof Error ? error.message.split("\n")[0] : String(error)
-          }`,
-        );
-        return null;
-      }
-    };
-
-    const solveParams: Array<Record<string, unknown>> = [
-      { detectTimeout: 90_000, options: [{ type: "cf_turnstile" }, { type: "turnstile" }] },
-      { detectTimeout: 90_000 },
-    ];
-
-    let result: unknown | null = null;
-    for (const params of solveParams) {
-      result = await trySolve(params);
-      if (result) break;
-      await page.waitForTimeout(1_000);
-    }
-
-    if (!result) {
-      result = await sendBrightDataCommand("Captcha.waitForSolve", { detectTimeout: 90_000 }).catch(async (waitError) => {
-        logs.push(
-          `tdac_brightdata_captcha_wait_failed stage=${stage} ${
-            waitError instanceof Error ? waitError.message.split("\n")[0] : String(waitError)
-          }`,
-        );
-        return null;
-      });
-    }
-    const status = typeof result === "object" && result && "status" in result
-      ? String((result as { status?: unknown }).status ?? "unknown")
-      : "unknown";
-    logs.push(`tdac_brightdata_captcha_solve_status stage=${stage} status=${status}`);
-    const tokenValue = await page
-      .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
-      .first()
-      .inputValue()
-      .catch(() => "")
-      .then((value) => value.trim())
-      .catch(() => "");
-    if (tokenValue) {
-      logs.push(`tdac_brightdata_captcha_token_present stage=${stage}`);
-      return true;
-    }
-
-    const solvedByStatus = /solve_finished|finished|success|solved/i.test(status) && !/failed|invalid/i.test(status);
-    if (solvedByStatus) {
-      await page.waitForTimeout(2_000);
-      const tokenAfterWait = await page
-        .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']")
-        .first()
-        .inputValue()
-        .catch(() => "")
-        .then((value) => value.trim())
-        .catch(() => "");
-      if (tokenAfterWait) {
-        logs.push(`tdac_brightdata_captcha_token_present_after_wait stage=${stage}`);
-        return true;
-      }
-    }
-
-    await page.waitForTimeout(3_000);
-    return false;
-  } catch (error) {
-    logs.push(`tdac_brightdata_captcha_solve_failed stage=${stage} ${error instanceof Error ? error.message : String(error)}`);
-    return false;
-  } finally {
-    await session?.detach().catch(() => undefined);
-  }
 }
 
 async function waitForTdacCloudflareClearance(page: Page, logs: string[], timeoutMs: number): Promise<boolean> {
@@ -1615,7 +1518,7 @@ export async function runTdacPortalSubmission(
       if (!browserSession.nativeCloudflareUnblock) {
         await installTurnstileHook(page);
       } else {
-        logs.push("tdac_brightdata_native_cloudflare_unblock_enabled");
+        logs.push("tdac_remote_browser_native_cloudflare_unblock_enabled");
       }
     };
     const gotoOfficialPortal = async (): Promise<boolean> => {
@@ -1687,22 +1590,17 @@ export async function runTdacPortalSubmission(
       logs.push(`tdac_arrival_button_not_found_continue_to_add_route ${text.slice(0, 500).replace(/\s+/g, " ")}`);
     } else if (await arrivalButton.isDisabled().catch(() => false)) {
       screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
-      if (browserSession.nativeCloudflareUnblock) {
-        const solved = await solveWithBrowserApiCaptchaCdp(page, logs, "initial");
-        logs.push(`tdac_browser_api_captcha_solved=${solved}`);
-        logs.push("tdac_waiting_for_browser_api_cloudflare_clearance");
-        let enabledAfterNativeSolve = await waitForTdacCloudflareClearance(page, logs, 60_000);
-        if (!enabledAfterNativeSolve) {
-          logs.push("tdac_browser_api_captcha_native_solve_did_not_enable_button_try_checkbox");
+      if (browserSession.provider === "browserbase" || browserSession.nativeCloudflareUnblock) {
+        logs.push(`tdac_waiting_for_managed_browser_cloudflare_clearance provider=${browserSession.provider}`);
+        let enabledAfterManagedWait = await waitForTdacCloudflareClearance(page, logs, 120_000);
+        if (!enabledAfterManagedWait) {
           await clickTurnstileCheckboxIfVisible(page, logs);
-          const solvedAfterClick = await solveWithBrowserApiCaptchaCdp(page, logs, "after_checkbox");
-          logs.push(`tdac_browser_api_captcha_solved_after_checkbox=${solvedAfterClick}`);
-          enabledAfterNativeSolve = await waitForTdacCloudflareClearance(page, logs, 120_000);
+          enabledAfterManagedWait = await waitForTdacCloudflareClearance(page, logs, 60_000);
         }
-        if (!enabledAfterNativeSolve) {
+        if (!enabledAfterManagedWait) {
           screenshots.push(await saveScreenshot(page, "cloudflare-not-cleared", logs));
           const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-          throw new TdacPortalError("TDAC Cloudflare challenge was not cleared by Browser API.", {
+          throw new TdacPortalError("TDAC Cloudflare challenge was not cleared by the managed browser.", {
             code: "tdac_cloudflare_not_cleared",
             screenshotPaths: screenshots,
             portalSummary: text.slice(0, 500),

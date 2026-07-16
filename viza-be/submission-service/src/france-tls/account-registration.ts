@@ -264,6 +264,10 @@ async function clickFirstVisible(candidates: Locator[]): Promise<boolean> {
     if (!await locator.isVisible({ timeout: 2_000 }).catch(() => false)) continue;
     await locator.scrollIntoViewIfNeeded().catch(() => undefined);
     if (await locator.click({ timeout: 12_000 }).then(() => true).catch(() => false)) return true;
+    if (await locator.evaluate((element) => {
+      (element as HTMLElement).click();
+      return true;
+    }).catch(() => false)) return true;
   }
   return false;
 }
@@ -277,36 +281,62 @@ async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(1_500);
 }
 
+async function dismissConsentBanner(page: Page): Promise<void> {
+  const dismissed = await clickFirstVisible([
+    page.getByRole("button", { name: /reject all/i }),
+    page.getByRole("button", { name: /accept all/i }),
+    page.getByRole("button", { name: /close this dialog/i }),
+    page.locator("button, a, [role='button']").filter({ hasText: /^reject all$/i }),
+    page.locator("button, a, [role='button']").filter({ hasText: /^accept all$/i }),
+  ]);
+  if (dismissed) await page.waitForTimeout(500);
+}
+
+async function navigateToCenter(page: Page, centerPath: string): Promise<void> {
+  const centerUrl = new URL(centerPath, "https://visas-fr.tlscontact.com").href;
+  await page.goto(centerUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  await settle(page);
+  await dismissConsentBanner(page);
+}
+
 async function reachCenter(page: Page, centerPath: string, refreshRetries: number): Promise<void> {
   await page.goto("https://visas-fr.tlscontact.com/en-us", {
     waitUntil: "domcontentloaded",
     timeout: 90_000,
   });
   await settle(page);
-  await clickFirstVisible([
-    page.getByRole("button", { name: /reject all/i }),
-    page.getByRole("button", { name: /accept all/i }),
-    page.getByRole("button", { name: /close this dialog/i }),
-  ]);
-  await clickFirstVisible([
+  await dismissConsentBanner(page);
+  const appointmentEntryClicked = await clickFirstVisible([
     page.getByRole("button", { name: /book an appointment/i }),
     page.getByRole("link", { name: /book an appointment/i }),
   ]);
+  if (!appointmentEntryClicked) {
+    await navigateToCenter(page, centerPath);
+    return;
+  }
   const select = page.locator("select#select-country, select[name='select-country']").first();
   if (!await select.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    throw new Error("TLS residence-country selector was not found");
+    await navigateToCenter(page, centerPath);
+    return;
   }
   await select.selectOption({ label: "China" });
-  if (!await clickFirstVisible([
+  const residenceConfirmed = await clickFirstVisible([
     page.locator("#btn-confirm-country"),
     page.getByRole("link", { name: /^confirm$/i }),
     page.getByRole("button", { name: /^confirm$/i }),
-  ])) throw new Error("TLS residence-country confirmation was not found");
+    page.locator("button, a, [role='button']").filter({ hasText: /^confirm$/i }),
+  ]);
+  if (!residenceConfirmed) {
+    await navigateToCenter(page, centerPath);
+    return;
+  }
   await clickFirstVisible([page.locator("#btn-yes"), page.getByRole("button", { name: /^yes$/i })]);
   await settle(page);
+  await dismissConsentBanner(page);
   const centerLink = page.locator(`a[href*="${centerPath}"]`).first();
   if (!await centerLink.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    throw new Error("Requested TLS center link was not found");
+    await navigateToCenter(page, centerPath);
+    return;
   }
   await centerLink.click({ timeout: 15_000 });
   await settle(page);

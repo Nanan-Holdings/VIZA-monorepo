@@ -209,8 +209,9 @@ filling and one-shot submission for the applicant.
   evidence artifacts.
 - `src/tdac/**`: Thailand TDAC arrival-card runner. Normalizes
   `TH_TDAC_ARRIVAL_CARD` answers only, keeps TDAC separate from Thailand eVisa,
-  dispatches through the official TDAC portal, and captures confirmation/error
-  evidence artifacts.
+  defaults to a Thailand-targeted Browserbase session (Bright Data rejects the
+  government portal), dispatches through the official TDAC portal, and captures
+  confirmation/error evidence artifacts.
 - `src/ph-etravel/**`: Philippines eTravel arrival-card runner. Normalizes
   `PH_ETRAVEL_ARRIVAL_CARD` answers only, keeps eTravel separate from
   `PH_TEMPORARY_VISITOR_VISA`, respects the 72-hour official window, defaults

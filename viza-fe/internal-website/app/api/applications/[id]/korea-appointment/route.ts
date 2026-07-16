@@ -18,6 +18,7 @@ type Action =
   | "confirm-booking"
   | "request-live-booking"
   | "return-to-center-selection"
+  | "print-appointment-confirmation"
   | "submit-sms-code"
   | "approve-final-booking"
   | "complete-final-booking"
@@ -266,6 +267,15 @@ function submissionServiceErrorMessage(error: unknown) {
 function isSubmissionRunnerUnavailable(error: unknown) {
   const message = submissionServiceErrorMessage(error);
   return /fetch failed|ECONNREFUSED|ECONNRESET|Failed to fetch|terminated|AbortError|failed \(404\)|not[_ ]found/i.test(message);
+}
+
+interface KoreaKvacPrintConfirmationResponse {
+  ok?: boolean;
+  error?: string;
+  status?: "appointment_confirmation_printed";
+  confirmationNumber?: string;
+  confirmationPdfUrl?: string;
+  screenshotPath?: string | null;
 }
 
 function isCancellationSessionExpired(error: unknown) {
@@ -1174,6 +1184,63 @@ export async function POST(
       event_message: "Applicant returned to center selection before submitting the official SMS code.",
       metadata_redacted_json: { centerCode: routing.recommended.code },
     });
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "print-appointment-confirmation") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json({ error: "No Korea appointment job found" }, { status: 404 });
+    const { data: applicationState, error: applicationStateError } = await auth.admin
+      .from("applications")
+      .select("appointment_confirmation_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (applicationStateError) throw new Error(applicationStateError.message);
+    if (!applicationState?.appointment_confirmation_id) {
+      return NextResponse.json({ error: "No active Korea appointment confirmation" }, { status: 404 });
+    }
+    const { data: confirmation, error: confirmationError } = await auth.admin
+      .from("appointment_confirmations")
+      .select("id, confirmation_number, confirmation_pdf_url")
+      .eq("id", applicationState.appointment_confirmation_id)
+      .eq("application_id", id)
+      .maybeSingle();
+    if (confirmationError) throw new Error(confirmationError.message);
+    if (!confirmation) return NextResponse.json({ error: "Active Korea appointment confirmation not found" }, { status: 404 });
+    if (confirmation.confirmation_pdf_url) {
+      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    }
+    if (!routing.recommended.bookingSearchUrl) {
+      return NextResponse.json({ error: "The selected center does not expose a supported official appointment print flow" }, { status: 409 });
+    }
+    const answers = await readAnswerMap(auth.admin, id);
+    const applicantName = applicantNameForOfficial(answers);
+    const mobilePhone = mobilePhoneForOfficial(answers);
+    if (!applicantName || !mobilePhone) {
+      return NextResponse.json({ error: "Applicant name and mainland China mobile phone are required to retrieve the official confirmation" }, { status: 409 });
+    }
+    const result = await postSubmissionService<KoreaKvacPrintConfirmationResponse>("/local/korea-kvac/confirmation/print", {
+      applicationId: id,
+      jobId: job.id,
+      centerCode: routing.recommended.code,
+      bookingSearchUrl: routing.recommended.bookingSearchUrl,
+      applicantName,
+      mobilePhone,
+    });
+    if (!result.ok || result.status !== "appointment_confirmation_printed" || !result.confirmationPdfUrl) {
+      throw new Error("Official Korea KVAC confirmation PDF was not returned.");
+    }
+    if (confirmation.confirmation_number && result.confirmationNumber !== confirmation.confirmation_number) {
+      throw new Error("The official appointment query returned a different confirmation number. The PDF was not attached to this application.");
+    }
+    const { error: updateError } = await auth.admin
+      .from("appointment_confirmations")
+      .update({
+        confirmation_pdf_url: result.confirmationPdfUrl,
+        confirmation_screenshot_url: result.screenshotPath ?? null,
+      })
+      .eq("id", confirmation.id);
+    if (updateError) throw new Error(updateError.message);
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
