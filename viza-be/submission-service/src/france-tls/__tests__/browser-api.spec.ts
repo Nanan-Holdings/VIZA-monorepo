@@ -93,6 +93,18 @@ test("france-tls browser-api: classifies chrome error pages as site policy", () 
   assert.equal(state.checkpoint, "site_policy_review");
 });
 
+test("france-tls browser-api: classifies the official generic center error page", () => {
+  const state = classifyFranceTlsBrowserState({
+    url: "https://visas-fr.tlscontact.com/en-us/country/cn/vac/cnSHA2fr",
+    title: "Welcome to TLScontact Shanghai | TLScontact Shanghai",
+    bodyText: "Sorry Something went wrong. It looks like something went wrong. Please try to refresh the page or go back.",
+    frameUrls: [],
+  });
+
+  assert.equal(state.checkpoint, "site_policy_review");
+  assert.match(state.message, /generic center error/i);
+});
+
 test("france-tls browser-api: does not classify public fee-copy pages as payment", () => {
   const state = classifyFranceTlsBrowserState({
     url: "https://visas-fr.tlscontact.com/en-us/country/cn/vac/cnBJS2fr",

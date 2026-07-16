@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClientSession } from "@/lib/client-session";
-
-function isLocalDevelopmentRequest(request: Request): boolean {
-  const hostname = request.headers.get("host")?.split(":")[0];
-  return (
-    process.env.NODE_ENV === "development" &&
-    process.env.ENABLE_LOCAL_TEST_SESSION === "true" &&
-    (hostname === "127.0.0.1" || hostname === "localhost")
-  );
-}
+import { isLocalTestSessionAllowed } from "./availability";
 
 export async function POST(request: Request) {
-  if (!isLocalDevelopmentRequest(request)) {
+  if (!isLocalTestSessionAllowed({
+    host: request.headers.get("host"),
+    nodeEnv: process.env.NODE_ENV,
+    enabled: process.env.ENABLE_LOCAL_TEST_SESSION,
+  })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

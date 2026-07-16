@@ -32,3 +32,10 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: FRANCE_TLS_SUBMISSION_SERVICE_URL
+        value: https://viza-submission-legacy.fly.dev
+      - key: FRANCE_TLS_ACCOUNT_PREP_ENABLED
+        value: "true"
+      # Must match the Fly secret on viza-submission-legacy.
+      - key: FRANCE_TLS_INTERNAL_TOKEN
+        sync: false

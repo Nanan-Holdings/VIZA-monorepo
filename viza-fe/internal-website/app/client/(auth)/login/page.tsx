@@ -13,35 +13,8 @@ import { useTranslations } from 'next-intl'
 type Step = 'email' | 'otp'
 type LoginMethod = 'password' | 'otp'
 
-const AUTH_REQUEST_TIMEOUT_MS = 15_000
+const AUTH_REQUEST_TIMEOUT_MS = 9_000
 const AUTH_RETRY_DELAY_MS = 500
-
-class AuthRequestTimeoutError extends Error {
-  constructor() {
-    super('auth_request_timeout')
-    this.name = 'AuthRequestTimeoutError'
-  }
-}
-
-function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new AuthRequestTimeoutError()), AUTH_REQUEST_TIMEOUT_MS)
-    promise.then(
-      (value) => {
-        window.clearTimeout(timeout)
-        resolve(value)
-      },
-      (error: unknown) => {
-        window.clearTimeout(timeout)
-        reject(error)
-      },
-    )
-  })
-}
-
-function getAuthRequestFailureMessage(error: unknown, t: ReturnType<typeof useTranslations>) {
-  return error instanceof AuthRequestTimeoutError ? t('providerUnavailable') : t('unexpectedError')
-}
 
 function getLocalizedAuthError(
   result: { error?: string; code?: string },
@@ -80,12 +53,15 @@ async function requestClientAuth(
   const maximumAttempts = operation === 'send_otp' ? 1 : 2
 
   for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS)
     try {
       const response = await fetch('/api/client/auth', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operation, ...fields }),
+        signal: controller.signal,
       })
       const payload: unknown = await response.json().catch(() => null)
       if (!payload || typeof payload !== 'object') {
@@ -102,6 +78,8 @@ async function requestClientAuth(
       }
     } catch {
       if (attempt === maximumAttempts) return { success: false, code: 'provider_unavailable' }
+    } finally {
+      window.clearTimeout(timeout)
     }
 
     await waitForRetry()
@@ -225,7 +203,7 @@ function ClientLoginContent() {
   }, [resendCooldown])
 
   const sendOtp = async (targetEmail: string): Promise<boolean> => {
-    const result = await withAuthTimeout(requestClientAuth('send_otp', { email: targetEmail }))
+    const result = await requestClientAuth('send_otp', { email: targetEmail })
     if (!result.success) {
       setError(result.code === 'provider_unavailable'
         ? t('providerUnavailable')
@@ -240,18 +218,13 @@ function ClientLoginContent() {
   const verifyOtp = async (otpCode: string) => {
     setIsSubmitting(true)
     setError(null)
-    try {
-      const result = await withAuthTimeout(requestClientAuth('verify_otp', { email, token: otpCode }))
-      if (!result.success) {
-        setError(getLocalizedAuthError(result, t))
-        setIsSubmitting(false)
-        return
-      }
-      window.location.href = '/client/home'
-    } catch (err) {
+    const result = await requestClientAuth('verify_otp', { email, token: otpCode })
+    if (!result.success) {
       setIsSubmitting(false)
-      setError(getAuthRequestFailureMessage(err, t))
+      setError(getLocalizedAuthError(result, t))
+      return
     }
+    window.location.href = '/client/home'
   }
 
   const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -259,14 +232,9 @@ function ClientLoginContent() {
     setError(null)
     setNotice(null)
     setIsSubmitting(true)
-    try {
-      const ok = await sendOtp(email)
-      setIsSubmitting(false)
-      if (ok) { setStep('otp'); setResendCooldown(60) }
-    } catch (err) {
-      setIsSubmitting(false)
-      setError(getAuthRequestFailureMessage(err, t))
-    }
+    const ok = await sendOtp(email)
+    setIsSubmitting(false)
+    if (ok) { setStep('otp'); setResendCooldown(60) }
   }
 
   const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -274,18 +242,13 @@ function ClientLoginContent() {
     setError(null)
     setNotice(null)
     setIsSubmitting(true)
-    try {
-      const result = await withAuthTimeout(requestClientAuth('password', { email, password }))
-      if (!result.success) {
-        setError(getLocalizedAuthError(result, t))
-        setIsSubmitting(false)
-        return
-      }
-      window.location.href = '/client/home'
-    } catch (err) {
+    const result = await requestClientAuth('password', { email, password })
+    if (!result.success) {
       setIsSubmitting(false)
-      setError(getAuthRequestFailureMessage(err, t))
+      setError(getLocalizedAuthError(result, t))
+      return
     }
+    window.location.href = '/client/home'
   }
 
   const startLocalTestSession = async () => {
@@ -318,9 +281,9 @@ function ClientLoginContent() {
       const ok = await sendOtp(email)
       setIsSubmitting(false)
       if (ok) setResendCooldown(60)
-    } catch (err) {
+    } catch {
       setIsSubmitting(false)
-      setError(err instanceof AuthRequestTimeoutError ? t('requestTimedOut') : t('failedToResend'))
+      setError(t('failedToResend'))
     }
   }
 
