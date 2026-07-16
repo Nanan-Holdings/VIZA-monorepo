@@ -65,7 +65,7 @@ describe("JapanAppointmentService", () => {
     await service.recordConsent({ applicationId: "application-1", userId: "user-1", snapshot: {} });
     const job = await service.createJob({ applicationId: "application-1", userId: "user-1", eligibility });
     expect(job.status).toBe("appointment_account_required");
-    expect(job.userPreferencesJson).toMatchObject({ aliasPrepared: true, stopBeforeSlotSelection: true, stopBeforePayment: true, stopBeforeFinalBooking: true });
+    expect(job.userPreferencesJson).toMatchObject({ aliasPrepared: true, eligibility, stopBeforeSlotSelection: true, stopBeforePayment: true, stopBeforeFinalBooking: true });
   });
 
   it("returns backend-owned preflight and consent state", async () => {

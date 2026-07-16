@@ -1,7 +1,9 @@
 #!/usr/bin/env npx tsx
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
-import { resolve } from "node:path";
+import { promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
+import { extname, join, resolve } from "node:path";
 import { buildCountrySubmissionApplication, getCountrySubmissionProvider } from "../src/country-submissions";
 import { loadCanonicalAnswers } from "../src/queue/answers";
 import { ensureApplicantInboxAlias } from "../src/inbox/alias";
@@ -29,6 +31,7 @@ type ParsedArgs = {
   payloadFile?: string;
   forceLocalBrowser: boolean;
   useImapMailbox: boolean;
+  newImapAlias: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -67,6 +70,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     payloadFile: getArg("payload-file"),
     forceLocalBrowser: hasArg("local-browser"),
     useImapMailbox: hasArg("imap-mailbox"),
+    newImapAlias: hasArg("new-imap-alias"),
   };
 }
 
@@ -161,6 +165,7 @@ function isConfiguredImapPlusAlias(email: string): boolean {
 async function loadApplicationForPhPayload(applicationId: string): Promise<{
   applicationPayload: PhEtravelPortalPayload;
   applicantId: string;
+  profilePhotoPath?: string;
 }> {
   const appRes = await supabase
     .from("applications")
@@ -249,7 +254,77 @@ async function loadApplicationForPhPayload(applicationId: string): Promise<{
     idempotencyKey: `ph-etravel-smoke:${applicationId}`,
   }) as PhEtravelPortalPayload;
 
-  return { applicationPayload: payload, applicantId: application.applicant_id };
+  return {
+    applicationPayload: payload,
+    applicantId: application.applicant_id,
+    profilePhotoPath: await downloadReusableApplicantPhoto(application.applicant_id),
+  };
+}
+
+async function downloadReusableApplicantPhoto(applicantId: string): Promise<string | undefined> {
+  const applications = await supabase.from("applications").select("id").eq("applicant_id", applicantId);
+  if (applications.error) throw new Error(`Failed to load applications for reusable photo: ${applications.error.message}`);
+  const applicationIds = (applications.data ?? []).map((row) => row.id).filter(Boolean);
+  if (applicationIds.length === 0) return undefined;
+
+  const photos = await supabase
+    .from("application_documents")
+    .select("storage_path, filename, document_type, created_at")
+    .in("application_id", applicationIds)
+    .in("document_type", ["photo", "applicant_photo", "passport_photo"])
+    .in("status", ["uploaded", "validated"])
+    .not("storage_path", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  if (photos.error) throw new Error(`Failed to load reusable applicant photos: ${photos.error.message}`);
+
+  for (const photo of photos.data ?? []) {
+    if (!photo.storage_path) continue;
+    const download = await supabase.storage.from("application-documents").download(photo.storage_path);
+    if (download.error || !download.data) continue;
+    const extension = extname(photo.filename ?? photo.storage_path) || ".jpg";
+    const directory = await fs.mkdtemp(join(tmpdir(), "viza-ph-etravel-photo-"));
+    const filePath = join(directory, `profile${extension}`);
+    await fs.writeFile(filePath, Buffer.from(await download.data.arrayBuffer()));
+    return filePath;
+  }
+  return undefined;
+}
+
+async function loadProfileForSmokePayload(applicantId: string): Promise<{
+  payload: PhEtravelPortalPayload;
+  profilePhotoPath?: string;
+}> {
+  const profile = await supabase
+    .from("applicant_profiles")
+    .select("full_name, date_of_birth, gender, nationality, occupation, address, passport_number, passport_issue_date, passport_expiry_date, passport_issuing_country, passport_issuing_authority, email, phone")
+    .eq("id", applicantId)
+    .single();
+  if (profile.error || !profile.data) {
+    throw new Error(`Failed to load applicant profile for PH smoke: ${profile.error?.message ?? "not found"}`);
+  }
+  const row = profile.data;
+  return {
+    payload: {
+      ...DEFAULT_PAYLOAD,
+      applicationId: `ph-etravel-smoke-${Date.now()}`,
+      fullName: row.full_name ?? DEFAULT_PAYLOAD.fullName,
+      dateOfBirth: row.date_of_birth ?? DEFAULT_PAYLOAD.dateOfBirth,
+      sex: row.gender ?? DEFAULT_PAYLOAD.sex,
+      nationality: row.nationality ?? DEFAULT_PAYLOAD.nationality,
+      countryOfResidence: row.nationality ?? DEFAULT_PAYLOAD.countryOfResidence,
+      countryOfBirth: row.nationality ?? DEFAULT_PAYLOAD.countryOfBirth,
+      occupation: row.occupation ?? DEFAULT_PAYLOAD.occupation,
+      residenceAddress: row.address ?? DEFAULT_PAYLOAD.residenceAddress,
+      passportNumber: row.passport_number ?? DEFAULT_PAYLOAD.passportNumber,
+      passportIssueDate: row.passport_issue_date ?? DEFAULT_PAYLOAD.passportIssueDate,
+      passportExpiryDate: row.passport_expiry_date ?? DEFAULT_PAYLOAD.passportExpiryDate,
+      passportIssuingAuthority: row.passport_issuing_authority ?? row.passport_issuing_country ?? DEFAULT_PAYLOAD.passportIssuingAuthority,
+      emailAddress: row.email ?? DEFAULT_PAYLOAD.emailAddress,
+      mobileNumber: row.phone ?? DEFAULT_PAYLOAD.mobileNumber,
+    },
+    profilePhotoPath: await downloadReusableApplicantPhoto(applicantId),
+  };
 }
 
 async function loadPayloadFromFile(filePath: string): Promise<PhEtravelPortalPayload> {
@@ -374,17 +449,23 @@ async function main(): Promise<void> {
   }
 
   let payload = DEFAULT_PAYLOAD;
+  let profilePhotoPath: string | undefined;
   if (args.payloadFile) {
     payload = await loadPayloadFromFile(args.payloadFile);
   } else if (args.applicationId) {
     const loaded = await loadApplicationForPhPayload(args.applicationId);
     payload = loaded.applicationPayload;
     args.applicantId = args.applicantId ?? loaded.applicantId;
+    profilePhotoPath = loaded.profilePhotoPath;
+  } else if (args.applicantId) {
+    const loaded = await loadProfileForSmokePayload(args.applicantId);
+    payload = loaded.payload;
+    profilePhotoPath = loaded.profilePhotoPath;
   }
   payload = withDateOverrides(payload, args);
 
   const useApplicantId = args.applicantId?.trim();
-  const existingImapAccount = args.useImapMailbox && useApplicantId
+  const existingImapAccount = args.useImapMailbox && !args.newImapAlias && useApplicantId
     ? await loadPhEtravelAccount(useApplicantId)
     : null;
   const context = args.useImapMailbox
@@ -424,10 +505,11 @@ async function main(): Promise<void> {
   }
 
   const mailbox = args.useImapMailbox
-    ? createPhEtravelImapMailboxProvider()
+    ? createPhEtravelImapMailboxProvider(context.email)
     : useApplicantId
       ? createPhEtravelMailboxProvider(useApplicantId, context.email)
       : undefined;
+  payload.emailAddress = context.email;
   let attempts = 0;
   let lastError: unknown;
   while (attempts < 3) {
@@ -439,6 +521,7 @@ async function main(): Promise<void> {
         officialAccountEmail: context.email,
         officialAccountPassword: context.password,
         officialAccountMpin: context.mpin,
+        profilePhotoPath,
         forceAccountRegistration: context.forceAccountRegistration,
         mailbox,
         forceLocalBrowser: args.forceLocalBrowser,

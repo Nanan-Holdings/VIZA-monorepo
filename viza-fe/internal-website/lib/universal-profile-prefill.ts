@@ -80,6 +80,11 @@ function hasChinese(value: string) {
   return /[\u3400-\u9fff]/.test(value);
 }
 
+function cleanOfficialEnglish(value: string | null | undefined): string | null {
+  const normalized = clean(value);
+  return normalized && !hasChinese(normalized) ? normalized : null;
+}
+
 function buildBilingualValue(value: string | null | undefined) {
   const normalized = clean(value);
   if (!normalized) return null;
@@ -102,7 +107,7 @@ function buildBilingualValueFromParts(
   enValue: string | null | undefined,
 ) {
   const zh = clean(zhValue);
-  const en = clean(enValue);
+  const en = cleanOfficialEnglish(enValue);
   if (zh || en) {
     const generatedEn = zh ? toOfficialEnglishValue(zh) : "";
     return {
@@ -233,16 +238,21 @@ export function buildUniversalProfileAnswerPatch(profile: UniversalProfileSnapsh
   if (!profile) return out;
 
   const legacyChineseName = splitChineseFullName(profile.full_name_zh ?? (hasChinese(profile.full_name ?? "") ? profile.full_name : null));
-  const legacyEnglishName = splitPassportOrderEnglishName(profile.full_name_en ?? (!hasChinese(profile.full_name ?? "") ? profile.full_name : null));
+  const legacyEnglishName = splitPassportOrderEnglishName(
+    cleanOfficialEnglish(profile.full_name_en) ?? (!hasChinese(profile.full_name ?? "") ? profile.full_name : null),
+  );
   const surnameZh = profile.surname_zh || legacyChineseName.surname;
   const givenNamesZh = profile.given_names_zh || legacyChineseName.givenNames;
-  const surnameEn = profile.surname_en || profile.surname || (surnameZh ? toOfficialEnglishValue(surnameZh) : legacyEnglishName.surname);
+  const surnameEn = cleanOfficialEnglish(profile.surname_en) || cleanOfficialEnglish(profile.surname)
+    || (surnameZh ? toOfficialEnglishValue(surnameZh) : legacyEnglishName.surname);
   const givenNamesEn =
-    profile.given_names_en || profile.given_names || (givenNamesZh ? toOfficialEnglishValue(givenNamesZh) : legacyEnglishName.givenNames);
+    cleanOfficialEnglish(profile.given_names_en) || cleanOfficialEnglish(profile.given_names)
+    || (givenNamesZh ? toOfficialEnglishValue(givenNamesZh) : legacyEnglishName.givenNames);
   const surname = profile.surname || surnameEn || surnameZh;
   const givenNames = profile.given_names || givenNamesEn || givenNamesZh;
   const fullNameZh = profile.full_name_zh || (surnameZh || givenNamesZh ? `${surnameZh}${givenNamesZh}` : null);
-  const fullNameEn = profile.full_name_en || ([givenNamesEn, surnameEn].filter(Boolean).join(" ") || null);
+  const fullNameEn = cleanOfficialEnglish(profile.full_name_en)
+    || ([givenNamesEn, surnameEn].filter(Boolean).join(" ") || null);
   const legacyBirthplace = splitLegacyBirthplace(profile.place_of_birth_en ?? profile.place_of_birth);
   const legacyBirthplaceZh = splitLegacyBirthplace(profile.place_of_birth_zh);
 

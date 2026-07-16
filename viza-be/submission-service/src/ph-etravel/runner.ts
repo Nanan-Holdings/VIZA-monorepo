@@ -640,19 +640,31 @@ async function chooseDropdownOption(
     }
   }
 
-  const trigger = page.locator("button, [role='button'], [role='combobox'], div, input").filter({ hasText: triggerText }).last();
-  if (await trigger.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await trigger.click({ timeout: 10_000, force: true });
-  } else {
-    const label = page.getByText(triggerText).last();
-    if (!await label.isVisible({ timeout: 2_000 }).catch(() => false)) return false;
-    await label.click({ timeout: 10_000, force: true });
-  }
-  await page.waitForTimeout(500);
+  let typedIntoCombobox = false;
   if (typedText) {
-    await page.keyboard.press("Control+A").catch(() => undefined);
-    await page.keyboard.type(typedText, { delay: 30 }).catch(() => undefined);
-    await page.waitForTimeout(700);
+    const namedCombobox = page.getByRole("combobox", { name: triggerText }).first();
+    if (await namedCombobox.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await namedCombobox.click({ timeout: 10_000, force: true });
+      await namedCombobox.fill(typedText, { timeout: 10_000 });
+      typedIntoCombobox = true;
+      await page.waitForTimeout(700);
+    }
+  }
+  if (!typedIntoCombobox) {
+    const trigger = page.locator("button, [role='button'], [role='combobox'], div, input").filter({ hasText: triggerText }).last();
+    if (await trigger.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await trigger.click({ timeout: 10_000, force: true });
+    } else {
+      const label = page.getByText(triggerText).last();
+      if (!await label.isVisible({ timeout: 2_000 }).catch(() => false)) return false;
+      await label.click({ timeout: 10_000, force: true });
+    }
+    await page.waitForTimeout(500);
+    if (typedText) {
+      await page.keyboard.press("Control+A").catch(() => undefined);
+      await page.keyboard.type(typedText, { delay: 30 }).catch(() => undefined);
+      await page.waitForTimeout(700);
+    }
   }
   const clicked = await clickFirstAvailable(page, [
     page.getByRole("option", { name: optionText }),
@@ -1123,7 +1135,7 @@ async function maybeCreatePhEtravelAccount(
   }
 
   const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
-  const since = new Date().toISOString();
+  let since = new Date().toISOString();
   const clickedCreate = await clickFirstAvailable(page, [
     page.getByText(/create an account/i),
     page.getByRole("link", { name: /create an account/i }),
@@ -1164,6 +1176,19 @@ async function maybeCreatePhEtravelAccount(
       ? `ph_etravel_registration_responses ${registrationResponses.join(" | ")}`
       : "ph_etravel_registration_responses none",
   );
+  if (/enter one[-\s]?time[-\s]?password|resend email code/i.test(currentText)) {
+    const resendButton = page.getByRole("button", { name: /resend email code/i }).first();
+    if (
+      await resendButton.isVisible({ timeout: 1_000 }).catch(() => false) &&
+      await resendButton.isEnabled({ timeout: 1_000 }).catch(() => false)
+    ) {
+      since = new Date().toISOString();
+      await resendButton.click({ timeout: 10_000 });
+      logs.push("ph_etravel_registration_otp_resend_clicked");
+      await page.waitForTimeout(1_000);
+      currentText = await bodyText(page);
+    }
+  }
   if (/already\s+(?:registered|exists)|account\s+already/i.test(currentText)) {
     logs.push("ph_etravel_alias_account_already_exists");
     return false;

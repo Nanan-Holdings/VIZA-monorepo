@@ -1,3 +1,5 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
 
 export interface KoreaKvacStartSmsInput {
@@ -77,6 +79,13 @@ export interface KoreaKvacCancelConfirmResult {
   officialMessage: string;
 }
 
+export interface KoreaKvacPrintConfirmationResult {
+  status: "appointment_confirmation_printed";
+  confirmationNumber: string;
+  confirmationPdfUrl: string;
+  screenshotPath: string | null;
+}
+
 interface KoreaKvacLiveSession {
   applicationId: string;
   jobId: string;
@@ -89,6 +98,18 @@ interface KoreaKvacLiveSession {
   appointmentLocation: string;
   expiresAt: number;
   screenshotPath: string | null;
+  availableSlots: KoreaKvacObservedSlot[];
+}
+
+interface KoreaKvacObservedSlot {
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentEndTime: string;
+  calendarYear: string;
+  calendarMonth: string;
+  calendarDay: string;
+  timeGroupIndex: number;
+  detailedTimeIndex: number | null;
 }
 
 interface KoreaKvacCancelSession {
@@ -184,37 +205,134 @@ function cleanupExpired(referenceTime = nowMs()) {
   }
 }
 
-async function clickFirstAvailableDate(page: Page) {
-  for (let monthOffset = 0; monthOffset < 3; monthOffset += 1) {
-    const availableDates = page.locator(".ui-datepicker-calendar td a");
-    const count = await availableDates.count();
-    if (count > 0) {
-      await availableDates.first().click({ timeout: 10_000 });
-      await page.waitForTimeout(1_500);
-      return;
-    }
-    if (monthOffset < 2) {
-      await page.locator(".ui-datepicker-next").click({ timeout: 10_000 });
-      await page.waitForTimeout(1_000);
-    }
+const AVAILABLE_DATE_SELECTOR = ".ui-datepicker-calendar td[data-handler='selectDay']:not(.ui-datepicker-other-month) a";
+const TIME_GROUP_SELECTOR = ".time-table__item:not(.-done) a, .time-table__item:not(.-done) button";
+const DETAILED_TIME_SELECTOR = ".time-table__ly-link:not(.-done), .time-table__ly-item:not(.-done) a, .time-table__ly-item:not(.-done) button";
+
+async function openAppointmentCalendar(page: Page) {
+  if (await page.locator(AVAILABLE_DATE_SELECTOR).first().isVisible().catch(() => false)) return;
+  for (const candidate of [page.locator(".ui-datepicker-trigger").first(), page.locator("#visit_sche_day").first()]) {
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+    await candidate.click({ timeout: 10_000 });
+    await page.waitForTimeout(150);
+    if (await page.locator(AVAILABLE_DATE_SELECTOR).first().isVisible().catch(() => false)) return;
   }
-  throw new Error("No selectable Beijing KVAC appointment date was found in the visible calendar window.");
+  throw new Error("Official KVAC appointment calendar did not open.");
 }
 
-async function clickFirstAvailableTime(page: Page) {
-  const timeCards = page.locator(".time-table__item:not(.-done) a, .time-table__item:not(.-done) button");
-  if ((await timeCards.count()) === 0) {
-    throw new Error("No available Beijing KVAC appointment hour was found after choosing a date.");
+async function visibleLocatorIndexes(page: Page, selector: string) {
+  const locator = page.locator(selector);
+  const indexes: number[] = [];
+  for (let index = 0; index < await locator.count(); index += 1) {
+    if (await locator.nth(index).isVisible().catch(() => false)) indexes.push(index);
   }
-  await timeCards.first().click({ timeout: 10_000 });
-  await page.waitForTimeout(1_000);
+  return indexes;
+}
 
-  const detailedTimes = page.locator(".time-table__ly-link:not(.-done), .time-table__ly-item:not(.-done) a, .time-table__ly-item:not(.-done) button");
-  const detailedCount = await detailedTimes.count();
-  if (detailedCount > 0) {
-    await detailedTimes.nth(detailedCount - 1).click({ timeout: 10_000 });
-    await page.waitForTimeout(1_500);
+async function selectObservedDate(page: Page, slot: Pick<KoreaKvacObservedSlot, "calendarYear" | "calendarMonth" | "calendarDay">) {
+  await openAppointmentCalendar(page);
+  const target = page
+    .locator(`.ui-datepicker-calendar td[data-handler='selectDay'][data-year='${slot.calendarYear}'][data-month='${slot.calendarMonth}'] a`)
+    .filter({ hasText: new RegExp(`^${slot.calendarDay}$`) })
+    .first();
+  if (!(await target.isVisible().catch(() => false))) {
+    throw new Error(`Official KVAC date ${slot.calendarYear}-${Number(slot.calendarMonth) + 1}-${slot.calendarDay} is no longer selectable.`);
   }
+  await target.click({ timeout: 10_000 });
+  await page.waitForTimeout(250);
+}
+
+async function selectObservedTime(page: Page, timeGroupIndex: number, detailedTimeIndex: number | null) {
+  const groups = page.locator(TIME_GROUP_SELECTOR);
+  const group = groups.nth(timeGroupIndex);
+  if (!(await group.isVisible().catch(() => false))) throw new Error("Official KVAC time group is no longer available.");
+  await group.click({ timeout: 10_000 });
+  await page.waitForTimeout(150);
+  if (detailedTimeIndex === null) return;
+  const detailed = page.locator(DETAILED_TIME_SELECTOR).nth(detailedTimeIndex);
+  if (!(await detailed.isVisible().catch(() => false))) throw new Error("Official KVAC detailed time is no longer available.");
+  await detailed.click({ timeout: 10_000 });
+  await page.waitForTimeout(150);
+}
+
+async function selectObservedSlot(page: Page, slot: KoreaKvacObservedSlot) {
+  await selectObservedDate(page, slot);
+  await selectObservedTime(page, slot.timeGroupIndex, slot.detailedTimeIndex);
+  const selected = await readSelectedTime(page);
+  if (selected.day !== slot.appointmentDate || selected.time !== slot.appointmentTime) {
+    throw new Error(`Official KVAC selected ${selected.day} ${selected.time}, expected ${slot.appointmentDate} ${slot.appointmentTime}.`);
+  }
+}
+
+async function observeTimesForDate(
+  page: Page,
+  date: Pick<KoreaKvacObservedSlot, "calendarYear" | "calendarMonth" | "calendarDay">,
+) {
+  const observed: KoreaKvacObservedSlot[] = [];
+  const groupIndexes = await visibleLocatorIndexes(page, TIME_GROUP_SELECTOR);
+  for (const timeGroupIndex of groupIndexes) {
+    await page.locator(TIME_GROUP_SELECTOR).nth(timeGroupIndex).click({ timeout: 10_000 });
+    await page.waitForTimeout(120);
+    const detailedIndexes = await visibleLocatorIndexes(page, DETAILED_TIME_SELECTOR);
+    const choices: Array<number | null> = detailedIndexes.length ? detailedIndexes : [null];
+    for (const detailedTimeIndex of choices) {
+      if (detailedTimeIndex !== null) {
+        await page.locator(TIME_GROUP_SELECTOR).nth(timeGroupIndex).click({ timeout: 10_000 });
+        await page.waitForTimeout(80);
+        await page.locator(DETAILED_TIME_SELECTOR).nth(detailedTimeIndex).click({ timeout: 10_000 });
+        await page.waitForTimeout(100);
+      }
+      const selected = await readSelectedTime(page);
+      if (!selected.day || !selected.time) continue;
+      observed.push({
+        ...date,
+        appointmentDate: selected.day,
+        appointmentTime: selected.time,
+        appointmentEndTime: selected.nextTime,
+        timeGroupIndex,
+        detailedTimeIndex,
+      });
+    }
+  }
+  return observed;
+}
+
+async function observeAllAvailableSlots(page: Page) {
+  const observed: KoreaKvacObservedSlot[] = [];
+  const seenMonths = new Set<string>();
+  const maxMonths = Math.max(1, Number.parseInt(process.env.KR_KVAC_SLOT_LOOKAHEAD_MONTHS ?? "12", 10) || 12);
+
+  await openAppointmentCalendar(page);
+  for (let monthOffset = 0; monthOffset < maxMonths; monthOffset += 1) {
+    const monthKey = await page.locator(".ui-datepicker-title").innerText().catch(() => `month-${monthOffset}`);
+    if (seenMonths.has(monthKey)) break;
+    seenMonths.add(monthKey);
+    const dates = await page.locator(AVAILABLE_DATE_SELECTOR).evaluateAll((links) => links.map((link) => {
+      const cell = link.closest("td");
+      return {
+        calendarYear: cell?.getAttribute("data-year") ?? "",
+        calendarMonth: cell?.getAttribute("data-month") ?? "",
+        calendarDay: (link.textContent ?? "").trim(),
+      };
+    }).filter((date) => date.calendarYear && date.calendarMonth && date.calendarDay));
+
+    for (const date of dates) {
+      await selectObservedDate(page, date);
+      observed.push(...await observeTimesForDate(page, date));
+      await openAppointmentCalendar(page);
+    }
+
+    const next = page.locator(".ui-datepicker-next").first();
+    if (!(await next.isVisible().catch(() => false)) || await next.getAttribute("aria-disabled") === "true") break;
+    await next.click({ timeout: 10_000 });
+    await page.waitForTimeout(150);
+  }
+
+  const unique = new Map<string, KoreaKvacObservedSlot>();
+  for (const slot of observed) unique.set(`${slot.appointmentDate}|${slot.appointmentTime}`, slot);
+  return [...unique.values()].sort((left, right) =>
+    `${left.appointmentDate} ${left.appointmentTime}`.localeCompare(`${right.appointmentDate} ${right.appointmentTime}`),
+  );
 }
 
 async function readSelectedTime(page: Page) {
@@ -239,6 +357,46 @@ async function screenshot(page: Page, jobId: string, label: string) {
   const path = `output/playwright/korea-kvac-${jobId}-${label}.png`;
   await page.screenshot({ path, fullPage: true }).catch(() => undefined);
   return path;
+}
+
+async function saveOfficialConfirmationPdf(page: Page, jobId: string) {
+  const outputPath = path.resolve("output", "playwright", `korea-kvac-${jobId}-appointment-confirmation.pdf`);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  const tagged = await page.evaluate(() => {
+    const marker = "data-viza-official-confirmation-print";
+    document.querySelectorAll(`[${marker}]`).forEach((element) => element.removeAttribute(marker));
+    const pattern = /打印(?:申请|预约)确认书|Print\s+(?:application|appointment)\s+confirmation/i;
+    const control = Array.from(document.querySelectorAll("button, a, input[type='button'], input[type='submit'], [onclick]"))
+      .find((element) => pattern.test([
+        element.textContent ?? "",
+        element instanceof HTMLInputElement ? element.value : "",
+        element.getAttribute("title") ?? "",
+        element.getAttribute("aria-label") ?? "",
+      ].join(" ")));
+    if (!(control instanceof HTMLElement)) return false;
+    control.setAttribute(marker, "true");
+    return true;
+  });
+  const printControl = page.locator("[data-viza-official-confirmation-print='true']");
+  if (!tagged || !(await printControl.isVisible().catch(() => false))) {
+    throw new Error("Official KVAC booking succeeded, but the official print-confirmation control was not found.");
+  }
+
+  const popupPromise = page.context().waitForEvent("page", { timeout: 3_000 }).catch(() => null);
+  await printControl.click({ timeout: 20_000, noWaitAfter: true });
+  const popup = await popupPromise;
+  const printablePage = popup ?? page;
+  await printablePage.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+  await printablePage.emulateMedia({ media: "print" });
+  await printablePage.pdf({
+    path: outputPath,
+    format: "A4",
+    printBackground: true,
+    preferCSSPageSize: true,
+    margin: { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
+  });
+  if (popup) await popup.close().catch(() => undefined);
+  return outputPath;
 }
 
 async function clickFinalBookingButton(page: Page) {
@@ -537,8 +695,12 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
     await page.goto(input.bookingUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
     console.log(`[korea-kvac] official page loaded job=${input.jobId}`);
     await page.waitForTimeout(3_000);
-    await clickFirstAvailableDate(page);
-    await clickFirstAvailableTime(page);
+    const availableSlots = await observeAllAvailableSlots(page);
+    if (!availableSlots.length) {
+      throw new Error(`No selectable ${centerConfig.label} appointment slots were found in the official booking window.`);
+    }
+    console.log(`[korea-kvac] observed ${availableSlots.length} official slots job=${input.jobId}`);
+    await selectObservedSlot(page, availableSlots[0]);
     const selected = await readSelectedTime(page);
     if (!selected.day || !selected.time) {
       throw new Error(`${centerConfig.label} date/time was not selected on the official page.`);
@@ -576,6 +738,7 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
       appointmentLocation: centerConfig.location,
       expiresAt,
       screenshotPath,
+      availableSlots,
     });
 
     return {
@@ -612,16 +775,14 @@ export async function submitKoreaKvacOfficialSmsCode(input: {
   await session.page.waitForTimeout(4_000);
 
   const screenshotPath = await screenshot(session.page, input.jobId, "sms-submitted");
-  const slotId = `official-${session.centerCode}-${session.appointmentDate}-${session.appointmentTime}`.replace(/[^a-z0-9-]/gi, "-");
   session.screenshotPath = screenshotPath;
   return {
     status: "appointment_slots_observed",
     officialSessionId: input.jobId,
-    slots: [
-      {
-        id: slotId,
-        appointment_date: session.appointmentDate,
-        appointment_time: session.appointmentTime,
+    slots: session.availableSlots.map((slot) => ({
+        id: `official-${session.centerCode}-${slot.appointmentDate}-${slot.appointmentTime}`.replace(/[^a-z0-9-]/gi, "-"),
+        appointment_date: slot.appointmentDate,
+        appointment_time: slot.appointmentTime,
         appointment_location: session.appointmentLocation,
         appointment_type: "C-3-9 document intake",
         source: "official_kvac_after_sms",
@@ -629,12 +790,11 @@ export async function submitKoreaKvacOfficialSmsCode(input: {
         metadata_redacted_json: {
           centerCode: session.centerCode,
           source: "official_kvac",
-          appointmentEndTime: session.appointmentEndTime,
+          appointmentEndTime: slot.appointmentEndTime,
           officialSessionId: input.jobId,
           screenshotPath,
         },
-      },
-    ],
+      })),
     screenshotPath,
   };
 }
@@ -658,6 +818,7 @@ export async function completeKoreaKvacOfficialBooking(input: {
   const existingConfirmationNumber = await extractConfirmationNumber(session.page);
   if (existingConfirmationNumber) {
     const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
+    const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, input.jobId);
     await cleanupSession(input.jobId);
     return {
       status: "appointment_booked",
@@ -668,9 +829,19 @@ export async function completeKoreaKvacOfficialBooking(input: {
       appointmentLocation: input.selectedSlot?.appointment_location ?? session.appointmentLocation,
       appointmentType: input.selectedSlot?.appointment_type ?? "C-3-9 document intake",
       screenshotPath,
-      confirmationPdfUrl: null,
+      confirmationPdfUrl,
     };
   }
+
+  const requestedDate = input.selectedSlot?.appointment_date?.trim();
+  const requestedTime = input.selectedSlot?.appointment_time?.trim();
+  const officialSlot = session.availableSlots.find((slot) =>
+    slot.appointmentDate === requestedDate && slot.appointmentTime === requestedTime,
+  );
+  if (!officialSlot) {
+    throw new Error("The selected appointment slot is not present in the current official KVAC session. Refresh official slots before booking.");
+  }
+  await selectObservedSlot(session.page, officialSlot);
 
   const departureDate = input.selectedSlot?.departure_date?.trim();
   if (departureDate) {
@@ -690,18 +861,55 @@ export async function completeKoreaKvacOfficialBooking(input: {
     throw new Error("Official KVAC final click completed, but no confirmation number was found. Preserve the screenshot and verify the official page before reporting success.");
   }
 
+  const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, input.jobId);
+
   await cleanupSession(input.jobId);
   return {
     status: "appointment_booked",
     officialSessionId: input.jobId,
     confirmationNumber,
-    appointmentDate: input.selectedSlot?.appointment_date ?? session.appointmentDate,
-    appointmentTime: input.selectedSlot?.appointment_time ?? session.appointmentTime,
+    appointmentDate: officialSlot.appointmentDate,
+    appointmentTime: officialSlot.appointmentTime,
     appointmentLocation: input.selectedSlot?.appointment_location ?? session.appointmentLocation,
     appointmentType: input.selectedSlot?.appointment_type ?? "C-3-9 document intake",
     screenshotPath,
-    confirmationPdfUrl: null,
+    confirmationPdfUrl,
   };
+}
+
+export async function printKoreaKvacOfficialConfirmation(
+  input: KoreaKvacCancelQueryInput,
+): Promise<KoreaKvacPrintConfirmationResult> {
+  const centerConfig = VISAFORKOREA_CENTER_CONFIG[input.centerCode];
+  if (!centerConfig || !centerConfig.hostPattern.test(input.bookingSearchUrl)) {
+    throw new Error("A supported official KVAC appointment query URL is required to print the confirmation.");
+  }
+  const phone = normalizePhoneForKvac(input.mobilePhone);
+  if (!/^1\d{10}$/.test(phone)) throw new Error("Official KVAC appointment lookup requires an 11-digit mainland China mobile number.");
+  const applicantName = input.applicantName.trim();
+  if (!applicantName) throw new Error("Applicant name is required to print the official KVAC confirmation.");
+
+  const browser = await chromium.launch({ headless: !/^(1|true|yes|on)$/i.test(process.env.KR_KVAC_HEADFUL ?? "") });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1400 } });
+  try {
+    await page.goto(input.bookingSearchUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.locator("#booker_nm").fill(applicantName, { timeout: 20_000 });
+    await page.locator("#booker_phone").fill(phone, { timeout: 20_000 });
+    await page.locator("button[type='submit'], input[type='submit']").first().click({ timeout: 20_000 });
+    await page.waitForTimeout(4_000);
+    const confirmationNumber = await extractConfirmationNumber(page);
+    if (!confirmationNumber) throw new Error("Official KVAC appointment lookup did not return a confirmation number.");
+    const screenshotPath = await screenshot(page, input.jobId, "confirmation-print");
+    const confirmationPdfUrl = await saveOfficialConfirmationPdf(page, input.jobId);
+    return {
+      status: "appointment_confirmation_printed",
+      confirmationNumber,
+      confirmationPdfUrl,
+      screenshotPath,
+    };
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
 }
 
 export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQueryInput): Promise<KoreaKvacCancelQueryResult> {

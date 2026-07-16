@@ -82,6 +82,12 @@ function normalizeCandidateUrl(raw: string): string {
 }
 
 export function extractPhEtravelOtpFromMessage(message: Pick<InboundMessage, "html" | "text" | "subject">): string | null {
+  for (const source of [message.html, message.text].filter((value): value is string => Boolean(value))) {
+    const emphasizedCode = decodeQuotedPrintable(source).match(
+      /<(?:b|strong)\b[^>]*>\s*(\d{6})\s*<\/(?:b|strong)>/i,
+    );
+    if (emphasizedCode?.[1]) return emphasizedCode[1];
+  }
   for (const haystack of messageHaystacks(message)) {
     for (const pattern of OTP_PATTERNS) {
       const match = haystack.match(pattern);
@@ -202,11 +208,14 @@ export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddre
  * email should be a unique plus-address of that inbox so the registration does
  * not reuse the mailbox's primary address. Credentials remain in local env.
  */
-export function createPhEtravelImapMailboxProvider(): PhEtravelMailboxProvider {
+export function createPhEtravelImapMailboxProvider(mailboxAddress: string): PhEtravelMailboxProvider {
   const config = imapConfigFromEnv();
+  const escapedAddress = mailboxAddress.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const recipient = new RegExp(`^${escapedAddress}$`, "i");
   const waitForOfficialEmail = async (timeoutMs: number, since?: string) => waitForEmail({
     config,
     from: /etravel|egov|gov\.ph/i,
+    to: recipient,
     subject: /etravel|egov|verification|confirm|activate|otp|code/i,
     since: since ? new Date(since) : new Date(Date.now() - 60_000),
     timeoutMs,

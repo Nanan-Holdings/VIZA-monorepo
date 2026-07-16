@@ -313,7 +313,7 @@ export class JapanAppointmentService {
         "Content-Type": "application/json",
         ...(this.internalToken ? { Authorization: `Bearer ${this.internalToken}` } : {}),
       },
-      body: JSON.stringify({ applicationId: job.applicationId, jobId: job.id, prepareAlias: true }),
+      body: JSON.stringify({ applicationId: job.applicationId, jobId: job.id, prepareAlias: true, eligibility: job.userPreferencesJson.eligibility }),
     });
     const payload = await response.json().catch(() => null) as ({ ok?: boolean } & RunnerResult) | null;
     if (!response.ok || !payload) {
@@ -374,16 +374,25 @@ export class JapanAppointmentService {
     return this.getStatus(updated.id);
   }
 
-  async recordPaymentAuthorization(jobId: string, input: { sessionId: string; redacted: JsonObject }): Promise<JapanAppointmentSnapshot> {
+  async recordPaymentAuthorization(jobId: string, input: { card: { pan: string; expiry: string; cvv: string; holderName: string } }): Promise<JapanAppointmentSnapshot> {
     const job = await this.getJobOrThrow(jobId);
     if (!await this.repository.getSelectedSlot(job.id)) {
       throw new JapanAppointmentServiceError(409, "slot_required", "Select an official VFS slot before authorizing payment.");
     }
+    const response = await fetch(`${this.submissionServiceUrl.replace(/\/$/, "")}/internal/japan-vfs-sg/payment-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(this.internalToken ? { Authorization: `Bearer ${this.internalToken}` } : {}) },
+      body: JSON.stringify({ jobId: job.id, card: input.card }),
+    });
+    const payment = await response.json().catch(() => null) as { sessionId?: string; redacted?: JsonObject; expiresAt?: string } | null;
+    if (!response.ok || !payment?.sessionId) {
+      throw new JapanAppointmentServiceError(502, "japan_runner_unavailable", "The Japan one-time payment session could not be prepared.");
+    }
     const updated = await this.repository.updateJob(job.id, {
-      status: "appointment_payment_completed",
+      status: "appointment_payment_ready",
       requiresUserAction: true,
       currentManualAction: "final_confirmation",
-      userPreferencesJson: { ...job.userPreferencesJson, paymentSessionId: input.sessionId, paymentAuthorizationRedactedJson: input.redacted },
+      userPreferencesJson: { ...job.userPreferencesJson, paymentSessionId: payment.sessionId, paymentAuthorizationRedactedJson: payment.redacted ?? {}, paymentSessionExpiresAt: payment.expiresAt },
     });
     return this.getStatus(updated.id);
   }
@@ -418,6 +427,7 @@ export class JapanAppointmentService {
         jobId: job.id,
         selectedSlot: selected,
         paymentSessionId: job.userPreferencesJson.paymentSessionId,
+        eligibility: job.userPreferencesJson.eligibility,
       }),
     });
     const payload = await response.json().catch(() => null) as ({ ok?: boolean } & RunnerResult) | null;
