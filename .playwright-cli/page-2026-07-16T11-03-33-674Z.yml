@@ -1,0 +1,23 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - banner [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - generic [ref=f5e5]:
+          - link [ref=f5e6] [cursor=pointer]:
+            - /url: /client/home
+            - img "VIZA" [ref=f5e7]
+          - generic [ref=f5e8]:
+            - button "Select language" [ref=f5e9] [cursor=pointer]
+            - button [ref=f5e13] [cursor=pointer]
+        - generic [ref=f5e16]:
+          - generic [ref=f5e17]:
+            - button "首页" [ref=f5e18] [cursor=pointer]
+            - button "申请" [ref=f5e19] [cursor=pointer]
+            - button "状态" [ref=f5e20] [cursor=pointer]
+          - button "智能助手" [ref=f5e21] [cursor=pointer]
+          - generic [ref=f5e22]:
+            - button "设置" [ref=f5e23] [cursor=pointer]
+            - button "帮助" [ref=f5e24] [cursor=pointer]
+    - main [ref=f5e25]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f5e34] [cursor=pointer]
