@@ -11,7 +11,7 @@ if ! fly apps create "$app" --org "$FLY_ORG"; then
   # remain visible to the operator instead of being mistaken for an app lookup.
   fly status --app "$app" >/dev/null
 fi
-bash "$root/scripts/fly/sync-runtime-secrets.sh" "$app"
+bash "$root/scripts/fly/sync-runtime-secrets.sh" "$app" "legacy"
 fly_image="registry.fly.io/$app:${image##*:}"
 docker pull "$image"
 docker tag "$image" "$fly_image"
