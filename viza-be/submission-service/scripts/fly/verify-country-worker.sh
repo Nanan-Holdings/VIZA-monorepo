@@ -10,7 +10,7 @@ app="viza-runner-$country"
 fly status --app "$app" >/dev/null
 url="https://${app}.fly.dev/ready"
 body="$(curl --fail --silent --show-error --max-time 20 "$url")"
-if ! grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' <<<"$body"; then
+if ! grep -Eq '"status"[[:space:]]*:[[:space:]]*"ready"' <<<"$body"; then
   echo "Readiness probe returned an unexpected response for $app" >&2
   exit 1
 fi
