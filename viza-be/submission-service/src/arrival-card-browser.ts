@@ -79,7 +79,13 @@ export async function createArrivalCardBrowserSession(options: {
   forceLocal?: boolean;
 }): Promise<ArrivalCardBrowserSession> {
   const diagnostics: string[] = [];
-  const endpoint = options.forceLocal ? null : resolveArrivalCardBrowserEndpoint(options.prefix);
+  // A country runner can explicitly opt into Browserbase to avoid a configured
+  // global Browser API provider whose policy does not permit the official site.
+  // Do not let that global endpoint silently win over the explicit choice.
+  const preferBrowserbase = !options.forceLocal && browserbaseEnabled(options.prefix);
+  const endpoint = options.forceLocal || preferBrowserbase
+    ? null
+    : resolveArrivalCardBrowserEndpoint(options.prefix);
   const requireRemoteBrowserApi = !options.forceLocal && requiresRemoteBrowserApi(options.prefix, endpoint);
   if (endpoint) {
     let browser: Browser | null = null;

@@ -834,10 +834,11 @@ function normalizeTdacStepValues(
     let options = field.options;
     const rules = field.validationRules as {
       dependent_on?: string;
+      depends_on?: string;
       dependsOn?: string;
       dependent_options?: Record<string, VisaFormFieldOption[]>;
     } | null;
-    const parentFieldName = rules?.dependent_on ?? rules?.dependsOn;
+    const parentFieldName = rules?.dependent_on ?? rules?.depends_on ?? rules?.dependsOn;
     const parentValue = parentFieldName ? next[parentFieldName]?.trim() : "";
     if ((!options || options.length === 0) && rules?.dependent_options && parentValue) {
       options =
@@ -1228,10 +1229,11 @@ function getDynamicDependentOptions(
   const rules = field.validationRules as {
     dependent_options_key?: string;
     dependent_on?: string;
+    depends_on?: string;
     dependsOn?: string;
     dependent_options?: Record<string, VisaFormFieldOption[]>;
   } | null;
-  const parentFieldName = rules?.dependent_on ?? rules?.dependsOn;
+  const parentFieldName = rules?.dependent_on ?? rules?.depends_on ?? rules?.dependsOn;
   if (!parentFieldName) return null;
 
   const parentValue = values[parentFieldName];
@@ -2544,8 +2546,16 @@ export function DynamicStepForm({
           if (f.fieldName === parentFieldName) return false;
           const showIf = (f.conditionalLogic as { showIf?: string } | null)?.showIf;
           if (showIf && showIf.includes(parentFieldName)) return true;
-          const rules = f.validationRules as { dependent_on?: string; dependsOn?: string } | null;
-          if (rules?.dependent_on === parentFieldName || rules?.dependsOn === parentFieldName) return true;
+          const rules = f.validationRules as {
+            dependent_on?: string;
+            depends_on?: string;
+            dependsOn?: string;
+          } | null;
+          if (
+            rules?.dependent_on === parentFieldName ||
+            rules?.depends_on === parentFieldName ||
+            rules?.dependsOn === parentFieldName
+          ) return true;
           if (!f.conditionalLogic) {
             const withYes = { ...values, [parentFieldName]: "yes" };
             const withNo = { ...values, [parentFieldName]: "" };
@@ -2585,8 +2595,16 @@ export function DynamicStepForm({
         if (depField && !evaluateShowIf(depField, next, step.fields)) {
           next[dep] = "";
         } else if (depField) {
-          const rules = depField.validationRules as { dependent_on?: string; dependsOn?: string } | null;
-          if (rules?.dependent_on === fieldName || rules?.dependsOn === fieldName) {
+          const rules = depField.validationRules as {
+            dependent_on?: string;
+            depends_on?: string;
+            dependsOn?: string;
+          } | null;
+          if (
+            rules?.dependent_on === fieldName ||
+            rules?.depends_on === fieldName ||
+            rules?.dependsOn === fieldName
+          ) {
             next[dep] = "";
           }
         }

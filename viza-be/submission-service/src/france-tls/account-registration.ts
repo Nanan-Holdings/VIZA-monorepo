@@ -56,7 +56,7 @@ export interface FranceTlsAccountRegistrationResult {
   stopPoint: string;
 }
 
-interface RegistrationContext {
+export interface FranceTlsStoredAccountContext {
   applicationId: string;
   applicantId: string;
   userId: string;
@@ -149,7 +149,7 @@ async function persistAccount(input: {
 }
 
 async function updateAccountStatus(
-  context: RegistrationContext,
+  context: FranceTlsStoredAccountContext,
   status: string,
   emailVerified = context.emailVerified,
 ): Promise<void> {
@@ -174,7 +174,7 @@ async function updateAccountStatus(
 async function loadRegistrationContext(
   applicationId: string,
   requireOfficialReference: boolean,
-): Promise<RegistrationContext> {
+): Promise<FranceTlsStoredAccountContext> {
   const { data: application, error: applicationError } = await supabase
     .from("applications")
     .select("id,applicant_id,country,applicant_profiles!inner(auth_user_id,inbox_alias)")
@@ -236,6 +236,14 @@ async function loadRegistrationContext(
     status: account?.account_status ?? "account_prepared",
     emailVerified: Boolean(account?.email_verified),
   });
+  const { error: linkError } = await supabase
+    .from("appointment_assistance_jobs")
+    .update({ appointment_account_id: accountId, updated_at: new Date().toISOString() })
+    .eq("application_id", applicationId)
+    .eq("country_code", "FR")
+    .eq("scheduling_provider", TLS_PORTAL)
+    .abortSignal(dbAbortSignal());
+  if (linkError) throw new Error(`TLS appointment account link failed: ${linkError.message}`);
   return {
     applicationId,
     applicantId,
@@ -349,7 +357,7 @@ async function maskedScreenshot(page: Page, name: string): Promise<string> {
   return output;
 }
 
-async function submitRegistrationForm(page: Page, context: RegistrationContext): Promise<string[]> {
+async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccountContext): Promise<string[]> {
   await page.locator("#email, input[name='email']").first().fill(context.alias);
   await page.locator("#password, input[name='password']").first().fill(context.password);
   await page.locator("#confirm-password, input[name='passwordConfirm']").first().fill(context.password);
@@ -376,7 +384,7 @@ async function submitRegistrationForm(page: Page, context: RegistrationContext):
   return evidence;
 }
 
-async function activateAccount(page: Page, context: RegistrationContext, since: string, timeoutMs: number): Promise<void> {
+async function activateAccount(page: Page, context: FranceTlsStoredAccountContext, since: string, timeoutMs: number): Promise<void> {
   const message = await waitForFranceTlsActivationEmail(context.applicantId, timeoutMs, {
     since,
     includeProcessed: true,
@@ -392,7 +400,7 @@ async function activateAccount(page: Page, context: RegistrationContext, since: 
   await updateAccountStatus(context, "email_verified", true);
 }
 
-async function login(page: Page, context: RegistrationContext, centerUrl: string): Promise<void> {
+async function login(page: Page, context: FranceTlsStoredAccountContext, centerUrl: string): Promise<void> {
   const hasPassword = await page.locator("input[type='password']").first().isVisible({ timeout: 3_000 }).catch(() => false);
   if (!hasPassword) {
     await page.goto(centerUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -416,7 +424,24 @@ async function login(page: Page, context: RegistrationContext, centerUrl: string
   await updateAccountStatus(context, "logged_in", true);
 }
 
-async function fillOfficialReference(page: Page, context: RegistrationContext): Promise<string[]> {
+export async function loadFranceTlsStoredAccount(
+  applicationId: string,
+): Promise<FranceTlsStoredAccountContext> {
+  return loadRegistrationContext(applicationId, false);
+}
+
+export async function loginFranceTlsStoredAccount(
+  page: Page,
+  context: FranceTlsStoredAccountContext,
+  centerUrl: string,
+): Promise<void> {
+  if (!context.emailVerified) {
+    throw new Error("TLScontact alias account email has not been verified yet");
+  }
+  await login(page, context, centerUrl);
+}
+
+async function fillOfficialReference(page: Page, context: FranceTlsStoredAccountContext): Promise<string[]> {
   if (!context.officialReference) throw new Error("France-Visas official reference is missing");
   const candidates = page.locator(
     "input[name*='reference' i], input[id*='reference' i], input[placeholder*='reference' i]",
@@ -433,6 +458,27 @@ async function fillOfficialReference(page: Page, context: RegistrationContext): 
   await candidates.first().fill(context.officialReference);
   await updateAccountStatus(context, "appointment_reference_filled", true);
   return [];
+}
+
+export async function submitFranceTlsOfficialReference(
+  page: Page,
+  context: FranceTlsStoredAccountContext,
+): Promise<{ submitted: boolean; visibleUnmappedFields: string[] }> {
+  const visibleUnmappedFields = await fillOfficialReference(page, context);
+  if (visibleUnmappedFields.length) return { submitted: false, visibleUnmappedFields };
+  const clicked = await clickFirstVisible([
+    page.getByRole("button", { name: /continue|next|confirm|submit/i }),
+    page.getByRole("link", { name: /continue|next|confirm|submit/i }),
+    page.locator("button[type='submit'], input[type='submit']"),
+  ]);
+  if (!clicked) return { submitted: false, visibleUnmappedFields: ["official_reference_submit_control"] };
+  await settle(page);
+  const invalid = await page.locator(":invalid").count().catch(() => 0);
+  if (invalid > 0) {
+    return { submitted: false, visibleUnmappedFields: ["official_reference_validation"] };
+  }
+  await updateAccountStatus(context, "appointment_profile_filled", true);
+  return { submitted: true, visibleUnmappedFields: [] };
 }
 
 export async function registerAndPrepareFranceTlsAccount(

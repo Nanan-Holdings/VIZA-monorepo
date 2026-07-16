@@ -5046,6 +5046,7 @@
       "appointment_slot_selection_required": "需要选择名额",
       "appointment_slot_selected": "已选择名额",
       "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_final_confirmation_approved": "已记录最终批准",
       "appointment_booked": "已请求预约",
       "appointment_confirmation_captured": "官方确认已记录",
       "appointment_status_check_in_progress": "状态检查中",
@@ -5086,6 +5087,20 @@
       "body1": "VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。",
       "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。",
       "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
+    },
+    "account": {
+      "title": "VIZA Alias 与 TLS 账号",
+      "alias": "Alias 邮箱",
+      "status": "官网账号状态",
+      "verification": "邮箱验证",
+      "verified": "已自动验证",
+      "notVerified": "待验证",
+      "pending": "Runner 启动时创建",
+      "body": "云端 runner 使用本申请专属 alias 注册 TLScontact。Cloudflare Email Worker 会把激活邮件写入 inbound_email；密码和激活链接只保留在服务端。"
+    },
+    "checkpoint": {
+      "title": "官网检查点",
+      "body": "TLScontact 要求复核后才能继续自动流程。"
     },
     "panel": {
       "title": "预约 runner",
@@ -5160,11 +5175,12 @@
     "visaTypes": { "single_entry": "单次入境", "double_entry": "双次入境", "multiple_entry": "多次入境" },
     "occupations": { "employed": "受雇", "self_employed": "企业主／自雇", "student": "学生", "retired": "退休", "housewife": "家庭主妇／主夫", "unemployed": "待业" },
     "passTypes": { "pr": "永久居民 PR", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
-    "documents": { "title": "2. 材料预检", "body": "请先确认准备状态，再到材料中心上传真实护照和照片。后端只认可 VIZA 已存储的上传文件，不会把勾选框当成已上传。", "manage": "打开材料中心" },
-    "workflow": { "title": "3. 云端流程", "consent": "我确认信息真实，并授权 VIZA 准备日本 VFS 新加坡 alias／账号记录以及执行停止于预约前的云端门户检查。", "saving": "正在保存…", "saveConsent": "记录授权", "creating": "正在准备…", "create": "准备后端", "checking": "正在检查…", "check": "检查官方门户", "aliasReady": "Alias 已准备", "aliasBody": "VIZA 已准备脱敏 alias 账号记录。本页面不会暴露 VFS 密码、CAPTCHA、银行卡或会话令牌。", "openOfficial": "打开官方 VFS", "cancel": "取消准备" },
+    "documents": { "title": "2. 材料预检", "body": "请先确认准备状态，再到材料中心上传真实护照和照片。后端只认可 VIZA 已存储的上传文件，不会把勾选框当成已上传。", "manage": "打开材料中心", "passportStored": "VIZA 已存储护照", "photoStored": "VIZA 已存储照片", "profileIncomplete": "申请资料尚未完整", "profileMissing": "准备预约前，请先在申请表补齐这些字段：{fields}。" },
+    "workflow": { "title": "3. 云端流程", "consent": "我确认信息真实，并授权 VIZA 准备日本 VFS 新加坡 alias／账号记录以及执行停止于预约前的云端门户检查。", "saving": "正在保存…", "saveConsent": "记录授权", "consentRecorded": "授权已记录", "consentRecordedBody": "后端已为当前申请保存本次预约准备授权。", "creating": "正在准备…", "create": "准备后端", "restart": "重新开始", "restartTitle": "本次准备已取消", "restartBody": "核对最新资料后，可以重新创建一次预约准备。", "checking": "正在检查…", "check": "检查官方门户", "aliasReady": "Alias 已准备", "aliasBody": "VIZA 已准备脱敏 alias 账号记录。本页面不会暴露 VFS 密码、CAPTCHA、银行卡或会话令牌。", "openOfficial": "打开官方 VFS", "cancel": "取消准备" },
     "evidence": { "title": "云端证据", "httpStatus": "HTTP 状态", "pageTitle": "官方页面", "observedAt": "检查时间", "replay": "Browserbase 回放" },
     "checkpoints": { "login": "需要官方登录", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "site_policy_review": "官方政策检查点" },
+    "checkpointBodies": { "login": "官方入口可以访问，但读取预约日历前仍需要有效的 VFS 登录会话。", "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，且不会把该状态误报为预约成功。", "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。", "identity_verification": "官方网站要求申请人身份验证或一次性验证码后才能继续。", "selector_drift": "官方网站当前页面与已验证的预约状态不匹配，VIZA 已暂停等待复核。", "no_slots": "最近一次观察中，官方网站没有显示可预约时间。", "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。" },
     "statuses": { "not_started": "尚未开始", "appointment_account_required": "Alias 已准备", "appointment_manual_required": "需要官方操作", "appointment_no_slots_available": "暂无时段", "appointment_cancelled": "已取消" },
-    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。" }
+    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。", "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。", "consentRequired": "请先记录授权，再准备预约。", "cancelled": "本次准备已取消，请重新开始后再检查官方网站。", "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。", "sessionRequired": "登录会话已过期，请重新登录后继续。" }
   }
 }

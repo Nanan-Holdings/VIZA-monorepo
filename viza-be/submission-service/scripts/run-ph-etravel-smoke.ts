@@ -6,7 +6,10 @@ import { buildCountrySubmissionApplication, getCountrySubmissionProvider } from 
 import { loadCanonicalAnswers } from "../src/queue/answers";
 import { ensureApplicantInboxAlias } from "../src/inbox/alias";
 import { choosePhEtravelAccountPlan, loadPhEtravelAccount, upsertPhEtravelAccount } from "../src/ph-etravel/account";
-import { createPhEtravelMailboxProvider } from "../src/ph-etravel/mailbox-provider";
+import {
+  createPhEtravelImapMailboxProvider,
+  createPhEtravelMailboxProvider,
+} from "../src/ph-etravel/mailbox-provider";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "../src/ph-etravel/runner";
 import type { PhEtravelPortalPayload } from "../src/ph-etravel/normalize";
 import { supabase } from "../src/supabase";
@@ -25,6 +28,7 @@ type ParsedArgs = {
   headless: boolean;
   payloadFile?: string;
   forceLocalBrowser: boolean;
+  useImapMailbox: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -62,6 +66,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     headless: parseBoolean("headless", process.env.PH_ETRAVEL_PLAYWRIGHT_HEADLESS !== "false"),
     payloadFile: getArg("payload-file"),
     forceLocalBrowser: hasArg("local-browser"),
+    useImapMailbox: hasArg("imap-mailbox"),
   };
 }
 
@@ -136,6 +141,14 @@ function makeGeneratedPassword(): string {
 
 function makeGeneratedMpin(): string {
   return randomBytes(3).readUIntLE(0, 3).toString().slice(0, 6).padStart(6, "0");
+}
+
+function makeImapPlusAlias(): string {
+  const inbox = process.env.IMAP_EMAIL?.trim().toLowerCase();
+  if (!inbox) throw new Error("--imap-mailbox requires IMAP_EMAIL in the local environment.");
+  const [localPart, domain] = inbox.split("@");
+  if (!localPart || !domain) throw new Error("IMAP_EMAIL must be a valid email address.");
+  return `${localPart}+ph-etravel-${randomSuffix(8)}@${domain}`;
 }
 
 async function loadApplicationForPhPayload(applicationId: string): Promise<{
@@ -364,15 +377,38 @@ async function main(): Promise<void> {
   payload = withDateOverrides(payload, args);
 
   const useApplicantId = args.applicantId?.trim();
-  const context = await buildPhEtravelAccountContext({
-    applicantId: useApplicantId,
-    explicitEmail: args.accountEmail,
-    explicitPassword: args.accountPassword,
-    explicitMpin: args.accountMpin,
-    mailboxEmail: args.mailboxEmail,
-  });
+  const context = args.useImapMailbox
+    ? {
+        email: makeImapPlusAlias(),
+        password: makeGeneratedPassword(),
+        mpin: makeGeneratedMpin(),
+        mode: "create_new" as const,
+        applicantId: useApplicantId,
+        forceAccountRegistration: true,
+      }
+    : await buildPhEtravelAccountContext({
+        applicantId: useApplicantId,
+        explicitEmail: args.accountEmail,
+        explicitPassword: args.accountPassword,
+        explicitMpin: args.accountMpin,
+        mailboxEmail: args.mailboxEmail,
+      });
 
-  const mailbox = useApplicantId ? createPhEtravelMailboxProvider(useApplicantId, args.mailboxEmail) : undefined;
+  if (args.useImapMailbox && useApplicantId) {
+    await upsertPhEtravelAccount({
+      applicantId: useApplicantId,
+      email: context.email,
+      password: context.password,
+      mpin: context.mpin,
+      status: "pending_registration",
+    });
+  }
+
+  const mailbox = args.useImapMailbox
+    ? createPhEtravelImapMailboxProvider()
+    : useApplicantId
+      ? createPhEtravelMailboxProvider(useApplicantId, context.email)
+      : undefined;
   let attempts = 0;
   let lastError: unknown;
   while (attempts < 3) {

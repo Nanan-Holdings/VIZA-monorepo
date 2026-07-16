@@ -4960,6 +4960,7 @@
       "appointment_slot_selection_required": "Slot selection required",
       "appointment_slot_selected": "Slot selected",
       "appointment_final_confirmation_required": "Final approval required",
+      "appointment_final_confirmation_approved": "Final approval recorded",
       "appointment_booked": "Booking requested",
       "appointment_confirmation_captured": "Official confirmation captured",
       "appointment_status_check_in_progress": "Status check in progress",
@@ -5000,6 +5001,20 @@
       "body1": "VIZA can assist the mainland China TLScontact flow after the France-Visas application reference has been created.",
       "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, slot observation, service-fee payment handoff, and confirmation checkpoints. You still choose the slot, authorize payment, and approve final booking.",
       "checkbox": "I authorize VIZA to run France Schengen TLScontact China appointment actions for this application, with explicit slot selection, one-time payment authorization, final approval, and official evidence capture."
+    },
+    "account": {
+      "title": "VIZA alias and TLS account",
+      "alias": "Alias email",
+      "status": "Official account status",
+      "verification": "Email verification",
+      "verified": "Verified automatically",
+      "notVerified": "Pending",
+      "pending": "Created when the runner starts",
+      "body": "The cloud runner registers TLScontact with this application-specific alias. Cloudflare Email Worker writes the activation message to inbound_email; passwords and activation links stay server-side."
+    },
+    "checkpoint": {
+      "title": "Official portal checkpoint",
+      "body": "TLScontact requires review before the automated flow can continue."
     },
     "panel": {
       "title": "Appointment runner",
@@ -5074,11 +5089,12 @@
     "visaTypes": { "single_entry": "Single entry", "double_entry": "Double entry", "multiple_entry": "Multiple entry" },
     "occupations": { "employed": "Employed", "self_employed": "Self-employed", "student": "Student", "retired": "Retired", "housewife": "Homemaker", "unemployed": "Unemployed" },
     "passTypes": { "pr": "Permanent Resident", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
-    "documents": { "title": "2. Document preflight", "body": "Confirm your readiness here, then use Document Center for the actual passport and photo uploads. The backend checks stored VIZA uploads and never treats these checkboxes as uploaded files.", "manage": "Open Document Center" },
-    "workflow": { "title": "3. Cloud workflow", "consent": "I confirm the information is truthful and authorize VIZA to prepare a Japan VFS Singapore alias/account record and run a stop-before-booking cloud portal check.", "saving": "Saving…", "saveConsent": "Record consent", "creating": "Preparing…", "create": "Prepare backend", "checking": "Checking…", "check": "Check official portal", "aliasReady": "Alias prepared", "aliasBody": "A redacted VIZA alias account record is ready. No official VFS password, CAPTCHA, payment card, or session token is exposed here.", "openOfficial": "Open official VFS", "cancel": "Cancel preparation" },
+    "documents": { "title": "2. Document preflight", "body": "Confirm your readiness here, then use Document Center for the actual passport and photo uploads. The backend checks stored VIZA uploads and never treats these checkboxes as uploaded files.", "manage": "Open Document Center", "passportStored": "Passport stored in VIZA", "photoStored": "Photo stored in VIZA", "profileIncomplete": "Application profile is incomplete", "profileMissing": "Complete these fields in the application before preparing the appointment: {fields}." },
+    "workflow": { "title": "3. Cloud workflow", "consent": "I confirm the information is truthful and authorize VIZA to prepare a Japan VFS Singapore alias/account record and run a stop-before-booking cloud portal check.", "saving": "Saving…", "saveConsent": "Record consent", "consentRecorded": "Consent recorded", "consentRecordedBody": "The backend has stored your authorization for this application.", "creating": "Preparing…", "create": "Prepare backend", "restart": "Start again", "restartTitle": "Preparation cancelled", "restartBody": "You can review the latest details and start a new preparation when ready.", "checking": "Checking…", "check": "Check official portal", "aliasReady": "Alias prepared", "aliasBody": "A redacted VIZA alias account record is ready. No official VFS password, CAPTCHA, payment card, or session token is exposed here.", "openOfficial": "Open official VFS", "cancel": "Cancel preparation" },
     "evidence": { "title": "Cloud evidence", "httpStatus": "HTTP status", "pageTitle": "Official page", "observedAt": "Observed at", "replay": "Browserbase replay" },
     "checkpoints": { "login": "Official login required", "captcha": "CAPTCHA detected", "waf": "WAF checkpoint", "identity_verification": "Identity verification required", "selector_drift": "Portal state requires review", "no_slots": "No slots visible", "site_policy_review": "Official policy checkpoint" },
+    "checkpointBodies": { "login": "The official entry is reachable, but an authenticated VFS session is required before the calendar can be read.", "captcha": "The official portal requires a CAPTCHA check. VIZA has paused without claiming an appointment.", "waf": "The official portal is showing a security or regional access checkpoint. VIZA has preserved the observation and paused.", "identity_verification": "The official portal requires an applicant identity or one-time-code step before continuing.", "selector_drift": "The official page did not match a verified booking state. VIZA has paused for review.", "no_slots": "The official page did not expose an available appointment time during the latest observation.", "site_policy_review": "The official portal requires a policy review before automation can continue." },
     "statuses": { "not_started": "Not started", "appointment_account_required": "Alias prepared", "appointment_manual_required": "Official action required", "appointment_no_slots_available": "No slots", "appointment_cancelled": "Cancelled" },
-    "errors": { "title": "Could not continue", "load": "Japan appointment status could not be loaded.", "action": "Japan appointment action failed." }
+    "errors": { "title": "Could not continue", "load": "Japan appointment status could not be loaded.", "action": "Japan appointment action failed.", "missingRequiredFields": "Complete the missing application fields and upload the passport and photo before preparing the appointment.", "consentRequired": "Record your consent before preparing the appointment.", "cancelled": "This preparation was cancelled. Start a new preparation before checking the portal.", "runnerUnavailable": "The official-portal worker is not available. Please try again later.", "sessionRequired": "Your sign-in session expired. Sign in again to continue." }
   }
 }

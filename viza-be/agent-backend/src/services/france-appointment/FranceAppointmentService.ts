@@ -24,6 +24,7 @@ export interface FranceAppointmentJob {
   applyingCountryCode: "CN";
   applyingPostCity: string;
   schedulingProvider: "tlscontact_cn_fr";
+  appointmentAccountId: string | null;
   status: string;
   mode: FranceAppointmentMode;
   requiresUserAction: boolean;
@@ -34,6 +35,16 @@ export interface FranceAppointmentJob {
   paymentAuthorizationRedactedJson: JsonObject | null;
   idempotencyKey: string;
   createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface FranceAppointmentAccount {
+  id: string;
+  applicationId: string | null;
+  accountEmail: string | null;
+  accountStatus: string;
+  emailVerified: boolean;
+  lastLoginAt: string | null;
   updatedAt: string | null;
 }
 
@@ -85,7 +96,7 @@ export interface FranceAppointmentConfirmation {
 
 export interface FranceAppointmentSnapshot {
   job: FranceAppointmentJob;
-  account: null;
+  account: FranceAppointmentAccount | null;
   slots: FranceAppointmentSlot[];
   pendingManualAction: FranceAppointmentManualAction | null;
   manualActions: FranceAppointmentManualAction[];
@@ -98,8 +109,10 @@ export interface FranceAppointmentRepository {
   getApplication(applicationId: string): Promise<FranceAppointmentApplication | null>;
   findConsent(applicationId: string, userId: string): Promise<FranceAppointmentManualAction | null>;
   insertManualAction(input: Omit<FranceAppointmentManualAction, "id" | "createdAt">): Promise<FranceAppointmentManualAction>;
+  listManualActions(jobId: string): Promise<FranceAppointmentManualAction[]>;
   getLatestJob(applicationId: string): Promise<FranceAppointmentJob | null>;
   getJob(jobId: string): Promise<FranceAppointmentJob | null>;
+  getAccountForApplication(applicationId: string): Promise<FranceAppointmentAccount | null>;
   insertJob(input: Omit<FranceAppointmentJob, "id" | "createdAt" | "updatedAt">): Promise<FranceAppointmentJob>;
   updateJob(jobId: string, patch: Partial<FranceAppointmentJob>): Promise<FranceAppointmentJob>;
   replaceObservedSlots(
@@ -275,6 +288,7 @@ export class FranceAppointmentService {
       applyingCountryCode: "CN",
       applyingPostCity: CENTER_NAMES[centerCode],
       schedulingProvider: "tlscontact_cn_fr",
+      appointmentAccountId: null,
       status: "appointment_consent_received",
       mode: input.mode ?? "dry_run",
       requiresUserAction: false,
@@ -301,11 +315,13 @@ export class FranceAppointmentService {
 
   async getStatus(jobId: string): Promise<FranceAppointmentSnapshot> {
     const job = await this.getJobOrThrow(jobId);
-    const [slots, confirmation] = await Promise.all([
+    const [slots, confirmation, account, manualActions] = await Promise.all([
       this.repository.listSlots(job.id),
       this.repository.getConfirmation(job.id),
+      this.repository.getAccountForApplication(job.applicationId),
+      this.repository.listManualActions(job.id),
     ]);
-    return this.snapshot(job, slots, confirmation, latestPendingAction([]));
+    return this.snapshot(job, slots, confirmation, latestPendingAction(manualActions), account, manualActions);
   }
 
   async getStatusForApplication(applicationId: string): Promise<FranceAppointmentSnapshot | null> {
@@ -336,21 +352,22 @@ export class FranceAppointmentService {
         appointmentAssistanceStatus: updated.status,
         appointmentAssistanceJobId: updated.id,
       });
+      const action = await this.repository.insertManualAction({
+        applicationId: updated.applicationId,
+        userId: updated.userId,
+        jobId: updated.id,
+        actionType: liveResult.checkpoint.type,
+        status: "pending",
+        instruction: liveResult.checkpoint.message,
+        metadataRedactedJson: liveResult.checkpoint.metadataRedactedJson,
+      });
       return this.snapshot(
         updated,
         await this.repository.listSlots(job.id),
         await this.repository.getConfirmation(job.id),
-        {
-          id: `france-tls-${updated.id}-${liveResult.checkpoint.type}`,
-          applicationId: updated.applicationId,
-          userId: updated.userId,
-          jobId: updated.id,
-          actionType: liveResult.checkpoint.type,
-          status: "pending",
-          instruction: liveResult.checkpoint.message,
-          metadataRedactedJson: liveResult.checkpoint.metadataRedactedJson,
-          createdAt: new Date(this.now()).toISOString(),
-        },
+        action,
+        await this.repository.getAccountForApplication(job.applicationId),
+        await this.repository.listManualActions(job.id),
       );
     }
     const slots = await this.repository.replaceObservedSlots(
@@ -367,7 +384,13 @@ export class FranceAppointmentService {
       appointmentAssistanceStatus: updated.status,
       appointmentAssistanceJobId: updated.id,
     });
-    return this.snapshot(updated, slots, await this.repository.getConfirmation(job.id), null);
+    return this.snapshot(
+      updated,
+      slots,
+      await this.repository.getConfirmation(job.id),
+      null,
+      await this.repository.getAccountForApplication(job.applicationId),
+    );
   }
 
   async selectSlot(jobId: string, slotId: string): Promise<FranceAppointmentSnapshot> {
@@ -389,6 +412,7 @@ export class FranceAppointmentService {
       await this.repository.listSlots(job.id),
       await this.repository.getConfirmation(job.id),
       null,
+      await this.repository.getAccountForApplication(job.applicationId),
     );
   }
 
@@ -412,6 +436,17 @@ export class FranceAppointmentService {
     if (!selectedSlot) {
       throw new FranceAppointmentServiceError(409, "slot_required", "A user-selected TLS slot is required before final approval.");
     }
+    await this.repository.insertManualAction({
+      applicationId: job.applicationId,
+      userId: job.userId,
+      jobId: job.id,
+      actionType: "final_confirmation",
+      status: "completed",
+      instruction: "User approved the selected TLScontact slot for the final booking attempt.",
+      userInputRedactedJson: { approved: true },
+      metadataRedactedJson: { provider: "tlscontact_cn_fr" },
+      completedAt: new Date(this.now()).toISOString(),
+    });
     return this.repository.updateJob(job.id, {
       status: "appointment_final_confirmation_approved",
       requiresUserAction: false,
@@ -429,11 +464,18 @@ export class FranceAppointmentService {
     if (!selectedSlot) {
       throw new FranceAppointmentServiceError(409, "slot_required", "A selected TLS slot is required before booking.");
     }
-    if (job.paymentSessionStatus !== "authorized" || !job.paymentAuthorizationRedactedJson) {
+    if (
+      job.mode === "dry_run"
+      && (job.paymentSessionStatus !== "authorized" || !job.paymentAuthorizationRedactedJson)
+    ) {
       throw new FranceAppointmentServiceError(409, "payment_authorization_required", "A one-time TLS service-fee payment authorization is required before booking.");
     }
     if (job.userPreferencesJson.finalConfirmationApproved !== true) {
       throw new FranceAppointmentServiceError(409, "final_confirmation_required", "Final user confirmation is required before booking.");
+    }
+
+    if (job.mode === "assisted_live") {
+      return this.bookLiveSelectedSlot(job, selectedSlot);
     }
 
     const confirmation = await this.repository.insertConfirmation({
@@ -467,7 +509,13 @@ export class FranceAppointmentService {
       appointmentAssistanceJobId: updated.id,
       appointmentConfirmationId: confirmation.id,
     });
-    return this.snapshot(updated, await this.repository.listSlots(job.id), confirmation, null);
+    return this.snapshot(
+      updated,
+      await this.repository.listSlots(job.id),
+      confirmation,
+      null,
+      await this.repository.getAccountForApplication(job.applicationId),
+    );
   }
 
   async cancelJob(jobId: string): Promise<FranceAppointmentJob> {
@@ -518,19 +566,159 @@ export class FranceAppointmentService {
     slots: FranceAppointmentSlot[],
     confirmation: FranceAppointmentConfirmation | null,
     pendingManualAction: FranceAppointmentManualAction | null,
+    account: FranceAppointmentAccount | null = null,
+    manualActions: FranceAppointmentManualAction[] = pendingManualAction ? [pendingManualAction] : [],
   ): FranceAppointmentSnapshot {
     return {
       job,
-      account: null,
+      account,
       slots,
       pendingManualAction,
-      manualActions: pendingManualAction ? [pendingManualAction] : [],
+      manualActions,
       confirmation,
       latestStatusCheck: null,
       dryRunNotice: job.mode === "dry_run"
         ? "Dry-run mode returns deterministic sample TLS slots and does not connect to TLScontact."
         : null,
     };
+  }
+
+  private async bookLiveSelectedSlot(
+    job: FranceAppointmentJob,
+    selectedSlot: FranceAppointmentSlot,
+  ): Promise<FranceAppointmentSnapshot> {
+    if (!this.submissionServiceUrl) {
+      throw new FranceAppointmentServiceError(
+        503,
+        "france_tls_submission_service_unavailable",
+        "France TLS assisted-live booking is not configured.",
+      );
+    }
+    const endpoint = new URL("/internal/france-tls/book-selected-slot", this.submissionServiceUrl);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(this.submissionServiceToken
+          ? { authorization: `Bearer ${this.submissionServiceToken}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        applicationId: job.applicationId,
+        jobId: job.id,
+        centerCode: jobCenterCode(job),
+        selectedSlot: {
+          appointmentDate: selectedSlot.appointmentDate,
+          appointmentTime: selectedSlot.appointmentTime,
+          appointmentLocation: selectedSlot.appointmentLocation,
+          appointmentType: selectedSlot.appointmentType,
+        },
+        paymentSessionId:
+          typeof job.paymentAuthorizationRedactedJson?.sessionId === "string"
+            ? job.paymentAuthorizationRedactedJson.sessionId
+            : null,
+      }),
+    });
+    const payload = await response.json().catch(() => null) as {
+      ok?: boolean;
+      status?: string;
+      confirmation?: {
+        confirmationNumber?: string | null;
+        receiptUrl?: string | null;
+        screenshotUrl?: string | null;
+      };
+      checkpoint?: {
+        type?: string;
+        message?: string;
+        metadataRedactedJson?: JsonObject;
+      };
+      error?: string;
+    } | null;
+    if (!response.ok || !payload?.ok) {
+      throw new FranceAppointmentServiceError(
+        502,
+        "france_tls_live_booking_failed",
+        payload?.error ?? "France TLS live booking runner failed.",
+      );
+    }
+
+    if (!payload.confirmation?.confirmationNumber) {
+      const checkpoint = payload.checkpoint ?? {
+        type: "site_policy_review",
+        message: "TLScontact did not expose a verifiable appointment confirmation.",
+        metadataRedactedJson: { provider: "tlscontact_cn_fr" },
+      };
+      const updated = await this.repository.updateJob(job.id, {
+        status: payload.status === "payment_required"
+          ? "appointment_payment_required"
+          : "appointment_manual_required",
+        requiresUserAction: true,
+        currentManualAction: checkpoint.type ?? "site_policy_review",
+        userPreferencesJson: {
+          ...job.userPreferencesJson,
+          liveBookingCheckpoint: checkpoint,
+        },
+      });
+      const action = await this.repository.insertManualAction({
+        applicationId: updated.applicationId,
+        userId: updated.userId,
+        jobId: updated.id,
+        actionType: checkpoint.type ?? "site_policy_review",
+        status: "pending",
+        instruction: checkpoint.message ?? "Review the TLScontact booking checkpoint.",
+        metadataRedactedJson: checkpoint.metadataRedactedJson ?? {},
+      });
+      await this.repository.updateApplicationAppointmentState(job.applicationId, {
+        appointmentAssistanceStatus: updated.status,
+        appointmentAssistanceJobId: updated.id,
+      });
+      return this.snapshot(
+        updated,
+        await this.repository.listSlots(job.id),
+        await this.repository.getConfirmation(job.id),
+        action,
+        await this.repository.getAccountForApplication(job.applicationId),
+        await this.repository.listManualActions(job.id),
+      );
+    }
+
+    const confirmation = await this.repository.insertConfirmation({
+      jobId: job.id,
+      applicationId: job.applicationId,
+      userId: job.userId,
+      countryCode: "FR",
+      visaType: "EU_SCHENGEN_C_SHORT_STAY",
+      appointmentDate: selectedSlot.appointmentDate,
+      appointmentTime: selectedSlot.appointmentTime,
+      appointmentLocation: selectedSlot.appointmentLocation,
+      appointmentType: selectedSlot.appointmentType,
+      confirmationNumber: payload.confirmation.confirmationNumber,
+      confirmationPdfUrl: payload.confirmation.receiptUrl ?? null,
+      confirmationScreenshotUrl: payload.confirmation.screenshotUrl ?? null,
+      rawConfirmationRedactedJson: {
+        mode: "assisted_live",
+        provider: job.schedulingProvider,
+        officialConfirmationVerified: true,
+      },
+    });
+    const updated = await this.repository.updateJob(job.id, {
+      status: "appointment_confirmation_captured",
+      paymentSessionStatus: job.paymentSessionStatus === "authorized" ? "consumed" : job.paymentSessionStatus,
+      requiresUserAction: false,
+      currentManualAction: null,
+    });
+    await this.repository.updateApplicationAppointmentState(job.applicationId, {
+      appointmentAssistanceStatus: updated.status,
+      appointmentAssistanceJobId: updated.id,
+      appointmentConfirmationId: confirmation.id,
+    });
+    return this.snapshot(
+      updated,
+      await this.repository.listSlots(job.id),
+      confirmation,
+      null,
+      await this.repository.getAccountForApplication(job.applicationId),
+    );
   }
 
   private async checkLiveSlots(job: FranceAppointmentJob): Promise<{
@@ -655,18 +843,7 @@ export class FranceAppointmentService {
         },
       };
     }
-    if (payload.status === "appointment_reference_filled") {
-      return {
-        type: "appointment_reference_review_required",
-        message: "TLScontact account is activated and logged in; the France-Visas reference is filled and ready for review.",
-        metadataRedactedJson: {
-          provider: "tlscontact_cn_fr",
-          accountPrepared: true,
-          officialReferenceFilled: true,
-          stoppedBeforeReferenceSubmission: true,
-        },
-      };
-    }
+    if (["appointment_reference_filled", "logged_in"].includes(payload.status ?? "")) return null;
     if (payload.status === "manual_required" || payload.checkpoint) {
       return {
         type: payload.checkpoint?.type ?? "account_preparation_manual_required",

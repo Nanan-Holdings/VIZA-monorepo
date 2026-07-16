@@ -36,6 +36,13 @@ export interface JapanAppointmentSnapshot {
   slots: [];
   pendingManualAction: JapanAppointmentManualAction | null;
   evidence: JsonObject | null;
+  preflight: {
+    consentRecorded: boolean;
+    missingApplicationFields: string[];
+    documentTypes: string[];
+    passportUploaded: boolean;
+    photoUploaded: boolean;
+  };
 }
 
 export interface JapanAppointmentApiResponse<T> {

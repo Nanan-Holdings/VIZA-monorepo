@@ -1,9 +1,15 @@
 import type { Browser } from "@playwright/test";
 import {
+  loadFranceTlsStoredAccount,
+  loginFranceTlsStoredAccount,
+  submitFranceTlsOfficialReference,
+} from "./account-registration";
+import {
   classifyFranceTlsBrowserState,
   createFranceTlsBrowserSession,
   readFranceTlsBrowserState,
   waitForFranceTlsCloudflareClearance,
+  type FranceTlsBrowserSession,
 } from "./browser-api";
 import { FRANCE_TLS_CHINA_CENTERS, resolveFranceTlsCenter } from "./center-registry";
 import type { FranceTlsPaymentRedacted } from "./payment-session";
@@ -44,6 +50,16 @@ export interface FranceTlsOfficialProbeInput {
   applicationId: string;
   jobId: string;
   centerCode: string;
+}
+
+export interface FranceTlsOfficialBookingInput extends FranceTlsOfficialProbeInput {
+  selectedSlot: {
+    appointmentDate: string;
+    appointmentTime: string;
+    appointmentLocation: string;
+    appointmentType: string;
+  };
+  paymentSessionId?: string | null;
 }
 
 export function buildFranceTlsDryRunSlots(centerCode: string): FranceTlsRunnerSlot[] {
@@ -174,6 +190,48 @@ function extractVisibleSlots(text: string, centerCode: string): FranceTlsRunnerS
   return [...slots.values()].slice(0, 20);
 }
 
+async function openAuthenticatedFranceTlsPage(input: {
+  applicationId: string;
+  centerCode: string;
+}): Promise<FranceTlsBrowserSession> {
+  const center = resolveFranceTlsCenter(input.centerCode);
+  if (!center) throw new Error("Unsupported France TLS center code");
+  const account = await loadFranceTlsStoredAccount(input.applicationId);
+  const session = await createFranceTlsBrowserSession();
+  try {
+    await session.page.goto(center.bookingUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    await waitForFranceTlsCloudflareClearance(session.page, {
+      timeoutMs: Number.parseInt(process.env.FRANCE_TLS_CLOUDFLARE_WAIT_MS ?? "90000", 10),
+      solveProviderCaptcha: true,
+    });
+    await loginFranceTlsStoredAccount(session.page, account, center.bookingUrl);
+    await session.page.goto(center.bookingUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    await waitForFranceTlsCloudflareClearance(session.page, {
+      timeoutMs: Number.parseInt(process.env.FRANCE_TLS_CLOUDFLARE_WAIT_MS ?? "90000", 10),
+      solveProviderCaptcha: true,
+    });
+    const hasReferenceField = await session.page.locator(
+      "input[name*='reference' i], input[id*='reference' i], input[placeholder*='reference' i]",
+    ).first().isVisible({ timeout: 5_000 }).catch(() => false);
+    if (hasReferenceField) {
+      const reference = await submitFranceTlsOfficialReference(session.page, account);
+      if (!reference.submitted) {
+        throw new Error(`TLScontact reference submission mapping is incomplete: ${reference.visibleUnmappedFields.join(", ")}`);
+      }
+    }
+    return session;
+  } catch (error) {
+    await session.browser.close().catch(() => undefined);
+    throw error;
+  }
+}
+
 export async function probeFranceTlsOfficialPortal(
   input: FranceTlsOfficialProbeInput,
 ): Promise<FranceTlsRunnerResult> {
@@ -191,18 +249,11 @@ export async function probeFranceTlsOfficialPortal(
 
   let browser: Browser | null = null;
   try {
-    const session = await createFranceTlsBrowserSession();
+    const session = await openAuthenticatedFranceTlsPage(input);
     browser = session.browser;
-    await session.page.goto(center.bookingUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 60_000,
-    });
     const settleMs = Number.parseInt(process.env.FRANCE_TLS_PAGE_SETTLE_MS ?? "30000", 10);
     await session.page.waitForTimeout(Number.isFinite(settleMs) ? Math.max(4_000, settleMs) : 30_000);
-    const browserState = await waitForFranceTlsCloudflareClearance(session.page, {
-      timeoutMs: Number.parseInt(process.env.FRANCE_TLS_CLOUDFLARE_WAIT_MS ?? "90000", 10),
-      solveProviderCaptcha: true,
-    });
+    const browserState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(session.page));
     if (browserState.checkpoint === "waf" || browserState.checkpoint === "captcha_grid" || browserState.checkpoint === "captcha_token") {
       return {
         status: "manual_required",
@@ -250,20 +301,168 @@ export async function probeFranceTlsOfficialPortal(
     }
 
     const slots = extractVisibleSlots(text, center.code);
-    return slots.length > 0
-      ? { status: "slots_observed", slots }
-      : {
-          status: "no_slots_available",
-          checkpoint: {
-            type: "selector_drift",
-            message: "TLScontact official page was reached, but no supported slot text was visible.",
-            metadataRedactedJson: {
-              centerCode: center.code,
-              browserProvider: session.provider,
-              officialUrlReached: true,
-            },
+    if (slots.length > 0) return { status: "slots_observed", slots };
+    if (/no (?:appointments?|slots?|times?) (?:are )?available|no availability|aucun cr[ée]neau|indisponible/i.test(text)) {
+      return { status: "no_slots_available", slots: [] };
+    }
+    return {
+      status: "manual_required",
+      checkpoint: {
+        type: "selector_drift",
+        message: "TLScontact was reached after login, but neither supported slot controls nor an official no-slots message was visible.",
+        metadataRedactedJson: {
+          centerCode: center.code,
+          browserProvider: session.provider,
+          officialUrlReached: true,
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      status: "manual_required",
+      checkpoint: {
+        type: "site_policy_review",
+        message: error instanceof Error ? error.message : String(error),
+        metadataRedactedJson: {
+          centerCode: center.code,
+          provider: center.provider,
+          officialUrlReached: false,
+        },
+      },
+    };
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
+function confirmationNumberFromText(text: string): string | null {
+  const labelled = text.match(
+    /(?:confirmation|appointment|reference|booking)\s*(?:number|no\.?|id|reference)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{5,})/i,
+  );
+  return labelled?.[1] ?? null;
+}
+
+export async function bookFranceTlsOfficialAppointment(
+  input: FranceTlsOfficialBookingInput,
+): Promise<FranceTlsRunnerResult> {
+  const center = resolveFranceTlsCenter(input.centerCode);
+  if (!center) {
+    return {
+      status: "manual_required",
+      checkpoint: {
+        type: "selector_drift",
+        message: "Unsupported France TLS center code.",
+        metadataRedactedJson: { centerCode: input.centerCode },
+      },
+    };
+  }
+
+  let browser: Browser | null = null;
+  try {
+    const session = await openAuthenticatedFranceTlsPage(input);
+    browser = session.browser;
+    const date = input.selectedSlot.appointmentDate.trim();
+    const time = input.selectedSlot.appointmentTime.trim();
+    const candidates = session.page.locator(
+      "[data-testid*='slot'], [data-slot-id], .appointment-slot, .slot, table tbody tr, button",
+    );
+    const count = Math.min(await candidates.count().catch(() => 0), 200);
+    let selected = false;
+    for (let index = 0; index < count; index += 1) {
+      const candidate = candidates.nth(index);
+      if (!await candidate.isVisible().catch(() => false)) continue;
+      const text = (await candidate.innerText().catch(() => "")).replace(/\s+/g, " ");
+      if (!text.includes(date) || (time && !text.includes(time))) continue;
+      await candidate.click({ timeout: 15_000 });
+      selected = true;
+      break;
+    }
+    if (!selected) {
+      return {
+        status: "manual_required",
+        checkpoint: {
+          type: "selector_drift",
+          message: "The user-selected TLScontact slot is no longer visible on the official calendar.",
+          metadataRedactedJson: {
+            centerCode: center.code,
+            selectedDate: date,
+            selectedTime: time,
+            browserProvider: session.provider,
           },
-        };
+        },
+      };
+    }
+
+    await session.page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await session.page.waitForTimeout(1_500);
+    const continueButton = session.page.getByRole("button", { name: /continue|book|confirm|select/i }).first();
+    if (await continueButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await continueButton.click({ timeout: 15_000 });
+      await session.page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+      await session.page.waitForTimeout(1_500);
+    }
+
+    const browserState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(session.page));
+    if (browserState.checkpoint === "payment") {
+      return {
+        status: "payment_required",
+        checkpoint: {
+          type: "payment",
+          message: "TLScontact reached its secure payment page. A provider-backed payment session is required before final booking.",
+          metadataRedactedJson: {
+            centerCode: center.code,
+            browserProvider: session.provider,
+            selectedSlotMatched: true,
+            hasPaymentSessionReference: Boolean(input.paymentSessionId),
+          },
+        },
+      };
+    }
+    if (["waf", "captcha_grid", "captcha_token", "login", "site_policy_review"].includes(browserState.checkpoint)) {
+      return {
+        status: "manual_required",
+        checkpoint: {
+          type: browserState.checkpoint === "waf"
+            ? "waf"
+            : browserState.checkpoint.startsWith("captcha")
+              ? "captcha"
+              : browserState.checkpoint === "login"
+                ? "login"
+                : "site_policy_review",
+          message: browserState.message,
+          metadataRedactedJson: {
+            centerCode: center.code,
+            browserProvider: session.provider,
+            selectedSlotMatched: true,
+          },
+        },
+      };
+    }
+
+    const bodyText = await session.page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
+    const confirmationNumber = confirmationNumberFromText(bodyText);
+    if (!confirmationNumber) {
+      return {
+        status: "manual_required",
+        checkpoint: {
+          type: "site_policy_review",
+          message: "The selected TLScontact slot was opened, but no official confirmation number was visible.",
+          metadataRedactedJson: {
+            centerCode: center.code,
+            browserProvider: session.provider,
+            selectedSlotMatched: true,
+          },
+        },
+      };
+    }
+    return {
+      status: "confirmation_captured",
+      confirmation: {
+        confirmationNumber,
+        receiptUrl: null,
+        screenshotUrl: null,
+      },
+    };
   } catch (error) {
     return {
       status: "manual_required",

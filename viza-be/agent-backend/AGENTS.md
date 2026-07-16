@@ -50,7 +50,10 @@ explicitly reintroduces another provider.
   as redacted metadata only. Assisted-live slot checks call the localhost
   submission-service `/local/france-tls/check-slots` endpoint via
   `FRANCE_TLS_SUBMISSION_SERVICE_URL`; browser automation and WAF/CDP handling
-  must remain in submission-service. With
+  must remain in submission-service. Assisted-live booking calls the protected
+  `/internal/france-tls/book-selected-slot` handoff and accepts success only
+  when submission-service returns a verifiable official confirmation number;
+  dry-run confirmation IDs must never be used for assisted-live jobs. With
   `FRANCE_TLS_ACCOUNT_PREP_ENABLED=true`, the assisted-live action first calls
   the token-protected `/internal/france-tls/register-account` endpoint to
   provision/activate/login the applicant alias and prefill the France-Visas
