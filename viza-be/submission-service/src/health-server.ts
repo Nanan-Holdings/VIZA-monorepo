@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { registerAndPrepareFranceTlsAccount } from "./france-tls/account-registration.js";
 import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
 import { chromium } from "playwright";
@@ -73,6 +74,17 @@ function isLocalRequest(req: http.IncomingMessage): boolean {
 function isJapanInternalRequest(req: http.IncomingMessage): boolean {
   if (isLocalRequest(req)) return true;
   const expected = process.env.JP_VFS_SG_INTERNAL_TOKEN?.trim();
+  const authorization = req.headers.authorization;
+  const provided = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!expected || !provided) return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(provided);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function isFranceInternalRequest(req: http.IncomingMessage): boolean {
+  if (isLocalRequest(req)) return true;
+  const expected = process.env.FRANCE_TLS_INTERNAL_TOKEN?.trim();
   const authorization = req.headers.authorization;
   const provided = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!expected || !provided) return false;
@@ -358,7 +370,7 @@ async function handleFranceTlsCheckSlots(req: http.IncomingMessage, res: http.Se
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isFranceInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -369,6 +381,33 @@ async function handleFranceTlsCheckSlots(req: http.IncomingMessage, res: http.Se
       applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
       jobId: typeof body.jobId === "string" ? body.jobId : "",
       centerCode: typeof body.centerCode === "string" ? body.centerCode : "shanghai",
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleFranceTlsRegisterAccount(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isFranceInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 4096)) as Record<string, unknown>;
+    const applicationId = typeof body.applicationId === "string" ? body.applicationId.trim() : "";
+    if (!applicationId) throw new Error("applicationId is required");
+    const result = await registerAndPrepareFranceTlsAccount({
+      applicationId,
+      centerCode: typeof body.centerCode === "string" ? body.centerCode : "shanghai",
+      submitRegistration: body.submitRegistration === true,
+      fillOfficialReference: body.fillOfficialReference !== false,
+      emailTimeoutMs: Number.parseInt(process.env.FRANCE_TLS_EMAIL_TIMEOUT_MS ?? "600000", 10),
+      refreshRetries: 2,
     });
     sendJson(res, 200, { ok: true, ...result });
   } catch (error) {
@@ -460,6 +499,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleFranceTlsCheckSlots(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/internal/france-tls/register-account") {
+      void handleFranceTlsRegisterAccount(req, res);
+      return;
+    }
     if (req.method === "POST" && url === "/local/japan-vfs-sg/observe") {
       void handleJapanVfsSingaporeObserve(req, res);
       return;
@@ -521,7 +564,19 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
         sendJson(res, 404, { error: "not_found" });
         return;
       }
-      if (!isLocalRequest(req)) {
+      if (!isFranceInternalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
+    if (req.method === "GET" && url === "/internal/france-tls/register-account") {
+      if (!envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isFranceInternalRequest(req)) {
         sendJson(res, 403, { error: "forbidden" });
         return;
       }
@@ -546,6 +601,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");
     if (envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) endpoints.push("/local/korea-eform/generate");
     if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
+    if (envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) endpoints.push("/internal/france-tls/register-account");
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);

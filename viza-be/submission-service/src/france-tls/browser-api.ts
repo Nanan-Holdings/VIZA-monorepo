@@ -122,6 +122,14 @@ export function classifyFranceTlsBrowserState(input: FranceTlsBrowserStateInput)
       hasRecaptchaAnchor,
     };
   }
+  if (/sorry\s+something went wrong|it looks like something went wrong/i.test(body)) {
+    return {
+      checkpoint: "site_policy_review",
+      message: "TLScontact returned its official generic center error page without an actionable error code.",
+      hasRecaptchaGrid,
+      hasRecaptchaAnchor,
+    };
+  }
   if (hasRecaptchaGrid) {
     return {
       checkpoint: "captcha_grid",

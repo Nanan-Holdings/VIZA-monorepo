@@ -36,10 +36,13 @@ export function classifyAppointmentPortalState(
   const text = `${input.title}\n${input.bodyText}`.replace(/\s+/g, " ").trim();
   const captchaDetected = CAPTCHA_PATTERN.test(text);
   const transientSecurityDetected = TRANSIENT_SECURITY_PATTERN.test(text);
+  const entryDetected = input.expectedMarker.test(text);
   const hardWafDetected = WAF_PATTERN.test(text)
     || input.status === 401
-    || (input.status === 403 && !captchaDetected && !transientSecurityDetected);
-  const entryDetected = input.expectedMarker.test(text);
+    || (input.status === 403
+      && !captchaDetected
+      && !transientSecurityDetected
+      && !entryDetected);
 
   if (hardWafDetected) {
     return {
@@ -61,7 +64,8 @@ export function classifyAppointmentPortalState(
       entryDetected,
     };
   }
-  if ((input.status ?? 200) >= 400 || !entryDetected) {
+  const unresolvedHttpError = (input.status ?? 200) >= 400 && input.status !== 403;
+  if (unresolvedHttpError || !entryDetected) {
     return {
       verdict: "conditional",
       reason: "The official page responded, but the expected login or registration entry was not verified.",

@@ -53,6 +53,19 @@ test("keeps a Cloudflare verification page conditional even when it responds 403
   assert.equal(result.wafDetected, true);
 });
 
+test("accepts the official entry after Browserbase solves an initial 403 challenge", () => {
+  const state = classifyAppointmentPortalState({
+    status: 403,
+    url: "https://visas-fr.tlscontact.com/en-us",
+    title: "French visa application centre | TLScontact",
+    bodyText: "Welcome to the TLScontact visa application website for France. Book an appointment.",
+    expectedMarker: /tlscontact|book an appointment/i,
+  });
+  assert.equal(state.verdict, "pass");
+  assert.equal(state.entryDetected, true);
+  assert.equal(state.wafDetected, false);
+});
+
 test("reports exact missing VIZA fields and strips URL secrets", () => {
   assert.deepEqual(
     findMissingAppointmentFields({ surname: "Chen", email: "" }, ["surname", "email", "passport_number"]),

@@ -44,7 +44,7 @@ const TARGETS: readonly Target[] = [
   {
     id: "france-tls-cn",
     prefix: "FRANCE_TLS",
-    url: process.env.FRANCE_TLS_FREE_SMOKE_URL ?? "https://visas-fr.tlscontact.com/en-us/login",
+    url: process.env.FRANCE_TLS_FREE_SMOKE_URL ?? "https://visas-fr.tlscontact.com/en-us",
     expectedMarker: /tlscontact|sign in|log in|register|book an appointment|预约/i,
     requiredFields: [...COMMON_PROFILE_FIELDS, "intended_date_of_arrival", "intended_date_of_departure"],
   },
@@ -117,12 +117,33 @@ async function runTarget(
   process.env[`${target.prefix}_BROWSERBASE_VERIFIED`] = verifiedEnabled ? "true" : "false";
   const cloud = await connectBrowserbaseCloudBrowser({ prefix: target.prefix });
   try {
+    let captchaSolveStarted = false;
+    let captchaSolveFinished = false;
+    let resolveCaptchaFinished: (() => void) | null = null;
+    const captchaFinished = new Promise<void>((resolve) => {
+      resolveCaptchaFinished = resolve;
+    });
+    cloud.page.on("console", (message) => {
+      const event = message.text();
+      if (event === "browserbase-solving-started") captchaSolveStarted = true;
+      if (event === "browserbase-solving-finished") {
+        captchaSolveFinished = true;
+        resolveCaptchaFinished?.();
+      }
+    });
     await cloud.page.setViewportSize({ width: 1440, height: 1000 }).catch(() => undefined);
     const response = await cloud.page.goto(target.url, {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
     await cloud.page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => undefined);
+    if (captchaSolveStarted && !captchaSolveFinished) {
+      await Promise.race([
+        captchaFinished,
+        cloud.page.waitForTimeout(35_000),
+      ]);
+      await cloud.page.waitForLoadState("domcontentloaded", { timeout: 12_000 }).catch(() => undefined);
+    }
     await cloud.page.waitForFunction(
       () => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length > 40,
       undefined,
@@ -151,9 +172,13 @@ async function runTarget(
     return {
       id: target.id,
       verdict: state.verdict,
-      reason: proxiesEnabled && state.verdict === "proxy_required"
-        ? "The proxied cloud session was rejected by an access or region policy."
-        : state.reason,
+      reason: verifiedEnabled && state.verdict === "pass"
+        ? "The Verified cloud session reached the expected official login or registration entry."
+        : proxiesEnabled && state.verdict === "pass"
+          ? "The proxied cloud session reached the expected official login or registration entry."
+          : proxiesEnabled && state.verdict === "proxy_required"
+            ? "The proxied cloud session was rejected by an access or region policy."
+            : state.reason,
       httpStatus: response?.status() ?? null,
       finalUrl: browserErrorPage ? "[REDACTED]" : redactOfficialUrl(cloud.page.url()),
       title,
@@ -165,6 +190,8 @@ async function runTarget(
       browserbaseReplayAvailable: Boolean(cloud.replayUrl),
       proxiesEnabled: cloud.proxiesEnabled,
       verifiedEnabled: cloud.verifiedEnabled,
+      browserbaseCaptchaSolveStarted: captchaSolveStarted,
+      browserbaseCaptchaSolveFinished: captchaSolveFinished,
     };
   } finally {
     await cloud.browser.close().catch(() => undefined);
