@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   classifyFranceTlsBrowserState,
   hasFranceTlsCloudflareChallenge,
+  isFranceTlsCaptchaBlocking,
   resolveFranceTlsBrowserEndpoint,
   shouldWaitForFranceTlsCloudflareClearance,
 } from "../browser-api.js";
@@ -80,7 +81,20 @@ test("france-tls browser-api: does not wait on a passive reCAPTCHA iframe", () =
   };
 
   assert.equal(classifyFranceTlsBrowserState(input).checkpoint, "captcha_token");
+  assert.equal(isFranceTlsCaptchaBlocking(input), false);
   assert.equal(shouldWaitForFranceTlsCloudflareClearance(input), false);
+});
+
+test("france-tls browser-api: treats an explicit login reCAPTCHA error as blocking", () => {
+  const input = {
+    url: "https://i2-auth.visas-fr.tlscontact.com/auth/realms/atlas/protocol/openid-connect/auth",
+    title: "TLScontact Login",
+    bodyText: "Complete reCAPTCHA! You need to complete reCAPTCHA to login",
+    frameUrls: ["https://www.google.com/recaptcha/api2/anchor?k=site-key"],
+  };
+
+  assert.equal(classifyFranceTlsBrowserState(input).checkpoint, "captcha_token");
+  assert.equal(isFranceTlsCaptchaBlocking(input), true);
 });
 
 test("france-tls browser-api: classifies blank TLS SPA after challenge as waf wait", () => {

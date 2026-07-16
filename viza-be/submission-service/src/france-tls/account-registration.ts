@@ -15,6 +15,7 @@ import {
 import {
   classifyFranceTlsBrowserState,
   createFranceTlsBrowserSession,
+  isFranceTlsCaptchaBlocking,
   readFranceTlsBrowserState,
   waitForFranceTlsCloudflareClearance,
 } from "./browser-api";
@@ -513,6 +514,36 @@ async function activateAccount(page: Page, context: FranceTlsStoredAccountContex
   await updateAccountStatus(context, "email_verified", true);
 }
 
+async function waitForAuthenticatedTlsRedirect(page: Page, timeoutMs = 120_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  let stableLoginFormPolls = 0;
+  while (Date.now() < deadline) {
+    const input = await readFranceTlsBrowserState(page);
+    const state = classifyFranceTlsBrowserState(input);
+    let isAuthPage = true;
+    try {
+      const url = new URL(input.url);
+      isAuthPage = url.hostname === "i2-auth.visas-fr.tlscontact.com" || /\/auth\/realms\//i.test(url.pathname);
+      if (!isAuthPage && url.hostname.endsWith("tlscontact.com") && state.checkpoint !== "waf") {
+        return true;
+      }
+    } catch {
+      // Keep waiting while the browser is between official redirects.
+    }
+
+    const passwordVisible = await page.locator("input[type='password']").first()
+      .isVisible({ timeout: 1_000 }).catch(() => false);
+    if (isAuthPage && passwordVisible && (state.checkpoint === "login" || isFranceTlsCaptchaBlocking(input, state))) {
+      stableLoginFormPolls += 1;
+      if (stableLoginFormPolls >= 3) return false;
+    } else {
+      stableLoginFormPolls = 0;
+    }
+    await page.waitForTimeout(2_000);
+  }
+  return false;
+}
+
 async function login(page: Page, context: FranceTlsStoredAccountContext, centerUrl: string): Promise<void> {
   const hasPassword = await page.locator("input[type='password']").first().isVisible({ timeout: 3_000 }).catch(() => false);
   if (!hasPassword) {
@@ -558,15 +589,12 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
           if (!clickedAfterCaptcha) {
             throw new Error("TLS login control disappeared after reCAPTCHA was solved");
           }
-          await settle(page);
         }
         const body = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
         if (/invalid (email|password|credentials)|incorrect password|authentication failed/i.test(body)) {
           throw new Error("TLS login rejected the stored credentials");
         }
-        const stillHasPassword = await page.locator("input[type='password']").first()
-          .isVisible({ timeout: 2_000 }).catch(() => false);
-        if (!stillHasPassword) {
+        if (await waitForAuthenticatedTlsRedirect(page)) {
           await updateAccountStatus(context, "logged_in", true);
           return;
         }

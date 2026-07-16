@@ -197,6 +197,17 @@ export function hasFranceTlsCloudflareChallenge(input: FranceTlsBrowserStateInpu
   );
 }
 
+export function isFranceTlsCaptchaBlocking(
+  input: FranceTlsBrowserStateInput,
+  state = classifyFranceTlsBrowserState(input),
+): boolean {
+  if (state.checkpoint === "captcha_grid") return true;
+  if (state.checkpoint !== "captcha_token") return false;
+  if (hasFranceTlsCloudflareChallenge(input)) return true;
+  return /complete\s+(?:the\s+)?recaptcha|need to complete recaptcha|recaptcha\s+(?:is\s+)?(?:required|failed)|please.{0,40}recaptcha/i
+    .test(input.bodyText.replace(/\s+/g, " "));
+}
+
 export function shouldWaitForFranceTlsCloudflareClearance(
   input: FranceTlsBrowserStateInput,
   state = classifyFranceTlsBrowserState(input),
