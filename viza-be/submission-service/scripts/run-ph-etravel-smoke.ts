@@ -101,14 +101,17 @@ const DEFAULT_PAYLOAD: PhEtravelPortalPayload = {
   mobileNumber: "13800138000",
   travelType: "ARRIVAL",
   transportType: "AIR",
-  flightNumber: "PR101",
+  flightNumber: "PR100",
   airlineOrVesselName: "Philippine Airlines",
-  portOfEntry: "NINOY AQUINO INTERNATIONAL AIRPORT",
+  airportOfOrigin: "Singapore Changi Airport",
+  portOfEntry: "Ninoy Aquino International Airport T1 - (MNL)",
   arrivalDate: isoDatePlus(1),
-  departureDate: isoDatePlus(2),
+  departureDate: isoDatePlus(1),
   originCountry: "SINGAPORE",
   purposeOfTravel: "HOLIDAY",
-  philippinesAddress: "Test Hotel, Manila",
+  withTransit: false,
+  destinationType: "HOTEL_RESORT",
+  philippinesAddress: "The Manila Hotel",
   hasRecentTravelHistory30d: false,
   visitedCountries30d: [],
   hasExposureToSickPerson30d: false,
@@ -343,8 +346,8 @@ function withDateOverrides(payload: PhEtravelPortalPayload, args: ParsedArgs): P
   if (args.departureDate) adjusted.departureDate = args.departureDate;
   if (!args.arrivalDate && !args.departureDate) return adjusted;
   if (!adjusted.arrivalDate || !adjusted.departureDate) return adjusted;
-  if (adjusted.departureDate < adjusted.arrivalDate) {
-    throw new Error("departure-date must be >= arrival-date");
+  if (adjusted.departureDate > adjusted.arrivalDate) {
+    throw new Error("departure-date must be <= arrival-date");
   }
   return adjusted;
 }

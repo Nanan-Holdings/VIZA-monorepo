@@ -11,6 +11,8 @@ import { supabase } from "../src/supabase";
 
 const applicationId = process.argv.find((value) => value.startsWith("--application-id="))?.split("=")[1];
 if (!applicationId) throw new Error("--application-id is required.");
+const testPhone = process.argv.find((value) => value.startsWith("--phone="))?.split("=")[1]?.replace(/\D/g, "");
+if (!testPhone) throw new Error("--phone is required because VFS sends a real SMS OTP; do not use a random placeholder number.");
 
 async function withTimeout<T>(operation: Promise<T>, label: string, timeoutMs = 15_000): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -44,8 +46,18 @@ async function main(): Promise<void> {
     await cloud.page.goto("https://visa.vfsglobal.com/sgp/en/jpn/register", { waitUntil: "domcontentloaded", timeout: 90_000 });
     console.log("[jp-vfs-account] registration page loaded");
     await cloud.page.waitForTimeout(2_000);
-    const reject = cloud.page.getByRole("button", { name: /reject|decline|necessary only|accept only necessary/i }).first();
-    if (await reject.isVisible({ timeout: 1_000 }).catch(() => false)) await reject.click();
+    const cookieButtons = cloud.page.locator("#onetrust-consent-sdk button");
+    const visibleCookieButtons: string[] = [];
+    for (let index = 0; index < await cookieButtons.count(); index += 1) {
+      const button = cookieButtons.nth(index);
+      if (await button.isVisible().catch(() => false)) visibleCookieButtons.push((await button.innerText().catch(() => "")).replace(/\s+/g, " ").trim());
+    }
+    console.log(`[jp-vfs-account] visible cookie buttons=${JSON.stringify(visibleCookieButtons.filter(Boolean))}`);
+    const necessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
+    if (await necessary.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await necessary.evaluate((element) => element.click());
+      await cloud.page.waitForTimeout(500);
+    }
     const bodyBefore = await cloud.page.locator("body").innerText().catch(() => "");
     if (/Temporary Connectivity Issue|Session Expired or Invalid|Access Denied/i.test(bodyBefore)) throw new Error("Browserbase reached an official VFS error page before registration.");
     try {
@@ -53,23 +65,33 @@ async function main(): Promise<void> {
         await cloud.page.locator("#inputEmail").fill(alias);
         await cloud.page.locator("#password").fill(password);
         await cloud.page.locator("#confirmPassword").fill(password);
+        const dial = cloud.page.locator("mat-select#mat-select-0");
+        await dial.waitFor({ state: "attached", timeout: 5_000 });
+        await dial.evaluate((element) => element.click());
+        console.log("[jp-vfs-account] dial opened");
+        const options = cloud.page.locator("mat-option");
+        await options.first().waitFor({ state: "attached", timeout: 5_000 });
+        const optionLabels = (await options.allTextContents()).map((label) => label.replace(/\s+/g, " ").trim()).filter(Boolean);
+        console.log(`[jp-vfs-account] dial options=${JSON.stringify(optionLabels)}`);
+        if (!optionLabels.some((label) => /Singapore|\(?65\)?/i.test(label))) throw new Error("Singapore (+65) dial-code option is unavailable.");
+        await cloud.page.keyboard.press("End");
+        await cloud.page.keyboard.press("Enter");
+        await cloud.page.waitForTimeout(500);
+        console.log(`[jp-vfs-account] dial selected text=${JSON.stringify((await dial.innerText()).replace(/\s+/g, " ").trim())}`);
         const mobile = cloud.page.locator("#mat-input-3");
-        if (await mobile.isVisible({ timeout: 750 }).catch(() => false)) await mobile.fill("90000000");
-        const dial = cloud.page.locator("mat-select").first();
-        if (await dial.isVisible({ timeout: 750 }).catch(() => false)) {
-          await dial.click();
-          const singapore = cloud.page.getByRole("option", { name: /Singapore.*\+65/i }).first();
-          if (await singapore.isVisible({ timeout: 2_000 }).catch(() => false)) await singapore.click();
-        }
+        await mobile.fill(testPhone, { force: true });
         const registrationConsents = cloud.page.locator("main input[id^='mat-mdc-checkbox-']");
         for (let index = 0; index < await registrationConsents.count(); index += 1) {
           const checkbox = registrationConsents.nth(index);
           const text = await checkbox.locator("xpath=ancestor::mat-checkbox[1]").innerText().catch(() => "");
           if (/marketing|promotion|offers|newsletter/i.test(text)) continue;
-          await checkbox.locator("xpath=ancestor::mat-checkbox[1]").click({ force: true });
+          await checkbox.evaluate((element) => element.click());
         }
-        await cloud.page.waitForTimeout(4_000);
-      })(), "VFS registration interaction");
+        await cloud.page.waitForFunction(() => {
+          const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
+          return token.trim().length > 0;
+        }, undefined, { timeout: 35_000 }).catch(() => undefined);
+      })(), "VFS registration interaction", 60_000);
       console.log("[jp-vfs-account] placeholder fields filled");
     } catch (fillError) {
       const controls = await cloud.page.locator("input,select,[role='combobox']").evaluateAll((elements) => elements.map((element) => ({
@@ -80,21 +102,34 @@ async function main(): Promise<void> {
     }
     await cloud.page.screenshot({ path: path.join(artifactDir, "before-continue-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
     const readiness = await cloud.page.evaluate(() => ({
-      inputs: [...document.querySelectorAll<HTMLInputElement>("main input")].filter((input) => input.type !== "hidden").map((input) => ({ id: input.id, type: input.type, valid: input.validity.valid, checked: input.type === "checkbox" ? input.checked : undefined })),
+      inputs: [...document.querySelectorAll<HTMLInputElement>("main input")].filter((input) => input.type !== "hidden").map((input) => ({ id: input.id, type: input.type, valid: input.validity.valid, valueLength: input.type === "checkbox" ? undefined : input.value.length, validationMessage: input.validationMessage || undefined, checked: input.type === "checkbox" ? input.checked : undefined })),
+      dialText: document.querySelector("mat-select")?.textContent?.replace(/\s+/g, " ").trim() ?? null,
+      dialControls: [...document.querySelectorAll<HTMLElement>("select,[role='combobox'],mat-select")].map((element) => ({
+        tag: element.tagName.toLowerCase(), id: element.id || null, role: element.getAttribute("role"),
+        ariaLabel: element.getAttribute("aria-label"), text: element.textContent?.replace(/\s+/g, " ").trim().slice(0, 80) ?? "",
+      })),
       turnstileTokenPresent: Boolean((document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "").trim()),
       invalidMessages: [...document.querySelectorAll<HTMLElement>("mat-error,.mat-mdc-form-field-error")].map((element) => element.innerText.trim()).filter(Boolean),
     }));
     console.log(`[jp-vfs-account] readiness=${JSON.stringify(readiness)}`);
+    const cookieOverlay = cloud.page.locator("#onetrust-consent-sdk .onetrust-pc-dark-filter");
+    if (await cookieOverlay.isVisible().catch(() => false)) {
+      const confirmChoices = cloud.page.getByRole("button", { name: /^(Accept Only Necessary|Confirm My Choices|Save Settings)$/i });
+      if (await confirmChoices.isVisible().catch(() => false)) await confirmChoices.evaluate((element) => element.click());
+      await cookieOverlay.waitFor({ state: "hidden", timeout: 5_000 });
+    }
     const continueButton = cloud.page.getByRole("button", { name: /^continue$/i });
     await withTimeout(continueButton.click({ timeout: 8_000 }), "VFS registration Continue click", 12_000);
     console.log("[jp-vfs-account] Continue clicked");
     await cloud.page.waitForTimeout(3_000);
     const bodyAfter = await cloud.page.locator("body").innerText().catch(() => "");
-    const accepted = /verify|verification|activate|check your email|success|account.*created|already registered|already exists/i.test(bodyAfter);
+    const phoneOtpRequired = /OTP has been sent to your mobile number|one time password\s*\(OTP\).*mobile number/i.test(bodyAfter);
+    const explicitlyExisting = /(?:email|account).{0,60}(?:already registered|already exists)/i.test(bodyAfter);
+    const accepted = phoneOtpRequired || /verification|activate|check your email|account.*created/i.test(bodyAfter) || explicitlyExisting;
     if (!accepted) throw new Error(`VFS did not show an accepted registration state: ${bodyAfter.replace(/\s+/g, " ").slice(0, 180)}`);
     let emailVerified = false;
-    let status = /already registered|already exists/i.test(bodyAfter) ? "existing_account" : "email_verification_required";
-    if (!/already registered|already exists/i.test(bodyAfter)) {
+    let status = phoneOtpRequired ? "phone_otp_required" : explicitlyExisting ? "existing_account" : "email_verification_required";
+    if (!phoneOtpRequired && !explicitlyExisting) {
       const message = await inbox.waitForMessage(application.applicant_id, (candidate) => /vfsglobal\.com|vfshelpzone\.com/i.test(candidate.from_addr), 120_000, { since: startedAt, includeProcessed: true }).catch(() => null);
       if (message) {
         const parsed = extractAuto({ from: message.from_addr, subject: message.subject, text: message.text, html: message.html });
@@ -116,7 +151,7 @@ async function main(): Promise<void> {
     const write = existing?.id ? await supabase.from("appointment_accounts").update(payload).eq("id", existing.id) : await supabase.from("appointment_accounts").insert(payload);
     if (write.error) throw new Error(`Test account persistence failed: ${write.error.message}`);
     await cloud.page.screenshot({ path: path.join(artifactDir, "after-continue-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-    console.log(JSON.stringify({ ok: true, submittedRegistration: true, emailVerified, accountStatus: status, browserbaseProxy: cloud.proxiesEnabled, replayAvailable: Boolean(cloud.replayUrl) }));
+    console.log(JSON.stringify({ ok: true, submittedRegistration: true, accountCreated: status === "registered", phoneOtpRequired, emailVerified, accountStatus: status, browserbaseProxy: cloud.proxiesEnabled, replayAvailable: Boolean(cloud.replayUrl) }));
   } finally { await cloud.browser.close().catch(() => undefined); }
 }
 

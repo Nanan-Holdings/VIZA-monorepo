@@ -2732,15 +2732,6 @@ export default function ApplicationPage() {
         return;
       }
 
-      // Persist the complete DS-160 answer set from hardcoded steps
-      const normalizeResult = await persistDS160AnswerSet(
-        applicationId,
-        appState.personal,
-        appState.passport,
-        appState.travel,
-      );
-      if (normalizeResult.error) throw new Error(normalizeResult.error);
-
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
       const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
 
