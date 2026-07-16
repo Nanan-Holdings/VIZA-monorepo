@@ -52,10 +52,18 @@ export async function GET(
   try {
     const bytes = await fs.readFile(evidencePath);
     const extension = path.extname(evidencePath).toLowerCase();
-    const contentType = extension === ".jpg" || extension === ".jpeg" ? "image/jpeg" : "image/png";
+    const contentType = extension === ".pdf"
+      ? "application/pdf"
+      : extension === ".jpg" || extension === ".jpeg"
+        ? "image/jpeg"
+        : "image/png";
+    const disposition = url.searchParams.get("download") === "1"
+      ? `attachment; filename="${path.basename(evidencePath)}"`
+      : "inline";
     return new Response(bytes, {
       headers: {
         "content-type": contentType,
+        "content-disposition": disposition,
         "cache-control": "no-store",
       },
     });

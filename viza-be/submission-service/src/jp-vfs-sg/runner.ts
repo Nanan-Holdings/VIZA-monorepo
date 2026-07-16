@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { chromium, type Browser, type Page } from "playwright";
 import {
   browserbaseEnabled,
@@ -13,6 +14,7 @@ import { decryptSecret, encryptSecret } from "../secret-cipher";
 import { findMissingAppointmentFields } from "../appointment-free-smoke";
 import { loadCanonicalAnswers } from "../queue/answers";
 import { supabase } from "../supabase";
+import { consumeJapanVfsPaymentSession } from "./payment-session";
 
 export type JapanVfsCheckpoint = "login" | "captcha" | "waf" | "identity_verification" | "selector_drift" | "no_slots" | "payment";
 
@@ -50,6 +52,7 @@ export interface JapanVfsRunnerResult {
 export interface JapanVfsObserveOptions {
   applicationId?: string;
   prepareAlias?: boolean;
+  eligibility?: Record<string, unknown>;
 }
 
 export interface JapanVfsBookingInput {
@@ -57,6 +60,7 @@ export interface JapanVfsBookingInput {
   jobId: string;
   selectedSlot: JapanVfsSlotObservation;
   paymentSessionId: string;
+  eligibility?: Record<string, unknown>;
 }
 
 interface PortalAccountContext {
@@ -67,6 +71,12 @@ interface PortalAccountContext {
   phone: string;
   status: string;
   emailVerified: boolean;
+}
+
+export interface JapanVfsRegistrationFormInput {
+  email: string;
+  password: string;
+  phone: string;
 }
 
 const VFS_JAPAN_SINGAPORE_URL = "https://visa.vfsglobal.com/sgp/en/jpn/book-an-appointment";
@@ -123,6 +133,82 @@ async function clickVisible(page: Page, labels: RegExp): Promise<boolean> {
     if (await locator.click({ timeout: 10_000 }).then(() => true).catch(() => false)) return true;
   }
   return false;
+}
+
+export async function fillJapanVfsRegistrationForm(page: Page, input: JapanVfsRegistrationFormInput): Promise<void> {
+  await page.getByLabel("Email*").fill(input.email);
+  await page.getByLabel("Password*", { exact: true }).fill(input.password);
+  await page.getByLabel("Confirm Password*").fill(input.password);
+  const phoneInputs = page.locator("input[type='tel'], input[formcontrolname*='mobile'], input[placeholder*='Mobile']");
+  if (!await phoneInputs.count()) throw new Error("VFS registration mobile field was not found.");
+  await phoneInputs.first().fill(input.phone.replace(/^\+65/, "").replace(/\D/g, ""));
+  const dial = page.locator("select, [role='combobox']").first();
+  if (await dial.isVisible().catch(() => false)) {
+    const tagName = await dial.evaluate((element) => element.tagName.toLowerCase());
+    if (tagName === "select") {
+      await dial.selectOption({ label: "Singapore (+65)" }).catch(() => dial.selectOption("65"));
+    } else {
+      await dial.click();
+      const option = page.getByRole("option", { name: /Singapore.*\+65/i }).first();
+      if (await option.isVisible({ timeout: 2_000 }).catch(() => false)) await option.click();
+    }
+  }
+  const consentBoxes = page.locator("input[type='checkbox']");
+  for (let index = 0; index < await consentBoxes.count(); index += 1) {
+    const checkbox = consentBoxes.nth(index);
+    const containerText = await checkbox.locator("xpath=ancestor::*[self::label or self::div][1]").innerText().catch(() => "");
+    if (/marketing|promotion|offers|newsletter/i.test(containerText)) continue;
+    await checkbox.check();
+  }
+}
+
+export async function fillJapanVfsApplicantDetails(
+  page: Page,
+  answers: Record<string, string>,
+  eligibility: Record<string, unknown> = {},
+): Promise<string[]> {
+  const filled: string[] = [];
+  const fill = async (label: RegExp, value: unknown, key: string) => {
+    if (typeof value !== "string" || !value.trim()) return;
+    const field = page.getByLabel(label).first();
+    if (!await field.isVisible({ timeout: 500 }).catch(() => false)) return;
+    await field.fill(value.trim()); filled.push(key);
+  };
+  await fill(/surname|family name|last name/i, answers.surname, "surname");
+  await fill(/given name|first name/i, answers.given_names, "given_names");
+  await fill(/passport.*number/i, answers.passport_number, "passport_number");
+  await fill(/^email|e-mail/i, answers.email, "email");
+  await fill(/mobile|phone/i, answers.phone?.replace(/^\+65/, ""), "phone");
+  await fill(/pass.*expiry|expiry.*pass/i, eligibility.singaporePassExpiryDate, "singapore_pass_expiry_date");
+  await fill(/return.*singapore|intended return/i, eligibility.intendedReturnDate, "intended_return_date");
+  const passType = typeof eligibility.singaporePassType === "string" ? eligibility.singaporePassType : "";
+  const passSelect = page.getByLabel(/singapore.*pass|pass type/i).first();
+  if (passType && await passSelect.isVisible({ timeout: 500 }).catch(() => false)) {
+    await passSelect.selectOption(passType).catch(() => passSelect.selectOption({ label: passType.replace(/_/g, " ") }));
+    filled.push("singapore_pass_type");
+  }
+  return filled;
+}
+
+async function attachApplicationPhotoIfRequested(page: Page, applicationId: string): Promise<boolean> {
+  const upload = page.locator("input[type='file'][accept*='image'], input[type='file'][name*='photo' i], input[type='file'][id*='photo' i]").first();
+  if (!await upload.count()) return false;
+  const { data: row, error } = await supabase.from("application_documents")
+    .select("storage_path,filename").eq("application_id", applicationId)
+    .in("document_type", ["photo", "applicant_photo", "portrait_photo", "passport_photo"])
+    .order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (error || !row?.storage_path) return false;
+  const downloaded = await supabase.storage.from("application-documents").download(row.storage_path);
+  if (downloaded.error || !downloaded.data) return false;
+  const extension = path.extname(row.filename ?? row.storage_path) || ".jpg";
+  const temporaryPath = path.join(os.tmpdir(), `viza-jp-photo-${applicationId}${extension}`);
+  try {
+    fs.writeFileSync(temporaryPath, Buffer.from(await downloaded.data.arrayBuffer()));
+    await upload.setInputFiles(temporaryPath);
+    return true;
+  } finally {
+    fs.rmSync(temporaryPath, { force: true });
+  }
 }
 
 async function completeAccountVerification(
@@ -182,15 +268,7 @@ async function ensureLoggedIn(page: Page, applicationId: string): Promise<{ cont
     const verificationStartedAt = new Date().toISOString();
     await page.goto("https://visa.vfsglobal.com/sgp/en/jpn/register", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForTimeout(1_500);
-    await page.getByLabel("Email*").fill(context.email);
-    await page.getByLabel("Password*", { exact: true }).fill(context.password);
-    await page.getByLabel("Confirm Password*").fill(context.password);
-    const phoneInputs = page.locator("input[type='tel'], input[formcontrolname*='mobile'], input[placeholder*='Mobile']");
-    if (await phoneInputs.count()) await phoneInputs.first().fill(context.phone.replace(/^\+65/, "").replace(/\D/g, ""));
-    const dial = page.locator("select, [role='combobox']").first();
-    if (await dial.isVisible().catch(() => false)) await dial.selectOption({ label: "Singapore (+65)" }).catch(() => dial.selectOption("65").catch(() => undefined));
-    const consentBoxes = page.locator("input[type='checkbox']");
-    for (let index = 0; index < await consentBoxes.count(); index += 1) await consentBoxes.nth(index).check();
+    await fillJapanVfsRegistrationForm(page, context);
     if (!await clickVisible(page, /^continue$/i)) return { context, checkpoint: { type: "selector_drift", message: "VFS registration Continue control was not found." } };
     await page.waitForTimeout(2_500);
     const registrationText = await page.locator("body").innerText().catch(() => "");
@@ -234,6 +312,28 @@ async function extractSlots(page: Page): Promise<JapanVfsSlotObservation[]> {
     slots.push({ appointmentDate: date.replace(/\//g, "-"), appointmentTime: time, appointmentLocation: "Japan Visa Application Centre Singapore", source: "vfs_jp_sg" });
   }
   return slots.filter((slot, index) => slots.findIndex((candidate) => candidate.appointmentDate === slot.appointmentDate && candidate.appointmentTime === slot.appointmentTime) === index);
+}
+
+async function fillHostedPayment(page: Page, input: JapanVfsBookingInput): Promise<boolean> {
+  const card = consumeJapanVfsPaymentSession(input.paymentSessionId, input.jobId);
+  if (!card) return false;
+  const scopes = [page, ...page.frames()];
+  const fill = async (selectors: string, value: string) => {
+    for (const scope of scopes) {
+      const field = scope.locator(selectors).first();
+      if (await field.isVisible({ timeout: 750 }).catch(() => false)) { await field.fill(value); return true; }
+    }
+    return false;
+  };
+  if (!await fill("input[autocomplete='cc-number'], input[name*='card' i][name*='number' i], input[placeholder*='card number' i]", card.pan)) return false;
+  await fill("input[autocomplete='cc-name'], input[name*='holder' i], input[placeholder*='name on card' i]", card.holderName);
+  const combined = await fill("input[autocomplete='cc-exp'], input[name*='expir' i], input[placeholder*='MM/YY' i]", `${card.expiryMonth}/${card.expiryYear.slice(-2)}`);
+  if (!combined) {
+    await fill("input[name*='month' i]", card.expiryMonth);
+    await fill("input[name*='year' i]", card.expiryYear);
+  }
+  if (!await fill("input[autocomplete='cc-csc'], input[name*='cvv' i], input[name*='cvc' i], input[placeholder*='CVV' i]", card.cvv)) return false;
+  return clickVisible(page, /pay now|pay|submit payment|continue/i);
 }
 
 function checkpointForText(text: string): JapanVfsCheckpoint | null {
@@ -342,6 +442,10 @@ export async function observeJapanVfsSingaporeSlots(
   const { browser, page } = opened;
   try {
     const login = options.applicationId ? await ensureLoggedIn(page, options.applicationId) : null;
+    if (options.applicationId && login && !login.checkpoint) {
+      await fillJapanVfsApplicantDetails(page, await loadCanonicalAnswers(options.applicationId), options.eligibility);
+      await attachApplicationPhotoIfRequested(page, options.applicationId);
+    }
     const response = login
       ? null
       : await page.goto(VFS_JAPAN_SINGAPORE_URL, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -373,6 +477,8 @@ export async function bookJapanVfsSingaporeSlot(input: JapanVfsBookingInput): Pr
   try {
     const login = await ensureLoggedIn(page, input.applicationId);
     if (login.checkpoint) return { slots: [], checkpoint: login.checkpoint, evidence: { pageTitle: await page.title(), finalUrl: page.url(), httpStatus: null, observedAt: new Date().toISOString(), browserbaseReplayAvailable: opened.browserbaseReplayAvailable } };
+    await fillJapanVfsApplicantDetails(page, await loadCanonicalAnswers(input.applicationId), input.eligibility);
+    await attachApplicationPhotoIfRequested(page, input.applicationId);
     const candidates = page.locator("[data-testid*='slot'], [data-slot-id], .appointment-slot, .slot, table tbody tr, button");
     let matched = false;
     for (let index = 0; index < Math.min(await candidates.count(), 200); index += 1) {
@@ -386,9 +492,16 @@ export async function bookJapanVfsSingaporeSlot(input: JapanVfsBookingInput): Pr
     await page.waitForTimeout(2_000);
     const body = await page.locator("body").innerText().catch(() => "");
     if (/card number|cvv|payment|pay now|service fee/i.test(body)) {
-      return { slots: [], checkpoint: { type: "payment" as JapanVfsCheckpoint, message: "VFS secure hosted payment is ready. Complete the provider payment session before final confirmation." }, evidence: { pageTitle: await page.title(), finalUrl: page.url(), httpStatus: null, observedAt: new Date().toISOString(), browserbaseReplayAvailable: opened.browserbaseReplayAvailable } };
+      if (!await fillHostedPayment(page, input)) {
+        return { slots: [], checkpoint: { type: "payment", message: "VFS secure payment is ready, but the one-time card session was missing, expired, or did not match the hosted fields." }, evidence: { pageTitle: await page.title(), finalUrl: page.url(), httpStatus: null, observedAt: new Date().toISOString(), browserbaseReplayAvailable: opened.browserbaseReplayAvailable } };
+      }
+      await page.waitForTimeout(4_000);
     }
-    const confirmationNumber = body.match(/(?:confirmation|appointment|booking|reference)\s*(?:number|no\.?|id)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{5,})/i)?.[1];
+    const settledBody = await page.locator("body").innerText().catch(() => "");
+    if (/3d secure|3ds|bank app|one[- ]time password|otp|authenticate/i.test(settledBody)) {
+      return { slots: [], checkpoint: { type: "identity_verification", message: "The issuing bank requires 3-D Secure approval before VFS can confirm the appointment." }, evidence: { pageTitle: await page.title(), finalUrl: page.url(), httpStatus: null, observedAt: new Date().toISOString(), browserbaseReplayAvailable: opened.browserbaseReplayAvailable } };
+    }
+    const confirmationNumber = settledBody.match(/(?:confirmation|appointment|booking|reference)\s*(?:number|no\.?|id)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{5,})/i)?.[1];
     const evidence = { pageTitle: await page.title(), finalUrl: page.url(), httpStatus: null, observedAt: new Date().toISOString(), browserbaseReplayAvailable: opened.browserbaseReplayAvailable };
     if (!confirmationNumber) return { slots: [], checkpoint: { type: "selector_drift", message: "VFS did not display an official confirmation number after the booking attempt." }, evidence };
     return { slots: [], confirmation: { confirmationNumber, receiptUrl: null, screenshotUrl: await captureRedactedEvidence(page) ?? null }, evidence };

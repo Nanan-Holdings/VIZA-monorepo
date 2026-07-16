@@ -5,10 +5,8 @@ const NON_TRANSLATABLE_FIELD_PATTERNS = [
   /(?:^|_)(postal|postcode|zip|country_code|iso|iata|icao|currency|amount|price|fee)(?:_|$)/i,
   /(?:^|_)(payment|security)_?(?:answer|reference|ref|id)?(?:_|$)/i,
   /(?:^|_)(file|filename|file_name|upload)(?:_|$)/i,
-  /(?:^|_)(surname|surnames|given_names?|family_name|first_name|last_name|middle_name|full_name|native_full_name)(?:_|$)/i,
   /\b(passport|document|confirmation|application)\s*(?:no|num|number|id|code)\b/i,
   /\b(email|phone|telephone|mobile|wechat|url|date|amount|price|fee|security answer|file name)\b/i,
-  /\b(surname|given names|family name|first name|last name|middle name|full name)\b/i,
 ];
 
 const NON_TRANSLATABLE_FIELD_TYPES = new Set([

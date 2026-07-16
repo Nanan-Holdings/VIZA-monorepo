@@ -223,9 +223,8 @@ function isMachineTranslationSensitiveField(field: VisaFormFieldRow): boolean {
   const fieldName = field.fieldName.toLowerCase();
   const label = field.label.toLowerCase();
   return (
-    /(?:^|_)(surname|surnames|given_names?|family_name|first_name|last_name|middle_name|full_name|native_full_name)(?:_|$)/.test(fieldName)
-    || /\b(surname|surnames|given names|family name|first name|last name|middle name|full name)\b/.test(label)
-    || /(?:^|_)(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)(?:_|$)/.test(fieldName)
+    /(?:^|_)(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)(?:_|$)/.test(fieldName)
+    || /\b(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)\b/.test(label)
   );
 }
 
@@ -250,14 +249,15 @@ function getBilingualPrefillText(
   fallbackValue?: string,
 ): BilingualTextValue {
   const zh = prefill[`${key}_zh`]?.trim();
-  const en = prefill[`${key}_en`]?.trim();
+  const storedEnglish = prefill[`${key}_en`]?.trim();
+  const en = storedEnglish && !hasChineseText(storedEnglish) ? storedEnglish : "";
   if (zh || en) {
     return {
-      zh: zh || toChineseSourceValue(en ?? fallbackValue ?? ""),
-      en: en || toOfficialEnglishValue(zh ?? fallbackValue ?? ""),
+      zh: zh || toChineseSourceValue(en || fallbackValue || ""),
+      en: en || toOfficialEnglishValue(zh || storedEnglish || fallbackValue || ""),
     };
   }
-  return toInitialBilingualText(fallbackValue);
+  return toInitialBilingualText(storedEnglish || fallbackValue);
 }
 
 function toInitialBilingualText(value?: string): BilingualTextValue {
@@ -1001,6 +1001,7 @@ function getLocalFieldIssue(
     after_or_equal_field?: string;
     min_days_after_field?: string;
     min_days_after_field_days?: number;
+    official_source?: string;
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
@@ -1030,7 +1031,8 @@ function getLocalFieldIssue(
   if (
     (field.fieldType === "select" || field.fieldType === "multi_select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
     trimmed &&
-    options.length > 0
+    options.length > 0 &&
+    !rules?.official_source
   ) {
     const selectedValues = field.fieldType === "multi_select"
       ? trimmed.split(",").map((part) => part.trim()).filter(Boolean)
@@ -2479,8 +2481,23 @@ export function DynamicStepForm({
         const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
         const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
         if (!pairWasEdited) {
-          nextTextPairs[key] = getBilingualPrefillText(key, prefill, nextPrefill);
+          const repairedPair = getBilingualPrefillText(key, prefill, nextPrefill);
+          nextTextPairs[key] = repairedPair;
           textPairsChanged = true;
+
+          // Older applications can contain Chinese text in an `_en` answer.
+          // The official submission value must immediately follow the repaired
+          // English side, even if the translation request is unavailable.
+          const officialValue = repairedPair.en.trim();
+          const currentNormalizedValue = nextValues[key]?.trim() ?? "";
+          if (
+            officialValue &&
+            !hasChineseText(officialValue) &&
+            (!currentNormalizedValue || hasChineseText(currentNormalizedValue) || currentNormalizedValue === repairedPair.zh.trim())
+          ) {
+            nextValues[key] = officialValue;
+            valuesChanged = true;
+          }
         }
       }
     };

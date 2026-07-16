@@ -72,8 +72,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `lib/japan-appointment-client.ts`, and `types/japan-appointment.ts`.
   It is limited to Chinese ordinary-passport holders with a Singapore long-term
   pass that covers their return date, records explicit consent, validates
-  stored uploads through the backend, and displays Browserbase evidence. Free
-  Plan mode stops before slot selection, payment, and final booking.
+  stored uploads through the backend, defaults the portrait to the latest
+  reusable `universal_profile_documents` photo while allowing replacement,
+  and displays Browser API evidence. Slot choice, one-time payment preparation,
+  and final booking remain separate explicit user approvals.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,

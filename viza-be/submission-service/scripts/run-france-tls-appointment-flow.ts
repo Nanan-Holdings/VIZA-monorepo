@@ -129,6 +129,58 @@ async function persistObservedSlots(
     .eq("id", job.application_id);
 }
 
+async function persistProbeCheckpoint(
+  job: AppointmentJob,
+  result: FranceTlsRunnerResult,
+): Promise<void> {
+  const checkpoint = result.checkpoint;
+  if (!checkpoint) return;
+  const now = new Date().toISOString();
+  const nextStatus = result.status === "payment_required"
+    ? "appointment_payment_required"
+    : "appointment_manual_required";
+  const { error: jobError } = await supabase
+    .from("appointment_assistance_jobs")
+    .update({
+      status: nextStatus,
+      requires_user_action: true,
+      current_manual_action: checkpoint.type,
+      last_slot_check_at: now,
+      updated_at: now,
+    })
+    .eq("id", job.id);
+  if (jobError) throw new Error(`France TLS probe checkpoint update failed: ${jobError.message}`);
+  const { data: existing, error: existingError } = await supabase
+    .from("appointment_manual_actions")
+    .select("id")
+    .eq("job_id", job.id)
+    .eq("action_type", checkpoint.type)
+    .eq("status", "pending")
+    .limit(1);
+  if (existingError) throw new Error(`France TLS probe checkpoint lookup failed: ${existingError.message}`);
+  if (!existing?.length) {
+    const { error: actionError } = await supabase.from("appointment_manual_actions").insert({
+      job_id: job.id,
+      application_id: job.application_id,
+      user_id: job.user_id,
+      action_type: checkpoint.type,
+      status: "pending",
+      instruction: checkpoint.message,
+      metadata_redacted_json: checkpoint.metadataRedactedJson,
+    });
+    if (actionError) throw new Error(`France TLS probe checkpoint persistence failed: ${actionError.message}`);
+  }
+  const { error: applicationError } = await supabase
+    .from("applications")
+    .update({
+      appointment_assistance_status: nextStatus,
+      appointment_assistance_job_id: job.id,
+      updated_at: now,
+    })
+    .eq("id", job.application_id);
+  if (applicationError) throw new Error(`France TLS application checkpoint update failed: ${applicationError.message}`);
+}
+
 async function persistBookingResult(
   job: AppointmentJob,
   slot: AppointmentSlot,
@@ -261,7 +313,11 @@ async function main(): Promise<void> {
   const selectedSlot = await loadSelectedSlot(job.id);
   if (!selectedSlot) {
     const observed = await probeFranceTlsOfficialPortal({ applicationId, jobId: job.id, centerCode });
-    if (observed.status === "slots_observed") await persistObservedSlots(job, observed.slots ?? []);
+    if (["slots_observed", "no_slots_available"].includes(observed.status)) {
+      await persistObservedSlots(job, observed.slots ?? []);
+    } else {
+      await persistProbeCheckpoint(job, observed);
+    }
     console.log(JSON.stringify({
       event: "slots_checked",
       status: observed.status,
@@ -287,6 +343,23 @@ async function main(): Promise<void> {
       event: "flow_stopped",
       status: "appointment_final_confirmation_approved",
       nextAction: "Rerun with --book-approved-slot to click the official final booking control.",
+    }, null, 2));
+    return;
+  }
+  const { data: existingConfirmation, error: existingConfirmationError } = await supabase
+    .from("appointment_confirmations")
+    .select("id")
+    .eq("job_id", job.id)
+    .limit(1)
+    .maybeSingle();
+  if (existingConfirmationError) {
+    throw new Error(`France TLS confirmation lookup failed: ${existingConfirmationError.message}`);
+  }
+  if (existingConfirmation?.id) {
+    console.log(JSON.stringify({
+      event: "flow_stopped",
+      status: "appointment_confirmation_captured",
+      nextAction: "An official confirmation is already stored; no booking control was clicked again.",
     }, null, 2));
     return;
   }

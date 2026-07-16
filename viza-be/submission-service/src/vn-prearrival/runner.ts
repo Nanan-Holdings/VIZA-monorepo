@@ -280,7 +280,11 @@ async function selectNearLabel(
     }
     const labelText = page.getByText(label).first();
     if (await labelText.isVisible().catch(() => false)) {
-      const control = labelText.locator("xpath=following::*[@role='combobox' or self::select][1]").first();
+      // The official Material UI fields are not consistent: some expose an
+      // ARIA combobox while the flight picker currently exposes only its
+      // nested input. Support both shapes without relaxing exact option
+      // matching below.
+      const control = labelText.locator("xpath=following::*[@role='combobox' or self::select or self::input][1]").first();
       if (await control.isVisible().catch(() => false)) {
         try {
           await chooseAutocompleteOption(control);

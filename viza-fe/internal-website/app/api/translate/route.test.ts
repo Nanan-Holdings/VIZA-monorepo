@@ -97,6 +97,7 @@ describe("/api/translate", () => {
     expect(shouldSkipTranslation("email", "name@example.com")).toBe(true);
     expect(shouldSkipTranslation("arrival_date", "2026-06-10")).toBe(true);
     expect(shouldSkipTranslation("occupation", "软件工程师", "text")).toBe(false);
+    expect(shouldSkipTranslation("full_name", "黄小敏", "text")).toBe(false);
     expect(shouldSkipTranslation("security_answer", "蓝色", "text")).toBe(true);
     expect(shouldSkipTranslation("postal_code", "10310", "text")).toBe(true);
     expect(shouldSkipTranslation("travel_purpose", "旅游", "select")).toBe(true);

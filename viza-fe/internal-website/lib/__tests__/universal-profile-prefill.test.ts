@@ -72,6 +72,27 @@ describe("universal profile prefill", () => {
     expect(patch).toEqual({});
   });
 
+  it("repairs Chinese text accidentally stored in official English name columns", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      full_name_zh: "黄小敏",
+      full_name_en: "黄小敏",
+      surname_zh: "黄",
+      surname_en: "黄",
+      given_names_zh: "小敏",
+      given_names_en: "小敏",
+    });
+
+    expect(patch).toMatchObject({
+      full_name: "XIAOMIN HUANG",
+      full_name_zh: "黄小敏",
+      full_name_en: "XIAOMIN HUANG",
+      surname: "HUANG",
+      surname_en: "HUANG",
+      given_names: "XIAOMIN",
+      given_names_en: "XIAOMIN",
+    });
+  });
+
   it("maps MDAC place of birth to the official alpha-3 birth country value", () => {
     const patch = buildMalaysiaMdacUniversalProfileAnswerPatch({
       birth_country: "China",

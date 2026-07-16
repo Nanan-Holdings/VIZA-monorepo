@@ -141,6 +141,13 @@ filling and one-shot submission for the applicant.
   applicant-selected slot. Payment remains an explicit hosted-provider
   checkpoint; a booking may be persisted only when VFS displays a real
   confirmation/reference number.
+- `src/jp-vfs-sg/payment-session.ts`: short-lived in-memory Japan VFS card
+  handoff. It binds a validated one-time card to one booking job, exposes only
+  redacted metadata, and deletes the full card on consume or expiry.
+- `scripts/run-japan-vfs-registration-fill-smoke.ts`: opens the real empty VFS
+  Japan/Singapore registration form, fills clearly synthetic placeholder data
+  through the same production selector helper, verifies the rendered values,
+  masks evidence, and exits without clicking Continue or creating an account.
 - `POST /internal/japan-vfs-sg/book-selected-slot`: internal-token protected
   Japan live-booking handoff gated by `JP_VFS_SG_LIVE_BOOKING_ENABLED=true`.
   It never logs card data or fabricates slot/payment/confirmation success.
