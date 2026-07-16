@@ -101,7 +101,7 @@ interface KoreaKvacLiveSession {
   availableSlots: KoreaKvacObservedSlot[];
 }
 
-interface KoreaKvacObservedSlot {
+export interface KoreaKvacObservedSlot {
   appointmentDate: string;
   appointmentTime: string;
   appointmentEndTime: string;
@@ -210,12 +210,14 @@ const TIME_GROUP_SELECTOR = ".time-table__item:not(.-done) a, .time-table__item:
 const DETAILED_TIME_SELECTOR = ".time-table__ly-link:not(.-done), .time-table__ly-item:not(.-done) a, .time-table__ly-item:not(.-done) button";
 
 async function openAppointmentCalendar(page: Page) {
-  if (await page.locator(AVAILABLE_DATE_SELECTOR).first().isVisible().catch(() => false)) return;
+  // Beijing renders the datepicker inline. A month with no open dates has no
+  // selectable anchors, but the calendar is still open and can be advanced.
+  if (await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false)) return;
   for (const candidate of [page.locator(".ui-datepicker-trigger").first(), page.locator("#visit_sche_day").first()]) {
     if (!(await candidate.isVisible().catch(() => false))) continue;
     await candidate.click({ timeout: 10_000 });
     await page.waitForTimeout(150);
-    if (await page.locator(AVAILABLE_DATE_SELECTOR).first().isVisible().catch(() => false)) return;
+    if (await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false)) return;
   }
   throw new Error("Official KVAC appointment calendar did not open.");
 }
@@ -297,7 +299,7 @@ async function observeTimesForDate(
   return observed;
 }
 
-async function observeAllAvailableSlots(page: Page) {
+export async function observeAllAvailableSlots(page: Page): Promise<KoreaKvacObservedSlot[]> {
   const observed: KoreaKvacObservedSlot[] = [];
   const seenMonths = new Set<string>();
   const maxMonths = Math.max(1, Number.parseInt(process.env.KR_KVAC_SLOT_LOOKAHEAD_MONTHS ?? "12", 10) || 12);

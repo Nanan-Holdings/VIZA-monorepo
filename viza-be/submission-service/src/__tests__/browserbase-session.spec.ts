@@ -7,10 +7,12 @@ import {
 
 const ENV_NAMES = [
   "BROWSERBASE_API_KEY",
+  "BROWSERBASE_SESSION_TIMEOUT_SECONDS",
   "MDAC_BROWSERBASE_PROXIES",
   "MDAC_BROWSERBASE_VERIFIED",
   "MDAC_BROWSERBASE_REGION",
   "MDAC_BROWSERBASE_COUNTRY",
+  "MDAC_BROWSERBASE_TIMEOUT_SECONDS",
   "PH_ETRAVEL_BROWSERBASE_COUNTRY",
   "CEAC_BROWSERBASE_COUNTRY",
   "FRANCE_VISAS_BROWSERBASE_COUNTRY",
@@ -49,6 +51,7 @@ test("creates a Malaysia Browserbase proxy session without a project id", async 
 
     const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
     assert.equal("projectId" in requestBody, false);
+    assert.equal(requestBody.timeout, 900);
     assert.deepEqual(requestBody.proxies, [
       { type: "browserbase", geolocation: { country: "MY" } },
     ]);
@@ -75,6 +78,30 @@ test("returns a safe paid-plan error without echoing the API key", async () => {
         return true;
       },
     );
+  } finally {
+    restoreEnvironment(snapshot);
+  }
+});
+
+test("supports a runner-specific Browserbase session timeout", async () => {
+  const snapshot = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
+  process.env.BROWSERBASE_API_KEY = "test-secret";
+  process.env.BROWSERBASE_SESSION_TIMEOUT_SECONDS = "600";
+  process.env.MDAC_BROWSERBASE_TIMEOUT_SECONDS = "1200";
+  try {
+    let capturedInit: RequestInit | undefined;
+    await createBrowserbaseCloudSession({
+      prefix: "MDAC",
+      fetchImpl: async (_input, init) => {
+        capturedInit = init;
+        return new Response(JSON.stringify({ id: "timed-session", connectUrl: "wss://example.invalid" }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+    const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
+    assert.equal(requestBody.timeout, 1200);
   } finally {
     restoreEnvironment(snapshot);
   }

@@ -4,7 +4,9 @@
   labelEn: string;
 }
 
-// Generated from ICA SGAC /sgac-services/common/code/retrieveCodeResult on 2026-06-23.
+// Verified against ICA SGAC /sgac-services/common/code/retrieveCodeResult on 2026-07-16.
+// ICA currently returns 472 hotel records with 469 unique names. The applicant
+// form intentionally de-duplicates identical names while preserving official text.
 // value/labelEn mirror ICA official English values; labelZh is the Chinese column display label.
 export const SGAC_CITY_OPTIONS: SgacOfficialOption[] = [
   {

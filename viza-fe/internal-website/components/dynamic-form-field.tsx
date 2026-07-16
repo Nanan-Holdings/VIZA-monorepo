@@ -264,7 +264,6 @@ function SearchableSelectControl({
         return rank(left) - rank(right);
       });
   }, [normalizedQuery, options]);
-  const visibleOptions = matchedOptions.slice(0, 100);
   const searchPlaceholder = sideLocale === "zh"
     ? "搜索中文、英文或官方选项..."
     : "Search Chinese, English, or official option...";
@@ -331,7 +330,7 @@ function SearchableSelectControl({
           ) : matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (
-            visibleOptions.map((option, index) => (
+            matchedOptions.map((option, index) => (
               <button
                 key={`${option.value}-${option.text}-${index}`}
                 type="button"

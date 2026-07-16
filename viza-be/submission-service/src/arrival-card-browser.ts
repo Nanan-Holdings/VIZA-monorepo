@@ -45,8 +45,10 @@ export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPref
     envNames.push(`${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`);
   }
   if (
-    prefix === "PH_ETRAVEL" ||
-    process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true"
+    prefix !== "TDAC" && (
+      prefix === "PH_ETRAVEL" ||
+      process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true"
+    )
   ) {
     envNames.push(
       "BRIGHTDATA_BROWSER_WS",
