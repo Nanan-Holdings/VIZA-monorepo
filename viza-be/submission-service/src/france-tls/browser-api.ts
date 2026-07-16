@@ -197,6 +197,14 @@ export function hasFranceTlsCloudflareChallenge(input: FranceTlsBrowserStateInpu
   );
 }
 
+export function shouldWaitForFranceTlsCloudflareClearance(
+  input: FranceTlsBrowserStateInput,
+  state = classifyFranceTlsBrowserState(input),
+): boolean {
+  if (state.checkpoint === "waf") return true;
+  return state.checkpoint === "captcha_token" && hasFranceTlsCloudflareChallenge(input);
+}
+
 export async function readFranceTlsBrowserState(page: Page): Promise<FranceTlsBrowserStateInput> {
   return {
     url: page.url(),
@@ -289,12 +297,12 @@ export async function waitForFranceTlsCloudflareClearance(
   let providerSolveAttempted = false;
 
   while (Date.now() < deadline) {
-    const state = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(page));
-    if (state.checkpoint !== "waf" && state.checkpoint !== "captcha_token") {
+    const input = await readFranceTlsBrowserState(page);
+    const state = classifyFranceTlsBrowserState(input);
+    if (!shouldWaitForFranceTlsCloudflareClearance(input, state)) {
       return state;
     }
     if (!providerSolveAttempted && options.solveProviderCaptcha) {
-      const input = await readFranceTlsBrowserState(page);
       if (hasFranceTlsCloudflareChallenge(input)) {
         providerSolveAttempted = true;
         await solveFranceTlsProviderCaptcha(page);

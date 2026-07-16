@@ -115,8 +115,10 @@ export interface KoreaKvacObservedSlot {
 interface KoreaKvacCancelSession {
   browser: Browser;
   page: Page;
+  bookingSearchUrl: string;
   applicantName: string;
   mobilePhone: string;
+  dialogs: string[];
   expiresAt: number;
   screenshotPath: string | null;
 }
@@ -654,22 +656,30 @@ function hasOfficialNoAppointmentRecordEvidence(text: string) {
 }
 
 async function verifyOfficialCancellationByFreshQuery(session: KoreaKvacCancelSession) {
-  const { page } = session;
-  const nameVisible = await page.locator("#booker_nm").isVisible().catch(() => false);
-  const phoneVisible = await page.locator("#booker_phone").isVisible().catch(() => false);
-  if (!nameVisible || !phoneVisible) return { verified: false, bodyText: "" };
+  const page = await session.browser.newPage({ viewport: { width: 1440, height: 1200 } });
+  const dialogs: string[] = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.accept().catch(() => undefined);
+  });
+  try {
+    await page.goto(session.bookingSearchUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.waitForTimeout(1_500);
+    await page.locator("#booker_nm").fill(session.applicantName, { timeout: 20_000 });
+    await page.locator("#booker_phone").fill(session.mobilePhone, { timeout: 20_000 });
+    await page.locator("#searchForm button[type='submit'], #searchForm input[type='submit'], button[type='submit'], input[type='submit']").first().click({ timeout: 20_000 });
+    await page.waitForTimeout(4_000);
 
-  await page.locator("#booker_nm").fill(session.applicantName, { timeout: 20_000 });
-  await page.locator("#booker_phone").fill(session.mobilePhone, { timeout: 20_000 });
-  await page.locator("button[type='submit'], input[type='submit']").first().click({ timeout: 20_000 });
-  await page.waitForTimeout(5_000);
-
-  const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-  const cancelButtonStillVisible = Boolean(await findOfficialCancelButton(page));
-  return {
-    verified: !cancelButtonStillVisible && hasOfficialNoAppointmentRecordEvidence(bodyText),
-    bodyText,
-  };
+    const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+    const officialText = [...dialogs, bodyText].join("\n");
+    const cancelButtonStillVisible = Boolean(await findOfficialCancelButton(page));
+    return {
+      verified: !cancelButtonStillVisible && hasOfficialNoAppointmentRecordEvidence(officialText),
+      bodyText: officialText,
+    };
+  } finally {
+    await page.close().catch(() => undefined);
+  }
 }
 
 export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsInput): Promise<KoreaKvacStartSmsResult> {
@@ -893,14 +903,27 @@ export async function printKoreaKvacOfficialConfirmation(
 
   const browser = await chromium.launch({ headless: !/^(1|true|yes|on)$/i.test(process.env.KR_KVAC_HEADFUL ?? "") });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1400 } });
+  const dialogs: string[] = [];
+  page.on("dialog", async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.accept().catch(() => undefined);
+  });
   try {
     await page.goto(input.bookingSearchUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.locator("#booker_nm").fill(applicantName, { timeout: 20_000 });
     await page.locator("#booker_phone").fill(phone, { timeout: 20_000 });
-    await page.locator("button[type='submit'], input[type='submit']").first().click({ timeout: 20_000 });
+    await page.locator("#searchForm button[type='submit'], #searchForm input[type='submit']").first().click({ timeout: 20_000 });
     await page.waitForTimeout(4_000);
     const confirmationNumber = await extractConfirmationNumber(page);
-    if (!confirmationNumber) throw new Error("Official KVAC appointment lookup did not return a confirmation number.");
+    if (!confirmationNumber) {
+      await screenshot(page, input.jobId, "confirmation-print-not-found");
+      const officialMessage = dialogs.at(-1)?.replace(/\s+/g, " ").trim();
+      throw new Error(
+        officialMessage
+          ? `Official KVAC appointment lookup did not return a confirmation: ${officialMessage}`
+          : "Official KVAC appointment lookup did not return a confirmation number.",
+      );
+    }
     const screenshotPath = await screenshot(page, input.jobId, "confirmation-print");
     const confirmationPdfUrl = await saveOfficialConfirmationPdf(page, input.jobId);
     return {
@@ -965,8 +988,10 @@ export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQu
     cancelSessions.set(input.jobId, {
       browser,
       page,
+      bookingSearchUrl: input.bookingSearchUrl,
       applicantName,
       mobilePhone: phone,
+      dialogs,
       expiresAt: nowMs() + SESSION_TTL_MS,
       screenshotPath,
     });
@@ -990,11 +1015,7 @@ export async function confirmKoreaKvacOfficialCancellation(input: { jobId: strin
   const session = cancelSessions.get(input.jobId);
   if (!session) throw new Error("Official KVAC cancellation session is missing or expired. Start cancellation query again.");
 
-  const dialogs: string[] = [];
-  session.page.on("dialog", async (dialog) => {
-    dialogs.push(dialog.message());
-    await dialog.accept().catch(() => undefined);
-  });
+  const dialogs = session.dialogs;
   const cancelButton = await findOfficialCancelButton(session.page);
   if (!cancelButton) throw new Error("Official cancellation button is no longer visible. Start cancellation query again.");
   await cancelButton.click({ timeout: 30_000 });

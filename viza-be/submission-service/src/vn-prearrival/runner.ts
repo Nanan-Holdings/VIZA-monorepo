@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   createArrivalCardBrowserSession,
   type ArrivalCardBrowserSession,
@@ -219,7 +219,7 @@ async function selectNearLabel(
   searchValue = value,
 ): Promise<boolean> {
   const officialValue = officialOptionValue(value);
-  const chooseAutocompleteOption = async (control: ReturnType<Page["getByLabel"]>): Promise<void> => {
+  const chooseAutocompleteOption = async (control: Locator): Promise<void> => {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       if (await control.isEnabled().catch(() => false)) break;
       await page.waitForTimeout(500);
@@ -235,6 +235,11 @@ async function selectNearLabel(
     const editable = await control.isEditable().catch(() => false);
     if ((tagName === "input" || tagName === "textarea") && editable) {
       await control.fill(searchValue);
+    } else {
+      // Flight number is currently rendered as a Material UI select trigger,
+      // not an ARIA combobox. Once its list is open, the portal accepts type
+      // ahead on that trigger and filters the same official listbox.
+      await page.keyboard.type(searchValue);
     }
     // The official site is built with Material UI. Its remote autocomplete
     // choices are listbox options, not stable text nodes, so wait for and
@@ -280,17 +285,22 @@ async function selectNearLabel(
     }
     const labelText = page.getByText(label).first();
     if (await labelText.isVisible().catch(() => false)) {
-      // The official Material UI fields are not consistent: some expose an
-      // ARIA combobox while the flight picker currently exposes only its
-      // nested input. Support both shapes without relaxing exact option
-      // matching below.
-      const control = labelText.locator("xpath=following::*[@role='combobox' or self::select or self::input][1]").first();
-      if (await control.isVisible().catch(() => false)) {
+      // The official field implementation varies between input, combobox, and
+      // select-trigger markup. Try each associated shape, but still select
+      // only an exact official option in chooseAutocompleteOption.
+      const controls = [
+        labelText.locator("xpath=following::input[1]").first(),
+        labelText.locator("xpath=following::*[@role='combobox'][1]").first(),
+        labelText.locator("xpath=following::*[@aria-haspopup='listbox'][1]").first(),
+        labelText.locator("xpath=following::button[1]").first(),
+      ];
+      for (const control of controls) {
+        if (!(await control.isVisible().catch(() => false))) continue;
         try {
           await chooseAutocompleteOption(control);
           return true;
         } catch {
-          // See the by-label path above.
+          // Try the next official control shape.
         }
       }
     }

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CalendarCheck,
   CheckCircle2,
+  ExternalLink,
   Loader2,
   MapPin,
   MessageSquareText,
@@ -382,13 +383,17 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               </Alert>
             ) : null}
             {cancellationReady ? (
-              <>
+              <div className="flex flex-wrap gap-2">
                 <Button variant="destructive" onClick={() => void run("confirm-cancel-official")} disabled={Boolean(busy)}>
                   <XCircle className="mr-2 h-4 w-4" />
                   {cancellingOfficialBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {cancellationIntent === "reschedule" ? (isZh ? "取消旧预约并继续改约" : "Cancel and continue rescheduling") : (isZh ? "直接取消预约" : "Cancel appointment")}
                 </Button>
-              </>
+                <Button variant="outline" onClick={() => void run("return-to-appointment-details")} disabled={Boolean(busy)}>
+                  {busy === "return-to-appointment-details" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
+                  {isZh ? "返回预约详情" : "Back to appointment details"}
+                </Button>
+              </div>
             ) : (
               <Button variant="outline" onClick={() => void run("start-cancel-query")} disabled={Boolean(busy)}>
                 {busy === "start-cancel-query" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}

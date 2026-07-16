@@ -12,6 +12,7 @@ import {
   validatePhEtravelFlightDates,
 } from "@/features/ph-etravel/date-window";
 import {
+  ACTIVE_SUBMISSION_QUEUE_STATUSES,
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
@@ -1307,6 +1308,34 @@ export async function POST(
         mode,
       ),
       alreadySubmitted: true,
+      result: ownedApplication.submission_result,
+    });
+  }
+
+  const { data: activeQueue, error: activeQueueError } = await admin
+    .from("submission_queue")
+    .select("id, status, mode, provider")
+    .eq("application_id", applicationId)
+    .in("status", ACTIVE_SUBMISSION_QUEUE_STATUSES)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (activeQueueError) {
+    return NextResponse.json({ error: activeQueueError.message }, { status: 500 });
+  }
+  if (activeQueue) {
+    return NextResponse.json({
+      ok: true,
+      applicationId,
+      jobId: activeQueue.id,
+      queueStatus: activeQueue.status,
+      mode: activeQueue.mode ?? mode,
+      provider: activeQueue.provider ?? queueProviderForApplication(
+        ownedApplication.country,
+        ownedApplication.visa_type,
+        mode,
+      ),
+      alreadyQueued: true,
       result: ownedApplication.submission_result,
     });
   }

@@ -4,6 +4,7 @@ import {
   classifyFranceTlsBrowserState,
   hasFranceTlsCloudflareChallenge,
   resolveFranceTlsBrowserEndpoint,
+  shouldWaitForFranceTlsCloudflareClearance,
 } from "../browser-api.js";
 
 function withEnv<T>(env: Record<string, string | undefined>, run: () => T): T {
@@ -68,6 +69,18 @@ test("france-tls browser-api: detects Cloudflare challenge frames", () => {
     }),
     true,
   );
+});
+
+test("france-tls browser-api: does not wait on a passive reCAPTCHA iframe", () => {
+  const input = {
+    url: "https://visas-fr.tlscontact.com/en-us/registration?issuerId=cnSHA2fr",
+    title: "TLScontact registration",
+    bodyText: "Register Email Password",
+    frameUrls: ["https://www.google.com/recaptcha/api2/anchor?k=site-key"],
+  };
+
+  assert.equal(classifyFranceTlsBrowserState(input).checkpoint, "captcha_token");
+  assert.equal(shouldWaitForFranceTlsCloudflareClearance(input), false);
 });
 
 test("france-tls browser-api: classifies blank TLS SPA after challenge as waf wait", () => {

@@ -168,6 +168,58 @@ const sgacFullNameStep: WizardStep = {
   ],
 };
 
+const sgacTravellerPersistenceStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Traveller Information",
+  fields: [
+    {
+      id: "field-sgac-persistence-full-name",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "full_name",
+      label: "Full Name (In Passport)",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-sgac-persistence-passport-number",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "passport_number",
+      label: "Passport Number",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 2,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-sgac-persistence-passport-expiry",
+      visaType: "SG_ARRIVAL_CARD",
+      fieldName: "passport_expiry_date",
+      label: "Passport Expiry Date",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Traveller Information",
+      displayOrder: 3,
+      placeholder: null,
+      validationRules: null,
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const optionalPostcodeStep: WizardStep = {
   stepNumber: 3,
   stepName: "Accommodation Information",
@@ -586,7 +638,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(comboboxes.every((combobox) => combobox.disabled)).toBe(false);
   });
 
-  it("autofills bilingual values from universal profile without submitting helper keys", () => {
+  it("autofills bilingual values from universal profile and persists both display languages", () => {
     const onComplete = vi.fn();
     const prefill = buildUniversalProfileAnswerPatch({
       full_name: "LI XIAOMING",
@@ -619,7 +671,11 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
-    expect(onComplete).toHaveBeenCalledWith({ place_of_birth: "Changsha" });
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      place_of_birth: "Changsha",
+      place_of_birth_zh: "长沙",
+      place_of_birth_en: "Changsha",
+    }));
   });
 
   it("keeps the Chinese side unchanged when the English side is edited", () => {
@@ -653,7 +709,7 @@ describe("DynamicStepForm copilot format", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
-    expect(onComplete).toHaveBeenCalledWith({ place_of_birth: "Beijing" });
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ place_of_birth: "Beijing" }));
   });
 
   it("normalizes TDAC residence prefill into official dependent option values", () => {
@@ -726,7 +782,7 @@ describe("DynamicStepForm copilot format", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
-    expect(onComplete).toHaveBeenCalledWith({ city_of_birth: "Hengqin, Zhuhai" });
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ city_of_birth: "Hengqin, Zhuhai" }));
   });
 
   it("repairs a Chinese value accidentally saved in the SGAC English full-name field", () => {
@@ -749,7 +805,52 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.getByDisplayValue("HUANGXIAOMIN")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
-    expect(onComplete).toHaveBeenCalledWith({ full_name: "HUANGXIAOMIN" });
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      full_name: "HUANGXIAOMIN",
+      full_name_zh: "黄小敏",
+      full_name_en: "HUANGXIAOMIN",
+    }));
+  });
+
+  it("submits the latest SGAC traveller values when the user edits and immediately continues", () => {
+    const onComplete = vi.fn();
+    const onDraftChange = vi.fn();
+
+    render(
+      <DynamicStepForm
+        step={sgacTravellerPersistenceStep}
+        prefill={{
+          full_name: "OLD NAME",
+          passport_number: "OLD123",
+          passport_expiry_date: "2030-01-01",
+        }}
+        onDraftChange={onDraftChange}
+        onComplete={onComplete}
+        visaType="SG_ARRIVAL_CARD"
+      />,
+    );
+
+    fireEvent.change(screen.getAllByDisplayValue("OLD NAME")[1]!, {
+      target: { value: "LATEST NAME" },
+    });
+    fireEvent.change(screen.getAllByDisplayValue("OLD123")[1]!, {
+      target: { value: "LATEST987" },
+    });
+    fireEvent.change(screen.getAllByDisplayValue("2030-01-01")[1]!, {
+      target: { value: "2035-12-31" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "continue" }));
+
+    const expected = expect.objectContaining({
+      full_name: "LATEST NAME",
+      full_name_en: "LATEST NAME",
+      passport_number: "LATEST987",
+      passport_number_en: "LATEST987",
+      passport_expiry_date: "2035-12-31",
+      passport_expiry_date_en: "2035-12-31",
+    });
+    expect(onDraftChange).toHaveBeenLastCalledWith(expected);
+    expect(onComplete).toHaveBeenCalledWith(expected);
   });
 
   it("allows an optional formatted text field to pass after the user clears the old value", () => {
@@ -773,7 +874,7 @@ describe("DynamicStepForm copilot format", () => {
     expect(screen.queryByText("格式不符合要求")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
-    expect(onComplete).toHaveBeenCalledWith({ postcode: "" });
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ postcode: "" }));
   });
 
   it("repairs a saved Vietnam hotel selection by restoring its official hierarchy", async () => {

@@ -139,6 +139,23 @@ export async function fillJapanVfsRegistrationForm(page: Page, input: JapanVfsRe
   await page.getByLabel("Email*").fill(input.email);
   await page.getByLabel("Password*", { exact: true }).fill(input.password);
   await page.getByLabel("Confirm Password*").fill(input.password);
+  const dial = page.locator("select, [role='combobox']").first();
+  if (await dial.count()) {
+    const tagName = await dial.evaluate((element) => element.tagName.toLowerCase());
+    if (tagName === "select") {
+      const singaporeValue = await dial.locator("option").evaluateAll((options) => options.find((option) => /Singapore.*(?:\+?65|\(65\))/i.test(option.textContent ?? ""))?.getAttribute("value") ?? null);
+      if (!singaporeValue) throw new Error("VFS registration did not expose the Singapore 65 dial code.");
+      await dial.selectOption(singaporeValue);
+    } else {
+      await dial.evaluate((element) => (element as HTMLElement).click());
+      const options = page.getByRole("option");
+      await options.first().waitFor({ state: "attached", timeout: 5_000 });
+      const labels = await options.allTextContents();
+      if (!labels.some((label) => /Singapore.*(?:\+?65|\(65\))/i.test(label))) throw new Error("VFS registration did not expose the Singapore 65 dial code.");
+      await page.keyboard.press("End");
+      await page.keyboard.press("Enter");
+    }
+  }
   const phoneInputs = page.locator("input[type='tel'], input[formcontrolname*='mobile' i], input[formcontrolname*='phone' i], input[placeholder*='mobile' i], input[placeholder*='phone' i]");
   const phoneByLabel = page.getByLabel(/mobile|phone/i).first();
   const unlabeledMaterialPhone = page.locator("main input[type='text']:not(#inputEmail):not([name]), form input[type='text']:not(#inputEmail):not([name])").first();
@@ -147,17 +164,6 @@ export async function fillJapanVfsRegistrationForm(page: Page, input: JapanVfsRe
     : await phoneByLabel.isVisible({ timeout: 750 }).catch(() => false) ? phoneByLabel : unlabeledMaterialPhone;
   if (await phoneField.isVisible({ timeout: 1_500 }).catch(() => false)) {
     await phoneField.fill(input.phone.replace(/^\+65/, "").replace(/\D/g, ""));
-  }
-  const dial = page.locator("select, [role='combobox']").first();
-  if (await dial.isVisible().catch(() => false)) {
-    const tagName = await dial.evaluate((element) => element.tagName.toLowerCase());
-    if (tagName === "select") {
-      await dial.selectOption({ label: "Singapore (+65)" }).catch(() => dial.selectOption("65"));
-    } else {
-      await dial.click();
-      const option = page.getByRole("option", { name: /Singapore.*\+65/i }).first();
-      if (await option.isVisible({ timeout: 2_000 }).catch(() => false)) await option.click();
-    }
   }
   const consentBoxes = page.locator("main input[type='checkbox'], form input[type='checkbox']");
   for (let index = 0; index < await consentBoxes.count(); index += 1) {
@@ -275,12 +281,18 @@ async function ensureLoggedIn(page: Page, applicationId: string): Promise<{ cont
     const verificationStartedAt = new Date().toISOString();
     await page.goto("https://visa.vfsglobal.com/sgp/en/jpn/register", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForTimeout(1_500);
-    await clickVisible(page, /reject|decline|necessary only|accept only necessary/i);
+    const necessaryCookies = page.getByRole("button", { name: /^Accept Only Necessary$/i });
+    if (await necessaryCookies.isVisible({ timeout: 1_500 }).catch(() => false)) await necessaryCookies.evaluate((element) => (element as HTMLElement).click());
     await fillJapanVfsRegistrationForm(page, context);
     if (!await clickVisible(page, /^continue$/i)) return { context, checkpoint: { type: "selector_drift", message: "VFS registration Continue control was not found." } };
     await page.waitForTimeout(2_500);
     const registrationText = await page.locator("body").innerText().catch(() => "");
-    if (/already exists|already registered/i.test(registrationText)) {
+    const phoneOtpRequired = /OTP has been sent to your mobile number|one time password\s*\(OTP\).*mobile number/i.test(registrationText);
+    const explicitlyExisting = /(?:email|account).{0,60}(?:already registered|already exists)/i.test(registrationText);
+    if (phoneOtpRequired) {
+      await setAccountStatus(context, "phone_otp_required");
+      return { context, checkpoint: { type: "identity_verification", message: "VFS sent a five-minute SMS OTP to the applicant's saved mobile number. Enter the live code in the official VFS session to finish account registration." } };
+    } else if (explicitlyExisting) {
       await page.goto(VFS_JAPAN_LOGIN_URL, { waitUntil: "domcontentloaded", timeout: 90_000 });
     } else if (/otp|verification code|activate.*account|check your email/i.test(registrationText)) {
       await setAccountStatus(context, "email_verification_required");
