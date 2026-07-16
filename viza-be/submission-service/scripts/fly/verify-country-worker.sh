@@ -5,7 +5,7 @@ set -euo pipefail
 # running Fly machine and that its readiness endpoint is reachable; it never
 # enqueues an applicant job or touches an official portal.
 country="${1:?country is required}"
-app="viza-runner-$country"
+app="viza-runner-${country//_/-}"
 
 fly status --app "$app" >/dev/null
 url="https://${app}.fly.dev/ready"
