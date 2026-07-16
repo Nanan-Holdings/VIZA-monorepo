@@ -1,0 +1,166 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - banner [ref=f5e47]:
+      - generic [ref=f5e48]:
+        - generic [ref=f5e49]:
+          - link [ref=f5e50] [cursor=pointer]:
+            - /url: /client/home
+            - img "VIZA" [ref=f5e51]
+          - generic [ref=f5e52]:
+            - button "Select language" [ref=f5e53] [cursor=pointer]
+            - button [ref=f5e57] [cursor=pointer]
+        - generic [ref=f5e60]:
+          - generic [ref=f5e61]:
+            - button "首页" [ref=f5e62] [cursor=pointer]
+            - button "申请" [ref=f5e63] [cursor=pointer]
+            - button "状态" [ref=f5e64] [cursor=pointer]
+          - button "智能助手" [ref=f5e65] [cursor=pointer]
+          - generic [ref=f5e66]:
+            - button "设置" [ref=f5e67] [cursor=pointer]
+            - button "帮助" [ref=f5e68] [cursor=pointer]
+    - main [ref=f5e25]:
+      - main [ref=f5e69]:
+        - generic [ref=f5e70]:
+          - generic [ref=f5e71]:
+            - generic [ref=f5e72]:
+              - paragraph [ref=f5e73]: 法国申根预约助手
+              - heading "TLScontact 预约设置" [level=1] [ref=f5e74]
+              - paragraph [ref=f5e75]: 在 VIZA 已取得 France-Visas 官方申请编号后，读取 TLScontact 中国大陆名额，由用户选择后端刚观察到的时段，记录一次性 TLS 服务费授权，并在最终确认后请求官网预约。
+            - generic [ref=f5e76]: 需要人工处理
+          - alert [ref=f5e79]:
+            - heading "TLS 中国受控流程" [level=5] [ref=f5e83]
+            - generic [ref=f5e84]: 该流程只会在用户明确操作后运行。VIZA 通过后端读取 TLScontact 名额，不替申请人随意选位；遇到不支持自动化的官网风控、MFA、实名或支付挑战时会暂停。
+        - generic [ref=f5e85]:
+          - generic [ref=f5e86]: 预约进度
+          - list [ref=f5e92]:
+            - listitem [ref=f5e93]:
+              - generic [ref=f5e97]:
+                - paragraph [ref=f5e98]: VIZA Alias 与 TLS 账号
+                - paragraph [ref=f5e99]: 已自动验证
+            - listitem [ref=f5e100]:
+              - generic [ref=f5e104]:
+                - paragraph [ref=f5e105]: 发现的 TLS 名额
+                - paragraph [ref=f5e106]: 待完成
+            - listitem [ref=f5e107]:
+              - generic [ref=f5e111]:
+                - paragraph [ref=f5e112]: 最终确认
+                - paragraph [ref=f5e113]: 待完成
+            - listitem [ref=f5e114]:
+              - generic [ref=f5e118]:
+                - paragraph [ref=f5e119]: 结果
+                - paragraph [ref=f5e120]: 待完成
+        - generic [ref=f5e121]:
+          - generic [ref=f5e122]:
+            - generic [ref=f5e123]: 授权与边界
+            - generic [ref=f5e128]:
+              - paragraph [ref=f5e129]: VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。
+              - paragraph [ref=f5e130]: VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。
+              - generic [ref=f5e131]:
+                - checkbox "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。" [checked] [ref=f5e132] [cursor=pointer]
+                - generic [ref=f5e133]: 我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。
+              - button "记录授权" [ref=f5e134] [cursor=pointer]
+          - alert [ref=f5e135]:
+            - heading "官网检查点" [level=5] [ref=f5e138]
+            - generic [ref=f5e139]: "locator.click: Timeout 15000ms exceeded. Call log: \x1b[2m - waiting for locator('button[type=\\'submit\\'], input[type=\\'submit\\']').first()\x1b[22m"
+          - generic [ref=f5e140]:
+            - generic [ref=f5e141]: TLS 设置
+            - generic [ref=f5e146]:
+              - generic [ref=f5e147]:
+                - generic [ref=f5e148]: TLScontact 中心
+                - combobox "TLScontact 中心" [disabled] [ref=f5e149]:
+                  - option "北京"
+                  - option "广州"
+                  - option "成都"
+                  - option "上海" [selected]
+                  - option "沈阳"
+                  - option "武汉"
+                  - option "重庆"
+                  - option "长沙"
+                  - option "福州"
+                  - option "杭州"
+                  - option "昆明"
+                  - option "南京"
+                  - option "深圳"
+                  - option "济南"
+                  - option "西安"
+              - alert [ref=f5e150]:
+                - generic [ref=f5e151]: 创建 TLS 预约任务前必须已有 France-Visas 官方申请编号；如编号缺失，后端会阻止任务创建。
+              - button "预约任务已创建" [disabled]
+          - generic [ref=f5e152]:
+            - generic [ref=f5e153]: VIZA Alias 与 TLS 账号
+            - generic [ref=f5e158]:
+              - generic [ref=f5e159]:
+                - generic [ref=f5e160]:
+                  - paragraph [ref=f5e161]: Alias 邮箱
+                  - paragraph [ref=f5e162]: appl-01kx2gdtc5gaeh0v3mvhx98jtj@haggstorm.com
+                - generic [ref=f5e163]:
+                  - paragraph [ref=f5e164]: 官网账号状态
+                  - paragraph [ref=f5e165]: manual_required
+                - generic [ref=f5e166]:
+                  - paragraph [ref=f5e167]: 邮箱验证
+                  - paragraph [ref=f5e168]: 已自动验证
+              - alert [ref=f5e169]:
+                - generic [ref=f5e170]: 云端 runner 使用本申请专属 alias 注册 TLScontact。Cloudflare Email Worker 会把激活邮件写入 inbound_email；密码和激活链接只保留在服务端。
+          - generic [ref=f5e171]:
+            - generic [ref=f5e172]: 预约 runner
+            - generic [ref=f5e179]:
+              - generic [ref=f5e180]:
+                - generic [ref=f5e181]:
+                  - paragraph [ref=f5e182]: 预约平台
+                  - paragraph [ref=f5e183]: tlscontact_cn_fr
+                - generic [ref=f5e184]:
+                  - paragraph [ref=f5e185]: 模式
+                  - paragraph [ref=f5e186]: 人工辅助 live
+              - paragraph [ref=f5e187]: 后端从 VIZA 表读取最新预约状态；TLS 名额检查只会在用户触发且满足后端 cooldown 后运行。
+              - generic [ref=f5e188]:
+                - button "运行第一步" [disabled]
+                - button "检查名额" [ref=f5e190] [cursor=pointer]
+                - button "取消" [ref=f5e191] [cursor=pointer]
+          - generic [ref=f5e192]:
+            - generic [ref=f5e193]: 发现的 TLS 名额
+            - paragraph [ref=f5e199]: 后端尚未返回 TLS 可预约时间。请先开始助手，再在需要时点击检查名额。
+          - generic [ref=f5e200]:
+            - generic [ref=f5e201]: 一次性 TLS 服务费授权
+            - generic [ref=f5e205]:
+              - paragraph [ref=f5e206]: 这里仅记录脱敏后的支付授权交接状态。完整卡号、CVV、OTP 和支付密码不得进入 VIZA 数据库、日志、截图或浏览器状态接口。
+              - generic [ref=f5e207]:
+                - generic [ref=f5e208]:
+                  - generic [ref=f5e209]: 卡组织
+                  - textbox "卡组织" [ref=f5e210]:
+                    - /placeholder: Visa
+                - generic [ref=f5e211]:
+                  - generic [ref=f5e212]: 后四位
+                  - textbox "后四位" [ref=f5e213]:
+                    - /placeholder: "1234"
+                - generic [ref=f5e214]:
+                  - generic [ref=f5e215]: 有效期月份
+                  - textbox "有效期月份" [ref=f5e216]:
+                    - /placeholder: "06"
+                - generic [ref=f5e217]:
+                  - generic [ref=f5e218]: 有效期年份
+                  - textbox "有效期年份" [ref=f5e219]:
+                    - /placeholder: "2028"
+              - button "记录授权" [ref=f5e220] [cursor=pointer]
+          - generic [ref=f5e221]:
+            - generic [ref=f5e222]: 最终确认
+            - generic [ref=f5e227]:
+              - paragraph [ref=f5e228]: 请先选择一个已发现的 TLS 名额，再进行最终确认。
+              - generic [ref=f5e229]:
+                - button "批准最终步骤" [disabled]
+                - button "点击官网最终确认" [disabled]
+          - generic [ref=f5e230]:
+            - generic [ref=f5e231]: 结果
+            - paragraph [ref=f5e237]: 尚未记录 TLS 官方预约确认。
+  - region "Notifications alt+T"
+  - generic [ref=f5e33] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=f5e34]
+    - generic [ref=f5e238]:
+      - button "Open issues overlay" [ref=f5e239]:
+        - generic [ref=f5e240]:
+          - generic [ref=f5e241]: "1"
+          - generic [ref=f5e242]: "2"
+        - generic [ref=f5e243]:
+          - text: Issue
+          - generic [ref=f5e244]: s
+      - button "Collapse issues badge" [ref=f5e245]
+  - alert [ref=f5e46]

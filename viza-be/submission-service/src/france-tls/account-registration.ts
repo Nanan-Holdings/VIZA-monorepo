@@ -1,8 +1,10 @@
 import { randomBytes, randomInt } from "node:crypto";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import type { Locator, Page } from "@playwright/test";
 import { redactOfficialUrl } from "../appointment-free-smoke";
+import { solveCaptcha } from "../captcha/two-captcha";
 import { ensureApplicantInboxAlias } from "../inbox/alias";
 import { decryptSecret, encryptSecret } from "../secret-cipher";
 import { supabase } from "../supabase";
@@ -375,7 +377,9 @@ async function reachRegistrationForm(page: Page): Promise<void> {
 }
 
 function artifactPath(name: string): string {
-  const directory = path.resolve("artifacts/france-tls-account-registration");
+  const directory = process.env.SUBMISSION_ARTIFACTS_DIR?.trim()
+    ? path.resolve(process.env.SUBMISSION_ARTIFACTS_DIR, "france-tls-account-registration")
+    : path.join(os.tmpdir(), "viza-submission-artifacts", "france-tls-account-registration");
   fs.mkdirSync(directory, { recursive: true });
   return path.join(directory, `${name}-${Date.now()}-${randomBytes(3).toString("hex")}.png`);
 }
@@ -387,20 +391,82 @@ async function maskedScreenshot(page: Page, name: string): Promise<string> {
   return output;
 }
 
-async function waitForRegistrationCaptchaToken(page: Page): Promise<void> {
+async function ensureRecaptchaToken(
+  page: Page,
+  options: { providerWaitMs?: number; required?: boolean } = {},
+): Promise<void> {
   const response = page.locator(
     "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
   ).first();
-  if (await response.count() === 0) return;
-  const solved = await page.waitForFunction(() => {
-    const element = document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
-      "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
-    );
-    return Boolean(element?.value.trim());
-  }, undefined, { timeout: 60_000 }).then(() => true).catch(() => false);
-  if (!solved) {
-    throw new Error("TLS registration CAPTCHA was not solved before form submission");
+  if (await response.count() === 0) {
+    if (options.required) throw new Error("TLS reCAPTCHA response field was not found");
+    return;
   }
+  const providerWaitMs = options.providerWaitMs ?? 30_000;
+  const solved = providerWaitMs > 0
+    ? await page.waitForFunction(() => {
+        const element = document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+          "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
+        );
+        return Boolean(element?.value.trim());
+      }, undefined, { timeout: providerWaitMs }).then(() => true).catch(() => false)
+    : await response.inputValue().then((value) => Boolean(value.trim())).catch(() => false);
+  if (solved) return;
+
+  const twoCaptchaEnabled = process.env.FRANCE_REGISTRATION_2CAPTCHA_ENABLED?.trim().toLowerCase();
+  if (!process.env.TWOCAPTCHA_API_KEY?.trim() || twoCaptchaEnabled === "false" || twoCaptchaEnabled === "0") {
+    throw new Error("TLS reCAPTCHA was not solved before form submission");
+  }
+  const siteKey = await page.evaluate(() => {
+    const widget = document.querySelector<HTMLElement>("[data-sitekey], .g-recaptcha");
+    if (widget?.getAttribute("data-sitekey")) return widget.getAttribute("data-sitekey");
+    const frame = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe[src*='recaptcha']"))
+      .find((candidate) => /recaptcha\/api2\/anchor/i.test(candidate.src));
+    return frame ? new URL(frame.src, window.location.href).searchParams.get("k") : null;
+  });
+  if (!siteKey) throw new Error("TLS reCAPTCHA site key was not found");
+
+  const timeoutMs = Number.parseInt(process.env.FRANCE_TLS_RECAPTCHA_TIMEOUT_MS ?? "180000", 10);
+  const result = await solveCaptcha({
+    type: "recaptcha-v2",
+    siteKey,
+    pageUrl: page.url(),
+    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 180_000,
+  });
+  const token = result.text.trim();
+  if (!token) throw new Error("TLS reCAPTCHA solver returned an empty token");
+  await page.evaluate((captchaToken) => {
+    const fields = Array.from(document.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>(
+      "textarea[name='g-recaptcha-response'], input[name='g-recaptcha-response']",
+    ));
+    for (const field of fields) {
+      field.value = captchaToken;
+      field.innerHTML = captchaToken;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const visit = (value: unknown, seen: Set<unknown>): void => {
+      if (!value || typeof value !== "object" || seen.has(value)) return;
+      seen.add(value);
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        if (key === "callback" && typeof child === "function") {
+          try {
+            (child as (tokenValue: string) => void)(captchaToken);
+          } catch {
+            // Continue through other registered reCAPTCHA clients.
+          }
+        } else {
+          visit(child, seen);
+        }
+      }
+    };
+    const recaptchaWindow = window as Window & { ___grecaptcha_cfg?: { clients?: Record<string, unknown> } };
+    for (const client of Object.values(recaptchaWindow.___grecaptcha_cfg?.clients ?? {})) {
+      visit(client, new Set<unknown>());
+    }
+  }, token);
+  const injected = await response.inputValue().then((value) => Boolean(value.trim())).catch(() => false);
+  if (!injected) throw new Error("TLS reCAPTCHA token injection failed");
 }
 
 async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccountContext): Promise<string[]> {
@@ -418,7 +484,7 @@ async function submitRegistrationForm(page: Page, context: FranceTlsStoredAccoun
     const optional = page.locator(selector).first();
     if (await optional.isChecked().catch(() => false)) await optional.uncheck();
   }
-  await waitForRegistrationCaptchaToken(page);
+  await ensureRecaptchaToken(page);
   const evidence = [await maskedScreenshot(page, "registration-filled")];
   await page.locator("button#submit, button[type='submit']").first().click({ timeout: 15_000 });
   await settle(page);
@@ -458,17 +524,59 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
     ])) throw new Error("TLS login entry was not found after activation");
     await settle(page);
   }
-  await page.locator("input[type='email'], input[name='username'], input[name='email']").first().fill(context.alias);
-  await page.locator("input[type='password']").first().fill(context.password);
-  await page.locator("button[type='submit'], input[type='submit']").first().click({ timeout: 15_000 });
-  await settle(page);
-  const body = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-  if (/invalid (email|password|credentials)|incorrect password|authentication failed/i.test(body)) {
-    throw new Error("TLS login rejected the stored credentials");
+
+  // TLS can replace the Keycloak login DOM once more immediately after its
+  // Cloudflare waiting room clears. Re-resolve every locator for each attempt
+  // and allow one safe login-page refresh; never repeat account registration.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await settle(page);
+    const username = page.locator(
+      "#email-input-field, input[type='email'], input[name='username'], input[name='email']",
+    ).first();
+    const password = page.locator("#password-input-field, input[type='password']").first();
+    const formReady = await username.isVisible({ timeout: 10_000 }).catch(() => false)
+      && await password.isVisible({ timeout: 10_000 }).catch(() => false);
+    if (formReady) {
+      await username.fill(context.alias);
+      await password.fill(context.password);
+      const clicked = await clickFirstVisible([
+        page.locator("#btn-login"),
+        page.getByRole("button", { name: /^log\s*in$/i }),
+        page.getByRole("button", { name: /^sign\s*in$/i }),
+        page.locator("button[type='submit'], input[type='submit']"),
+      ]);
+      if (clicked) {
+        await settle(page);
+        const loginState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(page));
+        if (loginState.checkpoint === "captcha_grid" || loginState.checkpoint === "captcha_token") {
+          await ensureRecaptchaToken(page, { providerWaitMs: 0, required: true });
+          const clickedAfterCaptcha = await clickFirstVisible([
+            page.locator("#btn-login"),
+            page.getByRole("button", { name: /^log\s*in$/i }),
+            page.locator("button[type='submit'], input[type='submit']"),
+          ]);
+          if (!clickedAfterCaptcha) {
+            throw new Error("TLS login control disappeared after reCAPTCHA was solved");
+          }
+          await settle(page);
+        }
+        const body = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+        if (/invalid (email|password|credentials)|incorrect password|authentication failed/i.test(body)) {
+          throw new Error("TLS login rejected the stored credentials");
+        }
+        const stillHasPassword = await page.locator("input[type='password']").first()
+          .isVisible({ timeout: 2_000 }).catch(() => false);
+        if (!stillHasPassword) {
+          await updateAccountStatus(context, "logged_in", true);
+          return;
+        }
+      }
+    }
+    if (attempt === 0) {
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    }
   }
-  const stillHasPassword = await page.locator("input[type='password']").first().isVisible({ timeout: 2_000 }).catch(() => false);
-  if (stillHasPassword) throw new Error("TLS login did not leave the authentication form");
-  await updateAccountStatus(context, "logged_in", true);
+  throw new Error("TLS login did not leave the authentication form after one safe refresh");
 }
 
 export async function loadFranceTlsStoredAccount(
