@@ -54,6 +54,9 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
   }> = [];
   jobUpdates: Array<{ jobId: string; status: string; currentManualAction: string | null }> = [];
   credentials: AppointmentAccountCredentials | null = null;
+  verificationEmail: { code: string | null; link: string | null } | null = null;
+  accountMarkedVerified = false;
+  finalApprovalCompleted = false;
 
   async listCandidateJobs(): Promise<USAppointmentJobRow[]> {
     return [];
@@ -110,6 +113,19 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
 
   async getSelectedSlot(): Promise<AppointmentSlotRow | null> {
     return this.selectedSlot;
+  }
+
+  async hasCompletedFinalApproval(): Promise<boolean> {
+    return this.finalApprovalCompleted;
+  }
+
+  async waitForAccountVerificationEmail(): Promise<{ code: string | null; link: string | null }> {
+    if (!this.verificationEmail) throw new Error("verification email unavailable");
+    return this.verificationEmail;
+  }
+
+  async markAppointmentAccountVerified(): Promise<void> {
+    this.accountMarkedVerified = true;
   }
 
   async updateApplicationAppointmentState(input: {
@@ -526,6 +542,68 @@ test("US appointment runner persists account email verification as an explicit c
   );
 });
 
+test("US appointment runner reads the alias inbox and completes account email verification", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = {
+    email: "applicant@example.com",
+    password: "secret-password",
+  };
+  repository.verificationEmail = { code: "123456", link: null };
+  let prepareCalls = 0;
+  let receivedCode: string | null | undefined;
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      prepareCalls += 1;
+      if (prepareCalls === 1) {
+        return {
+          readyForSlotCapture: false,
+          gate: {
+            jobStatus: "appointment_manual_required",
+            actionType: "account_email_verification",
+            instruction: "Verify the account email.",
+            metadata: { provider: "usvisascheduling" },
+          },
+        };
+      }
+      return { readyForSlotCapture: true };
+    },
+    async completeAccountEmailVerification(input) {
+      receivedCode = input.emailCode;
+      return { readyForSlotCapture: false };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    { ...baseJob, status: "appointment_login_required" },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(receivedCode, "123456");
+  assert.equal(repository.accountMarkedVerified, true);
+  assert.equal(repository.manualActions.length, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+});
+
 test("US appointment runner writes observed slots from a portal fixture", async () => {
   const repository = new InMemoryRunnerRepository();
   const result = await processUSAppointmentJob(
@@ -745,6 +823,7 @@ test("US appointment runner records a login gate when portal login automation th
 
 test("US appointment runner writes confirmation after final approved booking fixture", async () => {
   const repository = new InMemoryRunnerRepository();
+  repository.finalApprovalCompleted = true;
   repository.selectedSlot = {
     id: "44444444-4444-4444-8444-444444444444",
     job_id: baseJob.id,
@@ -763,6 +842,7 @@ test("US appointment runner writes confirmation after final approved booking fix
       status: "appointment_booked",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           confirmation: {
             confirmationNumber: "CN-BJ-123456",
             screenshotUrl: "https://storage.example/confirmation.png",
@@ -788,6 +868,52 @@ test("US appointment runner writes confirmation after final approved booking fix
     jobId: baseJob.id,
     confirmationId: "55555555-5555-4555-8555-555555555555",
   });
+});
+
+test("US appointment runner never clicks the official confirmation without persisted final approval", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.selectedSlot = {
+    id: "44444444-4444-4444-8444-444444444444",
+    job_id: baseJob.id,
+    appointment_date: "2026-08-18",
+    appointment_time: "09:00",
+    appointment_location: "U.S. Embassy Beijing",
+    appointment_type: "interview",
+    metadata_redacted_json: null,
+  };
+  let confirmationCaptureAttempted = false;
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return { readyForSlotCapture: true };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      confirmationCaptureAttempted = true;
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  await processUSAppointmentJob(
+    { ...baseJob, status: "appointment_booked" },
+    repository,
+    loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }),
+    portalClient,
+  );
+
+  assert.equal(confirmationCaptureAttempted, false);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_final_confirmation_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "final_confirmation");
 });
 
 test("US appointment runner writes follow-up status check fixture", async () => {

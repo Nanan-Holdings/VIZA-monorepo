@@ -187,9 +187,10 @@ comments.
   `components/client/korea-appointment/**`, and `lib/korea-c39/**`.
   It prioritizes Korea Visa Portal barcode e-Form generation/download, keeps
   the printable Annex-17 packet as a fallback, resolves the recommended China
-  KVAC center, and records dry-run appointment slot selection/confirmation in
-  the existing `appointment_*` tables. Real KVAC portal booking must remain
-  gated behind the submission-service runner and explicit user-selected slot.
+  KVAC center, and keeps cancellation/rebooking state transitions in
+  `lib/korea-c39/appointment-rebooking.ts` while preserving old confirmations
+  as history. Real KVAC portal booking must remain gated behind the
+  submission-service runner and explicit user-selected slot.
 
 ## Validation
 

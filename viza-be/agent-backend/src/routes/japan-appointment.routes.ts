@@ -23,6 +23,7 @@ interface Locals { requester: Requester; applicationId?: string; jobId?: string 
 
 const applicationParams = z.object({ applicationId: z.string().uuid() });
 const jobParams = z.object({ jobId: z.string().uuid() });
+const slotParams = z.object({ jobId: z.string().uuid(), slotId: z.string().uuid() });
 const consentBody = z.object({ accepted: z.literal(true), consentSnapshot: z.record(z.unknown()).default({}) }).strict();
 const jobBody = z.object({
   idempotencyKey: z.string().trim().min(8).max(180).optional(),
@@ -35,6 +36,10 @@ const jobBody = z.object({
     occupation: z.string().trim().min(1),
     checklistConfirmed: z.array(z.string().trim().min(1)).default([]),
   }).strict(),
+}).strict();
+const paymentBody = z.object({
+  sessionId: z.string().trim().min(8).max(180),
+  redacted: z.object({ brand: z.string().trim().min(1).max(40).optional(), last4: z.string().regex(/^\d{4}$/), method: z.string().trim().min(1).max(40).optional() }).passthrough(),
 }).strict();
 
 function bearer(req: Request) {
@@ -156,6 +161,30 @@ japanAppointmentApplicationRouter.post("/:applicationId/japan-appointment/job", 
 japanAppointmentOperationsRouter.post("/jobs/:jobId/check-portal", jobAccess, async (_req, res) => {
   try { res.json({ error: false, data: await service.checkPortal(locals(res).jobId ?? "") }); }
   catch (error) { fail(res, error, "japan_appointment_check_portal_failed"); }
+});
+
+japanAppointmentOperationsRouter.post("/jobs/:jobId/slots/:slotId/select", jobAccess, async (req, res) => {
+  const parsed = slotParams.safeParse(req.params);
+  if (!parsed.success) { res.status(400).json({ error: true, code: "validation_error", details: parsed.error.issues }); return; }
+  try { res.json({ error: false, data: await service.selectSlot(parsed.data.jobId, parsed.data.slotId) }); }
+  catch (error) { fail(res, error, "japan_appointment_slot_select_failed"); }
+});
+
+japanAppointmentOperationsRouter.post("/jobs/:jobId/payment-session", jobAccess, async (req, res) => {
+  const parsed = paymentBody.safeParse(req.body ?? {});
+  if (!parsed.success) { res.status(400).json({ error: true, code: "validation_error", details: parsed.error.issues }); return; }
+  try { res.json({ error: false, data: await service.recordPaymentAuthorization(locals(res).jobId ?? "", parsed.data) }); }
+  catch (error) { fail(res, error, "japan_appointment_payment_failed"); }
+});
+
+japanAppointmentOperationsRouter.post("/jobs/:jobId/approve-final-confirmation", jobAccess, async (_req, res) => {
+  try { res.json({ error: false, data: await service.approveFinalConfirmation(locals(res).jobId ?? "") }); }
+  catch (error) { fail(res, error, "japan_appointment_final_approval_failed"); }
+});
+
+japanAppointmentOperationsRouter.post("/jobs/:jobId/book-selected-slot", jobAccess, async (_req, res) => {
+  try { res.json({ error: false, data: await service.bookSelectedSlot(locals(res).jobId ?? "") }); }
+  catch (error) { fail(res, error, "japan_appointment_book_failed"); }
 });
 
 japanAppointmentOperationsRouter.post("/jobs/:jobId/cancel", jobAccess, async (_req, res) => {

@@ -13,6 +13,10 @@ France-Visas official reference capture.
 - Opening the page must only read VIZA appointment status. Do not create, rerun,
   check TLS slots, select a slot, record payment authorization, or request
   booking until the applicant clicks an explicit action.
+- After the applicant checks consent, the explicit start action may idempotently
+  record that consent, create the assisted-live job, and immediately run the
+  first account/slot step. Keep the four-stage alias, slots, final approval, and
+  confirmation progress surface bound to persisted backend status.
 - Users can choose only backend-observed TLS slots from the current job. Do not
   collect preferred dates or let the frontend invent appointment timings.
 - Start new jobs in `assisted_live` mode by default. Dry-run is for tests only
@@ -25,5 +29,5 @@ France-Visas official reference capture.
   blocks, or payment challenges must remain visible as paused checkpoint states;
   do not present them as completed bookings.
 - All text must use `messages/en.json` and `messages/zh.json`.
-- Use client portal primitives (`BrandField`, `BrandInput`, shadcn `Card`,
-  `Alert`, `Button`, and lucide icons).
+- Use client portal primitives (`BrandField`, `BrandInput`,
+  `BrandActionButton`, shadcn `Card`, `Alert`, `Button`, and lucide icons).

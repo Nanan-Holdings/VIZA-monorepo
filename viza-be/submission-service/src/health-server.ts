@@ -20,7 +20,7 @@ import {
 } from "./korea-kvac/live-session.js";
 import { supabase } from "./supabase.js";
 import { putVietnamCardSession } from "./vietnam/card-session.js";
-import { observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
+import { bookJapanVfsSingaporeSlot, observeJapanVfsSingaporeSlots } from "./jp-vfs-sg/runner.js";
 
 type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
 
@@ -477,6 +477,26 @@ async function handleJapanVfsSingaporeObserve(req: http.IncomingMessage, res: ht
   }
 }
 
+async function handleJapanVfsSingaporeBook(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) { sendJson(res, 404, { error: "not_found" }); return; }
+  if (!isJapanInternalRequest(req)) { sendJson(res, 403, { error: "forbidden" }); return; }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const selected = body.selectedSlot && typeof body.selectedSlot === "object" ? body.selectedSlot as Record<string, unknown> : {};
+    const required = (value: unknown, field: string) => { if (typeof value !== "string" || !value.trim()) throw new Error(`${field} is required`); return value.trim(); };
+    const result = await bookJapanVfsSingaporeSlot({
+      applicationId: required(body.applicationId, "applicationId"), jobId: required(body.jobId, "jobId"),
+      paymentSessionId: required(body.paymentSessionId, "paymentSessionId"),
+      selectedSlot: {
+        appointmentDate: required(selected.appointmentDate, "selectedSlot.appointmentDate"),
+        appointmentTime: typeof selected.appointmentTime === "string" ? selected.appointmentTime : null,
+        appointmentLocation: required(selected.appointmentLocation, "selectedSlot.appointmentLocation"), source: "vfs_jp_sg",
+      },
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) { sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) }); }
+}
+
 export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
@@ -548,6 +568,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     }
     if (req.method === "POST" && url === "/local/japan-vfs-sg/observe") {
       void handleJapanVfsSingaporeObserve(req, res);
+      return;
+    }
+    if (req.method === "POST" && url === "/internal/japan-vfs-sg/book-selected-slot") {
+      void handleJapanVfsSingaporeBook(req, res);
       return;
     }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {
@@ -646,6 +670,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/internal/japan-vfs-sg/book-selected-slot") {
+      if (!envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED) || !isJapanInternalRequest(req)) { sendJson(res, 404, { error: "not_found" }); return; }
+      sendJson(res, 200, { ok: true, enabled: true }); return;
+    }
     sendJson(res, 404, { error: "not_found" });
   });
 
@@ -659,6 +687,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) endpoints.push("/internal/france-tls/register-account");
     if (envEnabled(process.env.FRANCE_TLS_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/france-tls/book-selected-slot");
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
+    if (envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/japan-vfs-sg/book-selected-slot");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);
   });

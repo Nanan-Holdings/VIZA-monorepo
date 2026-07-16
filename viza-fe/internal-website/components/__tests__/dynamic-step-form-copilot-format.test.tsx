@@ -168,6 +168,79 @@ const optionalPostcodeStep: WizardStep = {
   ],
 };
 
+const vnPrearrivalHotelHierarchyStep: WizardStep = {
+  stepNumber: 2,
+  stepName: "Trip Information",
+  fields: [
+    {
+      id: "field-accommodation-type",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "accommodation_type",
+      label: "Type of Accommodation in Vietnam",
+      fieldType: "radio",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 1,
+      placeholder: null,
+      validationRules: null,
+      options: [{ value: "hotel", text: "Hotel" }],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-province-city",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "province_city_of_hotel",
+      label: "Province / City of Hotel",
+      fieldType: "select",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 2,
+      placeholder: "Select...",
+      validationRules: { official_source: "prearrival_category:administrative_unit_level1" },
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-ward-commune",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "ward_commune_of_hotel",
+      label: "Ward / Commune of Hotel",
+      fieldType: "select",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 3,
+      placeholder: "Select...",
+      validationRules: {
+        official_source: "prearrival_category:administrative_unit_level2",
+        depends_on: "province_city_of_hotel",
+      },
+      options: null,
+      conditionalLogic: null,
+    },
+    {
+      id: "field-hotel-address",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "hotel_accommodation_address",
+      label: "Accommodation Address",
+      fieldType: "select",
+      required: true,
+      stepNumber: 2,
+      stepName: "Trip Information",
+      displayOrder: 4,
+      placeholder: "Select...",
+      validationRules: {
+        official_source: "prearrival_category:hotel",
+        depends_on: "ward_commune_of_hotel",
+      },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const tdacResidenceStep: WizardStep = {
   stepNumber: 1,
   stepName: "Traveller Information",
@@ -641,6 +714,45 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
     expect(onComplete).toHaveBeenCalledWith({ postcode: "" });
+  });
+
+  it("repairs a saved Vietnam hotel selection by restoring its official hierarchy", async () => {
+    const onComplete = vi.fn();
+    const onDraftChange = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      JSON.stringify({ options: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )));
+
+    render(
+      <DynamicStepForm
+        step={vnPrearrivalHotelHierarchyStep}
+        prefill={{
+          accommodation_type: "hotel",
+          hotel_accommodation_address: "KSDN_01",
+        }}
+        onComplete={onComplete}
+        onDraftChange={onDraftChange}
+        visaType="VN_PREARRIVAL_DECLARATION"
+      />,
+    );
+
+    await waitFor(() => expect(onDraftChange).toHaveBeenLastCalledWith({
+      accommodation_type: "hotel",
+      province_city_of_hotel: "48",
+      ward_commune_of_hotel: "20194",
+      hotel_accommodation_address: "KSDN_01",
+    }));
+    const continueButton = screen.getByRole("button", { name: "continue" });
+    await waitFor(() => expect(continueButton).toBeEnabled());
+    fireEvent.click(continueButton);
+
+    expect(onComplete).toHaveBeenCalledWith({
+      accommodation_type: "hotel",
+      province_city_of_hotel: "48",
+      ward_commune_of_hotel: "20194",
+      hotel_accommodation_address: "KSDN_01",
+    });
   });
 
   it("shows document date-order errors only on the expiry field", () => {

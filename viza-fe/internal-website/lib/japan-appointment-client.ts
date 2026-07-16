@@ -51,3 +51,19 @@ export function checkJapanAppointmentPortal(jobId: string) {
 export function cancelJapanAppointmentJob(jobId: string) {
   return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/cancel`, { method: "POST" });
 }
+
+export function selectJapanAppointmentSlot(jobId: string, slotId: string) {
+  return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/slots/${slotId}/select`, { method: "POST" });
+}
+
+export function recordJapanAppointmentPayment(jobId: string, input: { sessionId: string; redacted: JsonObject }) {
+  return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/payment-session`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function approveJapanAppointmentFinal(jobId: string) {
+  return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/approve-final-confirmation`, { method: "POST" });
+}
+
+export function bookJapanAppointmentSlot(jobId: string) {
+  return request<JapanAppointmentSnapshot>(`/api/japan-appointment/jobs/${jobId}/book-selected-slot`, { method: "POST" });
+}

@@ -1,5 +1,6 @@
 import { supabase } from "../supabase";
 import { decryptSecret } from "../secret-cipher";
+import { waitForUSAppointmentVerificationEmail } from "./inbox";
 import type {
   AppointmentAccountCredentials,
   AuditEventInsert,
@@ -33,12 +34,36 @@ function remainingWords(value: string | null | undefined): string | null {
 export class SupabaseUSAppointmentRunnerRepository
   implements USAppointmentRunnerRepository
 {
+  private readonly jobSelect =
+    "id, application_id, user_id, appointment_account_id, applying_country_code, applying_post_city, scheduling_provider, status, mode, user_preferences_json, requires_user_action, current_manual_action, updated_at";
+
+  async getJob(jobId: string): Promise<USAppointmentJobRow | null> {
+    const { data, error } = await supabase
+      .from("appointment_assistance_jobs")
+      .select(this.jobSelect)
+      .eq("id", jobId)
+      .maybeSingle();
+    if (error) throw new Error(`US appointment job lookup failed: ${error.message}`);
+    return (data ?? null) as USAppointmentJobRow | null;
+  }
+
+  async getLatestJobForApplication(applicationId: string): Promise<USAppointmentJobRow | null> {
+    const { data, error } = await supabase
+      .from("appointment_assistance_jobs")
+      .select(this.jobSelect)
+      .eq("application_id", applicationId)
+      .eq("scheduling_provider", "usvisascheduling")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(`US appointment application job lookup failed: ${error.message}`);
+    return (data ?? null) as USAppointmentJobRow | null;
+  }
+
   async listCandidateJobs(limit: number): Promise<USAppointmentJobRow[]> {
     const { data, error } = await supabase
       .from("appointment_assistance_jobs")
-      .select(
-        "id, application_id, user_id, appointment_account_id, applying_country_code, applying_post_city, scheduling_provider, status, mode, user_preferences_json, requires_user_action, current_manual_action, updated_at",
-      )
+      .select(this.jobSelect)
       .eq("mode", "assisted_live")
       .in("status", [
         "appointment_consent_received",
@@ -216,6 +241,50 @@ export class SupabaseUSAppointmentRunnerRepository
       throw new Error(`US appointment selected slot lookup failed: ${error.message}`);
     }
     return (data ?? null) as AppointmentSlotRow | null;
+  }
+
+  async hasCompletedFinalApproval(jobId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from("appointment_manual_actions")
+      .select("id")
+      .eq("job_id", jobId)
+      .eq("action_type", "final_confirmation")
+      .eq("status", "completed")
+      .limit(1);
+    if (error) throw new Error(`US appointment final approval lookup failed: ${error.message}`);
+    return Boolean(data?.length);
+  }
+
+  async waitForAccountVerificationEmail(
+    job: USAppointmentJobRow,
+    timeoutMs: number,
+  ): Promise<{ code: string | null; link: string | null }> {
+    const { data, error } = await supabase
+      .from("applications")
+      .select("applicant_id")
+      .eq("id", job.application_id)
+      .maybeSingle();
+    if (error) throw new Error(`US appointment applicant lookup failed: ${error.message}`);
+    const applicantId = typeof data?.applicant_id === "string" ? data.applicant_id : null;
+    if (!applicantId) throw new Error("US appointment applicant is missing for alias email verification.");
+    const verification = await waitForUSAppointmentVerificationEmail(applicantId, timeoutMs);
+    return { code: verification.code, link: verification.link };
+  }
+
+  async markAppointmentAccountVerified(job: USAppointmentJobRow): Promise<void> {
+    let query = supabase
+      .from("appointment_accounts")
+      .update({
+        account_status: "active",
+        email_verified: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("portal", "usvisascheduling");
+    query = job.appointment_account_id
+      ? query.eq("id", job.appointment_account_id)
+      : query.eq("application_id", job.application_id).eq("user_id", job.user_id);
+    const { error } = await query;
+    if (error) throw new Error(`US appointment account verification update failed: ${error.message}`);
   }
 
   async insertConfirmation(input: ConfirmationInsert): Promise<{ id: string | null }> {

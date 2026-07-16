@@ -151,6 +151,13 @@ function makeImapPlusAlias(): string {
   return `${localPart}+ph-etravel-${randomSuffix(8)}@${domain}`;
 }
 
+function isConfiguredImapPlusAlias(email: string): boolean {
+  const inbox = process.env.IMAP_EMAIL?.trim().toLowerCase();
+  if (!inbox) return false;
+  const [localPart, domain] = inbox.split("@");
+  return Boolean(localPart && domain && email.toLowerCase().startsWith(`${localPart}+`) && email.toLowerCase().endsWith(`@${domain}`));
+}
+
 async function loadApplicationForPhPayload(applicationId: string): Promise<{
   applicationPayload: PhEtravelPortalPayload;
   applicantId: string;
@@ -377,15 +384,27 @@ async function main(): Promise<void> {
   payload = withDateOverrides(payload, args);
 
   const useApplicantId = args.applicantId?.trim();
+  const existingImapAccount = args.useImapMailbox && useApplicantId
+    ? await loadPhEtravelAccount(useApplicantId)
+    : null;
   const context = args.useImapMailbox
-    ? {
-        email: makeImapPlusAlias(),
-        password: makeGeneratedPassword(),
-        mpin: makeGeneratedMpin(),
-        mode: "create_new" as const,
-        applicantId: useApplicantId,
-        forceAccountRegistration: true,
-      }
+    ? existingImapAccount?.password && isConfiguredImapPlusAlias(existingImapAccount.email)
+      ? {
+          email: existingImapAccount.email,
+          password: existingImapAccount.password,
+          mpin: existingImapAccount.mpin,
+          mode: "create_new" as const,
+          applicantId: useApplicantId,
+          forceAccountRegistration: true,
+        }
+      : {
+          email: makeImapPlusAlias(),
+          password: makeGeneratedPassword(),
+          mpin: makeGeneratedMpin(),
+          mode: "create_new" as const,
+          applicantId: useApplicantId,
+          forceAccountRegistration: true,
+        }
     : await buildPhEtravelAccountContext({
         applicantId: useApplicantId,
         explicitEmail: args.accountEmail,

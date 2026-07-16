@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { BrandActionButton } from "@/components/client/brand-action-button";
 import { FRANCE_TLS_CHINA_CENTER_OPTIONS } from "@/lib/france-appointment/centers";
 import {
   approveFranceAppointmentFinalConfirmation,
@@ -181,6 +182,7 @@ export function FranceAppointmentAssistant({
   const [busyAction, setBusyAction] = useState<BusyAction | null>("load");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [consentRecorded, setConsentRecorded] = useState(false);
   const [centerCode, setCenterCode] = useState("shanghai");
   const [paymentBrand, setPaymentBrand] = useState("");
   const [paymentLast4, setPaymentLast4] = useState("");
@@ -231,6 +233,10 @@ export function FranceAppointmentAssistant({
     try {
       const next = await getFranceAppointmentStatus(applicationId);
       setSnapshot(next);
+      if (next.job) {
+        setConsentAccepted(true);
+        setConsentRecorded(true);
+      }
       const preferredCenter =
         typeof next.job?.userPreferencesJson.centerCode === "string"
           ? next.job.userPreferencesJson.centerCode
@@ -246,6 +252,16 @@ export function FranceAppointmentAssistant({
   useEffect(() => {
     void loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
+    const timer = window.setInterval(() => {
+      void getFranceAppointmentStatus(applicationId)
+        .then(setSnapshot)
+        .catch(() => undefined);
+    }, 7000);
+    return () => window.clearInterval(timer);
+  }, [applicationId, job]);
 
   const runAction = async (
     action: BusyAction,
@@ -279,12 +295,30 @@ export function FranceAppointmentAssistant({
           acceptedAt: new Date().toISOString(),
         },
       });
+      setConsentRecorded(true);
       await loadStatus();
     });
 
   const handleCreateJob = () =>
     runAction("create", async () => {
-      await createFranceAppointmentJob(applicationId, {
+      if (!consentAccepted) {
+        setErrorMessage(t("setup.consentRequiredError"));
+        return;
+      }
+      if (!consentRecorded) {
+        await recordFranceAppointmentConsent(applicationId, {
+          idempotencyKey: `france-appointment-consent:${applicationId}:2026-07-v1`,
+          consentSnapshot: {
+            version: "2026-07-france-tls-appointment-v1",
+            schedulingProvider: "tlscontact_cn_fr",
+            countryCode: "FR",
+            applyingCountryCode: "CN",
+            acceptedAt: new Date().toISOString(),
+          },
+        });
+        setConsentRecorded(true);
+      }
+      const created = await createFranceAppointmentJob(applicationId, {
         mode: "assisted_live",
         centerCode,
         idempotencyKey: `france-tls:${applicationId}:${centerCode}:assisted-live`,
@@ -293,7 +327,7 @@ export function FranceAppointmentAssistant({
           schedulingProvider: "tlscontact_cn_fr",
         },
       });
-      await loadStatus();
+      return runFranceAppointmentJob(created.id);
     });
 
   const handlePayment = () =>
@@ -324,7 +358,8 @@ export function FranceAppointmentAssistant({
     job
     && selectedAppointmentSlot
     && finalApproved
-    && (job.mode === "assisted_live" || paymentAuthorized),
+    && (job.mode === "assisted_live" || paymentAuthorized)
+    && !snapshot?.confirmation,
   );
 
   if (busyAction === "load" && !snapshot) {
@@ -369,6 +404,64 @@ export function FranceAppointmentAssistant({
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       )}
+
+      <Card className="rounded-[8px] border-input">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Clock3 className="h-4 w-4 text-brand-500" />
+            {t("panel.progressTitle")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                label: t("account.title"),
+                complete: Boolean(snapshot?.account?.emailVerified),
+                detail: snapshot?.account?.emailVerified
+                  ? t("account.verified")
+                  : t("account.notVerified"),
+              },
+              {
+                label: t("slots.title"),
+                complete: slots.length > 0,
+                detail: slots.length > 0
+                  ? t("panel.stepComplete")
+                  : t("panel.stepPending"),
+              },
+              {
+                label: t("final.title"),
+                complete: finalApproved,
+                detail: finalApproved
+                  ? t("final.approvedBadge")
+                  : t("panel.stepPending"),
+              },
+              {
+                label: t("results.title"),
+                complete: Boolean(snapshot?.confirmation),
+                detail: snapshot?.confirmation
+                  ? t("results.captured")
+                  : t("panel.stepPending"),
+              },
+            ].map((step) => (
+              <li
+                key={step.label}
+                className="flex min-h-20 items-start gap-3 rounded-[8px] border border-slate-200 bg-white p-3"
+              >
+                {step.complete ? (
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                ) : (
+                  <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{step.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{step.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
 
       <div className="mx-auto w-full space-y-5">
           <Card className="rounded-[8px] border-input">
@@ -446,19 +539,17 @@ export function FranceAppointmentAssistant({
               <Alert className="border-slate-200 bg-slate-50">
                 <AlertDescription>{t("setup.referenceHint")}</AlertDescription>
               </Alert>
-              <Button
+              <BrandActionButton
                 type="button"
                 onClick={handleCreateJob}
-                disabled={Boolean(job) || busyAction === "create"}
+                loading={busyAction === "create"}
+                loadingText={t("setup.creating")}
+                disabled={Boolean(job) || Boolean(busyAction) || !consentAccepted}
                 className="w-full"
               >
-                {busyAction === "create" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="mr-2 h-4 w-4" />
-                )}
+                <Play className="mr-2 h-4 w-4" />
                 {job ? t("setup.jobCreated") : t("setup.createJob")}
-              </Button>
+              </BrandActionButton>
             </CardContent>
           </Card>
           <Card className="rounded-[8px] border-input">
@@ -712,9 +803,9 @@ export function FranceAppointmentAssistant({
                   : t("final.requirement")}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Button
+                <BrandActionButton
                   type="button"
-                  variant={finalApproved ? "outline" : "default"}
+                  variant="secondary"
                   onClick={() =>
                     job &&
                     runAction("approve", () =>
@@ -729,8 +820,8 @@ export function FranceAppointmentAssistant({
                     <ShieldCheck className="mr-2 h-4 w-4" />
                   )}
                   {finalApproved ? t("final.approvedBadge") : t("final.approve")}
-                </Button>
-                <Button
+                </BrandActionButton>
+                <BrandActionButton
                   type="button"
                   onClick={() =>
                     job &&
@@ -744,7 +835,7 @@ export function FranceAppointmentAssistant({
                     <CalendarCheck className="mr-2 h-4 w-4" />
                   )}
                   {t("final.book")}
-                </Button>
+                </BrandActionButton>
               </div>
             </CardContent>
           </Card>

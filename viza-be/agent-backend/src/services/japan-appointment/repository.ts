@@ -5,6 +5,8 @@ import type {
   JapanAppointmentApplication,
   JapanAppointmentJob,
   JapanAppointmentManualAction,
+  JapanAppointmentSlot,
+  JapanAppointmentConfirmation,
   JapanAppointmentRepository,
   JsonObject,
 } from "./JapanAppointmentService.js";
@@ -47,6 +49,27 @@ function mapAction(row: Row): JapanAppointmentManualAction {
     instruction: text(row.instruction),
     metadataRedactedJson: object(row.metadata_redacted_json),
     createdAt: text(row.created_at),
+  };
+}
+
+function mapSlot(row: Row): JapanAppointmentSlot {
+  return {
+    id: text(row.id) ?? "", jobId: text(row.job_id) ?? "", applicationId: text(row.application_id) ?? "",
+    appointmentDate: text(row.appointment_date) ?? "", appointmentTime: text(row.appointment_time) ?? "",
+    appointmentLocation: text(row.appointment_location) ?? "", appointmentType: text(row.appointment_type) ?? "",
+    source: text(row.source) ?? "vfs_jp_sg", status: text(row.status) ?? "observed",
+    observedAt: text(row.observed_at), metadataRedactedJson: object(row.metadata_redacted_json),
+  };
+}
+
+function mapConfirmation(row: Row): JapanAppointmentConfirmation {
+  return {
+    id: text(row.id) ?? "", jobId: text(row.job_id) ?? "", applicationId: text(row.application_id) ?? "",
+    userId: text(row.user_id) ?? "", appointmentDate: text(row.appointment_date) ?? "",
+    appointmentTime: text(row.appointment_time) ?? "", appointmentLocation: text(row.appointment_location) ?? "",
+    appointmentType: text(row.appointment_type) ?? "", confirmationNumber: text(row.confirmation_number),
+    confirmationPdfUrl: text(row.confirmation_pdf_url), confirmationScreenshotUrl: text(row.confirmation_screenshot_url),
+    rawConfirmationRedactedJson: object(row.raw_confirmation_redacted_json), createdAt: text(row.created_at),
   };
 }
 
@@ -206,6 +229,64 @@ export class SupabaseJapanAppointmentRepository implements JapanAppointmentRepos
       .eq("job_id", jobId).eq("status", "pending").order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message);
     return data ? mapAction(data as Row) : null;
+  }
+
+  async replaceObservedSlots(jobId: string, slots: Omit<JapanAppointmentSlot, "id" | "jobId" | "applicationId" | "status" | "observedAt">[]) {
+    const job = await this.getJob(jobId);
+    if (!job) throw new Error("Japan appointment job not found");
+    const client = getSupabaseClient();
+    const { error: deleteError } = await client.from("appointment_slots").delete().eq("job_id", jobId).eq("status", "observed");
+    if (deleteError) throw new Error(deleteError.message);
+    if (slots.length === 0) return [];
+    const { data, error } = await client.from("appointment_slots").insert(slots.map((slot) => ({
+      job_id: jobId, application_id: job.applicationId, appointment_date: slot.appointmentDate,
+      appointment_time: slot.appointmentTime, appointment_location: slot.appointmentLocation,
+      appointment_type: slot.appointmentType, source: slot.source, status: "observed",
+      observed_at: new Date().toISOString(), metadata_redacted_json: slot.metadataRedactedJson,
+    }))).select("*");
+    if (error || !data) throw new Error(error?.message ?? "Japan slot insert failed");
+    return (data as Row[]).map(mapSlot);
+  }
+
+  async listSlots(jobId: string) {
+    const { data, error } = await getSupabaseClient().from("appointment_slots").select("*").eq("job_id", jobId)
+      .order("appointment_date", { ascending: true }).order("appointment_time", { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as Row[]).map(mapSlot);
+  }
+
+  async selectSlot(jobId: string, slotId: string) {
+    const client = getSupabaseClient();
+    const { error: expireError } = await client.from("appointment_slots").update({ status: "expired" }).eq("job_id", jobId).in("status", ["observed", "user_selected"]);
+    if (expireError) throw new Error(expireError.message);
+    const { data, error } = await client.from("appointment_slots").update({ status: "user_selected" }).eq("id", slotId).eq("job_id", jobId).select("*").maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapSlot(data as Row) : null;
+  }
+
+  async getSelectedSlot(jobId: string) {
+    const { data, error } = await getSupabaseClient().from("appointment_slots").select("*").eq("job_id", jobId).eq("status", "user_selected").limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapSlot(data as Row) : null;
+  }
+
+  async insertConfirmation(input: Omit<JapanAppointmentConfirmation, "id" | "createdAt">) {
+    const { data, error } = await getSupabaseClient().from("appointment_confirmations").insert({
+      job_id: input.jobId, application_id: input.applicationId, user_id: input.userId,
+      country_code: "JP", visa_type: "TEMPORARY_VISITOR", appointment_date: input.appointmentDate,
+      appointment_time: input.appointmentTime, appointment_location: input.appointmentLocation,
+      appointment_type: input.appointmentType, confirmation_number: input.confirmationNumber,
+      confirmation_pdf_url: input.confirmationPdfUrl, confirmation_screenshot_url: input.confirmationScreenshotUrl,
+      raw_confirmation_redacted_json: input.rawConfirmationRedactedJson, created_at: new Date().toISOString(),
+    }).select("*").single();
+    if (error || !data) throw new Error(error?.message ?? "Japan confirmation insert failed");
+    return mapConfirmation(data as Row);
+  }
+
+  async getConfirmation(jobId: string) {
+    const { data, error } = await getSupabaseClient().from("appointment_confirmations").select("*").eq("job_id", jobId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapConfirmation(data as Row) : null;
   }
 
   async updateApplicationState(applicationId: string, status: string, jobId?: string) {

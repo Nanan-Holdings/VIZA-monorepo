@@ -43,7 +43,9 @@
     "notStarted": "Not started",
     "continue": "Continue",
     "start": "Start",
-    "progressAriaLabel": "Application progress"
+    "progressAriaLabel": "Application progress",
+    "showAll": "Show all {count} applications",
+    "showLess": "Show less"
   },
   "session": {
     "invalidatedTitle": "Session No Longer Active",
@@ -55,6 +57,8 @@
     "vizaApplication": "Here is your VIZA Application",
     "vizaApplicationForCountry": "This is your {country} visa application",
     "recentActivity": "Recent Activity",
+    "applicationCategories": "Application categories",
+    "applicationCategoriesHint": "Quickly switch between available application types.",
     "noRecentActivity": "No recent activity yet. Start your application to see updates here.",
     "loadingDashboard": "Loading your dashboard...",
     "authError": "Authentication failed. Please try clicking the link again.",
@@ -4247,8 +4251,6 @@
       "tooManyRequests": "Too many attempts. Please try again later.",
       "requestTimedOut": "The sign-in service is taking longer than expected. Please try again.",
       "providerUnavailable": "Supabase sign-in is temporarily unavailable. Your details were not submitted. Please try again shortly.",
-      "localTestSession": "Continue with local test session",
-      "localTestSessionUnavailable": "The local test session is not configured or is unavailable.",
       "unexpectedError": "An unexpected error occurred. Please try again.",
       "failedToResend": "Failed to resend code.",
       "checkEmail": "Check your email",
@@ -4756,7 +4758,7 @@
       "slotScenarioNoSlots": "Show no slots",
       "aliasNoticeTitle": "VIZA alias email",
       "aliasNotice": "For new appointment accounts, VIZA uses the applicant alias email assigned to this profile. Verification messages are received through Cloudflare Email Routing and consumed from Supabase inbound mail; VIZA does not use legacy IMAP for this flow.",
-      "createJob": "Start appointment assistant",
+      "createJob": "Create alias account and start",
       "creating": "Creating...",
       "recordConsent": "Record consent",
       "consentRequiredError": "Please review and accept the consent statement before continuing."
@@ -4819,7 +4821,7 @@
       "completing": "Completing...",
       "instructions": {
         "consent": "Review and accept the consent statement.",
-        "account_email_verification": "Enter the verification code from your email. VIZA will not access your inbox.",
+        "account_email_verification": "VIZA first reads the alias verification message from inbound_email automatically. Enter a code here only if the automatic extraction checkpoint failed.",
         "login": "The runner needs manual review for an unsupported official-site login or risk checkpoint.",
         "captcha": "The runner needs manual review for an unsupported CAPTCHA or MFA checkpoint.",
         "payment": "Review the official payment checkpoint. Continue only if VIZA is authorized to proceed.",
@@ -4856,7 +4858,7 @@
       "selected": "Selected slot: {date} at {time}. Approve only after reviewing the details.",
       "approve": "Approve final step",
       "approving": "Approving...",
-      "book": "Request official booking",
+      "book": "Click official confirmation",
       "approvedBadge": "Approved"
     },
     "results": {
@@ -4991,8 +4993,9 @@
       "title": "TLS setup",
       "center": "TLScontact center",
       "referenceHint": "A France-Visas official reference must exist before VIZA can create a TLS appointment job. The backend blocks the job if the reference is missing.",
-      "createJob": "Start France appointment assistant",
+      "createJob": "Create alias account and start",
       "jobCreated": "Appointment job created",
+      "creating": "Creating account and opening TLScontact...",
       "recordConsent": "Record consent",
       "consentRequiredError": "Please review and accept the consent statement before continuing."
     },
@@ -5018,6 +5021,9 @@
     },
     "panel": {
       "title": "Appointment runner",
+      "progressTitle": "Appointment progress",
+      "stepComplete": "Complete",
+      "stepPending": "Pending",
       "noJob": "Start after consent and center selection. Opening this page only reads status; no TLS job is created or rerun automatically.",
       "progressBody": "The backend reads the latest appointment state from VIZA tables. TLS slot checks run only after a user-triggered action and backend cooldown.",
       "provider": "Scheduling provider",
@@ -5057,7 +5063,7 @@
       "requirement": "Choose an observed TLS slot before final approval is available.",
       "selected": "Selected slot: {date} at {time}. Approve only after reviewing the TLS timing and payment authorization.",
       "approve": "Approve final step",
-      "book": "Request official booking",
+      "book": "Click official confirmation",
       "approvedBadge": "Approved"
     },
     "results": {
@@ -5092,9 +5098,12 @@
     "documents": { "title": "2. Document preflight", "body": "Confirm your readiness here, then use Document Center for the actual passport and photo uploads. The backend checks stored VIZA uploads and never treats these checkboxes as uploaded files.", "manage": "Open Document Center", "passportStored": "Passport stored in VIZA", "photoStored": "Photo stored in VIZA", "profileIncomplete": "Application profile is incomplete", "profileMissing": "Complete these fields in the application before preparing the appointment: {fields}." },
     "workflow": { "title": "3. Cloud workflow", "consent": "I confirm the information is truthful and authorize VIZA to prepare a Japan VFS Singapore alias/account record and run a stop-before-booking cloud portal check.", "saving": "Saving…", "saveConsent": "Record consent", "consentRecorded": "Consent recorded", "consentRecordedBody": "The backend has stored your authorization for this application.", "creating": "Preparing…", "create": "Prepare backend", "restart": "Start again", "restartTitle": "Preparation cancelled", "restartBody": "You can review the latest details and start a new preparation when ready.", "checking": "Checking…", "check": "Check official portal", "aliasReady": "Alias prepared", "aliasBody": "A redacted VIZA alias account record is ready. No official VFS password, CAPTCHA, payment card, or session token is exposed here.", "openOfficial": "Open official VFS", "cancel": "Cancel preparation" },
     "evidence": { "title": "Cloud evidence", "httpStatus": "HTTP status", "pageTitle": "Official page", "observedAt": "Observed at", "replay": "Browserbase replay" },
-    "checkpoints": { "login": "Official login required", "captcha": "CAPTCHA detected", "waf": "WAF checkpoint", "identity_verification": "Identity verification required", "selector_drift": "Portal state requires review", "no_slots": "No slots visible", "site_policy_review": "Official policy checkpoint" },
-    "checkpointBodies": { "login": "The official entry is reachable, but an authenticated VFS session is required before the calendar can be read.", "captcha": "The official portal requires a CAPTCHA check. VIZA has paused without claiming an appointment.", "waf": "The official portal is showing a security or regional access checkpoint. VIZA has preserved the observation and paused.", "identity_verification": "The official portal requires an applicant identity or one-time-code step before continuing.", "selector_drift": "The official page did not match a verified booking state. VIZA has paused for review.", "no_slots": "The official page did not expose an available appointment time during the latest observation.", "site_policy_review": "The official portal requires a policy review before automation can continue." },
-    "statuses": { "not_started": "Not started", "appointment_account_required": "Alias prepared", "appointment_manual_required": "Official action required", "appointment_no_slots_available": "No slots", "appointment_cancelled": "Cancelled" },
-    "errors": { "title": "Could not continue", "load": "Japan appointment status could not be loaded.", "action": "Japan appointment action failed.", "missingRequiredFields": "Complete the missing application fields and upload the passport and photo before preparing the appointment.", "consentRequired": "Record your consent before preparing the appointment.", "cancelled": "This preparation was cancelled. Start a new preparation before checking the portal.", "runnerUnavailable": "The official-portal worker is not available. Please try again later.", "sessionRequired": "Your sign-in session expired. Sign in again to continue." }
+    "checkpoints": { "login": "Official login required", "captcha": "CAPTCHA detected", "waf": "WAF checkpoint", "identity_verification": "Identity verification required", "selector_drift": "Portal state requires review", "no_slots": "No slots visible", "slot_selection": "Choose an appointment", "payment": "Official payment required", "site_policy_review": "Official policy checkpoint" },
+    "checkpointBodies": { "login": "The official entry is reachable, but an authenticated VFS session is required before the calendar can be read.", "captcha": "The official portal requires a CAPTCHA check. VIZA has paused without claiming an appointment.", "waf": "The official portal is showing a security or regional access checkpoint. VIZA has preserved the observation and paused.", "identity_verification": "The official portal requires an applicant identity or one-time-code step before continuing.", "selector_drift": "The official page did not match a verified booking state. VIZA has paused for review.", "no_slots": "The official page did not expose an available appointment time during the latest observation.", "slot_selection": "Choose one of the currently observed official VFS appointment times.", "payment": "Continue through the secure VFS-hosted service-fee payment step.", "site_policy_review": "The official portal requires a policy review before automation can continue." },
+    "slots": { "title": "Official appointment slots", "empty": "No official slots have been observed yet. Use Check official portal after the VFS account is ready.", "choose": "Choose", "selected": "Selected" },
+    "payment": { "title": "VFS service-fee payment", "secureTitle": "Secure hosted payment", "secureBody": "VIZA stores only a payment-session reference and redacted method metadata. Full card number, CVV and OTP must remain in the VFS-hosted payment session.", "brand": "Payment method", "last4": "Last four digits", "authorize": "Authorize payment handoff" },
+    "final": { "title": "Final booking confirmation", "consent": "I reviewed the selected official slot and payment terms and authorize VIZA to request the final VFS booking.", "approve": "Approve final booking", "book": "Book selected slot", "confirmed": "Official appointment confirmed", "confirmation": "Confirmation {number} · {date} {time}" },
+    "statuses": { "not_started": "Not started", "appointment_account_required": "Alias prepared", "appointment_manual_required": "Official action required", "appointment_no_slots_available": "No slots", "appointment_slot_selection_required": "Choose a slot", "appointment_payment_required": "Payment required", "appointment_payment_completed": "Payment authorized", "appointment_final_confirmation_approved": "Final approval recorded", "appointment_confirmation_captured": "Confirmed", "appointment_cancelled": "Cancelled" },
+    "errors": { "title": "Could not continue", "load": "Japan appointment status could not be loaded.", "action": "Japan appointment action failed.", "missingRequiredFields": "Complete the missing application fields and upload the passport and photo before preparing the appointment.", "consentRequired": "Record your consent before preparing the appointment.", "cancelled": "This preparation was cancelled. Start a new preparation before checking the portal.", "runnerUnavailable": "The official-portal worker is not available. Please try again later.", "slotRequired": "Choose a currently available VFS slot first.", "paymentRequired": "Complete the secure VFS payment authorization first.", "finalRequired": "Approve the final booking before submission.", "sessionRequired": "Your sign-in session expired. Sign in again to continue." }
   }
 }
