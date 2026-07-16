@@ -14,8 +14,7 @@ async function main(): Promise<void> {
   try {
     await page.goto(REGISTER_URL, { waitUntil: "domcontentloaded", timeout: 90_000 });
     console.log("[jp-vfs] official registration page loaded");
-    await page.waitForTimeout(2_000);
-    const officialText = await page.locator("body").innerText().catch(() => "");
+    const officialText = await page.content().catch(() => "");
     if (/Temporary Connectivity Issue|Session Expired or Invalid|Access Denied|Cloudflare/i.test(officialText)) {
       throw new Error(`Official VFS registration form unavailable: ${officialText.match(/Temporary Connectivity Issue \(502\)|Session Expired or Invalid|Access Denied|Cloudflare/i)?.[0] ?? "official access checkpoint"}`);
     }

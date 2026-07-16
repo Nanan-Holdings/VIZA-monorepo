@@ -724,6 +724,18 @@ async function completeEgovPermanentResidenceOnboarding(
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(2_000);
   text = await bodyText(page);
+  if (/onboarding summary|kindly double check/i.test(text)) {
+    await clickFirstEnabledAvailable(page, [
+      page.getByRole("button", { name: /continue|next|submit|save/i }),
+      page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
+    ], 60_000);
+    logs.push("ph_etravel_egov_onboarding_summary_submitted");
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    text = await bodyText(page);
+    logs.push("ph_etravel_egov_onboarding_residence_submitted");
+    return text;
+  }
   if (/permanent country of residence|please make sure to fill out all required fields/i.test(text)) {
     screenshots.push(await saveScreenshot(page, "egov-residence-still-required", logs));
     await saveHtmlSnapshot(page, "egov-residence-still-required", logs);
@@ -735,16 +747,6 @@ async function completeEgovPermanentResidenceOnboarding(
         portalSummary: text.slice(0, 700),
       },
     );
-  }
-
-  if (/onboarding summary|kindly double check/i.test(text)) {
-    await clickFirstEnabledAvailable(page, [
-      page.getByRole("button", { name: /continue|next|submit|save/i }),
-      page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
-    ], 60_000);
-    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(2_000);
-    text = await bodyText(page);
   }
 
   logs.push("ph_etravel_egov_onboarding_residence_submitted");

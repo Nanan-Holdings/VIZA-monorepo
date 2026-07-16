@@ -91,8 +91,8 @@ function safeCreateFailure(status: number): string {
   return `Browserbase session creation failed with HTTP ${status}.`;
 }
 
-export function browserbaseEnabled(prefix: string): boolean {
-  return readBoolean(`${prefix}_BROWSERBASE_ENABLED`, false);
+export function browserbaseEnabled(prefix: string, fallback = false): boolean {
+  return readBoolean(`${prefix}_BROWSERBASE_ENABLED`, fallback);
 }
 
 export async function createBrowserbaseCloudSession(options: {
