@@ -16,6 +16,7 @@ jq -c '.[]' "$decisions" | while read -r decision; do
   paused="$(jq -r '.paused' <<<"$decision")"
   desired="$(jq -r '.desired' <<<"$decision")"
   if [[ "$paused" != "true" && "$desired" -lt 1 ]]; then desired=1; fi
-  echo "[autoscale] app=viza-runner-$country desired=$desired paused=$paused"
-  fly scale count "$desired" --app "viza-runner-$country" --yes
+  app_country="${country//_/-}"
+  echo "[autoscale] app=viza-runner-$app_country desired=$desired paused=$paused"
+  fly scale count "$desired" --app "viza-runner-$app_country" --yes
 done

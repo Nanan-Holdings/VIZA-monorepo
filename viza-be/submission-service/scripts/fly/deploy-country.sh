@@ -14,7 +14,8 @@ if ! jq -e --arg country "$country" '.countries | index($country)' "$config" >/d
 fi
 
 region="$(jq -r '.defaultRegion' "$config")"
-app="viza-runner-$country"
+# runner_job uses underscore country keys; Fly app names permit dashes only.
+app="viza-runner-${country//_/-}"
 rendered="$(mktemp --suffix=.toml)"
 trap 'rm -f "$rendered"' EXIT
 sed -e "s/__APP_NAME__/$app/g" -e "s/__COUNTRY__/$country/g" -e "s/__REGION__/$region/g" \
