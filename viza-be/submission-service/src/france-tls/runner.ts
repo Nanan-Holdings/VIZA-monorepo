@@ -7,6 +7,7 @@ import {
 import {
   classifyFranceTlsBrowserState,
   createFranceTlsBrowserSession,
+  isFranceTlsCaptchaBlocking,
   readFranceTlsBrowserState,
   waitForFranceTlsCloudflareClearance,
   type FranceTlsBrowserSession,
@@ -253,8 +254,9 @@ export async function probeFranceTlsOfficialPortal(
     browser = session.browser;
     const settleMs = Number.parseInt(process.env.FRANCE_TLS_PAGE_SETTLE_MS ?? "30000", 10);
     await session.page.waitForTimeout(Number.isFinite(settleMs) ? Math.max(4_000, settleMs) : 30_000);
-    const browserState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(session.page));
-    if (browserState.checkpoint === "waf" || browserState.checkpoint === "captcha_grid" || browserState.checkpoint === "captcha_token") {
+    const browserInput = await readFranceTlsBrowserState(session.page);
+    const browserState = classifyFranceTlsBrowserState(browserInput);
+    if (browserState.checkpoint === "waf" || isFranceTlsCaptchaBlocking(browserInput, browserState)) {
       return {
         status: "manual_required",
         checkpoint: {
@@ -402,7 +404,8 @@ export async function bookFranceTlsOfficialAppointment(
       await session.page.waitForTimeout(1_500);
     }
 
-    const browserState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(session.page));
+    const browserInput = await readFranceTlsBrowserState(session.page);
+    const browserState = classifyFranceTlsBrowserState(browserInput);
     if (browserState.checkpoint === "payment") {
       return {
         status: "payment_required",
@@ -418,7 +421,10 @@ export async function bookFranceTlsOfficialAppointment(
         },
       };
     }
-    if (["waf", "captcha_grid", "captcha_token", "login", "site_policy_review"].includes(browserState.checkpoint)) {
+    if (
+      ["waf", "login", "site_policy_review"].includes(browserState.checkpoint)
+      || isFranceTlsCaptchaBlocking(browserInput, browserState)
+    ) {
       return {
         status: "manual_required",
         checkpoint: {
