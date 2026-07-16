@@ -522,8 +522,13 @@ function isSsnField(field: VisaFormFieldRow): boolean {
 
 function isEmptyDependentSelect(field: VisaFormFieldRow, options: Array<{ value: string; text: string }>): boolean {
   if (options.length > 0) return false;
-  const rules = field.validationRules as { dependent_on?: unknown; dependsOn?: unknown; live_dom_id?: unknown } | null;
-  return Boolean(rules?.dependent_on || rules?.dependsOn || rules?.live_dom_id);
+  const rules = field.validationRules as {
+    dependent_on?: unknown;
+    depends_on?: unknown;
+    dependsOn?: unknown;
+    live_dom_id?: unknown;
+  } | null;
+  return Boolean(rules?.dependent_on || rules?.depends_on || rules?.dependsOn || rules?.live_dom_id);
 }
 
 function SsnSegmentedInput({

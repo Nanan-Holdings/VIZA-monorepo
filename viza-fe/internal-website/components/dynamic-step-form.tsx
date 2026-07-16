@@ -805,6 +805,31 @@ function getAirportCodeFromFlightValue(value: string): string {
   return dashMatch?.[1] ?? "";
 }
 
+function restoreVnPrearrivalHotelHierarchy(values: Record<string, string>): Record<string, string> {
+  const hotelCode = values.hotel_accommodation_address?.trim() ?? "";
+  if (!hotelCode) return values;
+
+  const hotelOptions = getVnPrearrivalStaticOptions("prearrival_category:hotel") ?? [];
+  const selectedHotel = hotelOptions.find((option) =>
+    typeof option !== "string" && option.value === hotelCode,
+  );
+  if (!selectedHotel || typeof selectedHotel === "string") return values;
+
+  const provinceCity = selectedHotel.province_city?.trim() ?? "";
+  const ward = selectedHotel.ward?.trim() ?? "";
+  if (!provinceCity || !ward) return values;
+  if (
+    values.province_city_of_hotel === provinceCity &&
+    values.ward_commune_of_hotel === ward
+  ) return values;
+
+  return {
+    ...values,
+    province_city_of_hotel: provinceCity,
+    ward_commune_of_hotel: ward,
+  };
+}
+
 function normalizeTdacTransitValue(values: Record<string, string>): Record<string, string> {
   const sameDayTransit = isSameCalendarDayValue(values.arrival_date, values.departure_date);
   const next: Record<string, string> = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
@@ -1956,7 +1981,10 @@ export function DynamicStepForm({
         }
       }
     }
-    return normalizeTdacStepValues(step.fields, init, visaType);
+    const normalizedValues = normalizeTdacStepValues(step.fields, init, visaType);
+    return isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field))
+      ? restoreVnPrearrivalHotelHierarchy(normalizedValues)
+      : normalizedValues;
   });
 
   const [textPairs, setTextPairs] = useState<Record<string, BilingualTextValue>>(() => {
@@ -2138,6 +2166,24 @@ export function DynamicStepForm({
     valuesRef.current = nextValues;
     setValues(nextValues);
   }, [isVnPrearrivalStep, step.fields, values.flight_number, values.border_gate_airport]);
+
+  useEffect(() => {
+    if (
+      !isVnPrearrivalStep ||
+      !step.fields.some((field) => field.fieldName === "hotel_accommodation_address")
+    ) return;
+
+    const nextValues = restoreVnPrearrivalHotelHierarchy(valuesRef.current);
+    if (nextValues === valuesRef.current) return;
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+  }, [
+    isVnPrearrivalStep,
+    step.fields,
+    values.hotel_accommodation_address,
+    values.province_city_of_hotel,
+    values.ward_commune_of_hotel,
+  ]);
 
   const hasKoreaAddressSearchField = useMemo(
     () =>
@@ -2451,7 +2497,10 @@ export function DynamicStepForm({
       }
     }
 
-    const normalizedNextValues = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    const normalizedStepValues = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    const normalizedNextValues = isVnPrearrivalStep
+      ? restoreVnPrearrivalHotelHierarchy(normalizedStepValues)
+      : normalizedStepValues;
     for (const [key, value] of Object.entries(normalizedNextValues)) {
       if (nextValues[key] !== value) {
         nextValues[key] = value;
@@ -2486,7 +2535,7 @@ export function DynamicStepForm({
       textPairsRef.current = nextTextPairs;
       setTextPairs(nextTextPairs);
     }
-  }, [prefill, step.fields, visaType]);
+  }, [isVnPrearrivalStep, prefill, step.fields, visaType]);
 
   useEffect(() => {
     onDraftChangeRef.current?.(filterCurrentStepValues(step.fields, values, groupCounts));
@@ -2541,31 +2590,42 @@ export function DynamicStepForm({
   // Find all fields whose visibility depends on a given parent field.
   const getDependentFields = useCallback(
     (parentFieldName: string): string[] => {
-      return step.fields
-        .filter((f) => {
-          if (f.fieldName === parentFieldName) return false;
+      const directlyDependsOn = (f: VisaFormFieldRow, candidateParent: string): boolean => {
+          if (f.fieldName === candidateParent) return false;
           const showIf = (f.conditionalLogic as { showIf?: string } | null)?.showIf;
-          if (showIf && showIf.includes(parentFieldName)) return true;
+          if (showIf && showIf.includes(candidateParent)) return true;
           const rules = f.validationRules as {
             dependent_on?: string;
             depends_on?: string;
             dependsOn?: string;
           } | null;
           if (
-            rules?.dependent_on === parentFieldName ||
-            rules?.depends_on === parentFieldName ||
-            rules?.dependsOn === parentFieldName
+            rules?.dependent_on === candidateParent ||
+            rules?.depends_on === candidateParent ||
+            rules?.dependsOn === candidateParent
           ) return true;
           if (!f.conditionalLogic) {
-            const withYes = { ...values, [parentFieldName]: "yes" };
-            const withNo = { ...values, [parentFieldName]: "" };
+            const withYes = { ...values, [candidateParent]: "yes" };
+            const withNo = { ...values, [candidateParent]: "" };
             const visibleWithYes = evaluateShowIf(f, withYes, step.fields);
             const visibleWithNo = evaluateShowIf(f, withNo, step.fields);
             if (visibleWithYes !== visibleWithNo) return true;
           }
           return false;
-        })
-        .map((f) => f.fieldName);
+      };
+
+      const dependents = new Set<string>();
+      const queue = [parentFieldName];
+      while (queue.length > 0) {
+        const candidateParent = queue.shift();
+        if (!candidateParent) continue;
+        for (const field of step.fields) {
+          if (dependents.has(field.fieldName) || !directlyDependsOn(field, candidateParent)) continue;
+          dependents.add(field.fieldName);
+          queue.push(field.fieldName);
+        }
+      }
+      return [...dependents];
     },
     [step.fields, values]
   );
@@ -2600,11 +2660,7 @@ export function DynamicStepForm({
             depends_on?: string;
             dependsOn?: string;
           } | null;
-          if (
-            rules?.dependent_on === fieldName ||
-            rules?.depends_on === fieldName ||
-            rules?.dependsOn === fieldName
-          ) {
+          if (rules?.dependent_on || rules?.depends_on || rules?.dependsOn) {
             next[dep] = "";
           }
         }
@@ -3349,6 +3405,9 @@ export function DynamicStepForm({
       <BrandActionButton
         type="submit"
         disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
+        data-required-filled={requiredFilled ? "true" : "false"}
+        data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
+        data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
         loading={saving}
         loadingText={tButtons("saving")}
         className="mt-2"

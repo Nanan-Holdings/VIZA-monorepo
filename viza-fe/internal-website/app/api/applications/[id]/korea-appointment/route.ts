@@ -2,7 +2,15 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveKvacCenter, type KvacRoutingInput } from "@/lib/korea-c39/kvac-routing";
+import {
+  isRebookingAfterCancellation,
+  planKoreaRebooking,
+} from "@/lib/korea-c39/appointment-rebooking";
+import {
+  KVAC_CENTERS,
+  resolveKvacCenter,
+  type KvacRoutingInput,
+} from "@/lib/korea-c39/kvac-routing";
 
 type Action =
   | "start-slot-search"
@@ -16,6 +24,7 @@ type Action =
   | "request-cancel"
   | "start-cancel-query"
   | "confirm-cancel-official"
+  | "start-new-booking"
   | "restart-without-booking-record"
   | "refresh-status";
 
@@ -294,12 +303,50 @@ function departureDateForOfficial(answers: Record<string, string>) {
 
 async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applicationId: string, routingInput?: KvacRoutingInput) {
   const job = await latestJob(admin, applicationId);
-  const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, routingInput));
-  if (!job) return { routing, job: null, slots: [], confirmation: null, appointmentHistory: [], manualAction: null, changeIntent: null };
+  const storedCenterCode = KVAC_CENTERS.find(
+    (center) => center.code === job?.user_preferences_json?.centerCode,
+  )?.code ?? null;
+  const effectiveRoutingInput = routingInput ?? (storedCenterCode ? { selectedCenterCode: storedCenterCode } : undefined);
+  const routing = resolveKvacCenter(await readRoutingInput(admin, applicationId, effectiveRoutingInput));
+  if (!job) {
+    return {
+      routing,
+      job: null,
+      slots: [],
+      confirmation: null,
+      appointmentHistory: [],
+      manualAction: null,
+      changeIntent: null,
+      rebookingAfterCancellation: false,
+    };
+  }
+
+  const { data: applicationState, error: applicationStateErr } = await admin
+    .from("applications")
+    .select("appointment_confirmation_id")
+    .eq("id", applicationId)
+    .maybeSingle();
+  if (applicationStateErr) throw new Error(applicationStateErr.message);
+
+  // Cancelled jobs have no active appointment even if an older deployment
+  // left the application pointer populated. The confirmation row remains in
+  // appointmentHistory as immutable evidence.
+  const confirmationPointer = applicationState?.appointment_confirmation_id ?? null;
+  const { data: pointedConfirmation, error: activeConfirmationErr } = confirmationPointer
+    ? await admin
+      .from("appointment_confirmations")
+      .select("*")
+      .eq("id", confirmationPointer)
+      .eq("application_id", applicationId)
+      .maybeSingle()
+    : { data: null, error: null };
+  if (activeConfirmationErr) throw new Error(activeConfirmationErr.message);
+  const activeConfirmation = job.status === "appointment_cancelled" && pointedConfirmation?.job_id === job.id
+    ? null
+    : pointedConfirmation;
 
   const [
     { data: slots, error: slotsErr },
-    { data: confirmation, error: confirmationErr },
     { data: appointmentHistory, error: appointmentHistoryErr },
     { data: manualAction, error: manualActionErr },
     { data: rescheduleAction, error: rescheduleActionErr },
@@ -310,13 +357,6 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .eq("job_id", job.id)
       .order("appointment_date", { ascending: true })
       .order("appointment_time", { ascending: true }),
-    admin
-      .from("appointment_confirmations")
-      .select("*")
-      .eq("job_id", job.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     admin
       .from("appointment_confirmations")
       .select("id, confirmation_number, appointment_date, appointment_time, appointment_location, created_at, raw_confirmation_redacted_json")
@@ -343,26 +383,20 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
       .maybeSingle(),
   ]);
   if (slotsErr) throw new Error(slotsErr.message);
-  if (confirmationErr) throw new Error(confirmationErr.message);
   if (appointmentHistoryErr) throw new Error(appointmentHistoryErr.message);
   if (manualActionErr) throw new Error(manualActionErr.message);
   if (rescheduleActionErr) throw new Error(rescheduleActionErr.message);
-  const normalizedConfirmation = confirmation
+  const normalizedConfirmation = activeConfirmation
     ? {
-        ...confirmation,
-        confirmation_screenshot_url: confirmation.confirmation_screenshot_url
-          ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(confirmation.confirmation_screenshot_url)}`
+        ...activeConfirmation,
+        confirmation_screenshot_url: activeConfirmation.confirmation_screenshot_url
+          ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(activeConfirmation.confirmation_screenshot_url)}`
           : null,
       }
     : null;
-  // A reschedule or cancellation may be started by a newer helper job than the
-  // one that originally created the official confirmation. Use the application's
-  // persisted confirmation history, rather than only the latest job pointer.
-  const hasVizaAppointmentRecord = (appointmentHistory ?? []).some((record) => (
-    Boolean(record.confirmation_number)
-    && record.raw_confirmation_redacted_json?.mode !== "dry_run"
-    && !record.confirmation_number.startsWith("KR-DRYRUN-")
-  ));
+  const hasVizaAppointmentRecord = Boolean(normalizedConfirmation?.confirmation_number)
+    && normalizedConfirmation?.raw_confirmation_redacted_json?.mode !== "dry_run"
+    && !normalizedConfirmation.confirmation_number.startsWith("KR-DRYRUN-");
   const pendingChangeActionTypes = new Set([
     "official_reschedule_required",
     "official_cancel_required",
@@ -379,7 +413,8 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     confirmation: normalizedConfirmation,
     appointmentHistory: appointmentHistory ?? [],
     manualAction: actionableManualAction,
-    changeIntent: hasVizaAppointmentRecord && rescheduleAction ? "reschedule" : null,
+    changeIntent: rescheduleAction ? "reschedule" : null,
+    rebookingAfterCancellation: isRebookingAfterCancellation(job),
   };
 }
 
@@ -1033,6 +1068,7 @@ async function markOfficialCancellationCompleted(
   const { error: applicationErr } = await admin.from("applications").update({
     appointment_assistance_status: "appointment_cancelled",
     appointment_assistance_job_id: job.id,
+    appointment_confirmation_id: null,
   }).eq("id", applicationId);
   if (applicationErr) throw new Error(applicationErr.message);
 
@@ -1100,6 +1136,116 @@ export async function POST(
   const routing = resolveKvacCenter(routingInput);
 
   if (action === "refresh-status") {
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "start-new-booking") {
+    const existingJob = await latestJob(auth.admin, id);
+    const { data: applicationState, error: applicationStateErr } = await auth.admin
+      .from("applications")
+      .select("appointment_confirmation_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (applicationStateErr) throw new Error(applicationStateErr.message);
+
+    const confirmationPointer = applicationState?.appointment_confirmation_id ?? null;
+    const { data: pointedConfirmation, error: pointedConfirmationErr } = confirmationPointer
+      ? await auth.admin
+        .from("appointment_confirmations")
+        .select("id, job_id")
+        .eq("id", confirmationPointer)
+        .eq("application_id", id)
+        .maybeSingle()
+      : { data: null, error: null };
+    if (pointedConfirmationErr) throw new Error(pointedConfirmationErr.message);
+    const activeConfirmationId = existingJob?.status === "appointment_cancelled"
+      && pointedConfirmation?.job_id === existingJob.id
+      ? null
+      : pointedConfirmation?.id ?? null;
+    const rebookingPlan = planKoreaRebooking(id, existingJob, activeConfirmationId);
+    if (rebookingPlan.kind === "reuse") {
+      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    }
+    if (rebookingPlan.kind === "reject") {
+      return NextResponse.json(
+        {
+          error: rebookingPlan.reason === "active_appointment"
+            ? "This application still has an active Korea appointment. Cancel or reschedule it before starting a new booking."
+            : "A new Korea booking can only be started after the previous appointment is officially cancelled.",
+        },
+        { status: 409 },
+      );
+    }
+
+    const newJobValues = {
+      application_id: id,
+      user_id: auth.profile.id,
+      country_code: "KR",
+      visa_type: "KR_C39_SHORT_TERM_VISIT",
+      applying_country_code: "CN",
+      applying_post_city: routing.recommended.nameEn,
+      scheduling_provider: "kvac_cn",
+      status: "not_started",
+      mode: "live_assisted",
+      user_preferences_json: {
+        routing,
+        centerCode: routing.recommended.code,
+        previousJobId: rebookingPlan.previousJobId,
+        rebookingAfterCancellation: true,
+        finalConfirmationRequired: true,
+        source: "korea_c39_v1",
+      },
+      requires_user_action: false,
+      idempotency_key: rebookingPlan.idempotencyKey,
+    };
+    const { data: insertedJob, error: insertErr } = await auth.admin
+      .from("appointment_assistance_jobs")
+      .insert(newJobValues)
+      .select("*")
+      .single();
+
+    let newJob = insertedJob as AppointmentJobRow | null;
+    let created = Boolean(insertedJob);
+    if (insertErr) {
+      if (insertErr.code !== "23505") throw new Error(insertErr.message);
+      const { data: existingRebookingJob, error: existingRebookingErr } = await auth.admin
+        .from("appointment_assistance_jobs")
+        .select("*")
+        .eq("idempotency_key", rebookingPlan.idempotencyKey)
+        .maybeSingle();
+      if (existingRebookingErr || !existingRebookingJob) {
+        throw new Error(existingRebookingErr?.message ?? "Could not reuse the Korea rebooking task.");
+      }
+      newJob = existingRebookingJob as AppointmentJobRow;
+      created = false;
+    }
+    if (!newJob) throw new Error("Could not create the Korea rebooking task.");
+
+    const { error: applicationErr } = await auth.admin
+      .from("applications")
+      .update({
+        appointment_assistance_status: "not_started",
+        appointment_assistance_job_id: newJob.id,
+        appointment_confirmation_id: null,
+      })
+      .eq("id", id);
+    if (applicationErr) throw new Error(applicationErr.message);
+
+    if (created) {
+      const { error: auditErr } = await auth.admin.from("appointment_audit_events").insert({
+        job_id: newJob.id,
+        application_id: id,
+        user_id: auth.profile.id,
+        event_type: "appointment_rebooking_started",
+        event_message: "Applicant started a new Korea KVAC booking after the previous official appointment was cancelled.",
+        metadata_redacted_json: {
+          previousJobId: rebookingPlan.previousJobId,
+          previousCenterCode: routing.recommended.code,
+        },
+      });
+      if (auditErr) throw new Error(auditErr.message);
+    }
+
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 

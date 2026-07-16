@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { SmoothProgressBar } from "@/components/smooth-progress";
@@ -59,6 +59,8 @@ export default function DestinationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showAllOngoing, setShowAllOngoing] = useState(false);
+  const [showAllPurchased, setShowAllPurchased] = useState(false);
 
   useEffect(() => {
     const target = readApplicationFormTarget(getRecentApplicationFormHref());
@@ -247,6 +249,34 @@ export default function DestinationsPage() {
     );
   };
 
+  const renderApplicationGrid = (
+    entries: MyDestinationEntry[],
+    showAll: boolean,
+    setShowAll: (showAll: boolean) => void,
+  ) => {
+    const hasMoreThanFirstRow = entries.length > 3;
+    const visibleEntries = showAll ? entries : entries.slice(0, 3);
+
+    return (
+      <>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
+          {visibleEntries.map(renderDestinationCard)}
+        </div>
+        {hasMoreThanFirstRow && (
+          <button
+            type="button"
+            onClick={() => setShowAll(!showAll)}
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#d7e1ef] bg-white px-4 py-2 text-[14px] font-semibold text-[#03346E] transition hover:border-[#03346E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            aria-expanded={showAll}
+          >
+            {showAll ? t("showLess") : t("showAll", { count: entries.length })}
+            {showAll ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+          </button>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-16 pt-8">
       <main className="mx-auto flex w-full max-w-[1090px] flex-col gap-6">
@@ -284,9 +314,7 @@ export default function DestinationsPage() {
               {ongoing.length > 0 && (
                 <div className="mt-8">
                   <p className="text-[15px] font-semibold text-[#03346E]">{t("ongoingApplications")}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-                    {ongoing.map(renderDestinationCard)}
-                  </div>
+                  {renderApplicationGrid(ongoing, showAllOngoing, setShowAllOngoing)}
                 </div>
               )}
 
@@ -294,9 +322,7 @@ export default function DestinationsPage() {
                 <div className="mt-8">
                   <p className="text-[15px] font-semibold text-[#03346E]">{t("purchasedApplications")}</p>
                   <p className="mt-1 text-[13px] text-[#8a94a6]">{t("purchasedApplicationsHint")}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
-                    {purchased.map(renderDestinationCard)}
-                  </div>
+                  {renderApplicationGrid(purchased, showAllPurchased, setShowAllPurchased)}
                 </div>
               )}
             </>

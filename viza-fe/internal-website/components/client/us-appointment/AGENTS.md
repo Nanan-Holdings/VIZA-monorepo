@@ -25,6 +25,11 @@ Applicant-facing U.S. B1/B2 appointment assistant UI after DS-160 capture.
 - The account email-verification path may be automated when it uses the VIZA
   alias email flow (`applicant_profiles.inbox_alias` -> Cloudflare Email
   Worker -> `inbound_email`) and stores only redacted checkpoint metadata.
+- The official final confirmation control may run only after a backend-observed
+  slot was selected and a completed `final_confirmation` approval exists. The
+  submission-service worker must recheck that approval before clicking the
+  official control and must require a visible official confirmation number
+  before the UI shows success.
 - Do not ask the applicant to re-enter DS-160-derived appointment location or
   preferred timing fields on this page. The page should create an explicit job
   first, then display slots returned from backend/official-portal observation

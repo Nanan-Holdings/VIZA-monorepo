@@ -30,12 +30,39 @@ export interface JapanAppointmentManualAction {
   createdAt: string | null;
 }
 
+export interface JapanAppointmentSlot {
+  id: string;
+  jobId: string;
+  applicationId: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentLocation: string;
+  appointmentType: string;
+  source: string;
+  status: string;
+  observedAt: string | null;
+  metadataRedactedJson: JsonObject;
+}
+
+export interface JapanAppointmentConfirmation {
+  id: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  appointmentLocation: string;
+  appointmentType: string;
+  confirmationNumber: string | null;
+  confirmationPdfUrl: string | null;
+  confirmationScreenshotUrl: string | null;
+  createdAt: string | null;
+}
+
 export interface JapanAppointmentSnapshot {
   job: JapanAppointmentJob | null;
   account: JapanAppointmentAccount | null;
-  slots: [];
+  slots: JapanAppointmentSlot[];
   pendingManualAction: JapanAppointmentManualAction | null;
   evidence: JsonObject | null;
+  confirmation: JapanAppointmentConfirmation | null;
   preflight: {
     consentRecorded: boolean;
     missingApplicationFields: string[];

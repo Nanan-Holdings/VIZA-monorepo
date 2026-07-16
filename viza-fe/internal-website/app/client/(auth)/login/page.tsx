@@ -185,7 +185,6 @@ function ClientLoginContent() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [resendCooldown, setResendCooldown] = useState(0)
-  const localTestSessionEnabled = process.env.NEXT_PUBLIC_ENABLE_LOCAL_TEST_SESSION === 'true'
 
   useEffect(() => {
     const errorParam = searchParams.get('error')
@@ -249,28 +248,6 @@ function ClientLoginContent() {
       return
     }
     window.location.href = '/client/home'
-  }
-
-  const startLocalTestSession = async () => {
-    setError(null)
-    setNotice(null)
-    setIsSubmitting(true)
-    try {
-      const response = await fetch('/api/client/auth/dev-session', {
-        method: 'POST',
-        credentials: 'same-origin',
-      })
-      const payload = await response.json().catch(() => null)
-      if (!response.ok || !payload || typeof payload !== 'object' || payload.success !== true) {
-        setError(t('localTestSessionUnavailable'))
-        return
-      }
-      window.location.href = '/client/home'
-    } catch {
-      setError(t('localTestSessionUnavailable'))
-    } finally {
-      setIsSubmitting(false)
-    }
   }
 
   const handleResend = async () => {
@@ -407,16 +384,6 @@ function ClientLoginContent() {
                     ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{loginMethod === 'password' ? t('signingIn') : t('sendingCode')}</span>
                     : loginMethod === 'password' ? t('loginButton') : t('sendCodeButton')}
                 </button>
-                {localTestSessionEnabled && (
-                  <button
-                    type="button"
-                    onClick={startLocalTestSession}
-                    disabled={isSubmitting}
-                    className="flex h-[clamp(36px,4.8vh,42px)] w-full items-center justify-center rounded-[999px] border border-[#3d3d3d] bg-white font-sans text-[clamp(12px,1vw,14px)] font-medium text-[#3d3d3d] transition-colors hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {t('localTestSession')}
-                  </button>
-                )}
                 <div className="h-[clamp(24px,4.5vh,48px)]" />
               </form>
             </motion.div>

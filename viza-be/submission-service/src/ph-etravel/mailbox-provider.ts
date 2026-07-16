@@ -31,11 +31,30 @@ function decodeQuotedPrintable(value: string): string {
     );
 }
 
+function decodeBase64MimeParts(value: string): string {
+  const decoded: string[] = [];
+  const pattern = /Content-Transfer-Encoding:\s*base64[\s\S]*?\r?\n\r?\n([A-Za-z0-9+/=\r\n]+?)(?=\r?\n--|$)/gi;
+  for (const match of value.matchAll(pattern)) {
+    const encoded = match[1]?.replace(/\s+/g, "");
+    if (!encoded) continue;
+    try {
+      decoded.push(Buffer.from(encoded, "base64").toString("utf8"));
+    } catch {
+      // Keep scanning other MIME parts.
+    }
+  }
+  return decoded.join("\n");
+}
+
 function messageHaystacks(message: Pick<InboundMessage, "html" | "text" | "subject">): string[] {
   const decodedHtml = message.html ? decodeHtml(decodeQuotedPrintable(message.html)) : "";
   const decodedText = message.text ? decodeQuotedPrintable(message.text) : "";
+  const base64Text = message.text ? decodeBase64MimeParts(message.text) : "";
+  const base64Html = message.html ? decodeBase64MimeParts(message.html) : "";
   return [
     message.subject ?? "",
+    base64Text,
+    base64Html ? decodeHtml(base64Html) : "",
     decodedText,
     decodedHtml,
     message.text ?? "",
@@ -45,6 +64,8 @@ function messageHaystacks(message: Pick<InboundMessage, "html" | "text" | "subje
 function messageUrlHaystacks(message: Pick<InboundMessage, "html" | "text" | "subject">): string[] {
   return [
     message.subject ?? "",
+    message.text ? decodeBase64MimeParts(message.text) : "",
+    message.html ? decodeBase64MimeParts(message.html) : "",
     message.text ? decodeQuotedPrintable(message.text) : "",
     message.html ? decodeQuotedPrintable(message.html) : "",
     message.html ? decodeHtml(decodeQuotedPrintable(message.html)) : "",
@@ -127,7 +148,7 @@ async function waitForMessageToAddress(
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  throw new Error(`PH eTravel mailbox timeout after ${timeoutMs}ms for ${normalizedAddress}`);
+  throw new Error(`PH eTravel mailbox timeout after ${timeoutMs}ms for the configured account alias.`);
 }
 
 export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddress?: string): PhEtravelMailboxProvider {

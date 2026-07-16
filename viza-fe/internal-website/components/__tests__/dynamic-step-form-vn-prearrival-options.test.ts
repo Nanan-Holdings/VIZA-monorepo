@@ -129,7 +129,12 @@ describe("Vietnam pre-arrival dynamic form options", () => {
 
     expect(hotelObjects).toHaveLength(5);
     expect(hotelObjects).toEqual(expect.arrayContaining([
-      expect.objectContaining({ value: "KSDN_01", label_en: expect.stringContaining("Dan Nguyen Phat Hotel") }),
+      expect.objectContaining({
+        value: "KSDN_01",
+        label_en: expect.stringContaining("Dan Nguyen Phat Hotel"),
+        province_city: "48",
+        ward: "20194",
+      }),
       expect.objectContaining({ value: "KSDN_05" }),
     ]));
   });

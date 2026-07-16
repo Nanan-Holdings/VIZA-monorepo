@@ -81,6 +81,24 @@ describe("Vietnam pre-arrival official option mapping", () => {
     expect(__testables.filterOptionsByKeyword(options, "hanoi")[0]?.value).toBe("KSHN_0001");
   });
 
+  it("preserves official hotel hierarchy metadata for dependent dropdowns", () => {
+    expect(
+      __testables.optionFromOfficial(
+        {
+          code: "KSDN_01",
+          en_value: "Dan Nguyen Phat Hotel",
+          province_city: "48",
+          ward: "20194",
+        },
+        "hotel",
+      ),
+    ).toMatchObject({
+      value: "KSDN_01",
+      province_city: "48",
+      ward: "20194",
+    });
+  });
+
   it("prioritizes exact country-code matches before incidental text matches", () => {
     const options = [
       { value: "+850", text: "North Korea (+850)", label_en: "North Korea (+850)", label_zh: "CHDCND Triều Tiên (+850)", official_label: "North Korea (+850)", code: "KP" },

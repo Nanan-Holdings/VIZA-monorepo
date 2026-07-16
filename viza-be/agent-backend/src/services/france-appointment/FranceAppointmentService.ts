@@ -233,6 +233,8 @@ export class FranceAppointmentService {
   }): Promise<FranceAppointmentManualAction> {
     const application = await this.getApplicationOrThrow(input.applicationId);
     this.assertOwner(application, input.userId);
+    const existingConsent = await this.repository.findConsent(application.id, input.userId);
+    if (existingConsent) return existingConsent;
     const consent = await this.repository.insertManualAction({
       applicationId: application.id,
       userId: input.userId,
