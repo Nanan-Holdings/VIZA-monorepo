@@ -110,12 +110,24 @@ filling and one-shot submission for the applicant.
   only be fully automated in the same session when the configured Browser API
   zone has password entry enabled by the provider, or when a local/TLS CDP
   session is already past Cloudflare and authorized for official login.
+  `src/france-tls/account-registration.ts` owns the idempotent VIZA-alias
+  account preparation path: encrypted password persistence, mandatory legal
+  consent only, Cloudflare Email Worker activation, login, and France-Visas
+  reference prefill. It always stops before submitting appointment data,
+  selecting a slot, payment, or booking; real account creation also requires
+  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true` at the caller boundary.
 - `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
   gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
   configured TLS VAC official URL through France-specific Browser API/CDP or a
   local browser, returns visible slots when safely observed, and otherwise
   returns structured checkpoints such as `login`, `captcha`, `waf`, `payment`,
   or `selector_drift` without logging Browser API endpoints.
+- `POST /internal/france-tls/register-account`: internal-token protected
+  account preparation endpoint gated by
+  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`. It runs exactly one
+  application/session, persists only encrypted credentials, activates through
+  `inbound_email`, and stops before reference submission, slot selection,
+  payment, or booking.
 - `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
   alias provisioning and inbound-email verification-link extraction for
   official account registration.
@@ -202,6 +214,24 @@ filling and one-shot submission for the applicant.
   `--application-id` validates canonical VIZA answers/documents without using
   placeholders; `--prepare-alias` is the only option that writes an applicant
   alias, and the smoke never pays, selects a real slot, or confirms a booking.
+- `scripts/run-france-tls-registration-recon.ts`: Browserbase-only TLScontact
+  registration-entry recon. It establishes CAPTCHA clearance from `/en-us`,
+  navigates to a selected mainland China center, and may click only empty
+  login/register entry controls. It records redacted form structure and stops
+  before entering account data, sending verification email, selecting a slot,
+  paying, or booking. On the official generic center error page it may perform
+  at most two sequential delayed refreshes in the same session; it must never
+  fan out across centers. Run with `npm run france-tls:registration-recon --
+  --center=shanghai --refresh-retries=2`.
+- `scripts/check-france-tls-readiness.ts`: redacted, read-only readiness probe
+  for a single France application. It verifies the application/profile alias,
+  encrypted France-Visas reference, TLS account state, and `inbound_email`
+  table reachability without exposing applicant data or credentials.
+- `scripts/run-france-tls-register-account.ts`: single-application TLScontact
+  account preparation command. It is dry-run/form-entry by default; a real
+  registration additionally requires both `--submit-registration` and
+  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`, then waits for the applicant
+  alias activation email and stops before appointment reference submission.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
   declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival

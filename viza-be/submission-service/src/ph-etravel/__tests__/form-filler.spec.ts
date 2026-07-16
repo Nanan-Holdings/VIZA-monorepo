@@ -50,6 +50,11 @@ const payload: PhEtravelPortalPayload = {
   firstTimeVisitingPhilippines: true,
   hasHealthSymptoms: false,
   healthSymptomsDetails: null,
+  hasRecentTravelHistory30d: false,
+  visitedCountries30d: [],
+  hasExposureToSickPerson30d: false,
+  hasBeenSick30d: false,
+  sicknessSymptoms: [],
   customs: {
     hasCheckedBaggage: true,
     checkedBaggageCount: "1",

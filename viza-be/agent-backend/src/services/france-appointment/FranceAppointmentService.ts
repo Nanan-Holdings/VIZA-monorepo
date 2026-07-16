@@ -136,6 +136,8 @@ export interface FranceAppointmentServiceOptions {
   slotCooldownMs?: number;
   now?: () => number;
   submissionServiceUrl?: string | null;
+  accountPreparationEnabled?: boolean;
+  submissionServiceToken?: string | null;
 }
 
 const CENTER_NAMES: Record<string, string> = {
@@ -197,11 +199,18 @@ export class FranceAppointmentService {
   private readonly slotCooldownMs: number;
   private readonly now: () => number;
   private readonly submissionServiceUrl: string | null;
+  private readonly accountPreparationEnabled: boolean;
+  private readonly submissionServiceToken: string | null;
 
   constructor(private readonly repository: FranceAppointmentRepository, options: FranceAppointmentServiceOptions = {}) {
     this.slotCooldownMs = options.slotCooldownMs ?? 600_000;
     this.now = options.now ?? Date.now;
     this.submissionServiceUrl = options.submissionServiceUrl ?? process.env.FRANCE_TLS_SUBMISSION_SERVICE_URL ?? "http://127.0.0.1:8080";
+    this.accountPreparationEnabled = options.accountPreparationEnabled
+      ?? process.env.FRANCE_TLS_ACCOUNT_PREP_ENABLED === "true";
+    this.submissionServiceToken = options.submissionServiceToken
+      ?? process.env.FRANCE_TLS_INTERNAL_TOKEN
+      ?? null;
   }
 
   async recordConsent(input: {
@@ -541,10 +550,19 @@ export class FranceAppointmentService {
         },
       };
     }
+    if (this.accountPreparationEnabled) {
+      const preparation = await this.prepareLiveAccount(job);
+      if (preparation) return { checkpoint: preparation };
+    }
     const endpoint = new URL("/local/france-tls/check-slots", this.submissionServiceUrl);
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(this.submissionServiceToken
+          ? { authorization: `Bearer ${this.submissionServiceToken}` }
+          : {}),
+      },
       body: JSON.stringify({
         applicationId: job.applicationId,
         jobId: job.id,
@@ -597,6 +615,69 @@ export class FranceAppointmentService {
         metadataRedactedJson: slot.metadataRedactedJson ?? { provider: "tlscontact_cn_fr" },
       })),
     };
+  }
+
+  private async prepareLiveAccount(job: FranceAppointmentJob): Promise<{
+    type: string;
+    message: string;
+    metadataRedactedJson: JsonObject;
+  } | null> {
+    if (!this.submissionServiceUrl) return null;
+    const endpoint = new URL("/internal/france-tls/register-account", this.submissionServiceUrl);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(this.submissionServiceToken
+          ? { authorization: `Bearer ${this.submissionServiceToken}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        applicationId: job.applicationId,
+        centerCode: jobCenterCode(job),
+        submitRegistration: true,
+        fillOfficialReference: true,
+      }),
+    });
+    const payload = await response.json().catch(() => null) as {
+      ok?: boolean;
+      status?: string;
+      checkpoint?: { type?: string; message?: string; missingFields?: string[] };
+      error?: string;
+    } | null;
+    if (!response.ok || !payload?.ok) {
+      return {
+        type: "account_preparation_failed",
+        message: payload?.error ?? "TLScontact account preparation failed in submission-service.",
+        metadataRedactedJson: {
+          provider: "tlscontact_cn_fr",
+          httpStatus: response.status,
+        },
+      };
+    }
+    if (payload.status === "appointment_reference_filled") {
+      return {
+        type: "appointment_reference_review_required",
+        message: "TLScontact account is activated and logged in; the France-Visas reference is filled and ready for review.",
+        metadataRedactedJson: {
+          provider: "tlscontact_cn_fr",
+          accountPrepared: true,
+          officialReferenceFilled: true,
+          stoppedBeforeReferenceSubmission: true,
+        },
+      };
+    }
+    if (payload.status === "manual_required" || payload.checkpoint) {
+      return {
+        type: payload.checkpoint?.type ?? "account_preparation_manual_required",
+        message: payload.checkpoint?.message ?? "TLScontact account preparation requires review.",
+        metadataRedactedJson: {
+          provider: "tlscontact_cn_fr",
+          missingFields: payload.checkpoint?.missingFields ?? [],
+        },
+      };
+    }
+    return null;
   }
 }
 

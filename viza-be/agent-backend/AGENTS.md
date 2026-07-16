@@ -50,7 +50,13 @@ explicitly reintroduces another provider.
   as redacted metadata only. Assisted-live slot checks call the localhost
   submission-service `/local/france-tls/check-slots` endpoint via
   `FRANCE_TLS_SUBMISSION_SERVICE_URL`; browser automation and WAF/CDP handling
-  must remain in submission-service.
+  must remain in submission-service. With
+  `FRANCE_TLS_ACCOUNT_PREP_ENABLED=true`, the assisted-live action first calls
+  the token-protected `/internal/france-tls/register-account` endpoint to
+  provision/activate/login the applicant alias and prefill the France-Visas
+  reference, stopping before reference submission or slot selection.
+  Render declares the URL/gate in `render.yaml`; the shared internal token is
+  an unsynced Render secret and must match the Fly secret.
 - Japan temporary-visitor appointment preparation:
   `src/routes/japan-appointment.routes.ts` and
   `src/services/japan-appointment/**` reuse the shared `appointment_*` tables
