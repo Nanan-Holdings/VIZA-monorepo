@@ -18,7 +18,7 @@ async function main(): Promise<void> {
     if (/Temporary Connectivity Issue|Session Expired or Invalid|Access Denied|Cloudflare/i.test(officialText)) {
       throw new Error(`Official VFS registration form unavailable: ${officialText.match(/Temporary Connectivity Issue \(502\)|Session Expired or Invalid|Access Denied|Cloudflare/i)?.[0] ?? "official access checkpoint"}`);
     }
-    const rejectCookies = page.getByRole("button", { name: /reject|decline|necessary only/i }).first();
+    const rejectCookies = page.getByRole("button", { name: /reject|decline|necessary only|accept only necessary/i }).first();
     if (await rejectCookies.isVisible({ timeout: 1_000 }).catch(() => false)) await rejectCookies.click();
     await fillJapanVfsRegistrationForm(page, {
       email: "viza-placeholder@example.com",

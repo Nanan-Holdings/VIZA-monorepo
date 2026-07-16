@@ -23,6 +23,7 @@
     "portal:connectivity-smoke": "node dist/portal-connectivity-smoke.js",
     "appointment:free-smoke": "tsx scripts/run-appointment-free-smoke.ts",
     "japan-vfs:registration-fill-smoke": "tsx scripts/run-japan-vfs-registration-fill-smoke.ts",
+    "japan-vfs:placeholder-account": "tsx scripts/run-japan-vfs-placeholder-account.ts",
     "france-tls:registration-recon": "tsx scripts/run-france-tls-registration-recon.ts",
     "france-tls:readiness": "tsx scripts/check-france-tls-readiness.ts",
     "france-tls:register-account": "tsx scripts/run-france-tls-register-account.ts",

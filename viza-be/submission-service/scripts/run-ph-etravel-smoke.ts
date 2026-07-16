@@ -474,9 +474,9 @@ async function main(): Promise<void> {
           email: existingImapAccount.email,
           password: existingImapAccount.password,
           mpin: existingImapAccount.mpin,
-          mode: "create_new" as const,
+          mode: existingImapAccount.status === "verified" ? "reuse_existing" as const : "create_new" as const,
           applicantId: useApplicantId,
-          forceAccountRegistration: true,
+          forceAccountRegistration: existingImapAccount.status !== "verified",
         }
       : {
           email: makeImapPlusAlias(),
@@ -494,7 +494,7 @@ async function main(): Promise<void> {
         mailboxEmail: args.mailboxEmail,
       });
 
-  if (args.useImapMailbox && useApplicantId) {
+  if (args.useImapMailbox && useApplicantId && context.forceAccountRegistration) {
     await upsertPhEtravelAccount({
       applicantId: useApplicantId,
       email: context.email,

@@ -137,6 +137,35 @@ describe("DynamicFormField localization", () => {
     expect(outsideWheel.defaultPrevented).toBe(false);
   });
 
+  it("renders every official option instead of truncating long dropdowns", () => {
+    const onChange = vi.fn();
+    const hotelField = field({
+      id: "hotel",
+      fieldName: "accommodation_name",
+      label: "Hotel Name",
+      fieldType: "select",
+      placeholder: "Select hotel",
+      options: Array.from({ length: 469 }, (_, index) => ({
+        value: `HOTEL_${index}`,
+        label_zh: `酒店 ${index}`,
+        label_en: `Hotel ${index}`,
+      })),
+    });
+
+    render(
+      <DynamicFormField
+        field={hotelField}
+        value=""
+        onChange={onChange}
+        displayLocale="zh"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+
+    expect(screen.getByText("酒店 468")).toBeInTheDocument();
+  });
+
   it("shows optional fields and enforces maxLength hints in Chinese", () => {
     const onChange = vi.fn();
     const addressField = field({

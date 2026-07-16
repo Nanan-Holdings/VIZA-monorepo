@@ -930,7 +930,23 @@ async function clickRadioByText(page: Page, text: string, logs: string[], occurr
         await candidate.click({ timeout: 10_000 }).catch(async () => {
           await candidate.click({ timeout: 10_000, force: true });
         });
-        logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index}`);
+        const input = candidate.locator("input[type='radio']").first();
+        if (await input.count().catch(() => 0)) {
+          if (!await input.isChecked().catch(() => false)) {
+            await input.click({ timeout: 5_000, force: true }).catch(() => undefined);
+          }
+          if (!await input.isChecked().catch(() => false)) {
+            await input.evaluate((element) => (element as HTMLInputElement).click()).catch(() => undefined);
+          }
+          await page.waitForTimeout(300);
+          const checked = await input.isChecked().catch(() => false);
+          logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index} checked=${checked}`);
+          if (!checked) {
+            throw new Error(`Official TDAC radio option did not remain selected: ${text} occurrence=${occurrence}`);
+          }
+        } else {
+          logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index}`);
+        }
         return;
       }
       visibleIndex += 1;

@@ -112,14 +112,24 @@ export async function createBrowserbaseCloudSession(options: {
   const country = process.env[`${options.prefix}_BROWSERBASE_COUNTRY`]?.trim().toUpperCase()
     || DEFAULT_COUNTRY_BY_PREFIX[options.prefix]
     || "US";
+  const timeout = readPositiveInteger(
+    `${options.prefix}_BROWSERBASE_TIMEOUT_SECONDS`,
+    readPositiveInteger("BROWSERBASE_SESSION_TIMEOUT_SECONDS", 900),
+  );
   if (!/^[A-Z]{2}$/.test(country)) {
     throw new BrowserbaseSessionError(
       `${options.prefix}_BROWSERBASE_COUNTRY must be a two-letter country code.`,
     );
   }
+  if (timeout < 60 || timeout > 21_600) {
+    throw new BrowserbaseSessionError(
+      `${options.prefix}_BROWSERBASE_TIMEOUT_SECONDS must be between 60 and 21600 seconds.`,
+    );
+  }
 
   const body: Record<string, unknown> = {
     keepAlive: false,
+    timeout,
     region,
     userMetadata: {
       service: "viza-submission-service",

@@ -139,9 +139,15 @@ export async function fillJapanVfsRegistrationForm(page: Page, input: JapanVfsRe
   await page.getByLabel("Email*").fill(input.email);
   await page.getByLabel("Password*", { exact: true }).fill(input.password);
   await page.getByLabel("Confirm Password*").fill(input.password);
-  const phoneInputs = page.locator("input[type='tel'], input[formcontrolname*='mobile'], input[placeholder*='Mobile']");
-  if (!await phoneInputs.count()) throw new Error("VFS registration mobile field was not found.");
-  await phoneInputs.first().fill(input.phone.replace(/^\+65/, "").replace(/\D/g, ""));
+  const phoneInputs = page.locator("input[type='tel'], input[formcontrolname*='mobile' i], input[formcontrolname*='phone' i], input[placeholder*='mobile' i], input[placeholder*='phone' i]");
+  const phoneByLabel = page.getByLabel(/mobile|phone/i).first();
+  const unlabeledMaterialPhone = page.locator("main input[type='text']:not(#inputEmail):not([name]), form input[type='text']:not(#inputEmail):not([name])").first();
+  const phoneField = await phoneInputs.first().isVisible({ timeout: 750 }).catch(() => false)
+    ? phoneInputs.first()
+    : await phoneByLabel.isVisible({ timeout: 750 }).catch(() => false) ? phoneByLabel : unlabeledMaterialPhone;
+  if (await phoneField.isVisible({ timeout: 1_500 }).catch(() => false)) {
+    await phoneField.fill(input.phone.replace(/^\+65/, "").replace(/\D/g, ""));
+  }
   const dial = page.locator("select, [role='combobox']").first();
   if (await dial.isVisible().catch(() => false)) {
     const tagName = await dial.evaluate((element) => element.tagName.toLowerCase());
@@ -153,9 +159,10 @@ export async function fillJapanVfsRegistrationForm(page: Page, input: JapanVfsRe
       if (await option.isVisible({ timeout: 2_000 }).catch(() => false)) await option.click();
     }
   }
-  const consentBoxes = page.locator("input[type='checkbox']");
+  const consentBoxes = page.locator("main input[type='checkbox'], form input[type='checkbox']");
   for (let index = 0; index < await consentBoxes.count(); index += 1) {
     const checkbox = consentBoxes.nth(index);
+    if (!await checkbox.isVisible({ timeout: 250 }).catch(() => false)) continue;
     const containerText = await checkbox.locator("xpath=ancestor::*[self::label or self::div][1]").innerText().catch(() => "");
     if (/marketing|promotion|offers|newsletter/i.test(containerText)) continue;
     await checkbox.check();
@@ -268,6 +275,7 @@ async function ensureLoggedIn(page: Page, applicationId: string): Promise<{ cont
     const verificationStartedAt = new Date().toISOString();
     await page.goto("https://visa.vfsglobal.com/sgp/en/jpn/register", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForTimeout(1_500);
+    await clickVisible(page, /reject|decline|necessary only|accept only necessary/i);
     await fillJapanVfsRegistrationForm(page, context);
     if (!await clickVisible(page, /^continue$/i)) return { context, checkpoint: { type: "selector_drift", message: "VFS registration Continue control was not found." } };
     await page.waitForTimeout(2_500);

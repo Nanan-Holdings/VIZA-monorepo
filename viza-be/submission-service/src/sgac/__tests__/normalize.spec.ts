@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeSgacPortalPayload, SgacPortalValidationError } from "../normalize";
+import { SGAC_HOTEL_OPTIONS } from "../official-options";
 import type { SubmissionPayload } from "../../country-submissions/types";
 
 function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload {
@@ -47,6 +48,23 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
     ...overrides,
   };
 }
+
+test("SGAC hotel snapshot preserves every current ICA record", () => {
+  assert.equal(SGAC_HOTEL_OPTIONS.length, 472);
+  assert.equal(new Set(SGAC_HOTEL_OPTIONS.map((option) => option.label)).size, 469);
+  assert.deepEqual(
+    SGAC_HOTEL_OPTIONS.filter((option) => option.label === "ASCOTT ORCHARD SINGAPORE").map((option) => option.code),
+    ["M0082", "M0106"],
+  );
+  assert.deepEqual(
+    SGAC_HOTEL_OPTIONS.filter((option) => option.label === "JIN DONG HOTEL").map((option) => option.code),
+    ["S0079", "S0531"],
+  );
+  assert.deepEqual(
+    SGAC_HOTEL_OPTIONS.filter((option) => option.label === "LODGE 41").map((option) => option.code),
+    ["S0221", "S0534"],
+  );
+});
 
 test("normalizeSgacPortalPayload maps purpose_of_travel and transport number into ICA fields", () => {
   const payload = normalizeSgacPortalPayload(basePayload(), {
