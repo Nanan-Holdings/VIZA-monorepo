@@ -25,10 +25,10 @@ function repositoryFor(applicationPatch: Partial<JapanAppointmentApplication> = 
       const action = { id: "consent-1", actionType: "japan_vfs_sg_consent", status: "completed", instruction: null, metadataRedactedJson: snapshot, createdAt: new Date(0).toISOString() };
       actions.push(action); return action;
     },
-    async getLatestJob() { return jobs[0] ?? null; },
+    async getLatestJob() { return jobs.at(-1) ?? null; },
     async getJob(jobId) { return jobs.find((job) => job.id === jobId) ?? null; },
     async insertJob(input) {
-      const job: JapanAppointmentJob = { id: "job-1", applicationId: input.applicationId, userId: input.userId, status: "appointment_account_required", mode: "assisted_live", requiresUserAction: false, currentManualAction: null, userPreferencesJson: input.preferences, lastErrorCode: null, lastErrorMessage: null, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString() };
+      const job: JapanAppointmentJob = { id: `job-${jobs.length + 1}`, applicationId: input.applicationId, userId: input.userId, status: "appointment_account_required", mode: "assisted_live", requiresUserAction: false, currentManualAction: null, userPreferencesJson: input.preferences, lastErrorCode: null, lastErrorMessage: null, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString() };
       jobs.push(job); return job;
     },
     async updateJob(jobId, patch) { const index = jobs.findIndex((job) => job.id === jobId); jobs[index] = { ...jobs[index], ...patch }; return jobs[index]; },
@@ -59,5 +59,31 @@ describe("JapanAppointmentService", () => {
     const job = await service.createJob({ applicationId: "application-1", userId: "user-1", eligibility });
     expect(job.status).toBe("appointment_account_required");
     expect(job.userPreferencesJson).toMatchObject({ aliasPrepared: true, stopBeforeSlotSelection: true, stopBeforePayment: true, stopBeforeFinalBooking: true });
+  });
+
+  it("returns backend-owned preflight and consent state", async () => {
+    const { repository } = repositoryFor({ documentTypes: ["passport_scan"] });
+    const service = new JapanAppointmentService(repository);
+    let snapshot = await service.getStatusForApplication("application-1");
+    expect(snapshot.preflight).toMatchObject({
+      consentRecorded: false,
+      passportUploaded: true,
+      photoUploaded: false,
+      missingApplicationFields: [],
+    });
+    await service.recordConsent({ applicationId: "application-1", userId: "user-1", snapshot: {} });
+    snapshot = await service.getStatusForApplication("application-1");
+    expect(snapshot.preflight.consentRecorded).toBe(true);
+  });
+
+  it("allows a fresh preparation after a cancelled job", async () => {
+    const { repository, jobs } = repositoryFor();
+    const service = new JapanAppointmentService(repository);
+    await service.recordConsent({ applicationId: "application-1", userId: "user-1", snapshot: {} });
+    const first = await service.createJob({ applicationId: "application-1", userId: "user-1", eligibility });
+    await service.cancel(first.id);
+    const second = await service.createJob({ applicationId: "application-1", userId: "user-1", eligibility });
+    expect(jobs).toHaveLength(2);
+    expect(second.status).toBe("appointment_account_required");
   });
 });

@@ -120,4 +120,17 @@ describe("Vietnam pre-arrival dynamic form options", () => {
       label_zh: "T & D Maison 会安，第46街区后舍，清河，会安，广南",
     });
   });
+
+  it("keeps the complete official hotel hierarchy keyed by ward code", () => {
+    const haiVanHotels = getVnPrearrivalStaticOptions("prearrival_category:hotel", "20194") ?? [];
+    const hotelObjects = haiVanHotels.filter(
+      (hotel): hotel is Exclude<typeof hotel, string> => typeof hotel !== "string",
+    );
+
+    expect(hotelObjects).toHaveLength(5);
+    expect(hotelObjects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "KSDN_01", label_en: expect.stringContaining("Dan Nguyen Phat Hotel") }),
+      expect.objectContaining({ value: "KSDN_05" }),
+    ]));
+  });
 });

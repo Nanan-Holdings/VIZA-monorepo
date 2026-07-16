@@ -3,7 +3,10 @@ import { timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { registerAndPrepareFranceTlsAccount } from "./france-tls/account-registration.js";
-import { probeFranceTlsOfficialPortal } from "./france-tls/runner.js";
+import {
+  bookFranceTlsOfficialAppointment,
+  probeFranceTlsOfficialPortal,
+} from "./france-tls/runner.js";
 import { putIndonesiaCardSession } from "./indonesia/card-session.js";
 import { chromium } from "playwright";
 import { runKoreaOfficialEform, runKoreaOfficialEformLiveFill } from "./korea-eform/runner.js";
@@ -415,6 +418,42 @@ async function handleFranceTlsRegisterAccount(req: http.IncomingMessage, res: ht
   }
 }
 
+async function handleFranceTlsBookSelectedSlot(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  if (!envEnabled(process.env.FRANCE_TLS_LIVE_BOOKING_ENABLED)) {
+    sendJson(res, 404, { error: "not_found" });
+    return;
+  }
+  if (!isFranceInternalRequest(req)) {
+    sendJson(res, 403, { error: "forbidden" });
+    return;
+  }
+  try {
+    const body = (await readJsonBody(req, 8192)) as Record<string, unknown>;
+    const selectedSlot = body.selectedSlot && typeof body.selectedSlot === "object"
+      ? body.selectedSlot as Record<string, unknown>
+      : {};
+    const required = (value: unknown, field: string): string => {
+      if (typeof value !== "string" || !value.trim()) throw new Error(`${field} is required`);
+      return value.trim();
+    };
+    const result = await bookFranceTlsOfficialAppointment({
+      applicationId: required(body.applicationId, "applicationId"),
+      jobId: required(body.jobId, "jobId"),
+      centerCode: typeof body.centerCode === "string" ? body.centerCode : "shanghai",
+      selectedSlot: {
+        appointmentDate: required(selectedSlot.appointmentDate, "selectedSlot.appointmentDate"),
+        appointmentTime: required(selectedSlot.appointmentTime, "selectedSlot.appointmentTime"),
+        appointmentLocation: required(selectedSlot.appointmentLocation, "selectedSlot.appointmentLocation"),
+        appointmentType: required(selectedSlot.appointmentType, "selectedSlot.appointmentType"),
+      },
+      paymentSessionId: typeof body.paymentSessionId === "string" ? body.paymentSessionId : null,
+    });
+    sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function handleJapanVfsSingaporeObserve(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   if (!envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) {
     sendJson(res, 404, { error: "not_found" });
@@ -503,6 +542,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleFranceTlsRegisterAccount(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/internal/france-tls/book-selected-slot") {
+      void handleFranceTlsBookSelectedSlot(req, res);
+      return;
+    }
     if (req.method === "POST" && url === "/local/japan-vfs-sg/observe") {
       void handleJapanVfsSingaporeObserve(req, res);
       return;
@@ -583,6 +626,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, 200, { ok: true, enabled: true });
       return;
     }
+    if (req.method === "GET" && url === "/internal/france-tls/book-selected-slot") {
+      if (!envEnabled(process.env.FRANCE_TLS_LIVE_BOOKING_ENABLED)) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      if (!isFranceInternalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
     if (req.method === "GET" && url === "/local/japan-vfs-sg/observe") {
       if (!envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED) || !isLocalRequest(req)) {
         sendJson(res, 404, { error: "not_found" });
@@ -602,6 +657,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.KR_VISA_PORTAL_EFORM_LOCAL_ENABLED)) endpoints.push("/local/korea-eform/generate");
     if (envEnabled(process.env.FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/france-tls/check-slots");
     if (envEnabled(process.env.FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED)) endpoints.push("/internal/france-tls/register-account");
+    if (envEnabled(process.env.FRANCE_TLS_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/france-tls/book-selected-slot");
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready${extra})`);

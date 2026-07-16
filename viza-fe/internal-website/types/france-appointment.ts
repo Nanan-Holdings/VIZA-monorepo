@@ -53,7 +53,11 @@ export type FranceAppointmentManualActionType =
   | "payment"
   | "slot_selection"
   | "final_confirmation"
-  | "site_policy_review";
+  | "site_policy_review"
+  | "waf"
+  | "selector_drift"
+  | "account_preparation_failed"
+  | "official_field_mapping_required";
 
 export type FranceAppointmentManualActionStatus =
   | "pending"
@@ -134,9 +138,19 @@ export interface FranceAppointmentConfirmation {
   createdAt: string | null;
 }
 
+export interface FranceAppointmentAccount {
+  id: string;
+  applicationId: string | null;
+  accountEmail: string | null;
+  accountStatus: string;
+  emailVerified: boolean;
+  lastLoginAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface FranceAppointmentStatusSnapshot {
   job: FranceAppointmentJob | null;
-  account: JsonObject | null;
+  account: FranceAppointmentAccount | null;
   pendingManualAction: FranceAppointmentManualAction | null;
   manualActions: FranceAppointmentManualAction[];
   slots: FranceAppointmentSlot[];

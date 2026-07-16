@@ -8,6 +8,7 @@ import {
   Clock3,
   CreditCard,
   Loader2,
+  Mail,
   MapPin,
   PauseCircle,
   Play,
@@ -319,8 +320,12 @@ export function FranceAppointmentAssistant({
 
   const canCheckSlots =
     Boolean(job) && !TERMINAL_STATUSES.has(job?.status ?? "appointment_not_started");
-  const canBook =
-    Boolean(job && selectedAppointmentSlot && paymentAuthorized && finalApproved);
+  const canBook = Boolean(
+    job
+    && selectedAppointmentSlot
+    && finalApproved
+    && (job.mode === "assisted_live" || paymentAuthorized),
+  );
 
   if (busyAction === "load" && !snapshot) {
     return (
@@ -405,6 +410,16 @@ export function FranceAppointmentAssistant({
             </CardContent>
           </Card>
 
+          {snapshot?.pendingManualAction && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <PauseCircle className="h-4 w-4 text-amber-700" />
+              <AlertTitle>{t("checkpoint.title")}</AlertTitle>
+              <AlertDescription>
+                {snapshot.pendingManualAction.instruction ?? t("checkpoint.body")}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card className="rounded-[8px] border-input">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -444,6 +459,33 @@ export function FranceAppointmentAssistant({
                 )}
                 {job ? t("setup.jobCreated") : t("setup.createJob")}
               </Button>
+            </CardContent>
+          </Card>
+          <Card className="rounded-[8px] border-input">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Mail className="h-4 w-4 text-brand-500" />
+                {t("account.title")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Detail
+                  label={t("account.alias")}
+                  value={snapshot?.account?.accountEmail ?? t("account.pending")}
+                />
+                <Detail
+                  label={t("account.status")}
+                  value={snapshot?.account?.accountStatus ?? t("account.pending")}
+                />
+                <Detail
+                  label={t("account.verification")}
+                  value={snapshot?.account?.emailVerified ? t("account.verified") : t("account.notVerified")}
+                />
+              </div>
+              <Alert className="border-slate-200 bg-slate-50">
+                <AlertDescription>{t("account.body")}</AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
           <Card className="rounded-[8px] border-input">

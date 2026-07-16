@@ -656,7 +656,11 @@ describe("U.S. appointment assistant dry-run lifecycle", () => {
     expect(revealed.accountPassword).toMatch(/^Viza9!/);
     expect(revealed.accountPassword).toHaveLength(14);
     expect(revealed.securityQuestions).toHaveLength(3);
-    expect(revealed.securityQuestions.every((item) => item.answer === "VIZA")).toBe(true);
+    expect(revealed.securityQuestions.map((item) => item.answer)).toEqual([
+      "VizaAnswer1",
+      "VizaAnswer2",
+      "VizaAnswer3",
+    ]);
     expect(revealed.prefill.ds160ConfirmationCode).toBe("AA00DRYRUN1");
     expect(revealed.prefill.applyingPostCity).toBe("Beijing");
   });

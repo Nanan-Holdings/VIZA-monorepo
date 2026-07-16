@@ -128,6 +128,12 @@ filling and one-shot submission for the applicant.
   application/session, persists only encrypted credentials, activates through
   `inbound_email`, and stops before reference submission, slot selection,
   payment, or booking.
+- `POST /internal/france-tls/book-selected-slot`: internal-token protected live
+  booking handoff gated by `FRANCE_TLS_LIVE_BOOKING_ENABLED=true`. It logs in
+  with the stored alias account, matches only the exact backend-observed slot
+  selected by the applicant, and returns either a verifiable official
+  confirmation number or an explicit payment/WAF/CAPTCHA/selector checkpoint.
+  It must never synthesize a live confirmation number.
 - `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
   alias provisioning and inbound-email verification-link extraction for
   official account registration.
@@ -160,6 +166,13 @@ filling and one-shot submission for the applicant.
   and writes follow-up checks to `appointment_status_checks`. Keep the DB state
   machine in `runner.ts` and official-page selectors/page interactions in
   `usvisascheduling-portal.ts`.
+- `scripts/run-us-appointment-registration-recon.ts`: Browserbase Developer
+  single-session registration-entry recon. It clicks the official B2C
+  `Sign up now` control, verifies the empty registration form, saves masked
+  screenshots, and stops before entering alias/credentials, sending email, or
+  creating a permanent account. The recon and production registration share
+  `reachUSVisaSchedulingRegistrationForm()` so selector drift is detected in
+  the same path.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
@@ -168,6 +181,11 @@ filling and one-shot submission for the applicant.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.
+- `src/sg/**`: runner_job adapter for the Singapore worker. It maps canonical
+  answers into the SGAC package-specific payload and never claims success
+  without an ICA confirmation/reference.
+- `scripts/fly/verify-country-worker.sh`: read-only Fly post-deploy readiness
+  probe; it verifies the country worker without creating an applicant job.
 - `src/mdac/**`: Malaysia MDAC arrival-card runner. Normalizes
   `MY_MDAC_ARRIVAL_CARD` answers only, keeps MDAC separate from Malaysia eVisa,
   dispatches through the official MDAC portal, and captures confirmation/error
