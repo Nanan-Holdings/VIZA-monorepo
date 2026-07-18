@@ -12,3 +12,11 @@ export function validateVietnamEvisaPdf(pdfBytes: Buffer): string {
   }
   return createHash("sha256").update(pdfBytes).digest("hex");
 }
+
+export function shouldPersistVietnamEvisaVersion(
+  sha256: string,
+  lastHash: string | null,
+  lastStoragePath: string | null,
+): boolean {
+  return sha256 !== lastHash || !lastStoragePath;
+}
