@@ -125,6 +125,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
+- Vietnam post-submission tracking and official PDF delivery are defined by
+  `supabase/migrations/20260718025937_vietnam_evisa_status_tracking_delivery.sql`,
+  mirrored in `supabase/manual/viza_required_schema.sql`, and exposed only by
+  ownership-checked status refresh and artifact routes.
 - Vietnam official e-Visa form parity migration under
   `supabase/migrations/20260625_vn_evisa_official_form_parity.sql`; it keeps
   the DB-driven VIZA form aligned with official conditional questions, tables,

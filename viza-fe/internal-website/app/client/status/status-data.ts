@@ -78,6 +78,7 @@ export interface StatusAction {
 export interface StatusFile {
   key: StatusFileKey;
   href: string | null;
+  printHref?: string | null;
   reference: string;
   createdAt: string | null;
 }
@@ -128,6 +129,12 @@ export interface StatusApplication {
   externalStatus: string | null;
   resultStatus: string | null;
   liveSubmission: LiveSubmissionSummary | null;
+  officialTracking: {
+    status: string;
+    lastSuccessfulCheckAt: string | null;
+    nextDailyCheckAt: string | null;
+    consecutiveFailures: number;
+  } | null;
   governmentFee: {
     amountCents: number | null;
     currency: string | null;
@@ -303,6 +310,14 @@ interface NotificationRow {
   created_at: string | null;
 }
 
+interface OfficialTrackingRow {
+  application_id: string;
+  tracking_status: string;
+  last_successful_check_at: string | null;
+  next_daily_check_at: string | null;
+  consecutive_failures: number;
+}
+
 interface QueryResult {
   data: unknown;
   error: { message: string } | null;
@@ -329,7 +344,7 @@ const ATTENTION_PAYMENT_STATUSES = new Set(["failed", "canceled", "cancelled", "
 const READY_PACKET_STATUSES = new Set(["ready", "generated", "complete", "completed", "sent", "handed_off"]);
 const ATTENTION_STATUSES = new Set(["failed", "error", "needs_attention", "blocked", "rejected"]);
 const EXTERNAL_ACTIVE_STATUSES = new Set(["submitted", "received", "in_review", "processing", "under_review"]);
-const APPROVED_RESULT_STATUSES = new Set(["approved", "issued", "granted"]);
+const APPROVED_RESULT_STATUSES = new Set(["approved", "approved_pending_document", "issued", "granted"]);
 const REJECTED_RESULT_STATUSES = new Set(["rejected", "refused", "denied"]);
 const SUCCESS_SUBMISSION_RESULT_STATUSES = new Set(["completed", "complete", "submitted", "success", "done"]);
 const ARRIVAL_CARD_READY_RESULT_STATUSES = new Set(["form_ready_for_agency"]);
@@ -1044,9 +1059,23 @@ async function buildFiles({
       : APPROVED_RESULT_STATUSES.has(resultStatus)
         ? "approvedResult"
         : "resultFile";
+    const isVietnam =
+      ["vn", "vietnam", "viet_nam"].includes(normalizeStatus(application.country)) &&
+      [
+        "vn_e_visa",
+        "vietnam_e_visa",
+        "e_visa_tourism",
+        "evisa_tourism",
+        "tourist_e_visa",
+        "tourist_evisa",
+      ].includes(normalizeStatus(application.visa_type));
+    const artifactRoute = `/api/applications/${application.id}/evisa-artifact`;
     files.push({
       key: resultKey,
-      href: await resolveStorageHref(adminClient, application.result_storage_path),
+      href: isVietnam
+        ? `${artifactRoute}?disposition=attachment`
+        : await resolveStorageHref(adminClient, application.result_storage_path),
+      printHref: isVietnam ? `${artifactRoute}?disposition=inline` : null,
       reference: application.result_storage_path,
       createdAt: application.updated_at,
     });
@@ -1111,6 +1140,7 @@ function buildPackageOnlyApplication(userPackage: {
     externalStatus: null,
     resultStatus: null,
     liveSubmission: null,
+    officialTracking: null,
     governmentFee: {
       amountCents: null,
       currency: userPackage.package.currency,
@@ -1165,6 +1195,7 @@ async function buildApplicationStatus({
   packets,
   events,
   notifications,
+  officialTracking,
 }: {
   adminClient: ReturnType<typeof createAdminClient>;
   application: ApplicationRow;
@@ -1178,6 +1209,7 @@ async function buildApplicationStatus({
   packets: PacketRow[];
   events: EventRow[];
   notifications: NotificationRow[];
+  officialTracking: OfficialTrackingRow | null;
 }): Promise<StatusApplication> {
   const base = buildPackageBase(application.country, application.visa_type);
   const latestPayment = getLatestPayment(payments);
@@ -1320,6 +1352,14 @@ async function buildApplicationStatus({
     externalStatus: liveSubmission?.status ?? application.external_status,
     resultStatus: liveSubmission?.officialStatus ?? application.result_status ?? application.submission_result_status,
     liveSubmission,
+    officialTracking: officialTracking
+      ? {
+          status: officialTracking.tracking_status,
+          lastSuccessfulCheckAt: officialTracking.last_successful_check_at,
+          nextDailyCheckAt: officialTracking.next_daily_check_at,
+          consecutiveFailures: officialTracking.consecutive_failures,
+        }
+      : null,
     governmentFee: {
       amountCents: application.government_fee_cents,
       currency: application.government_fee_currency,
@@ -1577,6 +1617,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   let packets: PacketRow[] = [];
   let events: EventRow[] = [];
   let notifications: NotificationRow[] = [];
+  let officialTracking: OfficialTrackingRow[] = [];
 
   if (applicationIds.length > 0) {
     const [
@@ -1587,6 +1628,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       packetResult,
       eventResult,
       notificationResult,
+      trackingResult,
     ] = await Promise.all([
       readRows<ConsentRow>(
         adminClient
@@ -1632,6 +1674,12 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
           .select("application_id, status, sent_at, created_at")
           .in("application_id", applicationIds),
       ),
+      readRows<OfficialTrackingRow>(
+        adminClient
+          .from("official_application_tracking")
+          .select("application_id, tracking_status, last_successful_check_at, next_daily_check_at, consecutive_failures")
+          .in("application_id", applicationIds),
+      ),
     ]);
 
     partialData = partialData || [
@@ -1642,6 +1690,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
       packetResult,
       eventResult,
       notificationResult,
+      trackingResult,
     ].some((result) => result.failed);
 
     consents = consentResult.rows;
@@ -1651,6 +1700,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
     packets = packetResult.rows;
     events = eventResult.rows;
     notifications = notificationResult.rows;
+    officialTracking = trackingResult.rows;
   }
 
   const packagesById = new Map(userPackages.map((row) => [row.package.id, row.package]));
@@ -1670,6 +1720,9 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
   const packetsByApplication = groupByApplication(packets);
   const eventsByApplication = groupByApplication(events);
   const notificationsByApplication = groupByApplication(notifications);
+  const officialTrackingByApplication = new Map(
+    officialTracking.map((row) => [row.application_id, row]),
+  );
 
   const statusApplications = await Promise.all(
     applications.map((application) =>
@@ -1689,6 +1742,7 @@ export async function getClientStatusData(): Promise<ClientStatusData> {
         packets: packetsByApplication.get(application.id) ?? [],
         events: eventsByApplication.get(application.id) ?? [],
         notifications: notificationsByApplication.get(application.id) ?? [],
+        officialTracking: officialTrackingByApplication.get(application.id) ?? null,
       }),
     ),
   );

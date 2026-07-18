@@ -27,6 +27,9 @@ website state and externally ingested submission/result state.
   errors must be translated into plain user-facing next steps.
 - Show result-delivery links when `applications.result_storage_path`,
   `applications.receipt_url`, or official reference fields are available.
+- For newly tracked Vietnam e-Visas, show the safe official status, last and
+  next daily query times, and authenticated view/print/download controls.
+  Browser page refreshes must not enqueue official CAPTCHA queries.
 
 ## Data Sources
 
@@ -39,6 +42,7 @@ website state and externally ingested submission/result state.
 - `application_packets`
 - `application_events`
 - `notification_events`
+- `official_application_tracking` (service-role server read only)
 
 ## Guardrails
 

@@ -199,7 +199,9 @@ filling and one-shot submission for the applicant.
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
   landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
-  when the official form is reached, and stops before payment/submission.
+  when the official form is reached, uses a VIZA alias for official
+  correspondence, tracks newly paid submissions through daily/email/user
+  official queries, and privately delivers validated official PDFs.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.

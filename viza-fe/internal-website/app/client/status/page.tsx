@@ -214,6 +214,23 @@ function humanize(value: string | null): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatVietnamOfficialStatus(value: string | null, locale: string): string {
+  const normalized = (value ?? "").toLowerCase();
+  const zh = locale.startsWith("zh");
+  const labels: Record<string, [string, string]> = {
+    processing: ["Processing on the official portal", "越南官网处理中"],
+    pending_official_review: ["Processing on the official portal", "越南官网处理中"],
+    needs_correction: ["Correction required", "需要补充或修改资料"],
+    needs_attention: ["Correction required", "需要补充或修改资料"],
+    payment_required: ["Official payment required", "等待完成官方付款"],
+    approved_pending_document: ["Approved — retrieving visa document", "签证已获批，正在获取文件"],
+    approved: ["Approved — visa ready to print", "签证已获批，可打印"],
+    rejected: ["Application rejected", "申请被拒绝"],
+  };
+  const label = labels[normalized];
+  return label ? label[zh ? 1 : 0] : humanize(value);
+}
+
 function formatStepMetric(application: StatusApplication, step: StatusStep, locale: string, t: Awaited<ReturnType<typeof getTranslations>>) {
   if (!step.metricValue) return null;
   if (step.key === "payment") return formatMoney(application.payment.amountCents, application.payment.currency, locale);
@@ -425,7 +442,11 @@ function StepRow({
             )}
             {step.statusValue && (
               <span>
-                {t("status")}: <span className="font-semibold text-[#3d4b5f]">{humanize(step.statusValue)}</span>
+                {t("status")}: <span className="font-semibold text-[#3d4b5f]">
+                  {application.country.toUpperCase() === "VN" || application.country.toLowerCase() === "vietnam"
+                    ? formatVietnamOfficialStatus(step.statusValue, locale)
+                    : humanize(step.statusValue)}
+                </span>
               </span>
             )}
             {step.updatedAt && (
@@ -464,15 +485,25 @@ function FileRow({ file, locale, t }: { file: StatusFile; locale: string; t: Awa
         </div>
       </div>
       {file.href ? (
-        <a
-          href={file.href}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
-        >
-          {t("download")}
-          <Download className="h-4 w-4" />
-        </a>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {file.printHref && (
+            <a
+              href={file.printHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+            >
+              {locale.startsWith("zh") ? "查看/打印" : "View / print"}
+            </a>
+          )}
+          <a
+            href={file.href}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+          >
+            {t("download")}
+            <Download className="h-4 w-4" />
+          </a>
+        </div>
       ) : (
         <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-[#66758a]">
           {t("secureFileStored")}
@@ -629,7 +660,7 @@ function DetailView({
   const shouldPollOfficialStatus =
     isVietnam &&
     Boolean(application.id) &&
-    !["approved", "rejected"].includes((application.resultStatus ?? application.externalStatus ?? "").toLowerCase());
+    application.officialTracking?.status === "active";
   return (
     <section className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5 lg:p-6">
       {application.id && (
@@ -719,12 +750,13 @@ function DetailView({
               {application.actions.map((action) => (
                 <ActionLink key={`side-${action.key}-${action.href}`} action={action} t={t} />
               ))}
-              {application.id && isVietnam && (
+              {application.id && isVietnam && application.officialTracking?.status === "active" && (
                 <OfficialStatusRefreshButton
                   applicationId={application.id}
                   label={locale.startsWith("zh") ? "刷新官网状态" : "Refresh official status"}
                   loadingLabel={locale.startsWith("zh") ? "正在刷新" : "Refreshing"}
                   errorLabel={locale.startsWith("zh") ? "官网状态刷新失败" : "Official status refresh failed"}
+                  locale={locale}
                 />
               )}
             </div>
@@ -746,8 +778,22 @@ function DetailView({
                 label={t("details.documents")}
                 value={`${application.documents.uploaded + application.documents.validated}/${application.documents.total}`}
               />
-              <DetailMetric label={t("details.externalStatus")} value={application.externalStatus ? humanize(application.externalStatus) : t("notAssigned")} />
-              <DetailMetric label={t("details.resultStatus")} value={application.resultStatus ? humanize(application.resultStatus) : t("notAssigned")} />
+              <DetailMetric label={t("details.externalStatus")} value={application.externalStatus ? (isVietnam ? formatVietnamOfficialStatus(application.externalStatus, locale) : humanize(application.externalStatus)) : t("notAssigned")} />
+              <DetailMetric label={t("details.resultStatus")} value={application.resultStatus ? (isVietnam ? formatVietnamOfficialStatus(application.resultStatus, locale) : humanize(application.resultStatus)) : t("notAssigned")} />
+              {application.officialTracking && (
+                <>
+                  <DetailMetric
+                    label={locale.startsWith("zh") ? "上次官网查询" : "Last official check"}
+                    value={formatDateTime(application.officialTracking.lastSuccessfulCheckAt, locale)}
+                  />
+                  <DetailMetric
+                    label={locale.startsWith("zh") ? "下次例行查询" : "Next daily check"}
+                    value={application.officialTracking.status === "active"
+                      ? formatDateTime(application.officialTracking.nextDailyCheckAt, locale)
+                      : (locale.startsWith("zh") ? "追踪已完成" : "Tracking completed")}
+                  />
+                </>
+              )}
               <DetailMetric label={t("details.notifications")} value={String(application.notifications.total)} />
             </div>
           </section>

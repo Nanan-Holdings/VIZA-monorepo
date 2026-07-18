@@ -12,6 +12,9 @@ type ApplicationRow = {
   visa_type: string | null;
   external_status?: string | null;
 };
+type TrackingRow = { tracking_status: string };
+
+const REFRESH_COOLDOWN_MS = 15 * 60 * 1_000;
 
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
@@ -74,7 +77,73 @@ export async function POST(
     return NextResponse.json({ error: "Official status refresh is only enabled for Vietnam e-Visa." }, { status: 422 });
   }
 
+  const { data: trackingData, error: trackingError } = await admin
+    .from("official_application_tracking")
+    .select("tracking_status")
+    .eq("application_id", applicationId)
+    .maybeSingle();
+  if (trackingError) {
+    return NextResponse.json({ error: trackingError.message }, { status: 500 });
+  }
+  const tracking = trackingData as TrackingRow | null;
+  if (!tracking || tracking.tracking_status !== "active") {
+    return NextResponse.json(
+      { error: "Official status tracking is not active for this application." },
+      { status: 409 },
+    );
+  }
+
+  const { data: activeCheck, error: activeError } = await admin
+    .from("official_status_checks")
+    .select("id, status")
+    .eq("application_id", applicationId)
+    .eq("country_code", "VN")
+    .in("status", ["queued", "running"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (activeError) {
+    return NextResponse.json({ error: activeError.message }, { status: 500 });
+  }
+  if (activeCheck) {
+    return NextResponse.json({
+      ok: true,
+      status: "deduplicated",
+      statusCheckId: activeCheck.id,
+    });
+  }
+
+  const cooldownThreshold = new Date(Date.now() - REFRESH_COOLDOWN_MS).toISOString();
+  const { data: recentUserCheck, error: cooldownError } = await admin
+    .from("official_status_checks")
+    .select("id, created_at")
+    .eq("application_id", applicationId)
+    .eq("country_code", "VN")
+    .eq("trigger_source", "user")
+    .gte("created_at", cooldownThreshold)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (cooldownError) {
+    return NextResponse.json({ error: cooldownError.message }, { status: 500 });
+  }
+  if (recentUserCheck) {
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil(
+        (Date.parse(recentUserCheck.created_at) + REFRESH_COOLDOWN_MS - Date.now()) /
+          1_000,
+      ),
+    );
+    return NextResponse.json({
+      ok: true,
+      status: "cooldown",
+      retryAfterSeconds,
+    });
+  }
+
   const now = new Date().toISOString();
+  const idempotencyKey = `vn:user:${applicationId}:${Math.floor(Date.now() / REFRESH_COOLDOWN_MS)}`;
   const { data: check, error: checkError } = await admin
     .from("official_status_checks")
     .insert({
@@ -84,9 +153,11 @@ export async function POST(
       provider: "vietnam_evisa",
       status: "queued",
       requested_by: "user",
-      checked_at: now,
+      trigger_source: "user",
+      idempotency_key: idempotencyKey,
+      scheduled_for: now,
       raw_status_json: {
-        message: "User requested Vietnam e-Visa official status refresh.",
+        source: "user_refresh",
       },
       created_at: now,
       updated_at: now,
@@ -95,40 +166,34 @@ export async function POST(
     .single();
 
   if (checkError) {
-    const message = checkError.message.toLowerCase();
-    if (!message.includes("official_status_checks")) {
-      return NextResponse.json({ error: checkError.message }, { status: 500 });
+    if (checkError.code === "23505") {
+      return NextResponse.json({ ok: true, status: "deduplicated" });
     }
+    return NextResponse.json({ error: checkError.message }, { status: 500 });
   }
 
-  await Promise.all([
-    admin
-      .from("applications")
-      .update({
-        external_status: application.external_status ?? "status_check_queued",
-        external_status_updated_at: now,
-        updated_at: now,
-      })
-      .eq("id", applicationId),
-    admin.from("application_events").upsert(
-      {
-        application_id: applicationId,
-        applicant_id: profile.id,
-        auth_user_id: user.id,
-        event_type: "official_status_refresh_requested",
-        actor_type: "user",
-        actor_id: user.id,
-        source: "official_status",
-        visibility: "staff",
-        idempotency_key: `official-status-refresh:${applicationId}:${now}`,
-        message: "User requested Vietnam e-Visa official status refresh.",
-        metadata: { status_check_id: (check as { id?: string } | null)?.id ?? null },
-        occurred_at: now,
-        created_at: now,
-      },
-      { onConflict: "idempotency_key", ignoreDuplicates: true },
-    ),
-  ]);
+  await admin.from("application_events").upsert(
+    {
+      application_id: applicationId,
+      applicant_id: profile.id,
+      auth_user_id: user.id,
+      event_type: "official_status_refresh_requested",
+      actor_type: "user",
+      actor_id: user.id,
+      source: "official_status",
+      visibility: "staff",
+      idempotency_key: idempotencyKey,
+      message: "User requested Vietnam e-Visa official status refresh.",
+      metadata: { status_check_id: (check as { id?: string } | null)?.id ?? null },
+      occurred_at: now,
+      created_at: now,
+    },
+    { onConflict: "idempotency_key", ignoreDuplicates: true },
+  );
 
-  return NextResponse.json({ ok: true, statusCheck: check ?? null });
+  return NextResponse.json({
+    ok: true,
+    status: "queued",
+    statusCheckId: (check as { id?: string } | null)?.id ?? null,
+  });
 }

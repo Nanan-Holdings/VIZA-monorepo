@@ -24,6 +24,11 @@ Key files:
   visible-menu diagnostics.
 - `vietnam-visa-helper-v1/dropdown-smoke-test.js`: focused dropdown smoke logic.
 - `vietnam-visa-helper-v1/TESTING_GUIDE.md`: concise notes on staged autofill.
+- `status-check.ts`: official lookup parsing, CAPTCHA-assisted search, and PDF capture.
+- `status-tracking.ts`: daily/email/user checks, trusted status persistence,
+  versioned PDF delivery, and notifications.
+- `status-tracking-schedule.ts`: deterministic daily window in `Asia/Ho_Chi_Minh`.
+- `evisa-pdf.ts`: official PDF magic-byte, size, and SHA-256 validation.
 
 Important patterns to mirror in the Playwright runner:
 
@@ -42,6 +47,11 @@ Important patterns to mirror in the Playwright runner:
 
 - The worker may solve official Vietnam CAPTCHA with TWOCAPTCHA when the portal
   presents one and `TWOCAPTCHA_API_KEY` is configured.
+- Newly paid live e-Visa submissions use the VIZA inbox alias only in the
+  official email fields. Never overwrite the personal profile email or enable
+  the portal's email-account checkbox.
+- Email accelerates checking but never postpones the once-per-Vietnam-day
+  check. Unknown/error pages must not overwrite the last trusted user status.
 - Stop at the payment/checkpoint page after registration/reference capture by
   default. The only allowed exception is the Vietnam official-fee autopay pilot,
   and only when `VN_OFFICIAL_PAYMENT_AUTOPAY=true`, the user/admin
