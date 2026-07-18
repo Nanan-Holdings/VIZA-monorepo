@@ -9,27 +9,41 @@ export function OfficialStatusRefreshButton({
   label,
   loadingLabel,
   errorLabel,
+  locale,
 }: {
   applicationId: string;
   label: string;
   loadingLabel: string;
   errorLabel: string;
+  locale: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = async () => {
     if (loading) return;
     setLoading(true);
     setError(null);
+    setNotice(null);
     try {
       const response = await fetch(`/api/applications/${applicationId}/official-status/refresh`, {
         method: "POST",
       });
-      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        status?: "queued" | "deduplicated" | "cooldown";
+        retryAfterSeconds?: number;
+      } | null;
       if (!response.ok) {
         throw new Error(typeof payload?.error === "string" ? payload.error : `${errorLabel} (${response.status})`);
+      }
+      if (payload?.status === "cooldown") {
+        const minutes = Math.ceil((payload.retryAfterSeconds ?? 60) / 60);
+        setNotice(locale.startsWith("zh") ? `请在 ${minutes} 分钟后重试。` : `Please try again in ${minutes} min.`);
+      } else if (payload?.status === "deduplicated") {
+        setNotice(locale.startsWith("zh") ? "已有官网查询正在排队。" : "A status check is already queued.");
       }
       router.refresh();
     } catch (err) {
@@ -51,6 +65,7 @@ export function OfficialStatusRefreshButton({
         {loading ? loadingLabel : label}
       </button>
       {error && <p className="text-sm text-red-700">{error}</p>}
+      {notice && <p className="text-sm text-[#66758a]">{notice}</p>}
     </div>
   );
 }

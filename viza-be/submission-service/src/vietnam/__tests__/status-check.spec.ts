@@ -22,6 +22,18 @@ test("vn.status-check: parses approved status", () => {
   assert.equal(result.downloadAvailable, true);
 });
 
+test("vn.status-check: maps Acceptance and Get e-Visa from the current portal", () => {
+  const result = parseVietnamOfficialStatus(`
+    Application status: Acceptance
+    Visa number: 999999999
+    Allowed to enter Viet Nam from 24/07/2026 to Date 27/07/2026
+    Get e-Visa
+  `);
+  assert.equal(result.status, "approved");
+  assert.equal(result.visaNumber, "999999999");
+  assert.equal(result.downloadAvailable, true);
+});
+
 test("vn.status-check: parses processing and correction statuses", () => {
   assert.equal(parseVietnamOfficialStatus("Application status: Processing").status, "processing");
   assert.equal(parseVietnamOfficialStatus("Application status: Amended Application Click here Edit").status, "needs_correction");
@@ -31,4 +43,19 @@ test("vn.status-check: parses denial reason", () => {
   const result = parseVietnamOfficialStatus("Application status: Denied\nDenied Reason: invalid portrait photo");
   assert.equal(result.status, "rejected");
   assert.equal(result.deniedReason, "invalid portrait photo");
+});
+
+test("vn.status-check: parses Vietnamese portal copy and payment status", () => {
+  assert.equal(
+    parseVietnamOfficialStatus("Trạng thái hồ sơ: Đang xử lý").status,
+    "processing",
+  );
+  assert.equal(
+    parseVietnamOfficialStatus("Application status: Payment required").status,
+    "payment_required",
+  );
+  assert.equal(
+    parseVietnamOfficialStatus("Portal maintenance notice").status,
+    "unknown",
+  );
 });

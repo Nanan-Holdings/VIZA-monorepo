@@ -18,6 +18,7 @@ import { applicationDecisionTemplate } from "./application-decision.js";
 import { passwordResetTemplate } from "./password-reset.js";
 import { signupVerifyTemplate } from "./signup-verify.js";
 import { ticketReceivedTemplate } from "./ticket-received.js";
+import { vietnamStatusUpdateTemplate } from "./vietnam-status-update.js";
 
 export interface NotificationTemplate {
   key: string;
@@ -38,6 +39,7 @@ export const TEMPLATES: Record<string, NotificationTemplate> = {
   password_reset: passwordResetTemplate,
   signup_verify: signupVerifyTemplate,
   ticket_received: ticketReceivedTemplate,
+  vietnam_status_update: vietnamStatusUpdateTemplate,
 };
 
 export function resolveTemplate(key: string): NotificationTemplate | null {

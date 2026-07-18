@@ -69,6 +69,9 @@ explicitly reintroduces another provider.
   portal observation to submission-service. Free Plan mode stops before slot
   selection, payment, and final booking.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
+- Transactional notification delivery: `src/notify/templates/**` and
+  `src/notify/worker.ts`; Vietnam status changes use the locale-aware
+  `vietnam_status_update` template and link to the VIZA status center.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 - Arrival-card seeds:

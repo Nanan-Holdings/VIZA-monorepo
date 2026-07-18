@@ -31,6 +31,8 @@ Supabase service-role client setup for the agent backend.
 - `../../drizzle/0096_vietnam_live_assisted_controls.sql`: Vietnam e-Visa
   queue stage/heartbeat fields, encrypted registration-code storage, and
   manual checkpoint table.
+- `../../drizzle/0111_vietnam_evisa_status_tracking_delivery.sql`: new-only
+  Vietnam status tracking, daily scheduling, atomic claims, and artifact audit.
 
 ## Ownership Boundaries
 
@@ -81,6 +83,7 @@ For schema changes, also run any affected route/eval tests.
 - `appointment_confirmations`
 - `appointment_status_checks`
 - `official_status_checks`
+- `official_application_tracking`
 - `appointment_audit_events`
 - `ds160_submission_jobs`
 - `ds160_official_review_snapshots`
