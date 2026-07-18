@@ -28,6 +28,7 @@ export interface VietnamStatusCheckResult {
   visaNumber: string | null;
   deniedReason: string | null;
   downloadAvailable: boolean;
+  pdfBytes: Buffer | null;
   rawText: string;
   screenshotPath?: string;
 }
@@ -54,7 +55,9 @@ function extractLabeledValue(text: string, label: string): string | null {
   return value || null;
 }
 
-export function parseVietnamOfficialStatus(text: string): Omit<VietnamStatusCheckResult, "registrationCode" | "screenshotPath"> {
+export function parseVietnamOfficialStatus(
+  text: string,
+): Omit<VietnamStatusCheckResult, "registrationCode" | "screenshotPath" | "pdfBytes"> {
   const normalized = normalizeSpace(text);
   const applicationStatus =
     extractLabeledValue(text, "Application status") ??
@@ -79,7 +82,7 @@ export function parseVietnamOfficialStatus(text: string): Omit<VietnamStatusChec
   if (/denied|rejected|refused|từ chối/i.test(normalized)) status = "rejected";
   else if (/amended|amend|correction|edit|bổ sung|sửa đổi|chỉnh sửa/i.test(normalized)) status = "needs_correction";
   else if (/pay\s+visa\s+fee|payment required|pay to edit|thanh toán/i.test(normalized)) status = "payment_required";
-  else if (/granted|approved|download print visa|visa number|allowed to enter|được cấp|tải/i.test(normalized)) status = "approved";
+  else if (/acceptance|granted|approved|get e-?visa|download print visa|visa number|allowed to enter|được cấp|tải/i.test(normalized)) status = "approved";
   else if (/processing|in process|pending|đang xử lý|chờ xử lý/i.test(normalized)) status = "processing";
 
   return {
@@ -88,7 +91,7 @@ export function parseVietnamOfficialStatus(text: string): Omit<VietnamStatusChec
     passportNumber,
     visaNumber,
     deniedReason,
-    downloadAvailable: /download print visa|download|tải/i.test(normalized),
+    downloadAvailable: /get e-?visa|download print visa|download|tải/i.test(normalized),
     rawText: text.slice(0, 4000),
   };
 }
@@ -164,6 +167,49 @@ async function submitSearch(page: Page): Promise<void> {
   await page.waitForTimeout(1_000);
 }
 
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+async function captureOfficialEvisaPdf(page: Page): Promise<Buffer | null> {
+  const getVisa = page.locator([
+    'button:has-text("Get e-Visa")',
+    'a:has-text("Get e-Visa")',
+    'button:has-text("Download print visa")',
+    'a:has-text("Download print visa")',
+    'button:has-text("Tải")',
+    'a:has-text("Tải")',
+  ].join(", ")).first();
+  if (!(await getVisa.isVisible({ timeout: 3_000 }).catch(() => false))) return null;
+
+  let responseBody: Promise<Buffer | null> | null = null;
+  const responseListener = (response: { headers(): Record<string, string>; body(): Promise<Buffer> }): void => {
+    if (responseBody) return;
+    const contentType = response.headers()["content-type"] ?? "";
+    if (/application\/pdf/i.test(contentType)) {
+      responseBody = response.body().catch(() => null);
+    }
+  };
+  page.on("response", responseListener);
+  try {
+    const downloadPromise = page.waitForEvent("download", { timeout: 20_000 }).catch(() => null);
+    await getVisa.click({ timeout: 10_000 });
+    const download = await downloadPromise;
+    if (download) {
+      const stream = await download.createReadStream();
+      if (stream) return streamToBuffer(stream);
+    }
+    await page.waitForTimeout(2_000);
+    return responseBody ? await responseBody : null;
+  } finally {
+    page.off("response", responseListener);
+  }
+}
+
 export async function queryVietnamOfficialStatus(
   input: VietnamStatusCheckInput,
 ): Promise<VietnamStatusCheckResult> {
@@ -182,9 +228,14 @@ export async function queryVietnamOfficialStatus(
     }
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 });
     const parsed = parseVietnamOfficialStatus(bodyText);
+    const pdfBytes =
+      parsed.status === "approved" && parsed.downloadAvailable
+        ? await captureOfficialEvisaPdf(page)
+        : null;
     return {
       ...parsed,
       registrationCode: input.registrationCode,
+      pdfBytes,
       ...(input.screenshotPath ? { screenshotPath: input.screenshotPath } : {}),
     };
   } finally {
