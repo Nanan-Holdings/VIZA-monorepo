@@ -29,6 +29,8 @@ Key files:
   versioned PDF delivery, and notifications.
 - `status-tracking-schedule.ts`: deterministic daily window in `Asia/Ho_Chi_Minh`.
 - `evisa-pdf.ts`: official PDF magic-byte, size, and SHA-256 validation.
+- `official-email.ts`: payload-only VIZA alias override for the two official
+  email fields.
 
 Important patterns to mirror in the Playwright runner:
 

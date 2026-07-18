@@ -91,6 +91,7 @@ import {
   resumeUkApplication,
 } from "./uk";
 import { fillVietnamApplication, type FillVietnamResult } from "./vietnam";
+import { applyVietnamOfficialLookupEmail } from "./vietnam/official-email";
 import {
   activateVietnamStatusTracking,
   enqueueDueVietnamStatusChecks,
@@ -4419,8 +4420,10 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
       ? await getVietnamOfficialLookupEmail(profile.id)
       : null;
     if (officialLookupEmail) {
-      answers.email_address = officialLookupEmail;
-      answers.re_enter_email_address = officialLookupEmail;
+      Object.assign(
+        answers,
+        applyVietnamOfficialLookupEmail(answers, officialLookupEmail),
+      );
     }
     const vnDocsDir = fs.mkdtempSync(path.join(os.tmpdir(), `${runId}-docs-`));
     const localDocPaths = await downloadDocuments(documents, vnDocsDir);
