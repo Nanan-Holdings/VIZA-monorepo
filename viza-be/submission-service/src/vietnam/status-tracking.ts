@@ -7,7 +7,10 @@ import {
   type VietnamOfficialStatus,
 } from "./status-check.js";
 import { computeVietnamTrackingSlot } from "./status-tracking-schedule.js";
-import { validateVietnamEvisaPdf } from "./evisa-pdf.js";
+import {
+  shouldPersistVietnamEvisaVersion,
+  validateVietnamEvisaPdf,
+} from "./evisa-pdf.js";
 
 const OFFICIAL_STATUS_URL = "https://evisa.gov.vn/e-visa/search";
 const OFFICIAL_EMAIL_PATTERN =
@@ -336,10 +339,11 @@ async function persistOfficialVisa(input: {
   pdfBytes: Buffer;
 }): Promise<{ storagePath: string; sha256: string; changed: boolean }> {
   const sha256 = validateVietnamEvisaPdf(input.pdfBytes);
-  if (
-    input.tracking.last_artifact_hash === sha256 &&
-    input.tracking.last_artifact_storage_path
-  ) {
+  if (!shouldPersistVietnamEvisaVersion(
+    sha256,
+    input.tracking.last_artifact_hash,
+    input.tracking.last_artifact_storage_path,
+  ) && input.tracking.last_artifact_storage_path) {
     return {
       storagePath: input.tracking.last_artifact_storage_path,
       sha256,

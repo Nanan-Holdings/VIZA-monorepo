@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { validateVietnamEvisaPdf } from "../evisa-pdf.js";
+import {
+  shouldPersistVietnamEvisaVersion,
+  validateVietnamEvisaPdf,
+} from "../evisa-pdf.js";
 
 test("vn.evisa-pdf: validates magic bytes and returns stable SHA-256", () => {
   const pdf = Buffer.alloc(2_048, 0x20);
@@ -20,4 +23,16 @@ test("vn.evisa-pdf: rejects HTML and empty portal responses", () => {
     () => validateVietnamEvisaPdf(Buffer.from("%PDF-")),
     /valid official PDF/,
   );
+});
+
+test("vn.evisa-pdf: deduplicates equal hashes and versions changed bytes", () => {
+  assert.equal(
+    shouldPersistVietnamEvisaVersion("same", "same", "user/app/VN/visa.pdf"),
+    false,
+  );
+  assert.equal(
+    shouldPersistVietnamEvisaVersion("new", "old", "user/app/VN/visa.pdf"),
+    true,
+  );
+  assert.equal(shouldPersistVietnamEvisaVersion("same", "same", null), true);
 });

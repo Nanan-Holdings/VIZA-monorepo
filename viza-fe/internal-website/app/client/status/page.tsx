@@ -133,6 +133,7 @@ const KNOWN_EVENT_KEYS = new Set([
   "document_uploaded",
   "packet_generated",
   "external_status_updated",
+  "official_status_changed",
   "arrival_card_submitted",
   "result_received",
   "notification_sent",
