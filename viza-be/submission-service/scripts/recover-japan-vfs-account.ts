@@ -52,22 +52,46 @@ async function main(): Promise<void> {
   const profile = profileValue as { auth_user_id?: string; inbox_alias?: string };
   if (!profile.auth_user_id || !profile.inbox_alias) throw new Error("The application has no VIZA inbox alias.");
 
-  const welcome = await inbox.waitForMessage(
-    application.applicant_id,
-    (message) => /vfsglobal\.com|vfshelpzone\.com/i.test(message.from_addr) && /welcome|activate|registration/i.test(message.subject ?? ""),
-    5_000,
-    { since: new Date(Date.now() - 30 * 60_000).toISOString(), includeProcessed: true, markProcessed: false },
-  );
-  const activation = extractAuto({ from: welcome.from_addr, subject: welcome.subject, text: welcome.text, html: welcome.html });
-  if (!activation.link) throw new Error("The VFS welcome email did not contain an activation link.");
+  let activationLink: string | undefined;
+  if (!activationAlreadyConsumed) {
+    const welcome = await inbox.waitForMessage(
+      application.applicant_id,
+      (message) => /vfsglobal\.com|vfshelpzone\.com/i.test(message.from_addr) && /welcome|activate|registration/i.test(message.subject ?? ""),
+      5_000,
+      { since: new Date(Date.now() - 30 * 60_000).toISOString(), includeProcessed: true, markProcessed: false },
+    );
+    activationLink = extractAuto({ from: welcome.from_addr, subject: welcome.subject, text: welcome.text, html: welcome.html }).link;
+    if (!activationLink) throw new Error("The VFS welcome email did not contain an activation link.");
+  }
 
   const artifactDir = path.resolve("artifacts", "jp-vfs-sg-account-recovery");
   fs.mkdirSync(artifactDir, { recursive: true });
-  let cloud = await connectBrowserbaseCloudBrowser({ prefix: "JP_VFS_SG" });
+  const cloud = await connectBrowserbaseCloudBrowser({ prefix: "JP_VFS_SG" });
+  const browserDiagnostics: Array<Record<string, unknown>> = [];
+  const safeResource = (rawUrl: string): { host: string; path: string } => {
+    try {
+      const parsed = new URL(rawUrl);
+      return { host: parsed.host, path: parsed.pathname };
+    } catch {
+      return { host: "invalid", path: "" };
+    }
+  };
+  cloud.page.on("response", (response) => {
+    const resourceType = response.request().resourceType();
+    if (resourceType !== "xhr" && resourceType !== "fetch" && response.status() < 400) return;
+    browserDiagnostics.push({ kind: "response", status: response.status(), resourceType, ...safeResource(response.url()) });
+  });
+  cloud.page.on("requestfailed", (request) => {
+    browserDiagnostics.push({ kind: "requestfailed", resourceType: request.resourceType(), error: request.failure()?.errorText?.slice(0, 120), ...safeResource(request.url()) });
+  });
+  cloud.page.on("console", (message) => {
+    if (message.type() !== "error" && message.type() !== "warning") return;
+    browserDiagnostics.push({ kind: "console", level: message.type(), message: message.text().slice(0, 180) });
+  });
   console.log("[jp-vfs-recovery] Browserbase Singapore proxy connected");
   try {
     if (!activationAlreadyConsumed) {
-      await cloud.page.goto(activation.link.replace(/&amp;/g, "&"), { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await cloud.page.goto(activationLink!.replace(/&amp;/g, "&"), { waitUntil: "domcontentloaded", timeout: 90_000 });
       await cloud.page.waitForTimeout(2_500);
       const activationText = await cloud.page.locator("body").innerText().catch(() => "");
       if (/invalid|expired|activation failed/i.test(activationText)) throw new Error("VFS rejected the account activation link.");
@@ -77,22 +101,24 @@ async function main(): Promise<void> {
       console.log("[jp-vfs-recovery] activation link was already consumed");
     }
 
-    await cloud.browser.close();
-    cloud = await connectBrowserbaseCloudBrowser({ prefix: "JP_VFS_SG" });
-    console.log("[jp-vfs-recovery] fresh login session connected");
-    await cloud.page.goto("https://visa.vfsglobal.com/sgp/en/jpn/register", { waitUntil: "domcontentloaded", timeout: 90_000 });
-    await cloud.page.waitForTimeout(2_000);
+    console.log("[jp-vfs-recovery] continuing in the same Browserbase session");
+    const portalBase = "https://visa.vfsglobal.com/sgp/en/jpn";
+    await cloud.page.goto(`${portalBase}/`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await cloud.page.waitForTimeout(1_000);
+    await cloud.page.goto(`${portalBase}/apply-visa`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await cloud.page.waitForTimeout(1_000);
+    await cloud.page.goto(`${portalBase}/book-an-appointment`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await cloud.page.waitForTimeout(1_000);
+    await cloud.page.goto(`${portalBase}/login`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     const necessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
     if (await necessary.isVisible({ timeout: 1_500 }).catch(() => false)) await necessary.evaluate((element) => (element as HTMLElement).click());
-    await cloud.page.locator("#inputEmail").waitFor({ state: "visible", timeout: 20_000 });
-    await cloud.page.screenshot({ path: path.join(artifactDir, "register-entry-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-    const loginLink = cloud.page.locator("a").filter({ hasText: /click here/i }).last();
-    if (!await loginLink.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      const links = await cloud.page.locator("a").allTextContents();
-      throw new Error(`VFS registration page did not expose its login link. links=${JSON.stringify(links.map((text) => text.replace(/\s+/g, " ").trim()).filter(Boolean))}`);
+    try {
+      await cloud.page.getByLabel("Email*", { exact: true }).waitFor({ state: "visible", timeout: 60_000 });
+    } catch {
+      await cloud.page.screenshot({ path: path.join(artifactDir, "login-timeout-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+      console.log(`[jp-vfs-recovery] login diagnostics=${JSON.stringify(browserDiagnostics.slice(-80))}`);
+      throw new Error("VFS login component did not render before timeout.");
     }
-    await loginLink.evaluate((element) => (element as HTMLElement).click());
-    await cloud.page.locator("#inputEmail, input[type='email']").first().waitFor({ state: "visible", timeout: 20_000 });
     await cloud.page.screenshot({ path: path.join(artifactDir, "login-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
     if (!await clickVisible(cloud.page, /forgot.*password/i)) {
       const controls = await cloud.page.locator("a,button").evaluateAll((elements) => elements.map((element) => ({
@@ -104,7 +130,7 @@ async function main(): Promise<void> {
     }
     await cloud.page.waitForTimeout(1_500);
 
-    const email = cloud.page.locator("#inputEmail, input[type='email'], input[autocomplete='email']").first();
+    const email = cloud.page.getByLabel(/email/i).first();
     await email.fill(profile.inbox_alias);
     await waitForTurnstile(cloud.page);
     const resetRequestedAt = new Date().toISOString();

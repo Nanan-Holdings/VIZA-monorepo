@@ -986,6 +986,15 @@ async function checkTransitPassenger(page: Page, logs: string[]): Promise<void> 
     logs.push("tdac_transit_checkbox_not_visible");
     throw new Error("Official TDAC transit passenger checkbox was not visible after departure details were filled.");
   }
+  const checkboxDisabled = hasInput
+    ? await input.isDisabled().catch(() => false)
+    : await checkboxHost.getAttribute("class")
+      .then((className) => /(?:mdc-checkbox--disabled|mat-mdc-checkbox-disabled)/.test(className ?? ""))
+      .catch(() => false);
+  if (checkboxDisabled) {
+    logs.push("tdac_transit_checkbox_disabled_same_day_inferred");
+    return;
+  }
 
   const readCheckedState = async (): Promise<boolean> => {
     if (hasInput) {

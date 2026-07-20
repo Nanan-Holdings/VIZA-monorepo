@@ -766,7 +766,7 @@ export function DynamicFormField({
       const opts = normalizedSelectOptions;
       const rules = field.validationRules as { remote_search?: unknown } | null;
       const usesRemoteSearch = rules?.remote_search === true;
-      if (isEmptyDependentSelect(field, opts)) {
+      if (isEmptyDependentSelect(field, opts) && !usesRemoteSearch && !onSearchQuery) {
         const dependentMessage = sideLocale === "zh"
           ? "请先选择上级选项，或联系 VIZA 检查官方下拉列表。"
           : "Select the parent option first, or contact VIZA to check the official dropdown list.";

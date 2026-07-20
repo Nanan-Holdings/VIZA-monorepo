@@ -125,7 +125,7 @@ export function buildPhEtravelFieldPlan(
     { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
     { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? "AIRCRAFT PASSENGER"), required: true },
     { key: "airline", portalName: "travel_company_code", labels: ["Name of Airline", "Airline Name", "Name of Airline/Vessel"], kind: "choice", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
-    { key: "flight_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "text", value: payload.flightNumber, required: true },
+    { key: "flight_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "choice", value: payload.flightNumber, required: true },
     { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
     { key: "airport_of_origin", portalName: "origin_port", labels: ["Airport of Origin", "Port of Origin"], kind: "text", value: payload.airportOfOrigin, required: true },
     { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
@@ -241,7 +241,13 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
         : item.value;
       await namedControl.fill(value, { timeout: 10_000 }).catch(() => undefined);
       const retained = await namedControl.inputValue().catch(() => "");
-      if (retained) return true;
+      if (retained) {
+        if (item.key === "philippines_address") {
+          const close = await firstVisible([page.getByRole("button", { name: /^Close$/i })]);
+          if (close) await close.click({ force: true, timeout: 3_000 }).catch(() => undefined);
+        }
+        return true;
+      }
     }
   }
   if (namedControl) return false;
@@ -275,6 +281,19 @@ async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Pr
         named.locator("xpath=ancestor::div[.//*[@role='combobox']][1]").getByRole("combobox"),
         named.locator("xpath=preceding::input[@role='combobox'][1]"),
       ]);
+    }
+  }
+  if (!control) {
+    for (const label of item.labels) {
+      const labelNode = await firstVisible([
+        page.locator("label").filter({ hasText: new RegExp(`^\\s*${escapeRegex(label)}\\s*$`, "i") }),
+      ]);
+      if (!labelNode) continue;
+      control = await firstVisible([
+        labelNode.locator("xpath=preceding-sibling::*[1]//*[@role='combobox']"),
+        labelNode.locator("xpath=parent::*//*[@role='combobox']"),
+      ]);
+      if (control) break;
     }
   }
   if (!control) return false;

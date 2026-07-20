@@ -84,7 +84,7 @@ test("buildPhEtravelFieldPlan maps canonical values to official display labels",
   assert.equal(byKey.get("airline")?.portalName, "travel_company_code");
   assert.equal(byKey.get("origin_country")?.portalName, "origin_country_code");
   assert.equal(byKey.get("port_of_entry")?.portalName, "destination_port_code");
-  assert.equal(byKey.get("flight_number")?.kind, "text");
+  assert.equal(byKey.get("flight_number")?.kind, "choice");
   assert.equal(byKey.get("destination_type")?.value, "Hotel/Resort");
   assert.equal(byKey.get("first_visit")?.value, "Yes");
   assert.equal(byKey.get("has_customs_declaration")?.value, "No");
