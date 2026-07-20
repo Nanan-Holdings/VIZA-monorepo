@@ -25,7 +25,9 @@ test-results/
 playwright-report/
 blob-report/
 playwright/*
+.playwright-cli/
 .playwright-mcp/
+page@*.png
 
 # Production
 *.log
