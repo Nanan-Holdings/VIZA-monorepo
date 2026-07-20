@@ -48,6 +48,7 @@ export interface TdacPortalPayload {
   subDistrict?: string;
   postalCode?: string;
   countriesVisitedLast14Days: string[];
+  yellowFeverVaccinationCertificate?: boolean;
 }
 
 function text(value: unknown): string {
@@ -85,6 +86,13 @@ function listAnswer(value: unknown): string[] {
     .split(/[,;\n]/)
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function optionalBooleanAnswer(value: unknown): boolean | undefined {
+  const normalized = text(value).toLowerCase();
+  if (["yes", "true", "1"].includes(normalized)) return true;
+  if (["no", "false", "0"].includes(normalized)) return false;
+  return undefined;
 }
 
 const TDAC_PURPOSE_ALIASES: Record<string, string> = {
@@ -236,6 +244,9 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     subDistrict,
     postalCode,
     countriesVisitedLast14Days,
+    yellowFeverVaccinationCertificate: optionalBooleanAnswer(
+      answers.yellow_fever_vaccination_certificate,
+    ),
   };
 
   if (fields.purposeOfTravel === "others" && !fields.purposeOfTravelOther) missing.push("answers.purpose_of_travel_other");

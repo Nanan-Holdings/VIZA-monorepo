@@ -62,6 +62,7 @@ declare global {
     headers: CfEmailHeaders;
     rawSize: number;
     raw: ReadableStream<Uint8Array>;
+    forward(destination: string): Promise<void>;
   }
   interface ScheduledController {
     scheduledTime: number;

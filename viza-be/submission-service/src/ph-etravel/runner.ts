@@ -1301,14 +1301,41 @@ async function maybeCreatePhEtravelAccount(
     if (await confirmPassword.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await confirmPassword.fill(password, { timeout: 15_000 });
     }
-    await clickFirstAvailable(page, [
+    const clickedPasswordContinue = await clickFirstEnabledAvailable(page, [
       page.getByRole("button", { name: /continue|next|submit|create|register/i }),
       page.locator("button").filter({ hasText: /continue|next|submit|create|register/i }),
-    ]);
+    ], 60_000);
+    if (!clickedPasswordContinue) {
+      screenshots.push(await saveScreenshot(page, "registration-password-continue-disabled", logs));
+      throw new PhEtravelPortalError(
+        "Official eTravel password page did not enable Continue after both password fields were filled.",
+        {
+          code: "ph_etravel_registration_password_continue_disabled",
+          screenshotPaths: screenshots,
+          portalSummary: (await bodyText(page)).slice(0, 700),
+        },
+      );
+    }
     logs.push("ph_etravel_alias_account_password_submitted");
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForFunction(
+      () => !/create your password|password confirmation/i.test(document.body?.innerText ?? ""),
+      undefined,
+      { timeout: 30_000 },
+    ).catch(() => undefined);
     await page.waitForTimeout(2_000);
     currentText = await bodyText(page);
+    if (/create your password|password confirmation/i.test(currentText)) {
+      screenshots.push(await saveScreenshot(page, "registration-password-still-visible", logs));
+      throw new PhEtravelPortalError(
+        "Official eTravel remained on the password page after Continue was clicked.",
+        {
+          code: "ph_etravel_registration_password_not_accepted",
+          screenshotPaths: screenshots,
+          portalSummary: currentText.slice(0, 700),
+        },
+      );
+    }
   }
 
   if (/mpin|6[-\s]?digit passcode|enter your passcode/i.test(currentText)) {

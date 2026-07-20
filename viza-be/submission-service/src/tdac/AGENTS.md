@@ -15,4 +15,8 @@ Scope: Thailand `TH_TDAC_ARRIVAL_CARD` official TDAC portal automation only.
   keeps legacy `transit` answers compatible by sending official `OTHERS
   (PLEASE SPECIFY)` with `TRANSIT`; the separate transit-passenger checkbox
   remains the source of truth for no-stay transit.
+- The Ministry of Public Health can reveal conditional Yellow Fever questions
+  after the visited-country chips are selected. Never invent this medical
+  declaration: require `yellow_fever_vaccination_certificate` when the official
+  prompt appears, and preserve a diagnostic screenshot when it is missing.
 - If the official portal blocks access, changes layout, disables submission, or cannot reach final confirmation, return a precise structured failure with artifacts. Do not fake a successful TDAC submission.

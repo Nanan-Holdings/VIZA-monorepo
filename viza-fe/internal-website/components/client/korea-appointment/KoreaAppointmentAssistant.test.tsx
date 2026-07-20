@@ -35,6 +35,16 @@ const shanghaiCenter = {
   provinces: ["上海"],
 };
 
+const wuhanCenter = {
+  ...center,
+  code: "WH",
+  nameEn: "Korea Visa Application Center Wuhan",
+  nameZh: "韩国签证申请中心（武汉）",
+  addressZh: "武汉市",
+  provinces: ["湖北"],
+  liveBookingMode: "official_guidance_only",
+};
+
 function snapshot(overrides: Record<string, unknown> = {}) {
   return {
     routing: {
@@ -103,6 +113,34 @@ describe("KoreaAppointmentAssistant back navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: "返回选择领区" }));
 
     await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({ action: "return-to-center-selection" })));
+  });
+
+  it("returns from official center guidance to center selection", async () => {
+    const manualSnapshot = snapshot({
+      routing: {
+        basis: "manual",
+        recommended: wuhanCenter,
+        alternatives: [center],
+        allCenters: [center, wuhanCenter],
+      },
+      manualAction: {
+        action_type: "official_guidance_required",
+        instruction: null,
+        expires_at: null,
+        metadata_redacted_json: null,
+      },
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(manualSnapshot))
+      .mockResolvedValueOnce(response(snapshot()));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "重新选择领区" }));
+
+    await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({
+      action: "return-to-center-selection",
+    })));
+    expect(await screen.findByRole("combobox", { name: "递签中心" })).toBeInTheDocument();
   });
 
   it("returns from slot selection to a fresh SMS verification session", async () => {
@@ -179,11 +217,71 @@ describe("KoreaAppointmentAssistant back navigation", () => {
     const centerSelect = await screen.findByRole("combobox", { name: "递签中心" });
     fireEvent.change(centerSelect, { target: { value: "SH" } });
     await screen.findByText("上海市");
-    fireEvent.click(screen.getByRole("button", { name: "继续发送官方验证码" }));
+    fireEvent.click(screen.getByRole("button", { name: "查询时间并发送验证码" }));
 
     await screen.findByText("暂时没有可预约时间");
     expect(screen.queryByText(/Submission service/u)).not.toBeInTheDocument();
     expect(centerSelect).toHaveValue("SH");
     expect(screen.getByText("上海市")).toBeInTheDocument();
+  });
+
+  it("shows visible progress while the official center scans for slots before SMS", async () => {
+    let resolveSlotScan!: (value: Response) => void;
+    const pendingSlotScan = new Promise<Response>((resolve) => {
+      resolveSlotScan = resolve;
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(snapshot()))
+      .mockImplementationOnce(() => pendingSlotScan)
+      .mockResolvedValueOnce(response(snapshot()));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "查询时间并发送验证码" }));
+
+    expect(await screen.findByText("正在查询官网时段并发送验证码")).toBeInTheDocument();
+    expect(screen.getByText("读取全部开放日期")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "正在查询官网时段" })).toBeDisabled();
+
+    resolveSlotScan(errorResponse(
+      "No appointment times are currently available at the selected Korea visa application center.",
+      "no_slots_available",
+    ));
+
+    expect(await screen.findByText("暂时没有可预约时间")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新查询" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新选择领区" })).toBeInTheDocument();
+  });
+
+  it("never silently returns to center selection after a successful slot request", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(snapshot()))
+      .mockResolvedValueOnce(response(snapshot({
+        job: { id: "job-1", status: "sms_verification_submitted", mode: "live_assisted" },
+      })));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "查询时间并发送验证码" }));
+
+    expect(await screen.findByText("暂时没有可预约时间")).toBeInTheDocument();
+  });
+
+  it("shows the OTP input when the official SMS checkpoint is returned", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(snapshot()))
+      .mockResolvedValueOnce(response(snapshot({
+        job: { id: "job-1", status: "sms_verification_required", mode: "live_assisted" },
+        manualAction: {
+          action_type: "sms_verification_required",
+          instruction: null,
+          expires_at: "2026-09-03T09:35:00.000Z",
+          metadata_redacted_json: null,
+        },
+      })));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "查询时间并发送验证码" }));
+
+    expect(await screen.findByPlaceholderText("输入验证码")).toBeInTheDocument();
+    expect(screen.queryByText("暂时没有可预约时间")).not.toBeInTheDocument();
   });
 });
