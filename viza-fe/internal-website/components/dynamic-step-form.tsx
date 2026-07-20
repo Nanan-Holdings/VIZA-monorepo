@@ -2270,6 +2270,7 @@ export function DynamicStepForm({
             const source = getVnPrearrivalOfficialSource(field);
             if (!source) return false;
             if (field.fieldName === "phone_country_code") return false;
+            if (source.endsWith(":flight")) return true;
             const parentKey = getVnPrearrivalDependsOn(field);
             return getVnPrearrivalStaticOptions(source, parentKey ? values[parentKey] ?? "" : "") === null;
           })
@@ -2295,7 +2296,9 @@ export function DynamicStepForm({
       for (const field of vnPrearrivalRemoteFields) {
         const key = vnPrearrivalOptionKey(field);
         if (!(key in next)) {
-          next[key] = "";
+          const source = getVnPrearrivalOfficialSource(field);
+          const selectedValue = valuesRef.current[field.fieldName]?.trim() ?? "";
+          next[key] = source?.endsWith(":flight") && selectedValue ? selectedValue : "";
           changed = true;
         }
       }
@@ -2316,7 +2319,7 @@ export function DynamicStepForm({
       const parentKey = getVnPrearrivalDependsOn(field);
       const parent = parentKey ? valuesRef.current[parentKey] ?? "" : "";
       const waitsForKeyword =
-        (source.endsWith(":flight") || source.endsWith(":hotel")) &&
+        source.endsWith(":hotel") &&
         keyword.trim().length < 2;
       if (waitsForKeyword) {
         setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
@@ -2375,7 +2378,7 @@ export function DynamicStepForm({
           setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
         }
       }
-    }, 300));
+    }, 0));
 
     return () => {
       controller.abort();
@@ -3037,7 +3040,9 @@ export function DynamicStepForm({
     }
     if (vnPrearrivalSource) {
       const parentKey = getVnPrearrivalDependsOn(field);
-      const staticOptions = getVnPrearrivalStaticOptions(vnPrearrivalSource, parentKey ? values[parentKey] ?? "" : "");
+      const staticOptions = vnPrearrivalSource.endsWith(":flight")
+        ? null
+        : getVnPrearrivalStaticOptions(vnPrearrivalSource, parentKey ? values[parentKey] ?? "" : "");
       if (staticOptions) {
         hasVnPrearrivalStaticOptions = true;
         fieldOptions = field.fieldName === "phone_country_code" && staticOptions.length === 0
@@ -3047,6 +3052,7 @@ export function DynamicStepForm({
     }
     if (vnPrearrivalKey && !hasVnPrearrivalStaticOptions) {
       const remoteOptions = vnPrearrivalOptions[vnPrearrivalKey] ?? [];
+      const isLiveFlightSource = vnPrearrivalSource?.endsWith(":flight") ?? false;
       const localizedRemoteOptions = vnPrearrivalSource?.endsWith("administrative_unit_level1") ||
         vnPrearrivalSource?.endsWith("administrative_unit_level2")
         ? localizeVietnamWardOptions(remoteOptions)
@@ -3064,7 +3070,9 @@ export function DynamicStepForm({
           : selectedValue && !hasSelectedValue
           ? [{ value: selectedValue, text: selectedValue }, ...localizedRemoteOptions]
           : localizedRemoteOptions
-        : fieldOptions;
+        : isLiveFlightSource
+          ? []
+          : fieldOptions;
     }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);

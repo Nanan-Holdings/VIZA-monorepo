@@ -37,7 +37,7 @@ import type {
   TravelChatMessage,
   TravelChatStatus,
 } from "@/lib/travel/chat-types";
-import { cn } from "@/lib/utils";
+import { cn, matchesSearchText } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -315,7 +315,11 @@ function SearchableSingleSelect({
         align="start"
         className="min-w-[--radix-popper-anchor-width] max-w-[calc(100vw-2rem)] p-0"
       >
-        <Command>
+        <Command
+          filter={(commandValue, search, keywords) =>
+            matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0
+          }
+        >
           <CommandInput placeholder="搜索..." />
           <CommandList className="max-h-[280px]">
             <CommandEmpty>没有匹配项</CommandEmpty>
@@ -416,7 +420,11 @@ function SearchableMultiSelect({
         align="start"
         className="min-w-[--radix-popper-anchor-width] max-w-[calc(100vw-2rem)] p-0"
       >
-        <Command>
+        <Command
+          filter={(commandValue, search, keywords) =>
+            matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0
+          }
+        >
           <CommandInput placeholder="搜索..." />
           <CommandList className="max-h-[280px]">
             <CommandEmpty>没有匹配项</CommandEmpty>

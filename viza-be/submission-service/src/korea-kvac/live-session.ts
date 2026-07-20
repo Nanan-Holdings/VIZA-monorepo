@@ -79,6 +79,16 @@ export interface KoreaKvacCancelConfirmResult {
   officialMessage: string;
 }
 
+export class KoreaKvacOfficialSessionError extends Error {
+  constructor(
+    message: string,
+    readonly screenshotPath: string | null = null,
+  ) {
+    super(message);
+    this.name = "KoreaKvacOfficialSessionError";
+  }
+}
+
 export interface KoreaKvacPrintConfirmationResult {
   status: "appointment_confirmation_printed";
   confirmationNumber: string;
@@ -709,7 +719,11 @@ export async function startKoreaKvacOfficialSmsSession(input: KoreaKvacStartSmsI
     await page.waitForTimeout(3_000);
     const availableSlots = await observeAllAvailableSlots(page);
     if (!availableSlots.length) {
-      throw new Error(`No selectable ${centerConfig.label} appointment slots were found in the official booking window.`);
+      const screenshotPath = await screenshot(page, input.jobId, "no-selectable-slots");
+      throw new KoreaKvacOfficialSessionError(
+        `No selectable ${centerConfig.label} appointment slots were found in the official booking window.`,
+        screenshotPath,
+      );
     }
     console.log(`[korea-kvac] observed ${availableSlots.length} official slots job=${input.jobId}`);
     await selectObservedSlot(page, availableSlots[0]);

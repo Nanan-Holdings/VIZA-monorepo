@@ -6,8 +6,10 @@ import {
   getVisaPackageTitleZh,
   getVisaTypeDisplayName,
   getVisaTypeDisplayNameZh,
+  matchesVisaDestinationSearch,
 } from "../visa-destinations";
 import { isCountryLaunched } from "../launched-countries";
+import { matchesSearchText } from "../utils";
 
 describe("arrival card destination labels", () => {
   test("SG Arrival Card has a dedicated package label separate from Singapore Visit Visa", () => {
@@ -25,6 +27,14 @@ describe("arrival card destination labels", () => {
 
     expect(isCountryLaunched("singapore")).toBe(true);
     expect(isCountryLaunched("new_zealand")).toBe(true);
+  });
+
+  test("destination search matches Chinese and English country names", () => {
+    const singapore = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "singapore");
+    expect(singapore).toBeDefined();
+    expect(matchesVisaDestinationSearch(singapore!, "sin")).toBe(true);
+    expect(matchesVisaDestinationSearch(singapore!, "新加坡")).toBe(true);
+    expect(matchesSearchText("ＳＩＮ", ["Singapore", "新加坡"])).toBe(true);
   });
 
   test("Malaysia and Thailand arrival cards have standalone package labels and destination cards", () => {

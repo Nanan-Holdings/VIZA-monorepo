@@ -14,6 +14,7 @@ import { loadKoreaOfficialEformDocuments } from "./korea-eform/documents.js";
 import {
   confirmKoreaKvacOfficialCancellation,
   completeKoreaKvacOfficialBooking,
+  KoreaKvacOfficialSessionError,
   printKoreaKvacOfficialConfirmation,
   startKoreaKvacOfficialCancelQuery,
   startKoreaKvacOfficialSmsSession,
@@ -195,7 +196,12 @@ async function handleKoreaKvacSmsStart(req: http.IncomingMessage, res: http.Serv
     });
     sendJson(res, 200, { ok: true, ...result });
   } catch (error) {
-    sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    sendJson(res, 400, {
+      error: error instanceof Error ? error.message : String(error),
+      ...(error instanceof KoreaKvacOfficialSessionError
+        ? { screenshotPath: error.screenshotPath }
+        : {}),
+    });
   }
 }
 

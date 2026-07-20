@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -242,6 +242,8 @@ function SearchableSelectControl({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [pendingQuery, setPendingQuery] = useState(false);
+  const onSearchQueryRef = useRef(onSearchQuery);
   const selected = options.find((option) => option.value === value);
   const normalizedQuery = normalizeSearchText(query);
   const matchedOptions = useMemo(() => {
@@ -270,10 +272,20 @@ function SearchableSelectControl({
   const emptyText = sideLocale === "zh" ? "没有匹配选项" : "No matching options";
 
   useEffect(() => {
-    if (!open || !onSearchQuery) return;
-    const timer = window.setTimeout(() => onSearchQuery(query), 250);
+    onSearchQueryRef.current = onSearchQuery;
+  }, [onSearchQuery]);
+
+  useEffect(() => {
+    if (!open || !onSearchQueryRef.current) {
+      setPendingQuery(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      onSearchQueryRef.current?.(query);
+      setPendingQuery(false);
+    }, 250);
     return () => window.clearTimeout(timer);
-  }, [onSearchQuery, open, query]);
+  }, [open, query]);
 
   return (
     <Popover
@@ -312,7 +324,10 @@ function SearchableSelectControl({
             <Search className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                if (onSearchQueryRef.current) setPendingQuery(true);
+              }}
               placeholder={searchPlaceholder}
               className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-gray-400"
               autoFocus
@@ -323,7 +338,7 @@ function SearchableSelectControl({
           className="overscroll-auto overflow-y-auto p-1"
           style={{ maxHeight: "min(220px, calc(100vh - 270px))" }}
         >
-          {searching && options.length === 0 ? (
+          {(searching || pendingQuery) && matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">
               {loadingText ?? (sideLocale === "zh" ? "正在加载官方选项..." : "Loading official options...")}
             </div>

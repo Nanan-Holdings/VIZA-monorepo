@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { countries } from "country-data-list";
 import staticOptions from "@/lib/vn-prearrival/official-static-options.json";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
-import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
+import {
+  formatVnPrearrivalOfficialFlightLabel,
+  getVnPrearrivalStaticOptions,
+} from "@/lib/vn-prearrival/static-options";
 
 export const dynamic = "force-dynamic";
 
@@ -129,8 +132,8 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormOptio
   const airline = stringValue(item.airline);
   const provinceCity = stringValue(item.province_city);
   const ward = stringValue(item.ward);
-  const officialLabel = source === "flight" && airport
-    ? `${enValue} - ${airport}`
+  const officialLabel = source === "flight"
+    ? formatVnPrearrivalOfficialFlightLabel(enValue, airport)
     : enValue;
   const value = source === "country_code" && rawValue
     ? rawValue
@@ -187,7 +190,7 @@ async function fetchOfficialJson(path: string, init?: RequestInit): Promise<unkn
 
 async function loadOfficialItems(source: string): Promise<OfficialOption[]> {
   const staticItems = STATIC_OPTION_SOURCES[source];
-  if (staticItems?.length) return staticItems;
+  if (source !== "flight" && staticItems?.length) return staticItems;
 
   const cached = officialOptionsCache.get(source);
   const now = Date.now();
@@ -202,6 +205,13 @@ async function loadOfficialItems(source: string): Promise<OfficialOption[]> {
       return items;
     })
     .catch((error) => {
+      if (staticItems?.length) {
+        officialOptionsCache.set(source, {
+          items: staticItems,
+          expiresAt: Date.now() + ttl,
+        });
+        return staticItems;
+      }
       officialOptionsCache.delete(source);
       throw error;
     });
@@ -228,6 +238,39 @@ async function loadFindAllOptions(source: string, parent = ""): Promise<VisaForm
     ? visaTypeFilteredItems.filter((item) => stringValue(item.ward) === parent)
     : visaTypeFilteredItems;
   return items.map((item) => optionFromOfficial(item, source)).filter(Boolean) as VisaFormOption[];
+}
+
+function normalizeOfficialFlightSearch(keyword: string): string {
+  const compact = keyword.replace(/\s+/g, "");
+  const match = /^([A-Za-z]{2})(\d+)$/.exec(compact);
+  if (!match) return compact;
+  const [, airline, digits] = match;
+  return digits.length === 3 ? `${airline}${digits.padStart(4, "0")}` : `${airline}${digits}`;
+}
+
+async function loadOfficialFlightOptions(keyword: string): Promise<VisaFormOption[]> {
+  const query = normalizeOfficialFlightSearch(keyword).toLowerCase();
+  const rawItems = await loadOfficialItems("flight");
+  const matchedItems = query
+    ? rawItems.filter((item) =>
+        [
+          stringValue(item.code),
+          stringValue(item.en_value),
+          stringValue(item.english_value),
+          stringValue(item.vn_value),
+          stringValue(item.airport),
+          stringValue(item.airline),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
+      )
+    : rawItems;
+  return matchedItems
+    .sort((left, right) => stringValue(left.code).localeCompare(stringValue(right.code), "en"))
+    .map((item) => optionFromOfficial(item, "flight"))
+    .filter(Boolean) as VisaFormOption[];
 }
 
 function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): VisaFormOption[] {
@@ -259,7 +302,7 @@ function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): Vis
 }
 
 void Promise.allSettled(
-  ["visa_issue_place", "hotel", "airport", "port", "visa_type", "purpose"].map((source) => loadOfficialItems(source)),
+  ["visa_issue_place", "hotel", "airport", "port", "visa_type", "purpose", "flight"].map((source) => loadOfficialItems(source)),
 );
 
 export async function GET(request: Request) {
@@ -273,19 +316,23 @@ export async function GET(request: Request) {
 
   try {
     let options: VisaFormOption[];
-    const localOfficialOptions = getVnPrearrivalStaticOptions(source, parent);
-    if (localOfficialOptions !== null) {
-      options = filterOptionsByKeyword(localOfficialOptions as VisaFormOption[], keyword).slice(0, limit);
-    } else if (source === "administrative_unit_level1") {
-      options = filterOptionsByKeyword(getVnPrearrivalAdministrativeOptions("level1"), keyword).slice(0, limit);
-    } else if (source === "administrative_unit_level2") {
-      options = parent
-        ? filterOptionsByKeyword(getVnPrearrivalAdministrativeOptions("level2", parent), keyword).slice(0, limit)
-        : [];
-    } else if (FIND_ALL_SOURCES.has(source)) {
-      options = filterOptionsByKeyword(await loadFindAllOptions(source, parent), keyword).slice(0, limit);
+    if (source === "flight") {
+      options = (await loadOfficialFlightOptions(keyword)).slice(0, limit);
     } else {
-      return NextResponse.json({ error: "Unsupported Vietnam Pre-Arrival option source", totalCount: 0, options: [] }, { status: 400 });
+      const localOfficialOptions = getVnPrearrivalStaticOptions(source, parent);
+      if (localOfficialOptions !== null) {
+        options = filterOptionsByKeyword(localOfficialOptions as VisaFormOption[], keyword).slice(0, limit);
+      } else if (source === "administrative_unit_level1") {
+        options = filterOptionsByKeyword(getVnPrearrivalAdministrativeOptions("level1"), keyword).slice(0, limit);
+      } else if (source === "administrative_unit_level2") {
+        options = parent
+          ? filterOptionsByKeyword(getVnPrearrivalAdministrativeOptions("level2", parent), keyword).slice(0, limit)
+          : [];
+      } else if (FIND_ALL_SOURCES.has(source)) {
+        options = filterOptionsByKeyword(await loadFindAllOptions(source, parent), keyword).slice(0, limit);
+      } else {
+        return NextResponse.json({ error: "Unsupported Vietnam Pre-Arrival option source", totalCount: 0, options: [] }, { status: 400 });
+      }
     }
     return NextResponse.json({ totalCount: options.length, options });
   } catch (error) {
@@ -296,5 +343,6 @@ export async function GET(request: Request) {
 
 export const __testables = {
   filterOptionsByKeyword,
+  normalizeOfficialFlightSearch,
   optionFromOfficial,
 };

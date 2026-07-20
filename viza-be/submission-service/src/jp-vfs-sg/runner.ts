@@ -101,10 +101,13 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
   const { data: account, error: accountError } = await supabase.from("appointment_accounts").select("*")
     .eq("application_id", applicationId).eq("portal", "vfs_japan_sg").order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (accountError) throw new Error(`Japan VFS account lookup failed: ${accountError.message}`);
-  const password = account?.encrypted_account_password ? decryptSecret(account.encrypted_account_password) : generatePassword();
+  const passwordResetRequired = account?.account_status === "password_reset_required";
+  const password = account?.encrypted_account_password
+    ? decryptSecret(account.encrypted_account_password)
+    : passwordResetRequired ? "" : generatePassword();
   const payload = {
     user_id: profile.auth_user_id, application_id: applicationId, country_code: "JP", portal: "vfs_japan_sg",
-    account_email: alias, encrypted_account_password: encryptSecret(password),
+    account_email: alias, encrypted_account_password: password ? encryptSecret(password) : null,
     account_status: account?.account_status ?? "account_prepared", email_verified: Boolean(account?.email_verified),
     metadata_redacted_json: { aliasManagedByViza: true, accountEmail: "[REDACTED]" }, updated_at: new Date().toISOString(),
   };
@@ -275,6 +278,17 @@ async function openBookingCalendar(page: Page): Promise<boolean> {
 
 async function ensureLoggedIn(page: Page, applicationId: string): Promise<{ context: PortalAccountContext; checkpoint?: JapanVfsRunnerResult["checkpoint"] }> {
   const context = await loadPortalAccount(applicationId);
+  if (["phone_otp_required", "email_verification_required", "password_reset_required"].includes(context.status)) {
+    return {
+      context,
+      checkpoint: {
+        type: "identity_verification",
+        message: context.status === "password_reset_required"
+          ? "The VFS account is activated, but its password must be reset through the official login page before calendar access."
+          : "The VFS account still requires its official phone or email verification step before calendar access.",
+      },
+    };
+  }
   await page.goto(VFS_JAPAN_LOGIN_URL, { waitUntil: "domcontentloaded", timeout: 90_000 });
   await page.waitForTimeout(2_000);
   if (context.status === "account_prepared" || context.status === "alias_prepared") {

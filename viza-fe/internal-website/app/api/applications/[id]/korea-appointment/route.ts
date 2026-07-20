@@ -18,6 +18,8 @@ type Action =
   | "confirm-booking"
   | "request-live-booking"
   | "return-to-center-selection"
+  | "return-to-sms-verification"
+  | "return-to-slot-selection"
   | "print-appointment-confirmation"
   | "submit-sms-code"
   | "approve-final-booking"
@@ -249,16 +251,27 @@ async function postSubmissionService<T>(path: string, body: Record<string, unkno
     // browser waits for the appointment-query result.
     signal: AbortSignal.timeout(300_000),
   });
-  const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
+  const payload = (await response.json().catch(() => null)) as (T & { error?: string; screenshotPath?: string | null }) | null;
   if (!response.ok || !payload) {
-    throw new Error(
+    throw new SubmissionServiceRequestError(
       payload?.error
         ? `Submission service ${url} failed (${response.status}): ${payload.error}`
         : `Submission service ${url} failed (${response.status})`,
+      payload?.screenshotPath ?? null,
     );
   }
   if (payload.error) throw new Error(`Submission service ${url} returned error: ${payload.error}`);
   return payload as T;
+}
+
+class SubmissionServiceRequestError extends Error {
+  constructor(
+    message: string,
+    readonly screenshotPath: string | null,
+  ) {
+    super(message);
+    this.name = "SubmissionServiceRequestError";
+  }
 }
 
 function submissionServiceErrorMessage(error: unknown) {
@@ -1188,6 +1201,88 @@ export async function POST(
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
   }
 
+  if (action === "return-to-sms-verification") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    const now = new Date().toISOString();
+    await auth.admin
+      .from("appointment_manual_actions")
+      .update({ status: "expired", completed_at: now })
+      .eq("job_id", job.id)
+      .eq("action_type", "final_booking_approval_required")
+      .in("status", ["pending", "in_progress"]);
+    const { error: slotError } = await auth.admin
+      .from("appointment_slots")
+      .delete()
+      .eq("job_id", job.id);
+    if (slotError) throw new Error(slotError.message);
+    const { error: jobError } = await auth.admin
+      .from("appointment_assistance_jobs")
+      .update({
+        status: "sms_restart_required",
+        requires_user_action: true,
+        current_manual_action: null,
+        updated_at: now,
+      })
+      .eq("id", job.id);
+    if (jobError) throw new Error(jobError.message);
+    await auth.admin
+      .from("applications")
+      .update({ appointment_assistance_status: "sms_restart_required" })
+      .eq("id", id);
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "appointment_slots_abandoned",
+      event_message: "Applicant returned from slot selection to SMS verification. A new official SMS code is required.",
+      metadata_redacted_json: { centerCode: routing.recommended.code },
+    });
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
+  if (action === "return-to-slot-selection") {
+    const job = await latestJob(auth.admin, id);
+    if (!job) return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    const now = new Date().toISOString();
+    const { error: slotError } = await auth.admin
+      .from("appointment_slots")
+      .update({ status: "observed" })
+      .eq("job_id", job.id)
+      .in("status", ["user_selected", "selected"]);
+    if (slotError) throw new Error(slotError.message);
+    const { error: actionError } = await auth.admin
+      .from("appointment_manual_actions")
+      .update({ status: "expired", completed_at: now })
+      .eq("job_id", job.id)
+      .eq("action_type", "final_booking_approval_required")
+      .in("status", ["pending", "in_progress"]);
+    if (actionError) throw new Error(actionError.message);
+    const { error: jobError } = await auth.admin
+      .from("appointment_assistance_jobs")
+      .update({
+        status: "appointment_slots_observed",
+        requires_user_action: false,
+        current_manual_action: null,
+        updated_at: now,
+      })
+      .eq("id", job.id);
+    if (jobError) throw new Error(jobError.message);
+    await auth.admin
+      .from("applications")
+      .update({ appointment_assistance_status: "appointment_slots_observed" })
+      .eq("id", id);
+    await auth.admin.from("appointment_audit_events").insert({
+      job_id: job.id,
+      application_id: id,
+      user_id: auth.profile.id,
+      event_type: "final_booking_approval_withdrawn",
+      event_message: "Applicant returned to slot selection before the official final booking click.",
+      metadata_redacted_json: { centerCode: routing.recommended.code },
+    });
+    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+  }
+
   if (action === "return-to-appointment-details") {
     const job = await latestJob(auth.admin, id);
     if (!job) return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
@@ -1426,7 +1521,11 @@ export async function POST(
     if (!body.slotId) return NextResponse.json({ error: "slotId is required" }, { status: 400 });
     const job = await latestJob(auth.admin, id);
     if (!job) return NextResponse.json({ error: "Start slot search first" }, { status: 400 });
-    await auth.admin.from("appointment_slots").update({ status: "expired" }).eq("job_id", job.id).eq("status", "observed");
+    await auth.admin
+      .from("appointment_slots")
+      .update({ status: "observed" })
+      .eq("job_id", job.id)
+      .in("status", ["user_selected", "selected"]);
     const { error: slotErr } = await auth.admin.from("appointment_slots").update({ status: "user_selected" }).eq("id", body.slotId).eq("job_id", job.id);
     if (slotErr) throw new Error(slotErr.message);
 
@@ -1697,7 +1796,14 @@ export async function POST(
         return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
       }
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Korea KVAC live booking failed" },
+        {
+          error: error instanceof Error ? error.message : "Korea KVAC live booking failed",
+          ...(error instanceof SubmissionServiceRequestError && error.screenshotPath
+            ? {
+                evidenceUrl: `/api/applications/${id}/korea-evidence?path=${encodeURIComponent(error.screenshotPath)}`,
+              }
+            : {}),
+        },
         { status: 502 },
       );
     }

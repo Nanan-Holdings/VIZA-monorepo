@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { __testables } from "./route";
 
 describe("Vietnam pre-arrival official option mapping", () => {
+  it("uses the same leading-zero search normalization as the official autocomplete", () => {
+    expect(__testables.normalizeOfficialFlightSearch("MH746")).toBe("MH0746");
+    expect(__testables.normalizeOfficialFlightSearch("MH0746")).toBe("MH0746");
+    expect(__testables.normalizeOfficialFlightSearch("3K557")).toBe("3K557");
+  });
+
   it("maps visa issue place official english_value instead of showing the code", () => {
     expect(
       __testables.optionFromOfficial(
@@ -34,8 +40,8 @@ describe("Vietnam pre-arrival official option mapping", () => {
       ),
     ).toMatchObject({
       value: "UO0566_CXR",
-      label_en: "UO0566 - CXR",
-      official_label: "UO0566 - CXR",
+      label_en: "UO566 (UO0566) - CXR",
+      official_label: "UO566 (UO0566) - CXR",
       airport: "CXR",
       airline: "UO",
     });

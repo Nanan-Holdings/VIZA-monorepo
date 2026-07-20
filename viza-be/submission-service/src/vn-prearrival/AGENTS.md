@@ -18,3 +18,7 @@ Guardrails:
   Health electronic declaration system is confirmed active.
 - Do not fallback dropdown or boolean values. If an official field cannot be
   mapped exactly, fail with a structured validation or portal error.
+- Flight option labels must follow the official autocomplete formatter,
+  including its unpadded/padded alias such as `MH746 (MH0746) - DAD`; verify
+  that selecting the option auto-populates the locked airport field. Keep this
+  pure formatting contract in `flight-label.ts`.

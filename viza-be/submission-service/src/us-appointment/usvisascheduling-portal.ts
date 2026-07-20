@@ -44,7 +44,7 @@ export const US_VISA_SCHEDULING_SELECTORS = {
   sendVerificationCodeButtons:
     "button:has-text('Send Verification Code'), button:has-text('Send New Code'), button:has-text('Send Verification'), button:has-text('发送验证码')",
   verificationCodeInputs:
-    "input#verificationCode, input#emailVerificationControl_code, input[name*='verificationCode' i], input[name*='verification_code' i], input[aria-label*='Verification Code' i], input[placeholder*='Verification Code' i], input[aria-label*='验证码' i], input[placeholder*='验证码' i]",
+    "input#email_ver_input, input#verificationCode, input#emailVerificationControl_code, input[name*='verificationCode' i], input[name*='verification_code' i], input[aria-label*='Verification Code' i], input[placeholder*='Verification Code' i], input[aria-label*='验证码' i], input[placeholder*='验证码' i]",
   verifyCodeButtons:
     "button:has-text('Verify Code'), button:has-text('Verify'), button:has-text('Continue'), button:has-text('验证'), button:has-text('继续')",
   createAccountButtons:
@@ -162,15 +162,64 @@ const US_VISA_SCHEDULING_SECURITY_ANSWERS = [
   "VizaAnswer3",
 ] as const;
 
+export type USVisaSchedulingAuthenticationState =
+  | "authenticated"
+  | "pending"
+  | "rejected";
+
+export function classifyUSVisaSchedulingAuthenticationState(input: {
+  url: string;
+  bodyText?: string | null;
+  loginVisible: boolean;
+  invalidCredentialsVisible: boolean;
+}): USVisaSchedulingAuthenticationState {
+  const normalizedBody = normalizeVisibleText(input.bodyText).toLowerCase();
+  if (
+    input.invalidCredentialsVisible
+    || /isportaluserloggedin\s*=\s*['"]?false/.test(normalizedBody)
+  ) {
+    return "rejected";
+  }
+
+  try {
+    const url = new URL(input.url);
+    const authenticatedHost = url.hostname === "usvisascheduling.com"
+      || url.hostname.endsWith(".usvisascheduling.com");
+    const authTransit = /b2clogin|atlasauth/i.test(url.hostname)
+      || /\/signin-aad-|\/oauth2\/|\/authorize|\/account\/login$/i.test(url.pathname);
+    if (authenticatedHost && !authTransit && !input.loginVisible && normalizedBody.length > 0) {
+      return "authenticated";
+    }
+  } catch {
+    // Continue waiting while the official OAuth redirect is between URLs.
+  }
+  return "pending";
+}
+
 export function classifyUSVisaSchedulingGateText(text: string): AppointmentPortalGate | null {
   const normalized = normalizeVisibleText(text).toLowerCase();
   if (!normalized) return null;
 
+  if (/mfa|multi-factor|authenticator|one-time password|security code sent to/.test(normalized)) {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "login",
+      instruction: "USVisaScheduling requires an applicant-controlled MFA step before VIZA can continue.",
+      metadata: {
+        gate_type: "mfa_required",
+        provider: "usvisascheduling",
+        visible_text: "[REDACTED]",
+      },
+      errorCode: "mfa_required",
+      errorMessage: "USVisaScheduling requires applicant-controlled MFA.",
+    };
+  }
+
   if (
-    /hcaptcha|captcha|recaptcha|cloudflare|mfa|multi-factor|verification challenge/.test(normalized)
+    /hcaptcha|captcha|recaptcha|cloudflare|verification challenge/.test(normalized)
     || /just a moment|请稍候|verify you are human|checking your browser|安全验证/.test(normalized)
   ) {
-    let provider = "captcha_or_mfa";
+    let provider = "captcha";
     if (normalized.includes("hcaptcha")) provider = "hcaptcha";
     if (normalized.includes("recaptcha")) provider = "recaptcha";
     if (
@@ -183,14 +232,14 @@ export function classifyUSVisaSchedulingGateText(text: string): AppointmentPorta
     return {
       jobStatus: "appointment_manual_required",
       actionType: "captcha",
-      instruction: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      instruction: "USVisaScheduling presented a CAPTCHA checkpoint that requires the configured solver or manual completion.",
       metadata: {
-        gate_type: "unsupported_captcha",
+        gate_type: "captcha_checkpoint",
         provider,
         visible_text: "[REDACTED]",
       },
-      errorCode: "unsupported_captcha",
-      errorMessage: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      errorCode: "captcha_checkpoint",
+      errorMessage: "USVisaScheduling presented a CAPTCHA checkpoint.",
     };
   }
 
@@ -367,6 +416,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
   private page: Page | null = null;
   private connectedToUserBrowser = false;
   private browserApiSessionAttemptIndex = 0;
+  private pendingRegistrationCredentials: AppointmentAccountCredentials | null = null;
 
   constructor(private readonly config: USAppointmentRunnerConfig) {}
 
@@ -411,10 +461,18 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       if (postCodeGate) return { readyForSlotCapture: false, gate: postCodeGate };
       await this.clickFirstVisible(page, US_VISA_SCHEDULING_SELECTORS.createAccountButtons)
         .catch(() => undefined);
-      await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
-      await page.waitForTimeout(1_000);
+      await this.waitForPortalNavigationSettle(page);
       const finalGate = await this.detectGate(page);
       if (finalGate) return { readyForSlotCapture: false, gate: finalGate };
+      if (this.pendingRegistrationCredentials && await this.isLoginVisible(page)) {
+        const authenticated = await this.login(page, this.pendingRegistrationCredentials);
+        if (!authenticated) {
+          return {
+            readyForSlotCapture: false,
+            gate: this.buildLoginNotAuthenticatedGate(),
+          };
+        }
+      }
       return { readyForSlotCapture: await this.readVisibleSlotCandidates(page).then((slots) => slots.length > 0) };
     }
 
@@ -520,13 +578,20 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     }
 
     if (credentials && await this.isLoginVisible(page)) {
-      await this.login(page, credentials);
+      const authenticated = await this.login(page, credentials);
       await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(1_000);
       await this.acceptTermsCheckpointIfPresent(page);
       if (await this.isInvalidCredentialsVisible(page)) {
         const gate = await this.startAccountRegistration(page, credentials);
         return { readyForSlotCapture: false, gate };
+      }
+      if (!authenticated) {
+        const loginGate = await this.detectGate(page);
+        return {
+          readyForSlotCapture: false,
+          gate: loginGate ?? this.buildLoginNotAuthenticatedGate(),
+        };
       }
       const loginGate = await this.detectGate(page);
       if (loginGate) {
@@ -817,18 +882,21 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     return emailVisible && passwordVisible;
   }
 
-  private async login(page: Page, credentials: AppointmentAccountCredentials): Promise<void> {
+  private async login(
+    page: Page,
+    credentials: AppointmentAccountCredentials,
+  ): Promise<boolean> {
     if (this.shouldUseLocalSignInPostBridge()) {
-      await this.loginViaLocalSignInPostBridge(page, credentials);
-      return;
+      return this.loginViaLocalSignInPostBridge(page, credentials);
     }
-    await this.loginDirectly(page, credentials);
+    return this.loginDirectly(page, credentials);
   }
 
   private async loginDirectly(
     page: Page,
     credentials: AppointmentAccountCredentials,
-  ): Promise<void> {
+    waitForAuthenticatedRedirect = true,
+  ): Promise<boolean> {
     await this.fillFirstVisible(
       page,
       US_VISA_SCHEDULING_SELECTORS.emailInputs,
@@ -839,15 +907,17 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
     await page.waitForTimeout(1_000);
     await this.answerLoginSecurityQuestions(page);
+    if (!waitForAuthenticatedRedirect) return true;
+    return this.waitForAuthenticatedPortal(page);
   }
 
   private async loginViaLocalSignInPostBridge(
     remotePage: Page,
     credentials: AppointmentAccountCredentials,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const signInPost = await this.captureSignInPostFromLocalBrowser(remotePage.url(), credentials);
     await this.submitCapturedSignInPost(remotePage, signInPost);
-    await this.waitForPortalNavigationSettle(remotePage);
+    return this.waitForAuthenticatedPortal(remotePage);
   }
 
   private async captureSignInPostFromLocalBrowser(
@@ -878,7 +948,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
 
     try {
       await localPage.goto(loginUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
-      await this.loginDirectly(localPage, credentials);
+      await this.loginDirectly(localPage, credentials, false);
 
       const started = Date.now();
       while (!captured && Date.now() - started < 120_000) {
@@ -929,6 +999,49 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
       .test(bodyText);
   }
 
+  private async waitForAuthenticatedPortal(
+    page: Page,
+    timeoutMs = 120_000,
+  ): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    let stableLoginPolls = 0;
+    while (Date.now() < deadline) {
+      await this.answerLoginSecurityQuestions(page);
+      const [bodyText, loginVisible, invalidCredentialsVisible] = await Promise.all([
+        page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
+        this.isLoginVisible(page).catch(() => false),
+        this.isInvalidCredentialsVisible(page).catch(() => false),
+      ]);
+      const state = classifyUSVisaSchedulingAuthenticationState({
+        url: page.url(),
+        bodyText,
+        loginVisible,
+        invalidCredentialsVisible,
+      });
+      if (state === "authenticated") return true;
+      if (state === "rejected") return false;
+      stableLoginPolls = loginVisible ? stableLoginPolls + 1 : 0;
+      if (stableLoginPolls >= 5) return false;
+      await page.waitForTimeout(2_000);
+    }
+    return false;
+  }
+
+  private buildLoginNotAuthenticatedGate(): AppointmentPortalGate {
+    return {
+      jobStatus: "appointment_manual_required",
+      actionType: "login",
+      instruction:
+        "USVisaScheduling did not complete the official Microsoft B2C redirect after VIZA submitted the stored account credentials.",
+      metadata: {
+        gate_type: "login_redirect_incomplete",
+        provider: "usvisascheduling",
+      },
+      errorCode: "login_redirect_incomplete",
+      errorMessage: "USVisaScheduling login did not reach an authenticated portal page.",
+    };
+  }
+
   private async startAccountRegistration(
     page: Page,
     credentials: AppointmentAccountCredentials,
@@ -942,6 +1055,7 @@ export class PlaywrightUSVisaSchedulingPortalClient implements USAppointmentPort
     if (!givenName || !surname) {
       throw new Error("US appointment registration requires the applicant's real given name and surname.");
     }
+    this.pendingRegistrationCredentials = credentials;
     await this.fillFirstVisible(
       page,
       US_VISA_SCHEDULING_SELECTORS.registrationUsernameInputs,

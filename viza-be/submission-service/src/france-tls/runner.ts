@@ -1,5 +1,6 @@
 import type { Browser } from "@playwright/test";
 import {
+  isAuthenticatedFranceTlsRedirectUrl,
   loadFranceTlsStoredAccount,
   loginFranceTlsStoredAccount,
   submitFranceTlsOfficialReference,
@@ -209,10 +210,12 @@ async function openAuthenticatedFranceTlsPage(input: {
       solveProviderCaptcha: true,
     });
     await loginFranceTlsStoredAccount(session.page, account, center.bookingUrl);
-    await session.page.goto(center.bookingUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 90_000,
-    });
+    if (!isAuthenticatedFranceTlsRedirectUrl(session.page.url())) {
+      await session.page.goto(center.bookingUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 90_000,
+      });
+    }
     await waitForFranceTlsCloudflareClearance(session.page, {
       timeoutMs: Number.parseInt(process.env.FRANCE_TLS_CLOUDFLARE_WAIT_MS ?? "90000", 10),
       solveProviderCaptcha: true,
