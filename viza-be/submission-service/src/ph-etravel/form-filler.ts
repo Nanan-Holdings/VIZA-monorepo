@@ -129,21 +129,21 @@ export function buildPhEtravelFieldPlan(
     { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
     { key: "airport_of_origin", portalName: "origin_port", labels: ["Airport of Origin", "Port of Origin"], kind: "text", value: payload.airportOfOrigin, required: true },
     { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", "Airport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
-    { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
-    { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
     { key: "with_transit", portalName: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
     { key: "transit_country", portalName: "transit_country_code", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
     { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
     { key: "transit_date", portalName: "transit_date", labels: ["Date of Transit"], kind: "date", value: payload.transitDate },
     { key: "destination_type", portalName: "stay_location_type", labels: ["Destination upon arrival in the Philippines", "Destination Type"], kind: "choice", value: optionLabel(payload.destinationType ?? "HOTEL_RESORT"), required: true },
     { key: "philippines_address", portalName: "destination_upon_arrival_in_philippines", labels: ["Hotel/Resort Address", "Residence Address", "Address in the Philippines", "Destination Address"], kind: "text", value: payload.philippinesAddress, required: true },
+    { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
+    { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
     { key: "under_18_count", labels: ["Below 18 yrs. old"], kind: "choice", value: payload.accompaniedUnder18Count ?? "0" },
     { key: "adult_count", labels: ["18 yrs. old and above"], kind: "choice", value: payload.accompanied18PlusCount ?? "0" },
     { key: "first_visit", labels: ["First time visiting Philippines"], kind: "choice", value: yesNo(payload.firstTimeVisitingPhilippines) },
-    { key: "health_recent_travel", labels: ["recent travel history in the last 30 days"], kind: "choice", value: yesNo(payload.hasRecentTravelHistory30d) },
+    { key: "health_recent_travel", portalName: "meta.with_recent_travel_history", labels: ["recent travel history in the last 30 days"], kind: "choice", value: yesNo(payload.hasRecentTravelHistory30d), required: true },
     ...(payload.visitedCountries30d ?? []).map((country, index) => ({ key: `visited_country_${index}`, labels: ["Country(ies) worked, visited and transited in the last 30 days"], kind: "choice" as const, value: resolvedOptionLabel(country, officialLabels) })),
-    { key: "health_exposure", labels: ["history of exposure to a person who is sick"], kind: "choice", value: yesNo(payload.hasExposureToSickPerson30d) },
-    { key: "health_sick", labels: ["been sick in the past 30 days"], kind: "choice", value: yesNo(payload.hasBeenSick30d) },
+    { key: "health_exposure", portalName: "is_with_history_exposure", labels: ["history of exposure to a person who is sick"], kind: "choice", value: yesNo(payload.hasExposureToSickPerson30d), required: true },
+    { key: "health_sick", portalName: "is_sicked_within_thirty_days", labels: ["been sick in the past 30 days"], kind: "choice", value: yesNo(payload.hasBeenSick30d), required: true },
     ...(payload.sicknessSymptoms ?? []).map((symptom, index) => ({ key: `sickness_symptom_${index}`, labels: ["Symptoms", "Symptom"], kind: "choice" as const, value: resolvedOptionLabel(symptom, officialLabels) })),
     { key: "health_details", labels: ["Health Declaration Details", "Symptoms Details"], kind: "text", value: payload.healthSymptomsDetails },
     { key: "checked_baggage", labels: ["Checked-in (pcs)", "Checked Baggage"], kind: "choice", value: payload.customs.checkedBaggageCount ?? "0" },
@@ -245,6 +245,18 @@ async function selectOfficialDatePicker(
   return await input.inputValue().catch(() => "") === formatted;
 }
 
+async function closeHotelLookup(page: Page): Promise<void> {
+  const search = page.getByPlaceholder(/^Search\.\.\.$/i).first();
+  if (!await search.isVisible({ timeout: 300 }).catch(() => false)) return;
+  const overlay = search.locator("xpath=ancestor::ul[@role='listbox'][1]");
+  const close = overlay.getByRole("button", { name: /^Close$/i }).first();
+  await close.click({ timeout: 3_000 }).catch(() => undefined);
+  if (await search.isVisible({ timeout: 500 }).catch(() => false)) {
+    await close.evaluate((button) => (button as HTMLButtonElement).click()).catch(() => undefined);
+  }
+  await search.waitFor({ state: "hidden", timeout: 2_000 }).catch(() => undefined);
+}
+
 async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
   if (typeof item.value !== "string" || !item.value) return false;
   if (item.kind === "date" && item.portalName) {
@@ -287,9 +299,7 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
       const retained = await namedControl.inputValue().catch(() => "");
       if (retained) {
         if (item.key === "philippines_address") {
-          const close = await firstVisible([page.getByRole("button", { name: /^Close$/i })]);
-          if (close) await close.click({ force: true, timeout: 3_000 }).catch(() => undefined);
-          await page.keyboard.press("Escape").catch(() => undefined);
+          await closeHotelLookup(page);
           await page.getByText(/^eVisa$/i).click({ force: true, timeout: 2_000 }).catch(() => undefined);
         }
         return true;
@@ -320,6 +330,8 @@ function expectedRadioValue(item: PhEtravelFieldPlanItem): string {
   const wanted = normalizedChoiceText(String(item.value ?? ""));
   if (wanted === "hotel resort") return "hotel";
   if (wanted === "transit via airport") return "transit";
+  if (wanted === "yes") return "true";
+  if (wanted === "no") return "false";
   return wanted;
 }
 
@@ -631,7 +643,7 @@ export async function fillPhEtravelOfficialDeclaration(
     }
 
     const newlyFilled = await fillVisibleFields(page, plan, completed);
-    await clickVisibleButton(page, /^close$/i).catch(() => false);
+    await closeHotelLookup(page);
     if (newlyFilled.length > 0) await options.onStep?.(`form-step-${step}`);
     const advanced = await clickVisibleButton(page, /^next$|^continue$|save and continue|proceed/i);
     if (!advanced) {

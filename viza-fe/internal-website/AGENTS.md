@@ -291,6 +291,7 @@ Smoke URLs:
 - `lib/applicant-profile-identity.ts`
 - `lib/ds160-proof.ts`
 - `lib/__tests__/ds160-proof.spec.ts`
+- `lib/__tests__/form-utils.test.ts`
 - `lib/legal/*`
 - `lib/travel/*`
 - `messages/en.json`

@@ -69,6 +69,26 @@ export const TDAC_ACCOMMODATION_OPTIONS = [
   option("others", "其他（请说明）", "OTHERS (PLEASE SPECIFY)"),
 ];
 
+export const TDAC_YES_NO_OPTIONS = [
+  option("yes", "是", "YES"),
+  option("no", "否", "NO"),
+];
+
+export const TDAC_HEALTH_SYMPTOM_OPTIONS = [
+  option("diarrhea", "腹泻", "DIARRHEA"),
+  option("fever", "发烧", "FEVER"),
+  option("sore_throat", "喉咙痛", "SORE THROAT"),
+  option("enlarged_lymph_glands", "淋巴结肿大或有压痛肿块", "ENLARGE LYMPH GLANDS OR TENDER LUMPS"),
+  option("vomiting", "呕吐", "VOMITING"),
+  option("rash", "皮疹", "RASH"),
+  option("jaundice", "黄疸", "JAUNDICE"),
+  option("abdominal_pain", "腹痛", "ABDOMINAL PAIN"),
+  option("headache", "头痛", "HEADACHE"),
+  option("cough_shortness_of_breath", "咳嗽或呼吸急促", "COUGH OR SHORTNESS OF BREATH"),
+  option("other", "其他（请说明）", "OTHER (PLEASE SPECIFY)"),
+  option("no_symptom", "无症状", "NO SYMPTOM"),
+];
+
 const regionDisplayNames = {
   zh: new Intl.DisplayNames(["zh-CN"], { type: "region" }),
   en: new Intl.DisplayNames(["en"], { type: "region" }),
@@ -103,6 +123,80 @@ UGA:UG UKR:UA UMI:UM URY:UY USA:US UZB:UZ VAT:VA VCT:VC VEN:VE VGB:VG VIR:VI VNM
   });
 
 export const TDAC_COUNTRY_OPTIONS = TDAC_COUNTRY_CODE_PAIRS.map(countryOption);
+
+/**
+ * Thailand Ministry of Public Health yellow-fever infected-zone list.
+ * Source: Notification B.E. 2560 (2017), the 42-country list linked by DDC.
+ */
+export const TDAC_YELLOW_FEVER_COUNTRY_CODES = [
+  "AGO",
+  "ARG",
+  "BDI",
+  "BEN",
+  "BFA",
+  "BOL",
+  "BRA",
+  "CAF",
+  "CIV",
+  "CMR",
+  "COD",
+  "COG",
+  "COL",
+  "ECU",
+  "ETH",
+  "GAB",
+  "GHA",
+  "GIN",
+  "GMB",
+  "GNB",
+  "GNQ",
+  "GUF",
+  "GUY",
+  "KEN",
+  "LBR",
+  "MLI",
+  "MRT",
+  "NER",
+  "NGA",
+  "PAN",
+  "PER",
+  "PRY",
+  "SDN",
+  "SEN",
+  "SLE",
+  "SSD",
+  "SUR",
+  "TCD",
+  "TGO",
+  "TTO",
+  "UGA",
+  "VEN",
+] as const;
+
+const tdacYellowFeverCountryCodeSet = new Set<string>(TDAC_YELLOW_FEVER_COUNTRY_CODES);
+
+export type TdacCountryHealthRule = {
+  countryCode: string;
+  additionalQuestions: "none" | "yellow_fever";
+};
+
+/**
+ * Total classification for the TDAC country dropdown. Every selectable
+ * country has one rule so additions to the official option list cannot fall
+ * through an implicit or unknown branch.
+ */
+export const TDAC_COUNTRY_HEALTH_RULES: TdacCountryHealthRule[] = TDAC_COUNTRY_OPTIONS.map((country) => ({
+  countryCode: country.value,
+  additionalQuestions: tdacYellowFeverCountryCodeSet.has(country.value) ? "yellow_fever" : "none",
+}));
+
+const yellowFeverCountryListExpression = TDAC_YELLOW_FEVER_COUNTRY_CODES.join(",");
+
+export const TDAC_YELLOW_FEVER_SHOW_IF = [
+  `countries_visited_last_14_days contains_any [${yellowFeverCountryListExpression}]`,
+  `country_boarded in [${yellowFeverCountryListExpression}]`,
+  `nationality in [${yellowFeverCountryListExpression}]`,
+].join(" || ");
 
 export const TDAC_PROVINCE_OPTIONS = [
   option("amnat_charoen", "安纳乍能府", "AMNAT CHAROEN"),

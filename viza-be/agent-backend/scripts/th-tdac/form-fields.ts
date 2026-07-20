@@ -4,6 +4,7 @@ import {
   TDAC_COUNTRY_OPTIONS,
   TDAC_DISTRICT_OPTIONS_BY_PROVINCE,
   TDAC_GENDER_OPTIONS,
+  TDAC_HEALTH_SYMPTOM_OPTIONS,
   TDAC_LAND_TRANSPORT_OPTIONS,
   TDAC_PROVINCE_OPTIONS,
   TDAC_PURPOSE_OPTIONS,
@@ -11,6 +12,8 @@ import {
   TDAC_SEA_TRANSPORT_OPTIONS,
   TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT,
   TDAC_TRAVEL_MODE_OPTIONS,
+  TDAC_YELLOW_FEVER_SHOW_IF,
+  TDAC_YES_NO_OPTIONS,
   type TdacOption,
 } from "./official-options";
 
@@ -37,6 +40,11 @@ const STEP_TRIP = "抵达和离境信息";
 const STEP_ACCOMMODATION = "住宿信息";
 const STEP_HEALTH = "健康申报";
 const NON_TRANSIT_ONLY = "is_transit_traveler !== yes";
+const withEveryYellowFeverTrigger = (condition: string): string =>
+  TDAC_YELLOW_FEVER_SHOW_IF
+    .split(" || ")
+    .map((trigger) => `${trigger} && ${condition}`)
+    .join(" || ");
 
 const transportDependentOptions = {
   air: TDAC_AIR_TRANSPORT_OPTIONS,
@@ -445,6 +453,62 @@ export const TH_TDAC_FORM_FIELDS: ThTdacFieldDef[] = [
     step_name: STEP_HEALTH,
     display_order: 1,
     options: TDAC_COUNTRY_OPTIONS,
-    validation_rules: rules("抵达前两周内停留过的国家 / 地区"),
+    validation_rules: rules("抵达前两周内停留过的国家 / 地区", {
+      health_rule_coverage: "all_official_country_options",
+    }),
+  },
+  {
+    field_name: "yellow_fever_vaccination_certificate",
+    label: "Do you have a Yellow Fever Vaccination Certificate?",
+    field_type: "radio",
+    required: true,
+    step_number: 4,
+    step_name: STEP_HEALTH,
+    display_order: 2,
+    options: TDAC_YES_NO_OPTIONS,
+    conditional_logic: showIf(TDAC_YELLOW_FEVER_SHOW_IF),
+    validation_rules: rules("您是否持有黄热病疫苗接种证书？", {
+      source: "TH_DDC_YELLOW_FEVER_42_COUNTRIES",
+    }),
+  },
+  {
+    field_name: "yellow_fever_vaccination_date",
+    label: "Yellow Fever Vaccination Date",
+    field_type: "date",
+    required: true,
+    step_number: 4,
+    step_name: STEP_HEALTH,
+    display_order: 3,
+    conditional_logic: showIf(withEveryYellowFeverTrigger("yellow_fever_vaccination_certificate === yes")),
+    validation_rules: rules("黄热病疫苗接种日期", {
+      format: "YYYY-MM-DD",
+      helper_zh: "官网会同时要求上传黄热病疫苗接种证书。",
+      helper_en: "The official portal will also require the Yellow Fever Vaccination Certificate upload.",
+    }),
+  },
+  {
+    field_name: "health_symptoms_last_14_days",
+    label: "Symptoms during the last 14 days",
+    field_type: "multi_select",
+    required: false,
+    step_number: 4,
+    step_name: STEP_HEALTH,
+    display_order: 4,
+    options: TDAC_HEALTH_SYMPTOM_OPTIONS,
+    conditional_logic: showIf(TDAC_YELLOW_FEVER_SHOW_IF),
+    validation_rules: rules("过去 14 天内的症状", {
+      exclusive_option: "no_symptom",
+    }),
+  },
+  {
+    field_name: "health_symptoms_other",
+    label: "Other Symptom - Please Specify",
+    field_type: "text",
+    required: true,
+    step_number: 4,
+    step_name: STEP_HEALTH,
+    display_order: 5,
+    conditional_logic: showIf(withEveryYellowFeverTrigger("health_symptoms_last_14_days contains_any [other]")),
+    validation_rules: rules("请说明其他症状"),
   },
 ];

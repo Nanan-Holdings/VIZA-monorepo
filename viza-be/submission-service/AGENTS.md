@@ -71,6 +71,9 @@ filling and one-shot submission for the applicant.
   `submission_queue` during the migration.
 - `deploy/fly/` contains credential-free Fly templates and country mappings.
   Production endpoints and keys belong only in Fly Secrets.
+  `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
+  service to one always-on machine so an OTP request and its follow-up code use
+  the same in-memory official browser session.
 - `scripts/fly/` renders and deploys country workers, deploys the dedicated
   legacy worker, syncs the three boot-required runtime secrets, and applies
   autoscaler decisions. These scripts require operator-provided Fly
@@ -334,10 +337,14 @@ filling and one-shot submission for the applicant.
   KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
   and stop with structured manual-required evidence for unsupported SMS,
   real-name, WAF, or center-specific policy gates instead of marking success.
-  The localhost-only Korea KVAC endpoints are
+  The Korea KVAC endpoints are
   `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
-  `/local/korea-kvac/sms/complete`; the final endpoint may report success only
-  after the official portal returns a confirmation number.
+  `/local/korea-kvac/sms/complete`. They accept localhost calls or remote
+  private-service calls authenticated with `KR_SUBMISSION_INTERNAL_TOKEN`; the
+  final endpoint may report success only after the official portal returns a
+  confirmation number. Official confirmation PDFs must be uploaded to the
+  private `submission-artifacts` bucket so cloud workers never return ephemeral
+  Fly filesystem paths to the portal.
 - `src/jp-vfs-sg/**`: Japan VFS/JVAC Singapore observer. It uses an authorized
   Browser API/CDP session, validates canonical application answers when an
   application id is supplied, optionally prepares the VIZA alias, records
