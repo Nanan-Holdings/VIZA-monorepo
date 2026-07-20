@@ -90,5 +90,9 @@ jobs:
             bash viza-be/submission-service/scripts/fly/deploy-country.sh "$country" "$IMAGE"
           done <<< "$countries"
       - name: Deploy legacy worker
-        if: inputs.deploy_legacy_worker
+        # Country workers and the legacy queue consumer are independent
+        # production targets. A transient country /ready timeout must not skip
+        # the legacy worker that serves Philippines eTravel and other legacy
+        # submission_queue flows.
+        if: ${{ inputs.deploy_legacy_worker && !cancelled() }}
         run: bash viza-be/submission-service/scripts/fly/deploy-legacy.sh "$IMAGE"
