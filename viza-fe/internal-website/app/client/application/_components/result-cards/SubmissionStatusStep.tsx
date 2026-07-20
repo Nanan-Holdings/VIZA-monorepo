@@ -97,6 +97,30 @@ function isOfficialVietnamPrearrivalReference(value: string | null | undefined):
   return /^(?:DE|VN|PAI|QR)[A-Z0-9-]{6,}$/.test(normalized) && /\d/.test(normalized);
 }
 
+function getVietnamPrearrivalQrPath(
+  result: DigitalArrivalCardSubmissionResult,
+): string | null {
+  return (
+    result.artifacts?.qrCodes?.[0] ??
+    result.artifacts?.screenshots?.find((path) =>
+      /(?:^|[-_/])qr(?:[-_.]|$)|confirmation-qr/i.test(path),
+    ) ??
+    null
+  );
+}
+
+function isVietnamPrearrivalAwaitingQr(
+  result: SubmissionResult | null,
+): result is DigitalArrivalCardSubmissionResult {
+  if (!result || !isDigitalArrivalCardResult(result)) return false;
+  return (
+    result.country === "VN" &&
+    result.submitted &&
+    result.status === "submitted" &&
+    !getVietnamPrearrivalQrPath(result)
+  );
+}
+
 function isVietnamPaymentCheckpointResult(
   result: SubmissionResult | null,
 ): result is VnSubmissionResult {
@@ -123,17 +147,11 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
       ? null
       : rawReferenceNumber;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
-  const qrPath = result.country === "VN"
-    ? result.artifacts?.qrCodes?.[0] ??
-      result.artifacts?.screenshots?.find((path) => /(?:^|[-_/])qr(?:[-_.]|$)|confirmation-qr/i.test(path)) ??
-      null
-    : null;
+  const qrPath = result.country === "VN" ? getVietnamPrearrivalQrPath(result) : null;
   const vietnamFinalizing =
     result.country === "VN" &&
     result.submitted &&
     result.status === "submitted" &&
-    !referenceNumber &&
-    !storedPdfPath &&
     !qrPath;
   const successful = result.submitted && result.status === "submitted" && !vietnamFinalizing;
   const hasOfficialPdfDownload =
@@ -221,7 +239,7 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
           {successful
             ? isZh ? `${countryLabel} 提交成功` : `${countryLabel} submitted`
             : vietnamFinalizing
-              ? isZh ? "越南入境申报正在官网最终处理" : "Vietnam Pre-Arrival is being finalized by the official portal"
+              ? isZh ? "正在等待官网返回二维码" : "Waiting for the official QR code"
             : scheduled
               ? isZh ? `${countryLabel} 已排队，等待自动提交` : `${countryLabel} scheduled for automatic submission`
             : isZh ? `${countryLabel} 未完成` : `${countryLabel} not completed`}
@@ -274,8 +292,8 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
             ? result.portalResponseSummary
             : vietnamFinalizing
               ? isZh
-                ? "官网已接收申报并完成邮箱验证，正在生成最终二维码和 PDF。请勿重复提交；结果完成后会发送到邮箱并同步回此页面。"
-                : "The official portal has received the declaration and verified the email. It is generating the final QR code and PDF. Do not submit again; the result will be emailed and synchronized here."
+                ? "官网已接收申报并完成邮箱验证。系统会持续检查最终二维码；请勿重复提交，二维码返回后本页面会自动显示成功和下载按钮。"
+                : "The official portal has received the declaration and verified the email. VIZA keeps checking for the final QR code. Do not submit again; this page will show success and the download automatically."
             : scheduled
               ? result.portalResponseSummary
             : result.errorDetails?.message || result.portalResponseSummary}
@@ -1240,12 +1258,25 @@ export function SubmissionStatusStep({
             : "confirming_result");
   const effectiveProgress =
     snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
-  const effectiveResult = terminalPropsAvailable ? result : snapshot?.result ?? result;
+  const polledVietnamPrearrivalHasQr =
+    snapshot?.result &&
+    isDigitalArrivalCardResult(snapshot.result) &&
+    snapshot.result.country === "VN" &&
+    Boolean(getVietnamPrearrivalQrPath(snapshot.result));
+  const effectiveResult = polledVietnamPrearrivalHasQr
+    ? snapshot?.result ?? result
+    : terminalPropsAvailable
+      ? result
+      : snapshot?.result ?? result;
+  const vietnamPrearrivalAwaitingQr = isVietnamPrearrivalAwaitingQr(effectiveResult);
   const effectiveError = extractError(effectiveResult, snapshot?.error);
   const effectiveApplicationStatus = terminalPropsAvailable
     ? status
     : snapshot?.applicationStatus ?? status;
-  const completedWithResult = effectiveStatus === "completed" && Boolean(effectiveResult);
+  const completedWithResult =
+    effectiveStatus === "completed" &&
+    Boolean(effectiveResult) &&
+    !vietnamPrearrivalAwaitingQr;
   const actionWithResult = effectiveStatus === "needs_user_action" && Boolean(effectiveResult);
   const failed =
     effectiveStatus === "failed" || (!snapshotIsActive && effectiveApplicationStatus === "failed");
@@ -1551,10 +1582,16 @@ export function SubmissionStatusStep({
         />
       )}
       <WaitingCard
-        status={effectiveStatus}
-        stage={effectiveStage}
-        serverProgress={effectiveProgress}
-        message={snapshot?.message}
+        status={vietnamPrearrivalAwaitingQr ? "running" : effectiveStatus}
+        stage={vietnamPrearrivalAwaitingQr ? "confirming_result" : effectiveStage}
+        serverProgress={vietnamPrearrivalAwaitingQr ? 99 : effectiveProgress}
+        message={
+          vietnamPrearrivalAwaitingQr
+            ? isZh
+              ? "官网已接收申报。系统每 3 秒自动检查一次；二维码生成后，本页面会立即显示提交成功和下载按钮。"
+              : "The official portal received the declaration. VIZA checks every 3 seconds and will show success and the QR download as soon as it is available."
+            : snapshot?.message
+        }
         error={effectiveError}
         applicationId={applicationId}
         country={country}
