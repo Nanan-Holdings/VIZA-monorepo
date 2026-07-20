@@ -18,6 +18,13 @@ primary_region = "sin"
   # provider configured through secrets (or its container Chromium) headlessly.
   MDAC_PLAYWRIGHT_HEADLESS = "true"
   MDAC_PLAYWRIGHT_CHANNEL = "bundled"
+  # Philippines eTravel is Cloudflare-protected. The legacy worker must use
+  # the authorized Browserbase session provider instead of container Chromium.
+  PH_ETRAVEL_BROWSERBASE_ENABLED = "true"
+  PH_ETRAVEL_BROWSERBASE_PROXIES = "true"
+  PH_ETRAVEL_BROWSERBASE_COUNTRY = "PH"
+  PH_ETRAVEL_BROWSERBASE_REGION = "ap-southeast-1"
+  PH_ETRAVEL_PLAYWRIGHT_HEADLESS = "true"
   # France TLS flags remain explicit production gates. Browserbase and the
   # shared internal token are Fly Secrets, never TOML values.
   FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"
