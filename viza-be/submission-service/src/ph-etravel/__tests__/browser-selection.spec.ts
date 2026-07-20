@@ -6,7 +6,10 @@ import {
   resolveArrivalCardLaunchChannel,
   resolveArrivalCardLocalCdpEndpoint,
 } from "../../arrival-card-browser";
-import { isPhEtravelRemotePolicyBlockMessage } from "../runner";
+import {
+  isPhEtravelMpinRejectedText,
+  isPhEtravelRemotePolicyBlockMessage,
+} from "../runner";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -61,4 +64,11 @@ test("PH eTravel treats Bright Data government policy blocks as remote fallback 
     true,
   );
   assert.equal(isPhEtravelRemotePolicyBlockMessage("net::ERR_NAME_NOT_RESOLVED"), false);
+});
+
+test("PH eTravel detects an eGovPH MPIN rejection without matching generic verification copy", () => {
+  assert.equal(isPhEtravelMpinRejectedText("Invalid Credentials"), true);
+  assert.equal(isPhEtravelMpinRejectedText("Incorrect MPIN. Please try again."), true);
+  assert.equal(isPhEtravelMpinRejectedText("Enter your 6-digit passcode"), false);
+  assert.equal(isPhEtravelMpinRejectedText("Important Account Security Notice"), false);
 });
