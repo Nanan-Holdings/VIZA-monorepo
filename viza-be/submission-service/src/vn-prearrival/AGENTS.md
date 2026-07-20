@@ -25,3 +25,6 @@ Guardrails:
 - Final success requires the official success heading plus a QR or confirmation
   reference. Keep strict result-page matching in `result-page.ts`; processing
   or Finalizing copy must never be reported as completed.
+- Passenger-to-trip transition failures are classified in `trip-transition.ts`.
+  Stop immediately on official passenger validation errors; never cascade a
+  failed transition into misleading missing Trip Information controls.

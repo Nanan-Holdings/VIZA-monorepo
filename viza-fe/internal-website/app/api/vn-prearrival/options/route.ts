@@ -301,6 +301,24 @@ function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): Vis
     });
 }
 
+function filterHotelOptionsByHierarchy(
+  options: VisaFormOption[],
+  parentWard: string,
+  provinceCity: string,
+  keyword: string,
+): VisaFormOption[] {
+  if (keyword.trim()) return filterOptionsByKeyword(options, keyword);
+
+  const exactWardOptions = parentWard
+    ? options.filter((option) => option.ward === parentWard)
+    : [];
+  if (exactWardOptions.length > 0) return exactWardOptions;
+
+  return provinceCity
+    ? options.filter((option) => option.province_city === provinceCity)
+    : [];
+}
+
 void Promise.allSettled(
   ["visa_issue_place", "hotel", "airport", "port", "visa_type", "purpose", "flight"].map((source) => loadOfficialItems(source)),
 );
@@ -311,6 +329,7 @@ export async function GET(request: Request) {
   const source = rawSource.replace(/^prearrival_category:/, "");
   const keyword = url.searchParams.get("keyword")?.trim() ?? "";
   const parent = url.searchParams.get("parent")?.trim() ?? "";
+  const province = url.searchParams.get("province")?.trim() ?? "";
   const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 10000) : 50;
 
@@ -318,6 +337,9 @@ export async function GET(request: Request) {
     let options: VisaFormOption[];
     if (source === "flight") {
       options = (await loadOfficialFlightOptions(keyword)).slice(0, limit);
+    } else if (source === "hotel") {
+      const allHotels = getVnPrearrivalStaticOptions("hotel") as VisaFormOption[] | null;
+      options = filterHotelOptionsByHierarchy(allHotels ?? [], parent, province, keyword).slice(0, limit);
     } else {
       const localOfficialOptions = getVnPrearrivalStaticOptions(source, parent);
       if (localOfficialOptions !== null) {
@@ -342,6 +364,7 @@ export async function GET(request: Request) {
 }
 
 export const __testables = {
+  filterHotelOptionsByHierarchy,
   filterOptionsByKeyword,
   normalizeOfficialFlightSearch,
   optionFromOfficial,

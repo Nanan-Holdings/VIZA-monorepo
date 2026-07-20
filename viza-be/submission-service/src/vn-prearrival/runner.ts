@@ -15,6 +15,7 @@ import {
   extractVietnamPrearrivalConfirmationNumber,
   hasVietnamPrearrivalSuccessEvidence,
 } from "./result-page";
+import { classifyVietnamPrearrivalTripTransitionFailure } from "./trip-transition";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 
@@ -1012,11 +1013,40 @@ export async function runVietnamPrearrivalPortalSubmission(
       missingControls.push("visa_information_acknowledgement");
     }
 
-    if (missingControls.length === 0 && !(await clickOfficialButton(page, "Trip Information"))) {
-      missingControls.push("trip_information_next");
+    if (missingControls.length > 0) {
+      const passengerScreenshot = await saveScreenshot(page, tempDir, "passenger-controls-not-matched", logs);
+      if (passengerScreenshot) screenshots.push(passengerScreenshot);
+      throw new VnPrearrivalPortalError(
+        `Vietnam Pre-Arrival passenger controls were not matched exactly: ${missingControls.join(", ")}.`,
+        "vn_prearrival_passenger_controls_not_matched",
+        "The official passenger form loaded, but VIZA could not match every required passenger field exactly. No submission was attempted.",
+        screenshots,
+        logs,
+      );
     }
-    if (missingControls.length === 0 && !(await waitForTripForm(page))) {
-      missingControls.push("trip_information_form_not_ready");
+
+    if (!(await clickOfficialButton(page, "Trip Information"))) {
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival Trip Information action was not found.",
+        "vn_prearrival_trip_information_action_not_found",
+        "The official passenger form loaded, but its Trip Information action could not be matched. No submission was attempted.",
+        screenshots,
+        logs,
+      );
+    }
+    if (!(await waitForTripForm(page))) {
+      const transitionScreenshot = await saveScreenshot(page, tempDir, "trip-information-not-ready", logs);
+      if (transitionScreenshot) screenshots.push(transitionScreenshot);
+      const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+      const failure = classifyVietnamPrearrivalTripTransitionFailure(bodyText);
+      logs.push(`vn_prearrival_trip_transition_rejected code=${failure.code}`);
+      throw new VnPrearrivalPortalError(
+        failure.message,
+        failure.code,
+        failure.portalSummary,
+        screenshots,
+        logs,
+      );
     }
 
     // These controls are dependent in the official UI. In particular, an air

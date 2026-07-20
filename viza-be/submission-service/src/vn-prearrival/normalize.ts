@@ -135,6 +135,11 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
   const accommodationAddress = usesHotelDropdown
     ? requireAnswer(payload, "hotel_accommodation_address", missing)
     : requireAnswer(payload, "accommodation_address", missing);
+  const visaType = requireAnswer(payload, "visa_type", missing);
+  const visaNumber = requireAnswer(payload, "visa_number", missing);
+  if (visaType === "EV" && !/^\d{9}$/.test(visaNumber)) {
+    missing.push("answers.visa_number(9_digit_numeric_evisa_number)");
+  }
 
   const normalized: VnPrearrivalPortalPayload = {
     applicationId: payload.applicationId,
@@ -152,8 +157,8 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
     phoneCountryCode: requireAnswer(payload, "phone_country_code", missing),
     phoneNumber: requireAnswer(payload, "phone_number", missing),
     visaInformationAcknowledgement: requireBooleanTrue(payload, "visa_information_acknowledgement", missing),
-    visaType: requireAnswer(payload, "visa_type", missing),
-    visaNumber: requireAnswer(payload, "visa_number", missing),
+    visaType,
+    visaNumber,
     visaIssueDate: answer(payload, "visa_issue_date") || null,
     visaExpiryDate: requireAnswer(payload, "visa_expiry_date", missing),
     visaIssuedPlace: answer(payload, "visa_issued_place") || null,

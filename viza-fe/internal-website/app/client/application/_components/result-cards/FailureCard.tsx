@@ -102,6 +102,21 @@ function isWorkerPickupError(errorMessage?: string): boolean {
     normalized.includes("submission job stalled");
 }
 
+function isVnPrearrivalVisaNumberError(errorMessage?: string): boolean {
+  const normalized = (errorMessage ?? "").toLowerCase();
+  const isPreciseError =
+    normalized.includes("vn_prearrival_invalid_evisa_number") ||
+    normalized.includes("rejected the e-visa number") ||
+    normalized.includes("9-digit numeric value from the “số / no.” line");
+  const isLegacyTransitionCascade =
+    normalized.includes("trip_information_form_not_ready") &&
+    normalized.includes("mode_of_travel") &&
+    normalized.includes("flight_number") &&
+    normalized.includes("accommodation_address");
+
+  return isPreciseError || isLegacyTransitionCascade;
+}
+
 function FormattedFailureText({ message }: { message: string }) {
   const lines = message
     .split(/\r?\n/u)
@@ -147,6 +162,7 @@ export function FailureCard({
   const [cardHolderName, setCardHolderName] = useState("");
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
+  const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
@@ -239,14 +255,20 @@ export function FailureCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-foreground">
           <AlertTriangle className="h-5 w-5 text-destructive" />
-          {workerPickupError
+          {vnPrearrivalVisaNumberError
+            ? (isZh ? "电子签证号码错误" : "Invalid E-Visa number")
+            : workerPickupError
             ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
             : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {workerPickupError
+          {vnPrearrivalVisaNumberError
+            ? (isZh
+                ? "官网拒绝了当前电子签证号码。请返回“旅客信息”，填写电子签证文件顶部“Số / No.”后的 9 位纯数字；不要填写申请代码、登记码，也不要添加“/EV”。"
+                : "The official portal rejected the current E-Visa number. Return to Passenger Information and enter the 9-digit numeric value shown after “Số / No.”; do not enter the application or registration code, and do not add “/EV”.")
+            : workerPickupError
             ? (isZh
                 ? "这不是表单内容错误，而是本地 submission-service worker 没有运行、端口未匹配，或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
                 : "This is not a form-data error. The local submission-service worker was not running, was on a different port, or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
@@ -254,7 +276,13 @@ export function FailureCard({
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
-        {officialImageError ? (
+        {vnPrearrivalVisaNumberError ? (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-950">
+            {isZh
+              ? "正确格式示例：106527303（共 9 位，只能包含数字）。修改并保存后再重新提交。"
+              : "Correct format example: 106527303 (exactly 9 digits, numbers only). Save the corrected value before retrying."}
+          </div>
+        ) : officialImageError ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
             <FormattedFailureText message={officialImageError} />
           </div>
