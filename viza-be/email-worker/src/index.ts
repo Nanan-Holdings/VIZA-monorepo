@@ -17,6 +17,7 @@
  * Failure mode: any error thrown here causes Cloudflare Email Routing to
  * 5xx the message, so the sender retries. Do NOT swallow errors silently.
  */
+import PostalMime from "postal-mime";
 
 interface Env {
   SUPABASE_URL: string;
@@ -118,46 +119,6 @@ function parseHeaderBlock(block: string): Record<string, string> {
   return out;
 }
 
-function getContentType(headersAll: string): string {
-  const m = /^content-type:\s*([^\r\n;]+)/im.exec(headersAll);
-  return m ? m[1].toLowerCase().trim() : "text/plain";
-}
-
-function getBoundary(headersAll: string): string | null {
-  const m = /boundary\s*=\s*"?([^";\r\n]+)"?/i.exec(headersAll);
-  return m ? m[1] : null;
-}
-
-function pickBodies(
-  rawText: string,
-): { text: string | null; html: string | null } {
-  const { headers, body } = splitHeadersBody(rawText);
-  const ct = getContentType(headers);
-  if (ct === "text/plain") return { text: body, html: null };
-  if (ct === "text/html") return { text: null, html: body };
-  if (!ct.startsWith("multipart/")) {
-    // unknown single part — preserve as text for forensic visibility
-    return { text: body, html: null };
-  }
-  const boundary = getBoundary(headers);
-  if (!boundary) return { text: body, html: null };
-  const parts = body.split(new RegExp(`--${escapeRegex(boundary)}(?:--)?`));
-  let text: string | null = null;
-  let html: string | null = null;
-  for (const part of parts) {
-    if (!part.trim()) continue;
-    const { headers: ph, body: pb } = splitHeadersBody(part.replace(/^\r?\n/, ""));
-    const partCt = getContentType(ph);
-    if (partCt === "text/plain" && text === null) text = pb;
-    else if (partCt === "text/html" && html === null) html = pb;
-  }
-  return { text, html };
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function parseSpamScore(headers: Record<string, string>): number | null {
   const raw = headers["x-spam-score"];
   if (!raw) return null;
@@ -165,16 +126,17 @@ function parseSpamScore(headers: Record<string, string>): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseMessage(rawText: string): ParsedMessage {
+export async function parseMessage(rawBytes: Uint8Array): Promise<ParsedMessage> {
+  const rawText = bytesToString(rawBytes);
   const { headers: headerBlock } = splitHeadersBody(rawText);
   const headers = parseHeaderBlock(headerBlock);
-  const { text, html } = pickBodies(rawText);
+  const parsed = await PostalMime.parse(rawBytes);
   return {
-    text,
-    html,
+    text: parsed.text?.trim() || null,
+    html: parsed.html?.trim() || null,
     headers,
-    messageId: headers["message-id"] ?? null,
-    subject: headers["subject"] ?? null,
+    messageId: parsed.messageId ?? headers["message-id"] ?? null,
+    subject: parsed.subject ?? headers["subject"] ?? null,
     spamScore: parseSpamScore(headers),
   };
 }
@@ -476,8 +438,7 @@ export default {
     }
 
     const rawBytes = await readAll(message.raw);
-    const rawText = bytesToString(rawBytes);
-    const parsed = parseMessage(rawText);
+    const parsed = await parseMessage(rawBytes);
 
     let r2Key: string | null = null;
     let inlineText: string | null = parsed.text;

@@ -345,6 +345,20 @@ const KOREA_C39_REQUIREMENTS: DocumentRequirement[] = [
   },
 ];
 
+const PH_ETRAVEL_REQUIREMENTS: DocumentRequirement[] = [
+  {
+    key: "customs_signature_file",
+    documentType: "customs_signature_file",
+    labelEn: "For Customs — Declaration Signature",
+    labelZh: "海关申报电子签名",
+    description: "Upload the declaration signature image or PDF used for the Philippine customs declaration.",
+    required: true,
+    sortOrder: 10,
+    accept: [".pdf", ".jpg", ".jpeg", ".png"],
+    source: "fallback",
+  },
+];
+
 const INDONESIA_B1_EVOA_REQUIREMENTS: DocumentRequirement[] = [
   {
     key: "passport_copy",
@@ -507,6 +521,14 @@ function isIndonesiaC1TouristDocumentApplication(application: ApplicationRow): b
   return (
     application.country.toLowerCase() === "indonesia" &&
     resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) === "ID_C1_TOURIST"
+  );
+}
+
+function isPhilippinesEtravelDocumentApplication(application: ApplicationRow): boolean {
+  return (
+    ["philippines", "ph", "菲律宾"].includes(application.country.toLowerCase()) &&
+    resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) ===
+      "PH_ETRAVEL_ARRIVAL_CARD"
   );
 }
 
@@ -1036,6 +1058,9 @@ async function loadDocumentRequirements(application: ApplicationRow, packageRow:
   // the required three-month financial statement.
   if (isIndonesiaC1TouristDocumentApplication(application)) {
     return { source: "fallback" as const, requirements: cloneRequirements(INDONESIA_C1_TOURIST_REQUIREMENTS) };
+  }
+  if (isPhilippinesEtravelDocumentApplication(application)) {
+    return { source: "fallback" as const, requirements: cloneRequirements(PH_ETRAVEL_REQUIREMENTS) };
   }
 
   if (packageId) {

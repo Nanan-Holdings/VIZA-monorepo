@@ -20,8 +20,12 @@ export function phEtravelOption(
   return { value, text: labelEn, label_zh: labelZh, label_en: labelEn, official_label: officialLabel };
 }
 
-const mapped = (items: OfficialCodeName[], labelsZh: Record<string, string> = {}): PhEtravelOption[] =>
-  items.map((item) => phEtravelOption(item.code, labelsZh[item.code] ?? item.name, item.name));
+const mapped = (
+  items: OfficialCodeName[],
+  labelsZh: Record<string, string> = {},
+  fallbackZh?: (item: OfficialCodeName) => string,
+): PhEtravelOption[] =>
+  items.map((item) => phEtravelOption(item.code, labelsZh[item.code] ?? fallbackZh?.(item) ?? item.name, item.name));
 
 export const PH_ETRAVEL_TRAVEL_TYPES = [
   phEtravelOption("ARRIVAL", "入境菲律宾", "ARRIVAL — Entering the Philippines"),
@@ -59,7 +63,12 @@ const OCCUPATION_ZH: Record<string, string> = {
 };
 export const PH_ETRAVEL_OCCUPATION_OPTIONS = mapped(officialSnapshot.occupations, OCCUPATION_ZH);
 
-export const PH_ETRAVEL_COUNTRY_OPTIONS = mapped(officialSnapshot.countries);
+const CHINESE_REGION_NAMES = new Intl.DisplayNames(["zh-CN"], { type: "region" });
+export const PH_ETRAVEL_COUNTRY_OPTIONS = mapped(
+  officialSnapshot.countries,
+  {},
+  (item) => CHINESE_REGION_NAMES.of(item.code) ?? item.name,
+);
 
 export const PH_ETRAVEL_SUFFIX_OPTIONS = [
   phEtravelOption("JR", "Jr.", "Jr."), phEtravelOption("SR", "Sr.", "Sr."),
@@ -82,9 +91,35 @@ export const PH_ETRAVEL_DESTINATION_TYPE_OPTIONS = [
   phEtravelOption("TRAVEL_PORT", "港口", "Port"),
 ];
 
-export const PH_ETRAVEL_AIRLINE_OPTIONS = mapped(officialSnapshot.airlines);
+export const PH_ETRAVEL_AIRLINE_OPTIONS = mapped(
+  officialSnapshot.airlines,
+  {},
+  (item) => `${item.name} 航空`,
+);
 export const PH_ETRAVEL_FLIGHT_NUMBER_OPTIONS: PhEtravelOption[] = [];
-export const PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS = mapped(officialSnapshot.arrivalPorts);
+const PORT_ZH: Record<string, string> = {
+  TP0115: "巴科洛德机场",
+  DRP: "比科尔国际机场",
+  TP0020: "保和—邦劳国际机场（新保和国际机场）",
+  TP127: "卡加延北部国际机场",
+  TP007: "卡提克兰机场（MPH）",
+  TP001: "克拉克国际机场（CRK）",
+  TP002: "达沃国际机场（DVO）",
+  TP0112: "桑托斯将军城机场",
+  TP003: "伊洛伊洛国际机场（ILO）",
+  TP004: "卡利博国际机场（KLO）",
+  TP0010: "拉金丁根机场—卡加延德奥罗",
+  TP005: "拉瓦格国际机场（LAO）",
+  TP006: "麦克坦—宿务国际机场（CEB）",
+  TP1000: "尼诺伊·阿基诺国际机场 1 号航站楼（MNL）",
+  TP2000: "尼诺伊·阿基诺国际机场 2 号航站楼（MNL）",
+  TP3000: "尼诺伊·阿基诺国际机场 3 号航站楼（MNL）",
+  NAIA4: "尼诺伊·阿基诺国际机场 4 号航站楼（MNL）",
+  TP008: "公主港国际机场（PPS）",
+  SFS: "苏比克湾国际机场（SFS）",
+  TP0014: "三宝颜国际机场",
+};
+export const PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS = mapped(officialSnapshot.arrivalPorts, PORT_ZH);
 export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(officialSnapshot.sicknessSymptoms);
 export const PH_ETRAVEL_DECLARATION_CHECKLIST = officialSnapshot.declarationChecklist as OfficialChecklistItem[];
 

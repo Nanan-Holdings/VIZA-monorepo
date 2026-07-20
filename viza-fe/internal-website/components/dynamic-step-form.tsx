@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
+import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
 import { countries } from "country-data-list";
 
 interface DynamicStepFormProps {
@@ -3092,6 +3093,9 @@ export function DynamicStepForm({
     }
     if (isVietnamBorderGateField(field)) {
       fieldOptions = localizeVietnamBorderGateOptions(fieldOptions);
+    }
+    if (visaType === "PH_ETRAVEL_ARRIVAL_CARD") {
+      fieldOptions = localizePhEtravelOptions(field.fieldName, fieldOptions);
     }
 
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
