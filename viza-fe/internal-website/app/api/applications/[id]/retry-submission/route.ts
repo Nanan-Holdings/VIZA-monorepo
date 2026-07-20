@@ -199,6 +199,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hasCompletedOfficialSubmission(application: ApplicationForRetry): boolean {
+  if (isVietnamPrearrivalApplication(application.country, application.visa_type)) {
+    const result = application.submission_result;
+    if (!isRecord(result) || result.submitted !== true) return false;
+    const artifacts = isRecord(result.artifacts) ? result.artifacts : null;
+    return Boolean(
+      artifacts &&
+      Array.isArray(artifacts.qrCodes) &&
+      artifacts.qrCodes.some((value) => typeof value === "string" && value.trim().length > 0),
+    );
+  }
   const normalizedStatus = normalizeComparable(application.submission_result_status);
   if (["completed", "complete", "submitted", "success", "done"].includes(normalizedStatus)) return true;
   const result = application.submission_result;
