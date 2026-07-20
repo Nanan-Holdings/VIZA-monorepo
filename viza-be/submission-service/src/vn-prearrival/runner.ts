@@ -1013,9 +1013,9 @@ export async function runVietnamPrearrivalPortalSubmission(
       })
     ) {
       throw new VnPrearrivalPortalError(
-        "Vietnam Pre-Arrival portal did not expose a visible success result with a QR code, PDF, or confirmation number after submit.",
+        "Vietnam Pre-Arrival portal did not expose a visible success result with a downloadable QR code after submit.",
         "vn_prearrival_confirmation_not_captured",
-        "The official portal did not return a confirmation artifact that VIZA can verify.",
+        "The official portal did not return a QR code that VIZA can verify and provide for download.",
         screenshots,
         logs,
       );

@@ -8,14 +8,7 @@ export function hasVietnamPrearrivalSuccessEvidence(input: {
   qrCaptured: boolean;
   pdfCaptured: boolean;
 }): boolean {
-  return (
-    input.successHeadingVisible &&
-    (
-      Boolean(input.confirmationNumber?.trim()) ||
-      input.qrCaptured ||
-      input.pdfCaptured
-    )
-  );
+  return input.successHeadingVisible && input.qrCaptured;
 }
 
 export function extractVietnamPrearrivalConfirmationNumber(bodyText: string): string | null {

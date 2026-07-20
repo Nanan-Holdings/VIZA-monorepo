@@ -19,7 +19,7 @@ test("recognizes the official final success heading", () => {
   assert.equal(isVietnamPrearrivalSuccessPage("Your submission is successful!"), true);
 });
 
-test("requires a visible success heading and an official result artifact", () => {
+test("requires a visible success heading and a captured QR code", () => {
   assert.equal(
     hasVietnamPrearrivalSuccessEvidence({
       successHeadingVisible: false,
@@ -32,9 +32,9 @@ test("requires a visible success heading and an official result artifact", () =>
   assert.equal(
     hasVietnamPrearrivalSuccessEvidence({
       successHeadingVisible: true,
-      confirmationNumber: null,
+      confirmationNumber: "DE123456789",
       qrCaptured: false,
-      pdfCaptured: false,
+      pdfCaptured: true,
     }),
     false,
   );
