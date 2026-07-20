@@ -8,6 +8,30 @@ vi.mock("next-intl", () => ({
 }));
 
 describe("FailureCard", () => {
+  it("shows a precise E-Visa number error instead of the legacy trip-control cascade", () => {
+    render(
+      <FailureCard
+        errorMessage="Vietnam Pre-Arrival portal controls were not matched exactly: trip_information_form_not_ready, mode_of_travel, departure_country_before_arrival, purpose_of_travel, flight_number, accommodation_type, accommodation_address."
+      />,
+    );
+
+    expect(screen.getByText("电子签证号码错误")).toBeInTheDocument();
+    expect(screen.getByText(/“Số \/ No\.”后的 9 位纯数字/u)).toBeInTheDocument();
+    expect(screen.getByText(/正确格式示例：106527303/u)).toBeInTheDocument();
+    expect(screen.queryByText(/trip_information_form_not_ready/u)).not.toBeInTheDocument();
+  });
+
+  it("shows the same precise error for the new runner response", () => {
+    render(
+      <FailureCard
+        errorMessage="Vietnam Pre-Arrival rejected the E-Visa number. Enter the exact 9-digit numeric value from the “Số / No.” line."
+      />,
+    );
+
+    expect(screen.getByText("电子签证号码错误")).toBeInTheDocument();
+    expect(screen.queryByText(/Vietnam Pre-Arrival rejected/u)).not.toBeInTheDocument();
+  });
+
   it("collects a one-time Vietnam payment card before live-assisted retry", async () => {
     const onRetry = vi.fn().mockResolvedValue(undefined);
     const TestFailureCard = FailureCard as ComponentType<Record<string, unknown>>;

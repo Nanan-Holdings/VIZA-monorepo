@@ -105,6 +105,60 @@ describe("Vietnam pre-arrival official option mapping", () => {
     });
   });
 
+  it("falls back to same-province hotels when the selected ward has no official hotel rows", () => {
+    const options = [
+      {
+        value: "HANOI-1",
+        text: "Hanoi Hotel",
+        label_en: "Hanoi Hotel",
+        label_zh: "河内酒店",
+        official_label: "Hanoi Hotel",
+        province_city: "01",
+        ward: "00004",
+      },
+      {
+        value: "DANANG-1",
+        text: "Da Nang Hotel",
+        label_en: "Da Nang Hotel",
+        label_zh: "岘港酒店",
+        official_label: "Da Nang Hotel",
+        province_city: "48",
+        ward: "20194",
+      },
+    ];
+
+    expect(__testables.filterHotelOptionsByHierarchy(options, "20965", "48", "")).toEqual([
+      expect.objectContaining({ value: "DANANG-1", province_city: "48", ward: "20194" }),
+    ]);
+  });
+
+  it("searches the complete hotel catalog regardless of the currently selected ward", () => {
+    const options = [
+      {
+        value: "HANOI-1",
+        text: "Sofitel Legend Metropole Hanoi",
+        label_en: "Sofitel Legend Metropole Hanoi",
+        label_zh: "河内索菲特传奇大都会酒店",
+        official_label: "Sofitel Legend Metropole Hanoi",
+        province_city: "01",
+        ward: "00004",
+      },
+      {
+        value: "DANANG-1",
+        text: "Da Nang Hotel",
+        label_en: "Da Nang Hotel",
+        label_zh: "岘港酒店",
+        official_label: "Da Nang Hotel",
+        province_city: "48",
+        ward: "20194",
+      },
+    ];
+
+    expect(__testables.filterHotelOptionsByHierarchy(options, "20194", "48", "Sofitel")).toEqual([
+      expect.objectContaining({ value: "HANOI-1", province_city: "01", ward: "00004" }),
+    ]);
+  });
+
   it("prioritizes exact country-code matches before incidental text matches", () => {
     const options = [
       { value: "+850", text: "North Korea (+850)", label_en: "North Korea (+850)", label_zh: "CHDCND Triều Tiên (+850)", official_label: "North Korea (+850)", code: "KP" },

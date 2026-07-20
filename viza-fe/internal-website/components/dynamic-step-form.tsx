@@ -831,6 +831,36 @@ function restoreVnPrearrivalHotelHierarchy(values: Record<string, string>): Reco
   };
 }
 
+function getVnPrearrivalSelectedHotelWardOption(
+  values: Record<string, string>,
+): VisaFormFieldOption | null {
+  const hotelCode = values.hotel_accommodation_address?.trim() ?? "";
+  const wardCode = values.ward_commune_of_hotel?.trim() ?? "";
+  if (!hotelCode || !wardCode) return null;
+
+  const hotelOptions = getVnPrearrivalStaticOptions("prearrival_category:hotel") ?? [];
+  const selectedHotel = hotelOptions.find((option) =>
+    typeof option !== "string" && option.value === hotelCode,
+  );
+  if (!selectedHotel || typeof selectedHotel === "string") return null;
+
+  const englishAddress = selectedHotel.label_en ?? selectedHotel.text ?? "";
+  const wardLabel = englishAddress
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => /\b(?:ward|commune|town|village)$/i.test(part));
+  if (!wardLabel) return null;
+
+  return {
+    value: wardCode,
+    text: wardLabel,
+    label_en: wardLabel,
+    label_zh: localizeVietnamAdministrativeUnitText(wardLabel),
+    official_label: wardLabel,
+    searchText: `${wardLabel} ${wardCode}`,
+  };
+}
+
 function normalizeTdacTransitValue(values: Record<string, string>): Record<string, string> {
   const sameDayTransit = isSameCalendarDayValue(values.arrival_date, values.departure_date);
   const next: Record<string, string> = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
@@ -1032,6 +1062,11 @@ function getLocalFieldIssue(
     min_days_after_field?: string;
     min_days_after_field_days?: number;
     official_source?: string;
+    numeric_length_when?: {
+      field?: string;
+      equals?: string;
+      length?: number;
+    };
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
@@ -1041,6 +1076,30 @@ function getLocalFieldIssue(
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
     return issue("error", isZh ? `最多 ${rules.maxLength} 个字符` : `Maximum ${rules.maxLength} characters`);
+  }
+
+  const numericLengthRule = rules?.numeric_length_when
+    ?? (
+      isVnPrearrivalContext(undefined, field)
+      && field.fieldName === "visa_number"
+      && values.visa_type?.trim() === "EV"
+        ? { field: "visa_type", equals: "EV", length: 9 }
+        : undefined
+    );
+  if (
+    trimmed &&
+    numericLengthRule?.field &&
+    numericLengthRule.equals &&
+    numericLengthRule.length &&
+    values[numericLengthRule.field]?.trim() === numericLengthRule.equals &&
+    !new RegExp(`^\\d{${numericLengthRule.length}}$`).test(trimmed)
+  ) {
+    return issue(
+      "error",
+      isZh
+        ? `电子签证编号必须是“Số / No.”后的 ${numericLengthRule.length} 位纯数字`
+        : `The E-Visa number must be the ${numericLengthRule.length}-digit numeric value on the “Số / No.” line`,
+    );
   }
 
   if (rules?.pattern && trimmed) {
@@ -2271,7 +2330,7 @@ export function DynamicStepForm({
             const source = getVnPrearrivalOfficialSource(field);
             if (!source) return false;
             if (field.fieldName === "phone_country_code") return false;
-            if (source.endsWith(":flight")) return true;
+            if (source.endsWith(":flight") || source.endsWith(":hotel")) return true;
             const parentKey = getVnPrearrivalDependsOn(field);
             return getVnPrearrivalStaticOptions(source, parentKey ? values[parentKey] ?? "" : "") === null;
           })
@@ -2321,6 +2380,7 @@ export function DynamicStepForm({
       const parent = parentKey ? valuesRef.current[parentKey] ?? "" : "";
       const waitsForKeyword =
         source.endsWith(":hotel") &&
+        !parent.trim() &&
         keyword.trim().length < 2;
       if (waitsForKeyword) {
         setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
@@ -2341,6 +2401,10 @@ export function DynamicStepForm({
           limit: source.endsWith(":flight") || source.endsWith(":hotel") ? "100" : "10000",
         });
         if (parent.trim()) params.set("parent", parent.trim());
+        if (source.endsWith(":hotel")) {
+          const province = valuesRef.current.province_city_of_hotel?.trim() ?? "";
+          if (province) params.set("province", province);
+        }
         const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`, {
           signal: controller.signal,
         });
@@ -3054,7 +3118,7 @@ export function DynamicStepForm({
     }
     if (vnPrearrivalSource) {
       const parentKey = getVnPrearrivalDependsOn(field);
-      const staticOptions = vnPrearrivalSource.endsWith(":flight")
+      const staticOptions = vnPrearrivalSource.endsWith(":flight") || vnPrearrivalSource.endsWith(":hotel")
         ? null
         : getVnPrearrivalStaticOptions(vnPrearrivalSource, parentKey ? values[parentKey] ?? "" : "");
       if (staticOptions) {
@@ -3078,15 +3142,24 @@ export function DynamicStepForm({
           if (typeof option === "string") return option === selectedValue;
           return option.value === selectedValue;
         });
+      const selectedHotelWardOption =
+        field.fieldName === "ward_commune_of_hotel" && selectedValue && !hasSelectedValue
+          ? getVnPrearrivalSelectedHotelWardOption(values)
+          : null;
       fieldOptions = localizedRemoteOptions.length > 0
         ? field.fieldName === "phone_country_code" && localizedRemoteOptions.length === 0
           ? fieldOptions
           : selectedValue && !hasSelectedValue
-          ? [{ value: selectedValue, text: selectedValue }, ...localizedRemoteOptions]
+          ? [
+              selectedHotelWardOption ?? { value: selectedValue, text: selectedValue },
+              ...localizedRemoteOptions,
+            ]
           : localizedRemoteOptions
         : isLiveFlightSource
           ? []
-          : fieldOptions;
+          : selectedHotelWardOption
+            ? [selectedHotelWardOption]
+            : fieldOptions;
     }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);
