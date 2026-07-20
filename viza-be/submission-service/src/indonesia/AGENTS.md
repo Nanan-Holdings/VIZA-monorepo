@@ -22,10 +22,17 @@ Directorate General of Immigration eVisa portal.
 - Stop with `action_required` for real payment authorization, 3DS/OTP, unknown
   portal gates, or official portal layout drift. Do not fabricate a submitted
   status.
+- Fly containers do not have an X server. Keep
+  `INDONESIA_PLAYWRIGHT_HEADLESS=true` in cloud deployments even when a
+  one-time payment card is attached; surface 3DS/OTP as a checkpoint instead
+  of launching a headed browser.
 - Preserve screenshots/PDF/evidence artifacts outside Git.
 - `card-session.ts` owns the one-time card handoff for Indonesia official-fee
   payment continuation. Local development uses the localhost-only endpoint;
   production uses the bearer-token-protected internal endpoint on the single
   always-on legacy Fly worker. In both modes it must stay in process memory,
   consume PAN/CVV once, return only redacted metadata, and never persist card
+  data. The runner may consume the card at job start or lazily when the official
+  payment page is reached; the lazy consume closes the HTTP registration and
+  queue-claim timing gap while preserving single-use semantics.
   data to DB, logs, traces, env files, or applicant vault records.

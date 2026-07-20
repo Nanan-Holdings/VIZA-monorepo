@@ -133,15 +133,20 @@ type AdministrativeCatalog = {
   wards_by_province?: Record<string, AdministrativeItem[] | undefined>;
 };
 
-let officialStaticCatalog: OfficialStaticCatalog | null | undefined;
-let administrativeCatalog: AdministrativeCatalog | null | undefined;
+let officialStaticCatalog: OfficialStaticCatalog | undefined;
+let administrativeCatalog: AdministrativeCatalog | undefined;
 
 function readWorkspaceJson<T>(relativePath: string): T | null {
-  const candidates = [
-    path.resolve(process.cwd(), relativePath),
-    path.resolve(process.cwd(), "..", "..", relativePath),
-    path.resolve(__dirname, "..", "..", "..", "..", relativePath),
-  ];
+  const candidates = new Set<string>();
+  for (const start of [process.cwd(), __dirname]) {
+    let current = path.resolve(start);
+    for (let depth = 0; depth < 8; depth += 1) {
+      candidates.add(path.join(current, relativePath));
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  }
   for (const candidate of candidates) {
     try {
       if (fs.existsSync(candidate)) return JSON.parse(fs.readFileSync(candidate, "utf8")) as T;
@@ -153,22 +158,24 @@ function readWorkspaceJson<T>(relativePath: string): T | null {
 }
 
 function loadOfficialStaticCatalog(): OfficialStaticCatalog | null {
-  if (officialStaticCatalog !== undefined) return officialStaticCatalog;
-  officialStaticCatalog = readWorkspaceJson<OfficialStaticCatalog>(
+  if (officialStaticCatalog) return officialStaticCatalog;
+  const loaded = readWorkspaceJson<OfficialStaticCatalog>(
     "viza-fe/internal-website/lib/vn-prearrival/official-static-options.json",
   );
-  return officialStaticCatalog;
+  if (loaded) officialStaticCatalog = loaded;
+  return loaded;
 }
 
 function loadAdministrativeCatalog(): AdministrativeCatalog | null {
-  if (administrativeCatalog !== undefined) return administrativeCatalog;
-  administrativeCatalog = readWorkspaceJson<AdministrativeCatalog>(
+  if (administrativeCatalog) return administrativeCatalog;
+  const loaded = readWorkspaceJson<AdministrativeCatalog>(
     "viza-fe/internal-website/lib/vn-prearrival/administrative-units-legacy.json",
   );
-  return administrativeCatalog;
+  if (loaded) administrativeCatalog = loaded;
+  return loaded;
 }
 
-function officialCatalogLabel(source: string, value: string, parent = ""): string {
+export function officialCatalogLabel(source: string, value: string, parent = ""): string {
   if (!value) return value;
   if (source === "province") {
     return loadAdministrativeCatalog()?.provinces?.find((item) => item.value === value)?.label_en ?? value;
@@ -393,9 +400,20 @@ async function clickOfficialButton(page: Page, name: string): Promise<boolean> {
   return true;
 }
 
-function extractSixDigitCode(message: Pick<InboundMessage, "subject" | "text" | "html">): string | null {
+export function extractSixDigitCode(
+  message: Pick<InboundMessage, "subject" | "text" | "html" | "from_addr" | "headers">,
+): string | null {
   const haystack = [message.subject ?? "", message.text ?? "", message.html ?? ""].join("\n");
-  return /(?<![\w-])\d{6}(?![\w-])/.exec(haystack)?.[0] ?? null;
+  const bodyCode = /(?<![\w-])\d{6}(?![\w-])/.exec(haystack)?.[0] ?? null;
+  if (bodyCode) return bodyCode;
+
+  const trustedVietnamOtp =
+    /@immigration\.gov\.vn$/i.test(message.from_addr ?? "")
+    && /^Your OTP Code for Verification$/i.test(message.subject?.trim() ?? "");
+  if (!trustedVietnamOtp) return null;
+
+  const messageId = message.headers?.["message-id"] ?? message.headers?.["Message-ID"] ?? "";
+  return /\.(\d{6})(?=[.@A-Za-z])/.exec(messageId)?.[1] ?? null;
 }
 
 async function isEmailVerificationVisible(page: Page): Promise<boolean> {
@@ -639,16 +657,129 @@ async function findVisibleQrLocator(page: Page): Promise<Locator | null> {
   return null;
 }
 
+function isUsableQrPng(filePath: string): boolean {
+  try {
+    const bytes = fs.readFileSync(filePath);
+    return (
+      bytes.length >= 512 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    );
+  } catch {
+    return false;
+  }
+}
+
+function savePngDataUrl(dataUrl: string | null, filePath: string): boolean {
+  if (!dataUrl?.startsWith("data:image/png;base64,")) return false;
+  try {
+    fs.writeFileSync(filePath, Buffer.from(dataUrl.slice("data:image/png;base64,".length), "base64"));
+    return isUsableQrPng(filePath);
+  } catch {
+    return false;
+  }
+}
+
+async function saveQrFromDownloadLink(
+  page: Page,
+  filePath: string,
+  logs: string[],
+): Promise<boolean> {
+  const links = page.locator(
+    "a[download], a[href^='data:image/png'], a[href^='blob:']",
+  );
+  const count = Math.min(await links.count().catch(() => 0), 30);
+  for (let index = 0; index < count; index += 1) {
+    const link = links.nth(index);
+    if (!(await link.isVisible().catch(() => false))) continue;
+    const context = await link
+      .evaluate((element) => {
+        const text = (element.textContent ?? "").trim();
+        const href = element instanceof HTMLAnchorElement ? element.href : "";
+        const imageAlt = element.querySelector("img")?.getAttribute("alt") ?? "";
+        return `${text} ${imageAlt} ${href}`;
+      })
+      .catch(() => "");
+    if (!/qr|download/i.test(context)) continue;
+
+    const href = await link.getAttribute("href").catch(() => null);
+    if (savePngDataUrl(href, filePath)) {
+      logs.push("vn_prearrival_qr_saved_from_download_data_url");
+      return true;
+    }
+
+    try {
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: 8_000 }),
+        link.click(),
+      ]);
+      await download.saveAs(filePath);
+      if (isUsableQrPng(filePath)) {
+        logs.push("vn_prearrival_qr_saved_from_download");
+        return true;
+      }
+      fs.rmSync(filePath, { force: true });
+      logs.push("vn_prearrival_qr_download_was_not_png");
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+      logs.push(`vn_prearrival_qr_download_retry ${message}`);
+    }
+  }
+  return false;
+}
+
+async function saveQrFromElementSource(
+  locator: Locator,
+  filePath: string,
+  logs: string[],
+): Promise<boolean> {
+  const dataUrl = await locator
+    .evaluate((element) => {
+      if (element instanceof HTMLCanvasElement) {
+        return element.toDataURL("image/png");
+      }
+      if (element instanceof HTMLImageElement && element.currentSrc.startsWith("data:image/png")) {
+        return element.currentSrc;
+      }
+      const canvas = element.querySelector("canvas");
+      if (canvas instanceof HTMLCanvasElement) return canvas.toDataURL("image/png");
+      const image = element.querySelector("img");
+      return image instanceof HTMLImageElement && image.currentSrc.startsWith("data:image/png")
+        ? image.currentSrc
+        : null;
+    })
+    .catch(() => null);
+  if (!savePngDataUrl(dataUrl, filePath)) return false;
+  logs.push("vn_prearrival_qr_saved_from_element_source");
+  return true;
+}
+
 async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
   const filePath = path.join(dir, "confirmation-qr.png");
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + 60_000;
+  let downloadAttempted = false;
   while (Date.now() < deadline) {
+    if (!downloadAttempted) {
+      downloadAttempted = true;
+      if (await saveQrFromDownloadLink(page, filePath, logs)) return filePath;
+    }
     const qrLocator = await findVisibleQrLocator(page);
     if (qrLocator) {
+      if (await saveQrFromElementSource(qrLocator, filePath, logs)) return filePath;
       try {
         await qrLocator.screenshot({ path: filePath });
-        logs.push("vn_prearrival_qr_saved");
-        return filePath;
+        if (isUsableQrPng(filePath)) {
+          logs.push("vn_prearrival_qr_saved_from_visible_element");
+          return filePath;
+        }
+        fs.rmSync(filePath, { force: true });
+        logs.push("vn_prearrival_qr_element_capture_invalid");
       } catch (error) {
         const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
         logs.push(`vn_prearrival_qr_save_retry ${message}`);

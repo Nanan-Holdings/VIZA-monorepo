@@ -31,6 +31,7 @@ export interface IndonesiaPortalProbeInput {
     enabled?: boolean;
     waitTimeoutMs?: number;
     oneTimeCard?: IndonesiaOneTimeCard | null;
+    takeOneTimeCard?: () => IndonesiaOneTimeCard | null;
     onWaitingForUser?: (snapshot: {
       url: string;
       title: string | null;
@@ -3540,8 +3541,12 @@ async function waitForUserPaymentCompletion(
   let text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   let url = activePage.url();
   let state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
-  if (input.userPaymentHandoff?.oneTimeCard) {
-    await payIndonesiaPortalWithOneTimeCard(activePage, input.userPaymentHandoff.oneTimeCard, diagnostics);
+  const oneTimeCard =
+    input.userPaymentHandoff?.oneTimeCard ??
+    input.userPaymentHandoff?.takeOneTimeCard?.() ??
+    null;
+  if (oneTimeCard) {
+    await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
     activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
     title = await activePage.title().catch(() => null);
     text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
