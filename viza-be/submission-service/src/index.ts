@@ -6789,7 +6789,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     const userPaymentHandoffEnabled = readBooleanEnv("INDONESIA_USER_PAYMENT_HANDOFF_ENABLED", true);
     const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
       item.application_id,
-      readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false),
+      readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
+        readBooleanEnv("ID_CLOUD_CARD_SESSION_ENABLED", false),
     );
     const portalProbeHeadless = userPaymentHandoffEnabled
       ? false

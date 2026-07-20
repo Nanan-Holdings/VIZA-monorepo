@@ -362,8 +362,64 @@ function getSubmissionServiceLocalUrlCandidates(countryPath: "vietnam" | "indone
   return Array.from(new Set(urls));
 }
 
+function getIndonesiaCloudCardSessionConfig(): { baseUrl: string; token: string } | null {
+  const baseUrl = (
+    process.env.INDONESIA_SUBMISSION_SERVICE_URL ??
+    process.env.SUBMISSION_SERVICE_CLOUD_URL
+  )?.trim().replace(/\/+$/, "");
+  const token = process.env.INDONESIA_CARD_SESSION_INTERNAL_TOKEN?.trim();
+  if (!baseUrl || !token) return null;
+  if (process.env.NODE_ENV === "production" && !baseUrl.startsWith("https://")) return null;
+  return { baseUrl, token };
+}
+
 function officialFeeCardSessionPath(application: ApplicationRow): "vietnam" | "indonesia" {
   return isIndonesiaEVisaApplication(application.country, application.visa_type) ? "indonesia" : "vietnam";
+}
+
+async function postOneTimeCardSession(input: {
+  endpoint: string;
+  applicationId: string;
+  card: OneTimeCardInput;
+  token?: string;
+}): Promise<
+  | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
+  | { ok: false; error: string }
+> {
+  try {
+    const response = await fetch(input.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(input.token ? { Authorization: `Bearer ${input.token}` } : {}),
+      },
+      body: JSON.stringify({
+        applicationId: input.applicationId,
+        card: {
+          pan: input.card.pan,
+          expiry: input.card.expiry,
+          cvv: input.card.cvv,
+          holderName: input.card.holderName,
+        },
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: typeof payload?.error === "string" ? payload.error : `HTTP ${response.status}`,
+      };
+    }
+    return {
+      ok: true,
+      redactedCard: payload?.redactedCard ?? null,
+      expiresAtIso: typeof payload?.expiresAtIso === "string" ? payload.expiresAtIso : null,
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function registerOneTimeCardSession(applicationId: string, application: ApplicationRow, card: OneTimeCardInput): Promise<
@@ -371,44 +427,43 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   | { ok: false; error: string }
 > {
   const countryPath = officialFeeCardSessionPath(application);
+  if (countryPath === "indonesia") {
+    const cloud = getIndonesiaCloudCardSessionConfig();
+    if (cloud) {
+      const result = await postOneTimeCardSession({
+        endpoint: `${cloud.baseUrl}/internal/indonesia/card-session`,
+        applicationId,
+        card,
+        token: cloud.token,
+      });
+      if (!result.ok) {
+        console.error("Could not register Indonesia cloud card session", {
+          reason: result.error,
+        });
+        return {
+          ok: false,
+          error: "印尼云端付款会话暂时不可用，请稍后重试。",
+        };
+      }
+      return result;
+    }
+    if (process.env.NODE_ENV === "production") {
+      console.error("Indonesia cloud card session is not configured.");
+      return {
+        ok: false,
+        error: "印尼云端付款会话尚未配置，请联系 VIZA 支持。",
+      };
+    }
+  }
+
   const attempts: string[] = [];
   for (const baseUrl of getSubmissionServiceLocalUrlCandidates(countryPath)) {
     const endpoint = `${baseUrl}/local/${countryPath}/card-session`;
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          applicationId,
-          card: {
-            pan: card.pan,
-            expiry: card.expiry,
-            cvv: card.cvv,
-            holderName: card.holderName,
-          },
-        }),
-        cache: "no-store",
-      });
-      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!response.ok) {
-        const reason =
-          typeof payload?.error === "string"
-            ? payload.error
-            : `HTTP ${response.status}`;
-        attempts.push(`${endpoint} -> ${response.status} ${reason}`);
-        continue;
-      }
-      return {
-        ok: true,
-        redactedCard: payload?.redactedCard ?? null,
-        expiresAtIso: typeof payload?.expiresAtIso === "string" ? payload.expiresAtIso : null,
-      };
-    } catch (error) {
-      attempts.push(`${endpoint} -> ${error instanceof Error ? error.message : String(error)}`);
-    }
+    const result = await postOneTimeCardSession({ endpoint, applicationId, card });
+    if (result.ok) return result;
+    attempts.push(result.error);
   }
   console.error("Could not register one-time official-fee card session", {
-    applicationId,
     countryPath,
     attempts,
   });
