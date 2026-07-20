@@ -5999,8 +5999,14 @@ async function uploadArrivalCardArtifacts(input: {
   ext: "png" | "pdf";
   contentType: string;
   paths: string[];
+  strict?: boolean;
 }): Promise<string[]> {
-  if (!input.authUserId) return input.paths;
+  if (!input.authUserId) {
+    if (input.strict) {
+      throw new Error(`Cannot persist required ${input.kind} artifact without an artifact owner.`);
+    }
+    return input.paths;
+  }
   const uploaded: string[] = [];
   for (const filePath of input.paths) {
     try {
@@ -6018,6 +6024,9 @@ async function uploadArrivalCardArtifacts(input: {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[arrival-card] Failed to upload ${input.kind} artifact: ${message}`);
+      if (input.strict) {
+        throw new Error(`Required ${input.kind} artifact could not be persisted: ${message}`);
+      }
       uploaded.push(filePath);
     }
   }
@@ -6172,7 +6181,11 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       ext: "png",
       contentType: "image/png",
       paths: portalResult.qrCodes,
+      strict: true,
     });
+    if (portalResult.submitted && qrArtifacts.length === 0) {
+      throw new Error("Vietnam Pre-Arrival submission cannot complete without a stored QR artifact.");
+    }
     const pdfArtifacts = await uploadArrivalCardArtifacts({
       authUserId: artifactOwnerId,
       applicationId: item.application_id,
@@ -6792,13 +6805,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
         readBooleanEnv("ID_CLOUD_CARD_SESSION_ENABLED", false),
     );
-    const portalProbeHeadless = userPaymentHandoffEnabled
-      ? false
-      : readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true);
+    const portalProbeHeadless = readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true);
     const userPaymentHandoff = {
       enabled: userPaymentHandoffEnabled,
       waitTimeoutMs: Number.parseInt(process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? `${10 * 60 * 1000}`, 10),
       oneTimeCard: oneTimeIndonesiaCard,
+      takeOneTimeCard: () => consumeIndonesiaCardSession(item.application_id),
       onWaitingForUser: async (snapshot: {
         url: string;
         title: string | null;
