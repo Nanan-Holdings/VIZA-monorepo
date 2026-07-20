@@ -114,6 +114,29 @@ test("choosePhEtravelAccountPlan resumes the same alias after a failed prior att
   });
 });
 
+test("choosePhEtravelAccountPlan rotates an incomplete account outside the managed alias domain", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_legacy_gmail",
+      email: "legacy+ph@gmail.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "pending_registration",
+      storageState: null,
+    },
+    aliasEmail: "APPL-NEW-PH123456@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    email: "appl-new-ph123456@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
+  });
+});
+
 test("isMissingPhEtravelAccountsTableError detects missing PostgREST table errors", () => {
   assert.equal(isMissingPhEtravelAccountsTableError({
     code: "PGRST205",
