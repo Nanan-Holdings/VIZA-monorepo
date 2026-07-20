@@ -40,6 +40,15 @@ describe("application step sections", () => {
     expect(getApplicationStepSectionKey(step(1, "Trip Information"))).toBe("travel");
   });
 
+  it("classifies Philippines eTravel steps by their actual purpose", () => {
+    expect(getApplicationStepSectionKey(step(0, "Travel Registration"))).toBe("travel");
+    expect(getApplicationStepSectionKey(step(1, "Travel Details - Philippine Arrival"))).toBe("travel");
+    expect(getApplicationStepSectionKey(step(2, "Destination in the Philippines"))).toBe("stay");
+    expect(getApplicationStepSectionKey(step(3, "Other Travel Details"))).toBe("travel");
+    expect(getApplicationStepSectionKey(step(4, "Customs Declaration"))).toBe("securityAndBackground");
+    expect(getApplicationStepSectionKey(step(5, "Declaration Signature"))).toBe("securityAndBackground");
+  });
+
   it("keeps Malaysia MDAC trip and stay steps as separate sidebar sections", () => {
     const sections = buildApplicationStepSections([
       step(0, "Traveller Information"),

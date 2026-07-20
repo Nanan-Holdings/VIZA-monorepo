@@ -54,7 +54,6 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
       "has_accompanied_family_members",
       "checked_baggage_count",
       "handcarry_baggage_count",
-      "customs_signature_file",
       "final_declaration",
     ]) {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
@@ -67,10 +66,10 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
     expect(optionsByField.get("travel_type")?.some((option) => option.value === "ARRIVAL")).toBe(true);
     expect(optionsByField.get("travel_type")?.some((option) => option.value === "DEPARTURE")).toBe(true);
     expect(optionsByField.get("transport_type")?.some((option) => option.value === "AIR")).toBe(true);
-    expect(optionsByField.get("occupation")?.some((option) => option.value === "STUDENT_MINOR")).toBe(true);
-    expect(optionsByField.get("traveller_type")?.some((option) => option.value === "AIRCRAFT_PASSENGER")).toBe(true);
-    expect(optionsByField.get("airline_name")?.some((option) => option.value === "SKYJET_AIRLINES")).toBe(true);
-    expect(optionsByField.get("port_of_entry")?.some((option) => option.value === "NINOY AQUINO INTERNATIONAL AIRPORT")).toBe(true);
+    expect(optionsByField.get("occupation")?.some((option) => option.value === "OCC007")).toBe(true);
+    expect(optionsByField.get("traveller_type")?.some((option) => option.value === "AIRCRAFT PASSENGER")).toBe(true);
+    expect(optionsByField.get("airline_name")?.some((option) => option.value === "TC009")).toBe(true);
+    expect(optionsByField.get("port_of_entry")?.some((option) => option.value === "TP1000")).toBe(true);
 
     for (const fieldName of ["travel_type", "transport_type", "occupation", "traveller_type", "airline_name", "port_of_entry"]) {
       for (const option of optionsByField.get(fieldName) ?? []) {
@@ -78,6 +77,17 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
         expect(option.label_zh, `${fieldName}: ${option.value}`).toMatch(/[\u3400-\u9fff]/);
       }
     }
+  });
+
+  test("keeps the official airport snapshot one-to-one without duplicate labels", () => {
+    const ports = PH_ETRAVEL_FORM_FIELDS.find((field) => field.field_name === "port_of_entry")?.options ?? [];
+    expect(ports).toHaveLength(20);
+    expect(new Set(ports.map((option) => option.value)).size).toBe(ports.length);
+    expect(new Set(ports.map((option) => option.label_zh)).size).toBe(ports.length);
+  });
+
+  test("collects the customs signature in supporting documents instead of the form", () => {
+    expect(PH_ETRAVEL_FORM_FIELDS.some((field) => field.field_name === "customs_signature_file")).toBe(false);
   });
 
   test("includes bilingual Chinese labels for every field", () => {
