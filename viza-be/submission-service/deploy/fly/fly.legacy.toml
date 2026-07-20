@@ -7,6 +7,10 @@ primary_region = "sin"
   PORT = "8080"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
+  # Vercel registers Indonesia payment cards through the token-protected
+  # internal endpoint. Cards remain in this single always-on machine's memory
+  # for one consumption and are never written to Fly config, logs, or storage.
+  ID_CLOUD_CARD_SESSION_ENABLED = "true"
   # Fly has no interactive display. The MDAC worker must use the browser
   # provider configured through secrets (or its container Chromium) headlessly.
   MDAC_PLAYWRIGHT_HEADLESS = "true"
