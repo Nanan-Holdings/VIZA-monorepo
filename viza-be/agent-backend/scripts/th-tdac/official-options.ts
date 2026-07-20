@@ -48,13 +48,15 @@ export const TDAC_SEA_TRANSPORT_OPTIONS = [
 
 export const TDAC_PURPOSE_OPTIONS = [
   option("holiday", "度假", "HOLIDAY"),
-  option("business", "商务", "BUSINESS"),
-  option("education", "教育", "EDUCATION"),
-  option("employment", "工作", "EMPLOYMENT"),
   option("meeting", "会议", "MEETING"),
-  option("medical", "医疗", "MEDICAL"),
-  option("return_resident", "返回居住地", "RETURN RESIDENT"),
-  option("transit", "过境", "TRANSIT"),
+  option("sports", "体育活动", "SPORTS"),
+  option("business", "商务", "BUSINESS"),
+  option("incentive", "奖励旅游", "INCENTIVE"),
+  option("medical_wellness", "医疗与康养", "MEDICAL & WELLNESS"),
+  option("education", "教育", "EDUCATION"),
+  option("convention", "大会活动", "CONVENTION"),
+  option("employment", "工作", "EMPLOYMENT"),
+  option("exhibition", "展览活动", "EXHIBITION"),
   option("others", "其他（请说明）", "OTHERS (PLEASE SPECIFY)"),
 ];
 
