@@ -207,51 +207,51 @@ async function controlForItem(page: Page, item: PhEtravelFieldPlanItem): Promise
   return null;
 }
 
+async function selectOfficialDatePicker(
+  page: Page,
+  input: Locator,
+  isoDate: string,
+): Promise<boolean> {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return false;
+  const [, year, month, day] = match;
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const monthName = monthNames[Number(month) - 1];
+  if (!monthName) return false;
+
+  await input.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+  const popper = page.locator(".react-datepicker-popper:visible").last();
+  if (!await popper.waitFor({ state: "visible", timeout: 5_000 }).then(() => true).catch(() => false)) {
+    return false;
+  }
+
+  const headerSelects = popper.locator(".react-datepicker__header select");
+  if (await headerSelects.count().catch(() => 0) >= 2) {
+    await headerSelects.nth(1).selectOption(year, { timeout: 5_000 }).catch(() => undefined);
+    await headerSelects.nth(0).selectOption(monthName, { timeout: 5_000 }).catch(() => undefined);
+    await page.waitForTimeout(250);
+  }
+
+  const targetDay = popper.locator(
+    `.react-datepicker__day--0${day}:not(.react-datepicker__day--outside-month):not(.react-datepicker__day--disabled)`,
+  ).first();
+  if (!await targetDay.isVisible({ timeout: 3_000 }).catch(() => false)) return false;
+  await targetDay.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+  await page.waitForTimeout(750);
+  const formatted = `${month}/${day}/${year}`;
+  return await input.inputValue().catch(() => "") === formatted;
+}
+
 async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
   if (typeof item.value !== "string" || !item.value) return false;
   if (item.kind === "date" && item.portalName) {
     const dateInput = await firstVisible([
       page.locator(`input[name="${item.portalName}"]:visible`),
     ]);
-    if (dateInput) {
-      const formatted = item.value.replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$2/$3/$1");
-      await dateInput.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-      await dateInput.fill(formatted, { timeout: 5_000 }).catch(() => undefined);
-      await dateInput.press("Tab").catch(() => undefined);
-      await page.waitForTimeout(500);
-      if (await dateInput.inputValue().catch(() => "")) return true;
-
-      // The official field is react-input-mask ("99/99/9999"). Browser fill()
-      // can be ignored by that component, while real sequential key events
-      // update both the mask and Formik state.
-      await dateInput.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-      await dateInput.press("Control+A").catch(() => undefined);
-      await dateInput.pressSequentially(formatted, { delay: 40 }).catch(() => undefined);
-      await dateInput.press("Tab").catch(() => undefined);
-      await page.waitForTimeout(500);
-      if (await dateInput.inputValue().catch(() => "")) return true;
-
-      await dateInput.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-      const day = Number(item.value.slice(-2));
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        await page.waitForTimeout(300);
-        const dayOption = await firstVisible([
-          page.locator(
-            `.react-datepicker__day--0${String(day).padStart(2, "0")}:not(.react-datepicker__day--outside-month):not(.react-datepicker__day--disabled)`,
-          ),
-          page.locator(".react-datepicker__day[role='option']").filter({ hasText: new RegExp(`^\\s*${day}\\s*$`) }),
-        ]);
-        if (!dayOption) continue;
-        await dayOption.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-        await page.waitForTimeout(750);
-        if (await dateInput.inputValue().catch(() => "")) return true;
-      }
-      await dateInput.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-      await dateInput.press("ArrowRight").catch(() => undefined);
-      await dateInput.press("Enter").catch(() => undefined);
-      await page.waitForTimeout(750);
-      if (await dateInput.inputValue().catch(() => "")) return true;
-    }
+    if (dateInput) return selectOfficialDatePicker(page, dateInput, item.value);
   }
   if (item.key === "philippines_address") {
     const destination = await firstVisible([
@@ -315,6 +315,13 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
 
 const normalizedChoiceText = (value: string): string =>
   value.normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, " ").trim().toLowerCase();
+
+function expectedRadioValue(item: PhEtravelFieldPlanItem): string {
+  const wanted = normalizedChoiceText(String(item.value ?? ""));
+  if (wanted === "hotel resort") return "hotel";
+  if (wanted === "transit via airport") return "transit";
+  return wanted;
+}
 
 async function selectStaticNamedCombobox(
   page: Page,
@@ -423,18 +430,21 @@ async function selectChoice(page: Page, item: PhEtravelFieldPlanItem): Promise<b
     const namedRadios = page.locator(`input[type="radio"][name="${item.portalName}"]`);
     const radioCount = await namedRadios.count().catch(() => 0);
     const wanted = normalizedChoiceText(item.value);
+    const expectedValue = expectedRadioValue(item);
     for (let index = 0; index < radioCount; index += 1) {
       const radio = namedRadios.nth(index);
       const value = normalizedChoiceText(await radio.getAttribute("value").catch(() => "") ?? "");
       const labelText = normalizedChoiceText(
         await radio.locator("xpath=ancestor::label[1]").innerText().catch(() => ""),
       );
-      const mappedMatch =
-        wanted === "hotel resort" && value === "hotel" ||
-        wanted === "transit via airport" && value === "transit";
+      const mappedMatch = value === expectedValue;
       if (value !== wanted && labelText !== wanted && !mappedMatch) continue;
       await radio.click({ force: true, timeout: 5_000 });
-      return radio.isChecked().catch(() => false);
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        if (await radio.isChecked().catch(() => false)) return true;
+        await page.waitForTimeout(100);
+      }
+      return false;
     }
   }
   if (item.portalName && await selectNamedCombobox(page, item)) return true;
@@ -485,7 +495,9 @@ async function fillVisibleFields(page: Page, plan: PhEtravelFieldPlanItem[], com
       if (count > 0) {
         const inputType = await named.first().getAttribute("type").catch(() => null);
         const retained = inputType === "radio"
-          ? await named.evaluateAll((inputs) => inputs.some((input) => (input as HTMLInputElement).checked)).catch(() => false)
+          ? normalizedChoiceText(
+            await page.locator(`input[type="radio"][name="${item.portalName}"]:checked`).first().getAttribute("value").catch(() => "") ?? "",
+          ) === expectedRadioValue(item)
           : Boolean(await named.first().inputValue().catch(() => ""));
         if (!retained) completed.delete(item.key);
       } else {
