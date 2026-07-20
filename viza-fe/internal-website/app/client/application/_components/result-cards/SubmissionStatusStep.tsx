@@ -91,6 +91,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isOfficialVietnamPrearrivalReference(value: string | null | undefined): value is string {
+  if (!value) return false;
+  const normalized = value.trim().toUpperCase();
+  return /^(?:DE|VN|PAI|QR)[A-Z0-9-]{6,}$/.test(normalized) && /\d/.test(normalized);
+}
+
 function isVietnamPaymentCheckpointResult(
   result: SubmissionResult | null,
 ): result is VnSubmissionResult {
@@ -110,13 +116,24 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [startingAgain, setStartingAgain] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const successful = result.submitted && result.status === "submitted";
   const scheduled = result.status === "scheduled";
-  const referenceNumber = result.referenceNumber ?? result.confirmationNumber;
+  const rawReferenceNumber = result.referenceNumber ?? result.confirmationNumber;
+  const referenceNumber =
+    result.country === "VN" && !isOfficialVietnamPrearrivalReference(rawReferenceNumber)
+      ? null
+      : rawReferenceNumber;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const qrPath = result.country === "VN"
     ? result.artifacts?.screenshots?.find((path) => /(?:^|[-_/])qr(?:[-_.]|$)|confirmation-qr/i.test(path)) ?? null
     : null;
+  const vietnamFinalizing =
+    result.country === "VN" &&
+    result.submitted &&
+    result.status === "submitted" &&
+    !referenceNumber &&
+    !storedPdfPath &&
+    !qrPath;
+  const successful = result.submitted && result.status === "submitted" && !vietnamFinalizing;
   const hasOfficialPdfDownload =
     (result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
@@ -193,13 +210,15 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
         <CardTitle className="flex items-center gap-3">
           {successful ? (
             <ShieldCheck className="h-6 w-6 text-emerald-600" />
-          ) : scheduled ? (
+          ) : scheduled || vietnamFinalizing ? (
             <Clock className="h-6 w-6 text-blue-700" />
           ) : (
             <AlertTriangle className="h-6 w-6 text-amber-600" />
           )}
           {successful
             ? isZh ? `${countryLabel} 提交成功` : `${countryLabel} submitted`
+            : vietnamFinalizing
+              ? isZh ? "越南入境申报正在官网最终处理" : "Vietnam Pre-Arrival is being finalized by the official portal"
             : scheduled
               ? isZh ? `${countryLabel} 已排队，等待自动提交` : `${countryLabel} scheduled for automatic submission`
             : isZh ? `${countryLabel} 未完成` : `${countryLabel} not completed`}
@@ -250,6 +269,10 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
         <p className="text-sm text-muted-foreground">
           {successful
             ? result.portalResponseSummary
+            : vietnamFinalizing
+              ? isZh
+                ? "官网已接收申报并完成邮箱验证，正在生成最终二维码和 PDF。请勿重复提交；结果完成后会发送到邮箱并同步回此页面。"
+                : "The official portal has received the declaration and verified the email. It is generating the final QR code and PDF. Do not submit again; the result will be emailed and synchronized here."
             : scheduled
               ? result.portalResponseSummary
             : result.errorDetails?.message || result.portalResponseSummary}
@@ -269,10 +292,12 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
               </a>
             </Button>
           ) : null}
-          <Button type="button" variant={pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
-            {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-            {isZh ? "再次提交" : `Submit another ${countryLabel}`}
-          </Button>
+          {!vietnamFinalizing ? (
+            <Button type="button" variant={pdfUrl ? "outline" : "default"} onClick={startAgain} disabled={startingAgain}>
+              {startingAgain ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              {isZh ? "再次提交" : `Submit another ${countryLabel}`}
+            </Button>
+          ) : null}
         </div>
         {!pdfUrl && successful ? (
           <p className="text-xs text-muted-foreground">
