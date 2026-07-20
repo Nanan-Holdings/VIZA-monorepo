@@ -3746,6 +3746,7 @@ function derivePhEtravelAccountEmail(baseAlias: string): string {
 const PH_ETRAVEL_RETRYABLE_ACCOUNT_ERROR_CODES = new Set([
   "ph_etravel_official_account_required",
   "ph_etravel_official_login_verification_required",
+  "ph_etravel_official_mpin_invalid",
   "ph_etravel_official_registration_verification_required",
   "ph_etravel_registration_turnstile_blocked",
   "ph_etravel_registration_otp_continue_disabled",
@@ -6573,6 +6574,11 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
           await markPhEtravelPlanFailed({ applicantId: profile.id, plan: phAccountPlan });
           phAccountPlan = await loadOrCreatePhEtravelAccountPlan({
             applicantId: profile.id,
+            // An eGovPH account whose saved MPIN is rejected cannot be
+            // repaired by repeating registration with the same alias.
+            // Rotate to a fresh catch-all alias and establish credentials
+            // that VIZA can persist for subsequent submissions.
+            forceCreateNew: error.code === "ph_etravel_official_mpin_invalid",
             existingAccount: await loadPhEtravelAccount(profile.id),
           });
           if (phAccountPlan.mode === "create_new") {

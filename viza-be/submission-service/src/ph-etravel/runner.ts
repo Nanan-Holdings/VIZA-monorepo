@@ -847,7 +847,26 @@ async function fillMpinPrompt(
   logs.push("ph_etravel_egov_mpin_submitted");
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(3_000);
-  return bodyText(page);
+  const afterMpinText = await bodyText(page);
+  if (isPhEtravelMpinRejectedText(afterMpinText)) {
+    screenshots.push(await saveScreenshot(page, "official-mpin-invalid", logs));
+    throw new PhEtravelPortalError(
+      "The saved 6-digit eGovPH MPIN was rejected by the official Philippines eTravel portal.",
+      {
+        code: "ph_etravel_official_mpin_invalid",
+        screenshotPaths: screenshots,
+        portalSummary: afterMpinText.slice(0, 700),
+      },
+    );
+  }
+  return afterMpinText;
+}
+
+export function isPhEtravelMpinRejectedText(value: string): boolean {
+  return (
+    /invalid\s+(?:credentials|mpin|passcode)/i.test(value) ||
+    /incorrect\s+(?:mpin|passcode)/i.test(value)
+  );
 }
 
 async function completeEgovPersonalInformationOnboarding(
