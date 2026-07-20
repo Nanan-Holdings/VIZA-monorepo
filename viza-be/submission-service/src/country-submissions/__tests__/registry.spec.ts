@@ -121,6 +121,17 @@ test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
 });
 
+test("registry: Philippines eTravel does not require removed questionnaire answers", () => {
+  const provider = getCountrySubmissionProvider("philippines", "PH_ETRAVEL_ARRIVAL_CARD");
+  assert.ok(provider);
+  const requiredKeys = provider.requiredFields
+    .filter((field) => field.required)
+    .map((field) => field.key);
+
+  assert.equal(requiredKeys.includes("answers.has_accompanied_family_members"), false);
+  assert.equal(requiredKeys.includes("answers.customs_signature_file"), false);
+});
+
 test("registry: Taiwan entry permit requires the Singapore eligibility route and declaration", async () => {
   const answers = {
     eligibility_route: "work_one_year", permit_type: "single", singapore_residence_pass_number: "EP123", singapore_residence_expiry_date: "2030-01-01",
