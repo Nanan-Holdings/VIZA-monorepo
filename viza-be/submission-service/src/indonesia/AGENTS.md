@@ -23,7 +23,9 @@ Directorate General of Immigration eVisa portal.
   portal gates, or official portal layout drift. Do not fabricate a submitted
   status.
 - Preserve screenshots/PDF/evidence artifacts outside Git.
-- `card-session.ts` owns the local-only one-time card handoff for Indonesia
-  official-fee payment continuation. It must stay in process memory, consume
-  PAN/CVV once, return only redacted metadata, and never persist card data to
-  DB, logs, traces, env files, or applicant vault records.
+- `card-session.ts` owns the one-time card handoff for Indonesia official-fee
+  payment continuation. Local development uses the localhost-only endpoint;
+  production uses the bearer-token-protected internal endpoint on the single
+  always-on legacy Fly worker. In both modes it must stay in process memory,
+  consume PAN/CVV once, return only redacted metadata, and never persist card
+  data to DB, logs, traces, env files, or applicant vault records.

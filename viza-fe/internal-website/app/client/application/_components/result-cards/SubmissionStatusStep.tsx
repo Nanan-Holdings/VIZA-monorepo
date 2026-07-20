@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, Clock, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Clock, Download, ExternalLink, FlaskConical, Loader2, Plus, RotateCw, ShieldCheck, Upload } from "lucide-react";
 import type {
   DigitalArrivalCardSubmissionResult,
   GenericEvisaSubmissionResult,
@@ -91,6 +91,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const VIETNAM_QR_SYNC_STALE_AFTER_MS = 5 * 60 * 1000;
+
 function isOfficialVietnamPrearrivalReference(value: string | null | undefined): value is string {
   if (!value) return false;
   const normalized = value.trim().toUpperCase();
@@ -119,6 +121,12 @@ function isVietnamPrearrivalAwaitingQr(
     result.status === "submitted" &&
     !getVietnamPrearrivalQrPath(result)
   );
+}
+
+function isOlderThan(value: string | null | undefined, ageMs: number): boolean {
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && Date.now() - timestamp >= ageMs;
 }
 
 function isVietnamPaymentCheckpointResult(
@@ -1167,6 +1175,8 @@ export function SubmissionStatusStep({
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
+  const [recoveringQr, setRecoveringQr] = useState(false);
+  const [qrRecoveryError, setQrRecoveryError] = useState<string | null>(null);
 
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
@@ -1230,6 +1240,55 @@ export function SubmissionStatusStep({
     }
   }, [applicationId, country, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
 
+  const handleQrRecovery = useCallback(async (file: File) => {
+    if (!applicationId) return;
+    setRecoveringQr(true);
+    setQrRecoveryError(null);
+    try {
+      const formData = new FormData();
+      formData.set("qr", file);
+      const response = await fetch(
+        `/api/applications/${applicationId}/submission-artifact`,
+        {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin",
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        result?: unknown;
+      } | null;
+      if (!response.ok || !body?.result || !isRecord(body.result)) {
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : isZh
+              ? "二维码上传失败，请重试。"
+              : "Could not upload the QR code. Please try again.",
+        );
+      }
+      const now = new Date().toISOString();
+      setSnapshot((current) => ({
+        status: "completed",
+        stage: "completed",
+        progress: 100,
+        message: isZh ? "二维码已同步。" : "QR code synchronized.",
+        result: body.result as SubmissionResult,
+        error: null,
+        updatedAt: now,
+        applicationStatus: "completed",
+        country: "VN",
+        visaType: "VN_PREARRIVAL_DECLARATION",
+        queue: current?.queue ?? null,
+      }));
+    } catch (error) {
+      setQrRecoveryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRecoveringQr(false);
+    }
+  }, [applicationId, isZh]);
+
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
     [status],
@@ -1269,6 +1328,11 @@ export function SubmissionStatusStep({
       ? result
       : snapshot?.result ?? result;
   const vietnamPrearrivalAwaitingQr = isVietnamPrearrivalAwaitingQr(effectiveResult);
+  const vietnamQrSyncStalled =
+    vietnamPrearrivalAwaitingQr &&
+    Boolean(snapshot) &&
+    !isActiveSnapshot(snapshot) &&
+    isOlderThan(snapshot?.updatedAt, VIETNAM_QR_SYNC_STALE_AFTER_MS);
   const effectiveError = extractError(effectiveResult, snapshot?.error);
   const effectiveApplicationStatus = terminalPropsAvailable
     ? status
@@ -1512,6 +1576,59 @@ export function SubmissionStatusStep({
           requiresOfficialPaymentCard={isVietnamSubmission}
         />
       </div>
+    );
+  }
+
+  if (vietnamQrSyncStalled && isDigitalArrivalCardResult(effectiveResult)) {
+    return (
+      <Card className="rounded-lg border-amber-300">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <AlertTriangle className="h-6 w-6 text-amber-600" />
+            {isZh ? "官网二维码未同步" : "Official QR code was not synchronized"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <p className="text-sm leading-6 text-muted-foreground">
+            {isZh
+              ? "官网流程可能已经完成，但这次历史运行没有保存二维码，后台任务也已结束。请上传你从官网或邮件收到的官方二维码，系统会立即恢复为成功状态并提供下载；无需重复提交申报。"
+              : "The official submission may already be complete, but this historical run did not save its QR code and the background job has ended. Upload the official QR image received from the portal or email to restore the successful result without submitting again."}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button asChild disabled={!applicationId || recoveringQr}>
+              <label className="cursor-pointer">
+                {recoveringQr ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {isZh ? "上传已收到的官方二维码" : "Upload received official QR"}
+                <input
+                  className="sr-only"
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  aria-label={isZh ? "上传已收到的官方二维码" : "Upload received official QR"}
+                  disabled={!applicationId || recoveringQr}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) void handleQrRecovery(file);
+                  }}
+                />
+              </label>
+            </Button>
+            <Button asChild variant="outline">
+              <a href={effectiveResult.portalUrl} target="_blank" rel="noopener noreferrer">
+                {isZh ? "打开官方入境卡网站" : "Open official arrival card website"}
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </a>
+            </Button>
+          </div>
+          {qrRecoveryError ? (
+            <p className="text-sm text-red-700">{qrRecoveryError}</p>
+          ) : null}
+        </CardContent>
+      </Card>
     );
   }
 

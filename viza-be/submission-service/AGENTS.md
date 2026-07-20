@@ -403,6 +403,12 @@ filling and one-shot submission for the applicant.
   and CVV in process memory with a short TTL, and deletes the card when the
   payment worker consumes it. Do not persist these values to DB, queue payloads,
   logs, traces, `.env`, AGENTS, or profile records.
+- `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
+  memory contract for Indonesia C1/B1 official-fee payments. Local development
+  uses `POST /local/indonesia/card-session`; production may use
+  `POST /internal/indonesia/card-session` only on the single always-on legacy
+  Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true` and a matching
+  `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
 - `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
   registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
   or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,

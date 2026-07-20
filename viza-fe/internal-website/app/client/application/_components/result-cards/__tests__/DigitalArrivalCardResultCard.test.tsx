@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result";
 import {
@@ -140,6 +140,101 @@ describe("DigitalArrivalCardResultCard", () => {
     expect(screen.getByRole("link", { name: "下载官方二维码" })).toHaveAttribute(
       "href",
       expect.stringContaining("vn-prearrival-qr-1.png"),
+    );
+  });
+
+  it("stops stale 99% progress and restores the result from a received QR image", async () => {
+    const awaitingQr: DigitalArrivalCardSubmissionResult = {
+      country: "VN",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "vietnam_prearrival_live",
+      applicationId: "application-id",
+      submitted: true,
+      confirmationNumber: null,
+      referenceNumber: null,
+      portalUrl: "https://prearrival.immigration.gov.vn/",
+      portalResponseSummary: "The old runner did not retain the QR.",
+      artifacts: { screenshots: [], qrCodes: [], pdfs: [], logs: [], traces: [] },
+      payloadSummary: { accommodationAddressProvided: true },
+    };
+    const recovered: DigitalArrivalCardSubmissionResult = {
+      ...awaitingQr,
+      portalResponseSummary: "Official QR recovered.",
+      artifacts: {
+        screenshots: [],
+        qrCodes: ["user/application-id/VN/vn-prearrival-qr-recovered.png"],
+        pdfs: [],
+        logs: ["vn_prearrival_qr_recovered_from_applicant"],
+        traces: [],
+      },
+    };
+    const fetchMock = vi.fn().mockImplementation(
+      async (_url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ ok: true, result: recovered }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "completed",
+            stage: "completed",
+            progress: 100,
+            result: awaitingQr,
+            error: null,
+            message: "Submission completed.",
+            updatedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+            applicationStatus: "completed",
+            country: "VN",
+            visaType: "VN_PREARRIVAL_DECLARATION",
+            queue: {
+              id: "queue-id",
+              status: "done",
+              mode: "live_assisted",
+              provider: "vietnam_prearrival_live",
+            },
+          }),
+        };
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="vietnam"
+        visaType="VN_PREARRIVAL_DECLARATION"
+        status="completed"
+        result={awaitingQr}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("官网二维码未同步")).toBeInTheDocument();
+    });
+
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const file = new File([pngBytes], "official-qr.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("上传已收到的官方二维码"), {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Vietnam Pre-Arrival 提交成功")).toBeInTheDocument();
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/applications/application-id/submission-artifact",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(screen.getByRole("link", { name: "下载官方二维码" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("vn-prearrival-qr-recovered.png"),
     );
   });
 });
