@@ -101,7 +101,7 @@ const DEFAULT_PAYLOAD: PhEtravelPortalPayload = {
   mobileNumber: "13800138000",
   travelType: "ARRIVAL",
   transportType: "AIR",
-  flightNumber: "PR100",
+  flightNumber: "PR101",
   airlineOrVesselName: "Philippine Airlines",
   airportOfOrigin: "Singapore Changi Airport",
   portOfEntry: "Ninoy Aquino International Airport T1 - (MNL)",

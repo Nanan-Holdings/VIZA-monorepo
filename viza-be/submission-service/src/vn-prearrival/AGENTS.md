@@ -22,3 +22,6 @@ Guardrails:
   including its unpadded/padded alias such as `MH746 (MH0746) - DAD`; verify
   that selecting the option auto-populates the locked airport field. Keep this
   pure formatting contract in `flight-label.ts`.
+- Final success requires the official success heading plus a QR or confirmation
+  reference. Keep strict result-page matching in `result-page.ts`; processing
+  or Finalizing copy must never be reported as completed.

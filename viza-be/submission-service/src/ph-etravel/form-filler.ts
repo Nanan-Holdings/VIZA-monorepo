@@ -128,9 +128,9 @@ export function buildPhEtravelFieldPlan(
     { key: "flight_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "choice", value: payload.flightNumber, required: true },
     { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
     { key: "airport_of_origin", portalName: "origin_port", labels: ["Airport of Origin", "Port of Origin"], kind: "text", value: payload.airportOfOrigin, required: true },
+    { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", "Airport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
     { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
     { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
-    { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", "Airport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
     { key: "with_transit", portalName: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
     { key: "transit_country", portalName: "transit_country_code", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
     { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
@@ -245,6 +245,8 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
         if (item.key === "philippines_address") {
           const close = await firstVisible([page.getByRole("button", { name: /^Close$/i })]);
           if (close) await close.click({ force: true, timeout: 3_000 }).catch(() => undefined);
+          await page.keyboard.press("Escape").catch(() => undefined);
+          await page.getByText(/^eVisa$/i).click({ force: true, timeout: 2_000 }).catch(() => undefined);
         }
         return true;
       }
@@ -270,43 +272,58 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
 const normalizedChoiceText = (value: string): string =>
   value.normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, " ").trim().toLowerCase();
 
-async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
-  if (!item.portalName || typeof item.value !== "string") return false;
-  const namedSelector = `input[name="${item.portalName}"]`;
-  let control = await firstVisible([page.locator(`${namedSelector}:visible`)]);
-  if (!control) {
-    const named = page.locator(namedSelector).first();
-    if (await named.count().catch(() => 0)) {
-      control = await firstVisible([
-        named.locator("xpath=ancestor::div[.//*[@role='combobox']][1]").getByRole("combobox"),
-        named.locator("xpath=preceding::input[@role='combobox'][1]"),
-      ]);
-    }
-  }
-  if (!control) {
-    for (const label of item.labels) {
-      const labelNode = await firstVisible([
-        page.locator("label").filter({ hasText: new RegExp(`^\\s*${escapeRegex(label)}\\s*$`, "i") }),
-      ]);
-      if (!labelNode) continue;
-      control = await firstVisible([
-        labelNode.locator("xpath=preceding-sibling::*[1]//*[@role='combobox']"),
-        labelNode.locator("xpath=parent::*//*[@role='combobox']"),
-      ]);
-      if (control) break;
-    }
-  }
+async function selectStaticNamedCombobox(
+  page: Page,
+  item: PhEtravelFieldPlanItem,
+  namedSelector: string,
+): Promise<boolean> {
+  const hidden = page.locator(`${namedSelector}[type="hidden"]`).first();
+  if (!await hidden.count().catch(() => 0)) return false;
+  const root = hidden.locator("xpath=ancestor::div[.//input[@role='combobox']][1]");
+  const control = await firstVisible([
+    root.locator("input[role='combobox']"),
+    hidden.locator("xpath=preceding::input[@role='combobox'][1]"),
+  ]);
   if (!control) return false;
 
   await control.click({ force: true, timeout: 5_000 }).catch(() => undefined);
   if (await control.isEditable().catch(() => false)) {
-    await control.fill(item.value, { timeout: 5_000 }).catch(() => undefined);
+    await control.fill(item.value as string, { timeout: 5_000 }).catch(() => undefined);
+  }
+  const wanted = normalizedChoiceText(item.value as string);
+  const options = page.getByRole("option");
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.waitForTimeout(attempt === 0 ? 500 : 250);
+    const count = await options.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const option = options.nth(index);
+      if (!await option.isVisible({ timeout: 100 }).catch(() => false)) continue;
+      if (normalizedChoiceText(await option.innerText().catch(() => "")) !== wanted) continue;
+      if (!await option.click({ force: true, timeout: 3_000 }).then(() => true).catch(() => false)) continue;
+      await page.waitForTimeout(250);
+      return normalizedChoiceText(await hidden.inputValue().catch(() => "")) === wanted;
+    }
   }
 
+  await page.keyboard.press("Escape").catch(() => undefined);
+  return false;
+}
+
+async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
+  if (!item.portalName || typeof item.value !== "string") return false;
+  const namedSelector = `input[name="${item.portalName}"]`;
+  if (await page.locator(`${namedSelector}[type="hidden"]`).count().catch(() => 0)) {
+    return selectStaticNamedCombobox(page, item, namedSelector);
+  }
+  const control = await firstVisible([page.locator(`${namedSelector}:visible`)]);
+  if (!control || await control.getAttribute("role") !== "combobox") return false;
+
   const wanted = normalizedChoiceText(item.value);
-  let chosen = false;
-  for (let attempt = 0; attempt < 8 && !chosen; attempt += 1) {
-    await page.waitForTimeout(attempt === 0 ? 250 : 500);
+  if (item.key === "flight_number") await page.waitForTimeout(1_500);
+  await control.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+  await control.fill(item.value, { timeout: 5_000 }).catch(() => undefined);
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await page.waitForTimeout(attempt === 0 ? 750 : 350);
     const options = page.getByRole("option");
     const count = await options.count().catch(() => 0);
     for (let index = 0; index < count; index += 1) {
@@ -314,22 +331,19 @@ async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Pr
       if (!await option.isVisible({ timeout: 100 }).catch(() => false)) continue;
       const text = normalizedChoiceText(await option.innerText().catch(() => ""));
       if (text !== wanted && !text.endsWith(` ${wanted}`)) continue;
-      chosen = await option.click({ force: true, timeout: 3_000 }).then(() => true).catch(() => false);
-      if (chosen) break;
+      if (!await option.click({ force: true, timeout: 3_000 }).then(() => true).catch(() => false)) continue;
+      await page.waitForTimeout(300);
+      const selectedValue = normalizedChoiceText(
+        await page.locator(`${namedSelector}:visible`).first().inputValue().catch(() => ""),
+      );
+      return selectedValue === wanted || selectedValue.endsWith(` ${wanted}`);
     }
   }
-  if (!chosen) {
-    await page.keyboard.press("Escape").catch(() => undefined);
-    return false;
-  }
-
-  await page.waitForTimeout(300);
-  const visibleNamed = await firstVisible([page.locator(`${namedSelector}:visible`)]);
-  const visibleValue = normalizedChoiceText(await visibleNamed?.inputValue().catch(() => "") ?? "");
-  const hiddenValue = normalizedChoiceText(
-    await page.locator(`${namedSelector}[type="hidden"]`).first().inputValue().catch(() => ""),
-  );
-  return visibleValue === wanted || visibleValue.endsWith(` ${wanted}`) || hiddenValue === wanted;
+  // Clear the query before the control loses focus. The official component
+  // otherwise auto-selects the first filtered option on blur.
+  await control.fill("").catch(() => undefined);
+  await page.keyboard.press("Escape").catch(() => undefined);
+  return false;
 }
 
 async function selectChoice(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
@@ -504,6 +518,7 @@ export async function fillPhEtravelOfficialDeclaration(
     }
 
     const newlyFilled = await fillVisibleFields(page, plan, completed);
+    await clickVisibleButton(page, /^close$/i).catch(() => false);
     if (newlyFilled.length > 0) await options.onStep?.(`form-step-${step}`);
     const advanced = await clickVisibleButton(page, /^next$|^continue$|save and continue|proceed/i);
     if (!advanced) {

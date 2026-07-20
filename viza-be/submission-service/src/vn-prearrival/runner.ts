@@ -11,6 +11,10 @@ import {
   type VnPrearrivalPortalPayload,
 } from "./normalize";
 import { formatOfficialFlightDisplayLabel } from "./flight-label";
+import {
+  extractVietnamPrearrivalConfirmationNumber,
+  isVietnamPrearrivalSuccessPage,
+} from "./result-page";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 
@@ -553,17 +557,32 @@ async function completeOfficialSubmissionFromReview(
   }
   logs.push("vn_prearrival_final_submit_clicked");
 
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  const resultTimeoutMs = Number.parseInt(
+    process.env.VN_PREARRIVAL_RESULT_TIMEOUT_MS ?? "120000",
+    10,
+  );
+  const deadline = Date.now() + resultTimeoutMs;
+  while (Date.now() < deadline) {
     await page.waitForTimeout(750);
     await handleEmailVerification(page, applicantId, otpRequestedAfter, screenshots, logs, tempDir);
     await handleCaptchaGate(page, screenshots, logs, tempDir);
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-    if (/your submission is successful|submission is successful|acknowledgement message/i.test(bodyText)) {
+    if (isVietnamPrearrivalSuccessPage(bodyText)) {
       logs.push("vn_prearrival_official_success_visible");
       return;
     }
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   }
+
+  const timeoutScreenshot = await saveScreenshot(page, tempDir, "result-timeout", logs);
+  if (timeoutScreenshot) screenshots.push(timeoutScreenshot);
+  throw new VnPrearrivalPortalError(
+    "Vietnam Pre-Arrival remained on the processing page and did not expose a final success result.",
+    "vn_prearrival_result_timeout",
+    "The official portal accepted and verified the submission, but its final QR/PDF result was not ready before the result timeout.",
+    screenshots,
+    logs,
+  );
 }
 
 async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
@@ -915,10 +934,7 @@ export async function runVietnamPrearrivalPortalSubmission(
     if (qrPath) screenshots.push(qrPath);
     const pdfPath = await downloadConfirmationPdf(page, tempDir, logs);
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-    const confirmationNumber =
-      bodyText.match(/\b(?:VN|PAI|QR)[A-Z0-9-]{6,}\b/i)?.[0] ??
-      bodyText.match(/\b[A-Z0-9]{10,}\b/)?.[0] ??
-      null;
+    const confirmationNumber = extractVietnamPrearrivalConfirmationNumber(bodyText);
     const hasQr = await page.locator("canvas, img[alt*='QR' i], img[src*='qr' i]").count().catch(() => 0);
     if (!confirmationNumber && hasQr === 0) {
       throw new VnPrearrivalPortalError(
