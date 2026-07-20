@@ -255,6 +255,7 @@ export interface DigitalArrivalCardSubmissionResult {
   };
   artifacts?: {
     screenshots?: string[];
+    qrCodes?: string[];
     pdfs?: string[];
     logs?: string[];
     traces?: string[];

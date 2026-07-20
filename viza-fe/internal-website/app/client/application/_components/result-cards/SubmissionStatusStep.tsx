@@ -111,7 +111,7 @@ function isVietnamPaymentCheckpointResult(
   );
 }
 
-function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSubmissionResult }) {
+export function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSubmissionResult }) {
   const isZh = isChineseLocale(useLocale());
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [startingAgain, setStartingAgain] = useState(false);
@@ -124,7 +124,9 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
       : rawReferenceNumber;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
   const qrPath = result.country === "VN"
-    ? result.artifacts?.screenshots?.find((path) => /(?:^|[-_/])qr(?:[-_.]|$)|confirmation-qr/i.test(path)) ?? null
+    ? result.artifacts?.qrCodes?.[0] ??
+      result.artifacts?.screenshots?.find((path) => /(?:^|[-_/])qr(?:[-_.]|$)|confirmation-qr/i.test(path)) ??
+      null
     : null;
   const vietnamFinalizing =
     result.country === "VN" &&
@@ -137,13 +139,14 @@ function DigitalArrivalCardResultCard({ result }: { result: DigitalArrivalCardSu
   const hasOfficialPdfDownload =
     (result.country === "TH" || result.country === "VN") &&
     Boolean(storedPdfPath) &&
-    Boolean(
+    (
+      Boolean(result.confirmationPdfStoragePath) ||
       result.artifacts?.logs?.some((log) =>
         log.includes("tdac_pdf_downloaded") ||
         log.includes("tdac_confirmation_page_pdf_saved") ||
         log.includes("vn_prearrival_pdf_downloaded") ||
         log.includes("vn_prearrival_confirmation_page_pdf_saved"),
-      ),
+      ) === true
     );
   const pdfPath = hasOfficialPdfDownload ? storedPdfPath : null;
   const arrivalCardMeta =

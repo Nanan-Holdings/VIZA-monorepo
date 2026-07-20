@@ -6164,6 +6164,24 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       contentType: "image/png",
       paths: portalResult.screenshots,
     });
+    const qrArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country: "VN",
+      kind: "vn-prearrival-qr",
+      ext: "png",
+      contentType: "image/png",
+      paths: portalResult.qrCodes,
+    });
+    const pdfArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country: "VN",
+      kind: "vn-prearrival-confirmation-pdf",
+      ext: "pdf",
+      contentType: "application/pdf",
+      paths: portalResult.pdfs,
+    });
     const result: DigitalArrivalCardSubmissionResult = {
       country: "VN",
       visaType: "VN_PREARRIVAL_DECLARATION",
@@ -6176,23 +6194,35 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       referenceNumber: portalResult.referenceNumber ?? null,
       portalUrl: portalResult.portalUrl,
       portalResponseSummary: portalResult.portalResponseSummary,
+      confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
       artifacts: {
         screenshots: screenshotArtifacts,
-        pdfs: await uploadArrivalCardArtifacts({
-          authUserId: artifactOwnerId,
-          applicationId: item.application_id,
-          country: "VN",
-          kind: "vn-prearrival-confirmation",
-          ext: "pdf",
-          contentType: "application/pdf",
-          paths: portalResult.pdfs,
-        }),
+        qrCodes: qrArtifacts,
+        pdfs: pdfArtifacts,
         logs: portalResult.logs,
         traces: [],
       },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
+    if (portalResult.submitted) {
+      const officialReference = portalResult.confirmationNumber ?? portalResult.referenceNumber ?? null;
+      const { error: applicationStatusError } = await supabase
+        .from("applications")
+        .update({
+          status: "submitted",
+          confirmation_number: portalResult.confirmationNumber ?? officialReference,
+          external_reference: portalResult.referenceNumber ?? officialReference,
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.application_id);
+      if (applicationStatusError) {
+        console.error(
+          `[vn-prearrival] Official submission succeeded but application status sync failed: ${applicationStatusError.message}`,
+        );
+      }
+    }
     await supabase
       .from("submission_queue")
       .update({
@@ -6202,9 +6232,13 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
         error_message: portalResult.submitted ? null : portalResult.portalResponseSummary,
         current_stage: portalResult.submitted ? "submitted" : "official_portal_error",
         official_portal_url: portalResult.portalUrl,
+        official_status: portalResult.submitted ? "submitted" : "official_portal_error",
         official_confirmation_number_encrypted: portalResult.confirmationNumber
           ? encryptSecret(portalResult.confirmationNumber)
           : null,
+        official_confirmation_page_url: portalResult.portalUrl,
+        official_confirmation_pdf_url: pdfArtifacts[0] ?? null,
+        vn_result_payload: result,
         live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
         live_screenshot_url: screenshotArtifacts[0] ?? null,
         updated_at: new Date().toISOString(),

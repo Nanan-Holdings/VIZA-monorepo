@@ -243,9 +243,13 @@ function submissionServiceBaseUrl() {
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const url = `${submissionServiceBaseUrl()}${path}`;
+  const internalToken = process.env.KR_SUBMISSION_INTERNAL_TOKEN?.trim();
   const response = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...(internalToken ? { authorization: `Bearer ${internalToken}` } : {}),
+    },
     body: JSON.stringify(body),
     // Official KVAC pages can take longer than a typical JSON API while the
     // browser waits for the appointment-query result.
@@ -415,7 +419,9 @@ async function readSnapshot(admin: ReturnType<typeof createAdminClient>, applica
     ? {
         ...activeConfirmation,
         confirmation_pdf_url: activeConfirmation.confirmation_pdf_url
-          ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(activeConfirmation.confirmation_pdf_url)}&download=1`
+          ? activeConfirmation.confirmation_pdf_url.startsWith("korea-appointments/")
+            ? `/api/applications/${applicationId}/submission-artifact?path=${encodeURIComponent(activeConfirmation.confirmation_pdf_url)}&download=korea-appointment-confirmation.pdf`
+            : `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(activeConfirmation.confirmation_pdf_url)}&download=1`
           : null,
         confirmation_screenshot_url: activeConfirmation.confirmation_screenshot_url
           ? `/api/applications/${applicationId}/korea-evidence?path=${encodeURIComponent(activeConfirmation.confirmation_screenshot_url)}`

@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { TH_TDAC_FORM_FIELDS } from "../../scripts/th-tdac/form-fields";
+import {
+  TDAC_COUNTRY_HEALTH_RULES,
+  TDAC_COUNTRY_OPTIONS,
+  TDAC_YELLOW_FEVER_COUNTRY_CODES,
+  TDAC_YELLOW_FEVER_SHOW_IF,
+} from "../../scripts/th-tdac/official-options";
 
 const seedSource = readFileSync(
   new URL("../../scripts/th-tdac/form-fields.ts", import.meta.url),
@@ -57,12 +63,16 @@ describe("Thailand TDAC arrival-card schema seed", () => {
       "postcode",
       "address_in_thailand",
       "countries_visited_last_14_days",
+      "yellow_fever_vaccination_certificate",
+      "yellow_fever_vaccination_date",
+      "health_symptoms_last_14_days",
+      "health_symptoms_other",
     ]) {
       expect(names.has(name), name).toBe(true);
     }
   });
 
-  test("removes non-official legacy health yes/no fields", () => {
+  test("removes non-official legacy health fields", () => {
     const names = fieldNames();
 
     for (const name of [
@@ -73,6 +83,37 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     ]) {
       expect(names.has(name), name).toBe(false);
     }
+  });
+
+  test("classifies every official country option and the exact 42 yellow-fever countries", () => {
+    expect(TDAC_COUNTRY_HEALTH_RULES).toHaveLength(TDAC_COUNTRY_OPTIONS.length);
+    expect(new Set(TDAC_COUNTRY_HEALTH_RULES.map((rule) => rule.countryCode))).toEqual(
+      new Set(TDAC_COUNTRY_OPTIONS.map((country) => country.value)),
+    );
+    expect(TDAC_COUNTRY_HEALTH_RULES.every(
+      (rule) => rule.additionalQuestions === "none" || rule.additionalQuestions === "yellow_fever",
+    )).toBe(true);
+    expect(TDAC_YELLOW_FEVER_COUNTRY_CODES).toHaveLength(42);
+    expect(TDAC_COUNTRY_HEALTH_RULES.filter(
+      (rule) => rule.additionalQuestions === "yellow_fever",
+    ).map((rule) => rule.countryCode).sort()).toEqual([...TDAC_YELLOW_FEVER_COUNTRY_CODES].sort());
+  });
+
+  test("shows official health questions for risk countries selected in any TDAC trigger field", () => {
+    expect(field("yellow_fever_vaccination_certificate")?.conditional_logic).toMatchObject({
+      showIf: TDAC_YELLOW_FEVER_SHOW_IF,
+    });
+    expect(TDAC_YELLOW_FEVER_SHOW_IF).toContain(
+      "countries_visited_last_14_days contains_any",
+    );
+    expect(TDAC_YELLOW_FEVER_SHOW_IF).toContain("country_boarded in");
+    expect(TDAC_YELLOW_FEVER_SHOW_IF).toContain("nationality in");
+    expect(field("yellow_fever_vaccination_date")?.conditional_logic?.showIf).toContain(
+      "yellow_fever_vaccination_certificate === yes",
+    );
+    expect(field("health_symptoms_other")?.conditional_logic?.showIf).toContain(
+      "health_symptoms_last_14_days contains_any [other]",
+    );
   });
 
   test("keeps official conditional dropdown structure", () => {

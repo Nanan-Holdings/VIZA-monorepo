@@ -5,6 +5,7 @@ import { type VisaFormFieldRow } from "@/types/visa-form-fields";
  * Supports:
  *  - Equality / inequality: "field === value" / "field !== value"
  *  - List membership: "field in [val1, val2, val3]" / "field not in [val1, val2]"
+ *  - Multi-select intersection: "field contains_any [val1, val2]"
  *  - Empty-string sentinel: "field === _empty"
  *  - Boolean composition: "a === b || c === d" and "a === yes && b === yes"
  *
@@ -36,8 +37,19 @@ export function evaluateExpression(
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s.length > 0);
 
+  const parseMultiValue = (raw: string): string[] =>
+    raw
+      .split(/[,;\n]/)
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 0);
+
   // "not in" is checked before "in" so the longer keyword wins.
   const evalAtom = (atom: string): boolean => {
+    const containsAnyMatch = atom.match(/^(\S+)\s+contains_any\s+\[([^\]]*)\]$/);
+    if (containsAnyMatch) {
+      const actual = new Set(parseMultiValue(readValue(containsAnyMatch[1])));
+      return parseList(containsAnyMatch[2]).some((candidate) => actual.has(candidate));
+    }
     const notInMatch = atom.match(/^(\S+)\s+not\s+in\s+\[([^\]]*)\]$/);
     if (notInMatch) {
       const actual = readValue(notInMatch[1]).toLowerCase();

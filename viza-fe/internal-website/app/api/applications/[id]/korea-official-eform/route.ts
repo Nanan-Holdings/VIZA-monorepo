@@ -88,12 +88,16 @@ async function ensureLocalKoreaEformWorker(baseUrl: string) {
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const baseUrl = submissionServiceBaseUrl();
   const url = `${baseUrl}${path}`;
+  const internalToken = process.env.KR_SUBMISSION_INTERNAL_TOKEN?.trim();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
   const send = async () => {
     const response = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(internalToken ? { authorization: `Bearer ${internalToken}` } : {}),
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
