@@ -27,7 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, matchesSearchText } from "@/lib/utils";
 import {
   BilingualFieldCopilot,
   getBilingualRowLabels,
@@ -520,10 +520,7 @@ function OptionControl({
         <Command
           className="w-full"
           filter={(commandValue, search, keywords) => {
-            const normalizedSearch = search.trim().toLowerCase();
-            if (!normalizedSearch) return 1;
-            const haystack = [commandValue, ...(keywords ?? [])].join(" ").toLowerCase();
-            return haystack.includes(normalizedSearch) ? 1 : 0;
+            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
           }}
         >
           <CommandInput placeholder={resolvedSearchPlaceholder} />
@@ -606,8 +603,7 @@ function CountryOptionControl({
         <Command
           className="w-full"
           filter={(commandValue, search, keywords) => {
-            const haystack = [commandValue, ...(keywords ?? [])].join(" ").toLowerCase();
-            return haystack.includes(search.toLowerCase()) ? 1 : 0;
+            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
           }}
         >
           <CommandInput placeholder={searchPlaceholder} />

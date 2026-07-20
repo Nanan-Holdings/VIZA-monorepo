@@ -96,8 +96,19 @@ type Stage =
   | "change-query"
   | "cancel-confirmation"
   | "reschedule-restart"
+  | "sms-restart"
   | "cancelled"
   | "manual";
+
+class AppointmentRequestError extends Error {
+  constructor(
+    message: string,
+    readonly evidenceUrl: string | null = null,
+  ) {
+    super(message);
+    this.name = "AppointmentRequestError";
+  }
+}
 
 async function requestSnapshot(applicationId: string, action?: string, slotId?: string, smsCode?: string, selectedCenterCode?: string): Promise<Snapshot> {
   const response = await fetch(`/api/applications/${applicationId}/korea-appointment`, {
@@ -106,8 +117,14 @@ async function requestSnapshot(applicationId: string, action?: string, slotId?: 
     body: action ? JSON.stringify({ action, slotId, smsCode, routingInput: selectedCenterCode ? { selectedCenterCode } : undefined }) : undefined,
     cache: "no-store",
   });
-  const body = (await response.json().catch(() => null)) as Snapshot | { error?: string } | null;
-  if (!response.ok) throw new Error((body as { error?: string } | null)?.error ?? `Request failed: ${response.status}`);
+  const body = (await response.json().catch(() => null)) as Snapshot | { error?: string; evidenceUrl?: string } | null;
+  if (!response.ok) {
+    const errorBody = body as { error?: string; evidenceUrl?: string } | null;
+    throw new AppointmentRequestError(
+      errorBody?.error ?? `Request failed: ${response.status}`,
+      errorBody?.evidenceUrl ?? null,
+    );
+  }
   return body as Snapshot;
 }
 
@@ -131,6 +148,7 @@ function getStage(snapshot: Snapshot | null): Stage {
   if (cancelled) return "cancelled";
   if (isOfficialConfirmation(snapshot)) return "confirmed";
   if (action === "sms_verification_required") return "otp";
+  if (snapshot.job?.status === "sms_restart_required") return "sms-restart";
   if (action === "final_booking_approval_required" || snapshot.job?.status === "final_booking_approved" || selectedSlot) return "confirm";
   if (observedSlots) return "slots";
   return "center";
@@ -143,6 +161,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [smsCode, setSmsCode] = useState("");
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState<string | null>(null);
+  const [errorEvidenceUrl, setErrorEvidenceUrl] = useState<string | null>(null);
   const rescheduleSmsStartRef = useRef(false);
 
   const center = snapshot?.routing.recommended;
@@ -166,12 +185,14 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const run = useCallback(async (action?: string, slotId?: string, code?: string, centerCode?: string) => {
     setBusy(action ?? "load");
     setError(null);
+    setErrorEvidenceUrl(null);
     try {
       setSnapshot(await requestSnapshot(applicationId, action, slotId, code, centerCode ?? activeCenterCode));
       if (action === "submit-sms-code") setSmsCode("");
       if (action === "start-new-booking") setSmsCode("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      setErrorEvidenceUrl(cause instanceof AppointmentRequestError ? cause.evidenceUrl : null);
       try {
         setSnapshot(await requestSnapshot(applicationId, undefined, undefined, undefined, centerCode ?? activeCenterCode));
       } catch {
@@ -206,7 +227,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   }, [run]);
 
   const stepLabels = isZh ? ["选择领区", "短信验证", "选择时间", "预约结果"] : ["Center", "SMS", "Slot", "Result"];
-  const currentStep = stage === "center" || stage === "manual" || stage === "loading" ? 0 : stage === "otp" || stage === "reschedule-restart" ? 1 : stage === "slots" || stage === "confirm" ? 2 : 3;
+  const currentStep = stage === "center" || stage === "manual" || stage === "loading" ? 0 : stage === "otp" || stage === "sms-restart" || stage === "reschedule-restart" ? 1 : stage === "slots" || stage === "confirm" ? 2 : 3;
   const centerName = center ? (isZh ? center.nameZh : center.nameEn) : "";
   const serviceLabel = center?.serviceMode === "appointment_required"
     ? (isZh ? "必须提前预约" : "Appointment required")
@@ -239,7 +260,17 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>{isZh ? "当前操作未完成" : "The operation did not complete"}</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="space-y-3">
+            <p>{error}</p>
+            {errorEvidenceUrl ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={errorEvidenceUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {isZh ? "查看官网无可选时段截图" : "View official no-slot screenshot"}
+                </a>
+              </Button>
+            ) : null}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -313,7 +344,13 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{isZh ? "以下时段来自当前官方会话。选择一个时段后，仍会在最终确认前请你授权。" : "These slots came from the current official session. After selection, you will still approve the final booking."}</p>
             {snapshot?.slots.filter((slot) => ["observed", "user_selected", "selected"].includes(slot.status)).map((slot) => <div key={slot.id} className="flex flex-col gap-3 rounded-[8px] border p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-medium">{slot.appointment_date} {slot.appointment_time}</div><div className="text-sm text-muted-foreground">{slot.appointment_location}</div></div><Button variant="outline" onClick={() => void run("select-slot", slot.id)} disabled={Boolean(busy)}>{busy === "select-slot" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}{isZh ? "选择此时间" : "Choose this slot"}</Button></div>)}
-            <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}><RefreshCw className="mr-2 h-4 w-4" />{isZh ? "重新读取时段" : "Refresh slots"}</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => void run("return-to-sms-verification")} disabled={Boolean(busy)}>
+                {busy === "return-to-sms-verification" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
+                {isZh ? "返回短信验证" : "Back to SMS verification"}
+              </Button>
+              <Button variant="ghost" onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}><RefreshCw className="mr-2 h-4 w-4" />{isZh ? "重新读取时段" : "Refresh slots"}</Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -326,6 +363,31 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
             <p className="text-sm leading-6 text-muted-foreground">{isZh ? "只有你授权后，后端才会在官方页面点击最终确认；VIZA 仅在官方返回确认号时显示预约成功。" : "The worker clicks the official final confirmation only after your approval. VIZA marks it booked only when the official portal returns a confirmation number."}</p>
             {waitingForFinalApproval ? <Button onClick={() => void run("approve-final-booking")} disabled={Boolean(busy)}>{busy === "approve-final-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}{isZh ? "授权最终预约" : "Approve final booking"}</Button> : null}
             {finalApproved ? <Button onClick={() => void run("complete-final-booking")} disabled={Boolean(busy)}>{busy === "complete-final-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}{isZh ? "完成官方确认" : "Complete official confirmation"}</Button> : null}
+            {!finalApproved ? (
+              <Button variant="outline" onClick={() => void run("return-to-slot-selection")} disabled={Boolean(busy)}>
+                {busy === "return-to-slot-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
+                {isZh ? "返回选择时间" : "Back to slot selection"}
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {stage === "sms-restart" ? (
+        <Card className="rounded-[8px]">
+          <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquareText className="h-5 w-5 text-brand-600" />{isZh ? "重新进行短信验证" : "Restart SMS verification"}</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm leading-6 text-muted-foreground">{isZh ? "上一枚验证码已经在官网使用，不能重复提交。请重新发送验证码后继续读取当前可用时段。" : "The previous code was already consumed by the official portal. Send a new code before reading the current slots again."}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
+                {busy === "return-to-center-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
+                {isZh ? "返回选择领区" : "Back to center selection"}
+              </Button>
+              <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
+                {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                {isZh ? "重新发送验证码" : "Send a new code"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -405,7 +467,22 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       ) : null}
 
       {stage === "reschedule-restart" && !startingRescheduleSms ? (
-        <Card className="rounded-[8px] border-emerald-200"><CardHeader><CardTitle className="flex items-center gap-2 text-emerald-800"><CheckCircle2 className="h-5 w-5" />{isZh ? "旧预约已取消" : "Old booking cancelled"}</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{isZh ? "现在重新发送官方验证码，选择新的预约时间。" : "Now send a fresh official SMS code and choose a new appointment time."}</p><Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>{busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}{isZh ? "发送新验证码" : "Send new code"}</Button></CardContent></Card>
+        <Card className="rounded-[8px] border-emerald-200">
+          <CardHeader><CardTitle className="flex items-center gap-2 text-emerald-800"><CheckCircle2 className="h-5 w-5" />{isZh ? "旧预约已取消" : "Old booking cancelled"}</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{isZh ? "现在重新发送官方验证码，选择新的预约时间。" : "Now send a fresh official SMS code and choose a new appointment time."}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => void run("return-to-center-selection")} disabled={Boolean(busy)}>
+                {busy === "return-to-center-selection" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowLeft className="mr-2 h-4 w-4" />}
+                {isZh ? "返回选择领区" : "Back to center selection"}
+              </Button>
+              <Button onClick={() => void run("request-live-booking")} disabled={Boolean(busy)}>
+                {busy === "request-live-booking" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquareText className="mr-2 h-4 w-4" />}
+                {isZh ? "发送新验证码" : "Send new code"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       {stage === "cancelled" ? (

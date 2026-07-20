@@ -62,7 +62,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import { withRuntimeAbortRetry } from "@/lib/runtime-abort-retry";
-import { cn } from "@/lib/utils";
+import { cn, matchesSearchText } from "@/lib/utils";
 import type { UniversalProfileSnapshot } from "@/lib/universal-profile-prefill";
 
 interface UniversalProfileForm {
@@ -916,8 +916,7 @@ function PhoneDialCodeSelect({
         <Command
           className="w-full"
           filter={(commandValue, search, keywords) => {
-            const haystack = [commandValue, ...(keywords ?? [])].join(" ").toLowerCase();
-            return haystack.includes(search.toLowerCase()) ? 1 : 0;
+            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
           }}
         >
           <CommandInput placeholder={copy(isZh, "搜索国家或区号...", "Search country or code...")} />
@@ -931,7 +930,13 @@ function PhoneDialCodeSelect({
                     className="flex w-full items-center gap-2 [&_svg]:size-auto"
                     key={`${option.countryCode}-${option.dialCode}`}
                     value={`${option.countryCode}-${option.dialCode}`}
-                    keywords={[countryName, option.enName, option.countryCode, option.dialCode]}
+                    keywords={[
+                      countryName,
+                      getLocalizedPhoneCountryName(option.countryCode, "zh"),
+                      option.enName,
+                      option.countryCode,
+                      option.dialCode,
+                    ]}
                     onSelect={() => {
                       onChange(option.countryCode);
                       setOpen(false);

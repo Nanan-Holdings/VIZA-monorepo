@@ -956,29 +956,105 @@ async function clickRadioByText(page: Page, text: string, logs: string[], occurr
 }
 
 async function checkTransitPassenger(page: Page, logs: string[]): Promise<void> {
-  const checkbox = page.locator("mat-checkbox, .mat-mdc-checkbox, label").filter({
+  const label = page.locator("label").filter({
     hasText: /transit passenger|don't stay in Thailand/i,
   }).first();
+  const checkboxHost = page.locator("mat-checkbox, .mat-mdc-checkbox, [sit-validate-input='notStayInTh']").filter({
+    hasText: /transit passenger|don't stay in Thailand/i,
+  }).first();
+  let input = page.locator([
+    "input[formcontrolname='notStayInTh']",
+    "input[sit-validate-input='notStayInTh']",
+    "[sit-validate-input='notStayInTh'] input[type='checkbox']",
+  ].join(", ")).first();
+  if (await input.count() === 0 && await checkboxHost.count() > 0) {
+    input = checkboxHost.locator("input[type='checkbox']").first();
+  }
+  if (await input.count() === 0 && await label.count() > 0) {
+    const inputId = await label.getAttribute("for").catch(() => null);
+    if (inputId && /^[A-Za-z][\w:.-]*$/.test(inputId)) {
+      input = page.locator(`#${inputId}`).first();
+    }
+  }
+  const hasInput = await input.count() > 0;
+  const checkbox = hasInput
+    ? input
+    : await label.isVisible({ timeout: 2_000 }).catch(() => false)
+      ? label
+      : checkboxHost;
   if (!(await checkbox.isVisible({ timeout: 5_000 }).catch(() => false))) {
     logs.push("tdac_transit_checkbox_not_visible");
-    return;
+    throw new Error("Official TDAC transit passenger checkbox was not visible after departure details were filled.");
   }
-  const checked = await checkbox.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
-  if (!checked) {
-    await checkbox.scrollIntoViewIfNeeded().catch(() => undefined);
-    const container = page.locator("[sit-validate-input='notStayInTh']").first();
-    if (await container.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      await container.click({ timeout: 5_000, force: true }).catch(() => undefined);
+
+  const readCheckedState = async (): Promise<boolean> => {
+    if (hasInput) {
+      return input.isChecked().catch(() => false);
     }
-    const nowChecked = await checkbox.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
-    if (!nowChecked) {
-      await checkbox.click({ timeout: 10_000, force: true });
+
+    if (await checkboxHost.count()) {
+      const ariaChecked = await checkboxHost.getAttribute("aria-checked").catch(() => null);
+      if (ariaChecked === "true") return true;
+      const hostClass = await checkboxHost.getAttribute("class").catch(() => "");
+      return /mat-(?:mdc-)?checkbox-checked/.test(hostClass ?? "");
+    }
+    return false;
+  };
+
+  await checkbox.scrollIntoViewIfNeeded().catch(() => undefined);
+  if (!(await readCheckedState())) {
+    if (hasInput) {
+      await input.check({ timeout: 10_000, force: true }).catch(() => undefined);
+    }
+    if (!(await readCheckedState())) {
+      if (await label.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        await label.click({ timeout: 5_000, force: true }).catch(() => undefined);
+      } else {
+        await checkboxHost.click({ timeout: 5_000, force: true }).catch(() => undefined);
+      }
     }
   }
-  const finalChecked = await checkbox.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
+
+  let finalChecked = false;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    finalChecked = await readCheckedState();
+    if (finalChecked) break;
+    await page.waitForTimeout(250);
+  }
   logs.push(`tdac_transit_passenger_checked=${finalChecked}`);
   if (!finalChecked) {
-    throw new Error("Official TDAC transit passenger checkbox could not be selected while same-day arrival/departure made accommodation fields unavailable.");
+    const diagnostics = await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll("input[type='checkbox'], mat-checkbox, .mat-mdc-checkbox, label"))
+        .filter((node) => /transit passenger|don't stay in thailand/i.test(node.textContent ?? "")
+          || /notstayinth/i.test(node.getAttribute("formcontrolname") ?? "")
+          || /notstayinth/i.test(node.getAttribute("sit-validate-input") ?? ""));
+      return nodes.slice(0, 8).map((node) => {
+        const element = node as HTMLInputElement;
+        return {
+          tag: node.tagName.toLowerCase(),
+          id: element.id || null,
+          for: node.getAttribute("for"),
+          formControlName: node.getAttribute("formcontrolname"),
+          sitValidateInput: node.getAttribute("sit-validate-input"),
+          type: element.type || null,
+          checked: typeof element.checked === "boolean" ? element.checked : null,
+          disabled: typeof element.disabled === "boolean" ? element.disabled : null,
+          ariaChecked: node.getAttribute("aria-checked"),
+          className: String(node.className || "").slice(0, 200),
+        };
+      });
+    }).catch(() => []);
+    logs.push(`tdac_transit_checkbox_diagnostics=${JSON.stringify(diagnostics)}`);
+    const screenshotPath = await saveScreenshot(page, "transit-checkbox-unselected", logs);
+    throw new TdacPortalError(
+      "Official TDAC transit passenger checkbox could not be selected while same-day arrival/departure made accommodation fields unavailable.",
+      {
+        code: "tdac_transit_checkbox_unselected",
+        screenshotPaths: [screenshotPath],
+        portalSummary: JSON.stringify(diagnostics),
+        logs,
+      },
+    );
   }
 }
 
@@ -1412,9 +1488,6 @@ async function fillTdacTripStep(
     );
   }
   await fillInputAny(page, ["input[formcontrolname='arrFlightNo']", "input[formcontrolname='arrVehicleNo']", "input[formcontrolname='arrivalTransportNo']", "#mat-input-11"], payload.arrivalTransportNumber.toUpperCase(), logs, "arrival_transport_number");
-  if (payload.isTransitTraveler) {
-    await checkTransitPassenger(page, logs);
-  }
   await fillMaterialDateInput(page, "input[formcontrolname='deptDate']", departure.slashDate, logs);
   await clickRadioByText(page, tdacTravelModeLabel(payload.departureModeOfTravel), logs, 1);
   await selectMatSelect(page, "mat-select[formcontrolname='deptTranModeId']", tdacTransportLabel(payload.departureModeOfTransport), logs);
@@ -1428,6 +1501,9 @@ async function fillTdacTripStep(
     );
   }
   await fillInputAny(page, ["input[formcontrolname='deptFlightNo']", "input[formcontrolname='deptVehicleNo']", "input[formcontrolname='departureTransportNo']", "#mat-input-14"], payload.departureTransportNumber.toUpperCase(), logs, "departure_transport_number");
+  if (payload.isTransitTraveler) {
+    await checkTransitPassenger(page, logs);
+  }
   await page.keyboard.press("Tab").catch(() => undefined);
   await page.locator("mat-select[formcontrolname='accTypeId']").first().scrollIntoViewIfNeeded().catch(() => undefined);
   await saveScreenshot(page, "trip-before-accommodation", logs);

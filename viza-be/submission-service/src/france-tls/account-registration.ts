@@ -514,6 +514,18 @@ async function activateAccount(page: Page, context: FranceTlsStoredAccountContex
   await updateAccountStatus(context, "email_verified", true);
 }
 
+export function isAuthenticatedFranceTlsRedirectUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const isTlsHost = url.hostname === "tlscontact.com" || url.hostname.endsWith(".tlscontact.com");
+    const isAuthPage = url.hostname === "i2-auth.visas-fr.tlscontact.com"
+      || /\/auth\/realms\//i.test(url.pathname);
+    return isTlsHost && !isAuthPage;
+  } catch {
+    return false;
+  }
+}
+
 async function waitForAuthenticatedTlsRedirect(page: Page, timeoutMs = 120_000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   let stableLoginFormPolls = 0;
@@ -524,7 +536,7 @@ async function waitForAuthenticatedTlsRedirect(page: Page, timeoutMs = 120_000):
     try {
       const url = new URL(input.url);
       isAuthPage = url.hostname === "i2-auth.visas-fr.tlscontact.com" || /\/auth\/realms\//i.test(url.pathname);
-      if (!isAuthPage && url.hostname.endsWith("tlscontact.com") && state.checkpoint !== "waf") {
+      if (isAuthenticatedFranceTlsRedirectUrl(input.url) && state.checkpoint !== "waf") {
         return true;
       }
     } catch {

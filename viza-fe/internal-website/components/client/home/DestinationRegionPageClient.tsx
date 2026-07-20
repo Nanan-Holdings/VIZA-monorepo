@@ -11,6 +11,7 @@ import {
   getVisaDestinationKey,
   getVisaDestinationRegionName,
   getVisaDestinationVisaName,
+  matchesVisaDestinationSearch,
   type PopularVisaDestination,
   type VisaDestinationRegionGroup,
 } from "@/lib/visa-destinations";
@@ -28,21 +29,6 @@ function isSelectedDestination(
   return selectedPackages.some(
     (selectedPackage) => getVisaDestinationKey(selectedPackage.country, selectedPackage.visa_type) === destinationKey,
   );
-}
-
-function matchesDestinationSearch(destination: PopularVisaDestination, normalizedSearch: string): boolean {
-  const searchableText = [
-    destination.countryName,
-    destination.countryNameZh,
-    destination.visaName,
-    destination.visaNameZh,
-    destination.description,
-    destination.descriptionZh,
-    destination.region,
-    destination.supportLabel,
-    ...(destination.searchAliases ?? []),
-  ].join(" ").toLowerCase();
-  return searchableText.includes(normalizedSearch);
 }
 
 export function DestinationRegionPageClient({
@@ -74,7 +60,7 @@ export function DestinationRegionPageClient({
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     if (!normalizedSearch) return destinations;
-    return destinations.filter((destination) => matchesDestinationSearch(destination, normalizedSearch));
+    return destinations.filter((destination) => matchesVisaDestinationSearch(destination, normalizedSearch));
   }, [destinations, searchQuery]);
 
   function handleSelect(destination: PopularVisaDestination) {

@@ -81,6 +81,11 @@ describe("Vietnam pre-arrival dynamic form options", () => {
           label_en: "VJ5439 - CXR",
           airport: "CXR",
         }),
+        expect.objectContaining({
+          value: "MH0746_DAD",
+          label_en: "MH746 (MH0746) - DAD",
+          airport: "DAD",
+        }),
       ]),
     );
 

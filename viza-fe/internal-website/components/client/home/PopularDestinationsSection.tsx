@@ -13,6 +13,7 @@ import {
   getVisaDestinationKey,
   getVisaDestinationRegionName,
   getVisaDestinationVisaName,
+  matchesVisaDestinationSearch,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import {
@@ -36,21 +37,6 @@ function isSelectedDestination(
   );
 }
 
-function matchesDestinationSearch(destination: PopularVisaDestination, normalizedSearch: string): boolean {
-  const searchableText = [
-    destination.countryName,
-    destination.countryNameZh,
-    destination.visaName,
-    destination.visaNameZh,
-    destination.description,
-    destination.descriptionZh,
-    destination.region,
-    destination.supportLabel,
-    ...(destination.searchAliases ?? []),
-  ].join(" ").toLowerCase();
-  return searchableText.includes(normalizedSearch);
-}
-
 function isSchemaChoiceCountry(country: string): boolean {
   return country === "indonesia" || country === "vietnam";
 }
@@ -72,7 +58,7 @@ export function PopularDestinationsSection({
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const searchResults = normalizedSearch
     ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
-        matchesDestinationSearch(destination, normalizedSearch) &&
+        matchesVisaDestinationSearch(destination, normalizedSearch) &&
         (!isSchemaChoiceCountry(destination.country) || destination.kind === "group")
       )
     : [];

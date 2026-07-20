@@ -5,6 +5,7 @@ export type PhEtravelFieldKind = "text" | "date" | "choice" | "checkbox" | "file
 
 export interface PhEtravelFieldPlanItem {
   key: string;
+  portalName?: string;
   labels: string[];
   kind: PhEtravelFieldKind;
   value: string | boolean | null;
@@ -121,21 +122,21 @@ export function buildPhEtravelFieldPlan(
     { key: "sex", labels: ["Sex", "Gender"], kind: "choice", value: optionLabel(payload.sex), required: true },
     { key: "email", labels: ["Email Address", "Email"], kind: "text", value: payload.emailAddress, required: true },
     { key: "mobile", labels: ["Mobile Number", "Contact Number"], kind: "text", value: `${payload.mobileCountryCode}${payload.mobileNumber}`, required: true },
-    { key: "traveller_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? "AIRCRAFT PASSENGER") },
-    { key: "airline", labels: ["Name of Airline", "Airline Name", "Name of Airline/Vessel"], kind: "choice", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
-    { key: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "choice", value: payload.flightNumber, required: true },
-    { key: "origin_country", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
-    { key: "airport_of_origin", labels: ["Airport of Origin", "Port of Origin"], kind: "text", value: payload.airportOfOrigin },
-    { key: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
-    { key: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
-    { key: "port_of_entry", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", "Airport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
-    { key: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
-    { key: "transit_country", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
-    { key: "transit_airport", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
-    { key: "transit_date", labels: ["Date of Transit"], kind: "date", value: payload.transitDate },
-    { key: "purpose", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
-    { key: "destination_type", labels: ["Destination upon arrival in the Philippines", "Destination Type"], kind: "choice", value: optionLabel(payload.destinationType ?? "HOTEL_RESORT"), required: true },
-    { key: "philippines_address", labels: ["Hotel/Resort Address", "Residence Address", "Address in the Philippines", "Destination Address"], kind: "text", value: payload.philippinesAddress, required: true },
+    { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
+    { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? "AIRCRAFT PASSENGER"), required: true },
+    { key: "airline", portalName: "travel_company_code", labels: ["Name of Airline", "Airline Name", "Name of Airline/Vessel"], kind: "choice", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
+    { key: "flight_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "text", value: payload.flightNumber, required: true },
+    { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
+    { key: "airport_of_origin", portalName: "origin_port", labels: ["Airport of Origin", "Port of Origin"], kind: "text", value: payload.airportOfOrigin, required: true },
+    { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
+    { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
+    { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", "Airport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
+    { key: "with_transit", portalName: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
+    { key: "transit_country", portalName: "transit_country_code", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
+    { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
+    { key: "transit_date", portalName: "transit_date", labels: ["Date of Transit"], kind: "date", value: payload.transitDate },
+    { key: "destination_type", portalName: "stay_location_type", labels: ["Destination upon arrival in the Philippines", "Destination Type"], kind: "choice", value: optionLabel(payload.destinationType ?? "HOTEL_RESORT"), required: true },
+    { key: "philippines_address", portalName: "destination_upon_arrival_in_philippines", labels: ["Hotel/Resort Address", "Residence Address", "Address in the Philippines", "Destination Address"], kind: "text", value: payload.philippinesAddress, required: true },
     { key: "under_18_count", labels: ["Below 18 yrs. old"], kind: "choice", value: payload.accompaniedUnder18Count ?? "0" },
     { key: "adult_count", labels: ["18 yrs. old and above"], kind: "choice", value: payload.accompanied18PlusCount ?? "0" },
     { key: "first_visit", labels: ["First time visiting Philippines"], kind: "choice", value: yesNo(payload.firstTimeVisitingPhilippines) },
@@ -190,6 +191,22 @@ async function controlForLabel(page: Page, label: string): Promise<Locator | nul
   return direct;
 }
 
+async function controlForItem(page: Page, item: PhEtravelFieldPlanItem): Promise<Locator | null> {
+  if (item.portalName) {
+    const named = await firstVisible([
+      page.locator(`input[name="${item.portalName}"]:visible`),
+      page.locator(`textarea[name="${item.portalName}"]:visible`),
+      page.locator(`select[name="${item.portalName}"]:visible`),
+    ]);
+    if (named) return named;
+  }
+  for (const label of item.labels) {
+    const control = await controlForLabel(page, label);
+    if (control) return control;
+  }
+  return null;
+}
+
 async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
   if (typeof item.value !== "string" || !item.value) return false;
   if (item.key === "philippines_address") {
@@ -214,6 +231,20 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
       }
     }
   }
+  const namedControl = await controlForItem(page, item);
+  if (namedControl) {
+    const tag = await namedControl.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
+    if (tag !== "select" && await namedControl.getAttribute("role") !== "combobox") {
+      const type = await namedControl.getAttribute("type").catch(() => null);
+      const value = item.kind === "date" && type !== "date"
+        ? item.value.replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$2/$3/$1")
+        : item.value;
+      await namedControl.fill(value, { timeout: 10_000 }).catch(() => undefined);
+      const retained = await namedControl.inputValue().catch(() => "");
+      if (retained) return true;
+    }
+  }
+  if (namedControl) return false;
   for (const label of item.labels) {
     const control = await controlForLabel(page, label);
     if (!control) continue;
@@ -230,77 +261,65 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
   return false;
 }
 
+const normalizedChoiceText = (value: string): string =>
+  value.normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu, " ").trim().toLowerCase();
+
+async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
+  if (!item.portalName || typeof item.value !== "string") return false;
+  const namedSelector = `input[name="${item.portalName}"]`;
+  let control = await firstVisible([page.locator(`${namedSelector}:visible`)]);
+  if (!control) {
+    const named = page.locator(namedSelector).first();
+    if (await named.count().catch(() => 0)) {
+      control = await firstVisible([
+        named.locator("xpath=ancestor::div[.//*[@role='combobox']][1]").getByRole("combobox"),
+        named.locator("xpath=preceding::input[@role='combobox'][1]"),
+      ]);
+    }
+  }
+  if (!control) return false;
+
+  await control.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+  if (await control.isEditable().catch(() => false)) {
+    await control.fill(item.value, { timeout: 5_000 }).catch(() => undefined);
+  }
+
+  const wanted = normalizedChoiceText(item.value);
+  let chosen = false;
+  for (let attempt = 0; attempt < 8 && !chosen; attempt += 1) {
+    await page.waitForTimeout(attempt === 0 ? 250 : 500);
+    const options = page.getByRole("option");
+    const count = await options.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const option = options.nth(index);
+      if (!await option.isVisible({ timeout: 100 }).catch(() => false)) continue;
+      const text = normalizedChoiceText(await option.innerText().catch(() => ""));
+      if (text !== wanted && !text.endsWith(` ${wanted}`)) continue;
+      chosen = await option.click({ force: true, timeout: 3_000 }).then(() => true).catch(() => false);
+      if (chosen) break;
+    }
+  }
+  if (!chosen) {
+    await page.keyboard.press("Escape").catch(() => undefined);
+    return false;
+  }
+
+  await page.waitForTimeout(300);
+  const visibleNamed = await firstVisible([page.locator(`${namedSelector}:visible`)]);
+  const visibleValue = normalizedChoiceText(await visibleNamed?.inputValue().catch(() => "") ?? "");
+  const hiddenValue = normalizedChoiceText(
+    await page.locator(`${namedSelector}[type="hidden"]`).first().inputValue().catch(() => ""),
+  );
+  return visibleValue === wanted || visibleValue.endsWith(` ${wanted}`) || hiddenValue === wanted;
+}
+
 async function selectChoice(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
   if (typeof item.value !== "string" || !item.value) return false;
   const valuePattern = new RegExp(`^\\s*${escapeRegex(item.value)}\\s*$`, "i");
+  if (item.portalName && await selectNamedCombobox(page, item)) return true;
   for (const label of item.labels) {
-    const control = await controlForLabel(page, label);
-    if (control) {
-      const tag = await control.evaluate((element) => element.tagName.toLowerCase()).catch(() => "");
-      if (tag === "select") {
-        const selected = await control.selectOption({ label: item.value }, { timeout: 5_000 }).catch(() => []);
-        if (selected.length > 0) return true;
-      }
-      await control.click({ force: true, timeout: 5_000 }).catch(() => undefined);
-      await page.waitForTimeout(400);
-      const editable = await control.isEditable().catch(() => false);
-      if (editable) {
-        await control.fill(item.value, { timeout: 5_000 }).catch(() => undefined);
-        await page.waitForTimeout(700);
-      }
-      const clickedCurrentText = await page.evaluate((wanted) => {
-        const normalizedWanted = wanted.trim().replace(/\s+/g, " ").toLowerCase();
-        const candidates = Array.from(document.querySelectorAll<HTMLElement>(
-          "[role='option'], [role='menuitem'], .v-list-item, .q-item, li, button, label, div, span",
-        ));
-        const visible = candidates.filter((element) => {
-          const text = (element.innerText || element.textContent || "").trim().replace(/\s+/g, " ").toLowerCase();
-          if (text !== normalizedWanted) return false;
-          const style = window.getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
-          return style.visibility !== "hidden" && style.display !== "none" && rect.width > 0 && rect.height > 0;
-        });
-        const target = visible.sort((left, right) => {
-          const leftRect = left.getBoundingClientRect();
-          const rightRect = right.getBoundingClientRect();
-          return leftRect.width * leftRect.height - rightRect.width * rightRect.height;
-        })[0];
-        if (!target) return false;
-        target.click();
-        return true;
-      }, item.value).catch(() => false);
-      if (clickedCurrentText) {
-        await page.waitForTimeout(300);
-        return true;
-      }
-      if (!editable) {
-        await page.keyboard.type(item.value, { delay: 15 }).catch(() => undefined);
-        await page.waitForTimeout(500);
-        await page.keyboard.press("Enter").catch(() => undefined);
-        await page.waitForTimeout(300);
-        return true;
-      }
-      const option = await firstVisible([
-        page.getByRole("option", { name: valuePattern }),
-        page.getByText(valuePattern),
-        page.locator("[role='option'], [role='menuitem'], .v-list-item, .q-item, li, button, label").filter({ hasText: valuePattern }),
-      ]);
-      if (option) {
-        const clicked = await option.click({ force: true, timeout: 5_000 }).then(() => true).catch(() => false);
-        if (clicked) return true;
-      }
-      if (editable) {
-        await page.keyboard.press("ArrowDown").catch(() => undefined);
-        await page.keyboard.press("Enter").catch(() => undefined);
-        await page.waitForTimeout(300);
-        return true;
-      }
-      await page.keyboard.press("Escape").catch(() => undefined);
-    }
-
     const labelPattern = new RegExp(escapeRegex(label), "i");
     const scopedChoice = await firstVisible([
-      page.getByText(valuePattern),
       page.locator("label, button, [role='radio']").filter({ hasText: valuePattern }),
       page.locator("fieldset, section, div").filter({ hasText: labelPattern }).locator("label, button, [role='radio']").filter({ hasText: valuePattern }),
     ]);

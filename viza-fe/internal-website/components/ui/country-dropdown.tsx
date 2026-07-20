@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import { cn } from "@/lib/utils";
+import { cn, matchesSearchText } from "@/lib/utils";
 
 import { ChevronDown, CheckIcon, Globe } from "lucide-react";
 import { CircleFlag } from "react-circle-flags";
@@ -90,6 +90,15 @@ const CountryDropdownComponent = (
     return map;
   }, [availableCountries, resolvedLocale]);
 
+  const chineseNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of availableCountries) {
+      const localized = getLocalizedName(c.alpha2, "zh");
+      if (localized) map.set(c.alpha2, localized);
+    }
+    return map;
+  }, [availableCountries]);
+
   useEffect(() => {
     if (!defaultValue) {
       if (selected) setSelected(null);
@@ -162,9 +171,7 @@ const CountryDropdownComponent = (
         <Command
           className="w-full"
           filter={(value, search, keywords) => {
-            const haystack = [value, ...(keywords ?? [])].join(" ").toLowerCase();
-            if (haystack.includes(search.toLowerCase())) return 1;
-            return 0;
+            return matchesSearchText(search, [value, ...(keywords ?? [])]) ? 1 : 0;
           }}
         >
           <CommandInput placeholder={resolvedLocale === "zh" ? "搜索国家..." : "Search country..."} />
@@ -178,7 +185,12 @@ const CountryDropdownComponent = (
                     className="flex items-center w-full gap-2 [&_svg]:size-auto"
                     key={key}
                     value={option.alpha2}
-                    keywords={[option.name, localizedMap.get(option.alpha2) ?? "", option.alpha3]}
+                    keywords={[
+                      option.name,
+                      localizedMap.get(option.alpha2) ?? "",
+                      chineseNameMap.get(option.alpha2) ?? "",
+                      option.alpha3,
+                    ]}
                     onSelect={() => handleSelect(option)}
                   >
                     <div className="flex flex-grow items-center space-x-2 overflow-hidden">

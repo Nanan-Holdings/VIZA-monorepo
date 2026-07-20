@@ -19,6 +19,7 @@ import {
 import {
   buildUSAppointmentBrowserApiEndpointForAttempt,
   buildUSVisaSchedulingUsername,
+  classifyUSVisaSchedulingAuthenticationState,
   classifyUSVisaSchedulingGateText,
   US_VISA_SCHEDULING_SELECTORS,
 } from "../usvisascheduling-portal";
@@ -281,7 +282,10 @@ test("US appointment runner only accepts enabled China usvisascheduling assisted
 });
 
 test("US appointment runner handoff records manual-required unsupported gate metadata", () => {
-  const handoff = buildRunnerHandoff(baseJob);
+  const handoff = buildRunnerHandoff(baseJob, loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED: "false",
+    TWOCAPTCHA_API_KEY: "",
+  }));
   assert.equal(handoff.jobStatus, "appointment_manual_required");
   assert.equal(handoff.actionType, "site_policy_review");
   assert.match(handoff.instruction, /manual review/i);
@@ -945,20 +949,20 @@ test("US appointment runner writes follow-up status check fixture", async () => 
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_status_checked");
 });
 
-test("USVisaScheduling gate classifier identifies unsupported official-site gates", () => {
+test("USVisaScheduling gate classifier identifies official-site gates", () => {
   assert.deepEqual(
     classifyUSVisaSchedulingGateText("Please complete hCaptcha verification before continuing."),
     {
       jobStatus: "appointment_manual_required",
       actionType: "captcha",
-      instruction: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      instruction: "USVisaScheduling presented a CAPTCHA checkpoint that requires the configured solver or manual completion.",
       metadata: {
-        gate_type: "unsupported_captcha",
+        gate_type: "captcha_checkpoint",
         provider: "hcaptcha",
         visible_text: "[REDACTED]",
       },
-      errorCode: "unsupported_captcha",
-      errorMessage: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      errorCode: "captcha_checkpoint",
+      errorMessage: "USVisaScheduling presented a CAPTCHA checkpoint.",
     },
   );
   assert.equal(
@@ -983,4 +987,33 @@ test("USVisaScheduling gate classifier identifies unsupported official-site gate
     classifyUSVisaSchedulingGateText("Payment required before scheduling your appointment.")?.actionType,
     "payment",
   );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("Enter the MFA authenticator security code.")?.metadata.gate_type,
+    "mfa_required",
+  );
+});
+
+test("USVisaScheduling uses the current B2C email verification selector", () => {
+  assert.match(US_VISA_SCHEDULING_SELECTORS.verificationCodeInputs, /#email_ver_input/);
+});
+
+test("USVisaScheduling only accepts an OAuth redirect after reaching the authenticated portal", () => {
+  assert.equal(classifyUSVisaSchedulingAuthenticationState({
+    url: "https://atlasauth.b2clogin.com/atlasauth.onmicrosoft.com/oauth2/v2.0/authorize",
+    bodyText: "Sign in",
+    loginVisible: true,
+    invalidCredentialsVisible: false,
+  }), "pending");
+  assert.equal(classifyUSVisaSchedulingAuthenticationState({
+    url: "https://www.usvisascheduling.com/en-US/",
+    bodyText: "Continue Application",
+    loginVisible: false,
+    invalidCredentialsVisible: false,
+  }), "authenticated");
+  assert.equal(classifyUSVisaSchedulingAuthenticationState({
+    url: "https://www.usvisascheduling.com/en-US/",
+    bodyText: "var isPortalUserLoggedIn = 'False';",
+    loginVisible: false,
+    invalidCredentialsVisible: false,
+  }), "rejected");
 });
