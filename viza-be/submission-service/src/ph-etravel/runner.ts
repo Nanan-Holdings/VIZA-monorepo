@@ -1241,11 +1241,17 @@ async function maybeCreatePhEtravelAccount(
   if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
     type EmailVerificationResult =
       | { kind: "otp"; otp: string }
-      | { kind: "url"; url: URL };
+      | { kind: "url"; url: URL }
+      | { kind: "existing" };
     const emailVerification = await firstSuccessful<EmailVerificationResult>([
       mailbox.waitForOtp({ timeoutMs, since }).then((otp) => ({ kind: "otp" as const, otp })),
       mailbox.waitForVerificationLink({ timeoutMs, since }).then((url) => ({ kind: "url" as const, url })),
+      mailbox.waitForExistingAccountNotice({ timeoutMs, since }).then(() => ({ kind: "existing" as const })),
     ]);
+    if (emailVerification.kind === "existing") {
+      logs.push("ph_etravel_alias_account_already_exists_email");
+      return false;
+    }
     if (emailVerification.kind === "url") {
       await page.goto(emailVerification.url.toString(), { waitUntil: "domcontentloaded", timeout: 45_000 });
       logs.push("ph_etravel_email_verification_link_opened");
@@ -1278,11 +1284,17 @@ async function maybeCreatePhEtravelAccount(
     // Wait for both official delivery shapes instead of assuming a link.
     type EmailVerificationResult =
       | { kind: "otp"; otp: string }
-      | { kind: "url"; url: URL };
+      | { kind: "url"; url: URL }
+      | { kind: "existing" };
     const emailVerification = await firstSuccessful<EmailVerificationResult>([
       mailbox.waitForOtp({ timeoutMs, since }).then((otp) => ({ kind: "otp" as const, otp })),
       mailbox.waitForVerificationLink({ timeoutMs, since }).then((url) => ({ kind: "url" as const, url })),
+      mailbox.waitForExistingAccountNotice({ timeoutMs, since }).then(() => ({ kind: "existing" as const })),
     ]);
+    if (emailVerification.kind === "existing") {
+      logs.push("ph_etravel_alias_account_already_exists_email");
+      return false;
+    }
     if (emailVerification.kind === "url") {
       await page.goto(emailVerification.url.toString(), { waitUntil: "domcontentloaded", timeout: 45_000 });
       logs.push("ph_etravel_email_verification_link_opened");
