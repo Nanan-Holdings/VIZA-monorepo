@@ -277,7 +277,12 @@ export function classifyUSVisaSchedulingGateText(text: string): AppointmentPorta
     };
   }
 
-  if (/privacy policy|terms|accept.*policy|policy.*accept|review and accept/.test(normalized)) {
+  if (
+    /review and accept/.test(normalized)
+    || /accept.*(?:privacy policy|terms)/.test(normalized)
+    || /(?:privacy policy|terms).*accept/.test(normalized)
+    || /i agree to (?:the )?(?:privacy policy|terms)/.test(normalized)
+  ) {
     return {
       jobStatus: "appointment_manual_required",
       actionType: "site_policy_review",

@@ -204,8 +204,26 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   }, [activeCenterCode, applicationId]);
 
   useEffect(() => {
-    void run();
-  }, [run]);
+    let active = true;
+    setBusy("load");
+    setError(null);
+    setErrorEvidenceUrl(null);
+    void requestSnapshot(applicationId)
+      .then((nextSnapshot) => {
+        if (active) setSnapshot(nextSnapshot);
+      })
+      .catch((cause) => {
+        if (!active) return;
+        setError(cause instanceof Error ? cause.message : String(cause));
+        setErrorEvidenceUrl(cause instanceof AppointmentRequestError ? cause.evidenceUrl : null);
+      })
+      .finally(() => {
+        if (active) setBusy(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [applicationId]);
 
   useEffect(() => {
     if (!selectedCenterCode && center?.code) setSelectedCenterCode(center.code);
@@ -266,7 +284,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
               <Button asChild variant="outline" size="sm">
                 <a href={errorEvidenceUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  {isZh ? "查看官网无可选时段截图" : "View official no-slot screenshot"}
+                  {isZh ? "查看官网现场截图" : "View official-page screenshot"}
                 </a>
               </Button>
             ) : null}

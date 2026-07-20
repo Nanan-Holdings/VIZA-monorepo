@@ -1019,6 +1019,14 @@ export async function startKoreaKvacOfficialCancelQuery(input: KoreaKvacCancelQu
       canCancel: true,
     };
   } catch (error) {
+    if (!(error instanceof KoreaKvacOfficialSessionError)) {
+      const screenshotPath = await screenshot(page, input.jobId, "official-session-start-failed").catch(() => null);
+      await browser.close().catch(() => undefined);
+      throw new KoreaKvacOfficialSessionError(
+        error instanceof Error ? error.message : String(error),
+        screenshotPath,
+      );
+    }
     await browser.close().catch(() => undefined);
     throw error;
   }
