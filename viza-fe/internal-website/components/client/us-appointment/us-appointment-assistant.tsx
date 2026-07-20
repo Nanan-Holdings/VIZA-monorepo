@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   CheckCircle2,
   CircleAlert,
+  Cloud,
   Clock3,
   Eye,
   EyeOff,
@@ -223,8 +224,10 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 export function USAppointmentAssistant({
   applicationId,
+  workerReady,
 }: {
   applicationId: string;
+  workerReady: boolean;
 }) {
   const t = useTranslations("usAppointment");
   const locale = useLocale();
@@ -423,6 +426,15 @@ export function USAppointmentAssistant({
     Boolean(job) && SLOT_CHECK_STATUSES.has(job?.status ?? "appointment_not_started");
   const canCheckStatus = Boolean(job && snapshot?.confirmation);
   const canBook = Boolean(job && selectedAppointmentSlot && finalApproved && !snapshot?.confirmation);
+  const accountReady = Boolean(snapshot?.account);
+  const officialPortalReady = Boolean(
+    job &&
+      (SLOT_CHECK_STATUSES.has(job.status) ||
+        slots.length > 0 ||
+        selectedAppointmentSlot ||
+        finalApproved ||
+        snapshot?.confirmation),
+  );
   const showCreate = !job || TERMINAL_STATUSES.has(job.status);
   const hasActiveJob = Boolean(job && !TERMINAL_STATUSES.has(job.status));
   const showProgress =
@@ -471,6 +483,66 @@ export function USAppointmentAssistant({
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       )}
+
+      <Card className="mt-6 rounded-[8px] border-input">
+        <CardHeader>
+          <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-[20px]">
+            <span className="flex items-center gap-2">
+              <Cloud className="h-5 w-5 text-brand-500" />
+              {t("cloud.title")}
+            </span>
+            <Badge variant={workerReady ? "default" : "outline"}>
+              {workerReady ? t("cloud.ready") : t("cloud.unavailable")}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                label: t("cloud.worker"),
+                complete: workerReady,
+              },
+              {
+                label: t("cloud.alias"),
+                complete: accountReady,
+              },
+              {
+                label: t("cloud.portal"),
+                complete: officialPortalReady,
+              },
+              {
+                label: t("cloud.preSubmit"),
+                complete: Boolean(selectedAppointmentSlot && finalApproved),
+              },
+            ].map((step) => (
+              <li
+                key={step.label}
+                className="flex min-h-20 items-start gap-3 rounded-[8px] border border-slate-200 bg-white p-3"
+              >
+                {step.complete ? (
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                ) : (
+                  <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {step.label}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {step.complete ? t("cloud.complete") : t("cloud.pending")}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+            <ShieldCheck className="h-4 w-4" />
+            <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
+            <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
 
       {busyAction === "load" && !snapshot ? (
         <div className="mt-8 flex min-h-[360px] flex-col items-center justify-center gap-4 rounded-[8px] border bg-white">

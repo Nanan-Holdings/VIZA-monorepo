@@ -4769,6 +4769,19 @@
     "errorTitle": "预约助手需要处理",
     "dryRunNoticeTitle": "受控 assisted-live",
     "dryRunNotice": "中国首版流程只会在明确用户动作后运行。VIZA 可通过受控 runner 处理支持的官方节点，记录脱敏官方证据；不支持的官方阻塞会明确显示为需要人工处理。",
+    "cloud": {
+      "title": "云端自动化状态",
+      "ready": "Fly worker 已就绪",
+      "unavailable": "Worker 暂不可用",
+      "worker": "云端 worker",
+      "alias": "Alias 预约账号",
+      "portal": "官网预约日历",
+      "preSubmit": "已到最终提交前",
+      "complete": "已完成",
+      "pending": "待完成",
+      "stopTitle": "官网最终按钮受保护",
+      "stopBody": "只有后端观察到名额、用户选择时段并记录最终批准后，VIZA 才会启用官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
       "withCode": "预约请求暂时无法完成。参考代码：{code}。",
@@ -5017,6 +5030,16 @@
     "errorTitle": "法国预约助手需要处理",
     "dryRunNoticeTitle": "TLS 中国受控流程",
     "dryRunNotice": "该流程只会在用户明确操作后运行。VIZA 通过后端读取 TLScontact 名额，不替申请人随意选位；遇到不支持自动化的官网风控、MFA、实名或支付挑战时会暂停。 ",
+    "cloud": {
+      "ready": "Fly worker 已就绪",
+      "unavailable": "Worker 暂不可用",
+      "worker": "云端 worker",
+      "alias": "已验证 Alias 账号",
+      "portal": "已观察 TLS 日历",
+      "preSubmit": "已到最终提交前",
+      "stopTitle": "官网最终按钮受保护",
+      "stopBody": "只有后端观察到名额、用户选择时段、完成所需支付授权并记录最终批准后，VIZA 才会启用 TLS 官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
     "errors": {
       "generic": "法国预约请求暂时无法完成，请稍后重试。",
       "withCode": "法国预约请求暂时无法完成。参考代码：{code}。",

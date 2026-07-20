@@ -29,6 +29,7 @@ type ParsedArgs = {
   departureDate?: string;
   headless: boolean;
   payloadFile?: string;
+  profilePhotoPath?: string;
   forceLocalBrowser: boolean;
   useImapMailbox: boolean;
   newImapAlias: boolean;
@@ -68,6 +69,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     departureDate: getArg("departure-date"),
     headless: parseBoolean("headless", process.env.PH_ETRAVEL_PLAYWRIGHT_HEADLESS !== "false"),
     payloadFile: getArg("payload-file"),
+    profilePhotoPath: getArg("profile-photo"),
     forceLocalBrowser: hasArg("local-browser"),
     useImapMailbox: hasArg("imap-mailbox"),
     newImapAlias: hasArg("new-imap-alias"),
@@ -452,7 +454,7 @@ async function main(): Promise<void> {
   }
 
   let payload = DEFAULT_PAYLOAD;
-  let profilePhotoPath: string | undefined;
+  let profilePhotoPath = args.profilePhotoPath ? resolve(args.profilePhotoPath) : undefined;
   if (args.payloadFile) {
     payload = await loadPayloadFromFile(args.payloadFile);
   } else if (args.applicationId) {

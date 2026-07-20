@@ -4683,6 +4683,19 @@
     "errorTitle": "Appointment assistant needs attention",
     "dryRunNoticeTitle": "Gated assisted live",
     "dryRunNotice": "This China-first workflow runs only after explicit user actions. VIZA can handle supported official-site checkpoints through the gated runner, records redacted official evidence, and surfaces unsupported gates for manual review.",
+    "cloud": {
+      "title": "Cloud automation status",
+      "ready": "Fly worker ready",
+      "unavailable": "Worker unavailable",
+      "worker": "Cloud worker",
+      "alias": "Alias account",
+      "portal": "Official calendar",
+      "preSubmit": "Ready before submit",
+      "complete": "Complete",
+      "pending": "Pending",
+      "stopTitle": "The official final button is protected",
+      "stopBody": "VIZA stops before the official confirmation click until an observed slot is selected and final approval is recorded. Opening this page never starts or submits an appointment."
+    },
     "errors": {
       "generic": "The appointment request could not be completed. Please try again.",
       "withCode": "The appointment request could not be completed. Reference: {code}.",
@@ -4931,6 +4944,16 @@
     "errorTitle": "France appointment assistant needs attention",
     "dryRunNoticeTitle": "TLS China gated flow",
     "dryRunNotice": "This workflow only runs after explicit user actions. VIZA reads TLScontact slots through the backend, never chooses a slot for the applicant, and pauses on unsupported official-site risk, MFA, identity, or payment challenges.",
+    "cloud": {
+      "ready": "Fly worker ready",
+      "unavailable": "Worker unavailable",
+      "worker": "Cloud worker",
+      "alias": "Verified alias account",
+      "portal": "Observed TLS calendar",
+      "preSubmit": "Ready before submit",
+      "stopTitle": "The official final button is protected",
+      "stopBody": "VIZA stops before the official TLS confirmation click until an observed slot is selected, any required payment authorization is present, and final approval is recorded. Opening this page never starts or submits an appointment."
+    },
     "errors": {
       "generic": "The France appointment request could not be completed. Please try again.",
       "withCode": "The France appointment request could not be completed. Reference: {code}.",

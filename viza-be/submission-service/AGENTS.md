@@ -290,6 +290,12 @@ filling and one-shot submission for the applicant.
   but stops for Portal slot selection and final approval; only a job already
   transitioned to `appointment_booked` may reach the official confirmation
   click.
+- `scripts/run-appointment-pre-submit-fixture.ts`: offline Playwright safety
+  fixture for the U.S. and France appointment paths. It uses only synthetic
+  placeholder values, exercises the production selector maps through local
+  registration/login, profile/reference, calendar, slot, and review screens,
+  saves screenshots with the final official-style control visible, asserts
+  zero final-submit clicks, and never sends a request to an official portal.
 - `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
   declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival
@@ -486,6 +492,9 @@ npm run portal:connectivity-smoke
 # Browserbase Free Plan, no proxies, sequential appointment reachability.
 # Optional: -- --application-id=<authorized-id> --prepare-alias
 npm run appointment:free-smoke
+# Offline placeholder coverage for U.S./France through final-button visibility.
+# Never contacts an official portal and never clicks the final control:
+npm run appointment:pre-submit-fixture
 # Public arrival-card forms; stop before final Submit unless --submit is passed:
 npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts

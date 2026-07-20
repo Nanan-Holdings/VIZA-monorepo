@@ -71,6 +71,49 @@ function sanitizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim().slice(0, 240);
 }
 
+async function visibleOfficialLoading(page: import("@playwright/test").Page) {
+  return page.locator(".loading").evaluateAll((elements) => elements.some((element) => {
+    const style = window.getComputedStyle(element);
+    const bounds = element.getBoundingClientRect();
+    return style.display !== "none"
+      && style.visibility !== "hidden"
+      && Number.parseFloat(style.opacity || "1") > 0
+      && bounds.width > 0
+      && bounds.height > 0;
+  })).catch(() => false);
+}
+
+async function waitForCalendarMonth(page: import("@playwright/test").Page, previousMonth?: string) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const title = (await page.locator(".ui-datepicker-title").first().innerText().catch(() => "")).trim();
+    const visible = await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false);
+    if (visible && title && (!previousMonth || title !== previousMonth) && !(await visibleOfficialLoading(page))) {
+      await page.waitForTimeout(150);
+      if (!(await visibleOfficialLoading(page))) return title;
+    }
+    await page.waitForTimeout(200);
+  }
+  throw new Error(`Official calendar did not finish loading${previousMonth ? ` after ${previousMonth}` : ""}.`);
+}
+
+async function verifySharedKvacCalendar(page: import("@playwright/test").Page) {
+  const initialMonth = await waitForCalendarMonth(page);
+  const next = page.locator(".ui-datepicker-next").first();
+  if (!(await next.isVisible().catch(() => false))) {
+    throw new Error("Official calendar has no visible next-month control.");
+  }
+  await next.click({ timeout: 10_000 });
+  const nextMonth = await waitForCalendarMonth(page, initialMonth);
+  return {
+    initialMonth,
+    nextMonth,
+    selectableDatesInNextMonth: await page.locator(
+      ".ui-datepicker-calendar td[data-handler='selectDay']:not(.ui-datepicker-other-month) a",
+    ).count(),
+  };
+}
+
 async function main(): Promise<void> {
   const browser = await chromium.launch({
     headless: !/^(1|true|yes|on)$/i.test(process.env.KR_KVAC_SMOKE_HEADFUL ?? ""),
@@ -85,15 +128,23 @@ async function main(): Promise<void> {
         await page.waitForTimeout(3_000);
         const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
         const matched = target.expected.test(bodyText);
+        const calendar = target.mode === "sms_sync_supported"
+          ? await verifySharedKvacCalendar(page)
+          : null;
         await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => undefined);
         results.push({
           code: target.code,
           label: target.label,
           mode: target.mode,
           url: target.url,
-          status: matched ? "reachable_expected_content" : "reachable_unexpected_content",
+          status: matched
+            ? calendar
+              ? "calendar_ready"
+              : "reachable_expected_content"
+            : "reachable_unexpected_content",
           finalUrl: page.url(),
           screenshotPath,
+          calendar,
           textSample: sanitizeText(bodyText),
         });
       } catch (error) {

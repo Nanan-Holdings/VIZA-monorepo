@@ -479,19 +479,26 @@ async function ensureKoreaJob(
 ) {
   let job = await latestJob(admin, applicationId);
   if (job) {
-    if (mode === "live_assisted" && job.mode !== "live_assisted") {
+    const selectedCenterChanged = job.user_preferences_json?.centerCode !== routing.recommended.code;
+    if ((mode === "live_assisted" && job.mode !== "live_assisted") || selectedCenterChanged) {
       const { data, error } = await admin
         .from("appointment_assistance_jobs")
         .update({
-          mode: "live_assisted",
-          status: "sms_verification_required",
-          requires_user_action: true,
+          mode: mode === "live_assisted" ? "live_assisted" : job.mode,
+          status: mode === "live_assisted" ? "sms_verification_required" : job.status,
+          requires_user_action: mode === "live_assisted" ? true : job.requires_user_action,
+          applying_post_city: routing.recommended.nameEn,
+          user_preferences_json: {
+            ...(job.user_preferences_json ?? {}),
+            routing,
+            centerCode: routing.recommended.code,
+          },
           updated_at: new Date().toISOString(),
         })
         .eq("id", job.id)
         .select("*")
         .single();
-      if (error || !data) throw new Error(error?.message ?? "Could not upgrade Korea appointment job.");
+      if (error || !data) throw new Error(error?.message ?? "Could not update Korea appointment job.");
       job = data as AppointmentJobRow;
       await admin.from("applications").update({
         appointment_assistance_status: "sms_verification_required",
