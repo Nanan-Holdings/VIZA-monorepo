@@ -1406,10 +1406,43 @@ async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<s
   return pdfs;
 }
 
-async function prepareTdacFinalSubmit(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
-  const emailInput = page.locator("input[type='email'], input[placeholder*='@'], input[placeholder*='EXAMPLE']").last();
-  await emailInput.waitFor({ state: "visible", timeout: 20_000 });
-  await emailInput.fill(payload.emailAddress, { timeout: 10_000 });
+async function prepareTdacFinalSubmit(
+  page: Page,
+  payload: TdacPortalPayload,
+  screenshots: string[],
+  logs: string[],
+): Promise<void> {
+  let emailSelector: string;
+  try {
+    emailSelector = await firstVisibleSelector(
+      page,
+      [
+        "input[formcontrolname='email']",
+        "input[name='email']",
+        "input[type='email']",
+        "input[placeholder*='@']",
+        "input[placeholder*='example' i]",
+        "input[placeholder*='email' i]",
+        "input[aria-label*='email' i]",
+        "xpath=//*[contains(translate(normalize-space(.), 'EMAIL', 'email'), 'email')]/following::input[1]",
+      ],
+      90_000,
+    );
+  } catch (error) {
+    screenshots.push(await saveScreenshot(page, "final-email-unavailable", logs));
+    const portalText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+    throw new TdacPortalError("TDAC Preview did not expose the final confirmation email field.", {
+      code: "tdac_final_email_unavailable",
+      screenshotPaths: screenshots,
+      portalSummary: portalText.slice(0, 500),
+      logs: [
+        ...logs,
+        `tdac_final_email_unavailable ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
+      ],
+    });
+  }
+  const emailInput = page.locator(emailSelector).last();
+  await emailInput.fill(payload.emailAddress, { timeout: 15_000 });
   logs.push("tdac_final_email_filled");
 
   const termsCheckbox = page.locator("mat-checkbox, .mat-mdc-checkbox, input[type='checkbox']").last();
@@ -1605,7 +1638,12 @@ async function fillTdacTripStep(
   await clickFirstEnabledButton(page, /^Continue$/i, logs);
 }
 
-async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
+async function fillTdacHealthStep(
+  page: Page,
+  payload: TdacPortalPayload,
+  screenshots: string[],
+  logs: string[],
+): Promise<void> {
   await page.waitForTimeout(1_000);
   for (const country of payload.countriesVisitedLast14Days) {
     await selectOfficialAutocompleteAnyCandidateValues(
@@ -1615,6 +1653,44 @@ async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: 
       logs,
       "countries_visited_last_14_days",
     );
+  }
+
+  const yellowFeverPrompt = page
+    .getByText(/Do you have Yellow Fever Vaccination Certificate/i)
+    .first();
+  if (await yellowFeverPrompt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    if (payload.yellowFeverVaccinationCertificate === undefined) {
+      screenshots.push(await saveScreenshot(page, "conditional-health-answer-required", logs));
+      throw new TdacPortalError(
+        "TDAC requires the applicant to declare whether they have a Yellow Fever Vaccination Certificate.",
+        {
+          code: "tdac_conditional_health_answer_required",
+          screenshotPaths: screenshots,
+          portalSummary:
+            "The official health step requires yellow_fever_vaccination_certificate because the traveller's health-risk inputs triggered additional questions.",
+          logs,
+        },
+      );
+    }
+    await clickRadioByText(
+      page,
+      payload.yellowFeverVaccinationCertificate ? "YES" : "NO",
+      logs,
+    );
+    if (payload.yellowFeverVaccinationCertificate) {
+      screenshots.push(await saveScreenshot(page, "yellow-fever-certificate-details-required", logs));
+      throw new TdacPortalError(
+        "TDAC requires the Yellow Fever vaccination date and certificate upload after answering Yes.",
+        {
+          code: "tdac_yellow_fever_certificate_details_required",
+          screenshotPaths: screenshots,
+          portalSummary:
+            "The applicant answered Yes to the Yellow Fever certificate question; vaccination date and certificate evidence must be supplied before submission.",
+          logs,
+        },
+      );
+    }
+    logs.push("tdac_yellow_fever_certificate_answered_no");
   }
   await clickFirstEnabledButton(page, /^Preview$/i, logs);
 }
@@ -1771,7 +1847,7 @@ export async function runTdacPortalSubmission(
     await page.waitForTimeout(3_000);
     screenshots.push(await saveScreenshot(page, "after-trip", logs));
 
-    await fillTdacHealthStep(page, payload, logs);
+    await fillTdacHealthStep(page, payload, screenshots, logs);
     await page.waitForTimeout(3_000);
     screenshots.push(await saveScreenshot(page, "after-health-preview", logs));
 
@@ -1791,7 +1867,7 @@ export async function runTdacPortalSubmission(
         logs.push(`tdac_dialog_accept_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
       });
     });
-    await prepareTdacFinalSubmit(page, payload, logs);
+    await prepareTdacFinalSubmit(page, payload, screenshots, logs);
     screenshots.push(await saveScreenshot(page, "before-final-submit", logs));
     await assertTdacOfficialFormValid(page, screenshots, logs, "final-submit");
     await clickFirstEnabledButton(page, /^Submit$/i, logs);

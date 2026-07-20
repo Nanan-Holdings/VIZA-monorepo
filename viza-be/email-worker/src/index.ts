@@ -338,6 +338,35 @@ async function sendForwardedEmail(
   });
 }
 
+async function forwardOriginalEmail(
+  env: Env,
+  row: InsertedEmailRow,
+  message: CfEmailMessage,
+): Promise<void> {
+  const destination = await loadRealEmail(env, row.to_addr);
+  if (!destination) throw new Error("alias owner has no real email");
+  if (destination === row.to_addr) {
+    await updateInboundEmail(env, row.id, {
+      forwarding_status: "skipped",
+      forwarded_to: destination,
+      forwarding_error: "alias and destination are identical",
+      forwarding_attempts: row.forwarding_attempts + 1,
+    });
+    return;
+  }
+
+  // Cloudflare forwards the original RFC 822 message, preserving the official
+  // sender, QR, PDF, inline images, and all MIME attachments.
+  await message.forward(destination);
+  await updateInboundEmail(env, row.id, {
+    forwarding_status: "sent",
+    forwarded_to: destination,
+    forwarded_at: new Date().toISOString(),
+    forwarding_attempts: row.forwarding_attempts + 1,
+    forwarding_error: null,
+  });
+}
+
 async function recordForwardFailure(
   env: Env,
   row: InsertedEmailRow,
@@ -495,7 +524,7 @@ export default {
     });
     if (!quarantined) {
       try {
-        await sendForwardedEmail(env, inserted, rawBytes);
+        await forwardOriginalEmail(env, inserted, message);
       } catch (error) {
         // Keep SMTP delivery successful. The scheduled handler retries when
         // raw-message archival is available.

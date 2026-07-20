@@ -485,8 +485,8 @@ async function ensureKoreaJob(
         .from("appointment_assistance_jobs")
         .update({
           mode: mode === "live_assisted" ? "live_assisted" : job.mode,
-          status: mode === "live_assisted" ? "sms_verification_required" : job.status,
-          requires_user_action: mode === "live_assisted",
+          status: mode === "live_assisted" ? "not_started" : job.status,
+          requires_user_action: false,
           applying_post_city: routing.recommended.nameEn,
           user_preferences_json: {
             ...(job.user_preferences_json ?? {}),
@@ -501,7 +501,7 @@ async function ensureKoreaJob(
       if (error || !data) throw new Error(error?.message ?? "Could not update Korea appointment job.");
       job = data as AppointmentJobRow;
       await admin.from("applications").update({
-        appointment_assistance_status: "sms_verification_required",
+        appointment_assistance_status: "not_started",
         appointment_assistance_job_id: job.id,
       }).eq("id", applicationId);
     }
@@ -518,7 +518,7 @@ async function ensureKoreaJob(
       applying_country_code: "CN",
       applying_post_city: routing.recommended.nameEn,
       scheduling_provider: "kvac_cn",
-      status: mode === "live_assisted" ? "sms_verification_required" : "appointment_slots_observed",
+      status: mode === "live_assisted" ? "not_started" : "appointment_slots_observed",
       mode,
       user_preferences_json: {
         routing,
@@ -526,7 +526,7 @@ async function ensureKoreaJob(
         finalConfirmationRequired: true,
         source: "korea_c39_v1",
       },
-      requires_user_action: mode === "live_assisted",
+      requires_user_action: false,
       idempotency_key: `korea-kvac:${applicationId}:${randomUUID()}`,
     })
     .select("*")
@@ -534,7 +534,7 @@ async function ensureKoreaJob(
   if (error || !data) throw new Error(error?.message ?? "Could not create Korea appointment job.");
 
   await admin.from("applications").update({
-    appointment_assistance_status: mode === "live_assisted" ? "sms_verification_required" : "appointment_slots_observed",
+    appointment_assistance_status: mode === "live_assisted" ? "not_started" : "appointment_slots_observed",
     appointment_assistance_job_id: data.id,
   }).eq("id", applicationId);
 
@@ -1182,7 +1182,12 @@ export async function POST(
       .from("appointment_manual_actions")
       .update({ status: "expired" })
       .eq("job_id", job.id)
-      .eq("action_type", "sms_verification_required")
+      .in("action_type", [
+        "sms_verification_required",
+        "official_center_manual_checkpoint",
+        "official_guidance_required",
+        "official_account_login_required",
+      ])
       .in("status", ["pending", "in_progress"]);
     if (manualActionError) throw new Error(manualActionError.message);
     const { error: jobError } = await auth.admin
@@ -1201,8 +1206,8 @@ export async function POST(
       job_id: job.id,
       application_id: id,
       user_id: auth.profile.id,
-      event_type: "sms_verification_abandoned",
-      event_message: "Applicant returned to center selection before submitting the official SMS code.",
+      event_type: "center_selection_reopened",
+      event_message: "Applicant returned to center selection from an official SMS or center-guidance checkpoint.",
       metadata_redacted_json: { centerCode: routing.recommended.code },
     });
     return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
@@ -1685,9 +1690,6 @@ export async function POST(
         { status: 409 },
       );
     }
-    if (job.status === "sms_verification_submitted") {
-      return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
-    }
     const { data: existingManualAction, error: existingManualErr } = await auth.admin
       .from("appointment_manual_actions")
       .select("id, expires_at")
@@ -2072,7 +2074,11 @@ export async function POST(
       event_message: "Applicant restarted Korea appointment flow after confirming there is no valid VIZA appointment record. No official cancellation action was sent.",
       metadata_redacted_json: { previousJobId: existingJob?.id ?? null },
     });
-    return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
+    const snapshot = await readSnapshot(auth.admin, id, routingInput);
+    if (snapshot.manualAction?.action_type !== "sms_verification_required") {
+      throw new Error("Official Korea KVAC SMS verification started, but the OTP checkpoint could not be restored.");
+    }
+    return NextResponse.json(snapshot);
   }
 
   if (action === "request-cancel") {

@@ -24,6 +24,9 @@ applicants.
 - Treat a verified zero-slot result as normal availability, not a system
   failure. Show a localized neutral notice and never expose submission-service
   URLs, HTTP status codes, or worker error text to applicants.
+- Official-guidance/manual center states must provide an in-flow return action
+  that clears the checkpoint and reopens center selection; the page-header back
+  button remains reserved for returning to the application form.
 - Never mark an appointment booked or cancelled until the official result page
   has been verified and evidence persisted.
 - SMS codes are transient and must not be written to logs or the database.

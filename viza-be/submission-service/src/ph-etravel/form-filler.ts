@@ -129,8 +129,8 @@ export function buildPhEtravelFieldPlan(
     { key: "origin_country", portalName: "origin_country_code", labels: ["Country of Origin"], kind: "choice", value: resolvedOptionLabel(payload.originCountry, officialLabels), required: true },
     { key: "airport_of_origin", portalName: "origin_port", labels: ["Airport of Origin", "Port of Origin"], kind: "text", value: payload.airportOfOrigin, required: true },
     { key: "port_of_entry", portalName: "destination_port_code", labels: ["Airport/Port of Destination in the Philippines", "Port of Entry", "Airport of Destination"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
-    { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
     { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
+    { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight", "Departure Date"], kind: "date", value: payload.departureDate, required: true },
     { key: "with_transit", portalName: "with_transit", labels: ["With Transit", "Connecting Flight"], kind: "checkbox", value: payload.withTransit ?? false },
     { key: "transit_country", portalName: "transit_country_code", labels: ["Country of Transit"], kind: "choice", value: resolvedOptionLabel(payload.transitCountry, officialLabels) },
     { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
@@ -226,7 +226,7 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
       // update both the mask and Formik state.
       await dateInput.click({ force: true, timeout: 5_000 }).catch(() => undefined);
       await dateInput.press("Control+A").catch(() => undefined);
-      await dateInput.pressSequentially(formatted.replace(/\//g, ""), { delay: 40 }).catch(() => undefined);
+      await dateInput.pressSequentially(formatted, { delay: 40 }).catch(() => undefined);
       await dateInput.press("Tab").catch(() => undefined);
       await page.waitForTimeout(500);
       if (await dateInput.inputValue().catch(() => "")) return true;
@@ -246,6 +246,11 @@ async function fillTextOrDate(page: Page, item: PhEtravelFieldPlanItem): Promise
         await page.waitForTimeout(750);
         if (await dateInput.inputValue().catch(() => "")) return true;
       }
+      await dateInput.click({ force: true, timeout: 5_000 }).catch(() => undefined);
+      await dateInput.press("ArrowRight").catch(() => undefined);
+      await dateInput.press("Enter").catch(() => undefined);
+      await page.waitForTimeout(750);
+      if (await dateInput.inputValue().catch(() => "")) return true;
     }
   }
   if (item.key === "philippines_address") {
@@ -474,9 +479,18 @@ async function uploadFile(page: Page, item: PhEtravelFieldPlanItem): Promise<boo
 async function fillVisibleFields(page: Page, plan: PhEtravelFieldPlanItem[], completed: Set<string>): Promise<string[]> {
   const newlyFilled: string[] = [];
   for (const item of plan) {
-    if (completed.has(item.key) && item.kind === "date" && item.portalName) {
-      const retained = await page.locator(`input[name="${item.portalName}"]:visible`).first().inputValue().catch(() => "");
-      if (!retained) completed.delete(item.key);
+    if (completed.has(item.key) && item.required && item.portalName) {
+      const named = page.locator(`input[name="${item.portalName}"]`);
+      const count = await named.count().catch(() => 0);
+      if (count > 0) {
+        const inputType = await named.first().getAttribute("type").catch(() => null);
+        const retained = inputType === "radio"
+          ? await named.evaluateAll((inputs) => inputs.some((input) => (input as HTMLInputElement).checked)).catch(() => false)
+          : Boolean(await named.first().inputValue().catch(() => ""));
+        if (!retained) completed.delete(item.key);
+      } else {
+        completed.delete(item.key);
+      }
     }
     if (completed.has(item.key) || item.value === null || item.value === "") continue;
     const filled = item.kind === "choice"

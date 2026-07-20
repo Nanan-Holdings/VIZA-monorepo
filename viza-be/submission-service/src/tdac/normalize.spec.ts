@@ -37,7 +37,7 @@ test("legacy transit purpose uses official Others while preserving transit seman
   });
 });
 
-test("TDAC payload rejects a purpose that is not in the official dropdown", () => {
+test("TDAC payload preserves conditional health answers and rejects an unknown purpose", () => {
   const payload: SubmissionPayload = {
     payloadVersion: "1",
     countryCode: "TH",
@@ -64,7 +64,8 @@ test("TDAC payload rejects a purpose that is not in the official dropdown", () =
       arrival_date: "2026-07-22",
       departure_date: "2026-07-22",
       country_boarded: "CHN",
-      purpose_of_travel: "not_an_official_purpose",
+      purpose_of_travel: "holiday",
+      yellow_fever_vaccination_certificate: "no",
       arrival_mode_of_travel: "air",
       arrival_mode_of_transport: "commercial_flight",
       arrival_transport_number: "TEST1",
@@ -75,6 +76,11 @@ test("TDAC payload rejects a purpose that is not in the official dropdown", () =
     },
   };
 
+  assert.equal(
+    normalizeTdacPortalPayload(payload).yellowFeverVaccinationCertificate,
+    false,
+  );
+  payload.countrySpecific.purpose_of_travel = "not_an_official_purpose";
   assert.throws(
     () => normalizeTdacPortalPayload(payload),
     /answers\.purpose_of_travel\(official_option\)/,
