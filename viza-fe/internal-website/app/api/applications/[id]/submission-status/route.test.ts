@@ -170,4 +170,46 @@ describe("selectQueueForSubmissionStatus", () => {
     expect(queue?.id).toBe("new_queue");
     expect(queue?.current_stage).toBeNull();
   });
+
+  it("does not fall back to an older completed dry run after a live retry was superseded", () => {
+    const latest = new Date().toISOString();
+    const older = new Date(Date.now() - 60_000).toISOString();
+
+    const queue = selectQueueForSubmissionStatus([
+      {
+        id: "superseded_live_retry",
+        status: "retry_superseded",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "philippines_etravel_live",
+        last_error: null,
+        error_code: "duplicate_retry_after_success",
+        error_message: "Duplicate retry suppressed.",
+        current_stage: "duplicate_suppressed",
+        heartbeat_at: latest,
+        manual_action_status: null,
+        official_status: null,
+        created_at: latest,
+        updated_at: latest,
+      },
+      {
+        id: "old_dry_run",
+        status: "done",
+        attempts: 0,
+        mode: "dry_run",
+        provider: "philippines_etravel_dry_run",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: null,
+        heartbeat_at: null,
+        manual_action_status: null,
+        official_status: null,
+        created_at: older,
+        updated_at: older,
+      },
+    ]);
+
+    expect(queue?.id).toBe("superseded_live_retry");
+  });
 });

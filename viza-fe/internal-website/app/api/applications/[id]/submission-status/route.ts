@@ -521,9 +521,9 @@ export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | nul
   const activeRows = rows.filter(isActiveQueue);
   if (activeRows.length > 0) return newestQueue(activeRows);
 
-  const currentRows = rows.filter((row) => normalizeStatus(row.status) !== "retry_superseded");
-  if (currentRows.length > 0) return newestQueue(currentRows);
-
+  // Keep the newest superseded retry visible when there is no active job.
+  // Falling back to an older `done` dry-run row can otherwise display a false
+  // 100% official-submission success state.
   return newestQueue(rows);
 }
 
