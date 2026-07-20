@@ -1124,7 +1124,7 @@ async function maybeCreatePhEtravelAccount(
 ): Promise<boolean> {
   const accountEmail = options.officialAccountEmail?.trim();
   const applicantId = options.applicantId?.trim();
-  if (!accountEmail || !applicantId) return false;
+  if (!accountEmail || (!applicantId && !options.mailbox)) return false;
 
   if (!/create an account/i.test(await bodyText(page))) {
     await clickFirstAvailable(page, [
@@ -1136,7 +1136,7 @@ async function maybeCreatePhEtravelAccount(
     await page.waitForTimeout(1_500);
   }
 
-  const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId);
+  const mailbox = options.mailbox ?? createPhEtravelMailboxProvider(applicantId as string);
   let since = new Date().toISOString();
   const clickedCreate = await clickFirstAvailable(page, [
     page.getByText(/create an account/i),

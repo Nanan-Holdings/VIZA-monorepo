@@ -9,6 +9,11 @@ function isoDatePlus(days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+function argumentValue(name: string): string | undefined {
+  const prefix = `--${name}=`;
+  return process.argv.find((argument) => argument.startsWith(prefix))?.slice(prefix.length).trim() || undefined;
+}
+
 const stopBeforeSubmit = !process.argv.includes("--submit");
 const transit = process.argv.includes("--transit");
 const arrivalDate = isoDatePlus(2);
@@ -29,11 +34,11 @@ const payload: TdacPortalPayload = {
   emailAddress: "e1484122@u.nus.edu",
   arrivalDate,
   departureDate: transit ? arrivalDate : isoDatePlus(3),
-  countryBoarded: "SINGAPORE",
+  countryBoarded: argumentValue("country-boarded") ?? "SINGAPORE",
   purposeOfTravel: "holiday",
   arrivalModeOfTravel: "air",
   arrivalModeOfTransport: "commercial_flight",
-  arrivalTransportNumber: "SQ466",
+  arrivalTransportNumber: argumentValue("arrival-transport") ?? "SQ466",
   departureModeOfTravel: "air",
   departureModeOfTransport: "commercial_flight",
   departureTransportNumber: "SQ221",
@@ -44,7 +49,10 @@ const payload: TdacPortalPayload = {
   district: "PATHUM WAN",
   subDistrict: "LUMPHINI",
   postalCode: "10330",
-  countriesVisitedLast14Days: ["CHINA"],
+  countriesVisitedLast14Days: (argumentValue("countries-visited") ?? "CHINA")
+    .split(",")
+    .map((country) => country.trim())
+    .filter(Boolean),
 };
 
 async function main(): Promise<void> {

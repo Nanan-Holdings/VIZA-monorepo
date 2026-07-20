@@ -101,7 +101,8 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
   const { data: account, error: accountError } = await supabase.from("appointment_accounts").select("*")
     .eq("application_id", applicationId).eq("portal", "vfs_japan_sg").order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (accountError) throw new Error(`Japan VFS account lookup failed: ${accountError.message}`);
-  const passwordResetRequired = account?.account_status === "password_reset_required";
+  const passwordResetRequired = account?.account_status === "password_reset_required"
+    || account?.account_status === "password_reset_email_requested";
   const password = account?.encrypted_account_password
     ? decryptSecret(account.encrypted_account_password)
     : passwordResetRequired ? "" : generatePassword();
@@ -278,12 +279,12 @@ async function openBookingCalendar(page: Page): Promise<boolean> {
 
 async function ensureLoggedIn(page: Page, applicationId: string): Promise<{ context: PortalAccountContext; checkpoint?: JapanVfsRunnerResult["checkpoint"] }> {
   const context = await loadPortalAccount(applicationId);
-  if (["phone_otp_required", "email_verification_required", "password_reset_required"].includes(context.status)) {
+  if (["phone_otp_required", "email_verification_required", "account_activation_required", "password_reset_required", "password_reset_email_requested"].includes(context.status)) {
     return {
       context,
       checkpoint: {
         type: "identity_verification",
-        message: context.status === "password_reset_required"
+        message: context.status === "password_reset_required" || context.status === "password_reset_email_requested"
           ? "The VFS account is activated, but its password must be reset through the official login page before calendar access."
           : "The VFS account still requires its official phone or email verification step before calendar access.",
       },

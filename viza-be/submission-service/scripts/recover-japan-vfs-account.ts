@@ -11,6 +11,7 @@ import { supabase } from "../src/supabase";
 const applicationId = process.argv.find((value) => value.startsWith("--application-id="))?.split("=")[1];
 if (!applicationId) throw new Error("--application-id is required.");
 const activationAlreadyConsumed = process.argv.includes("--activation-already-consumed");
+const requestFreshActivation = process.argv.includes("--request-fresh-activation");
 
 type CloudPage = Awaited<ReturnType<typeof connectBrowserbaseCloudBrowser>>["page"];
 
@@ -120,6 +121,59 @@ async function main(): Promise<void> {
       throw new Error("VFS login component did not render before timeout.");
     }
     await cloud.page.screenshot({ path: path.join(artifactDir, "login-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+    if (requestFreshActivation) {
+      if (!await clickVisible(cloud.page, /activate.*account/i)) throw new Error("VFS Activate my account entry was not found.");
+      await cloud.page.waitForTimeout(2_000);
+      const activationEntryState = await cloud.page.evaluate(() => ({
+        urlPath: document.location.pathname,
+        headings: [...document.querySelectorAll<HTMLElement>("h1,h2,h3")].map((element) => element.innerText.trim()).filter(Boolean).slice(0, 5),
+        buttons: [...document.querySelectorAll<HTMLButtonElement>("button")].filter((element) => element.offsetWidth || element.offsetHeight).map((element) => element.innerText.trim()).filter(Boolean).slice(0, 8),
+      }));
+      console.log(`[jp-vfs-recovery] activation entry=${JSON.stringify(activationEntryState)}`);
+      if (!/activat/i.test(`${activationEntryState.urlPath} ${activationEntryState.headings.join(" ")}`)) {
+        throw new Error("VFS did not open a verified account-activation page.");
+      }
+      await cloud.page.screenshot({ path: path.join(artifactDir, "activation-entry-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+      const activationEmail = cloud.page.locator("#inputEmail, #email, input[placeholder='jane.doe@email.com']").first();
+      await activationEmail.fill(profile.inbox_alias);
+      await waitForTurnstile(cloud.page);
+      const activationRequestedAt = new Date().toISOString();
+      if (!await clickVisible(cloud.page, /activate|submit|send|continue/i)) throw new Error("VFS activation submit control was not found.");
+      await cloud.page.waitForTimeout(3_000);
+      const activationRequestText = await cloud.page.locator("body").innerText().catch(() => "");
+      await cloud.page.screenshot({ path: path.join(artifactDir, "activation-request-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+      if (/not registered|invalid|failed|not found/i.test(activationRequestText)) throw new Error("VFS rejected the account-activation request.");
+      if (!/email.{0,80}(?:sent|send)|(?:sent|send).{0,80}email|check your email|activation link/i.test(activationRequestText)) {
+        throw new Error("VFS did not confirm that an activation email was sent.");
+      }
+      console.log("[jp-vfs-recovery] activation email requested");
+      const activationMessage = await inbox.waitForMessage(
+        application.applicant_id,
+        (message) => /vfsglobal\.com|vfshelpzone\.com/i.test(message.from_addr) && /welcome|activate|registration/i.test(message.subject ?? ""),
+        120_000,
+        { since: activationRequestedAt, includeProcessed: true },
+      );
+      const freshActivation = extractAuto({ from: activationMessage.from_addr, subject: activationMessage.subject, text: activationMessage.text, html: activationMessage.html });
+      if (!freshActivation.link) throw new Error("The fresh VFS activation email did not contain an activation link.");
+      await cloud.page.goto(freshActivation.link.replace(/&amp;/g, "&"), { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await cloud.page.waitForTimeout(3_000);
+      const activationResultText = await cloud.page.locator("body").innerText().catch(() => "");
+      const loginVisible = await cloud.page.getByLabel("Email*", { exact: true }).isVisible({ timeout: 30_000 }).catch(() => false);
+      await cloud.page.screenshot({ path: path.join(artifactDir, "activation-result-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+      if (/invalid|expired|failed/i.test(activationResultText)) throw new Error("VFS rejected the fresh activation link.");
+      if (!loginVisible && !/activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationResultText)) {
+        throw new Error("VFS did not show a verified account-activation result.");
+      }
+      const activated = await supabase.from("appointment_accounts").update({
+        account_status: "password_reset_required",
+        email_verified: true,
+        encrypted_account_password: null,
+        updated_at: new Date().toISOString(),
+      }).eq("application_id", applicationId).eq("portal", "vfs_japan_sg");
+      if (activated.error) throw new Error(`VFS activation checkpoint persistence failed: ${activated.error.message}`);
+      console.log(JSON.stringify({ ok: true, accountStatus: "password_reset_required", emailVerified: true, activationVerified: true, browserbaseProxy: cloud.proxiesEnabled }));
+      return;
+    }
     if (!await clickVisible(cloud.page, /forgot.*password/i)) {
       const controls = await cloud.page.locator("a,button").evaluateAll((elements) => elements.map((element) => ({
         tag: element.tagName.toLowerCase(),
@@ -128,7 +182,17 @@ async function main(): Promise<void> {
       })).filter((control) => control.visible));
       throw new Error(`VFS forgot-password entry was not found. controls=${JSON.stringify(controls)}`);
     }
-    await cloud.page.waitForTimeout(1_500);
+    await cloud.page.waitForTimeout(2_000);
+    const resetEntryState = await cloud.page.evaluate(() => ({
+      urlPath: document.location.pathname,
+      headings: [...document.querySelectorAll<HTMLElement>("h1,h2,h3")].map((element) => element.innerText.trim()).filter(Boolean).slice(0, 5),
+      buttons: [...document.querySelectorAll<HTMLButtonElement>("button")].filter((element) => element.offsetWidth || element.offsetHeight).map((element) => element.innerText.trim()).filter(Boolean).slice(0, 8),
+    }));
+    console.log(`[jp-vfs-recovery] reset entry=${JSON.stringify(resetEntryState)}`);
+    await cloud.page.screenshot({ path: path.join(artifactDir, "reset-entry-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+    if (!/forgot|reset/i.test(`${resetEntryState.urlPath} ${resetEntryState.headings.join(" ")}`)) {
+      throw new Error("VFS did not open a verified forgot-password page.");
+    }
 
     const email = cloud.page.getByLabel(/email/i).first();
     await email.fill(profile.inbox_alias);
@@ -137,7 +201,19 @@ async function main(): Promise<void> {
     if (!await clickVisible(cloud.page, /submit|continue|reset|send/i)) throw new Error("VFS reset-password submit control was not found.");
     await cloud.page.waitForTimeout(2_000);
     const resetRequestText = await cloud.page.locator("body").innerText().catch(() => "");
-    if (/invalid|failed|not found/i.test(resetRequestText)) throw new Error("VFS rejected the password-reset request.");
+    if (/not registered|invalid|failed|not found/i.test(resetRequestText)) throw new Error("VFS rejected the password-reset request.");
+    await cloud.page.screenshot({ path: path.join(artifactDir, "reset-request-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+    if (!/email.{0,80}(?:sent|send)|(?:sent|send).{0,80}email|check your email|reset link/i.test(resetRequestText)) {
+      const safeExcerpt = resetRequestText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]").replace(/\s+/g, " ").slice(0, 220);
+      throw new Error(`VFS did not confirm that a password-reset email was sent: ${safeExcerpt}`);
+    }
+    const requestedStatus = await supabase.from("appointment_accounts").update({
+      account_status: "password_reset_email_requested",
+      email_verified: true,
+      encrypted_account_password: null,
+      updated_at: new Date().toISOString(),
+    }).eq("application_id", applicationId).eq("portal", "vfs_japan_sg");
+    if (requestedStatus.error) throw new Error(`VFS password-reset checkpoint persistence failed: ${requestedStatus.error.message}`);
     console.log("[jp-vfs-recovery] password reset email requested");
 
     const resetMessage = await inbox.waitForMessage(

@@ -847,7 +847,22 @@ async function selectMatSelect(
       })));
     throw new Error(`TDAC mat-select not found: ${selector}; available=${JSON.stringify(controls).slice(0, 1200)}`);
   }
-  await waitForMatSelectEnabled(page, selector, logs, 30_000);
+  await waitForMatSelectEnabled(page, selector, logs, 30_000).catch(async () => {
+    const controlName = selector.match(/formcontrolname=['"]([^'"]+)['"]/)?.[1] ?? "unknown";
+    const diagnostics = await field.evaluate((element) => ({
+      ariaDisabled: element.getAttribute("aria-disabled"),
+      className: String(element.className || "").slice(0, 300),
+      text: (element.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 200),
+    })).catch(() => null);
+    logs.push(`tdac_mat_select_disabled control=${controlName} diagnostics=${JSON.stringify(diagnostics)}`);
+    const screenshotPath = await saveScreenshot(page, `mat-select-disabled-${controlName}`, logs);
+    throw new TdacPortalError(`Official TDAC ${controlName} dropdown stayed disabled after its parent selection.`, {
+      code: "tdac_mat_select_disabled",
+      screenshotPaths: [screenshotPath],
+      portalSummary: JSON.stringify({ controlName, diagnostics }),
+      logs,
+    });
+  });
   await field.click({ timeout: 15_000 });
   await clickVisibleOption(page, optionText, logs, selector);
   logs.push(`tdac_selected_mat ${selector}`);
@@ -927,17 +942,16 @@ async function clickRadioByText(page: Page, text: string, logs: string[], occurr
       if (!visible) continue;
       if (visibleIndex === occurrence) {
         await candidate.scrollIntoViewIfNeeded().catch(() => undefined);
-        await candidate.click({ timeout: 10_000 }).catch(async () => {
-          await candidate.click({ timeout: 10_000, force: true });
-        });
         const input = candidate.locator("input[type='radio']").first();
         if (await input.count().catch(() => 0)) {
-          if (!await input.isChecked().catch(() => false)) {
-            await input.click({ timeout: 5_000, force: true }).catch(() => undefined);
-          }
+          await input.check({ timeout: 10_000, force: true }).catch(async () => {
+            await input.click({ timeout: 5_000, force: true });
+          });
           if (!await input.isChecked().catch(() => false)) {
             await input.evaluate((element) => (element as HTMLInputElement).click()).catch(() => undefined);
           }
+          await input.dispatchEvent("input").catch(() => undefined);
+          await input.dispatchEvent("change").catch(() => undefined);
           await page.waitForTimeout(300);
           const checked = await input.isChecked().catch(() => false);
           logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index} checked=${checked}`);
@@ -945,6 +959,9 @@ async function clickRadioByText(page: Page, text: string, logs: string[], occurr
             throw new Error(`Official TDAC radio option did not remain selected: ${text} occurrence=${occurrence}`);
           }
         } else {
+          await candidate.click({ timeout: 10_000 }).catch(async () => {
+            await candidate.click({ timeout: 10_000, force: true });
+          });
           logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index}`);
         }
         return;
