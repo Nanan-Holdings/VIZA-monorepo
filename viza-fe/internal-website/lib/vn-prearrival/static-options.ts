@@ -1,5 +1,6 @@
 import type { VisaFormFieldOption } from "@/types/visa-form-fields";
 import staticOptions from "./official-static-options.json";
+import { localizeVnPrearrivalHotelLabel } from "./hotel-localization";
 
 type OfficialOption = {
   code?: unknown;
@@ -150,67 +151,6 @@ const AIRPORT_ZH_BY_CODE: Record<string, string> = {
   PQC: "富国国际机场",
 };
 
-// The official pre-arrival API does not publish Chinese accommodation names or
-// addresses. Keep the official Vietnamese value as the submission reference,
-// while translating address structure and well-established Vietnamese place
-// names for the Chinese column. Commercial property names stay unchanged.
-const VIETNAM_ADDRESS_ZH: Record<string, string> = {
-  "Bà Rịa - Vũng Tàu": "巴地-头顿",
-  "Cẩm An": "锦安",
-  "Cẩm Châu": "锦州",
-  "Cẩm Hà": "锦河",
-  "Cửa Đại": "大门",
-  "Đà Nẵng": "岘港",
-  "Điện Bàn": "奠盘",
-  "Điện Ngọc": "奠玉",
-  "Hà Nội": "河内",
-  "Hậu Xá": "后舍",
-  "Hoi An": "会安",
-  "Hội An": "会安",
-  "Hòa Vang": "和荣",
-  "Khánh Hòa": "庆和",
-  "Lý Thường Kiệt": "李常杰",
-  "Minh An": "明安",
-  "Nguyễn Hoàng": "阮黄",
-  "Ngô Quyền": "吴权",
-  "Nha Trang": "芽庄",
-  "Phú Quốc": "富国",
-  "Quảng Nam": "广南",
-  "Sơn Phong": "山峰",
-  "Tân An": "新安",
-  "Thanh Hà": "清河",
-  "Thoại Ngọc Hầu": "瑞玉侯",
-  "Trần Hưng Đạo": "陈兴道",
-  "Trần Nhân Tông": "陈仁宗",
-  "Đống Đa": "栋多",
-};
-
-function localizeAccommodationAddress(vietnameseAddress: string, englishAddress: string): string {
-  const source = vietnameseAddress || englishAddress;
-  if (!source) return "";
-
-  const localized = Object.entries(VIETNAM_ADDRESS_ZH)
-    .sort(([left], [right]) => right.length - left.length)
-    .reduce((text, [official, chinese]) => text.replaceAll(official, chinese), source)
-    .replace(/\bPhường\b/gi, "坊")
-    .replace(/\bXã\b/gi, "公社")
-    .replace(/\bThị trấn\b/gi, "市镇")
-    .replace(/\bThành phố\b/gi, "市")
-    .replace(/\bTỉnh\b/gi, "省")
-    .replace(/\bĐường\b/gi, "路")
-    .replace(/\bTổ\s*/gi, "第")
-    .replace(/\bKhối\b/gi, "街区")
-    .replace(/\bThôn\b/gi, "村")
-    .replace(/\bẤp\b/gi, "邑")
-    .replace(/第(\d+)\s+/g, "第$1")
-    .replace(/街区\s+/g, "街区")
-    .replace(/\s*,\s*/g, "，")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return localized;
-}
-
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -293,7 +233,7 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
       : source === "airport"
         ? (AIRPORT_ZH_BY_CODE[code] ?? (zhValue || enValue))
         : source === "hotel"
-          ? localizeAccommodationAddress(stringValue(item.vn_value), enValue)
+          ? localizeVnPrearrivalHotelLabel(stringValue(item.vn_value), enValue)
         : zhValue;
 
   return {

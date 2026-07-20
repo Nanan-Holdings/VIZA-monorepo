@@ -64,6 +64,7 @@ import {
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
+import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import {
   buildApplicationStepSections,
   getDynamicStepTranslationCandidates,
@@ -2846,6 +2847,15 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
       setCurrentStep(statusStepIndex);
     } catch (err) {
+      if (shouldShowArrivalSubmissionImmediately && isIgnorableRuntimeAbortError(err)) {
+        // Supabase/Next can abort the client request after the queue write has
+        // already committed. Keep the optimistic submission state and let the
+        // status endpoint reconcile the durable queue instead of showing the
+        // raw AbortSignal implementation message.
+        setError(null);
+        setCurrentStep(statusStepIndex);
+        return;
+      }
       if (shouldShowArrivalSubmissionImmediately) {
         setAppState((prev) => ({
           ...prev,

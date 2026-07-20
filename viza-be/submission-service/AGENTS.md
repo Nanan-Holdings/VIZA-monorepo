@@ -185,6 +185,10 @@ filling and one-shot submission for the applicant.
   for a country-specific endpoint, `PH_ETRAVEL_CDP_ENDPOINT` for an already
   authorized local session, or `PH_ETRAVEL_REQUIRE_BROWSER_API=false` only when
   intentionally debugging local fallback. Never log endpoint credentials.
+- `src/arrival-card-success-guard.ts`: prevents completed dry runs from being
+  mistaken for official arrival-card submissions when suppressing duplicate
+  live retries. A live queue counts as success only with persisted official
+  submitted evidence.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live

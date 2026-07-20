@@ -178,6 +178,7 @@ import {
 } from "./ph-etravel/normalize";
 import { evaluatePhEtravelSubmissionWindow } from "./ph-etravel/date-window";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "./ph-etravel/runner";
+import { hasOfficialArrivalCardSuccess } from "./arrival-card-success-guard";
 import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   VnPrearrivalPortalValidationError,
@@ -6294,11 +6295,11 @@ async function suppressDuplicateArrivalCardQueueAfterSuccess(
       .maybeSingle(),
     supabase
       .from("submission_queue")
-      .select("id")
+      .select("id, mode, official_status, live_submitted_at")
       .eq("application_id", item.application_id)
       .eq("status", "done")
       .neq("id", item.id)
-      .limit(1),
+      .limit(20),
   ]);
   if (applicationError || queueError) {
     const message = applicationError?.message ?? queueError?.message ?? "unknown lookup error";
@@ -6307,10 +6308,10 @@ async function suppressDuplicateArrivalCardQueueAfterSuccess(
   }
 
   const result = application?.submission_result as { submitted?: unknown } | null;
-  const resultStatus = String(application?.submission_result_status ?? "").trim().toLowerCase();
-  const alreadySucceeded = result?.submitted === true
-    || ["completed", "complete", "submitted", "success", "done"].includes(resultStatus)
-    || Boolean(completedQueues?.length);
+  const alreadySucceeded = hasOfficialArrivalCardSuccess({
+    applicationResult: result,
+    completedQueues,
+  });
   if (!alreadySucceeded) return false;
 
   const now = new Date().toISOString();
