@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, matchesSearchText } from "@/lib/utils";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import { type VisaFormFieldRow } from "@/types/visa-form-fields";
 
@@ -428,8 +428,7 @@ export function BilingualCountryControl({
         <Command
           className="w-full"
           filter={(commandValue, search, keywords) => {
-            const haystack = [commandValue, ...(keywords ?? [])].join(" ").toLowerCase();
-            return haystack.includes(search.toLowerCase()) ? 1 : 0;
+            return matchesSearchText(search, [commandValue, ...(keywords ?? [])]) ? 1 : 0;
           }}
         >
           <CommandInput placeholder={searchPlaceholder} />

@@ -10,6 +10,7 @@ import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   type VnPrearrivalPortalPayload,
 } from "./normalize";
+import { formatOfficialFlightDisplayLabel } from "./flight-label";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 
@@ -173,7 +174,9 @@ function officialCatalogLabel(source: string, value: string, parent = ""): strin
   const item = loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) => candidate.code === value);
   if (!item) return officialOptionValue(value);
   const label = item.en_value ?? item.english_value ?? value;
-  return source === "flight" && item.airport ? `${label} - ${item.airport}` : label;
+  return source === "flight"
+    ? formatOfficialFlightDisplayLabel(label, item.airport)
+    : label;
 }
 
 function caseInsensitiveExactText(value: string): RegExp {
@@ -289,6 +292,9 @@ async function selectNearLabel(
       // select-trigger markup. Try each associated shape, but still select
       // only an exact official option in chooseAutocompleteOption.
       const controls = [
+        labelText.locator(
+          "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' MuiGrid-item ')][1]//input[1]",
+        ).first(),
         labelText.locator("xpath=following::input[1]").first(),
         labelText.locator("xpath=following::*[@role='combobox'][1]").first(),
         labelText.locator("xpath=following::*[@aria-haspopup='listbox'][1]").first(),
@@ -667,11 +673,16 @@ async function waitForAirBorderGate(page: Page, expectedAirport: string): Promis
     const labelledValue = await labelled.inputValue().catch(() => "");
     if (labelledValue.trim() && labelledValue.toUpperCase().includes(expectedAirport.toUpperCase())) return true;
 
+    const labelText = page.getByText(/border gate|port of entry/i).first();
+    if (await labelText.isVisible().catch(() => false)) {
+      const input = labelText.locator(
+        "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' MuiGrid-item ')][1]//input[1]",
+      ).first();
+      const value = await input.inputValue().catch(() => "");
+      if (value.trim() && value.toUpperCase().includes(expectedAirport.toUpperCase())) return true;
+    }
+
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-    if (
-      /border gate|port of entry/i.test(bodyText)
-      && bodyText.toUpperCase().includes(expectedAirport.toUpperCase())
-    ) return true;
     const gateLine = bodyText.match(/Border Gate[^\n]*\n([^\n]+)/i)?.[1] ?? "";
     if (gateLine.toUpperCase().includes(expectedAirport.toUpperCase())) return true;
     await page.waitForTimeout(1_000);

@@ -12,6 +12,7 @@ import {
   getVisaDestinationKey,
   getVisaDestinationRegionName,
   getVisaDestinationVisaName,
+  matchesVisaDestinationSearch,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import {
@@ -52,20 +53,9 @@ export default function SchengenDestinationsPage() {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     if (!normalizedSearch) return SCHENGEN_VISA_DESTINATIONS;
 
-    return SCHENGEN_VISA_DESTINATIONS.filter((destination) => {
-      const searchableText = [
-        destination.countryName,
-        destination.countryNameZh,
-        destination.visaName,
-        destination.visaNameZh,
-        destination.description,
-        destination.descriptionZh,
-        destination.region,
-        ...(destination.searchAliases ?? []),
-      ].join(" ").toLowerCase();
-
-      return searchableText.includes(normalizedSearch);
-    });
+    return SCHENGEN_VISA_DESTINATIONS.filter((destination) =>
+      matchesVisaDestinationSearch(destination, normalizedSearch),
+    );
   }, [searchQuery]);
 
   function handleSelect(destination: PopularVisaDestination) {

@@ -153,6 +153,9 @@ filling and one-shot submission for the applicant.
   account for a supplied local test application, consumes managed-alias
   activation mail when available, encrypts the generated password, and never
   proceeds to slot selection, payment, or booking.
+- `scripts/recover-japan-vfs-account.ts`: activates a newly registered Japan
+  VFS account from the VIZA-managed inbox, resets an unavailable test password
+  through the official portal, and persists only the encrypted replacement.
 - `POST /internal/japan-vfs-sg/book-selected-slot`: internal-token protected
   Japan live-booking handoff gated by `JP_VFS_SG_LIVE_BOOKING_ENABLED=true`.
   It never logs card data or fabricates slot/payment/confirmation success.

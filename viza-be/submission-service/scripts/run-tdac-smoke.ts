@@ -10,6 +10,8 @@ function isoDatePlus(days: number): string {
 }
 
 const stopBeforeSubmit = !process.argv.includes("--submit");
+const transit = process.argv.includes("--transit");
+const arrivalDate = isoDatePlus(2);
 
 const payload: TdacPortalPayload = {
   applicationId: "tdac-smoke",
@@ -25,8 +27,8 @@ const payload: TdacPortalPayload = {
   phoneCountryCode: "86",
   phoneNumber: "1997491995",
   emailAddress: "e1484122@u.nus.edu",
-  arrivalDate: isoDatePlus(2),
-  departureDate: isoDatePlus(3),
+  arrivalDate,
+  departureDate: transit ? arrivalDate : isoDatePlus(3),
   countryBoarded: "SINGAPORE",
   purposeOfTravel: "holiday",
   arrivalModeOfTravel: "air",
@@ -35,7 +37,7 @@ const payload: TdacPortalPayload = {
   departureModeOfTravel: "air",
   departureModeOfTransport: "commercial_flight",
   departureTransportNumber: "SQ221",
-  isTransitTraveler: false,
+  isTransitTraveler: transit,
   accommodationType: "hotel",
   addressInThailand: "991 RAMA I ROAD",
   province: "BANGKOK",

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { connectBrowserbaseCloudBrowser } from "../src/browserbase-session";
 import { ensureApplicantInboxAlias } from "../src/inbox/alias";
 import { extractAuto } from "../src/inbox/extractors";
@@ -129,7 +130,40 @@ async function main(): Promise<void> {
     if (!accepted) throw new Error(`VFS did not show an accepted registration state: ${bodyAfter.replace(/\s+/g, " ").slice(0, 180)}`);
     let emailVerified = false;
     let status = phoneOtpRequired ? "phone_otp_required" : explicitlyExisting ? "existing_account" : "email_verification_required";
-    if (!phoneOtpRequired && !explicitlyExisting) {
+    if (phoneOtpRequired) {
+      console.log("[jp-vfs-account] SMS OTP required; waiting for a one-time code on stdin");
+      const otpArgument = process.argv.find((value) => value.startsWith("--otp="))?.split("=")[1]?.trim();
+      const prompt = createInterface({ input: process.stdin, output: process.stdout });
+      let otp = otpArgument;
+      try {
+        if (!otp) otp = await withTimeout(prompt.question("VFS SMS OTP: "), "VFS SMS OTP input", 270_000);
+      } finally {
+        prompt.close();
+      }
+      if (!/^\d{4,8}$/.test(otp ?? "")) throw new Error("VFS SMS OTP must contain 4 to 8 digits.");
+      const otpInput = cloud.page.locator("input[autocomplete='one-time-code'], input[name*='otp' i], input[formcontrolname*='otp' i], input[placeholder*='otp' i]").first();
+      const fallbackOtpInput = cloud.page.locator("main input[type='text']").first();
+      const targetOtpInput = await otpInput.isVisible({ timeout: 1_500 }).catch(() => false) ? otpInput : fallbackOtpInput;
+      await targetOtpInput.fill(otp);
+      otp = undefined;
+      await cloud.page.waitForFunction(() => {
+        const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
+        return token.trim().length > 0;
+      }, undefined, { timeout: 35_000 }).catch(() => undefined);
+      const registerButton = cloud.page.getByRole("button", { name: /^register$/i });
+      await registerButton.click({ timeout: 15_000 });
+      await cloud.page.waitForTimeout(3_000);
+      const registrationResult = await cloud.page.locator("body").innerText().catch(() => "");
+      if (/invalid|incorrect|expired|failed/i.test(registrationResult)) throw new Error("VFS rejected or expired the SMS OTP.");
+      if (/login|account.*created|registration.*successful|successfully registered/i.test(registrationResult) || /\/login(?:\?|$)/i.test(cloud.page.url())) {
+        status = "registered";
+      } else if (/registration has been completed|almost done|sent you an email/i.test(registrationResult)) {
+        status = "email_verification_required";
+      } else {
+        throw new Error(`VFS did not show a verified account-registration state: ${registrationResult.replace(/\s+/g, " ").slice(0, 180)}`);
+      }
+    }
+    if (status === "email_verification_required") {
       const message = await inbox.waitForMessage(application.applicant_id, (candidate) => /vfsglobal\.com|vfshelpzone\.com/i.test(candidate.from_addr), 120_000, { since: startedAt, includeProcessed: true }).catch(() => null);
       if (message) {
         const parsed = extractAuto({ from: message.from_addr, subject: message.subject, text: message.text, html: message.html });

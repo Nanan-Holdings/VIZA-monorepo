@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Normalizes text entered into a client-side search control. */
+export function normalizeSearchText(value: string): string {
+  return value.normalize("NFKC").trim().toLowerCase();
+}
+
+/**
+ * Returns whether a query occurs in any localized label, code, or alias.
+ * Callers should supply every display-language variant as a candidate.
+ */
+export function matchesSearchText(searchQuery: string, candidates: readonly string[]): boolean {
+  const normalizedQuery = normalizeSearchText(searchQuery);
+  if (!normalizedQuery) return true;
+
+  return candidates.some((candidate) => normalizeSearchText(candidate).includes(normalizedQuery));
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",

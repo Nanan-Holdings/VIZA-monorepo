@@ -31,6 +31,29 @@ export type VisaDestinationRegionId =
   | "south-asia"
   | "oceania";
 
+/**
+ * Matches destination cards against both the English and Chinese metadata,
+ * regardless of the language currently selected in the client portal.
+ */
+export function matchesVisaDestinationSearch(
+  destinationItem: PopularVisaDestination,
+  searchQuery: string,
+): boolean {
+  return matchesSearchText(searchQuery, [
+    destinationItem.country,
+    destinationItem.countryName,
+    destinationItem.countryNameZh,
+    destinationItem.visaType,
+    destinationItem.visaName,
+    destinationItem.visaNameZh,
+    destinationItem.description,
+    destinationItem.descriptionZh,
+    destinationItem.region,
+    destinationItem.supportLabel,
+    ...(destinationItem.searchAliases ?? []),
+  ]);
+}
+
 export type VisaDestinationRegionGroup = {
   id: VisaDestinationRegionId;
   name: string;
@@ -1210,3 +1233,4 @@ export function getVisaPackageTitle(country: string, visaType: string, locale?: 
   if (destinationItem) return `${destinationItem.countryName} ${destinationItem.visaName}`;
   return `${getDestinationDisplayName(country)} ${getVisaTypeDisplayName(visaType)}`;
 }
+import { matchesSearchText } from "@/lib/utils";
