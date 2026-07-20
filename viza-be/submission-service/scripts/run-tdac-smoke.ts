@@ -17,6 +17,7 @@ function argumentValue(name: string): string | undefined {
 const stopBeforeSubmit = !process.argv.includes("--submit");
 const transit = process.argv.includes("--transit");
 const arrivalDate = isoDatePlus(2);
+const yellowFeverAnswer = argumentValue("yellow-fever-certificate");
 
 const payload: TdacPortalPayload = {
   applicationId: "tdac-smoke",
@@ -54,6 +55,12 @@ const payload: TdacPortalPayload = {
     .split(",")
     .map((country) => country.trim())
     .filter(Boolean),
+  yellowFeverVaccinationCertificate:
+    yellowFeverAnswer === "yes"
+      ? true
+      : yellowFeverAnswer === "no"
+        ? false
+        : undefined,
 };
 
 async function main(): Promise<void> {

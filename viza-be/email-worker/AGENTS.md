@@ -12,8 +12,9 @@ the Cloudflare account enables R2.
 
 ## Guardrails
 
-- Always attach the original RFC 822 bytes to the immediate forward so QR, PDF,
-  and inline attachments remain intact. When R2 is configured, archive the raw
+- Use Cloudflare native forwarding for the immediate delivery so QR, PDF, and
+  inline attachments remain intact. Real applicant addresses must be verified
+  Cloudflare Email Routing destinations. When R2 is configured, archive the raw
   message before acknowledging receipt so forwarding failures can be retried.
 - OTP consumers read `inbound_email`; forwarding must never mark a message
   processed or delay runner access.
