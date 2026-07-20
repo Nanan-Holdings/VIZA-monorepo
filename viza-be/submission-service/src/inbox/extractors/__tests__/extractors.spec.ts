@@ -25,6 +25,23 @@ test("vfsglobal — verification code OTP", () => {
   assert.match(result.link ?? "", /vfsglobal\.com\/usa/);
 });
 
+test("vfsglobal — unfolds quoted-printable activation links", () => {
+  const result = extractAuto({
+    from: "no-reply@vfsglobal.com",
+    subject: "Activate your account",
+    text: [
+      "Activate:",
+      "https://visa.vfsglobal.com/sgp/en/jpn/activateemail?q=AbCdEf12=",
+      "\r\n34567890%2Bmore=2Ftoken",
+    ].join(""),
+  });
+  assert.equal(result.profileId, "vfsglobal");
+  assert.equal(
+    result.link,
+    "https://visa.vfsglobal.com/sgp/en/jpn/activateemail?q=AbCdEf1234567890%2Bmore/token",
+  );
+});
+
 test("evisa.xuatnhapcanh.gov.vn — registration code, no OTP", () => {
   const result = extractAuto({
     from: "no-reply@evisa.xuatnhapcanh.gov.vn",

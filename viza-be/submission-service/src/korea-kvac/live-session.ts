@@ -220,16 +220,56 @@ function cleanupExpired(referenceTime = nowMs()) {
 const AVAILABLE_DATE_SELECTOR = ".ui-datepicker-calendar td[data-handler='selectDay']:not(.ui-datepicker-other-month) a";
 const TIME_GROUP_SELECTOR = ".time-table__item:not(.-done) a, .time-table__item:not(.-done) button";
 const DETAILED_TIME_SELECTOR = ".time-table__ly-link:not(.-done), .time-table__ly-item:not(.-done) a, .time-table__ly-item:not(.-done) button";
+const CALENDAR_TITLE_SELECTOR = ".ui-datepicker-title";
+const OFFICIAL_LOADING_SELECTOR = ".loading";
+
+async function hasVisibleOfficialLoading(page: Page) {
+  return page.locator(OFFICIAL_LOADING_SELECTOR).evaluateAll((elements) => elements.some((element) => {
+    const style = window.getComputedStyle(element);
+    const bounds = element.getBoundingClientRect();
+    return style.display !== "none"
+      && style.visibility !== "hidden"
+      && Number.parseFloat(style.opacity || "1") > 0
+      && bounds.width > 0
+      && bounds.height > 0;
+  })).catch(() => false);
+}
+
+async function waitForOfficialCalendarIdle(page: Page, previousMonth?: string) {
+  const deadline = Date.now() + 30_000;
+  let monthTitle = "";
+
+  while (Date.now() < deadline) {
+    monthTitle = (await page.locator(CALENDAR_TITLE_SELECTOR).first().innerText().catch(() => "")).trim();
+    const calendarVisible = await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false);
+    const loading = await hasVisibleOfficialLoading(page);
+    const changedMonth = !previousMonth || (monthTitle && monthTitle !== previousMonth);
+
+    if (calendarVisible && changedMonth && !loading) {
+      await page.waitForTimeout(150);
+      if (!(await hasVisibleOfficialLoading(page))) return monthTitle;
+    }
+    await page.waitForTimeout(200);
+  }
+
+  const expected = previousMonth ? ` after ${previousMonth}` : "";
+  throw new Error(`Official KVAC appointment calendar did not finish loading${expected}.`);
+}
 
 async function openAppointmentCalendar(page: Page) {
   // Beijing renders the datepicker inline. A month with no open dates has no
   // selectable anchors, but the calendar is still open and can be advanced.
-  if (await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false)) return;
+  if (await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false)) {
+    await waitForOfficialCalendarIdle(page);
+    return;
+  }
   for (const candidate of [page.locator(".ui-datepicker-trigger").first(), page.locator("#visit_sche_day").first()]) {
     if (!(await candidate.isVisible().catch(() => false))) continue;
     await candidate.click({ timeout: 10_000 });
-    await page.waitForTimeout(150);
-    if (await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false)) return;
+    if (await page.locator(".ui-datepicker-calendar").first().isVisible().catch(() => false)) {
+      await waitForOfficialCalendarIdle(page);
+      return;
+    }
   }
   throw new Error("Official KVAC appointment calendar did not open.");
 }
@@ -253,7 +293,7 @@ async function selectObservedDate(page: Page, slot: Pick<KoreaKvacObservedSlot, 
     throw new Error(`Official KVAC date ${slot.calendarYear}-${Number(slot.calendarMonth) + 1}-${slot.calendarDay} is no longer selectable.`);
   }
   await target.click({ timeout: 10_000 });
-  await page.waitForTimeout(250);
+  await waitForOfficialCalendarIdle(page);
 }
 
 async function selectObservedTime(page: Page, timeGroupIndex: number, detailedTimeIndex: number | null) {
@@ -318,7 +358,7 @@ export async function observeAllAvailableSlots(page: Page): Promise<KoreaKvacObs
 
   await openAppointmentCalendar(page);
   for (let monthOffset = 0; monthOffset < maxMonths; monthOffset += 1) {
-    const monthKey = await page.locator(".ui-datepicker-title").innerText().catch(() => `month-${monthOffset}`);
+    const monthKey = await waitForOfficialCalendarIdle(page);
     if (seenMonths.has(monthKey)) break;
     seenMonths.add(monthKey);
     const dates = await page.locator(AVAILABLE_DATE_SELECTOR).evaluateAll((links) => links.map((link) => {
@@ -339,7 +379,7 @@ export async function observeAllAvailableSlots(page: Page): Promise<KoreaKvacObs
     const next = page.locator(".ui-datepicker-next").first();
     if (!(await next.isVisible().catch(() => false)) || await next.getAttribute("aria-disabled") === "true") break;
     await next.click({ timeout: 10_000 });
-    await page.waitForTimeout(150);
+    await waitForOfficialCalendarIdle(page, monthKey);
   }
 
   const unique = new Map<string, KoreaKvacObservedSlot>();

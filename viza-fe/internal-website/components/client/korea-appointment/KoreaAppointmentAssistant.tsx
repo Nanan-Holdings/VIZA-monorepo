@@ -194,7 +194,14 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
       setError(cause instanceof Error ? cause.message : String(cause));
       setErrorEvidenceUrl(cause instanceof AppointmentRequestError ? cause.evidenceUrl : null);
       try {
-        setSnapshot(await requestSnapshot(applicationId, undefined, undefined, undefined, centerCode ?? activeCenterCode));
+        const selectedCode = centerCode ?? activeCenterCode;
+        setSnapshot(await requestSnapshot(
+          applicationId,
+          selectedCode ? "refresh-status" : undefined,
+          undefined,
+          undefined,
+          selectedCode,
+        ));
       } catch {
         // Preserve the actionable error from the requested operation.
       }

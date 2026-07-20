@@ -5,6 +5,7 @@ import {
   AlertCircle,
   CalendarCheck,
   CheckCircle2,
+  Cloud,
   Clock3,
   CreditCard,
   Loader2,
@@ -172,8 +173,10 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 export function FranceAppointmentAssistant({
   applicationId,
+  workerReady,
 }: {
   applicationId: string;
+  workerReady: boolean;
 }) {
   const t = useTranslations("franceAppointment");
   const locale = useLocale();
@@ -407,40 +410,45 @@ export function FranceAppointmentAssistant({
 
       <Card className="rounded-[8px] border-input">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock3 className="h-4 w-4 text-brand-500" />
-            {t("panel.progressTitle")}
+          <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-base">
+            <span className="flex items-center gap-2">
+              <Cloud className="h-4 w-4 text-brand-500" />
+              {t("panel.progressTitle")}
+            </span>
+            <Badge variant={workerReady ? "default" : "outline"}>
+              {workerReady ? t("cloud.ready") : t("cloud.unavailable")}
+            </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                label: t("account.title"),
+                label: t("cloud.worker"),
+                complete: workerReady,
+                detail: workerReady
+                  ? t("panel.stepComplete")
+                  : t("panel.stepPending"),
+              },
+              {
+                label: t("cloud.alias"),
                 complete: Boolean(snapshot?.account?.emailVerified),
                 detail: snapshot?.account?.emailVerified
                   ? t("account.verified")
                   : t("account.notVerified"),
               },
               {
-                label: t("slots.title"),
-                complete: slots.length > 0,
-                detail: slots.length > 0
+                label: t("cloud.portal"),
+                complete: slots.length > 0 || Boolean(selectedAppointmentSlot),
+                detail: slots.length > 0 || selectedAppointmentSlot
                   ? t("panel.stepComplete")
                   : t("panel.stepPending"),
               },
               {
-                label: t("final.title"),
-                complete: finalApproved,
-                detail: finalApproved
+                label: t("cloud.preSubmit"),
+                complete: Boolean(selectedAppointmentSlot && finalApproved),
+                detail: selectedAppointmentSlot && finalApproved
                   ? t("final.approvedBadge")
-                  : t("panel.stepPending"),
-              },
-              {
-                label: t("results.title"),
-                complete: Boolean(snapshot?.confirmation),
-                detail: snapshot?.confirmation
-                  ? t("results.captured")
                   : t("panel.stepPending"),
               },
             ].map((step) => (
@@ -460,6 +468,11 @@ export function FranceAppointmentAssistant({
               </li>
             ))}
           </ol>
+          <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+            <ShieldCheck className="h-4 w-4" />
+            <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
+            <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
 
