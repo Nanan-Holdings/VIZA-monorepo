@@ -106,6 +106,9 @@ The current internal automation migrations are:
 - `0111_vietnam_evisa_status_tracking_delivery.sql`: service-only Vietnam
   tracking rows, idempotent daily queueing, atomic claims, email/user audit
   fields, and private official-PDF delivery pointers.
+- `0112_inbound_email_alias_forwarding.sql`: delivery and retry state for
+  forwarding VIZA alias inbox messages, including official OTP, QR, and PDF
+  correspondence, to the applicant's real profile email.
 
 ## Guardrails
 

@@ -107,6 +107,28 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     expect(field("address_in_thailand")?.validation_rules).toMatchObject({ maxLength: 215 });
   });
 
+  test("matches the current official purpose dropdown exactly", () => {
+    expect(field("purpose_of_travel")?.options).toEqual([
+      expect.objectContaining({ value: "holiday", label_en: "HOLIDAY" }),
+      expect.objectContaining({ value: "meeting", label_en: "MEETING" }),
+      expect.objectContaining({ value: "sports", label_en: "SPORTS" }),
+      expect.objectContaining({ value: "business", label_en: "BUSINESS" }),
+      expect.objectContaining({ value: "incentive", label_en: "INCENTIVE" }),
+      expect.objectContaining({ value: "medical_wellness", label_en: "MEDICAL & WELLNESS" }),
+      expect.objectContaining({ value: "education", label_en: "EDUCATION" }),
+      expect.objectContaining({ value: "convention", label_en: "CONVENTION" }),
+      expect.objectContaining({ value: "employment", label_en: "EMPLOYMENT" }),
+      expect.objectContaining({ value: "exhibition", label_en: "EXHIBITION" }),
+      expect.objectContaining({ value: "others", label_en: "OTHERS (PLEASE SPECIFY)" }),
+    ]);
+    expect(field("purpose_of_travel")?.options).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "transit" }),
+        expect.objectContaining({ value: "return_resident" }),
+      ]),
+    );
+  });
+
   test("uses Chinese step titles in the seeded TDAC wizard", () => {
     expect(new Set(TH_TDAC_FORM_FIELDS.map((item) => item.step_name))).toEqual(
       new Set(["旅客信息", "抵达和离境信息", "住宿信息", "健康申报"]),

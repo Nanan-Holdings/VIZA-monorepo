@@ -155,7 +155,7 @@ async function main(): Promise<void> {
       await cloud.page.waitForTimeout(3_000);
       const registrationResult = await cloud.page.locator("body").innerText().catch(() => "");
       if (/invalid|incorrect|expired|failed/i.test(registrationResult)) throw new Error("VFS rejected or expired the SMS OTP.");
-      if (/login|account.*created|registration.*successful|successfully registered/i.test(registrationResult) || /\/login(?:\?|$)/i.test(cloud.page.url())) {
+      if (/account.*created|registration.*successful|successfully registered/i.test(registrationResult) || /\/login(?:\?|$)/i.test(cloud.page.url())) {
         status = "registered";
       } else if (/registration has been completed|almost done|sent you an email/i.test(registrationResult)) {
         status = "email_verification_required";
@@ -169,16 +169,24 @@ async function main(): Promise<void> {
         const parsed = extractAuto({ from: message.from_addr, subject: message.subject, text: message.text, html: message.html });
         if (parsed.link) {
           await cloud.page.goto(parsed.link, { waitUntil: "domcontentloaded", timeout: 90_000 });
-          await cloud.page.waitForTimeout(2_000);
-          const activationText = await cloud.page.locator("body").innerText().catch(() => "");
-          emailVerified = !/invalid|expired|failed/i.test(activationText);
-          status = emailVerified ? "registered" : "email_verification_required";
+          const activationDeadline = Date.now() + 60_000;
+          let activationText = "";
+          let loginVisible = false;
+          while (Date.now() < activationDeadline) {
+            activationText = await cloud.page.locator("body").innerText().catch(() => "");
+            loginVisible = await cloud.page.getByLabel("Email*", { exact: true }).isVisible({ timeout: 1_000 }).catch(() => false);
+            if (loginVisible || /invalid|expired|failed|activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationText)) break;
+            await cloud.page.waitForTimeout(2_000);
+          }
+          emailVerified = !/invalid|expired|failed/i.test(activationText)
+            && (loginVisible || /activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationText));
+          status = emailVerified ? "registered" : "account_activation_required";
         }
       }
     }
     const payload = {
       user_id: authUserId, application_id: applicationId, country_code: "JP", portal: "vfs_japan_sg",
-      account_email: alias, encrypted_account_password: encryptSecret(password), account_status: status,
+      account_email: alias, encrypted_account_password: status === "existing_account" ? null : encryptSecret(password), account_status: status,
       email_verified: emailVerified, metadata_redacted_json: { placeholderAccountTest: true, phone: "+65******00", browserbaseProxy: true }, updated_at: new Date().toISOString(),
     };
     const { data: existing } = await supabase.from("appointment_accounts").select("id").eq("application_id", applicationId).eq("portal", "vfs_japan_sg").maybeSingle();

@@ -15,6 +15,9 @@ and Travel AI planning.
   support, and seed scripts.
 - `submission-service`: Playwright queue worker for official visa portal
   automation and DS-160 CEAC prefill.
+- `email-worker`: Cloudflare Email Routing worker for applicant alias inboxes,
+  Supabase/R2 ingestion, and forwarding official correspondence to the
+  applicant's real email.
 - `travel-service`: Python FastAPI service for travel itineraries, travel chat,
   flight/hotel options, and Word/PDF export.
 

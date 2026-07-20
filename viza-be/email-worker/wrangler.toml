@@ -6,10 +6,11 @@
 # Required env vars (set via `wrangler secret put`):
 #   SUPABASE_URL                — https://<project>.supabase.co
 #   SUPABASE_SERVICE_ROLE_KEY   — service-role key (writes inbound_email)
+#   RESEND_API_KEY              — forwards alias mail to applicant real email
 #
 # Optional:
-#   INLINE_BODY_MAX_BYTES       — switch threshold for offloading to R2.
-#                                 Defaults to 1_048_576 (1 MB).
+#   INLINE_BODY_MAX_BYTES       — inline body threshold. Defaults to 1 MB.
+#   INBOX_BODIES                — R2 binding for raw-message retry archives.
 
 name = "viza-email-worker"
 main = "src/index.ts"
@@ -24,12 +25,16 @@ MAX_RAW_BYTES = "26214400"
 # Cloudflare's spamScore is 0..1 in practice, but 3rd-party headers
 # (X-Spam-Score) can run up to 5+. Quarantine at >=5 — tune in prod.
 SPAM_SCORE_QUARANTINE = "5"
+INBOX_FORWARD_FROM = "VIZA <noreply@viza.app>"
 
-# R2 bucket for offloaded bodies (>1 MB) and any future attachments.
-[[r2_buckets]]
-binding = "INBOX_BODIES"
-bucket_name = "viza-inbox-bodies"
-preview_bucket_name = "viza-inbox-bodies-preview"
+[triggers]
+crons = ["*/1 * * * *"]
+
+# Add this binding after R2 is enabled for the Cloudflare account:
+# [[r2_buckets]]
+# binding = "INBOX_BODIES"
+# bucket_name = "viza-inbox-bodies"
+# preview_bucket_name = "viza-inbox-bodies-preview"
 
 [env.preview]
 name = "viza-email-worker-preview"

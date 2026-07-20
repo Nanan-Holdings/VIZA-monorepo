@@ -32,13 +32,13 @@ test("vfsglobal — unfolds quoted-printable activation links", () => {
     text: [
       "Activate:",
       "https://visa.vfsglobal.com/sgp/en/jpn/activateemail?q=AbCdEf12=",
-      "\r\n34567890%2Bmore=2Ftoken",
+      "\r\n34567890+more/token",
     ].join(""),
   });
   assert.equal(result.profileId, "vfsglobal");
   assert.equal(
     result.link,
-    "https://visa.vfsglobal.com/sgp/en/jpn/activateemail?q=AbCdEf1234567890%2Bmore/token",
+    "https://visa.vfsglobal.com/sgp/en/jpn/activateemail?q=AbCdEf1234567890%2Bmore%2Ftoken",
   );
 });
 

@@ -104,6 +104,7 @@ class AppointmentRequestError extends Error {
   constructor(
     message: string,
     readonly evidenceUrl: string | null = null,
+    readonly code: string | null = null,
   ) {
     super(message);
     this.name = "AppointmentRequestError";
@@ -117,12 +118,13 @@ async function requestSnapshot(applicationId: string, action?: string, slotId?: 
     body: action ? JSON.stringify({ action, slotId, smsCode, routingInput: selectedCenterCode ? { selectedCenterCode } : undefined }) : undefined,
     cache: "no-store",
   });
-  const body = (await response.json().catch(() => null)) as Snapshot | { error?: string; evidenceUrl?: string } | null;
+  const body = (await response.json().catch(() => null)) as Snapshot | { error?: string; evidenceUrl?: string; code?: string } | null;
   if (!response.ok) {
-    const errorBody = body as { error?: string; evidenceUrl?: string } | null;
+    const errorBody = body as { error?: string; evidenceUrl?: string; code?: string } | null;
     throw new AppointmentRequestError(
       errorBody?.error ?? `Request failed: ${response.status}`,
       errorBody?.evidenceUrl ?? null,
+      errorBody?.code ?? null,
     );
   }
   return body as Snapshot;
@@ -162,6 +164,7 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
   const [busy, setBusy] = useState<string | null>("load");
   const [error, setError] = useState<string | null>(null);
   const [errorEvidenceUrl, setErrorEvidenceUrl] = useState<string | null>(null);
+  const [noSlotsAvailable, setNoSlotsAvailable] = useState(false);
   const rescheduleSmsStartRef = useRef(false);
 
   const center = snapshot?.routing.recommended;
@@ -186,13 +189,21 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
     setBusy(action ?? "load");
     setError(null);
     setErrorEvidenceUrl(null);
+    setNoSlotsAvailable(false);
     try {
       setSnapshot(await requestSnapshot(applicationId, action, slotId, code, centerCode ?? activeCenterCode));
       if (action === "submit-sms-code") setSmsCode("");
       if (action === "start-new-booking") setSmsCode("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-      setErrorEvidenceUrl(cause instanceof AppointmentRequestError ? cause.evidenceUrl : null);
+      const requestError = cause instanceof AppointmentRequestError ? cause : null;
+      const isNoSlots = requestError?.code === "no_slots_available"
+        || /no selectable .*appointment slots/iu.test(cause instanceof Error ? cause.message : String(cause));
+      if (isNoSlots) {
+        setNoSlotsAvailable(true);
+      } else {
+        setError(cause instanceof Error ? cause.message : String(cause));
+        setErrorEvidenceUrl(requestError?.evidenceUrl ?? null);
+      }
       try {
         const selectedCode = centerCode ?? activeCenterCode;
         setSnapshot(await requestSnapshot(
@@ -295,6 +306,18 @@ export function KoreaAppointmentAssistant({ applicationId }: { applicationId: st
                 </a>
               </Button>
             ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {noSlotsAvailable ? (
+        <Alert>
+          <CalendarCheck className="h-4 w-4" />
+          <AlertTitle>{isZh ? "暂时没有可预约时间" : "No appointment times are currently available"}</AlertTitle>
+          <AlertDescription>
+            {isZh
+              ? "当前递签中心暂时没有开放可预约时段。请稍后重新查询，或选择其他符合领区要求的递签中心。"
+              : "The selected filing center has not released any appointment times. Try again later or choose another eligible center."}
           </AlertDescription>
         </Alert>
       ) : null}

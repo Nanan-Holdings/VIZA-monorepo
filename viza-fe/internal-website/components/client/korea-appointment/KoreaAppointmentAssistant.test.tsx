@@ -26,13 +26,22 @@ const center = {
   importantNoticesEn: [],
 };
 
+const shanghaiCenter = {
+  ...center,
+  code: "SH",
+  nameEn: "Korea Visa Application Center Shanghai",
+  nameZh: "韩国签证申请中心（上海）",
+  addressZh: "上海市",
+  provinces: ["上海"],
+};
+
 function snapshot(overrides: Record<string, unknown> = {}) {
   return {
     routing: {
       basis: "residence",
       recommended: center,
       alternatives: [],
-      allCenters: [center],
+      allCenters: [center, shanghaiCenter],
     },
     job: { id: "job-1", status: "slot_search_started", mode: "assisted_live" },
     manualAction: null,
@@ -49,6 +58,14 @@ function response(body: unknown) {
     ok: true,
     status: 200,
     json: async () => body,
+  } as Response;
+}
+
+function errorResponse(error: string, code?: string) {
+  return {
+    ok: false,
+    status: 400,
+    json: async () => ({ error, code }),
   } as Response;
 }
 
@@ -138,5 +155,35 @@ describe("KoreaAppointmentAssistant back navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: "返回选择时间" }));
 
     await waitFor(() => expect(requestedActions()).toContainEqual(expect.objectContaining({ action: "return-to-slot-selection" })));
+  });
+
+  it("keeps the newly selected center when an official slot request fails", async () => {
+    const shanghaiSnapshot = snapshot({
+      routing: {
+        basis: "manual",
+        recommended: shanghaiCenter,
+        alternatives: [center],
+        allCenters: [center, shanghaiCenter],
+      },
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(snapshot()))
+      .mockResolvedValueOnce(response(shanghaiSnapshot))
+      .mockResolvedValueOnce(errorResponse(
+        "No appointment times are currently available at the selected Korea visa application center.",
+        "no_slots_available",
+      ))
+      .mockResolvedValueOnce(response(shanghaiSnapshot));
+
+    render(<KoreaAppointmentAssistant applicationId="application-1" />);
+    const centerSelect = await screen.findByRole("combobox", { name: "递签中心" });
+    fireEvent.change(centerSelect, { target: { value: "SH" } });
+    await screen.findByText("上海市");
+    fireEvent.click(screen.getByRole("button", { name: "继续发送官方验证码" }));
+
+    await screen.findByText("暂时没有可预约时间");
+    expect(screen.queryByText(/Submission service/u)).not.toBeInTheDocument();
+    expect(centerSelect).toHaveValue("SH");
+    expect(screen.getByText("上海市")).toBeInTheDocument();
   });
 });

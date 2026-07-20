@@ -51,6 +51,27 @@ export class VnPrearrivalPortalValidationError extends Error {
   }
 }
 
+export function routeVnPrearrivalEmailAnswers(
+  answers: Record<string, string>,
+  aliasEmailAddress: string,
+  profileEmailAddress?: string | null,
+): Record<string, string> {
+  const alias = aliasEmailAddress.trim().toLowerCase();
+  if (!alias) throw new Error("Vietnam Pre-Arrival requires a VIZA-managed alias email.");
+
+  const realEmailAddress = [
+    answers.real_email_address,
+    profileEmailAddress,
+    answers.email_address,
+  ].find((value) => value?.trim())?.trim().toLowerCase();
+
+  return {
+    ...answers,
+    ...(realEmailAddress ? { real_email_address: realEmailAddress } : {}),
+    alias_email_address: alias,
+  };
+}
+
 function answer(payload: SubmissionPayload, key: string): string {
   return (payload.countrySpecific[key] ?? "").trim();
 }

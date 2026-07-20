@@ -2,7 +2,7 @@
   "name": "viza-email-worker",
   "version": "0.1.0",
   "private": true,
-  "description": "Cloudflare Email Worker for *@haggstorm.com — ingests inbound mail to Supabase + R2 (INBOX-002).",
+  "description": "Cloudflare Email Worker for *@haggstorm.com — ingests inbound mail and forwards official correspondence to applicants.",
   "type": "module",
   "scripts": {
     "type-check": "tsc --noEmit",

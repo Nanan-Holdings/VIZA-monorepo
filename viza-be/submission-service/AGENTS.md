@@ -159,9 +159,13 @@ filling and one-shot submission for the applicant.
 - `POST /internal/japan-vfs-sg/book-selected-slot`: internal-token protected
   Japan live-booking handoff gated by `JP_VFS_SG_LIVE_BOOKING_ENABLED=true`.
   It never logs card data or fabricates slot/payment/confirmation success.
-- `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
-  alias provisioning and inbound-email verification-link extraction for
-  official account registration.
+- `src/inbox/alias.ts`, `src/email/inbound-ingest.ts`, and
+  `src/france-visas/mailbox-provider.ts`: VIZA email alias provisioning,
+  official-email ingestion, original-message forwarding to the applicant's
+  real email, and verification-link extraction for official account
+  registration. Country runners that need email OTP must force the managed
+  alias into the official form; user-entered email remains the forwarding
+  destination only.
 - `scripts/ts-node-js-resolver.cjs`: local dev preload that lets `ts-node`
   resolve relative `.js` source imports to sibling `.ts` files while preserving
   build output imports.

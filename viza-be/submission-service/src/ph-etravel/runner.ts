@@ -731,7 +731,16 @@ async function completeEgovPermanentResidenceOnboarding(
     ], 60_000);
     logs.push("ph_etravel_egov_onboarding_summary_submitted");
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(2_000);
+    await page.waitForFunction(
+      () => {
+        const current = document.body?.innerText ?? "";
+        return /dashboard|new travel declaration|travel history/i.test(current)
+          || !/^loading/i.test(current.trim());
+      },
+      undefined,
+      { timeout: 20_000 },
+    ).catch(() => undefined);
+    await page.waitForTimeout(3_000);
     text = await bodyText(page);
     logs.push("ph_etravel_egov_onboarding_residence_submitted");
     return text;
@@ -943,7 +952,11 @@ async function completeEgovPersonalInformationOnboarding(
   if (/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
     text = await completeEgovPermanentResidenceOnboarding(page, payload, logs, screenshots);
   }
-  if (/personal information|required|fill out all required fields/i.test(text) && /onboarding|personal information/i.test(text)) {
+  if (
+    !/profile is complete|begin creating your etravel transactions/i.test(text) &&
+    /personal information|required|fill out all required fields/i.test(text) &&
+    /onboarding|personal information/i.test(text)
+  ) {
     screenshots.push(await saveScreenshot(page, "egov-onboarding-still-required", logs));
     await saveHtmlSnapshot(page, "egov-onboarding-still-required", logs);
     throw new PhEtravelPortalError(
@@ -1427,6 +1440,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
     } catch (error) {
       if (error instanceof PhEtravelFormFillError) {
         screenshots.push(await saveScreenshot(page, "form-fill-error", logs).catch(() => ""));
+        await saveHtmlSnapshot(page, "form-fill-error", logs).catch(() => "");
         throw new PhEtravelPortalError(error.message, {
           code: error.code,
           screenshotPaths: screenshots.filter(Boolean),

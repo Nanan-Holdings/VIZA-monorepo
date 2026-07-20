@@ -527,14 +527,16 @@ function tdacTransportLabel(value: string): RegExp {
 function tdacPurposeLabel(value: string): RegExp {
   const normalized = value.trim().toLowerCase();
   const labels: Record<string, RegExp> = {
-    holiday: /^(HOLIDAY|TOURISM|VACATION|LEISURE)$/i,
-    business: /^BUSINESS$/i,
-    education: /^EDUCATION$/i,
-    employment: /^EMPLOYMENT$/i,
+    holiday: /^HOLIDAY$/i,
     meeting: /^MEETING$/i,
-    medical: /^MEDICAL$/i,
-    return_resident: /RETURN\s+RESIDENT/i,
-    transit: /^TRANSIT$/i,
+    sports: /^SPORTS$/i,
+    business: /^BUSINESS$/i,
+    incentive: /^INCENTIVE$/i,
+    medical_wellness: /^MEDICAL\s*&\s*WELLNESS$/i,
+    education: /^EDUCATION$/i,
+    convention: /^CONVENTION$/i,
+    employment: /^EMPLOYMENT$/i,
+    exhibition: /^EXHIBITION$/i,
     others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
   };
   return labels[normalized] ?? new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
