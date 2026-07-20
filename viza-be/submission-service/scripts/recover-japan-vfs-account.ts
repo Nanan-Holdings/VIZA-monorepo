@@ -134,16 +134,43 @@ async function main(): Promise<void> {
         throw new Error("VFS did not open a verified account-activation page.");
       }
       await cloud.page.screenshot({ path: path.join(artifactDir, "activation-entry-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-      const activationEmail = cloud.page.locator("#inputEmail, #email, input[placeholder='jane.doe@email.com']").first();
+      const activationInputs = cloud.page.locator(
+        "main input:not([type='hidden']):not([type='checkbox']), form input:not([type='hidden']):not([type='checkbox'])",
+      ).filter({ visible: true });
+      const activationInputMetadata = await activationInputs.evaluateAll((elements) => elements.map((element) => {
+        const input = element as HTMLInputElement;
+        return {
+          id: input.id,
+          type: input.type,
+          name: input.name,
+          placeholder: input.placeholder,
+          ariaLabel: input.getAttribute("aria-label"),
+          formControlName: input.getAttribute("formcontrolname"),
+        };
+      }));
+      console.log(`[jp-vfs-recovery] activation inputs=${JSON.stringify(activationInputMetadata)}`);
+      if (activationInputMetadata.length !== 1) {
+        throw new Error(`VFS activation page exposed ${activationInputMetadata.length} visible text inputs; refusing an ambiguous fill.`);
+      }
+      const activationEmail = activationInputs.first();
       await activationEmail.fill(profile.inbox_alias);
       await waitForTurnstile(cloud.page);
       const activationRequestedAt = new Date().toISOString();
       if (!await clickVisible(cloud.page, /activate|submit|send|continue/i)) throw new Error("VFS activation submit control was not found.");
       await cloud.page.waitForTimeout(3_000);
       const activationRequestText = await cloud.page.locator("body").innerText().catch(() => "");
+      const activationAlerts = await cloud.page.locator(
+        "main [role='alert'], main .alert, form [role='alert'], form .alert",
+      ).evaluateAll((elements) => elements.filter((element) => {
+        const htmlElement = element as HTMLElement;
+        return Boolean(htmlElement.offsetWidth || htmlElement.offsetHeight);
+      }).map((element) => (element.textContent ?? "").replace(/\s+/g, " ").trim()).filter(Boolean));
       await cloud.page.screenshot({ path: path.join(artifactDir, "activation-request-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-      if (/not registered|invalid|failed|not found/i.test(activationRequestText)) throw new Error("VFS rejected the account-activation request.");
-      if (!/email.{0,80}(?:sent|send)|(?:sent|send).{0,80}email|check your email|activation link/i.test(activationRequestText)) {
+      const activationEvidence = activationAlerts.join(" ");
+      if (/not registered|invalid|failed|not found/i.test(`${activationEvidence} ${activationRequestText}`)) {
+        throw new Error("VFS rejected the account-activation request.");
+      }
+      if (!/email.{0,80}(?:sent|success)|(?:sent|success).{0,80}email|check your email|activation (?:email|link).{0,40}(?:sent|success)/i.test(activationEvidence)) {
         throw new Error("VFS did not confirm that an activation email was sent.");
       }
       console.log("[jp-vfs-recovery] activation email requested");
@@ -156,12 +183,19 @@ async function main(): Promise<void> {
       const freshActivation = extractAuto({ from: activationMessage.from_addr, subject: activationMessage.subject, text: activationMessage.text, html: activationMessage.html });
       if (!freshActivation.link) throw new Error("The fresh VFS activation email did not contain an activation link.");
       await cloud.page.goto(freshActivation.link.replace(/&amp;/g, "&"), { waitUntil: "domcontentloaded", timeout: 90_000 });
-      await cloud.page.waitForTimeout(3_000);
-      const activationResultText = await cloud.page.locator("body").innerText().catch(() => "");
-      const loginVisible = await cloud.page.getByLabel("Email*", { exact: true }).isVisible({ timeout: 30_000 }).catch(() => false);
+      const activationResultDeadline = Date.now() + 60_000;
+      let loginVisible = false;
+      let activationResultText = "";
+      while (Date.now() < activationResultDeadline) {
+        activationResultText = await cloud.page.locator("body").innerText().catch(() => "");
+        loginVisible = await cloud.page.getByLabel("Email*", { exact: true }).isVisible({ timeout: 1_000 }).catch(() => false);
+        if (loginVisible || /invalid|expired|failed|activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationResultText)) break;
+        await cloud.page.waitForTimeout(2_000);
+      }
       await cloud.page.screenshot({ path: path.join(artifactDir, "activation-result-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
       if (/invalid|expired|failed/i.test(activationResultText)) throw new Error("VFS rejected the fresh activation link.");
       if (!loginVisible && !/activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationResultText)) {
+        console.log(`[jp-vfs-recovery] activation result diagnostics=${JSON.stringify(browserDiagnostics.slice(-80))}`);
         throw new Error("VFS did not show a verified account-activation result.");
       }
       const activated = await supabase.from("appointment_accounts").update({
@@ -201,9 +235,16 @@ async function main(): Promise<void> {
     if (!await clickVisible(cloud.page, /submit|continue|reset|send/i)) throw new Error("VFS reset-password submit control was not found.");
     await cloud.page.waitForTimeout(2_000);
     const resetRequestText = await cloud.page.locator("body").innerText().catch(() => "");
-    if (/not registered|invalid|failed|not found/i.test(resetRequestText)) throw new Error("VFS rejected the password-reset request.");
+    const resetAlerts = await cloud.page.locator(
+      "main [role='alert'], main .alert, form [role='alert'], form .alert",
+    ).evaluateAll((elements) => elements.filter((element) => {
+      const htmlElement = element as HTMLElement;
+      return Boolean(htmlElement.offsetWidth || htmlElement.offsetHeight);
+    }).map((element) => (element.textContent ?? "").replace(/\s+/g, " ").trim()).filter(Boolean));
+    const resetEvidence = resetAlerts.join(" ");
+    if (/not registered|invalid|failed|not found/i.test(`${resetEvidence} ${resetRequestText}`)) throw new Error("VFS rejected the password-reset request.");
     await cloud.page.screenshot({ path: path.join(artifactDir, "reset-request-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-    if (!/email.{0,80}(?:sent|send)|(?:sent|send).{0,80}email|check your email|reset link/i.test(resetRequestText)) {
+    if (!/email.{0,80}(?:sent|success)|(?:sent|success).{0,80}email|check your email|reset (?:email|link).{0,40}(?:sent|success)/i.test(resetEvidence)) {
       const safeExcerpt = resetRequestText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]").replace(/\s+/g, " ").slice(0, 220);
       throw new Error(`VFS did not confirm that a password-reset email was sent: ${safeExcerpt}`);
     }

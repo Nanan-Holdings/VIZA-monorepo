@@ -101,11 +101,12 @@ async function loadPortalAccount(applicationId: string): Promise<PortalAccountCo
   const { data: account, error: accountError } = await supabase.from("appointment_accounts").select("*")
     .eq("application_id", applicationId).eq("portal", "vfs_japan_sg").order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (accountError) throw new Error(`Japan VFS account lookup failed: ${accountError.message}`);
-  const passwordResetRequired = account?.account_status === "password_reset_required"
+  const accountCredentialUnavailable = account?.account_status === "account_activation_required"
+    || account?.account_status === "password_reset_required"
     || account?.account_status === "password_reset_email_requested";
   const password = account?.encrypted_account_password
     ? decryptSecret(account.encrypted_account_password)
-    : passwordResetRequired ? "" : generatePassword();
+    : accountCredentialUnavailable ? "" : generatePassword();
   const payload = {
     user_id: profile.auth_user_id, application_id: applicationId, country_code: "JP", portal: "vfs_japan_sg",
     account_email: alias, encrypted_account_password: password ? encryptSecret(password) : null,

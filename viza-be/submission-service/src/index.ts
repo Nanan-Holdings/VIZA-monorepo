@@ -288,6 +288,9 @@ function parseProviderAllowlist(): Set<string> {
 }
 
 const SUBMISSION_PROVIDER_ALLOWLIST = parseProviderAllowlist();
+const TARGET_FAILED_RETRY_ENABLED = /^(1|true|yes|on)$/i.test(
+  process.env.SUBMISSION_SERVICE_TARGET_RETRY_FAILED ?? "",
+);
 const LEGACY_US_APPOINTMENT_POLL_ENABLED = readBooleanEnv(
   "SUBMISSION_SERVICE_LEGACY_US_APPOINTMENT_POLL_ENABLED",
   true,
@@ -373,6 +376,27 @@ async function fetchPendingItems(input: {
   concurrency: number;
   targetJobId?: string | null;
 }): Promise<SubmissionQueueItem[]> {
+  if (input.targetJobId && TARGET_FAILED_RETRY_ENABLED) {
+    let query = supabase
+      .from("submission_queue")
+      .select("*")
+      .eq("id", input.targetJobId)
+      .in("status", [
+        "mdac_live_assisted_failed",
+        "tdac_live_assisted_failed",
+        "phetravel_live_assisted_failed",
+      ])
+      .limit(1);
+    if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
+      query = query.in("provider", Array.from(SUBMISSION_PROVIDER_ALLOWLIST));
+    }
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Failed targeted arrival-card retry select: ${error.message}`);
+    }
+    return (data ?? []) as SubmissionQueueItem[];
+  }
+
   let items: SubmissionQueueItem[];
   try {
     if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
@@ -792,6 +816,13 @@ async function normalizeSgacQueueItem(item: SubmissionQueueItem): Promise<Submis
 }
 
 async function normalizeDigitalArrivalCardQueueItem(item: SubmissionQueueItem): Promise<SubmissionQueueItem> {
+  if (
+    TARGET_FAILED_RETRY_ENABLED
+    && process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim() === item.id
+  ) {
+    return item;
+  }
+
   const application = await loadQueueRoutingApplication(item.application_id);
   const isMdac = isMdacQueueItem(item, application);
   const isTdac = isTdacQueueItem(item, application);
@@ -6257,11 +6288,15 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
   const country = isMdac ? "MY" : isTdac ? "TH" : "PH";
   const visaType = isMdac ? "MY_MDAC_ARRIVAL_CARD" : isTdac ? "TH_TDAC_ARRIVAL_CARD" : "PH_ETRAVEL_ARRIVAL_CARD";
   const providerName = isMdac ? "malaysia_mdac_live" : isTdac ? "thailand_tdac_live" : "philippines_etravel_live";
-  const processingStatus: SubmissionQueueItem["status"] = isMdac
-    ? "mdac_live_assisted_processing"
-    : isTdac
-      ? "tdac_live_assisted_processing"
-      : "phetravel_live_assisted_processing";
+  const targetedFailedRetry = TARGET_FAILED_RETRY_ENABLED
+    && process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim() === item.id;
+  const processingStatus: SubmissionQueueItem["status"] = targetedFailedRetry
+    ? "arrival_card_targeted_retry_processing" as SubmissionQueueItem["status"]
+    : isMdac
+      ? "mdac_live_assisted_processing"
+      : isTdac
+        ? "tdac_live_assisted_processing"
+        : "phetravel_live_assisted_processing";
   const failedStatus: SubmissionQueueItem["status"] = isMdac
     ? "mdac_live_assisted_failed"
     : isTdac

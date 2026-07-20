@@ -22,6 +22,7 @@
     "mdac:connectivity-smoke": "node dist/mdac/connectivity-smoke.js",
     "portal:connectivity-smoke": "node dist/portal-connectivity-smoke.js",
     "appointment:free-smoke": "tsx scripts/run-appointment-free-smoke.ts",
+    "appointment:pre-submit-fixture": "tsx scripts/run-appointment-pre-submit-fixture.ts",
     "japan-vfs:registration-fill-smoke": "tsx scripts/run-japan-vfs-registration-fill-smoke.ts",
     "japan-vfs:placeholder-account": "tsx scripts/run-japan-vfs-placeholder-account.ts",
     "france-tls:registration-recon": "tsx scripts/run-france-tls-registration-recon.ts",

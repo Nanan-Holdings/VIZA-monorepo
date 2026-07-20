@@ -1,5 +1,12 @@
 import type { ExtractorProfile } from "./types";
 
+function decodeQuotedPrintable(value: string): string {
+  return value
+    .replace(/=\r?\n/g, "")
+    .replace(/=([0-9A-F]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)));
+}
+
 /**
  * VFS Global account confirmation mails (used by ZA, IT, IN consular
  * submissions, and most VFS-managed corridors).
@@ -13,7 +20,14 @@ export const vfsGlobalProfile: ExtractorProfile = {
   id: "vfsglobal",
   senderDomains: ["vfsglobal.com", "noreply.vfsglobal.com", "vfshelpzone.com"],
   extract: ({ subject, text, html }) => {
-    const haystack = [subject ?? "", text ?? "", html ?? ""].join("\n");
+    // Some VFS messages reach inbound_email with their quoted-printable
+    // transfer encoding intact. Activation URLs are long enough to be folded
+    // with a soft "=\r\n"; extracting before unfolding silently truncates q.
+    const haystack = [
+      subject ?? "",
+      decodeQuotedPrintable(text ?? ""),
+      decodeQuotedPrintable(html ?? ""),
+    ].join("\n");
     const code =
       /(?:verification code|one[- ]?time password|otp)[^0-9]{0,16}(\d{4,8})/i.exec(haystack)?.[1] ??
       /\b(\d{6})\b/.exec(subject ?? "")?.[1];

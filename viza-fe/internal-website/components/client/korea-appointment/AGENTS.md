@@ -18,7 +18,9 @@ applicants.
 - Display only slots observed in the current official browser session. Never
   invent or label mock slots as official availability.
 - A zero-slot result must include a screenshot of the loaded official booking
-  window. A navigation timeout is not proof that no slots exist.
+  window. Wait for the official calendar loading overlay to disappear after
+  every month change before reading dates. A navigation or calendar-loading
+  timeout is not proof that no slots exist.
 - Never mark an appointment booked or cancelled until the official result page
   has been verified and evidence persisted.
 - SMS codes are transient and must not be written to logs or the database.
