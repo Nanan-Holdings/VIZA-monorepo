@@ -115,9 +115,18 @@ export function extractPhEtravelVerificationUrlFromMessage(
   return null;
 }
 
+export function isPhEtravelExistingAccountNotice(
+  message: Pick<InboundMessage, "html" | "text" | "subject">,
+): boolean {
+  return messageHaystacks(message).some((value) =>
+    /registration attempt notice|account is already registered|already registered using this email/i.test(value),
+  );
+}
+
 export interface PhEtravelMailboxProvider {
   waitForOtp(params: { timeoutMs: number; since?: string }): Promise<string>;
   waitForVerificationLink(params: { timeoutMs: number; since?: string }): Promise<URL>;
+  waitForExistingAccountNotice(params: { timeoutMs: number; since?: string }): Promise<void>;
 }
 
 async function waitForMessageToAddress(
@@ -200,6 +209,17 @@ export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddre
       if (!url) throw new Error("Philippines eTravel email matched but no verification URL was found.");
       return url;
     },
+
+    async waitForExistingAccountNotice(params) {
+      await waitForOfficialMessage(
+        (row) => {
+          const senderMatches = /etravel|egov|gov\.ph/i.test(row.from_addr ?? "");
+          return senderMatches && isPhEtravelExistingAccountNotice(row);
+        },
+        params.timeoutMs,
+        params.since,
+      );
+    },
   };
 }
 
@@ -242,6 +262,17 @@ export function createPhEtravelImapMailboxProvider(mailboxAddress: string): PhEt
       });
       if (!url) throw new Error("Philippines eTravel IMAP email matched but no verification URL was found.");
       return url;
+    },
+
+    async waitForExistingAccountNotice(params) {
+      await waitForEmail({
+        config,
+        from: /etravel|egov|gov\.ph/i,
+        to: recipient,
+        subject: /registration attempt|already registered/i,
+        since: params.since ? new Date(params.since) : new Date(Date.now() - 60_000),
+        timeoutMs: params.timeoutMs,
+      });
     },
   };
 }
