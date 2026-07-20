@@ -52,6 +52,8 @@ export interface PhEtravelPortalPayload {
   transitAirport: string | null;
   transitDate: string | null;
   destinationType: string | null;
+  destinationTransitAirport: string | null;
+  destinationCountry: string | null;
   philippinesAddress: string;
   accompaniedUnder18Count: string | null;
   accompanied18PlusCount: string | null;
@@ -279,6 +281,7 @@ export function normalizePhEtravelPortalPayload(
   if (!fullName) missing.push("first_name");
   const hasTransit = boolAnswer(answers.with_transit);
   const destinationType = firstText([answers.destination_type]) || null;
+  const isTransitDestination = /transit/i.test(destinationType ?? "");
   const philippinesAddress = requireFirstText(
     [
       answers.philippines_address,
@@ -389,6 +392,12 @@ export function normalizePhEtravelPortalPayload(
     transitAirport: hasTransit ? requireFirstText([answers.transit_airport], "transit_airport", missing) : null,
     transitDate: hasTransit ? firstIsoDate([answers.transit_date], "transit_date", missing) : null,
     destinationType,
+    destinationTransitAirport: isTransitDestination
+      ? requireFirstText([answers.destination_transit_airport], "destination_transit_airport", missing)
+      : null,
+    destinationCountry: isTransitDestination
+      ? requireFirstText([answers.destination_country], "destination_country", missing)
+      : null,
     philippinesAddress,
     accompaniedUnder18Count: firstText([answers.accompanied_under_18_count]) || null,
     accompanied18PlusCount: firstText([answers.accompanied_18_plus_count]) || null,
