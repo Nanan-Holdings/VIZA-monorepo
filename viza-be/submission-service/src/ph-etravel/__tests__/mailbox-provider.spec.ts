@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   extractPhEtravelOtpFromMessage,
   extractPhEtravelVerificationUrlFromMessage,
+  isPhEtravelExistingAccountNotice,
 } from "../mailbox-provider";
 
 test("extractPhEtravelOtpFromMessage reads numeric verification codes", () => {
@@ -83,4 +84,17 @@ test("extractPhEtravelVerificationUrlFromMessage ignores non-official links", ()
   });
 
   assert.equal(url, null);
+});
+
+test("isPhEtravelExistingAccountNotice recognizes the official registration notice", () => {
+  assert.equal(isPhEtravelExistingAccountNotice({
+    subject: "Registration Attempt Notice",
+    text: null,
+    html: "<p>Our records indicate that an account is already registered using this email.</p>",
+  }), true);
+  assert.equal(isPhEtravelExistingAccountNotice({
+    subject: "Your verification code",
+    text: "Use the requested code to continue.",
+    html: null,
+  }), false);
 });
