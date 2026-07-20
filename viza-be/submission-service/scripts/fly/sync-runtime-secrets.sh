@@ -13,10 +13,11 @@ for key in "${required[@]}"; do
   fi
 done
 
-fly secrets set --app "$app" --detach \
-  "SUPABASE_URL=$SUPABASE_URL" \
-  "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY" \
+secret_args=(
+  "SUPABASE_URL=$SUPABASE_URL"
+  "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY"
   "SUBMISSION_RESULT_SECRET_KEY=$SUBMISSION_RESULT_SECRET_KEY"
+)
 
 # Capability secrets are optional: only inject a value when the protected CI
 # environment actually provides it. This prevents an empty GitHub secret from
@@ -29,7 +30,7 @@ optional=(
 )
 for key in "${optional[@]}"; do
   if [[ -n "${!key:-}" ]]; then
-    fly secrets set --app "$app" --detach "$key=${!key}"
+    secret_args+=("$key=${!key}")
   fi
 done
 
@@ -68,6 +69,11 @@ esac
 
 for key in "${capability[@]}"; do
   if [[ -n "${!key:-}" ]]; then
-    fly secrets set --app "$app" --detach "$key=${!key}"
+    secret_args+=("$key=${!key}")
   fi
 done
+
+# Apply all runtime secrets in one synchronous update. Detached, repeated
+# updates can leave Fly Machines in a replacing state when the image deploy
+# starts immediately afterward.
+fly secrets set --app "$app" "${secret_args[@]}"
