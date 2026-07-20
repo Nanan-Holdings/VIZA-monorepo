@@ -117,6 +117,20 @@ test("normalizePhEtravelPortalPayload keeps the three official health answers di
   assert.deepEqual(payload.sicknessSymptoms, ["SS002", "SS008"]);
 });
 
+test("normalizePhEtravelPortalPayload carries conditional transit destination answers", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      destination_type: "TRANSIT",
+      destination_transit_airport: "TP3000",
+      destination_country: "HK",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.destinationTransitAirport, "TP3000");
+  assert.equal(payload.destinationCountry, "HK");
+});
+
 test("normalizePhEtravelPortalPayload rejects wrong country or visa type", () => {
   assert.throws(
     () =>

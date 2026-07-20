@@ -44,6 +44,8 @@ const payload: PhEtravelPortalPayload = {
   transitAirport: null,
   transitDate: null,
   destinationType: "HOTEL_RESORT",
+  destinationTransitAirport: null,
+  destinationCountry: null,
   philippinesAddress: "Test Hotel, Manila",
   accompaniedUnder18Count: "0",
   accompanied18PlusCount: "0",
@@ -105,4 +107,23 @@ test("buildPhEtravelFieldPlan carries every required travel value into the brows
   assert.equal(required.some((item) => item.value === null || item.value === ""), false);
   assert.equal(plan.find((item) => item.key === "arrival_date")?.value, "2026-07-16");
   assert.equal(plan.find((item) => item.key === "philippines_address")?.value, "Test Hotel, Manila");
+});
+
+test("buildPhEtravelFieldPlan fills the official transit destination controls", () => {
+  const plan = buildPhEtravelFieldPlan({
+    ...payload,
+    destinationType: "TRANSIT",
+    destinationTransitAirport: "TP3000",
+    destinationCountry: "HK",
+  }, {
+    TP3000: "Ninoy Aquino International Airport T3 - (MNL)",
+    HK: "Hong Kong",
+  });
+  const byKey = new Map(plan.map((item) => [item.key, item]));
+
+  assert.equal(byKey.get("destination_transit_airport")?.value, "Ninoy Aquino International Airport T3 - (MNL)");
+  assert.equal(byKey.get("destination_transit_airport")?.required, true);
+  assert.equal(byKey.get("destination_country")?.value, "Hong Kong");
+  assert.equal(byKey.get("destination_country")?.required, true);
+  assert.equal(byKey.get("philippines_address")?.required, false);
 });
