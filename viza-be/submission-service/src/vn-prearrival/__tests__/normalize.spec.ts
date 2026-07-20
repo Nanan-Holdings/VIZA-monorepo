@@ -5,6 +5,7 @@ import { evaluateVietnamPrearrivalSubmissionWindow } from "../date-window";
 import {
   VnPrearrivalPortalValidationError,
   normalizeVnPrearrivalPortalPayload,
+  routeVnPrearrivalEmailAnswers,
 } from "../normalize";
 
 function payload(overrides: Record<string, string> = {}): SubmissionPayload {
@@ -99,6 +100,21 @@ test("requires alias email for OTP and keeps the real email for forwarding only"
       return true;
     },
   );
+});
+
+test("forces the managed alias into the official form and preserves the real email for forwarding", () => {
+  const routed = routeVnPrearrivalEmailAnswers(
+    {
+      alias_email_address: "traveller@example.com",
+      email_address: "traveller@example.com",
+    },
+    "APPL-TEST@HAGGSTORM.COM",
+    "profile@example.com",
+  );
+
+  assert.equal(routed.alias_email_address, "appl-test@haggstorm.com");
+  assert.equal(routed.real_email_address, "profile@example.com");
+  assert.equal(routed.email_address, "traveller@example.com");
 });
 
 test("evaluates Vietnam Pre-Arrival 72-hour submission window", () => {

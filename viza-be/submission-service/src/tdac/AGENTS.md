@@ -11,4 +11,8 @@ Scope: Thailand `TH_TDAC_ARRIVAL_CARD` official TDAC portal automation only.
   provider rejects this government portal by policy.
 - `browser-selection.spec.ts` locks the provider default and prevents legacy
   Bright Data endpoint variables from silently taking control of TDAC again.
+- `normalize.spec.ts` locks the current official purpose dropdown contract and
+  keeps legacy `transit` answers compatible by sending official `OTHERS
+  (PLEASE SPECIFY)` with `TRANSIT`; the separate transit-passenger checkbox
+  remains the source of truth for no-stay transit.
 - If the official portal blocks access, changes layout, disables submission, or cannot reach final confirmation, return a precise structured failure with artifacts. Do not fake a successful TDAC submission.

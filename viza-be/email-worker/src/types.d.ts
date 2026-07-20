@@ -12,6 +12,7 @@ declare global {
   // Real types are pulled in by Wrangler at build time; these stubs keep
   // `tsc --noEmit` self-contained for repo-level CI.
   function fetch(input: string, init?: unknown): Promise<Response>;
+  function btoa(value: string): string;
   interface Response {
     ok: boolean;
     status: number;
@@ -20,6 +21,9 @@ declare global {
   }
   const crypto: {
     randomUUID(): string;
+  };
+  const console: {
+    error(...values: unknown[]): void;
   };
   class TextDecoder {
     constructor(label?: string, options?: { fatal?: boolean });
@@ -42,6 +46,10 @@ declare global {
       value: ArrayBuffer | Uint8Array | string,
       options?: { httpMetadata?: { contentType?: string } },
     ): Promise<unknown>;
+    get(key: string): Promise<R2ObjectBody | null>;
+  }
+  interface R2ObjectBody {
+    arrayBuffer(): Promise<ArrayBuffer>;
   }
 
   /** Subset of `EmailMessage` (Cloudflare Email Worker `email()` arg). */
@@ -54,6 +62,13 @@ declare global {
     headers: CfEmailHeaders;
     rawSize: number;
     raw: ReadableStream<Uint8Array>;
+  }
+  interface ScheduledController {
+    scheduledTime: number;
+    cron: string;
+  }
+  interface ExecutionContext {
+    waitUntil(promise: Promise<unknown>): void;
   }
 }
 

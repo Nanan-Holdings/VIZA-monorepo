@@ -35,7 +35,7 @@ async function waitForTurnstile(page: CloudPage): Promise<void> {
   await page.waitForFunction(() => {
     const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
     return token.trim().length > 0;
-  }, undefined, { timeout: 35_000 });
+  }, undefined, { timeout: 60_000 });
 }
 
 async function main(): Promise<void> {
@@ -55,12 +55,20 @@ async function main(): Promise<void> {
 
   let activationLink: string | undefined;
   if (!activationAlreadyConsumed) {
-    const welcome = await inbox.waitForMessage(
-      application.applicant_id,
-      (message) => /vfsglobal\.com|vfshelpzone\.com/i.test(message.from_addr) && /welcome|activate|registration/i.test(message.subject ?? ""),
-      5_000,
-      { since: new Date(Date.now() - 30 * 60_000).toISOString(), includeProcessed: true, markProcessed: false },
+    const recentActivationMessages = await supabase.from("inbound_email")
+      .select("from_addr,subject,text,html")
+      .eq("to_addr", profile.inbox_alias)
+      .gte("received_at", new Date(Date.now() - 30 * 60_000).toISOString())
+      .order("received_at", { ascending: false })
+      .limit(20);
+    if (recentActivationMessages.error) {
+      throw new Error(`VFS activation email lookup failed: ${recentActivationMessages.error.message}`);
+    }
+    const welcome = recentActivationMessages.data?.find(
+      (message) => /vfsglobal\.com|vfshelpzone\.com/i.test(message.from_addr)
+        && /welcome|activate|registration/i.test(message.subject ?? ""),
     );
+    if (!welcome) throw new Error("No recent VFS activation email was found.");
     activationLink = extractAuto({ from: welcome.from_addr, subject: welcome.subject, text: welcome.text, html: welcome.html }).link;
     if (!activationLink) throw new Error("The VFS welcome email did not contain an activation link.");
   }
@@ -93,11 +101,22 @@ async function main(): Promise<void> {
   try {
     if (!activationAlreadyConsumed) {
       await cloud.page.goto(activationLink!.replace(/&amp;/g, "&"), { waitUntil: "domcontentloaded", timeout: 90_000 });
-      await cloud.page.waitForTimeout(2_500);
-      const activationText = await cloud.page.locator("body").innerText().catch(() => "");
+      const activationDeadline = Date.now() + 60_000;
+      let activationText = "";
+      let activationLoginVisible = false;
+      while (Date.now() < activationDeadline) {
+        activationText = await cloud.page.locator("body").innerText().catch(() => "");
+        activationLoginVisible = await cloud.page.getByLabel("Email*", { exact: true }).isVisible({ timeout: 1_000 }).catch(() => false);
+        if (activationLoginVisible || /invalid|expired|failed|activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationText)) break;
+        await cloud.page.waitForTimeout(2_000);
+      }
       if (/invalid|expired|activation failed/i.test(activationText)) throw new Error("VFS rejected the account activation link.");
       await cloud.page.screenshot({ path: path.join(artifactDir, "activation-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-      console.log("[jp-vfs-recovery] activation link accepted");
+      if (!activationLoginVisible && !/activat(?:ed|ion).{0,40}(?:success|complete)|successfully activated/i.test(activationText)) {
+        console.log(`[jp-vfs-recovery] activation diagnostics=${JSON.stringify(browserDiagnostics.slice(-80))}`);
+        throw new Error("VFS did not show a verified account-activation result.");
+      }
+      console.log("[jp-vfs-recovery] activation verified");
     } else {
       console.log("[jp-vfs-recovery] activation link was already consumed");
     }
@@ -154,7 +173,17 @@ async function main(): Promise<void> {
       }
       const activationEmail = activationInputs.first();
       await activationEmail.fill(profile.inbox_alias);
-      await waitForTurnstile(cloud.page);
+      try {
+        await waitForTurnstile(cloud.page);
+      } catch {
+        console.log("[jp-vfs-recovery] Turnstile retrying once in the same session");
+        await cloud.page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+        const retryActivationEmail = cloud.page.locator(
+          "main input:not([type='hidden']):not([type='checkbox']), form input:not([type='hidden']):not([type='checkbox'])",
+        ).filter({ visible: true }).first();
+        await retryActivationEmail.fill(profile.inbox_alias);
+        await waitForTurnstile(cloud.page);
+      }
       const activationRequestedAt = new Date().toISOString();
       if (!await clickVisible(cloud.page, /activate|submit|send|continue/i)) throw new Error("VFS activation submit control was not found.");
       await cloud.page.waitForTimeout(3_000);
@@ -205,8 +234,9 @@ async function main(): Promise<void> {
         updated_at: new Date().toISOString(),
       }).eq("application_id", applicationId).eq("portal", "vfs_japan_sg");
       if (activated.error) throw new Error(`VFS activation checkpoint persistence failed: ${activated.error.message}`);
-      console.log(JSON.stringify({ ok: true, accountStatus: "password_reset_required", emailVerified: true, activationVerified: true, browserbaseProxy: cloud.proxiesEnabled }));
-      return;
+      console.log("[jp-vfs-recovery] activation verified; continuing to password reset");
+      await cloud.page.goto(`${portalBase}/login`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await cloud.page.getByLabel("Email*", { exact: true }).waitFor({ state: "visible", timeout: 60_000 });
     }
     if (!await clickVisible(cloud.page, /forgot.*password/i)) {
       const controls = await cloud.page.locator("a,button").evaluateAll((elements) => elements.map((element) => ({
@@ -230,7 +260,14 @@ async function main(): Promise<void> {
 
     const email = cloud.page.getByLabel(/email/i).first();
     await email.fill(profile.inbox_alias);
-    await waitForTurnstile(cloud.page);
+    try {
+      await waitForTurnstile(cloud.page);
+    } catch {
+      console.log("[jp-vfs-recovery] Turnstile retrying once in the same session");
+      await cloud.page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+      await cloud.page.getByLabel(/email/i).first().fill(profile.inbox_alias);
+      await waitForTurnstile(cloud.page);
+    }
     const resetRequestedAt = new Date().toISOString();
     if (!await clickVisible(cloud.page, /submit|continue|reset|send/i)) throw new Error("VFS reset-password submit control was not found.");
     await cloud.page.waitForTimeout(2_000);

@@ -87,6 +87,45 @@ function listAnswer(value: unknown): string[] {
     .filter(Boolean);
 }
 
+const TDAC_PURPOSE_ALIASES: Record<string, string> = {
+  holiday: "holiday",
+  tourism: "holiday",
+  vacation: "holiday",
+  leisure: "holiday",
+  meeting: "meeting",
+  sports: "sports",
+  business: "business",
+  incentive: "incentive",
+  medical: "medical_wellness",
+  medical_wellness: "medical_wellness",
+  education: "education",
+  convention: "convention",
+  employment: "employment",
+  exhibition: "exhibition",
+  others: "others",
+};
+
+export function normalizeTdacPurpose(
+  purpose: string,
+  purposeOther?: string,
+): { purpose: string; purposeOther?: string; valid: boolean } {
+  const normalized = purpose.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "transit") {
+    return { purpose: "others", purposeOther: purposeOther?.trim() || "TRANSIT", valid: true };
+  }
+  if (normalized === "return_resident") {
+    return { purpose: "others", purposeOther: purposeOther?.trim() || "RETURN RESIDENT", valid: true };
+  }
+
+  const canonical = TDAC_PURPOSE_ALIASES[normalized];
+  if (!canonical) return { purpose: normalized, purposeOther: purposeOther?.trim() || undefined, valid: false };
+  return {
+    purpose: canonical,
+    purposeOther: purposeOther?.trim() || undefined,
+    valid: true,
+  };
+}
+
 export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPortalPayload {
   if (payload.countryCode !== "TH" || payload.visaType !== "TH_TDAC_ARRIVAL_CARD") {
     throw new TdacPortalValidationError(
@@ -149,6 +188,11 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     if (!province) missing.push("answers.province");
     if (!addressInThailand) missing.push("answers.address_in_thailand");
   }
+  const purpose = normalizeTdacPurpose(
+    requireFirstText([answers.purpose_of_travel], "answers.purpose_of_travel", missing),
+    firstText([answers.purpose_of_travel_other]),
+  );
+  if (!purpose.valid) missing.push("answers.purpose_of_travel(official_option)");
 
   const fields: TdacPortalPayload = {
     applicationId: payload.applicationId,
@@ -173,8 +217,8 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     arrivalDate,
     departureDate,
     countryBoarded: requireFirstText([answers.country_boarded], "answers.country_boarded", missing),
-    purposeOfTravel: requireFirstText([answers.purpose_of_travel], "answers.purpose_of_travel", missing),
-    purposeOfTravelOther: firstText([answers.purpose_of_travel_other]),
+    purposeOfTravel: purpose.purpose,
+    purposeOfTravelOther: purpose.purposeOther,
     arrivalModeOfTravel,
     arrivalModeOfTransport,
     arrivalTransportOther: firstText([answers.arrival_transport_other]),

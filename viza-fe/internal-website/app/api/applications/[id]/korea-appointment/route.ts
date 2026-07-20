@@ -486,7 +486,7 @@ async function ensureKoreaJob(
         .update({
           mode: mode === "live_assisted" ? "live_assisted" : job.mode,
           status: mode === "live_assisted" ? "sms_verification_required" : job.status,
-          requires_user_action: mode === "live_assisted" ? true : job.requires_user_action,
+          requires_user_action: mode === "live_assisted",
           applying_post_city: routing.recommended.nameEn,
           user_preferences_json: {
             ...(job.user_preferences_json ?? {}),
@@ -1802,9 +1802,14 @@ export async function POST(
         );
         return NextResponse.json(await readSnapshot(auth.admin, id, routingInput));
       }
+      const noSlotsAvailable = error instanceof SubmissionServiceRequestError
+        && /no selectable .*appointment slots/iu.test(error.message);
       return NextResponse.json(
         {
-          error: error instanceof Error ? error.message : "Korea KVAC live booking failed",
+          error: noSlotsAvailable
+            ? "No appointment times are currently available at the selected Korea visa application center."
+            : error instanceof Error ? error.message : "Korea KVAC live booking failed",
+          ...(noSlotsAvailable ? { code: "no_slots_available" } : {}),
           ...(error instanceof SubmissionServiceRequestError && error.screenshotPath
             ? {
                 evidenceUrl: `/api/applications/${id}/korea-evidence?path=${encodeURIComponent(error.screenshotPath)}`,

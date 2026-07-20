@@ -247,6 +247,10 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
     });
+    const networkRequests: string[] = [];
+    context.on("request", (request) => {
+      if (/^https?:\/\//u.test(request.url())) networkRequests.push(request.url());
+    });
     const usPage = await context.newPage();
     const usScreenshot = await runUsFixture(usPage);
     await usPage.close();
@@ -255,10 +259,15 @@ async function main() {
     const franceScreenshot = await runFranceFixture(francePage);
     await francePage.close();
 
+    if (networkRequests.length > 0) {
+      throw new Error(
+        `Offline fixture unexpectedly made ${networkRequests.length} network request(s).`,
+      );
+    }
     process.stdout.write(`${JSON.stringify({
       ok: true,
       mode: "offline_placeholder_fixture",
-      officialNetworkRequests: 0,
+      officialNetworkRequests: networkRequests.length,
       finalSubmitClicks: 0,
       results: {
         unitedStates: {

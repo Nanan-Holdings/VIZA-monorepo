@@ -182,6 +182,7 @@ import {
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   VnPrearrivalPortalValidationError,
   normalizeVnPrearrivalPortalPayload,
+  routeVnPrearrivalEmailAnswers,
 } from "./vn-prearrival/normalize";
 import { evaluateVietnamPrearrivalSubmissionWindow } from "./vn-prearrival/date-window";
 import { VnPrearrivalPortalError, runVietnamPrearrivalPortalSubmission } from "./vn-prearrival/runner";
@@ -6105,7 +6106,13 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       );
     }
 
-    const answers = await loadDs160Answers(item.application_id);
+    const storedAnswers = await loadDs160Answers(item.application_id);
+    const managedAlias = await ensureApplicantInboxAlias(profile.id);
+    const answers = routeVnPrearrivalEmailAnswers(
+      storedAnswers,
+      managedAlias.alias,
+      profile.email,
+    );
     const arrivalCardApplication = buildCountrySubmissionApplication(profile, application, answers);
     const provider = getCountrySubmissionProvider(application.country, application.visa_type);
     if (!provider || provider.countryCode !== "VN") {
@@ -6584,6 +6591,24 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
+    if (portalResult.submitted) {
+      const officialReference = portalResult.confirmationNumber ?? portalResult.referenceNumber ?? null;
+      const { error: applicationStatusError } = await supabase
+        .from("applications")
+        .update({
+          status: "submitted",
+          confirmation_number: portalResult.confirmationNumber ?? officialReference,
+          external_reference: portalResult.referenceNumber ?? officialReference,
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.application_id);
+      if (applicationStatusError) {
+        console.error(
+          `[${logCode}] Official submission succeeded but application status sync failed: ${applicationStatusError.message}`,
+        );
+      }
+    }
     await supabase
       .from("submission_queue")
       .update({
@@ -6596,6 +6621,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         official_confirmation_number_encrypted: portalResult.confirmationNumber
           ? encryptSecret(portalResult.confirmationNumber)
           : null,
+        official_confirmation_pdf_url: pdfArtifacts[0] ?? null,
         live_submitted_at: portalResult.submitted ? new Date().toISOString() : null,
         live_screenshot_url: screenshotArtifacts[0] ?? null,
         updated_at: new Date().toISOString(),

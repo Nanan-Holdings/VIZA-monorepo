@@ -21,6 +21,9 @@ applicants.
   window. Wait for the official calendar loading overlay to disappear after
   every month change before reading dates. A navigation or calendar-loading
   timeout is not proof that no slots exist.
+- Treat a verified zero-slot result as normal availability, not a system
+  failure. Show a localized neutral notice and never expose submission-service
+  URLs, HTTP status codes, or worker error text to applicants.
 - Never mark an appointment booked or cancelled until the official result page
   has been verified and evidence persisted.
 - SMS codes are transient and must not be written to logs or the database.
