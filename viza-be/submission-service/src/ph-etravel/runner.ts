@@ -690,6 +690,14 @@ async function completeEgovPermanentResidenceOnboarding(
   screenshots: string[],
 ): Promise<string> {
   let text = await bodyText(page);
+  if (/profile is complete|onboarding summary/i.test(text)) {
+    await page.waitForFunction(
+      () => /dashboard|new travel declaration|travel history/i.test(document.body?.innerText ?? ""),
+      undefined,
+      { timeout: 30_000 },
+    ).catch(() => undefined);
+    return bodyText(page);
+  }
   if (!/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
     return text;
   }
@@ -850,6 +858,14 @@ async function completeEgovPersonalInformationOnboarding(
   screenshots: string[],
 ): Promise<string> {
   let text = await bodyText(page);
+  if (/profile is complete|onboarding summary/i.test(text)) {
+    await page.waitForFunction(
+      () => /dashboard|new travel declaration|travel history/i.test(document.body?.innerText ?? ""),
+      undefined,
+      { timeout: 30_000 },
+    ).catch(() => undefined);
+    return bodyText(page);
+  }
   if (/permanent country of residence|address information|no\.?\/bldg/i.test(text)) {
     return completeEgovPermanentResidenceOnboarding(page, payload, logs, screenshots);
   }

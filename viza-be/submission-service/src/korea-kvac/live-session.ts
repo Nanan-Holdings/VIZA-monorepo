@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { supabase } from "../supabase.js";
 
 export interface KoreaKvacStartSmsInput {
   applicationId: string;
@@ -413,7 +414,7 @@ async function screenshot(page: Page, jobId: string, label: string) {
   return path;
 }
 
-async function saveOfficialConfirmationPdf(page: Page, jobId: string) {
+async function saveOfficialConfirmationPdf(page: Page, applicationId: string, jobId: string) {
   const outputPath = path.resolve("output", "playwright", `korea-kvac-${jobId}-appointment-confirmation.pdf`);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   const tagged = await page.evaluate(() => {
@@ -442,7 +443,7 @@ async function saveOfficialConfirmationPdf(page: Page, jobId: string) {
   const printablePage = popup ?? page;
   await printablePage.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
   await printablePage.emulateMedia({ media: "print" });
-  await printablePage.pdf({
+  const pdf = await printablePage.pdf({
     path: outputPath,
     format: "A4",
     printBackground: true,
@@ -450,7 +451,15 @@ async function saveOfficialConfirmationPdf(page: Page, jobId: string) {
     margin: { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
   });
   if (popup) await popup.close().catch(() => undefined);
-  return outputPath;
+  const storagePath = `korea-appointments/${applicationId}/${jobId}-appointment-confirmation.pdf`;
+  const { error } = await supabase.storage.from("submission-artifacts").upload(storagePath, pdf, {
+    contentType: "application/pdf",
+    upsert: true,
+  });
+  if (error) {
+    throw new Error(`Official KVAC confirmation PDF could not be stored: ${error.message}`);
+  }
+  return storagePath;
 }
 
 async function clickFinalBookingButton(page: Page) {
@@ -884,7 +893,7 @@ export async function completeKoreaKvacOfficialBooking(input: {
   const existingConfirmationNumber = await extractConfirmationNumber(session.page);
   if (existingConfirmationNumber) {
     const screenshotPath = await screenshot(session.page, input.jobId, "confirmation");
-    const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, input.jobId);
+    const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, session.applicationId, input.jobId);
     await cleanupSession(input.jobId);
     return {
       status: "appointment_booked",
@@ -927,7 +936,7 @@ export async function completeKoreaKvacOfficialBooking(input: {
     throw new Error("Official KVAC final click completed, but no confirmation number was found. Preserve the screenshot and verify the official page before reporting success.");
   }
 
-  const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, input.jobId);
+  const confirmationPdfUrl = await saveOfficialConfirmationPdf(session.page, session.applicationId, input.jobId);
 
   await cleanupSession(input.jobId);
   return {
@@ -979,7 +988,7 @@ export async function printKoreaKvacOfficialConfirmation(
       );
     }
     const screenshotPath = await screenshot(page, input.jobId, "confirmation-print");
-    const confirmationPdfUrl = await saveOfficialConfirmationPdf(page, input.jobId);
+    const confirmationPdfUrl = await saveOfficialConfirmationPdf(page, input.applicationId, input.jobId);
     return {
       status: "appointment_confirmation_printed",
       confirmationNumber,

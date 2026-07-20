@@ -385,6 +385,7 @@ function SearchableMultiSelectControl({
   disabled,
   whiteControlClass,
   sideLocale,
+  exclusiveOption,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -393,6 +394,7 @@ function SearchableMultiSelectControl({
   disabled: boolean;
   whiteControlClass: string;
   sideLocale: "zh" | "en";
+  exclusiveOption?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -414,9 +416,18 @@ function SearchableMultiSelectControl({
 
   const toggleValue = (nextValue: string) => {
     const normalized = nextValue.toLowerCase();
-    const nextValues = selectedSet.has(normalized)
-      ? selectedValues.filter((item) => item.toLowerCase() !== normalized)
-      : [...selectedValues, nextValue];
+    const normalizedExclusiveOption = exclusiveOption?.toLowerCase();
+    let nextValues: string[];
+    if (selectedSet.has(normalized)) {
+      nextValues = selectedValues.filter((item) => item.toLowerCase() !== normalized);
+    } else if (normalizedExclusiveOption && normalized === normalizedExclusiveOption) {
+      nextValues = [nextValue];
+    } else {
+      nextValues = [
+        ...selectedValues.filter((item) => item.toLowerCase() !== normalizedExclusiveOption),
+        nextValue,
+      ];
+    }
     onChange(nextValues.join(","));
   };
 
@@ -822,6 +833,7 @@ export function DynamicFormField({
 
     case "multi_select": {
       const opts = normaliseOptions(options, sideLocale);
+      const rules = field.validationRules as { exclusive_option?: string } | null;
       return (
         <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
           <SearchableMultiSelectControl
@@ -832,6 +844,7 @@ export function DynamicFormField({
             disabled={disabled}
             whiteControlClass={whiteControlClass}
             sideLocale={sideLocale}
+            exclusiveOption={rules?.exclusive_option}
           />
         </FieldWrapper>
       );

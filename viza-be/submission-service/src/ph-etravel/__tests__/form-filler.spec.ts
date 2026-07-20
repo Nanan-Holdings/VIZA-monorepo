@@ -86,6 +86,13 @@ test("buildPhEtravelFieldPlan maps canonical values to official display labels",
   assert.equal(byKey.get("port_of_entry")?.portalName, "destination_port_code");
   assert.equal(byKey.get("flight_number")?.kind, "choice");
   assert.equal(byKey.get("destination_type")?.value, "Hotel/Resort");
+  assert.equal(byKey.get("health_recent_travel")?.portalName, "meta.with_recent_travel_history");
+  assert.equal(byKey.get("health_exposure")?.portalName, "is_with_history_exposure");
+  assert.equal(byKey.get("health_sick")?.portalName, "is_sicked_within_thirty_days");
+  assert.ok(
+    plan.findIndex((item) => item.key === "departure_date") >
+      plan.findIndex((item) => item.key === "philippines_address"),
+  );
   assert.equal(byKey.get("first_visit")?.value, "Yes");
   assert.equal(byKey.get("has_customs_declaration")?.value, "No");
 });

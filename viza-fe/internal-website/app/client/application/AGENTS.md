@@ -38,6 +38,8 @@ Before changing this route, read:
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `app/actions/application-lifecycle.ts`: creates and reads per-user application progress summaries.
 - `app/client/application/_components/result-cards/__tests__`: focused regression tests for confirmation/result cards.
+  `DigitalArrivalCardResultCard.test.tsx` verifies that Vietnam Pre-Arrival QR
+  and confirmation PDF artifacts are rendered as authenticated downloads.
 
 ## Guardrails
 

@@ -77,26 +77,28 @@ function isLocalRequest(req: http.IncomingMessage): boolean {
   return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
 }
 
-function isJapanInternalRequest(req: http.IncomingMessage): boolean {
-  if (isLocalRequest(req)) return true;
-  const expected = process.env.JP_VFS_SG_INTERNAL_TOKEN?.trim();
+function hasBearerToken(req: http.IncomingMessage, expected: string | undefined): boolean {
+  const configured = expected?.trim();
   const authorization = req.headers.authorization;
   const provided = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
-  if (!expected || !provided) return false;
-  const left = Buffer.from(expected);
+  if (!configured || !provided) return false;
+  const left = Buffer.from(configured);
   const right = Buffer.from(provided);
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+function isKoreaInternalRequest(req: http.IncomingMessage): boolean {
+  return isLocalRequest(req) || hasBearerToken(req, process.env.KR_SUBMISSION_INTERNAL_TOKEN);
+}
+
+function isJapanInternalRequest(req: http.IncomingMessage): boolean {
+  if (isLocalRequest(req)) return true;
+  return hasBearerToken(req, process.env.JP_VFS_SG_INTERNAL_TOKEN);
+}
+
 function isFranceInternalRequest(req: http.IncomingMessage): boolean {
   if (isLocalRequest(req)) return true;
-  const expected = process.env.FRANCE_TLS_INTERNAL_TOKEN?.trim();
-  const authorization = req.headers.authorization;
-  const provided = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
-  if (!expected || !provided) return false;
-  const left = Buffer.from(expected);
-  const right = Buffer.from(provided);
-  return left.length === right.length && timingSafeEqual(left, right);
+  return hasBearerToken(req, process.env.FRANCE_TLS_INTERNAL_TOKEN);
 }
 
 async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise<unknown> {
@@ -179,7 +181,7 @@ async function handleKoreaKvacSmsStart(req: http.IncomingMessage, res: http.Serv
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -210,7 +212,7 @@ async function handleKoreaKvacSmsSubmit(req: http.IncomingMessage, res: http.Ser
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -232,7 +234,7 @@ async function handleKoreaKvacSmsComplete(req: http.IncomingMessage, res: http.S
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -265,7 +267,7 @@ async function handleKoreaKvacCancelQuery(req: http.IncomingMessage, res: http.S
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -291,7 +293,7 @@ async function handleKoreaKvacPrintConfirmation(req: http.IncomingMessage, res: 
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -316,7 +318,7 @@ async function handleKoreaKvacCancelConfirm(req: http.IncomingMessage, res: http
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -337,7 +339,7 @@ async function handleKoreaEformGenerate(req: http.IncomingMessage, res: http.Ser
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (!isKoreaInternalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -664,7 +666,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
         sendJson(res, 404, { error: "not_found" });
         return;
       }
-      if (!isLocalRequest(req)) {
+      if (!isKoreaInternalRequest(req)) {
         sendJson(res, 403, { error: "forbidden" });
         return;
       }
@@ -676,7 +678,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
         sendJson(res, 404, { error: "not_found" });
         return;
       }
-      if (!isLocalRequest(req)) {
+      if (!isKoreaInternalRequest(req)) {
         sendJson(res, 403, { error: "forbidden" });
         return;
       }

@@ -13,7 +13,7 @@ import {
 import { formatOfficialFlightDisplayLabel } from "./flight-label";
 import {
   extractVietnamPrearrivalConfirmationNumber,
-  isVietnamPrearrivalSuccessPage,
+  hasVietnamPrearrivalSuccessEvidence,
 } from "./result-page";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
@@ -25,6 +25,7 @@ export interface VnPrearrivalPortalSubmissionResult {
   portalUrl: string;
   portalResponseSummary: string;
   screenshots: string[];
+  qrCodes: string[];
   pdfs: string[];
   logs: string[];
 }
@@ -558,18 +559,37 @@ async function completeOfficialSubmissionFromReview(
   logs.push("vn_prearrival_final_submit_clicked");
 
   const resultTimeoutMs = Number.parseInt(
-    process.env.VN_PREARRIVAL_RESULT_TIMEOUT_MS ?? "120000",
+    process.env.VN_PREARRIVAL_RESULT_TIMEOUT_MS ?? "600000",
     10,
   );
   const deadline = Date.now() + resultTimeoutMs;
+  let finalizingLogged = false;
   while (Date.now() < deadline) {
     await page.waitForTimeout(750);
     await handleEmailVerification(page, applicantId, otpRequestedAfter, screenshots, logs, tempDir);
     await handleCaptchaGate(page, screenshots, logs, tempDir);
-    const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-    if (isVietnamPrearrivalSuccessPage(bodyText)) {
+    const successHeading = page.getByText(
+      /^(?:your )?submission is successful!?$/i,
+      { exact: true },
+    );
+    const successCount = await successHeading.count().catch(() => 0);
+    let successVisible = false;
+    for (let index = 0; index < successCount; index += 1) {
+      if (await successHeading.nth(index).isVisible().catch(() => false)) {
+        successVisible = true;
+        break;
+      }
+    }
+    if (successVisible) {
       logs.push("vn_prearrival_official_success_visible");
       return;
+    }
+    if (!finalizingLogged) {
+      const visibleText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+      if (/submission processing progress|finalizing/i.test(visibleText)) {
+        logs.push("vn_prearrival_official_finalizing_visible");
+        finalizingLogged = true;
+      }
     }
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   }
@@ -585,24 +605,68 @@ async function completeOfficialSubmissionFromReview(
   );
 }
 
-async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
-  const qrLocator = page.locator("canvas, img[alt*='QR' i], img[src*='qr' i]").first();
-  if (!(await qrLocator.isVisible().catch(() => false))) return null;
-  const filePath = path.join(dir, "confirmation-qr.png");
-  try {
-    await qrLocator.screenshot({ path: filePath });
-    logs.push("vn_prearrival_qr_saved");
-    return filePath;
-  } catch (error) {
-    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
-    logs.push(`vn_prearrival_qr_save_failed ${message}`);
-    return null;
+async function findVisibleQrLocator(page: Page): Promise<Locator | null> {
+  const candidateGroups: Locator[] = [];
+  const qrCopy = page.getByText(/save this qr code|qr code to look up|download.*qr code/i);
+  const qrCopyCount = await qrCopy.count().catch(() => 0);
+  for (let index = 0; index < qrCopyCount; index += 1) {
+    const copy = qrCopy.nth(index);
+    if (!(await copy.isVisible().catch(() => false))) continue;
+    for (let ancestorDepth = 1; ancestorDepth <= 5; ancestorDepth += 1) {
+      candidateGroups.push(
+        copy.locator(`xpath=ancestor::*[${ancestorDepth}]`).locator("img, canvas, svg"),
+      );
+    }
   }
+  candidateGroups.push(
+    page.locator(
+      "[class*='qr' i] img, [class*='qr' i] canvas, [class*='qr' i] svg, img[alt*='qr' i], img[src*='qr' i], canvas",
+    ),
+  );
+
+  for (const group of candidateGroups) {
+    const count = Math.min(await group.count().catch(() => 0), 30);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = group.nth(index);
+      if (!(await candidate.isVisible().catch(() => false))) continue;
+      const box = await candidate.boundingBox().catch(() => null);
+      if (!box || box.width < 120 || box.height < 120) continue;
+      const ratio = box.width / box.height;
+      if (ratio < 0.75 || ratio > 1.33) continue;
+      return candidate;
+    }
+  }
+  return null;
+}
+
+async function saveQrArtifact(page: Page, dir: string, logs: string[]): Promise<string | null> {
+  const filePath = path.join(dir, "confirmation-qr.png");
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const qrLocator = await findVisibleQrLocator(page);
+    if (qrLocator) {
+      try {
+        await qrLocator.screenshot({ path: filePath });
+        logs.push("vn_prearrival_qr_saved");
+        return filePath;
+      } catch (error) {
+        const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+        logs.push(`vn_prearrival_qr_save_retry ${message}`);
+      }
+    }
+    await page.waitForTimeout(750);
+  }
+  logs.push("vn_prearrival_qr_not_visible_after_success");
+  return null;
 }
 
 async function downloadConfirmationPdf(page: Page, dir: string, logs: string[]): Promise<string | null> {
   const downloadButton = page.getByText(/download pdf pre-arrival information|download pdf/i).first();
-  if (!(await downloadButton.isVisible().catch(() => false))) return null;
+  await downloadButton.waitFor({ state: "visible", timeout: 30_000 }).catch(() => undefined);
+  if (!(await downloadButton.isVisible().catch(() => false))) {
+    logs.push("vn_prearrival_pdf_button_not_visible_after_success");
+    return null;
+  }
   try {
     const [download] = await Promise.all([
       page.waitForEvent("download", { timeout: 15_000 }),
@@ -921,6 +985,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         portalUrl: page.url(),
         portalResponseSummary: "Vietnam Pre-Arrival official review page was reached in stop-before-submit mode; no official submission was made.",
         screenshots,
+        qrCodes: [],
         pdfs: [],
         logs,
       };
@@ -931,14 +996,24 @@ export async function runVietnamPrearrivalPortalSubmission(
     const submitScreenshot = await saveScreenshot(page, tempDir, "after-submit", logs);
     if (submitScreenshot) screenshots.push(submitScreenshot);
     const qrPath = await saveQrArtifact(page, tempDir, logs);
-    if (qrPath) screenshots.push(qrPath);
     const pdfPath = await downloadConfirmationPdf(page, tempDir, logs);
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
     const confirmationNumber = extractVietnamPrearrivalConfirmationNumber(bodyText);
-    const hasQr = await page.locator("canvas, img[alt*='QR' i], img[src*='qr' i]").count().catch(() => 0);
-    if (!confirmationNumber && hasQr === 0) {
+    const successHeadingVisible = await page
+      .getByText(/^(?:your )?submission is successful!?$/i, { exact: true })
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (
+      !hasVietnamPrearrivalSuccessEvidence({
+        successHeadingVisible,
+        confirmationNumber,
+        qrCaptured: Boolean(qrPath),
+        pdfCaptured: Boolean(pdfPath),
+      })
+    ) {
       throw new VnPrearrivalPortalError(
-        "Vietnam Pre-Arrival portal did not expose a QR code or confirmation number after submit.",
+        "Vietnam Pre-Arrival portal did not expose a visible success result with a QR code, PDF, or confirmation number after submit.",
         "vn_prearrival_confirmation_not_captured",
         "The official portal did not return a confirmation artifact that VIZA can verify.",
         screenshots,
@@ -955,6 +1030,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         ? `Vietnam Pre-Arrival confirmation captured: ${confirmationNumber}.`
         : "Vietnam Pre-Arrival QR confirmation was captured.",
       screenshots,
+      qrCodes: qrPath ? [qrPath] : [],
       pdfs: pdfPath ? [pdfPath] : [],
       logs,
     };

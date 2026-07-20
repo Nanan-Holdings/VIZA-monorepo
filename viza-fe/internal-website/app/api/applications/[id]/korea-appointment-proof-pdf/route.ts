@@ -40,8 +40,8 @@ export async function GET(
     return NextResponse.json({ error: "Official Korea appointment confirmation PDF not found" }, { status: 404 });
   }
 
-  const target = new URL(`/api/applications/${id}/korea-evidence`, req.url);
+  const target = new URL(`/api/applications/${id}/submission-artifact`, req.url);
   target.searchParams.set("path", confirmation.confirmation_pdf_url);
-  target.searchParams.set("download", "1");
+  target.searchParams.set("download", "korea-appointment-confirmation.pdf");
   return NextResponse.redirect(target);
 }
