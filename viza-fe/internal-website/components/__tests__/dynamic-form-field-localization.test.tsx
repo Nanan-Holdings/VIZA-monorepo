@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DynamicFormField } from "../dynamic-form-field";
 import type { VisaFormFieldRow } from "@/types/visa-form-fields";
@@ -96,6 +96,62 @@ describe("DynamicFormField localization", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.getByText("请先选择上级选项，或联系 VIZA 检查官方下拉列表。")).toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps an empty remote dropdown searchable across parent rerenders", () => {
+    vi.useFakeTimers();
+    try {
+      const onChange = vi.fn();
+      const firstSearch = vi.fn();
+      const latestSearch = vi.fn();
+      const flightField = field({
+        id: "flight",
+        fieldName: "flight_number",
+        label: "Flight Number",
+        fieldType: "select",
+        placeholder: "Select flight",
+        options: [],
+        validationRules: {
+          dependent_on: "expected_arrival_date",
+          remote_search: true,
+        },
+      });
+
+      const { rerender } = render(
+        <DynamicFormField
+          field={flightField}
+          value=""
+          onChange={onChange}
+          displayLocale="zh"
+          onSearchQuery={firstSearch}
+          loadingText="正在加载官方航班列表..."
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /请选择/ }));
+      fireEvent.change(screen.getByPlaceholderText("搜索中文、英文或官方选项..."), {
+        target: { value: "UO566" },
+      });
+      expect(screen.getByText("正在加载官方航班列表...")).toBeInTheDocument();
+
+      rerender(
+        <DynamicFormField
+          field={flightField}
+          value=""
+          onChange={onChange}
+          displayLocale="zh"
+          onSearchQuery={latestSearch}
+          loadingText="正在加载官方航班列表..."
+        />,
+      );
+      act(() => vi.advanceTimersByTime(250));
+
+      expect(firstSearch).not.toHaveBeenCalledWith("UO566");
+      expect(latestSearch).toHaveBeenCalledWith("UO566");
+      expect(screen.queryByText("请先选择上级选项，或联系 VIZA 检查官方下拉列表。")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps page scrolling available while a searchable dropdown is open", () => {

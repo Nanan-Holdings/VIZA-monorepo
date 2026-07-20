@@ -2346,10 +2346,23 @@ export function DynamicStepForm({
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
         const options = Array.isArray(payload.options) ? payload.options : [];
-        setVnPrearrivalOptions((current) => ({
-          ...current,
-          [key]: options,
-        }));
+        setVnPrearrivalOptions((current) => {
+          const selectedValue = valuesRef.current[field.fieldName]?.trim();
+          const selectedOption = selectedValue
+            ? (current[key] ?? []).find((option) =>
+                typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+              )
+            : null;
+          const nextOptions = selectedOption && !options.some((option) =>
+            typeof option === "string" ? option === selectedValue : option.value === selectedValue
+          )
+            ? [selectedOption, ...options]
+            : options;
+          return {
+            ...current,
+            [key]: nextOptions,
+          };
+        });
         if (field.fieldName === "phone_country_code") {
           const currentValue = valuesRef.current[field.fieldName]?.trim();
           const matchingCodeOption = currentValue

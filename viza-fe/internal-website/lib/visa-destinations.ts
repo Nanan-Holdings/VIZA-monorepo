@@ -1,3 +1,5 @@
+import { matchesSearchText, normalizeSearchText } from "@/lib/utils";
+
 export type PopularVisaDestination = {
   id: string;
   country: string;
@@ -32,26 +34,23 @@ export type VisaDestinationRegionId =
   | "oceania";
 
 /**
- * Matches destination cards against both the English and Chinese metadata,
- * regardless of the language currently selected in the client portal.
+ * Matches destination cards only against their country name. Latin queries use
+ * the English country name; queries containing Chinese characters use the
+ * Chinese country name. Visa names, descriptions, regions, and aliases are
+ * deliberately excluded so short terms cannot produce incidental matches.
  */
 export function matchesVisaDestinationSearch(
   destinationItem: PopularVisaDestination,
   searchQuery: string,
 ): boolean {
-  return matchesSearchText(searchQuery, [
-    destinationItem.country,
-    destinationItem.countryName,
-    destinationItem.countryNameZh,
-    destinationItem.visaType,
-    destinationItem.visaName,
-    destinationItem.visaNameZh,
-    destinationItem.description,
-    destinationItem.descriptionZh,
-    destinationItem.region,
-    destinationItem.supportLabel,
-    ...(destinationItem.searchAliases ?? []),
-  ]);
+  const normalizedSearch = normalizeSearchText(searchQuery);
+  if (!normalizedSearch) return true;
+
+  const countryName = /\p{Script=Han}/u.test(normalizedSearch)
+    ? destinationItem.countryNameZh
+    : destinationItem.countryName;
+
+  return matchesSearchText(normalizedSearch, [countryName]);
 }
 
 export type VisaDestinationRegionGroup = {
@@ -1233,4 +1232,3 @@ export function getVisaPackageTitle(country: string, visaType: string, locale?: 
   if (destinationItem) return `${destinationItem.countryName} ${destinationItem.visaName}`;
   return `${getDestinationDisplayName(country)} ${getVisaTypeDisplayName(visaType)}`;
 }
-import { matchesSearchText } from "@/lib/utils";

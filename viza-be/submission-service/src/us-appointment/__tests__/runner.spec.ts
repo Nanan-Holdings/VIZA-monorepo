@@ -978,6 +978,10 @@ test("USVisaScheduling gate classifier identifies official-site gates", () => {
     "site_policy_review",
   );
   assert.equal(
+    classifyUSVisaSchedulingGateText("Privacy Policy | Terms and Conditions"),
+    null,
+  );
+  assert.equal(
     classifyUSVisaSchedulingGateText(
       "https://www.usvisascheduling.com/en-US/Account/Login/TermsAndConditions Access Denied You're offline. This is a read only version of the page. var isPortalUserLoggedIn = 'False';",
     )?.metadata.gate_type,

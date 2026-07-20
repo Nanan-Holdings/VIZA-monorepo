@@ -35,6 +35,13 @@ describe("arrival card destination labels", () => {
     expect(matchesVisaDestinationSearch(singapore!, "sin")).toBe(true);
     expect(matchesVisaDestinationSearch(singapore!, "新加坡")).toBe(true);
     expect(matchesSearchText("ＳＩＮ", ["Singapore", "新加坡"])).toBe(true);
+
+    expect(
+      SEARCHABLE_VISA_DESTINATIONS
+        .filter((destination) => matchesVisaDestinationSearch(destination, "sin"))
+        .map((destination) => destination.country),
+    ).toEqual(["singapore"]);
+    expect(matchesVisaDestinationSearch(singapore!, "SGAC")).toBe(false);
   });
 
   test("Malaysia and Thailand arrival cards have standalone package labels and destination cards", () => {

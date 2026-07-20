@@ -449,7 +449,7 @@ async function handleEmailVerification(
   }
 
   logs.push("vn_prearrival_otp_wait_started");
-  const timeoutMs = Number.parseInt(process.env.VN_PREARRIVAL_OTP_TIMEOUT_MS ?? "180000", 10);
+  const timeoutMs = Number.parseInt(process.env.VN_PREARRIVAL_OTP_TIMEOUT_MS ?? "300000", 10);
   const message = await inbox.waitForMessage(
     applicantId,
     (candidate) => {
