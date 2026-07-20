@@ -388,13 +388,11 @@ const PH_ETRAVEL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("has_recent_travel_history_30d", "Recent travel history health declaration", "security"),
   arrivalCardField("has_exposure_to_sick_person_30d", "Exposure health declaration", "security"),
   arrivalCardField("has_been_sick_30d", "Sickness health declaration", "security"),
-  arrivalCardField("has_accompanied_family_members", "Accompanied family members", "trip"),
   arrivalCardField("checked_baggage_count", "Checked baggage count", "security"),
   arrivalCardField("handcarry_baggage_count", "Hand-carried baggage count", "security"),
   arrivalCardField("first_time_visiting_philippines", "First time visiting Philippines", "trip"),
   arrivalCardField("customs_information_acknowledgement", "Customs information acknowledgement", "security"),
   arrivalCardField("has_baggage_or_currency_to_declare", "Baggage or currency declaration", "security"),
-  arrivalCardField("customs_signature_file", "Customs declaration signature", "security"),
   arrivalCardField("customs_signature_declaration", "Customs signature declaration", "security"),
   arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
