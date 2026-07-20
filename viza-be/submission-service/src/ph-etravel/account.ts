@@ -42,6 +42,12 @@ const VAULT_PASSWORD_KEY = "ph_etravel.account.password";
 const VAULT_MPIN_KEY = "ph_etravel.account.mpin";
 const VAULT_STATUS_KEY = "ph_etravel.account.status";
 
+function emailDomain(value: string): string | null {
+  const separator = value.lastIndexOf("@");
+  if (separator < 0 || separator === value.length - 1) return null;
+  return value.slice(separator + 1).trim().toLowerCase() || null;
+}
+
 export function isMissingPhEtravelAccountsTableError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const candidate = error as { code?: unknown; message?: unknown };
@@ -59,7 +65,14 @@ export function choosePhEtravelAccountPlan(input: {
   const existingAccount = input.existingAccount;
   const existingStatus = existingAccount?.status?.trim().toLowerCase() ?? "";
   const hasExistingCredentials = Boolean(existingAccount?.email && existingAccount.password);
-  if (existingAccount && hasExistingCredentials && PH_ETRAVEL_INCOMPLETE_ACCOUNT_STATUSES.has(existingStatus)) {
+  const incompleteAccountUsesCurrentMailbox =
+    emailDomain(existingAccount?.email ?? "") === emailDomain(input.aliasEmail);
+  if (
+    existingAccount &&
+    hasExistingCredentials &&
+    PH_ETRAVEL_INCOMPLETE_ACCOUNT_STATUSES.has(existingStatus) &&
+    incompleteAccountUsesCurrentMailbox
+  ) {
     return {
       mode: "create_new",
       accountId: existingAccount.id,
@@ -69,7 +82,11 @@ export function choosePhEtravelAccountPlan(input: {
     };
   }
 
-  if (existingAccount && hasExistingCredentials) {
+  if (
+    existingAccount &&
+    hasExistingCredentials &&
+    !PH_ETRAVEL_INCOMPLETE_ACCOUNT_STATUSES.has(existingStatus)
+  ) {
     return {
       mode: "reuse_existing",
       accountId: existingAccount.id,
