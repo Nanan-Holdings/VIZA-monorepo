@@ -71,8 +71,9 @@ describe("Vietnam Pre-Arrival official form schema", () => {
       helper_en: expect.stringContaining("selected visa type determines"),
     });
     expect(visaNumber?.validation_rules).toMatchObject({
-      helper_zh: expect.stringContaining("电子签证"),
-      helper_en: expect.stringContaining("e-visa"),
+      numeric_length_when: { field: "visa_type", equals: "EV", length: 9 },
+      helper_zh: expect.stringContaining("9 位纯数字"),
+      helper_en: expect.stringContaining("9-digit numeric"),
     });
   });
 

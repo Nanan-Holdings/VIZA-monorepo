@@ -51,7 +51,6 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
       "has_recent_travel_history_30d",
       "has_exposure_to_sick_person_30d",
       "has_been_sick_30d",
-      "has_accompanied_family_members",
       "checked_baggage_count",
       "handcarry_baggage_count",
       "final_declaration",

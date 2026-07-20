@@ -36,7 +36,7 @@ function payload(overrides: Record<string, string> = {}): SubmissionPayload {
       passport_expiry_date: "2034-01-01",
       visa_information_acknowledgement: "true",
       visa_type: "EV",
-      visa_number: "EV123456",
+      visa_number: "106527303",
       visa_expiry_date: "2026-08-01",
       departure_country_before_arrival: "SINGAPORE",
       purpose_of_travel: "travel",
@@ -86,6 +86,19 @@ test("rejects unsupported or missing Vietnam Pre-Arrival values with field list"
         "answers.flight_number",
         "answers.border_gate_airport(locked_by_flight_number)",
       ].sort());
+      return true;
+    },
+  );
+});
+
+test("rejects an E-Visa number unless it is exactly nine numeric digits", () => {
+  assert.throws(
+    () => normalizeVnPrearrivalPortalPayload(payload({
+      visa_number: "E260329CHNEC883721122",
+    })),
+    (error) => {
+      assert.ok(error instanceof VnPrearrivalPortalValidationError);
+      assert.ok(error.missingFields.includes("answers.visa_number(9_digit_numeric_evisa_number)"));
       return true;
     },
   );
