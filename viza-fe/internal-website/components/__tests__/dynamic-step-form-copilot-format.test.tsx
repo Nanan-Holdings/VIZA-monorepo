@@ -242,6 +242,46 @@ const optionalPostcodeStep: WizardStep = {
   ],
 };
 
+const vnPrearrivalEvisaNumberStep: WizardStep = {
+  stepNumber: 1,
+  stepName: "Passenger Information",
+  fields: [
+    {
+      id: "field-visa-type",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "visa_type",
+      label: "Visa Type / Purpose",
+      fieldType: "select",
+      required: true,
+      stepNumber: 1,
+      stepName: "Passenger Information",
+      displayOrder: 1,
+      placeholder: "Select...",
+      validationRules: null,
+      options: [
+        { value: "EV", text: "Electronic Visa (E-Visa)" },
+        { value: "VR", text: "Visa exemption" },
+      ],
+      conditionalLogic: null,
+    },
+    {
+      id: "field-visa-number",
+      visaType: "VN_PREARRIVAL_DECLARATION",
+      fieldName: "visa_number",
+      label: "Number",
+      fieldType: "text",
+      required: true,
+      stepNumber: 1,
+      stepName: "Passenger Information",
+      displayOrder: 2,
+      placeholder: "Enter the 9-digit E-Visa number",
+      validationRules: { pattern: "^[0-9]{9}$" },
+      options: null,
+      conditionalLogic: null,
+    },
+  ],
+};
+
 const vnPrearrivalHotelHierarchyStep: WizardStep = {
   stepNumber: 2,
   stepName: "Trip Information",
@@ -875,6 +915,41 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(screen.getByRole("button", { name: "continue" }));
 
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ postcode: "" }));
+  });
+
+  it("shows the official E-Visa number location guidance only for E-Visa applicants", () => {
+    const { unmount } = render(
+      <DynamicStepForm
+        step={vnPrearrivalEvisaNumberStep}
+        prefill={{ visa_type: "EV", visa_number: "" }}
+        onComplete={vi.fn()}
+        visaType="VN_PREARRIVAL_DECLARATION"
+      />,
+    );
+
+    const helpTrigger = screen.getByRole("button", { name: "在哪里查看电子签证号码？" });
+    fireEvent.click(helpTrigger);
+
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "查看越南电子签证顶部的“Số / No.”一行，只填写该行显示的 9 位数字。",
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent("本表只填写：106696365");
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "不要填写下方的 Code、申请代码或登记码，也不要输入“/EV”",
+    );
+
+    unmount();
+
+    render(
+      <DynamicStepForm
+        step={vnPrearrivalEvisaNumberStep}
+        prefill={{ visa_type: "VR", visa_number: "" }}
+        onComplete={vi.fn()}
+        visaType="VN_PREARRIVAL_DECLARATION"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "在哪里查看电子签证号码？" })).not.toBeInTheDocument();
   });
 
   it("repairs a saved Vietnam hotel selection by restoring its official hierarchy", async () => {

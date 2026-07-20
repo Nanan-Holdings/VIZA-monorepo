@@ -16,6 +16,10 @@ import {
   hasVietnamPrearrivalSuccessEvidence,
 } from "./result-page";
 import { classifyVietnamPrearrivalTripTransitionFailure } from "./trip-transition";
+import {
+  classifyVnPrearrivalEmailVerificationText,
+  type VnPrearrivalEmailVerificationState,
+} from "./email-verification";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
 import { inbox, type InboundMessage } from "../inbox/wait-for-message";
 
@@ -413,8 +417,49 @@ export function extractSixDigitCode(
 }
 
 async function isEmailVerificationVisible(page: Page): Promise<boolean> {
-  const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
-  return /verify your email|sent a 6-digit code|enter it below/i.test(bodyText);
+  const dialogs = page.getByRole("dialog");
+  const dialogCount = await dialogs.count().catch(() => 0);
+  for (let index = 0; index < dialogCount; index += 1) {
+    const dialog = dialogs.nth(index);
+    if (!(await dialog.isVisible().catch(() => false))) continue;
+    const text = await dialog.innerText({ timeout: 2_000 }).catch(() => "");
+    if (/verify your email|sent a 6-digit code|enter it below/i.test(text)) return true;
+  }
+
+  const verificationCopy = page.getByText(
+    /verify your email|sent a 6-digit code|enter it below/i,
+  );
+  const copyCount = await verificationCopy.count().catch(() => 0);
+  for (let index = 0; index < copyCount; index += 1) {
+    if (await verificationCopy.nth(index).isVisible().catch(() => false)) return true;
+  }
+  return false;
+}
+
+async function waitForEmailVerificationOutcome(
+  page: Page,
+): Promise<VnPrearrivalEmailVerificationState> {
+  const configuredTimeout = Number.parseInt(
+    process.env.VN_PREARRIVAL_OTP_VERIFY_TIMEOUT_MS ?? "30000",
+    10,
+  );
+  const timeoutMs = Number.isFinite(configuredTimeout)
+    ? Math.max(5_000, configuredTimeout)
+    : 30_000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (!(await isEmailVerificationVisible(page))) return "accepted";
+
+    const visibleText = await page.locator("body")
+      .innerText({ timeout: 5_000 })
+      .catch(() => "");
+    const state = classifyVnPrearrivalEmailVerificationText(visibleText);
+    if (state !== "pending") return state;
+
+    await page.waitForTimeout(500);
+  }
+  return "pending";
 }
 
 async function fillEmailVerificationCode(page: Page, code: string): Promise<boolean> {
@@ -477,7 +522,7 @@ async function handleEmailVerification(
         && extractSixDigitCode(candidate) !== null;
     },
     timeoutMs,
-    { since: requestedAfter, pollIntervalMs: 3_000, includeProcessed: true, markProcessed: false },
+    { since: requestedAfter, pollIntervalMs: 3_000 },
   );
   const code = extractSixDigitCode(message);
   if (!code || !(await fillEmailVerificationCode(page, code))) {
@@ -491,16 +536,33 @@ async function handleEmailVerification(
   }
 
   logs.push("vn_prearrival_otp_verified");
-  await page.waitForTimeout(1_000);
-  if (await isEmailVerificationVisible(page)) {
+  const verificationState = await waitForEmailVerificationOutcome(page);
+  if (verificationState === "rejected") {
     throw new VnPrearrivalPortalError(
-      "Vietnam Pre-Arrival email verification dialog remained open after verification.",
+      "Vietnam Pre-Arrival rejected the email verification code.",
       "vn_prearrival_otp_rejected",
-      "The official portal did not accept the email verification code.",
+      "The official portal reported that the email verification code was invalid or expired.",
       screenshots,
       logs,
     );
   }
+  if (verificationState === "pending") {
+    const timeoutScreenshot = await saveScreenshot(
+      page,
+      tempDir,
+      "email-verification-timeout",
+      logs,
+    );
+    if (timeoutScreenshot) screenshots.push(timeoutScreenshot);
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival did not finish email verification before the confirmation timeout.",
+      "vn_prearrival_otp_confirmation_timeout",
+      "The verification request remained pending on the official portal. The applicant can retry without re-entering the saved answers.",
+      screenshots,
+      logs,
+    );
+  }
+  logs.push("vn_prearrival_otp_accepted");
 }
 
 async function openOfficialReviewPage(
