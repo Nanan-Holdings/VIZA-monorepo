@@ -181,6 +181,17 @@ const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Declaration": "声明确认",
 };
 
+const PH_ETRAVEL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Travel Registration": "行程登记",
+  "Traveller Information": "旅客信息",
+  "Travel Details - Philippine Arrival": "菲律宾入境行程",
+  "Destination in the Philippines": "在菲律宾的目的地",
+  "Health Declaration": "健康申报",
+  "Other Travel Details": "其他行程信息",
+  "Customs Declaration": "海关申报",
+  "Declaration Signature": "申报签名",
+};
+
 const INDONESIA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Upload passport and photo": "上传护照和照片",
   "Application form": "申请表",
@@ -260,12 +271,15 @@ function localizeDynamicStepName(
     return VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 
+  if (options.isZhInterface && options.visaType === "PH_ETRAVEL_ARRIVAL_CARD") {
+    return PH_ETRAVEL_DYNAMIC_STEP_NAME_ZH[stepName] ?? ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
   if (
     options.isZhInterface &&
     (options.visaType === "SG_ARRIVAL_CARD" ||
       options.visaType === "MY_MDAC_ARRIVAL_CARD" ||
-      options.visaType === "TH_TDAC_ARRIVAL_CARD" ||
-      options.visaType === "PH_ETRAVEL_ARRIVAL_CARD")
+      options.visaType === "TH_TDAC_ARRIVAL_CARD")
   ) {
     return ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
@@ -1768,7 +1782,8 @@ export default function ApplicationPage() {
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
-  const showDocumentStep = !isArrivalCardApplication;
+  const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
+  const showDocumentStep = !isArrivalCardApplication || isPhilippinesEtravel;
   const showTeamStep = !isCompanionFlow && !isArrivalCardApplication;
   const STEPS: StepDef[] = STEP_KEYS
     .filter((key) => showTeamStep || key !== "team")
@@ -1788,7 +1803,6 @@ export default function ApplicationPage() {
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
-  const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
@@ -1925,7 +1939,9 @@ export default function ApplicationPage() {
               {
                 id: documentStepIndex,
                 sourceName: "Supporting Documents",
-                name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
+                name: isPhilippinesEtravel && isZhInterface
+                  ? "附加材料"
+                  : tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
                 description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
               },
             ]
@@ -1935,6 +1951,8 @@ export default function ApplicationPage() {
           sourceName: "Review",
           name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
             ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Review
+            : isPhilippinesEtravel && isZhInterface
+              ? "核对信息"
             : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
@@ -1967,6 +1985,7 @@ export default function ApplicationPage() {
       STEPS,
       teamStepIndex,
       resolvedVisaType,
+      isPhilippinesEtravel,
       isZhInterface,
       tApp,
       tDyn,
@@ -1998,6 +2017,15 @@ export default function ApplicationPage() {
     () => {
       if (!useDynamic) return [];
       const sections = buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles);
+      if (isPhilippinesEtravel) {
+        return sections.map((section) =>
+          section.steps.some((step) =>
+            step.sourceName === "Customs Declaration" || step.sourceName === "Declaration Signature",
+          )
+            ? { ...section, title: isZhInterface ? "海关申报与签名" : "Customs Declaration and Signature" }
+            : section,
+        );
+      }
       if (!isIndonesiaEVisa) return sections;
 
       return sections.map((section, index) =>
@@ -2006,7 +2034,7 @@ export default function ApplicationPage() {
           : section,
       );
     },
-    [dynamicSectionTitles, isIndonesiaEVisa, isZhInterface, sourceOrderedSteps, useDynamic],
+    [dynamicSectionTitles, isIndonesiaEVisa, isPhilippinesEtravel, isZhInterface, sourceOrderedSteps, useDynamic],
   );
 
   // Final list of steps in display order: flattened from grouped sections so

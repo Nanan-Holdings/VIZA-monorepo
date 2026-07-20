@@ -401,19 +401,14 @@ async function clickOfficialButton(page: Page, name: string): Promise<boolean> {
 }
 
 export function extractSixDigitCode(
-  message: Pick<InboundMessage, "subject" | "text" | "html" | "from_addr" | "headers">,
+  message: Pick<InboundMessage, "subject" | "text" | "html">,
 ): string | null {
-  const haystack = [message.subject ?? "", message.text ?? "", message.html ?? ""].join("\n");
-  const bodyCode = /(?<![\w-])\d{6}(?![\w-])/.exec(haystack)?.[0] ?? null;
-  if (bodyCode) return bodyCode;
-
-  const trustedVietnamOtp =
-    /@immigration\.gov\.vn$/i.test(message.from_addr ?? "")
-    && /^Your OTP Code for Verification$/i.test(message.subject?.trim() ?? "");
-  if (!trustedVietnamOtp) return null;
-
-  const messageId = message.headers?.["message-id"] ?? message.headers?.["Message-ID"] ?? "";
-  return /\.(\d{6})(?=[.@A-Za-z])/.exec(messageId)?.[1] ?? null;
+  const visibleHtml = (message.html ?? "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ");
+  const haystack = [message.subject ?? "", message.text ?? "", visibleHtml].join("\n");
+  return /(?<![\w-])\d{6}(?![\w-])/.exec(haystack)?.[0] ?? null;
 }
 
 async function isEmailVerificationVisible(page: Page): Promise<boolean> {
