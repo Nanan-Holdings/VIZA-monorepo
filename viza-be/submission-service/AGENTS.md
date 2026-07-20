@@ -303,7 +303,8 @@ filling and one-shot submission for the applicant.
   registration/login, profile/reference, calendar, slot, and review screens,
   saves screenshots with the final official-style control visible, asserts
   zero final-submit clicks, and never sends a request to an official portal.
-- `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner.
+- `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner,
+  including its pure OTP response classifier and official result capture.
   Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
   declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival
   window, uses only `https://prearrival.immigration.gov.vn/`, and must fail

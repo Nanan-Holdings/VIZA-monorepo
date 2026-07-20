@@ -117,6 +117,26 @@ function isVnPrearrivalVisaNumberError(errorMessage?: string): boolean {
   return isPreciseError || isLegacyTransitionCascade;
 }
 
+function getVnPrearrivalOtpErrorKind(
+  errorMessage?: string,
+): "rejected" | "timeout" | null {
+  const normalized = (errorMessage ?? "").toLowerCase();
+  if (
+    normalized.includes("vn_prearrival_otp_rejected") ||
+    normalized.includes("rejected the email verification code")
+  ) {
+    return "rejected";
+  }
+  if (
+    normalized.includes("vn_prearrival_otp_confirmation_timeout") ||
+    normalized.includes("email verification dialog remained open") ||
+    normalized.includes("did not finish email verification")
+  ) {
+    return "timeout";
+  }
+  return null;
+}
+
 function FormattedFailureText({ message }: { message: string }) {
   const lines = message
     .split(/\r?\n/u)
@@ -163,6 +183,7 @@ export function FailureCard({
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
+  const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
@@ -257,6 +278,8 @@ export function FailureCard({
           <AlertTriangle className="h-5 w-5 text-destructive" />
           {vnPrearrivalVisaNumberError
             ? (isZh ? "电子签证号码错误" : "Invalid E-Visa number")
+            : vnPrearrivalOtpErrorKind
+            ? (isZh ? "邮箱验证码未完成" : "Email verification was not completed")
             : workerPickupError
             ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
             : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
@@ -268,6 +291,14 @@ export function FailureCard({
             ? (isZh
                 ? "官网拒绝了当前电子签证号码。请返回“旅客信息”，填写电子签证文件顶部“Số / No.”后的 9 位纯数字；不要填写申请代码、登记码，也不要添加“/EV”。"
                 : "The official portal rejected the current E-Visa number. Return to Passenger Information and enter the 9-digit numeric value shown after “Số / No.”; do not enter the application or registration code, and do not add “/EV”.")
+            : vnPrearrivalOtpErrorKind === "rejected"
+            ? (isZh
+                ? "官网明确拒绝了本次邮箱验证码，验证码可能已过期或不正确。你的答案已保存；重新提交后，系统会请求并使用一封新的验证码邮件。"
+                : "The official portal rejected this email verification code because it was invalid or expired. Your answers are saved; retrying will request and consume a new code.")
+            : vnPrearrivalOtpErrorKind === "timeout"
+            ? (isZh
+                ? "官网在验证码确认后没有及时完成页面切换。你的答案已保存；系统重试时会等待官方确认完成，并避免重复使用旧验证码。"
+                : "The official portal did not finish the page transition after email verification. Your answers are saved; the retry will wait for confirmation and avoid reusing an old code.")
             : workerPickupError
             ? (isZh
                 ? "这不是表单内容错误，而是本地 submission-service worker 没有运行、端口未匹配，或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
@@ -281,6 +312,12 @@ export function FailureCard({
             {isZh
               ? "正确格式示例：106527303（共 9 位，只能包含数字）。修改并保存后再重新提交。"
               : "Correct format example: 106527303 (exactly 9 digits, numbers only). Save the corrected value before retrying."}
+          </div>
+        ) : vnPrearrivalOtpErrorKind ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
+            {isZh
+              ? "可以直接点击下方“提交”重试，无需重新填写表单。"
+              : "Use the Submit button below to retry; you do not need to re-enter the form."}
           </div>
         ) : officialImageError ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">

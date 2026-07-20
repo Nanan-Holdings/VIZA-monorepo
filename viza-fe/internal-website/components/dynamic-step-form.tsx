@@ -1,11 +1,19 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Bot, Loader2, Plus, Trash2 } from "lucide-react";
+import { Bot, CircleHelp, Loader2, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import {
   getChinesePlaceholder,
@@ -153,6 +161,63 @@ export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
 interface BilingualTextValue {
   zh: string;
   en: string;
+}
+
+function VnPrearrivalEvisaNumberHelp({ isZh }: { isZh: boolean }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
+        >
+          <CircleHelp className="h-4 w-4" />
+          {isZh ? "在哪里查看电子签证号码？" : "Where can I find the E-Visa number?"}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {isZh ? "电子签证号码在哪里？" : "Where is the E-Visa number?"}
+          </DialogTitle>
+          <DialogDescription className="pt-2 text-left leading-6">
+            {isZh
+              ? "查看越南电子签证顶部的“Số / No.”一行，只填写该行显示的 9 位数字。"
+              : "Check the “Số / No.” line near the top of your Vietnam E-Visa and enter only its 9-digit number."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-md border bg-white p-5 text-slate-900 shadow-sm">
+          <div className="border-b pb-3 text-center">
+            <p className="text-xs font-semibold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+            <p className="mt-1 text-sm font-bold">ELECTRONIC VISA / 电子签证</p>
+          </div>
+          <div className="mt-5 space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-base">
+              <span className="font-semibold">Số / No.</span>
+              <span className="rounded-sm border-2 border-red-500 bg-red-50 px-2 py-1 font-mono text-lg font-bold">
+                106696365
+              </span>
+              <span className="font-mono text-sm text-slate-500">/EV</span>
+            </div>
+            <div className="h-2 w-4/5 bg-yellow-200" />
+            <p className="text-sm text-slate-500">Code: ---------------</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+          <p className="font-semibold">
+            {isZh ? "本表只填写：106696365" : "Enter only: 106696365"}
+          </p>
+          <p>
+            {isZh
+              ? "必须正好 9 位且只能包含数字。不要填写下方的 Code、申请代码或登记码，也不要输入“/EV”。"
+              : "It must contain exactly 9 digits. Do not enter the Code, application or registration code, or the “/EV” suffix."}
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 interface FormHistorySnapshot {
@@ -3269,6 +3334,10 @@ export function DynamicStepForm({
     const buttonLabel = panelOpen
       ? (isChineseInterface ? "收起 AI 帮助" : "Hide AI help")
       : (isChineseInterface ? "问 AI" : "Ask AI");
+    const showVnPrearrivalEvisaHelp =
+      isVnPrearrivalField &&
+      field.fieldName === "visa_number" &&
+      values.visa_type?.trim() === "EV";
 
     if (!isChineseInterface) {
       return (
@@ -3283,6 +3352,7 @@ export function DynamicStepForm({
             {renderSide("en")}
           </div>
           <div className="mt-2 flex items-center justify-end gap-2">
+            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp isZh={false} />}
             {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
               <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
             )}
@@ -3339,7 +3409,9 @@ export function DynamicStepForm({
           {renderSide("en")}
         </div>
         <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
-          <div aria-hidden="true" className="hidden md:block" />
+          <div className="flex min-w-0 items-start">
+            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp isZh />}
+          </div>
           <div className="flex min-w-0 flex-col items-end gap-2">
             {isTextLike ? (
               <DynamicFieldRealtimeTranslation

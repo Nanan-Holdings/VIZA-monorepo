@@ -32,6 +32,31 @@ describe("FailureCard", () => {
     expect(screen.queryByText(/Vietnam Pre-Arrival rejected/u)).not.toBeInTheDocument();
   });
 
+  it("shows a recoverable Chinese message for the legacy OTP dialog timeout", () => {
+    render(
+      <FailureCard
+        errorMessage="Vietnam Pre-Arrival email verification dialog remained open after verification."
+      />,
+    );
+
+    expect(screen.getByText("邮箱验证码未完成")).toBeInTheDocument();
+    expect(screen.getByText(/避免重复使用旧验证码/u)).toBeInTheDocument();
+    expect(screen.getByText(/无需重新填写表单/u)).toBeInTheDocument();
+    expect(screen.queryByText(/dialog remained open/u)).not.toBeInTheDocument();
+  });
+
+  it("distinguishes an explicitly rejected OTP from a slow confirmation", () => {
+    render(
+      <FailureCard
+        errorMessage="vn_prearrival_otp_rejected: Vietnam Pre-Arrival rejected the email verification code."
+      />,
+    );
+
+    expect(screen.getByText("邮箱验证码未完成")).toBeInTheDocument();
+    expect(screen.getByText(/验证码可能已过期或不正确/u)).toBeInTheDocument();
+    expect(screen.queryByText(/vn_prearrival_otp_rejected/u)).not.toBeInTheDocument();
+  });
+
   it("collects a one-time Vietnam payment card before live-assisted retry", async () => {
     const onRetry = vi.fn().mockResolvedValue(undefined);
     const TestFailureCard = FailureCard as ComponentType<Record<string, unknown>>;
