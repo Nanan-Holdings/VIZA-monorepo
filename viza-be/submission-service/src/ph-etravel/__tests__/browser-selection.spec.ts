@@ -7,6 +7,7 @@ import {
   resolveArrivalCardLocalCdpEndpoint,
 } from "../../arrival-card-browser";
 import {
+  PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS,
   isPhEtravelRegistrationResponseRejected,
   isPhEtravelMpinRejectedText,
   isPhEtravelRemotePolicyBlockMessage,
@@ -43,6 +44,10 @@ test("PH eTravel retries rejected registration API responses instead of waiting 
   assert.equal(isPhEtravelRegistrationResponseRejected(422), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(429), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(200), false);
+});
+
+test("PH eTravel gives a delayed OTP priority over a registration-attempt notice", () => {
+  assert.equal(PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS, 20_000);
 });
 
 test("PH eTravel can resolve a local Chrome CDP endpoint before launching a fresh browser", () => {
