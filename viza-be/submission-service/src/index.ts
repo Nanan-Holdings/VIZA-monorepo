@@ -6775,14 +6775,23 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
 
   const heartbeatTimer = setInterval(() => {
     const heartbeatAt = new Date().toISOString();
-    void supabase
-      .from("submission_queue")
-      .update({
-        heartbeat_at: heartbeatAt,
-        updated_at: heartbeatAt,
-      })
-      .eq("id", item.id)
-      .in("status", [processingStatus, paymentProcessingStatus]);
+    void (async () => {
+      const { error } = await supabase
+        .from("submission_queue")
+        .update({
+          heartbeat_at: heartbeatAt,
+          updated_at: heartbeatAt,
+        })
+        .eq("id", item.id)
+        .in("status", [processingStatus, paymentProcessingStatus]);
+      if (error) {
+        console.error(`[indonesia] Queue heartbeat failed: ${error.message}`);
+      }
+    })().catch((error: unknown) => {
+      console.error(
+        `[indonesia] Queue heartbeat request failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
   }, 60_000);
 
   try {
