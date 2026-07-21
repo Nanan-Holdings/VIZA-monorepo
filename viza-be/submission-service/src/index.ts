@@ -6773,6 +6773,18 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
     .eq("id", item.id);
   await setSubmissionStatus(item.application_id, "processing");
 
+  const heartbeatTimer = setInterval(() => {
+    const heartbeatAt = new Date().toISOString();
+    void supabase
+      .from("submission_queue")
+      .update({
+        heartbeat_at: heartbeatAt,
+        updated_at: heartbeatAt,
+      })
+      .eq("id", item.id)
+      .in("status", [processingStatus, paymentProcessingStatus]);
+  }, 60_000);
+
   try {
     const vaultOpts = {
       actor: "submission-service:indonesia",
@@ -7153,6 +7165,8 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       await sendFailureAlert(item.application_id, `[ID] ${errorMsg}`);
     }
     console.error(`[indonesia] ${provider} failed for application=${redactIdentifier(item.application_id)}:`, errorMsg);
+  } finally {
+    clearInterval(heartbeatTimer);
   }
 }
 
