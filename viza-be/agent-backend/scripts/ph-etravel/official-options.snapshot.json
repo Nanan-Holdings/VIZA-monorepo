@@ -1,13 +1,15 @@
 {
   "source": "https://ws.etravel.gov.ph",
   "officialWebBuildId": "77f106d9c659765d93977987ceb12abaf7d43bd5",
-  "retrievedOn": "2026-07-20",
+  "retrievedOn": "2026-07-21",
   "endpoints": {
     "occupations": "/api/v1/common/occupations?paginate=0&order_by=name&status_by=asc",
     "countries": "/api/v1/common/countries?paginate=0&order_by=name&status_by=asc",
     "arrivalPurposes": "/api/v1/common/purpose_of_visits?paginate=0&for_arrival=1&order_by=name&status_by=asc",
+    "departurePurposes": "/api/v1/common/purpose_of_visits?paginate=0&for_departure=1&order_by=name&status_by=asc",
     "airlines": "/api/v1/common/travel_companies?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
-    "arrivalPorts": "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    "airPorts": "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    "seaPorts": "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=SEA",
     "sicknessSymptoms": "/api/v1/common/sickness_symptoms?paginate=0&order_by=name&status_by=asc&is_active=1",
     "declarationChecklist": "/api/v1/common/declaration_check_lists?paginate=0"
   },
@@ -2814,6 +2816,224 @@
       "theme": "#00bb55"
     }
   ],
+  "departurePurposes": [
+    {
+      "id": 14,
+      "code": "OFW",
+      "name": "OFW",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 1,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 1,
+      "order": 1,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 16,
+      "code": "POV015",
+      "name": "Participation to Au Pair Program in Europe",
+      "for_arrival": 0,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 1,
+      "is_exclusive_for_filipino": 1,
+      "order": 2,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 17,
+      "code": "POV016",
+      "name": "Participation to Exchange Visitor Program (EVP) in the US",
+      "for_arrival": 0,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 1,
+      "is_exclusive_for_filipino": 1,
+      "order": 2,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 15,
+      "code": "POV014",
+      "name": "Permanent Migration or Long-term Residency (for Filipino Emigrants, and Spouses and other Partners of Foreign Nationals)",
+      "for_arrival": 0,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 1,
+      "is_exclusive_for_filipino": 1,
+      "order": 2,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 6,
+      "code": "POV006",
+      "name": "Business/Professional",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0099bb"
+    },
+    {
+      "id": 2,
+      "code": "POV002",
+      "name": "Convention/Conference",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0088cc"
+    },
+    {
+      "id": 3,
+      "code": "POV003",
+      "name": "Education/Training/Studies",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#002299"
+    },
+    {
+      "id": 4,
+      "code": "POV004",
+      "name": "Government/Official Mission",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#003366"
+    },
+    {
+      "id": 5,
+      "code": "POV005",
+      "name": "Health/Medical Reason",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00aa88"
+    },
+    {
+      "id": 1,
+      "code": "POV001",
+      "name": "Holiday/Pleasure/Vacation",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 10,
+      "code": "POV010",
+      "name": "Incentive",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0033dd"
+    },
+    {
+      "id": 18,
+      "code": "POV017",
+      "name": "Meetings",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 12,
+      "code": "POV999",
+      "name": "Others",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00aa22"
+    },
+    {
+      "id": 9,
+      "code": "POV009",
+      "name": "Religion/Pilgrimage",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0044bb"
+    },
+    {
+      "id": 19,
+      "code": "POV018",
+      "name": "Trade Fair/Exhibition",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#0000ff"
+    },
+    {
+      "id": 13,
+      "code": "POV012",
+      "name": "Transit",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00aa22"
+    },
+    {
+      "id": 7,
+      "code": "POV007",
+      "name": "Visit Friends/Relatives",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00bbaa"
+    },
+    {
+      "id": 8,
+      "code": "POV008",
+      "name": "Work/Employment",
+      "for_arrival": 1,
+      "for_departure": 1,
+      "with_oec": 0,
+      "with_cfo": 0,
+      "is_exclusive_for_filipino": 0,
+      "order": 999999,
+      "theme": "#00bb55"
+    }
+  ],
   "airlines": [
     {
       "id": 83,
@@ -3640,7 +3860,7 @@
       "is_active": 1
     }
   ],
-  "arrivalPorts": [
+  "airPorts": [
     {
       "id": 40,
       "transportation_type": "AIR",
@@ -3818,6 +4038,485 @@
       "code": "TP0014",
       "name": "Zamboanga International Airport",
       "theme": "#afb42b",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    }
+  ],
+  "seaPorts": [
+    {
+      "id": 79,
+      "transportation_type": "SEA",
+      "code": "BSCBTN",
+      "name": "Basco Batanes",
+      "theme": "#4db6ac",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 67,
+      "transportation_type": "SEA",
+      "code": "PHBOR",
+      "name": "Boracay Seaport",
+      "theme": "#388e3c",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 73,
+      "transportation_type": "SEA",
+      "code": "CLYISL",
+      "name": "Calayan Island",
+      "theme": "#d1c4e9",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 77,
+      "transportation_type": "SEA",
+      "code": "CSLISL",
+      "name": "Casulian Island",
+      "theme": "#827717",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 53,
+      "transportation_type": "SEA",
+      "code": "TP128",
+      "name": "Claveria",
+      "theme": "#afb42b",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 58,
+      "transportation_type": "SEA",
+      "code": "TP133",
+      "name": "Coron",
+      "theme": "#64b5f6",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 34,
+      "transportation_type": "SEA",
+      "code": "TP0109",
+      "name": "DAVAO TORIL FISHPORT COMPLEX",
+      "theme": "#4a148c",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 57,
+      "transportation_type": "SEA",
+      "code": "TP132",
+      "name": "El Nido",
+      "theme": "#388e3c",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 74,
+      "transportation_type": "SEA",
+      "code": "TP137",
+      "name": "Holiday Ocean Marina, IGACOS",
+      "theme": "#0d47a1",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 29,
+      "transportation_type": "SEA",
+      "code": "TP0106",
+      "name": "Lal-lo Seaport",
+      "theme": "#7986cb",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 55,
+      "transportation_type": "SEA",
+      "code": "TP130",
+      "name": "Macapagal Port Terminal (MPT)",
+      "theme": "#969696",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 56,
+      "transportation_type": "SEA",
+      "code": "TP131",
+      "name": "Macapagal Port Terminal Landbase (MPTL)",
+      "theme": "#90a4ae",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 80,
+      "transportation_type": "SEA",
+      "code": "MHTP01",
+      "name": "Mahatao Port",
+      "theme": "#689f38",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 26,
+      "transportation_type": "SEA",
+      "code": "TP0103",
+      "name": "Manila South Harbor",
+      "theme": "#e91e63",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 70,
+      "transportation_type": "SEA",
+      "code": "ORCISL",
+      "name": "Ochid Island",
+      "theme": "#f06292",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 62,
+      "transportation_type": "SEA",
+      "code": "APARRI",
+      "name": "Port of Aparri",
+      "theme": "#880e4f",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 44,
+      "transportation_type": "SEA",
+      "code": "TP119",
+      "name": "Port of Bacolod",
+      "theme": "#cddc39",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 64,
+      "transportation_type": "SEA",
+      "code": "PHBSO",
+      "name": "Port of Basco",
+      "theme": "#311b92",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 31,
+      "transportation_type": "SEA",
+      "code": "PHBTN",
+      "name": "Port of Bataan (PHBTN)",
+      "theme": "#3e2723",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 9,
+      "transportation_type": "SEA",
+      "code": "TP009",
+      "name": "Port of Batangas (PHBTG)",
+      "theme": "#0d47a1",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 41,
+      "transportation_type": "SEA",
+      "code": "TP116",
+      "name": "Port of Bislig",
+      "theme": "#f57f17",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 68,
+      "transportation_type": "SEA",
+      "code": "PHTAG",
+      "name": "Port of Bohol",
+      "theme": "#e91e63",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 72,
+      "transportation_type": "SEA",
+      "code": "TP-BSP",
+      "name": "Port of Bongao",
+      "theme": "#dce775",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 13,
+      "transportation_type": "SEA",
+      "code": "TP0013",
+      "name": "Port of Cagayan de Oro",
+      "theme": "#8bc34a",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 48,
+      "transportation_type": "SEA",
+      "code": "TP123",
+      "name": "Port of Calbayog",
+      "theme": "#00796b",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 65,
+      "transportation_type": "SEA",
+      "code": "CAMIGUIN",
+      "name": "Port of Camiguin",
+      "theme": "#c2185b",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 11,
+      "transportation_type": "SEA",
+      "code": "TP0011",
+      "name": "Port of Cebu (PHCEB)",
+      "theme": "#7b1fa2",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 47,
+      "transportation_type": "SEA",
+      "code": "TP122",
+      "name": "Port of Currimao (ONRI)",
+      "theme": "#9c27b0",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 39,
+      "transportation_type": "SEA",
+      "code": "TP0114",
+      "name": "Port of General Santos",
+      "theme": "#f8bbd0",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 43,
+      "transportation_type": "SEA",
+      "code": "TP118",
+      "name": "Port of Iligan",
+      "theme": "#bf360c",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 15,
+      "transportation_type": "SEA",
+      "code": "TP0015",
+      "name": "Port of Iloilo (PHILO)",
+      "theme": "#e1bee7",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 63,
+      "transportation_type": "SEA",
+      "code": "PHSAN",
+      "name": "Port of Irene",
+      "theme": "#4a148c",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 28,
+      "transportation_type": "SEA",
+      "code": "TP0105",
+      "name": "Port of Laoag",
+      "theme": "#0288d1",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 45,
+      "transportation_type": "SEA",
+      "code": "TP120",
+      "name": "Port of Legazpi",
+      "theme": "#81c784",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 66,
+      "transportation_type": "SEA",
+      "code": "LEGAZPI",
+      "name": "Port of Legazpi",
+      "theme": "#512da8",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 50,
+      "transportation_type": "SEA",
+      "code": "TP125",
+      "name": "Port of Masinloc",
+      "theme": "#689f38",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 46,
+      "transportation_type": "SEA",
+      "code": "TP121",
+      "name": "Port of Pangasinan",
+      "theme": "#ff9800",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 25,
+      "transportation_type": "SEA",
+      "code": "TP0102",
+      "name": "Port of Puerto Princesa",
+      "theme": "#3f51b5",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 24,
+      "transportation_type": "SEA",
+      "code": "TP0101",
+      "name": "Port of Sasa, Davao Seaport",
+      "theme": "#ffa000",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 49,
+      "transportation_type": "SEA",
+      "code": "TP124",
+      "name": "Port of Sta Cruz",
+      "theme": "#ffe0b2",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 75,
+      "transportation_type": "SEA",
+      "code": "PHSPS",
+      "name": "PORT OF SUBIC BAY FREEPORT-LANDBASE (SOS)",
+      "theme": "#1a237e",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 42,
+      "transportation_type": "SEA",
+      "code": "TP117",
+      "name": "Port of Surigao",
+      "theme": "#e65100",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 71,
+      "transportation_type": "SEA",
+      "code": "RMBLN",
+      "name": "Romblon",
+      "theme": "#827717",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 54,
+      "transportation_type": "SEA",
+      "code": "TP129",
+      "name": "Salomague Port",
+      "theme": "#e57373",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 32,
+      "transportation_type": "SEA",
+      "code": "TP0107",
+      "name": "San Fernando International Seaport",
+      "theme": "#e64a19",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 17,
+      "transportation_type": "SEA",
+      "code": "TP0017",
+      "name": "San Fernando, Luzon (PHSFE)",
+      "theme": "#7986cb",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 78,
+      "transportation_type": "SEA",
+      "code": "SIARGAO",
+      "name": "Siargao",
+      "theme": "#00bcd4",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 16,
+      "transportation_type": "SEA",
+      "code": "TP0016",
+      "name": "Subic Bay (PHSFS)",
+      "theme": "#000",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 51,
+      "transportation_type": "SEA",
+      "code": "TP126",
+      "name": "Subic Bay Yacht Club",
+      "theme": "#f06292",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 61,
+      "transportation_type": "SEA",
+      "code": "TP136",
+      "name": "Subport of Sual",
+      "theme": "#7b1fa2",
+      "with_custom_declaration": 1,
+      "is_active": 1
+    },
+    {
+      "id": 36,
+      "transportation_type": "SEA",
+      "code": "TP0111",
+      "name": "Tabacco Seaport",
+      "theme": "#ffcdd2",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 38,
+      "transportation_type": "SEA",
+      "code": "TP0113",
+      "name": "Tacloban Seaport",
+      "theme": "#455a64",
+      "with_custom_declaration": 0,
+      "is_active": 1
+    },
+    {
+      "id": 33,
+      "transportation_type": "SEA",
+      "code": "TP0108",
+      "name": "Zamboanga Port",
+      "theme": "#455a64",
       "with_custom_declaration": 0,
       "is_active": 1
     }

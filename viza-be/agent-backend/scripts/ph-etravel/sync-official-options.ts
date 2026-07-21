@@ -27,8 +27,10 @@ async function main(): Promise<void> {
     occupations: "/api/v1/common/occupations?paginate=0&order_by=name&status_by=asc",
     countries: "/api/v1/common/countries?paginate=0&order_by=name&status_by=asc",
     arrivalPurposes: "/api/v1/common/purpose_of_visits?paginate=0&for_arrival=1&order_by=name&status_by=asc",
+    departurePurposes: "/api/v1/common/purpose_of_visits?paginate=0&for_departure=1&order_by=name&status_by=asc",
     airlines: "/api/v1/common/travel_companies?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
-    arrivalPorts: "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    airPorts: "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    seaPorts: "/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=SEA",
     sicknessSymptoms: "/api/v1/common/sickness_symptoms?paginate=0&order_by=name&status_by=asc&is_active=1",
     declarationChecklist: "/api/v1/common/declaration_check_lists?paginate=0",
   } as const;

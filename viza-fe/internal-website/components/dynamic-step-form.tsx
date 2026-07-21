@@ -1984,6 +1984,11 @@ function getDefaultFieldValue(
   country?: string | null,
   visaType?: string,
 ): string {
+  const configuredDefault = (field.validationRules as { defaultValue?: unknown } | null)?.defaultValue;
+  if (typeof configuredDefault === "string" && configuredDefault.trim()) {
+    return configuredDefault.trim();
+  }
+
   if (
     visaType === "EU_SCHENGEN_C_SHORT_STAY" &&
     field.fieldName === "main_destination_country"

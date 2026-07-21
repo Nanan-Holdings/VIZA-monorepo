@@ -188,6 +188,7 @@ export function PhotoUploadStep({
       uploadForm.set("applicationId", resolvedApplicationId);
       uploadForm.set("documentType", "photo");
       uploadForm.set("requirementKey", "photo");
+      uploadForm.set("scope", "universal_profile");
       uploadForm.set("filename", "photo.jpg");
       uploadForm.set("required", "true");
       uploadForm.set("file", new File([croppedBlob], "photo.jpg", { type: "image/jpeg" }));

@@ -4679,6 +4679,41 @@
       "title": "B1/B2 appointment setup",
       "subtitle": "Continue after DS-160 with China USVisaScheduling assisted-live support. VIZA can handle supported account, CAPTCHA, policy, payment, slot observation, and confirmation checkpoints while keeping slot choice and final booking approval explicit."
     },
+    "stateMachine": {
+      "subtitle": "Complete one stage at a time. VIZA advances only after the required user confirmation or official result.",
+      "ariaLabel": "Appointment progress",
+      "steps": {
+        "review": "Review",
+        "account": "Official account",
+        "slots": "Choose a slot",
+        "confirm": "Confirm",
+        "result": "Result"
+      },
+      "workerUnavailable": "The appointment worker is not ready. You can review your information, but official-site work cannot start yet.",
+      "accountTitle": "Official account and profile",
+      "accountBody": "VIZA is creating or resuming the authorized official account flow. Any required verification or website checkpoint appears here.",
+      "startAgain": "Start again",
+      "noSlotsBody": "No official appointment time is currently available. Refresh later; VIZA will never invent a slot."
+    },
+    "review": {
+      "title": "Review before continuing",
+      "body": "Check the saved applicant details below against the passport and submitted DS-160. Select Edit to correct anything; VIZA starts the official account flow only after you confirm.",
+      "back": "Back to application",
+      "fullName": "Passport name",
+      "dateOfBirth": "Date of birth",
+      "nationality": "Nationality",
+      "passportNumber": "Passport number",
+      "passportExpiry": "Passport expiry date",
+      "phone": "Phone",
+      "email": "Personal email",
+      "address": "Residential address",
+      "ds160": "DS-160 confirmation number",
+      "post": "Interview post",
+      "missing": "Not provided",
+      "confirmation": "I have checked these details against the passport and submitted DS-160, and I authorize VIZA to continue to the official account workflow. Slot selection and final booking remain separate confirmations.",
+      "edit": "Edit application",
+      "confirmAndContinue": "Confirm details and continue"
+    },
     "loading": "Loading appointment assistant...",
     "errorTitle": "Appointment assistant needs attention",
     "dryRunNoticeTitle": "Gated assisted live",
@@ -4695,6 +4730,49 @@
       "pending": "Pending",
       "stopTitle": "The official final button is protected",
       "stopBody": "VIZA stops before the official confirmation click until an observed slot is selected and final approval is recorded. Opening this page never starts or submits an appointment."
+    },
+    "requirements": {
+      "title": "Complete these steps in order",
+      "body": "Start at step 1 and continue downward. Each step shows who acts, what information is used, and whether it is ready.",
+      "officialCheckTitle": "Checked against the live USVisaScheduling registration page",
+      "officialCheckBody": "The official form currently asks for a username, alias email verification, given name, surname, password, and three security question answers. VIZA manages the account fields; you provide accurate applicant and DS-160 information.",
+      "openApplication": "Review application details",
+      "userInputTitle": "What you need to enter in VIZA",
+      "userInputBody": "Accurate passport identity, passport details, contact/address information, the submitted DS-160 confirmation number, and its matching interview post. VIZA generates the appointment username and password, manages the alias mailbox and verification code, and prepares the three official account recovery answers.",
+      "states": {
+        "ready": "Ready",
+        "review": "Review once",
+        "managed": "Handled by VIZA",
+        "action": "Required",
+        "pending": "Later step"
+      },
+      "roles": {
+        "user": "You",
+        "viza": "VIZA",
+        "joint": "You + VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "Review the applicant record",
+          "body": "Confirm the passport-matching English given name and surname, date and country of birth, nationality, gender, passport number and validity, phone, personal email, residential address, and passport bio-page upload."
+        },
+        "ds160": {
+          "title": "Confirm DS-160 and interview post",
+          "body": "Enter the submitted DS-160 confirmation number and choose the same China embassy or consulate used on that DS-160. These must match before scheduling."
+        },
+        "account": {
+          "title": "Create and verify the official account",
+          "body": "VIZA creates the username and password, uses the applicant alias email, reads the verification code, fills the passport name, and prepares all three required security question answers."
+        },
+        "profile": {
+          "title": "Link the profile, DS-160, and fee status",
+          "body": "VIZA signs in, completes supported profile fields, links the DS-160 and interview post, and opens the official fee/calendar path. CAPTCHA, policy, or payment challenges remain visible checkpoints."
+        },
+        "booking": {
+          "title": "Choose a slot and approve booking",
+          "body": "VIZA shows only slots observed from the official calendar. You select one slot, review any fee checkpoint, and explicitly approve the final booking action."
+        }
+      }
     },
     "errors": {
       "generic": "The appointment request could not be completed. Please try again.",
@@ -4953,6 +5031,49 @@
       "preSubmit": "Ready before submit",
       "stopTitle": "The official final button is protected",
       "stopBody": "VIZA stops before the official TLS confirmation click until an observed slot is selected, any required payment authorization is present, and final approval is recorded. Opening this page never starts or submits an appointment."
+    },
+    "requirements": {
+      "title": "Complete these steps in order",
+      "body": "Start with the France-Visas application, then continue downward. Each step separates your information from actions handled by VIZA.",
+      "officialCheckTitle": "Checked against the live TLScontact China registration page",
+      "officialCheckBody": "The official form currently asks for email, password and password confirmation, mandatory legal consent, and reCAPTCHA. Email, phone, SMS, and push marketing consents are optional and are not required for registration.",
+      "openApplication": "Review application details",
+      "userInputTitle": "What you need to enter in VIZA",
+      "userInputBody": "Accurate passport identity, passport details, contact/address information, the France-Visas application reference, and the preferred China application centre. VIZA manages the alias account and activation email; you later choose the observed slot and approve any fee and final booking.",
+      "states": {
+        "ready": "Ready",
+        "review": "Review once",
+        "managed": "Handled by VIZA",
+        "action": "Required",
+        "pending": "Later step"
+      },
+      "roles": {
+        "user": "You",
+        "viza": "VIZA",
+        "joint": "You + VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "Complete France-Visas and review applicant data",
+          "body": "Confirm the passport-matching English name, birth details, nationality, passport number and validity, contact/address information, passport bio page, and the official France-Visas application reference."
+        },
+        "account": {
+          "title": "Create and activate the TLScontact account",
+          "body": "VIZA enters the alias email and generated password, confirms the password, accepts only the required legal terms under your authorization, handles supported reCAPTCHA, and reads the activation email. Optional marketing consent stays off."
+        },
+        "link": {
+          "title": "Choose the centre and link the application",
+          "body": "Confirm the China TLScontact centre. VIZA signs in and links the France-Visas reference, then pauses on missing data, identity checks, MFA, or site-policy restrictions."
+        },
+        "calendar": {
+          "title": "Read the calendar and review the service fee",
+          "body": "VIZA reads official availability without choosing for you. You select one observed slot and authorize the required TLS service-fee step; 3DS or bank verification remains yours."
+        },
+        "booking": {
+          "title": "Approve the final appointment",
+          "body": "Review the centre, date, time, and fee status. VIZA can click the official booking control only after your explicit final approval and records the official confirmation evidence."
+        }
+      }
     },
     "errors": {
       "generic": "The France appointment request could not be completed. Please try again.",

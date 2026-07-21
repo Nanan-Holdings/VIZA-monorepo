@@ -54,6 +54,7 @@ const PURPOSE_ZH: Record<string, string> = {
   POV017: "会议", POV018: "展会 / 博览会", POV999: "其他",
 };
 export const PH_ETRAVEL_PURPOSE_OPTIONS = mapped(officialSnapshot.arrivalPurposes, PURPOSE_ZH);
+export const PH_ETRAVEL_DEPARTURE_PURPOSE_OPTIONS = mapped(officialSnapshot.departurePurposes, PURPOSE_ZH);
 
 const OCCUPATION_ZH: Record<string, string> = {
   OCC001: "专业 / 技术 / 行政人员", OCC002: "文员 / 销售", OCC003: "农业", OCC004: "工人 / 劳工",
@@ -119,7 +120,9 @@ const PORT_ZH: Record<string, string> = {
   SFS: "苏比克湾国际机场（SFS）",
   TP0014: "三宝颜国际机场",
 };
-export const PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS = mapped(officialSnapshot.arrivalPorts, PORT_ZH);
+export const PH_ETRAVEL_AIR_PORT_OPTIONS = mapped(officialSnapshot.airPorts, PORT_ZH);
+export const PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS = PH_ETRAVEL_AIR_PORT_OPTIONS;
+export const PH_ETRAVEL_SEA_PORT_OPTIONS = mapped(officialSnapshot.seaPorts);
 export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(officialSnapshot.sicknessSymptoms);
 export const PH_ETRAVEL_DECLARATION_CHECKLIST = officialSnapshot.declarationChecklist as OfficialChecklistItem[];
 

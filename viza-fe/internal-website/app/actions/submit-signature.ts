@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 
 const BUCKET = "submission-artifacts";
+const PROFILE_DOCUMENTS_BUCKET = "application-documents";
 const MAX_BYTES = 200 * 1024; // 200 KB — a 600×200 transparent PNG is ~30 KB
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -80,6 +81,29 @@ export async function submitSignature(
     });
   if (uploadErr) return { ok: false, error: `Upload failed: ${uploadErr.message}` };
 
+  // Keep a reusable copy for other application forms. This is best-effort so
+  // a profile-document migration gap never blocks the AU signing workflow.
+  const reusablePath = `${user.id}/universal-profile/electronic_signature/${Date.now()}-signature.png`;
+  const { error: reusableUploadError } = await adminClient.storage
+    .from(PROFILE_DOCUMENTS_BUCKET)
+    .upload(reusablePath, buffer, { contentType: "image/png", upsert: false });
+  if (!reusableUploadError) {
+    await adminClient.from("universal_profile_documents").upsert(
+      {
+        applicant_id: profile.id,
+        auth_user_id: user.id,
+        document_type: "electronic_signature",
+        storage_path: reusablePath,
+        filename: "signature.png",
+        status: "uploaded",
+        source_application_id: applicationId,
+        metadata: { source: "au_signature_pad" },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "applicant_id,document_type" },
+    );
+  }
+
   // Flip submission_queue to au_prefill_pending so the runner picks it up.
   // upsert covers the first-time case; onConflict on application_id keeps it idempotent.
   const { error: queueErr } = await adminClient
@@ -105,6 +129,7 @@ export interface SigningContext {
   visaType: string;
   isAuVisitor600: boolean;
   alreadySigned: boolean;
+  hasReusableSignature: boolean;
   /** Map of declaration field_name → recorded value ("yes"/"no"/"") */
   declarationAnswers: Record<string, string>;
 }
@@ -156,6 +181,15 @@ export async function getSigningContext(
   }
 
   const alreadySigned = await hasExistingSignature(applicationId);
+  const { data: reusableSignature } = await adminClient
+    .from("universal_profile_documents")
+    .select("id")
+    .eq("applicant_id", profile.id)
+    .in("document_type", ["electronic_signature", "customs_signature_file", "signature", "signature_image"])
+    .ilike("filename", "%.png")
+    .neq("status", "missing")
+    .limit(1)
+    .maybeSingle();
 
   return {
     ok: true,
@@ -165,9 +199,51 @@ export async function getSigningContext(
       visaType: app.visa_type,
       isAuVisitor600,
       alreadySigned,
+      hasReusableSignature: Boolean(reusableSignature),
       declarationAnswers,
     },
   };
+}
+
+export async function submitSavedUniversalProfileSignature(
+  applicationId: string,
+): Promise<{ ok: true; storagePath: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not authenticated" };
+
+  const adminClient = createAdminClient();
+  const { data: profile } = await adminClient
+    .from("applicant_profiles")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .single();
+  if (!profile) return { ok: false, error: "Applicant profile not found" };
+
+  const { data: reusableSignature, error } = await adminClient
+    .from("universal_profile_documents")
+    .select("storage_path")
+    .eq("applicant_id", profile.id)
+    .in("document_type", ["electronic_signature", "customs_signature_file", "signature", "signature_image"])
+    .ilike("filename", "%.png")
+    .neq("status", "missing")
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !reusableSignature?.storage_path) {
+    return { ok: false, error: "No reusable signature is available" };
+  }
+
+  const { data: signatureBlob, error: downloadError } = await adminClient.storage
+    .from(PROFILE_DOCUMENTS_BUCKET)
+    .download(reusableSignature.storage_path);
+  if (downloadError || !signatureBlob) {
+    return { ok: false, error: `Could not read saved signature: ${downloadError?.message ?? "missing file"}` };
+  }
+
+  return submitSignature(applicationId, new Uint8Array(await signatureBlob.arrayBuffer()));
 }
 
 /**

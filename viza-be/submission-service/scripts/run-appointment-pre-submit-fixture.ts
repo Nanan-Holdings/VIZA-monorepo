@@ -21,7 +21,12 @@ const PLACEHOLDER = {
   givenName: "Test",
   surname: "Applicant",
   verificationCode: "000000",
+  dateOfBirth: "1990-01-01",
+  nationality: "CHN",
   passportNumber: "P0000000",
+  passportExpiry: "2030-12-31",
+  phone: "+86 138 0000 0000",
+  address: "100 Fixture Road, Shanghai",
   ds160Code: "AA00PLACEHOLDER",
   franceReference: "FRA1-PLACEHOLDER",
 } as const;
@@ -38,6 +43,22 @@ async function firstVisible(page: Page, selector: string): Promise<Locator> {
 
 async function fillVisible(page: Page, selector: string, value: string) {
   await (await firstVisible(page, selector)).fill(value);
+}
+
+async function assertRequiredFixtureFields(
+  page: Page,
+  stepSelector: string,
+): Promise<number> {
+  const requiredFields = page.locator(`${stepSelector} [required]`);
+  const count = await requiredFields.count();
+  for (let index = 0; index < count; index += 1) {
+    const field = requiredFields.nth(index);
+    const value = await field.inputValue();
+    if (!value.trim()) {
+      throw new Error(`Fixture required field ${index + 1} was not filled.`);
+    }
+  }
+  return count;
 }
 
 function fixtureStyles() {
@@ -77,16 +98,16 @@ async function runUsFixture(page: Page) {
               <div class="step" id="registration">
                 <h2>Create account</h2>
                 <div class="grid">
-                  <label>Username<input id="signInName"></label>
-                  <label>Email<input id="email" type="email"></label>
-                  <label>Given name<input id="givenName"></label>
-                  <label>Surname<input id="surname"></label>
-                  <label>New password<input id="newPassword" type="password"></label>
-                  <label>Confirm password<input id="reenterPassword" type="password"></label>
+                  <label>Username<input id="signInName" required></label>
+                  <label>Email<input id="email" type="email" required></label>
+                  <label>Given name<input id="givenName" required></label>
+                  <label>Surname<input id="surname" required></label>
+                  <label>New password<input id="newPassword" type="password" required></label>
+                  <label>Confirm password<input id="reenterPassword" type="password" required></label>
                 </div>
                 <div class="actions"><button id="send-code" onclick="document.querySelector('#verification').hidden=false">Send Verification Code</button></div>
                 <div id="verification" hidden>
-                  <label style="margin-top:16px">Verification code<input id="email_ver_input"></label>
+                  <label style="margin-top:16px">Verification code<input id="email_ver_input" required></label>
                   <div class="actions">
                     <button id="verify-code">Verify Code</button>
                     <button id="create-account" onclick="showStep('profile')">Create Account</button>
@@ -96,8 +117,14 @@ async function runUsFixture(page: Page) {
               <div class="step" id="profile" hidden>
                 <h2>Applicant profile</h2>
                 <div class="grid">
-                  <label>Passport number<input id="passport-number"></label>
-                  <label>DS-160 confirmation<input id="ds160-code"></label>
+                  <label>Date of birth<input id="date-of-birth" type="date" required></label>
+                  <label>Nationality<input id="nationality" required></label>
+                  <label>Passport number<input id="passport-number" required></label>
+                  <label>Passport expiry<input id="passport-expiry" type="date" required></label>
+                  <label>Mobile phone<input id="phone" required></label>
+                  <label>Home address<input id="address" required></label>
+                  <label>DS-160 confirmation<input id="ds160-code" required></label>
+                  <label>Interview post<input id="interview-post" required></label>
                 </div>
                 <div class="actions"><button onclick="showStep('calendar')">Continue to calendar</button></div>
               </div>
@@ -109,6 +136,8 @@ async function runUsFixture(page: Page) {
                 <h2>Review appointment</h2>
                 <div class="review">
                   <span>Applicant <strong>Test Applicant</strong></span>
+                  <span>Passport <strong>P0000000 · expires 31 December 2030</strong></span>
+                  <span>DS-160 <strong>AA00PLACEHOLDER</strong></span>
                   <span>Post <strong>Beijing</strong></span>
                   <span>Time <strong>28 August 2026 · 09:30</strong></span>
                 </div>
@@ -135,10 +164,21 @@ async function runUsFixture(page: Page) {
   await fillVisible(page, US_VISA_SCHEDULING_SELECTORS.registrationConfirmPasswordInputs, PLACEHOLDER.password);
   await page.getByRole("button", { name: "Send Verification Code" }).click();
   await fillVisible(page, US_VISA_SCHEDULING_SELECTORS.verificationCodeInputs, PLACEHOLDER.verificationCode);
+  const registrationFieldsFilled = await assertRequiredFixtureFields(
+    page,
+    "#registration",
+  );
   await page.getByRole("button", { name: "Verify Code" }).click();
   await page.getByRole("button", { name: "Create Account" }).click();
+  await page.locator("#date-of-birth").fill(PLACEHOLDER.dateOfBirth);
+  await page.locator("#nationality").fill(PLACEHOLDER.nationality);
   await page.locator("#passport-number").fill(PLACEHOLDER.passportNumber);
+  await page.locator("#passport-expiry").fill(PLACEHOLDER.passportExpiry);
+  await page.locator("#phone").fill(PLACEHOLDER.phone);
+  await page.locator("#address").fill(PLACEHOLDER.address);
   await page.locator("#ds160-code").fill(PLACEHOLDER.ds160Code);
+  await page.locator("#interview-post").fill("Beijing");
+  const profileFieldsFilled = await assertRequiredFixtureFields(page, "#profile");
   await page.getByRole("button", { name: "Continue to calendar" }).click();
   const mappedSlotCandidates = page.locator(
     US_VISA_SCHEDULING_SELECTORS.slotCandidates,
@@ -155,7 +195,10 @@ async function runUsFixture(page: Page) {
   }
   const screenshotPath = join(OUTPUT_DIR, "us-before-final-submit.png");
   await page.screenshot({ path: screenshotPath, fullPage: true });
-  return screenshotPath;
+  return {
+    screenshotPath,
+    requiredFieldsFilled: registrationFieldsFilled + profileFieldsFilled,
+  };
 }
 
 async function runFranceFixture(page: Page) {
@@ -171,15 +214,29 @@ async function runFranceFixture(page: Page) {
               <div class="step" id="login">
                 <h2>Sign in</h2>
                 <div class="grid">
-                  <label>Email<input type="email" name="email"></label>
-                  <label>Password<input type="password" name="password"></label>
+                  <label>Email<input type="email" name="email" required></label>
+                  <label>Password<input type="password" name="password" required></label>
                 </div>
                 <div class="actions"><button onclick="showStep('reference')">Sign in</button></div>
               </div>
               <div class="step" id="reference" hidden>
                 <h2>Application reference</h2>
-                <label>France-Visas reference<input name="applicationReference"></label>
-                <div class="actions"><a class="action" href="#center" onclick="showStep('center'); return false">Continue</a></div>
+                <label>France-Visas reference<input name="applicationReference" required></label>
+                <div class="actions"><a class="action" href="#profile" onclick="showStep('profile'); return false">Continue</a></div>
+              </div>
+              <div class="step" id="profile" hidden>
+                <h2>Applicant details</h2>
+                <div class="grid">
+                  <label>Given name<input id="fr-given-name" required></label>
+                  <label>Surname<input id="fr-surname" required></label>
+                  <label>Date of birth<input id="fr-date-of-birth" type="date" required></label>
+                  <label>Nationality<input id="fr-nationality" required></label>
+                  <label>Passport number<input id="fr-passport-number" required></label>
+                  <label>Passport expiry<input id="fr-passport-expiry" type="date" required></label>
+                  <label>Mobile phone<input id="fr-phone" required></label>
+                  <label>Home address<input id="fr-address" required></label>
+                </div>
+                <div class="actions"><button onclick="showStep('center')">Continue to centre</button></div>
               </div>
               <div class="step" id="center" hidden>
                 <h2>Visa application centre</h2>
@@ -198,6 +255,8 @@ async function runFranceFixture(page: Page) {
                 <h2>Review appointment</h2>
                 <div class="review">
                   <span>Applicant <strong>Test Applicant</strong></span>
+                  <span>Reference <strong>FRA1-PLACEHOLDER</strong></span>
+                  <span>Passport <strong>P0000000 · expires 31 December 2030</strong></span>
                   <span>Centre <strong>Shanghai</strong></span>
                   <span>Time <strong>31 August 2026 · 10:15</strong></span>
                 </div>
@@ -218,13 +277,28 @@ async function runFranceFixture(page: Page) {
 
   await fillVisible(page, FRANCE_TLS_SELECTORS.loginEmail, PLACEHOLDER.email);
   await fillVisible(page, FRANCE_TLS_SELECTORS.loginPassword, PLACEHOLDER.password);
+  const loginFieldsFilled = await assertRequiredFixtureFields(page, "#login");
   await page.getByRole("button", { name: "Sign in" }).click();
   await fillVisible(
     page,
     FRANCE_TLS_SELECTORS.applicationReferenceInput,
     PLACEHOLDER.franceReference,
   );
+  const referenceFieldsFilled = await assertRequiredFixtureFields(
+    page,
+    "#reference",
+  );
   await page.getByRole("link", { name: "Continue" }).click();
+  await page.locator("#fr-given-name").fill(PLACEHOLDER.givenName);
+  await page.locator("#fr-surname").fill(PLACEHOLDER.surname);
+  await page.locator("#fr-date-of-birth").fill(PLACEHOLDER.dateOfBirth);
+  await page.locator("#fr-nationality").fill(PLACEHOLDER.nationality);
+  await page.locator("#fr-passport-number").fill(PLACEHOLDER.passportNumber);
+  await page.locator("#fr-passport-expiry").fill(PLACEHOLDER.passportExpiry);
+  await page.locator("#fr-phone").fill(PLACEHOLDER.phone);
+  await page.locator("#fr-address").fill(PLACEHOLDER.address);
+  const profileFieldsFilled = await assertRequiredFixtureFields(page, "#profile");
+  await page.getByRole("button", { name: "Continue to centre" }).click();
   await (await firstVisible(page, FRANCE_TLS_SELECTORS.centerCards)).click();
   await (await firstVisible(page, FRANCE_TLS_SELECTORS.slotButtons)).click();
   await page.locator("#payment-authorized").check();
@@ -237,7 +311,11 @@ async function runFranceFixture(page: Page) {
   }
   const screenshotPath = join(OUTPUT_DIR, "france-before-final-submit.png");
   await page.screenshot({ path: screenshotPath, fullPage: true });
-  return screenshotPath;
+  return {
+    screenshotPath,
+    requiredFieldsFilled:
+      loginFieldsFilled + referenceFieldsFilled + profileFieldsFilled,
+  };
 }
 
 async function main() {
@@ -252,11 +330,11 @@ async function main() {
       if (/^https?:\/\//u.test(request.url())) networkRequests.push(request.url());
     });
     const usPage = await context.newPage();
-    const usScreenshot = await runUsFixture(usPage);
+    const usResult = await runUsFixture(usPage);
     await usPage.close();
 
     const francePage = await context.newPage();
-    const franceScreenshot = await runFranceFixture(francePage);
+    const franceResult = await runFranceFixture(francePage);
     await francePage.close();
 
     if (networkRequests.length > 0) {
@@ -272,11 +350,13 @@ async function main() {
       results: {
         unitedStates: {
           reachedFinalButton: true,
-          screenshot: usScreenshot,
+          requiredFieldsFilled: usResult.requiredFieldsFilled,
+          screenshot: usResult.screenshotPath,
         },
         france: {
           reachedFinalButton: true,
-          screenshot: franceScreenshot,
+          requiredFieldsFilled: franceResult.requiredFieldsFilled,
+          screenshot: franceResult.screenshotPath,
         },
       },
     }, null, 2)}\n`);

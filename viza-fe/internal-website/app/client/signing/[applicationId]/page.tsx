@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { motion } from "motion/react";
 import {
@@ -21,8 +21,10 @@ import {
 import {
   getSigningContext,
   submitSignature,
+  submitSavedUniversalProfileSignature,
   type SigningContext,
 } from "@/app/actions/submit-signature";
+import { isChineseLocale } from "@/lib/i18n/locale";
 
 // AU declaration field keys + labelKeys mirrored from
 // viza-fe/internal-website/components/client/wizards/au/config.ts. Kept inline
@@ -73,6 +75,7 @@ export default function SigningPage() {
   const router = useRouter();
   const tAu = useTranslations("simplifiedForm.au");
   const t = useTranslations("client.signing");
+  const isZh = isChineseLocale(useLocale());
 
   const [state, setState] = React.useState<
     | { stage: "loading" }
@@ -112,6 +115,17 @@ export default function SigningPage() {
     setState({ stage: "submitting", context: state.context });
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const res = await submitSignature(state.context.applicationId, bytes);
+    if (res.ok) {
+      setState({ stage: "submitted", context: { ...state.context, alreadySigned: true } });
+    } else {
+      setState({ stage: "error", message: res.error });
+    }
+  };
+
+  const onSubmitSavedSignature = async () => {
+    if (state.stage !== "ready") return;
+    setState({ stage: "submitting", context: state.context });
+    const res = await submitSavedUniversalProfileSignature(state.context.applicationId);
     if (res.ok) {
       setState({ stage: "submitted", context: { ...state.context, alreadySigned: true } });
     } else {
@@ -229,6 +243,21 @@ export default function SigningPage() {
           clearLabel={t("clear")}
           disabled={state.stage === "submitting"}
         />
+        {ctx.hasReusableSignature && (
+          <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
+            <p className="text-sm text-muted-foreground">
+              {isZh ? "通用资料中已有电子签名，你也可以直接用于本次申请。" : "A reusable e-signature is saved in your universal profile and can be used for this application."}
+            </p>
+            <BrandActionButton
+              variant="secondary"
+              className="mt-3"
+              onClick={onSubmitSavedSignature}
+              disabled={state.stage === "submitting"}
+            >
+              {isZh ? "使用通用签名" : "Use saved signature"}
+            </BrandActionButton>
+          </div>
+        )}
       </section>
 
       <div className="flex justify-end">
