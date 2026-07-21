@@ -1150,6 +1150,7 @@ async function decidePhEtravelLiveSchedule(input: {
   application: ApplicationForRetry;
   now: string;
 }): Promise<SgacScheduleDecision> {
+  const isDepartureCard = input.application.visa_type?.trim().toUpperCase() === "PH_ETRAVEL_DEPARTURE_CARD";
   const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
   if (dates.error) {
     return { action: "reject", status: 500, code: "phetravel_date_load_failed", message: dates.error };
@@ -1165,27 +1166,29 @@ async function decidePhEtravelLiveSchedule(input: {
     };
   }
 
-  const window = evaluatePhEtravelSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  const submissionTravelDate = isDepartureCard ? travelDates.departureDate : travelDates.arrivalDate;
+  const travelDateLabel = isDepartureCard ? "departure" : "arrival";
+  const window = evaluatePhEtravelSubmissionWindow(submissionTravelDate, new Date(input.now));
   if (window.status === "invalid") {
     return {
       action: "reject",
       status: 422,
-      code: "phetravel_invalid_arrival_date",
-      message: "Philippines eTravel arrival date must use YYYY-MM-DD.",
+      code: `phetravel_invalid_${travelDateLabel}_date`,
+      message: `Philippines eTravel ${travelDateLabel} date must use YYYY-MM-DD.`,
     };
   }
   if (window.status === "past") {
     return {
       action: "reject",
       status: 422,
-      code: "phetravel_arrival_date_past",
-      message: "Philippines eTravel arrival date is already in the past. Please update the travel dates before submitting.",
+      code: `phetravel_${travelDateLabel}_date_past`,
+      message: `Philippines eTravel ${travelDateLabel} date is already in the past. Please update the travel dates before submitting.`,
     };
   }
   if (window.status === "scheduled") {
     const result = {
       country: "PH",
-      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      visaType: isDepartureCard ? "PH_ETRAVEL_DEPARTURE_CARD" : "PH_ETRAVEL_ARRIVAL_CARD",
       status: "scheduled",
       mode: "live_assisted",
       provider: "philippines_etravel_live",
@@ -1195,7 +1198,7 @@ async function decidePhEtravelLiveSchedule(input: {
       referenceNumber: null,
       portalUrl: "https://etravel.gov.ph",
       portalResponseSummary:
-        `Philippines eTravel accepts submissions within 72 hours before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `Philippines eTravel accepts submissions within 72 hours before ${travelDateLabel}. This application is scheduled for ${window.earliestSubmissionDate}.`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,

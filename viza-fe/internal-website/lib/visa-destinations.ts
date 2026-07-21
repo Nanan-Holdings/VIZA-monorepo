@@ -35,10 +35,8 @@ export type VisaDestinationRegionId =
   | "oceania";
 
 /**
- * Matches destination cards only against their country name. Latin queries use
- * the English country name; queries containing Chinese characters use the
- * Chinese country name. Visa names, descriptions, regions, and aliases are
- * deliberately excluded so short terms cannot produce incidental matches.
+ * Matches country names and explicit product aliases. Region/group aliases
+ * allow product searches such as "eTravel" to resolve to one country entry.
  */
 export function matchesVisaDestinationSearch(
   destinationItem: PopularVisaDestination,
@@ -47,11 +45,18 @@ export function matchesVisaDestinationSearch(
   const normalizedSearch = normalizeSearchText(searchQuery);
   if (!normalizedSearch) return true;
 
-  const countryName = /\p{Script=Han}/u.test(normalizedSearch)
-    ? destinationItem.countryNameZh
-    : destinationItem.countryName;
-
-  return matchesSearchText(normalizedSearch, [countryName]);
+  const isChinese = /\p{Script=Han}/u.test(normalizedSearch);
+  const canMatchProductAliases = destinationItem.kind !== "group" || destinationItem.supportLabel === "Application categories";
+  const productCandidates = normalizedSearch.length >= 4 && canMatchProductAliases
+    ? [
+        isChinese ? destinationItem.visaNameZh : destinationItem.visaName,
+        ...(destinationItem.searchAliases ?? []),
+      ]
+    : [];
+  return matchesSearchText(normalizedSearch, [
+    isChinese ? destinationItem.countryNameZh : destinationItem.countryName,
+    ...productCandidates,
+  ]);
 }
 
 export type VisaDestinationRegionGroup = {
@@ -525,8 +530,8 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     visaType: "PH_ETRAVEL_DEPARTURE_CARD",
     visaName: "Philippines eTravel Departure Card",
     visaNameZh: "eTravel 出境卡",
-    description: "Philippines eTravel departure declaration for passenger, travel, customs, and currency information.",
-    descriptionZh: "适合菲律宾 eTravel 出境申报，采集旅客、行程、海关和货币资料。",
+    description: "Departure registration for Filipino travellers; foreign travellers can use supported customs and currency declaration branches without implying universal registration.",
+    descriptionZh: "菲律宾籍旅客办理出境登记；外国旅客可按官网适用分支办理海关及货币申报，不代表所有外国旅客均须登记。",
     flag: "🇵🇭",
     region: "Asia",
     supportLabel: "Philippines eTravel",
@@ -782,6 +787,15 @@ const DESTINATION_REGION_INPUTS: Array<Omit<VisaDestinationRegionGroup, "destina
     countries: ["vietnam"],
   },
   {
+    id: "philippines",
+    name: "Philippines",
+    nameZh: "菲律宾",
+    description: "Choose the Philippines eTravel arrival or departure declaration you want to complete.",
+    descriptionZh: "选择要填写的菲律宾 eTravel 入境或出境申报。",
+    flag: "🇵🇭",
+    countries: ["philippines"],
+  },
+  {
     id: "north-america",
     name: "North America",
     nameZh: "北美",
@@ -896,15 +910,16 @@ function destinationIdsForCountries(countries: string[]): string[] {
 
 function regionGroupToDestination(group: VisaDestinationRegionGroup): PopularVisaDestination {
   const destinations = getVisaDestinationsForRegion(group.id);
-  const isSchemaChoiceGroup = group.id === "indonesia" || group.id === "vietnam";
+  const isSchemaChoiceGroup = group.id === "indonesia" || group.id === "vietnam" || group.id === "philippines";
+  const isPhilippines = group.id === "philippines";
   return {
     id: `region-${group.id}`,
     country: group.id,
     countryName: group.name,
     countryNameZh: group.nameZh,
     visaType: "REGION_GROUP",
-    visaName: isSchemaChoiceGroup ? "Choose application category" : "Browse destination forms",
-    visaNameZh: isSchemaChoiceGroup ? "选择申请类别" : "浏览分区签证表单",
+    visaName: isPhilippines ? "Choose declaration category" : isSchemaChoiceGroup ? "Choose application category" : "Browse destination forms",
+    visaNameZh: isPhilippines ? "选择申报类别" : isSchemaChoiceGroup ? "选择申请类别" : "浏览分区签证表单",
     description: group.description,
     descriptionZh: group.descriptionZh,
     flag: group.flag,
@@ -938,10 +953,12 @@ export const VISA_DESTINATION_REGION_GROUPS: VisaDestinationRegionGroup[] = DEST
 
 const INDONESIA_DESTINATION_GROUP = VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === "indonesia");
 const VIETNAM_DESTINATION_GROUP = VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === "vietnam");
+const PHILIPPINES_DESTINATION_GROUP = VISA_DESTINATION_REGION_GROUPS.find((group) => group.id === "philippines");
 
 export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
   ...(INDONESIA_DESTINATION_GROUP ? [regionGroupToDestination(INDONESIA_DESTINATION_GROUP)] : []),
   ...(VIETNAM_DESTINATION_GROUP ? [regionGroupToDestination(VIETNAM_DESTINATION_GROUP)] : []),
+  ...(PHILIPPINES_DESTINATION_GROUP ? [regionGroupToDestination(PHILIPPINES_DESTINATION_GROUP)] : []),
   ...[
     "united_states",
     "united_kingdom",
@@ -955,7 +972,7 @@ export const FEATURED_VISA_DESTINATIONS: PopularVisaDestination[] = [
 
 export const DESTINATION_REGION_GROUP_DESTINATIONS: PopularVisaDestination[] =
   VISA_DESTINATION_REGION_GROUPS
-    .filter((group) => group.id !== "indonesia" && group.id !== "vietnam")
+    .filter((group) => group.id !== "indonesia" && group.id !== "vietnam" && group.id !== "philippines")
     .map(regionGroupToDestination);
 
 export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
@@ -964,9 +981,10 @@ export const POPULAR_VISA_DESTINATIONS: PopularVisaDestination[] = [
 ];
 
 export const SEARCHABLE_VISA_DESTINATIONS: PopularVisaDestination[] = sortDestinations([
-  ...SELECTABLE_VISA_DESTINATIONS,
+  ...SELECTABLE_VISA_DESTINATIONS.filter((destinationItem) => destinationItem.country !== "philippines"),
   ...(INDONESIA_DESTINATION_GROUP ? [regionGroupToDestination(INDONESIA_DESTINATION_GROUP)] : []),
   ...(VIETNAM_DESTINATION_GROUP ? [regionGroupToDestination(VIETNAM_DESTINATION_GROUP)] : []),
+  ...(PHILIPPINES_DESTINATION_GROUP ? [regionGroupToDestination(PHILIPPINES_DESTINATION_GROUP)] : []),
   ...DESTINATION_REGION_GROUP_DESTINATIONS,
 ]);
 
@@ -1031,6 +1049,7 @@ const VISA_TYPE_LABELS: Record<string, string> = {
   MY_MDAC_ARRIVAL_CARD: "Malaysia Digital Arrival Card",
   TH_TDAC_ARRIVAL_CARD: "Thailand Digital Arrival Card",
   PH_ETRAVEL_ARRIVAL_CARD: "Philippines eTravel Arrival Card",
+  PH_ETRAVEL_DEPARTURE_CARD: "Philippines eTravel Departure Card",
   VN_PREARRIVAL_DECLARATION: "Vietnam Pre-Arrival Information Declaration",
   KR_C39_SHORT_TERM_VISIT: "C-3 Visa / K-ETA",
   c3_or_keta: "C-3 Visa / K-ETA",
@@ -1080,6 +1099,7 @@ const VISA_TYPE_LABELS_ZH: Record<string, string> = {
   MY_MDAC_ARRIVAL_CARD: "MDAC 数字入境卡",
   TH_TDAC_ARRIVAL_CARD: "TDAC 数字入境卡",
   PH_ETRAVEL_ARRIVAL_CARD: "eTravel 入境卡",
+  PH_ETRAVEL_DEPARTURE_CARD: "eTravel 出境卡",
   VN_PREARRIVAL_DECLARATION: "越南入境前申报",
   KR_C39_SHORT_TERM_VISIT: "C-3 签证 / K-ETA",
   c3_or_keta: "C-3 签证 / K-ETA",

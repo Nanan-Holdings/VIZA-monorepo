@@ -96,6 +96,49 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
 });
 
+test("normalizePhEtravelPortalPayload keeps departure independent and evaluates the window from departure date", () => {
+  const base = basePayload();
+  const payload = normalizePhEtravelPortalPayload({
+    ...base,
+    visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+    trip: { ...base.trip, departureDate: "2026-06-13", arrivalDate: "2026-06-14" },
+    countrySpecific: {
+      ...base.countrySpecific,
+      travel_type: "DEPARTURE",
+      passport_holder_type: "FOREIGNER",
+      departure_airport: "TP1000",
+      destination_country: "SG",
+      destination_port: "Singapore Changi Airport",
+      flight_departure_date: "2026-06-13",
+      flight_arrival_date: "2026-06-14",
+      has_goods_to_declare: "no",
+      has_currency_to_declare: "no",
+    },
+  }, { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.visaType, "PH_ETRAVEL_DEPARTURE_CARD");
+  assert.equal(payload.travelType, "DEPARTURE");
+  assert.equal(payload.portOfEntry, "TP1000");
+  assert.equal(payload.destinationCountry, "SG");
+  assert.equal(payload.destinationPort, "Singapore Changi Airport");
+  assert.equal(payload.philippinesAddress, null);
+});
+
+test("departure rejects a past departure even when destination arrival is future", () => {
+  const base = basePayload();
+  assert.throws(() => normalizePhEtravelPortalPayload({
+    ...base,
+    visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+    countrySpecific: {
+      ...base.countrySpecific,
+      travel_type: "DEPARTURE",
+      flight_departure_date: "2026-06-10",
+      flight_arrival_date: "2026-06-13",
+    },
+  }, { now: new Date("2026-06-12T08:00:00+08:00") }), (error: unknown) =>
+    error instanceof PhEtravelPortalValidationError && error.missingFields.includes("flight_departure_date"));
+});
+
 test("normalizePhEtravelPortalPayload keeps the three official health answers distinct", () => {
   const payload = normalizePhEtravelPortalPayload(basePayload({
     countrySpecific: {

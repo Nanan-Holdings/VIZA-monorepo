@@ -354,6 +354,7 @@ const ARRIVAL_CARD_VISA_TYPES = new Set([
   "MY_MDAC_ARRIVAL_CARD",
   "TH_TDAC_ARRIVAL_CARD",
   "PH_ETRAVEL_ARRIVAL_CARD",
+  "PH_ETRAVEL_DEPARTURE_CARD",
   "VN_PREARRIVAL_DECLARATION",
 ]);
 const SGAC_OWNER_EMAIL_FIELD_NAMES = ["email_address"];
@@ -446,7 +447,10 @@ function getSubmissionResultReference(application: ApplicationRow): string | nul
 
 function hasOfficialArrivalCardPdf(application: ApplicationRow): boolean {
   if (application.visa_type === "MY_MDAC_ARRIVAL_CARD") return false;
-  if (application.visa_type === "PH_ETRAVEL_ARRIVAL_CARD") return false;
+  if (
+    application.visa_type === "PH_ETRAVEL_ARRIVAL_CARD" ||
+    application.visa_type === "PH_ETRAVEL_DEPARTURE_CARD"
+  ) return false;
   if (application.visa_type !== "TH_TDAC_ARRIVAL_CARD") return true;
   const result = getSubmissionResult(application);
   const artifacts = isRecord(result?.artifacts) ? result.artifacts : null;

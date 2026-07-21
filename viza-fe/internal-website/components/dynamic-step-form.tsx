@@ -2181,7 +2181,10 @@ export function DynamicStepForm({
     [step.fields, visaType],
   );
   const isPhEtravelStep = visaType === "PH_ETRAVEL_ARRIVAL_CARD"
-    || step.fields.some((field) => field.visaType === "PH_ETRAVEL_ARRIVAL_CARD");
+    || visaType === "PH_ETRAVEL_DEPARTURE_CARD"
+    || step.fields.some((field) =>
+      field.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || field.visaType === "PH_ETRAVEL_DEPARTURE_CARD"
+    );
   const isIndonesiaOfficialEVisa = useMemo(
     () => isIndonesiaOfficialEVisaContext(country, visaType),
     [country, visaType],
@@ -3237,7 +3240,7 @@ export function DynamicStepForm({
     if (isVietnamBorderGateField(field)) {
       fieldOptions = localizeVietnamBorderGateOptions(fieldOptions);
     }
-    if (visaType === "PH_ETRAVEL_ARRIVAL_CARD") {
+    if (visaType === "PH_ETRAVEL_ARRIVAL_CARD" || visaType === "PH_ETRAVEL_DEPARTURE_CARD") {
       fieldOptions = localizePhEtravelOptions(field.fieldName, fieldOptions);
     }
 

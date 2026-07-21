@@ -63,7 +63,7 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
     const optionsByField = new Map(PH_ETRAVEL_FORM_FIELDS.map((field) => [field.field_name, field.options ?? []]));
 
     expect(optionsByField.get("travel_type")?.some((option) => option.value === "ARRIVAL")).toBe(true);
-    expect(optionsByField.get("travel_type")?.some((option) => option.value === "DEPARTURE")).toBe(true);
+    expect(optionsByField.get("travel_type")?.some((option) => option.value === "DEPARTURE")).toBe(false);
     expect(optionsByField.get("transport_type")?.some((option) => option.value === "AIR")).toBe(true);
     expect(optionsByField.get("occupation")?.some((option) => option.value === "OCC007")).toBe(true);
     expect(optionsByField.get("traveller_type")?.some((option) => option.value === "AIRCRAFT PASSENGER")).toBe(true);

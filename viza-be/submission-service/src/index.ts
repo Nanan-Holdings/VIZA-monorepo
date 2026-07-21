@@ -590,7 +590,7 @@ const MY_MDAC_TYPES = new Set(["MY_MDAC_ARRIVAL_CARD"]);
 const THAILAND_COUNTRY_ALIASES = new Set(["TH", "THAILAND"]);
 const TH_TDAC_TYPES = new Set(["TH_TDAC_ARRIVAL_CARD"]);
 const PHILIPPINES_COUNTRY_ALIASES = new Set(["PH", "PHILIPPINES"]);
-const PH_ETRAVEL_TYPES = new Set(["PH_ETRAVEL_ARRIVAL_CARD"]);
+const PH_ETRAVEL_TYPES = new Set(["PH_ETRAVEL_ARRIVAL_CARD", "PH_ETRAVEL_DEPARTURE_CARD"]);
 
 type QueueRoutingApplication = Pick<Application, "id" | "country" | "visa_type">;
 
@@ -5116,13 +5116,14 @@ function buildScheduledTdacResult(input: {
 
 function buildScheduledPhEtravelResult(input: {
   applicationId: string;
+  visaType?: "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD";
   arrivalDate: string | null | undefined;
   departureDate?: string | null | undefined;
   earliestSubmissionDate: string;
 }): DigitalArrivalCardSubmissionResult & { scheduledFor: string } {
   return {
     country: "PH",
-    visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+    visaType: input.visaType ?? "PH_ETRAVEL_ARRIVAL_CARD",
     status: "scheduled",
     mode: "live_assisted",
     provider: "philippines_etravel_live",
@@ -5132,7 +5133,7 @@ function buildScheduledPhEtravelResult(input: {
     referenceNumber: null,
     portalUrl: PH_ETRAVEL_OFFICIAL_PORTAL_URL,
     portalResponseSummary:
-      `Philippines eTravel normally accepts submissions within 72 hours before arrival. This application is scheduled for ${input.earliestSubmissionDate}.`,
+      `Philippines eTravel normally accepts submissions within 72 hours before ${input.visaType === "PH_ETRAVEL_DEPARTURE_CARD" ? "departure" : "arrival"}. This application is scheduled for ${input.earliestSubmissionDate}.`,
     scheduledFor: input.earliestSubmissionDate,
     artifacts: { screenshots: [], pdfs: [], logs: [], traces: [] },
     payloadSummary: {
@@ -5228,20 +5229,22 @@ async function enqueueDigitalArrivalCardLiveAfterDryRun(
   const now = new Date().toISOString();
   const isMdac = code === "MDAC";
   const isTdac = code === "TDAC";
+  const isPhDeparture = code === "PH_ETRAVEL" && answers.travel_type?.toUpperCase() === "DEPARTURE";
   const arrivalDateAnswer = code === "PH_ETRAVEL"
     ? answers.flight_arrival_date ?? answers.arrival_date ?? answers.intended_arrival_date
     : answers.arrival_date ?? answers.intended_arrival_date;
   const departureDateAnswer = code === "PH_ETRAVEL"
     ? answers.flight_departure_date ?? answers.departure_date ?? answers.intended_departure_date
     : answers.departure_date ?? answers.intended_departure_date;
+  const phWindowDate = isPhDeparture ? departureDateAnswer : arrivalDateAnswer;
   const window = code === "PH_ETRAVEL"
-    ? evaluatePhEtravelSubmissionWindow(arrivalDateAnswer)
+    ? evaluatePhEtravelSubmissionWindow(phWindowDate)
     : evaluateSgacSubmissionWindow(arrivalDateAnswer);
   if (window.status === "past") {
-    throw new Error(`${code} arrival date is already in the past. Please update the travel dates before submitting.`);
+    throw new Error(`${code} ${isPhDeparture ? "departure" : "arrival"} date is already in the past. Please update the travel dates before submitting.`);
   }
   if (window.status === "invalid") {
-    throw new Error(`${code} arrival date must use YYYY-MM-DD.`);
+    throw new Error(`${code} ${isPhDeparture ? "departure" : "arrival"} date must use YYYY-MM-DD.`);
   }
   const scheduled = window.status === "scheduled";
   const queuedStatus: SubmissionQueueItem["status"] = isMdac
@@ -5305,6 +5308,7 @@ async function enqueueDigitalArrivalCardLiveAfterDryRun(
             })
           : buildScheduledPhEtravelResult({
               applicationId: item.application_id,
+              visaType: isPhDeparture ? "PH_ETRAVEL_DEPARTURE_CARD" : "PH_ETRAVEL_ARRIVAL_CARD",
               arrivalDate: arrivalDateAnswer,
               departureDate: departureDateAnswer,
               earliestSubmissionDate: window.earliestSubmissionDate,
@@ -5566,7 +5570,8 @@ async function promotePhEtravelScheduledIfDue(item: SubmissionQueueItem): Promis
   const answers = await loadDs160Answers(item.application_id);
   const arrivalDateAnswer = answers.flight_arrival_date ?? answers.arrival_date ?? answers.intended_arrival_date;
   const departureDateAnswer = answers.flight_departure_date ?? answers.departure_date ?? answers.intended_departure_date;
-  const window = evaluatePhEtravelSubmissionWindow(arrivalDateAnswer);
+  const isDeparture = answers.travel_type?.toUpperCase() === "DEPARTURE";
+  const window = evaluatePhEtravelSubmissionWindow(isDeparture ? departureDateAnswer : arrivalDateAnswer);
   if (window.status === "scheduled") {
     await supabase
       .from("submission_queue")
@@ -5579,6 +5584,7 @@ async function promotePhEtravelScheduledIfDue(item: SubmissionQueueItem): Promis
       item.application_id,
       buildScheduledPhEtravelResult({
         applicationId: item.application_id,
+        visaType: isDeparture ? "PH_ETRAVEL_DEPARTURE_CARD" : "PH_ETRAVEL_ARRIVAL_CARD",
         arrivalDate: arrivalDateAnswer,
         departureDate: departureDateAnswer,
         earliestSubmissionDate: window.earliestSubmissionDate,
@@ -5590,14 +5596,14 @@ async function promotePhEtravelScheduledIfDue(item: SubmissionQueueItem): Promis
 
   if (window.status === "past" || window.status === "invalid") {
     const message = window.status === "past"
-      ? "Philippines eTravel scheduled submission missed the official 72-hour window because the arrival date is in the past."
-      : "Philippines eTravel scheduled submission cannot run because the arrival date is invalid.";
+      ? `Philippines eTravel scheduled submission missed the official 72-hour window because the ${isDeparture ? "departure" : "arrival"} date is in the past.`
+      : `Philippines eTravel scheduled submission cannot run because the ${isDeparture ? "departure" : "arrival"} date is invalid.`;
     await supabase
       .from("submission_queue")
       .update({
         status: "phetravel_live_assisted_failed",
         last_error: message,
-        error_code: `phetravel_arrival_date_${window.status}`,
+        error_code: `phetravel_${isDeparture ? "departure" : "arrival"}_date_${window.status}`,
         error_message: message,
         current_stage: "validation_failed",
         updated_at: new Date().toISOString(),
@@ -6346,7 +6352,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
   const isTdac = code === "TDAC";
   const logCode = arrivalCardLogCode(code);
   const country = isMdac ? "MY" : isTdac ? "TH" : "PH";
-  const visaType = isMdac ? "MY_MDAC_ARRIVAL_CARD" : isTdac ? "TH_TDAC_ARRIVAL_CARD" : "PH_ETRAVEL_ARRIVAL_CARD";
+  let visaType: DigitalArrivalCardSubmissionResult["visaType"] = isMdac ? "MY_MDAC_ARRIVAL_CARD" : isTdac ? "TH_TDAC_ARRIVAL_CARD" : "PH_ETRAVEL_ARRIVAL_CARD";
   const providerName = isMdac ? "malaysia_mdac_live" : isTdac ? "thailand_tdac_live" : "philippines_etravel_live";
   const targetedFailedRetry = TARGET_FAILED_RETRY_ENABLED
     && process.env.SUBMISSION_SERVICE_TARGET_JOB_ID?.trim() === item.id;
@@ -6440,6 +6446,9 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
 
   try {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
+    if (!isMdac && !isTdac && application.visa_type === "PH_ETRAVEL_DEPARTURE_CARD") {
+      visaType = "PH_ETRAVEL_DEPARTURE_CARD";
+    }
     artifactOwnerId = profile.auth_user_id ?? null;
     const countryMatches = isMdac
       ? MALAYSIA_COUNTRY_ALIASES.has(normalizeQueueRoutingValue(application.country))

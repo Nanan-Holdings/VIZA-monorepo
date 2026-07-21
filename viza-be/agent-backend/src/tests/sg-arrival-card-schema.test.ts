@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { SGAC_FORM_FIELDS } from "../../scripts/sgac/form-fields";
+import { SGAC_HOTEL_NAME_OPTIONS } from "../../scripts/sgac/official-options";
 
 const seedSource = readFileSync(
   new URL("../../scripts/sgac/form-fields.ts", import.meta.url),
@@ -10,6 +11,9 @@ const officialOptionsSource = readFileSync(
   new URL("../../scripts/sgac/official-options.ts", import.meta.url),
   "utf8",
 );
+const translationCache = JSON.parse(
+  readFileSync(new URL("../../scripts/sgac/option-translations.zh.json", import.meta.url), "utf8"),
+) as { hotel: Record<string, string> };
 
 function extractFieldNames(): string[] {
   return Array.from(seedSource.matchAll(/field_name:\s*"([^"]+)"/g), (match) => match[1]);
@@ -65,6 +69,22 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('options: HOTEL_NAMES');
     expect(officialOptionsSource).toContain('"value": "MARINA BAY SANDS SINGAPORE"');
     expect(officialOptionsSource).toContain('"labelEn": "MARINA BAY SANDS SINGAPORE"');
+  });
+
+  test("keeps a complete one-to-one Chinese label snapshot for every ICA hotel", () => {
+    const officialHotelNames = SGAC_HOTEL_NAME_OPTIONS.map((option) => option.value);
+    const translatedHotelNames = Object.keys(translationCache.hotel);
+
+    expect(officialHotelNames).toHaveLength(469);
+    expect(new Set(officialHotelNames).size).toBe(469);
+    expect(translatedHotelNames).toHaveLength(469);
+    expect(new Set(translatedHotelNames)).toEqual(new Set(officialHotelNames));
+
+    for (const officialName of officialHotelNames) {
+      const labelZh = translationCache.hotel[officialName];
+      expect(labelZh, officialName).toMatch(/[\u3400-\u9fff]/);
+      expect(labelZh, officialName).not.toMatch(/[A-Za-zＡ-Ｚａ-ｚ]/);
+    }
   });
 
   test("keeps ICA autocomplete fields as official dropdowns instead of free text", () => {
@@ -204,6 +224,9 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("新加坡滨海湾金沙");
     expect(labelZh("accommodation_name", "IBIS SINGAPORE ON BENCOOLEN")).toBe("新加坡明古连路宜必思酒店");
     expect(labelZh("accommodation_name", "VIBE HOTEL SINGAPORE ORCHARD")).toBe("新加坡乌节路维贝酒店");
+    expect(labelZh("accommodation_name", "AMARA SINGAPORE")).toBe("新加坡阿马拉酒店");
+    expect(labelZh("accommodation_name", "VILLAGE HOTEL SENTOSA")).toBe("悦乐圣淘沙酒店");
+    expect(labelZh("accommodation_name", "SHANGRI-LA RASA SENTOSA, SINGAPORE")).toBe("新加坡圣淘沙香格里拉");
     expect(labelZh("cruise_name", "ADONIA")).toBe("阿多尼亚");
     expect(labelZh("cruise_name", "ADORA MEDITERRANEA")).toBe("阿多拉地中海");
     expect(labelZh("cruise_name", "QUANTUM OF THE SEAS")).toBe("海洋量子号");
@@ -222,7 +245,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "carrier_code",
     ]) {
       for (const option of optionsByField.get(fieldName) ?? []) {
-        expect(option.label_zh.replace(/（[A-Z0-9]{2}）/g, ""), `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-z]/);
+        expect(option.label_zh.replace(/（[A-Z0-9]{2}）/g, ""), `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-zＡ-Ｚａ-ｚ]/);
         expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/其他人|境内/);
         expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/^选项：/);
       }

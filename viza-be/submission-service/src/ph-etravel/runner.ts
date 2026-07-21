@@ -25,14 +25,18 @@ export class PhEtravelPortalError extends Error {
   readonly portalSummary?: string;
   readonly code: string;
   logs: string[];
+  readonly filledFields: string[];
+  readonly reachedReview: boolean;
 
-  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] }) {
+  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[]; filledFields?: string[]; reachedReview?: boolean }) {
     super(message);
     this.name = "PhEtravelPortalError";
     this.code = options.code;
     this.screenshotPaths = options.screenshotPaths ?? [];
     this.portalSummary = options.portalSummary;
     this.logs = options.logs ?? [];
+    this.filledFields = options.filledFields ?? [];
+    this.reachedReview = options.reachedReview ?? false;
   }
 }
 
@@ -1082,6 +1086,7 @@ async function reachAuthenticatedPhEtravelSession(
   options: PhEtravelRunnerOptions,
   logs: string[],
   screenshots: string[],
+  nativeCloudflareUnblock = false,
 ): Promise<void> {
   const initialText = await bodyText(page);
   const signedInAlready = /dashboard|new travel declaration|etravel registration|personal information/i.test(initialText);
@@ -1144,14 +1149,50 @@ async function reachAuthenticatedPhEtravelSession(
     );
   }
 
-  await page.locator("input[type='email'], input[name*='email' i], input[placeholder*='Email' i]").first().fill(email, { timeout: 15_000 });
-  await page.locator("input[type='password'], input[name*='password' i], input[placeholder*='Password' i]").first().fill(password, { timeout: 15_000 });
-  await clickFirstAvailable(page, [
+  const fillLoginCredentials = async (): Promise<void> => {
+    await page.locator("input[type='email'], input[name*='email' i], input[placeholder*='Email' i]").first().fill(email, { timeout: 15_000 });
+    await page.locator("input[type='password'], input[name*='password' i], input[placeholder*='Password' i]").first().fill(password, { timeout: 15_000 });
+  };
+  await fillLoginCredentials();
+  const loginAttempt = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
     page.getByRole("button", { name: /sign in to etravel|sign in|login/i }),
     page.locator("button").filter({ hasText: /sign in|login/i }),
-  ]);
-  await page.waitForLoadState("domcontentloaded", { timeout: 45_000 }).catch(() => undefined);
-  await page.waitForTimeout(3_000);
+  ], {
+    responseUrlPattern: /\/authenticate(?:[/?]|$)/i,
+    prepareRetry: fillLoginCredentials,
+  });
+  logs.push(
+    `ph_etravel_login_response status=${loginAttempt.responseStatus ?? "missing"}` +
+    (loginAttempt.responseSummary ? ` summary=${loginAttempt.responseSummary}` : ""),
+  );
+  if (loginAttempt.responseStatus === undefined) {
+    screenshots.push(await saveScreenshot(page, "official-login-request-missing", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel did not accept the login request after Cloudflare verification.",
+      {
+        code: "ph_etravel_official_login_request_missing",
+        screenshotPaths: screenshots,
+        portalSummary: loginAttempt.pageText.slice(0, 700),
+      },
+    );
+  }
+  if (isPhEtravelRegistrationResponseRejected(loginAttempt.responseStatus)) {
+    screenshots.push(await saveScreenshot(page, "official-login-rejected", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel rejected the account login request.",
+      {
+        code: "ph_etravel_official_login_rejected",
+        screenshotPaths: screenshots,
+        portalSummary: (loginAttempt.responseSummary || loginAttempt.pageText).slice(0, 700),
+      },
+    );
+  }
+  await page.waitForFunction(() => {
+    const text = document.body?.innerText ?? "";
+    const stillOnLogin = /enter email address|create an account|sign in to etravel/i.test(text);
+    return !stillOnLogin && !/^loading/i.test(text.trim());
+  }, undefined, { timeout: 45_000 }).catch(() => undefined);
+  await page.waitForTimeout(2_000);
 
   let afterLoginText = await bodyText(page);
   if (/mobile number|use email/i.test(afterLoginText)) {
@@ -1583,13 +1624,27 @@ async function runPhEtravelPortalSubmissionWithBrowser(
           if (/new travel declaration|travel history|logout/i.test(afterRegistrationText)) {
             logs.push("ph_etravel_registration_authenticated_session_retained");
           } else {
-            await reachAuthenticatedPhEtravelSession(page, payload, options, logs, screenshots);
+            await reachAuthenticatedPhEtravelSession(
+              page,
+              payload,
+              options,
+              logs,
+              screenshots,
+              browserSession.nativeCloudflareUnblock,
+            );
           }
           handledRegistration = true;
         }
       }
       if (!handledRegistration) {
-        await reachAuthenticatedPhEtravelSession(page, payload, options, logs, screenshots);
+        await reachAuthenticatedPhEtravelSession(
+          page,
+          payload,
+          options,
+          logs,
+          screenshots,
+          browserSession.nativeCloudflareUnblock,
+        );
       }
     } catch (error) {
       if (error instanceof PhEtravelPortalError && error.code === "ph_etravel_official_account_required") {
@@ -1635,6 +1690,8 @@ async function runPhEtravelPortalSubmissionWithBrowser(
           code: "ph_etravel_stopped_before_submit",
           screenshotPaths: screenshots,
           portalSummary: formResult.portalText.slice(0, 700),
+          filledFields: formResult.filledFields,
+          reachedReview: true,
         },
       );
     }

@@ -31,7 +31,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,6 +65,7 @@ import type {
 
 type BusyAction =
   | "load"
+  | "review"
   | "create"
   | "run"
   | "manual"
@@ -278,6 +278,7 @@ export function USAppointmentAssistant({
     useState<RevealedAppointmentAccount | null>(null);
   const [accountVisible, setAccountVisible] = useState(false);
   const [reviewData, setReviewData] = useState<AppointmentReviewData | null>(null);
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
   const job = snapshot?.job ?? null;
   const pendingManualAction = snapshot?.pendingManualAction ?? null;
@@ -390,9 +391,9 @@ export function USAppointmentAssistant({
       return false;
     }
     await recordAppointmentConsent(applicationId, {
-      idempotencyKey: `us-appointment-consent:${applicationId}:2026-06-v1`,
+      idempotencyKey: `us-appointment-consent:${applicationId}:2026-07-review-v1`,
       consentSnapshot: {
-        version: "2026-06-us-appointment-v1",
+        version: "2026-07-us-appointment-review-v1",
         mode: "assisted_live",
         assistedLiveCountry: "CN",
         finalConfirmationRequired: true,
@@ -428,7 +429,22 @@ export function USAppointmentAssistant({
           finalConfirmationRequired: true,
         },
       });
-      return runAppointmentJob(createdJob.id);
+      const next = await runAppointmentJob(createdJob.id);
+      setReviewConfirmed(true);
+      return next;
+    });
+  };
+
+  const handleConfirmReview = () => {
+    if (!job || TERMINAL_STATUSES.has(job.status)) {
+      handleCreateJob();
+      return;
+    }
+    void runWithBusy("review", async () => {
+      const consentOk = await recordConsent();
+      if (!consentOk) return null;
+      setReviewConfirmed(true);
+      return getAppointmentStatus(applicationId);
     });
   };
 
@@ -486,7 +502,12 @@ export function USAppointmentAssistant({
     ? t(`statusLabels.${job.status}`)
     : t("statusLabels.appointment_not_started");
   const isBusy = Boolean(busyAction);
-  const stage = getAppointmentStage(snapshot);
+  const persistedStage = getAppointmentStage(snapshot);
+  const stage = snapshot?.confirmation
+    ? persistedStage
+    : reviewConfirmed
+      ? persistedStage
+      : "review";
   const stepKeys = ["review", "account", "slots", "confirm", "result"] as const;
   const currentStep = stepKeys.indexOf(stage);
   const reviewRows = [
@@ -613,8 +634,8 @@ export function USAppointmentAssistant({
                 <Link href={applicationFormHref}>{t("review.edit")}</Link>
               </Button>
               <BrandActionButton
-                onClick={handleCreateJob}
-                loading={busyAction === "create"}
+                onClick={handleConfirmReview}
+                loading={busyAction === "create" || busyAction === "review"}
                 loadingText={t("setup.creating")}
                 disabled={isBusy || !consentAccepted || !ds160Code.trim()}
               >
@@ -672,6 +693,10 @@ export function USAppointmentAssistant({
             ) : null}
 
             <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setReviewConfirmed(false)} disabled={isBusy}>
+                <ShieldCheck className="h-4 w-4" />
+                {t("stateMachine.reviewAgain")}
+              </Button>
               {job && !TERMINAL_STATUSES.has(job.status) ? (
                 <BrandActionButton
                   onClick={() => handleRun(job.status !== "appointment_consent_received")}
