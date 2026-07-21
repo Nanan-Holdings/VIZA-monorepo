@@ -387,7 +387,7 @@ export function isPhEtravelRegistrationResponseRejected(status: number): boolean
   return status >= 400;
 }
 
-export const PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS = 20_000;
+export const PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS = 90_000;
 
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
