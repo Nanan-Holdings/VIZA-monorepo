@@ -35,4 +35,10 @@ async function seed() {
   console.log(`Seeded ${rows.length} Philippines eTravel departure-card fields.`);
 }
 
-void seed();
+void seed().catch((error: unknown) => {
+  const details = error && typeof error === "object"
+    ? Object.fromEntries(Object.entries(error as Record<string, unknown>).filter(([key]) => key !== "hint"))
+    : { message: String(error) };
+  console.error("Failed to seed Philippines eTravel departure fields:", details);
+  process.exitCode = 1;
+});

@@ -373,6 +373,17 @@ function getIndonesiaCloudCardSessionConfig(): { baseUrl: string; token: string 
   return { baseUrl, token };
 }
 
+function getVietnamCloudCardSessionConfig(): { baseUrl: string; token: string } | null {
+  const baseUrl = (
+    process.env.VIETNAM_SUBMISSION_SERVICE_URL ??
+    process.env.SUBMISSION_SERVICE_CLOUD_URL
+  )?.trim().replace(/\/+$/, "");
+  const token = process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN?.trim();
+  if (!baseUrl || !token) return null;
+  if (process.env.NODE_ENV === "production" && !baseUrl.startsWith("https://")) return null;
+  return { baseUrl, token };
+}
+
 function getIndonesiaOfficialFeeRelayUrl(): string | null {
   if (process.env.NODE_ENV === "production") return null;
   const baseUrl = (
@@ -476,6 +487,34 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   | { ok: false; error: string }
 > {
   const countryPath = officialFeeCardSessionPath(application);
+  if (countryPath === "vietnam") {
+    const cloud = getVietnamCloudCardSessionConfig();
+    if (cloud) {
+      const result = await postOneTimeCardSession({
+        endpoint: `${cloud.baseUrl}/internal/vietnam/card-session`,
+        applicationId,
+        card,
+        token: cloud.token,
+      });
+      if (!result.ok) {
+        console.error("Could not register Vietnam cloud card session", {
+          reason: result.error,
+        });
+        return {
+          ok: false,
+          error: "越南云端付款会话暂时不可用，请稍后重试。",
+        };
+      }
+      return result;
+    }
+    if (process.env.NODE_ENV === "production") {
+      console.error("Vietnam cloud card session is not configured.");
+      return {
+        ok: false,
+        error: "越南云端付款会话尚未配置，请联系 VIZA 支持。",
+      };
+    }
+  }
   if (countryPath === "indonesia") {
     const cloud = getIndonesiaCloudCardSessionConfig();
     if (cloud) {
@@ -776,7 +815,9 @@ export async function POST(
   if (!cardSession.ok) {
     return NextResponse.json(
       {
-        error: `无法把一次性银行卡会话发送给本机 submission-service：${cardSession.error}。请确认已运行 npm run vn:autopay:dev，且端口与 SUBMISSION_SERVICE_LOCAL_URL 匹配。`,
+        error: process.env.NODE_ENV === "production"
+          ? `无法把一次性银行卡会话发送给 VIZA 云端 submission-service：${cardSession.error}`
+          : `无法把一次性银行卡会话发送给本机 submission-service：${cardSession.error}。请确认已运行 npm run vn:autopay:dev，且端口与 SUBMISSION_SERVICE_LOCAL_URL 匹配。`,
       },
       { status: 503 },
     );

@@ -123,7 +123,10 @@ const PORT_ZH: Record<string, string> = {
 };
 export const PH_ETRAVEL_AIR_PORT_OPTIONS = mapped(officialSnapshot.airPorts, PORT_ZH);
 export const PH_ETRAVEL_PORT_OF_ENTRY_OPTIONS = PH_ETRAVEL_AIR_PORT_OPTIONS;
-export const PH_ETRAVEL_SEA_PORT_OPTIONS = mapped(officialSnapshot.seaPorts);
+export const PH_ETRAVEL_SEA_PORT_OPTIONS = mapped(
+  officialSnapshot.seaPorts,
+  Object.fromEntries(officialSnapshot.seaPorts.map((port) => [port.code, `菲律宾港口：${port.name}`])),
+);
 export const PH_ETRAVEL_SICKNESS_SYMPTOM_OPTIONS = mapped(officialSnapshot.sicknessSymptoms);
 export const PH_ETRAVEL_DECLARATION_CHECKLIST = officialSnapshot.declarationChecklist as OfficialChecklistItem[];
 

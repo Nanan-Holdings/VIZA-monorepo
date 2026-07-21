@@ -603,7 +603,7 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
           }
         }
         const body = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-        if (/invalid (email|password|credentials)|incorrect password|authentication failed/i.test(body)) {
+        if (/invalid (email|username|password|credentials)|incorrect password|authentication failed|invalid user credentials|account.{0,20}not found/i.test(body)) {
           throw new Error("TLS login rejected the stored credentials");
         }
         if (await waitForAuthenticatedTlsRedirect(page)) {
@@ -616,7 +616,12 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
       await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
     }
   }
-  throw new Error("TLS login did not leave the authentication form after one safe refresh");
+  const finalInput = await readFranceTlsBrowserState(page);
+  const finalState = classifyFranceTlsBrowserState(finalInput);
+  await maskedScreenshot(page, "login-stalled").catch(() => null);
+  throw new Error(
+    `TLS login did not leave the authentication form after one safe refresh (checkpoint: ${finalState.checkpoint}; url: ${redactOfficialUrl(finalInput.url)})`,
+  );
 }
 
 export async function loadFranceTlsStoredAccount(

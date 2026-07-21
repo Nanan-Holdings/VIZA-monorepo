@@ -1,5 +1,6 @@
 import "dotenv/config";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
@@ -10,12 +11,27 @@ import {
 } from "../src/france-tls/browser-api";
 import { solveVisibleRecaptchaGridChallenge } from "../src/france-tls/recaptcha-grid";
 
-const APPLICATION_ID = "ab34b27a-8af1-43a9-9764-d99859900bb9";
+function readApplicationId(): string {
+  const marker = "--application-id=";
+  const value = process.argv.find((item) => item.startsWith(marker))?.slice(marker.length).trim();
+  if (!value) throw new Error("--application-id is required");
+  return value;
+}
 
 function artifactPath(name: string): string {
-  const dir = path.resolve("artifacts");
+  const dir = path.join(os.tmpdir(), "viza-submission-artifacts", "france-tls-local-login");
   fs.mkdirSync(dir, { recursive: true });
   return path.join(dir, `${name}-${Date.now()}.png`);
+}
+
+async function maskedScreenshot(page: import("playwright").Page, name: string): Promise<string> {
+  const output = artifactPath(name);
+  await page.screenshot({
+    path: output,
+    fullPage: false,
+    mask: [page.locator("input, textarea, [contenteditable='true']")],
+  });
+  return output;
 }
 
 async function maybeSolveGrid(page: import("playwright").Page): Promise<{ status: string; reason?: string | null; solveCount: number } | null> {
@@ -32,32 +48,34 @@ async function maybeSolveGrid(page: import("playwright").Page): Promise<{ status
   };
 }
 
-async function loadAccount(): Promise<{ email: string; password: string }> {
+async function loadAccount(applicationId: string): Promise<{ email: string; password: string }> {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!supabaseUrl || !serviceKey) throw new Error("Supabase service env is missing");
 
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const { data, error } = await supabase
-    .from("fv_accounts")
-    .select("*")
-    .eq("application_id", APPLICATION_ID)
-    .order("created_at", { ascending: false })
+    .from("appointment_accounts")
+    .select("account_email,encrypted_account_password,email_verified")
+    .eq("application_id", applicationId)
+    .eq("portal", "tlscontact_cn_fr")
+    .order("updated_at", { ascending: false })
     .limit(1)
     .single();
   if (error) throw error;
   if (!data) throw new Error("No France/TLS account candidate found");
+  if (!data.email_verified) throw new Error("The France/TLS account email is not verified");
+  if (!data.encrypted_account_password) throw new Error("The France/TLS account password is missing");
 
   return {
-    email: data.official_account_email_encrypted ? decryptSecret(data.official_account_email_encrypted) : data.email,
-    password: data.official_account_password_encrypted
-      ? decryptSecret(data.official_account_password_encrypted)
-      : decryptSecret(data.password_encrypted),
+    email: data.account_email,
+    password: decryptSecret(data.encrypted_account_password),
   };
 }
 
 async function main(): Promise<void> {
-  const account = await loadAccount();
+  const applicationId = readApplicationId();
+  const account = await loadAccount(applicationId);
   const browser = await chromium.launch({ headless: false, channel: process.env.FRANCE_TLS_LOCAL_BROWSER_CHANNEL || "chrome" })
     .catch(() => chromium.launch({ headless: false }));
   const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1365, height: 900 } });
@@ -96,8 +114,7 @@ async function main(): Promise<void> {
       };
     })`, account);
 
-    const before = artifactPath("france-tls-local-before-login");
-    await page.screenshot({ path: before, fullPage: false }).catch(() => undefined);
+    const before = await maskedScreenshot(page, "france-tls-local-before-login");
 
     await page.evaluate(`(() => {
       const submit = Array.from(document.querySelectorAll("button,input"))
@@ -110,8 +127,11 @@ async function main(): Promise<void> {
 
     const stateInput = await readFranceTlsBrowserState(page);
     const state = classifyFranceTlsBrowserState(stateInput);
-    const after = artifactPath("france-tls-local-after-login");
-    await page.screenshot({ path: after, fullPage: false }).catch(() => undefined);
+    const hasEmailField = await page.locator('input[type="email"], input[name="username"], input[name="email"]')
+      .first().isVisible().catch(() => false);
+    const hasPasswordField = await page.locator('input[type="password"]')
+      .first().isVisible().catch(() => false);
+    const after = await maskedScreenshot(page, "france-tls-local-after-login");
 
     console.log(JSON.stringify({
       provider: "local-visible-chromium",
@@ -124,7 +144,9 @@ async function main(): Promise<void> {
         title: stateInput.title,
         checkpoint: state.checkpoint,
         message: state.message,
-        bodySample: stateInput.bodyText.replace(/\s+/g, " ").slice(0, 1600),
+        hasEmailField,
+        hasPasswordField,
+        hasCaptcha: state.hasRecaptchaGrid || state.hasRecaptchaAnchor,
       },
     }, null, 2));
   } finally {
