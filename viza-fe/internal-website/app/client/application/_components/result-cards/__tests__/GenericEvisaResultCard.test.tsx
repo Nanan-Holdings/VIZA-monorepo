@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GenericEvisaResultCard } from "../GenericEvisaResultCard";
 import type { GenericEvisaSubmissionResult } from "@/lib/submission-result";
@@ -8,7 +8,7 @@ vi.mock("next-intl", () => ({
 }));
 
 describe("GenericEvisaResultCard", () => {
-  it("shows Indonesia one-time-card autopay copy at the user payment checkpoint", () => {
+  it("shows Indonesia payment as automatic cloud processing without manual payment controls", () => {
     const result = {
       country: "ID",
       status: "stopped_at_pay",
@@ -25,26 +25,20 @@ describe("GenericEvisaResultCard", () => {
       />,
     );
 
-    expect(screen.getByText("等待银行验证")).toBeInTheDocument();
-    expect(screen.getByText(/VIZA 已经把你的银行卡提交到官方付款页/u)).toBeInTheDocument();
-    expect(screen.queryByText(/请在那个窗口里完成银行卡付款/u)).not.toBeInTheDocument();
+    expect(screen.getByText("云端处理中")).toBeInTheDocument();
+    expect(screen.getByText(/正在自动确认银行和印尼官网的最终结果/u)).toBeInTheDocument();
+    expect(screen.getByText(/正在确认官方付款结果/u)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /打开官方付款页/u })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /刷新状态/u })).not.toBeInTheDocument();
   });
 
-  it("restarts Indonesia automated payment with a fresh one-time card session", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ cardSession: { redactedCard: { last4: "4242" } }, queueId: "queue-id" }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
-
+  it("shows official evidence and status tracking only after confirmed success", () => {
     const result = {
       country: "ID",
-      status: "stopped_at_pay",
-      checkpoint: "user_payment_required",
-      portalUrl: "https://live.finpay.id/payment/test",
-    } as GenericEvisaSubmissionResult & { checkpoint: string };
+      status: "submitted",
+      reference: "ID-REF-123456",
+      artifactStoragePath: "owner/app-id/ID/evidence.pdf",
+    } satisfies GenericEvisaSubmissionResult;
 
     render(
       <GenericEvisaResultCard
@@ -55,28 +49,11 @@ describe("GenericEvisaResultCard", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111114242" } });
-    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
-    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
-    fireEvent.click(screen.getByRole("button", { name: /重新自动付款/u }));
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/applications/app-id/official-fee/pay",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          card: {
-            pan: "4111111111114242",
-            expiry: "12/30",
-            cvv: "123",
-          },
-        }),
-      }),
+    expect(screen.getByText("ID-REF-123456")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "下载官网成功凭证" })).toHaveAttribute(
+      "href",
+      "/api/applications/app-id/evisa-artifact",
     );
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      "/api/applications/app-id/retry-submission",
-      expect.anything(),
-    );
+    expect(screen.getByRole("link", { name: /Track status/u })).toHaveAttribute("href", "/client/status");
   });
 });

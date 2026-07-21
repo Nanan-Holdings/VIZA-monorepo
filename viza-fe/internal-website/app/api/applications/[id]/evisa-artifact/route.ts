@@ -106,10 +106,13 @@ export async function GET(
     new URL(request.url).searchParams.get("disposition") === "attachment"
       ? "attachment"
       : "inline";
+  const filename = path.includes("/ID/")
+    ? "indonesia-official-success-evidence.pdf"
+    : "vietnam-evisa.pdf";
   return new Response(bytes, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${disposition}; filename="vietnam-evisa.pdf"`,
+      "Content-Disposition": `${disposition}; filename="${filename}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

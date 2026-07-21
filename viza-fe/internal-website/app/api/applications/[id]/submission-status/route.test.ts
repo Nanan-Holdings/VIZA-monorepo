@@ -42,7 +42,7 @@ describe("deriveNonTerminalStatus", () => {
   });
 
   it("marks pending rows stalled after the shorter pickup timeout", () => {
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000).toISOString();
 
     const status = deriveNonTerminalStatus(
       {
@@ -50,11 +50,11 @@ describe("deriveNonTerminalStatus", () => {
         applicant_id: "profile_1",
         country: "indonesia",
         visa_type: "ID_B1_EVOA",
-        submitted_at: oneMinuteAgo,
+        submitted_at: sixMinutesAgo,
         submission_result: null,
         submission_result_status: "waiting",
-        submission_result_updated_at: oneMinuteAgo,
-        updated_at: oneMinuteAgo,
+        submission_result_updated_at: sixMinutesAgo,
+        updated_at: sixMinutesAgo,
       },
       {
         id: "queue_pickup_timeout",
@@ -69,8 +69,8 @@ describe("deriveNonTerminalStatus", () => {
         heartbeat_at: null,
         manual_action_status: null,
         official_status: null,
-        created_at: oneMinuteAgo,
-        updated_at: oneMinuteAgo,
+        created_at: sixMinutesAgo,
+        updated_at: sixMinutesAgo,
       },
     );
 
@@ -78,7 +78,7 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.message).toContain("worker has not picked it up");
   });
 
-  it("treats Indonesia payment pending as manual action required", () => {
+  it("keeps Indonesia payment pending in the automatic cloud workflow", () => {
     const now = new Date().toISOString();
 
     const status = deriveNonTerminalStatus(
@@ -121,10 +121,10 @@ describe("deriveNonTerminalStatus", () => {
       },
     );
 
-    expect(status.status).toBe("needs_user_action");
+    expect(status.status).toBe("running");
     expect(status.stage).toBe("payment_handoff");
-    expect(status.progress).toBe(99);
-    expect(status.message).toContain("Continue payment from the official payment page.");
+    expect(status.progress).toBe(90);
+    expect(status.message).not.toContain("Continue payment from the official payment page.");
   });
 });
 

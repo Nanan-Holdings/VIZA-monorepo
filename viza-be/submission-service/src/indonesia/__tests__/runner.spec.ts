@@ -266,6 +266,22 @@ test("classifies Indonesia portal login and registration gates", () => {
     }),
     "payment_failed",
   );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: "https://live.finpay.id/pg/payment/card/result/success?orderId=abc",
+      title: "Payment Successful",
+      text: "Payment successful. Application submitted. Application number ID12345678",
+    }),
+    "submitted_or_approved",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/payment/checkout`,
+      title: "Payment Information",
+      text: "Waiting for payment. Reference number BILL12345678",
+    }),
+    "payment_required",
+  );
 });
 
 test("maps portal states to actionable automation checkpoints", () => {

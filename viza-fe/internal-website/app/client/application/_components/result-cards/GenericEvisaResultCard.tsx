@@ -92,8 +92,8 @@ export function GenericEvisaResultCard({
         : isZh ? `${country}申请已准备好` : `${country} application prepared`;
 
   const badge =
-    indonesiaAutopayCheckpoint
-      ? isZh ? "等待银行验证" : "Waiting for bank verification"
+    result.country === "ID" && result.status === "stopped_at_pay"
+      ? isZh ? "云端处理中" : "Processing in cloud"
       : result.status === "stopped_at_pay"
         ? isZh ? "等待付款" : "Action required: payment"
       : result.status === "form_ready_for_agency"
@@ -115,11 +115,11 @@ export function GenericEvisaResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {result.status === "stopped_at_pay"
             ? isZh
-              ? indonesiaAutopayCheckpoint
-                ? "VIZA 已经把你的银行卡提交到官方付款页，并会继续自动推进付款。若银行弹出 OTP / 3DS 验证，请只在官方窗口输入验证码；完成后 VIZA 会继续跟踪结果。"
+              ? result.country === "ID"
+                ? "VIZA 已将银行卡送入云端官方付款流程，正在自动确认银行和印尼官网的最终结果。本页会自动更新；只有官网成功凭证保存完成后才会显示成功。"
                 : `我们已把你的${country}申请推进到官网付款节点。请在官方页面完成付款，付款后 VIZA 会继续跟踪结果并在这里保存获批签证。`
-              : indonesiaAutopayCheckpoint
-                ? "VIZA has submitted your one-time card to the official payment page and will keep advancing the payment. If the bank shows OTP / 3DS verification, enter only that code in the official window; VIZA will keep tracking the result."
+              : result.country === "ID"
+                ? "VIZA sent the card into the cloud official-payment flow and is confirming the final bank and Indonesia portal result. This page updates automatically; success appears only after official evidence is stored."
                 : `We prepared your ${country} application and stopped at the government payment step. Complete the payment to finalize; we monitor the outcome and store your approved visa here.`
             : result.status === "form_ready_for_agency"
               ? isZh
@@ -140,9 +140,17 @@ export function GenericEvisaResultCard({
         {hasArtifact && applicationId ? (
           <Button asChild className="w-full">
             <a href={`/api/applications/${applicationId}/evisa-artifact`}>
-              <Download className="mr-2 h-4 w-4" /> {isZh ? "下载文件" : "Download document"}
+              <Download className="mr-2 h-4 w-4" />
+              {result.country === "ID"
+                ? isZh ? "下载官网成功凭证" : "Download official success evidence"
+                : isZh ? "下载文件" : "Download document"}
             </a>
           </Button>
+        ) : result.country === "ID" && result.status === "stopped_at_pay" ? (
+          <div className="flex items-center justify-center gap-2 rounded-md border border-brand-100 bg-brand-50 p-4 text-sm font-medium text-brand-700">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {isZh ? "正在确认官方付款结果…" : "Confirming the official payment result…"}
+          </div>
         ) : result.status === "stopped_at_pay" && userPaymentRequired ? (
           <div className="space-y-3">
             {portalUrl && !isIndonesiaHomePaymentUrl ? (
@@ -202,6 +210,25 @@ export function GenericEvisaResultCard({
             </p>
           </div>
         )}
+
+        {result.country === "ID" && result.status === "submitted" ? (
+          <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-brand-700">
+              <ShieldCheck className="h-4 w-4" />
+              {isZh ? "官网成功凭证已保存" : "Official success evidence saved"}
+            </div>
+            <p className="text-sm text-foreground">
+              {isZh
+                ? "你现在可以前往状态页跟踪申请；官网状态或电子签证更新后会显示在那里。"
+                : "You can now track the application on the status page, where official status and eVisa updates will appear."}
+            </p>
+            <Button asChild variant="outline" className="w-full bg-white">
+              <a href="/client/status">
+                {isZh ? "Track status / 跟踪状态" : "Track status"}
+              </a>
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
