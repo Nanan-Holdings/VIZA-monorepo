@@ -177,6 +177,7 @@ const PHILIPPINES_COUNTRY_ALIASES = new Set([
 
 const PHILIPPINES_ETRAVEL_TYPES = new Set([
   "PH_ETRAVEL_ARRIVAL_CARD",
+  "PH_ETRAVEL_DEPARTURE_CARD",
 ]);
 
 const INDONESIA_COUNTRY_ALIASES = new Set([
@@ -467,6 +468,7 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     case "TH_TDAC_ARRIVAL_CARD":
       return "tdac_dry_run_pending";
     case "PH_ETRAVEL_ARRIVAL_CARD":
+    case "PH_ETRAVEL_DEPARTURE_CARD":
       return "phetravel_dry_run_pending";
     case "AU_VISITOR_600":
       return "au_prefill_pending";

@@ -13,7 +13,7 @@ export class PhEtravelPortalValidationError extends Error {
 
 export interface PhEtravelPortalPayload {
   countryCode: "PH";
-  visaType: "PH_ETRAVEL_ARRIVAL_CARD";
+  visaType: "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD";
   applicationId: string;
   fullName: string;
   firstName: string;
@@ -36,6 +36,7 @@ export interface PhEtravelPortalPayload {
   mobileNumber: string;
   travelType: string;
   transportType: string;
+  passportHolderType: string | null;
   registrationFor: string | null;
   isSpecialFlight: boolean;
   travellerType: string | null;
@@ -54,7 +55,13 @@ export interface PhEtravelPortalPayload {
   destinationType: string | null;
   destinationTransitAirport: string | null;
   destinationCountry: string | null;
-  philippinesAddress: string;
+  destinationPort: string | null;
+  philippinesAddress: string | null;
+  returnDate: string | null;
+  travelTaxPaymentType: string | null;
+  travelTaxReferenceNumber: string | null;
+  travelTaxTicketNumber: string | null;
+  cfoRegistrationNumber: string | null;
   accompaniedUnder18Count: string | null;
   accompanied18PlusCount: string | null;
   firstTimeVisitingPhilippines: boolean | null;
@@ -76,9 +83,23 @@ export interface PhEtravelPortalPayload {
     currencyDeclarationDetails: string | null;
     hasBaggageOrCurrencyToDeclare: boolean;
     customsSignatureFile: string | null;
+    customsInformationAcknowledgement: boolean;
+    hasGoodsToDeclare: boolean;
+    hasCurrencyToDeclare: boolean;
+    currencyType: string | null;
+    currencyAmount: string | null;
+    currencySource: string | null;
+    bspAuthorizationNumber: string | null;
+    bspAuthorizationDate: string | null;
+    customsSignatureDeclaration: boolean;
   };
   finalDeclaration: boolean;
 }
+
+export type PhEtravelDeparturePortalPayload = PhEtravelPortalPayload & {
+  visaType: "PH_ETRAVEL_DEPARTURE_CARD";
+  travelType: "DEPARTURE";
+};
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -214,9 +235,10 @@ export function normalizePhEtravelPortalPayload(
       ["countryCode"],
     );
   }
-  if (payload.visaType !== "PH_ETRAVEL_ARRIVAL_CARD") {
+  const isDeparture = payload.visaType === "PH_ETRAVEL_DEPARTURE_CARD";
+  if (payload.visaType !== "PH_ETRAVEL_ARRIVAL_CARD" && !isDeparture) {
     throw new PhEtravelPortalValidationError(
-      `Philippines eTravel runner only accepts PH_ETRAVEL_ARRIVAL_CARD payloads; got ${payload.visaType}.`,
+      `Philippines eTravel runner only accepts PH_ETRAVEL_ARRIVAL_CARD or PH_ETRAVEL_DEPARTURE_CARD payloads; got ${payload.visaType}.`,
       ["visaType"],
     );
   }
@@ -228,14 +250,20 @@ export function normalizePhEtravelPortalPayload(
     "flight_arrival_date",
     missing,
   );
-  const window = evaluatePhEtravelSubmissionWindow(arrivalDate, options.now);
+  const departureDate = firstIsoDate(
+    [answers.flight_departure_date, answers.departure_date, payload.trip.departureDate],
+    "flight_departure_date",
+    missing,
+  );
+  const windowDate = isDeparture ? departureDate : arrivalDate;
+  const window = evaluatePhEtravelSubmissionWindow(windowDate, options.now);
   if (window.status !== "open") {
     const reason = window.status === "scheduled"
-      ? `Philippines eTravel may normally be submitted only within 72 hours before arrival; earliest date is ${window.earliestSubmissionDate}.`
+      ? `Philippines eTravel may normally be submitted only within 72 hours before ${isDeparture ? "departure" : "arrival"}; earliest date is ${window.earliestSubmissionDate}.`
       : window.status === "past"
-        ? "Philippines eTravel arrival date is already past."
-        : "Philippines eTravel arrival date must use YYYY-MM-DD.";
-    throw new PhEtravelPortalValidationError(reason, ["flight_arrival_date"]);
+        ? `Philippines eTravel ${isDeparture ? "departure" : "arrival"} date is already past.`
+        : `Philippines eTravel ${isDeparture ? "departure" : "arrival"} date must use YYYY-MM-DD.`;
+    throw new PhEtravelPortalValidationError(reason, [isDeparture ? "flight_departure_date" : "flight_arrival_date"]);
   }
 
   const finalDeclaration = boolAnswer(answers.final_declaration);
@@ -282,7 +310,7 @@ export function normalizePhEtravelPortalPayload(
   const hasTransit = boolAnswer(answers.with_transit);
   const destinationType = firstText([answers.destination_type]) || null;
   const isTransitDestination = /transit/i.test(destinationType ?? "");
-  const philippinesAddress = requireFirstText(
+  const philippinesAddress = isDeparture ? null : requireFirstText(
     [
       answers.philippines_address,
       answers.destination_residence_address,
@@ -351,14 +379,16 @@ export function normalizePhEtravelPortalPayload(
       "mobile_number",
       missing,
     ),
-    travelType: requireFirstText([answers.travel_type], "travel_type", missing),
+    travelType: isDeparture ? "DEPARTURE" : requireFirstText([answers.travel_type], "travel_type", missing),
     transportType: requireFirstText([answers.transport_type], "transport_type", missing),
+    passportHolderType: firstText([answers.passport_holder_type]) || null,
     registrationFor: firstText([answers.registration_for]) || null,
     isSpecialFlight: boolAnswer(answers.is_special_flight),
     travellerType: firstText([answers.traveller_type]) || null,
     flightNumber: requireFirstText(
       [
         answers.flight_number === "OTHER" ? answers.flight_number_other : answers.flight_number,
+        answers.vessel_name,
         answers.vehicle_or_vessel_number,
         answers.transport_number,
       ],
@@ -367,21 +397,26 @@ export function normalizePhEtravelPortalPayload(
     ),
     airlineOrVesselName: firstText([
       answers.airline_name === "OTHERS" ? answers.airline_name_other : answers.airline_name,
+      answers.vessel_name,
       answers.airline_or_vessel_name,
     ]) || null,
     airportOfOrigin: firstText([answers.airport_of_origin]) || null,
-    portOfEntry: requireFirstText([answers.port_of_entry], "port_of_entry", missing),
+    portOfEntry: requireFirstText(
+      isDeparture
+        ? [answers.departure_airport, answers.departure_seaport]
+        : [answers.port_of_entry],
+      isDeparture ? "departure_port" : "port_of_entry",
+      missing,
+    ),
     arrivalDate,
-    departureDate: firstIsoDate(
-      [answers.flight_departure_date, answers.departure_date, payload.trip.departureDate],
-      "flight_departure_date",
-      missing,
-    ),
-    originCountry: requireFirstText(
-      [answers.origin_country, answers.country_of_residence, payload.personal.nationality],
-      "origin_country",
-      missing,
-    ),
+    departureDate,
+    originCountry: isDeparture
+      ? "PH"
+      : requireFirstText(
+          [answers.origin_country, answers.country_of_residence, payload.personal.nationality],
+          "origin_country",
+          missing,
+        ),
     purposeOfTravel: requireFirstText(
       [answers.purpose_of_travel, answers.purpose_of_visit, payload.trip.purpose],
       "purpose_of_travel",
@@ -395,10 +430,20 @@ export function normalizePhEtravelPortalPayload(
     destinationTransitAirport: isTransitDestination
       ? requireFirstText([answers.destination_transit_airport], "destination_transit_airport", missing)
       : null,
-    destinationCountry: isTransitDestination
+    destinationCountry: isDeparture
       ? requireFirstText([answers.destination_country], "destination_country", missing)
+      : isTransitDestination
+        ? requireFirstText([answers.destination_country], "destination_country", missing)
+        : null,
+    destinationPort: isDeparture
+      ? requireFirstText([answers.destination_port], "destination_port", missing)
       : null,
     philippinesAddress,
+    returnDate: firstIsoDate([answers.return_date], "return_date", []) || null,
+    travelTaxPaymentType: firstText([answers.travel_tax_payment_type]) || null,
+    travelTaxReferenceNumber: firstText([answers.travel_tax_reference_number]) || null,
+    travelTaxTicketNumber: firstText([answers.travel_tax_ticket_number]) || null,
+    cfoRegistrationNumber: firstText([answers.cfo_registration_number]) || null,
     accompaniedUnder18Count: firstText([answers.accompanied_under_18_count]) || null,
     accompanied18PlusCount: firstText([answers.accompanied_18_plus_count]) || null,
     firstTimeVisitingPhilippines: text(answers.first_time_visiting_philippines)
@@ -413,7 +458,7 @@ export function normalizePhEtravelPortalPayload(
 
   return {
     countryCode: "PH",
-    visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+    visaType: payload.visaType as PhEtravelPortalPayload["visaType"],
     applicationId: payload.applicationId,
     ...mapped,
     hasHealthSymptoms,
@@ -435,6 +480,15 @@ export function normalizePhEtravelPortalPayload(
         : null,
       hasBaggageOrCurrencyToDeclare,
       customsSignatureFile: text(answers.customs_signature_file) || null,
+      customsInformationAcknowledgement: boolAnswer(answers.customs_information_acknowledgement),
+      hasGoodsToDeclare: boolAnswer(answers.has_goods_to_declare),
+      hasCurrencyToDeclare: boolAnswer(answers.has_currency_to_declare),
+      currencyType: firstText([answers.currency_type]) || null,
+      currencyAmount: firstText([answers.currency_amount]) || null,
+      currencySource: firstText([answers.currency_source]) || null,
+      bspAuthorizationNumber: firstText([answers.bsp_authorization_number]) || null,
+      bspAuthorizationDate: firstIsoDate([answers.bsp_authorization_date], "bsp_authorization_date", []) || null,
+      customsSignatureDeclaration: boolAnswer(answers.customs_signature_declaration),
     },
     finalDeclaration,
   };

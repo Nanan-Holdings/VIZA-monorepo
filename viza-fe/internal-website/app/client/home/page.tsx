@@ -129,9 +129,11 @@ const MULTI_CATEGORY_APPLICATIONS = [
   { country: "vietnam", visaType: "VN_PREARRIVAL_DECLARATION" },
   { country: "indonesia", visaType: "ID_C1_TOURIST" },
   { country: "indonesia", visaType: "ID_B1_EVOA" },
+  { country: "philippines", visaType: "PH_ETRAVEL_ARRIVAL_CARD" },
+  { country: "philippines", visaType: "PH_ETRAVEL_DEPARTURE_CARD" },
 ] as const;
 
-function getMultiCategoryCountry(country: string | null): "vietnam" | "indonesia" | null {
+function getMultiCategoryCountry(country: string | null): "vietnam" | "indonesia" | "philippines" | null {
   switch (country?.trim().toLowerCase()) {
     case "vietnam":
     case "vn":
@@ -139,6 +141,9 @@ function getMultiCategoryCountry(country: string | null): "vietnam" | "indonesia
     case "indonesia":
     case "id":
       return "indonesia";
+    case "philippines":
+    case "ph":
+      return "philippines";
     default:
       return null;
   }

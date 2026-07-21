@@ -28,6 +28,7 @@ const payload: PhEtravelPortalPayload = {
   mobileNumber: "13800138000",
   travelType: "ARRIVAL",
   transportType: "AIR",
+  passportHolderType: "FOREIGNER",
   registrationFor: "FOR_ME",
   isSpecialFlight: false,
   travellerType: "AIRCRAFT_PASSENGER",
@@ -46,7 +47,13 @@ const payload: PhEtravelPortalPayload = {
   destinationType: "HOTEL_RESORT",
   destinationTransitAirport: null,
   destinationCountry: null,
+  destinationPort: null,
   philippinesAddress: "Test Hotel, Manila",
+  returnDate: null,
+  travelTaxPaymentType: null,
+  travelTaxReferenceNumber: null,
+  travelTaxTicketNumber: null,
+  cfoRegistrationNumber: null,
   accompaniedUnder18Count: "0",
   accompanied18PlusCount: "0",
   firstTimeVisitingPhilippines: true,
@@ -68,6 +75,15 @@ const payload: PhEtravelPortalPayload = {
     currencyDeclarationDetails: null,
     hasBaggageOrCurrencyToDeclare: false,
     customsSignatureFile: null,
+    customsInformationAcknowledgement: true,
+    hasGoodsToDeclare: false,
+    hasCurrencyToDeclare: false,
+    currencyType: null,
+    currencyAmount: null,
+    currencySource: null,
+    bspAuthorizationNumber: null,
+    bspAuthorizationDate: null,
+    customsSignatureDeclaration: true,
   },
   finalDeclaration: true,
 };
@@ -126,4 +142,25 @@ test("buildPhEtravelFieldPlan fills the official transit destination controls", 
   assert.equal(byKey.get("destination_country")?.value, "Hong Kong");
   assert.equal(byKey.get("destination_country")?.required, true);
   assert.equal(byKey.get("philippines_address")?.required, false);
+});
+
+test("buildPhEtravelFieldPlan emits departure controls and excludes arrival-only health and accommodation", () => {
+  const plan = buildPhEtravelFieldPlan({
+    ...payload,
+    visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+    travelType: "DEPARTURE",
+    passportHolderType: "FOREIGNER",
+    portOfEntry: "TP1000",
+    destinationCountry: "SG",
+    destinationPort: "Singapore Changi Airport",
+    philippinesAddress: null,
+  });
+  const keys = new Set(plan.map((item) => item.key));
+
+  for (const key of ["departure_port", "destination_country", "destination_port", "has_currency_to_declare"]) {
+    assert.equal(keys.has(key), true, `${key} missing`);
+  }
+  for (const key of ["philippines_address", "destination_type", "health_recent_travel", "airport_of_origin"]) {
+    assert.equal(keys.has(key), false, `${key} must not be in departure plan`);
+  }
 });

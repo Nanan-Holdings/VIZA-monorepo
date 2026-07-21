@@ -4778,6 +4778,7 @@
       "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
       "accountTitle": "官网账号与申请人资料",
       "accountBody": "VIZA 正在创建或继续已授权的官网账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "reviewAgain": "重新复核资料",
       "startAgain": "重新开始",
       "noSlotsBody": "官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
     },
@@ -5103,6 +5104,40 @@
       "eyebrow": "法国申根预约助手",
       "title": "TLScontact 预约设置",
       "subtitle": "在 VIZA 已取得 France-Visas 官方申请编号后，读取 TLScontact 中国大陆名额，由用户选择后端刚观察到的时段，记录一次性 TLS 服务费授权，并在最终确认后请求官网预约。"
+    },
+    "stateMachine": {
+      "subtitle": "一次只处理一个阶段。只有完成当前确认或收到官网结果后，VIZA 才会进入下一步。",
+      "ariaLabel": "预约进度",
+      "steps": {
+        "review": "复核资料",
+        "account": "官网账号",
+        "slots": "选择名额",
+        "confirm": "最终确认",
+        "result": "预约结果"
+      },
+      "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
+      "accountTitle": "TLScontact 账号与申请人资料",
+      "accountBody": "VIZA 正在创建或继续已授权的 TLScontact 账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "reviewAgain": "重新复核资料",
+      "noSlotsBody": "TLScontact 官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
+    },
+    "review": {
+      "title": "继续前请复核",
+      "body": "请将下列已保存资料与护照和 France-Visas 申请核对。如需修改请选择“修改申请资料”；只有您确认后，VIZA 才会进入 TLScontact 官网账号流程。",
+      "back": "返回申请表",
+      "fullName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passportNumber": "护照号码",
+      "passportExpiry": "护照有效期至",
+      "phone": "手机号码",
+      "email": "个人邮箱",
+      "address": "现居住地址",
+      "center": "TLScontact 签证中心",
+      "missing": "尚未填写",
+      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 继续进入 TLScontact 官网账号流程。选择名额、付款授权和最终预约仍需分别确认。",
+      "edit": "修改申请资料",
+      "confirmAndContinue": "确认资料无误并继续"
     },
     "loading": "正在加载法国预约助手...",
     "errorTitle": "法国预约助手需要处理",

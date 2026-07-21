@@ -142,6 +142,11 @@ describe("queueStatusForVisaType", () => {
       "philippines_etravel_live",
     );
     expect(submitModeForPrimaryApplicationAction("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("live_assisted");
+    expect(isDigitalArrivalCardApplication("philippines", "PH_ETRAVEL_DEPARTURE_CARD")).toBe(true);
+    expect(queueStatusForApplication("PH", "PH_ETRAVEL_DEPARTURE_CARD", "dry_run")).toBe("phetravel_dry_run_pending");
+    expect(queueStatusForApplication("philippines", "PH_ETRAVEL_DEPARTURE_CARD", "live_assisted")).toBe("phetravel_live_assisted_pending");
+    expect(queueProviderForApplication("philippines", "PH_ETRAVEL_DEPARTURE_CARD", "live_assisted")).toBe("philippines_etravel_live");
+    expect(submitModeForPrimaryApplicationAction("philippines", "PH_ETRAVEL_DEPARTURE_CARD")).toBe("live_assisted");
     expect(queueStatusForApplication("philippines", "PH_TEMPORARY_VISITOR_VISA", "live_assisted")).not.toBe(
       "phetravel_live_assisted_pending",
     );

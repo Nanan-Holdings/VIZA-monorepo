@@ -51,6 +51,7 @@ const PURPOSE_ZH: Record<string, string> = {
   OFW: "海外菲律宾劳工（OFW）", POV001: "度假 / 休闲", POV002: "会议 / 大会", POV003: "教育 / 培训 / 学习",
   POV004: "政府 / 公务", POV005: "健康 / 医疗", POV006: "商务 / 专业活动", POV007: "探亲访友",
   POV008: "工作 / 就业", POV009: "宗教 / 朝圣", POV010: "奖励旅游", POV011: "返回居民", POV012: "过境",
+  POV014: "永久移民或长期居留", POV015: "参加欧洲互惠生项目", POV016: "参加美国交流访问者项目",
   POV017: "会议", POV018: "展会 / 博览会", POV999: "其他",
 };
 export const PH_ETRAVEL_PURPOSE_OPTIONS = mapped(officialSnapshot.arrivalPurposes, PURPOSE_ZH);
@@ -72,8 +73,8 @@ export const PH_ETRAVEL_COUNTRY_OPTIONS = mapped(
 );
 
 export const PH_ETRAVEL_SUFFIX_OPTIONS = [
-  phEtravelOption("JR", "Jr.", "Jr."), phEtravelOption("SR", "Sr.", "Sr."),
-  phEtravelOption("II", "II", "II"), phEtravelOption("III", "III", "III"), phEtravelOption("IV", "IV", "IV"),
+  phEtravelOption("JR", "小（Jr.）", "Jr."), phEtravelOption("SR", "老（Sr.）", "Sr."),
+  phEtravelOption("II", "二世（II）", "II"), phEtravelOption("III", "三世（III）", "III"), phEtravelOption("IV", "四世（IV）", "IV"),
 ];
 
 export const PH_ETRAVEL_TRAVELLER_TYPE_OPTIONS = [

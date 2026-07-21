@@ -543,8 +543,9 @@ function isIndonesiaC1TouristDocumentApplication(application: ApplicationRow): b
 function isPhilippinesEtravelDocumentApplication(application: ApplicationRow): boolean {
   return (
     ["philippines", "ph", "菲律宾"].includes(application.country.toLowerCase()) &&
-    resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country) ===
-      "PH_ETRAVEL_ARRIVAL_CARD"
+    ["PH_ETRAVEL_ARRIVAL_CARD", "PH_ETRAVEL_DEPARTURE_CARD"].includes(
+      resolveVisaFormSchemaVisaType(getFormVisaType(application.visa_type), application.country),
+    )
   );
 }
 

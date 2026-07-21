@@ -1,0 +1,4 @@
+interface:
+  display_name: "Appointment Assistant State Machine"
+  short_description: "Build VIZA appointment assistants as gated state machines"
+  default_prompt: "Use $appointment-assistant-state-machine to build or refactor a VIZA appointment assistant."

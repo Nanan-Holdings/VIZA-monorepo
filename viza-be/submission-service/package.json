@@ -31,6 +31,7 @@
     "france-tls:appointment-flow": "tsx scripts/run-france-tls-appointment-flow.ts",
     "tw-entry-permit:smoke": "tsx scripts/run-tw-entry-permit-smoke.ts",
     "ph-etravel:smoke": "tsx scripts/run-ph-etravel-smoke.ts",
+    "ph-etravel:departure-smoke": "tsx scripts/run-ph-etravel-departure-smoke.ts",
     "ph-etravel:chrome": "powershell -ExecutionPolicy Bypass -File scripts/start-ph-etravel-user-chrome.ps1",
     "us-appointment:register": "ts-node -r ./scripts/ts-node-js-resolver.cjs scripts/run-us-appointment-register.ts",
     "us-appointment:flow": "tsx scripts/run-us-appointment-flow.ts",

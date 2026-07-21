@@ -41,7 +41,7 @@ describe("arrival card destination labels", () => {
         .filter((destination) => matchesVisaDestinationSearch(destination, "sin"))
         .map((destination) => destination.country),
     ).toEqual(["singapore"]);
-    expect(matchesVisaDestinationSearch(singapore!, "SGAC")).toBe(false);
+    expect(matchesVisaDestinationSearch(singapore!, "SGAC")).toBe(true);
   });
 
   test("Malaysia and Thailand arrival cards have standalone package labels and destination cards", () => {
@@ -63,7 +63,7 @@ describe("arrival card destination labels", () => {
     expect(thailand?.visaNameZh).toBe("TDAC 数字入境卡");
   });
 
-  test("Philippines search card opens the standalone eTravel arrival card", () => {
+  test("Philippines search collapses arrival and departure into one category entry", () => {
     expect(getVisaTypeDisplayName("PH_ETRAVEL_ARRIVAL_CARD")).toBe("Philippines eTravel Arrival Card");
     expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_ARRIVAL_CARD")).toBe("eTravel 入境卡");
     expect(getVisaPackageTitle("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe(
@@ -72,8 +72,16 @@ describe("arrival card destination labels", () => {
     expect(getVisaPackageTitleZh("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("菲律宾eTravel 入境卡");
 
     const philippines = SEARCHABLE_VISA_DESTINATIONS.find((destination) => destination.country === "philippines");
-    expect(philippines?.visaType).toBe("PH_ETRAVEL_ARRIVAL_CARD");
-    expect(philippines?.visaNameZh).toBe("eTravel 入境卡");
+    expect(philippines?.kind).toBe("group");
+    expect(philippines?.href).toBe("/client/destinations/philippines");
+    expect(philippines?.visaName).toBe("Choose declaration category");
+    expect(philippines?.visaNameZh).toBe("选择申报类别");
+    expect(philippines?.countryCount).toBe(2);
+    expect(matchesVisaDestinationSearch(philippines!, "eTravel")).toBe(true);
+    expect(SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
+      matchesVisaDestinationSearch(destination, "eTravel"))).toEqual([philippines]);
+    expect(getVisaTypeDisplayName("PH_ETRAVEL_DEPARTURE_CARD")).toBe("Philippines eTravel Departure Card");
+    expect(getVisaTypeDisplayNameZh("PH_ETRAVEL_DEPARTURE_CARD")).toBe("eTravel 出境卡");
     expect(isCountryLaunched("philippines")).toBe(true);
     expect(isCountryLaunched("ph")).toBe(true);
   });

@@ -84,6 +84,7 @@ async function loadOfficialLabels(): Promise<Record<string, string>> {
     "countries?paginate=0&order_by=name&status_by=asc",
     "occupations?paginate=0&order_by=name&status_by=asc",
     "purpose_of_visits?paginate=0&for_arrival=1&order_by=name&status_by=asc",
+    "purpose_of_visits?paginate=0&for_departure=1&order_by=name&status_by=asc",
     "travel_companies?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
     "travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
     "sickness_symptoms?paginate=0&order_by=name&status_by=asc&is_active=1",
@@ -100,6 +101,55 @@ export function buildPhEtravelFieldPlan(
   payload: PhEtravelPortalPayload,
   officialLabels: Record<string, string> = {},
 ): PhEtravelFieldPlanItem[] {
+  if (payload.travelType === "DEPARTURE") {
+    const isAir = payload.transportType === "AIR";
+    return [
+      { key: "registration_for", labels: ["Travel Registration", "Registration For"], kind: "choice", value: optionLabel(payload.registrationFor ?? "FOR_ME"), required: true },
+      { key: "transport_type", labels: ["Mode of Travel", "Transport Type"], kind: "choice", value: optionLabel(payload.transportType), required: true },
+      { key: "travel_type", labels: ["Travel Type"], kind: "choice", value: "Departure", required: true },
+      { key: "first_name", labels: ["First Name", "Given Name"], kind: "text", value: payload.firstName, required: true },
+      { key: "middle_name", labels: ["Middle Name"], kind: "text", value: payload.middleName },
+      { key: "last_name", labels: ["Last Name", "Surname", "Family Name"], kind: "text", value: payload.lastName, required: true },
+      { key: "suffix", labels: ["Suffix"], kind: "choice", value: optionLabel(payload.suffix) },
+      { key: "date_of_birth", labels: ["Birth Date", "Date of Birth"], kind: "date", value: payload.dateOfBirth, required: true },
+      { key: "sex", labels: ["Sex", "Gender"], kind: "choice", value: optionLabel(payload.sex), required: true },
+      { key: "passport_holder_type", labels: ["Travel Document Holder", "Passport Holder"], kind: "choice", value: optionLabel(payload.passportHolderType), required: true },
+      { key: "nationality", labels: ["Citizenship", "Nationality"], kind: "choice", value: resolvedOptionLabel(payload.nationality, officialLabels), required: true },
+      { key: "country_of_birth", labels: ["Country of Birth"], kind: "choice", value: resolvedOptionLabel(payload.countryOfBirth, officialLabels), required: true },
+      { key: "country_of_residence", labels: ["Permanent Country of Residence", "Country of Residence"], kind: "choice", value: resolvedOptionLabel(payload.countryOfResidence, officialLabels), required: true },
+      { key: "residence_address", labels: ["Permanent Address", "Residence Address"], kind: "text", value: payload.residenceAddress },
+      { key: "occupation", labels: ["Occupation"], kind: "choice", value: resolvedOptionLabel(payload.occupation, officialLabels), required: true },
+      { key: "passport_number", labels: ["Passport Number"], kind: "text", value: payload.passportNumber, required: true },
+      { key: "passport_issuing_authority", labels: ["Passport Issuing Authority", "Country of Issue"], kind: "choice", value: resolvedOptionLabel(payload.passportIssuingAuthority, officialLabels), required: true },
+      { key: "passport_issue_date", labels: ["Passport Issued Date", "Passport Issue Date"], kind: "date", value: payload.passportIssueDate, required: true },
+      { key: "passport_expiry_date", labels: ["Passport Expiry Date", "Passport Expiration Date"], kind: "date", value: payload.passportExpiryDate, required: true },
+      { key: "email", labels: ["Email Address", "Email"], kind: "text", value: payload.emailAddress, required: true },
+      { key: "mobile", labels: ["Mobile Number", "Contact Number"], kind: "text", value: `${payload.mobileCountryCode}${payload.mobileNumber}`, required: true },
+      { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
+      { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? (isAir ? "AIRCRAFT PASSENGER" : "VESSEL PASSENGER")), required: true },
+      { key: "travel_company", portalName: "travel_company_code", labels: ["Name of Airline", "Name of Vessel", "Travel Company"], kind: isAir ? "choice" : "text", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
+      { key: "transport_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: isAir ? "choice" : "text", value: payload.flightNumber, required: true },
+      { key: "departure_port", portalName: "origin_port_code", labels: ["Airport of Origin in the Philippines", "Seaport of Origin in the Philippines", "Port of Origin"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
+      { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight"], kind: "date", value: payload.departureDate, required: true },
+      { key: "destination_country", portalName: "destination_country_code", labels: ["Country of Destination"], kind: "choice", value: resolvedOptionLabel(payload.destinationCountry, officialLabels), required: true },
+      { key: "destination_port", portalName: "destination_port", labels: ["Airport/Seaport of Destination", "Port of Destination"], kind: "text", value: payload.destinationPort, required: true },
+      { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival at Destination", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
+      { key: "return_date", portalName: "return_date", labels: ["Expected Return Date to the Philippines", "Return Date"], kind: "date", value: payload.returnDate },
+      { key: "travel_tax_type", labels: ["Travel Tax Details", "Travel Tax Payment"], kind: "choice", value: optionLabel(payload.travelTaxPaymentType) },
+      { key: "travel_tax_reference", labels: ["Travel Tax Reference Number"], kind: "text", value: payload.travelTaxReferenceNumber },
+      { key: "travel_tax_ticket", labels: ["Ticket Number"], kind: "text", value: payload.travelTaxTicketNumber },
+      { key: "cfo_registration", labels: ["Commission on Filipinos Overseas Registration Number", "CFO Registration Number"], kind: "text", value: payload.cfoRegistrationNumber },
+      { key: "customs_acknowledgement", labels: ["customs and currency declaration information"], kind: "checkbox", value: payload.customs.customsInformationAcknowledgement, required: true },
+      { key: "has_goods_to_declare", labels: ["goods to declare", "restricted, regulated, prohibited, dutiable"], kind: "choice", value: yesNo(payload.customs.hasGoodsToDeclare), required: true },
+      { key: "has_currency_to_declare", labels: ["currency or monetary instruments above", "currency to declare"], kind: "choice", value: yesNo(payload.customs.hasCurrencyToDeclare), required: true },
+      { key: "currency_type", labels: ["Currency Declaration Type"], kind: "choice", value: optionLabel(payload.customs.currencyType) },
+      { key: "currency_amount", labels: ["Total Amount"], kind: "text", value: payload.customs.currencyAmount },
+      { key: "currency_source", labels: ["Source of Currency"], kind: "text", value: payload.customs.currencySource },
+      { key: "bsp_authorization_number", labels: ["BSP Prior Authorization Number"], kind: "text", value: payload.customs.bspAuthorizationNumber },
+      { key: "bsp_authorization_date", labels: ["BSP Authorization Date"], kind: "date", value: payload.customs.bspAuthorizationDate },
+      { key: "customs_signature_declaration", labels: ["customs and currency declaration is true and correct"], kind: "checkbox", value: payload.customs.customsSignatureDeclaration, required: true },
+    ];
+  }
   return [
     { key: "registration_for", labels: ["Travel Registration", "Registration For"], kind: "choice", value: optionLabel(payload.registrationFor ?? "FOR_ME"), required: true },
     { key: "transport_type", labels: ["Mode of Travel", "Transport Type"], kind: "choice", value: optionLabel(payload.transportType), required: true },
@@ -544,14 +594,14 @@ async function clickVisibleButton(page: Page, pattern: RegExp): Promise<boolean>
   return true;
 }
 
-async function chooseInitialRegistration(page: Page, completed: Set<string>): Promise<boolean> {
+async function chooseInitialRegistration(page: Page, completed: Set<string>, payload: PhEtravelPortalPayload): Promise<boolean> {
   const portalText = await page.locator("body").innerText().catch(() => "");
-  if (!/Travel Registration/i.test(portalText) || !/Entering the Philippines/i.test(portalText)) return false;
+  if (!/Travel Registration/i.test(portalText)) return false;
 
   const choices: Array<[string, RegExp]> = [
     ["registration_for", /FOR ME\s*\(Current User\)/i],
     ["transport_type", /^AIR$/i],
-    ["travel_type", /ARRIVAL\s*Entering the Philippines/i],
+    ["travel_type", payload.travelType === "DEPARTURE" ? /DEPARTURE\s*Leaving the Philippines/i : /ARRIVAL\s*Entering the Philippines/i],
   ];
   for (const [key, pattern] of choices) {
     const target = await firstVisible([
@@ -608,7 +658,7 @@ export async function fillPhEtravelOfficialDeclaration(
 
   for (let step = 1; step <= 12; step += 1) {
     portalText = await page.locator("body").innerText().catch(() => "");
-    await chooseInitialRegistration(page, completed);
+    await chooseInitialRegistration(page, completed, payload);
     const confirmation = /registration\s+(?:successful|completed)|successfully\s+registered|thank\s+you\s+for\s+registering/i.test(portalText) &&
       /qr\s*code|reference\s*(?:no|number)/i.test(portalText);
     if (confirmation) {

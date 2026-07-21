@@ -14,6 +14,7 @@ import {
 } from "../src/ph-etravel/mailbox-provider";
 import { PhEtravelPortalError, runPhEtravelPortalSubmission } from "../src/ph-etravel/runner";
 import type { PhEtravelPortalPayload } from "../src/ph-etravel/normalize";
+import { buildPhEtravelFieldPlan } from "../src/ph-etravel/form-filler";
 import { supabase } from "../src/supabase";
 import type { CountrySubmissionApplication } from "../src/country-submissions/types";
 
@@ -33,6 +34,9 @@ type ParsedArgs = {
   forceLocalBrowser: boolean;
   useImapMailbox: boolean;
   newImapAlias: boolean;
+  travelType: "arrival" | "departure";
+  transport: "air" | "sea";
+  passportHolder: "filipino" | "foreigner";
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -71,8 +75,11 @@ function parseArgs(argv: string[]): ParsedArgs {
     payloadFile: getArg("payload-file"),
     profilePhotoPath: getArg("profile-photo"),
     forceLocalBrowser: hasArg("local-browser"),
-    useImapMailbox: hasArg("imap-mailbox"),
+    useImapMailbox: hasArg("imap-mailbox") || hasArg("use-imap-mailbox"),
     newImapAlias: hasArg("new-imap-alias"),
+    travelType: getArg("travel-type")?.toLowerCase() === "departure" ? "departure" : "arrival",
+    transport: getArg("transport")?.toLowerCase() === "sea" ? "sea" : "air",
+    passportHolder: getArg("passport-holder")?.toLowerCase() === "filipino" ? "filipino" : "foreigner",
   };
 }
 
@@ -103,6 +110,7 @@ const DEFAULT_PAYLOAD: PhEtravelPortalPayload = {
   mobileNumber: "13800138000",
   travelType: "ARRIVAL",
   transportType: "AIR",
+  passportHolderType: "FOREIGNER",
   flightNumber: "PR101",
   airlineOrVesselName: "Philippine Airlines",
   airportOfOrigin: "Singapore Changi Airport",
@@ -113,7 +121,13 @@ const DEFAULT_PAYLOAD: PhEtravelPortalPayload = {
   purposeOfTravel: "HOLIDAY",
   withTransit: false,
   destinationType: "HOTEL_RESORT",
+  destinationPort: null,
   philippinesAddress: "The Manila Hotel",
+  returnDate: null,
+  travelTaxPaymentType: null,
+  travelTaxReferenceNumber: null,
+  travelTaxTicketNumber: null,
+  cfoRegistrationNumber: null,
   hasRecentTravelHistory30d: false,
   visitedCountries30d: [],
   hasExposureToSickPerson30d: false,
@@ -130,6 +144,16 @@ const DEFAULT_PAYLOAD: PhEtravelPortalPayload = {
     dutiableGoodsDetails: null,
     hasCurrencyOverThreshold: false,
     currencyDeclarationDetails: null,
+    customsSignatureFile: null,
+    customsInformationAcknowledgement: true,
+    hasGoodsToDeclare: false,
+    hasCurrencyToDeclare: false,
+    currencyType: null,
+    currencyAmount: null,
+    currencySource: null,
+    bspAuthorizationNumber: null,
+    bspAuthorizationDate: null,
+    customsSignatureDeclaration: true,
   },
   finalDeclaration: true,
 };
@@ -336,8 +360,8 @@ async function loadPayloadFromFile(filePath: string): Promise<PhEtravelPortalPay
   const absolutePath = resolve(filePath);
   const raw = await import("node:fs").then((fs) => fs.promises.readFile(absolutePath, "utf8"));
   const parsed = JSON.parse(raw) as PhEtravelPortalPayload;
-  if (!parsed?.applicationId || parsed.visaType !== "PH_ETRAVEL_ARRIVAL_CARD" || parsed.countryCode !== "PH") {
-    throw new Error(`Payload file ${filePath} is missing PH_ETRAVEL_ARRIVAL_CARD fields.`);
+  if (!parsed?.applicationId || !["PH_ETRAVEL_ARRIVAL_CARD", "PH_ETRAVEL_DEPARTURE_CARD"].includes(parsed.visaType) || parsed.countryCode !== "PH") {
+    throw new Error(`Payload file ${filePath} is missing Philippines eTravel fields.`);
   }
   return parsed;
 }
@@ -348,8 +372,11 @@ function withDateOverrides(payload: PhEtravelPortalPayload, args: ParsedArgs): P
   if (args.departureDate) adjusted.departureDate = args.departureDate;
   if (!args.arrivalDate && !args.departureDate) return adjusted;
   if (!adjusted.arrivalDate || !adjusted.departureDate) return adjusted;
-  if (adjusted.departureDate > adjusted.arrivalDate) {
-    throw new Error("departure-date must be <= arrival-date");
+  if (adjusted.travelType === "ARRIVAL" && adjusted.departureDate < adjusted.arrivalDate) {
+    throw new Error("For arrival registration, departure-date must be on or after arrival-date");
+  }
+  if (adjusted.travelType === "DEPARTURE" && adjusted.arrivalDate < adjusted.departureDate) {
+    throw new Error("For departure registration, destination arrival-date must be on or after departure-date");
   }
   return adjusted;
 }
@@ -467,6 +494,30 @@ async function main(): Promise<void> {
     payload = loaded.payload;
     profilePhotoPath = loaded.profilePhotoPath;
   }
+  if (args.travelType === "departure") {
+    const isAir = args.transport === "air";
+    payload = {
+      ...payload,
+      visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+      applicationId: payload.applicationId === "ph-etravel-smoke" ? "ph-etravel-departure-smoke" : payload.applicationId,
+      travelType: "DEPARTURE",
+      transportType: isAir ? "AIR" : "SEA",
+      passportHolderType: args.passportHolder === "filipino" ? "FILIPINO" : "FOREIGNER",
+      nationality: args.passportHolder === "filipino" ? "PH" : payload.nationality,
+      flightNumber: isAir ? "PR101" : "TEST VESSEL",
+      airlineOrVesselName: isAir ? "PHILIPPINE AIRLINES" : "TEST VESSEL",
+      portOfEntry: isAir ? "TP1000" : "SP1000",
+      departureDate: args.departureDate ?? isoDatePlus(1),
+      arrivalDate: args.arrivalDate ?? isoDatePlus(2),
+      destinationCountry: "SG",
+      destinationPort: isAir ? "Singapore Changi Airport" : "Singapore Cruise Centre",
+      philippinesAddress: null,
+      purposeOfTravel: "POV001",
+      travellerType: isAir ? "AIRCRAFT PASSENGER" : "VESSEL PASSENGER",
+      travelTaxPaymentType: args.passportHolder === "filipino" ? "TICKET PURCHASE" : null,
+      travelTaxTicketNumber: args.passportHolder === "filipino" ? "PLACEHOLDER-TICKET" : null,
+    };
+  }
   payload = withDateOverrides(payload, args);
 
   const useApplicantId = args.applicantId?.trim();
@@ -579,12 +630,26 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   if (lastError instanceof PhEtravelPortalError && lastError.code === "ph_etravel_stopped_before_submit") {
+    const officialFieldPlan = buildPhEtravelFieldPlan(payload);
+    const requiredFields = officialFieldPlan.filter((field) => field.required).map((field) => field.key);
+    const missingFields = requiredFields.filter((field) => !lastError.filledFields.includes(field));
     console.log(JSON.stringify({
       status: "stopped_before_submit",
       code: lastError.code,
       screenshots: lastError.screenshotPaths,
       portalSummary: lastError.portalSummary,
+      parity: {
+        portalPlanFields: officialFieldPlan.map((field) => field.key),
+        requiredFields,
+        filledFields: lastError.filledFields,
+        missingFields,
+        extraFields: lastError.filledFields.filter((field) => !officialFieldPlan.some((item) => item.key === field)),
+        validationErrors: [],
+        reachedReview: lastError.reachedReview,
+        evidencePaths: lastError.screenshotPaths,
+      },
     }, null, 2));
+    if (missingFields.length > 0) process.exitCode = 1;
   } else {
     process.exit(1);
   }

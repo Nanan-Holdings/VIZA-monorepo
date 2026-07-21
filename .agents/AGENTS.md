@@ -22,6 +22,9 @@ runtime application code.
 - `skills/vietnam-evisa-form-parity`: Vietnam e-Visa official form parity,
   bilingual dropdown localization, official validation mirroring, and
   submission/payment checkpoint verification workflow.
+- `skills/appointment-assistant-state-machine`: reusable persisted state-machine
+  contract for applicant review, alias accounts, official slots, payment gates,
+  final confirmation, and appointment evidence.
 
 ## Conventions
 
