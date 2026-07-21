@@ -233,7 +233,7 @@ function optionFromOfficial(item: OfficialOption, source: string): VisaFormField
       : source === "airport"
         ? (AIRPORT_ZH_BY_CODE[code] ?? (zhValue || enValue))
         : source === "hotel"
-          ? localizeVnPrearrivalHotelLabel(stringValue(item.vn_value), enValue)
+          ? localizeVnPrearrivalHotelLabel(stringValue(item.vn_value), enValue, code)
         : zhValue;
 
   return {
