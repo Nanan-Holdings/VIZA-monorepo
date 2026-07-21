@@ -511,7 +511,12 @@ async function activateAccount(page: Page, context: FranceTlsStoredAccountContex
   const state = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(page));
   const activated = /account.{0,40}(activated|active)|activation.{0,40}(complete|success)|log in|sign in/i.test(body)
     || state.checkpoint === "login";
-  if (!activated) throw new Error("TLS activation result could not be verified");
+  if (!activated) {
+    await maskedScreenshot(page, "activation-unverified").catch(() => null);
+    throw new Error(
+      `TLS activation result could not be verified (checkpoint: ${state.checkpoint}; url: ${redactOfficialUrl(page.url())})`,
+    );
+  }
   await updateAccountStatus(context, "email_verified", true);
 }
 
@@ -573,6 +578,12 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
   if (!hasPassword) {
     await page.goto(centerUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await settle(page);
+    const authenticatedPageVisible = /\/(?:travel-groups|[^/]+\/workflow\/)/i.test(page.url())
+      || await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
+    if (authenticatedPageVisible) {
+      await updateAccountStatus(context, "logged_in", true);
+      return;
+    }
     if (!await clickFirstVisible([
       page.getByRole("link", { name: /log in|sign in/i }),
       page.getByRole("button", { name: /log in|sign in/i }),
@@ -663,8 +674,56 @@ export async function loginFranceTlsStoredAccount(
   await login(page, context, centerUrl);
 }
 
-async function fillOfficialReference(page: Page, context: FranceTlsStoredAccountContext): Promise<string[]> {
+async function enterSingleExistingTravelGroup(page: Page): Promise<"not_present" | "entered" | "ambiguous"> {
+  const isTravelGroupPage = /\/travel-groups(?:[/?#]|$)/i.test(page.url())
+    || await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
+  if (!isTravelGroupPage) return "not_present";
+
+  const selectButtons = page.getByRole("button", { name: /^select$/i });
+  const count = await selectButtons.count();
+  if (count !== 1) return count > 1 ? "ambiguous" : "not_present";
+  const observedWorkflowUrlPromise = page.waitForURL(/\/workflow\//i, {
+    timeout: 20_000,
+    waitUntil: "domcontentloaded",
+  }).then(() => page.url()).catch(() => null);
+  await selectButtons.first().click({ timeout: 15_000 });
+  const observedWorkflowUrl = await observedWorkflowUrlPromise;
+  await settle(page);
+  if (observedWorkflowUrl && !/\/workflow\//i.test(page.url())) {
+    await page.goto(observedWorkflowUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await settle(page);
+  }
+  const staleApplicationList = /\/workflow\//i.test(page.url())
+    && await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
+  if (staleApplicationList) {
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await settle(page);
+  }
+  return "entered";
+}
+
+async function fillOfficialReference(
+  page: Page,
+  context: FranceTlsStoredAccountContext,
+  centerPath?: string,
+): Promise<string[]> {
   if (!context.officialReference) throw new Error("France-Visas official reference is missing");
+  const travelGroupEntry = await enterSingleExistingTravelGroup(page);
+  if (travelGroupEntry === "ambiguous") return ["travel_group_selection"];
+  if (travelGroupEntry === "entered" && centerPath && /^https:\/\/visas-fr\.tlscontact\.com\/en-us\/?(?:[?#].*)?$/i.test(page.url())) {
+    await navigateToCenter(page, centerPath);
+    const returnedToTravelGroups = /\/travel-groups(?:[/?#]|$)/i.test(page.url())
+      || await page.getByText(/application list/i).first().isVisible({ timeout: 3_000 }).catch(() => false);
+    if (returnedToTravelGroups) return ["travel_group_select_redirect_loop"];
+  }
+  const officialInput = await readFranceTlsBrowserState(page);
+  const officialState = classifyFranceTlsBrowserState(officialInput);
+  if (officialState.checkpoint !== "ready" && isFranceTlsCaptchaBlocking(officialInput, officialState)) {
+    return [`official_checkpoint_${officialState.checkpoint}`];
+  }
+  if (!["ready", "captcha_token"].includes(officialState.checkpoint)) {
+    return [`official_checkpoint_${officialState.checkpoint}`];
+  }
   const candidates = page.locator(
     "input[name*='reference' i], input[id*='reference' i], input[placeholder*='reference' i]",
   );
@@ -678,6 +737,14 @@ async function fillOfficialReference(page: Page, context: FranceTlsStoredAccount
     return missing;
   }
   await candidates.first().fill(context.officialReference);
+  const inputAfterFill = await readFranceTlsBrowserState(page);
+  const stateAfterFill = classifyFranceTlsBrowserState(inputAfterFill);
+  if (stateAfterFill.checkpoint !== "ready" && isFranceTlsCaptchaBlocking(inputAfterFill, stateAfterFill)) {
+    return [`official_checkpoint_${stateAfterFill.checkpoint}`];
+  }
+  if (!["ready", "captcha_token"].includes(stateAfterFill.checkpoint)) {
+    return [`official_checkpoint_${stateAfterFill.checkpoint}`];
+  }
   await updateAccountStatus(context, "appointment_reference_filled", true);
   return [];
 }
@@ -685,8 +752,9 @@ async function fillOfficialReference(page: Page, context: FranceTlsStoredAccount
 export async function submitFranceTlsOfficialReference(
   page: Page,
   context: FranceTlsStoredAccountContext,
+  centerPath?: string,
 ): Promise<{ submitted: boolean; visibleUnmappedFields: string[] }> {
-  const visibleUnmappedFields = await fillOfficialReference(page, context);
+  const visibleUnmappedFields = await fillOfficialReference(page, context, centerPath);
   if (visibleUnmappedFields.length) return { submitted: false, visibleUnmappedFields };
   const clicked = await clickFirstVisible([
     page.getByRole("button", { name: /continue|next|confirm|submit/i }),
@@ -770,9 +838,16 @@ export async function registerAndPrepareFranceTlsAccount(
     }
     evidence.push(await maskedScreenshot(session.page, "logged-in"));
     if (shouldFillReference) {
-      const visibleUnmappedFields = await fillOfficialReference(session.page, context);
+      const visibleUnmappedFields = await fillOfficialReference(
+        session.page,
+        context,
+        new URL(center.bookingUrl).pathname,
+      );
       evidence.push(await maskedScreenshot(session.page, "appointment-reference"));
       if (visibleUnmappedFields.length) {
+        const officialCheckpoint = visibleUnmappedFields.find((field) =>
+          field.startsWith("official_checkpoint_"),
+        );
         await updateAccountStatus(context, "manual_required", true);
         return {
           status: "manual_required",
@@ -783,8 +858,12 @@ export async function registerAndPrepareFranceTlsAccount(
           replayUrl: null,
           evidence,
           checkpoint: {
-            type: "official_field_mapping_required",
-            message: "TLScontact login succeeded, but the France-Visas reference field was not visible.",
+            type: officialCheckpoint
+              ? officialCheckpoint.replace(/^official_checkpoint_/, "")
+              : "official_field_mapping_required",
+            message: officialCheckpoint
+              ? "TLScontact login succeeded, but the official site returned a blocking page before the France-Visas reference could be verified."
+              : "TLScontact login succeeded, but the France-Visas reference field was not visible.",
             missingFields: visibleUnmappedFields,
           },
           stopPoint: "Stopped before submitting any appointment profile, selecting a slot, payment, or booking.",

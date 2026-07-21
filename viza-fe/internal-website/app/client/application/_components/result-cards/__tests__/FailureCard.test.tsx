@@ -91,6 +91,34 @@ describe("FailureCard", () => {
       });
     });
   });
+
+  it("shows a visible retry error after the loading state when submission startup fails", async () => {
+    let rejectRetry: ((reason?: unknown) => void) | undefined;
+    const onRetry = vi.fn().mockImplementation(() => new Promise<void>((_resolve, reject) => {
+      rejectRetry = reject;
+    }));
+
+    render(
+      <FailureCard
+        applicationId="app-vn"
+        errorMessage="Official Vietnam e-Visa portal validation blocked submission."
+        retryModes={[{ mode: "live_assisted", label: "提交" }]}
+        onRetry={onRetry}
+        requiresVietnamPaymentCard
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.click(screen.getByRole("button", { name: /提交/u }));
+
+    expect(screen.getByRole("button", { name: /提交/u })).toBeDisabled();
+    rejectRetry?.(new Error("越南云端付款会话暂时不可用，请稍后重试。"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("越南云端付款会话暂时不可用");
+    expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
+  });
 });
 
 describe("VnResultCard automated payment UI", () => {

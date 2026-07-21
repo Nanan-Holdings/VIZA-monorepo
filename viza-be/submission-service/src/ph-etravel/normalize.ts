@@ -56,6 +56,7 @@ export interface PhEtravelPortalPayload {
   destinationTransitAirport: string | null;
   destinationCountry: string | null;
   destinationPort: string | null;
+  destinationAddress: string | null;
   philippinesAddress: string | null;
   returnDate: string | null;
   travelTaxPaymentType: string | null;
@@ -437,6 +438,9 @@ export function normalizePhEtravelPortalPayload(
         : null,
     destinationPort: isDeparture
       ? requireFirstText([answers.destination_port], "destination_port", missing)
+      : null,
+    destinationAddress: isDeparture
+      ? requireFirstText([answers.destination_address, answers.residence_address], "destination_address", missing)
       : null,
     philippinesAddress,
     returnDate: firstIsoDate([answers.return_date], "return_date", []) || null,

@@ -511,6 +511,7 @@ async function main(): Promise<void> {
       arrivalDate: args.arrivalDate ?? isoDatePlus(2),
       destinationCountry: "SG",
       destinationPort: isAir ? "Singapore Changi Airport" : "Singapore Cruise Centre",
+      destinationAddress: "1 Airport Boulevard, Singapore",
       philippinesAddress: null,
       purposeOfTravel: "POV001",
       travellerType: isAir ? "AIRCRAFT PASSENGER" : "VESSEL PASSENGER",
