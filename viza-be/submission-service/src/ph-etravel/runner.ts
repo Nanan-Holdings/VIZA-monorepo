@@ -306,8 +306,14 @@ async function clickTurnstileProtectedContinue(
   logs: string[],
   nativeCloudflareUnblock: boolean,
   locators: Array<ReturnType<Page["locator"]>>,
-): Promise<string> {
+  options: {
+    responseUrlPattern?: RegExp;
+    prepareRetry?: () => Promise<void>;
+  } = {},
+): Promise<{ pageText: string; responseStatus?: number; responseSummary?: string }> {
   let lastText = await bodyText(page);
+  let lastResponseStatus: number | undefined;
+  let lastResponseSummary: string | undefined;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const hasChallenge = await page
       .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
@@ -330,20 +336,55 @@ async function clickTurnstileProtectedContinue(
         logs.push(`ph_etravel_turnstile_native_success attempt=${attempt}`);
       }
     }
+    const responsePromise = options.responseUrlPattern
+      ? page.waitForResponse((response) =>
+        options.responseUrlPattern!.test(response.url()) && response.request().method() === "POST",
+      { timeout: 30_000 }).catch(() => null)
+      : Promise.resolve(null);
     const clicked = await clickFirstAvailable(page, locators);
     logs.push(`ph_etravel_continue_click attempt=${attempt} clicked=${clicked}`);
+    const response = clicked ? await responsePromise : null;
+    if (response) {
+      lastResponseStatus = response.status();
+      const responseBody = await response.text().catch(() => "");
+      try {
+        const payload = JSON.parse(responseBody) as { error?: unknown; message?: unknown };
+        lastResponseSummary = String(payload.error ?? payload.message ?? "").slice(0, 240) || undefined;
+      } catch {
+        lastResponseSummary = responseBody.trim().slice(0, 240) || undefined;
+      }
+      logs.push(
+        `ph_etravel_continue_response attempt=${attempt} status=${lastResponseStatus}` +
+        (lastResponseSummary ? ` summary=${lastResponseSummary}` : ""),
+      );
+      if (isPhEtravelRegistrationResponseRejected(lastResponseStatus)) {
+        lastText = await bodyText(page);
+        if (attempt < 3) {
+          logs.push(`ph_etravel_continue_response_retry attempt=${attempt}`);
+          await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
+          await page.waitForTimeout(2_000);
+          await options.prepareRetry?.();
+          continue;
+        }
+        return { pageText: lastText, responseStatus: lastResponseStatus, responseSummary: lastResponseSummary };
+      }
+    }
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     lastText = await bodyText(page);
     if (!/verification failed|troubleshooting|cloudflare|turnstile|验证失败|故障排除/i.test(lastText)) {
-      return lastText;
+      return { pageText: lastText, responseStatus: lastResponseStatus, responseSummary: lastResponseSummary };
     }
     logs.push(`ph_etravel_turnstile_continue_failed attempt=${attempt}`);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     lastText = await bodyText(page);
   }
-  return lastText;
+  return { pageText: lastText, responseStatus: lastResponseStatus, responseSummary: lastResponseSummary };
+}
+
+export function isPhEtravelRegistrationResponseRejected(status: number): boolean {
+  return status >= 400;
 }
 
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
@@ -1201,31 +1242,36 @@ async function maybeCreatePhEtravelAccount(
     "input[placeholder*='Email' i]",
     "input:not([type='hidden'])",
   ], accountEmail);
-  const registrationResponses: string[] = [];
-  const captureRegistrationResponse = (response: import("@playwright/test").Response) => {
-    try {
-      const url = new URL(response.url());
-      if (!url.hostname.endsWith("etravel.gov.ph") || response.request().method() === "GET") return;
-      registrationResponses.push(`${response.request().method()} ${url.pathname} status=${response.status()}`);
-    } catch {
-      // Ignore non-URL browser responses.
-    }
-  };
-  page.on("response", captureRegistrationResponse);
   let currentText: string;
-  try {
-    currentText = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
+  const registrationAttempt = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
       page.getByRole("button", { name: /continue|next|submit|send/i }),
       page.locator("button").filter({ hasText: /continue|next|submit|send/i }),
-    ]);
-  } finally {
-    page.off("response", captureRegistrationResponse);
+    ], {
+      responseUrlPattern: /\/api\/v2\/traveller\/email_sign_in(?:\?|$)/,
+      prepareRetry: async () => {
+        await fillFirstVisibleInput(page, [
+          "input[type='email']",
+          "input[name*='email' i]",
+          "input[placeholder*='Email' i]",
+          "input:not([type='hidden'])",
+        ], accountEmail);
+      },
+    });
+  currentText = registrationAttempt.pageText;
+  if (
+    registrationAttempt.responseStatus !== undefined &&
+    isPhEtravelRegistrationResponseRejected(registrationAttempt.responseStatus)
+  ) {
+    screenshots.push(await saveScreenshot(page, "registration-request-rejected", logs));
+    throw new PhEtravelPortalError(
+      `Official Philippines eTravel registration request was rejected with HTTP ${registrationAttempt.responseStatus}.`,
+      {
+        code: "ph_etravel_registration_request_rejected",
+        screenshotPaths: screenshots,
+        portalSummary: registrationAttempt.responseSummary ?? currentText.slice(0, 700),
+      },
+    );
   }
-  logs.push(
-    registrationResponses.length > 0
-      ? `ph_etravel_registration_responses ${registrationResponses.join(" | ")}`
-      : "ph_etravel_registration_responses none",
-  );
   if (/enter one[-\s]?time[-\s]?password|resend email code/i.test(currentText)) {
     const resendButton = page.getByRole("button", { name: /resend email code/i }).first();
     if (

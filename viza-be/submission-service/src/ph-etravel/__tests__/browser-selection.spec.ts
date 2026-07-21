@@ -7,6 +7,7 @@ import {
   resolveArrivalCardLocalCdpEndpoint,
 } from "../../arrival-card-browser";
 import {
+  isPhEtravelRegistrationResponseRejected,
   isPhEtravelMpinRejectedText,
   isPhEtravelRemotePolicyBlockMessage,
 } from "../runner";
@@ -36,6 +37,12 @@ test("PH eTravel uses a country endpoint before the configured global Browser AP
 
   process.env.PH_ETRAVEL_BROWSER_API_ENDPOINT = "wss://country-browser.example";
   assert.equal(resolveArrivalCardBrowserEndpoint("PH_ETRAVEL"), "wss://country-browser.example");
+});
+
+test("PH eTravel retries rejected registration API responses instead of waiting for mail", () => {
+  assert.equal(isPhEtravelRegistrationResponseRejected(422), true);
+  assert.equal(isPhEtravelRegistrationResponseRejected(429), true);
+  assert.equal(isPhEtravelRegistrationResponseRejected(200), false);
 });
 
 test("PH eTravel can resolve a local Chrome CDP endpoint before launching a fresh browser", () => {
