@@ -1626,7 +1626,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresOfficialPaymentCard={isVietnamSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
         />
       </div>
     );

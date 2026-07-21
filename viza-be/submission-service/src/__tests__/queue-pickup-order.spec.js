@@ -34,3 +34,15 @@ test("stale timeout scanning never marks unclaimed pending rows as stalled", () 
   assert.doesNotMatch(staleBody, /queue_pickup_stalled/);
   assert.doesNotMatch(staleBody, /status:\s*"stalled"/);
 });
+
+test("stale timeout scanning covers interrupted Indonesia payment workers", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const statusesStart = source.indexOf("const STALE_QUEUE_STATUSES");
+  const statusesEnd = source.indexOf("function parseProviderAllowlist", statusesStart);
+  assert.notEqual(statusesStart, -1);
+  assert.notEqual(statusesEnd, -1);
+
+  const statuses = source.slice(statusesStart, statusesEnd);
+  assert.match(statuses, /"id_c1_payment_processing"/);
+  assert.match(statuses, /"id_b1_evoa_payment_processing"/);
+});
