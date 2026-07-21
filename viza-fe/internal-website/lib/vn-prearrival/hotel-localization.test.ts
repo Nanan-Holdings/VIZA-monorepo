@@ -30,6 +30,32 @@ describe("Vietnam Pre-Arrival hotel localization", () => {
     expect(localized).not.toMatch(/[A-Za-zÀ-ỹĐđ]/);
   });
 
+  it.each([
+    [
+      "Six Senses Côn Đảo, Bãi Đất Dốc, Đặc khu Côn Đảo, Thành phố Hồ Chí Minh",
+      "昆岛六善酒店",
+    ],
+    [
+      "Poulo Condor Boutique Resort, Suối Ớt, Đặc khu Côn Đảo, Thành phố Hồ Chí Minh",
+      "普罗康朵精品水疗度假村",
+    ],
+    [
+      "The Secret Con Dao, 08 Tôn Đức Thắng, Đặc khu Côn Đảo, Thành phố Hồ Chí Minh",
+      "昆仑岛秘密酒店",
+    ],
+    [
+      "Phi Yen Hotel Con Dao, 34 Tôn Đức Thắng, Đặc khu Côn Đảo, Thành phố Hồ Chí Minh",
+      "彼颜酒店",
+    ],
+    [
+      "ATC Resort Con Dao, 8 Nguyễn Đức Thuận, Đặc khu Côn Đảo, Thành phố Hồ Chí Minh",
+      "ATC昆仑岛度假村",
+    ],
+  ])("prefers a verified Chinese property name for %s", (officialLabel, verifiedName) => {
+    const localized = localizeVnPrearrivalHotelLabel(officialLabel, officialLabel);
+    expect(localized.startsWith(`${verifiedName}，`)).toBe(true);
+  });
+
   it("uses a Chinese transliteration fallback for an unknown official property", () => {
     const localized = localizeVnPrearrivalHotelLabel(
       "Mivora Hotel, Phường Tân An, TP. Đà Nẵng",
@@ -46,7 +72,7 @@ describe("Vietnam Pre-Arrival hotel localization", () => {
     const options = getVnPrearrivalStaticOptions("hotel") ?? [];
     const labelsWithLatinText = options
       .map((option) => typeof option === "string" ? option : option.label_zh ?? "")
-      .filter((label) => /[A-Za-zÀ-ỹĐđ]/.test(label));
+      .filter((label) => /[A-Za-zÀ-ỹĐđ]/.test(label.replaceAll("ATC", "")));
 
     expect(options.length).toBeGreaterThan(1_800);
     expect(labelsWithLatinText).toEqual([]);

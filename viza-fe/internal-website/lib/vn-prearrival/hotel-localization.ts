@@ -1,8 +1,15 @@
+// Display-only names verified against hotel-owned or Chinese booking pages.
+// Official option values remain untouched for portal submission.
 const HOTEL_NAME_ZH: Record<string, string> = {
   "22land hotel cau giay": "纸桥22兰德酒店",
+  "atc resort con dao": "ATC昆仑岛度假村",
   "grand k hotel suites hanoi": "河内格兰德凯套房酒店",
+  "phi yen hotel con dao": "彼颜酒店",
+  "poulo condor boutique resort": "普罗康朵精品水疗度假村",
   "reyna luxury hotel": "蕾娜豪华酒店",
   "roygent parks hanoi": "河内罗伊杰恩特公园酒店",
+  "six senses con dao": "昆岛六善酒店",
+  "the secret con dao": "昆仑岛秘密酒店",
   "western hanoi hotel": "河内西方酒店",
 };
 
