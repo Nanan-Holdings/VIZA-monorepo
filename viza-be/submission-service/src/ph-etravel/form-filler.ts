@@ -488,6 +488,59 @@ async function selectNamedCombobox(page: Page, item: PhEtravelFieldPlanItem): Pr
   return false;
 }
 
+async function setFormikChoiceFromSiblingFiber(
+  page: Page,
+  anchorSelector: string,
+  fieldName: string,
+  value: string,
+): Promise<boolean> {
+  const updated = await page.evaluate(({ anchorSelector, fieldName, value }) => {
+    type FormikBag = {
+      setFieldValue?: unknown;
+      values?: unknown;
+    };
+    type ReactFiberNode = {
+      memoizedProps?: unknown;
+      return?: ReactFiberNode | null;
+    };
+    const anchor = document.querySelector(anchorSelector);
+    if (!anchor) return false;
+    const fiberKey = Object.keys(anchor).find((key) => key.startsWith("__reactFiber$"));
+    let fiber = fiberKey
+      ? (anchor as unknown as Record<string, ReactFiberNode>)[fiberKey]
+      : null;
+    for (let depth = 0; fiber && depth < 40; depth += 1, fiber = fiber.return ?? null) {
+      const props = fiber.memoizedProps;
+      if (!props || typeof props !== "object") continue;
+      const candidates: FormikBag[] = [props as FormikBag];
+      for (const candidate of Object.values(props)) {
+        if (candidate && typeof candidate === "object") candidates.push(candidate as FormikBag);
+      }
+      for (const candidate of candidates) {
+        if (
+          typeof candidate.setFieldValue !== "function" ||
+          !candidate.values ||
+          typeof candidate.values !== "object" ||
+          !(fieldName in candidate.values)
+        ) continue;
+        (candidate.setFieldValue as (name: string, nextValue: string, validate?: boolean) => void)(
+          fieldName,
+          value,
+          true,
+        );
+        return true;
+      }
+    }
+    return false;
+  }, { anchorSelector, fieldName, value }).catch(() => false);
+  if (!updated) return false;
+  await page.waitForTimeout(700);
+  return page.getByText(new RegExp(`^\\s*${escapeRegex(value)}\\s*$`, "i"))
+    .first()
+    .isVisible({ timeout: 2_000 })
+    .catch(() => false);
+}
+
 async function selectChoice(page: Page, item: PhEtravelFieldPlanItem): Promise<boolean> {
   if (typeof item.value !== "string" || !item.value) return false;
   const valuePattern = new RegExp(`^\\s*${escapeRegex(item.value)}\\s*$`, "i");
@@ -513,6 +566,15 @@ async function selectChoice(page: Page, item: PhEtravelFieldPlanItem): Promise<b
     }
   }
   if (item.portalName && await selectNamedCombobox(page, item)) return true;
+  if (
+    item.portalName === "transit_port_code" &&
+    await setFormikChoiceFromSiblingFiber(
+      page,
+      'input[name="transit_destination_country_code"]',
+      item.portalName,
+      item.value,
+    )
+  ) return true;
   for (const label of item.labels) {
     const labelPattern = new RegExp(escapeRegex(label), "i");
     const scopedChoice = await firstVisible([
