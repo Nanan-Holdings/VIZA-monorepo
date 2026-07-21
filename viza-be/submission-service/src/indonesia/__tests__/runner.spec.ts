@@ -260,6 +260,17 @@ test("classifies Indonesia portal login and registration gates", () => {
   );
   assert.equal(
     classifyIndonesiaPortalSnapshot({
+      url: `${INDONESIA_C1_PORTAL_URL}web/application/abc/detail`,
+      title: "Indonesia eVisa",
+      text:
+        "Apply Payment Download E-Visa Application Information Waiting For Payment " +
+        "Visa Information Reference No. : 2210726B1529178 Payment Receipt No. : Visa No. :",
+    }),
+    "payment_required",
+    "persistent Download E-Visa navigation must not be treated as payment success",
+  );
+  assert.equal(
+    classifyIndonesiaPortalSnapshot({
       url: "https://live.finpay.id/pg/payment/card/result/failed?orderId=abc&orderAmount=500000",
       title: "Payment Failed",
       text: "Payment Failed Your payment failed. Please try again later.",

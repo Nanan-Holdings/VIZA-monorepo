@@ -10,6 +10,7 @@ import type { IndonesiaOneTimeCard } from "./card-session";
 import {
   actionForIndonesiaPortalState,
   classifyIndonesiaPortalSnapshot,
+  hasIndonesiaOfficialSuccessEvidence,
   shouldDirectNavigateIndonesiaStepOne,
   type IndonesiaPortalStateId,
 } from "./portal-state";
@@ -52,6 +53,8 @@ export interface IndonesiaPortalProbeResult {
   browserProvider: "local" | "local-cdp" | "remote-browser-api" | "browserbase";
   diagnostics: string[];
   officialReference?: string;
+  /** True only when the official page contains terminal payment/submission evidence. */
+  officialPaymentConfirmed: boolean;
   /** In-memory official result-page PDF. The caller must upload it before returning success. */
   evidencePdf?: Buffer;
 }
@@ -4312,6 +4315,7 @@ export async function probeIndonesiaPortal(
       browserProvider: session.provider,
       diagnostics: session.diagnostics,
       officialReference,
+      officialPaymentConfirmed: hasIndonesiaOfficialSuccessEvidence({ url, title, text }),
       evidencePdf,
     };
   } finally {

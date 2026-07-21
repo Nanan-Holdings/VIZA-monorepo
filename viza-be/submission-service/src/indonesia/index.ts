@@ -328,7 +328,11 @@ export async function runIndonesiaLiveSubmission(
       userPaymentHandoff: input.userPaymentHandoff,
       onStage: input.onStage,
     });
-    if (probe.state === "submitted_or_approved" && probe.evidencePdf) {
+    if (
+      probe.state === "submitted_or_approved" &&
+      probe.officialPaymentConfirmed &&
+      probe.evidencePdf
+    ) {
       return {
         country: "ID",
         status: "submitted",
