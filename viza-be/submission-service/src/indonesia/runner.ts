@@ -367,6 +367,26 @@ function visaPatternFor(
   return /^C1\b/i;
 }
 
+function documentTravelTypePattern(value: string | null | undefined): RegExp {
+  const normalized = clean(value)?.toLowerCase() ?? "";
+  if (!normalized || /ordinary|regular|passport/.test(normalized)) {
+    return /^(?:ordinary(?: passport)?|passport(?: ordinary)?)$/i;
+  }
+  return new RegExp(`^${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+}
+
+async function collectNativeInvalidControlNames(page: Page): Promise<string[]> {
+  return page
+    .evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("form :invalid"))
+        .filter((control) => control.type !== "hidden" && !control.disabled)
+        .map((control) => control.id || control.name || control.type || control.tagName.toLowerCase())
+        .filter(Boolean)
+        .slice(0, 12),
+    )
+    .catch(() => []);
+}
+
 async function selectNativeOptionByText(
   page: Page,
   selector: string,
@@ -710,7 +730,44 @@ function officialSafeText(value: string | null | undefined, fallback: string | n
 async function setDateValue(page: Page, selector: string, value: string | null | undefined): Promise<boolean> {
   const normalized = toIndonesiaDate(value);
   if (!normalized) return false;
-  return fillIfPresent(page, selector, normalized);
+  const field = page.locator(selector).first();
+  if ((await field.count().catch(() => 0)) === 0) return false;
+  try {
+    // The Indonesia portal's date-input mask does not reliably accept
+    // Playwright's atomic fill. Typing the visible DD/MM/YYYY value and
+    // blurring the field lets the mask/datepicker update its internal state.
+    await field.fill("", { timeout: 10_000 });
+    await field.type(normalized, { delay: 25, timeout: 10_000 });
+    await field.press("Tab", { timeout: 5_000 });
+  } catch {
+    // Fall through to the portal-widget-aware setter below.
+  }
+  const applied = await field.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement & {
+      _flatpickr?: { setDate: (date: Date, triggerChange?: boolean) => void };
+    };
+    const [day, month, year] = nextValue.split("/").map(Number);
+    const date = new Date(year, month - 1, day);
+    try {
+      input._flatpickr?.setDate(date, true);
+    } catch {
+      // Not a flatpickr-backed field.
+    }
+    try {
+      const jquery = (window as unknown as {
+        jQuery?: (target: Element) => { datepicker?: (command: string, date: Date) => void };
+      }).jQuery;
+      jquery?.(input).datepicker?.("setDate", date);
+    } catch {
+      // Not a Bootstrap/jQuery datepicker-backed field.
+    }
+    if (input.value !== nextValue) input.value = nextValue;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    return input.value;
+  }, normalized).catch(() => null);
+  return applied === normalized;
 }
 
 async function fillTextInputValue(page: Page, selector: string, value: string | null | undefined): Promise<boolean> {
@@ -1183,7 +1240,8 @@ async function captureApplicationStepArtifact(
   try {
     const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
       .replace(/[^a-zA-Z0-9_-]/g, "_");
-    const dir = path.resolve("diag-out", `indonesia-step-${step}`, applicationId);
+    const diagnosticRoot = process.env.FLY_APP_NAME ? os.tmpdir() : path.resolve("diag-out");
+    const dir = path.join(diagnosticRoot, `indonesia-step-${step}`, applicationId);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, `step-${step}.html`), await page.content().catch(() => ""));
     const controls = await page
@@ -1640,7 +1698,7 @@ async function fillForeignerAccountRegistration(
     await gender.check({ timeout: 5_000 }).catch(() => undefined);
   }
   await fillIfPresent(page, "#birth_place", officialSafeText(registration.birthPlace));
-  await fillIfPresent(page, "#birthday", toIndonesiaDate(registration.dateOfBirth));
+  await setDateValue(page, "#birthday", registration.dateOfBirth);
   const phoneCountryCode = normalizePhoneCountryCode(registration.phoneCountryCode);
   const phoneCountry = normalizeCountryLabel(registration.phoneCodeCountry ?? registration.passportCountry);
   const phonePattern = phoneCountryCode
@@ -1666,8 +1724,8 @@ async function fillForeignerAccountRegistration(
   ).catch(() => undefined);
   await page.locator("#number").first().dispatchEvent("blur").catch(() => undefined);
   await page.waitForTimeout(2_000);
-  await fillIfPresent(page, "#release_date", toIndonesiaDate(registration.passportIssueDate));
-  await fillIfPresent(page, "#expired_date", toIndonesiaDate(registration.passportExpiryDate));
+  await setDateValue(page, "#release_date", registration.passportIssueDate);
+  await setDateValue(page, "#expired_date", registration.passportExpiryDate);
   await fillIfPresent(
     page,
     "#release_place",
@@ -2006,6 +2064,11 @@ async function clickIndonesiaStepOneNext(
     return;
   }
   diagnostics.push("indonesia_step_1_next_click_failed");
+}
+
+function indonesiaStepTwoValidationSummary(diagnostics: string[]): string | null {
+  const entry = [...diagnostics].reverse().find((value) => value.startsWith("indonesia_step_2_validation_controls "));
+  return entry?.slice("indonesia_step_2_validation_controls ".length) ?? null;
 }
 
 async function waitForIndonesiaStepOneAdvance(page: Page, timeoutMs: number): Promise<boolean> {
@@ -2814,24 +2877,11 @@ async function continueFromApplicationStepTwo(
     diagnostics.push("indonesia_step_2_missing_application_input");
     return false;
   }
-  const selectedOnlinePayment = await page
-    .evaluate(() => {
-      const online = document.querySelector<HTMLInputElement>("#paymentMethod-ONLINE");
-      const offline = document.querySelector<HTMLInputElement>("#paymentMethod-OFFLINE");
-      if (!online) return "missing";
-      online.checked = true;
-      online.setAttribute("checked", "checked");
-      online.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-      online.dispatchEvent(new Event("input", { bubbles: true }));
-      online.dispatchEvent(new Event("change", { bubbles: true }));
-      if (offline) {
-        offline.checked = false;
-        offline.removeAttribute("checked");
-        offline.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      const selected = document.querySelector<HTMLInputElement>("input[name='paymentMethod']:checked");
-      return selected?.id ?? "none";
-    })
+  const selectedOnlinePayment = await page.locator("#paymentMethod-ONLINE").first()
+    .check({ force: true, timeout: 10_000 })
+    .then(async () => await page.evaluate(() =>
+      document.querySelector<HTMLInputElement>("input[name='paymentMethod']:checked")?.id ?? "none",
+    ))
     .catch((error: unknown) => {
       diagnostics.push(`indonesia_step_2_payment_method_select_error ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
       return "error";
@@ -2862,8 +2912,12 @@ async function continueFromApplicationStepTwo(
   await selectNativeOptionByText(
     page,
     "#document_travel_id",
-    new RegExp(`^${(application.documentTravelType ?? "Passport").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-  ).catch(() => undefined);
+    documentTravelTypePattern(application.documentTravelType),
+  ).then((selected) => {
+    diagnostics.push(`indonesia_step_2_document_type_selected ${selected}`);
+  }).catch((error: unknown) => {
+    diagnostics.push(`indonesia_step_2_document_type_select_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
+  });
   await fillIfPresent(page, "#number", application.passportNumber);
   await selectNativeOptionByText(
     page,
@@ -2916,6 +2970,10 @@ async function continueFromApplicationStepTwo(
   });
   await page.waitForTimeout(2_000);
   await dismissIndonesiaDialogs(page, diagnostics);
+  const invalidBeforeSubmit = await collectNativeInvalidControlNames(page);
+  if (invalidBeforeSubmit.length > 0) {
+    diagnostics.push(`indonesia_step_2_native_invalid_before_submit ${invalidBeforeSubmit.join(",")}`);
+  }
   diagnostics.push("indonesia_step_2_form_filled");
 
   const shouldAdvance = process.env.INDONESIA_ADVANCE_AFTER_STEP_2 !== "false";
@@ -2927,8 +2985,9 @@ async function continueFromApplicationStepTwo(
       title: await page.title().catch(() => null),
     });
     await next.click({ timeout: 15_000 });
+    await page.waitForURL((nextUrl) => !/\/step_2\b/i.test(nextUrl.toString()), { timeout: 20_000 }).catch(() => undefined);
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-    await page.waitForTimeout(4_000);
+    await page.waitForTimeout(2_000);
     const submitExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
     const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
     const allDiagnostics = diagnostics.join(" ");
@@ -2951,6 +3010,22 @@ async function continueFromApplicationStepTwo(
         diagnostics.push("indonesia_step_2_direct_step_3_after_missing_submit");
       }
     }
+  }
+  if (/\/step_2\b/i.test(page.url())) {
+    const invalidControls = Array.from(new Set([
+      ...await collectNativeInvalidControlNames(page),
+      ...await visibleInvalidControlNames(page),
+    ]));
+    const validationSummary = invalidControls.length > 0
+      ? invalidControls.join(", ")
+      : "no visible validation message";
+    diagnostics.push(`indonesia_step_2_validation_controls ${validationSummary}`.slice(0, 500));
+    await captureApplicationStepArtifact(page, input, diagnostics, 2);
+    await input.onStage?.("step_2_validation_blocked", {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    });
+    return false;
   }
   if (/\/step_3\b/i.test(page.url())) {
     await continueFromApplicationStepThree(page, input, diagnostics);
@@ -2991,8 +3066,9 @@ async function continueFromApplicationStepThree(
       title: await page.title().catch(() => null),
     });
     await next.click({ timeout: 15_000 });
+    await page.waitForURL((nextUrl) => !/\/step_3\b/i.test(nextUrl.toString()), { timeout: 20_000 }).catch(() => undefined);
     await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
-    await page.waitForTimeout(4_000);
+    await page.waitForTimeout(2_000);
     const sawExistingApplicationWarning = await dismissIndonesiaDialogs(page, diagnostics);
     if (sawExistingApplicationWarning) {
       await acceptIndonesiaExistingApplicationCancellationWarning(page, diagnostics);
@@ -3723,9 +3799,8 @@ async function waitForUserPaymentCompletion(
     diagnostics.push("indonesia_user_payment_wait_timeout");
     state = "payment_failed";
   }
-  if (state !== "submitted_or_approved" && state !== "payment_failed") {
+  if (state === "unknown") {
     diagnostics.push(`indonesia_payment_terminal_result_unconfirmed ${state}`);
-    state = "payment_failed";
   }
 
   if (state !== "submitted_or_approved") return { state, title, text, url };
@@ -4107,9 +4182,7 @@ async function createIndonesiaProbeSession(input: IndonesiaPortalProbeInput): Pr
   diagnostics: string[];
 }> {
   const diagnostics: string[] = [];
-  const endpoint = input.userPaymentHandoff?.enabled
-    ? null
-    : firstConfiguredEndpoint(endpointEnvNames(input.provider));
+  const endpoint = firstConfiguredEndpoint(endpointEnvNames(input.provider));
   if (endpoint) {
     const browser = await chromium.connectOverCDP(endpoint, { timeout: 45_000 });
     const context = browser.contexts()[0] ?? await browser.newContext({ acceptDownloads: true });
@@ -4118,7 +4191,7 @@ async function createIndonesiaProbeSession(input: IndonesiaPortalProbeInput): Pr
     return { browser, context, page, provider: "remote-browser-api", diagnostics };
   }
 
-  if (browserbaseEnabled("INDONESIA") && !input.userPaymentHandoff?.enabled) {
+  if (browserbaseEnabled("INDONESIA")) {
     const cloud = await connectBrowserbaseCloudBrowser({ prefix: "INDONESIA" });
     diagnostics.push(`indonesia_browserbase_connected proxies=${cloud.proxiesEnabled}`);
     return {
@@ -4149,6 +4222,18 @@ async function createIndonesiaProbeSession(input: IndonesiaPortalProbeInput): Pr
   const page = await context.newPage();
   diagnostics.push(`indonesia_local_browser channel=${channel ?? "chromium"} headless=${input.headless ?? true}`);
   return { browser, context, page, provider: "local", diagnostics };
+}
+
+async function closeIndonesiaProbeBrowser(browser: Browser, timeoutMs = 5_000): Promise<boolean> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const closed = await Promise.race([
+    browser.close().then(() => true).catch(() => false),
+    new Promise<boolean>((resolve) => {
+      timeout = setTimeout(() => resolve(false), timeoutMs);
+    }),
+  ]);
+  if (timeout) clearTimeout(timeout);
+  return closed;
 }
 
 export async function probeIndonesiaPortal(
@@ -4372,6 +4457,7 @@ export async function probeIndonesiaPortal(
     const passportInvalidDataBlocked = hasIndonesiaPassportInvalidDataDiagnostic(session.diagnostics);
     const stepOneValidationBlocked = hasIndonesiaStepOneValidationBlock(session.diagnostics);
     const postalValidationBlocked = hasIndonesiaPostalValidationBlock(session.diagnostics);
+    const stepTwoValidationSummary = indonesiaStepTwoValidationSummary(session.diagnostics);
     if (state === "submitted_or_approved" && !evidencePdf) {
       officialReference = extractIndonesiaOfficialReference(text);
       evidencePdf = await page.pdf({ format: "A4", printBackground: true }).catch((error: unknown) => {
@@ -4393,6 +4479,13 @@ export async function probeIndonesiaPortal(
           actionType: "official_postal_code_validation_failed",
           instruction:
             "The Indonesia official portal could not resolve the accommodation postal code. Confirm the 5-digit postal code for the Indonesian address, then retry so the portal can fill province, city, district, and village.",
+          implementationStatus: "partial" as const,
+        }
+      : stepTwoValidationSummary
+      ? {
+          actionType: "official_step_2_validation_blocked",
+          instruction:
+            `The Indonesia official portal kept the application on step 2 after submit. Blocking controls: ${stepTwoValidationSummary}.`,
           implementationStatus: "partial" as const,
         }
       : passportInvalidDataBlocked
@@ -4424,6 +4517,9 @@ export async function probeIndonesiaPortal(
       evidencePdf,
     };
   } finally {
-    await session.browser.close().catch(() => undefined);
+    const closed = await closeIndonesiaProbeBrowser(session.browser);
+    if (!closed) {
+      session.diagnostics.push("indonesia_browser_close_timed_out");
+    }
   }
 }
