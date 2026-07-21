@@ -5,7 +5,7 @@ import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
 } from "../SubmissionStatusStep";
-import { shouldStartLocalSubmissionWorker } from "../FailureCard";
+import { FailureCard } from "../FailureCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -235,9 +235,29 @@ describe("DigitalArrivalCardResultCard", () => {
 });
 
 describe("cloud submission retry routing", () => {
-  it("starts a local worker only on localhost", () => {
-    expect(shouldStartLocalSubmissionWorker("localhost")).toBe(true);
-    expect(shouldStartLocalSubmissionWorker("127.0.0.1")).toBe(true);
-    expect(shouldStartLocalSubmissionWorker("app.viza.it.com")).toBe(false);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("retries through the cloud handler without starting a local worker", async () => {
+    const onRetry = vi.fn().mockResolvedValue(undefined);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <FailureCard
+        applicationId="application-id"
+        errorMessage="Submission job stalled because the worker did not pick it up in time."
+        retryModes={[{ mode: "live_assisted", label: "提交" }]}
+        onRetry={onRetry}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    await waitFor(() => {
+      expect(onRetry).toHaveBeenCalledWith("live_assisted", undefined);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

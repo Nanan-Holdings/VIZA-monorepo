@@ -23,10 +23,6 @@ interface FailureCardProps {
   requiresVietnamPaymentCard?: boolean;
 }
 
-export function shouldStartLocalSubmissionWorker(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1";
-}
-
 export interface VietnamOneTimePaymentCard {
   pan: string;
   expiry: string;
@@ -176,8 +172,6 @@ export function FailureCard({
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
-  const [localWorkerStarting, setLocalWorkerStarting] = useState(false);
-  const [localWorkerError, setLocalWorkerError] = useState<string | null>(null);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
@@ -186,9 +180,6 @@ export function FailureCard({
   const [cardHolderName, setCardHolderName] = useState("");
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
-  const localWorkerStartAvailable =
-    typeof window !== "undefined" &&
-    shouldStartLocalSubmissionWorker(window.location.hostname);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
@@ -256,30 +247,6 @@ export function FailureCard({
     }
   };
 
-  const handleLocalWorkerRetry = async () => {
-    if (!applicationId || !onRetry) return;
-    const mode = modes.find((item) => item.mode === "live_assisted")?.mode ?? modes[0]?.mode;
-    if (!mode) return;
-    setLocalWorkerError(null);
-    setLocalWorkerStarting(true);
-    try {
-      const response = await fetch(`/api/applications/${applicationId}/local-submission-worker`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ restart: true }),
-      });
-      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
-      if (!response.ok) {
-        throw new Error(typeof payload?.error === "string" ? payload.error : `Worker start failed with ${response.status}`);
-      }
-      await handleRetry(mode);
-    } catch (error) {
-      setLocalWorkerError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLocalWorkerStarting(false);
-    }
-  };
-
   return (
     <Card className="rounded-xl border-destructive/40">
       <CardHeader>
@@ -290,9 +257,7 @@ export function FailureCard({
             : vnPrearrivalOtpErrorKind
             ? (isZh ? "邮箱验证码未完成" : "Email verification was not completed")
             : workerPickupError
-            ? localWorkerStartAvailable
-              ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
-              : (isZh ? "云端任务没有完成" : "Cloud submission did not complete")
+            ? (isZh ? "云端任务没有完成" : "Cloud submission did not complete")
             : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
         </CardTitle>
       </CardHeader>
@@ -310,10 +275,6 @@ export function FailureCard({
             ? (isZh
                 ? "官网在验证码确认后没有及时完成页面切换。你的答案已保存；系统重试时会等待官方确认完成，并避免重复使用旧验证码。"
                 : "The official portal did not finish the page transition after email verification. Your answers are saved; the retry will wait for confirmation and avoid reusing an old code.")
-            : workerPickupError && localWorkerStartAvailable
-            ? (isZh
-                ? "这不是表单内容错误，而是本地 submission-service worker 没有运行、端口未匹配，或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
-                : "This is not a form-data error. The local submission-service worker was not running, was on a different port, or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
             : workerPickupError
             ? (isZh
                 ? "云端提交任务没有及时推进。你的答案已保存；请直接重新提交，VIZA 会创建新的云端任务并继续跟踪。"
@@ -429,39 +390,22 @@ export function FailureCard({
         )}
         {applicationId && onRetry && (
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
-            {workerPickupError && localWorkerStartAvailable ? (
+            {modes.map((item) => (
               <BrandActionButton
-                  onClick={() => {
-                    void handleLocalWorkerRetry();
-                  }}
-                  disabled={!cardReady}
-                  loading={localWorkerStarting}
+                key={item.mode}
+                onClick={() => {
+                  void handleRetry(item.mode).catch(() => undefined);
+                }}
+                disabled={!cardReady}
+                loading={retryingMode === item.mode}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >
                 <RotateCw className="mr-2 h-4 w-4" />
-                {isZh ? "提交" : "Submit"}
+                {item.label}
               </BrandActionButton>
-            ) : (
-              modes.map((item) => (
-                <BrandActionButton
-                  key={item.mode}
-                  onClick={() => {
-                    void handleRetry(item.mode).catch(() => undefined);
-                  }}
-                  disabled={!cardReady}
-                  loading={retryingMode === item.mode}
-                  loadingText={isZh ? "正在提交" : "Submitting"}
-                >
-                  <RotateCw className="mr-2 h-4 w-4" />
-                  {item.label}
-                </BrandActionButton>
-              ))
-            )}
+            ))}
           </div>
         )}
-        {localWorkerError ? (
-          <p className="text-sm text-red-700">{localWorkerError}</p>
-        ) : null}
         {officialAccount?.email && (
           <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
             <div className="text-sm font-semibold text-foreground">
