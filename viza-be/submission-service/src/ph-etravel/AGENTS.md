@@ -12,5 +12,6 @@ Scope: Philippines `PH_ETRAVEL_ARRIVAL_CARD` official eTravel portal automation 
 - Treat a non-2xx registration API response as a registration failure and retry the email/Turnstile step; never wait for an inbox message after the official API rejected the request.
 - eGovPH may deliver a generic registration-attempt notice before the actionable OTP. Keep a short grace window so the OTP or verification link wins instead of prematurely switching to existing-account login.
 - On personal-information onboarding, explicitly verify the Foreign Passport Holder radio state and treat visible upload/network errors as failed profile-photo uploads; the page's default avatar is not upload evidence.
+- Do not infer authentication from the absence of login fields while the landing page is still loading. Wait for explicit login-form or authenticated-dashboard evidence and retry the sign-in transition with a bounded loop.
 - `form-filler.ts` owns the post-authenticated official page state machine and field plan. It must fill all visible steps, capture per-step evidence, stop on Review when requested, and click final Submit only when the caller explicitly disables `stopBeforeSubmit`.
 - Browserbase is selected with `PH_ETRAVEL_BROWSERBASE_ENABLED=true`; the default managed proxy country is `PH`. Never log its connect URL, API key, or replay-session credentials.

@@ -1091,20 +1091,43 @@ async function reachAuthenticatedPhEtravelSession(
     return;
   }
 
-  const clickedSignIn = await clickFirstAvailable(page, [
-    page.getByRole("button", { name: /click here to sign in/i }),
-    page.getByRole("link", { name: /^sign in$/i }),
-    page.locator("button, a").filter({ hasText: /sign in/i }),
-  ]);
-  if (clickedSignIn) {
+  let clickedSignIn = false;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    clickedSignIn = await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /click here to sign in/i }),
+      page.getByRole("link", { name: /^sign in$/i }),
+      page.locator("button, a").filter({ hasText: /sign in/i }),
+    ]);
+    if (!clickedSignIn) break;
+    logs.push(`ph_etravel_signin_entry_clicked attempt=${attempt}`);
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(1_500);
+    const transitioned = await page.waitForFunction(() => {
+      const current = document.body?.innerText ?? "";
+      const loginReady = /enter email address|password|create an account|sign in to etravel/i.test(current);
+      const authenticatedReady = /dashboard|new travel declaration|etravel registration|personal information/i.test(current);
+      return (loginReady || authenticatedReady) && !/^loading/i.test(current.trim());
+    }, undefined, { timeout: 20_000 }).then(() => true).catch(() => false);
+    if (transitioned) break;
+    logs.push(`ph_etravel_signin_entry_transition_pending attempt=${attempt}`);
+    await page.waitForTimeout(2_000);
   }
 
   const loginText = await bodyText(page);
   if (!/enter email address|password|create an account|sign in to etravel/i.test(loginText)) {
-    logs.push("ph_etravel_login_not_required_after_signin_click");
-    return;
+    if (/dashboard|new travel declaration|etravel registration|personal information/i.test(loginText)) {
+      await completeEgovPersonalInformationOnboarding(page, payload, options, logs, screenshots);
+      logs.push("ph_etravel_login_not_required_after_signin_click");
+      return;
+    }
+    screenshots.push(await saveScreenshot(page, "official-signin-transition-pending", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel sign-in page did not finish loading after the sign-in entry was clicked.",
+      {
+        code: "ph_etravel_signin_transition_failed",
+        screenshotPaths: screenshots,
+        portalSummary: loginText.slice(0, 700),
+      },
+    );
   }
 
   const email = options.officialAccountEmail?.trim() || process.env.PH_ETRAVEL_ACCOUNT_EMAIL?.trim();
