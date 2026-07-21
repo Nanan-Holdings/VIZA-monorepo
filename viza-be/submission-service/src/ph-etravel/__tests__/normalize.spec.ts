@@ -109,6 +109,7 @@ test("normalizePhEtravelPortalPayload keeps departure independent and evaluates 
       departure_airport: "TP1000",
       destination_country: "SG",
       destination_port: "Singapore Changi Airport",
+      destination_address: "1 Airport Boulevard, Singapore",
       flight_departure_date: "2026-06-13",
       flight_arrival_date: "2026-06-14",
       has_goods_to_declare: "no",
@@ -121,6 +122,7 @@ test("normalizePhEtravelPortalPayload keeps departure independent and evaluates 
   assert.equal(payload.portOfEntry, "TP1000");
   assert.equal(payload.destinationCountry, "SG");
   assert.equal(payload.destinationPort, "Singapore Changi Airport");
+  assert.equal(payload.destinationAddress, "1 Airport Boulevard, Singapore");
   assert.equal(payload.philippinesAddress, null);
 });
 

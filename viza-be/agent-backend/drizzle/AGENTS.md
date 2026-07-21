@@ -109,6 +109,8 @@ The current internal automation migrations are:
 - `0112_inbound_email_alias_forwarding.sql`: delivery and retry state for
   forwarding VIZA alias inbox messages, including official OTP, QR, and PDF
   correspondence, to the applicant's real profile email.
+- `0114_appointment_slot_check_timestamp.sql`: last official appointment-slot
+  observation timestamp used by France appointment cooldown and recovery state.
 
 ## Guardrails
 

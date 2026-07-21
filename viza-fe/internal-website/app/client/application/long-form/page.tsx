@@ -37,7 +37,11 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import { getFormVisaType, getVisaPackageTitle } from "@/lib/visa-destinations";
+import {
+  getCanonicalVisaDestinationCountry,
+  getFormVisaType,
+  getVisaPackageTitle,
+} from "@/lib/visa-destinations";
 import type {
   SubmissionResult,
   SubmissionResultStatus,
@@ -1188,9 +1192,11 @@ function FinalConfirmationPanel({
         type="button"
         disabled={submitDisabled}
         onClick={() => {
-          void Promise.resolve(onSubmit(submitMode, officialPaymentCard)).finally(() => {
-            if (requiresOneTimeOfficialPaymentCard) setCardCvv("");
-          });
+          void Promise.resolve(onSubmit(submitMode, officialPaymentCard))
+            .catch(() => undefined)
+            .finally(() => {
+              if (requiresOneTimeOfficialPaymentCard) setCardCvv("");
+            });
         }}
         className={cn(
           "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
@@ -2110,6 +2116,16 @@ export default function ApplicationPage() {
 
   const loadData = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
+      setAppState((prev) => ({
+        ...prev,
+        applicationId: null,
+        confirmationNumber: undefined,
+        submittedAt: undefined,
+        submissionResult: null,
+        submissionResultStatus: null,
+      }));
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -2135,6 +2151,21 @@ export default function ApplicationPage() {
         }
         profile = (context.profile as LoadedApplicantProfile | null) ?? null;
         application = (context.application as LoadedApplication | null) ?? null;
+      }
+
+      if (application?.id && preferExplicitPackage) {
+        const applicationCountry = getCanonicalVisaDestinationCountry(application.country ?? "");
+        const routeCountry = getCanonicalVisaDestinationCountry(resolvedCountry);
+        const applicationVisaType = getFormVisaType(application.visa_type ?? "").toLowerCase();
+        const routeVisaType = getFormVisaType(resolvedVisaType).toLowerCase();
+        if (applicationCountry !== routeCountry || applicationVisaType !== routeVisaType) {
+          setError(
+            isZhInterface
+              ? "当前申请与页面国家不一致。为避免提交到错误的官网，系统已停止本次操作，请从“我的申请”重新打开正确申请。"
+              : "This application does not match the country shown on the page. Submission was stopped to prevent filing with the wrong official portal. Reopen the correct application from My Applications.",
+          );
+          return;
+        }
       }
 
       if (profile) {
@@ -2223,7 +2254,7 @@ export default function ApplicationPage() {
     } finally {
       setLoading(false);
     }
-  }, [dbSteps, explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
+  }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
 
   useEffect(() => {
     if (!packageLoaded) return;
@@ -2764,10 +2795,9 @@ export default function ApplicationPage() {
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         setCurrentStep(statusStepIndex);
-        setError(isZhInterface
+        throw new Error(isZhInterface
           ? "请先补齐最终确认页列出的缺失信息。"
           : "Please complete the missing information listed on the final confirmation step.");
-        return;
       }
 
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
@@ -2871,7 +2901,9 @@ export default function ApplicationPage() {
           ...previousSubmissionState,
         }));
       }
-      setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
+      const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
+      setError(submissionError.message);
+      throw submissionError;
     } finally {
       setSaving(false);
       setSubmittingMode(null);
@@ -2911,10 +2943,9 @@ export default function ApplicationPage() {
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         setCurrentStep(fallbackStatusStepIndex);
-        setError(isZhInterface
+        throw new Error(isZhInterface
           ? "请先补齐最终确认页列出的缺失信息。"
           : "Please complete the missing information listed on the final confirmation step.");
-        return;
       }
 
       // Persist the complete DS-160 answer set from hardcoded steps
@@ -2957,7 +2988,9 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
       setCurrentStep(fallbackStatusStepIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
+      const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
+      setError(submissionError.message);
+      throw submissionError;
     } finally {
       setSaving(false);
       setSubmittingMode(null);
