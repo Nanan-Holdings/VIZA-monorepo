@@ -23,3 +23,4 @@ Scope: Philippines `PH_ETRAVEL_ARRIVAL_CARD` and `PH_ETRAVEL_DEPARTURE_CARD` for
   fields.
 - `seed-departure-form-fields.ts` replaces only
   `PH_ETRAVEL_DEPARTURE_CARD` rows and must never delete arrival rows.
+- `departure-parity.snapshot.json` records official sources/build, option counts, branch coverage, and smoke safety. Never mark Review reached without a real stop-before-submit artifact.

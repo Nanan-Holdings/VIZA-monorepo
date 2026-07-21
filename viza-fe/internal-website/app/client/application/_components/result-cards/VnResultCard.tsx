@@ -382,8 +382,8 @@ export function VnResultCard({
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "卡号和 CVV 只用于本次官方付款，会发送到本机 submission-service 的短时内存会话；不会保存到数据库、env、日志或个人资料。"
-                    : "Card number and CVV are used only for this official payment through a short-lived local submission-service session."}
+                    ? "卡号和 CVV 只用于本次官方付款，会发送到 VIZA 云端 submission-service 的短时内存会话；不会保存到数据库、env、日志或个人资料。"
+                    : "Card number and CVV are used only for this official payment through a short-lived VIZA cloud submission-service session."}
                 </p>
                 {paymentQueued && (
                   <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

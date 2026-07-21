@@ -105,6 +105,10 @@ function isIndonesiaInternalRequest(req: http.IncomingMessage): boolean {
   return hasBearerToken(req, process.env.INDONESIA_CARD_SESSION_INTERNAL_TOKEN);
 }
 
+function isVietnamInternalRequest(req: http.IncomingMessage): boolean {
+  return hasBearerToken(req, process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN);
+}
+
 async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise<unknown> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -121,11 +125,15 @@ async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise
 }
 
 async function handleVietnamCardSession(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-  if (!envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) {
+  const internalRequest = req.url === "/internal/vietnam/card-session";
+  const enabled = internalRequest
+    ? envEnabled(process.env.VN_CLOUD_CARD_SESSION_ENABLED)
+    : envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED);
+  if (!enabled) {
     sendJson(res, 404, { error: "not_found" });
     return;
   }
-  if (!isLocalRequest(req)) {
+  if (internalRequest ? !isVietnamInternalRequest(req) : !isLocalRequest(req)) {
     sendJson(res, 403, { error: "forbidden" });
     return;
   }
@@ -589,6 +597,10 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleVietnamCardSession(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/internal/vietnam/card-session") {
+      void handleVietnamCardSession(req, res);
+      return;
+    }
     if (req.method === "POST" && url === "/local/indonesia/card-session") {
       void handleIndonesiaCardSession(req, res);
       return;
@@ -656,6 +668,17 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       }
       if (!isLocalRequest(req)) {
         sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, enabled: true });
+      return;
+    }
+    if (req.method === "GET" && url === "/internal/vietnam/card-session") {
+      if (
+        !envEnabled(process.env.VN_CLOUD_CARD_SESSION_ENABLED) ||
+        !isVietnamInternalRequest(req)
+      ) {
+        sendJson(res, 404, { error: "not_found" });
         return;
       }
       sendJson(res, 200, { ok: true, enabled: true });
@@ -766,6 +789,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
   server.listen(port, () => {
     const endpoints: string[] = [];
     if (envEnabled(process.env.VN_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/vietnam/card-session");
+    if (envEnabled(process.env.VN_CLOUD_CARD_SESSION_ENABLED)) endpoints.push("/internal/vietnam/card-session");
     if (envEnabled(process.env.ID_LOCAL_CARD_SESSION_ENABLED)) endpoints.push("/local/indonesia/card-session");
     if (envEnabled(process.env.ID_CLOUD_CARD_SESSION_ENABLED)) endpoints.push("/internal/indonesia/card-session");
     if (envEnabled(process.env.KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/korea-kvac/sms/start");

@@ -125,6 +125,10 @@ filling and one-shot submission for the applicant.
   local browser, returns visible slots when safely observed, and otherwise
   returns structured checkpoints such as `login`, `captcha`, `waf`, `payment`,
   or `selector_drift` without logging Browser API endpoints.
+- `POST /internal/vietnam/card-session`: bearer-protected production handoff
+  from Vercel to the single Fly legacy queue worker. It keeps one Vietnam
+  official-fee card in worker memory until one consumption or expiry and must
+  never log or persist PAN/CVV.
 - `POST /internal/france-tls/register-account`: internal-token protected
   account preparation endpoint gated by
   `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`. It runs exactly one
@@ -233,8 +237,8 @@ filling and one-shot submission for the applicant.
   defaults to a Thailand-targeted Browserbase session (Bright Data rejects the
   government portal), dispatches through the official TDAC portal, and captures
   confirmation/error evidence artifacts.
-- `src/ph-etravel/**`: Philippines eTravel arrival-card runner. Normalizes
-  `PH_ETRAVEL_ARRIVAL_CARD` answers only, keeps eTravel separate from
+- `src/ph-etravel/**`: Philippines eTravel arrival/departure runner. Normalizes
+  independent `PH_ETRAVEL_ARRIVAL_CARD` and `PH_ETRAVEL_DEPARTURE_CARD` answers, keeps eTravel separate from
   `PH_TEMPORARY_VISITOR_VISA`, respects the 72-hour official window, defaults
   smoke/live runs to stop-before-submit, clicks into the official eTravel login
   path when live submission is explicitly enabled, and must capture

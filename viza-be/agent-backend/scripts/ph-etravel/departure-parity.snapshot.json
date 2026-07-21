@@ -47,6 +47,19 @@
     "has_exposure_to_sick_person_30d", "has_been_sick_30d", "visited_country_30d"
   ],
   "validationCommand": "npm run ph-etravel:departure-smoke -- --transport air|sea --passport-holder filipino|foreigner --use-imap-mailbox",
+  "lastValidation": {
+    "validatedOn": "2026-07-21",
+    "remoteBrowserApi": {
+      "status": "blocked_before_account",
+      "code": "ph_etravel_official_portal_blocked",
+      "reason": "Configured Bright Data Browser API policy blocks the government domain etravel.gov.ph."
+    },
+    "localBrowser": {
+      "status": "blocked_before_account",
+      "code": "ph_etravel_registration_turnstile_blocked",
+      "reason": "Official Cloudflare Turnstile returned verification failed; no OTP or declaration was created."
+    }
+  },
   "safety": {
     "defaultStopBeforeSubmit": true,
     "realSubmitRequiresExplicitFlag": "--submit",
