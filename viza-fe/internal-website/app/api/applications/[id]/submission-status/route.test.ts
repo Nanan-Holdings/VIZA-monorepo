@@ -126,6 +126,46 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.progress).toBe(90);
     expect(status.message).not.toContain("Continue payment from the official payment page.");
   });
+
+  it("does not show an older application failure while a new cloud retry is active", () => {
+    const now = new Date().toISOString();
+
+    const status = deriveNonTerminalStatus(
+      {
+        id: "app_active_retry",
+        applicant_id: "profile_active_retry",
+        country: "ID",
+        visa_type: "ID_B1_EVOA",
+        submitted_at: now,
+        submission_result: {
+          error: "Submission job failed: worker heartbeat stopped for 600s.",
+        },
+        submission_result_status: "failed",
+        submission_result_updated_at: new Date(Date.now() - 60_000).toISOString(),
+        updated_at: now,
+      },
+      {
+        id: "queue_active_retry",
+        status: "id_b1_evoa_payment_processing",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "indonesia_b1_evoa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "official_fee_payment_processing",
+        heartbeat_at: now,
+        manual_action_status: null,
+        official_status: null,
+        created_at: now,
+        updated_at: now,
+      },
+    );
+
+    expect(status.status).toBe("running");
+    expect(status.message).toBe("Current stage: official_fee_payment_processing.");
+    expect(status.error).toBeNull();
+  });
 });
 
 describe("selectQueueForSubmissionStatus", () => {
