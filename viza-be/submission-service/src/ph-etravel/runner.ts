@@ -569,6 +569,12 @@ async function uploadEgovProfilePhoto(
   logs: string[],
 ): Promise<boolean> {
   if (!photoPath || !fs.existsSync(photoPath)) return false;
+  const extension = path.extname(photoPath).toLowerCase();
+  const filePayload = {
+    name: path.basename(photoPath),
+    mimeType: extension === ".png" ? "image/png" : "image/jpeg",
+    buffer: fs.readFileSync(photoPath),
+  };
 
   const trySetInputFiles = async (): Promise<boolean> => {
     const inputs = page.locator("input[type='file']");
@@ -577,8 +583,17 @@ async function uploadEgovProfilePhoto(
       const input = inputs.nth(index);
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         await input.setInputFiles([], { timeout: 5_000 }).catch(() => undefined);
-        await input.setInputFiles(photoPath, { timeout: 15_000 }).catch(() => undefined);
+        const uploadResponsePromise = page.waitForResponse(
+          (response) => /egov-upload-ws\.e\.gov\.ph\/.*\/upload/i.test(response.url()),
+          { timeout: 30_000 },
+        ).catch(() => null);
+        await input.setInputFiles(filePayload, { timeout: 15_000 }).catch(() => undefined);
+        const uploadResponse = await uploadResponsePromise;
         await page.waitForTimeout(5_000);
+        if (uploadResponse) {
+          logs.push(`ph_etravel_egov_profile_photo_upload_response attempt=${attempt} status=${uploadResponse.status()}`);
+          if (uploadResponse.ok()) return true;
+        }
         const uploadError = await page
           .getByText(/error uploading file|network error|upload failed/i)
           .first()
@@ -672,11 +687,14 @@ async function chooseHeadlessComboboxByInputName(
   await input.click({ timeout: 10_000, force: true });
   await input.fill(typedText, { timeout: 10_000 });
   await page.waitForTimeout(700);
-  await clickFirstAvailable(page, [
-    page.locator("[role='option'], li, button, div, p").filter({ hasText: expectedText }),
+  const clicked = await clickFirstAvailable(page, [
     page.getByText(expectedText),
+    page.getByRole("option", { name: expectedText }),
+    page.locator("[role='option'], li, [data-slot='select-item']").filter({ hasText: expectedText }),
   ]);
-  await page.keyboard.press("Enter").catch(() => undefined);
+  if (!clicked) {
+    await page.keyboard.press("Enter").catch(() => undefined);
+  }
   await page.waitForTimeout(700);
   const value = await input.inputValue().catch(() => "");
   return expectedText.test(value);
@@ -729,11 +747,14 @@ async function chooseDropdownOption(
       await page.waitForTimeout(700);
     }
   }
+  const exactTypedText = typedText
+    ? new RegExp(`^${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")
+    : null;
   const clicked = await clickFirstAvailable(page, [
+    exactTypedText ? page.getByText(exactTypedText) : page.locator("__never__"),
     page.getByRole("option", { name: optionText }),
-    page.locator(".ant-select-item-option, .select__option, [data-slot='select-item']").filter({ hasText: optionText }),
+    page.locator(".ant-select-item-option, .select__option, [data-slot='select-item'], [role='option'], li").filter({ hasText: optionText }),
     typedText ? page.getByText(new RegExp(`^${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")) : page.locator("__never__"),
-    page.locator("[role='option'], li, button, div").filter({ hasText: optionText }),
   ]);
   if (clicked) {
     await page.waitForTimeout(700);
