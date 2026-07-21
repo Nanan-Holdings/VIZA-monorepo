@@ -6462,6 +6462,34 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
     }
 
     const answers = await loadDs160Answers(item.application_id);
+    let phProfilePhotoPath: string | undefined;
+    if (!isMdac && !isTdac) {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-ph-etravel-docs-${item.application_id}-`));
+      const reusableDocuments = await loadReusableApplicantDocuments(
+        profile.id,
+        item.application_id,
+        documents,
+      );
+      const localDocPaths = await downloadDocuments(reusableDocuments, tempDir);
+      phProfilePhotoPath = firstLocalDocumentPathMatching(localDocPaths, [
+        /(^|_)(photo|portrait|visa_photo|applicant_photo|personal_photo)(_|$)/i,
+        /passport.*photo/i,
+      ]);
+      const customsSignaturePath = firstLocalDocumentPath(localDocPaths, [
+        "customs_signature_file",
+        "electronic_signature",
+        "signature",
+        "signature_image",
+      ]);
+      if (customsSignaturePath) {
+        answers.customs_signature_file = customsSignaturePath;
+      }
+      if (phProfilePhotoPath) {
+        console.log("[phetravel] Using application photo for eGovPH profile onboarding.");
+      } else {
+        phProfilePhotoPath = await downloadLatestUserPhotoDocument(profile.auth_user_id, tempDir);
+      }
+    }
     const arrivalCardApplication = buildCountrySubmissionApplication(profile, application, answers);
     const provider = getCountrySubmissionProvider(application.country, application.visa_type);
     if (!provider || provider.countryCode !== country) {
@@ -6484,26 +6512,6 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         missingFields: validation.missingRequiredFields,
       });
       return;
-    }
-
-    let phProfilePhotoPath: string | undefined;
-    if (!isMdac && !isTdac) {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `viza-ph-etravel-docs-${item.application_id}-`));
-      const reusableDocuments = await loadReusableApplicantDocuments(
-        profile.id,
-        item.application_id,
-        documents,
-      );
-      const localDocPaths = await downloadDocuments(reusableDocuments, tempDir);
-      phProfilePhotoPath = firstLocalDocumentPathMatching(localDocPaths, [
-        /(^|_)(photo|portrait|visa_photo|applicant_photo|personal_photo)(_|$)/i,
-        /passport.*photo/i,
-      ]);
-      if (phProfilePhotoPath) {
-        console.log("[phetravel] Using application photo for eGovPH profile onboarding.");
-      } else {
-        phProfilePhotoPath = await downloadLatestUserPhotoDocument(profile.auth_user_id, tempDir);
-      }
     }
 
     await supabase

@@ -94,11 +94,43 @@ type BusyTarget = {
 
 const TRAVEL_CHAT_ARCHIVE_VERSION = 1;
 const DEFAULT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx";
+const PROFILE_PHOTO_DOCUMENT_TYPES = [
+  "photo",
+  "applicant_photo",
+  "profile_photo",
+  "formal_photo",
+  "formal_photo_upload",
+  "passport_photo",
+  "portrait_photo",
+] as const;
+const PROFILE_SIGNATURE_DOCUMENT_TYPES = [
+  "customs_signature_file",
+  "electronic_signature",
+  "signature",
+  "signature_image",
+] as const;
+const UNIVERSAL_UPLOAD_DOCUMENT_TYPES = new Set<string>([
+  ...PROFILE_PHOTO_DOCUMENT_TYPES,
+  ...PROFILE_SIGNATURE_DOCUMENT_TYPES,
+]);
+const REUSABLE_PROFILE_DOCUMENT_TYPES = new Set<string>([
+  "passport_copy",
+  "passport",
+  "passport_bio_page",
+  "passport_scan",
+  ...UNIVERSAL_UPLOAD_DOCUMENT_TYPES,
+]);
 const REQUIREMENT_LABEL_ZH: Record<string, string> = {
   passport_copy: "护照资料页",
   passport_bio_page: "护照资料页",
   passport: "护照资料页",
   photo: "证件照",
+  applicant_photo: "个人证件照",
+  profile_photo: "个人证件照",
+  formal_photo: "证件照",
+  formal_photo_upload: "证件照",
+  passport_photo: "护照规格证件照",
+  portrait_photo: "个人证件照",
   travel_itinerary: "旅行行程",
   return_ticket: "返程或续程机票",
   passport_validity_support: "护照有效期支持材料",
@@ -111,6 +143,12 @@ const REQUIREMENT_LABEL_EN: Record<string, string> = {
   passport_bio_page: "Passport bio page",
   passport: "Passport bio page",
   photo: "Passport-size photo",
+  applicant_photo: "Profile photo",
+  profile_photo: "Profile photo",
+  formal_photo: "Passport-size photo",
+  formal_photo_upload: "Passport-size photo",
+  passport_photo: "Passport-size photo",
+  portrait_photo: "Profile photo",
   travel_itinerary: "Travel itinerary",
   return_ticket: "Return or onward ticket",
   passport_validity_support: "Passport validity support document",
@@ -123,6 +161,12 @@ const REQUIREMENT_DESCRIPTION_ZH: Record<string, string> = {
   passport_bio_page: "护照资料页的清晰扫描件或照片。",
   passport: "护照资料页的清晰扫描件或照片。",
   photo: "近期证件照，需符合目的地照片规范。",
+  applicant_photo: "近期个人证件照，需符合目的地照片规范。",
+  profile_photo: "近期个人证件照，需符合目的地照片规范。",
+  formal_photo: "近期证件照，需符合目的地照片规范。",
+  formal_photo_upload: "近期证件照，需符合目的地照片规范。",
+  passport_photo: "近期护照规格证件照，需符合目的地照片规范。",
+  portrait_photo: "近期个人证件照，需符合目的地照片规范。",
   travel_itinerary: "按天的行程安排，包含日期、城市与主要活动。",
   return_ticket: "官网要求提供返程机票或前往其他国家的续程机票，PDF 格式。",
   passport_validity_support:
@@ -136,6 +180,12 @@ const REQUIREMENT_DESCRIPTION_EN: Record<string, string> = {
   passport_bio_page: "A clear scan or photo of the passport bio page.",
   passport: "A clear scan or photo of the passport bio page.",
   photo: "A recent passport-style photo that follows the destination rules.",
+  applicant_photo: "A recent profile photo that follows the destination rules.",
+  profile_photo: "A recent profile photo that follows the destination rules.",
+  formal_photo: "A recent passport-style photo that follows the destination rules.",
+  formal_photo_upload: "A recent passport-style photo that follows the destination rules.",
+  passport_photo: "A recent passport-style photo that follows the destination rules.",
+  portrait_photo: "A recent profile photo that follows the destination rules.",
   travel_itinerary:
     "A day-by-day itinerary with dates, cities, and main activities.",
   return_ticket:
@@ -1185,7 +1235,7 @@ export function DocumentCenterClient({
       uploadForm.set("filename", safeName);
       uploadForm.set("required", String(requirement.required));
       uploadForm.set("source", source);
-      if (["photo", "customs_signature_file", "electronic_signature", "signature", "signature_image"].includes(requirement.documentType)) {
+      if (UNIVERSAL_UPLOAD_DOCUMENT_TYPES.has(requirement.documentType)) {
         uploadForm.set("scope", "universal_profile");
       }
       uploadForm.set("file", file);
@@ -1619,7 +1669,7 @@ export function DocumentCenterClient({
                     isZh={isZh}
                     extraAction={renderTravelAiAction(view)}
                     onReuseProfileDocument={
-                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo", "customs_signature_file", "electronic_signature", "signature", "signature_image"].includes(view.requirement.documentType)
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
                         ? () => void reuseProfileDocument(view.requirement)
                         : undefined
                     }
@@ -1662,7 +1712,7 @@ export function DocumentCenterClient({
                     isZh={isZh}
                     extraAction={renderTravelAiAction(view)}
                     onReuseProfileDocument={
-                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo", "customs_signature_file", "electronic_signature", "signature", "signature_image"].includes(view.requirement.documentType)
+                      REUSABLE_PROFILE_DOCUMENT_TYPES.has(view.requirement.documentType)
                         ? () => void reuseProfileDocument(view.requirement)
                         : undefined
                     }

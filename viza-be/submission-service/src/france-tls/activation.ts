@@ -15,6 +15,18 @@ export interface FranceTlsAliasRotationResult {
   created: boolean;
 }
 
+export function isFranceTlsActivationMessage(
+  message: Pick<InboundMessage, "from_addr" | "subject" | "html" | "text">,
+): boolean {
+  const subject = message.subject ?? "";
+  const activationSubject = /activate|activation|verify|confirm.{0,30}account|account.{0,30}confirm/i
+    .test(subject);
+  const trustedDeliveryPath = /tlscontact|amazonaws|ses/i.test(message.from_addr ?? "");
+  return activationSubject
+    && trustedDeliveryPath
+    && extractFranceTlsActivationUrlFromMessage(message) !== null;
+}
+
 function decodeQuotedPrintableSoftBreaks(value: string): string {
   return value
     .replace(/=\r?\n/g, "")
@@ -79,6 +91,12 @@ export function isFranceTlsActivationExpiredText(text: string): boolean {
   return /action expired|activation expired|link expired|expired.*start again|请重新开始|链接.*过期/i.test(text);
 }
 
+export function isFranceTlsActivationRequiredText(text: string): boolean {
+  const normalized = text.replace(/\s+/g, " ");
+  return /activate your account|check your email.{0,80}(?:activate|activation)|account.{0,40}not activated/i
+    .test(normalized);
+}
+
 export async function rotateFranceTlsApplicantAlias(
   applicantId: string,
   domain = process.env.FRANCE_TLS_ALIAS_DOMAIN?.trim() || DEFAULT_TLS_ALIAS_DOMAIN,
@@ -95,15 +113,9 @@ export async function waitForFranceTlsActivationEmail(
   const { inbox } = await import("../inbox/wait-for-message");
   const message = await inbox.waitForMessage(
     applicantId,
-    (row) => {
-      if (!/activate.*tlscontact|tlscontact.*activate|tlscontact account/i.test(row.subject ?? "")) {
-        return false;
-      }
-      if (!/tlscontact|amazonaws|ses/i.test(row.from_addr ?? "")) return false;
-      return extractFranceTlsActivationUrlFromMessage(row) !== null;
-    },
+    isFranceTlsActivationMessage,
     timeoutMs,
-    opts,
+    { ...opts, newestFirst: true },
   );
 
   const activationUrl = extractFranceTlsActivationUrlFromMessage(message);

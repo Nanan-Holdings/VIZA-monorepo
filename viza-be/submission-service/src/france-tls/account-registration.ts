@@ -9,6 +9,7 @@ import { ensureApplicantInboxAlias } from "../inbox/alias";
 import { decryptSecret, encryptSecret } from "../secret-cipher";
 import { supabase } from "../supabase";
 import {
+  isFranceTlsActivationRequiredText,
   isFranceTlsActivationExpiredText,
   waitForFranceTlsActivationEmail,
 } from "./activation";
@@ -514,6 +515,17 @@ async function activateAccount(page: Page, context: FranceTlsStoredAccountContex
   await updateAccountStatus(context, "email_verified", true);
 }
 
+function activationLookbackSince(): string {
+  const lookbackDays = Number.parseInt(
+    process.env.FRANCE_TLS_ACTIVATION_LOOKBACK_DAYS ?? "30",
+    10,
+  );
+  const safeLookbackDays = Number.isFinite(lookbackDays) && lookbackDays > 0
+    ? Math.min(lookbackDays, 90)
+    : 30;
+  return new Date(Date.now() - safeLookbackDays * 24 * 60 * 60 * 1_000).toISOString();
+}
+
 export function isAuthenticatedFranceTlsRedirectUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -592,7 +604,14 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
         await settle(page);
         const loginState = classifyFranceTlsBrowserState(await readFranceTlsBrowserState(page));
         if (loginState.checkpoint === "captcha_grid" || loginState.checkpoint === "captcha_token") {
-          await ensureRecaptchaToken(page, { providerWaitMs: 0, required: true });
+          const configuredWaitMs = Number.parseInt(
+            process.env.FRANCE_TLS_BROWSERBASE_CAPTCHA_WAIT_MS ?? "45000",
+            10,
+          );
+          const providerWaitMs = Number.isFinite(configuredWaitMs) && configuredWaitMs >= 0
+            ? configuredWaitMs
+            : 45_000;
+          await ensureRecaptchaToken(page, { providerWaitMs, required: true });
           const clickedAfterCaptcha = await clickFirstVisible([
             page.locator("#btn-login"),
             page.getByRole("button", { name: /^log\s*in$/i }),
@@ -603,6 +622,9 @@ async function login(page: Page, context: FranceTlsStoredAccountContext, centerU
           }
         }
         const body = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+        if (isFranceTlsActivationRequiredText(body)) {
+          throw new Error("TLScontact requires account activation before login");
+        }
         if (/invalid (email|username|password|credentials)|incorrect password|authentication failed|invalid user credentials|account.{0,20}not found/i.test(body)) {
           throw new Error("TLS login rejected the stored credentials");
         }
@@ -717,9 +739,9 @@ export async function registerAndPrepareFranceTlsAccount(
         evidence.push(...await submitRegistrationForm(session.page, context));
         await updateAccountStatus(context, "activation_email_pending", false);
       }
-      const activationSince = new Date(
-        Math.max(0, Date.parse(context.statusUpdatedAt) - 60_000),
-      ).toISOString();
+      const activationSince = registrationMayAlreadyExist
+        ? activationLookbackSince()
+        : new Date(Math.max(0, Date.parse(context.statusUpdatedAt) - 60_000)).toISOString();
       await activateAccount(
         session.page,
         context,
@@ -729,7 +751,23 @@ export async function registerAndPrepareFranceTlsAccount(
       evidence.push(await maskedScreenshot(session.page, "account-activated"));
     }
 
-    await login(session.page, context, center.bookingUrl);
+    try {
+      await login(session.page, context, center.bookingUrl);
+    } catch (error) {
+      const body = await session.page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+      if (!isFranceTlsActivationRequiredText(body)) throw error;
+
+      evidence.push(await maskedScreenshot(session.page, "activation-required"));
+      await updateAccountStatus(context, "activation_email_pending", false);
+      await activateAccount(
+        session.page,
+        context,
+        activationLookbackSince(),
+        Math.min(input.emailTimeoutMs ?? 600_000, 30_000),
+      );
+      evidence.push(await maskedScreenshot(session.page, "account-reactivated"));
+      await login(session.page, context, center.bookingUrl);
+    }
     evidence.push(await maskedScreenshot(session.page, "logged-in"));
     if (shouldFillReference) {
       const visibleUnmappedFields = await fillOfficialReference(session.page, context);
