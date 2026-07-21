@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPhEtravelFieldPlan, isPhEtravelPublicLandingText } from "../form-filler";
+import {
+  buildPhEtravelFieldPlan,
+  isPhEtravelConfirmationText,
+  isPhEtravelPublicLandingText,
+} from "../form-filler";
 import type { PhEtravelPortalPayload } from "../normalize";
 
 const payload: PhEtravelPortalPayload = {
@@ -98,6 +102,15 @@ test("authenticated dashboard footer is not mistaken for the public landing page
   );
   assert.equal(
     isPhEtravelPublicLandingText("Click here to sign in Download eGovPH App"),
+    true,
+  );
+});
+
+test("official passport and QR clearance page is recognized as confirmation", () => {
+  assert.equal(
+    isPhEtravelConfirmationText(
+      "Kindly present your passport to the Immigration Officer for eTravel registration confirmation and QR Code to Customs officer for clearance. Reference Number F00TEST",
+    ),
     true,
   );
 });

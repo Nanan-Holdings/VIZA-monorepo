@@ -38,6 +38,14 @@ export function isPhEtravelPublicLandingText(portalText: string): boolean {
   return hasPublicLandingMarker && !hasAuthenticatedMarker;
 }
 
+export function isPhEtravelConfirmationText(portalText: string): boolean {
+  const hasReference = /reference\s*(?:no|number)/i.test(portalText);
+  const hasQrOrClearance = /qr\s*code|qrcode|immigration officer|customs officer for clearance/i.test(portalText);
+  const hasCompletionCopy =
+    /registration\s+(?:successful|completed)|successfully\s+registered|thank\s+you\s+for\s+registering|kindly present your passport/i.test(portalText);
+  return hasReference && hasQrOrClearance && hasCompletionCopy;
+}
+
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function optionLabel(value: string | null): string | null {
@@ -764,8 +772,7 @@ export async function fillPhEtravelOfficialDeclaration(
       }
     }
     await chooseInitialRegistration(page, completed, payload);
-    const confirmation = /registration\s+(?:successful|completed)|successfully\s+registered|thank\s+you\s+for\s+registering/i.test(portalText) &&
-      /qr\s*code|reference\s*(?:no|number)/i.test(portalText);
+    const confirmation = isPhEtravelConfirmationText(portalText);
     if (confirmation) {
       await options.onStep?.("confirmation");
       return { reachedReview: true, submitted: true, portalText, filledFields: [...completed] };

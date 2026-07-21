@@ -6577,7 +6577,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         try {
           resultPh = await runPhEtravelPortalSubmission(normalizePhEtravelPortalPayload(payload), {
             headless: process.env.PH_ETRAVEL_PLAYWRIGHT_HEADLESS !== "false",
-            stopBeforeSubmit: process.env.PH_ETRAVEL_STOP_BEFORE_SUBMIT === "1",
+            stopBeforeSubmit: readBooleanEnv("PH_ETRAVEL_STOP_BEFORE_SUBMIT", true),
             applicantId: profile.id,
             profilePhotoPath: phProfilePhotoPath,
             officialAccountEmail: phAccountPlan.email,
