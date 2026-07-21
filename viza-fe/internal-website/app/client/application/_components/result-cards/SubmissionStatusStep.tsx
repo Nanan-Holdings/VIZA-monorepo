@@ -368,7 +368,8 @@ function isDigitalArrivalCardResult(result: SubmissionResult): result is Digital
   return (
     (result.country === "MY" && "visaType" in result && result.visaType === "MY_MDAC_ARRIVAL_CARD") ||
     (result.country === "TH" && "visaType" in result && result.visaType === "TH_TDAC_ARRIVAL_CARD") ||
-    (result.country === "PH" && "visaType" in result && result.visaType === "PH_ETRAVEL_ARRIVAL_CARD") ||
+    (result.country === "PH" && "visaType" in result &&
+      (result.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || result.visaType === "PH_ETRAVEL_DEPARTURE_CARD")) ||
     (result.country === "VN" && "visaType" in result && result.visaType === "VN_PREARRIVAL_DECLARATION")
   );
 }

@@ -17,6 +17,10 @@ const ARRIVAL_CARD_CONFIG = {
     country: "philippines",
     errorName: "Philippines eTravel",
   },
+  PH_ETRAVEL_DEPARTURE_CARD: {
+    country: "philippines",
+    errorName: "Philippines eTravel Departure Card",
+  },
   VN_PREARRIVAL_DECLARATION: {
     country: "vietnam",
     errorName: "Vietnam Pre-Arrival",

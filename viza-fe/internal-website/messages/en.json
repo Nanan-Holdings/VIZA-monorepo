@@ -4692,6 +4692,7 @@
       "workerUnavailable": "The appointment worker is not ready. You can review your information, but official-site work cannot start yet.",
       "accountTitle": "Official account and profile",
       "accountBody": "VIZA is creating or resuming the authorized official account flow. Any required verification or website checkpoint appears here.",
+      "reviewAgain": "Review details again",
       "startAgain": "Start again",
       "noSlotsBody": "No official appointment time is currently available. Refresh later; VIZA will never invent a slot."
     },
@@ -5017,6 +5018,40 @@
       "eyebrow": "France Schengen appointment assistant",
       "title": "TLScontact appointment setup",
       "subtitle": "After VIZA has a France-Visas official reference, check TLScontact China slots, choose one observed timing, record one-time TLS service-fee authorization, and approve the final booking step."
+    },
+    "stateMachine": {
+      "subtitle": "Complete one stage at a time. VIZA advances only after the required user confirmation or official result.",
+      "ariaLabel": "Appointment progress",
+      "steps": {
+        "review": "Review",
+        "account": "Official account",
+        "slots": "Choose a slot",
+        "confirm": "Confirm",
+        "result": "Result"
+      },
+      "workerUnavailable": "The appointment worker is not ready. You can review your information, but official-site work cannot start yet.",
+      "accountTitle": "TLScontact account and profile",
+      "accountBody": "VIZA is creating or resuming the authorized TLScontact account flow. Any required verification or website checkpoint appears here.",
+      "reviewAgain": "Review details again",
+      "noSlotsBody": "No official TLScontact appointment time is currently available. Refresh later; VIZA will never invent a slot."
+    },
+    "review": {
+      "title": "Review before continuing",
+      "body": "Check the saved applicant details below against the passport and France-Visas application. Select Edit to correct anything; VIZA starts the TLScontact account flow only after you confirm.",
+      "back": "Back to application",
+      "fullName": "Passport name",
+      "dateOfBirth": "Date of birth",
+      "nationality": "Nationality",
+      "passportNumber": "Passport number",
+      "passportExpiry": "Passport expiry date",
+      "phone": "Phone",
+      "email": "Personal email",
+      "address": "Residential address",
+      "center": "TLScontact center",
+      "missing": "Not provided",
+      "confirmation": "I have checked these details against the passport and France-Visas application, and I authorize VIZA to continue to the TLScontact account workflow. Slot selection, payment authorization, and final booking remain separate confirmations.",
+      "edit": "Edit application",
+      "confirmAndContinue": "Confirm details and continue"
     },
     "loading": "Loading France appointment assistant...",
     "errorTitle": "France appointment assistant needs attention",

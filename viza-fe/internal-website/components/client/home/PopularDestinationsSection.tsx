@@ -38,7 +38,7 @@ function isSelectedDestination(
 }
 
 function isSchemaChoiceCountry(country: string): boolean {
-  return country === "indonesia" || country === "vietnam";
+  return country === "indonesia" || country === "vietnam" || country === "philippines";
 }
 
 export function PopularDestinationsSection({

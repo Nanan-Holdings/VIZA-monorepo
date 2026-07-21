@@ -71,7 +71,7 @@ const CUSTOMS_CHECKLIST_FIELDS: PhEtravelFieldDef[] = PH_ETRAVEL_DECLARATION_CHE
 export const PH_ETRAVEL_FORM_FIELDS: PhEtravelFieldDef[] = [
   { field_name: "registration_for", label: "Travel Registration", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 1, options: FOR_WHOM_OPTIONS, validation_rules: rules("登记对象", { official: true }) },
   { field_name: "transport_type", label: "Mode of Travel", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 2, options: PH_ETRAVEL_TRANSPORT_TYPES, validation_rules: rules("交通方式", { official: true }) },
-  { field_name: "travel_type", label: "Travel Type", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 3, options: PH_ETRAVEL_TRAVEL_TYPES, validation_rules: rules("旅行类型", { official: true }) },
+  { field_name: "travel_type", label: "Travel Type", field_type: "radio", required: true, step_number: 1, step_name: "Travel Registration", display_order: 3, options: PH_ETRAVEL_TRAVEL_TYPES.filter((option) => option.value === "ARRIVAL"), validation_rules: rules("旅行类型", { official: true, defaultValue: "ARRIVAL", locked: true }) },
   { field_name: "is_special_flight", label: "Special Flight", field_type: "checkbox", required: false, step_number: 1, step_name: "Travel Registration", display_order: 4, validation_rules: rules("特殊航班", { official: true }) },
   { field_name: "data_privacy_agreement", label: "By clicking Continue, you agree to our Data Privacy and Affidavit of Undertaking.", field_type: "checkbox", required: true, step_number: 1, step_name: "Travel Registration", display_order: 5, validation_rules: rules("点击继续即表示您同意数据隐私政策与承诺书", { official: true }) },
 

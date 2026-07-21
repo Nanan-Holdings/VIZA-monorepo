@@ -186,6 +186,9 @@ const PH_ETRAVEL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   "Travel Registration": "行程登记",
   "Traveller Information": "旅客信息",
   "Travel Details - Philippine Arrival": "菲律宾入境行程",
+  "Philippine Departure Details": "菲律宾出境行程",
+  "Philippine Traveller Declarations": "菲律宾旅客申报",
+  "Customs and Currency Declaration": "海关与货币申报",
   "Destination in the Philippines": "在菲律宾的目的地",
   "Health Declaration": "健康申报",
   "Other Travel Details": "其他行程信息",
@@ -272,7 +275,10 @@ function localizeDynamicStepName(
     return VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 
-  if (options.isZhInterface && options.visaType === "PH_ETRAVEL_ARRIVAL_CARD") {
+  if (
+    options.isZhInterface &&
+    (options.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || options.visaType === "PH_ETRAVEL_DEPARTURE_CARD")
+  ) {
     return PH_ETRAVEL_DYNAMIC_STEP_NAME_ZH[stepName] ?? ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 

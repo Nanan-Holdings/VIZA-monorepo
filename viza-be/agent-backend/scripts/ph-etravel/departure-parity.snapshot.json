@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "country": "PH",
+  "visaType": "PH_ETRAVEL_DEPARTURE_CARD",
+  "travelType": "DEPARTURE",
+  "retrievedOn": "2026-07-21",
+  "officialWebBuildId": "77f106d9c659765d93977987ceb12abaf7d43bd5",
+  "sources": [
+    "https://etravel.gov.ph",
+    "https://etravel.gov.ph/en/frequently-asked-questions",
+    "https://ws.etravel.gov.ph/api/v1/common/purpose_of_visits?paginate=0&for_departure=1&order_by=name&status_by=asc",
+    "https://ws.etravel.gov.ph/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    "https://ws.etravel.gov.ph/api/v1/common/travel_ports?paginate=0&order_by=name&status_by=asc&transportation_type=SEA",
+    "https://ws.etravel.gov.ph/api/v1/common/travel_companies?paginate=0&order_by=name&status_by=asc&transportation_type=AIR",
+    "https://customs.gov.ph/boc-and-dict-to-implement-one-qr-code-in-the-e-travel-system-for-all-airports-by-10-may-2024-reiterates-strict-implementation-of-bsp-rules-in-bringing-in-or-taking-out-of-currencies/",
+    "https://customs.gov.ph/boc-reiterates-existing-rules-on-currency-declaration-for-travelers/"
+  ],
+  "officialOptionCounts": {
+    "departurePurposes": 18,
+    "airPorts": 20,
+    "seaPorts": 53,
+    "airlines": 103
+  },
+  "branches": [
+    { "passportHolder": "FILIPINO", "transport": "AIR", "reviewReached": false, "evidencePaths": [] },
+    { "passportHolder": "FILIPINO", "transport": "SEA", "reviewReached": false, "evidencePaths": [] },
+    { "passportHolder": "FOREIGNER", "transport": "AIR", "reviewReached": false, "evidencePaths": [] },
+    { "passportHolder": "FOREIGNER", "transport": "SEA", "reviewReached": false, "evidencePaths": [] }
+  ],
+  "sharedRequiredFields": [
+    "registration_for", "transport_type", "travel_type", "first_name", "last_name", "date_of_birth", "sex",
+    "passport_holder_type", "nationality", "country_of_birth", "country_of_residence", "occupation",
+    "passport_number", "passport_issuing_authority", "passport_issue_date", "passport_expiry_date", "email",
+    "mobile_country_code", "mobile_number", "purpose_of_travel", "traveller_type", "flight_departure_date",
+    "destination_country", "destination_port", "flight_arrival_date", "customs_information_acknowledgement",
+    "has_goods_to_declare", "has_currency_to_declare", "customs_signature_declaration", "final_declaration"
+  ],
+  "conditionalFields": {
+    "AIR": ["airline_name", "flight_number", "departure_airport"],
+    "SEA": ["vessel_name", "departure_seaport"],
+    "FILIPINO": ["profile_photo", "return_date", "travel_tax_payment_type", "travel_tax_reference_number", "travel_tax_ticket_number", "cfo_registration_number"],
+    "CURRENCY_DECLARATION": ["currency_type", "currency_amount", "currency_source", "bsp_authorization_number", "bsp_authorization_date"]
+  },
+  "excludedArrivalOnlyFields": [
+    "philippines_address", "destination_hotel_name", "destination_hotel_address", "destination_type",
+    "port_of_entry", "airport_of_origin", "origin_country", "has_recent_travel_history_30d",
+    "has_exposure_to_sick_person_30d", "has_been_sick_30d", "visited_country_30d"
+  ],
+  "validationCommand": "npm run ph-etravel:departure-smoke -- --transport air|sea --passport-holder filipino|foreigner --use-imap-mailbox",
+  "safety": {
+    "defaultStopBeforeSubmit": true,
+    "realSubmitRequiresExplicitFlag": "--submit",
+    "reviewEvidenceIsNotSuccess": true,
+    "successRequiresOfficialQrAndReference": true
+  }
+}

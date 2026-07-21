@@ -13,6 +13,9 @@ region from the client home dashboard.
 - `[region]/page.tsx`: generic regional picker for North America, South
   America, Middle East, Africa, non-Schengen Europe, Southeast Asia, East Asia,
   South Asia, and Oceania.
+- Philippines mirrors Indonesia's country-category entry: the home group opens
+  `/client/destinations/philippines`, where arrival and departure eTravel
+  packages remain separate selectable cards.
 
 ## Ownership Boundaries
 
