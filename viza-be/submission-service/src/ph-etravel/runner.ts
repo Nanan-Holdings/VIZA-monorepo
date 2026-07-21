@@ -897,7 +897,12 @@ async function completeEgovPermanentResidenceOnboarding(
 
   logs.push("ph_etravel_egov_onboarding_residence_detected");
   const countryText = /china|chinese|cn|chn/i.test(payload.countryOfResidence) ? "China" : payload.countryOfResidence;
-  const choseCountry = await chooseDropdownOption(page, /^country$/i, countryOptionPattern(payload.countryOfResidence), countryText);
+  const choseCountry = await chooseHeadlessComboboxByInputName(
+    page,
+    "country_code",
+    countryText,
+    countryOptionPattern(payload.countryOfResidence),
+  );
   const address = payload.residenceAddress || payload.countryOfResidence;
   const filledAddress = await fillVisibleByPlaceholder(page, /no\.?\/bldg|city|state|province|address/i, address)
     || await fillVisibleTextField(page, "No./Bldg./City/State/Province", address);
