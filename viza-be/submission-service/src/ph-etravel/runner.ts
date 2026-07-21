@@ -570,15 +570,31 @@ async function uploadEgovProfilePhoto(
     const inputs = page.locator("input[type='file']");
     const count = await inputs.count().catch(() => 0);
     for (let index = 0; index < count; index += 1) {
-      await inputs.nth(index).setInputFiles(photoPath, { timeout: 15_000 }).catch(() => undefined);
-      await page.waitForTimeout(2_000);
-      const uploaded = await page
-        .locator("img[src], [class*='preview' i], [class*='uploadcare--file_status_uploaded' i]")
-        .count()
-        .catch(() => 0);
-      if (uploaded > 0) return true;
+      const input = inputs.nth(index);
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        await input.setInputFiles([], { timeout: 5_000 }).catch(() => undefined);
+        await input.setInputFiles(photoPath, { timeout: 15_000 }).catch(() => undefined);
+        await page.waitForTimeout(5_000);
+        const uploadError = await page
+          .getByText(/error uploading file|network error|upload failed/i)
+          .first()
+          .isVisible({ timeout: 500 })
+          .catch(() => false);
+        if (uploadError) {
+          logs.push(`ph_etravel_egov_profile_photo_upload_retry attempt=${attempt}`);
+          continue;
+        }
+        const selectedFileName = await input.evaluate((element) =>
+          (element as HTMLInputElement).files?.[0]?.name ?? "",
+        ).catch(() => "");
+        const uploadedState = await page
+          .locator("[class*='preview' i], [class*='file_status_uploaded' i], img[src^='blob:']")
+          .count()
+          .catch(() => 0);
+        if (selectedFileName || uploadedState > 0) return true;
+      }
     }
-    return count > 0;
+    return false;
   };
 
   if (await trySetInputFiles()) {
@@ -937,10 +953,15 @@ async function completeEgovPersonalInformationOnboarding(
 
   logs.push("ph_etravel_egov_onboarding_personal_information_detected");
   const uploadedPhoto = await uploadEgovProfilePhoto(page, options.profilePhotoPath, logs);
-  await clickFirstAvailable(page, [
-    page.getByText(/foreign passport holder/i),
-    page.locator("button, label, div").filter({ hasText: /foreign passport holder/i }),
+  const foreignPassportRadio = page.getByRole("radio", { name: /foreign passport holder/i }).first();
+  if (await foreignPassportRadio.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await foreignPassportRadio.check({ force: true }).catch(() => undefined);
+  }
+  const selectedForeignPassport = await foreignPassportRadio.isChecked().catch(() => false) || await clickFirstAvailable(page, [
+    page.locator("label").filter({ hasText: /foreign passport holder/i }),
+    page.locator("button, div").filter({ hasText: /^\s*foreign passport\s*holder\s*$/i }),
   ]);
+  logs.push(`ph_etravel_egov_foreign_passport_selected=${selectedForeignPassport}`);
 
   const name = splitFullName(payload.fullName);
   const filled = {
@@ -991,6 +1012,7 @@ async function completeEgovPersonalInformationOnboarding(
     !filled.passportNumber ||
     !filled.passportIssueDate ||
     !uploadedPhoto ||
+    !selectedForeignPassport ||
     !choseSex ||
     !choseCitizenship ||
     !choseCountryOfBirth ||
@@ -1005,6 +1027,7 @@ async function completeEgovPersonalInformationOnboarding(
       chosePassportIssuingAuthority,
       choseOccupation,
       uploadedPhoto,
+      selectedForeignPassport,
     })}`);
   }
 
