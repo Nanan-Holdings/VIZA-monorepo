@@ -1642,6 +1642,20 @@ async function maybeCreatePhEtravelAccount(
     currentText = await bodyText(page);
   }
 
+  if (!/password|set password|create password/i.test(currentText)) {
+    // OTP verification is an SPA transition. Browserbase can report the click
+    // and load-state completion before the create-password route has rendered.
+    // Wait for a concrete post-OTP state so registration is not mistaken for a
+    // completed authenticated session and redirected back through Sign In.
+    await page.waitForFunction(() => {
+      const text = document.body?.innerText ?? "";
+      return /create your password|password confirmation|mpin|personal information|new travel declaration|travel history/i.test(text)
+        || !/verify-email/i.test(window.location.pathname);
+    }, undefined, { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(1_000);
+    currentText = await bodyText(page);
+  }
+
   if (/password|set password|create password/i.test(currentText)) {
     const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim() || payload.passportNumber;
     await page.locator("input[type='password']").nth(0).fill(password, { timeout: 15_000 });
