@@ -1124,8 +1124,8 @@ function FinalConfirmationPanel({
               </h3>
               <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
                 {isZh
-                  ? `${isIndonesia ? "印度尼西亚 e-Visa" : "越南 e-Visa"} 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。`
-                  : `${isIndonesia ? "Indonesia e-Visa" : "Vietnam e-Visa"} submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to the local submission-service memory session and are not stored.`}
+                  ? `${isIndonesia ? "印度尼西亚 e-Visa" : "越南 e-Visa"} 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到 VIZA submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。`
+                  : `${isIndonesia ? "Indonesia e-Visa" : "Vietnam e-Visa"} submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to a short-lived VIZA submission-service memory session and are not stored.`}
               </p>
             </div>
           </div>
@@ -1630,18 +1630,21 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const packagePromise = getUserVisaPackage().catch(() => null);
+    void packagePromise.then((pkg) => {
+      if (!cancelled && pkg) setVisaPackage(pkg);
+    });
 
-    getUserVisaPackage()
-      .then((pkg) => {
-        if (cancelled) return null;
-        if (pkg) setVisaPackage(pkg);
-        const visaType = explicitVisaType ?? pkg?.visa_type ?? "tourist_b211a";
-        const country = explicitCountry ?? pkg?.country ?? null;
-        return getVisaFormSteps(visaType, { country });
-      })
+    const stepsPromise = explicitVisaType
+      ? getVisaFormSteps(explicitVisaType, { country: explicitCountry })
+      : packagePromise.then((pkg) => getVisaFormSteps(
+          pkg?.visa_type ?? "tourist_b211a",
+          { country: pkg?.country ?? null },
+        ));
+
+    void stepsPromise
       .then((steps) => {
-        if (cancelled) return;
-        if (steps && steps.length > 0) setDbSteps(steps);
+        if (!cancelled && steps.length > 0) setDbSteps(steps);
       })
       .catch(() => {
         // Silent fallback to hardcoded steps

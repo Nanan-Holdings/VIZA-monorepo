@@ -11,6 +11,9 @@ primary_region = "sin"
   # internal endpoint. Cards remain in this single always-on machine's memory
   # for one consumption and are never written to Fly config, logs, or storage.
   ID_CLOUD_CARD_SESSION_ENABLED = "true"
+  # Vietnam official-fee jobs also use submission_queue, so the protected
+  # one-time card handoff must terminate on this same single-memory worker.
+  VN_CLOUD_CARD_SESSION_ENABLED = "true"
   # The Fly container has no X server. Indonesia payment continuation must
   # remain headless; 3DS/OTP is surfaced as a user checkpoint.
   INDONESIA_PLAYWRIGHT_HEADLESS = "true"

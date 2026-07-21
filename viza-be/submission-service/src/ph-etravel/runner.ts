@@ -1368,6 +1368,26 @@ async function maybeCreatePhEtravelAccount(
       },
     });
   currentText = registrationAttempt.pageText;
+  const registrationChallengeVisible = await page
+    .locator("input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
+    .first()
+    .count()
+    .then((count) => count > 0)
+    .catch(() => false);
+  const registrationContinue = page.getByRole("button", { name: /continue|next|submit|send/i }).first();
+  const registrationContinueEnabled = await registrationContinue.isVisible({ timeout: 1_000 }).catch(() => false) &&
+    await registrationContinue.isEnabled({ timeout: 1_000 }).catch(() => false);
+  if (registrationChallengeVisible && !registrationContinueEnabled) {
+    screenshots.push(await saveScreenshot(page, "registration-turnstile-failed", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel registration Turnstile could not be solved by the configured browser channel.",
+      {
+        code: "ph_etravel_registration_turnstile_blocked",
+        screenshotPaths: screenshots,
+        portalSummary: currentText.slice(0, 700),
+      },
+    );
+  }
   if (
     registrationAttempt.responseStatus !== undefined &&
     isPhEtravelRegistrationResponseRejected(registrationAttempt.responseStatus)

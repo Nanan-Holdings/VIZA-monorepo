@@ -128,6 +128,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Production Indonesia official-fee card handoff uses the bearer-protected Fly
   endpoint configured by `SUBMISSION_SERVICE_CLOUD_URL` and
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN`; it must not fall back to localhost.
+- Production Vietnam official-fee card handoff uses the bearer-protected Fly
+  endpoint configured by `VIETNAM_SUBMISSION_SERVICE_URL` (with
+  `SUBMISSION_SERVICE_CLOUD_URL` as a compatibility fallback) and
+  `VIETNAM_CARD_SESSION_INTERNAL_TOKEN`; it must not fall back to localhost.
 - Local Indonesia payment testing may set
   `INDONESIA_OFFICIAL_FEE_RELAY_URL` to the HTTPS Vercel production origin.
   The local authenticated request is relayed server-to-server so the Fly
