@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { localizeVnPrearrivalHotelLabel } from "./hotel-localization";
+import officialHotelNamesZh from "./official-hotel-names.zh-CN.json";
+import officialStaticOptions from "./official-static-options.json";
 import { getVnPrearrivalStaticOptions } from "./static-options";
 
 describe("Vietnam Pre-Arrival hotel localization", () => {
@@ -68,13 +70,58 @@ describe("Vietnam Pre-Arrival hotel localization", () => {
     expect(localized).toContain("市");
   });
 
-  it("keeps every official hotel option fully Chinese in the Chinese column", () => {
+  it("translates generic hotel terms and Vietnamese text in every Chinese property name", () => {
     const options = getVnPrearrivalStaticOptions("hotel") ?? [];
-    const labelsWithLatinText = options
-      .map((option) => typeof option === "string" ? option : option.label_zh ?? "")
-      .filter((label) => /[A-Za-zÀ-ỹĐđ]/.test(label.replaceAll("ATC", "")));
+    const genericHotelTerms = /\b(?:hotel|resort|spa|house|home|hostel|villa|apartment|residence|boutique|premium|luxury|airport|terminal|riverside|beach)\b/i;
+    const untranslatedNames = Object.values(officialHotelNamesZh.names).filter(
+      (name) => /[À-ỹĐđ]/.test(name) || genericHotelTerms.test(name),
+    );
 
-    expect(options.length).toBeGreaterThan(1_800);
-    expect(labelsWithLatinText).toEqual([]);
+    expect(options).toHaveLength(1_811);
+    expect(untranslatedNames).toEqual([]);
+  });
+
+  it("maps every official hotel code to one reviewed Chinese property name", () => {
+    const officialHotels = officialStaticOptions.sources.hotel;
+    const mappedCodes = Object.keys(officialHotelNamesZh.names);
+    const uniqueOfficialNames = new Set(
+      officialHotels.map((hotel) => (hotel.en_value || hotel.vn_value).split(",")[0].trim()),
+    );
+
+    expect(officialHotels).toHaveLength(1_811);
+    expect(mappedCodes).toHaveLength(officialHotels.length);
+    expect(new Set(mappedCodes).size).toBe(mappedCodes.length);
+    expect(officialHotelNamesZh.source_count).toBe(officialHotels.length);
+    expect(officialHotelNamesZh.unique_name_count).toBe(uniqueOfficialNames.size);
+    expect(officialHotelNamesZh.reviewed_unique_name_count).toBe(uniqueOfficialNames.size);
+
+    for (const hotel of officialHotels) {
+      const expectedSourceName = (hotel.en_value || hotel.vn_value).split(",")[0].trim();
+      const localizedName = officialHotelNamesZh.names[
+        hotel.code as keyof typeof officialHotelNamesZh.names
+      ];
+      const recordedSourceName = officialHotelNamesZh.source_names[
+        hotel.code as keyof typeof officialHotelNamesZh.source_names
+      ];
+
+      expect(localizedName, hotel.code).toBeTruthy();
+      expect(recordedSourceName, hotel.code).toBe(expectedSourceName);
+    }
+  });
+
+  it("uses the code-keyed name in the rendered Chinese hotel label", () => {
+    const officialHotel = officialStaticOptions.sources.hotel.find(
+      (hotel) => hotel.code === "KSHN_0001",
+    );
+    expect(officialHotel).toBeTruthy();
+
+    const localized = localizeVnPrearrivalHotelLabel(
+      officialHotel?.vn_value ?? "",
+      officialHotel?.en_value ?? "",
+      officialHotel?.code ?? "",
+    );
+
+    expect(localized).toMatch(/^河内索菲特/);
+    expect(localized).not.toContain("斯奥弗伊特埃勒");
   });
 });
