@@ -122,8 +122,9 @@ describe("Vietnam pre-arrival dynamic form options", () => {
     expect(hotelObjects.some((hotel) => hotel.value.includes("_REAL_"))).toBe(false);
     expect(hoiAnHotel).toMatchObject({
       label_en: "T & D Hoi An House, Group 46, Hau Xa Hamlet, Thanh Ha Village, Hoi An, Quang Nam",
-      label_zh: "T & D Maison 会安，第46街区后舍，清河，会安，广南",
     });
+    expect(hoiAnHotel?.label_zh).toMatch(/^T&D会安之家，/);
+    expect(hoiAnHotel?.label_zh).not.toContain("Maison");
   });
 
   it("keeps the complete official hotel hierarchy keyed by ward code", () => {

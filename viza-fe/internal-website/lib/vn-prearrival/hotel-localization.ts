@@ -1,3 +1,5 @@
+import officialHotelNamesZh from "./official-hotel-names.zh-CN.json";
+
 // Display-only names verified against hotel-owned or Chinese booking pages.
 // Official option values remain untouched for portal submission.
 const HOTEL_NAME_ZH: Record<string, string> = {
@@ -202,12 +204,14 @@ function translateAdministrativeUnits(text: string): string {
 export function localizeVnPrearrivalHotelLabel(
   vietnameseAddress: string,
   englishAddress: string,
+  officialCode = "",
 ): string {
   const source = vietnameseAddress.trim() || englishAddress.trim();
   if (!source) return "";
 
   const [propertyName, ...addressParts] = source.split(/\s*,\s*/);
-  const localizedPropertyName = translateLatinPhrase(propertyName);
+  const localizedPropertyName = officialHotelNamesZh.names[officialCode as keyof typeof officialHotelNamesZh.names]
+    ?? translateLatinPhrase(propertyName);
   const localizedAddress = translateLatinFragments(
     translateAdministrativeUnits(addressParts.join("，").replace(/Вьетнам/gi, "越南")),
   );
