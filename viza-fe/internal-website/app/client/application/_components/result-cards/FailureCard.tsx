@@ -23,6 +23,10 @@ interface FailureCardProps {
   requiresVietnamPaymentCard?: boolean;
 }
 
+export function shouldStartLocalSubmissionWorker(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
 export interface VietnamOneTimePaymentCard {
   pan: string;
   expiry: string;
@@ -182,6 +186,9 @@ export function FailureCard({
   const [cardHolderName, setCardHolderName] = useState("");
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
+  const localWorkerStartAvailable =
+    typeof window !== "undefined" &&
+    shouldStartLocalSubmissionWorker(window.location.hostname);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
@@ -301,10 +308,14 @@ export function FailureCard({
             ? (isZh
                 ? "官网在验证码确认后没有及时完成页面切换。你的答案已保存；系统重试时会等待官方确认完成，并避免重复使用旧验证码。"
                 : "The official portal did not finish the page transition after email verification. Your answers are saved; the retry will wait for confirmation and avoid reusing an old code.")
-            : workerPickupError
+            : workerPickupError && localWorkerStartAvailable
             ? (isZh
                 ? "这不是表单内容错误，而是本地 submission-service worker 没有运行、端口未匹配，或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
                 : "This is not a form-data error. The local submission-service worker was not running, was on a different port, or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
+            : workerPickupError
+            ? (isZh
+                ? "云端提交任务没有及时推进。你的答案已保存；请直接重新提交，VIZA 会创建新的云端任务并继续跟踪。"
+                : "The cloud submission job did not advance in time. Your answers are saved; submit again to create a new cloud job and continue tracking it.")
             : indonesiaPaymentFailure
             ? (isZh
                 ? "印尼官网付款没有成功。你的申请答案已保存；请重新填写本次银行卡后重试，VIZA 会再次在云端完成付款并确认最终结果。"
@@ -416,7 +427,7 @@ export function FailureCard({
         )}
         {applicationId && onRetry && (
           <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
-            {workerPickupError ? (
+            {workerPickupError && localWorkerStartAvailable ? (
               <BrandActionButton
                   onClick={() => {
                     void handleLocalWorkerRetry();

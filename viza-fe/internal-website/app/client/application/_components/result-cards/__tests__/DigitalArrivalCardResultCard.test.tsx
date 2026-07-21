@@ -5,6 +5,7 @@ import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
 } from "../SubmissionStatusStep";
+import { shouldStartLocalSubmissionWorker } from "../FailureCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
@@ -230,5 +231,13 @@ describe("DigitalArrivalCardResultCard", () => {
       "/api/applications/application-id/retry-submission",
       expect.objectContaining({ method: "POST" }),
     );
+  });
+});
+
+describe("cloud submission retry routing", () => {
+  it("starts a local worker only on localhost", () => {
+    expect(shouldStartLocalSubmissionWorker("localhost")).toBe(true);
+    expect(shouldStartLocalSubmissionWorker("127.0.0.1")).toBe(true);
+    expect(shouldStartLocalSubmissionWorker("app.viza.it.com")).toBe(false);
   });
 });
