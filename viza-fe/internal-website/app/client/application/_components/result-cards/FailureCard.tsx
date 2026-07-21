@@ -290,7 +290,9 @@ export function FailureCard({
             : vnPrearrivalOtpErrorKind
             ? (isZh ? "邮箱验证码未完成" : "Email verification was not completed")
             : workerPickupError
-            ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
+            ? localWorkerStartAvailable
+              ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
+              : (isZh ? "云端任务没有完成" : "Cloud submission did not complete")
             : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
         </CardTitle>
       </CardHeader>
