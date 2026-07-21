@@ -212,4 +212,46 @@ describe("selectQueueForSubmissionStatus", () => {
 
     expect(queue?.id).toBe("superseded_live_retry");
   });
+
+  it("does not fall back to an older payment checkpoint after a newer retry failed", () => {
+    const newest = new Date().toISOString();
+    const older = new Date(Date.now() - 60_000).toISOString();
+
+    const queue = selectQueueForSubmissionStatus([
+      {
+        id: "new_failed_retry",
+        status: "id_b1_evoa_payment_failed",
+        attempts: 3,
+        mode: "live_assisted",
+        provider: "indonesia_b1_evoa_live",
+        last_error: "Payment worker heartbeat stopped.",
+        error_code: "queue_processing_timed_out",
+        error_message: "Payment worker heartbeat stopped.",
+        current_stage: "failed",
+        heartbeat_at: newest,
+        manual_action_status: null,
+        official_status: null,
+        created_at: newest,
+        updated_at: newest,
+      },
+      {
+        id: "old_payment_checkpoint",
+        status: "id_b1_evoa_payment_pending",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "indonesia_b1_evoa_live",
+        last_error: null,
+        error_code: "user_payment_required",
+        error_message: null,
+        current_stage: "user_payment_required",
+        heartbeat_at: older,
+        manual_action_status: "user_payment_required",
+        official_status: null,
+        created_at: older,
+        updated_at: older,
+      },
+    ]);
+
+    expect(queue?.id).toBe("new_failed_retry");
+  });
 });
