@@ -525,13 +525,16 @@ function newestQueue(rows: QueueRow[]): QueueRow | null {
 }
 
 export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | null {
-  const activeRows = rows.filter(isActiveQueue);
-  if (activeRows.length > 0) return newestQueue(activeRows);
+  const submissionRows = rows.filter((row) => {
+    const status = normalizeStatus(row.status);
+    const provider = normalizeStatus(row.provider);
+    return !status.startsWith("ds160_proof_") && provider !== "ceac_proof";
+  });
 
-  // Keep the newest superseded retry visible when there is no active job.
-  // Falling back to an older `done` dry-run row can otherwise display a false
-  // 100% official-submission success state.
-  return newestQueue(rows);
+  // The latest explicit retry is authoritative even when it has already
+  // failed. Falling back to an older payment-pending row would make the UI
+  // look active forever after a newer cloud worker attempt has terminated.
+  return newestQueue(submissionRows);
 }
 
 export function deriveNonTerminalStatus(
