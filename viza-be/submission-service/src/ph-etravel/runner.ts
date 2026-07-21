@@ -1831,6 +1831,29 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         throw error;
       }
     }
+    let authenticatedText = await bodyText(page);
+    if (/click here to sign in|download egovph app/i.test(authenticatedText)) {
+      logs.push("ph_etravel_post_auth_landing_detected_retrying_login");
+      await reachAuthenticatedPhEtravelSession(
+        page,
+        payload,
+        options,
+        logs,
+        screenshots,
+        browserSession.nativeCloudflareUnblock,
+      );
+      authenticatedText = await bodyText(page);
+    }
+    if (/click here to sign in|download egovph app/i.test(authenticatedText)) {
+      throw new PhEtravelPortalError(
+        "Official Philippines eTravel session returned to the public landing page after authentication.",
+        {
+          code: "ph_etravel_form_authentication_required",
+          screenshotPaths: screenshots,
+          portalSummary: authenticatedText.slice(0, 700),
+        },
+      );
+    }
     screenshots.push(await saveScreenshot(page, "after-auth", logs));
     let formResult;
     try {
