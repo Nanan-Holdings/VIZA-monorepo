@@ -28,6 +28,27 @@ function normalizeText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+/**
+ * Return true only when the current official page contains terminal success
+ * evidence. Persistent navigation labels such as "Download E-Visa" are not
+ * proof that this application has been paid or submitted.
+ */
+export function hasIndonesiaOfficialSuccessEvidence(
+  snapshot: IndonesiaPortalSnapshot,
+): boolean {
+  const text = normalizeText(`${snapshot.title ?? ""} ${snapshot.text ?? ""}`);
+
+  return (
+    /\/pg\/payment\/card\/result\/success(?:[/?#]|$)/i.test(snapshot.url) ||
+    text.includes("application submitted") ||
+    text.includes("application has been submitted") ||
+    text.includes("payment successful") ||
+    text.includes("payment success") ||
+    text.includes("payment completed") ||
+    text.includes("visa approved")
+  );
+}
+
 export function classifyIndonesiaPortalSnapshot(
   snapshot: IndonesiaPortalSnapshot,
 ): IndonesiaPortalStateId {
@@ -43,16 +64,7 @@ export function classifyIndonesiaPortalSnapshot(
   ) {
     return "payment_failed";
   }
-  if (
-    text.includes("application submitted") ||
-    text.includes("application has been submitted") ||
-    text.includes("payment successful") ||
-    text.includes("payment success") ||
-    text.includes("payment completed") ||
-    text.includes("visa approved") ||
-    text.includes("download e-visa") ||
-    text.includes("download evisa")
-  ) {
+  if (hasIndonesiaOfficialSuccessEvidence(snapshot)) {
     return "submitted_or_approved";
   }
   if (
