@@ -22,6 +22,7 @@ export type PopularVisaDestination = {
 export type VisaDestinationRegionId =
   | "indonesia"
   | "vietnam"
+  | "philippines"
   | "north-america"
   | "south-america"
   | "middle-east"
@@ -516,6 +517,20 @@ export const NON_SCHENGEN_VISA_DESTINATIONS: PopularVisaDestination[] = sortDest
     flag: "🇵🇭",
     region: "Asia",
     searchAliases: ["Philippines eTravel", "eTravel", "Philippines arrival card"],
+  }),
+  destination({
+    country: "philippines",
+    countryName: "Philippines",
+    countryNameZh: "菲律宾",
+    visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+    visaName: "Philippines eTravel Departure Card",
+    visaNameZh: "eTravel 出境卡",
+    description: "Philippines eTravel departure declaration for passenger, travel, customs, and currency information.",
+    descriptionZh: "适合菲律宾 eTravel 出境申报，采集旅客、行程、海关和货币资料。",
+    flag: "🇵🇭",
+    region: "Asia",
+    supportLabel: "Philippines eTravel",
+    searchAliases: ["Philippines eTravel", "eTravel", "Philippines departure card"],
   }),
   destination({
     country: "qatar",

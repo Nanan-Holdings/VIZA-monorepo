@@ -11,10 +11,13 @@ import {
   ensureDraftApplication,
   saveUniversalProfileWithSharedAnswers,
 } from "@/app/actions/visa-application-answers";
-import { loadUniversalProfilePassportUploadStatus } from "@/app/client/documents/actions";
+import {
+  loadUniversalProfilePassportUploadStatus,
+  loadUniversalProfileReusableDocumentStatuses,
+} from "@/app/client/documents/actions";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { BrandActionButton } from "@/components/client/brand-action-button";
-import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
+import { UniversalProfileDocumentsCarousel } from "@/components/client/universal-profile-documents-carousel";
 import {
   BilingualCountryControl,
   BilingualDateControl,
@@ -1036,6 +1039,8 @@ export default function UniversalInfoPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [passportOcrApplicationId, setPassportOcrApplicationId] = useState<string | null>(null);
   const [passportUpload, setPassportUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
+  const [photoUpload, setPhotoUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
+  const [signatureUpload, setSignatureUpload] = useState<PassportUploadState>(EMPTY_PASSPORT_UPLOAD);
   const [message, setMessage] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1053,8 +1058,11 @@ export default function UniversalInfoPage() {
       return Boolean(form[field].trim());
     }).length;
   }, [bilingualForm, form]);
-  const completedCount = completedProfileFieldCount + (passportUpload.uploaded ? 1 : 0);
-  const completionTotal = PROFILE_FIELDS.length + 1;
+  const completedCount = completedProfileFieldCount
+    + (passportUpload.uploaded ? 1 : 0)
+    + (photoUpload.uploaded ? 1 : 0)
+    + (signatureUpload.uploaded ? 1 : 0);
+  const completionTotal = PROFILE_FIELDS.length + 3;
   const completionPercent = Math.round((completedCount / completionTotal) * 100);
   const phoneParts = useMemo(
     () => splitPhoneValue(form.phone, phoneCountryCode),
@@ -1124,7 +1132,14 @@ export default function UniversalInfoPage() {
           );
         }
 
-        const draftResult = await ensureDraftApplication("us", "b1_b2", { preferExplicit: true });
+        const [draftResult, reusableDocumentsResult] = await Promise.all([
+          ensureDraftApplication("us", "b1_b2", { preferExplicit: true }),
+          loadUniversalProfileReusableDocumentStatuses(),
+        ]);
+        if (isMounted && reusableDocumentsResult.ok) {
+          setPhotoUpload(reusableDocumentsResult.documents.photo);
+          setSignatureUpload(reusableDocumentsResult.documents.signature);
+        }
         if (isMounted && draftResult.applicationId) {
           setPassportOcrApplicationId(draftResult.applicationId);
           const uploadResult = await loadUniversalProfilePassportUploadStatus(draftResult.applicationId);
@@ -1704,21 +1719,22 @@ export default function UniversalInfoPage() {
 
           <div className="grid gap-0 divide-y divide-[#edf2f7]">
             <section className="p-6">
-              <PassportOcrUpload
+              <UniversalProfileDocumentsCarousel
                 applicationId={passportOcrApplicationId}
-                initialUploaded={passportUpload.uploaded}
-                initialFileName={passportUpload.fileName}
-                documentScope="universal_profile"
-                documentType="passport_bio_page"
-                requirementKey="passport_bio_page"
-                onFieldsApplied={applyPassportOcrFields}
-                onUploaded={(fileName) => {
-                  setPassportUpload({
+                passport={passportUpload}
+                photo={photoUpload}
+                signature={signatureUpload}
+                onPassportFieldsApplied={applyPassportOcrFields}
+                onDocumentUploaded={(type, fileName) => {
+                  const nextState = {
                     uploaded: true,
                     fileName,
                     status: "uploaded",
                     updatedAt: new Date().toISOString(),
-                  });
+                  };
+                  if (type === "passport") setPassportUpload(nextState);
+                  if (type === "photo") setPhotoUpload(nextState);
+                  if (type === "signature") setSignatureUpload(nextState);
                 }}
               />
             </section>

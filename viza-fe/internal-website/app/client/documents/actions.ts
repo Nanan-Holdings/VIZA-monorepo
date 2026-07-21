@@ -128,6 +128,20 @@ export type UniversalProfilePassportUploadStatus =
     }
   | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
 
+export interface UniversalProfileReusableDocumentStatus {
+  uploaded: boolean;
+  fileName: string | null;
+  status: string | null;
+  updatedAt: string | null;
+}
+
+export type UniversalProfileReusableDocumentsResult =
+  | {
+      ok: true;
+      documents: Record<"photo" | "signature", UniversalProfileReusableDocumentStatus>;
+    }
+  | { ok: false; code: "not_authenticated" | "not_found" | "server_error"; error: string };
+
 interface ApplicantContext {
   applicantId: string;
   authUserId: string | null;
@@ -450,6 +464,8 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
 ];
 
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
+const PHOTO_DOCUMENT_TYPES = ["photo", "formal_photo", "formal_photo_upload", "passport_photo", "portrait_photo"] as const;
+const SIGNATURE_DOCUMENT_TYPES = ["electronic_signature", "customs_signature_file", "signature", "signature_image"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1240,6 +1256,62 @@ export async function loadUniversalProfilePassportUploadStatus(
   }
 }
 
+export async function loadUniversalProfileReusableDocumentStatuses(): Promise<UniversalProfileReusableDocumentsResult> {
+  const emptyStatus: UniversalProfileReusableDocumentStatus = {
+    uploaded: false,
+    fileName: null,
+    status: null,
+    updatedAt: null,
+  };
+
+  try {
+    const contextResult = await getApplicantContext();
+    if (!contextResult.ok) return contextResult;
+
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from("universal_profile_documents")
+      .select("document_type, filename, status, created_at, updated_at")
+      .eq("applicant_id", contextResult.context.applicantId)
+      .in("document_type", [...PHOTO_DOCUMENT_TYPES, ...SIGNATURE_DOCUMENT_TYPES])
+      .neq("status", "missing")
+      .order("updated_at", { ascending: false, nullsFirst: false });
+
+    if (error) {
+      if (isMissingUniversalProfileDocumentsError(error)) {
+        return { ok: true, documents: { photo: emptyStatus, signature: emptyStatus } };
+      }
+      return { ok: false, code: "server_error", error: error.message };
+    }
+
+    const rows = (data ?? []) as Array<Pick<UniversalProfileDocumentRow, "document_type" | "filename" | "status" | "created_at" | "updated_at">>;
+    const toStatus = (documentTypes: readonly string[]): UniversalProfileReusableDocumentStatus => {
+      const row = rows.find((candidate) => documentTypes.includes(candidate.document_type));
+      if (!row) return { ...emptyStatus };
+      return {
+        uploaded: true,
+        fileName: row.filename,
+        status: row.status,
+        updatedAt: row.updated_at ?? row.created_at,
+      };
+    };
+
+    return {
+      ok: true,
+      documents: {
+        photo: toStatus(PHOTO_DOCUMENT_TYPES),
+        signature: toStatus(SIGNATURE_DOCUMENT_TYPES),
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "server_error",
+      error: error instanceof Error ? error.message : "Failed to load reusable profile documents",
+    };
+  }
+}
+
 async function loadVirtualAnswerDocuments(applicationId: string): Promise<ApplicationDocument[]> {
   const adminClient = createAdminClient();
   const { data, error } = await adminClient
@@ -1392,9 +1464,11 @@ export async function reuseUniversalProfileDocument(input: {
 
     const types = PASSPORT_DOCUMENT_TYPES.includes(input.documentType as (typeof PASSPORT_DOCUMENT_TYPES)[number])
       ? [...PASSPORT_DOCUMENT_TYPES]
-      : input.documentType === "photo"
-        ? ["photo", "formal_photo", "formal_photo_upload", "passport_photo", "portrait_photo"]
-        : [input.documentType];
+      : PHOTO_DOCUMENT_TYPES.includes(input.documentType as (typeof PHOTO_DOCUMENT_TYPES)[number])
+        ? [...PHOTO_DOCUMENT_TYPES]
+        : SIGNATURE_DOCUMENT_TYPES.includes(input.documentType as (typeof SIGNATURE_DOCUMENT_TYPES)[number])
+          ? [...SIGNATURE_DOCUMENT_TYPES]
+          : [input.documentType];
     const adminClient = createAdminClient();
     const { data, error } = await adminClient
       .from("universal_profile_documents")

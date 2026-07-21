@@ -1185,6 +1185,9 @@ export function DocumentCenterClient({
       uploadForm.set("filename", safeName);
       uploadForm.set("required", String(requirement.required));
       uploadForm.set("source", source);
+      if (["photo", "customs_signature_file", "electronic_signature", "signature", "signature_image"].includes(requirement.documentType)) {
+        uploadForm.set("scope", "universal_profile");
+      }
       uploadForm.set("file", file);
       const result = await uploadApplicationDocumentFromClient(uploadForm);
       if (!result.ok) throw new Error(result.error);
@@ -1616,7 +1619,7 @@ export function DocumentCenterClient({
                     isZh={isZh}
                     extraAction={renderTravelAiAction(view)}
                     onReuseProfileDocument={
-                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo"].includes(view.requirement.documentType)
+                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo", "customs_signature_file", "electronic_signature", "signature", "signature_image"].includes(view.requirement.documentType)
                         ? () => void reuseProfileDocument(view.requirement)
                         : undefined
                     }
@@ -1659,7 +1662,7 @@ export function DocumentCenterClient({
                     isZh={isZh}
                     extraAction={renderTravelAiAction(view)}
                     onReuseProfileDocument={
-                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo"].includes(view.requirement.documentType)
+                      ["passport_copy", "passport", "passport_bio_page", "passport_scan", "photo", "customs_signature_file", "electronic_signature", "signature", "signature_image"].includes(view.requirement.documentType)
                         ? () => void reuseProfileDocument(view.requirement)
                         : undefined
                     }
