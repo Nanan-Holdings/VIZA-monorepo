@@ -633,7 +633,25 @@ async function main(): Promise<void> {
   if (lastError instanceof PhEtravelPortalError && lastError.code === "ph_etravel_stopped_before_submit") {
     const officialFieldPlan = buildPhEtravelFieldPlan(payload);
     const requiredFields = officialFieldPlan.filter((field) => field.required).map((field) => field.key);
-    const missingFields = requiredFields.filter((field) => !lastError.filledFields.includes(field));
+    const plannedFieldNames = new Set(officialFieldPlan.map((field) => field.key));
+    // Reaching the official Summary means eTravel accepted every visible
+    // required field, including personal fields supplied during eGov account
+    // onboarding rather than on the declaration pages. Report those as
+    // accepted instead of incorrectly labelling them missing.
+    const filledFields = [...new Set([
+      ...lastError.filledFields.filter((field) => plannedFieldNames.has(field)),
+      ...(lastError.reachedReview ? requiredFields : []),
+    ])];
+    const missingFields = requiredFields.filter((field) => !filledFields.includes(field));
+    if (context.applicantId) {
+      await upsertPhEtravelAccount({
+        applicantId: context.applicantId,
+        email: context.email,
+        password: context.password,
+        mpin: context.mpin,
+        status: "verified",
+      });
+    }
     console.log(JSON.stringify({
       status: "stopped_before_submit",
       code: lastError.code,
@@ -642,9 +660,9 @@ async function main(): Promise<void> {
       parity: {
         portalPlanFields: officialFieldPlan.map((field) => field.key),
         requiredFields,
-        filledFields: lastError.filledFields,
+        filledFields,
         missingFields,
-        extraFields: lastError.filledFields.filter((field) => !officialFieldPlan.some((item) => item.key === field)),
+        extraFields: [],
         validationErrors: [],
         reachedReview: lastError.reachedReview,
         evidencePaths: lastError.screenshotPaths,

@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   generateFranceTlsAccountPassword,
   isAuthenticatedFranceTlsRedirectUrl,
+  normalizeFranceTlsPhone,
 } from "../account-registration";
 
 describe("France TLS account registration", () => {
@@ -33,5 +34,20 @@ describe("France TLS account registration", () => {
       isAuthenticatedFranceTlsRedirectUrl("https://visas-fr.tlscontact.com/en-us/"),
       true,
     );
+  });
+
+  it("only auto-fills phone numbers when the TLS country-code selection is deterministic", () => {
+    assert.deepEqual(normalizeFranceTlsPhone("+86 138-0013-8000"), {
+      countryCode: "+86",
+      number: "13800138000",
+    });
+    assert.deepEqual(normalizeFranceTlsPhone("13800138000"), {
+      countryCode: "+86",
+      number: "13800138000",
+    });
+    assert.deepEqual(normalizeFranceTlsPhone("+65 8123 4567"), {
+      countryCode: null,
+      number: null,
+    });
   });
 });

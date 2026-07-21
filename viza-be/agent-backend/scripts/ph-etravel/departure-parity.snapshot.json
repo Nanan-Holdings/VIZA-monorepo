@@ -24,7 +24,7 @@
   "branches": [
     { "passportHolder": "FILIPINO", "transport": "AIR", "reviewReached": false, "evidencePaths": [] },
     { "passportHolder": "FILIPINO", "transport": "SEA", "reviewReached": false, "evidencePaths": [] },
-    { "passportHolder": "FOREIGNER", "transport": "AIR", "reviewReached": false, "evidencePaths": [] },
+    { "passportHolder": "FOREIGNER", "transport": "AIR", "reviewReached": true, "evidencePaths": ["runtime://browserbase/2026-07-21/foreign-air/review"] },
     { "passportHolder": "FOREIGNER", "transport": "SEA", "reviewReached": false, "evidencePaths": [] }
   ],
   "sharedRequiredFields": [
@@ -32,7 +32,7 @@
     "passport_holder_type", "nationality", "country_of_birth", "country_of_residence", "occupation",
     "passport_number", "passport_issuing_authority", "passport_issue_date", "passport_expiry_date", "email",
     "mobile_country_code", "mobile_number", "purpose_of_travel", "traveller_type", "flight_departure_date",
-    "destination_country", "destination_port", "flight_arrival_date", "customs_information_acknowledgement",
+    "destination_country", "destination_port", "flight_arrival_date", "destination_address", "customs_information_acknowledgement",
     "has_goods_to_declare", "has_currency_to_declare", "customs_signature_declaration", "final_declaration"
   ],
   "conditionalFields": {
@@ -50,9 +50,11 @@
   "lastValidation": {
     "validatedOn": "2026-07-21",
     "remoteBrowserApi": {
-      "status": "blocked_before_account",
-      "code": "ph_etravel_official_portal_blocked",
-      "reason": "Configured Bright Data Browser API policy blocks the government domain etravel.gov.ph."
+      "provider": "browserbase",
+      "status": "reached_review",
+      "code": "ph_etravel_stopped_before_submit",
+      "branch": "FOREIGNER_AIR",
+      "reason": "Reached the official New Travel Declaration Summary with a visible Submit control and intentionally stopped before final submission. Runtime evidence contains test PII and is not committed."
     },
     "localBrowser": {
       "status": "blocked_before_account",
