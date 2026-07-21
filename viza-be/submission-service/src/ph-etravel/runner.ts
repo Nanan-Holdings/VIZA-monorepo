@@ -387,6 +387,8 @@ export function isPhEtravelRegistrationResponseRejected(status: number): boolean
   return status >= 400;
 }
 
+export const PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS = 20_000;
+
 async function fillFirstVisibleInput(page: Page, selectors: string[], value: string): Promise<boolean> {
   for (const selector of selectors) {
     const inputs = page.locator(selector);
@@ -1303,6 +1305,16 @@ async function maybeCreatePhEtravelAccount(
 
   const timeoutMs = options.emailVerificationTimeoutMs
     ?? Number(process.env.PH_ETRAVEL_EMAIL_VERIFICATION_TIMEOUT_MS ?? "180000");
+  const waitForExistingAccountNotice = () => mailbox
+    .waitForExistingAccountNotice({ timeoutMs, since })
+    .then(async () => {
+      // eGovPH can send a generic registration-attempt notice before sending
+      // the actionable OTP for the same successful request. Give the OTP/link
+      // pollers time to win before treating that notice as terminal evidence
+      // that the account already exists.
+      await new Promise((resolve) => setTimeout(resolve, PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS));
+      return { kind: "existing" as const };
+    });
   if (/otp|code|verification|one[-\s]?time/i.test(currentText)) {
     type EmailVerificationResult =
       | { kind: "otp"; otp: string }
@@ -1311,7 +1323,7 @@ async function maybeCreatePhEtravelAccount(
     const emailVerification = await firstSuccessful<EmailVerificationResult>([
       mailbox.waitForOtp({ timeoutMs, since }).then((otp) => ({ kind: "otp" as const, otp })),
       mailbox.waitForVerificationLink({ timeoutMs, since }).then((url) => ({ kind: "url" as const, url })),
-      mailbox.waitForExistingAccountNotice({ timeoutMs, since }).then(() => ({ kind: "existing" as const })),
+      waitForExistingAccountNotice(),
     ]);
     if (emailVerification.kind === "existing") {
       logs.push("ph_etravel_alias_account_already_exists_email");
@@ -1354,7 +1366,7 @@ async function maybeCreatePhEtravelAccount(
     const emailVerification = await firstSuccessful<EmailVerificationResult>([
       mailbox.waitForOtp({ timeoutMs, since }).then((otp) => ({ kind: "otp" as const, otp })),
       mailbox.waitForVerificationLink({ timeoutMs, since }).then((url) => ({ kind: "url" as const, url })),
-      mailbox.waitForExistingAccountNotice({ timeoutMs, since }).then(() => ({ kind: "existing" as const })),
+      waitForExistingAccountNotice(),
     ]);
     if (emailVerification.kind === "existing") {
       logs.push("ph_etravel_alias_account_already_exists_email");

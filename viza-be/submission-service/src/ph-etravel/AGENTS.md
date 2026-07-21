@@ -10,5 +10,6 @@ Scope: Philippines `PH_ETRAVEL_ARRIVAL_CARD` official eTravel portal automation 
 - A successful run must include official QR/reference evidence from the final eTravel confirmation page. Do not treat a generic screenshot or landing page as success.
 - If the portal blocks access, requires CAPTCHA/WAF handling, changes layout, or lacks QR/reference evidence, return a structured failure with screenshots and summary.
 - Treat a non-2xx registration API response as a registration failure and retry the email/Turnstile step; never wait for an inbox message after the official API rejected the request.
+- eGovPH may deliver a generic registration-attempt notice before the actionable OTP. Keep a short grace window so the OTP or verification link wins instead of prematurely switching to existing-account login.
 - `form-filler.ts` owns the post-authenticated official page state machine and field plan. It must fill all visible steps, capture per-step evidence, stop on Review when requested, and click final Submit only when the caller explicitly disables `stopBeforeSubmit`.
 - Browserbase is selected with `PH_ETRAVEL_BROWSERBASE_ENABLED=true`; the default managed proxy country is `PH`. Never log its connect URL, API key, or replay-session credentials.
