@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import {
@@ -1231,7 +1232,8 @@ async function capturePaymentArtifact(
   try {
     const applicationId = String(input.applicationId ?? input.application?.passportNumber ?? "unknown")
       .replace(/[^a-zA-Z0-9_-]/g, "_");
-    const dir = path.resolve("diag-out", "indonesia-payment", applicationId);
+    const diagnosticRoot = process.env.FLY_APP_NAME ? os.tmpdir() : path.resolve("diag-out");
+    const dir = path.join(diagnosticRoot, "indonesia-payment", applicationId);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, `${label}.html`), await page.content().catch(() => ""));
     const controls = await page
@@ -3538,6 +3540,104 @@ async function continueFromIndonesiaPaymentDetail(
   return page.url() !== targetUrl || /\/(?:web|front)\/payment\//i.test(page.url()) || isPaymentGatewayOrFlowUrl(page.url());
 }
 
+async function hasIndonesiaCardPaymentForm(page: Page): Promise<boolean> {
+  const cardNumber = page
+    .locator(
+      "#number[name='number'], input#number, input[autocomplete='cc-number'], input[name*='card'][name*='number'], input[id*='card'][id*='number']",
+    )
+    .first();
+  return cardNumber.isVisible({ timeout: 1_000 }).catch(() => false);
+}
+
+async function continueFromIndonesiaPaymentSelection(
+  page: Page,
+  diagnostics: string[],
+): Promise<boolean> {
+  if (await hasIndonesiaCardPaymentForm(page)) {
+    diagnostics.push("indonesia_payment_card_form_already_visible");
+    return false;
+  }
+
+  if (await continueFromIndonesiaPaymentDetail(page, diagnostics)) {
+    diagnostics.push("indonesia_payment_detail_advanced");
+    return true;
+  }
+
+  if (!isPaymentGatewayOrFlowUrl(page.url())) return false;
+
+  const beforeUrl = page.url();
+  const pagesBefore = page.context().pages().length;
+  const clicked = await page
+    .evaluate(() => {
+      const visible = (element: Element): boolean => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0;
+      };
+      const describe = (element: Element): string => [
+        element.textContent ?? "",
+        (element as HTMLInputElement).value ?? "",
+        element.getAttribute("aria-label") ?? "",
+        element.getAttribute("title") ?? "",
+        element.getAttribute("id") ?? "",
+        element.getAttribute("name") ?? "",
+        element.getAttribute("class") ?? "",
+        element.getAttribute("href") ?? "",
+        element.getAttribute("data-action") ?? "",
+        element.getAttribute("onclick") ?? "",
+      ].join(" ").replace(/\s+/g, " ").trim().toLowerCase();
+      const controls = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          "button, a[href], [role='button'], input[type='button'], input[type='submit'], .btn, .button",
+        ),
+      ).filter(visible);
+      const scored = controls
+        .map((control) => {
+          const description = describe(control);
+          let score = 0;
+          if (/make\s+a\s+payment|pay\s+by\s+card|credit\s*(?:\/|or|&)\s*debit\s+card/i.test(description)) score += 20;
+          if (/credit\s+card|debit\s+card|card\s+payment|visa\s*(?:\/|or|&)\s*mastercard/i.test(description)) score += 14;
+          if (/bayar\s+sekarang|lanjutkan\s+pembayaran|proceed\s+to\s+payment|continue\s+to\s+payment|pay\s+now/i.test(description)) score += 12;
+          if (/finpay/i.test(description)) score += 10;
+          if (/print\s+invoice|download|track|apply|cancel|back|kembali|batal/i.test(description)) score -= 30;
+          if (control.closest("nav,header,footer")) score -= 20;
+          return { control, description, score };
+        })
+        .filter((candidate) => candidate.score > 0)
+        .sort((a, b) => b.score - a.score);
+      const selected = scored[0];
+      if (!selected) return null;
+      selected.control.scrollIntoView({ block: "center", inline: "center" });
+      selected.control.click();
+      return {
+        tag: selected.control.tagName.toLowerCase(),
+        score: selected.score,
+      };
+    })
+    .catch(() => null);
+
+  if (!clicked) {
+    diagnostics.push("indonesia_payment_selection_control_not_found");
+    return false;
+  }
+
+  diagnostics.push(
+    `indonesia_payment_selection_clicked tag=${clicked.tag} score=${clicked.score}`,
+  );
+  await page.waitForTimeout(3_000);
+  const activePage = await resolveActiveIndonesiaPaymentPage(page, diagnostics);
+  const advanced =
+    activePage !== page ||
+    page.context().pages().length > pagesBefore ||
+    activePage.url() !== beforeUrl ||
+    await hasIndonesiaCardPaymentForm(activePage);
+  diagnostics.push(`indonesia_payment_selection_advanced ${advanced ? "yes" : "no"}`);
+  return advanced;
+}
+
 async function waitForUserPaymentCompletion(
   page: Page,
   input: IndonesiaPortalProbeInput,
@@ -3550,7 +3650,7 @@ async function waitForUserPaymentCompletion(
   evidencePdf?: Buffer;
   officialReference?: string;
 }> {
-  let activePage = page;
+  let activePage = await resolveActiveIndonesiaPaymentPage(page, diagnostics);
   const waitTimeoutMs = Math.max(
     30_000,
     Number(input.userPaymentHandoff?.waitTimeoutMs ?? process.env.INDONESIA_USER_PAYMENT_WAIT_MS ?? 10 * 60 * 1000),
@@ -3674,12 +3774,15 @@ async function resolveActiveIndonesiaPaymentPage(page: Page, diagnostics: string
       const candidateUrl = candidate.url();
       const candidateTitle = await candidate.title().catch(() => null);
       const candidateText = await candidate.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+      const cardFormVisible = await hasIndonesiaCardPaymentForm(candidate);
       const state = classifyIndonesiaPortalSnapshot({
         url: candidateUrl,
         title: candidateTitle,
         text: candidateText,
       });
       const paymentSignals = [
+        cardFormVisible ? 12 : 0,
+        /(?:^|\.)finpay\.id$/i.test(new URL(candidateUrl, "https://evisa.imigrasi.go.id").hostname) ? 8 : 0,
         isPaymentGatewayOrFlowUrl(candidateUrl) ? 4 : 0,
         state === "payment_otp_required" ? 5 : 0,
         state === "payment_required" ? 3 : 0,
@@ -4198,7 +4301,7 @@ export async function probeIndonesiaPortal(
         advanced =
           (shouldSubmitIndonesiaPortalEmailOtp({ url, text }) &&
             await continueFromIndonesiaOtpPage(page, input, session.diagnostics)) ||
-          await continueFromIndonesiaPaymentDetail(page, session.diagnostics);
+          await continueFromIndonesiaPaymentSelection(page, session.diagnostics);
       } else if (state === "official_application_started" || state === "application_form_visible") {
         advanced =
           await continueFromApplicationStepOne(page, input, session.diagnostics) ||
@@ -4247,15 +4350,17 @@ export async function probeIndonesiaPortal(
     let evidencePdf: Buffer | undefined;
     let officialReference: string | undefined;
     if ((state === "payment_required" || state === "payment_otp_required") && input.userPaymentHandoff?.enabled) {
-      const openedPaymentPage = await continueFromIndonesiaPaymentDetail(page, session.diagnostics);
+      let paymentPage = await resolveActiveIndonesiaPaymentPage(page, session.diagnostics);
+      const openedPaymentPage = await continueFromIndonesiaPaymentSelection(paymentPage, session.diagnostics);
       if (openedPaymentPage) {
-        title = await page.title().catch(() => null);
-        text = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-        url = page.url();
+        paymentPage = await resolveActiveIndonesiaPaymentPage(paymentPage, session.diagnostics);
+        title = await paymentPage.title().catch(() => null);
+        text = await paymentPage.locator("body").innerText({ timeout: 5000 }).catch(() => "");
+        url = paymentPage.url();
         state = classifyIndonesiaPortalSnapshot({ url, title, text });
       }
-      await capturePaymentArtifact(page, input, session.diagnostics, "payment");
-      const paymentResult = await waitForUserPaymentCompletion(page, input, session.diagnostics);
+      await capturePaymentArtifact(paymentPage, input, session.diagnostics, "payment");
+      const paymentResult = await waitForUserPaymentCompletion(paymentPage, input, session.diagnostics);
       title = paymentResult.title;
       text = paymentResult.text;
       url = paymentResult.url;
