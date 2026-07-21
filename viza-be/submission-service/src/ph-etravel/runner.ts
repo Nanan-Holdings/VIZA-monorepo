@@ -575,6 +575,86 @@ async function uploadEgovProfilePhoto(
     mimeType: extension === ".png" ? "image/png" : "image/jpeg",
     buffer: fs.readFileSync(photoPath),
   };
+  const uploadDirectlyAndInjectUrl = async (): Promise<boolean> => {
+    const formData = new FormData();
+    formData.append(
+      "file",
+      new Blob([new Uint8Array(filePayload.buffer)], { type: filePayload.mimeType }),
+      filePayload.name,
+    );
+    const uploadResponse = await fetch(
+      process.env.PH_ETRAVEL_EGOV_UPLOAD_URL?.trim() || "https://egov-upload-ws.e.gov.ph/ext/etravel/upload",
+      {
+        method: "POST",
+        headers: {
+          "X-Api-Key": process.env.PH_ETRAVEL_EGOV_UPLOAD_API_KEY?.trim() || "3fcc23fb808f43b4b474f478c62e035d",
+        },
+        body: formData,
+      },
+    ).catch(() => null);
+    if (!uploadResponse) {
+      logs.push("ph_etravel_egov_profile_photo_direct_upload_unreachable");
+      return false;
+    }
+
+    logs.push(`ph_etravel_egov_profile_photo_direct_upload_response status=${uploadResponse.status}`);
+    const responseBody = await uploadResponse.json().catch(() => null) as {
+      data?: { url?: unknown };
+    } | null;
+    const uploadedUrl = typeof responseBody?.data?.url === "string" ? responseBody.data.url.trim() : "";
+    if (!uploadResponse.ok || !uploadedUrl) return false;
+
+    const injected = await page.evaluate((photoUrl) => {
+      type ReactFiberNode = {
+        memoizedProps?: {
+          environment?: unknown;
+          project?: unknown;
+          onChange?: unknown;
+        };
+        return?: ReactFiberNode | null;
+      };
+      const roots = Array.from(document.querySelectorAll(
+        ".egov-upload-widget, input[type='file'], [class*='upload' i]",
+      ));
+      for (const root of roots) {
+        const fiberKey = Object.keys(root).find((key) => key.startsWith("__reactFiber$"));
+        let fiber = fiberKey
+          ? (root as unknown as Record<string, ReactFiberNode>)[fiberKey]
+          : null;
+        for (let depth = 0; fiber && depth < 30; depth += 1, fiber = fiber.return ?? null) {
+          const props = fiber.memoizedProps;
+          if (
+            props?.environment === "PRODUCTION" &&
+            props.project === "etravel" &&
+            typeof props.onChange === "function"
+          ) {
+            (props.onChange as (event: { target: { value: { url: string } } }) => void)({
+              target: { value: { url: photoUrl } },
+            });
+            return true;
+          }
+        }
+      }
+      return false;
+    }, uploadedUrl).catch(() => false);
+    if (!injected) {
+      logs.push("ph_etravel_egov_profile_photo_url_injection_failed");
+      return false;
+    }
+
+    await page.waitForTimeout(1_000);
+    logs.push("ph_etravel_egov_profile_photo_url_injected");
+    return true;
+  };
+
+  // Browserbase can preserve the filename while losing the native File body
+  // across remote CDP. Use the same public eGov upload endpoint as the official
+  // widget, then notify the widget with the returned URL so Formik receives the
+  // exact value it would get after a successful local-browser upload.
+  if (await uploadDirectlyAndInjectUrl()) {
+    logs.push("ph_etravel_egov_profile_photo_uploaded");
+    return true;
+  }
 
   const trySetInputFiles = async (): Promise<boolean> => {
     const inputs = page.locator("input[type='file']");
