@@ -1457,7 +1457,8 @@ async function maybeCreatePhEtravelAccount(
   const registrationContinue = page.getByRole("button", { name: /continue|next|submit|send/i }).first();
   const registrationContinueEnabled = await registrationContinue.isVisible({ timeout: 1_000 }).catch(() => false) &&
     await registrationContinue.isEnabled({ timeout: 1_000 }).catch(() => false);
-  if (registrationChallengeVisible && !registrationContinueEnabled) {
+  const registrationAdvancedToOtp = /enter one[-\s]?time[-\s]?(?:password|code)|\botp\b|resend email code/i.test(currentText);
+  if (registrationChallengeVisible && !registrationContinueEnabled && !registrationAdvancedToOtp) {
     screenshots.push(await saveScreenshot(page, "registration-turnstile-failed", logs));
     throw new PhEtravelPortalError(
       "Official Philippines eTravel registration Turnstile could not be solved by the configured browser channel.",
