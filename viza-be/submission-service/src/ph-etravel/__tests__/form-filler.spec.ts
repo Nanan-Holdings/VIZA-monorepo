@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPhEtravelFieldPlan } from "../form-filler";
+import { buildPhEtravelFieldPlan, isPhEtravelPublicLandingText } from "../form-filler";
 import type { PhEtravelPortalPayload } from "../normalize";
 
 const payload: PhEtravelPortalPayload = {
@@ -88,6 +88,19 @@ const payload: PhEtravelPortalPayload = {
   },
   finalDeclaration: true,
 };
+
+test("authenticated dashboard footer is not mistaken for the public landing page", () => {
+  assert.equal(
+    isPhEtravelPublicLandingText(
+      "New Travel Declaration Travel History View/Manage Logout Download eGovPH App",
+    ),
+    false,
+  );
+  assert.equal(
+    isPhEtravelPublicLandingText("Click here to sign in Download eGovPH App"),
+    true,
+  );
+});
 
 test("buildPhEtravelFieldPlan maps canonical values to official display labels", () => {
   const plan = buildPhEtravelFieldPlan(payload);
