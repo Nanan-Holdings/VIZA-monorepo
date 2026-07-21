@@ -535,13 +535,11 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
       }
       return result;
     }
-    if (process.env.NODE_ENV === "production") {
-      console.error("Indonesia cloud card session is not configured.");
-      return {
-        ok: false,
-        error: "印尼云端付款会话尚未配置，请联系 VIZA 支持。",
-      };
-    }
+    console.error("Indonesia cloud card session is not configured.");
+    return {
+      ok: false,
+      error: "印尼云端付款会话尚未配置，请联系 VIZA 支持。",
+    };
   }
 
   const attempts: string[] = [];
@@ -557,10 +555,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   });
   return {
     ok: false,
-    error:
-      countryPath === "indonesia"
-        ? "本机 Indonesia submission worker 没有运行，或未开启 Indonesia 一次性银行卡会话端点。请启动 scripts/start-indonesia-submission-worker.cmd 后重试。"
-        : "本机 submission-service 没有运行，或未开启一次性银行卡会话端点。请启动对应 submission worker 后重试。",
+    error: "本机 submission-service 没有运行，或未开启一次性银行卡会话端点。请启动对应 submission worker 后重试。",
   };
 }
 
