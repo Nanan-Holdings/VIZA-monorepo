@@ -4,7 +4,11 @@ import * as path from "path";
 import type { Page } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { solveCaptcha } from "../captcha";
-import { fillPhEtravelOfficialDeclaration, PhEtravelFormFillError } from "./form-filler";
+import {
+  fillPhEtravelOfficialDeclaration,
+  isPhEtravelPublicLandingText,
+  PhEtravelFormFillError,
+} from "./form-filler";
 import { PH_ETRAVEL_REFERENCE_PATTERNS } from "./official-options";
 import { PH_ETRAVEL_OFFICIAL_PORTAL_URL, type PhEtravelPortalPayload } from "./normalize";
 import { createPhEtravelMailboxProvider, type PhEtravelMailboxProvider } from "./mailbox-provider";
@@ -1832,7 +1836,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       }
     }
     let authenticatedText = await bodyText(page);
-    if (/click here to sign in|download egovph app/i.test(authenticatedText)) {
+    if (isPhEtravelPublicLandingText(authenticatedText)) {
       logs.push("ph_etravel_post_auth_landing_detected_retrying_login");
       await reachAuthenticatedPhEtravelSession(
         page,
@@ -1844,7 +1848,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
       authenticatedText = await bodyText(page);
     }
-    if (/click here to sign in|download egovph app/i.test(authenticatedText)) {
+    if (isPhEtravelPublicLandingText(authenticatedText)) {
       throw new PhEtravelPortalError(
         "Official Philippines eTravel session returned to the public landing page after authentication.",
         {

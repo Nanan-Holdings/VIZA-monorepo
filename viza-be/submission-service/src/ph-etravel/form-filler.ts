@@ -30,6 +30,13 @@ export class PhEtravelFormFillError extends Error {
   }
 }
 
+export function isPhEtravelPublicLandingText(portalText: string): boolean {
+  const hasPublicLandingMarker = /click here to sign in|download egovph app/i.test(portalText);
+  const hasAuthenticatedMarker =
+    /new travel declaration|travel history|view\/manage|\blogout\b/i.test(portalText);
+  return hasPublicLandingMarker && !hasAuthenticatedMarker;
+}
+
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function optionLabel(value: string | null): string | null {
@@ -778,7 +785,7 @@ export async function fillPhEtravelOfficialDeclaration(
     // Confirmation" but still contain unanswered Yes/No questions. A real
     // Review state must expose the final submission control; title text alone
     // is not success evidence.
-    const isPublicLandingPage = /click here to sign in|download egovph app/i.test(portalText);
+    const isPublicLandingPage = isPhEtravelPublicLandingText(portalText);
     const review = Boolean(reviewSubmitControl) &&
       !isPublicLandingPage &&
       /review|summary|declaration/i.test(portalText);
