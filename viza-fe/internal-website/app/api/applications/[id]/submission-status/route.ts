@@ -549,10 +549,11 @@ export function deriveNonTerminalStatus(
     application.submission_result_updated_at,
     application.updated_at,
   );
+  const activeQueue = isActiveQueue(queue);
   const queueMessage =
     queue?.error_message?.trim() ||
     queue?.last_error?.trim() ||
-    extractResultError(application.submission_result);
+    (activeQueue ? null : extractResultError(application.submission_result));
   const currentStage = normalizeStatus(queue?.current_stage);
   const error = queueMessage;
 
