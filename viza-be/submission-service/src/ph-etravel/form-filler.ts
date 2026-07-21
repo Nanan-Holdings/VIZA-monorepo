@@ -128,12 +128,13 @@ export function buildPhEtravelFieldPlan(
       { key: "purpose", portalName: "purpose_of_visit_code", labels: ["Purpose of Travel", "Purpose of Visit"], kind: "choice", value: resolvedOptionLabel(payload.purposeOfTravel, officialLabels), required: true },
       { key: "traveller_type", portalName: "passenger_type", labels: ["Traveller Type", "Traveler Type"], kind: "choice", value: optionLabel(payload.travellerType ?? (isAir ? "AIRCRAFT PASSENGER" : "VESSEL PASSENGER")), required: true },
       { key: "travel_company", portalName: "travel_company_code", labels: ["Name of Airline", "Name of Vessel", "Travel Company"], kind: isAir ? "choice" : "text", value: resolvedOptionLabel(payload.airlineOrVesselName, officialLabels), required: true },
-      { key: "transport_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: isAir ? "choice" : "text", value: payload.flightNumber, required: true },
+      { key: "transport_number", portalName: "flight_number", labels: ["Flight Number", "Vehicle/Vessel Number"], kind: "text", value: payload.flightNumber, required: true },
       { key: "departure_port", portalName: "origin_port_code", labels: ["Airport of Origin in the Philippines", "Seaport of Origin in the Philippines", "Port of Origin"], kind: "choice", value: resolvedOptionLabel(payload.portOfEntry, officialLabels), required: true },
       { key: "departure_date", portalName: "departure_date", labels: ["Date of Departure", "Date of Departure of Flight"], kind: "date", value: payload.departureDate, required: true },
       { key: "destination_country", portalName: "destination_country_code", labels: ["Country of Destination"], kind: "choice", value: resolvedOptionLabel(payload.destinationCountry, officialLabels), required: true },
       { key: "destination_port", portalName: "destination_port", labels: ["Airport/Seaport of Destination", "Port of Destination"], kind: "text", value: payload.destinationPort, required: true },
       { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival at Destination", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
+      { key: "destination_address", portalName: "destination_address", labels: ["Destination Address"], kind: "text", value: payload.destinationAddress, required: true },
       { key: "return_date", portalName: "return_date", labels: ["Expected Return Date to the Philippines", "Return Date"], kind: "date", value: payload.returnDate },
       { key: "travel_tax_type", labels: ["Travel Tax Details", "Travel Tax Payment"], kind: "choice", value: optionLabel(payload.travelTaxPaymentType) },
       { key: "travel_tax_reference", labels: ["Travel Tax Reference Number"], kind: "text", value: payload.travelTaxReferenceNumber },
@@ -550,6 +551,27 @@ async function uploadFile(page: Page, item: PhEtravelFieldPlanItem): Promise<boo
   return false;
 }
 
+async function drawCustomsSignature(page: Page): Promise<boolean> {
+  const canvas = await firstVisible([page.locator("canvas:visible")]);
+  if (!canvas) return false;
+  const box = await canvas.boundingBox().catch(() => null);
+  if (!box || box.width < 80 || box.height < 40) return false;
+
+  const points = [
+    [0.12, 0.62], [0.18, 0.42], [0.23, 0.67], [0.29, 0.38],
+    [0.34, 0.63], [0.40, 0.48], [0.47, 0.62], [0.55, 0.44],
+    [0.62, 0.61], [0.70, 0.50], [0.78, 0.58],
+  ] as const;
+  await page.mouse.move(box.x + box.width * points[0][0], box.y + box.height * points[0][1]);
+  await page.mouse.down();
+  for (const [x, y] of points.slice(1)) {
+    await page.mouse.move(box.x + box.width * x, box.y + box.height * y, { steps: 3 });
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  return true;
+}
+
 async function fillVisibleFields(page: Page, plan: PhEtravelFieldPlanItem[], completed: Set<string>): Promise<string[]> {
   const newlyFilled: string[] = [];
   for (const item of plan) {
@@ -656,8 +678,21 @@ export async function fillPhEtravelOfficialDeclaration(
     }
   }
 
-  for (let step = 1; step <= 12; step += 1) {
+  for (let step = 1; step <= 24; step += 1) {
     portalText = await page.locator("body").innerText().catch(() => "");
+    if (/haven't selected any family members|not traveling with a companion/i.test(portalText)) {
+      const confirmNoCompanions = await firstVisible([
+        page.getByRole("button", { name: /^yes$/i }).last(),
+        page.locator("button").filter({ hasText: /^\s*yes\s*$/i }).last(),
+      ]);
+      if (confirmNoCompanions) {
+        await confirmNoCompanions.click({ force: true, timeout: 5_000 });
+        completed.add("family_member_confirmation");
+        await page.waitForTimeout(2_000);
+        await options.onStep?.(`form-step-${step}-no-family-members`);
+        continue;
+      }
+    }
     await chooseInitialRegistration(page, completed, payload);
     const confirmation = /registration\s+(?:successful|completed)|successfully\s+registered|thank\s+you\s+for\s+registering/i.test(portalText) &&
       /qr\s*code|reference\s*(?:no|number)/i.test(portalText);
@@ -673,7 +708,15 @@ export async function fillPhEtravelOfficialDeclaration(
       );
     }
 
-    const review = /review|summary|declaration/i.test(portalText) && /submit|confirm|certif/i.test(portalText);
+    const reviewSubmitControl = await firstVisible([
+      page.getByRole("button", { name: /^submit$|submit declaration|confirm and submit|complete registration/i }),
+      page.locator("button, [role='button']").filter({ hasText: /^\s*(?:submit|submit declaration|confirm and submit|complete registration)\s*$/i }),
+    ]);
+    // Intermediate customs pages are titled "Customs Declaration
+    // Confirmation" but still contain unanswered Yes/No questions. A real
+    // Review state must expose the final submission control; title text alone
+    // is not success evidence.
+    const review = Boolean(reviewSubmitControl) && /review|summary|declaration/i.test(portalText);
     if (review) {
       await options.onStep?.("review");
       if (options.stopBeforeSubmit) {
@@ -695,10 +738,29 @@ export async function fillPhEtravelOfficialDeclaration(
     }
 
     const newlyFilled = await fillVisibleFields(page, plan, completed);
+    if (!completed.has("customs_signature_declaration") && await drawCustomsSignature(page)) {
+      completed.add("customs_signature_declaration");
+      newlyFilled.push("customs_signature_declaration");
+    }
     await closeHotelLookup(page);
     if (newlyFilled.length > 0) await options.onStep?.(`form-step-${step}`);
     const advanced = await clickVisibleButton(page, /^next$|^continue$|save and continue|proceed/i);
     if (!advanced) {
+      // The customs confirmation flow uses the Yes/No answer itself as the
+      // submit action and shows loading spinners instead of a separate Next
+      // button. Wait for its SPA transition before classifying the page as a
+      // validation failure.
+      const autoAdvanced = newlyFilled.length > 0
+        ? await page.waitForFunction(
+            (previousText) => (document.body?.innerText ?? "").trim() !== previousText.trim(),
+            portalText,
+            { timeout: 20_000 },
+          ).then(() => true).catch(() => false)
+        : false;
+      if (autoAdvanced) {
+        await page.waitForTimeout(1_500);
+        continue;
+      }
       const errors = await page.locator("[role='alert'], .error, .invalid-feedback, .text-danger").allInnerTexts().catch(() => []);
       throw new PhEtravelFormFillError(
         newlyFilled.length === 0

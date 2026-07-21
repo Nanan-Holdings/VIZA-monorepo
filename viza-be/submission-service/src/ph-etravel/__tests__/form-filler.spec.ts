@@ -48,6 +48,7 @@ const payload: PhEtravelPortalPayload = {
   destinationTransitAirport: null,
   destinationCountry: null,
   destinationPort: null,
+  destinationAddress: null,
   philippinesAddress: "Test Hotel, Manila",
   returnDate: null,
   travelTaxPaymentType: null,
@@ -153,13 +154,15 @@ test("buildPhEtravelFieldPlan emits departure controls and excludes arrival-only
     portOfEntry: "TP1000",
     destinationCountry: "SG",
     destinationPort: "Singapore Changi Airport",
+    destinationAddress: "1 Airport Boulevard, Singapore",
     philippinesAddress: null,
   });
   const keys = new Set(plan.map((item) => item.key));
 
-  for (const key of ["departure_port", "destination_country", "destination_port", "has_currency_to_declare"]) {
+  for (const key of ["departure_port", "destination_country", "destination_port", "destination_address", "has_currency_to_declare"]) {
     assert.equal(keys.has(key), true, `${key} missing`);
   }
+  assert.equal(plan.find((item) => item.key === "transport_number")?.kind, "text");
   for (const key of ["philippines_address", "destination_type", "health_recent_travel", "airport_of_origin"]) {
     assert.equal(keys.has(key), false, `${key} must not be in departure plan`);
   }

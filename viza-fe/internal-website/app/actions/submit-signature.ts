@@ -257,12 +257,17 @@ export async function submitSavedUniversalProfileSignature(
   }
 
   const savedBuffer = Buffer.from(await signatureBlob.arrayBuffer());
-  const pngBuffer = isPng(savedBuffer)
-    ? savedBuffer
-    : await sharp(savedBuffer)
-        .resize({ width: 600, height: 200, fit: "inside", withoutEnlargement: true })
-        .png({ compressionLevel: 9 })
-        .toBuffer();
+  let pngBuffer: Buffer;
+  try {
+    pngBuffer = isPng(savedBuffer)
+      ? savedBuffer
+      : await sharp(savedBuffer)
+          .resize({ width: 600, height: 200, fit: "inside", withoutEnlargement: true })
+          .png({ compressionLevel: 9 })
+          .toBuffer();
+  } catch {
+    return { ok: false, error: "Saved signature is not a valid PNG or JPEG image" };
+  }
 
   return submitSignature(applicationId, new Uint8Array(pngBuffer));
 }

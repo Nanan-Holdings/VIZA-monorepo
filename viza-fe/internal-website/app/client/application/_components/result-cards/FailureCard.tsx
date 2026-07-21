@@ -178,6 +178,7 @@ export function FailureCard({
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
   const [cardHolderName, setCardHolderName] = useState("");
+  const [retryFailure, setRetryFailure] = useState<string | null>(null);
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
@@ -236,12 +237,21 @@ export function FailureCard({
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry) return;
     if (!cardReady) return;
+    setRetryFailure(null);
     setRetryingMode(mode);
     try {
       await onRetry(mode, vietnamPaymentCard);
       if (requiresPaymentCard) {
         setCardCvv("");
       }
+    } catch (error) {
+      setRetryFailure(
+        error instanceof Error
+          ? error.message
+          : isZh
+            ? "提交任务启动失败，请稍后重试。"
+            : "The submission job could not be started. Please try again.",
+      );
     } finally {
       setRetryingMode(null);
     }
@@ -386,6 +396,14 @@ export function FailureCard({
                   : "Enter the card number, expiry, and CVV before submitting."}
               </p>
             )}
+          </div>
+        )}
+        {retryFailure && (
+          <div
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-800"
+          >
+            {retryFailure}
           </div>
         )}
         {applicationId && onRetry && (
