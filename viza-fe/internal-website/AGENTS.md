@@ -262,6 +262,7 @@ Smoke URLs:
 - `components/runtime-abort-error-script.tsx`
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
+- `components/client/universal-profile-documents-carousel.tsx`
 - `components/client/us-appointment/*`
 - `components/client/japan-appointment/*`
 - `components/client/korea-appointment/*`

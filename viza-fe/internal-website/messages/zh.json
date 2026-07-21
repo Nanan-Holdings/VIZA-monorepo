@@ -4765,6 +4765,41 @@
       "title": "B1/B2 预约设置",
       "subtitle": "DS-160 完成后，使用中国 USVisaScheduling assisted-live 预约助手继续。VIZA 可处理支持的账号、CAPTCHA、政策、付款、名额读取和确认节点，但选位和最终预约批准必须明确完成。"
     },
+    "stateMachine": {
+      "subtitle": "一次只处理一个阶段。只有完成当前确认或收到官网结果后，VIZA 才会进入下一步。",
+      "ariaLabel": "预约进度",
+      "steps": {
+        "review": "复核资料",
+        "account": "官网账号",
+        "slots": "选择名额",
+        "confirm": "最终确认",
+        "result": "预约结果"
+      },
+      "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
+      "accountTitle": "官网账号与申请人资料",
+      "accountBody": "VIZA 正在创建或继续已授权的官网账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "startAgain": "重新开始",
+      "noSlotsBody": "官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
+    },
+    "review": {
+      "title": "继续前请复核",
+      "body": "请将下列已保存资料与护照和已提交的 DS-160 核对。如需修改请选择“修改申请资料”；只有您确认后，VIZA 才会进入官网账号流程。",
+      "back": "返回申请表",
+      "fullName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passportNumber": "护照号码",
+      "passportExpiry": "护照有效期至",
+      "phone": "手机号码",
+      "email": "个人邮箱",
+      "address": "现居住地址",
+      "ds160": "DS-160 确认编号",
+      "post": "面签使领馆",
+      "missing": "尚未填写",
+      "confirmation": "我已将以上资料与护照及已提交的 DS-160 核对，并授权 VIZA 继续进入官网账号流程。选择名额和最终预约仍需分别确认。",
+      "edit": "修改申请资料",
+      "confirmAndContinue": "确认资料无误并继续"
+    },
     "loading": "正在加载预约助手...",
     "errorTitle": "预约助手需要处理",
     "dryRunNoticeTitle": "受控 assisted-live",
@@ -4781,6 +4816,49 @@
       "pending": "待完成",
       "stopTitle": "官网最终按钮受保护",
       "stopBody": "只有后端观察到名额、用户选择时段并记录最终批准后，VIZA 才会启用官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
+    "requirements": {
+      "title": "请按顺序完成以下步骤",
+      "body": "从第 1 步依次向下完成。每一步都会说明由谁操作、使用哪些信息，以及当前是否已就绪。",
+      "officialCheckTitle": "已对照 USVisaScheduling 真实注册页核验",
+      "officialCheckBody": "官网当前要求填写用户名、Alias 邮箱验证码、英文名、英文姓、密码，以及 3 组安全问题答案。VIZA 负责账号字段，您只需提供准确的申请人和 DS-160 信息。",
+      "openApplication": "返回申请表复核资料",
+      "userInputTitle": "您需要在 VIZA 填写什么",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、已提交的 DS-160 确认编号及对应面签使领馆。预约用户名和密码、Alias 邮箱及验证码、3 组官网账号恢复答案由 VIZA 准备。",
+      "states": {
+        "ready": "已就绪",
+        "review": "请复核一次",
+        "managed": "VIZA 自动处理",
+        "action": "必须补充",
+        "pending": "后续步骤"
+      },
+      "roles": {
+        "user": "您操作",
+        "viza": "VIZA 处理",
+        "joint": "您与 VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "复核申请人资料",
+          "body": "确认与护照一致的英文名和英文姓、出生日期与国家、国籍、性别、护照号码与有效期、手机、个人邮箱、现住址及护照资料页。"
+        },
+        "ds160": {
+          "title": "确认 DS-160 与面签使领馆",
+          "body": "填写已提交的 DS-160 确认编号，并选择该 DS-160 上相同的中国使领馆。两者一致后才能预约。"
+        },
+        "account": {
+          "title": "创建并验证官网账号",
+          "body": "VIZA 创建用户名和密码，使用申请人 Alias 邮箱，读取验证码，填写护照英文姓名，并准备官网要求的 3 组安全问题答案。"
+        },
+        "profile": {
+          "title": "关联个人资料、DS-160 与缴费状态",
+          "body": "VIZA 登录并填写支持的资料，关联 DS-160 和使领馆，进入官网缴费与日历路径；CAPTCHA、政策或付款挑战会作为清晰节点显示。"
+        },
+        "booking": {
+          "title": "选择名额并批准预约",
+          "body": "VIZA 只展示从官网日历读取的真实名额。您选择一个时段、复核缴费节点，并明确批准最终预约动作。"
+        }
+      }
     },
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
@@ -5039,6 +5117,49 @@
       "preSubmit": "已到最终提交前",
       "stopTitle": "官网最终按钮受保护",
       "stopBody": "只有后端观察到名额、用户选择时段、完成所需支付授权并记录最终批准后，VIZA 才会启用 TLS 官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
+    "requirements": {
+      "title": "请按顺序完成以下步骤",
+      "body": "先完成 France-Visas 申请，再依次向下操作。每一步都会把您要提供的资料与 VIZA 处理的动作分开说明。",
+      "officialCheckTitle": "已对照 TLScontact 中国真实注册页核验",
+      "officialCheckBody": "官网当前要求邮箱、密码及密码确认、必须接受的法律条款和 reCAPTCHA。邮件、电话、短信及推送营销同意均为可选项，注册不需要勾选。",
+      "openApplication": "返回申请表复核资料",
+      "userInputTitle": "您需要在 VIZA 填写什么",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件；之后由您选择官网名额并批准费用与最终预约。",
+      "states": {
+        "ready": "已就绪",
+        "review": "请复核一次",
+        "managed": "VIZA 自动处理",
+        "action": "必须补充",
+        "pending": "后续步骤"
+      },
+      "roles": {
+        "user": "您操作",
+        "viza": "VIZA 处理",
+        "joint": "您与 VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "完成 France-Visas 并复核申请资料",
+          "body": "确认与护照一致的英文姓名、出生信息、国籍、护照号码与有效期、联系方式与住址、护照资料页，以及 France-Visas 官方申请编号。"
+        },
+        "account": {
+          "title": "创建并激活 TLScontact 账号",
+          "body": "VIZA 填写 Alias 邮箱和生成的密码、再次确认密码，在您授权范围内只接受必需法律条款，处理支持的 reCAPTCHA 并读取激活邮件；可选营销同意保持关闭。"
+        },
+        "link": {
+          "title": "选择签证中心并关联申请",
+          "body": "确认中国 TLScontact 办理中心。VIZA 登录并关联 France-Visas 编号；若缺少资料或遇到实名、MFA、官网政策限制，会明确暂停。"
+        },
+        "calendar": {
+          "title": "读取日历并复核服务费",
+          "body": "VIZA 读取官网名额，不替您选择。您选择一个已观察到的时段并授权所需 TLS 服务费；3DS 或银行验证仍由您完成。"
+        },
+        "booking": {
+          "title": "批准最终预约",
+          "body": "复核中心、日期、时间与缴费状态。只有您明确最终批准后，VIZA 才能点击官网预约按钮并记录官方确认凭证。"
+        }
+      }
     },
     "errors": {
       "generic": "法国预约请求暂时无法完成，请稍后重试。",

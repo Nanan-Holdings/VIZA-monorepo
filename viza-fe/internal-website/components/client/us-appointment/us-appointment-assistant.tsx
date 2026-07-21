@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
+  ArrowLeft,
   CalendarCheck,
   CheckCircle2,
   CircleAlert,
-  Cloud,
   Clock3,
   Eye,
   EyeOff,
@@ -36,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { BrandField, BrandInput } from "@/components/client/brand-field";
+import { getTeamApplicationContext } from "@/app/actions/application-group";
 import {
   approveAppointmentFinalConfirmation,
   bookSelectedAppointmentSlot,
@@ -64,7 +66,6 @@ import type {
 
 type BusyAction =
   | "load"
-  | "consent"
   | "create"
   | "run"
   | "manual"
@@ -75,6 +76,19 @@ type BusyAction =
   | "checkSlots"
   | "checkStatus"
   | "cancel";
+
+type AppointmentStage = "review" | "account" | "slots" | "confirm" | "result";
+
+interface AppointmentReviewData {
+  fullName: string | null;
+  dateOfBirth: string | null;
+  nationality: string | null;
+  passportNumber: string | null;
+  passportExpiryDate: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+}
 
 const TERMINAL_STATUSES = new Set<USAppointmentStatus>([
   "appointment_confirmation_captured",
@@ -152,19 +166,41 @@ function formatDate(value: string | null, locale: string) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function formatDateTime(value: string | null, locale: string) {
-  if (!value) return null;
-  return new Intl.DateTimeFormat(locale.startsWith("zh") ? "zh-CN" : "en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 function selectedSlot(slots: AppointmentSlot[]) {
   return slots.find((slot) => ["selected", "user_selected"].includes(slot.status)) ?? null;
+}
+
+function getAppointmentStage(snapshot: AppointmentStatusSnapshot | null): AppointmentStage {
+  if (!snapshot?.job) return "review";
+  if (snapshot.confirmation) return "result";
+  if (TERMINAL_STATUSES.has(snapshot.job.status)) return "review";
+  const hasSelectedSlot = snapshot.slots.some((slot) =>
+    ["selected", "user_selected"].includes(slot.status),
+  );
+  if (
+    hasSelectedSlot ||
+    snapshot.pendingManualAction?.actionType === "final_confirmation" ||
+    [
+      "appointment_slot_selected",
+      "appointment_final_confirmation_required",
+      "appointment_final_confirmation_approved",
+      "appointment_booked",
+    ].includes(snapshot.job.status)
+  ) {
+    return "confirm";
+  }
+  if (
+    snapshot.slots.length > 0 ||
+    [
+      "appointment_calendar_opened",
+      "appointment_slots_observed",
+      "appointment_slot_selection_required",
+      "appointment_no_slots_available",
+    ].includes(snapshot.job.status)
+  ) {
+    return "slots";
+  }
+  return "account";
 }
 
 function buildManualInput(
@@ -241,6 +277,7 @@ export function USAppointmentAssistant({
   const [revealedAccount, setRevealedAccount] =
     useState<RevealedAppointmentAccount | null>(null);
   const [accountVisible, setAccountVisible] = useState(false);
+  const [reviewData, setReviewData] = useState<AppointmentReviewData | null>(null);
 
   const job = snapshot?.job ?? null;
   const pendingManualAction = snapshot?.pendingManualAction ?? null;
@@ -285,6 +322,30 @@ export function USAppointmentAssistant({
   useEffect(() => {
     void loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    let active = true;
+    void getTeamApplicationContext(applicationId).then((context) => {
+      if (!active || !context.ok || !context.profile) return;
+      const profile = context.profile;
+      const composedName = [profile.given_names_en, profile.surname_en]
+        .filter(Boolean)
+        .join(" ") || null;
+      setReviewData({
+        fullName: profile.full_name_en ?? composedName ?? profile.full_name ?? null,
+        dateOfBirth: profile.date_of_birth ?? null,
+        nationality: profile.nationality ?? null,
+        passportNumber: profile.passport_number ?? null,
+        passportExpiryDate: profile.passport_expiry_date ?? null,
+        phone: profile.phone ?? null,
+        email: profile.email ?? null,
+        address: profile.address_en ?? profile.address ?? null,
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [applicationId]);
 
   useEffect(() => {
     if (!job || TERMINAL_STATUSES.has(job.status)) return undefined;
@@ -343,13 +404,6 @@ export function USAppointmentAssistant({
     setConsentRecorded(true);
     return true;
   }, [applicationId, consentAccepted, t]);
-
-  const handleRecordConsent = () => {
-    void runWithBusy("consent", async () => {
-      await recordConsent();
-      return getAppointmentStatus(applicationId);
-    });
-  };
 
   const handleCreateJob = () => {
     void runWithBusy("create", async () => {
@@ -426,684 +480,397 @@ export function USAppointmentAssistant({
     Boolean(job) && SLOT_CHECK_STATUSES.has(job?.status ?? "appointment_not_started");
   const canCheckStatus = Boolean(job && snapshot?.confirmation);
   const canBook = Boolean(job && selectedAppointmentSlot && finalApproved && !snapshot?.confirmation);
-  const accountReady = Boolean(snapshot?.account);
-  const officialPortalReady = Boolean(
-    job &&
-      (SLOT_CHECK_STATUSES.has(job.status) ||
-        slots.length > 0 ||
-        selectedAppointmentSlot ||
-        finalApproved ||
-        snapshot?.confirmation),
-  );
-  const showCreate = !job || TERMINAL_STATUSES.has(job.status);
-  const hasActiveJob = Boolean(job && !TERMINAL_STATUSES.has(job.status));
-  const showProgress =
-    Boolean(job) &&
-    !TERMINAL_STATUSES.has(job?.status ?? "appointment_not_started") &&
-    ![
-      "appointment_slot_selection_required",
-      "appointment_final_confirmation_required",
-      "appointment_no_slots_available",
-      "appointment_manual_required",
-    ].includes(job?.status ?? "");
+  const applicationFormHref =
+    `/client/application/long-form?country=united_states&visaType=B1_B2&applicationId=${encodeURIComponent(applicationId)}`;
   const statusLabel = job
     ? t(`statusLabels.${job.status}`)
     : t("statusLabels.appointment_not_started");
   const isBusy = Boolean(busyAction);
+  const stage = getAppointmentStage(snapshot);
+  const stepKeys = ["review", "account", "slots", "confirm", "result"] as const;
+  const currentStep = stepKeys.indexOf(stage);
+  const reviewRows = [
+    { label: t("review.fullName"), value: reviewData?.fullName },
+    { label: t("review.dateOfBirth"), value: reviewData?.dateOfBirth },
+    { label: t("review.nationality"), value: reviewData?.nationality },
+    { label: t("review.passportNumber"), value: reviewData?.passportNumber },
+    { label: t("review.passportExpiry"), value: reviewData?.passportExpiryDate },
+    { label: t("review.phone"), value: reviewData?.phone },
+    { label: t("review.email"), value: reviewData?.email },
+    { label: t("review.address"), value: reviewData?.address },
+    {
+      label: t("review.ds160"),
+      value: job?.ds160ConfirmationCode || ds160Code.trim() || null,
+    },
+    {
+      label: t("review.post"),
+      value: job?.applyingPostCity || t("posts.beijing"),
+    },
+  ];
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] pb-14">
-      <section className="pt-5 sm:pt-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          {t("page.eyebrow")}
-        </p>
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="font-heading text-[32px] font-medium leading-tight text-foreground sm:text-[42px]">
-              {t("page.title")}
-            </h1>
-            <p className="mt-3 max-w-2xl text-[15px] leading-6 text-muted-foreground">
-              {t("page.subtitle")}
-            </p>
+    <main className="mx-auto w-full max-w-[860px] space-y-6 py-8">
+      <div className="flex items-start gap-3">
+        <Button asChild variant="outline" size="icon" aria-label={t("review.back")}>
+          <Link href={applicationFormHref}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="font-heading text-3xl font-medium text-foreground">
+                {t("page.title")}
+              </h1>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {t("stateMachine.subtitle")}
+              </p>
+            </div>
+            <StatusBadge status={job?.status ?? null} label={statusLabel} />
           </div>
-          <StatusBadge status={job?.status ?? null} label={statusLabel} />
         </div>
-      </section>
+      </div>
 
-      <Alert className="mt-6 border-brand-100 bg-brand-50 text-brand-900">
-        <ShieldCheck className="h-4 w-4" />
-        <AlertTitle>{t("dryRunNoticeTitle")}</AlertTitle>
-        <AlertDescription>{t("dryRunNotice")}</AlertDescription>
-      </Alert>
+      <ol className="grid grid-cols-5 gap-2" aria-label={t("stateMachine.ariaLabel")}>
+        {stepKeys.map((key, index) => (
+          <li
+            key={key}
+            className={cn(
+              "border-t-2 pt-2 text-center text-[11px] sm:text-sm",
+              index <= currentStep
+                ? "border-brand-600 text-brand-800"
+                : "border-border text-muted-foreground",
+            )}
+          >
+            <span className="mr-1 font-medium">{index + 1}.</span>
+            {t(`stateMachine.steps.${key}`)}
+          </li>
+        ))}
+      </ol>
 
-      {errorMessage && (
-        <Alert variant="destructive" className="mt-4">
+      {errorMessage ? (
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{t("errorTitle")}</AlertTitle>
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
-      )}
+      ) : null}
 
-      <Card className="mt-6 rounded-[8px] border-input">
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-[20px]">
-            <span className="flex items-center gap-2">
-              <Cloud className="h-5 w-5 text-brand-500" />
-              {t("cloud.title")}
-            </span>
-            <Badge variant={workerReady ? "default" : "outline"}>
-              {workerReady ? t("cloud.ready") : t("cloud.unavailable")}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                label: t("cloud.worker"),
-                complete: workerReady,
-              },
-              {
-                label: t("cloud.alias"),
-                complete: accountReady,
-              },
-              {
-                label: t("cloud.portal"),
-                complete: officialPortalReady,
-              },
-              {
-                label: t("cloud.preSubmit"),
-                complete: Boolean(selectedAppointmentSlot && finalApproved),
-              },
-            ].map((step) => (
-              <li
-                key={step.label}
-                className="flex min-h-20 items-start gap-3 rounded-[8px] border border-slate-200 bg-white p-3"
-              >
-                {step.complete ? (
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                ) : (
-                  <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {step.label}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {step.complete ? t("cloud.complete") : t("cloud.pending")}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-          <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-            <ShieldCheck className="h-4 w-4" />
-            <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
-            <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      {!workerReady ? (
+        <Alert>
+          <CircleAlert className="h-4 w-4" />
+          <AlertTitle>{t("cloud.unavailable")}</AlertTitle>
+          <AlertDescription>{t("stateMachine.workerUnavailable")}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {busyAction === "load" && !snapshot ? (
-        <div className="mt-8 flex min-h-[360px] flex-col items-center justify-center gap-4 rounded-[8px] border bg-white">
-          <Loader2 className="h-10 w-10 animate-spin text-brand-500" />
-          <p className="text-sm text-muted-foreground">{t("loading")}</p>
-        </div>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-          <div className="space-y-5">
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  {t("completed.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
-                <Detail label={t("completed.applicationId")} value={applicationId} />
-                <Detail
-                  label={t("completed.ds160Code")}
-                  value={job?.ds160ConfirmationCode || ds160Code || t("completed.pendingCode")}
-                />
-              </CardContent>
-            </Card>
+        <Card className="rounded-[8px]">
+          <CardContent className="flex min-h-64 flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <ShieldCheck className="h-5 w-5 text-brand-500" />
-                  {t("account.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Detail
-                    label={t("account.email")}
-                    value={
-                      revealedAccount?.accountEmail ??
-                      (typeof snapshot?.account?.accountEmail === "string"
-                        ? snapshot.account.accountEmail
-                        : t("account.notCreated"))
-                    }
-                  />
-                  <Detail
-                    label={t("account.status")}
-                    value={
-                      revealedAccount?.accountStatus ??
-                      (typeof snapshot?.account?.accountStatus === "string"
-                        ? snapshot.account.accountStatus
-                        : t("account.notCreated"))
-                    }
-                  />
-                </div>
+      {stage === "review" && !(busyAction === "load" && !snapshot) ? (
+        <Card className="rounded-[8px]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-brand-600" />
+              {t("review.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-sm leading-6 text-muted-foreground">{t("review.body")}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {reviewRows.map((row) => (
+                <Detail key={row.label} label={row.label} value={row.value || t("review.missing")} />
+              ))}
+            </div>
+            <BrandField
+              label={t("setup.ds160Code")}
+              htmlFor="ds160-code"
+              hint={t("setup.ds160CodeHint")}
+            >
+              <BrandInput
+                id="ds160-code"
+                value={ds160Code}
+                onChange={(event) => setDs160Code(event.target.value)}
+                placeholder={t("setup.ds160CodePlaceholder")}
+              />
+            </BrandField>
+            <label className="flex items-start gap-3 rounded-[8px] border bg-muted/30 p-4">
+              <Checkbox
+                checked={consentAccepted}
+                onCheckedChange={(checked) => setConsentAccepted(checked === true)}
+                className="mt-1 h-5 w-5"
+              />
+              <span className="text-sm leading-6 text-foreground">{t("review.confirmation")}</span>
+            </label>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+              <Button asChild variant="outline">
+                <Link href={applicationFormHref}>{t("review.edit")}</Link>
+              </Button>
+              <BrandActionButton
+                onClick={handleCreateJob}
+                loading={busyAction === "create"}
+                loadingText={t("setup.creating")}
+                disabled={isBusy || !consentAccepted || !ds160Code.trim()}
+              >
+                {t("review.confirmAndContinue")}
+              </BrandActionButton>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-                <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-                  <ShieldCheck className="h-4 w-4" />
-                  <AlertTitle>{t("account.revealTitle")}</AlertTitle>
-                  <AlertDescription>{t("account.revealBody")}</AlertDescription>
-                </Alert>
+      {stage === "account" ? (
+        <Card className="rounded-[8px]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {isBusy ? <Loader2 className="h-5 w-5 animate-spin text-brand-600" /> : <Play className="h-5 w-5 text-brand-600" />}
+              {t("stateMachine.accountTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {pendingManualAction
+                ? t(`manual.instructions.${pendingManualAction.actionType}`)
+                : t("stateMachine.accountBody")}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Detail label={t("panel.provider")} value={job?.schedulingProvider ?? t("panel.providerUnknown")} />
+              <Detail label={t("account.status")} value={statusLabel} />
+            </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleRevealAccount}
-                    disabled={isBusy}
-                  >
-                    {busyAction === "account" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                    {t("account.reveal")}
-                  </Button>
-                  {revealedAccount && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setAccountVisible((current) => !current)}
-                    >
-                      {accountVisible ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                      {accountVisible ? t("account.hide") : t("account.show")}
+            {pendingManualAction && !["slot_selection", "final_confirmation"].includes(pendingManualAction.actionType) ? (
+              <div className="space-y-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4">
+                {pendingManualAction.actionType === "account_email_verification" ? (
+                  <BrandField label={t("manual.emailCode")} htmlFor="email-code">
+                    <BrandInput
+                      id="email-code"
+                      value={manualInput}
+                      onChange={(event) => setManualInput(event.target.value)}
+                      placeholder={t("manual.emailCodePlaceholder")}
+                    />
+                  </BrandField>
+                ) : (
+                  <p className="text-sm leading-6 text-amber-950">
+                    {t(`manual.actions.${pendingManualAction.actionType}`)}
+                  </p>
+                )}
+                <BrandActionButton
+                  onClick={handleCompleteManualAction}
+                  loading={busyAction === "manual"}
+                  loadingText={t("manual.completing")}
+                  disabled={isBusy}
+                >
+                  {t("manual.complete")}
+                </BrandActionButton>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              {job && !TERMINAL_STATUSES.has(job.status) ? (
+                <BrandActionButton
+                  onClick={() => handleRun(job.status !== "appointment_consent_received")}
+                  loading={busyAction === "run"}
+                  loadingText={t("panel.running")}
+                  disabled={!canRun || isBusy}
+                >
+                  {job.status === "appointment_consent_received" ? t("panel.run") : t("panel.resume")}
+                </BrandActionButton>
+              ) : (
+                <BrandActionButton
+                  onClick={handleCreateJob}
+                  loading={busyAction === "create"}
+                  loadingText={t("setup.creating")}
+                  disabled={isBusy}
+                >
+                  {t("stateMachine.startAgain")}
+                </BrandActionButton>
+              )}
+              <Button type="button" variant="outline" onClick={handleRevealAccount} disabled={isBusy}>
+                {busyAction === "account" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                {t("account.reveal")}
+              </Button>
+              {job ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="outline" disabled={isBusy}>
+                      <XCircle className="h-4 w-4" />
+                      {t("panel.cancel")}
                     </Button>
-                  )}
-                </div>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t("cancel.title")}</AlertDialogTitle>
+                      <AlertDialogDescription>{t("cancel.description")}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t("cancel.keep")}</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => void runWithBusy("cancel", () => cancelAppointmentJob(job.id))}
+                      >
+                        {t("cancel.confirm")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : null}
+            </div>
 
-                {revealedAccount && accountVisible && (
+            {revealedAccount ? (
+              <div className="space-y-3 border-t pt-4">
+                <Button type="button" variant="ghost" onClick={() => setAccountVisible((value) => !value)}>
+                  {accountVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {accountVisible ? t("account.hide") : t("account.show")}
+                </Button>
+                {accountVisible ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Detail label={t("account.email")} value={revealedAccount.accountEmail} />
                     <Detail label={t("account.password")} value={revealedAccount.accountPassword} />
                     {revealedAccount.securityQuestions.map((item, index) => (
                       <Detail
-                        key={`${item.label}-${index}`}
+                        key={item.label}
                         label={t("account.securityAnswer", { index: index + 1 })}
                         value={item.answer}
                       />
                     ))}
-                    <Detail
-                      label={t("account.prefillDs160")}
-                      value={revealedAccount.prefill.ds160ConfirmationCode ?? t("account.missing")}
-                    />
-                    <Detail
-                      label={t("account.prefillPost")}
-                      value={revealedAccount.prefill.applyingPostCity ?? t("account.missing")}
-                    />
                   </div>
-                )}
+                ) : null}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
-                <div className="rounded-[8px] border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-semibold text-foreground">
-                    {t("account.autofillTitle")}
-                  </p>
-                  <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
-                    <li>{t("account.autofillDs160")}</li>
-                    <li>{t("account.autofillProfile")}</li>
-                    <li>{t("account.autofillSlots")}</li>
-                    <li>{t("account.autofillEvidence")}</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+      {stage === "slots" ? (
+        <Card className="rounded-[8px]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-brand-600" />
+              {t("slots.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {slots.length === 0 ? (
+              <Alert>
+                <CalendarCheck className="h-4 w-4" />
+                <AlertTitle>{t("slots.noSlots")}</AlertTitle>
+                <AlertDescription>{t("stateMachine.noSlotsBody")}</AlertDescription>
+              </Alert>
+            ) : (
+              slots.map((slot) => {
+                const date = formatDate(slot.appointmentDate, locale) ?? t("slots.datePending");
+                const selected = ["selected", "user_selected"].includes(slot.status);
+                return (
+                  <div
+                    key={slot.id}
+                    className={cn(
+                      "flex flex-col gap-3 rounded-[8px] border p-4 sm:flex-row sm:items-center sm:justify-between",
+                      selected ? "border-brand-300 bg-brand-50" : "bg-background",
+                    )}
+                  >
+                    <div>
+                      <p className="font-medium">{t("slots.slotLine", { date, time: slot.appointmentTime ?? t("slots.timePending") })}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{slot.appointmentLocation ?? t("slots.locationPending")}</p>
+                    </div>
+                    <Button type="button" variant={selected ? "secondary" : "outline"} onClick={() => handleSelectSlot(slot.id)} disabled={selected || isBusy}>
+                      {selected ? t("slots.selected") : t("slots.choose")}
+                    </Button>
+                  </div>
+                );
+              })
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => job && void runWithBusy("checkSlots", () => checkAppointmentSlots(job.id))}
+              disabled={!canCheckSlots || isBusy}
+            >
+              {busyAction === "checkSlots" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {t("panel.checkSlots")}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <CalendarCheck className="h-5 w-5 text-brand-500" />
-                  {t("setup.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <BrandField
-                  label={t("setup.ds160Code")}
-                  htmlFor="ds160-code"
-                  hint={t("setup.ds160CodeHint")}
+      {stage === "confirm" ? (
+        <Card className="rounded-[8px] border-brand-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-brand-600" />
+              {t("final.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {selectedAppointmentSlot ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Detail label={t("results.date")} value={formatDate(selectedAppointmentSlot.appointmentDate, locale) ?? "-"} />
+                <Detail label={t("results.time")} value={selectedAppointmentSlot.appointmentTime ?? "-"} />
+                <Detail label={t("results.location")} value={selectedAppointmentSlot.appointmentLocation ?? "-"} />
+                <Detail label={t("panel.provider")} value={job?.schedulingProvider ?? "USVisaScheduling"} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("final.requirement")}</p>
+            )}
+            <Alert className="border-amber-200 bg-amber-50">
+              <ShieldCheck className="h-4 w-4" />
+              <AlertTitle>{t("cloud.stopTitle")}</AlertTitle>
+              <AlertDescription>{t("cloud.stopBody")}</AlertDescription>
+            </Alert>
+            <div className="flex flex-wrap gap-2">
+              <BrandActionButton
+                onClick={() => job && void runWithBusy("approve", () => approveAppointmentFinalConfirmation(job.id))}
+                loading={busyAction === "approve"}
+                loadingText={t("final.approving")}
+                disabled={!job || pendingManualAction?.actionType !== "final_confirmation" || isBusy}
+              >
+                {t("final.approve")}
+              </BrandActionButton>
+              {finalApproved ? (
+                <BrandActionButton
+                  onClick={() => job && void runWithBusy("book", () => bookSelectedAppointmentSlot(job.id))}
+                  loading={busyAction === "book"}
+                  disabled={!canBook || isBusy}
                 >
-                  <BrandInput
-                    id="ds160-code"
-                    value={ds160Code}
-                    onChange={(event) => setDs160Code(event.target.value)}
-                    disabled={hasActiveJob}
-                    placeholder={t("setup.ds160CodePlaceholder")}
-                  />
-                </BrandField>
+                  {t("final.book")}
+                </BrandActionButton>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
-                <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-                  <ShieldCheck className="h-4 w-4" />
-                  <AlertTitle>{t("setup.aliasNoticeTitle")}</AlertTitle>
-                  <AlertDescription>{t("setup.aliasNotice")}</AlertDescription>
-                </Alert>
-
-                {showCreate && (
-                  <BrandActionButton
-                    onClick={handleCreateJob}
-                    loading={busyAction === "create"}
-                    loadingText={t("setup.creating")}
-                    disabled={isBusy || !consentAccepted}
-                    className="w-full sm:w-auto"
-                  >
-                    {t("setup.createJob")}
-                  </BrandActionButton>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <ShieldCheck className="h-5 w-5 text-brand-500" />
-                  {t("consent.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm leading-6 text-muted-foreground">
-                  <p>{t("consent.body1")}</p>
-                  <p>{t("consent.body2")}</p>
-                </div>
-                <label className="flex items-start gap-3 rounded-[8px] border border-slate-200 bg-white p-4">
-                  <Checkbox
-                    checked={consentAccepted}
-                    disabled={hasActiveJob}
-                    onCheckedChange={(checked) => setConsentAccepted(checked === true)}
-                    className="mt-1 h-5 w-5"
-                  />
-                  <span className="text-sm leading-6 text-foreground">
-                    {t("consent.checkbox")}
-                  </span>
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleRecordConsent}
-                    disabled={isBusy || !consentAccepted || Boolean(job)}
-                  >
-                    {busyAction === "consent" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4" />
-                    )}
-                    {consentRecorded ? t("consent.recorded") : t("setup.recordConsent")}
-                  </Button>
-                  <span className="text-xs text-muted-foreground">
-                    {t("consent.security")}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-5">
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <CardTitle className="flex items-center gap-2 text-[20px]">
-                    <Play className="h-5 w-5 text-brand-500" />
-                    {t("panel.title")}
-                  </CardTitle>
-                  <StatusBadge status={job?.status ?? null} label={statusLabel} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!job ? (
-                  <div className="space-y-4 rounded-[8px] border border-dashed border-slate-300 bg-white p-5">
-                    <div className="space-y-2 text-sm leading-6 text-muted-foreground">
-                      <p>{t("panel.noJob")}</p>
-                      <ol className="ml-4 list-decimal space-y-1">
-                        <li>{t("panel.startStepPreferences")}</li>
-                        <li>{t("panel.startStepConsent")}</li>
-                        <li>{t("panel.startStepRun")}</li>
-                      </ol>
-                    </div>
-                    <BrandActionButton
-                      onClick={handleCreateJob}
-                      loading={busyAction === "create"}
-                      loadingText={t("setup.creating")}
-                      disabled={isBusy || !consentAccepted}
-                      className="w-full"
-                    >
-                      <Play className="h-4 w-4" />
-                      {t("setup.createJob")}
-                    </BrandActionButton>
-                    {!consentAccepted && (
-                      <p className="text-xs text-muted-foreground">
-                        {t("panel.consentHint")}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Detail label={t("panel.provider")} value={job.schedulingProvider ?? t("panel.providerUnknown")} />
-                      <Detail label={t("panel.mode")} value={t(`modes.${job.mode}`)} />
-                    </div>
-
-                    {pendingManualAction && (
-                      <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-                        <CircleAlert className="h-4 w-4" />
-                        <AlertTitle>{t("manual.title")}</AlertTitle>
-                        <AlertDescription>
-                          {t(`manual.instructions.${pendingManualAction.actionType}`)}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {showProgress && (
-                      <Alert className="border-brand-200 bg-brand-50 text-brand-900">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <AlertTitle>{t("panel.progressTitle")}</AlertTitle>
-                        <AlertDescription>{t("panel.progressBody")}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="flex flex-wrap gap-2">
-                      <BrandActionButton
-                        onClick={() => handleRun(job.status === "appointment_consent_received" ? false : true)}
-                        loading={busyAction === "run"}
-                        loadingText={t("panel.running")}
-                        disabled={!canRun || isBusy}
-                      >
-                        <Play className="h-4 w-4" />
-                        {job.status === "appointment_consent_received" ? t("panel.run") : t("panel.resume")}
-                      </BrandActionButton>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          if (!job) return;
-                          void runWithBusy("checkSlots", () => checkAppointmentSlots(job.id));
-                        }}
-                        disabled={!canCheckSlots || isBusy}
-                      >
-                        {busyAction === "checkSlots" ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4" />
-                        )}
-                        {t("panel.checkSlots")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          if (!job) return;
-                          void runWithBusy("checkStatus", () => checkAppointmentStatus(job.id));
-                        }}
-                        disabled={!canCheckStatus || isBusy}
-                      >
-                        {busyAction === "checkStatus" ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <CalendarCheck className="h-4 w-4" />
-                        )}
-                        {t("panel.checkStatus")}
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={!job || Boolean(snapshot?.confirmation) || isBusy}
-                          >
-                            <XCircle className="h-4 w-4" />
-                            {t("panel.cancel")}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t("cancel.title")}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t("cancel.description")}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t("cancel.keep")}</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => {
-                                if (!job) return;
-                                void runWithBusy("cancel", () => cancelAppointmentJob(job.id));
-                              }}
-                            >
-                              {t("cancel.confirm")}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {pendingManualAction &&
-              !["slot_selection", "final_confirmation"].includes(
-                pendingManualAction.actionType,
-              ) && (
-                <Card className="rounded-[8px]">
-                  <CardHeader>
-                    <CardTitle className="text-[20px]">{t("manual.checkpointTitle")}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {pendingManualAction.actionType === "account_email_verification" && (
-                      <BrandField label={t("manual.emailCode")} htmlFor="email-code">
-                        <BrandInput
-                          id="email-code"
-                          value={manualInput}
-                          onChange={(event) => setManualInput(event.target.value)}
-                          placeholder={t("manual.emailCodePlaceholder")}
-                        />
-                      </BrandField>
-                    )}
-                    {pendingManualAction.actionType !== "account_email_verification" && (
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {t(`manual.actions.${pendingManualAction.actionType}`)}
-                      </p>
-                    )}
-                    <BrandActionButton
-                      onClick={handleCompleteManualAction}
-                      loading={busyAction === "manual"}
-                      loadingText={t("manual.completing")}
-                      disabled={isBusy}
-                    >
-                      {t("manual.complete")}
-                    </BrandActionButton>
-                  </CardContent>
-                </Card>
-              )}
-
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <CalendarCheck className="h-5 w-5 text-brand-500" />
-                  {t("slots.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {slots.length === 0 ? (
-                  <div className="rounded-[8px] border border-dashed border-slate-300 bg-white p-5 text-sm text-muted-foreground">
-                    {job?.status === "appointment_no_slots_available"
-                      ? t("slots.noSlots")
-                      : t("slots.empty")}
-                  </div>
-                ) : (
-                  slots.map((slot) => {
-                    const date = formatDate(slot.appointmentDate, locale) ?? t("slots.datePending");
-                    const selected = ["selected", "user_selected"].includes(slot.status);
-                    return (
-                      <div
-                        key={slot.id}
-                        className={cn(
-                          "flex flex-col gap-3 rounded-[8px] border bg-white p-4 sm:flex-row sm:items-center sm:justify-between",
-                          selected ? "border-brand-300 ring-1 ring-brand-200" : "border-slate-200",
-                        )}
-                      >
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {t("slots.slotLine", {
-                              date,
-                              time: slot.appointmentTime ?? t("slots.timePending"),
-                            })}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {slot.appointmentLocation ?? t("slots.locationPending")}
-                          </p>
-                          {slot.observedAt && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {t("slots.observedAt", {
-                                value: formatDateTime(slot.observedAt, locale) ?? "-",
-                              })}
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant={selected ? "secondary" : "outline"}
-                          onClick={() => handleSelectSlot(slot.id)}
-                          disabled={selected || isBusy || !job}
-                        >
-                          {busyAction === "slot" ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CalendarCheck className="h-4 w-4" />
-                          )}
-                          {selected ? t("slots.selected") : t("slots.choose")}
-                        </Button>
-                      </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <ShieldCheck className="h-5 w-5 text-brand-500" />
-                  {t("final.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {selectedAppointmentSlot
-                    ? t("final.selected", {
-                        date: formatDate(selectedAppointmentSlot.appointmentDate, locale) ?? "-",
-                        time: selectedAppointmentSlot.appointmentTime ?? "-",
-                      })
-                    : t("final.requirement")}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <BrandActionButton
-                    onClick={() => {
-                      if (!job) return;
-                      void runWithBusy("approve", () => approveAppointmentFinalConfirmation(job.id));
-                    }}
-                    loading={busyAction === "approve"}
-                    loadingText={t("final.approving")}
-                    disabled={
-                      !job ||
-                      pendingManualAction?.actionType !== "final_confirmation" ||
-                      isBusy
-                    }
-                  >
-                    {t("final.approve")}
-                  </BrandActionButton>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      if (!job) return;
-                      void runWithBusy("book", () => bookSelectedAppointmentSlot(job.id));
-                    }}
-                    disabled={!canBook || isBusy}
-                  >
-                    {busyAction === "book" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    {t("final.book")}
-                  </Button>
-                  {finalApproved && !snapshot?.confirmation && (
-                    <Badge variant="secondary">{t("final.approvedBadge")}</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[8px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[20px]">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  {t("results.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {snapshot?.confirmation ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Detail
-                      label={t("results.confirmationNumber")}
-                      value={snapshot.confirmation.confirmationNumber ?? "-"}
-                    />
-                    <Detail
-                      label={t("results.date")}
-                      value={formatDate(snapshot.confirmation.appointmentDate, locale) ?? "-"}
-                    />
-                    <Detail
-                      label={t("results.time")}
-                      value={snapshot.confirmation.appointmentTime ?? "-"}
-                    />
-                    <Detail
-                      label={t("results.location")}
-                      value={snapshot.confirmation.appointmentLocation ?? "-"}
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-[8px] border border-dashed border-slate-300 bg-white p-5 text-sm text-muted-foreground">
-                    {t("results.none")}
-                  </div>
-                )}
-                {snapshot?.latestStatusCheck && (
-                  <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <AlertTitle>{t("results.statusCheck")}</AlertTitle>
-                    <AlertDescription>
-                      {t("results.statusCheckBody", {
-                        value:
-                          formatDateTime(snapshot.latestStatusCheck.checkedAt, locale) ??
-                          "-",
-                      })}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-    </div>
+      {stage === "result" && snapshot?.confirmation ? (
+        <Card className="rounded-[8px] border-emerald-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-emerald-800">
+              <CheckCircle2 className="h-5 w-5" />
+              {t("results.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Detail label={t("results.confirmationNumber")} value={snapshot.confirmation.confirmationNumber ?? "-"} />
+              <Detail label={t("results.date")} value={formatDate(snapshot.confirmation.appointmentDate, locale) ?? "-"} />
+              <Detail label={t("results.time")} value={snapshot.confirmation.appointmentTime ?? "-"} />
+              <Detail label={t("results.location")} value={snapshot.confirmation.appointmentLocation ?? "-"} />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => job && void runWithBusy("checkStatus", () => checkAppointmentStatus(job.id))}
+              disabled={!canCheckStatus || isBusy}
+            >
+              {t("panel.checkStatus")}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+    </main>
   );
 }
