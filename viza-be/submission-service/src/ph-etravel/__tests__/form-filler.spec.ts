@@ -139,8 +139,10 @@ test("buildPhEtravelFieldPlan fills the official transit destination controls", 
   const byKey = new Map(plan.map((item) => [item.key, item]));
 
   assert.equal(byKey.get("destination_transit_airport")?.value, "Ninoy Aquino International Airport T3 - (MNL)");
+  assert.equal(byKey.get("destination_transit_airport")?.portalName, "transit_port_code");
   assert.equal(byKey.get("destination_transit_airport")?.required, true);
   assert.equal(byKey.get("destination_country")?.value, "Hong Kong");
+  assert.equal(byKey.get("destination_country")?.portalName, "transit_destination_country_code");
   assert.equal(byKey.get("destination_country")?.required, true);
   assert.equal(byKey.get("philippines_address")?.required, false);
 });
