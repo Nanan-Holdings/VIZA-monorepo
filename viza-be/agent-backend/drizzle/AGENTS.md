@@ -111,6 +111,9 @@ The current internal automation migrations are:
   correspondence, to the applicant's real profile email.
 - `0114_appointment_slot_check_timestamp.sql`: last official appointment-slot
   observation timestamp used by France appointment cooldown and recovery state.
+- `0115_france_tls_applicant_profile_parity.sql`: adds the TLScontact China
+  origin-departure date and French-overseas-territory questions to the France
+  Schengen review form before the cloud runner opens the official profile.
 
 ## Guardrails
 

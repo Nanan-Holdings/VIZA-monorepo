@@ -2114,18 +2114,21 @@ export default function ApplicationPage() {
     setCompletedUpTo(getContiguousCompletedCount(effectiveSteps, completedStepIds));
   }, [completedStepIds, effectiveSteps, loading]);
 
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setAppState((prev) => ({
+      ...prev,
+      applicationId: null,
+      confirmationNumber: undefined,
+      submittedAt: undefined,
+      submissionResult: null,
+      submissionResultStatus: null,
+    }));
+  }, [explicitApplicationId, resolvedCountry, resolvedVisaType]);
+
   const loadData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      setAppState((prev) => ({
-        ...prev,
-        applicationId: null,
-        confirmationNumber: undefined,
-        submittedAt: undefined,
-        submissionResult: null,
-        submissionResultStatus: null,
-      }));
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
