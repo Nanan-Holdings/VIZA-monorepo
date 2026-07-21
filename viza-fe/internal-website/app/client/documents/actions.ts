@@ -361,13 +361,24 @@ const KOREA_C39_REQUIREMENTS: DocumentRequirement[] = [
 
 const PH_ETRAVEL_REQUIREMENTS: DocumentRequirement[] = [
   {
+    key: "profile_photo",
+    documentType: "applicant_photo",
+    labelEn: "Profile photo",
+    labelZh: "个人证件照",
+    description: "Reuse the portrait saved in Universal Profile or upload a JPEG/PNG photo for the eTravel traveller record.",
+    required: true,
+    sortOrder: 10,
+    accept: [".jpg", ".jpeg", ".png"],
+    source: "fallback",
+  },
+  {
     key: "customs_signature_file",
     documentType: "customs_signature_file",
     labelEn: "For Customs — Declaration Signature",
     labelZh: "海关申报电子签名",
     description: "Upload the declaration signature image or PDF used for the Philippine customs declaration.",
     required: true,
-    sortOrder: 10,
+    sortOrder: 20,
     accept: [".pdf", ".jpg", ".jpeg", ".png"],
     source: "fallback",
   },
@@ -464,7 +475,15 @@ const INDONESIA_C1_TOURIST_REQUIREMENTS: DocumentRequirement[] = [
 ];
 
 const PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
-const PHOTO_DOCUMENT_TYPES = ["photo", "formal_photo", "formal_photo_upload", "passport_photo", "portrait_photo"] as const;
+const PHOTO_DOCUMENT_TYPES = [
+  "photo",
+  "applicant_photo",
+  "profile_photo",
+  "formal_photo",
+  "formal_photo_upload",
+  "passport_photo",
+  "portrait_photo",
+] as const;
 const SIGNATURE_DOCUMENT_TYPES = ["electronic_signature", "customs_signature_file", "signature", "signature_image"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -1881,7 +1900,16 @@ export async function uploadApplicationDocument(formData: FormData): Promise<Upl
       scope,
     });
 
-    if (!recordResult.ok) return recordResult;
+    if (!recordResult.ok) {
+      await Promise.all([
+        adminClient.from("application_documents").delete().eq("storage_path", storagePath),
+        scope === "universal_profile"
+          ? adminClient.from("universal_profile_documents").delete().eq("storage_path", storagePath)
+          : Promise.resolve(),
+        adminClient.storage.from(APPLICATION_DOCUMENTS_BUCKET).remove([storagePath]),
+      ]);
+      return recordResult;
+    }
     return { ok: true, storagePath, filename };
   } catch (error) {
     return {
@@ -1978,9 +2006,7 @@ async function saveUniversalProfileDocumentRecord(
     { onConflict: "applicant_id,document_type" },
   );
 
-  if (!error) return null;
-  if (isMissingUniversalProfileDocumentsError(error)) return null;
-  return error.message;
+  return error?.message ?? null;
 }
 
 export async function recordDocumentUpload(input: RecordDocumentUploadInput): Promise<DocumentMutationResult> {

@@ -1,11 +1,16 @@
 import type { ComponentType } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FailureCard } from "../FailureCard";
+import { VnResultCard } from "../VnResultCard";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "zh",
 }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("FailureCard", () => {
   it("shows a precise E-Visa number error instead of the legacy trip-control cascade", () => {
@@ -85,5 +90,86 @@ describe("FailureCard", () => {
         holderName: "VIZA TEST",
       });
     });
+  });
+});
+
+describe("VnResultCard automated payment UI", () => {
+  const paymentResult = {
+    country: "VN" as const,
+    status: "stopped_at_pay" as const,
+    mode: "live_assisted" as const,
+    provider: "vietnam_evisa_live" as const,
+    checkpoint: "payment_page_visible",
+    portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
+    paymentStatus: "manual_required" as const,
+    manualAction: {
+      type: "payment_required" as const,
+      status: "open" as const,
+      instructions: "Backend payment handling is required.",
+    },
+  };
+
+  it("matches the simple Indonesia retry flow and hides internal payment details", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.endsWith("/official-fee/status")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            paymentNeedsOperator: true,
+            quote: { official_fee_amount: 25, official_fee_currency: "USD" },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => options?.body
+          ? { cardSession: { redactedCard: { last4: "1111" } }, queueId: "queue-id" }
+          : {},
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
+
+    await screen.findByText("重新自动付款银行卡");
+    expect(screen.queryByText("payment_page_visible")).not.toBeInTheDocument();
+    expect(screen.queryByText(/72%/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("持卡人姓名（可选）")).not.toBeInTheDocument();
+    expect(screen.queryByText("需要人工操作")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.click(screen.getByRole("button", { name: "重新自动付款" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/app-vn/official-fee/pay",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            card: { pan: "4111111111111111", expiry: "12/30", cvv: "123" },
+          }),
+        }),
+      );
+    });
+  });
+
+  it("shows one processing action instead of the card form after payment is queued", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ paymentQueued: true, queueId: "queue-id" }),
+    }));
+
+    render(<VnResultCard applicationId="app-vn" result={paymentResult} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "正在自动付款" })).toBeDisabled();
+    });
+    expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
+    expect(screen.queryByText("payment_page_visible")).not.toBeInTheDocument();
   });
 });

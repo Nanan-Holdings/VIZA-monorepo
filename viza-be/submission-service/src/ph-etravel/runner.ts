@@ -575,6 +575,11 @@ async function uploadEgovProfilePhoto(
     mimeType: extension === ".png" ? "image/png" : "image/jpeg",
     buffer: fs.readFileSync(photoPath),
   };
+  const browserFilePayload = {
+    name: filePayload.name,
+    mimeType: filePayload.mimeType,
+    base64: filePayload.buffer.toString("base64"),
+  };
   const uploadDirectlyAndInjectUrl = async (): Promise<boolean> => {
     const formData = new FormData();
     formData.append(
@@ -667,12 +672,36 @@ async function uploadEgovProfilePhoto(
           (response) => /egov-upload-ws\.e\.gov\.ph\/.*\/upload/i.test(response.url()),
           { timeout: 30_000 },
         ).catch(() => null);
-        await input.setInputFiles(filePayload, { timeout: 15_000 }).catch(() => undefined);
+        if (attempt === 1) {
+          await input.setInputFiles(filePayload, { timeout: 15_000 }).catch(() => undefined);
+        } else {
+          // Browserbase transports Playwright file payloads over a remote CDP
+          // connection. Some sessions preserve the filename but lose the native
+          // File body, which the eGov upload service rejects with HTTP 422. Build
+          // the File inside the remote page so the official widget receives the
+          // same browser-native object as a user-selected local file.
+          await input.evaluate((element, payload) => {
+            const binary = window.atob(payload.base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let offset = 0; offset < binary.length; offset += 1) {
+              bytes[offset] = binary.charCodeAt(offset);
+            }
+            const file = new File([bytes], payload.name, { type: payload.mimeType });
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            (element as HTMLInputElement).files = transfer.files;
+            element.dispatchEvent(new Event("input", { bubbles: true }));
+            element.dispatchEvent(new Event("change", { bubbles: true }));
+          }, browserFilePayload).catch(() => undefined);
+        }
         const uploadResponse = await uploadResponsePromise;
         await page.waitForTimeout(5_000);
         if (uploadResponse) {
           logs.push(`ph_etravel_egov_profile_photo_upload_response attempt=${attempt} status=${uploadResponse.status()}`);
           if (uploadResponse.ok()) return true;
+          // A selected filename only proves that the browser control changed.
+          // The official upload response remains the source of truth.
+          continue;
         }
         const uploadError = await page
           .getByText(/error uploading file|network error|upload failed/i)
