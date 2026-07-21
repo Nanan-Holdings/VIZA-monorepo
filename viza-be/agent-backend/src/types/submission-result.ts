@@ -41,7 +41,16 @@ export type SubmissionResult =
   | AuSubmissionResult
   | JpSubmissionResult
   | KrSubmissionResult
+  | GenericEvisaSubmissionResult
   | GenericSubmissionResult;
+
+export interface GenericEvisaSubmissionResult {
+  country: "ID" | "EG" | "SA" | "MY" | "TH" | "AE" | "CA" | "TR" | "IT" | "IN";
+  status: "submitted" | "stopped_at_pay" | "form_ready_for_agency";
+  reference?: string;
+  portalUrl?: string;
+  artifactStoragePath?: string;
+}
 
 export interface UsSubmissionResult {
   country: "US";

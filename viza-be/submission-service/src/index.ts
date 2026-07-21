@@ -61,6 +61,7 @@ import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
   FrSubmissionResult,
+  GenericEvisaSubmissionResult,
   GenericSubmissionResult,
   UkSubmissionResult,
   UsSubmissionResult,
@@ -6727,6 +6728,12 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
   const paymentFailedStatus: SubmissionQueueItem["status"] = isB1
     ? "id_b1_evoa_payment_failed"
     : "id_c1_payment_failed";
+  const paymentProcessingStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_payment_processing"
+    : "id_c1_payment_processing";
+  const paymentPaidStatus: SubmissionQueueItem["status"] = isB1
+    ? "id_b1_evoa_payment_paid"
+    : "id_c1_payment_paid";
 
   console.log(
     `[indonesia] Processing ${provider} application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
@@ -6807,7 +6814,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       email: managedVaultEmail,
       password: vaultPortalPassword,
     });
-    const userPaymentHandoffEnabled = readBooleanEnv("INDONESIA_USER_PAYMENT_HANDOFF_ENABLED", true);
+    // Indonesia B1/C1 payment is a closed cloud workflow. Never downgrade a
+    // card-authorized run to a visible/manual official-payment handoff.
+    const userPaymentHandoffEnabled = true;
     const oneTimeIndonesiaCard = await consumeIndonesiaCardSessionWithGrace(
       item.application_id,
       readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
@@ -6826,27 +6835,24 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         diagnostics: string[];
       }) => {
         const isOtpCheckpoint = snapshot.state === "payment_otp_required";
-        const actionType = isOtpCheckpoint ? "official_fee_otp_required" : "official_fee_payment_required";
         const message = isOtpCheckpoint
-          ? "Official Indonesia bank OTP/3DS verification is open in a visible browser window. Enter the bank OTP in that official window."
-          : "Official Indonesia payment/OTP page is open in a visible browser window. Complete card payment and bank verification in that official window.";
+          ? "VIZA submitted the card and is waiting for the bank authentication result."
+          : "VIZA submitted the card and is confirming the official payment result.";
         await supabase
           .from("submission_queue")
           .update({
-            status: paymentPendingStatus,
+            status: paymentProcessingStatus,
             provider,
-            current_stage: "user_payment_required",
-            manual_action_status: "user_payment_required",
-            error_code: "user_payment_required",
-            error_message: message,
-            official_portal_url: snapshot.url,
+            current_stage: isOtpCheckpoint ? "bank_authentication_processing" : "official_fee_payment_processing",
+            manual_action_status: null,
+            error_code: null,
+            error_message: null,
             vn_result_payload: {
               ...(item.vn_result_payload ?? {}),
-              actionType,
+              actionType: "official_fee_payment_processing",
               actionInstructions: message,
-              checkpoint: "user_payment_required",
+              checkpoint: isOtpCheckpoint ? "bank_authentication_processing" : "official_fee_payment_processing",
               message,
-              url: snapshot.url,
               implementationStatus: "partial",
               evidence: {
                 provider,
@@ -6862,7 +6868,7 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       },
     };
 
-    let result: GenericSubmissionResult = {
+    let result: Awaited<ReturnType<typeof runIndonesiaLiveSubmission>> = {
       country: "GENERIC",
       targetCountry: "ID",
       visaType: isB1 ? "ID_B1_EVOA" : "ID_C1_TOURIST",
@@ -6985,6 +6991,61 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
         }
         break;
       }
+    }
+
+    if (result.country === "ID" && result.status === "submitted") {
+      const artifactStoragePath = await uploadArtifact({
+        authUserId: profile.auth_user_id,
+        applicationId: item.application_id,
+        country: "ID",
+        kind: "official-payment-success-evidence",
+        ext: "pdf",
+        contentType: "application/pdf",
+        data: result.evidencePdf,
+      });
+      const submittedResult: GenericEvisaSubmissionResult = {
+        country: "ID",
+        status: "submitted",
+        reference: result.reference,
+        portalUrl: result.portalUrl,
+        artifactStoragePath,
+      };
+      const { error: artifactPathError } = await supabase
+        .from("applications")
+        .update({ result_storage_path: artifactStoragePath })
+        .eq("id", item.application_id);
+      if (artifactPathError) {
+        throw new Error(`Failed to persist Indonesia official evidence path: ${artifactPathError.message}`);
+      }
+      await writeSubmissionResult(item.application_id, submittedResult, "completed");
+      const { error: paidQueueError } = await supabase
+        .from("submission_queue")
+        .update({
+          status: paymentPaidStatus,
+          provider,
+          last_error: null,
+          error_code: null,
+          error_message: null,
+          current_stage: "completed",
+          manual_action_status: null,
+          official_portal_url: result.portalUrl,
+          live_submitted_at: new Date().toISOString(),
+          vn_result_payload: {
+            checkpoint: "completed",
+            message: "Indonesia official payment and submission succeeded; official evidence was stored.",
+            reference: result.reference ?? null,
+            artifactStoragePath,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (paidQueueError) {
+        throw new Error(`Failed to mark Indonesia payment paid: ${paidQueueError.message}`);
+      }
+      console.log(
+        `[indonesia] ${provider} completed application=${redactIdentifier(item.application_id)} with official evidence`,
+      );
+      return;
     }
 
     const isPaymentAuthorizationRequired =

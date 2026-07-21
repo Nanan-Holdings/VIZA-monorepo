@@ -185,10 +185,12 @@ export function FailureCard({
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
+  const indonesiaPaymentFailure = /(?:indonesia.{0,80}payment|payment.{0,80}indonesia)/i.test(errorMessage ?? "");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
-  const requiresPaymentCard = requiresOfficialPaymentCard || requiresVietnamPaymentCard;
+  const requiresPaymentCard =
+    requiresOfficialPaymentCard || requiresVietnamPaymentCard || indonesiaPaymentFailure;
   const cardReady =
     !requiresPaymentCard ||
     (
@@ -303,6 +305,10 @@ export function FailureCard({
             ? (isZh
                 ? "这不是表单内容错误，而是本地 submission-service worker 没有运行、端口未匹配，或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
                 : "This is not a form-data error. The local submission-service worker was not running, was on a different port, or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
+            : indonesiaPaymentFailure
+            ? (isZh
+                ? "印尼官网付款没有成功。你的申请答案已保存；请重新填写本次银行卡后重试，VIZA 会再次在云端完成付款并确认最终结果。"
+                : "The Indonesia official payment did not succeed. Your application answers are saved; enter the one-time card again and VIZA will retry and confirm the final result in the cloud.")
             : (isZh
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
@@ -349,8 +355,8 @@ export function FailureCard({
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期和 CVV。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存。"
-                    : "Before retrying, enter the card number, expiry, and CVV for this official payment. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
+                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期和 CVV。卡号和 CVV 只会发送到 VIZA 云端 submission-service 的短时内存会话，不会保存。"
+                    : "Before retrying, enter the card number, expiry, and CVV for this official payment. Card number and CVV are sent only to the short-lived VIZA cloud submission-service session and are not stored."}
                 </p>
               </div>
             </div>

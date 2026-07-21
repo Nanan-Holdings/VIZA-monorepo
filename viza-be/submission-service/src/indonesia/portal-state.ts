@@ -44,6 +44,18 @@ export function classifyIndonesiaPortalSnapshot(
     return "payment_failed";
   }
   if (
+    text.includes("application submitted") ||
+    text.includes("application has been submitted") ||
+    text.includes("payment successful") ||
+    text.includes("payment success") ||
+    text.includes("payment completed") ||
+    text.includes("visa approved") ||
+    text.includes("download e-visa") ||
+    text.includes("download evisa")
+  ) {
+    return "submitted_or_approved";
+  }
+  if (
     /\/web\/application\/.+\/detail/i.test(snapshot.url) &&
     (
       text.includes("waiting for payment") ||
@@ -152,15 +164,6 @@ export function classifyIndonesiaPortalSnapshot(
     (text.includes("email") && text.includes("password"))
   ) {
     return "login_required";
-  }
-  if (
-    text.includes("approved") ||
-    text.includes("download e-visa") ||
-    text.includes("download evisa") ||
-    text.includes("application submitted") ||
-    text.includes("reference number")
-  ) {
-    return "submitted_or_approved";
   }
   if (
     text.includes("passport") ||
