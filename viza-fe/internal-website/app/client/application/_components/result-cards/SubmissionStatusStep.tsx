@@ -91,6 +91,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function resultTargetsIndonesia(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value.country === "ID" || value.targetCountry === "ID") return true;
+  const identifyingText = [
+    value.visaType,
+    value.error,
+    value.message,
+    value.actionType,
+    value.actionInstructions,
+  ].filter((item): item is string => typeof item === "string").join(" ");
+  return /\b(?:indonesia|ID_(?:B1|C1))\b/i.test(identifyingText);
+}
+
 function isOfficialVietnamPrearrivalReference(value: string | null | undefined): value is string {
   if (!value) return false;
   const normalized = value.trim().toUpperCase();
@@ -1195,6 +1208,7 @@ export function SubmissionStatusStep({
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
+  const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
     mode: SubmissionMode,
@@ -1204,6 +1218,60 @@ export function SubmissionStatusStep({
     setRetryError(null);
     setResubmitting(true);
     try {
+      const retryCountry = snapshot?.country ?? country;
+      const retryVisaType = snapshot?.visaType ?? visaType;
+      const isIndonesiaCardRetry =
+        Boolean(vietnamPaymentCard) &&
+        (isIndonesiaEVisaApplication(retryCountry, retryVisaType) || initialResultTargetsIndonesia);
+      if (isIndonesiaCardRetry && vietnamPaymentCard) {
+        const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            card: {
+              pan: vietnamPaymentCard.pan,
+              expiry: vietnamPaymentCard.expiry,
+              cvv: vietnamPaymentCard.cvv,
+            },
+          }),
+        });
+        const body = (await response.json().catch(() => null)) as {
+          error?: unknown;
+          queueId?: unknown;
+          queueStatus?: unknown;
+          provider?: unknown;
+        } | null;
+        if (!response.ok) {
+          const message = typeof body?.error === "string" ? body.error : `Payment retry failed with ${response.status}`;
+          setRetryError(message);
+          throw new Error(message);
+        }
+        const now = new Date().toISOString();
+        setSnapshot({
+          status: "queued",
+          stage: "preparing",
+          progress: fallbackProgressForStatus("queued", retryCountry, retryVisaType),
+          message: isZh ? "银行卡已安全送入云端，正在启动自动付款。" : "The card was sent securely to the cloud; automated payment is starting.",
+          result: null,
+          error: null,
+          updatedAt: now,
+          applicationStatus: "waiting",
+          country: retryCountry,
+          visaType: retryVisaType,
+          queue: {
+            id: typeof body?.queueId === "string" ? body.queueId : "",
+            status: typeof body?.queueStatus === "string" ? body.queueStatus : "pending",
+            mode,
+            provider: typeof body?.provider === "string" ? body.provider : null,
+            currentStage: null,
+            heartbeatAt: null,
+            fieldFallbacks: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+        return;
+      }
       if (onResubmit) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
@@ -1256,7 +1324,7 @@ export function SubmissionStatusStep({
     } finally {
       setResubmitting(false);
     }
-  }, [applicationId, country, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
+  }, [applicationId, country, initialResultTargetsIndonesia, isZh, onResubmit, snapshot?.country, snapshot?.visaType, visaType]);
 
   const fallbackVisualStatus = useMemo(
     () => visualStatusFromApplication(status),
@@ -1340,6 +1408,11 @@ export function SubmissionStatusStep({
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
   );
+  const isIndonesiaSubmission = isIndonesiaEVisaApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  ) || initialResultTargetsIndonesia || resultTargetsIndonesia(snapshot?.result) ||
+    /\bindonesia\b/i.test(effectiveError ?? "");
   const isVnPrearrivalSubmission = isVietnamPrearrivalApplication(
     snapshot?.country ?? country,
     snapshot?.visaType ?? visaType,
@@ -1534,7 +1607,7 @@ export function SubmissionStatusStep({
           retryModes={retryModes}
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
-          requiresOfficialPaymentCard={isVietnamSubmission}
+          requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
         />
       </div>
     );

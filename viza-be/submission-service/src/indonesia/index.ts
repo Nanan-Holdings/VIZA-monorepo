@@ -1,4 +1,4 @@
-import type { GenericSubmissionResult } from "../submission-result";
+import type { GenericEvisaSubmissionResult, GenericSubmissionResult } from "../submission-result";
 import { probeIndonesiaPortal, type IndonesiaPortalProbeResult } from "./runner";
 
 export const INDONESIA_C1_PORTAL_URL = "https://evisa.imigrasi.go.id/";
@@ -76,6 +76,10 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
   };
   onStage?: (stage: string, snapshot: { url: string; title?: string | null }) => Promise<void>;
 }
+
+export type IndonesiaLiveSubmissionResult =
+  | GenericSubmissionResult
+  | (GenericEvisaSubmissionResult & { country: "ID"; status: "submitted"; evidencePdf: Buffer });
 
 function normalizeVisaType(visaType: string): string {
   return visaType.trim().toUpperCase().replace(/[\s/-]+/g, "_");
@@ -215,7 +219,7 @@ export function normalizeIndonesiaAnswers(
 
 export async function runIndonesiaLiveSubmission(
   input: IndonesiaLiveSubmissionInput,
-): Promise<GenericSubmissionResult> {
+): Promise<IndonesiaLiveSubmissionResult> {
   const normalized = normalizeIndonesiaAnswers(input);
   const managedEmail = clean(input.managedAccountEmail);
   const managedPassword = clean(input.managedAccountPassword);
@@ -324,6 +328,15 @@ export async function runIndonesiaLiveSubmission(
       userPaymentHandoff: input.userPaymentHandoff,
       onStage: input.onStage,
     });
+    if (probe.state === "submitted_or_approved" && probe.evidencePdf) {
+      return {
+        country: "ID",
+        status: "submitted",
+        reference: probe.officialReference,
+        portalUrl: probe.url,
+        evidencePdf: probe.evidencePdf,
+      };
+    }
     return {
       country: "GENERIC",
       targetCountry: "ID",
@@ -335,8 +348,9 @@ export async function runIndonesiaLiveSubmission(
       actionType: probe.actionType,
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
-      message:
-        `${normalized.provider} reached Indonesia official portal state ${probe.state} at ${probe.url}. Diagnostics: ${probe.diagnostics.slice(-8).join("; ") || "none"}.`,
+      message: probe.state === "payment_failed"
+        ? probe.instruction
+        : `${normalized.provider} reached Indonesia official portal state ${probe.state}.`,
     };
   }
 

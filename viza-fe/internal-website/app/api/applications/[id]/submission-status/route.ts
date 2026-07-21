@@ -102,6 +102,9 @@ function readPayloadString(payload: Record<string, unknown>, key: string): strin
 
 function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
+  const queueStatus = normalizeStatus(queue.status);
+  const provider = normalizeStatus(queue.provider);
+  if (queueStatus.startsWith("id_") || provider.startsWith("indonesia_")) return false;
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
   const actionType = readPayloadString(payload, "actionType");
@@ -114,9 +117,13 @@ function isIndonesiaPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   const queueStatus = normalizeStatus(queue.status);
   const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
   const actionType = readPayloadString(payload, "actionType");
+  // Indonesia payment queue rows are a closed cloud workflow. Their concrete
+  // pending/processing/paid/failed status is authoritative and must never be
+  // synthesized into a manual "open the official payment page" handoff.
+  if (queueStatus.startsWith("id_c1_payment_") || queueStatus.startsWith("id_b1_evoa_payment_")) {
+    return false;
+  }
   return (
-    queueStatus.startsWith("id_c1_payment_") ||
-    queueStatus.startsWith("id_b1_evoa_payment_") ||
     checkpoint === "payment_page_visible" ||
     actionType === "official_fee_payment_required" ||
     actionType === "official_fee_otp_required"
@@ -437,7 +444,7 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     queueStatus === "id_b1_evoa_payment_pending" ||
     queueStatus === "id_b1_evoa_payment_processing"
   ) {
-    return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
+    return { status: "running", stage: "payment_handoff", progress: 90 };
   }
 
   if (

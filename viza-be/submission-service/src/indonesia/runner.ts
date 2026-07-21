@@ -51,6 +51,21 @@ export interface IndonesiaPortalProbeResult {
   title: string | null;
   browserProvider: "local" | "local-cdp" | "remote-browser-api" | "browserbase";
   diagnostics: string[];
+  officialReference?: string;
+  /** In-memory official result-page PDF. The caller must upload it before returning success. */
+  evidencePdf?: Buffer;
+}
+
+function extractIndonesiaOfficialReference(text: string): string | undefined {
+  const patterns = [
+    /(?:application|reference|transaction)\s*(?:number|no\.?|id|code)\s*[:#-]?\s*([A-Z0-9][A-Z0-9/_-]{5,})/i,
+    /(?:nomor|no\.?)\s*(?:permohonan|referensi|transaksi)\s*[:#-]?\s*([A-Z0-9][A-Z0-9/_-]{5,})/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern)?.[1]?.trim();
+    if (match) return match;
+  }
+  return undefined;
 }
 
 const INDONESIA_GENERAL_VISIT_PARENT = "General, Family, or Social";
@@ -3529,6 +3544,8 @@ async function waitForUserPaymentCompletion(
   title: string | null;
   text: string;
   url: string;
+  evidencePdf?: Buffer;
+  officialReference?: string;
 }> {
   let activePage = page;
   const waitTimeoutMs = Math.max(
@@ -3554,6 +3571,7 @@ async function waitForUserPaymentCompletion(
     state = normalizeIndonesiaPaymentWaitState(classifyIndonesiaPortalSnapshot({ url, title, text }), diagnostics);
   } else {
     diagnostics.push("indonesia_one_time_card_not_available_for_payment_page");
+    return { state: "payment_failed", title, text, url };
   }
 
   while (Date.now() < deadline) {
@@ -3600,9 +3618,34 @@ async function waitForUserPaymentCompletion(
 
   if ((state === "payment_required" || state === "payment_otp_required") && Date.now() >= deadline) {
     diagnostics.push("indonesia_user_payment_wait_timeout");
+    state = "payment_failed";
+  }
+  if (state !== "submitted_or_approved" && state !== "payment_failed") {
+    diagnostics.push(`indonesia_payment_terminal_result_unconfirmed ${state}`);
+    state = "payment_failed";
   }
 
-  return { state, title, text, url };
+  if (state !== "submitted_or_approved") return { state, title, text, url };
+
+  const evidencePdf = await activePage.pdf({ format: "A4", printBackground: true }).catch((error: unknown) => {
+    diagnostics.push(
+      `indonesia_official_evidence_pdf_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+    );
+    return undefined;
+  });
+  if (!evidencePdf || evidencePdf.length < 5 || evidencePdf.subarray(0, 5).toString("utf8") !== "%PDF-") {
+    diagnostics.push("indonesia_official_evidence_pdf_missing");
+    return { state: "unknown", title, text, url };
+  }
+  diagnostics.push("indonesia_official_evidence_pdf_captured");
+  return {
+    state,
+    title,
+    text,
+    url,
+    evidencePdf,
+    officialReference: extractIndonesiaOfficialReference(text),
+  };
 }
 
 export function normalizeIndonesiaPaymentWaitState(
@@ -4198,6 +4241,8 @@ export async function probeIndonesiaPortal(
       }
     }
 
+    let evidencePdf: Buffer | undefined;
+    let officialReference: string | undefined;
     if ((state === "payment_required" || state === "payment_otp_required") && input.userPaymentHandoff?.enabled) {
       const openedPaymentPage = await continueFromIndonesiaPaymentDetail(page, session.diagnostics);
       if (openedPaymentPage) {
@@ -4212,11 +4257,29 @@ export async function probeIndonesiaPortal(
       text = paymentResult.text;
       url = paymentResult.url;
       state = paymentResult.state;
+      evidencePdf = paymentResult.evidencePdf;
+      officialReference = paymentResult.officialReference;
     }
 
     const passportInvalidDataBlocked = hasIndonesiaPassportInvalidDataDiagnostic(session.diagnostics);
     const stepOneValidationBlocked = hasIndonesiaStepOneValidationBlock(session.diagnostics);
     const postalValidationBlocked = hasIndonesiaPostalValidationBlock(session.diagnostics);
+    if (state === "submitted_or_approved" && !evidencePdf) {
+      officialReference = extractIndonesiaOfficialReference(text);
+      evidencePdf = await page.pdf({ format: "A4", printBackground: true }).catch((error: unknown) => {
+        session.diagnostics.push(
+          `indonesia_official_evidence_pdf_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+        );
+        return undefined;
+      });
+      if (!evidencePdf || evidencePdf.length < 5 || evidencePdf.subarray(0, 5).toString("utf8") !== "%PDF-") {
+        session.diagnostics.push("indonesia_official_evidence_pdf_missing");
+        state = "unknown";
+      } else {
+        session.diagnostics.push("indonesia_official_evidence_pdf_captured");
+      }
+    }
+
     const action = postalValidationBlocked
       ? {
           actionType: "official_postal_code_validation_failed",
@@ -4248,6 +4311,8 @@ export async function probeIndonesiaPortal(
       title,
       browserProvider: session.provider,
       diagnostics: session.diagnostics,
+      officialReference,
+      evidencePdf,
     };
   } finally {
     await session.browser.close().catch(() => undefined);
