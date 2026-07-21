@@ -55,6 +55,7 @@ test("creates a Malaysia Browserbase proxy session without a project id", async 
     assert.deepEqual(requestBody.proxies, [
       { type: "browserbase", geolocation: { country: "MY" } },
     ]);
+    assert.deepEqual(requestBody.browserSettings, { solveCaptchas: true });
     assert.equal((capturedInit?.headers as Record<string, string>)["X-BB-API-Key"], "test-secret");
     assert.equal(result.replayUrl, "https://www.browserbase.com/sessions/session-123");
   } finally {
@@ -124,7 +125,7 @@ test("requests a Verified Browser only when the country runner enables it", asyn
       },
     });
     const requestBody = JSON.parse(String(capturedInit?.body)) as Record<string, unknown>;
-    assert.deepEqual(requestBody.browserSettings, { verified: true });
+    assert.deepEqual(requestBody.browserSettings, { solveCaptchas: true, verified: true });
     assert.equal(result.verifiedEnabled, true);
   } finally {
     restoreEnvironment(snapshot);

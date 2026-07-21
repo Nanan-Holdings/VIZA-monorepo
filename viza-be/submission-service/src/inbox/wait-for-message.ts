@@ -40,6 +40,8 @@ export interface WaitForMessageOpts {
   markProcessed?: boolean;
   /** Include already-consumed mail when an external ingest worker owns marking. */
   includeProcessed?: boolean;
+  /** Prefer the newest matching message. Default false preserves FIFO behavior. */
+  newestFirst?: boolean;
   /** Override clock — used in tests. */
   now?: () => number;
 }
@@ -81,6 +83,7 @@ async function fetchUnprocessedSince(
   alias: string,
   since: string,
   includeProcessed = false,
+  newestFirst = false,
 ): Promise<InboundMessage[]> {
   let query = supabase
     .from("inbound_email")
@@ -89,7 +92,7 @@ async function fetchUnprocessedSince(
     )
     .eq("to_addr", alias)
     .gte("received_at", since)
-    .order("received_at", { ascending: true })
+    .order("received_at", { ascending: !newestFirst })
     .limit(20);
   if (!includeProcessed) query = query.eq("processed", false);
   const { data, error } = await query;
@@ -128,7 +131,12 @@ export async function waitForMessage(
 
   const deadline = now() + timeoutMs;
   while (now() < deadline) {
-    const rows = await fetchUnprocessedSince(alias, since, opts.includeProcessed);
+    const rows = await fetchUnprocessedSince(
+      alias,
+      since,
+      opts.includeProcessed,
+      opts.newestFirst,
+    );
     for (const row of rows) {
       if (predicate(row)) {
         if (opts.markProcessed !== false && !row.processed) {

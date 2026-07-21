@@ -50,6 +50,11 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
+- Reusable passport, portrait, and electronic-signature metadata is stored in
+  the server-only `universal_profile_documents` table created by
+  `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
+  application document requirements may map their country-specific photo and
+  signature aliases to these canonical profile materials.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`

@@ -131,6 +131,10 @@ export async function createBrowserbaseCloudSession(options: {
     keepAlive: false,
     timeout,
     region,
+    browserSettings: {
+      solveCaptchas: true,
+      ...(verifiedEnabled ? { verified: true } : {}),
+    },
     userMetadata: {
       service: "viza-submission-service",
       runner: options.prefix.toLowerCase(),
@@ -144,10 +148,6 @@ export async function createBrowserbaseCloudSession(options: {
       },
     ];
   }
-  if (verifiedEnabled) {
-    body.browserSettings = { verified: true };
-  }
-
   const fetchImpl = options.fetchImpl ?? fetch;
   let response: Response;
   try {

@@ -1,5 +1,6 @@
 "use server";
 
+import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,6 +20,7 @@ const BUCKET = "submission-artifacts";
 const PROFILE_DOCUMENTS_BUCKET = "application-documents";
 const MAX_BYTES = 200 * 1024; // 200 KB — a 600×200 transparent PNG is ~30 KB
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const REUSABLE_SIGNATURE_TYPES = ["electronic_signature", "customs_signature_file", "signature", "signature_image"];
 
 // Internal helper — must stay unexported: a "use server" module may only
 // export async functions.
@@ -81,27 +83,36 @@ export async function submitSignature(
     });
   if (uploadErr) return { ok: false, error: `Upload failed: ${uploadErr.message}` };
 
-  // Keep a reusable copy for other application forms. This is best-effort so
-  // a profile-document migration gap never blocks the AU signing workflow.
+  // Keep a reusable copy for other application forms and fail visibly if the
+  // private profile copy cannot be persisted.
   const reusablePath = `${user.id}/universal-profile/electronic_signature/${Date.now()}-signature.png`;
   const { error: reusableUploadError } = await adminClient.storage
     .from(PROFILE_DOCUMENTS_BUCKET)
     .upload(reusablePath, buffer, { contentType: "image/png", upsert: false });
-  if (!reusableUploadError) {
-    await adminClient.from("universal_profile_documents").upsert(
-      {
-        applicant_id: profile.id,
-        auth_user_id: user.id,
-        document_type: "electronic_signature",
-        storage_path: reusablePath,
-        filename: "signature.png",
-        status: "uploaded",
-        source_application_id: applicationId,
-        metadata: { source: "au_signature_pad" },
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "applicant_id,document_type" },
-    );
+  if (reusableUploadError) {
+    await adminClient.storage.from(BUCKET).remove([storagePath]);
+    return { ok: false, error: `Could not save reusable signature: ${reusableUploadError.message}` };
+  }
+  const { error: reusableRecordError } = await adminClient.from("universal_profile_documents").upsert(
+    {
+      applicant_id: profile.id,
+      auth_user_id: user.id,
+      document_type: "electronic_signature",
+      storage_path: reusablePath,
+      filename: "signature.png",
+      status: "uploaded",
+      source_application_id: applicationId,
+      metadata: { source: "au_signature_pad" },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "applicant_id,document_type" },
+  );
+  if (reusableRecordError) {
+    await Promise.all([
+      adminClient.storage.from(BUCKET).remove([storagePath]),
+      adminClient.storage.from(PROFILE_DOCUMENTS_BUCKET).remove([reusablePath]),
+    ]);
+    return { ok: false, error: `Could not save reusable signature: ${reusableRecordError.message}` };
   }
 
   // Flip submission_queue to au_prefill_pending so the runner picks it up.
@@ -181,15 +192,14 @@ export async function getSigningContext(
   }
 
   const alreadySigned = await hasExistingSignature(applicationId);
-  const { data: reusableSignature } = await adminClient
+  const { data: reusableSignatures } = await adminClient
     .from("universal_profile_documents")
-    .select("id")
+    .select("id, filename")
     .eq("applicant_id", profile.id)
-    .in("document_type", ["electronic_signature", "customs_signature_file", "signature", "signature_image"])
-    .ilike("filename", "%.png")
+    .in("document_type", REUSABLE_SIGNATURE_TYPES)
     .neq("status", "missing")
-    .limit(1)
-    .maybeSingle();
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(10);
 
   return {
     ok: true,
@@ -199,10 +209,14 @@ export async function getSigningContext(
       visaType: app.visa_type,
       isAuVisitor600,
       alreadySigned,
-      hasReusableSignature: Boolean(reusableSignature),
+      hasReusableSignature: Boolean(reusableSignatures?.some((row) => isReusableSignatureFilename(row.filename))),
       declarationAnswers,
     },
   };
+}
+
+function isReusableSignatureFilename(filename: string | null): boolean {
+  return Boolean(filename && /\.(?:png|jpe?g)$/i.test(filename));
 }
 
 export async function submitSavedUniversalProfileSignature(
@@ -222,16 +236,15 @@ export async function submitSavedUniversalProfileSignature(
     .single();
   if (!profile) return { ok: false, error: "Applicant profile not found" };
 
-  const { data: reusableSignature, error } = await adminClient
+  const { data: reusableSignatures, error } = await adminClient
     .from("universal_profile_documents")
-    .select("storage_path")
+    .select("storage_path, filename")
     .eq("applicant_id", profile.id)
-    .in("document_type", ["electronic_signature", "customs_signature_file", "signature", "signature_image"])
-    .ilike("filename", "%.png")
+    .in("document_type", REUSABLE_SIGNATURE_TYPES)
     .neq("status", "missing")
     .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
+  const reusableSignature = reusableSignatures?.find((row) => isReusableSignatureFilename(row.filename));
   if (error || !reusableSignature?.storage_path) {
     return { ok: false, error: "No reusable signature is available" };
   }
@@ -243,7 +256,15 @@ export async function submitSavedUniversalProfileSignature(
     return { ok: false, error: `Could not read saved signature: ${downloadError?.message ?? "missing file"}` };
   }
 
-  return submitSignature(applicationId, new Uint8Array(await signatureBlob.arrayBuffer()));
+  const savedBuffer = Buffer.from(await signatureBlob.arrayBuffer());
+  const pngBuffer = isPng(savedBuffer)
+    ? savedBuffer
+    : await sharp(savedBuffer)
+        .resize({ width: 600, height: 200, fit: "inside", withoutEnlargement: true })
+        .png({ compressionLevel: 9 })
+        .toBuffer();
+
+  return submitSignature(applicationId, new Uint8Array(pngBuffer));
 }
 
 /**

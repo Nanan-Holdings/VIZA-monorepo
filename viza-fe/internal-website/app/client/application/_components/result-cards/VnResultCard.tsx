@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, CheckCircle2, CreditCard, ExternalLink, FileCheck2, Loader2, Mail, Pencil, Receipt, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CreditCard, ExternalLink, FileCheck2, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { VnSubmissionResult } from "@/lib/submission-result";
 
@@ -37,7 +36,6 @@ export function VnResultCard({
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
-  const [cardHolderName, setCardHolderName] = useState("");
   const [oneTimeCardLast4, setOneTimeCardLast4] = useState<string | null>(null);
   const hasRegistrationCode = Boolean(result.registrationCode);
   const isPaymentCheckpoint = result.status === "stopped_at_pay" || hasRegistrationCode;
@@ -65,8 +63,8 @@ export function VnResultCard({
     intentStatus === "in_progress" ||
     intentStatus === "pending" ||
     intentStatus === "manual_review";
-  const paymentProgress = paymentPaid ? 100 : paymentQueued ? 82 : paymentNeedsOperator ? 72 : intentStatus ? 65 : hasRegistrationCode ? 48 : 30;
   const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
+  const showPaymentForm = !paymentPaid && (!paymentQueued || paymentNeedsOperator);
   const isFormCheckpoint = result.status === "official_form_reached";
   const isManualCheckpoint = Boolean(result.manualAction);
   const manualInstruction = result.manualAction?.instructions ?? "";
@@ -79,7 +77,11 @@ export function VnResultCard({
   const title = paymentPaid
     ? (isZh ? "越南 e-Visa 已提交并完成官方付款" : "Vietnam e-Visa submitted and paid")
     : isPaymentCheckpoint
-    ? (isZh ? "越南 e-Visa 已提交到付款检查点" : "Vietnam e-Visa application captured")
+    ? paymentQueued && !paymentNeedsOperator
+      ? (isZh ? "越南自动付款处理中" : "Vietnam automated payment in progress")
+      : paymentNeedsOperator
+        ? (isZh ? "官方付款未完成，可重新自动付款" : "Official payment incomplete; automated retry is available")
+        : (isZh ? "等待官方费用授权" : "Waiting for official-fee authorization")
     : isFormCheckpoint
       ? (isZh ? "已进入越南 e-Visa 官网表单" : "Vietnam e-Visa form reached")
       : isManualCheckpoint
@@ -88,7 +90,7 @@ export function VnResultCard({
   const badge = paymentPaid
     ? (isZh ? "已付款" : "Paid")
     : isPaymentCheckpoint
-    ? (isZh ? "等待付款" : "Action required: payment")
+    ? (isZh ? "自动处理中" : "Automating")
     : isManualCheckpoint
       ? (isZh ? "需要操作" : "Action required")
       : (isZh ? "官网检查点" : "Official checkpoint");
@@ -217,7 +219,6 @@ export function VnResultCard({
             pan: cardNumber,
             expiry: cardExpiry,
             cvv: cardCvv,
-            holderName: cardHolderName,
           },
         }),
       });
@@ -253,28 +254,28 @@ export function VnResultCard({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {paymentPaid
             ? isZh
-              ? "VIZA 已完成本次越南 e-Visa 官网官方费用支付。你可以在下方查看官网登记编号、付款证据和后续状态查询入口。"
+              ? "VIZA 已完成本次越南 e-Visa 官网付款，申请已进入官网审核。"
               : "VIZA has completed the official Vietnam e-Visa payment for this application."
             : isPaymentCheckpoint
             ? isZh
-              ? "VIZA 已将申请推进到越南 e-Visa 官网付款检查点。点击下方“提交”后，系统会记录你的代付授权，并由 submission-service 继续处理官方付款。"
-              : "We pre-filled your e-Visa application on the official Vietnam portal. Submit below to authorize official-fee payment handling."
+              ? "VIZA 已完成官网表单。填写本次付款银行卡后，系统会自动支付官方费用；只有银行要求 3DS、OTP 或 App 验证时才会暂停。"
+              : "VIZA completed the official form. Add a one-time card to pay automatically; the flow pauses only for bank 3DS, OTP, or app verification."
             : result.manualAction?.instructions ??
               (isZh
                 ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
                 : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
         </p>
 
-        {result.checkpoint && (
+        {result.checkpoint && !isPaymentCheckpoint && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
             <div className="text-xs text-muted-foreground">{isZh ? "官网检查点" : "Checkpoint"}</div>
-            <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
-              {result.checkpoint}
+            <div className="mt-0.5 text-sm font-medium text-foreground">
+              {isZh ? "官网流程已暂停，等待下一步处理" : "The official flow is paused for the next step"}
             </div>
           </div>
         )}
 
-        {hasRegistrationCode && (
+        {hasRegistrationCode && paymentPaid && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
             <div className="text-xs text-muted-foreground">{isZh ? "官网登记编号" : "Registration code"}</div>
             <div className="mt-0.5 font-mono text-base font-medium text-foreground">
@@ -286,53 +287,31 @@ export function VnResultCard({
         {isPaymentCheckpoint && (
           <div className="space-y-3 rounded-md border border-brand-100 bg-brand-50 p-3">
             <div className="flex items-start gap-2">
-              <Receipt className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-foreground">
-                  {paymentPaid ? (isZh ? "官方付款已完成" : "Official payment completed") : (isZh ? "官方费用代付" : "Official fee payment")}
+                  {paymentPaid
+                    ? (isZh ? "官方付款已完成" : "Official payment completed")
+                    : paymentQueued && !paymentNeedsOperator
+                      ? (isZh ? "正在自动付款" : "Automated payment in progress")
+                      : paymentNeedsOperator
+                        ? (isZh ? "重新自动付款" : "Restart automated payment")
+                        : (isZh ? "自动支付官方费用" : "Pay the official fee automatically")}
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {isZh
-                    ? `本次越南 e-Visa 官方费用：${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}。不会保存银行卡号、CVV、验证码或 3DS 信息。`
-                    : `Vietnam e-Visa official fee: ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}. Card/CVV/OTP/3DS data is never stored.`}
+                    ? `越南 e-Visa 官方费用为 ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}。银行卡只用于本次付款，不会保存卡号或 CVV。`
+                    : `The Vietnam e-Visa official fee is ${quoteCurrency} ${Number.isFinite(quoteAmount) ? quoteAmount.toFixed(2) : "25.00"}. Card number and CVV are never stored.`}
                 </p>
               </div>
             </div>
 
-            <SmoothProgressBar
-              displayedProgress={paymentProgress}
-              label={
-                paymentPaid
-                  ? (isZh ? "付款成功，等待官网审核" : "Paid, waiting for official review")
-                  : paymentQueued
-                    ? (isZh ? "正在处理官方付款" : "Processing official payment")
-                    : paymentNeedsOperator
-                      ? (isZh ? "已提交，等待后台付款处理" : "Submitted, waiting for operator payment handling")
-                    : (isZh ? "等待你的授权" : "Waiting for authorization")
-              }
-            />
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              {receiptNumber && (
-                <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
-                  <div className="text-xs text-brand-500">{isZh ? "付款证据编号" : "Payment evidence"}</div>
-                  <div className="mt-0.5 break-all font-mono text-sm font-medium text-foreground">{receiptNumber}</div>
-                </div>
-              )}
-              {intentStatus && (
-                <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
-                  <div className="text-xs text-brand-500">{isZh ? "付款状态" : "Payment status"}</div>
-                  <div className="mt-0.5 font-mono text-sm font-medium text-foreground">{intentStatus}</div>
-                </div>
-              )}
-            </div>
-
-            {!paymentPaid && (
+            {showPaymentForm && (
               <div className="space-y-3 rounded-md border border-brand-100 bg-white p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <CreditCard className="h-4 w-4 text-brand-500" />
-                  {paymentQueued || paymentNeedsOperator
-                    ? (isZh ? "重新提交本次付款银行卡" : "Resubmit one-time payment card")
+                  {paymentNeedsOperator
+                    ? (isZh ? "重新自动付款银行卡" : "Restart automated payment card")
                     : (isZh ? "本次付款银行卡" : "One-time payment card")}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -369,36 +348,12 @@ export function VnResultCard({
                       placeholder="CVV"
                     />
                   </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
-                    <input
-                      value={cardHolderName}
-                      onChange={(event) => setCardHolderName(event.target.value)}
-                      autoComplete="cc-name"
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                      placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
-                    />
-                  </label>
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "卡号和 CVV 只用于本次官方付款，会发送到 VIZA 云端 submission-service 的短时内存会话；不会保存到数据库、env、日志或个人资料。"
-                    : "Card number and CVV are used only for this official payment through a short-lived VIZA cloud submission-service session."}
+                    ? "卡号和 CVV 只用于本次官方付款，并通过短时安全会话发送；不会保存到数据库、日志或个人资料。"
+                    : "Card number and CVV are sent through a short-lived secure session for this payment only and are never stored."}
                 </p>
-                {paymentQueued && (
-                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    {isZh
-                      ? "当前已有付款队列在等待后台处理。如果后台没有拿到卡信息，重新填写并提交会刷新本次一次性卡会话并重新排队。"
-                      : "A payment job is already queued. If the worker missed the card session, resubmitting refreshes the one-time card session and queues payment again."}
-                  </p>
-                )}
-                {paymentNeedsOperator && (
-                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    {isZh
-                      ? "当前付款任务需要后台重新处理。重新填写并提交银行卡后，系统会刷新本次一次性卡会话并重新排队。"
-                      : "The current payment job needs backend handling. Resubmitting refreshes the one-time card session and queues payment again."}
-                  </p>
-                )}
                 <Button
                   type="button"
                   className="w-full"
@@ -406,48 +361,34 @@ export function VnResultCard({
                   disabled={!applicationId || paymentBusy || !cardReady}
                 >
                   {paymentBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                  {paymentQueued || paymentNeedsOperator
-                    ? (isZh ? "重新提交银行卡并继续付款" : "Resubmit card and continue payment")
-                    : (isZh ? "提交" : "Submit")}
+                  {paymentNeedsOperator
+                    ? (isZh ? "重新自动付款" : "Restart automated payment")
+                    : (isZh ? "开始自动付款" : "Start automated payment")}
                 </Button>
               </div>
             )}
 
-            {!paymentPaid && paymentQueued && (
-              <Button type="button" className="w-full" variant="outline" disabled>
+            {!paymentPaid && paymentQueued && !paymentNeedsOperator && (
+              <Button type="button" className="w-full" disabled>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isZh ? "已提交，等待后台付款" : "Submitted, waiting for payment worker"}
+                {isZh ? "正在自动付款" : "Automated payment in progress"}
               </Button>
             )}
 
             {oneTimeCardLast4 && !paymentPaid && (
               <p className="rounded-md border border-brand-100 bg-white px-3 py-2 text-xs text-muted-foreground">
                 {isZh
-                  ? `已接收本次付款卡尾号 ${oneTimeCardLast4}，后台 worker 正在处理。`
-                  : `Received one-time payment card ending ${oneTimeCardLast4}; the worker is processing it.`}
+                  ? `已安全接收尾号 ${oneTimeCardLast4} 的银行卡。`
+                  : `Card ending ${oneTimeCardLast4} was received securely.`}
               </p>
             )}
 
-            {!paymentPaid && paymentNeedsOperator && (
-              <Button type="button" className="w-full" disabled>
-                {isZh ? "已提交，等待后台处理" : "Submitted, waiting for operator handling"}
-              </Button>
+            {paymentPaid && receiptNumber && (
+              <div className="rounded-md border border-brand-100 bg-white px-3 py-2">
+                <div className="text-xs text-brand-500">{isZh ? "付款凭证编号" : "Payment evidence"}</div>
+                <div className="mt-0.5 break-all font-mono text-sm font-medium text-foreground">{receiptNumber}</div>
+              </div>
             )}
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button asChild variant="outline" className="bg-white">
-                <a href={applicationId ? `/client/application/long-form?country=vietnam&visaType=evisa_tourism&applicationId=${encodeURIComponent(applicationId)}` : "/client/application"} >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {isZh ? "修改" : "Edit"}
-                </a>
-              </Button>
-              <Button asChild variant="outline" className="bg-white">
-                <a href={applicationId ? `/client/status?applicationId=${encodeURIComponent(applicationId)}` : "/client/status"}>
-                  {isZh ? "查看申请状态" : "View status"}
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-            </div>
 
             {receiptUrl && (
               <Button asChild variant="outline" className="w-full bg-white">
@@ -466,7 +407,7 @@ export function VnResultCard({
           </div>
         )}
 
-        {result.manualAction && (
+        {result.manualAction && (!isPaymentCheckpoint || needsBankConfirmation) && (
           <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <div className="text-xs font-medium text-amber-700">{isZh ? "需要人工操作" : "Manual action"}</div>
             {needsBankConfirmation && (
@@ -519,14 +460,14 @@ export function VnResultCard({
           <Button type="button" className="w-full" disabled>
             {isZh ? "请在已打开的官方付款窗口完成验证" : "Complete verification in the open official payment window"}
           </Button>
-        ) : (
+        ) : !isPaymentCheckpoint ? (
           <Button asChild className="w-full">
             <a href={result.portalUrl ?? "https://evisa.gov.vn"} target="_blank" rel="noopener noreferrer">
               {isZh ? "打开越南 e-Visa 官网" : "Open official Vietnam e-Visa portal"}
               <ExternalLink className="ml-2 h-4 w-4" />
             </a>
           </Button>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
