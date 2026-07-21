@@ -6,6 +6,7 @@ export type PhEtravelFieldKind = "text" | "date" | "choice" | "checkbox" | "file
 export interface PhEtravelFieldPlanItem {
   key: string;
   portalName?: string;
+  portalValue?: string | null;
   labels: string[];
   kind: PhEtravelFieldKind;
   value: string | boolean | null;
@@ -192,7 +193,7 @@ export function buildPhEtravelFieldPlan(
     { key: "transit_airport", portalName: "transit_port", labels: ["Airport of Transit"], kind: "text", value: payload.transitAirport },
     { key: "transit_date", portalName: "transit_date", labels: ["Date of Transit"], kind: "date", value: payload.transitDate },
     { key: "destination_type", portalName: "stay_location_type", labels: ["Destination upon arrival in the Philippines", "Destination Type"], kind: "choice", value: optionLabel(payload.destinationType ?? "HOTEL_RESORT"), required: true },
-    { key: "destination_transit_airport", portalName: "transit_port_code", labels: ["Airport"], kind: "choice", value: resolvedOptionLabel(payload.destinationTransitAirport, officialLabels), required: Boolean(payload.destinationTransitAirport) },
+    { key: "destination_transit_airport", portalName: "transit_port_code", portalValue: payload.destinationTransitAirport, labels: ["Airport"], kind: "choice", value: resolvedOptionLabel(payload.destinationTransitAirport, officialLabels), required: Boolean(payload.destinationTransitAirport) },
     { key: "destination_country", portalName: "transit_destination_country_code", labels: ["Country of Destination"], kind: "choice", value: resolvedOptionLabel(payload.destinationCountry, officialLabels), required: Boolean(payload.destinationCountry) },
     { key: "philippines_address", portalName: "destination_upon_arrival_in_philippines", labels: ["Hotel/Resort Address", "Residence Address", "Address in the Philippines", "Destination Address"], kind: "text", value: payload.philippinesAddress, required: !payload.destinationTransitAirport },
     { key: "arrival_date", portalName: "arrival_date", labels: ["Date of Arrival", "Date of Arrival of Flight", "Arrival Date"], kind: "date", value: payload.arrivalDate, required: true },
@@ -579,7 +580,7 @@ async function selectChoice(page: Page, item: PhEtravelFieldPlanItem): Promise<b
       page,
       'input[name="transit_destination_country_code"]',
       item.portalName,
-      item.value,
+      item.portalValue ?? item.value,
     )
   ) return true;
   for (const label of item.labels) {
