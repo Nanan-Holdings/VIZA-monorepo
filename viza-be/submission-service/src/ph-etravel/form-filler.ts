@@ -716,7 +716,10 @@ export async function fillPhEtravelOfficialDeclaration(
     // Confirmation" but still contain unanswered Yes/No questions. A real
     // Review state must expose the final submission control; title text alone
     // is not success evidence.
-    const review = Boolean(reviewSubmitControl) && /review|summary|declaration/i.test(portalText);
+    const isPublicLandingPage = /click here to sign in|download egovph app/i.test(portalText);
+    const review = Boolean(reviewSubmitControl) &&
+      !isPublicLandingPage &&
+      /review|summary|declaration/i.test(portalText);
     if (review) {
       await options.onStep?.("review");
       if (options.stopBeforeSubmit) {
