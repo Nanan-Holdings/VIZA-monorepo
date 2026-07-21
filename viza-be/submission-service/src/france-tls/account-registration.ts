@@ -71,6 +71,24 @@ export interface FranceTlsStoredAccountContext {
   statusUpdatedAt: string;
   emailVerified: boolean;
   officialReference: string | null;
+  applicantProfile: FranceTlsApplicantProfile;
+}
+
+export interface FranceTlsApplicantProfile {
+  surname: string | null;
+  givenNames: string | null;
+  dateOfBirth: string | null;
+  gender: "male" | "female" | "other" | null;
+  passportNumber: string | null;
+  phoneCountryCode: string | null;
+  phoneNumber: string | null;
+  purposeOfJourney: string | null;
+  departureFromOriginDate: string | null;
+  arrivalInSchengenDate: string | null;
+  departureFromSchengenDate: string | null;
+  visitsFrenchOverseasTerritories: boolean | null;
+  previousSchengenFingerprints: boolean | null;
+  schengenVisaWithinFiveYears: boolean | null;
 }
 
 function firstRelation(value: unknown): Relation | null {
@@ -81,6 +99,61 @@ function firstRelation(value: unknown): Relation | null {
 function requireString(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is missing`);
   return value.trim();
+}
+
+function optionalString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+function normalizeYesNo(value: unknown): boolean | null {
+  const normalized = optionalString(value)?.toLowerCase();
+  if (["yes", "y", "true", "1"].includes(normalized ?? "")) return true;
+  if (["no", "n", "false", "0"].includes(normalized ?? "")) return false;
+  return null;
+}
+
+function normalizeGender(value: unknown): FranceTlsApplicantProfile["gender"] {
+  const normalized = optionalString(value)?.toLowerCase();
+  if (["male", "m"].includes(normalized ?? "")) return "male";
+  if (["female", "f"].includes(normalized ?? "")) return "female";
+  if (["other", "x", "unspecified"].includes(normalized ?? "")) return "other";
+  return null;
+}
+
+export function normalizeFranceTlsPhone(value: unknown): {
+  countryCode: string | null;
+  number: string | null;
+} {
+  const raw = optionalString(value);
+  if (!raw) return { countryCode: null, number: null };
+  const compact = raw.replace(/[\s().-]/g, "");
+  if (/^\+86\d{11}$/.test(compact)) {
+    return { countryCode: "+86", number: compact.slice(3) };
+  }
+  if (/^1\d{10}$/.test(compact)) {
+    return { countryCode: "+86", number: compact };
+  }
+  return { countryCode: null, number: null };
+}
+
+function answerRecord(rows: Array<Record<string, unknown>> | null): Record<string, unknown> {
+  const answers: Record<string, unknown> = {};
+  for (const row of rows ?? []) {
+    const name = optionalString(row.field_name);
+    if (!name) continue;
+    answers[name] = row.value_text ?? row.value_json ?? null;
+  }
+  return answers;
+}
+
+function firstAnswer(answers: Record<string, unknown>, names: string[]): string | null {
+  for (const name of names) {
+    const value = optionalString(answers[name]);
+    if (value) return value;
+  }
+  return null;
 }
 
 function dbAbortSignal(): AbortSignal {
@@ -181,7 +254,7 @@ async function loadRegistrationContext(
 ): Promise<FranceTlsStoredAccountContext> {
   const { data: application, error: applicationError } = await supabase
     .from("applications")
-    .select("id,applicant_id,country,applicant_profiles!inner(auth_user_id,inbox_alias)")
+    .select("id,applicant_id,country,arrival_date,departure_date,purpose,applicant_profiles!inner(auth_user_id,inbox_alias,surname_en,surname,given_names_en,given_names,date_of_birth,gender,passport_number,phone)")
     .eq("id", applicationId)
     .abortSignal(dbAbortSignal())
     .maybeSingle();
@@ -198,7 +271,11 @@ async function loadRegistrationContext(
     ? { alias: existingAlias, created: false }
     : await ensureApplicantInboxAlias(applicantId);
 
-  const [{ data: account, error: accountError }, { data: queueRow, error: queueError }] =
+  const [
+    { data: account, error: accountError },
+    { data: queueRow, error: queueError },
+    { data: answerRows, error: answersError },
+  ] =
     await Promise.all([
       supabase
         .from("appointment_accounts")
@@ -218,9 +295,15 @@ async function loadRegistrationContext(
         .limit(1)
         .abortSignal(dbAbortSignal())
         .maybeSingle(),
+      supabase
+        .from("visa_application_answers")
+        .select("field_name,value_text,value_json")
+        .eq("application_id", applicationId)
+        .abortSignal(dbAbortSignal()),
     ]);
   if (accountError) throw new Error(`TLS account lookup failed: ${accountError.message}`);
   if (queueError) throw new Error(`France official reference lookup failed: ${queueError.message}`);
+  if (answersError) throw new Error(`France appointment answer lookup failed: ${answersError.message}`);
   if (account?.account_email && account.account_email.toLowerCase() !== aliasResult.alias) {
     throw new Error("Existing TLS account alias does not match the applicant alias");
   }
@@ -248,6 +331,8 @@ async function loadRegistrationContext(
     .eq("scheduling_provider", TLS_PORTAL)
     .abortSignal(dbAbortSignal());
   if (linkError) throw new Error(`TLS appointment account link failed: ${linkError.message}`);
+  const answers = answerRecord(answerRows);
+  const phone = normalizeFranceTlsPhone(profile?.phone ?? answers.phone_number);
   return {
     applicationId,
     applicantId,
@@ -259,6 +344,38 @@ async function loadRegistrationContext(
     statusUpdatedAt: account?.updated_at ?? new Date().toISOString(),
     emailVerified: Boolean(account?.email_verified),
     officialReference: officialReferenceEncrypted ? decryptSecret(officialReferenceEncrypted) : null,
+    applicantProfile: {
+      surname: optionalString(profile?.surname_en) ?? optionalString(profile?.surname)
+        ?? firstAnswer(answers, ["surname", "family_name"]),
+      givenNames: optionalString(profile?.given_names_en) ?? optionalString(profile?.given_names)
+        ?? firstAnswer(answers, ["given_names", "first_names"]),
+      dateOfBirth: optionalString(profile?.date_of_birth) ?? firstAnswer(answers, ["date_of_birth"]),
+      gender: normalizeGender(profile?.gender ?? answers.sex),
+      passportNumber: optionalString(profile?.passport_number)
+        ?? firstAnswer(answers, ["travel_document_number", "passport_number"]),
+      phoneCountryCode: phone.countryCode,
+      phoneNumber: phone.number,
+      purposeOfJourney: firstAnswer(answers, ["purpose_of_journey", "fv_purpose"])
+        ?? optionalString(application.purpose),
+      departureFromOriginDate: firstAnswer(answers, [
+        "departure_from_origin_date",
+        "origin_departure_date",
+      ]),
+      arrivalInSchengenDate: firstAnswer(answers, ["intended_arrival_date", "arrival_date"])
+        ?? optionalString(application.arrival_date),
+      departureFromSchengenDate: firstAnswer(answers, ["intended_departure_date", "departure_date"])
+        ?? optionalString(application.departure_date),
+      visitsFrenchOverseasTerritories: normalizeYesNo(firstAnswer(answers, [
+        "visits_french_overseas_territories",
+        "french_overseas_territories",
+      ])),
+      previousSchengenFingerprints: normalizeYesNo(answers.prev_schengen_fingerprints_given),
+      schengenVisaWithinFiveYears: normalizeYesNo(firstAnswer(answers, [
+        "prior_schengen_visa_5y",
+        "schengen_visa_within_five_years",
+        "schengen_visa_last_five_years",
+      ])),
+    },
   };
 }
 
@@ -388,7 +505,9 @@ function artifactPath(name: string): string {
 
 async function maskedScreenshot(page: Page, name: string): Promise<string> {
   const output = artifactPath(name);
-  const mask = [page.locator("input[type='email'], input[type='password'], input[name*='reference' i]")];
+  const mask = [page.locator(
+    "input:not([type='checkbox']):not([type='radio']):not([type='submit']):not([type='button']), textarea, [contenteditable='true']",
+  )];
   await page.screenshot({ path: output, fullPage: true, mask, timeout: 30_000 });
   return output;
 }
@@ -702,12 +821,141 @@ async function enterSingleExistingTravelGroup(page: Page): Promise<"not_present"
   return "entered";
 }
 
+async function fillVisibleInput(page: Page, selector: string, value: string | null): Promise<boolean> {
+  if (!value) return false;
+  const input = page.locator(selector).first();
+  if (!await input.isVisible({ timeout: 3_000 }).catch(() => false)) return false;
+  await input.fill(value);
+  return await input.inputValue().then((current) => current.trim() === value).catch(() => false);
+}
+
+async function selectVisibleOptionByLabel(
+  page: Page,
+  label: RegExp,
+  optionLabel: string | null,
+): Promise<boolean> {
+  if (!optionLabel) return false;
+  const candidates = [
+    page.getByLabel(label).first(),
+    page.locator("select:visible").filter({ has: page.locator("option", { hasText: optionLabel }) }).first(),
+  ];
+  for (const candidate of candidates) {
+    if (!await candidate.isVisible({ timeout: 2_000 }).catch(() => false)) continue;
+    if (await candidate.selectOption({ label: optionLabel }).then(() => true).catch(() => false)) return true;
+  }
+  return false;
+}
+
+async function selectQuestionRadio(
+  page: Page,
+  question: RegExp,
+  answer: boolean | null,
+): Promise<boolean> {
+  if (answer === null) return false;
+  const questionText = page.getByText(question).first();
+  if (!await questionText.isVisible({ timeout: 3_000 }).catch(() => false)) return false;
+  const group = questionText.locator("xpath=ancestor::*[.//input[@type='radio']][1]");
+  const choice = group.getByRole("radio", { name: answer ? /^yes$/i : /^no$/i }).first();
+  if (!await choice.isVisible({ timeout: 2_000 }).catch(() => false)) return false;
+  await choice.check().catch(async () => choice.click());
+  return choice.isChecked().catch(() => false);
+}
+
+const PURPOSE_LABELS: Record<string, string> = {
+  tourism: "Tourism",
+  business: "Business",
+  visiting_family_friends: "Visiting family or friends",
+  cultural: "Cultural",
+  sports: "Sports",
+  official_visit: "Official visit",
+  medical: "Medical reasons",
+  study: "Study",
+  airport_transit: "Airport transit",
+  other: "Other",
+};
+
+async function fillApplicantProfileFields(
+  page: Page,
+  profile: FranceTlsApplicantProfile,
+): Promise<string[]> {
+  const missing: string[] = [];
+  const requireFilled = async (field: string, fill: () => Promise<boolean>) => {
+    if (!await fill()) missing.push(field);
+  };
+
+  await requireFilled("surname", () => fillVisibleInput(page, "input[name='f_pers_surnames']", profile.surname));
+  await requireFilled("given_names", () => fillVisibleInput(page, "input[name='f_pers_givennames']", profile.givenNames));
+  await requireFilled("date_of_birth", () => fillVisibleInput(page, "input[name='f_pers_birth_date']", profile.dateOfBirth));
+
+  if (!profile.gender) {
+    missing.push("sex");
+  } else {
+    const gender = page.getByRole("radio", {
+      name: new RegExp(`^${profile.gender === "male" ? "male" : profile.gender === "female" ? "female" : "other"}$`, "i"),
+    }).first();
+    const selected = await gender.isVisible({ timeout: 2_000 }).catch(() => false)
+      && await gender.check().then(() => true).catch(() => false);
+    if (!selected) missing.push("sex");
+  }
+
+  await requireFilled("passport_number", () => fillVisibleInput(page, "input[name='f_pass_num']", profile.passportNumber));
+  await requireFilled("phone_number", () => fillVisibleInput(
+    page,
+    "input[placeholder*='mobile number' i]",
+    profile.phoneCountryCode === "+86" ? profile.phoneNumber : null,
+  ));
+
+  const purposeLabel = profile.purposeOfJourney
+    ? PURPOSE_LABELS[profile.purposeOfJourney.toLowerCase()] ?? null
+    : null;
+  await requireFilled("purpose_of_journey", () => selectVisibleOptionByLabel(
+    page,
+    /reason for your travel/i,
+    purposeLabel,
+  ));
+  await requireFilled("departure_from_origin_date", () => fillVisibleInput(
+    page,
+    "input[name='fi_trav_origin_departure_date']",
+    profile.departureFromOriginDate,
+  ));
+  await requireFilled("intended_arrival_date", () => fillVisibleInput(
+    page,
+    "input[name='f_trav_arrival_date']",
+    profile.arrivalInSchengenDate,
+  ));
+  await requireFilled("intended_departure_date", () => fillVisibleInput(
+    page,
+    "input[name='f_trav_departure_date']",
+    profile.departureFromSchengenDate,
+  ));
+
+  await requireFilled("visits_french_overseas_territories", () => selectQuestionRadio(
+    page,
+    /going to french overseas territories/i,
+    profile.visitsFrenchOverseasTerritories,
+  ));
+  await requireFilled("prev_schengen_fingerprints_given", () => selectQuestionRadio(
+    page,
+    /fingerprints collected previously/i,
+    profile.previousSchengenFingerprints,
+  ));
+  await requireFilled("schengen_visa_within_five_years", () => selectQuestionRadio(
+    page,
+    /obtain a schengen visa over the last 5 years/i,
+    profile.schengenVisaWithinFiveYears,
+  ));
+  return missing;
+}
+
 async function fillOfficialReference(
   page: Page,
   context: FranceTlsStoredAccountContext,
   centerPath?: string,
 ): Promise<string[]> {
   if (!context.officialReference) throw new Error("France-Visas official reference is missing");
+  if (centerPath && /^https:\/\/visas-fr\.tlscontact\.com\/en-us\/?(?:[?#].*)?$/i.test(page.url())) {
+    await navigateToCenter(page, centerPath);
+  }
   const travelGroupEntry = await enterSingleExistingTravelGroup(page);
   if (travelGroupEntry === "ambiguous") return ["travel_group_selection"];
   if (travelGroupEntry === "entered" && centerPath && /^https:\/\/visas-fr\.tlscontact\.com\/en-us\/?(?:[?#].*)?$/i.test(page.url())) {
@@ -724,6 +972,30 @@ async function fillOfficialReference(
   if (!["ready", "captcha_token"].includes(officialState.checkpoint)) {
     return [`official_checkpoint_${officialState.checkpoint}`];
   }
+  if (/\/workflow\/applicants-information/i.test(page.url())) {
+    const applicantContentReady = await page.waitForFunction(`(() => {
+      const text = document.body?.innerText.replace(/\\s+/g, " ") ?? "";
+      return /add a new applicant|you have not yet added an applicant|first name|last name|passport|date of birth|france.?visas.{0,30}(?:reference|number)/i.test(text);
+    })()`, undefined, { timeout: 30_000 }).then(() => true).catch(() => false);
+    if (!applicantContentReady) return ["applicant_information_loading"];
+  }
+  const addApplicantTextVisible = await page.getByText(/add a new applicant/i).first()
+    .isVisible({ timeout: 3_000 }).catch(() => false);
+  let openedApplicantForm = false;
+  if (addApplicantTextVisible) {
+    openedApplicantForm = await clickFirstVisible([
+      page.getByRole("button", { name: /add a new applicant/i }),
+      page.getByRole("link", { name: /add a new applicant/i }),
+      page.locator("button, a, [role='button']").filter({ hasText: /add a new applicant/i }),
+    ]);
+    if (!openedApplicantForm) return ["add_applicant_control"];
+    await settle(page);
+    const applicantFormReady = await page.waitForFunction(`(() => {
+      const text = document.body?.innerText.replace(/\\s+/g, " ") ?? "";
+      return /first name|last name|passport|date of birth|france.?visas.{0,30}(?:reference|number)/i.test(text);
+    })()`, undefined, { timeout: 30_000 }).then(() => true).catch(() => false);
+    if (!applicantFormReady) return ["applicant_form_loading"];
+  }
   const candidates = page.locator(
     "input[name*='reference' i], input[id*='reference' i], input[placeholder*='reference' i]",
   );
@@ -737,6 +1009,9 @@ async function fillOfficialReference(
     return missing;
   }
   await candidates.first().fill(context.officialReference);
+  const referenceRetained = await candidates.first().isVisible().catch(() => false)
+    && await candidates.first().inputValue().then((value) => value.trim() === context.officialReference).catch(() => false);
+  if (!referenceRetained) return ["official_reference_not_retained"];
   const inputAfterFill = await readFranceTlsBrowserState(page);
   const stateAfterFill = classifyFranceTlsBrowserState(inputAfterFill);
   if (stateAfterFill.checkpoint !== "ready" && isFranceTlsCaptchaBlocking(inputAfterFill, stateAfterFill)) {
@@ -744,6 +1019,34 @@ async function fillOfficialReference(
   }
   if (!["ready", "captcha_token"].includes(stateAfterFill.checkpoint)) {
     return [`official_checkpoint_${stateAfterFill.checkpoint}`];
+  }
+  const applicantFormVisible = openedApplicantForm
+    || /\/workflow\/applicants-information\/bio\//i.test(page.url())
+    || await page.locator("input[name='f_pers_surnames']").first().isVisible({ timeout: 2_000 }).catch(() => false);
+  if (applicantFormVisible) {
+    const profileMissing = await fillApplicantProfileFields(page, context.applicantProfile);
+    if (profileMissing.length) return ["applicant_profile_fields", ...profileMissing];
+    const remainingFields = await page.locator("input:visible, select:visible, textarea:visible").evaluateAll(
+      (elements) => elements.map((element) => {
+        const input = element as HTMLInputElement;
+        const descriptor = input.name
+          || input.id
+          || input.getAttribute("aria-label")
+          || input.getAttribute("placeholder")
+          || input.type
+          || element.tagName.toLowerCase();
+        return {
+          descriptor,
+          value: input.value?.trim() ?? "",
+          type: input.type ?? element.tagName.toLowerCase(),
+        };
+      }).filter((field) => field.descriptor && !field.value && !["hidden", "submit", "button"].includes(field.type))
+        .map((field) => field.descriptor)
+        .slice(0, 40),
+    ).catch(() => [] as string[]);
+    return remainingFields.length
+      ? ["applicant_profile_fields", ...remainingFields]
+      : ["applicant_profile_review_required"];
   }
   await updateAccountStatus(context, "appointment_reference_filled", true);
   return [];
@@ -848,6 +1151,8 @@ export async function registerAndPrepareFranceTlsAccount(
         const officialCheckpoint = visibleUnmappedFields.find((field) =>
           field.startsWith("official_checkpoint_"),
         );
+        const applicantReviewRequired = visibleUnmappedFields[0] === "applicant_profile_fields"
+          || visibleUnmappedFields[0] === "applicant_profile_review_required";
         await updateAccountStatus(context, "manual_required", true);
         return {
           status: "manual_required",
@@ -860,10 +1165,14 @@ export async function registerAndPrepareFranceTlsAccount(
           checkpoint: {
             type: officialCheckpoint
               ? officialCheckpoint.replace(/^official_checkpoint_/, "")
-              : "official_field_mapping_required",
+              : applicantReviewRequired
+                ? "applicant_profile_review_required"
+                : "official_field_mapping_required",
             message: officialCheckpoint
               ? "TLScontact login succeeded, but the official site returned a blocking page before the France-Visas reference could be verified."
-              : "TLScontact login succeeded, but the France-Visas reference field was not visible.",
+              : applicantReviewRequired
+                ? "TLScontact opened the applicant form and retained the France-Visas reference. Review or supply the remaining applicant fields before any official save action."
+                : "TLScontact login succeeded, but the France-Visas reference field was not visible.",
             missingFields: visibleUnmappedFields,
           },
           stopPoint: "Stopped before submitting any appointment profile, selecting a slot, payment, or booking.",

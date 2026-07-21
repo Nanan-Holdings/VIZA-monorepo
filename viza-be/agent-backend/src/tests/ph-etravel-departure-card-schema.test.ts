@@ -26,7 +26,7 @@ describe("Philippines eTravel Departure Card schema seed", () => {
     const names = new Set(PH_ETRAVEL_DEPARTURE_FORM_FIELDS.map((field) => field.field_name));
     for (const name of [
       "passport_holder_type", "departure_airport", "departure_seaport", "airline_name", "flight_number",
-      "vessel_name", "destination_country", "destination_port", "flight_departure_date", "flight_arrival_date",
+      "vessel_name", "destination_country", "destination_port", "destination_address", "flight_departure_date", "flight_arrival_date",
       "return_date", "travel_tax_payment_type", "travel_tax_reference_number", "travel_tax_ticket_number",
       "cfo_registration_number", "has_goods_to_declare", "has_currency_to_declare", "currency_type",
       "currency_amount", "currency_source", "bsp_authorization_number", "bsp_authorization_date",
