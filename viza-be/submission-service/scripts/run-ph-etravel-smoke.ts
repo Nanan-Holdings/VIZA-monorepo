@@ -37,6 +37,7 @@ type ParsedArgs = {
   travelType: "arrival" | "departure";
   transport: "air" | "sea";
   passportHolder: "filipino" | "foreigner";
+  recoverQr: boolean;
 };
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -80,6 +81,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     travelType: getArg("travel-type")?.toLowerCase() === "departure" ? "departure" : "arrival",
     transport: getArg("transport")?.toLowerCase() === "sea" ? "sea" : "air",
     passportHolder: getArg("passport-holder")?.toLowerCase() === "filipino" ? "filipino" : "foreigner",
+    recoverQr: hasArg("recover-qr"),
   };
 }
 
@@ -194,12 +196,15 @@ function isConfiguredImapPlusAlias(email: string): boolean {
 async function loadApplicationForPhPayload(applicationId: string): Promise<{
   applicationPayload: PhEtravelPortalPayload;
   applicantId: string;
+  authUserId: string;
+  referenceNumber?: string;
+  currentResult?: Record<string, unknown> | null;
   profilePhotoPath?: string;
 }> {
   const appRes = await supabase
     .from("applications")
     .select(
-      "id, applicant_id, country, visa_type, purpose, arrival_date, departure_date, accommodation_name, accommodation_address, port_of_entry, visa_package_id",
+      "id, applicant_id, country, visa_type, purpose, arrival_date, departure_date, accommodation_name, accommodation_address, port_of_entry, visa_package_id, confirmation_number, submission_result",
     )
     .eq("id", applicationId)
     .single();
@@ -219,6 +224,8 @@ async function loadApplicationForPhPayload(applicationId: string): Promise<{
     accommodation_address: string | null;
     port_of_entry: string | null;
     visa_package_id: string | null;
+    confirmation_number: string | null;
+    submission_result: Record<string, unknown> | null;
   };
 
   if (application.country.toLowerCase() !== "philippines" || application.visa_type !== "PH_ETRAVEL_ARRIVAL_CARD") {
@@ -286,8 +293,62 @@ async function loadApplicationForPhPayload(applicationId: string): Promise<{
   return {
     applicationPayload: payload,
     applicantId: application.applicant_id,
+    authUserId: profile.auth_user_id,
+    referenceNumber: application.confirmation_number ??
+      (typeof application.submission_result?.referenceNumber === "string"
+        ? application.submission_result.referenceNumber
+        : undefined),
+    currentResult: application.submission_result,
     profilePhotoPath: await downloadReusableApplicantPhoto(application.applicant_id),
   };
+}
+
+async function persistRecoveredQr(input: {
+  applicationId: string;
+  authUserId: string;
+  currentResult: Record<string, unknown> | null;
+  qrCodes: string[];
+  screenshots: string[];
+}): Promise<void> {
+  const timestamp = Date.now();
+  const upload = async (localPath: string, kind: "qr" | "confirmation"): Promise<string> => {
+    const storagePath = `${input.authUserId}/${input.applicationId}/PH/phetravel-${kind}-${timestamp}.png`;
+    const bytes = await fs.readFile(localPath);
+    const result = await supabase.storage.from("submission-artifacts").upload(storagePath, bytes, {
+      contentType: "image/png",
+      upsert: false,
+    });
+    if (result.error) throw new Error(`Failed to store recovered ${kind} artifact: ${result.error.message}`);
+    return storagePath;
+  };
+
+  const qrStoragePaths: string[] = [];
+  for (const qrCode of input.qrCodes) qrStoragePaths.push(await upload(qrCode, "qr"));
+  const cleanedScreenshot = input.screenshots.at(-1);
+  const screenshotStoragePath = cleanedScreenshot ? await upload(cleanedScreenshot, "confirmation") : null;
+  const existingArtifacts = input.currentResult?.artifacts && typeof input.currentResult.artifacts === "object"
+    ? input.currentResult.artifacts as Record<string, unknown>
+    : {};
+  const existingScreenshots = Array.isArray(existingArtifacts.screenshots)
+    ? existingArtifacts.screenshots.filter((value): value is string => typeof value === "string")
+    : [];
+  const updatedResult = {
+    ...input.currentResult,
+    portalResponseSummary: "Philippines eTravel official QR was recovered from the existing Travel History record.",
+    artifacts: {
+      ...existingArtifacts,
+      qrCodes: qrStoragePaths,
+      screenshots: screenshotStoragePath ? [...existingScreenshots, screenshotStoragePath] : existingScreenshots,
+    },
+  };
+  const update = await supabase.from("applications").update({
+    submission_result: updatedResult,
+    submission_result_status: "completed",
+    submission_result_updated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", input.applicationId);
+  if (update.error) throw new Error(`Failed to attach recovered QR to application: ${update.error.message}`);
+  console.log(JSON.stringify({ recoveredQrStored: true, qrArtifactCount: qrStoragePaths.length }));
 }
 
 async function downloadReusableApplicantPhoto(applicantId: string): Promise<string | undefined> {
@@ -481,11 +542,13 @@ async function main(): Promise<void> {
   }
 
   let payload = DEFAULT_PAYLOAD;
+  let loadedApplication: Awaited<ReturnType<typeof loadApplicationForPhPayload>> | null = null;
   let profilePhotoPath = args.profilePhotoPath ? resolve(args.profilePhotoPath) : undefined;
   if (args.payloadFile) {
     payload = await loadPayloadFromFile(args.payloadFile);
   } else if (args.applicationId) {
     const loaded = await loadApplicationForPhPayload(args.applicationId);
+    loadedApplication = loaded;
     payload = loaded.applicationPayload;
     args.applicantId = args.applicantId ?? loaded.applicantId;
     profilePhotoPath = loaded.profilePhotoPath;
@@ -551,6 +614,10 @@ async function main(): Promise<void> {
         mailboxEmail: args.mailboxEmail,
       });
 
+  if (args.recoverQr) {
+    context.forceAccountRegistration = false;
+  }
+
   if (args.useImapMailbox && useApplicantId && context.forceAccountRegistration) {
     await upsertPhEtravelAccount({
       applicantId: useApplicantId,
@@ -582,7 +649,23 @@ async function main(): Promise<void> {
         forceAccountRegistration: context.forceAccountRegistration,
         mailbox,
         forceLocalBrowser: args.forceLocalBrowser,
+        recoverReferenceNumber: args.recoverQr ? loadedApplication?.referenceNumber : undefined,
       });
+      if (args.recoverQr) {
+        if (!args.applicationId || !loadedApplication?.referenceNumber) {
+          throw new Error("--recover-qr requires an application with an official reference number.");
+        }
+        if (result.qrCodes.length === 0) {
+          throw new Error("Official QR recovery completed without a QR artifact.");
+        }
+        await persistRecoveredQr({
+          applicationId: args.applicationId,
+          authUserId: loadedApplication.authUserId,
+          currentResult: loadedApplication.currentResult ?? null,
+          qrCodes: result.qrCodes,
+          screenshots: result.screenshots,
+        });
+      }
       console.log(JSON.stringify(result, null, 2));
       return;
     } catch (error) {
