@@ -98,9 +98,10 @@ describe("FailureCard", () => {
     render(
       <FailureCard
         applicationId="app-id"
-        errorMessage="The Indonesia official payment gateway returned a failed payment result."
+        errorMessage="印尼云端付款会话暂时不可用，请稍后重试。"
         retryModes={[{ mode: "live_assisted", label: "提交" }]}
         onRetry={onRetry}
+        requiresIndonesiaPaymentCard
       />,
     );
 
@@ -149,7 +150,12 @@ describe("FailureCard", () => {
     rejectRetry?.(new Error("越南云端付款会话暂时不可用，请稍后重试。"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("越南云端付款会话暂时不可用");
-    expect(screen.getByRole("button", { name: /提交/u })).toBeEnabled();
+    await waitFor(() => {
+      expect(screen.getByLabelText("银行卡号")).toHaveValue("");
+      expect(screen.getByLabelText("有效期")).toHaveValue("");
+      expect(screen.getByLabelText("CVV")).toHaveValue("");
+      expect(screen.getByRole("button", { name: /提交/u })).toBeDisabled();
+    });
   });
 });
 

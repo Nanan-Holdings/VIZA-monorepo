@@ -307,4 +307,98 @@ describe("cloud submission retry routing", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("lets a new Indonesia payment retry outrank the previous durable failure", async () => {
+    const previousResult = {
+      country: "ID",
+      status: "stopped_at_pay",
+      portalUrl: "https://evisa.imigrasi.go.id/",
+    } as const;
+    const previousError = "The Indonesia official payment gateway returned a failed payment result.";
+    let retryQueued = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
+        retryQueued = true;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            queueId: "new-indonesia-queue",
+            queueStatus: "pending",
+            provider: "indonesia_evisa_live",
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => retryQueued
+          ? {
+              status: "running",
+              stage: "bank_authentication_processing",
+              progress: 72,
+              result: null,
+              error: null,
+              message: "Waiting for bank authentication.",
+              updatedAt: new Date().toISOString(),
+              applicationStatus: "waiting",
+              country: "ID",
+              visaType: "ID_B1_EVOA",
+              queue: {
+                id: "new-indonesia-queue",
+                status: "id_b1_evoa_payment_processing",
+                mode: "live_assisted",
+                provider: "indonesia_evisa_live",
+              },
+            }
+          : {
+              status: "failed",
+              stage: "failed",
+              progress: 59,
+              result: previousResult,
+              error: previousError,
+              message: previousError,
+              updatedAt: new Date().toISOString(),
+              applicationStatus: "failed",
+              country: "ID",
+              visaType: "ID_B1_EVOA",
+              queue: {
+                id: "old-indonesia-queue",
+                status: "failed",
+                mode: "live_assisted",
+                provider: "indonesia_evisa_live",
+              },
+            },
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="indonesia"
+        visaType="ID_B1_EVOA"
+        status="failed"
+        result={previousResult}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
+      target: { value: "REAL CARDHOLDER" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/application-id/official-fee/pay",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(screen.queryByText("提交没有完成")).not.toBeInTheDocument();
+      expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
+    });
+  });
 });

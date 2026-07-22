@@ -557,6 +557,17 @@ export function deriveNonTerminalStatus(
   const currentStage = normalizeStatus(queue?.current_stage);
   const error = queueMessage;
 
+  if (currentStage === "bank_authentication_waiting") {
+    return {
+      status: "running",
+      stage: "payment_handoff",
+      progress: 94,
+      message:
+        "Approve the payment in your SC Mobile Banking App now. The cloud browser is keeping the 3DS session open and will continue automatically.",
+      error: null,
+    };
+  }
+
   if (isVietnamPaymentCheckpointQueue(queue)) {
     return {
       status: "needs_user_action",

@@ -44,6 +44,13 @@ const OFFICIAL_APPLICATION_FORM_PATTERN =
   /\b(viet nam e-visa application form|foreigner's images|personal information|requested information|passport information|identity card)\b/i;
 const PAYMENT_CONTEXT_PATTERN =
   /\b(payment gateway|transaction|payment amount|card number|credit card|debit card|cvv|cvc|expiry|expiration|pay now|submit payment|thanh toán)\b/i;
+const STANDARD_CHARTERED_BANK_APP_PATTERN =
+  /(?:sc mobile banking app|sc mobile app).*(?:approve this transaction|authenticate payment)|click here to complete your purchase/i;
+const BANK_APP_CHALLENGE_FAILURE_PATTERN =
+  /(?:authentication|transaction|payment).{0,30}(?:expired|timed out|failed|declined|cancelled)|(?:expired|timed out|failed|declined|cancelled).{0,30}(?:authentication|transaction|payment)/i;
+const DEFAULT_BANK_APP_WAIT_MS = 115_000;
+const MIN_BANK_APP_WAIT_MS = 10_000;
+const MAX_BANK_APP_WAIT_MS = 180_000;
 
 function envEnabled(value: string | undefined): boolean {
   return /^(1|true|yes|on)$/i.test((value ?? "").trim());
@@ -131,6 +138,16 @@ export function extractVietnamPaymentReceiptReference(text: string): string | nu
 
 export function vietnamPaymentNeedsHuman(text: string): boolean {
   return PAYMENT_CHALLENGE_PATTERN.test(text);
+}
+
+export function isStandardCharteredBankAppChallenge(text: string): boolean {
+  return STANDARD_CHARTERED_BANK_APP_PATTERN.test(text);
+}
+
+export function getVietnamBankAppWaitMs(env: EnvLike = process.env): number {
+  const configured = Number(env.VN_BANK_APP_3DS_WAIT_MS ?? DEFAULT_BANK_APP_WAIT_MS);
+  if (!Number.isFinite(configured)) return DEFAULT_BANK_APP_WAIT_MS;
+  return Math.max(MIN_BANK_APP_WAIT_MS, Math.min(MAX_BANK_APP_WAIT_MS, Math.round(configured)));
 }
 
 function isLikelyPaymentGateway(pageUrl: string, bodyText: string): boolean {
@@ -510,6 +527,64 @@ async function waitForVnpayPaymentSettlement(page: Page, timeoutMs = 300_000): P
     .catch(() => undefined);
 }
 
+async function readAllPaymentFrameText(page: Page): Promise<string> {
+  const chunks: string[] = [];
+  for (const frame of page.frames()) {
+    const text = await frame.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+    if (text.trim()) chunks.push(text);
+  }
+  return chunks.join("\n");
+}
+
+async function findStandardCharteredBankAppFrame(page: Page) {
+  for (const frame of page.frames()) {
+    const button = frame.locator("#OOBValidateButton").first();
+    const hasButton = (await button.count().catch(() => 0)) > 0;
+    const bodyText = await frame.locator("body").innerText({ timeout: 1_000 }).catch(() => "");
+    if (hasButton || isStandardCharteredBankAppChallenge(bodyText)) {
+      return { frame, button, bodyText };
+    }
+  }
+  return null;
+}
+
+export type BankAppChallengeResult = "not_present" | "settled" | "failed" | "timed_out";
+
+export async function waitForStandardCharteredBankAppChallenge(input: {
+  page: Page;
+  timeoutMs: number;
+  onBankAuthenticationRequired?: () => void | Promise<void>;
+}): Promise<BankAppChallengeResult> {
+  const initial = await findStandardCharteredBankAppFrame(input.page);
+  if (!initial) return "not_present";
+
+  await input.onBankAuthenticationRequired?.();
+
+  // The issuer page also polls automatically every five seconds. Submit the
+  // visible completion control once so its supported LINK_CLICK path is armed;
+  // if approval is still pending the issuer keeps polling without losing the
+  // challenge session.
+  if (await initial.button.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await initial.button
+      .evaluate((element) => (element as HTMLButtonElement).click(), undefined, { timeout: 5_000 })
+      .catch(async () => {
+        await initial.button.click({ timeout: 5_000 }).catch(() => undefined);
+      });
+  }
+
+  const deadline = Date.now() + input.timeoutMs;
+  while (Date.now() < deadline && !input.page.isClosed()) {
+    const challenge = await findStandardCharteredBankAppFrame(input.page);
+    if (!challenge) {
+      await input.page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+      return "settled";
+    }
+    if (BANK_APP_CHALLENGE_FAILURE_PATTERN.test(challenge.bodyText)) return "failed";
+    await input.page.waitForTimeout(1_000);
+  }
+  return "timed_out";
+}
+
 async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCard): Promise<void> {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   if (!/vietcombank|vnpay|select payment method|international payment cards/i.test(bodyText)) return;
@@ -596,6 +671,7 @@ async function prepareVietcombankGatewayForCard(page: Page, card: VietnamFixedCa
 export async function payVietnamPortalWithFixedCard(input: {
   page: Page;
   card: VietnamFixedCard;
+  onBankAuthenticationRequired?: () => void | Promise<void>;
 }): Promise<VietnamFixedCardPaymentResult> {
   const { page, card } = input;
   const redactedCard = redactVietnamFixedCard(card);
@@ -744,7 +820,27 @@ export async function payVietnamPortalWithFixedCard(input: {
   await waitForVnpayPaymentSettlement(page);
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-  const afterText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  const bankAppChallenge = await waitForStandardCharteredBankAppChallenge({
+    page,
+    timeoutMs: getVietnamBankAppWaitMs(),
+    onBankAuthenticationRequired: input.onBankAuthenticationRequired,
+  });
+  if (bankAppChallenge === "failed" || bankAppChallenge === "timed_out") {
+    return {
+      status: "needs_human",
+      receiptReference: null,
+      reason: bankAppChallenge === "timed_out"
+        ? "Bank-app 3DS approval was not completed before the issuer challenge expired."
+        : "The issuer reported that bank-app 3DS authentication failed or expired.",
+      redactedCard,
+    };
+  }
+  if (bankAppChallenge === "settled") {
+    await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+  }
+
+  const afterText = await readAllPaymentFrameText(page);
   if (
     vietnamPaymentNeedsHuman(afterText) ||
     /(?:3ds|auth-notify|secure-devicefp|id-check|authentication)/i.test(page.url()) ||

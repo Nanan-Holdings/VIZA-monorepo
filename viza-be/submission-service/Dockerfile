@@ -48,6 +48,11 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 
+# Vietnam and other live runners write only redacted diagnostic artifacts here.
+# The runtime drops privileges to pwuser, so create the directory with the
+# matching owner instead of relying on Docker's root-owned WORKDIR.
+RUN install -d -o pwuser -g pwuser /app/diag-out
+
 # Default user: keep playwright's pre-baked `pwuser` so chromium can sandbox.
 USER pwuser
 

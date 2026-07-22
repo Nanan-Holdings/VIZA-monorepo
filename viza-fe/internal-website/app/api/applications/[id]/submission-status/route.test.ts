@@ -166,6 +166,46 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.message).toBe("Current stage: official_fee_payment_processing.");
     expect(status.error).toBeNull();
   });
+
+  it("keeps the Vietnam cloud job running while SC Mobile 3DS approval is pending", () => {
+    const now = new Date().toISOString();
+
+    const status = deriveNonTerminalStatus(
+      {
+        id: "app_vn_3ds",
+        applicant_id: "profile_vn_3ds",
+        country: "VN",
+        visa_type: "evisa_tourism",
+        submitted_at: now,
+        submission_result: null,
+        submission_result_status: "processing",
+        submission_result_updated_at: now,
+        updated_at: now,
+      },
+      {
+        id: "queue_vn_3ds",
+        status: "processing",
+        attempts: 0,
+        mode: "live_assisted",
+        provider: "vietnam_evisa_live",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "bank_authentication_waiting",
+        heartbeat_at: now,
+        manual_action_status: null,
+        official_status: null,
+        created_at: now,
+        updated_at: now,
+      },
+    );
+
+    expect(status.status).toBe("running");
+    expect(status.stage).toBe("payment_handoff");
+    expect(status.progress).toBe(94);
+    expect(status.message).toContain("SC Mobile Banking App");
+    expect(status.error).toBeNull();
+  });
 });
 
 describe("selectQueueForSubmissionStatus", () => {

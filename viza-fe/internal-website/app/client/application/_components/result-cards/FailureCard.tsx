@@ -21,6 +21,7 @@ interface FailureCardProps {
   showFranceAccount?: boolean;
   requiresOfficialPaymentCard?: boolean;
   requiresVietnamPaymentCard?: boolean;
+  requiresIndonesiaPaymentCard?: boolean;
 }
 
 export interface VietnamOneTimePaymentCard {
@@ -169,6 +170,7 @@ export function FailureCard({
   showFranceAccount = false,
   requiresOfficialPaymentCard = false,
   requiresVietnamPaymentCard = false,
+  requiresIndonesiaPaymentCard = false,
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
@@ -184,7 +186,9 @@ export function FailureCard({
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
-  const indonesiaPaymentFailure = /(?:indonesia.{0,80}payment|payment.{0,80}indonesia)/i.test(errorMessage ?? "");
+  const indonesiaPaymentFailure =
+    requiresIndonesiaPaymentCard ||
+    /(?:indonesia.{0,80}payment|payment.{0,80}indonesia)/i.test(errorMessage ?? "");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
@@ -254,6 +258,12 @@ export function FailureCard({
             : "The submission job could not be started. Please try again.",
       );
     } finally {
+      if (requiresPaymentCard) {
+        setCardNumber("");
+        setCardExpiry("");
+        setCardCvv("");
+        setCardHolderName("");
+      }
       setRetryingMode(null);
     }
   };
