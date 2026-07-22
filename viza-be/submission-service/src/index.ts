@@ -6677,7 +6677,13 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       portalUrl: portalResult.portalUrl,
       portalResponseSummary: portalResult.portalResponseSummary,
       confirmationPdfStoragePath: pdfArtifacts[0] ?? null,
-      artifacts: { screenshots: screenshotArtifacts, pdfs: pdfArtifacts, logs: portalResult.logs, traces: [] },
+      artifacts: {
+        screenshots: screenshotArtifacts,
+        qrCodes: qrArtifacts,
+        pdfs: pdfArtifacts,
+        logs: portalResult.logs,
+        traces: [],
+      },
       payloadSummary,
     };
     await writeSubmissionResult(item.application_id, result, portalResult.submitted ? "completed" : "failed");
