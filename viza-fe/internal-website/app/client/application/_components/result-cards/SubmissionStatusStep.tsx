@@ -161,7 +161,11 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
       ? null
       : rawReferenceNumber;
   const storedPdfPath = result.confirmationPdfStoragePath ?? result.artifacts?.pdfs?.[0] ?? null;
-  const qrPath = result.country === "VN" ? getVietnamPrearrivalQrPath(result) : null;
+  const qrPath = result.artifacts?.qrCodes?.[0] ??
+    (result.country === "VN" ? getVietnamPrearrivalQrPath(result) : null);
+  const confirmationScreenshotPath = result.country === "PH"
+    ? result.artifacts?.screenshots?.at(-1) ?? null
+    : null;
   const vietnamFinalizing =
     result.country === "VN" &&
     result.submitted &&
@@ -196,6 +200,12 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
     : null;
   const qrUrl = qrPath
     ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(qrPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`)}`
+    : null;
+  const confirmationScreenshotUrl = confirmationScreenshotPath
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&inline=1&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
+    : null;
+  const confirmationScreenshotDownloadUrl = confirmationScreenshotPath
+    ? `/api/applications/${encodeURIComponent(result.applicationId)}/submission-artifact?path=${encodeURIComponent(confirmationScreenshotPath)}&download=${encodeURIComponent(`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-confirmation.png`)}`
     : null;
 
   const downloadPdf = useCallback(async () => {
@@ -289,7 +299,15 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               >
                 <img
                   src={qrUrl}
-                  alt={isZh ? "越南入境前申报官方二维码" : "Vietnam Pre-Arrival official QR code"}
+                  alt={
+                    result.country === "VN"
+                      ? isZh
+                        ? "越南入境前申报官方二维码"
+                        : "Vietnam Pre-Arrival official QR code"
+                      : isZh
+                        ? `${countryLabel} 官方二维码`
+                        : `${countryLabel} official QR code`
+                  }
                   className="h-36 w-36 object-contain"
                 />
               </a>
@@ -303,7 +321,11 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
         ) : null}
         <p className="text-sm text-muted-foreground">
           {successful
-            ? result.portalResponseSummary
+            ? result.country === "PH"
+              ? isZh
+                ? "菲律宾 eTravel 官网已确认提交。请保存下方官方确认页截图；如果本次记录包含独立 QR，二维码会优先显示在参考号旁。"
+                : "The Philippines eTravel portal confirmed the submission. Save the official confirmation screenshot below; when a standalone QR is available, it appears beside the reference number."
+              : result.portalResponseSummary
             : vietnamFinalizing
               ? isZh
                 ? "官网已接收申报并完成邮箱验证。系统会持续检查最终二维码；请勿重复提交，二维码返回后本页面会自动显示成功和下载按钮。"
@@ -312,6 +334,33 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               ? result.portalResponseSummary
             : result.errorDetails?.message || result.portalResponseSummary}
         </p>
+        {successful && confirmationScreenshotUrl ? (
+          <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {isZh ? "菲律宾 eTravel 官网确认页" : "Philippines eTravel official confirmation"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {isZh
+                  ? "这是提交时保存的官网原始凭证截图，可能包含二维码、参考号和入境提示。点击图片可查看原图。"
+                  : "This is the original official-portal evidence saved at submission and may contain the QR, reference number, and entry instructions. Select the image to view it at full size."}
+              </p>
+            </div>
+            <a
+              href={confirmationScreenshotUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={isZh ? "查看菲律宾 eTravel 官网确认页原图" : "View the Philippines eTravel confirmation image"}
+              className="block overflow-hidden rounded-md border bg-white"
+            >
+              <img
+                src={confirmationScreenshotUrl}
+                alt={isZh ? "菲律宾 eTravel 官网确认页截图" : "Philippines eTravel official confirmation screenshot"}
+                className="max-h-[34rem] w-full object-contain"
+              />
+            </a>
+          </div>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           {pdfUrl ? (
             <Button type="button" onClick={downloadPdf} disabled={downloadingPdf}>
@@ -324,6 +373,14 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
               <a href={qrUrl} download={`${countryLabel.toLowerCase()}-${referenceNumber ?? result.applicationId}-qr.png`}>
                 <Download className="mr-2 h-4 w-4" />
                 {isZh ? "下载官方二维码" : "Download official QR code"}
+              </a>
+            </Button>
+          ) : null}
+          {successful && confirmationScreenshotDownloadUrl ? (
+            <Button asChild type="button" variant="outline">
+              <a href={confirmationScreenshotDownloadUrl}>
+                <Download className="mr-2 h-4 w-4" />
+                {isZh ? "下载官网确认截图" : "Download confirmation image"}
               </a>
             </Button>
           ) : null}
@@ -342,8 +399,12 @@ export function DigitalArrivalCardResultCard({ result }: { result: DigitalArriva
                 : "The Malaysia MDAC portal currently returns a submission confirmation but does not provide an official downloadable PDF."
               : result.country === "PH"
                 ? isZh
-                  ? "菲律宾 eTravel 通常返回 QR code / 参考号；当前没有可下载的官方 PDF。"
-                  : "The Philippines eTravel portal usually returns a QR code/reference; no official downloadable PDF is available for this submission."
+                  ? confirmationScreenshotUrl
+                    ? "菲律宾 eTravel 本次没有官方 PDF；官网确认页截图已在上方提供查看和下载。"
+                    : "菲律宾 eTravel 通常返回 QR code / 参考号；当前记录没有可下载的官方 PDF 或确认截图。"
+                  : confirmationScreenshotUrl
+                    ? "No official PDF was provided for this eTravel submission; the official confirmation image is available above."
+                    : "The Philippines eTravel portal usually returns a QR code/reference; this record has no downloadable PDF or confirmation image."
                 : result.country === "VN"
                   ? isZh
                     ? "越南入境前申报通常返回 QR code，并在官网提供 PDF 下载；当前这次提交没有可下载的 PDF artifact。"
