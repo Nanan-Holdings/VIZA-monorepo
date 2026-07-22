@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { chromium } from "@playwright/test";
 import {
   extractVietnamPaymentReceiptReference,
+  getVietnamBankAppWaitMs,
+  isStandardCharteredBankAppChallenge,
   loadVietnamFixedCardFromEnv,
   parseVietnamFixedCardInput,
   redactVietnamFixedCard,
+  waitForStandardCharteredBankAppChallenge,
   vietnamPaymentNeedsHuman,
 } from "../fixed-card-payment";
 
@@ -107,6 +111,55 @@ test("vn.fixed-card-payment: detects human-only payment challenges", () => {
   assert.equal(vietnamPaymentNeedsHuman("Please complete 3D Secure authentication"), true);
   assert.equal(vietnamPaymentNeedsHuman("Enter one-time password from your bank"), true);
   assert.equal(vietnamPaymentNeedsHuman("Payment amount 25 USD"), false);
+});
+
+test("vn.fixed-card-payment: detects Standard Chartered bank-app out-of-band challenge", () => {
+  assert.equal(
+    isStandardCharteredBankAppChallenge(
+      "Authenticate with your SC Mobile Banking App. Tap the push notification to approve this transaction.",
+    ),
+    true,
+  );
+  assert.equal(isStandardCharteredBankAppChallenge("Click here to complete your purchase"), true);
+  assert.equal(isStandardCharteredBankAppChallenge("Payment amount 25 USD"), false);
+});
+
+test("vn.fixed-card-payment: clamps bank-app wait timeout", () => {
+  assert.equal(getVietnamBankAppWaitMs({}), 115_000);
+  assert.equal(getVietnamBankAppWaitMs({ VN_BANK_APP_3DS_WAIT_MS: "120000" }), 120_000);
+  assert.equal(getVietnamBankAppWaitMs({ VN_BANK_APP_3DS_WAIT_MS: "1000" }), 10_000);
+  assert.equal(getVietnamBankAppWaitMs({ VN_BANK_APP_3DS_WAIT_MS: "999999" }), 180_000);
+  assert.equal(getVietnamBankAppWaitMs({ VN_BANK_APP_3DS_WAIT_MS: "invalid" }), 115_000);
+});
+
+test("vn.fixed-card-payment: keeps the issuer page alive and follows its completion control", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <form id="ValidateOutOfBandCredentialForm">
+        <p>Authenticate with your SC Mobile Banking App and approve this transaction.</p>
+        <button type="button" id="OOBValidateButton" onclick="window.completionClicked = true; this.closest('form').remove()">Click here to complete your purchase</button>
+      </form>
+    `);
+    await page.locator("#OOBValidateButton").waitFor();
+    let progressEmitted = false;
+
+    const result = await waitForStandardCharteredBankAppChallenge({
+      page,
+      timeoutMs: 10_000,
+      onBankAuthenticationRequired: () => {
+        progressEmitted = true;
+      },
+    });
+
+    assert.equal(result, "settled");
+    assert.equal(progressEmitted, true);
+    assert.equal(await page.evaluate(() => Boolean((window as typeof window & { completionClicked?: boolean }).completionClicked)), true);
+    assert.equal(await page.locator("#ValidateOutOfBandCredentialForm").count(), 0);
+  } finally {
+    await browser.close();
+  }
 });
 
 test("vn.fixed-card-payment: extracts receipt references", () => {

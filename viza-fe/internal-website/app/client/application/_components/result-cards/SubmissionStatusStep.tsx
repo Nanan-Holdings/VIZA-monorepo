@@ -691,7 +691,8 @@ function GenericResultCard({
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
   const indonesiaPaymentAction =
     isIndonesiaAction &&
-    (result.actionType === "official_fee_otp_required" ||
+    (result.actionType === "official_visa_selection_reached" ||
+      result.actionType === "official_fee_otp_required" ||
       result.actionType === "official_fee_payment_required" ||
       result.actionType === "official_fee_payment_failed");
   const indonesiaCardReady =
@@ -1002,7 +1003,9 @@ function GenericResultCard({
                   ? (isZh ? "提交" : "Submit")
                   : liveTarget === "indonesia"
                     ? indonesiaPaymentAction
-                      ? (isZh ? "重新自动付款" : "Restart automated payment")
+                      ? result.actionType === "official_visa_selection_reached"
+                        ? (isZh ? "继续并自动付款" : "Continue and pay automatically")
+                        : (isZh ? "重新自动付款" : "Restart automated payment")
                       : (isZh ? "继续自动申请" : "Continue automated application")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
             </Button>
@@ -1287,6 +1290,7 @@ export function SubmissionStatusStep({
   const [snapshot, setSnapshot] = useState<SubmissionStatusSnapshot | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
+  const [localRetryActive, setLocalRetryActive] = useState(false);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
@@ -1311,6 +1315,7 @@ export function SubmissionStatusStep({
               pan: vietnamPaymentCard.pan,
               expiry: vietnamPaymentCard.expiry,
               cvv: vietnamPaymentCard.cvv,
+              holderName: vietnamPaymentCard.holderName.trim(),
             },
           }),
         });
@@ -1326,6 +1331,7 @@ export function SubmissionStatusStep({
           throw new Error(message);
         }
         const now = new Date().toISOString();
+        setLocalRetryActive(true);
         setSnapshot({
           status: "queued",
           stage: "preparing",
@@ -1377,6 +1383,7 @@ export function SubmissionStatusStep({
         throw new Error(message);
       }
       const now = new Date().toISOString();
+      setLocalRetryActive(true);
       setSnapshot({
         status: "queued",
         stage: "preparing",
@@ -1413,10 +1420,15 @@ export function SubmissionStatusStep({
   // The application row is the durable source of truth. Realtime can deliver a
   // completed result after this component has already cached a running poll;
   // never let that older snapshot keep the UI at 99%.
-  const terminalPropsAvailable = hasDurableTerminalSubmissionResult({
+  const durableTerminalPropsAvailable = hasDurableTerminalSubmissionResult({
     submissionResultStatus: status,
     submissionResult: result,
   });
+  // A newly queued retry must temporarily outrank the previous durable failed
+  // result. Otherwise the old application props immediately replace the new
+  // queued snapshot and stop polling, which makes the Submit button appear to
+  // do nothing even though the retry request succeeded.
+  const terminalPropsAvailable = durableTerminalPropsAvailable && !localRetryActive;
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -1510,6 +1522,7 @@ export function SubmissionStatusStep({
   useEffect(() => {
     setSnapshot(null);
     setRetryError(null);
+    setLocalRetryActive(false);
   }, [applicationId, country, visaType]);
 
   useEffect(() => {
@@ -1690,6 +1703,7 @@ export function SubmissionStatusStep({
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
           requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
+          requiresIndonesiaPaymentCard={isIndonesiaSubmission}
         />
       </div>
     );
@@ -1709,6 +1723,7 @@ export function SubmissionStatusStep({
           onRetry={handleRetry}
           showFranceAccount={isFranceSubmission(country, visaType)}
           requiresOfficialPaymentCard={isVietnamSubmission || isIndonesiaSubmission}
+          requiresIndonesiaPaymentCard={isIndonesiaSubmission}
         />
       </div>
     );

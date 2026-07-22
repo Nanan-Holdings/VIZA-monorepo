@@ -262,7 +262,14 @@ async function fillVietnamApplicationOnce(
         headless,
         ...(options.browserChannel ? { channel: options.browserChannel } : {}),
       });
-      context = await browser.newContext({ acceptDownloads: false });
+      context = await browser.newContext({
+        acceptDownloads: false,
+        // The official captcha API currently serves a certificate chain that
+        // container Chromium cannot validate, even though the main e-Visa SPA
+        // is valid. Keep this opt-in and scoped to the Vietnam context so Fly
+        // can load the official captcha image instead of leaving a broken img.
+        ignoreHTTPSErrors: process.env.VN_IGNORE_HTTPS_ERRORS === "true",
+      });
       page = await context.newPage();
     }
     if (process.env.VN_PUBLIC_API_PROXY_ENABLED !== "false") {
@@ -556,7 +563,11 @@ async function fillVietnamApplicationOnce(
         : null;
       if (fixedCard) {
         await emitProgress("payment_handoff");
-        const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
+        const payment = await payVietnamPortalWithFixedCard({
+          page,
+          card: fixedCard,
+          onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
+        });
         if (payment.status === "paid" && payment.receiptReference) {
           return {
             status: "submitted_paid",
@@ -641,7 +652,11 @@ async function fillVietnamApplicationOnce(
         : null;
       if (fixedCard) {
         await emitProgress("payment_handoff");
-        const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
+        const payment = await payVietnamPortalWithFixedCard({
+          page,
+          card: fixedCard,
+          onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
+        });
         if (payment.status === "paid" && payment.receiptReference) {
           return {
             status: "submitted_paid",

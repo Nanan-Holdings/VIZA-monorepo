@@ -396,10 +396,10 @@ async function selectNativeOptionByText(
   await page.waitForFunction(
     ({ css, source, flags }) => {
       const re = new RegExp(source, flags);
-      const select = document.querySelector<HTMLSelectElement>(css);
-      if (!select) return false;
-      return Array.from(select.options).some((option) =>
-        re.test((option.textContent ?? "").replace(/\s+/g, " ").trim()),
+      return Array.from(document.querySelectorAll<HTMLSelectElement>(css)).some((select) =>
+        Array.from(select.options).some((option) =>
+          re.test((option.textContent ?? "").replace(/\s+/g, " ").trim()),
+        ),
       );
     },
     { css: selector, source: pattern.source, flags: pattern.flags },
@@ -409,12 +409,16 @@ async function selectNativeOptionByText(
   const selected = await page.evaluate(
     ({ css, source, flags }) => {
       const re = new RegExp(source, flags);
-      const select = document.querySelector<HTMLSelectElement>(css);
-      if (!select) return null;
-      const option = Array.from(select.options).find((candidate) =>
-        re.test((candidate.textContent ?? "").replace(/\s+/g, " ").trim()),
-      );
-      if (!option) return null;
+      const match = Array.from(document.querySelectorAll<HTMLSelectElement>(css))
+        .map((select) => ({
+          select,
+          option: Array.from(select.options).find((candidate) =>
+            re.test((candidate.textContent ?? "").replace(/\s+/g, " ").trim()),
+          ),
+        }))
+        .find((candidate) => candidate.option);
+      if (!match?.option) return null;
+      const { select, option } = match;
       select.value = option.value;
       select.dispatchEvent(new Event("change", { bubbles: true }));
       return {
@@ -1438,6 +1442,25 @@ async function continueFromVisaSelection(
   input: IndonesiaPortalProbeInput,
   diagnostics: string[],
 ): Promise<boolean> {
+  const captureApplicationControls = async (label: string) => {
+    const controls = await page.locator("a[href], button").evaluateAll((elements) =>
+      elements
+        .map((element) => {
+          const text = (element.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+          const href = element instanceof HTMLAnchorElement ? element.getAttribute("href") ?? "" : "";
+          let path = "";
+          try {
+            path = href ? new URL(href, window.location.href).pathname.slice(0, 120) : "";
+          } catch {
+            path = "";
+          }
+          return { tag: element.tagName.toLowerCase(), text, path };
+        })
+        .filter((control) => /apply|start|continue|detail|visa/i.test(`${control.text} ${control.path}`))
+        .slice(0, 12),
+    ).catch(() => []);
+    diagnostics.push(`${label} ${JSON.stringify(controls)}`.slice(0, 900));
+  };
   const passportCountry = normalizeCountryLabel(input.passportCountry);
   const countrySelected = await selectNativeOptionByText(page, "#selectCountry", new RegExp(`^${passportCountry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"))
     .then(() => true)
@@ -1462,7 +1485,7 @@ async function continueFromVisaSelection(
   if (!activitySelected) return false;
   const visaLabel = await selectNativeOptionByText(
     page,
-    "#selectVisa",
+    '#selectVisa, #selectVisaType, select[name*="visa" i], select[id*="visa" i]',
     visaPatternFor(input.provider, input.visaType),
   ).catch((error: unknown) => {
     diagnostics.push(`indonesia_visa_selection_visa_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
@@ -1471,18 +1494,40 @@ async function continueFromVisaSelection(
   if (!visaLabel) return false;
   diagnostics.push(`indonesia_visa_selection_completed visa=${visaLabel}`);
 
-  const applicationLink = page.locator('a.btn.btn-primary[href*="application_add"]').first();
+  const applicationLink = page.locator([
+    'a[href*="application_add"]',
+    'a[href*="application-add"]',
+    'a[href*="/application/add"]',
+    'a[href*="/applications/add"]',
+    'a[href*="/application_step/visa/"]',
+  ].join(", ")).first();
   const linkReady = await applicationLink.waitFor({ state: "attached", timeout: 20_000 })
     .then(() => true)
     .catch((error: unknown) => {
       diagnostics.push(`indonesia_visa_selection_application_link_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180));
       return false;
     });
-  if (!linkReady) return false;
+  if (!linkReady) {
+    await captureApplicationControls("indonesia_visa_selection_controls_before_fallback");
+    const applyControl = page
+      .getByRole("link", { name: /apply|start application|continue/i })
+      .or(page.getByRole("button", { name: /apply|start application|continue/i }))
+      .first();
+    if (!await applyControl.isVisible({ timeout: 3_000 }).catch(() => false)) return false;
+    await applyControl.click({ timeout: 10_000 });
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    diagnostics.push("indonesia_official_application_control_clicked");
+    await captureApplicationControls("indonesia_visa_selection_controls_after_fallback");
+    return /application|login|register/i.test(page.url());
+  }
   const href = await applicationLink.getAttribute("href");
   if (!href || href === "javascript:void(0);") {
-    diagnostics.push("indonesia_visa_selection_application_link_missing");
-    return false;
+    await applicationLink.click({ timeout: 10_000 });
+    await page.waitForLoadState("domcontentloaded", { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    diagnostics.push("indonesia_official_application_javascript_link_clicked");
+    return /application|login|register/i.test(page.url());
   }
   const applicationUrl = new URL(href, page.url()).toString();
   await page.goto(applicationUrl, {
