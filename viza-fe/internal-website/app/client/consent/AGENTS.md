@@ -5,8 +5,9 @@ Scope: this file applies to `viza-fe/internal-website/app/client/consent/**`.
 ## Purpose
 
 This module owns applicant consent capture and electronic signature for VIZA
-website automation. It records acceptance of ToS, Privacy Policy, and agency
-authorisation before application packet generation or external handoff.
+website automation. It records acceptance of ToS, Privacy Policy, agency
+authorisation, and applicant-alias email forwarding before application packet
+generation or external handoff.
 
 ## Key Responsibilities
 
@@ -17,6 +18,9 @@ authorisation before application packet generation or external handoff.
 - Keep consent reusable by application; do not assume one global lifetime
   consent covers every visa route.
 - Provide clear links to current ToS and Privacy pages.
+- Explain that alias forwarding consent and Cloudflare destination mailbox
+  verification are separate gates; neither may be completed on the applicant's
+  behalf.
 
 ## Data Sources
 
@@ -34,8 +38,8 @@ authorisation before application packet generation or external handoff.
   typed or drawn e-signature capture, and continue UX.
 - `actions.ts`: route-scoped server persistence for consent events,
   application signatures, audit metadata, and application events.
-- `consent-config.ts`: current ToS, Privacy, and agency authorisation versions
-  and document hashes.
+- `consent-config.ts`: current ToS, Privacy, agency authorisation, and alias
+  forwarding versions and document hashes.
 - `session.ts`: applicant session resolution for normal and impersonated
   client sessions.
 

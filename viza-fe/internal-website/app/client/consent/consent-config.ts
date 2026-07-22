@@ -32,6 +32,17 @@ export const CONSENT_DOCUMENTS = [
     summary:
       "Mandate allowing VIZA staff and systems to prepare application materials, coordinate document review, and package handoff steps for this application.",
   },
+  {
+    consentType: "alias_email_forwarding",
+    title: "Official Email Forwarding / 官方邮件转发授权",
+    shortTitle: "Email forwarding / 邮件转发",
+    version: "2026-07-22",
+    href: null,
+    documentHash:
+      "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212",
+    summary:
+      "Authorises VIZA to forward copies of official visa emails received at your dedicated VIZA alias to your profile email. Messages may contain verification codes, status notices, QR codes, PDFs, and attachments. Mailbox ownership verification may also be required before forwarding becomes active.",
+  },
 ] as const;
 
 export const AGENCY_AUTHORISATION_DOCUMENT = CONSENT_DOCUMENTS[2];

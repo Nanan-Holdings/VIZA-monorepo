@@ -20,6 +20,10 @@ the Cloudflare account enables R2.
   processed or delay runner access.
 - Resolve the forwarding destination from `applicant_profiles.email`. Never
   submit the real email to an official portal when a managed alias is required.
+- Resolve a destination only after the applicant has accepted the exact current
+  `alias_email_forwarding` consent version and hash. Messages received before
+  consent are stored with forwarding skipped and must not be replayed after a
+  later acceptance.
 - Do not log raw mail bodies, OTP values, recipient emails, API keys, or
   attachment contents.
 - Quarantined messages are stored but not forwarded.

@@ -593,6 +593,7 @@ function GenericResultCard({
   const [indonesiaCardNumber, setIndonesiaCardNumber] = useState("");
   const [indonesiaCardExpiry, setIndonesiaCardExpiry] = useState("");
   const [indonesiaCardCvv, setIndonesiaCardCvv] = useState("");
+  const [indonesiaCardHolderName, setIndonesiaCardHolderName] = useState("");
   const [indonesiaCardLast4, setIndonesiaCardLast4] = useState<string | null>(null);
   const unsupported = result.status === "unsupported";
   const actionRequired = result.status === "action_required";
@@ -635,7 +636,8 @@ function GenericResultCard({
   const indonesiaCardReady =
     indonesiaCardNumber.replace(/\D/g, "").length >= 12 &&
     indonesiaCardExpiry.trim().length >= 4 &&
-    indonesiaCardCvv.replace(/\D/g, "").length >= 3;
+    indonesiaCardCvv.replace(/\D/g, "").length >= 3 &&
+    indonesiaCardHolderName.trim().length >= 2;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = isIndonesiaAction
     ? result.actionType === "official_fee_otp_required"
@@ -755,6 +757,7 @@ function GenericResultCard({
             pan: indonesiaCardNumber,
             expiry: indonesiaCardExpiry,
             cvv: indonesiaCardCvv,
+            holderName: indonesiaCardHolderName.trim(),
           },
         }),
       });
@@ -767,6 +770,7 @@ function GenericResultCard({
       setIndonesiaCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
       setIndonesiaCardNumber("");
       setIndonesiaCardCvv("");
+      setIndonesiaCardHolderName("");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
       setLiveError(error instanceof Error ? error.message : String(error));
@@ -893,6 +897,18 @@ function GenericResultCard({
                       inputMode="numeric"
                       className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
                       placeholder="CVV"
+                    />
+                  </label>
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground">
+                      {isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)"}
+                    </span>
+                    <input
+                      value={indonesiaCardHolderName}
+                      onChange={(event) => setIndonesiaCardHolderName(event.target.value)}
+                      autoComplete="cc-name"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                      placeholder={isZh ? "请输入银行卡上的姓名" : "Name printed on card"}
                     />
                   </label>
                 </div>
