@@ -78,7 +78,7 @@ export interface IndonesiaLiveSubmissionInput extends IndonesiaNormalizeInput {
 }
 
 export type IndonesiaLiveSubmissionResult =
-  | GenericSubmissionResult
+  | (GenericSubmissionResult & { operatorDiagnostics?: string[] })
   | (GenericEvisaSubmissionResult & { country: "ID"; status: "submitted"; evidencePdf: Buffer });
 
 function normalizeVisaType(visaType: string): string {
@@ -352,6 +352,7 @@ export async function runIndonesiaLiveSubmission(
       actionType: probe.actionType,
       actionInstructions: probe.instruction,
       implementationStatus: probe.implementationStatus,
+      operatorDiagnostics: probe.diagnostics.slice(-30),
       message: probe.state === "payment_failed" || probe.actionType === "official_step_2_validation_blocked"
         ? probe.instruction
         : `${normalized.provider} reached Indonesia official portal state ${probe.state}.`,

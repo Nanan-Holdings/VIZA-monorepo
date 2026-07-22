@@ -20,6 +20,7 @@ import {
   Eraser,
   ExternalLink,
   FileSignature,
+  MailCheck,
   PenLine,
   ShieldCheck,
 } from "lucide-react";
@@ -479,6 +480,22 @@ export function ConsentClient({
           </div>
         </div>
       )}
+
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950">
+        <div className="flex gap-3">
+          <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
+          <div className="space-y-1">
+            <p className="font-medium">
+              {isZh ? "还需要验证你的收件邮箱" : "Your destination mailbox must also be verified"}
+            </p>
+            <p className="text-sm leading-6">
+              {isZh
+                ? "勾选“官方邮件转发授权”后，VIZA 才能把专属 alias 收到的验证码、状态通知、QR、PDF 和附件转发到你的账户邮箱。如果随后收到 Cloudflare 的验证邮件，请由你本人点击验证链接；VIZA 不会代替你确认邮箱所有权。"
+                : "After you accept Official Email Forwarding, VIZA may forward verification codes, status notices, QR codes, PDFs, and attachments received by your dedicated alias to your profile email. If Cloudflare sends a verification message, you must click its verification link yourself; VIZA will not confirm mailbox ownership on your behalf."}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <form className="space-y-6" onSubmit={handleSubmit}>

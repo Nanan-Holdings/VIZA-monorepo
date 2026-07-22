@@ -195,7 +195,8 @@ export function FailureCard({
     (
       cardNumber.replace(/\D/g, "").length >= 12 &&
       cardExpiry.trim().length >= 4 &&
-      cardCvv.replace(/\D/g, "").length >= 3
+      cardCvv.replace(/\D/g, "").length >= 3 &&
+      (!indonesiaPaymentFailure || cardHolderName.trim().length >= 2)
     );
   const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
     ? {
@@ -339,8 +340,8 @@ export function FailureCard({
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {isZh
-                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期和 CVV。卡号和 CVV 只会发送到 VIZA 云端 submission-service 的短时内存会话，不会保存。"
-                    : "Before retrying, enter the card number, expiry, and CVV for this official payment. Card number and CVV are sent only to the short-lived VIZA cloud submission-service session and are not stored."}
+                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期、CVV 和银行卡上的持卡人姓名。卡号和 CVV 只会发送到 VIZA 云端 submission-service 的短时内存会话，不会保存。"
+                    : "Before retrying, enter the card number, expiry, CVV, and cardholder name printed on the card. Card number and CVV are sent only to the short-lived VIZA cloud submission-service session and are not stored."}
                 </p>
               </div>
             </div>
@@ -379,21 +380,31 @@ export function FailureCard({
                 />
               </label>
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">{isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)"}</span>
+                <span className="text-xs text-muted-foreground">
+                  {indonesiaPaymentFailure
+                    ? (isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)")
+                    : (isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)")}
+                </span>
                 <input
                   value={cardHolderName}
                   onChange={(event) => setCardHolderName(event.target.value)}
                   autoComplete="cc-name"
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
-                  placeholder={isZh ? "不填则使用 VIZA" : "Defaults to VIZA"}
+                  placeholder={indonesiaPaymentFailure
+                    ? (isZh ? "请输入银行卡上的姓名" : "Name printed on card")
+                    : (isZh ? "不填则使用 VIZA" : "Defaults to VIZA")}
                 />
               </label>
             </div>
             {!cardReady && (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 {isZh
-                  ? "请填写银行卡号、有效期和 CVV 后再提交。"
-                  : "Enter the card number, expiry, and CVV before submitting."}
+                  ? indonesiaPaymentFailure
+                    ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
+                    : "请填写银行卡号、有效期和 CVV 后再提交。"
+                  : indonesiaPaymentFailure
+                    ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
+                    : "Enter the card number, expiry, and CVV before submitting."}
               </p>
             )}
           </div>

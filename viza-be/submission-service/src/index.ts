@@ -7121,7 +7121,13 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       message: result.message,
       url: portalUrl,
       implementationStatus: result.implementationStatus,
-      evidence: { provider: provider, message: result.message },
+      evidence: {
+        provider,
+        message: result.message,
+        diagnostics: "operatorDiagnostics" in result
+          ? result.operatorDiagnostics?.slice(-20) ?? []
+          : [],
+      },
     };
 
     await writeSubmissionResult(item.application_id, result, resultStatus);

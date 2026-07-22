@@ -8,6 +8,11 @@ account has R2 enabled, the same raw message is archived in
 `viza-inbox-bodies` and a one-minute scheduled handler can retry transient
 failures through the configured outbound provider.
 
+Forwarding is fail-closed: the Worker only resolves a destination after the
+applicant has accepted the current `alias_email_forwarding` consent document.
+Cloudflare destination-address verification remains a separate mailbox-control
+step that the applicant must complete from their own inbox.
+
 ## Layout
 
 ```

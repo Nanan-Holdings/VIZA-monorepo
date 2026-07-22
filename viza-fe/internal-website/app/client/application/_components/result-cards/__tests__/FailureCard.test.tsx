@@ -92,6 +92,38 @@ describe("FailureCard", () => {
     });
   });
 
+  it("requires and forwards the real cardholder name for an Indonesia payment retry", async () => {
+    const onRetry = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <FailureCard
+        applicationId="app-id"
+        errorMessage="The Indonesia official payment gateway returned a failed payment result."
+        retryModes={[{ mode: "live_assisted", label: "提交" }]}
+        onRetry={onRetry}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    expect(screen.getByRole("button", { name: /提交/u })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
+      target: { value: "REAL CARDHOLDER" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /提交/u }));
+
+    await waitFor(() => {
+      expect(onRetry).toHaveBeenCalledWith("live_assisted", {
+        pan: "4111111111111111",
+        expiry: "12/30",
+        cvv: "123",
+        holderName: "REAL CARDHOLDER",
+      });
+    });
+  });
+
   it("shows a visible retry error after the loading state when submission startup fails", async () => {
     let rejectRetry: ((reason?: unknown) => void) | undefined;
     const onRetry = vi.fn().mockImplementation(() => new Promise<void>((_resolve, reject) => {

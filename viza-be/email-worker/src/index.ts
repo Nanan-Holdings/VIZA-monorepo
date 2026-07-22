@@ -55,6 +55,11 @@ interface InsertedEmailRow {
   forwarding_attempts: number;
 }
 
+const EMAIL_FORWARDING_CONSENT_TYPE = "alias_email_forwarding";
+const EMAIL_FORWARDING_CONSENT_VERSION = "2026-07-22";
+const EMAIL_FORWARDING_DOCUMENT_HASH =
+  "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212";
+
 const HEADERS_OF_INTEREST = [
   "from",
   "to",
@@ -211,8 +216,17 @@ async function updateInboundEmail(
   }
 }
 
-async function loadRealEmail(env: Env, alias: string): Promise<string | null> {
-  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(alias)}&select=email&limit=1`;
+interface ForwardingDestination {
+  email: string | null;
+  reason: "authorized" | "missing_profile_email" | "consent_required";
+}
+
+async function loadForwardingDestination(
+  env: Env,
+  alias: string,
+): Promise<ForwardingDestination> {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(alias)}&select=id,email&limit=1`;
   const res = await fetch(url, {
     method: "GET",
     headers: supabaseHeaders(env),
@@ -221,8 +235,47 @@ async function loadRealEmail(env: Env, alias: string): Promise<string | null> {
     const detail = await res.text();
     throw new Error(`alias owner lookup failed: ${res.status} ${detail}`);
   }
-  const rows = (await res.json()) as Array<{ email: string | null }>;
-  return rows[0]?.email?.trim().toLowerCase() || null;
+  const rows = (await res.json()) as Array<{ id: string; email: string | null }>;
+  const owner = rows[0];
+  const email = owner?.email?.trim().toLowerCase() || null;
+  if (!owner?.id || !email) {
+    return { email: null, reason: "missing_profile_email" };
+  }
+
+  const consentQuery = [
+    `applicant_id=eq.${encodeURIComponent(owner.id)}`,
+    `consent_type=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
+    `version=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_VERSION)}`,
+    `document_hash=eq.${encodeURIComponent(EMAIL_FORWARDING_DOCUMENT_HASH)}`,
+    "accepted=eq.true",
+    "select=id",
+    "limit=1",
+  ].join("&");
+  const consentRes = await fetch(`${base}/rest/v1/consent_events?${consentQuery}`, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (!consentRes.ok) {
+    const detail = await consentRes.text();
+    throw new Error(`forwarding consent lookup failed: ${consentRes.status} ${detail}`);
+  }
+  const consents = (await consentRes.json()) as Array<{ id: string }>;
+  return consents.length > 0
+    ? { email, reason: "authorized" }
+    : { email: null, reason: "consent_required" };
+}
+
+async function skipForwarding(
+  env: Env,
+  row: InsertedEmailRow,
+  reason: ForwardingDestination["reason"] | "identical_destination",
+): Promise<void> {
+  await updateInboundEmail(env, row.id, {
+    forwarding_status: "skipped",
+    forwarded_to: null,
+    forwarding_error: reason,
+    forwarding_attempts: row.forwarding_attempts,
+  });
 }
 
 async function sendForwardedEmail(
@@ -233,15 +286,14 @@ async function sendForwardedEmail(
   if (!env.RESEND_API_KEY?.trim()) {
     throw new Error("RESEND_API_KEY is not configured");
   }
-  const destination = await loadRealEmail(env, row.to_addr);
-  if (!destination) throw new Error("alias owner has no real email");
+  const forwarding = await loadForwardingDestination(env, row.to_addr);
+  const destination = forwarding.email;
+  if (!destination) {
+    await skipForwarding(env, row, forwarding.reason);
+    return;
+  }
   if (destination === row.to_addr) {
-    await updateInboundEmail(env, row.id, {
-      forwarding_status: "skipped",
-      forwarded_to: destination,
-      forwarding_error: "alias and destination are identical",
-      forwarding_attempts: row.forwarding_attempts + 1,
-    });
+    await skipForwarding(env, row, "identical_destination");
     return;
   }
 
@@ -305,15 +357,14 @@ async function forwardOriginalEmail(
   row: InsertedEmailRow,
   message: CfEmailMessage,
 ): Promise<void> {
-  const destination = await loadRealEmail(env, row.to_addr);
-  if (!destination) throw new Error("alias owner has no real email");
+  const forwarding = await loadForwardingDestination(env, row.to_addr);
+  const destination = forwarding.email;
+  if (!destination) {
+    await skipForwarding(env, row, forwarding.reason);
+    return;
+  }
   if (destination === row.to_addr) {
-    await updateInboundEmail(env, row.id, {
-      forwarding_status: "skipped",
-      forwarded_to: destination,
-      forwarding_error: "alias and destination are identical",
-      forwarding_attempts: row.forwarding_attempts + 1,
-    });
+    await skipForwarding(env, row, "identical_destination");
     return;
   }
 
