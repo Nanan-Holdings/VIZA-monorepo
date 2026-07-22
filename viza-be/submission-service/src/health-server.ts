@@ -177,8 +177,9 @@ async function handleIndonesiaCardSession(req: http.IncomingMessage, res: http.S
     const card = body.card && typeof body.card === "object" && !Array.isArray(body.card)
       ? (body.card as Record<string, unknown>)
       : {};
+    const applicationId = typeof body.applicationId === "string" ? body.applicationId : "";
     const session = putIndonesiaCardSession({
-      applicationId: typeof body.applicationId === "string" ? body.applicationId : "",
+      applicationId,
       card: {
         pan: typeof card.pan === "string" ? card.pan : null,
         expiry: typeof card.expiry === "string" ? card.expiry : null,
@@ -186,6 +187,12 @@ async function handleIndonesiaCardSession(req: http.IncomingMessage, res: http.S
         holderName: typeof card.holderName === "string" ? card.holderName : null,
       },
     });
+    const redactedApplicationId = applicationId.length > 8
+      ? `${applicationId.slice(0, 4)}...${applicationId.slice(-4)}`
+      : "(redacted)";
+    console.log(
+      `[indonesia] One-time card session registered application=${redactedApplicationId} expiresAt=${session.expiresAtIso}`,
+    );
     sendJson(res, 200, { ok: true, ...session });
   } catch (error) {
     sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });

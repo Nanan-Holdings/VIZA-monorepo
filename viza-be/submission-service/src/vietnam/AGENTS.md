@@ -61,8 +61,13 @@ Important patterns to mirror in the Playwright runner:
   enabled local fixed-card process env is available. Frontend-entered PAN/CVV
   must pass through `card-session.ts` only, be consumed once, and never be
   stored in DB, `.env`, queue payloads, logs, traces, screenshots, AGENTS, or
-  personal profile records. Never handle OTP/3DS as stored data; stop at a
-  manual checkpoint when the gateway asks for them.
+  personal profile records. Never handle OTP/3DS as stored data. For the
+  explicitly authorized Vietnam autopay pilot, a Standard Chartered SC Mobile
+  out-of-band challenge may keep the existing headless browser session alive
+  for the issuer's short approval window and follow the issuer page's supported
+  completion flow after the user approves in the banking app. Never read,
+  request, persist, or log an OTP/3DS secret, and never mark payment successful
+  without an official receipt/reference.
 - Preserve `validationErrors`, `fieldFallbacks`, CAPTCHA telemetry, trace, and
   final screenshot in the queue payload for frontend evidence and schema tuning.
 - `country-options.ts` contains the alpha-3 country-name index used to normalize

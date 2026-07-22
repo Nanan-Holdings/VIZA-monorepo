@@ -14,6 +14,13 @@ primary_region = "sin"
   # Vietnam official-fee jobs also use submission_queue, so the protected
   # one-time card handoff must terminate on this same single-memory worker.
   VN_CLOUD_CARD_SESSION_ENABLED = "true"
+  VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
+  # Standard Chartered SC Mobile approval is valid for about 100 seconds.
+  # Keep the same cloud browser alive long enough to observe the issuer result.
+  VN_BANK_APP_3DS_WAIT_MS = "115000"
+  # api.evisa.gov.vn currently presents an incomplete certificate chain to
+  # container Chromium. Scope compatibility mode to the Vietnam browser only.
+  VN_IGNORE_HTTPS_ERRORS = "true"
   # The Fly container has no X server. Indonesia payment continuation must
   # remain headless; 3DS/OTP is surfaced as a user checkpoint.
   INDONESIA_PLAYWRIGHT_HEADLESS = "true"

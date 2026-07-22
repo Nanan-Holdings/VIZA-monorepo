@@ -6883,6 +6883,9 @@ async function processIndonesiaItem(item: SubmissionQueueItem): Promise<void> {
       readBooleanEnv("ID_LOCAL_CARD_SESSION_ENABLED", false) ||
         readBooleanEnv("ID_CLOUD_CARD_SESSION_ENABLED", false),
     );
+    console.log(
+      `[indonesia] One-time card session ${oneTimeIndonesiaCard ? "consumed" : "unavailable"} application=${redactIdentifier(item.application_id)}`,
+    );
     const portalProbeHeadless = readBooleanEnv("INDONESIA_PLAYWRIGHT_HEADLESS", true);
     const userPaymentHandoff = {
       enabled: userPaymentHandoffEnabled,

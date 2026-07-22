@@ -1627,6 +1627,7 @@ export default function ApplicationPage() {
   const explicitVisaType =
     searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
+  const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 
   // DB-driven steps (loaded from visa_form_fields table)
   // Falls back to hardcoded STEPS if DB returns empty
@@ -1640,6 +1641,18 @@ export default function ApplicationPage() {
     void packagePromise.then((pkg) => {
       if (!cancelled && pkg) setVisaPackage(pkg);
     });
+
+    // A persisted submission/payment status view does not need the complete
+    // form schema. Loading that schema can be slow (or temporarily unavailable)
+    // for older packages such as Indonesia C1, and must not prevent the user
+    // from seeing a terminal result or starting an explicit payment retry.
+    if (isExplicitStatusView) {
+      setDbSteps([]);
+      setPackageLoaded(true);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const stepsPromise = explicitVisaType
       ? getVisaFormSteps(explicitVisaType, { country: explicitCountry })
@@ -1662,7 +1675,7 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitCountry, explicitVisaType]);
+  }, [explicitCountry, explicitVisaType, isExplicitStatusView]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -2260,9 +2273,9 @@ export default function ApplicationPage() {
   }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
 
   useEffect(() => {
-    if (!packageLoaded) return;
+    if (!packageLoaded || isExplicitStatusView) return;
     void loadData();
-  }, [loadData, packageLoaded]);
+  }, [isExplicitStatusView, loadData, packageLoaded]);
 
   // Honor deep links from redirects: once steps + any prefilled answers have
   // loaded, jump directly to the requested Review/Team/Confirmation step.
@@ -3097,6 +3110,20 @@ export default function ApplicationPage() {
       },
     }));
   }, []);
+
+  if (isExplicitStatusView) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <SubmissionStatusStep
+          applicationId={explicitApplicationId}
+          country={activeCountry}
+          visaType={activeVisaType}
+          status={null}
+          result={null}
+        />
+      </main>
+    );
+  }
 
   if (loading || !packageLoaded) {
     return (

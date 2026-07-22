@@ -113,6 +113,11 @@ function phaseIndexForStage(stage: SubmissionVisualStage | null | undefined): nu
 
 function localizeProgressMessage(message: string | null | undefined, isZh: boolean): string | null {
   if (!message) return null;
+  if (/approve the payment in your sc mobile banking app/i.test(message)) {
+    return isZh
+      ? "请立即在渣打 SC Mobile Banking App 中批准本次付款。云端浏览器会保持 3DS 会话，并在授权后自动继续。"
+      : message;
+  }
   if (
     /official portal could not read required fields from the passport image|official_passport_scan_invalid_data|step_1_passport_scan_invalid_data/i.test(
       message,
