@@ -59,6 +59,9 @@ export function putIndonesiaCardSession(input: {
     expiryLabel: "expiry",
     cvvLabel: "cvv",
   });
+  if (!input.card.holderName?.trim() || card.holderName === "VIZA") {
+    throw new Error("holderName is required for Indonesia official payment.");
+  }
   const session: IndonesiaCardSession = {
     applicationId,
     card,

@@ -714,6 +714,13 @@ export async function POST(
     return NextResponse.json({ error: "请输入本次付款使用的银行卡号、有效期和 CVV。VIZA 不会保存这些信息。" }, { status: 400 });
   }
 
+  if (isIndonesiaApplication && card.holderName.length < 2) {
+    return NextResponse.json(
+      { error: "请输入银行卡上的持卡人姓名，以便印尼官方支付网关发起银行验证。" },
+      { status: 400 },
+    );
+  }
+
   if (isIndonesiaApplication) {
     const relayBaseUrl = getIndonesiaOfficialFeeRelayUrl();
     if (relayBaseUrl) {

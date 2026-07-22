@@ -37,7 +37,7 @@ test("id.card-session: consume returns the card once and deletes it", () => {
       pan: "5555555555554444",
       expiry: "01/2031",
       cvv: "999",
-      holderName: "VIZA",
+      holderName: "CARD HOLDER",
     },
   });
 
@@ -56,10 +56,26 @@ test("id.card-session: expired sessions are unavailable", () => {
       pan: "4111111111111111",
       expiry: "10/30",
       cvv: "999",
-      holderName: "VIZA",
+      holderName: "CARD HOLDER",
     },
   });
 
   assert.equal(peekIndonesiaCardSession("app_789", 32_999)?.applicationId, "app_789");
   assert.equal(peekIndonesiaCardSession("app_789", 33_000), null);
+});
+
+test("id.card-session: rejects a missing or placeholder cardholder name", () => {
+  clearIndonesiaCardSessions();
+  assert.throws(
+    () => putIndonesiaCardSession({
+      applicationId: "app_missing_holder",
+      card: {
+        pan: "4111111111111111",
+        expiry: "10/30",
+        cvv: "999",
+        holderName: "",
+      },
+    }),
+    /holderName is required/i,
+  );
 });
