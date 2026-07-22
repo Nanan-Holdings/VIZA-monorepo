@@ -57,6 +57,38 @@ describe("DigitalArrivalCardResultCard", () => {
     );
   });
 
+  it("renders a stored Philippines success immediately without polling or starting a new submission", () => {
+    const result: DigitalArrivalCardSubmissionResult = {
+      country: "PH",
+      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      status: "submitted",
+      mode: "live_assisted",
+      provider: "philippines_etravel_live",
+      applicationId: "application-id",
+      submitted: true,
+      referenceNumber: "PH-REFERENCE",
+      portalUrl: "https://etravel.gov.ph/",
+      portalResponseSummary: "Official confirmation captured.",
+    };
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="philippines"
+        visaType="PH_ETRAVEL_ARRIVAL_CARD"
+        status="completed"
+        result={result}
+      />,
+    );
+
+    expect(screen.getByText("eTravel 提交成功")).toBeInTheDocument();
+    expect(screen.getByText("PH-REFERENCE")).toBeInTheDocument();
+    expect(screen.queryByText("正在提交您的申请")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("keeps polling an incomplete Vietnam result and switches to the QR download", async () => {
     const awaitingQr: DigitalArrivalCardSubmissionResult = {
       country: "VN",

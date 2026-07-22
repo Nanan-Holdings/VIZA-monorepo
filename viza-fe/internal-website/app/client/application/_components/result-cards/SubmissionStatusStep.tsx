@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isChineseLocale } from "@/lib/i18n/locale";
+import { hasDurableTerminalSubmissionResult } from "@/lib/application-submission-display";
 import {
   WaitingCard,
   type SubmissionVisualStage,
@@ -1332,11 +1333,13 @@ export function SubmissionStatusStep({
     [status],
   );
   const snapshotIsActive = isActiveSnapshot(snapshot);
-  const terminalPropsAvailable =
-    !snapshotIsActive &&
-    Boolean(result) &&
-    fallbackVisualStatus !== "queued" &&
-    fallbackVisualStatus !== "running";
+  // The application row is the durable source of truth. Realtime can deliver a
+  // completed result after this component has already cached a running poll;
+  // never let that older snapshot keep the UI at 99%.
+  const terminalPropsAvailable = hasDurableTerminalSubmissionResult({
+    submissionResultStatus: status,
+    submissionResult: result,
+  });
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -1353,8 +1356,9 @@ export function SubmissionStatusStep({
           : effectiveStatus === "completed"
             ? "completed"
             : "confirming_result");
-  const effectiveProgress =
-    snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
+  const effectiveProgress = terminalPropsAvailable
+    ? fallbackProgressForStatus(effectiveStatus, country, visaType)
+    : snapshot?.progress ?? fallbackProgressForStatus(effectiveStatus, country, visaType);
   const polledVietnamPrearrivalHasQr =
     snapshot?.result &&
     isDigitalArrivalCardResult(snapshot.result) &&
@@ -1780,6 +1784,12 @@ function renderSubmissionResultCard(
         return <DigitalArrivalCardResultCard result={result} />;
       }
       return <VnResultCard applicationId={applicationId} result={result} jobId={jobId} />;
+    case "PH":
+      return isDigitalArrivalCardResult(result) ? (
+        <DigitalArrivalCardResultCard result={result} />
+      ) : (
+        <FailureCard errorMessage="The stored Philippines eTravel result is invalid." />
+      );
     case "SG":
       return <SgArrivalCardResultCard result={result} />;
     case "AU":
