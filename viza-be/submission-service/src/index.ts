@@ -4418,7 +4418,9 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     const { profile, application, documents } = await loadApplicantData(item.application_id);
     const officialPaymentAutopayEnabled = liveAssisted && readBooleanEnv("VN_OFFICIAL_PAYMENT_AUTOPAY", false);
     const oneTimeCardPaymentEnabled =
-      officialPaymentAutopayEnabled && readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false);
+      officialPaymentAutopayEnabled &&
+      (readBooleanEnv("VN_LOCAL_CARD_SESSION_ENABLED", false) ||
+        readBooleanEnv("VN_CLOUD_CARD_SESSION_ENABLED", false));
     const envFixedCardPaymentEnabled =
       officialPaymentAutopayEnabled && readBooleanEnv("VN_FIXED_CARD_ENABLED", false);
     const oneTimeFixedCard = await consumeVietnamCardSessionWithGrace(
@@ -6532,6 +6534,7 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       portalUrl: string;
       portalResponseSummary: string;
       screenshots: string[];
+      qrCodes?: string[];
       pdfs: string[];
       logs: string[];
     };
@@ -6649,6 +6652,18 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
       contentType: "application/pdf",
       paths: portalResult.pdfs,
     });
+    const qrArtifacts = await uploadArrivalCardArtifacts({
+      authUserId: artifactOwnerId,
+      applicationId: item.application_id,
+      country,
+      kind: `${logCode}-qr`,
+      ext: "png",
+      contentType: "image/png",
+      paths: portalResult.qrCodes ?? [],
+    });
+    if (!isMdac && !isTdac && portalResult.submitted && qrArtifacts.length === 0) {
+      throw new Error("Philippines eTravel submission cannot complete without a stored official QR artifact.");
+    }
     const result: DigitalArrivalCardSubmissionResult = {
       country,
       visaType,

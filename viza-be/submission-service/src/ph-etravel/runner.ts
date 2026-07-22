@@ -20,6 +20,7 @@ export interface PhEtravelPortalSubmissionResult {
   portalUrl: string;
   portalResponseSummary: string;
   screenshots: string[];
+  qrCodes: string[];
   pdfs: string[];
   logs: string[];
 }
@@ -56,6 +57,7 @@ export interface PhEtravelRunnerOptions {
   forceLocalBrowser?: boolean;
   mailbox?: PhEtravelMailboxProvider;
   emailVerificationTimeoutMs?: number;
+  recoverReferenceNumber?: string;
 }
 
 export function isPhEtravelRemotePolicyBlockMessage(message: string): boolean {
@@ -69,6 +71,201 @@ async function saveScreenshot(page: Page, name: string, logs: string[]): Promise
   await page.screenshot({ path: filePath, fullPage: true });
   logs.push(`ph_etravel_screenshot ${filePath}`);
   return filePath;
+}
+
+async function dismissDutyFreeAdvertisement(page: Page, logs: string[]): Promise<boolean> {
+  const adPattern = /mabuhay|duty\s*free\s*philippines|shop\.dutyfree\.gov\.ph|entitled\s+to\s+shop/i;
+  const hasAdvertisement = async (): Promise<boolean> => {
+    const adImageVisible = await page.locator("img[alt*='Duty Free' i], img[src*='dutyfree' i], img[alt*='Love PH Advertisement' i]")
+      .first()
+      .isVisible()
+      .catch(() => false);
+    if (adImageVisible) return true;
+    return page.locator("body").innerText()
+      .then((text) => adPattern.test(text))
+      .catch(() => false);
+  };
+  if (!await hasAdvertisement()) return false;
+
+  await page.keyboard.press("Escape").catch(() => undefined);
+  const closeControls = [
+    page.getByRole("button", { name: /^(?:close|dismiss|skip)(?:\s*\(\d+s\))?$/i }),
+    page.locator("button, [role='button']").filter({ hasText: /^\s*(?:close|dismiss|skip)(?:\s*\(\d+s\))?\s*$/i }),
+    page.locator("[aria-label*='close' i], [title*='close' i], button.close, [data-dismiss='modal']"),
+  ];
+  for (const controls of closeControls) {
+    const count = await controls.count().catch(() => 0);
+    for (let index = 0; index < count; index += 1) {
+      const control = controls.nth(index);
+      if (!await control.isVisible().catch(() => false)) continue;
+      await control.click({ force: true, timeout: 3_000 }).catch(() => undefined);
+      await page.waitForTimeout(500);
+      if (!await hasAdvertisement()) {
+        logs.push("ph_etravel_duty_free_ad_closed");
+        return true;
+      }
+    }
+  }
+
+  const hidden = await page.evaluate((patternSource) => {
+    const pattern = new RegExp(patternSource, "i");
+    const candidates = Array.from(document.querySelectorAll<HTMLElement>("[role='dialog'], [aria-modal='true'], .modal, .popup, [class*='modal'], [class*='popup']"));
+    let removed = false;
+    const adImages = Array.from(document.querySelectorAll<HTMLImageElement>(
+      "img[alt*='Duty Free' i], img[src*='dutyfree' i], img[alt*='Love PH Advertisement' i]",
+    ));
+    for (const image of adImages) {
+      const dialog = image.closest<HTMLElement>("[role='dialog'], [aria-modal='true']");
+      if (!dialog) continue;
+      dialog.style.setProperty("display", "none", "important");
+      dialog.setAttribute("aria-hidden", "true");
+      removed = true;
+    }
+    for (const candidate of candidates) {
+      if (!pattern.test(candidate.innerText || "")) continue;
+      candidate.style.setProperty("display", "none", "important");
+      candidate.setAttribute("aria-hidden", "true");
+      removed = true;
+    }
+    if (removed) {
+      for (const backdrop of Array.from(document.querySelectorAll<HTMLElement>(".modal-backdrop, [class*='backdrop'], [class*='overlay']"))) {
+        if (getComputedStyle(backdrop).position === "fixed") {
+          backdrop.style.setProperty("display", "none", "important");
+        }
+      }
+      document.documentElement.style.removeProperty("overflow");
+      document.body.style.removeProperty("overflow");
+      for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>("button"))) {
+        if (/^close\s*\(\d+s\)/i.test(button.innerText.trim())) {
+          button.style.setProperty("display", "none", "important");
+        }
+      }
+    }
+    return removed;
+  }, adPattern.source).catch(() => false);
+  if (hidden) {
+    logs.push("ph_etravel_duty_free_ad_hidden");
+  } else {
+    logs.push("ph_etravel_duty_free_ad_not_dismissed");
+  }
+  return hidden;
+}
+
+async function captureOfficialQrCode(page: Page, logs: string[]): Promise<string | null> {
+  await page.locator("[role='dialog'], [aria-modal='true'], .modal, [class*='modal']").evaluateAll((dialogs) => {
+    for (const dialog of dialogs) {
+      const scrollables = [dialog, ...Array.from(dialog.querySelectorAll<HTMLElement>("*"))]
+        .filter((element) => element.scrollHeight > element.clientHeight + 20);
+      for (const scrollable of scrollables) scrollable.scrollTop = scrollable.scrollHeight;
+    }
+  }).catch(() => undefined);
+  await page.waitForTimeout(1_000);
+  const selectors = [
+    "img[alt*='qr' i]",
+    "img[src*='qr' i]",
+    "[class*='qr' i] img",
+    "[class*='qr' i] canvas",
+    "canvas",
+    "svg[aria-label*='qr' i]",
+    ".qr-code-content svg",
+    "[role='dialog'] img",
+    "[aria-modal='true'] img",
+    ".modal img",
+    "[class*='modal'] img",
+  ];
+  const candidates = page.locator(selectors.join(", "));
+  const count = await candidates.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const candidate = candidates.nth(index);
+    const accepted = await candidate.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 90 || rect.height < 90) return false;
+      const ratio = rect.width / rect.height;
+      if (ratio < 0.75 || ratio > 1.33) return false;
+      const image = element instanceof HTMLImageElement ? element : null;
+      const source = `${image?.src ?? ""} ${image?.alt ?? ""}`;
+      if (/dutyfree|duty\s*free|egovph|app\s*store|google\s*play|profile|avatar|portrait|user-photo/i.test(source)) return false;
+      if (/qr\s*code|qrcode|\/qr[/?._-]/i.test(source)) return true;
+      if (rect.width >= 150 && rect.height >= 150 && element.closest("[role='dialog'], [aria-modal='true'], .modal, [class*='modal']")) {
+        return true;
+      }
+      let current: HTMLElement | null = element.parentElement;
+      for (let depth = 0; current && depth < 6; depth += 1, current = current.parentElement) {
+        const text = current.innerText || "";
+        if (/mabuhay|duty\s*free\s*philippines|shop\.dutyfree\.gov\.ph|entitled\s+to\s+shop/i.test(text)) return false;
+        if (/reference\s*(?:no|number)|immigration\s+officer|customs\s+officer\s+for\s+clearance|eTravel\s*(?:registration|QR)|qr\s*code/i.test(text)) return true;
+      }
+      return false;
+    }).catch(() => false);
+    if (!accepted || !await candidate.isVisible().catch(() => false)) continue;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-ph-etravel-qr-"));
+    const filePath = path.join(dir, `official-qr-${Date.now()}.png`);
+    await candidate.screenshot({ path: filePath });
+    logs.push(`ph_etravel_official_qr_captured ${filePath}`);
+    return filePath;
+  }
+  logs.push("ph_etravel_official_qr_not_found");
+  return null;
+}
+
+async function openExistingTravelRecord(page: Page, referenceNumber: string, logs: string[]): Promise<void> {
+  let reference = page.getByText(referenceNumber, { exact: false }).first();
+  if (!await reference.isVisible().catch(() => false)) {
+    await clickFirstAvailable(page, [
+      page.getByRole("button", { name: /travel history|my travel/i }),
+      page.getByRole("link", { name: /travel history|my travel/i }),
+      page.locator("button, a").filter({ hasText: /travel history|my travel/i }),
+    ]);
+    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
+    reference = page.getByText(referenceNumber, { exact: false }).first();
+  }
+  if (!await reference.isVisible().catch(() => false)) {
+    throw new PhEtravelPortalError("The requested Philippines eTravel record was not visible in Travel History.", {
+      code: "ph_etravel_recovery_record_not_found",
+      portalSummary: (await bodyText(page)).slice(0, 700),
+    });
+  }
+  const openedByPosition = await page.evaluate((targetReference) => {
+    const visible = (element: Element): element is HTMLElement => {
+      if (!(element instanceof HTMLElement)) return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== "hidden";
+    };
+    const leaves = Array.from(document.querySelectorAll<HTMLElement>("body *"))
+      .filter((element) => visible(element) && element.children.length === 0);
+    const referenceLeaf = leaves.find((element) => element.innerText.includes(targetReference));
+    if (!referenceLeaf) return false;
+    const referenceTop = referenceLeaf.getBoundingClientRect().top;
+    const qrLeaves = leaves
+      .filter((element) => /^qr\s*code$/i.test(element.innerText.trim()))
+      .sort((left, right) =>
+        Math.abs(left.getBoundingClientRect().top - referenceTop) - Math.abs(right.getBoundingClientRect().top - referenceTop));
+    const qrLeaf = qrLeaves[0];
+    if (!qrLeaf) return false;
+    const clickable = qrLeaf.closest<HTMLElement>("button, a, [role='button']") ?? qrLeaf;
+    clickable.click();
+    return true;
+  }, referenceNumber).catch(() => false);
+  const opened = openedByPosition || await clickFirstAvailable(page, [
+    page.getByText(/^qr\s*code$/i).first(),
+  ]);
+  if (!opened) {
+    throw new PhEtravelPortalError("The requested Philippines eTravel record could not be opened from Travel History.", {
+      code: "ph_etravel_recovery_record_not_opened",
+      portalSummary: (await bodyText(page)).slice(0, 700),
+    });
+  }
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForFunction(() => {
+    const text = document.body?.innerText ?? "";
+    const hasQrSurface = /qr\s*code|reference\s*(?:no|number)|back\s+to\s+home/i.test(text) ||
+      document.querySelectorAll("img, canvas, svg").length > 8;
+    return hasQrSurface && !/^loading/i.test(text.trim());
+  }, undefined, { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(10_000);
+  logs.push("ph_etravel_recovery_record_opened");
 }
 
 async function saveHtmlSnapshot(page: Page, name: string, logs: string[]): Promise<string> {
@@ -275,26 +472,49 @@ async function solveTurnstileIfPresent(page: Page, logs: string[], nativeCloudfl
     const win = window as typeof window & { __vizaTurnstile?: Record<string, unknown> };
     return win.__vizaTurnstile?.sitekey ? win.__vizaTurnstile : null;
   }, null, { timeout: 15_000 }).then((handle) => handle.jsonValue()).catch(() => null);
-  const siteKey = typeof captured === "object" && captured && "sitekey" in captured
+  let siteKey = typeof captured === "object" && captured && "sitekey" in captured
     ? String((captured as { sitekey?: unknown }).sitekey ?? "")
     : "";
+  if (!siteKey) {
+    siteKey = await page.evaluate(async () => {
+      const explicit = document.querySelector<HTMLElement>("[data-sitekey]")?.dataset.sitekey;
+      if (explicit) return explicit;
+      for (const frame of Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe[src*='challenges.cloudflare.com']"))) {
+        const match = frame.src.match(/0x[a-zA-Z0-9_-]{10,}/);
+        if (match?.[0]) return match[0];
+      }
+      const sameOriginScripts = Array.from(document.scripts)
+        .map((script) => script.src)
+        .filter((source) => source.startsWith(location.origin) && /signin|auth/i.test(source));
+      for (const source of sameOriginScripts) {
+        const text = await fetch(source).then((response) => response.text()).catch(() => "");
+        const match = text.match(/0x[a-zA-Z0-9_-]{10,}/);
+        if (match?.[0]) return match[0];
+      }
+      return "";
+    }).catch(() => "");
+    if (siteKey) logs.push("ph_etravel_turnstile_sitekey_discovered");
+  }
   if (!siteKey) return false;
 
   const userAgent = await page.evaluate(() => navigator.userAgent).catch(() => undefined);
+  const capturedOptions = typeof captured === "object" && captured
+    ? captured as { action?: unknown; cData?: unknown; chlPageData?: unknown }
+    : {};
   const solved = await solveCaptcha({
     type: "turnstile",
     siteKey,
     pageUrl: page.url(),
-    action: typeof (captured as { action?: unknown }).action === "string" ? (captured as { action: string }).action : undefined,
-    cdata: typeof (captured as { cData?: unknown }).cData === "string" ? (captured as { cData: string }).cData : undefined,
-    pageData: typeof (captured as { chlPageData?: unknown }).chlPageData === "string" ? (captured as { chlPageData: string }).chlPageData : undefined,
+    action: typeof capturedOptions.action === "string" ? capturedOptions.action : undefined,
+    cdata: typeof capturedOptions.cData === "string" ? capturedOptions.cData : undefined,
+    pageData: typeof capturedOptions.chlPageData === "string" ? capturedOptions.chlPageData : undefined,
     userAgent,
     timeoutMs: Number(process.env.PH_ETRAVEL_TURNSTILE_TIMEOUT_MS ?? "180000"),
   });
 
   await page.evaluate((captchaToken) => {
     const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']",
+      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='captcha'], textarea[name='captcha']",
     );
     for (const field of Array.from(fields)) {
       field.value = captchaToken;
@@ -1296,6 +1516,7 @@ async function reachAuthenticatedPhEtravelSession(
   const loginAttempt = await clickTurnstileProtectedContinue(page, logs, nativeCloudflareUnblock, [
     page.getByRole("button", { name: /sign in to etravel|sign in|login/i }),
     page.locator("button").filter({ hasText: /sign in|login/i }),
+    page.locator("form button[type='submit'], button[type='submit']").first(),
   ], {
     responseUrlPattern: /\/authenticate(?:[/?]|$)/i,
     prepareRetry: fillLoginCredentials,
@@ -1859,6 +2080,33 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
     }
     screenshots.push(await saveScreenshot(page, "after-auth", logs));
+    if (options.recoverReferenceNumber?.trim()) {
+      const referenceNumber = options.recoverReferenceNumber.trim();
+      await openExistingTravelRecord(page, referenceNumber, logs);
+      await dismissDutyFreeAdvertisement(page, logs);
+      const recoveredQr = await captureOfficialQrCode(page, logs);
+      screenshots.push(await saveScreenshot(page, "recovered-confirmation", logs));
+      if (!recoveredQr) {
+        await saveHtmlSnapshot(page, "recovery-qr-missing", logs).catch(() => undefined);
+        throw new PhEtravelPortalError(
+          "The existing Philippines eTravel record opened, but its official QR code could not be isolated.",
+          {
+            code: "ph_etravel_recovery_qr_missing",
+            screenshotPaths: screenshots,
+            portalSummary: (await bodyText(page)).slice(0, 700),
+          },
+        );
+      }
+      return buildPhEtravelSuccessFromPortalText(
+        payload,
+        `${await bodyText(page)}\nReference Number ${referenceNumber}\nQR Code`,
+        page.url(),
+        screenshots,
+        [recoveredQr],
+        [],
+        logs,
+      );
+    }
     let formResult;
     try {
       formResult = await fillPhEtravelOfficialDeclaration(page, payload, {
@@ -1893,11 +2141,15 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       );
     }
 
+    await dismissDutyFreeAdvertisement(page, logs);
+    const qrPath = await captureOfficialQrCode(page, logs);
+    screenshots.push(await saveScreenshot(page, "confirmation-without-ad", logs));
     return buildPhEtravelSuccessFromPortalText(
       payload,
       formResult.portalText,
       page.url(),
       screenshots,
+      qrPath ? [qrPath] : [],
       [],
       logs,
     );
@@ -1935,11 +2187,12 @@ export function buildPhEtravelSuccessFromPortalText(
   portalText: string,
   portalUrl: string,
   screenshots: string[],
+  qrCodes: string[],
   pdfs: string[],
   logs: string[],
 ): PhEtravelPortalSubmissionResult {
   const referenceNumber = extractReference(portalText);
-  if (!referenceNumber || !hasQrEvidence(portalText)) {
+  if (!referenceNumber || !hasQrEvidence(portalText) || qrCodes.length === 0) {
     throw new PhEtravelPortalError(
       "Official Philippines eTravel confirmation did not include both a reference and QR-code evidence.",
       {
@@ -1956,6 +2209,7 @@ export function buildPhEtravelSuccessFromPortalText(
     portalUrl,
     portalResponseSummary: "Philippines eTravel official portal returned a QR/reference confirmation.",
     screenshots,
+    qrCodes,
     pdfs,
     logs: [`ph_etravel_submitted application=${payload.applicationId}`, ...logs],
   };

@@ -6,6 +6,7 @@ import {
   isPhEtravelPublicLandingText,
 } from "../form-filler";
 import type { PhEtravelPortalPayload } from "../normalize";
+import { buildPhEtravelSuccessFromPortalText, PhEtravelPortalError } from "../runner";
 
 const payload: PhEtravelPortalPayload = {
   countryCode: "PH",
@@ -195,4 +196,35 @@ test("buildPhEtravelFieldPlan emits departure controls and excludes arrival-only
   for (const key of ["philippines_address", "destination_type", "health_recent_travel", "airport_of_origin"]) {
     assert.equal(keys.has(key), false, `${key} must not be in departure plan`);
   }
+});
+
+test("Philippines eTravel success requires a captured official QR artifact", () => {
+  const result = buildPhEtravelSuccessFromPortalText(
+    payload,
+    "Reference Number F00TEST12345 QR Code",
+    "https://etravel.gov.ph/qr-code?id=test",
+    ["confirmation.png"],
+    ["official-qr.png"],
+    [],
+    [],
+  );
+
+  assert.deepEqual(result.qrCodes, ["official-qr.png"]);
+  assert.equal(result.referenceNumber, "F00TEST12345");
+});
+
+test("Philippines eTravel success rejects reference text without an isolated QR artifact", () => {
+  assert.throws(
+    () => buildPhEtravelSuccessFromPortalText(
+      payload,
+      "Reference Number F00TEST12345 QR Code",
+      "https://etravel.gov.ph/qr-code?id=test",
+      ["confirmation.png"],
+      [],
+      [],
+      [],
+    ),
+    (error: unknown) => error instanceof PhEtravelPortalError &&
+      error.code === "ph_etravel_confirmation_evidence_missing",
+  );
 });
