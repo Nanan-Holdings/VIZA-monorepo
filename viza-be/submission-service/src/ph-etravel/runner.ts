@@ -1046,15 +1046,23 @@ async function chooseHeadlessComboboxByInputName(
     `^\\s*${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`,
     "i",
   );
+  const matchingOption = page
+    .getByRole("option")
+    .filter({ hasText: expectedText })
+    .first();
+  const optionLoaded = await matchingOption
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!optionLoaded) return false;
   const clicked = await clickFirstAvailable(page, [
     page.getByRole("option", { name: exactText }),
     page.getByRole("option", { name: expectedText }),
+    matchingOption,
     page.locator("[role='option'], li, [data-slot='select-item']").filter({ hasText: exactText }),
     page.locator("[role='option'], li, [data-slot='select-item']").filter({ hasText: expectedText }),
   ]);
-  if (!clicked) {
-    await page.keyboard.press("Enter").catch(() => undefined);
-  }
+  if (!clicked) return false;
   await page.waitForTimeout(700);
   const value = await input.inputValue().catch(() => "");
   return expectedText.test(value);
@@ -1148,13 +1156,24 @@ async function completeEgovPermanentResidenceOnboarding(
 
   logs.push("ph_etravel_egov_onboarding_residence_detected");
   const countryText = /china|chinese|cn|chn/i.test(payload.countryOfResidence) ? "China" : payload.countryOfResidence;
-  const choseCountry = await chooseHeadlessComboboxByInputName(
-    page,
-    "country_code",
-    countryText,
-    countryOptionPattern(payload.countryOfResidence),
-  );
-  await page.waitForTimeout(1_200);
+  const isPhilippineResidence = /^(?:ph|philippines)$/i.test(payload.countryOfResidence.trim());
+  let choseCountry = false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    choseCountry = await chooseHeadlessComboboxByInputName(
+      page,
+      "country_code",
+      countryText,
+      countryOptionPattern(payload.countryOfResidence),
+    );
+    await page.waitForTimeout(1_200);
+    const provinceStillVisible = await page
+      .locator('input[name="province_code"]')
+      .first()
+      .isVisible({ timeout: 1_000 })
+      .catch(() => false);
+    if (choseCountry && (isPhilippineResidence || !provinceStillVisible)) break;
+    choseCountry = false;
+  }
   const address = payload.residenceAddress || payload.countryOfResidence;
   const addressParts = (payload.residenceAddressLine2 || address)
     .split(",")
@@ -1165,7 +1184,6 @@ async function completeEgovPermanentResidenceOnboarding(
   const province = addressParts.at(-1) || payload.residenceAddressLine1 || address;
   const city = addressParts.at(-2) || addressParts.at(-1) || address;
   const barangay = addressParts[0] || city;
-  const isPhilippineResidence = /^(?:ph|philippines)$/i.test(payload.countryOfResidence.trim());
   const choseProvince = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
     page,
     "province_code",
