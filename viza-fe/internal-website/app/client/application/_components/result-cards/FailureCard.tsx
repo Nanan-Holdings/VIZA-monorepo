@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { AlertTriangle, CreditCard, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -181,6 +181,10 @@ export function FailureCard({
   const [cardCvv, setCardCvv] = useState("");
   const [cardHolderName, setCardHolderName] = useState("");
   const [retryFailure, setRetryFailure] = useState<string | null>(null);
+  const cardNumberRef = useRef<HTMLInputElement>(null);
+  const cardExpiryRef = useRef<HTMLInputElement>(null);
+  const cardCvvRef = useRef<HTMLInputElement>(null);
+  const cardHolderNameRef = useRef<HTMLInputElement>(null);
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
@@ -241,7 +245,27 @@ export function FailureCard({
 
   const handleRetry = async (mode: SubmissionMode) => {
     if (!onRetry) return;
-    if (!cardReady) return;
+    if (!cardReady) {
+      setRetryFailure(
+        isZh
+          ? indonesiaPaymentFailure
+            ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
+            : "请填写银行卡号、有效期和 CVV 后再提交。"
+          : indonesiaPaymentFailure
+            ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
+            : "Enter the card number, expiry, and CVV before submitting.",
+      );
+      if (cardNumber.replace(/\D/g, "").length < 12) {
+        cardNumberRef.current?.focus();
+      } else if (cardExpiry.trim().length < 4) {
+        cardExpiryRef.current?.focus();
+      } else if (cardCvv.replace(/\D/g, "").length < 3) {
+        cardCvvRef.current?.focus();
+      } else {
+        cardHolderNameRef.current?.focus();
+      }
+      return;
+    }
     setRetryFailure(null);
     setRetryingMode(mode);
     try {
@@ -359,6 +383,7 @@ export function FailureCard({
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
                 <input
+                  ref={cardNumberRef}
                   value={cardNumber}
                   onChange={(event) => setCardNumber(event.target.value)}
                   autoComplete="cc-number"
@@ -370,6 +395,7 @@ export function FailureCard({
               <label className="space-y-1">
                 <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
                 <input
+                  ref={cardExpiryRef}
                   value={cardExpiry}
                   onChange={(event) => setCardExpiry(event.target.value)}
                   autoComplete="cc-exp"
@@ -381,6 +407,7 @@ export function FailureCard({
               <label className="space-y-1">
                 <span className="text-xs text-muted-foreground">CVV</span>
                 <input
+                  ref={cardCvvRef}
                   value={cardCvv}
                   onChange={(event) => setCardCvv(event.target.value)}
                   autoComplete="cc-csc"
@@ -396,6 +423,7 @@ export function FailureCard({
                     : (isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)")}
                 </span>
                 <input
+                  ref={cardHolderNameRef}
                   value={cardHolderName}
                   onChange={(event) => setCardHolderName(event.target.value)}
                   autoComplete="cc-name"
@@ -435,7 +463,6 @@ export function FailureCard({
                 onClick={() => {
                   void handleRetry(item.mode).catch(() => undefined);
                 }}
-                disabled={!cardReady}
                 loading={retryingMode === item.mode}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >

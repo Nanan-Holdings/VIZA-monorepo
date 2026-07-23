@@ -18,6 +18,8 @@ import { isChineseLocale } from "@/lib/i18n/locale";
 import { SubmissionDisclaimerDialog } from "./submission-disclaimer-dialog";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
+import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
+import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
 
 function formatDateOfficial(value: string): string | null {
   const trimmed = value.trim();
@@ -45,6 +47,46 @@ export function getLocalizedOptionText(
   side: "zh" | "en",
 ): string | null {
   return resolveOptionDisplayLabel(options, value, side);
+}
+
+export function getReviewOptionText(
+  dynamicAnswers: Record<string, string>,
+  value: string,
+  field: WizardStep["fields"][number],
+  side: "zh" | "en",
+): string | null {
+  const schemaLabel = getLocalizedOptionText(value, field.options, side);
+  if (schemaLabel) return schemaLabel;
+
+  const configuredSource = field.validationRules?.official_source;
+  const inferredSource = field.fieldName === "province_city_of_hotel"
+    ? "prearrival_category:administrative_unit_level1"
+    : field.fieldName === "ward_commune_of_hotel"
+      ? "prearrival_category:administrative_unit_level2"
+      : null;
+  const officialSource = typeof configuredSource === "string"
+    ? configuredSource
+    : inferredSource;
+  if (!officialSource?.startsWith("prearrival_category:")) {
+    return null;
+  }
+
+  const configuredDependency = field.validationRules?.depends_on;
+  const dependency = typeof configuredDependency === "string"
+    ? configuredDependency
+    : field.fieldName === "ward_commune_of_hotel"
+      ? "province_city_of_hotel"
+      : null;
+  const parentValue = typeof dependency === "string"
+    ? dynamicAnswers[dependency] ?? ""
+    : "";
+  const normalizedSource = officialSource.replace(/^prearrival_category:/, "");
+  const officialOptions = normalizedSource === "administrative_unit_level1"
+    ? getVnPrearrivalAdministrativeOptions("level1")
+    : normalizedSource === "administrative_unit_level2"
+      ? getVnPrearrivalAdministrativeOptions("level2", parentValue)
+      : getVnPrearrivalStaticOptions(officialSource, parentValue);
+  return getLocalizedOptionText(value, officialOptions, side);
 }
 
 function isTextLikeReviewField(field: WizardStep["fields"][number]): boolean {
@@ -150,10 +192,10 @@ export function DynamicReviewStep({
     side: "zh" | "en" = "zh",
   ): string => {
     if (!value || value === "does_not_apply") return t("dynamicField.doesNotApply");
-    if (!field?.options || !Array.isArray(field.options)) return value;
+    if (!field) return value;
 
-    return getLocalizedOptionText(value, field.options, side) ?? value;
-  }, [t]);
+    return getReviewOptionText(dynamicAnswers, value, field, side) ?? value;
+  }, [dynamicAnswers, t]);
 
   const getOfficialValue = useCallback((
     value: string,
@@ -164,11 +206,11 @@ export function DynamicReviewStep({
     }
 
     if (field.fieldType === "select" || field.fieldType === "radio" || field.fieldType === "country") {
-      return getLocalizedOptionText(value, field.options, "en") ?? value;
+      return getReviewOptionText(dynamicAnswers, value, field, "en") ?? value;
     }
 
     return value;
-  }, []);
+  }, [dynamicAnswers]);
 
   const bilingualRows = useMemo<ReviewRow[]>(() => {
     const rows: ReviewRow[] = [];

@@ -3,6 +3,7 @@ import type { WizardStep } from "@/types/visa-form-fields";
 import {
   getBilingualReviewValue,
   getLocalizedOptionText,
+  getReviewOptionText,
   getReviewOfficialLabel,
   getReviewSourceLabel,
 } from "../dynamic-review-step";
@@ -72,5 +73,75 @@ describe("dynamic review localization", () => {
 
     expect(getBilingualReviewValue(answers, "purpose_of_entry", "Tourism", field, "zh")).toBe("旅游");
     expect(getBilingualReviewValue(answers, "purpose_of_entry", "Tourism", field, "en")).toBe("Tourism");
+  });
+
+  test("resolves the selected Vietnam visa issue-place code on both review sides", () => {
+    const field = baseField({
+      fieldName: "visa_issued_place",
+      label: "Issued Place",
+      fieldType: "select",
+      validationRules: {
+        official_source: "prearrival_category:visa_issue_place",
+        depends_on: "visa_type",
+      },
+    });
+    const answers = {
+      visa_type: "EV",
+      visa_issued_place: "18A-131",
+    };
+
+    expect(getReviewOptionText(answers, "18A-131", field, "zh"))
+      .toBe("越南出入境管理局 - 公安部");
+    expect(getReviewOptionText(answers, "18A-131", field, "en"))
+      .toBe("Vietnam Immigration Department - Ministry of Public Security");
+  });
+
+  test("resolves persisted Vietnam province and ward codes on both review sides", () => {
+    const provinceField = baseField({
+      fieldName: "province_city_of_hotel",
+      label: "Province / City of Hotel",
+      fieldType: "select",
+      validationRules: {
+        official_source: "prearrival_category:administrative_unit_level1",
+      },
+    });
+    const wardField = baseField({
+      fieldName: "ward_commune_of_hotel",
+      label: "Ward / Commune of Hotel",
+      fieldType: "select",
+      validationRules: {
+        official_source: "prearrival_category:administrative_unit_level2",
+        depends_on: "province_city_of_hotel",
+      },
+    });
+    const answers = {
+      province_city_of_hotel: "48",
+      ward_commune_of_hotel: "20285",
+    };
+
+    expect(getReviewOptionText(answers, "48", provinceField, "zh")).toBe("岘港市");
+    expect(getReviewOptionText(answers, "48", provinceField, "en")).toBe("Da Nang City");
+    expect(getReviewOptionText(answers, "20285", wardField, "zh")).toBe("五行山坊");
+    expect(getReviewOptionText(answers, "20285", wardField, "en")).toBe("Ngu Hanh Son Ward");
+  });
+
+  test("resolves Vietnam administrative codes when an older schema lacks source metadata", () => {
+    const provinceField = baseField({
+      fieldName: "province_city_of_hotel",
+      label: "Province / City of Hotel",
+      fieldType: "select",
+    });
+    const wardField = baseField({
+      fieldName: "ward_commune_of_hotel",
+      label: "Ward / Commune of Hotel",
+      fieldType: "select",
+    });
+    const answers = {
+      province_city_of_hotel: "48",
+      ward_commune_of_hotel: "20285",
+    };
+
+    expect(getReviewOptionText(answers, "48", provinceField, "zh")).toBe("岘港市");
+    expect(getReviewOptionText(answers, "20285", wardField, "zh")).toBe("五行山坊");
   });
 });

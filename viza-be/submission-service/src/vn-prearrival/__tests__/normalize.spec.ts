@@ -4,7 +4,9 @@ import type { SubmissionPayload } from "../../country-submissions/types";
 import { evaluateVietnamPrearrivalSubmissionWindow } from "../date-window";
 import {
   VnPrearrivalPortalValidationError,
+  matchesOfficialDialingCodeOption,
   normalizeVnPrearrivalPortalPayload,
+  officialLocalPhoneNumber,
   routeVnPrearrivalEmailAnswers,
 } from "../normalize";
 
@@ -181,6 +183,20 @@ test("forces the managed alias into the official form and preserves the real ema
   assert.equal(routed.alias_email_address, "appl-test@haggstorm.com");
   assert.equal(routed.real_email_address, "profile@example.com");
   assert.equal(routed.email_address, "traveller@example.com");
+});
+
+test("preserves a local phone number that begins with another country dialling code", () => {
+  assert.equal(officialLocalPhoneNumber("+65", "86215099"), "86215099");
+  assert.equal(officialLocalPhoneNumber("+65", "+65 86215099"), "86215099");
+  assert.equal(officialLocalPhoneNumber("+65", "0065 86215099"), "86215099");
+});
+
+test("matches the selected dialling code across official option label shapes", () => {
+  assert.equal(matchesOfficialDialingCodeOption("+65", "+65"), true);
+  assert.equal(matchesOfficialDialingCodeOption("(+65)", "+65"), true);
+  assert.equal(matchesOfficialDialingCodeOption("Singapore (+65)", "+65"), true);
+  assert.equal(matchesOfficialDialingCodeOption("China (+86)", "+65"), false);
+  assert.equal(matchesOfficialDialingCodeOption("+650", "+65"), false);
 });
 
 test("evaluates Vietnam Pre-Arrival 72-hour submission window", () => {

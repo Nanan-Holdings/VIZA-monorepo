@@ -35,6 +35,29 @@ test("stale timeout scanning never marks unclaimed pending rows as stalled", () 
   assert.doesNotMatch(staleBody, /status:\s*"stalled"/);
 });
 
+test("stale timeout scanning uses heartbeats and cannot overwrite a queue that advanced during the scan", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  const staleStart = source.indexOf("async function markStaleQueueItemsTimedOut");
+  const staleEnd = source.indexOf("async function loadDs160Answers", staleStart);
+  assert.notEqual(staleStart, -1);
+  assert.notEqual(staleEnd, -1);
+
+  const staleBody = source.slice(staleStart, staleEnd);
+  assert.match(staleBody, /item\.heartbeat_at \|\| item\.updated_at \|\| item\.created_at/);
+  assert.match(staleBody, /\.eq\("status", item\.status\)/);
+  assert.match(staleBody, /\.eq\("updated_at", item\.updated_at\)/);
+  assert.match(staleBody, /updatedRows\.length === 0/);
+});
+
+test("Vietnam live processing has a longer outage grace period than the generic stale timeout", () => {
+  const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
+  assert.match(source, /VN_LIVE_PROCESSING_TIMEOUT_MS/);
+  assert.match(
+    source,
+    /status === "vn_live_assisted_processing" \|\| status === "vn_payment_processing"/,
+  );
+});
+
 test("stale timeout scanning covers interrupted Indonesia payment workers", () => {
   const source = readFileSync(path.join(__dirname, "..", "index.ts"), "utf8");
   const statusesStart = source.indexOf("const STALE_QUEUE_STATUSES");

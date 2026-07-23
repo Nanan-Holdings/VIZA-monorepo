@@ -28,3 +28,7 @@ Guardrails:
 - Passenger-to-trip transition failures are classified in `trip-transition.ts`.
   Stop immediately on official passenger validation errors; never cascade a
   failed transition into misleading missing Trip Information controls.
+- Province and ward values are persisted as official numeric codes, but the
+  portal autocomplete must be searched and matched with the bundled English
+  labels from `administrative-label.ts`. Keep this mapping covered by
+  `runner-administrative-options.spec.ts`.

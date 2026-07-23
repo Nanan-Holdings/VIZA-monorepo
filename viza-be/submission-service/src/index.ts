@@ -227,6 +227,13 @@ const STALE_QUEUE_TIMEOUT_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_QUEUE_STALE_MS ?? String(10 * 60 * 1000),
   10,
 );
+const VN_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
+  STALE_QUEUE_TIMEOUT_MS,
+  Number.parseInt(
+    process.env.VN_LIVE_PROCESSING_TIMEOUT_MS ?? String(45 * 60 * 1000),
+    10,
+  ),
+);
 const DS160_LIVE_PROCESSING_TIMEOUT_MS = Math.max(
   STALE_QUEUE_TIMEOUT_MS,
   (Number.parseInt(process.env.DS160_LIVE_MAX_DURATION_SECONDS ?? "1800", 10) + 300) * 1000,
@@ -1391,6 +1398,9 @@ function timeoutForQueueStatus(status: SubmissionQueueItem["status"]): number {
   if (status === "ds160_live_assisted_processing") {
     return DS160_LIVE_PROCESSING_TIMEOUT_MS;
   }
+  if (status === "vn_live_assisted_processing" || status === "vn_payment_processing") {
+    return VN_LIVE_PROCESSING_TIMEOUT_MS;
+  }
   return STALE_QUEUE_TIMEOUT_MS;
 }
 
@@ -1411,7 +1421,7 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
     const timeoutMs = timeoutForQueueStatus(item.status);
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return false;
     const cutoffMs = Date.now() - timeoutMs;
-    const lastTouched = item.updated_at || item.created_at;
+    const lastTouched = item.heartbeat_at || item.updated_at || item.created_at;
     const touchedMs = lastTouched ? Date.parse(lastTouched) : Number.NaN;
     return Number.isFinite(touchedMs) && touchedMs < cutoffMs;
   });
@@ -1419,7 +1429,8 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
     const timeoutMs = timeoutForQueueStatus(item.status);
     const timedOutStatus = failedStatusForQueueStatus(item.status);
     const reason = `Submission job failed: worker heartbeat stopped for ${Math.round(timeoutMs / 1000)}s in status ${item.status}.`;
-    await supabase
+    const timedOutAt = new Date().toISOString();
+    const { data: updatedRows, error: updateError } = await supabase
       .from("submission_queue")
       .update({
         status: timedOutStatus,
@@ -1428,9 +1439,24 @@ async function markStaleQueueItemsTimedOut(): Promise<void> {
         error_code: "queue_processing_timed_out",
         error_message: reason,
         current_stage: "failed",
-        updated_at: new Date().toISOString(),
+        updated_at: timedOutAt,
       })
-      .eq("id", item.id);
+      .eq("id", item.id)
+      .eq("status", item.status)
+      .eq("updated_at", item.updated_at)
+      .select("id");
+    if (updateError) {
+      console.error(
+        `[queue-timeout] Failed to mark queue=${redactIdentifier(item.id)} timed out: ${updateError.message}`,
+      );
+      continue;
+    }
+    if (!updatedRows || updatedRows.length === 0) {
+      console.log(
+        `[queue-timeout] Skipped queue=${redactIdentifier(item.id)} because its heartbeat/status advanced during the stale scan.`,
+      );
+      continue;
+    }
     await markSubmissionFailed(item.application_id, reason);
     console.warn(
       `[queue-timeout] queue=${redactIdentifier(item.id)} application=${redactIdentifier(item.application_id)} -> ${timedOutStatus}: ${reason}`,
@@ -3530,23 +3556,32 @@ async function updateVnQueueRow(
   richPatch: Record<string, unknown>,
   legacyPatch: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("submission_queue")
-    .update(richPatch)
-    .eq("id", queueId);
-  if (!error) return;
+  let lastError: { message: string } | null = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const { error } = await supabase
+      .from("submission_queue")
+      .update(richPatch)
+      .eq("id", queueId);
+    if (!error) return;
 
-  if (!isMissingSubmissionQueueColumnError(error)) {
-    throw new Error(`Failed to update Vietnam queue ${queueId}: ${error.message}`);
+    lastError = error;
+    if (isMissingSubmissionQueueColumnError(error)) {
+      const { error: legacyError } = await supabase
+        .from("submission_queue")
+        .update(legacyPatch)
+        .eq("id", queueId);
+      if (!legacyError) return;
+      lastError = legacyError;
+    }
+
+    if (attempt < 3) {
+      await sleepMs(attempt * 750);
+    }
   }
 
-  const { error: legacyError } = await supabase
-    .from("submission_queue")
-    .update(legacyPatch)
-    .eq("id", queueId);
-  if (legacyError) {
-    throw new Error(`Failed to update legacy Vietnam queue ${queueId}: ${legacyError.message}`);
-  }
+  throw new Error(
+    `Failed to update Vietnam queue ${queueId} after 3 attempts: ${lastError?.message ?? "unknown database error"}`,
+  );
 }
 
 function redactVnDiagnosticText(value: string): string {
@@ -4447,14 +4482,22 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
 
   const heartbeatTimer = setInterval(() => {
     const heartbeatAt = new Date().toISOString();
-    void supabase
-      .from("submission_queue")
-      .update({
+    void updateVnQueueRow(
+      item.id,
+      {
         heartbeat_at: heartbeatAt,
         updated_at: heartbeatAt,
-      })
-      .eq("id", item.id)
-      .eq("status", processingStatus);
+      },
+      {
+        updated_at: heartbeatAt,
+      },
+    ).catch((error) => {
+      console.warn(
+        `[vn] Heartbeat update failed for queue=${redactIdentifier(item.id)}; the next interval will retry: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
   }, 60_000);
   heartbeatTimer.unref?.();
 
@@ -7642,8 +7685,12 @@ async function pollOnce(): Promise<void> {
 
 let pollInFlight = false;
 let immediatePollRequested = false;
+let legacyPollTimer: NodeJS.Timeout | null = null;
+let healthServer: ReturnType<typeof startHealthServer> | null = null;
+let shutdownRequested = false;
 
 function wakeSubmissionQueue(): void {
+  if (shutdownRequested) return;
   immediatePollRequested = true;
   if (!pollInFlight) {
     void poll();
@@ -7664,6 +7711,7 @@ async function poll(): Promise<void> {
     } while (immediatePollRequested);
   } finally {
     pollInFlight = false;
+    if (shutdownRequested) closeHealthServer();
   }
 }
 
@@ -7707,9 +7755,35 @@ async function consumeIndonesiaCardSessionWithGrace(
   return card;
 }
 
+function closeHealthServer(): void {
+  if (!healthServer) {
+    process.exitCode = 0;
+    return;
+  }
+  const server = healthServer;
+  healthServer = null;
+  server.close(() => {
+    console.log("[main] Health server closed; shutdown complete");
+    process.exit(0);
+  });
+  server.closeIdleConnections();
+}
+
 function shutdownRunner(signal: string): void {
-  console.log(`[main] ${signal} received — stopping runner_job consumer`);
+  if (shutdownRequested) return;
+  shutdownRequested = true;
+  console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
+  immediatePollRequested = false;
+  if (legacyPollTimer) {
+    clearInterval(legacyPollTimer);
+    legacyPollTimer = null;
+  }
+  if (!pollInFlight) {
+    closeHealthServer();
+  } else {
+    console.log("[main] Waiting for the active submission_queue item to finish before shutdown");
+  }
 }
 process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
 process.on("SIGINT", () => shutdownRunner("SIGINT"));
@@ -7720,7 +7794,7 @@ async function main(): Promise<void> {
 
   // DEP-004: local handoff endpoints and Cloud Run probes should be available
   // before slower runner configuration logging and queue startup complete.
-  startHealthServer({
+  healthServer = startHealthServer({
     isWorkerStarted: () => runnerStarted,
     isWorkerBusy: () => pollInFlight,
     hasOneTimeCardSessions: () =>
@@ -7820,7 +7894,9 @@ async function main(): Promise<void> {
   // A single dedicated legacy worker retains this consumer during migration.
   if (LEGACY_SUBMISSION_QUEUE_ENABLED) {
     await poll();
-    setInterval(poll, POLL_INTERVAL_MS);
+    if (!shutdownRequested) {
+      legacyPollTimer = setInterval(poll, POLL_INTERVAL_MS);
+    }
   }
 
   // QUE-002: start the runner_job consumer (does not block the legacy poll).
