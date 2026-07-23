@@ -1917,11 +1917,36 @@ async function maybeCreatePhEtravelAccount(
 
   if (/password|set password|create password/i.test(currentText)) {
     const password = options.officialAccountPassword?.trim() || process.env.PH_ETRAVEL_ACCOUNT_PASSWORD?.trim() || payload.passportNumber;
-    await page.locator("input[type='password']").nth(0).fill(password, { timeout: 15_000 });
-    const confirmPassword = page.locator("input[type='password']").nth(1);
-    if (await confirmPassword.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    const passwordInput = page.locator("input[name='password'], input[type='password']").first();
+    const confirmPassword = page
+      .locator("input[name='password_confirmation'], input[type='password']")
+      .filter({ visible: true })
+      .last();
+    const fillPasswordInputs = async (): Promise<void> => {
+      await passwordInput.fill(password, { timeout: 15_000 });
       await confirmPassword.fill(password, { timeout: 15_000 });
-    }
+      await confirmPassword.blur().catch(() => undefined);
+      const valuesMatch =
+        await passwordInput.inputValue({ timeout: 5_000 }).catch(() => "") === password &&
+        await confirmPassword.inputValue({ timeout: 5_000 }).catch(() => "") === password;
+      if (!valuesMatch) {
+        throw new PhEtravelPortalError(
+          "Official eTravel password fields did not retain the generated password.",
+          {
+            code: "ph_etravel_registration_password_fill_failed",
+            screenshotPaths: screenshots,
+            portalSummary: (await bodyText(page)).slice(0, 700),
+          },
+        );
+      }
+    };
+    await fillPasswordInputs();
+    const passwordResponsePromise = page.waitForResponse(
+      (response) =>
+        /\/api\/v2\/traveller\/create_password(?:\?|$)/i.test(response.url()) &&
+        response.request().method() === "POST",
+      { timeout: 30_000 },
+    ).catch(() => null);
     const clickedPasswordContinue = await clickFirstEnabledAvailable(page, [
       page.getByRole("button", { name: /continue|next|submit|create|register/i }),
       page.locator("button").filter({ hasText: /continue|next|submit|create|register/i }),
@@ -1934,6 +1959,46 @@ async function maybeCreatePhEtravelAccount(
           code: "ph_etravel_registration_password_continue_disabled",
           screenshotPaths: screenshots,
           portalSummary: (await bodyText(page)).slice(0, 700),
+        },
+      );
+    }
+    let passwordResponse = await passwordResponsePromise;
+    if (!passwordResponse && /create your password|password confirmation/i.test(await bodyText(page))) {
+      // Formik occasionally accepts the synthetic button click without
+      // invoking its submit handler. Refill the controlled inputs and trigger
+      // the form's native requestSubmit path while still observing the API.
+      await fillPasswordInputs();
+      const fallbackResponsePromise = page.waitForResponse(
+        (response) =>
+          /\/api\/v2\/traveller\/create_password(?:\?|$)/i.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 30_000 },
+      ).catch(() => null);
+      await page.locator("form").first().evaluate((form: HTMLFormElement) => form.requestSubmit());
+      passwordResponse = await fallbackResponsePromise;
+      logs.push(`ph_etravel_password_native_submit response=${passwordResponse?.status() ?? "missing"}`);
+    }
+    if (!passwordResponse) {
+      screenshots.push(await saveScreenshot(page, "registration-password-request-missing", logs));
+      throw new PhEtravelPortalError(
+        "Official eTravel did not send the create-password request after both password fields were verified.",
+        {
+          code: "ph_etravel_registration_password_request_missing",
+          screenshotPaths: screenshots,
+          portalSummary: (await bodyText(page)).slice(0, 700),
+        },
+      );
+    }
+    logs.push(`ph_etravel_password_response status=${passwordResponse.status()}`);
+    if (passwordResponse.status() >= 400) {
+      const responseSummary = (await passwordResponse.text().catch(() => "")).slice(0, 500);
+      screenshots.push(await saveScreenshot(page, "registration-password-rejected", logs));
+      throw new PhEtravelPortalError(
+        `Official eTravel rejected the create-password request with HTTP ${passwordResponse.status()}.`,
+        {
+          code: "ph_etravel_registration_password_rejected",
+          screenshotPaths: screenshots,
+          portalSummary: responseSummary || (await bodyText(page)).slice(0, 700),
         },
       );
     }
