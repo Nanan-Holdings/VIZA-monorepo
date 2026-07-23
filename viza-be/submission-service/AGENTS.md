@@ -196,6 +196,9 @@ filling and one-shot submission for the applicant.
   mistaken for official arrival-card submissions when suppressing duplicate
   live retries. A live queue counts as success only with persisted official
   submitted evidence.
+- `src/vn-prearrival/data/`: build-owned snapshots of the official Vietnam
+  Pre-Arrival option catalogs used by the cloud worker. Keep these synchronized
+  with the frontend catalogs whenever the official portal options are refreshed.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live

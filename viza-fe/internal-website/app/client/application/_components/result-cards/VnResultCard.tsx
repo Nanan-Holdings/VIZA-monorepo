@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isChineseLocale } from "@/lib/i18n/locale";
 import type { VnSubmissionResult } from "@/lib/submission-result";
+import { WaitingCard } from "./WaitingCard";
 
 type ManualAction = {
   id: string;
@@ -50,6 +51,8 @@ export function VnResultCard({
     typeof officialFeeStatus?.queueId === "string";
   const paymentNeedsOperator = officialFeeStatus?.paymentNeedsOperator === true;
   const paymentQueue = officialFeeStatus?.paymentQueue as Record<string, unknown> | null | undefined;
+  const paymentQueueStatus = typeof paymentQueue?.status === "string" ? paymentQueue.status : null;
+  const paymentQueueStage = typeof paymentQueue?.current_stage === "string" ? paymentQueue.current_stage : null;
   const paymentQueuePaid = paymentQueue?.status === "vn_payment_paid" || paymentQueue?.payment_status === "paid";
   const quoteAmount = typeof quote?.official_fee_amount === "number"
     ? quote.official_fee_amount
@@ -65,8 +68,30 @@ export function VnResultCard({
     intentStatus === "manual_review";
   const cloudPaymentActive =
     paymentBusy || (paymentQueued && !paymentNeedsOperator && !paymentPaid);
+  const cloudPaymentAtOfficialPayment =
+    paymentQueueStatus === "vn_payment_pending" ||
+    paymentQueueStatus === "vn_payment_processing" ||
+    /payment|bank_authentication|3ds|otp/i.test(paymentQueueStage ?? "");
+  const cloudPaymentWorkerRunning =
+    paymentQueueStatus === "vn_live_assisted_processing" ||
+    paymentQueueStatus === "vn_live_assisted_pending";
+  const cloudPaymentVisualStage: "preparing" | "filling_form" | "payment_handoff" =
+    cloudPaymentAtOfficialPayment
+      ? "payment_handoff"
+      : cloudPaymentWorkerRunning
+        ? "filling_form"
+        : "preparing";
+  const cloudPaymentProgress =
+    cloudPaymentVisualStage === "payment_handoff"
+      ? 88
+      : cloudPaymentVisualStage === "filling_form"
+        ? 55
+        : 9;
   const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
-  const showPaymentForm = !paymentPaid && (!paymentQueued || paymentNeedsOperator);
+  const showPaymentForm =
+    !paymentPaid &&
+    !paymentBusy &&
+    (!paymentQueued || paymentNeedsOperator);
   const isFormCheckpoint = result.status === "official_form_reached";
   const isManualCheckpoint = Boolean(result.manualAction);
   const manualInstruction = result.manualAction?.instructions ?? "";
@@ -233,13 +258,54 @@ export function VnResultCard({
       setOneTimeCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
       setCardNumber("");
       setCardCvv("");
-      setOfficialFeeStatus((current) => ({ ...(current ?? {}), paymentQueued: true, queueId: payPayload?.queueId ?? null }));
+      const queuedStatus =
+        typeof payPayload?.queueStatus === "string"
+          ? payPayload.queueStatus
+          : "vn_cloud_live_pending";
+      setOfficialFeeStatus((current) => ({
+        ...(current ?? {}),
+        paymentQueued: true,
+        paymentNeedsOperator: false,
+        queueId: payPayload?.queueId ?? null,
+        paymentQueue: {
+          id: payPayload?.queueId ?? null,
+          status: queuedStatus,
+          payment_status: "authorized",
+        },
+      }));
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : String(error));
     } finally {
       setPaymentBusy(false);
     }
   };
+
+  if (cloudPaymentActive) {
+    const cloudPaymentMessage =
+      cloudPaymentVisualStage === "payment_handoff"
+        ? isZh
+          ? "Fly 云端已到达官方付款阶段，正在等待支付结果或银行验证。"
+          : "The Fly cloud run reached official payment and is waiting for the payment result or bank verification."
+        : cloudPaymentVisualStage === "filling_form"
+          ? isZh
+            ? "Fly 云端正在填写越南 e-Visa 官网表单。"
+            : "The Fly cloud run is filling the official Vietnam e-Visa form."
+          : isZh
+            ? "正在安全发送银行卡并启动 Fly 云端任务。"
+            : "Securely sending the card and starting the Fly cloud job.";
+
+    return (
+      <WaitingCard
+        status="running"
+        stage={cloudPaymentVisualStage}
+        serverProgress={cloudPaymentProgress}
+        message={cloudPaymentMessage}
+        applicationId={applicationId}
+        country="vietnam"
+        visaType="evisa_tourism"
+      />
+    );
+  }
 
   return (
     <Card className="rounded-xl border-input">
@@ -267,31 +333,6 @@ export function VnResultCard({
                 ? "后台已进入越南 e-Visa 官网流程，并停在付款或最终确认前的安全检查点。"
                 : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
         </p>
-
-        {cloudPaymentActive && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="rounded-lg border border-brand-200 bg-brand-50 p-4"
-          >
-            <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-600" />
-              <div>
-                <p className="font-semibold text-foreground">
-                  {isZh ? "Fly 云端正在自动处理" : "Fly cloud automation is running"}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {isZh
-                    ? "请保持本页面打开。官网只在 Fly 云端浏览器中运行，不会在本机 Chrome 打开；页面会自动刷新进度。"
-                    : "Keep this page open. The official portal runs only in the Fly cloud browser and will not open in local Chrome; progress refreshes automatically."}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-brand-100">
-              <div className="h-full w-2/3 animate-pulse rounded-full bg-brand-600" />
-            </div>
-          </div>
-        )}
 
         {result.checkpoint && !isPaymentCheckpoint && (
           <div className="rounded-md border border-input bg-background px-3 py-2">

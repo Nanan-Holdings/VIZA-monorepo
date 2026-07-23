@@ -43,6 +43,10 @@ import {
 } from "@/lib/submission-queue";
 import { GenericEvisaResultCard } from "./GenericEvisaResultCard";
 import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard";
+import {
+  getSubmissionStatusPollDelay,
+  isRetryableSubmissionStatusResponse,
+} from "./submission-status-poll";
 
 interface SubmissionStatusStepProps {
   applicationId: string | null;
@@ -1304,10 +1308,14 @@ export function SubmissionStatusStep({
     try {
       const retryCountry = snapshot?.country ?? country;
       const retryVisaType = snapshot?.visaType ?? visaType;
-      const isIndonesiaCardRetry =
+      const isOfficialPaymentCardRetry =
         Boolean(vietnamPaymentCard) &&
-        (isIndonesiaEVisaApplication(retryCountry, retryVisaType) || initialResultTargetsIndonesia);
-      if (isIndonesiaCardRetry && vietnamPaymentCard) {
+        (
+          isVietnamEVisaApplication(retryCountry, retryVisaType) ||
+          isIndonesiaEVisaApplication(retryCountry, retryVisaType) ||
+          initialResultTargetsIndonesia
+        );
+      if (isOfficialPaymentCardRetry && vietnamPaymentCard) {
         const response = await fetch(`/api/applications/${applicationId}/official-fee/pay`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1422,6 +1430,7 @@ export function SubmissionStatusStep({
     [status],
   );
   const snapshotIsActive = isActiveSnapshot(snapshot);
+  const snapshotHasQueue = Boolean(snapshot?.queue);
   // The application row is the durable source of truth. Realtime can deliver a
   // completed result after this component has already cached a running poll;
   // never let that older snapshot keep the UI at 99%.
@@ -1534,13 +1543,26 @@ export function SubmissionStatusStep({
   useEffect(() => {
     if (!applicationId) return;
     if (completedWithResult) return;
-    if ((failed || stalled) && snapshot?.queue) return;
+    if ((failed || stalled) && snapshotHasQueue) return;
 
     let cancelled = false;
     let pollingStoppedForAuth = false;
+    let pollInFlight = false;
+    let consecutiveFailures = 0;
+    let timer: number | null = null;
     const controller = new AbortController();
+
+    const scheduleNextPoll = () => {
+      if (cancelled || pollingStoppedForAuth) return;
+      timer = window.setTimeout(
+        () => void poll(),
+        getSubmissionStatusPollDelay(consecutiveFailures),
+      );
+    };
+
     const poll = async () => {
-      if (pollingStoppedForAuth) return;
+      if (cancelled || pollingStoppedForAuth || pollInFlight) return;
+      pollInFlight = true;
 
       try {
         const response = await fetch(`/api/applications/${applicationId}/submission-status`, {
@@ -1556,10 +1578,27 @@ export function SubmissionStatusStep({
           return;
         }
         if (!response.ok) {
+          if (isRetryableSubmissionStatusResponse(response.status)) {
+            consecutiveFailures += 1;
+            if (consecutiveFailures >= 2 && !cancelled) {
+              setSnapshot((current) =>
+                current
+                  ? {
+                      ...current,
+                      message: isZh
+                        ? "状态服务暂时不可用，正在自动重新连接。"
+                        : "The status service is temporarily unavailable. Reconnecting automatically.",
+                    }
+                  : current,
+              );
+            }
+            return;
+          }
           throw new Error(`submission-status returned ${response.status}`);
         }
         const body: unknown = await response.json();
         if (!isSnapshot(body)) return;
+        consecutiveFailures = 0;
         const polledQueueId =
           isRecord(body.queue) && typeof body.queue.id === "string"
             ? body.queue.id
@@ -1612,29 +1651,30 @@ export function SubmissionStatusStep({
         }
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setSnapshot((current) => ({
-          status: "stalled",
-          stage: "confirming_result",
-          progress: Math.max(current?.progress ?? 0, 99),
-          message: "Still confirming the submission result.",
-          result: current?.result ?? result,
-          error: message,
-          updatedAt: current?.updatedAt ?? null,
-          applicationStatus: current?.applicationStatus ?? status,
-          country: current?.country ?? country,
-          visaType: current?.visaType ?? visaType,
-          queue: current?.queue ?? null,
-        }));
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 2) {
+          setSnapshot((current) =>
+            current
+              ? {
+                  ...current,
+                  message: isZh
+                    ? "网络连接暂时中断，正在自动重连；申请任务不会重复提交。"
+                    : "The connection was interrupted. Reconnecting automatically without resubmitting the application.",
+                }
+              : current,
+          );
+        }
+      } finally {
+        pollInFlight = false;
+        scheduleNextPoll();
       }
     };
 
     void poll();
-    const timer = window.setInterval(poll, 3000);
     return () => {
       cancelled = true;
       controller.abort();
-      window.clearInterval(timer);
+      if (timer !== null) window.clearTimeout(timer);
     };
   }, [
     actionWithResult,
@@ -1644,10 +1684,11 @@ export function SubmissionStatusStep({
     failed,
     stalled,
     country,
+    isZh,
     localRetryActive,
     visaType,
     result,
-    snapshot?.queue,
+    snapshotHasQueue,
     status,
   ]);
 

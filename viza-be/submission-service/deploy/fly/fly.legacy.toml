@@ -58,7 +58,10 @@ kill_timeout = "5m"
     interval = "15s"
     method = "GET"
     timeout = "5s"
-    path = "/ready"
+    # Keep Fly ingress attached while Supabase has a transient outage. `/ready`
+    # remains available for diagnostics, but the one-time card handoff must
+    # still reach this live in-memory worker so the caller can retry safely.
+    path = "/health"
 
 [[vm]]
   cpu_kind = "performance"

@@ -74,6 +74,36 @@ export function routeVnPrearrivalEmailAnswers(
   };
 }
 
+export function officialLocalPhoneNumber(
+  phoneCountryCode: string,
+  phoneNumber: string,
+): string {
+  const trimmed = phoneNumber.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  const countryDigits = phoneCountryCode.replace(/\D/g, "");
+
+  // The official form stores the dialling code separately. Only remove it
+  // when the applicant explicitly supplied an international-format number.
+  // A bare local number can legitimately begin with another country's code.
+  if (countryDigits && trimmed.startsWith("+") && digits.startsWith(countryDigits)) {
+    return digits.slice(countryDigits.length);
+  }
+  if (countryDigits && trimmed.startsWith("00") && digits.startsWith(`00${countryDigits}`)) {
+    return digits.slice(countryDigits.length + 2);
+  }
+  return digits;
+}
+
+export function matchesOfficialDialingCodeOption(
+  optionText: string,
+  phoneCountryCode: string,
+): boolean {
+  const countryDigits = phoneCountryCode.replace(/\D/g, "");
+  if (!countryDigits) return false;
+  const escaped = countryDigits.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|\\D)\\+?${escaped}(\\D|$)`).test(optionText);
+}
+
 function answer(payload: SubmissionPayload, key: string): string {
   return (payload.countrySpecific[key] ?? "").trim();
 }

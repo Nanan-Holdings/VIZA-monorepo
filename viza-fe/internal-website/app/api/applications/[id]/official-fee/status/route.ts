@@ -24,6 +24,49 @@ type QueryErrorLike = {
   code?: string;
 };
 
+export const VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES = [
+  "vn_cloud_live_pending",
+  "vn_live_assisted_pending",
+  "vn_live_assisted_processing",
+  "vn_payment_pending",
+  "vn_payment_processing",
+  "vn_payment_paid",
+  "vn_payment_failed",
+  "vn_live_assisted_failed",
+  "vn_blocked",
+] as const;
+
+const ACTIVE_VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES = new Set<string>([
+  "vn_cloud_live_pending",
+  "vn_live_assisted_pending",
+  "vn_live_assisted_processing",
+  "vn_payment_pending",
+  "vn_payment_processing",
+]);
+
+const FAILED_VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES = new Set<string>([
+  "vn_payment_failed",
+  "vn_live_assisted_failed",
+  "vn_blocked",
+]);
+
+export function deriveVietnamOfficialFeeQueueState(
+  paymentQueue: Record<string, unknown> | null,
+): {
+  queueId: string | null;
+  paymentQueued: boolean;
+  paymentNeedsOperator: boolean;
+} {
+  const status = typeof paymentQueue?.status === "string" ? paymentQueue.status : null;
+  return {
+    queueId: typeof paymentQueue?.id === "string" ? paymentQueue.id : null,
+    paymentQueued: status !== null && ACTIVE_VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES.has(status),
+    paymentNeedsOperator:
+      (status !== null && FAILED_VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES.has(status)) ||
+      paymentQueue?.payment_status === "manual_review",
+  };
+}
+
 function isSchemaMissing(error: QueryErrorLike | null): boolean {
   const message = (error?.message ?? "").toLowerCase();
   return (
@@ -166,7 +209,7 @@ export async function GET(
     .from("submission_queue")
     .select("id, status, current_stage, payment_status, official_status, updated_at")
     .eq("application_id", applicationId)
-    .in("status", ["vn_payment_pending", "vn_payment_processing", "vn_payment_paid", "vn_payment_failed", "vn_blocked"])
+    .in("status", [...VIETNAM_OFFICIAL_FEE_QUEUE_STATUSES])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -175,6 +218,7 @@ export async function GET(
   }
 
   const paymentQueue = queueResult.data as Record<string, unknown> | null;
+  const paymentQueueState = deriveVietnamOfficialFeeQueueState(paymentQueue);
 
   return NextResponse.json(
     {
@@ -191,13 +235,7 @@ export async function GET(
       attempts: attemptsResult.data ?? [],
       receipt: receiptResult.data ?? null,
       paymentQueue,
-      paymentQueued:
-        paymentQueue?.status === "vn_payment_pending" ||
-        paymentQueue?.status === "vn_payment_processing",
-      paymentNeedsOperator:
-        paymentQueue?.status === "vn_blocked" ||
-        paymentQueue?.status === "vn_payment_failed" ||
-        paymentQueue?.payment_status === "manual_review",
+      ...paymentQueueState,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

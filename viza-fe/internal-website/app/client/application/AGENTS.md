@@ -35,6 +35,10 @@ Before changing this route, read:
 - `components/dynamic-form-field.tsx`: primitive field renderer for text, textarea, date, select, country, radio, checkbox, phone, SSN, and upload-like fields.
 - `components/field-guidance-panel.tsx`: frontend panel for field-level AI help. It calls `POST /api/field-guidance` and must render plain, useful field guidance.
 - `components/application-steps/dynamic-review-step.tsx`: read-only review step for DB-driven forms.
+- `app/client/application/_components/result-cards/submission-status-poll.ts`:
+  bounded retry policy for final-step status polling. Network failures and
+  retryable upstream responses must reconnect without marking the durable
+  submission job failed or creating another submission.
 - `app/actions/visa-form-fields.ts`: loads `visa_form_fields` rows and groups them into wizard steps.
 - `app/actions/application-lifecycle.ts`: creates and reads per-user application progress summaries.
 - `app/client/application/_components/result-cards/__tests__`: focused regression tests for confirmation/result cards.

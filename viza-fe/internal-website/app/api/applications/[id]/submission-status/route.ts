@@ -662,7 +662,9 @@ export function deriveNonTerminalStatus(
   };
 }
 
-export async function GET(
+const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 8_000;
+
+async function getSubmissionStatus(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
@@ -804,4 +806,41 @@ export async function GET(
     },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error("Submission status upstream request timed out")),
+        SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+      );
+    });
+    return await Promise.race([
+      getSubmissionStatus(request, context),
+      timeoutPromise,
+    ]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[submission-status] temporarily unavailable:", message);
+    return NextResponse.json(
+      {
+        error: "Submission status is temporarily unavailable.",
+        retryable: true,
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": "3",
+        },
+      },
+    );
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }

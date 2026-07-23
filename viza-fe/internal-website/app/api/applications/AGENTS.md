@@ -31,6 +31,7 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.test.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-status/refresh/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
@@ -38,6 +39,8 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
+  returns a retryable `503` response when its database dependency times out so
+  the client can keep polling without losing the durable submission state.
 - `viza-fe/internal-website/app/api/applications/[id]/kr-annex17-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-official-eform/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`
