@@ -12,6 +12,7 @@ import {
 import {
   PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS,
   isPhEtravelRegistrationResponseRejected,
+  shouldRetryMissingPhEtravelResponse,
   isPhEtravelMpinRejectedText,
   isPhEtravelRemotePolicyBlockMessage,
 } from "../runner";
@@ -58,6 +59,17 @@ test("PH eTravel retries rejected registration API responses instead of waiting 
   assert.equal(isPhEtravelRegistrationResponseRejected(422), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(429), true);
   assert.equal(isPhEtravelRegistrationResponseRejected(200), false);
+});
+
+test("PH eTravel retries Continue when Turnstile appears before the registration POST", () => {
+  assert.equal(
+    shouldRetryMissingPhEtravelResponse("Create an account\nEnter Email address\nContinue"),
+    true,
+  );
+  assert.equal(
+    shouldRetryMissingPhEtravelResponse("Enter one-time password\nResend Email Code"),
+    false,
+  );
 });
 
 test("PH eTravel gives a delayed OTP priority over a registration-attempt notice", () => {
