@@ -3756,6 +3756,9 @@ const PH_ETRAVEL_RETRYABLE_ACCOUNT_ERROR_CODES = new Set([
   "ph_etravel_registration_request_missing",
   "ph_etravel_registration_request_rejected",
   "ph_etravel_registration_otp_continue_disabled",
+  "ph_etravel_registration_password_fill_failed",
+  "ph_etravel_registration_password_request_missing",
+  "ph_etravel_registration_password_rejected",
   "ph_etravel_otp_continue_disabled",
 ]);
 
