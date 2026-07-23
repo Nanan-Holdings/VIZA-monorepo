@@ -373,7 +373,6 @@ const PH_ETRAVEL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("email_address", "Email", "contact"),
   arrivalCardField("mobile_country_code", "Phone country code", "contact"),
   arrivalCardField("mobile_number", "Phone", "contact"),
-  arrivalCardField("travel_type", "Travel type", "trip"),
   arrivalCardField("transport_type", "Transport type", "trip"),
   arrivalCardField("flight_arrival_date", "Flight arrival date", "trip"),
   arrivalCardField("flight_departure_date", "Flight departure date", "trip"),

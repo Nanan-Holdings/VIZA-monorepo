@@ -380,7 +380,7 @@ export function normalizePhEtravelPortalPayload(
       "mobile_number",
       missing,
     ),
-    travelType: isDeparture ? "DEPARTURE" : requireFirstText([answers.travel_type], "travel_type", missing),
+    travelType: isDeparture ? "DEPARTURE" : "ARRIVAL",
     transportType: requireFirstText([answers.transport_type], "transport_type", missing),
     passportHolderType: firstText([answers.passport_holder_type]) || null,
     registrationFor: firstText([answers.registration_for]) || null,
