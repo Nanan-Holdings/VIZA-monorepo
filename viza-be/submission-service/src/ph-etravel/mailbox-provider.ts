@@ -146,7 +146,7 @@ async function waitForMessageToAddress(
   address: string,
   predicate: (row: InboundMessage) => boolean,
   timeoutMs: number,
-  opts: { since?: string; pollIntervalMs?: number } = {},
+  opts: { since?: string; pollIntervalMs?: number; includeProcessed?: boolean } = {},
 ): Promise<InboundMessage> {
   const { supabase } = await import("../supabase");
   const pollIntervalMs = opts.pollIntervalMs ?? 5_000;
@@ -155,17 +155,21 @@ async function waitForMessageToAddress(
   const normalizedAddress = address.toLowerCase();
 
   while (Date.now() < deadline) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("inbound_email")
       .select("id, to_addr, from_addr, subject, message_id, text, html, headers, raw_size, r2_key, spam_score, received_at, processed")
       .eq("to_addr", normalizedAddress)
       .gte("received_at", since)
-      .eq("processed", false)
       .order("received_at", { ascending: true })
       .limit(20);
+    if (!opts.includeProcessed) {
+      query = query.eq("processed", false);
+    }
+    const { data, error } = await query;
     if (error) throw new Error(`PH eTravel mailbox poll failed: ${error.message}`);
     for (const row of (data ?? []) as InboundMessage[]) {
       if (!predicate(row)) continue;
+      if (row.processed) return row;
       const { error: markError } = await supabase
         .from("inbound_email")
         .update({ processed: true, processed_at: new Date().toISOString() })
@@ -235,14 +239,16 @@ export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddre
     },
 
     async waitForTemporaryPassword(params) {
-      const message = await waitForOfficialMessage(
-        (row) => {
-          const senderMatches = /etravel|egov|gov\.ph/i.test(row.from_addr ?? "");
-          return senderMatches && extractPhEtravelTemporaryPasswordFromMessage(row) !== null;
-        },
-        params.timeoutMs,
-        params.since,
-      );
+      const predicate = (row: InboundMessage) => {
+        const senderMatches = /etravel|egov|gov\.ph/i.test(row.from_addr ?? "");
+        return senderMatches && extractPhEtravelTemporaryPasswordFromMessage(row) !== null;
+      };
+      const message = mailboxAddress?.trim()
+        ? await waitForMessageToAddress(mailboxAddress, predicate, params.timeoutMs, {
+            since: params.since,
+            includeProcessed: true,
+          })
+        : await waitForOfficialMessage(predicate, params.timeoutMs, params.since);
       const password = extractPhEtravelTemporaryPasswordFromMessage(message);
       if (!password) throw new Error("Philippines eTravel temporary-password email did not contain a password.");
       return password;

@@ -57,6 +57,7 @@ export interface PhEtravelRunnerOptions {
   forceAccountRegistration?: boolean;
   forceLocalBrowser?: boolean;
   mailbox?: PhEtravelMailboxProvider;
+  onOfficialAccountPassword?: (password: string) => Promise<void>;
   emailVerificationTimeoutMs?: number;
   recoverReferenceNumber?: string;
 }
@@ -1149,11 +1150,48 @@ async function completeEgovPermanentResidenceOnboarding(
     countryOptionPattern(payload.countryOfResidence),
   );
   const address = payload.residenceAddress || payload.countryOfResidence;
-  const filledAddress = await fillVisibleByPlaceholder(page, /no\.?\/bldg|city|state|province|address/i, address)
-    || await fillVisibleTextField(page, "No./Bldg./City/State/Province", address);
+  const addressParts = (payload.residenceAddressLine2 || address)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !/^\d{4,10}$/.test(part))
+    .filter((part) => !countryOptionPattern(payload.countryOfResidence).test(part));
+  const province = addressParts.at(-1) || payload.residenceAddressLine1 || address;
+  const city = addressParts.at(-2) || addressParts.at(-1) || address;
+  const barangay = addressParts[0] || city;
+  const choseProvince = await chooseDropdownOption(
+    page,
+    /state\s*\/?\s*province|province|state/i,
+    new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    province,
+  );
+  const choseCity = await chooseDropdownOption(
+    page,
+    /city\s*\/?\s*municipality|municipality|city/i,
+    new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    city,
+  );
+  const choseBarangay = await chooseDropdownOption(
+    page,
+    /barangay/i,
+    new RegExp(barangay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    barangay,
+  ) || await fillVisibleTextField(page, "Barangay", barangay);
+  const streetAddress = payload.residenceAddressLine1 || address;
+  const filledAddress = await fillVisibleByPlaceholder(page, /house|no\.?\/bldg|street|address line 1/i, streetAddress)
+    || await fillVisibleTextField(page, "House No./Bldg./Street", streetAddress);
+  if (payload.residenceAddressLine2) {
+    await fillVisibleByPlaceholder(page, /address line 2/i, payload.residenceAddressLine2);
+  }
 
-  if (!choseCountry || !filledAddress) {
-    logs.push(`ph_etravel_egov_residence_precheck_incomplete ${JSON.stringify({ choseCountry, filledAddress })}`);
+  if (!choseCountry || !choseProvince || !choseCity || !choseBarangay || !filledAddress) {
+    logs.push(`ph_etravel_egov_residence_precheck_incomplete ${JSON.stringify({
+      choseCountry,
+      choseProvince,
+      choseCity,
+      choseBarangay,
+      filledAddress,
+    })}`);
   }
 
   const clickedContinue = await clickFirstEnabledAvailable(page, [
@@ -1839,6 +1877,7 @@ async function maybeCreatePhEtravelAccount(
       }).catch(() => null);
       if (temporaryPassword) {
         options.officialAccountPassword = temporaryPassword;
+        await options.onOfficialAccountPassword?.(temporaryPassword);
         logs.push("ph_etravel_official_temporary_password_recovered");
       }
       return false;
@@ -1890,6 +1929,7 @@ async function maybeCreatePhEtravelAccount(
       }).catch(() => null);
       if (temporaryPassword) {
         options.officialAccountPassword = temporaryPassword;
+        await options.onOfficialAccountPassword?.(temporaryPassword);
         logs.push("ph_etravel_official_temporary_password_recovered");
       }
       return false;
