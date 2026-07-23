@@ -600,6 +600,20 @@ async function clickTurnstileProtectedContinue(
     await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2_000);
     lastText = await bodyText(page);
+    if (
+      options.responseUrlPattern &&
+      response === null &&
+      shouldRetryMissingPhEtravelResponse(lastText) &&
+      attempt < 3
+    ) {
+      // eTravel renders Turnstile only after the first Continue click. In that
+      // state no registration POST is sent. Let Browserbase/2Captcha finish,
+      // refill the controlled email input, and click again with the token.
+      const solved = await solveTurnstileIfPresent(page, logs, nativeCloudflareUnblock);
+      logs.push(`ph_etravel_continue_response_missing_retry attempt=${attempt} solved=${solved}`);
+      await options.prepareRetry?.();
+      continue;
+    }
     if (!/verification failed|troubleshooting|cloudflare|turnstile|验证失败|故障排除/i.test(lastText)) {
       return { pageText: lastText, responseStatus: lastResponseStatus, responseSummary: lastResponseSummary };
     }
@@ -613,6 +627,12 @@ async function clickTurnstileProtectedContinue(
 
 export function isPhEtravelRegistrationResponseRejected(status: number): boolean {
   return status >= 400;
+}
+
+export function shouldRetryMissingPhEtravelResponse(pageText: string): boolean {
+  const stillOnEmailGate = /create an account|enter email address|sign in to etravel/i.test(pageText);
+  const advanced = /enter one[-\s]?time[-\s]?(?:password|code)|\botp\b|resend email code|create (?:your )?password/i.test(pageText);
+  return stillOnEmailGate && !advanced;
 }
 
 export const PH_ETRAVEL_EXISTING_ACCOUNT_NOTICE_GRACE_MS = 90_000;
@@ -1739,6 +1759,20 @@ async function maybeCreatePhEtravelAccount(
         code: "ph_etravel_registration_request_rejected",
         screenshotPaths: screenshots,
         portalSummary: registrationAttempt.responseSummary ?? currentText.slice(0, 700),
+      },
+    );
+  }
+  if (
+    registrationAttempt.responseStatus === undefined &&
+    shouldRetryMissingPhEtravelResponse(currentText)
+  ) {
+    screenshots.push(await saveScreenshot(page, "registration-request-missing", logs));
+    throw new PhEtravelPortalError(
+      "Official Philippines eTravel did not send the registration request after Cloudflare verification.",
+      {
+        code: "ph_etravel_registration_request_missing",
+        screenshotPaths: screenshots,
+        portalSummary: currentText.slice(0, 700),
       },
     );
   }
