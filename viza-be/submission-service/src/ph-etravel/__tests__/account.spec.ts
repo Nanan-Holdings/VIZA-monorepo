@@ -110,7 +110,7 @@ test("choosePhEtravelAccountPlan resumes the same alias after a failed prior att
       status: "failed",
       storageState: null,
     },
-    aliasEmail: "APPL-NEW@HAGGSTORM.COM",
+    aliasEmail: "APPL-EXISTING@HAGGSTORM.COM",
     generatedPassword: "new-password",
     generatedMpin: "654321",
   });
