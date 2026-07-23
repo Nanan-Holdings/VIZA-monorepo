@@ -28,6 +28,8 @@ export interface PhEtravelPortalPayload {
   countryOfBirth: string;
   countryOfResidence: string;
   residenceAddress: string | null;
+  residenceAddressLine1?: string | null;
+  residenceAddressLine2?: string | null;
   occupation: string;
   dateOfBirth: string;
   sex: string;
@@ -357,15 +359,32 @@ export function normalizePhEtravelPortalPayload(
     nationality: requireFirstText([answers.nationality, payload.personal.nationality], "nationality", missing),
     countryOfBirth: requireFirstText([answers.country_of_birth], "country_of_birth", missing),
     countryOfResidence: requireFirstText([answers.country_of_residence], "country_of_residence", missing),
-    residenceAddress: firstText([
+    residenceAddressLine1: firstText([
       answers.residence_address_line1,
-      answers.residence_address_line2,
       answers.residential_address,
       answers.home_address,
       answers.home_address_line1,
       answers.address,
       payload.personal.address,
     ]) || null,
+    residenceAddressLine2: firstText([
+      answers.residence_address_line2,
+      answers.home_address_line2,
+    ]) || null,
+    residenceAddress: [
+      firstText([
+        answers.residence_address_line1,
+        answers.residential_address,
+        answers.home_address,
+        answers.home_address_line1,
+        answers.address,
+        payload.personal.address,
+      ]),
+      firstText([
+        answers.residence_address_line2,
+        answers.home_address_line2,
+      ]),
+    ].filter(Boolean).join(", ") || null,
     occupation: requireFirstText([answers.occupation, payload.personal.occupation], "occupation", missing),
     dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "date_of_birth", missing),
     sex: requireFirstText([answers.sex, payload.personal.gender], "sex", missing),
