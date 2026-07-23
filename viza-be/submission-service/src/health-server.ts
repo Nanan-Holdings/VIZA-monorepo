@@ -33,12 +33,16 @@ type KoreaEformPdfLanguage = "zh-CN" | "en" | "ko";
  *   GET /health → 200 if the process is up.
  *   GET /ready  → 200 if the DB is reachable AND the worker loop has started;
  *                 503 otherwise.
+ *   GET /deploy-ready → 200 only when replacing this process cannot destroy an
+ *                       active queue run or an unconsumed one-time card session.
  *
  * Port from PORT env (Cloud Run convention), default 8080. The worker-started
  * signal is supplied by the caller via `isWorkerStarted`.
  */
 export interface HealthServerOptions {
   isWorkerStarted: () => boolean;
+  isWorkerBusy?: () => boolean;
+  hasOneTimeCardSessions?: () => boolean;
   port?: number;
 }
 
@@ -600,6 +604,18 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       })();
       return;
     }
+    if (req.method === "GET" && url === "/deploy-ready") {
+      const workerBusy = opts.isWorkerBusy?.() ?? false;
+      const oneTimeCardSessionsPresent = opts.hasOneTimeCardSessions?.() ?? false;
+      const safeToDeploy = !workerBusy && !oneTimeCardSessionsPresent;
+      sendJson(res, safeToDeploy ? 200 : 409, {
+        status: safeToDeploy ? "safe" : "busy",
+        safeToDeploy,
+        workerBusy,
+        oneTimeCardSessionsPresent,
+      });
+      return;
+    }
     if (req.method === "POST" && url === "/local/vietnam/card-session") {
       void handleVietnamCardSession(req, res);
       return;
@@ -807,7 +823,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     if (envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/japan-vfs-sg/book-selected-slot");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
-    console.log(`[health] listening on :${port} (/health, /ready${extra})`);
+    console.log(`[health] listening on :${port} (/health, /ready, /deploy-ready${extra})`);
   });
   return server;
 }

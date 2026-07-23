@@ -418,6 +418,12 @@ filling and one-shot submission for the applicant.
   `POST /internal/indonesia/card-session` only on the single always-on legacy
   Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true` and a matching
   `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
+- `GET /deploy-ready` reports whether the legacy worker is idle and holds no
+  unconsumed Vietnam/Indonesia card session. `scripts/fly/deploy-legacy.sh`
+  must fail closed unless this endpoint returns HTTP 200 both before secret
+  staging and immediately before a rolling deploy. Runtime secrets are staged
+  into that release so secret synchronization cannot independently restart the
+  single memory-backed worker.
 - `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
   registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
   or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,

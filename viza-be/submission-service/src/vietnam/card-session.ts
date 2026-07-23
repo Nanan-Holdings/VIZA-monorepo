@@ -80,6 +80,11 @@ export function consumeVietnamCardSession(applicationId: string, referenceTimeMs
   return session.card;
 }
 
+export function hasVietnamCardSessions(referenceTimeMs = nowMs()): boolean {
+  cleanupExpired(referenceTimeMs);
+  return sessions.size > 0;
+}
+
 export function clearVietnamCardSessions(): void {
   sessions.clear();
 }

@@ -73,7 +73,7 @@ for key in "${capability[@]}"; do
   fi
 done
 
-# Apply all runtime secrets in one synchronous update. Detached, repeated
-# updates can leave Fly Machines in a replacing state when the image deploy
-# starts immediately afterward.
-fly secrets set --app "$app" "${secret_args[@]}"
+# Stage secrets for the image deployment that immediately follows this helper.
+# Applying them directly creates a separate Fly release and restarts the worker
+# before the deployment strategy or deploy-readiness guard can protect it.
+fly secrets set --stage --app "$app" "${secret_args[@]}"

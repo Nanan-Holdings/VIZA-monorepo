@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   clearIndonesiaCardSessions,
   consumeIndonesiaCardSession,
+  hasIndonesiaCardSessions,
   peekIndonesiaCardSession,
   putIndonesiaCardSession,
 } from "../card-session";
@@ -61,7 +62,9 @@ test("id.card-session: expired sessions are unavailable", () => {
   });
 
   assert.equal(peekIndonesiaCardSession("app_789", 32_999)?.applicationId, "app_789");
+  assert.equal(hasIndonesiaCardSessions(32_999), true);
   assert.equal(peekIndonesiaCardSession("app_789", 33_000), null);
+  assert.equal(hasIndonesiaCardSessions(33_000), false);
 });
 
 test("id.card-session: rejects a missing or placeholder cardholder name", () => {
