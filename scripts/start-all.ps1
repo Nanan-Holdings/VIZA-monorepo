@@ -841,7 +841,7 @@ if (!$submissionAlreadyRunning) {
       Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but the Vietnam/Indonesia card-session endpoints are not ready; restarting it."
       Stop-ProcessesByPath -Path $submissionServiceDir
       Start-Sleep -Seconds 2
-      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
+      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
       $started += Start-ManagedProcess `
         -Name "submission-service worker with Vietnam and Indonesia local payments" `
         -SafeName "submission-service" `
@@ -849,7 +849,7 @@ if (!$submissionAlreadyRunning) {
         -Command $submissionCommand
     }
   } else {
-    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
+    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
     $started += Start-ManagedProcess `
       -Name "submission-service worker with Vietnam and Indonesia local payments" `
       -SafeName "submission-service" `

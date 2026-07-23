@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result";
 import {
@@ -399,6 +399,95 @@ describe("cloud submission retry routing", () => {
       );
       expect(screen.queryByText("提交没有完成")).not.toBeInTheDocument();
       expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
+    });
+  });
+
+  it("shows Fly cloud loading immediately while a Vietnam payment retry is being accepted", async () => {
+    let resolvePayment: ((value: unknown) => void) | undefined;
+    const paymentResponse = new Promise((resolve) => {
+      resolvePayment = resolve;
+    });
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
+        return paymentResponse;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "failed",
+          stage: "failed",
+          progress: 0,
+          result: {
+            country: "VN",
+            status: "stopped_at_pay",
+            mode: "live_assisted",
+            provider: "vietnam_evisa_live",
+            portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
+            checkpoint: "payment_page_visible",
+            manualAction: {
+              type: "payment_required",
+              status: "open",
+              instructions: "Previous cloud attempt ended.",
+            },
+          },
+          error: "Previous cloud attempt ended.",
+          message: "Previous cloud attempt ended.",
+          updatedAt: new Date().toISOString(),
+          applicationStatus: "failed",
+          country: "VN",
+          visaType: "evisa_tourism",
+          queue: {
+            id: "old-vietnam-queue",
+            status: "failed",
+            mode: "live_assisted",
+            provider: "vietnam_evisa_live",
+          },
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="vietnam"
+        visaType="evisa_tourism"
+        status="failed"
+        result={{
+          country: "VN",
+          status: "stopped_at_pay",
+          mode: "live_assisted",
+          provider: "vietnam_evisa_live",
+          portalUrl: "https://evisa.gov.vn/e-visa/foreigners",
+          checkpoint: "payment_page_visible",
+          manualAction: {
+            type: "payment_required",
+            status: "open",
+            instructions: "Previous cloud attempt ended.",
+          },
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始自动付款" }));
+
+    expect(await screen.findByText("Fly 云端正在自动处理")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("不会在本机 Chrome 打开");
+
+    await act(async () => {
+      resolvePayment?.({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          queueId: "new-vietnam-queue",
+          queueStatus: "vn_payment_pending",
+          provider: "vietnam_evisa_live",
+        }),
+      });
     });
   });
 });
