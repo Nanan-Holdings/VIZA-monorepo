@@ -9,6 +9,9 @@ kill_timeout = "5m"
   PORT = "8080"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
+  # Vietnam e-Visa live jobs use a cloud-only queue status and RPC that older
+  # local workers cannot see or claim.
+  VN_CLOUD_QUEUE_ENABLED = "true"
   # Vercel registers Indonesia payment cards through the token-protected
   # internal endpoint. Cards remain in this single always-on machine's memory
   # for one consumption and are never written to Fly config, logs, or storage.

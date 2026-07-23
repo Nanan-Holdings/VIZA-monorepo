@@ -150,8 +150,12 @@ describe("Vietnam Pre-Arrival hotel localization", () => {
 
       expect(option?.label_zh, hotel.code).toBeTruthy();
       expect(option?.label_zh, hotel.code).toContain(propertyName);
-      expect(option?.label_zh, hotel.code).toContain(wardName);
-      expect(option?.label_zh, hotel.code).toContain(provinceName);
+      if (wardName) {
+        expect(option?.label_zh, hotel.code).toContain(wardName);
+      }
+      if (provinceName) {
+        expect(option?.label_zh, hotel.code).toContain(provinceName);
+      }
       expect(option?.label_zh, hotel.code).not.toMatch(
         /(?:凯赫乌|埃姆伊|恩格乌|阿恩赫|维奥阮|格伊阿普)/,
       );

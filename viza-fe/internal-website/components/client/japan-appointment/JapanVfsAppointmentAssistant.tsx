@@ -222,6 +222,14 @@ export function JapanVfsAppointmentAssistant({ applicationId }: Props) {
         </Alert>
       ) : null}
 
+      {snapshot?.account?.accountStatus === "mobile_already_registered" ? (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertCircle className="h-4 w-4 text-amber-700" />
+          <AlertTitle>{t("account.mobileAlreadyRegisteredTitle")}</AlertTitle>
+          <AlertDescription>{t("account.mobileAlreadyRegisteredBody")}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {stage === "review" && preflight ? (
         <Card className="rounded-[8px]">
           <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5 text-brand-600" />{t("review.title")}</CardTitle></CardHeader>

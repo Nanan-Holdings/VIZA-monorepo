@@ -33,6 +33,7 @@ export type SubmissionQueueStatus =
   | "vn_dry_run_pending"
   | "vn_dry_run_processing"
   | "vn_dry_run_failed"
+  | "vn_cloud_live_pending"
   | "vn_live_assisted_pending"
   | "vn_live_assisted_processing"
   | "vn_live_assisted_failed"
@@ -215,6 +216,7 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "uk_prefill_processing",
   "vn_dry_run_pending",
   "vn_dry_run_processing",
+  "vn_cloud_live_pending",
   "vn_live_assisted_pending",
   "vn_live_assisted_processing",
   "sgac_dry_run_pending",
@@ -267,6 +269,7 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "france_live_assisted_pending",
   "uk_prefill_pending",
   "vn_dry_run_pending",
+  "vn_cloud_live_pending",
   "vn_live_assisted_pending",
   "sgac_dry_run_pending",
   "sgac_live_assisted_scheduled",
@@ -496,7 +499,7 @@ export function queueStatusForApplication(
   mode: SubmissionMode = "dry_run",
 ): SubmissionQueueStatus {
   if (isVietnamEVisaApplication(country, visaType)) {
-    return mode === "live_assisted" ? "vn_live_assisted_pending" : "vn_dry_run_pending";
+    return mode === "live_assisted" ? "vn_cloud_live_pending" : "vn_dry_run_pending";
   }
   if (isVietnamPrearrivalApplication(country, visaType)) {
     return mode === "live_assisted" ? "vn_prearrival_live_assisted_pending" : "vn_prearrival_dry_run_pending";
@@ -618,6 +621,7 @@ export function retryQueueInsertCanUseLegacyPayload(
   if (input.mode === "dry_run") return true;
   return (
     input.queueStatus === "ds160_live_assisted_pending" ||
+    input.queueStatus === "vn_cloud_live_pending" ||
     input.queueStatus === "vn_live_assisted_pending" ||
     input.queueStatus === "vn_prearrival_live_assisted_pending" ||
     input.queueStatus === "vn_prearrival_live_assisted_scheduled" ||
