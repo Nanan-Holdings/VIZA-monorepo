@@ -1165,28 +1165,36 @@ async function completeEgovPermanentResidenceOnboarding(
   const province = addressParts.at(-1) || payload.residenceAddressLine1 || address;
   const city = addressParts.at(-2) || addressParts.at(-1) || address;
   const barangay = addressParts[0] || city;
-  const choseProvince = await chooseHeadlessComboboxByInputName(
+  const isPhilippineResidence = /^(?:ph|philippines)$/i.test(payload.countryOfResidence.trim());
+  const choseProvince = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
     page,
     "province_code",
     province,
     new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
-  await page.waitForTimeout(1_200);
-  const choseCity = await chooseHeadlessComboboxByInputName(
+  if (isPhilippineResidence) await page.waitForTimeout(1_200);
+  const choseCity = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
     page,
     "municipality_code",
     city,
     new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
-  await page.waitForTimeout(1_200);
-  const choseBarangay = await chooseHeadlessComboboxByInputName(
+  if (isPhilippineResidence) await page.waitForTimeout(1_200);
+  const choseBarangay = !isPhilippineResidence || await chooseHeadlessComboboxByInputName(
     page,
     "barangay_code",
     barangay,
     new RegExp(barangay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   ) || await fillVisibleTextField(page, "Barangay", barangay);
-  const streetAddress = payload.residenceAddressLine1 || address;
-  const filledAddress = await fillVisibleByPlaceholder(page, /house|no\.?\/bldg|street|address line 1/i, streetAddress)
+  const streetAddress = isPhilippineResidence
+    ? payload.residenceAddressLine1 || address
+    : payload.residenceAddressLine2 || payload.residenceAddressLine1 || address;
+  const streetInput = page.locator('input[name="street"]').first();
+  const filledAddress = await streetInput
+    .fill(streetAddress, { timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false)
+    || await fillVisibleByPlaceholder(page, /house|no\.?\/bldg|street|address line 1|city\/state\/province/i, streetAddress)
     || await fillVisibleTextField(page, "House No./Bldg./Street", streetAddress);
   if (payload.residenceAddressLine2) {
     await fillVisibleByPlaceholder(page, /address line 2/i, payload.residenceAddressLine2);
