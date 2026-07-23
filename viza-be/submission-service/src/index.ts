@@ -6596,6 +6596,19 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
             officialAccountMpin: phAccountPlan.mpin,
             forceAccountRegistration: phAccountPlan.mode === "create_new",
             mailbox: createPhEtravelMailboxProvider(profile.id, phAccountPlan.email),
+            onOfficialAccountPassword: async (password) => {
+              phAccountPlan = {
+                ...phAccountPlan!,
+                password,
+              };
+              await upsertPhEtravelAccount({
+                applicantId: profile.id,
+                email: phAccountPlan.email,
+                password,
+                mpin: phAccountPlan.mpin,
+                status: "pending_registration",
+              });
+            },
           });
           break;
         } catch (error) {
