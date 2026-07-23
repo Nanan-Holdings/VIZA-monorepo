@@ -28,8 +28,9 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     ]);
   });
 
-  it("models air arrival as a flight dropdown that locks the airport from the flight code", () => {
+  it("models official flights plus the official Other/manual-flight branch", () => {
     const flightField = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "flight_number");
+    const customFlightField = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "custom_flight_number");
     const airportField = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "border_gate_airport");
 
     expect(flightField?.field_type).toBe("select");
@@ -40,9 +41,21 @@ describe("Vietnam Pre-Arrival official form schema", () => {
       official_source: "prearrival_category:flight",
       derives: { border_gate_airport: "airport" },
     });
+    expect(customFlightField).toMatchObject({
+      field_type: "text",
+      required: true,
+      conditional_logic: { showIf: "mode_of_travel === air && flight_number === other" },
+    });
     expect(airportField?.required).toBe(true);
-    expect(airportField?.validation_rules).toMatchObject({ locked_by: "flight_number" });
+    expect(airportField?.validation_rules).toMatchObject({
+      locked_by: "flight_number",
+      editable_when_value: "other",
+    });
     expect(VN_PREARRIVAL_FLIGHT_OPTIONS[0]).toMatchObject({
+      value: "other",
+      official_label: "Other",
+    });
+    expect(VN_PREARRIVAL_FLIGHT_OPTIONS[1]).toMatchObject({
       value: "UO0566_CXR",
       official_label: "UO0566 - CXR",
       airport: "CXR",

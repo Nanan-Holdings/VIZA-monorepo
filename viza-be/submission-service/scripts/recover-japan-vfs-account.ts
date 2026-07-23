@@ -135,9 +135,22 @@ async function main(): Promise<void> {
     try {
       await cloud.page.getByLabel("Email*", { exact: true }).waitFor({ state: "visible", timeout: 60_000 });
     } catch {
-      await cloud.page.screenshot({ path: path.join(artifactDir, "login-timeout-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-      console.log(`[jp-vfs-recovery] login diagnostics=${JSON.stringify(browserDiagnostics.slice(-80))}`);
-      throw new Error("VFS login component did not render before timeout.");
+      const tunnelFailed = browserDiagnostics.some((entry) =>
+        entry.kind === "requestfailed" && entry.error === "net::ERR_TUNNEL_CONNECTION_FAILED");
+      if (tunnelFailed) {
+        console.log("[jp-vfs-recovery] VFS login API tunnel failed; retrying once in the same session");
+        await cloud.page.waitForTimeout(2_000);
+        await cloud.page.goto(`${portalBase}/login`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        await cloud.page.getByLabel("Email*", { exact: true }).waitFor({ state: "visible", timeout: 60_000 }).catch(async () => {
+          await cloud.page.screenshot({ path: path.join(artifactDir, "login-timeout-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+          console.log(`[jp-vfs-recovery] login diagnostics=${JSON.stringify(browserDiagnostics.slice(-80))}`);
+          throw new Error("VFS login component did not render after the single in-session retry.");
+        });
+      } else {
+        await cloud.page.screenshot({ path: path.join(artifactDir, "login-timeout-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+        console.log(`[jp-vfs-recovery] login diagnostics=${JSON.stringify(browserDiagnostics.slice(-80))}`);
+        throw new Error("VFS login component did not render before timeout.");
+      }
     }
     await cloud.page.screenshot({ path: path.join(artifactDir, "login-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
     if (requestFreshActivation) {
@@ -172,7 +185,17 @@ async function main(): Promise<void> {
         throw new Error(`VFS activation page exposed ${activationInputMetadata.length} visible text inputs; refusing an ambiguous fill.`);
       }
       const activationEmail = activationInputs.first();
-      await activationEmail.fill(profile.inbox_alias);
+      await activationEmail.clear();
+      await activationEmail.pressSequentially(profile.inbox_alias, { delay: 20 });
+      await activationEmail.evaluate((element) => {
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        (element as HTMLInputElement).blur();
+      });
+      const activationEmailReady = await activationEmail.evaluate((element) => {
+        const input = element as HTMLInputElement;
+        return input.value.length > 0 && input.validity.valid;
+      });
+      if (!activationEmailReady) throw new Error("VFS activation email field did not retain a valid value.");
       try {
         await waitForTurnstile(cloud.page);
       } catch {
@@ -181,7 +204,12 @@ async function main(): Promise<void> {
         const retryActivationEmail = cloud.page.locator(
           "main input:not([type='hidden']):not([type='checkbox']), form input:not([type='hidden']):not([type='checkbox'])",
         ).filter({ visible: true }).first();
-        await retryActivationEmail.fill(profile.inbox_alias);
+        await retryActivationEmail.clear();
+        await retryActivationEmail.pressSequentially(profile.inbox_alias, { delay: 20 });
+        await retryActivationEmail.evaluate((element) => {
+          element.dispatchEvent(new Event("change", { bubbles: true }));
+          (element as HTMLInputElement).blur();
+        });
         await waitForTurnstile(cloud.page);
       }
       const activationRequestedAt = new Date().toISOString();

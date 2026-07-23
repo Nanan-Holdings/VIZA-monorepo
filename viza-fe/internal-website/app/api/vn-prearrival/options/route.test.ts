@@ -8,6 +8,20 @@ describe("Vietnam pre-arrival official option mapping", () => {
     expect(__testables.normalizeOfficialFlightSearch("3K557")).toBe("3K557");
   });
 
+  it("paginates the live flight catalog for incremental dropdown loading", () => {
+    const result = __testables.paginateOptions(
+      Array.from({ length: 25 }, (_, index) => `flight-${index}`),
+      1,
+      10,
+    );
+
+    expect(result).toEqual({
+      items: Array.from({ length: 10 }, (_, index) => `flight-${index + 10}`),
+      totalCount: 25,
+      hasMore: true,
+    });
+  });
+
   it("maps visa issue place official english_value instead of showing the code", () => {
     expect(
       __testables.optionFromOfficial(

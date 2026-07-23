@@ -67,6 +67,7 @@ export const VN_PREARRIVAL_AIRPORT_OPTIONS = [
 ];
 
 export const VN_PREARRIVAL_FLIGHT_OPTIONS = [
+  vnPrearrivalOption("other", "其他", "Other"),
   vnPrearrivalOption("UO0566_CXR", "UO0566 - CXR", "UO0566 - CXR", { airport: "CXR", airline: "UO" }),
   vnPrearrivalOption("VJ5439_CXR", "VJ5439 - CXR", "VJ5439 - CXR", { airport: "CXR", airline: "VJ" }),
   vnPrearrivalOption("VJ0824_DAD", "VJ0824 - DAD", "VJ0824 - DAD", { airport: "DAD", airline: "VJ" }),

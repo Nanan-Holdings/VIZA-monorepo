@@ -29,6 +29,7 @@ export interface VnPrearrivalPortalPayload {
   purposeOfTravel: string;
   modeOfTravel: VnPrearrivalTravelMode;
   flightNumber: string | null;
+  customFlightNumber: string | null;
   borderGateAirport: string | null;
   vehicleIdentificationNumber: string | null;
   landBorderGate: string | null;
@@ -111,11 +112,15 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
 
   const modeOfTravel = travelMode(requireAnswer(payload, "mode_of_travel", missing), missing);
   const flightNumber = modeOfTravel === "air" ? requireAnswer(payload, "flight_number", missing) : null;
+  const usesCustomFlightNumber = flightNumber?.toLowerCase() === "other";
+  const customFlightNumber = modeOfTravel === "air" && usesCustomFlightNumber
+    ? requireAnswer(payload, "custom_flight_number", missing)
+    : null;
   const borderGateAirport = modeOfTravel === "air" ? requireAnswer(payload, "border_gate_airport", missing) : null;
   if (!flightNumber && borderGateAirport) {
     missing.push("answers.border_gate_airport(locked_by_flight_number)");
   }
-  if (flightNumber && borderGateAirport) {
+  if (flightNumber && borderGateAirport && !usesCustomFlightNumber) {
     const derivedAirport = airportFromFlightNumber(flightNumber);
     if (!derivedAirport || derivedAirport !== borderGateAirport.toUpperCase()) {
       missing.push("answers.border_gate_airport(locked_by_flight_number)");
@@ -166,6 +171,7 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
     purposeOfTravel: requireAnswer(payload, "purpose_of_travel", missing),
     modeOfTravel,
     flightNumber,
+    customFlightNumber,
     borderGateAirport,
     vehicleIdentificationNumber,
     landBorderGate,

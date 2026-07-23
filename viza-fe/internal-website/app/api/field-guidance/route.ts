@@ -15,6 +15,7 @@ const AGENT_BACKEND_URL =
   process.env.AGENT_BACKEND_URL ?? process.env.NEXT_PUBLIC_AGENT_BACKEND_URL ?? "http://localhost:3002";
 const FIELD_GUIDANCE_TIMEOUT_MS = 12000;
 const DIRECT_OPENAI_TIMEOUT_MS = 16000;
+const MAX_OPTION_EXPLANATIONS = 3;
 const DIRECT_OPENAI_MODEL =
   process.env.OPENAI_FIELD_GUIDANCE_MODEL ??
   process.env.OPENAI_CHAT_MODEL ??
@@ -228,7 +229,7 @@ function buildOptionExplanations(request: FieldGuidanceRequest): FieldGuidanceOp
   const options = normalizeOptions(request.field.options, getLocale(request));
   if (options.length === 0) return [];
 
-  return options.map((option) => ({
+  return options.slice(0, MAX_OPTION_EXPLANATIONS).map((option) => ({
     value: option.value || option.text,
     label: option.text || option.value,
     description: explainKnownOption(request, option) ?? explainGenericOption(request, option),
@@ -241,8 +242,21 @@ function withOptionExplanations(
 ): FieldGuidanceResponse {
   const existing = response.guidance.optionExplanations?.filter(
     (item) => item.label.trim() && item.description.trim(),
-  );
-  if (existing && existing.length > 0) return response;
+  ).slice(0, MAX_OPTION_EXPLANATIONS);
+  if (existing && existing.length > 0) {
+    return {
+      ...response,
+      guidance: {
+        ...response.guidance,
+        optionExplanations: existing,
+      },
+    };
+  }
+
+  // An AI response with no option explanations means the model did not have
+  // enough evidence to recommend specific choices. Do not replace that with
+  // arbitrary template descriptions from the start of a long dropdown.
+  if (response.aiUsed) return response;
 
   const optionExplanations = buildOptionExplanations(request);
   if (optionExplanations.length === 0) return response;
@@ -471,7 +485,7 @@ function parseOptionExplanations(
   value: unknown,
   fallback: FieldGuidanceOptionExplanation[],
 ): FieldGuidanceOptionExplanation[] {
-  if (!Array.isArray(value)) return fallback;
+  if (!Array.isArray(value)) return fallback.slice(0, MAX_OPTION_EXPLANATIONS);
   const items = value
     .map((item) => {
       if (!item || typeof item !== "object") return null;
@@ -485,8 +499,9 @@ function parseOptionExplanations(
         description,
       };
     })
-    .filter((item): item is FieldGuidanceOptionExplanation => Boolean(item));
-  return items.length > 0 ? items : fallback;
+    .filter((item): item is FieldGuidanceOptionExplanation => Boolean(item))
+    .slice(0, MAX_OPTION_EXPLANATIONS);
+  return items;
 }
 
 function normalizeConfidence(value: unknown): FieldGuidanceResponse["confidence"] {
@@ -514,6 +529,11 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     officialWarnings: base.guidance.officialWarnings,
     formatHints: base.guidance.formatHints,
   };
+  const relatedAnswers = Object.entries(request.allAnswers ?? {})
+    .filter(([, value]) => typeof value === "string" && value.trim())
+    .slice(0, 12)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("\n");
 
   return [
     `Locale: ${locale}`,
@@ -523,6 +543,7 @@ function buildDirectOpenAiPrompt(request: FieldGuidanceRequest, base: FieldGuida
     `Field type: ${request.field.fieldType}`,
     `Required: ${request.field.required ? "yes" : "no"}`,
     `Current value: ${currentValue}`,
+    relatedAnswers ? `Related filled answers:\n${relatedAnswers}` : "Related filled answers: none",
     options ? `Official options:\n${options}` : "Official options: none",
     `Local rules to consider:\n${JSON.stringify(localRules)}`,
     isStandardIdentityField(request)
@@ -553,8 +574,8 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
         max_output_tokens: 900,
         instructions:
           locale === "zh"
-            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准，不得根据领取城市推断签发机关。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
-            : "You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document; never infer an issuing authority from a pickup city. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
+            ? "你是 VIZA 表单字段 Copilot。只根据当前字段元数据、当前选项、用户当前答案、相关已填答案和 Standard identity-field RAG 提供填写帮助。必须使用简体中文；官方选项、代码、姓名、日期可以保留英文原文。不要编造官方要求；不确定时说明请以官方表单和证件为准。标准证件字段必须以护照资料页、机读区或官方证件原文为准，不得根据领取城市推断签发机关。选项说明最多返回 3 条，只选择与当前答案或用户追问直接相关的选项；没有足够依据时返回空数组，禁止随意解释下拉列表开头的选项。不要说 AI 不可用，因为你正在生成 AI 帮助。返回严格 JSON，不要 Markdown。"
+            : "You are the VIZA form field copilot. Use only the current field metadata, official options, current answer, related filled answers, and Standard identity-field RAG. Do not invent official requirements; when unsure, say to follow the official form and documents. Standard identity fields must come from the passport biodata page, MRZ, or official document; never infer an issuing authority from a pickup city. Return at most 3 option explanations, limited to options directly relevant to the current answer or follow-up question. Return an empty array when the evidence is insufficient; never explain arbitrary options from the start of a dropdown. Do not say AI is unavailable because you are generating AI guidance now. Return strict JSON, no Markdown.",
         input: buildDirectOpenAiPrompt(request, base),
         text: {
           format: {
@@ -569,6 +590,7 @@ async function generateDirectOpenAiGuidance(request: FieldGuidanceRequest): Prom
                 examples: { type: "array", items: { type: "string" } },
                 optionExplanations: {
                   type: "array",
+                  maxItems: MAX_OPTION_EXPLANATIONS,
                   items: {
                     type: "object",
                     additionalProperties: false,

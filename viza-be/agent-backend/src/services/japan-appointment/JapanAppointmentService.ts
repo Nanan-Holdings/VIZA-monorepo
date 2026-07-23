@@ -239,8 +239,6 @@ export class JapanAppointmentService {
     }
     const existing = await this.repository.getLatestJob(application.id);
     if (existing && existing.status !== "appointment_cancelled") return existing;
-    const alias = await this.repository.ensureAlias(application.applicantId);
-    await this.repository.ensureAccount({ applicationId: application.id, userId: input.userId, alias });
     const job = await this.repository.insertJob({
       applicationId: application.id,
       userId: input.userId,
@@ -249,7 +247,9 @@ export class JapanAppointmentService {
         : input.idempotencyKey ?? `japan-vfs-sg:${application.id}:${input.userId}`,
       preferences: {
         provider: "vfs_japan_sg",
-        aliasPrepared: true,
+        automationMode: "public_recon",
+        accountCreationEnabled: false,
+        aliasPrepared: false,
         eligibility: input.eligibility,
         stopBeforeSlotSelection: true,
         stopBeforePayment: true,
@@ -313,7 +313,7 @@ export class JapanAppointmentService {
         "Content-Type": "application/json",
         ...(this.internalToken ? { Authorization: `Bearer ${this.internalToken}` } : {}),
       },
-      body: JSON.stringify({ applicationId: job.applicationId, jobId: job.id, prepareAlias: true, eligibility: job.userPreferencesJson.eligibility }),
+      body: JSON.stringify({ jobId: job.id, publicOnly: true, prepareAlias: false }),
     });
     const payload = await response.json().catch(() => null) as ({ ok?: boolean } & RunnerResult) | null;
     if (!response.ok || !payload) {
@@ -343,6 +343,9 @@ export class JapanAppointmentService {
       currentManualAction: observedSlots.length > 0 ? "slot_selection" : checkpointType,
       userPreferencesJson: {
         ...job.userPreferencesJson,
+        automationMode: "public_recon",
+        accountCreationEnabled: false,
+        aliasPrepared: false,
         evidence: payload.evidence ?? {},
         runnerProfile: payload.profile ?? {},
         lastPortalObservedAt: new Date().toISOString(),
