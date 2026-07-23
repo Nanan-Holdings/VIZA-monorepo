@@ -59,13 +59,27 @@ describe("JapanAppointmentService", () => {
       .rejects.toMatchObject<Partial<JapanAppointmentServiceError>>({ code: "missing_required_fields" });
   });
 
-  it("prepares an alias-backed assisted-live job and preserves all stop gates", async () => {
+  it("creates a public-recon job without preparing an alias or account", async () => {
     const { repository } = repositoryFor();
+    let aliasCalls = 0;
+    let accountCalls = 0;
+    repository.ensureAlias = async () => { aliasCalls += 1; return "unused@example.com"; };
+    repository.ensureAccount = async () => { accountCalls += 1; return { id: "unused", accountEmail: null, accountStatus: "unused", emailVerified: false }; };
     const service = new JapanAppointmentService(repository);
     await service.recordConsent({ applicationId: "application-1", userId: "user-1", snapshot: {} });
     const job = await service.createJob({ applicationId: "application-1", userId: "user-1", eligibility });
     expect(job.status).toBe("appointment_account_required");
-    expect(job.userPreferencesJson).toMatchObject({ aliasPrepared: true, eligibility, stopBeforeSlotSelection: true, stopBeforePayment: true, stopBeforeFinalBooking: true });
+    expect(job.userPreferencesJson).toMatchObject({
+      automationMode: "public_recon",
+      accountCreationEnabled: false,
+      aliasPrepared: false,
+      eligibility,
+      stopBeforeSlotSelection: true,
+      stopBeforePayment: true,
+      stopBeforeFinalBooking: true,
+    });
+    expect(aliasCalls).toBe(0);
+    expect(accountCalls).toBe(0);
   });
 
   it("returns backend-owned preflight and consent state", async () => {
@@ -81,6 +95,37 @@ describe("JapanAppointmentService", () => {
     await service.recordConsent({ applicationId: "application-1", userId: "user-1", snapshot: {} });
     snapshot = await service.getStatusForApplication("application-1");
     expect(snapshot.preflight.consentRecorded).toBe(true);
+  });
+
+  it("checks only the public VFS route and stops at the login boundary", async () => {
+    const { repository } = repositoryFor();
+    const requests: Array<Record<string, unknown>> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({
+        ok: true,
+        slots: [],
+        checkpoint: { type: "login", message: "Public login boundary reached." },
+        evidence: { pageTitle: "Sign in", finalUrl: "https://example.test/login", httpStatus: 200 },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+    try {
+      const service = new JapanAppointmentService(repository);
+      await service.recordConsent({ applicationId: "application-1", userId: "user-1", snapshot: {} });
+      const job = await service.createJob({ applicationId: "application-1", userId: "user-1", eligibility });
+      const snapshot = await service.checkPortal(job.id);
+      expect(requests).toEqual([{ jobId: job.id, publicOnly: true, prepareAlias: false }]);
+      expect(snapshot.job?.status).toBe("appointment_manual_required");
+      expect(snapshot.job?.userPreferencesJson).toMatchObject({
+        automationMode: "public_recon",
+        accountCreationEnabled: false,
+        aliasPrepared: false,
+      });
+      expect(snapshot.pendingManualAction?.actionType).toBe("login");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("allows a fresh preparation after a cancelled job", async () => {

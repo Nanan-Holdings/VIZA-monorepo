@@ -74,6 +74,33 @@ test("normalizes non-hotel Vietnam Pre-Arrival accommodation from free-text addr
   assert.equal(normalized.accommodationAddress, "Friend apartment, Hanoi");
 });
 
+test("normalizes the official Other flight branch with a manual flight and airport", () => {
+  const normalized = normalizeVnPrearrivalPortalPayload(payload({
+    flight_number: "other",
+    custom_flight_number: "SQ 186",
+    border_gate_airport: "HAN",
+  }));
+
+  assert.equal(normalized.flightNumber, "other");
+  assert.equal(normalized.customFlightNumber, "SQ 186");
+  assert.equal(normalized.borderGateAirport, "HAN");
+});
+
+test("requires a manual flight number when the official Other option is selected", () => {
+  assert.throws(
+    () => normalizeVnPrearrivalPortalPayload(payload({
+      flight_number: "other",
+      custom_flight_number: "",
+      border_gate_airport: "HAN",
+    })),
+    (error) => {
+      assert.ok(error instanceof VnPrearrivalPortalValidationError);
+      assert.ok(error.missingFields.includes("answers.custom_flight_number"));
+      return true;
+    },
+  );
+});
+
 test("rejects unsupported or missing Vietnam Pre-Arrival values with field list", () => {
   assert.throws(
     () => normalizeVnPrearrivalPortalPayload(payload({

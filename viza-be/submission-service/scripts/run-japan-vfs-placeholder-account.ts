@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
+import { createServer } from "node:http";
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { connectBrowserbaseCloudBrowser } from "../src/browserbase-session";
@@ -14,6 +15,11 @@ const applicationId = process.argv.find((value) => value.startsWith("--applicati
 if (!applicationId) throw new Error("--application-id is required.");
 const testPhone = process.argv.find((value) => value.startsWith("--phone="))?.split("=")[1]?.replace(/\D/g, "");
 if (!testPhone) throw new Error("--phone is required because VFS sends a real SMS OTP; do not use a random placeholder number.");
+const otpPortValue = process.argv.find((value) => value.startsWith("--otp-port="))?.split("=")[1];
+const otpPort = otpPortValue ? Number.parseInt(otpPortValue, 10) : undefined;
+if (otpPort !== undefined && (!Number.isInteger(otpPort) || otpPort < 1024 || otpPort > 65_535)) {
+  throw new Error("--otp-port must be an integer between 1024 and 65535.");
+}
 
 async function withTimeout<T>(operation: Promise<T>, label: string, timeoutMs = 15_000): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
@@ -23,6 +29,52 @@ async function withTimeout<T>(operation: Promise<T>, label: string, timeoutMs = 
       new Promise<T>((_resolve, reject) => { timer = setTimeout(() => reject(new Error(`${label} timed out because the remote browser session stopped responding.`)), timeoutMs); }),
     ]);
   } finally { if (timer) clearTimeout(timer); }
+}
+
+async function waitForOtpOnLocalPort(port: number): Promise<string> {
+  let settle: ((otp: string) => void) | undefined;
+  const otpPromise = new Promise<string>((resolve) => {
+    settle = resolve;
+  });
+  const server = createServer((request, response) => {
+    if (request.socket.remoteAddress !== "127.0.0.1" && request.socket.remoteAddress !== "::1") {
+      response.writeHead(403).end();
+      return;
+    }
+    if (request.method !== "POST" || request.url !== "/otp") {
+      response.writeHead(404).end();
+      return;
+    }
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk: string) => {
+      if (body.length < 1_024) body += chunk;
+    });
+    request.on("end", () => {
+      try {
+        const payload = JSON.parse(body) as { otp?: unknown };
+        if (typeof payload.otp !== "string" || !/^\d{4,8}$/.test(payload.otp)) {
+          response.writeHead(400).end();
+          return;
+        }
+        response.writeHead(204).end();
+        settle?.(payload.otp);
+        settle = undefined;
+      } catch {
+        response.writeHead(400).end();
+      }
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", resolve);
+  });
+  console.log(`[jp-vfs-account] SMS OTP checkpoint ready on localhost port ${port}`);
+  try {
+    return await withTimeout(otpPromise, "VFS SMS OTP input", 270_000);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 }
 
 async function main(): Promise<void> {
@@ -67,20 +119,26 @@ async function main(): Promise<void> {
         await cloud.page.locator("#password").fill(password);
         await cloud.page.locator("#confirmPassword").fill(password);
         const dial = cloud.page.locator("mat-select#mat-select-0");
-        await dial.waitFor({ state: "attached", timeout: 5_000 });
-        await dial.evaluate((element) => element.click());
-        console.log("[jp-vfs-account] dial opened");
-        const options = cloud.page.locator("mat-option");
-        await options.first().waitFor({ state: "attached", timeout: 5_000 });
-        const optionLabels = (await options.allTextContents()).map((label) => label.replace(/\s+/g, " ").trim()).filter(Boolean);
-        console.log(`[jp-vfs-account] dial options=${JSON.stringify(optionLabels)}`);
-        if (!optionLabels.some((label) => /Singapore|\(?65\)?/i.test(label))) throw new Error("Singapore (+65) dial-code option is unavailable.");
-        await cloud.page.keyboard.press("End");
-        await cloud.page.keyboard.press("Enter");
-        await cloud.page.waitForTimeout(500);
-        console.log(`[jp-vfs-account] dial selected text=${JSON.stringify((await dial.innerText()).replace(/\s+/g, " ").trim())}`);
-        const mobile = cloud.page.locator("#mat-input-3");
-        await mobile.fill(testPhone, { force: true });
+        const fillMobileNumber = async (timeout: number): Promise<boolean> => {
+          if (!await dial.waitFor({ state: "attached", timeout }).then(() => true).catch(() => false)) return false;
+          await dial.evaluate((element) => element.click());
+          console.log("[jp-vfs-account] dial opened");
+          const options = cloud.page.locator("mat-option");
+          await options.first().waitFor({ state: "attached", timeout: 5_000 });
+          const optionLabels = (await options.allTextContents()).map((label) => label.replace(/\s+/g, " ").trim()).filter(Boolean);
+          console.log(`[jp-vfs-account] dial options=${JSON.stringify(optionLabels)}`);
+          if (!optionLabels.some((label) => /Singapore|\(?65\)?/i.test(label))) throw new Error("Singapore (+65) dial-code option is unavailable.");
+          const singaporeOption = options.filter({ hasText: /Singapore|\(?65\)?/i }).first();
+          await singaporeOption.evaluate((element) => (element as HTMLElement).click());
+          await cloud.page.waitForFunction(() => /65/.test(
+            document.querySelector("mat-select#mat-select-0")?.textContent ?? "",
+          ), undefined, { timeout: 5_000 });
+          console.log(`[jp-vfs-account] dial selected text=${JSON.stringify((await dial.innerText()).replace(/\s+/g, " ").trim())}`);
+          const mobile = cloud.page.locator("#mat-input-3");
+          await mobile.fill(testPhone, { force: true });
+          return true;
+        };
+        let mobileNumberFilled = await fillMobileNumber(5_000);
         const registrationConsents = cloud.page.locator("main input[id^='mat-mdc-checkbox-']");
         for (let index = 0; index < await registrationConsents.count(); index += 1) {
           const checkbox = registrationConsents.nth(index);
@@ -88,13 +146,20 @@ async function main(): Promise<void> {
           if (/marketing|promotion|offers|newsletter/i.test(text)) continue;
           await checkbox.evaluate((element) => element.click());
         }
+        if (!mobileNumberFilled) mobileNumberFilled = await fillMobileNumber(25_000);
+        if (!mobileNumberFilled) console.log("[jp-vfs-account] current VFS registration form has no mobile-number step");
         await cloud.page.waitForFunction(() => {
           const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
           return token.trim().length > 0;
-        }, undefined, { timeout: 35_000 }).catch(() => undefined);
-      })(), "VFS registration interaction", 60_000);
+        }, undefined, { timeout: 60_000 });
+      })(), "VFS registration interaction", 120_000);
       console.log("[jp-vfs-account] placeholder fields filled");
     } catch (fillError) {
+      await cloud.page.screenshot({
+        path: path.join(artifactDir, "fill-error-redacted.png"),
+        fullPage: true,
+        mask: [cloud.page.locator("input")],
+      });
       const controls = await cloud.page.locator("input,select,[role='combobox']").evaluateAll((elements) => elements.map((element) => ({
         tag: element.tagName.toLowerCase(), type: element.getAttribute("type"), name: element.getAttribute("name"),
         id: element.id || null, placeholder: element.getAttribute("placeholder"), ariaLabel: element.getAttribute("aria-label"),
@@ -136,7 +201,11 @@ async function main(): Promise<void> {
       const prompt = createInterface({ input: process.stdin, output: process.stdout });
       let otp = otpArgument;
       try {
-        if (!otp) otp = await withTimeout(prompt.question("VFS SMS OTP: "), "VFS SMS OTP input", 270_000);
+        if (!otp) {
+          otp = otpPort
+            ? await waitForOtpOnLocalPort(otpPort)
+            : await withTimeout(prompt.question("VFS SMS OTP: "), "VFS SMS OTP input", 270_000);
+        }
       } finally {
         prompt.close();
       }

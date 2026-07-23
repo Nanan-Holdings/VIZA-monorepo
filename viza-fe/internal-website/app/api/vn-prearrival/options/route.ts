@@ -60,7 +60,7 @@ type CachedOfficialOptions = {
 };
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const FLIGHT_CACHE_TTL_MS = 30 * 60 * 1000;
+const FLIGHT_CACHE_TTL_MS = 5 * 60 * 1000;
 const officialOptionsCache = new Map<string, CachedOfficialOptions>();
 
 const STATIC_OPTION_SOURCES = staticOptions.sources as Record<string, OfficialOption[] | undefined>;
@@ -273,6 +273,22 @@ async function loadOfficialFlightOptions(keyword: string): Promise<VisaFormOptio
     .filter(Boolean) as VisaFormOption[];
 }
 
+function paginateOptions<T>(
+  options: T[],
+  page: number,
+  size: number,
+): { items: T[]; totalCount: number; hasMore: boolean } {
+  const safePage = Math.max(0, page);
+  const safeSize = Math.max(1, size);
+  const start = safePage * safeSize;
+  const items = options.slice(start, start + safeSize);
+  return {
+    items,
+    totalCount: options.length,
+    hasMore: start + items.length < options.length,
+  };
+}
+
 function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): VisaFormOption[] {
   const query = keyword.trim().toLowerCase();
   if (!query) return options;
@@ -332,11 +348,22 @@ export async function GET(request: Request) {
   const province = url.searchParams.get("province")?.trim() ?? "";
   const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 10000) : 50;
+  const pageParam = Number.parseInt(url.searchParams.get("page") ?? "0", 10);
+  const page = Number.isFinite(pageParam) ? Math.max(pageParam, 0) : 0;
+  const sizeParam = Number.parseInt(url.searchParams.get("size") ?? "10", 10);
+  const size = Number.isFinite(sizeParam) ? Math.min(Math.max(sizeParam, 1), 100) : 10;
 
   try {
     let options: VisaFormOption[];
     if (source === "flight") {
-      options = (await loadOfficialFlightOptions(keyword)).slice(0, limit);
+      const result = paginateOptions(await loadOfficialFlightOptions(keyword), page, size);
+      return NextResponse.json({
+        totalCount: result.totalCount,
+        page,
+        size,
+        hasMore: result.hasMore,
+        options: result.items,
+      });
     } else if (source === "hotel") {
       const allHotels = getVnPrearrivalStaticOptions("hotel") as VisaFormOption[] | null;
       options = filterHotelOptionsByHierarchy(allHotels ?? [], parent, province, keyword).slice(0, limit);
@@ -368,4 +395,5 @@ export const __testables = {
   filterOptionsByKeyword,
   normalizeOfficialFlightSearch,
   optionFromOfficial,
+  paginateOptions,
 };

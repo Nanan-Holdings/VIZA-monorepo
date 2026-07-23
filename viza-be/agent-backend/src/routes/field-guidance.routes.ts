@@ -25,6 +25,7 @@ const DISABLE_RETRIEVAL = process.env.FIELD_GUIDANCE_EVAL_DISABLE_RETRIEVAL === 
 const GUIDANCE_CACHE = new Map<string, CachedGuidance>();
 const MAX_HISTORY_MESSAGES = 8;
 const OPTION_CONTEXT_VALUE_LIMIT = 12;
+const MAX_OPTION_EXPLANATIONS = 3;
 
 const STANDARD_IDENTITY_FIELD_SOURCE: SourceBody = {
   title: "Standard passport identity-field guidance",
@@ -89,6 +90,7 @@ interface GuidanceBody {
   title: string;
   summary: string;
   examples: string[];
+  optionExplanations: OptionExplanationBody[];
   hints: string[];
   officialWarnings: string[];
   formatHints: string[];
@@ -121,10 +123,17 @@ interface ChatMessage {
 interface AiGuidanceJson {
   summary?: unknown;
   examples?: unknown;
+  optionExplanations?: unknown;
   hints?: unknown;
   officialWarnings?: unknown;
   formatHints?: unknown;
   confidence?: unknown;
+}
+
+interface OptionExplanationBody {
+  value: string;
+  label: string;
+  description: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -188,6 +197,43 @@ function cleanAiStringArray(value: unknown, limit: number): string[] {
     .map((item) => stripMarkdown(item))
     .filter(Boolean)
     .slice(0, limit);
+}
+
+function cleanAiOptionExplanations(
+  value: unknown,
+  field: FieldGuidanceField
+): OptionExplanationBody[] {
+  if (!Array.isArray(value)) return [];
+  const officialOptions = normalizeOptions(field.options);
+
+  return value
+    .map((item): OptionExplanationBody | null => {
+      if (!isRecord(item)) return null;
+      const requestedValue = asString(item.value);
+      const requestedLabel = asString(item.label);
+      const description = asString(item.description);
+      if ((!requestedValue && !requestedLabel) || !description) return null;
+
+      const normalizedValue = normalizeComparableText(requestedValue ?? "");
+      const normalizedLabel = normalizeComparableText(requestedLabel ?? "");
+      const official = officialOptions.find((option) => {
+        const value = normalizeComparableText(option.value);
+        const text = normalizeComparableText(option.text);
+        return (
+          (normalizedValue && (normalizedValue === value || normalizedValue === text)) ||
+          (normalizedLabel && (normalizedLabel === value || normalizedLabel === text))
+        );
+      });
+      if (!official) return null;
+
+      return {
+        value: official.value || official.text,
+        label: official.text || official.value,
+        description: stripMarkdown(description),
+      };
+    })
+    .filter((item): item is OptionExplanationBody => Boolean(item))
+    .slice(0, MAX_OPTION_EXPLANATIONS);
 }
 
 function normalizeOptions(
@@ -404,6 +450,12 @@ function sanitizeGuidanceScope(
     title: stripOutOfScopeFormReferences(guidance.title, reqBody),
     summary: stripOutOfScopeFormReferences(guidance.summary, reqBody),
     examples: guidance.examples.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
+    optionExplanations: guidance.optionExplanations
+      .slice(0, MAX_OPTION_EXPLANATIONS)
+      .map((item) => ({
+        ...item,
+        description: stripOutOfScopeFormReferences(item.description, reqBody),
+      })),
     hints: guidance.hints.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
     officialWarnings: guidance.officialWarnings.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
     formatHints: guidance.formatHints.map((item) => stripOutOfScopeFormReferences(item, reqBody)),
@@ -677,6 +729,7 @@ function buildDeterministicGuidance(
           ? "按官方表格含义填写，并确保答案和证件、行程、其他表格答案保持一致。"
           : "Answer this according to the official form meaning and keep it consistent with documents, travel plans, and related answers.",
     examples: deterministicExamples(field, locale),
+    optionExplanations: [],
     hints: deterministicHints(field, locale),
     officialWarnings: deterministicWarnings(field, locale),
     formatHints: deterministicFormatHints(field, locale),
@@ -693,6 +746,7 @@ function mergeGuidance(
     title: makeTitle(field, locale),
     summary: asString(ai.summary) ? stripMarkdown(asString(ai.summary) ?? "") : base.summary,
     examples: cleanAiStringArray(ai.examples, 4),
+    optionExplanations: cleanAiOptionExplanations(ai.optionExplanations, field),
     hints: cleanAiStringArray(ai.hints, 5),
     officialWarnings: cleanAiStringArray(ai.officialWarnings, 4),
     formatHints: cleanAiStringArray(ai.formatHints, 4),
@@ -724,6 +778,9 @@ function enforceGuidanceLanguage(
   return {
     ...guidance,
     summary: isLikelyNonChineseSentence(guidance.summary) ? base.summary : guidance.summary,
+    optionExplanations: guidance.optionExplanations
+      .filter((item) => !isLikelyNonChineseSentence(item.description))
+      .slice(0, MAX_OPTION_EXPLANATIONS),
     hints: keepChineseItems(guidance.hints, base.hints),
     officialWarnings: keepChineseItems(guidance.officialWarnings, base.officialWarnings),
     formatHints: keepChineseItems(guidance.formatHints, base.formatHints),
@@ -1145,8 +1202,8 @@ async function generateAiGuidance(
     const message = await client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
       max_output_tokens: 700,
-      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document, and never infer an issuing authority from a pickup city. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
-      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nRelevant source context:\n${relevantContext || "No source context found."}`,
+      instructions: `You are a visa form field copilot. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the source context is thin, say the field should follow the current destination's official form and documents instead of borrowing rules from another country. For standard identity/passport fields, treat the Standard field source as binding: copy what is printed on the passport or official document, and never infer an issuing authority from a pickup city. Use ${locale === "zh" ? "Simplified Chinese for every descriptive value. Examples may remain as official values, names, codes, dates, or options, but summary, hints, officialWarnings, option descriptions, and explanatory formatHints must be Chinese even when the source context is English, Indonesian, or another language" : "English"}. Return at most ${MAX_OPTION_EXPLANATIONS} option explanations. Include only exact official options that are directly relevant to the current answer or related filled answers. If there is not enough evidence to identify relevant options, return an empty optionExplanations array; never describe arbitrary choices from the start of a long dropdown. Plain text only inside JSON values: do not use Markdown headings, bold, bullets, code formatting, or tables. Do not invent legal requirements not supported by the field metadata or context.`,
+      input: `Active application scope: ${activeScopeLabel(reqBody)}\n\nField metadata:\n${JSON.stringify(field, null, 2)}\n\nCurrent answer:\n${reqBody.answer?.trim() || "(empty)"}\n\nRelated filled answers:\n${JSON.stringify(relevantAnswerEntries(reqBody.allAnswers), null, 2)}\n\nRelevant source context:\n${relevantContext || "No source context found."}`,
       text: {
         format: {
           type: "json_schema",
@@ -1158,6 +1215,20 @@ async function generateAiGuidance(
             properties: {
               summary: { type: "string" },
               examples: { type: "array", items: { type: "string" } },
+              optionExplanations: {
+                type: "array",
+                maxItems: MAX_OPTION_EXPLANATIONS,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    value: { type: "string" },
+                    label: { type: "string" },
+                    description: { type: "string" },
+                  },
+                  required: ["value", "label", "description"],
+                },
+              },
               hints: { type: "array", items: { type: "string" } },
               officialWarnings: { type: "array", items: { type: "string" } },
               formatHints: { type: "array", items: { type: "string" } },
@@ -1166,6 +1237,7 @@ async function generateAiGuidance(
             required: [
               "summary",
               "examples",
+              "optionExplanations",
               "hints",
               "officialWarnings",
               "formatHints",

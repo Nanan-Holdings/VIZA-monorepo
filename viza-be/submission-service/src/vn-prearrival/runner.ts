@@ -331,6 +331,21 @@ async function selectNearLabel(
   return false;
 }
 
+async function fillCustomFlightNumber(page: Page, value: string): Promise<boolean> {
+  const officialInput = page.locator('input[name="customTransportNumber"]').first();
+  if (await officialInput.isVisible().catch(() => false)) {
+    await officialInput.fill(value);
+    return true;
+  }
+
+  const placeholderInput = page.getByPlaceholder(/flight.*(?:code|number)/i).first();
+  if (await placeholderInput.isVisible().catch(() => false)) {
+    await placeholderInput.fill(value);
+    return true;
+  }
+  return false;
+}
+
 async function selectOfficialRadio(page: Page, value: string): Promise<boolean> {
   const officialValue = officialOptionValue(value);
   const radio = page.getByRole("radio", { name: officialValue, exact: true });
@@ -1124,12 +1139,33 @@ export async function runVietnamPrearrivalPortalSubmission(
 
     let verifyAirBorderGate = false;
     if (payload.modeOfTravel === "air") {
-      const flightLabel = officialCatalogLabel("flight", payload.flightNumber ?? "");
-      const flightSearchValue = (payload.flightNumber ?? "").replace(/_([A-Z]{3})$/i, "");
+      const isCustomFlight = payload.flightNumber?.toLowerCase() === "other";
+      const flightLabel = isCustomFlight
+        ? "Other"
+        : officialCatalogLabel("flight", payload.flightNumber ?? "");
+      const flightSearchValue = isCustomFlight
+        ? "Other"
+        : (payload.flightNumber ?? "").replace(/_([A-Z]{3})$/i, "");
       logs.push(`vn_prearrival_option_resolved field=flight_number value=${flightLabel}`);
       if (!(await selectNearLabel(page, [/flight number/i, /chuyến bay/i], flightLabel, flightSearchValue))) {
         missingControls.push("flight_number");
-      } else verifyAirBorderGate = true;
+      } else if (isCustomFlight) {
+        if (!(await fillCustomFlightNumber(page, payload.customFlightNumber ?? ""))) {
+          missingControls.push("custom_flight_number");
+        }
+        const airportCode = payload.borderGateAirport ?? "";
+        const airportLabel = `${airportCode} - ${officialCatalogLabel("airport", airportCode)}`;
+        if (!(await selectNearLabel(
+          page,
+          [/border gate|arrival airport/i, /cửa khẩu/i],
+          airportLabel,
+          airportCode,
+        ))) {
+          missingControls.push("border_gate_airport");
+        }
+      } else {
+        verifyAirBorderGate = true;
+      }
     } else {
       if (!(await fillNearLabel(page, [/vehicle identification number/i], payload.vehicleIdentificationNumber ?? ""))) {
         missingControls.push("vehicle_identification_number");

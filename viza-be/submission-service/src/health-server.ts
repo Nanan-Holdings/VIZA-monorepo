@@ -532,6 +532,7 @@ async function handleJapanVfsSingaporeObserve(req: http.IncomingMessage, res: ht
       ...(await observeJapanVfsSingaporeSlots({
         applicationId: typeof body.applicationId === "string" ? body.applicationId : undefined,
         prepareAlias: body.prepareAlias === true,
+        publicOnly: body.publicOnly === true,
         eligibility: body.eligibility && typeof body.eligibility === "object" && !Array.isArray(body.eligibility) ? body.eligibility as Record<string, unknown> : undefined,
       })),
     });

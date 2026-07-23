@@ -39,6 +39,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
   guards the local country-code dropdown fallback used when the official
   category endpoint is session-gated.
+- Vietnam Pre-Arrival E-Visa number guidance uses the official visual reference
+  at `public/images/vietnam/evisa-number-help-official.png`; keep its modal
+  layout aligned with the official portal while presenting the instructions in
+  Chinese.
 - Philippines eTravel airline-dependent flight numbers are proxied read-only
   through `app/api/ph-etravel/options/**`; the form stores the exact official
   flight code and reloads options whenever the official airline code changes.
