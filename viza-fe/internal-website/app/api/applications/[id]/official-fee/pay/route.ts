@@ -446,40 +446,50 @@ async function postOneTimeCardSession(input: {
   | { ok: true; redactedCard: unknown; expiresAtIso: string | null }
   | { ok: false; error: string }
 > {
-  try {
-    const response = await fetch(input.endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(input.token ? { Authorization: `Bearer ${input.token}` } : {}),
-      },
-      body: JSON.stringify({
-        applicationId: input.applicationId,
-        card: {
-          pan: input.card.pan,
-          expiry: input.card.expiry,
-          cvv: input.card.cvv,
-          holderName: input.card.holderName,
+  let lastError = "unknown card-session error";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(input.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(input.token ? { Authorization: `Bearer ${input.token}` } : {}),
         },
-      }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
-    });
-    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-    if (!response.ok) {
-      return {
-        ok: false,
-        error: typeof payload?.error === "string" ? payload.error : `HTTP ${response.status}`,
-      };
+        body: JSON.stringify({
+          applicationId: input.applicationId,
+          card: {
+            pan: input.card.pan,
+            expiry: input.card.expiry,
+            cvv: input.card.cvv,
+            holderName: input.card.holderName,
+          },
+        }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+      });
+      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+      if (response.ok) {
+        return {
+          ok: true,
+          redactedCard: payload?.redactedCard ?? null,
+          expiresAtIso: typeof payload?.expiresAtIso === "string" ? payload.expiresAtIso : null,
+        };
+      }
+
+      lastError = typeof payload?.error === "string" ? payload.error : `HTTP ${response.status}`;
+      if (response.status < 500 && ![408, 425, 429].includes(response.status)) {
+        return { ok: false, error: lastError };
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
     }
-    return {
-      ok: true,
-      redactedCard: payload?.redactedCard ?? null,
-      expiresAtIso: typeof payload?.expiresAtIso === "string" ? payload.expiresAtIso : null,
-    };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
   }
+
+  return { ok: false, error: lastError };
 }
 
 async function registerOneTimeCardSession(applicationId: string, application: ApplicationRow, card: OneTimeCardInput): Promise<

@@ -2,15 +2,19 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import type { Locator, Page } from "@playwright/test";
+import bundledOfficialStaticCatalog from "./data/official-static-options.json";
 import {
   createArrivalCardBrowserSession,
   type ArrivalCardBrowserSession,
 } from "../arrival-card-browser";
 import {
+  matchesOfficialDialingCodeOption,
+  officialLocalPhoneNumber,
   VN_PREARRIVAL_OFFICIAL_PORTAL_URL,
   type VnPrearrivalPortalPayload,
 } from "./normalize";
 import { formatOfficialFlightDisplayLabel } from "./flight-label";
+import { officialAdministrativeLabel } from "./administrative-label";
 import {
   extractVietnamPrearrivalConfirmationNumber,
   hasVietnamPrearrivalSuccessEvidence,
@@ -124,22 +128,11 @@ type OfficialStaticItem = {
   airport?: string;
 };
 
-type AdministrativeItem = {
-  value?: string;
-  label_en?: string;
-};
-
 type OfficialStaticCatalog = {
   sources?: Record<string, OfficialStaticItem[] | undefined>;
 };
 
-type AdministrativeCatalog = {
-  provinces?: AdministrativeItem[];
-  wards_by_province?: Record<string, AdministrativeItem[] | undefined>;
-};
-
 let officialStaticCatalog: OfficialStaticCatalog | undefined;
-let administrativeCatalog: AdministrativeCatalog | undefined;
 
 function readWorkspaceJson<T>(relativePath: string): T | null {
   const candidates = new Set<string>();
@@ -164,6 +157,8 @@ function readWorkspaceJson<T>(relativePath: string): T | null {
 
 function loadOfficialStaticCatalog(): OfficialStaticCatalog | null {
   if (officialStaticCatalog) return officialStaticCatalog;
+  officialStaticCatalog = bundledOfficialStaticCatalog as OfficialStaticCatalog;
+  if (officialStaticCatalog.sources) return officialStaticCatalog;
   const loaded = readWorkspaceJson<OfficialStaticCatalog>(
     "viza-fe/internal-website/lib/vn-prearrival/official-static-options.json",
   );
@@ -171,22 +166,10 @@ function loadOfficialStaticCatalog(): OfficialStaticCatalog | null {
   return loaded;
 }
 
-function loadAdministrativeCatalog(): AdministrativeCatalog | null {
-  if (administrativeCatalog) return administrativeCatalog;
-  const loaded = readWorkspaceJson<AdministrativeCatalog>(
-    "viza-fe/internal-website/lib/vn-prearrival/administrative-units-legacy.json",
-  );
-  if (loaded) administrativeCatalog = loaded;
-  return loaded;
-}
-
 export function officialCatalogLabel(source: string, value: string, parent = ""): string {
   if (!value) return value;
-  if (source === "province") {
-    return loadAdministrativeCatalog()?.provinces?.find((item) => item.value === value)?.label_en ?? value;
-  }
-  if (source === "ward") {
-    return loadAdministrativeCatalog()?.wards_by_province?.[parent]?.find((item) => item.value === value)?.label_en ?? value;
+  if (source === "province" || source === "ward") {
+    return officialAdministrativeLabel(source, value, parent);
   }
   const item = loadOfficialStaticCatalog()?.sources?.[source]?.find((candidate) => candidate.code === value);
   if (!item) return officialOptionValue(value);
@@ -237,6 +220,7 @@ async function selectNearLabel(
   labels: RegExp[],
   value: string,
   searchValue = value,
+  optionTextMatcher?: (text: string) => boolean,
 ): Promise<boolean> {
   const officialValue = officialOptionValue(value);
   const chooseAutocompleteOption = async (control: Locator): Promise<void> => {
@@ -275,7 +259,13 @@ async function selectNearLabel(
       for (let index = 0; index < count; index += 1) {
         const option = options.nth(index);
         const text = await option.textContent().catch(() => "");
-        if (text && normalizedOptionText(text) === expected) {
+        if (
+          text
+          && (
+            normalizedOptionText(text) === expected
+            || optionTextMatcher?.(text)
+          )
+        ) {
           await option.click({ timeout: 5_000 });
           return;
         }
@@ -327,6 +317,20 @@ async function selectNearLabel(
         }
       }
     }
+  }
+  return false;
+}
+
+async function selectDependentOfficialOption(
+  page: Page,
+  labels: RegExp[],
+  value: string,
+  searchValue = value,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (await selectNearLabel(page, labels, value, searchValue)) return true;
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.waitForTimeout(750 * (attempt + 1));
   }
   return false;
 }
@@ -1094,7 +1098,7 @@ export async function runVietnamPrearrivalPortalSubmission(
       // The official form separates the dialling code from the local number.
       // Supplying both here duplicates the country prefix and fails its 3-14
       // digit validation before the Trip Information action can proceed.
-      [[/phone/i, /điện thoại/i], payload.phoneNumber.replace(/\D/g, "").replace(/^86(?=\d{3,14}$)/, ""), "phone_number"],
+      [[/phone/i, /điện thoại/i], officialLocalPhoneNumber(payload.phoneCountryCode, payload.phoneNumber), "phone_number"],
       [[/^number\b/i], payload.visaNumber, "visa_number"],
       [[/^date of issue/i], payload.visaIssueDate ? officialDate(payload.visaIssueDate) : "", "visa_issue_date"],
     ];
@@ -1122,6 +1126,15 @@ export async function runVietnamPrearrivalPortalSubmission(
     for (const [labels, value, field, searchValue] of passengerSelectTasks) {
       if (!value) continue;
       if (!(await selectNearLabel(page, labels, value, searchValue ?? value))) missingControls.push(field);
+    }
+    if (!(await selectNearLabel(
+      page,
+      [/country code/i],
+      payload.phoneCountryCode,
+      payload.phoneCountryCode,
+      (optionText) => matchesOfficialDialingCodeOption(optionText, payload.phoneCountryCode),
+    ))) {
+      missingControls.push("phone_country_code");
     }
 
     if (!(await selectOfficialRadio(page, payload.gender))) missingControls.push("gender");
@@ -1186,7 +1199,12 @@ export async function runVietnamPrearrivalPortalSubmission(
         ? "Other"
         : (payload.flightNumber ?? "").replace(/_([A-Z]{3})$/i, "");
       logs.push(`vn_prearrival_option_resolved field=flight_number value=${flightLabel}`);
-      if (!(await selectNearLabel(page, [/flight number/i, /chuyến bay/i], flightLabel, flightSearchValue))) {
+      if (!(await selectDependentOfficialOption(
+        page,
+        [/flight number/i, /chuyến bay/i],
+        flightLabel,
+        flightSearchValue,
+      ))) {
         missingControls.push("flight_number");
       } else if (isCustomFlight) {
         if (!(await fillCustomFlightNumber(page, payload.customFlightNumber ?? ""))) {
@@ -1194,7 +1212,7 @@ export async function runVietnamPrearrivalPortalSubmission(
         }
         const airportCode = payload.borderGateAirport ?? "";
         const airportLabel = `${airportCode} - ${officialCatalogLabel("airport", airportCode)}`;
-        if (!(await selectNearLabel(
+        if (!(await selectDependentOfficialOption(
           page,
           [/border gate|arrival airport/i, /cửa khẩu/i],
           airportLabel,
@@ -1230,13 +1248,18 @@ export async function runVietnamPrearrivalPortalSubmission(
         [[/ward.*commune/i], wardLabel, "ward_commune_of_hotel"],
       ];
       for (const [labels, value, field] of hotelSelectTasks) {
-        if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+        // The portal autocomplete filters by its visible English label. The
+        // numeric administrative code is only the value persisted by VIZA.
+        if (!(await selectDependentOfficialOption(page, labels, value, value))) {
+          missingControls.push(field);
+        }
       }
       if (
-        !(await selectNearLabel(
+        !(await selectDependentOfficialOption(
           page,
           [/accommodation address/i, /địa chỉ/i],
           accommodationLabel,
+          payload.usesCustomHotelAccommodationAddress ? "Other" : payload.accommodationAddress,
         ))
       ) {
         missingControls.push("accommodation_address");

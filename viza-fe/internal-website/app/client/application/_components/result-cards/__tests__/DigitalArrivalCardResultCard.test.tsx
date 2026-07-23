@@ -402,6 +402,88 @@ describe("cloud submission retry routing", () => {
     });
   });
 
+  it("sends a failed Vietnam retry directly to the cloud payment queue", async () => {
+    let resolvePayment: ((value: unknown) => void) | undefined;
+    const paymentResponse = new Promise((resolve) => {
+      resolvePayment = resolve;
+    });
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST" && url.endsWith("/official-fee/pay")) {
+        return paymentResponse;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: "failed",
+          stage: "failed",
+          progress: 0,
+          result: null,
+          error: "Submission job failed: worker heartbeat stopped for 600s in status vn_live_assisted_processing.",
+          message: "Previous cloud attempt ended.",
+          updatedAt: new Date().toISOString(),
+          applicationStatus: "failed",
+          country: "VN",
+          visaType: "evisa_tourism",
+          queue: {
+            id: "old-vietnam-queue",
+            status: "failed",
+            mode: "live_assisted",
+            provider: "vietnam_evisa_live",
+          },
+        }),
+      };
+    });
+    const onResubmit = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="vietnam"
+        visaType="evisa_tourism"
+        status="failed"
+        result={null}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
+    expect(onResubmit).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/applications/application-id/official-fee/pay",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          card: {
+            pan: "4111111111111111",
+            expiry: "12/30",
+            cvv: "123",
+            holderName: "",
+          },
+        }),
+      }),
+    );
+
+    await act(async () => {
+      resolvePayment?.({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          queueId: "new-vietnam-queue",
+          queueStatus: "vn_cloud_live_pending",
+          provider: "vietnam_evisa_live",
+        }),
+      });
+    });
+  });
+
   it("shows Fly cloud loading immediately while a Vietnam payment retry is being accepted", async () => {
     let resolvePayment: ((value: unknown) => void) | undefined;
     const paymentResponse = new Promise((resolve) => {
@@ -475,8 +557,9 @@ describe("cloud submission retry routing", () => {
     fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
     fireEvent.click(screen.getByRole("button", { name: "开始自动付款" }));
 
-    expect(await screen.findByText("Fly 云端正在自动处理")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("不会在本机 Chrome 打开");
+    expect(await screen.findByText("正在提交您的申请")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "提交进度" })).toBeInTheDocument();
+    expect(screen.getByText("正在安全发送银行卡并启动 Fly 云端任务。")).toBeInTheDocument();
 
     await act(async () => {
       resolvePayment?.({
