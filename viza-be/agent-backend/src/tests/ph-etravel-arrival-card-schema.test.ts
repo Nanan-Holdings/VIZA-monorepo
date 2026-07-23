@@ -40,7 +40,6 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
       "occupation",
       "flight_arrival_date",
       "flight_departure_date",
-      "travel_type",
       "transport_type",
       "traveller_type",
       "airline_name",
@@ -62,20 +61,23 @@ describe("Philippines eTravel Arrival Card schema seed", () => {
   test("keeps runner-required dropdowns as official option values with Chinese display labels", () => {
     const optionsByField = new Map(PH_ETRAVEL_FORM_FIELDS.map((field) => [field.field_name, field.options ?? []]));
 
-    expect(optionsByField.get("travel_type")?.some((option) => option.value === "ARRIVAL")).toBe(true);
-    expect(optionsByField.get("travel_type")?.some((option) => option.value === "DEPARTURE")).toBe(false);
+    expect(optionsByField.has("travel_type")).toBe(false);
     expect(optionsByField.get("transport_type")?.some((option) => option.value === "AIR")).toBe(true);
     expect(optionsByField.get("occupation")?.some((option) => option.value === "OCC007")).toBe(true);
     expect(optionsByField.get("traveller_type")?.some((option) => option.value === "AIRCRAFT PASSENGER")).toBe(true);
     expect(optionsByField.get("airline_name")?.some((option) => option.value === "TC009")).toBe(true);
     expect(optionsByField.get("port_of_entry")?.some((option) => option.value === "TP1000")).toBe(true);
 
-    for (const fieldName of ["travel_type", "transport_type", "occupation", "traveller_type", "airline_name", "port_of_entry"]) {
+    for (const fieldName of ["transport_type", "occupation", "traveller_type", "airline_name", "port_of_entry"]) {
       for (const option of optionsByField.get(fieldName) ?? []) {
         expect(option.label_en || option.text).toBeTruthy();
         expect(option.label_zh, `${fieldName}: ${option.value}`).toMatch(/[\u3400-\u9fff]/);
       }
     }
+  });
+
+  test("does not ask the fixed arrival travel type as a duplicate question", () => {
+    expect(PH_ETRAVEL_FORM_FIELDS.some((field) => field.field_name === "travel_type")).toBe(false);
   });
 
   test("keeps the official airport snapshot one-to-one without duplicate labels", () => {

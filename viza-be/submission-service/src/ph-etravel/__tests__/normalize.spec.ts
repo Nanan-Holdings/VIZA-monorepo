@@ -96,6 +96,19 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
 });
 
+test("normalizePhEtravelPortalPayload derives ARRIVAL when the fixed travel type question is absent", () => {
+  const base = basePayload();
+  const { travel_type: _removedTravelType, ...countrySpecific } = base.countrySpecific;
+  const payload = normalizePhEtravelPortalPayload({
+    ...base,
+    countrySpecific,
+  }, {
+    now: new Date("2026-06-12T08:00:00+08:00"),
+  });
+
+  assert.equal(payload.travelType, "ARRIVAL");
+});
+
 test("normalizePhEtravelPortalPayload keeps departure independent and evaluates the window from departure date", () => {
   const base = basePayload();
   const payload = normalizePhEtravelPortalPayload({

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  browserbaseEnabled,
+} from "../../browserbase-session";
+import {
   resolveArrivalCardBrowserEndpoint,
   resolveArrivalCardLaunchChannel,
   resolveArrivalCardLocalCdpEndpoint,
@@ -19,6 +22,7 @@ function resetEnv(): void {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.PH_ETRAVEL_BROWSER_API_ENDPOINT;
   delete process.env.PH_ETRAVEL_BRIGHTDATA_BROWSER_API_ENDPOINT;
+  delete process.env.PH_ETRAVEL_BROWSERBASE_ENABLED;
   delete process.env.PH_ETRAVEL_USE_GLOBAL_BROWSER_API;
   delete process.env.PH_ETRAVEL_CDP_ENDPOINT;
   delete process.env.PH_ETRAVEL_CHROME_CDP_ENDPOINT;
@@ -38,6 +42,16 @@ test("PH eTravel uses a country endpoint before the configured global Browser AP
 
   process.env.PH_ETRAVEL_BROWSER_API_ENDPOINT = "wss://country-browser.example";
   assert.equal(resolveArrivalCardBrowserEndpoint("PH_ETRAVEL"), "wss://country-browser.example");
+});
+
+test("PH eTravel defaults to Browserbase instead of a configured Bright Data endpoint", () => {
+  resetEnv();
+  process.env.BRIGHTDATA_BROWSER_WS = "wss://global-browser.example";
+
+  assert.equal(browserbaseEnabled("PH_ETRAVEL", true), true);
+
+  process.env.PH_ETRAVEL_BROWSERBASE_ENABLED = "false";
+  assert.equal(browserbaseEnabled("PH_ETRAVEL", true), false);
 });
 
 test("PH eTravel retries rejected registration API responses instead of waiting for mail", () => {

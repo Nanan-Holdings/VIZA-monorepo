@@ -95,11 +95,12 @@ export async function createArrivalCardBrowserSession(options: {
   // A country runner can explicitly opt into Browserbase to avoid a configured
   // global Browser API provider whose policy does not permit the official site.
   // Do not let that global endpoint silently win over the explicit choice.
-  // Bright Data rejects the Thai government portal by policy. Browserbase is
-  // therefore TDAC's default; an operator can disable it for local/CDP tests.
+  // Bright Data rejects the Thai and Philippines government portals by policy.
+  // Browserbase is therefore the default for both runners; an operator can
+  // explicitly disable it for local/CDP tests.
   const preferBrowserbase = !options.forceLocal && browserbaseEnabled(
     options.prefix,
-    options.prefix === "TDAC",
+    options.prefix === "TDAC" || options.prefix === "PH_ETRAVEL",
   );
   const endpoint = options.forceLocal || preferBrowserbase
     ? null
