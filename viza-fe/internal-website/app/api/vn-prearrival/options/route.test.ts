@@ -190,4 +190,36 @@ describe("Vietnam pre-arrival official option mapping", () => {
 
     expect(__testables.filterOptionsByKeyword(options, "65")[0]?.value).toBe("+65");
   });
+
+  it("searches Vietnam wards by verified Chinese names and accentless Vietnamese aliases", async () => {
+    const { GET } = await import("./route");
+    const chineseResponse = await GET(
+      new Request(
+        "http://localhost/api/vn-prearrival/options?source=administrative_unit_level2&parent=48&keyword=%E5%92%8C&limit=100",
+      ),
+    );
+    const chinesePayload = await chineseResponse.json() as {
+      options: Array<{ value: string; label_zh: string }>;
+    };
+
+    expect(chinesePayload.options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: "20200", label_zh: "和庆坊" }),
+      expect.objectContaining({ value: "20257", label_zh: "和强坊" }),
+      expect.objectContaining({ value: "20314", label_zh: "和春坊" }),
+      expect.objectContaining({ value: "20320", label_zh: "和荣社" }),
+      expect.objectContaining({ value: "20332", label_zh: "和进社" }),
+    ]));
+
+    const accentlessResponse = await GET(
+      new Request(
+        "http://localhost/api/vn-prearrival/options?source=administrative_unit_level2&parent=48&keyword=ngu%20hanh%20son",
+      ),
+    );
+    const accentlessPayload = await accentlessResponse.json() as {
+      options: Array<{ value: string; label_zh: string }>;
+    };
+    expect(accentlessPayload.options).toEqual([
+      expect.objectContaining({ value: "20285", label_zh: "五行山坊" }),
+    ]);
+  });
 });

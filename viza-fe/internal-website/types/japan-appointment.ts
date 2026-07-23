@@ -70,6 +70,17 @@ export interface JapanAppointmentSnapshot {
     documentTypes: string[];
     passportUploaded: boolean;
     photoUploaded: boolean;
+    review: {
+      englishName: string;
+      dateOfBirth: string;
+      nationality: string;
+      passportNumber: string;
+      passportExpiryDate: string;
+      phone: string;
+      email: string;
+      residentialAddress: string;
+      appointmentCenter: string;
+    };
   };
 }
 
@@ -78,4 +89,22 @@ export interface JapanAppointmentApiResponse<T> {
   data?: T;
   code?: string;
   message?: string;
+}
+
+export type JapanAppointmentStage = "review" | "account" | "slots" | "confirm" | "result";
+
+export function getJapanAppointmentStage(snapshot: JapanAppointmentSnapshot | null): JapanAppointmentStage {
+  if (!snapshot?.job || snapshot.job.status === "appointment_cancelled") return "review";
+  if (snapshot.confirmation) return "result";
+  const selectedSlot = snapshot.slots.some((slot) => ["user_selected", "selected"].includes(slot.status));
+  if (
+    selectedSlot
+    || snapshot.job.currentManualAction === "payment"
+    || ["appointment_payment_required", "appointment_payment_ready", "appointment_final_confirmation_approved"].includes(snapshot.job.status)
+  ) return "confirm";
+  if (
+    snapshot.slots.some((slot) => ["observed", "user_selected", "selected"].includes(slot.status))
+    || ["appointment_no_slots_available", "appointment_slot_selection_required"].includes(snapshot.job.status)
+  ) return "slots";
+  return "account";
 }

@@ -8,13 +8,13 @@ import { connectBrowserbaseCloudBrowser } from "../src/browserbase-session";
 import { ensureApplicantInboxAlias } from "../src/inbox/alias";
 import { extractAuto } from "../src/inbox/extractors";
 import { inbox } from "../src/inbox/wait-for-message";
+import { loadCanonicalAnswers } from "../src/queue/answers";
 import { encryptSecret } from "../src/secret-cipher";
 import { supabase } from "../src/supabase";
 
 const applicationId = process.argv.find((value) => value.startsWith("--application-id="))?.split("=")[1];
 if (!applicationId) throw new Error("--application-id is required.");
-const testPhone = process.argv.find((value) => value.startsWith("--phone="))?.split("=")[1]?.replace(/\D/g, "");
-if (!testPhone) throw new Error("--phone is required because VFS sends a real SMS OTP; do not use a random placeholder number.");
+const phoneArgument = process.argv.find((value) => value.startsWith("--phone="))?.split("=")[1]?.replace(/\D/g, "");
 const otpPortValue = process.argv.find((value) => value.startsWith("--otp-port="))?.split("=")[1];
 const otpPort = otpPortValue ? Number.parseInt(otpPortValue, 10) : undefined;
 if (otpPort !== undefined && (!Number.isInteger(otpPort) || otpPort < 1024 || otpPort > 65_535)) {
@@ -88,6 +88,11 @@ async function main(): Promise<void> {
   const profileValue = Array.isArray(application.applicant_profiles) ? application.applicant_profiles[0] : application.applicant_profiles;
   const authUserId = (profileValue as { auth_user_id?: string } | null)?.auth_user_id;
   if (!authUserId) throw new Error("Test application has no auth user.");
+  const answers = await loadCanonicalAnswers(applicationId);
+  const testPhone = (phoneArgument || answers.phone || answers.phone_number || answers.mobile || "")
+    .replace(/^\+?65/, "")
+    .replace(/\D/g, "");
+  if (!testPhone) throw new Error("The application has no phone number for the real VFS SMS OTP.");
   const alias = (await ensureApplicantInboxAlias(application.applicant_id)).alias;
   const password = `V!zaT9${randomBytes(4).toString("hex")}`;
   const startedAt = new Date().toISOString();
@@ -148,6 +153,12 @@ async function main(): Promise<void> {
         }
         if (!mobileNumberFilled) mobileNumberFilled = await fillMobileNumber(25_000);
         if (!mobileNumberFilled) console.log("[jp-vfs-account] current VFS registration form has no mobile-number step");
+        await cloud.page.waitForTimeout(1_500);
+        const delayedNecessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
+        if (await delayedNecessary.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await delayedNecessary.evaluate((element) => (element as HTMLElement).click());
+          await cloud.page.locator("#onetrust-consent-sdk").waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+        }
         await cloud.page.waitForFunction(() => {
           const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
           return token.trim().length > 0;

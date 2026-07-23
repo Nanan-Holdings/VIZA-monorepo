@@ -346,6 +346,45 @@ async function fillCustomFlightNumber(page: Page, value: string): Promise<boolea
   return false;
 }
 
+async function fillCustomHotelAccommodationAddress(page: Page, value: string): Promise<boolean> {
+  const directInputs = [
+    page.locator('input[name="customAccommodationAddress"]').first(),
+    page.locator('input[name="otherAccommodationAddress"]').first(),
+    page.locator('input[name="accommodationAddressOther"]').first(),
+    page.getByPlaceholder(/enter.*(?:accommodation|address)|other.*address/i).first(),
+  ];
+  for (const input of directInputs) {
+    if (
+      await input.isVisible().catch(() => false)
+      && await input.isEditable().catch(() => false)
+    ) {
+      await input.fill(value);
+      return true;
+    }
+  }
+
+  // After the official "Other" option is selected, the portal renders a
+  // second Accommodation Address control. Iterate from the last matching
+  // label so the original hotel autocomplete is never overwritten.
+  for (const label of [/accommodation address/i, /địa chỉ/i]) {
+    const labeledInputs = page.getByLabel(label);
+    const count = await labeledInputs.count().catch(() => 0);
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const input = labeledInputs.nth(index);
+      const role = await input.getAttribute("role").catch(() => null);
+      if (
+        role !== "combobox"
+        && await input.isVisible().catch(() => false)
+        && await input.isEditable().catch(() => false)
+      ) {
+        await input.fill(value);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 async function selectOfficialRadio(page: Page, value: string): Promise<boolean> {
   const officialValue = officialOptionValue(value);
   const radio = page.getByRole("radio", { name: officialValue, exact: true });
@@ -1180,17 +1219,32 @@ export async function runVietnamPrearrivalPortalSubmission(
     if (payload.accommodationType === "hotel") {
       const provinceLabel = officialCatalogLabel("province", payload.provinceCityOfHotel);
       const wardLabel = officialCatalogLabel("ward", payload.wardCommuneOfHotel, payload.provinceCityOfHotel);
-      const accommodationLabel = officialCatalogLabel("hotel", payload.accommodationAddress);
+      const accommodationLabel = payload.usesCustomHotelAccommodationAddress
+        ? "Other"
+        : officialCatalogLabel("hotel", payload.accommodationAddress);
       logs.push(`vn_prearrival_option_resolved field=province_city_of_hotel value=${provinceLabel}`);
       logs.push(`vn_prearrival_option_resolved field=ward_commune_of_hotel value=${wardLabel}`);
       logs.push(`vn_prearrival_option_resolved field=accommodation_address value=${accommodationLabel}`);
       const hotelSelectTasks: Array<[RegExp[], string, string]> = [
         [[/province.*city/i], provinceLabel, "province_city_of_hotel"],
         [[/ward.*commune/i], wardLabel, "ward_commune_of_hotel"],
-        [[/accommodation address/i, /địa chỉ/i], accommodationLabel, "accommodation_address"],
       ];
       for (const [labels, value, field] of hotelSelectTasks) {
         if (!(await selectNearLabel(page, labels, value))) missingControls.push(field);
+      }
+      if (
+        !(await selectNearLabel(
+          page,
+          [/accommodation address/i, /địa chỉ/i],
+          accommodationLabel,
+        ))
+      ) {
+        missingControls.push("accommodation_address");
+      } else if (
+        payload.usesCustomHotelAccommodationAddress
+        && !(await fillCustomHotelAccommodationAddress(page, payload.accommodationAddress))
+      ) {
+        missingControls.push("custom_hotel_accommodation_address");
       }
     } else if (!(await fillNearLabel(page, [/accommodation address/i, /địa chỉ/i], payload.accommodationAddress))) {
       missingControls.push("accommodation_address");

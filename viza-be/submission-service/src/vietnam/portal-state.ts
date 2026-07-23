@@ -75,12 +75,20 @@ export function extractVietnamRegistrationCode(text: string): string | null {
 export function classifyVietnamPortalSnapshot(snapshot: VietnamPortalSnapshot): VietnamPortalStateId {
   const text = normalizeText(snapshot.bodyText);
   const lowerText = text.toLowerCase();
+  const lowerTitle = normalizeText(snapshot.title).toLowerCase();
   const lowerModal = normalizeText(snapshot.modalText).toLowerCase();
   const hasControls = snapshot.inputCount > 0 || snapshot.buttonTexts.length > 0 || snapshot.linkHrefs.length > 0;
 
   if (snapshot.mainRequestFailed) return "network_blocked";
   if (!snapshot.hasBody || (text.length < 20 && snapshot.bodyHtmlLength < 2_000 && !hasControls)) {
     return "white_screen";
+  }
+  if (
+    !hasControls &&
+    snapshot.failedRequestCount >= 3 &&
+    /^(error|server error|bad gateway|service unavailable)$/.test(lowerTitle)
+  ) {
+    return "portal_error";
   }
   if (
     /\b(maintenance|temporarily unavailable|service unavailable|access denied|forbidden|bad gateway|gateway timeout|internal server error)\b/i.test(text)
