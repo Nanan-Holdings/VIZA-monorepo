@@ -32,7 +32,7 @@ describe("queueStatusForVisaType", () => {
   it("routes legacy Vietnam e-visa tourism packages by country without hijacking other countries", () => {
     expect(queueStatusForApplication("vietnam", "evisa_tourism")).toBe("vn_dry_run_pending");
     expect(queueStatusForApplication("Viet Nam", "tourist-e-visa")).toBe("vn_dry_run_pending");
-    expect(queueStatusForApplication("VN", "evisa_tourism", "live_assisted")).toBe("vn_live_assisted_pending");
+    expect(queueStatusForApplication("VN", "evisa_tourism", "live_assisted")).toBe("vn_cloud_live_pending");
     expect(queueStatusForApplication("egypt", "evisa_tourism")).toBe("pending");
   });
 

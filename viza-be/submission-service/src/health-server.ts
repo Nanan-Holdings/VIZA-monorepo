@@ -43,6 +43,7 @@ export interface HealthServerOptions {
   isWorkerStarted: () => boolean;
   isWorkerBusy?: () => boolean;
   hasOneTimeCardSessions?: () => boolean;
+  wakeSubmissionQueue?: () => void;
   port?: number;
 }
 
@@ -111,6 +112,14 @@ function isIndonesiaInternalRequest(req: http.IncomingMessage): boolean {
 
 function isVietnamInternalRequest(req: http.IncomingMessage): boolean {
   return hasBearerToken(req, process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN);
+}
+
+function isSubmissionQueueInternalRequest(req: http.IncomingMessage): boolean {
+  return hasBearerToken(
+    req,
+    process.env.SUBMISSION_QUEUE_INTERNAL_TOKEN ??
+      process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN,
+  );
 }
 
 async function readJsonBody(req: http.IncomingMessage, maxBytes = 4096): Promise<unknown> {
@@ -625,6 +634,19 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       void handleVietnamCardSession(req, res);
       return;
     }
+    if (req.method === "POST" && url === "/internal/submission-queue/wake") {
+      if (!opts.wakeSubmissionQueue || !isSubmissionQueueInternalRequest(req)) {
+        sendJson(res, 403, { error: "forbidden" });
+        return;
+      }
+      opts.wakeSubmissionQueue();
+      sendJson(res, 202, {
+        ok: true,
+        accepted: true,
+        workerBusy: opts.isWorkerBusy?.() ?? false,
+      });
+      return;
+    }
     if (req.method === "POST" && url === "/local/indonesia/card-session") {
       void handleIndonesiaCardSession(req, res);
       return;
@@ -823,6 +845,7 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
     if (envEnabled(process.env.FRANCE_TLS_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/france-tls/book-selected-slot");
     if (envEnabled(process.env.JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED)) endpoints.push("/local/japan-vfs-sg/observe");
     if (envEnabled(process.env.JP_VFS_SG_LIVE_BOOKING_ENABLED)) endpoints.push("/internal/japan-vfs-sg/book-selected-slot");
+    if (opts.wakeSubmissionQueue) endpoints.push("/internal/submission-queue/wake");
     const extra = endpoints.length ? `, ${endpoints.join(", ")}` : "";
     console.log(`[health] listening on :${port} (/health, /ready, /deploy-ready${extra})`);
   });

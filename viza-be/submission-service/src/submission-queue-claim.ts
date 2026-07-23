@@ -15,7 +15,7 @@ interface RpcError {
 
 interface SubmissionQueueClaimClient {
   rpc(
-    name: "claim_submission_queue_batch",
+    name: "claim_submission_queue_batch" | "claim_vn_cloud_submission_queue_batch",
     args: {
       p_worker_id: string;
       p_limit: number;
@@ -26,11 +26,12 @@ interface SubmissionQueueClaimClient {
   ): PromiseLike<{ data: unknown; error: RpcError | null }>;
 }
 
-export async function claimPendingSubmissionQueueItems(
+async function claimSubmissionQueueItems(
   client: SubmissionQueueClaimClient,
+  rpcName: "claim_submission_queue_batch" | "claim_vn_cloud_submission_queue_batch",
   options: SubmissionQueueClaimOptions,
 ): Promise<SubmissionQueueItem[]> {
-  const { data, error } = await client.rpc("claim_submission_queue_batch", {
+  const { data, error } = await client.rpc(rpcName, {
     p_worker_id: options.workerId,
     p_limit: options.limit,
     p_lease_seconds: options.leaseSeconds,
@@ -39,10 +40,24 @@ export async function claimPendingSubmissionQueueItems(
   });
 
   if (error) {
-    throw new Error(`Failed to claim submission_queue batch: ${error.message}`);
+    throw new Error(`Failed to claim submission_queue batch via ${rpcName}: ${error.message}`);
   }
 
   return (Array.isArray(data) ? data : []) as SubmissionQueueItem[];
+}
+
+export async function claimPendingSubmissionQueueItems(
+  client: SubmissionQueueClaimClient,
+  options: SubmissionQueueClaimOptions,
+): Promise<SubmissionQueueItem[]> {
+  return claimSubmissionQueueItems(client, "claim_submission_queue_batch", options);
+}
+
+export async function claimPendingVietnamCloudQueueItems(
+  client: SubmissionQueueClaimClient,
+  options: SubmissionQueueClaimOptions,
+): Promise<SubmissionQueueItem[]> {
+  return claimSubmissionQueueItems(client, "claim_vn_cloud_submission_queue_batch", options);
 }
 
 export function isSubmissionQueueClaimRpcUnavailableError(error: unknown): boolean {

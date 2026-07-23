@@ -1430,6 +1430,7 @@ async function insertSubmissionQueueJob(
     (input.mode === "dry_run" ||
       status === "ds160_live_assisted_pending" ||
       status === "vn_live_assisted_pending" ||
+      status === "vn_cloud_live_pending" ||
       status === "sgac_live_assisted_pending" ||
       status === "mdac_live_assisted_pending" ||
       status === "tdac_live_assisted_pending");
@@ -1493,7 +1494,7 @@ async function insertOfficialFeeSubmissionQueueJobWithCard(
     scheduled: false,
     scheduledFor: null,
     jobId: typeof payload?.queueId === "string" ? payload.queueId : null,
-    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_live_assisted_pending",
+    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_cloud_live_pending",
     provider: typeof payload?.provider === "string" ? payload.provider : "vietnam_evisa_live",
     submissionResultStatus: "waiting",
     submissionResult: null,

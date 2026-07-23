@@ -107,6 +107,53 @@ const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE 
 const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
 
+async function triggerCloudSubmissionWorker(jobId: string | null): Promise<boolean> {
+  if (!jobId) return false;
+  const baseUrl = (
+    process.env.VIETNAM_SUBMISSION_SERVICE_URL ??
+    process.env.SUBMISSION_SERVICE_CLOUD_URL
+  )?.trim().replace(/\/+$/u, "");
+  const token = (
+    process.env.SUBMISSION_QUEUE_INTERNAL_TOKEN ??
+    process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN
+  )?.trim();
+  if (!baseUrl || !token) {
+    console.warn("[submission-queue] Cloud worker wake is not configured.");
+    return false;
+  }
+  if (process.env.NODE_ENV === "production" && !baseUrl.startsWith("https://")) {
+    console.warn("[submission-queue] Refusing to wake a non-HTTPS cloud worker.");
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/internal/submission-queue/wake`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jobId }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      console.warn(
+        `[submission-queue] Cloud worker wake returned ${response.status}.`,
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn(
+      `[submission-queue] Cloud worker wake failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
 const VIETNAM_REQUIRED_FIELDS: VietnamRequirement[] = [
   { key: "surname", labelZh: "姓氏 / Surname", labelEn: "Surname" },
   { key: "given_name", labelZh: "名字 / Given names", labelEn: "Given names" },
@@ -1586,6 +1633,10 @@ export async function POST(
     return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
   }
 
+  const workerTriggered = scheduledResult
+    ? false
+    : await triggerCloudSubmissionWorker(queueResult.jobId);
+
   return NextResponse.json({
     ok: true,
     applicationId,
@@ -1596,5 +1647,6 @@ export async function POST(
     scheduled: Boolean(scheduledResult),
     scheduledFor,
     result: scheduledResult,
+    workerTriggered,
   });
 }
