@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   extractPhEtravelOtpFromMessage,
+  extractPhEtravelTemporaryPasswordFromMessage,
   extractPhEtravelVerificationUrlFromMessage,
   isPhEtravelExistingAccountNotice,
 } from "../mailbox-provider";
@@ -97,4 +98,12 @@ test("isPhEtravelExistingAccountNotice recognizes the official registration noti
     text: "Use the requested code to continue.",
     html: null,
   }), false);
+});
+
+test("extractPhEtravelTemporaryPasswordFromMessage reads the official temporary password", () => {
+  assert.equal(extractPhEtravelTemporaryPasswordFromMessage({
+    subject: "eTravel - Temporary Password",
+    text: null,
+    html: "<p>To get started, use this temporary password to log in:</p><p>Temporary Password: Example9A</p>",
+  }), "Example9A");
 });
