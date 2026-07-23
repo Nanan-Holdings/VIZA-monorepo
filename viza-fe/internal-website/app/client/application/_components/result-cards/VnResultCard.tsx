@@ -63,6 +63,8 @@ export function VnResultCard({
     intentStatus === "in_progress" ||
     intentStatus === "pending" ||
     intentStatus === "manual_review";
+  const cloudPaymentActive =
+    paymentBusy || (paymentQueued && !paymentNeedsOperator && !paymentPaid);
   const cardReady = cardNumber.replace(/\D/g, "").length >= 12 && cardExpiry.trim().length >= 4 && cardCvv.replace(/\D/g, "").length >= 3;
   const showPaymentForm = !paymentPaid && (!paymentQueued || paymentNeedsOperator);
   const isFormCheckpoint = result.status === "official_form_reached";
@@ -266,6 +268,31 @@ export function VnResultCard({
                 : "The worker reached the official Vietnam e-Visa portal and stopped at a safe checkpoint before payment or final submit.")}
         </p>
 
+        {cloudPaymentActive && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-lg border border-brand-200 bg-brand-50 p-4"
+          >
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-600" />
+              <div>
+                <p className="font-semibold text-foreground">
+                  {isZh ? "Fly 云端正在自动处理" : "Fly cloud automation is running"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {isZh
+                    ? "请保持本页面打开。官网只在 Fly 云端浏览器中运行，不会在本机 Chrome 打开；页面会自动刷新进度。"
+                    : "Keep this page open. The official portal runs only in the Fly cloud browser and will not open in local Chrome; progress refreshes automatically."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-brand-100">
+              <div className="h-full w-2/3 animate-pulse rounded-full bg-brand-600" />
+            </div>
+          </div>
+        )}
+
         {result.checkpoint && !isPaymentCheckpoint && (
           <div className="rounded-md border border-input bg-background px-3 py-2">
             <div className="text-xs text-muted-foreground">{isZh ? "官网检查点" : "Checkpoint"}</div>
@@ -413,8 +440,8 @@ export function VnResultCard({
             {needsBankConfirmation && (
               <p className="rounded-md border border-amber-200 bg-white px-3 py-2 text-sm leading-relaxed text-amber-900">
                 {isZh
-                  ? "已到达 VNPAY / 银行 3DS 付款确认页。请在自动打开的官方付款浏览器窗口中完成 3DS、OTP 或银行 App 验证；不要使用下方旧链接重新打开，因为该付款页不能靠 URL 恢复。若官方付款窗口已关闭，请重新提交本次付款银行卡。"
-                  : "The VNPAY / bank 3DS confirmation page is open in the official browser window. Complete 3DS, OTP, or bank-app authentication there. Do not reopen the saved payment URL; that page cannot be restored by URL alone. If the window was closed, resubmit the one-time card."}
+                  ? "Fly 云端浏览器已到达 VNPAY / 银行 3DS 验证。请在银行 App 中批准本次付款；VIZA 会保持云端会话并自动继续，不会在本机打开官网窗口。"
+                  : "The Fly cloud browser reached VNPAY / bank 3DS. Approve the payment in your banking app; VIZA keeps the cloud session alive and continues automatically without opening the official portal locally."}
               </p>
             )}
             <p className="mt-2 text-sm text-foreground">{result.manualAction.instructions}</p>
@@ -458,14 +485,8 @@ export function VnResultCard({
 
         {needsBankConfirmation ? (
           <Button type="button" className="w-full" disabled>
-            {isZh ? "请在已打开的官方付款窗口完成验证" : "Complete verification in the open official payment window"}
-          </Button>
-        ) : !isPaymentCheckpoint ? (
-          <Button asChild className="w-full">
-            <a href={result.portalUrl ?? "https://evisa.gov.vn"} target="_blank" rel="noopener noreferrer">
-              {isZh ? "打开越南 e-Visa 官网" : "Open official Vietnam e-Visa portal"}
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </a>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isZh ? "等待银行 App 验证结果" : "Waiting for banking-app verification"}
           </Button>
         ) : null}
       </CardContent>

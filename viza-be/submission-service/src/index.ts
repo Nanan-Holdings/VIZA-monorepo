@@ -191,6 +191,7 @@ import { VnPrearrivalPortalError, runVietnamPrearrivalPortalSubmission } from ".
 import {
   choosePhEtravelAccountPlan,
   loadPhEtravelAccount,
+  phEtravelAccountEmailFromManagedAlias,
   upsertPhEtravelAccount,
 } from "./ph-etravel/account";
 import { createPhEtravelMailboxProvider } from "./ph-etravel/mailbox-provider";
@@ -3740,12 +3741,6 @@ function generatePhEtravelMpin(): string {
   return value.toString().padStart(6, "0");
 }
 
-function derivePhEtravelAccountEmail(baseAlias: string): string {
-  const [localPart, domain] = baseAlias.toLowerCase().split("@");
-  if (!localPart || !domain) return baseAlias.toLowerCase();
-  return `${localPart}-ph${randomBytes(3).toString("hex")}@${domain}`;
-}
-
 const PH_ETRAVEL_RETRYABLE_ACCOUNT_ERROR_CODES = new Set([
   "ph_etravel_official_account_required",
   "ph_etravel_official_login_verification_required",
@@ -3768,7 +3763,10 @@ async function loadOrCreatePhEtravelAccountPlan(input: {
   existingAccount?: Awaited<ReturnType<typeof loadPhEtravelAccount>>;
 }): Promise<ReturnType<typeof choosePhEtravelAccountPlan>> {
   const alias = await ensureApplicantInboxAlias(input.applicantId);
-  const aliasEmail = derivePhEtravelAccountEmail(alias.alias);
+  // The email worker accepts only the exact active applicant_profiles alias.
+  // Derived local-parts are intentionally rejected as unknown aliases, so the
+  // official account must use the managed address verbatim for OTP delivery.
+  const aliasEmail = phEtravelAccountEmailFromManagedAlias(alias.alias);
   const generatedPassword = `VizaPH-${randomBytes(9).toString("base64url")}9!`;
   const generatedMpin = generatePhEtravelMpin();
 

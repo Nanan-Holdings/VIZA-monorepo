@@ -256,7 +256,7 @@ export function actionForIndonesiaPortalState(
       return {
         actionType: "official_fee_payment_failed",
         instruction:
-          "The Indonesia official payment gateway returned a failed payment result before bank OTP/3DS could be completed. Use a different card or retry after the official gateway cooldown.",
+          "The Indonesia official payment gateway did not complete the payment. Bank OTP/3DS may have expired, been declined, or not been approved. No payment success was recorded; retry and approve the bank prompt promptly, or use a different card after the official gateway cooldown.",
         implementationStatus: "blocked",
       };
     case "submitted_or_approved":

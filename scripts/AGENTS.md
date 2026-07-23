@@ -39,8 +39,11 @@ smoke-test helpers for the VIZA monorepo.
   fresh).
 - `start-viza-dev.ps1`: starts the internal website with backend services.
 - `start-indonesia-submission-worker.cmd`: Windows double-click helper that
-  starts `viza-be/submission-service` for local Indonesia B1/C1 assisted-live
-  retries; keep the window open while submitting from the VIZA portal.
+  starts `viza-be/submission-service` for intentional local Indonesia B1/C1
+  assisted-live retries only when `VIZA_ALLOW_LOCAL_INDONESIA_WORKER=1`.
+  Production payment jobs belong to the single Fly worker because their
+  one-time card session is process-local; the default guard prevents a local
+  worker from racing Fly for those jobs.
 - `start-travel-dev.ps1`: opens local terminals for Travel AI development.
 - `start-help-and-internal.ps1`: starts the public help/marketing site and the
   internal portal on separate local ports.

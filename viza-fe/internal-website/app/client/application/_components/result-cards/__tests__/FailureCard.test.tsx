@@ -235,6 +235,9 @@ describe("VnResultCard automated payment UI", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "正在自动付款" })).toBeDisabled();
     });
+    expect(screen.getByRole("status")).toHaveTextContent("Fly 云端正在自动处理");
+    expect(screen.getByRole("status")).toHaveTextContent("不会在本机 Chrome 打开");
+    expect(screen.queryByRole("link", { name: "打开越南 e-Visa 官网" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("银行卡号")).not.toBeInTheDocument();
     expect(screen.queryByText("payment_page_visible")).not.toBeInTheDocument();
   });
