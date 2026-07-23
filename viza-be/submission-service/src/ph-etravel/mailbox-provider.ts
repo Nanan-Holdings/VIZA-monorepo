@@ -123,10 +123,23 @@ export function isPhEtravelExistingAccountNotice(
   );
 }
 
+export function extractPhEtravelTemporaryPasswordFromMessage(
+  message: Pick<InboundMessage, "html" | "text" | "subject">,
+): string | null {
+  for (const haystack of messageHaystacks(message)) {
+    const match = haystack.match(
+      /temporary\s+password\s*[:：-]\s*([A-Za-z0-9!@#$%^&*._~-]{6,64})/i,
+    );
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
 export interface PhEtravelMailboxProvider {
   waitForOtp(params: { timeoutMs: number; since?: string }): Promise<string>;
   waitForVerificationLink(params: { timeoutMs: number; since?: string }): Promise<URL>;
   waitForExistingAccountNotice(params: { timeoutMs: number; since?: string }): Promise<void>;
+  waitForTemporaryPassword(params: { timeoutMs: number; since?: string }): Promise<string>;
 }
 
 async function waitForMessageToAddress(
@@ -220,6 +233,20 @@ export function createPhEtravelMailboxProvider(applicantId: string, mailboxAddre
         params.since,
       );
     },
+
+    async waitForTemporaryPassword(params) {
+      const message = await waitForOfficialMessage(
+        (row) => {
+          const senderMatches = /etravel|egov|gov\.ph/i.test(row.from_addr ?? "");
+          return senderMatches && extractPhEtravelTemporaryPasswordFromMessage(row) !== null;
+        },
+        params.timeoutMs,
+        params.since,
+      );
+      const password = extractPhEtravelTemporaryPasswordFromMessage(message);
+      if (!password) throw new Error("Philippines eTravel temporary-password email did not contain a password.");
+      return password;
+    },
   };
 }
 
@@ -273,6 +300,24 @@ export function createPhEtravelImapMailboxProvider(mailboxAddress: string): PhEt
         since: params.since ? new Date(params.since) : new Date(Date.now() - 60_000),
         timeoutMs: params.timeoutMs,
       });
+    },
+
+    async waitForTemporaryPassword(params) {
+      const email = await waitForEmail({
+        config,
+        from: /etravel|egov|gov\.ph/i,
+        to: recipient,
+        subject: /temporary password/i,
+        since: params.since ? new Date(params.since) : new Date(Date.now() - 24 * 60 * 60 * 1000),
+        timeoutMs: params.timeoutMs,
+      });
+      const password = extractPhEtravelTemporaryPasswordFromMessage({
+        subject: email.subject,
+        text: email.textBody,
+        html: email.htmlBody,
+      });
+      if (!password) throw new Error("Philippines eTravel IMAP temporary-password email did not contain a password.");
+      return password;
     },
   };
 }

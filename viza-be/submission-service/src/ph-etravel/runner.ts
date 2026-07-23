@@ -17,6 +17,7 @@ export interface PhEtravelPortalSubmissionResult {
   submitted: boolean;
   confirmationNumber?: string | null;
   referenceNumber?: string | null;
+  officialAccountPassword?: string;
   portalUrl: string;
   portalResponseSummary: string;
   screenshots: string[];
@@ -1829,6 +1830,17 @@ async function maybeCreatePhEtravelAccount(
     ]);
     if (emailVerification.kind === "existing") {
       logs.push("ph_etravel_alias_account_already_exists_email");
+      const temporaryPassword = await mailbox.waitForTemporaryPassword({
+        timeoutMs: Math.min(timeoutMs, 30_000),
+        // A prior registration request may have completed just before a worker
+        // restart. Recover the still-unconsumed official temporary password
+        // instead of retrying the generated password that eTravel discarded.
+        since: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      }).catch(() => null);
+      if (temporaryPassword) {
+        options.officialAccountPassword = temporaryPassword;
+        logs.push("ph_etravel_official_temporary_password_recovered");
+      }
       return false;
     }
     if (emailVerification.kind === "url") {
@@ -1872,6 +1884,14 @@ async function maybeCreatePhEtravelAccount(
     ]);
     if (emailVerification.kind === "existing") {
       logs.push("ph_etravel_alias_account_already_exists_email");
+      const temporaryPassword = await mailbox.waitForTemporaryPassword({
+        timeoutMs: Math.min(timeoutMs, 30_000),
+        since: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      }).catch(() => null);
+      if (temporaryPassword) {
+        options.officialAccountPassword = temporaryPassword;
+        logs.push("ph_etravel_official_temporary_password_recovered");
+      }
       return false;
     }
     if (emailVerification.kind === "url") {
@@ -2204,6 +2224,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
         [recoveredQr],
         [],
         logs,
+        options.officialAccountPassword ?? undefined,
       );
     }
     let formResult;
@@ -2251,6 +2272,7 @@ async function runPhEtravelPortalSubmissionWithBrowser(
       qrPath ? [qrPath] : [],
       [],
       logs,
+      options.officialAccountPassword ?? undefined,
     );
   } catch (error) {
     if (
@@ -2289,6 +2311,7 @@ export function buildPhEtravelSuccessFromPortalText(
   qrCodes: string[],
   pdfs: string[],
   logs: string[],
+  officialAccountPassword?: string,
 ): PhEtravelPortalSubmissionResult {
   const referenceNumber = extractReference(portalText);
   if (!referenceNumber || !hasQrEvidence(portalText) || qrCodes.length === 0) {
@@ -2305,6 +2328,7 @@ export function buildPhEtravelSuccessFromPortalText(
     submitted: true,
     confirmationNumber: referenceNumber,
     referenceNumber,
+    ...(officialAccountPassword ? { officialAccountPassword } : {}),
     portalUrl,
     portalResponseSummary: "Philippines eTravel official portal returned a QR/reference confirmation.",
     screenshots,

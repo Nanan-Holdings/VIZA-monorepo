@@ -6632,6 +6632,12 @@ async function processDigitalArrivalCardLiveItem(item: SubmissionQueueItem, code
         }
       }
       portalResult = resultPh!;
+      if (resultPh.officialAccountPassword) {
+        phAccountPlan = {
+          ...phAccountPlan,
+          password: resultPh.officialAccountPassword,
+        };
+      }
       await upsertPhEtravelAccount({
         applicantId: profile.id,
         email: phAccountPlan.email,
