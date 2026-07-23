@@ -1,6 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { choosePhEtravelAccountPlan, isMissingPhEtravelAccountsTableError } from "../account";
+import {
+  choosePhEtravelAccountPlan,
+  isMissingPhEtravelAccountsTableError,
+  phEtravelAccountEmailFromManagedAlias,
+} from "../account";
+
+test("PH eTravel uses the exact active managed alias for official email delivery", () => {
+  assert.equal(
+    phEtravelAccountEmailFromManagedAlias("  APPL-ACTIVE@HAGGSTORM.COM "),
+    "appl-active@haggstorm.com",
+  );
+});
 
 test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
   const plan = choosePhEtravelAccountPlan({
@@ -50,7 +61,7 @@ test("choosePhEtravelAccountPlan reuses an existing account even when mpin is mi
   });
 });
 
-test("choosePhEtravelAccountPlan continues pending account registration", () => {
+test("choosePhEtravelAccountPlan replaces a pending derived alias rejected by the email worker", () => {
   const plan = choosePhEtravelAccountPlan({
     existingAccount: {
       id: "vault:applicant",
@@ -67,10 +78,9 @@ test("choosePhEtravelAccountPlan continues pending account registration", () => 
 
   assert.deepEqual(plan, {
     mode: "create_new",
-    accountId: "vault:applicant",
-    email: "appl-existing-ph123456@haggstorm.com",
-    password: "saved-password",
-    mpin: "123456",
+    email: "appl-new@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
   });
 });
 

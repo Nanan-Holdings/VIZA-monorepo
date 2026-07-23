@@ -42,10 +42,8 @@ const VAULT_PASSWORD_KEY = "ph_etravel.account.password";
 const VAULT_MPIN_KEY = "ph_etravel.account.mpin";
 const VAULT_STATUS_KEY = "ph_etravel.account.status";
 
-function emailDomain(value: string): string | null {
-  const separator = value.lastIndexOf("@");
-  if (separator < 0 || separator === value.length - 1) return null;
-  return value.slice(separator + 1).trim().toLowerCase() || null;
+export function phEtravelAccountEmailFromManagedAlias(alias: string): string {
+  return alias.trim().toLowerCase();
 }
 
 export function isMissingPhEtravelAccountsTableError(error: unknown): boolean {
@@ -66,7 +64,7 @@ export function choosePhEtravelAccountPlan(input: {
   const existingStatus = existingAccount?.status?.trim().toLowerCase() ?? "";
   const hasExistingCredentials = Boolean(existingAccount?.email && existingAccount.password);
   const incompleteAccountUsesCurrentMailbox =
-    emailDomain(existingAccount?.email ?? "") === emailDomain(input.aliasEmail);
+    existingAccount?.email.trim().toLowerCase() === input.aliasEmail.trim().toLowerCase();
   if (
     existingAccount &&
     hasExistingCredentials &&

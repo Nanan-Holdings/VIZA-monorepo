@@ -1291,6 +1291,7 @@ export function SubmissionStatusStep({
   const [retryError, setRetryError] = useState<string | null>(null);
   const [resubmitting, setResubmitting] = useState(false);
   const [localRetryActive, setLocalRetryActive] = useState(false);
+  const [activeRetryQueueId, setActiveRetryQueueId] = useState<string | null>(null);
   const initialResultTargetsIndonesia = resultTargetsIndonesia(result);
 
   const handleRetry = useCallback(async (
@@ -1331,7 +1332,9 @@ export function SubmissionStatusStep({
           throw new Error(message);
         }
         const now = new Date().toISOString();
+        const retryQueueId = typeof body?.queueId === "string" ? body.queueId : "";
         setLocalRetryActive(true);
+        setActiveRetryQueueId(retryQueueId || null);
         setSnapshot({
           status: "queued",
           stage: "preparing",
@@ -1344,7 +1347,7 @@ export function SubmissionStatusStep({
           country: retryCountry,
           visaType: retryVisaType,
           queue: {
-            id: typeof body?.queueId === "string" ? body.queueId : "",
+            id: retryQueueId,
             status: typeof body?.queueStatus === "string" ? body.queueStatus : "pending",
             mode,
             provider: typeof body?.provider === "string" ? body.provider : null,
@@ -1383,7 +1386,9 @@ export function SubmissionStatusStep({
         throw new Error(message);
       }
       const now = new Date().toISOString();
+      const retryQueueId = typeof body?.jobId === "string" ? body.jobId : "";
       setLocalRetryActive(true);
+      setActiveRetryQueueId(retryQueueId || null);
       setSnapshot({
         status: "queued",
         stage: "preparing",
@@ -1396,7 +1401,7 @@ export function SubmissionStatusStep({
         country: snapshot?.country ?? country,
         visaType: snapshot?.visaType ?? visaType,
         queue: {
-          id: typeof body?.jobId === "string" ? body.jobId : "",
+          id: retryQueueId,
           status: typeof body?.queueStatus === "string" ? body.queueStatus : "pending",
           mode,
           provider: typeof body?.provider === "string" ? body.provider : null,
@@ -1523,6 +1528,7 @@ export function SubmissionStatusStep({
     setSnapshot(null);
     setRetryError(null);
     setLocalRetryActive(false);
+    setActiveRetryQueueId(null);
   }, [applicationId, country, visaType]);
 
   useEffect(() => {
@@ -1554,6 +1560,20 @@ export function SubmissionStatusStep({
         }
         const body: unknown = await response.json();
         if (!isSnapshot(body)) return;
+        const polledQueueId =
+          isRecord(body.queue) && typeof body.queue.id === "string"
+            ? body.queue.id
+            : null;
+        // The status endpoint can briefly return the previous terminal queue
+        // immediately after a new retry is accepted. Keep the new loading UI
+        // authoritative until the exact queue created by this click appears.
+        if (
+          localRetryActive &&
+          activeRetryQueueId &&
+          polledQueueId !== activeRetryQueueId
+        ) {
+          return;
+        }
         if (!cancelled) {
           setSnapshot({
             status: body.status,
@@ -1618,16 +1638,34 @@ export function SubmissionStatusStep({
     };
   }, [
     actionWithResult,
+    activeRetryQueueId,
     applicationId,
     completedWithResult,
     failed,
     stalled,
     country,
+    localRetryActive,
     visaType,
     result,
     snapshot?.queue,
     status,
   ]);
+
+  if (resubmitting) {
+    return (
+      <div className="space-y-4">
+        <WaitingCard
+          status="queued"
+          stage="preparing"
+          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
+          message={isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
+          applicationId={applicationId}
+          country={country}
+          visaType={visaType}
+        />
+      </div>
+    );
+  }
 
   const vietnamPaymentCheckpointResult =
     isVietnamPaymentCheckpointResult(effectiveResult)
@@ -1666,22 +1704,6 @@ export function SubmissionStatusStep({
           vietnamPaymentCheckpointResult,
           snapshot?.queue?.id ?? null,
         )}
-      </div>
-    );
-  }
-
-  if (resubmitting) {
-    return (
-      <div className="space-y-4">
-        <WaitingCard
-          status="queued"
-          stage="preparing"
-          serverProgress={fallbackProgressForStatus("queued", country, visaType)}
-          message={isZh ? "自动提交任务正在启动。" : "Starting the automated submission job."}
-          applicationId={applicationId}
-          country={country}
-          visaType={visaType}
-        />
       </div>
     );
   }

@@ -337,6 +337,10 @@ test("maps portal states to actionable automation checkpoints", () => {
     actionForIndonesiaPortalState("payment_failed").actionType,
     "official_fee_payment_failed",
   );
+  assert.match(
+    actionForIndonesiaPortalState("payment_failed").instruction,
+    /OTP\/3DS may have expired, been declined, or not been approved/,
+  );
 });
 
 test("does not bypass Indonesia official step 1 submit by default", () => {
