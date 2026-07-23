@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const MAX_HISTORY_MESSAGES = 8;
+const MAX_VISIBLE_OPTION_EXPLANATIONS = 3;
 
 type ChatMessage = FieldGuidanceChatMessage & { id: string };
 
@@ -217,7 +218,7 @@ function OptionExplanationList({
         {title}
       </h4>
       <div className="flex min-w-0 flex-col gap-2">
-        {items.map((item) => (
+        {items.slice(0, MAX_VISIBLE_OPTION_EXPLANATIONS).map((item) => (
           <div
             key={`${item.value}-${item.label}`}
             className="min-w-0 rounded-lg border border-[#e8e8e8] bg-white p-3 text-[13px]"

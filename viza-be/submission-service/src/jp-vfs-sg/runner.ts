@@ -35,6 +35,7 @@ export interface JapanVfsRunnerResult {
     observedAt: string;
     screenshotPath?: string;
     browserbaseReplayAvailable: boolean;
+    publicEntryClicked?: boolean;
   };
   profile?: {
     ready: boolean;
@@ -52,6 +53,7 @@ export interface JapanVfsRunnerResult {
 export interface JapanVfsObserveOptions {
   applicationId?: string;
   prepareAlias?: boolean;
+  publicOnly?: boolean;
   eligibility?: Record<string, unknown>;
 }
 
@@ -424,7 +426,7 @@ export async function observeJapanVfsSingaporeSlots(
   options: JapanVfsObserveOptions = {},
 ): Promise<JapanVfsRunnerResult> {
   let profile: JapanVfsRunnerResult["profile"];
-  if (options.applicationId) {
+  if (options.applicationId && !options.publicOnly) {
     const answers = await loadCanonicalAnswers(options.applicationId);
     const { data: application, error: applicationError } = await supabase
       .from("applications")
@@ -477,14 +479,47 @@ export async function observeJapanVfsSingaporeSlots(
   const opened = await openAuthorizedBrowser();
   const { browser, page } = opened;
   try {
-    const login = options.applicationId ? await ensureLoggedIn(page, options.applicationId) : null;
-    if (options.applicationId && login && !login.checkpoint) {
+    const login = options.applicationId && !options.publicOnly
+      ? await ensureLoggedIn(page, options.applicationId)
+      : null;
+    if (options.applicationId && !options.publicOnly && login && !login.checkpoint) {
       await fillJapanVfsApplicantDetails(page, await loadCanonicalAnswers(options.applicationId), options.eligibility);
       await attachApplicationPhotoIfRequested(page, options.applicationId);
     }
     const response = login
       ? null
       : await page.goto(VFS_JAPAN_SINGAPORE_URL, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    let publicEntryClicked = false;
+    if (!login) {
+      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+      await page.waitForFunction(
+        () => (document.body?.innerText ?? "").trim().length >= 40,
+        undefined,
+        { timeout: 30_000 },
+      ).catch(() => undefined);
+      if (options.publicOnly) {
+        await page.waitForTimeout(1_500);
+        await clickVisible(page, /accept only necessary/i);
+        const publicEntryUrl = page.url();
+        publicEntryClicked = await clickVisible(page, /^book now$/i);
+        if (publicEntryClicked) {
+          await page.waitForTimeout(1_500);
+          if (page.url() === publicEntryUrl && await clickVisible(page, /accept only necessary/i)) {
+            publicEntryClicked = await clickVisible(page, /^book now$/i);
+          }
+          await Promise.race([
+            page.waitForURL(/\/login(?:\?|$)/i, { timeout: 30_000 }),
+            page.getByText(/sign in|enter your email/i).first().waitFor({ state: "visible", timeout: 30_000 }),
+          ]).catch(() => undefined);
+          await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+          await page.waitForFunction(
+            () => (document.body?.innerText ?? "").trim().length >= 40,
+            undefined,
+            { timeout: 30_000 },
+          ).catch(() => undefined);
+        }
+      }
+    }
     const body = await page.locator("body").innerText({ timeout: 15_000 }).catch(() => "");
     const checkpoint = login?.checkpoint?.type as JapanVfsCheckpoint | undefined ?? checkpointForText(body);
     const screenshotPath = await captureRedactedEvidence(page);
@@ -495,7 +530,27 @@ export async function observeJapanVfsSingaporeSlots(
       observedAt: new Date().toISOString(),
       ...(screenshotPath ? { screenshotPath } : {}),
       browserbaseReplayAvailable: opened.browserbaseReplayAvailable,
+      ...(options.publicOnly ? { publicEntryClicked } : {}),
     };
+    if (options.publicOnly) {
+      const reachedLogin = checkpoint === "login" || /\/login(?:\?|$)/i.test(page.url());
+      const publicCheckpoint: JapanVfsCheckpoint = checkpoint
+        ?? (reachedLogin ? "login" : "selector_drift");
+      return {
+        slots: [],
+        checkpoint: {
+          type: publicCheckpoint,
+          message: checkpoint
+            ? "The public VFS route was reached and stopped at the observed official checkpoint. Account creation is disabled."
+            : reachedLogin
+              ? "The public VFS route rendered and reached login. Account creation is disabled."
+              : publicEntryClicked
+                ? "The public VFS route rendered and Book now was clicked, but the official site did not leave its loading overlay before timeout."
+              : "The VFS route returned a response, but no verified visible page state rendered before timeout.",
+        },
+        evidence,
+      };
+    }
     if (checkpoint) return { slots: [], checkpoint: { type: checkpoint, message: login?.checkpoint?.message ?? "Official VFS action is required before slots can be read." }, evidence, profile };
     if (/no appointments|no slots|not available/i.test(body)) return { slots: [], checkpoint: { type: "no_slots", message: "VFS currently shows no available appointment slots." }, evidence, profile };
     const slots = await extractSlots(page);

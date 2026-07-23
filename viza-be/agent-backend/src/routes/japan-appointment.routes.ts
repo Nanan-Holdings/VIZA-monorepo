@@ -27,6 +27,7 @@ const slotParams = z.object({ jobId: z.string().uuid(), slotId: z.string().uuid(
 const consentBody = z.object({ accepted: z.literal(true), consentSnapshot: z.record(z.unknown()).default({}) }).strict();
 const jobBody = z.object({
   idempotencyKey: z.string().trim().min(8).max(180).optional(),
+  automationMode: z.literal("public_recon"),
   eligibility: z.object({
     singaporePassType: z.string().trim().min(1),
     singaporePassExpiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

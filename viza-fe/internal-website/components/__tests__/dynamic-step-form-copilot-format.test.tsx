@@ -931,12 +931,13 @@ describe("DynamicStepForm copilot format", () => {
     fireEvent.click(helpTrigger);
 
     expect(screen.getByRole("dialog")).toHaveTextContent(
-      "查看越南电子签证顶部的“Số / No.”一行，只填写该行显示的 9 位数字。",
+      "查看电子签证上的“Số / No.”一行，并输入该行显示的准确号码。电子签证号码必须是 9 位纯数字。",
     );
-    expect(screen.getByRole("dialog")).toHaveTextContent("本表只填写：106696365");
-    expect(screen.getByRole("dialog")).toHaveTextContent(
-      "不要填写下方的 Code、申请代码或登记码，也不要输入“/EV”",
-    );
+    expect(screen.getByRole("img", { name: "越南电子签证号码位于 Số / No. 一行的官网示例" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("Enter only");
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("本表只填写");
 
     unmount();
 

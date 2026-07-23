@@ -127,6 +127,9 @@ interface DynamicFormFieldProps {
   disabled?: boolean;
   displayLocale?: "zh" | "en";
   onSearchQuery?: (query: string) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
   searching?: boolean;
   loadingText?: string;
 }
@@ -226,6 +229,9 @@ function SearchableSelectControl({
   whiteControlClass,
   sideLocale,
   onSearchQuery,
+  onLoadMore,
+  hasMore,
+  loadingMore,
   searching,
   loadingText,
 }: {
@@ -237,6 +243,9 @@ function SearchableSelectControl({
   whiteControlClass: string;
   sideLocale: "zh" | "en";
   onSearchQuery?: (query: string) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
   searching?: boolean;
   loadingText?: string;
 }) {
@@ -293,7 +302,10 @@ function SearchableSelectControl({
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
-        if (!nextOpen) setQuery("");
+        if (!nextOpen) {
+          setQuery("");
+          onSearchQueryRef.current?.("");
+        }
       }}
     >
       <PopoverTrigger asChild>
@@ -337,6 +349,13 @@ function SearchableSelectControl({
         <div
           className="overscroll-auto overflow-y-auto p-1"
           style={{ maxHeight: "min(220px, calc(100vh - 270px))" }}
+          onScroll={(event) => {
+            if (!onLoadMore || !hasMore || searching || loadingMore || pendingQuery) return;
+            const target = event.currentTarget;
+            if (target.scrollHeight - target.scrollTop - target.clientHeight <= 48) {
+              onLoadMore();
+            }
+          }}
         >
           {(searching || pendingQuery) && matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">
@@ -345,27 +364,34 @@ function SearchableSelectControl({
           ) : matchedOptions.length === 0 ? (
             <div className="px-3 py-3 text-[14px] text-gray-500">{emptyText}</div>
           ) : (
-            matchedOptions.map((option, index) => (
-              <button
-                key={`${option.value}-${option.text}-${index}`}
-                type="button"
-                className={cn(
-                  "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",
-                  value === option.value ? "bg-gray-100" : "",
-                )}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                <Check
-                  className={cn("h-4 w-4 shrink-0 text-[#03346E]", value === option.value ? "opacity-100" : "opacity-0")}
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 break-words">{option.text}</span>
-              </button>
-            ))
+            <>
+              {matchedOptions.map((option, index) => (
+                <button
+                  key={`${option.value}-${option.text}-${index}`}
+                  type="button"
+                  className={cn(
+                    "flex min-h-10 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-[14px] hover:bg-gray-100",
+                    value === option.value ? "bg-gray-100" : "",
+                  )}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                >
+                  <Check
+                    className={cn("h-4 w-4 shrink-0 text-[#03346E]", value === option.value ? "opacity-100" : "opacity-0")}
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 break-words">{option.text}</span>
+                </button>
+              ))}
+              {loadingMore ? (
+                <div className="px-3 py-3 text-center text-[13px] text-gray-500">
+                  {sideLocale === "zh" ? "正在加载更多官网航班..." : "Loading more official flights..."}
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </PopoverContent>
@@ -617,6 +643,9 @@ export function DynamicFormField({
   disabled = false,
   displayLocale,
   onSearchQuery,
+  onLoadMore,
+  hasMore = false,
+  loadingMore = false,
   searching = false,
   loadingText,
 }: DynamicFormFieldProps) {
@@ -807,6 +836,9 @@ export function DynamicFormField({
               whiteControlClass={whiteControlClass}
               sideLocale={sideLocale}
               onSearchQuery={onSearchQuery}
+              onLoadMore={onLoadMore}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
               searching={searching}
               loadingText={loadingText}
             />

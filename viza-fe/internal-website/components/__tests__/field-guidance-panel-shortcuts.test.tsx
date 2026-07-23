@@ -181,4 +181,27 @@ describe("FieldGuidancePanel shortcuts", () => {
     expect(screen.getByText("大多数个人旅游、探亲、商务出行使用的普通个人护照。")).toBeInTheDocument();
     expect(screen.getByText("外交护照")).toBeInTheDocument();
   });
+
+  it("shows at most three option explanations", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...baseResponse,
+        guidance: {
+          ...baseResponse.guidance,
+          optionExplanations: ["一", "二", "三", "四"].map((label) => ({
+            value: label,
+            label,
+            description: `${label}的说明`,
+          })),
+        },
+      }),
+    } as Response);
+
+    renderPanel();
+
+    expect(await screen.findByText("一")).toBeInTheDocument();
+    expect(screen.getByText("三")).toBeInTheDocument();
+    expect(screen.queryByText("四")).not.toBeInTheDocument();
+  });
 });

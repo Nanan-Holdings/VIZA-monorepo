@@ -53,6 +53,7 @@ describe("POST /api/field-guidance", () => {
     );
     const payload = (await response.json()) as FieldGuidanceResponse;
 
+    expect(payload.guidance.optionExplanations).toHaveLength(3);
     expect(payload.guidance.optionExplanations).toEqual([
       expect.objectContaining({
         value: "ordinary",
@@ -69,11 +70,49 @@ describe("POST /api/field-guidance", () => {
         label: "公务护照",
         description: expect.stringContaining("公务"),
       }),
-      expect.objectContaining({
-        value: "other",
-        label: "其他",
-        description: expect.stringContaining("不属于"),
-      }),
     ]);
+  });
+
+  it("does not replace an AI decision with generic option templates", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          guidance: {
+            title: "护照类型填写帮助",
+            summary: "请按护照资料页上的证件类型选择。",
+            examples: [],
+            optionExplanations: [],
+            hints: [],
+            officialWarnings: [],
+            formatHints: [],
+          },
+          validation: { severity: "ok", messages: ["目前没有发现明显问题。"] },
+          sources: [],
+          confidence: "medium",
+          aiUsed: true,
+          cached: false,
+        }),
+      })),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/field-guidance", {
+        method: "POST",
+        body: JSON.stringify({
+          visaType: "DS160",
+          country: "US",
+          locale: "zh",
+          field: passportTypeField,
+          answer: "",
+          allAnswers: {},
+        }),
+      }),
+    );
+    const payload = (await response.json()) as FieldGuidanceResponse;
+
+    expect(payload.aiUsed).toBe(true);
+    expect(payload.guidance.optionExplanations).toEqual([]);
   });
 });

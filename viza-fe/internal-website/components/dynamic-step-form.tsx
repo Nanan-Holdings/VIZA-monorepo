@@ -8,6 +8,7 @@ import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -163,7 +164,7 @@ interface BilingualTextValue {
   en: string;
 }
 
-function VnPrearrivalEvisaNumberHelp({ isZh }: { isZh: boolean }) {
+function VnPrearrivalEvisaNumberHelp() {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -172,48 +173,37 @@ function VnPrearrivalEvisaNumberHelp({ isZh }: { isZh: boolean }) {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
         >
           <CircleHelp className="h-4 w-4" />
-          {isZh ? "在哪里查看电子签证号码？" : "Where can I find the E-Visa number?"}
+          在哪里查看电子签证号码？
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isZh ? "电子签证号码在哪里？" : "Where is the E-Visa number?"}
-          </DialogTitle>
-          <DialogDescription className="pt-2 text-left leading-6">
-            {isZh
-              ? "查看越南电子签证顶部的“Số / No.”一行，只填写该行显示的 9 位数字。"
-              : "Check the “Số / No.” line near the top of your Vietnam E-Visa and enter only its 9-digit number."}
+      <DialogContent className="max-h-[calc(100vh-32px)] w-[calc(100vw-32px)] max-w-[900px] gap-0 overflow-y-auto rounded-2xl border-0 bg-white px-8 pb-8 pt-[104px] shadow-2xl sm:translate-y-[calc(-50%+20px)] [&>button]:right-8 [&>button]:top-8 [&>button>svg]:h-8 [&>button>svg]:w-8">
+        <DialogHeader className="space-y-0">
+          <DialogTitle className="sr-only">电子签证号码在哪里？</DialogTitle>
+          <DialogDescription className="text-left text-[clamp(18px,3vw,30px)] leading-[1.35] text-[#111827]">
+            查看电子签证上的“Số / No.”一行，并输入该行显示的准确号码。电子签证号码必须是 9 位纯数字。
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-md border bg-white p-5 text-slate-900 shadow-sm">
-          <div className="border-b pb-3 text-center">
-            <p className="text-xs font-semibold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
-            <p className="mt-1 text-sm font-bold">ELECTRONIC VISA / 电子签证</p>
-          </div>
-          <div className="mt-5 space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-base">
-              <span className="font-semibold">Số / No.</span>
-              <span className="rounded-sm border-2 border-red-500 bg-red-50 px-2 py-1 font-mono text-lg font-bold">
-                106696365
-              </span>
-              <span className="font-mono text-sm text-slate-500">/EV</span>
-            </div>
-            <div className="h-2 w-4/5 bg-yellow-200" />
-            <p className="text-sm text-slate-500">Code: ---------------</p>
-          </div>
-        </div>
+        <div
+          role="img"
+          aria-label="越南电子签证号码位于 Số / No. 一行的官网示例"
+          className="mt-8 aspect-[837/468] w-full rounded-lg border border-[#e5e7eb] bg-white bg-no-repeat shadow-sm sm:mt-[72px]"
+          style={{
+            backgroundImage: "url('/images/vietnam/evisa-number-help-official.png')",
+            backgroundPosition: "52.4% 69.5%",
+            backgroundSize: "122.35% 194.44%",
+          }}
+        />
 
-        <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
-          <p className="font-semibold">
-            {isZh ? "本表只填写：106696365" : "Enter only: 106696365"}
-          </p>
-          <p>
-            {isZh
-              ? "必须正好 9 位且只能包含数字。不要填写下方的 Code、申请代码或登记码，也不要输入“/EV”。"
-              : "It must contain exactly 9 digits. Do not enter the Code, application or registration code, or the “/EV” suffix."}
-          </p>
+        <div className="flex justify-end pt-8">
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="inline-flex h-[60px] min-w-[128px] items-center justify-center rounded-full bg-[#e5e5e5] px-7 text-[30px] font-medium text-[#111827] transition-colors hover:bg-[#d9d9d9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+            >
+              关闭
+            </button>
+          </DialogClose>
         </div>
       </DialogContent>
     </Dialog>
@@ -770,6 +760,42 @@ function getVnPrearrivalDependsOn(field: VisaFormFieldRow): string | null {
 
 function vnPrearrivalOptionKey(field: VisaFormFieldRow): string {
   return `${field.fieldName}:${getVnPrearrivalOfficialSource(field) ?? ""}`;
+}
+
+const VN_PREARRIVAL_FLIGHT_PAGE_SIZE = 10;
+const VN_PREARRIVAL_OTHER_FLIGHT_OPTION: VisaFormFieldOption = {
+  value: "other",
+  text: "Other",
+  label_en: "Other",
+  label_zh: "其他",
+  official_label: "Other",
+  code: "other",
+};
+
+function optionValue(option: VisaFormFieldOption): string {
+  return typeof option === "string" ? option : option.value;
+}
+
+function withVnPrearrivalOtherFlightOption(
+  options: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  return [
+    ...options.filter((option) => optionValue(option).toLowerCase() !== "other"),
+    VN_PREARRIVAL_OTHER_FLIGHT_OPTION,
+  ];
+}
+
+function mergeVnPrearrivalFlightPages(
+  current: VisaFormFieldOption[],
+  incoming: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  const merged = new Map<string, VisaFormFieldOption>();
+  for (const option of [...current, ...incoming]) {
+    const value = optionValue(option);
+    if (!value || value.toLowerCase() === "other") continue;
+    merged.set(value, option);
+  }
+  return withVnPrearrivalOtherFlightOption([...merged.values()]);
 }
 
 function getVnPrearrivalLoadingText(source: string | null, side: BilingualSide): string {
@@ -2173,6 +2199,10 @@ export function DynamicStepForm({
   const [vnPrearrivalQueries, setVnPrearrivalQueries] = useState<Record<string, string>>({});
   const [vnPrearrivalOptions, setVnPrearrivalOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
   const [vnPrearrivalSearching, setVnPrearrivalSearching] = useState<Record<string, boolean>>({});
+  const [vnPrearrivalPagination, setVnPrearrivalPagination] = useState<
+    Record<string, { page: number; hasMore: boolean }>
+  >({});
+  const [vnPrearrivalLoadingMore, setVnPrearrivalLoadingMore] = useState<Record<string, boolean>>({});
   const [phEtravelOptions, setPhEtravelOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
   const [phEtravelSearching, setPhEtravelSearching] = useState<Record<string, boolean>>({});
   const [indonesiaPostalLookup, setIndonesiaPostalLookup] = useState<IndonesiaPostalLookup>({ status: "idle" });
@@ -2194,6 +2224,7 @@ export function DynamicStepForm({
   const textPairsRef = useRef(textPairs);
   const manualEnglishValueKeysRef = useRef(manualEnglishValueKeys);
   const groupCountsRef = useRef(groupCounts);
+  const vnPrearrivalLoadingMoreRef = useRef<Record<string, boolean>>({});
   const onDraftChangeRef = useRef(onDraftChange);
   const previousPrefillRef = useRef(prefill);
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
@@ -2310,6 +2341,7 @@ export function DynamicStepForm({
       ...valuesRef.current,
       expected_arrival_date: "",
       flight_number: "",
+      custom_flight_number: "",
       border_gate_airport: "",
     };
     valuesRef.current = nextValues;
@@ -2323,6 +2355,7 @@ export function DynamicStepForm({
       || !step.fields.some((field) => field.fieldName === "border_gate_airport")
     ) return;
 
+    if ((valuesRef.current.flight_number ?? "").toLowerCase() === "other") return;
     const derivedAirport = getAirportCodeFromFlightValue(valuesRef.current.flight_number ?? "");
     if ((valuesRef.current.border_gate_airport ?? "") === derivedAirport) return;
 
@@ -2429,9 +2462,7 @@ export function DynamicStepForm({
       for (const field of vnPrearrivalRemoteFields) {
         const key = vnPrearrivalOptionKey(field);
         if (!(key in next)) {
-          const source = getVnPrearrivalOfficialSource(field);
-          const selectedValue = valuesRef.current[field.fieldName]?.trim() ?? "";
-          next[key] = source?.endsWith(":flight") && selectedValue ? selectedValue : "";
+          next[key] = "";
           changed = true;
         }
       }
@@ -2471,8 +2502,12 @@ export function DynamicStepForm({
         const params = new URLSearchParams({
           source,
           keyword,
-          limit: source.endsWith(":flight") || source.endsWith(":hotel") ? "100" : "10000",
+          limit: source.endsWith(":hotel") ? "100" : "10000",
         });
+        if (source.endsWith(":flight")) {
+          params.set("page", "0");
+          params.set("size", String(VN_PREARRIVAL_FLIGHT_PAGE_SIZE));
+        }
         if (parent.trim()) params.set("parent", parent.trim());
         if (source.endsWith(":hotel")) {
           const province = valuesRef.current.province_city_of_hotel?.trim() ?? "";
@@ -2482,25 +2517,45 @@ export function DynamicStepForm({
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        const payload = (await response.json()) as {
+          options?: VisaFormFieldOption[];
+          page?: number;
+          hasMore?: boolean;
+        };
         const options = Array.isArray(payload.options) ? payload.options : [];
         setVnPrearrivalOptions((current) => {
           const selectedValue = valuesRef.current[field.fieldName]?.trim();
           const selectedOption = selectedValue
             ? (current[key] ?? []).find((option) =>
                 typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+              ) ?? (
+                source.endsWith(":flight")
+                  ? getVnPrearrivalStaticOptions(source)?.find((option) =>
+                      typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+                    )
+                  : null
               )
             : null;
-          const nextOptions = selectedOption && !options.some((option) =>
+          let nextOptions = selectedOption && !options.some((option) =>
             typeof option === "string" ? option === selectedValue : option.value === selectedValue
           )
             ? [selectedOption, ...options]
             : options;
+          if (source.endsWith(":flight")) {
+            nextOptions = withVnPrearrivalOtherFlightOption(nextOptions);
+          }
           return {
             ...current,
             [key]: nextOptions,
           };
         });
+        setVnPrearrivalPagination((current) => ({
+          ...current,
+          [key]: {
+            page: payload.page ?? 0,
+            hasMore: Boolean(payload.hasMore),
+          },
+        }));
         if (field.fieldName === "phone_country_code") {
           const currentValue = valuesRef.current[field.fieldName]?.trim();
           const matchingCodeOption = currentValue
@@ -2522,7 +2577,14 @@ export function DynamicStepForm({
         // just selected and trap them in this step.
       } catch (error) {
         if ((error as { name?: string }).name !== "AbortError") {
-          setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
+          setVnPrearrivalOptions((current) => ({
+            ...current,
+            [key]: source.endsWith(":flight") ? [VN_PREARRIVAL_OTHER_FLIGHT_OPTION] : [],
+          }));
+          setVnPrearrivalPagination((current) => ({
+            ...current,
+            [key]: { page: 0, hasMore: false },
+          }));
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -2536,6 +2598,56 @@ export function DynamicStepForm({
       timers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [vnPrearrivalParentSnapshot, vnPrearrivalQueries, vnPrearrivalRemoteFields]);
+
+  const loadMoreVnPrearrivalOptions = async (key: string) => {
+    const pagination = vnPrearrivalPagination[key];
+    if (!pagination?.hasMore || vnPrearrivalLoadingMoreRef.current[key]) return;
+    const field = vnPrearrivalRemoteFields.find((candidate) => vnPrearrivalOptionKey(candidate) === key);
+    const source = field ? getVnPrearrivalOfficialSource(field) : null;
+    if (!field || !source?.endsWith(":flight")) return;
+
+    vnPrearrivalLoadingMoreRef.current[key] = true;
+    setVnPrearrivalLoadingMore((current) => ({ ...current, [key]: true }));
+    try {
+      const nextPage = pagination.page + 1;
+      const params = new URLSearchParams({
+        source,
+        keyword: vnPrearrivalQueries[key] ?? "",
+        page: String(nextPage),
+        size: String(VN_PREARRIVAL_FLIGHT_PAGE_SIZE),
+      });
+      const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json() as {
+        options?: VisaFormFieldOption[];
+        page?: number;
+        hasMore?: boolean;
+      };
+      const options = Array.isArray(payload.options) ? payload.options : [];
+      setVnPrearrivalOptions((current) => ({
+        ...current,
+        [key]: mergeVnPrearrivalFlightPages(current[key] ?? [], options),
+      }));
+      setVnPrearrivalPagination((current) => ({
+        ...current,
+        [key]: {
+          page: payload.page ?? nextPage,
+          hasMore: Boolean(payload.hasMore),
+        },
+      }));
+    } catch {
+      setVnPrearrivalPagination((current) => ({
+        ...current,
+        [key]: {
+          page: current[key]?.page ?? pagination.page,
+          hasMore: false,
+        },
+      }));
+    } finally {
+      vnPrearrivalLoadingMoreRef.current[key] = false;
+      setVnPrearrivalLoadingMore((current) => ({ ...current, [key]: false }));
+    }
+  };
 
   const phEtravelRemoteFields = useMemo(
     () => isPhEtravelStep
@@ -2846,10 +2958,12 @@ export function DynamicStepForm({
     const next = { ...valuesRef.current, [fieldName]: normalizedValue };
     if (isVnPrearrivalStep && fieldName === "expected_arrival_date") {
       next.flight_number = "";
+      next.custom_flight_number = "";
       next.border_gate_airport = "";
     }
     if (isVnPrearrivalStep && fieldName === "flight_number") {
       next.border_gate_airport = getAirportCodeFromFlightValue(value);
+      next.custom_flight_number = "";
     }
     const dependents = getDependentFields(fieldName);
     for (const dep of dependents) {
@@ -3256,10 +3370,22 @@ export function DynamicStepForm({
         field.fieldName === "address_in_korea" &&
         (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
       const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
-      const vnReadOnlyRules = field.validationRules as { read_only?: boolean; locked_by?: string } | null;
+      const vnReadOnlyRules = field.validationRules as {
+        read_only?: boolean;
+        locked_by?: string;
+        editable_when_value?: string;
+      } | null;
+      const lockedByValue = vnReadOnlyRules?.locked_by
+        ? values[vnReadOnlyRules.locked_by]?.trim().toLowerCase()
+        : "";
+      const editableWhenValue = vnReadOnlyRules?.editable_when_value?.trim().toLowerCase();
+      const isVnPrearrivalEditableOverride = Boolean(
+        editableWhenValue && lockedByValue === editableWhenValue,
+      );
       const isVnPrearrivalReadOnly =
         isVnPrearrivalField &&
-        Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && values[vnReadOnlyRules.locked_by]));
+        !isVnPrearrivalEditableOverride &&
+        Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && lockedByValue));
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: `${valueKey}-${side}`,
@@ -3295,6 +3421,23 @@ export function DynamicStepForm({
               : isVnPrearrivalRemoteSelect && vnPrearrivalKey
                 ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
                 : undefined
+          }
+          onLoadMore={
+            isVnPrearrivalRemoteSelect
+              && vnPrearrivalKey
+              && vnPrearrivalSource?.endsWith(":flight")
+              ? () => void loadMoreVnPrearrivalOptions(vnPrearrivalKey)
+              : undefined
+          }
+          hasMore={
+            Boolean(
+              vnPrearrivalKey
+              && vnPrearrivalSource?.endsWith(":flight")
+              && vnPrearrivalPagination[vnPrearrivalKey]?.hasMore,
+            )
+          }
+          loadingMore={
+            Boolean(vnPrearrivalKey && vnPrearrivalLoadingMore[vnPrearrivalKey])
           }
           searching={
             isKoreaAddressSearchSelect
@@ -3360,7 +3503,7 @@ export function DynamicStepForm({
             {renderSide("en")}
           </div>
           <div className="mt-2 flex items-center justify-end gap-2">
-            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp isZh={false} />}
+            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
             {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
               <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
             )}
@@ -3418,7 +3561,7 @@ export function DynamicStepForm({
         </div>
         <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
           <div className="flex min-w-0 items-start">
-            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp isZh />}
+            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
           </div>
           <div className="flex min-w-0 flex-col items-end gap-2">
             {isTextLike ? (

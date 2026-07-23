@@ -40,7 +40,7 @@ export function recordJapanAppointmentConsent(applicationId: string, consentSnap
 export function createJapanAppointmentJob(applicationId: string, eligibility: JsonObject) {
   return request<JapanAppointmentJob>(`/api/applications/${applicationId}/japan-appointment/job`, {
     method: "POST",
-    body: JSON.stringify({ idempotencyKey: `japan-vfs-sg:${applicationId}`, eligibility }),
+    body: JSON.stringify({ idempotencyKey: `japan-vfs-sg:${applicationId}`, automationMode: "public_recon", eligibility }),
   });
 }
 

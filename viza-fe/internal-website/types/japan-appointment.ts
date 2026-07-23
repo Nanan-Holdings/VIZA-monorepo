@@ -8,6 +8,7 @@ export interface JapanAppointmentJob {
   mode: "assisted_live";
   requiresUserAction: boolean;
   currentManualAction: string | null;
+  userPreferencesJson: JsonObject;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
   createdAt: string | null;
