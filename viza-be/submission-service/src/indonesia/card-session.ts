@@ -89,6 +89,11 @@ export function consumeIndonesiaCardSession(applicationId: string, referenceTime
   return session.card;
 }
 
+export function hasIndonesiaCardSessions(referenceTimeMs = nowMs()): boolean {
+  cleanupExpired(referenceTimeMs);
+  return sessions.size > 0;
+}
+
 export function clearIndonesiaCardSessions(): void {
   sessions.clear();
 }
