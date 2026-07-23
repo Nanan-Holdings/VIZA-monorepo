@@ -50,7 +50,9 @@ import type { VietnamProgressStage } from "./progress";
 import { installVietnamPublicApiProxy } from "./public-api-proxy";
 import {
   buildVietnamBrowserAttempts,
+  finalizeVietnamResultAfterRetries,
   isRetryableVietnamResult,
+  MAX_VIETNAM_PORTAL_ATTEMPTS,
   type VietnamBrowserChannel,
 } from "./retry-policy";
 import { readVietnamValidationErrors, type VietnamPortalValidationError } from "./validation-errors";
@@ -172,7 +174,11 @@ export async function fillVietnamApplication(
     return fillVietnamApplicationOnce(input, options);
   }
 
-  const maxAttempts = options.maxPortalAttempts ?? readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, 3);
+  const maxAttempts = Math.min(
+    options.maxPortalAttempts ??
+      readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, MAX_VIETNAM_PORTAL_ATTEMPTS),
+    MAX_VIETNAM_PORTAL_ATTEMPTS,
+  );
   const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(process.env.VN_PORTAL_RETRY_BACKOFF_MS, 5_000);
   const channels = options.browserChannel
     ? [options.browserChannel]
@@ -193,7 +199,10 @@ export async function fillVietnamApplication(
       finalScreenshotPath: suffixArtifactPath(options.finalScreenshotPath, attempt),
     });
     lastResult = result;
-    if (!isRetryableVietnamResult(result) || attempt >= channels.length) return result;
+    if (!isRetryableVietnamResult(result)) return result;
+    if (attempt >= channels.length) {
+      return finalizeVietnamResultAfterRetries(result, attempt);
+    }
 
     await options.onProgress?.(`portal_retry:${attempt + 1}`);
     await sleep(Math.min(retryBackoffMs * 2 ** index, 30_000));

@@ -90,8 +90,11 @@ describe("Vietnam Pre-Arrival official form schema", () => {
     });
   });
 
-  it("uses official hotel dropdown only for hotels and free-text address for residential or others", () => {
+  it("matches the official hotel dropdown, Other branch, and non-hotel free-text address", () => {
     const hotelAddress = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "hotel_accommodation_address");
+    const customHotelAddress = VN_PREARRIVAL_FORM_FIELDS.find(
+      (field) => field.field_name === "custom_hotel_accommodation_address",
+    );
     const freeTextAddress = VN_PREARRIVAL_FORM_FIELDS.find((field) => field.field_name === "accommodation_address");
 
     expect(hotelAddress).toMatchObject({
@@ -101,6 +104,17 @@ describe("Vietnam Pre-Arrival official form schema", () => {
       validation_rules: expect.objectContaining({
         official_source: "prearrival_category:hotel",
         remote_search: true,
+      }),
+    });
+    expect(customHotelAddress).toMatchObject({
+      field_type: "text",
+      required: true,
+      conditional_logic: {
+        showIf: "accommodation_type === hotel && hotel_accommodation_address === other",
+      },
+      validation_rules: expect.objectContaining({
+        label_zh: "其他住宿地址",
+        maxLength: 300,
       }),
     });
     expect(freeTextAddress).toMatchObject({

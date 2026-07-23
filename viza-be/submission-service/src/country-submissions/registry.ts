@@ -463,6 +463,10 @@ const WHEN_VN_PREARRIVAL_NON_HOTEL = {
   key: "answers.accommodation_type",
   notEquals: "hotel",
 };
+const WHEN_VN_PREARRIVAL_OTHER_HOTEL_ADDRESS = {
+  key: "answers.hotel_accommodation_address",
+  equals: "other",
+};
 
 const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("expected_arrival_date", "Expected arrival date", "trip"),
@@ -492,6 +496,12 @@ const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("province_city_of_hotel", "Hotel province / city", "trip", WHEN_VN_PREARRIVAL_HOTEL),
   arrivalCardField("ward_commune_of_hotel", "Hotel ward / commune", "trip", WHEN_VN_PREARRIVAL_HOTEL),
   arrivalCardField("hotel_accommodation_address", "Hotel accommodation address", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField(
+    "custom_hotel_accommodation_address",
+    "Other hotel accommodation address",
+    "trip",
+    WHEN_VN_PREARRIVAL_OTHER_HOTEL_ADDRESS,
+  ),
   arrivalCardField("accommodation_address", "Accommodation address", "trip", WHEN_VN_PREARRIVAL_NON_HOTEL),
   arrivalCardField("final_declaration", "Final declaration", "security"),
 ];

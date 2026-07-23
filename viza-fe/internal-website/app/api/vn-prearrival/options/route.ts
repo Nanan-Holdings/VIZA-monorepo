@@ -51,6 +51,7 @@ type VisaFormOption = {
   airline?: string;
   province_city?: string;
   ward?: string;
+  searchText?: string;
 };
 
 type CachedOfficialOptions = {
@@ -290,27 +291,36 @@ function paginateOptions<T>(
 }
 
 function filterOptionsByKeyword(options: VisaFormOption[], keyword: string): VisaFormOption[] {
-  const query = keyword.trim().toLowerCase();
+  const normalizeSearchText = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/Đ/g, "D")
+      .replace(/đ/g, "d")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  const query = normalizeSearchText(keyword);
   if (!query) return options;
   return options
     .filter((option) =>
-      [option.value, option.text, option.label_en, option.label_zh, option.official_label, option.code, option.airport, option.airline]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-      .includes(query),
+      normalizeSearchText(
+        [option.value, option.text, option.label_en, option.label_zh, option.official_label, option.code, option.airport, option.airline, option.searchText]
+          .filter(Boolean)
+          .join(" "),
+      ).includes(query),
     )
     .sort((left, right) => {
       const rank = (option: VisaFormOption) => {
-        const exactDialingCode = option.value.replace(/^\+/, "").toLowerCase() === query;
+        const exactDialingCode = normalizeSearchText(option.value.replace(/^\+/, "")) === query;
         if (exactDialingCode) return 0;
         const exact = [option.code, option.value, option.airport, option.airline]
           .filter(Boolean)
-          .some((candidate) => candidate?.toLowerCase() === query);
+          .some((candidate) => normalizeSearchText(candidate ?? "") === query);
         if (exact) return 1;
         const starts = [option.text, option.label_en, option.label_zh, option.official_label]
           .filter(Boolean)
-          .some((candidate) => candidate?.toLowerCase().startsWith(query));
+          .some((candidate) => normalizeSearchText(candidate ?? "").startsWith(query));
         return starts ? 2 : 3;
       };
       return rank(left) - rank(right);

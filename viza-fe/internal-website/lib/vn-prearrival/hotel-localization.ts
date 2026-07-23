@@ -1,4 +1,10 @@
 import officialHotelNamesZh from "./official-hotel-names.zh-CN.json";
+import officialAdministrativeNamesZh from "./official-administrative-names.zh-CN.json";
+
+const VERIFIED_HOTEL_NAME_ZH_BY_CODE: Record<string, string> = {
+  // Trip.com pairs this name with "Bonny Boutique Hotel Da Nang".
+  KSDN_33: "邦尼精品公寓酒店",
+};
 
 // Display-only names verified against hotel-owned or Chinese booking pages.
 // Official option values remain untouched for portal submission.
@@ -205,13 +211,31 @@ export function localizeVnPrearrivalHotelLabel(
   vietnameseAddress: string,
   englishAddress: string,
   officialCode = "",
+  provinceCityCode = "",
+  wardCode = "",
 ): string {
   const source = vietnameseAddress.trim() || englishAddress.trim();
   if (!source) return "";
 
   const [propertyName, ...addressParts] = source.split(/\s*,\s*/);
-  const localizedPropertyName = officialHotelNamesZh.names[officialCode as keyof typeof officialHotelNamesZh.names]
+  const localizedPropertyName = VERIFIED_HOTEL_NAME_ZH_BY_CODE[officialCode]
+    ?? officialHotelNamesZh.names[officialCode as keyof typeof officialHotelNamesZh.names]
     ?? translateLatinPhrase(propertyName);
+  const localizedWard = officialAdministrativeNamesZh.wards[
+    wardCode as keyof typeof officialAdministrativeNamesZh.wards
+  ];
+  const localizedProvince = officialAdministrativeNamesZh.provinces[
+    provinceCityCode as keyof typeof officialAdministrativeNamesZh.provinces
+  ];
+
+  if (localizedWard || localizedProvince) {
+    return Array.from(new Set([
+      localizedPropertyName,
+      localizedWard,
+      localizedProvince,
+    ].filter(Boolean))).join("，");
+  }
+
   const localizedAddress = translateLatinFragments(
     translateAdministrativeUnits(addressParts.join("，").replace(/Вьетнам/gi, "越南")),
   );

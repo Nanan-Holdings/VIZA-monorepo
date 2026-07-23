@@ -60,6 +60,7 @@ test("normalizes Vietnam Pre-Arrival portal payload without fallback", () => {
   assert.equal(normalized.flightNumber, "VN0650_SGN");
   assert.equal(normalized.borderGateAirport, "SGN");
   assert.equal(normalized.accommodationAddress, "KSHCM_0001");
+  assert.equal(normalized.usesCustomHotelAccommodationAddress, false);
 });
 
 test("normalizes non-hotel Vietnam Pre-Arrival accommodation from free-text address", () => {
@@ -72,6 +73,31 @@ test("normalizes non-hotel Vietnam Pre-Arrival accommodation from free-text addr
   }));
 
   assert.equal(normalized.accommodationAddress, "Friend apartment, Hanoi");
+  assert.equal(normalized.usesCustomHotelAccommodationAddress, false);
+});
+
+test("normalizes the official Other hotel branch from the manual accommodation address", () => {
+  const normalized = normalizeVnPrearrivalPortalPayload(payload({
+    hotel_accommodation_address: "other",
+    custom_hotel_accommodation_address: "Private guesthouse, 12 Test Street, Da Nang",
+  }));
+
+  assert.equal(normalized.usesCustomHotelAccommodationAddress, true);
+  assert.equal(normalized.accommodationAddress, "Private guesthouse, 12 Test Street, Da Nang");
+});
+
+test("requires a manual accommodation address when the official Other hotel option is selected", () => {
+  assert.throws(
+    () => normalizeVnPrearrivalPortalPayload(payload({
+      hotel_accommodation_address: "other",
+      custom_hotel_accommodation_address: "",
+    })),
+    (error) => {
+      assert.ok(error instanceof VnPrearrivalPortalValidationError);
+      assert.ok(error.missingFields.includes("answers.custom_hotel_accommodation_address"));
+      return true;
+    },
+  );
 });
 
 test("normalizes the official Other flight branch with a manual flight and airport", () => {

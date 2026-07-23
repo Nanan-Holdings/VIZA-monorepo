@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { localizeVnPrearrivalHotelLabel } from "./hotel-localization";
+import officialAdministrativeNamesZh from "./official-administrative-names.zh-CN.json";
 import officialHotelNamesZh from "./official-hotel-names.zh-CN.json";
 import officialStaticOptions from "./official-static-options.json";
 import { getVnPrearrivalStaticOptions } from "./static-options";
@@ -123,5 +124,52 @@ describe("Vietnam Pre-Arrival hotel localization", () => {
 
     expect(localized).toMatch(/^河内索菲特/);
     expect(localized).not.toContain("斯奥弗伊特埃勒");
+  });
+
+  it("renders every official hotel with its reviewed property name and official Chinese location hierarchy", () => {
+    const options = getVnPrearrivalStaticOptions("hotel") ?? [];
+    const optionsByCode = new Map(
+      options
+        .filter((option) => typeof option !== "string")
+        .map((option) => [option.value, option]),
+    );
+
+    expect(options).toHaveLength(1_811);
+
+    for (const hotel of officialStaticOptions.sources.hotel) {
+      const option = optionsByCode.get(hotel.code);
+      const propertyName = officialHotelNamesZh.names[
+        hotel.code as keyof typeof officialHotelNamesZh.names
+      ];
+      const wardName = officialAdministrativeNamesZh.wards[
+        hotel.ward as keyof typeof officialAdministrativeNamesZh.wards
+      ];
+      const provinceName = officialAdministrativeNamesZh.provinces[
+        hotel.province_city as keyof typeof officialAdministrativeNamesZh.provinces
+      ];
+
+      expect(option?.label_zh, hotel.code).toBeTruthy();
+      expect(option?.label_zh, hotel.code).toContain(propertyName);
+      expect(option?.label_zh, hotel.code).toContain(wardName);
+      expect(option?.label_zh, hotel.code).toContain(provinceName);
+      expect(option?.label_zh, hotel.code).not.toMatch(
+        /(?:凯赫乌|埃姆伊|恩格乌|阿恩赫|维奥阮|格伊阿普)/,
+      );
+      expect(option?.label_en, hotel.code).toBe(hotel.en_value);
+      expect(option?.official_label, hotel.code).toBe(hotel.en_value);
+    }
+  });
+
+  it("uses the Chinese booking-page name for Bonny Boutique Hotel", () => {
+    const options = getVnPrearrivalStaticOptions("hotel") ?? [];
+    const bonny = options.find(
+      (option) => typeof option !== "string" && option.value === "KSDN_33",
+    );
+
+    expect(bonny).toMatchObject({
+      label_zh: "邦尼精品公寓酒店，五行山坊，岘港市",
+      label_en: "Bonny Boutique Hotel, 01-03 Khue My Dong 10, Khue My, Ngu Hanh Son, Da Nang",
+      value: "KSDN_33",
+    });
   });
 });

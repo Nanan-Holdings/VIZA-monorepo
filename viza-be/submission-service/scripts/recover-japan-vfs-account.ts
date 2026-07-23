@@ -58,7 +58,8 @@ async function main(): Promise<void> {
     const recentActivationMessages = await supabase.from("inbound_email")
       .select("from_addr,subject,text,html")
       .eq("to_addr", profile.inbox_alias)
-      .gte("received_at", new Date(Date.now() - 30 * 60_000).toISOString())
+      .gte("received_at", new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString())
+      .or("from_addr.ilike.%vfsglobal.com,from_addr.ilike.%vfshelpzone.com")
       .order("received_at", { ascending: false })
       .limit(20);
     if (recentActivationMessages.error) {
@@ -286,14 +287,36 @@ async function main(): Promise<void> {
       throw new Error("VFS did not open a verified forgot-password page.");
     }
 
-    const email = cloud.page.getByLabel(/email/i).first();
-    await email.fill(profile.inbox_alias);
+    const resetNecessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
+    if (await resetNecessary.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await resetNecessary.evaluate((element) => (element as HTMLElement).click());
+      await cloud.page.locator("#onetrust-consent-sdk").waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+    }
+    const fillResetEmail = async (): Promise<void> => {
+      const target = cloud.page.getByLabel(/email/i).first();
+      await target.clear();
+      await target.pressSequentially(profile.inbox_alias, { delay: 25 });
+      await target.evaluate((element) => {
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        (element as HTMLInputElement).blur();
+      });
+      const retained = await target.evaluate((element) => {
+        const input = element as HTMLInputElement;
+        return input.value.length > 0 && input.validity.valid;
+      });
+      if (!retained) throw new Error("VFS password-reset email field did not retain a valid value.");
+    };
+    await fillResetEmail();
     try {
       await waitForTurnstile(cloud.page);
     } catch {
       console.log("[jp-vfs-recovery] Turnstile retrying once in the same session");
       await cloud.page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
-      await cloud.page.getByLabel(/email/i).first().fill(profile.inbox_alias);
+      const retryNecessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
+      if (await retryNecessary.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await retryNecessary.evaluate((element) => (element as HTMLElement).click());
+      }
+      await fillResetEmail();
       await waitForTurnstile(cloud.page);
     }
     const resetRequestedAt = new Date().toISOString();
@@ -347,6 +370,31 @@ async function main(): Promise<void> {
       throw new Error(`VFS did not show a verified password-reset state: ${resetResult.replace(/\s+/g, " ").slice(0, 180)}`);
     }
 
+    await cloud.page.goto(`${portalBase}/login`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    const loginNecessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
+    if (await loginNecessary.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      await loginNecessary.evaluate((element) => (element as HTMLElement).click());
+    }
+    const loginEmail = cloud.page.getByLabel("Email*", { exact: true });
+    await loginEmail.waitFor({ state: "visible", timeout: 60_000 });
+    await loginEmail.fill(profile.inbox_alias);
+    await cloud.page.getByLabel("Password*", { exact: true }).fill(newPassword);
+    await waitForTurnstile(cloud.page);
+    if (!await clickVisible(cloud.page, /^sign in$/i)) throw new Error("VFS Sign In control was not found after password reset.");
+    await Promise.race([
+      cloud.page.waitForURL((url) => !/\/login(?:\?|$)/i.test(url.pathname), { timeout: 45_000 }),
+      cloud.page.getByText(/book an appointment|application centre|dashboard/i).first().waitFor({ state: "visible", timeout: 45_000 }),
+    ]).catch(() => undefined);
+    await cloud.page.waitForTimeout(2_000);
+    const loginResult = await cloud.page.locator("body").innerText().catch(() => "");
+    const loginRejected = /incorrect|invalid|not registered|failed|locked|try again/i.test(loginResult);
+    const loginVerified = !loginRejected && (
+      !/\/login(?:\?|$)/i.test(cloud.page.url())
+      || /book an appointment|application centre|dashboard/i.test(loginResult)
+    );
+    await cloud.page.screenshot({ path: path.join(artifactDir, "login-result-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
+    if (!loginVerified) throw new Error("VFS did not show a verified signed-in account state after password reset.");
+
     const payload = {
       user_id: profile.auth_user_id,
       application_id: applicationId,
@@ -354,9 +402,10 @@ async function main(): Promise<void> {
       portal: "vfs_japan_sg",
       account_email: profile.inbox_alias,
       encrypted_account_password: encryptSecret(newPassword),
-      account_status: "registered",
+      account_status: "logged_in",
       email_verified: true,
       metadata_redacted_json: { aliasManagedByViza: true, browserbaseProxy: true, recoveredAfterOtpRegistration: true },
+      last_login_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     const { data: existing } = await supabase.from("appointment_accounts")
@@ -366,7 +415,7 @@ async function main(): Promise<void> {
       : await supabase.from("appointment_accounts").insert(payload);
     if (write.error) throw new Error(`VFS account persistence failed: ${write.error.message}`);
     await cloud.page.screenshot({ path: path.join(artifactDir, "password-reset-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-    console.log(JSON.stringify({ ok: true, accountStatus: "registered", emailVerified: true, browserbaseProxy: cloud.proxiesEnabled, replayAvailable: Boolean(cloud.replayUrl) }));
+    console.log(JSON.stringify({ ok: true, accountStatus: "logged_in", emailVerified: true, loginVerified: true, browserbaseProxy: cloud.proxiesEnabled, replayAvailable: Boolean(cloud.replayUrl) }));
   } finally {
     await cloud.browser.close().catch(() => undefined);
   }

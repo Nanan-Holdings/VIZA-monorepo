@@ -27,7 +27,10 @@ import {
   type TravelInfoData,
   type DocumentType,
 } from "@/components/application-steps";
-import { DynamicStepForm } from "@/components/dynamic-step-form";
+import {
+  DynamicStepForm,
+  ensureVnPrearrivalOtherFlightFlow,
+} from "@/components/dynamic-step-form";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
@@ -1663,7 +1666,9 @@ export default function ApplicationPage() {
 
     void stepsPromise
       .then((steps) => {
-        if (!cancelled && steps.length > 0) setDbSteps(steps);
+        if (!cancelled && steps.length > 0) {
+          setDbSteps(ensureVnPrearrivalOtherFlightFlow(steps));
+        }
       })
       .catch(() => {
         // Silent fallback to hardcoded steps
