@@ -286,12 +286,13 @@ export class JapanAppointmentService {
 
   async getStatusForApplication(applicationId: string): Promise<JapanAppointmentSnapshot> {
     const application = await this.getApplicationOrThrow(applicationId);
-    const [job, consent] = await Promise.all([
+    const [job, consent, account] = await Promise.all([
       this.repository.getLatestJob(applicationId),
       this.repository.findConsent(applicationId, application.userId),
+      this.repository.getAccount(applicationId, application.userId),
     ]);
     const preflight = { ...applicationPreflight(application), consentRecorded: Boolean(consent) };
-    if (!job) return { job: null, account: null, slots: [], pendingManualAction: null, evidence: null, confirmation: null, preflight };
+    if (!job) return { job: null, account, slots: [], pendingManualAction: null, evidence: null, confirmation: null, preflight };
     return this.getStatus(job.id, preflight);
   }
 

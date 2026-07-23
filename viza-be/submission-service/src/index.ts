@@ -139,6 +139,7 @@ import {
 import {
   claimBatchLimitForConcurrency,
   claimPendingSubmissionQueueItems,
+  claimPendingVietnamCloudQueueItems,
   isSubmissionQueueClaimRpcUnavailableError,
 } from "./submission-queue-claim";
 import type { AuSubmissionResult } from "./submission-result";
@@ -311,11 +312,15 @@ const RUNNER_JOB_CONSUMER_ENABLED = readBooleanEnv(
   "SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED",
   true,
 );
-// Cloud country workers consume only their runner_job bucket. Keep legacy
-// submission_queue polling on by default for backwards-compatible local runs.
+// Queue polling is opt-in so a developer workstation cannot accidentally
+// compete with the production Fly worker for applicant submissions.
 const LEGACY_SUBMISSION_QUEUE_ENABLED = readBooleanEnv(
   "SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED",
-  true,
+  false,
+);
+const VN_CLOUD_QUEUE_ENABLED = readBooleanEnv(
+  "VN_CLOUD_QUEUE_ENABLED",
+  false,
 );
 const RUNNER_JOB_COUNTRY = process.env.RUNNER_JOB_COUNTRY?.trim().toLowerCase() || undefined;
 
@@ -341,6 +346,7 @@ function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
     item.status.startsWith("ds160_live_assisted_") ||
     item.status.startsWith("ds160_proof_") ||
     item.status.startsWith("france_live_") ||
+    item.status.startsWith("vn_cloud_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
     item.status.startsWith("vn_prearrival_live_assisted_") ||
     item.status.startsWith("sgac_live_assisted_") ||
@@ -409,6 +415,20 @@ async function fetchPendingItems(input: {
     return (data ?? []) as SubmissionQueueItem[];
   }
 
+  const claimLimit = input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency);
+  const cloudVietnamItems = VN_CLOUD_QUEUE_ENABLED
+    ? await claimPendingVietnamCloudQueueItems(supabase, {
+        workerId: SUBMISSION_QUEUE_WORKER_ID,
+        limit: claimLimit,
+        leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
+        targetJobId: input.targetJobId ?? null,
+        maxAttempts: MAX_ATTEMPTS,
+      })
+    : [];
+  if (input.targetJobId && cloudVietnamItems.length > 0) {
+    return cloudVietnamItems;
+  }
+
   let items: SubmissionQueueItem[];
   try {
     if (SUBMISSION_PROVIDER_ALLOWLIST.size > 0) {
@@ -420,7 +440,7 @@ async function fetchPendingItems(input: {
         ))
         .lt("attempts", MAX_ATTEMPTS)
         .order("created_at", { ascending: true })
-        .limit(input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency));
+        .limit(input.targetJobId ? 1 : claimLimit);
       if (input.targetJobId) {
         query = query.eq("id", input.targetJobId);
       } else {
@@ -438,7 +458,7 @@ async function fetchPendingItems(input: {
 
     items = await claimPendingSubmissionQueueItems(supabase, {
       workerId: SUBMISSION_QUEUE_WORKER_ID,
-      limit: input.targetJobId ? 1 : claimBatchLimitForConcurrency(input.concurrency),
+      limit: Math.max(1, claimLimit - cloudVietnamItems.length),
       leaseSeconds: SUBMISSION_QUEUE_LEASE_SECONDS,
       targetJobId: input.targetJobId ?? null,
       maxAttempts: MAX_ATTEMPTS,
@@ -454,7 +474,12 @@ async function fetchPendingItems(input: {
     console.warn(`[poll] claim_submission_queue_batch unavailable; using local select fallback: ${message}`);
     items = await selectPendingItemsFallback(input);
   }
-  return items.sort((left, right) => queuePriority(left) - queuePriority(right));
+  const mergedItems = [...cloudVietnamItems, ...items].filter(
+    (item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index,
+  );
+  return mergedItems
+    .slice(0, claimLimit)
+    .sort((left, right) => queuePriority(left) - queuePriority(right));
 }
 
 async function selectPendingItemsFallback(input: {
@@ -497,6 +522,7 @@ function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "tdac_dry_run_pending") return 1;
   if (item.status === "phetravel_dry_run_pending") return 1;
   if (item.status === "vn_prearrival_dry_run_pending") return 1;
+  if (item.status === "vn_cloud_live_pending") return 2;
   if (item.status === "vn_live_assisted_pending") return 2;
   if (item.status === "vn_dry_run_pending") return 3;
   return 10;
@@ -525,6 +551,7 @@ function isUkJob(item: SubmissionQueueItem): boolean {
 function isVnJob(item: SubmissionQueueItem): boolean {
   return (
     item.status === "vn_prefill_pending" ||
+    item.status === "vn_cloud_live_pending" ||
     item.status === "vn_live_assisted_pending" ||
     item.status === "vn_payment_pending"
   );
@@ -717,9 +744,12 @@ async function normalizeVietnamQueueItem(item: SubmissionQueueItem): Promise<Sub
   if (item.status.startsWith("vn_payment_")) return item;
 
   const liveRequested = isLiveAssistedQueueItem(item);
-  const expectedStatus: SubmissionQueueItem["status"] = liveRequested
-    ? "vn_live_assisted_pending"
-    : "vn_dry_run_pending";
+  const cloudOnly = item.status.startsWith("vn_cloud_live_");
+  const expectedStatus: SubmissionQueueItem["status"] = cloudOnly
+    ? "vn_cloud_live_pending"
+    : liveRequested
+      ? "vn_live_assisted_pending"
+      : "vn_dry_run_pending";
   const expectedProvider = liveRequested ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
   const expectedMode = liveRequested ? "live_assisted" : "dry_run";
 
@@ -4377,6 +4407,12 @@ async function persistVietnamProgressStage(
 
 async function processVnItem(item: SubmissionQueueItem): Promise<void> {
   const liveAssisted = item.status !== "vn_dry_run_pending" && item.mode !== "dry_run";
+  const retryPendingStatus: SubmissionQueueItem["status"] =
+    item.status === "vn_cloud_live_pending"
+      ? "vn_cloud_live_pending"
+      : liveAssisted
+        ? "vn_live_assisted_pending"
+        : "vn_prefill_pending";
   const processingStatus = liveAssisted ? "vn_live_assisted_processing" : "vn_prefill_processing";
   const runId = createRunId(liveAssisted ? "vn-live" : "vn-dry");
   console.log(
@@ -4699,7 +4735,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     const newAttempts = officialPortalFailure ? MAX_ATTEMPTS : item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
-      : (liveAssisted ? "vn_live_assisted_pending" : "vn_prefill_pending");
+      : retryPendingStatus;
     const failedAt = new Date().toISOString();
     await updateVnQueueRow(
       item.id,
@@ -4734,7 +4770,7 @@ async function processVnItem(item: SubmissionQueueItem): Promise<void> {
     const newAttempts = item.attempts + 1;
     const newStatus = newAttempts >= MAX_ATTEMPTS
       ? (liveAssisted ? "vn_live_assisted_failed" : "vn_prefill_failed")
-      : (liveAssisted ? "vn_live_assisted_pending" : "vn_prefill_pending");
+      : retryPendingStatus;
     const failedAt = new Date().toISOString();
     await updateVnQueueRow(
       item.id,
@@ -6060,19 +6096,43 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
     `[vn-prearrival] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
 
-  await supabase
+  const processingAt = new Date().toISOString();
+  const { error: processingUpdateError } = await supabase
     .from("submission_queue")
     .update({
       status: "vn_prearrival_live_assisted_processing",
       current_stage: "mapping_answers",
-      heartbeat_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      started_at: item.started_at ?? processingAt,
+      heartbeat_at: processingAt,
+      updated_at: processingAt,
     })
     .eq("id", item.id);
+  if (processingUpdateError) {
+    throw new Error(
+      `Vietnam Pre-Arrival queue could not enter processing: ${processingUpdateError.message}`,
+    );
+  }
   await setSubmissionStatus(item.application_id, "processing");
 
   let artifactOwnerId: string | null = null;
   let payloadSummary: DigitalArrivalCardSubmissionResult["payloadSummary"] | undefined;
+  const heartbeatTimer = setInterval(() => {
+    const heartbeatAt = new Date().toISOString();
+    void supabase
+      .from("submission_queue")
+      .update({
+        heartbeat_at: heartbeatAt,
+        updated_at: heartbeatAt,
+      })
+      .eq("id", item.id)
+      .eq("status", "vn_prearrival_live_assisted_processing")
+      .then(({ error }) => {
+        if (error) {
+          console.warn(`[vn-prearrival] Queue heartbeat failed: ${error.message}`);
+        }
+      });
+  }, 20_000);
+  heartbeatTimer.unref?.();
 
   async function writeFailure(input: {
     status: DigitalArrivalCardSubmissionResult["status"];
@@ -6301,6 +6361,8 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
       screenshotPaths: portalError ? err.screenshotPaths : [],
       logs: portalError ? err.logs : [],
     });
+  } finally {
+    clearInterval(heartbeatTimer);
   }
 }
 
@@ -7579,6 +7641,14 @@ async function pollOnce(): Promise<void> {
 }
 
 let pollInFlight = false;
+let immediatePollRequested = false;
+
+function wakeSubmissionQueue(): void {
+  immediatePollRequested = true;
+  if (!pollInFlight) {
+    void poll();
+  }
+}
 
 async function poll(): Promise<void> {
   if (pollInFlight) {
@@ -7588,7 +7658,10 @@ async function poll(): Promise<void> {
 
   pollInFlight = true;
   try {
-    await pollOnce();
+    do {
+      immediatePollRequested = false;
+      await pollOnce();
+    } while (immediatePollRequested);
   } finally {
     pollInFlight = false;
   }
@@ -7652,6 +7725,7 @@ async function main(): Promise<void> {
     isWorkerBusy: () => pollInFlight,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
+    wakeSubmissionQueue,
   });
 
   console.log("[main] VIZA Submission Service starting...");

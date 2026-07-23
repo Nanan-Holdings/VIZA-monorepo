@@ -97,6 +97,20 @@ describe("JapanAppointmentService", () => {
     expect(snapshot.preflight.consentRecorded).toBe(true);
   });
 
+  it("surfaces a persisted official-account checkpoint before a job exists", async () => {
+    const { repository } = repositoryFor();
+    repository.getAccount = async () => ({
+      id: "account-1",
+      accountEmail: "[REDACTED]",
+      accountStatus: "mobile_already_registered",
+      emailVerified: false,
+    });
+    const service = new JapanAppointmentService(repository);
+    const snapshot = await service.getStatusForApplication("application-1");
+    expect(snapshot.job).toBeNull();
+    expect(snapshot.account?.accountStatus).toBe("mobile_already_registered");
+  });
+
   it("checks only the public VFS route and stops at the login boundary", async () => {
     const { repository } = repositoryFor();
     const requests: Array<Record<string, unknown>> = [];

@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   claimPendingSubmissionQueueItems,
+  claimPendingVietnamCloudQueueItems,
   isSubmissionQueueClaimRpcUnavailableError,
 } from "../submission-queue-claim";
 
@@ -16,6 +17,20 @@ const migrationPath = path.join(
   "drizzle",
   "0105_submission_queue_claim_locks.sql",
 );
+const vietnamCloudMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0116_vietnam_cloud_only_queue_claim.sql",
+);
+const vietnamPrearrivalMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0117_vietnam_prearrival_queue_claim.sql",
+);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -25,6 +40,28 @@ test("submission_queue claim migration uses skip-locked leases and service-role-
   assert.match(sql, /for update skip locked/);
   assert.match(sql, /create or replace function public\.claim_submission_queue_batch/);
   assert.match(sql, /revoke all on function public\.claim_submission_queue_batch/);
+  assert.match(sql, /grant execute on function public\.claim_submission_queue_batch[\s\S]*to service_role/);
+});
+
+test("Vietnam cloud claim migration isolates the new status behind its own service-role RPC", () => {
+  const legacySql = readFileSync(migrationPath, "utf8").toLowerCase();
+  const cloudSql = readFileSync(vietnamCloudMigrationPath, "utf8").toLowerCase();
+
+  assert.doesNotMatch(legacySql, /vn_cloud_live_pending/);
+  assert.match(cloudSql, /where sq\.status = 'vn_cloud_live_pending'/);
+  assert.match(cloudSql, /for update skip locked/);
+  assert.match(cloudSql, /create or replace function public\.claim_vn_cloud_submission_queue_batch/);
+  assert.match(cloudSql, /grant execute on function public\.claim_vn_cloud_submission_queue_batch[\s\S]*to service_role/);
+});
+
+test("Vietnam Pre-Arrival states are included in the atomic legacy queue claim", () => {
+  const sql = readFileSync(vietnamPrearrivalMigrationPath, "utf8").toLowerCase();
+
+  assert.match(sql, /vn_prearrival_dry_run_pending/);
+  assert.match(sql, /vn_prearrival_live_assisted_scheduled/);
+  assert.match(sql, /vn_prearrival_live_assisted_pending/);
+  assert.match(sql, /for update skip locked/);
+  assert.match(sql, /create or replace function public\.claim_submission_queue_batch/);
   assert.match(sql, /grant execute on function public\.claim_submission_queue_batch[\s\S]*to service_role/);
 });
 
@@ -73,6 +110,32 @@ test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and le
     p_limit: 10,
     p_lease_seconds: 900,
     p_target_job_id: null,
+    p_max_attempts: 3,
+  });
+});
+
+test("claimPendingVietnamCloudQueueItems calls only the cloud-isolated RPC", async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const client = {
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      return { data: [], error: null };
+    },
+  };
+
+  await claimPendingVietnamCloudQueueItems(client, {
+    workerId: "fly-vn",
+    limit: 4,
+    leaseSeconds: 600,
+    targetJobId: "00000000-0000-0000-0000-000000000001",
+  });
+
+  assert.equal(calls[0]?.name, "claim_vn_cloud_submission_queue_batch");
+  assert.deepEqual(calls[0]?.args, {
+    p_worker_id: "fly-vn",
+    p_limit: 4,
+    p_lease_seconds: 600,
+    p_target_job_id: "00000000-0000-0000-0000-000000000001",
     p_max_attempts: 3,
   });
 });

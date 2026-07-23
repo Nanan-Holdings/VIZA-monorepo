@@ -103,6 +103,7 @@ const LIVE_PROVIDERS = new Set([
 const LIVE_PENDING_STATUSES = new Set([
   "pending",
   "queued",
+  "vn_cloud_live_pending",
   "vn_live_assisted_pending",
   "ds160_live_assisted_pending",
   "fv_prefill_pending",

@@ -4,7 +4,9 @@ import * as fs from "node:fs";
 import { createServer } from "node:http";
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
+import type { Page } from "playwright";
 import { connectBrowserbaseCloudBrowser } from "../src/browserbase-session";
+import { solveCaptcha } from "../src/captcha";
 import { ensureApplicantInboxAlias } from "../src/inbox/alias";
 import { extractAuto } from "../src/inbox/extractors";
 import { inbox } from "../src/inbox/wait-for-message";
@@ -77,6 +79,155 @@ async function waitForOtpOnLocalPort(port: number): Promise<string> {
   }
 }
 
+async function installTurnstileCapture(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const win = window as typeof window & {
+      __vizaTurnstileHooked?: boolean;
+      __vizaTurnstile?: Record<string, unknown>;
+      __vizaTurnstileCallback?: (token: string) => void;
+      turnstile?: { render?: (container: unknown, options?: Record<string, unknown>) => unknown };
+    };
+    const hook = () => {
+      if (!win.turnstile?.render || win.__vizaTurnstileHooked) return;
+      const originalRender = win.turnstile.render.bind(win.turnstile);
+      win.turnstile.render = (container: unknown, options: Record<string, unknown> = {}) => {
+        win.__vizaTurnstile = {
+          sitekey: options.sitekey,
+          action: options.action,
+          cData: options.cData ?? options.cdata,
+          chlPageData: options.chlPageData ?? options.pagedata,
+        };
+        if (typeof options.callback === "function") {
+          win.__vizaTurnstileCallback = options.callback as (token: string) => void;
+        }
+        return originalRender(container, options);
+      };
+      win.__vizaTurnstileHooked = true;
+    };
+    hook();
+    const timer = window.setInterval(() => {
+      hook();
+      if (win.__vizaTurnstileHooked) window.clearInterval(timer);
+    }, 50);
+  });
+}
+
+async function dismissCookieConsent(page: Page): Promise<boolean> {
+  const selectors = [
+    "#onetrust-reject-all-handler",
+    "#onetrust-consent-sdk button:has-text('Accept Only Necessary')",
+    "#onetrust-consent-sdk button:has-text('Confirm My Choices')",
+    "#onetrust-consent-sdk button:has-text('Save Settings')",
+  ];
+  for (const selector of selectors) {
+    const button = page.locator(selector).first();
+    if (await button.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await button.evaluate((element) => (element as HTMLElement).click());
+      await page.locator("#onetrust-consent-sdk").waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function hasSuccessfulTurnstileFrame(page: Page): Promise<boolean> {
+  for (const frame of page.frames()) {
+    if (!/challenges\.cloudflare\.com/i.test(frame.url())) continue;
+    const frameText = await frame.locator("body").innerText({ timeout: 2_000 }).catch(() => "");
+    if (/success/i.test(frameText)) return true;
+  }
+  return false;
+}
+
+interface BrowserbaseCaptchaState {
+  started: boolean;
+  finished: boolean;
+}
+
+async function solveTurnstile(page: Page, browserbaseCaptcha: BrowserbaseCaptchaState): Promise<boolean> {
+  const responseField = page.locator(
+    "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']",
+  ).first();
+  const browserbaseDeadline = Date.now() + 45_000;
+  while (Date.now() < browserbaseDeadline) {
+    const nativeTokenReady = await responseField.inputValue({ timeout: 1_000 })
+      .then((value) => Boolean(value.trim()))
+      .catch(() => false);
+    if (nativeTokenReady || await hasSuccessfulTurnstileFrame(page)) return true;
+    if (browserbaseCaptcha.finished) {
+      await page.waitForTimeout(1_500);
+      return true;
+    }
+    await page.waitForTimeout(browserbaseCaptcha.started ? 1_000 : 500);
+  }
+
+  const hasChallenge = await responseField.count().then((count) => count > 0).catch(() => false)
+    || await page.locator("iframe[src*='challenges.cloudflare.com'], .cf-turnstile, [data-sitekey]")
+      .first().count().then((count) => count > 0).catch(() => false);
+  if (!hasChallenge) return false;
+
+  const captured = await page.waitForFunction(() => {
+    const win = window as typeof window & { __vizaTurnstile?: Record<string, unknown> };
+    return win.__vizaTurnstile?.sitekey ? win.__vizaTurnstile : null;
+  }, undefined, { timeout: 15_000 }).then((handle) => handle.jsonValue()).catch(() => null);
+  if (await hasSuccessfulTurnstileFrame(page)) return true;
+  let siteKey = typeof captured === "object" && captured && "sitekey" in captured
+    ? String((captured as { sitekey?: unknown }).sitekey ?? "")
+    : "";
+  if (!siteKey) {
+    siteKey = await page.evaluate(async () => {
+      const explicit = document.querySelector<HTMLElement>("[data-sitekey]")?.dataset.sitekey;
+      if (explicit) return explicit;
+      for (const frame of Array.from(document.querySelectorAll<HTMLIFrameElement>(
+        "iframe[src*='challenges.cloudflare.com']",
+      ))) {
+        const match = frame.src.match(/0x[a-zA-Z0-9_-]{10,}/);
+        if (match?.[0]) return match[0];
+      }
+      const scriptUrls = Array.from(document.scripts)
+        .map((script) => script.src)
+        .filter((source) => source.startsWith(location.origin));
+      for (const source of scriptUrls) {
+        const scriptText = await fetch(source).then((response) => response.text()).catch(() => "");
+        const match = scriptText.match(/0x[a-zA-Z0-9_-]{10,}/);
+        if (match?.[0]) return match[0];
+      }
+      return "";
+    }).catch(() => "");
+  }
+  if (!siteKey) return false;
+
+  const capturedOptions = typeof captured === "object" && captured
+    ? captured as { action?: unknown; cData?: unknown; chlPageData?: unknown }
+    : {};
+  const userAgent = await page.evaluate(() => navigator.userAgent).catch(() => undefined);
+  const solved = await solveCaptcha({
+    type: "turnstile",
+    siteKey,
+    pageUrl: page.url(),
+    action: typeof capturedOptions.action === "string" ? capturedOptions.action : undefined,
+    cdata: typeof capturedOptions.cData === "string" ? capturedOptions.cData : undefined,
+    pageData: typeof capturedOptions.chlPageData === "string" ? capturedOptions.chlPageData : undefined,
+    userAgent,
+    timeoutMs: Number(process.env.JP_VFS_SG_TURNSTILE_TIMEOUT_MS ?? "180000"),
+  });
+
+  await page.evaluate((captchaToken) => {
+    const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']",
+    );
+    for (const field of Array.from(fields)) {
+      field.value = captchaToken;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const win = window as typeof window & { __vizaTurnstileCallback?: (token: string) => void };
+    win.__vizaTurnstileCallback?.(captchaToken);
+  }, solved.text);
+  await page.waitForTimeout(1_000);
+  return true;
+}
+
 async function main(): Promise<void> {
   process.env.JP_VFS_SG_BROWSERBASE_ENABLED = "true";
   process.env.JP_VFS_SG_BROWSERBASE_PROXIES = "true";
@@ -101,6 +252,17 @@ async function main(): Promise<void> {
   const artifactDir = path.resolve("artifacts", "jp-vfs-sg-placeholder-account");
   fs.mkdirSync(artifactDir, { recursive: true });
   try {
+    const browserbaseCaptcha: BrowserbaseCaptchaState = { started: false, finished: false };
+    cloud.page.on("console", (message) => {
+      if (message.text() === "browserbase-solving-started") {
+        browserbaseCaptcha.started = true;
+        console.log("[jp-vfs-account] Browserbase CAPTCHA solving started");
+      } else if (message.text() === "browserbase-solving-finished") {
+        browserbaseCaptcha.finished = true;
+        console.log("[jp-vfs-account] Browserbase CAPTCHA solving finished");
+      }
+    });
+    await installTurnstileCapture(cloud.page);
     await cloud.page.goto("https://visa.vfsglobal.com/sgp/en/jpn/register", { waitUntil: "domcontentloaded", timeout: 90_000 });
     console.log("[jp-vfs-account] registration page loaded");
     await cloud.page.waitForTimeout(2_000);
@@ -111,11 +273,7 @@ async function main(): Promise<void> {
       if (await button.isVisible().catch(() => false)) visibleCookieButtons.push((await button.innerText().catch(() => "")).replace(/\s+/g, " ").trim());
     }
     console.log(`[jp-vfs-account] visible cookie buttons=${JSON.stringify(visibleCookieButtons.filter(Boolean))}`);
-    const necessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
-    if (await necessary.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await necessary.evaluate((element) => element.click());
-      await cloud.page.waitForTimeout(500);
-    }
+    await dismissCookieConsent(cloud.page);
     const bodyBefore = await cloud.page.locator("body").innerText().catch(() => "");
     if (/Temporary Connectivity Issue|Session Expired or Invalid|Access Denied/i.test(bodyBefore)) throw new Error("Browserbase reached an official VFS error page before registration.");
     try {
@@ -154,15 +312,12 @@ async function main(): Promise<void> {
         if (!mobileNumberFilled) mobileNumberFilled = await fillMobileNumber(25_000);
         if (!mobileNumberFilled) console.log("[jp-vfs-account] current VFS registration form has no mobile-number step");
         await cloud.page.waitForTimeout(1_500);
-        const delayedNecessary = cloud.page.getByRole("button", { name: /^Accept Only Necessary$/i });
-        if (await delayedNecessary.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await delayedNecessary.evaluate((element) => (element as HTMLElement).click());
-          await cloud.page.locator("#onetrust-consent-sdk").waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+        await dismissCookieConsent(cloud.page);
+        if (!await solveTurnstile(cloud.page, browserbaseCaptcha)) {
+          throw new Error("VFS Turnstile challenge was not discoverable.");
         }
-        await cloud.page.waitForFunction(() => {
-          const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
-          return token.trim().length > 0;
-        }, undefined, { timeout: 60_000 });
+        console.log("[jp-vfs-account] Turnstile success confirmed");
+        await dismissCookieConsent(cloud.page);
       })(), "VFS registration interaction", 120_000);
       console.log("[jp-vfs-account] placeholder fields filled");
     } catch (fillError) {
@@ -202,10 +357,20 @@ async function main(): Promise<void> {
     const bodyAfter = await cloud.page.locator("body").innerText().catch(() => "");
     const phoneOtpRequired = /OTP has been sent to your mobile number|one time password\s*\(OTP\).*mobile number/i.test(bodyAfter);
     const explicitlyExisting = /(?:email|account).{0,60}(?:already registered|already exists)/i.test(bodyAfter);
-    const accepted = phoneOtpRequired || /verification|activate|check your email|account.*created/i.test(bodyAfter) || explicitlyExisting;
+    const mobileAlreadyRegistered = /mobile number.{0,40}(?:already registered|already exists)/i.test(bodyAfter);
+    const accepted = phoneOtpRequired
+      || /verification|activate|check your email|account.*created/i.test(bodyAfter)
+      || explicitlyExisting
+      || mobileAlreadyRegistered;
     if (!accepted) throw new Error(`VFS did not show an accepted registration state: ${bodyAfter.replace(/\s+/g, " ").slice(0, 180)}`);
     let emailVerified = false;
-    let status = phoneOtpRequired ? "phone_otp_required" : explicitlyExisting ? "existing_account" : "email_verification_required";
+    let status = phoneOtpRequired
+      ? "phone_otp_required"
+      : mobileAlreadyRegistered
+        ? "mobile_already_registered"
+        : explicitlyExisting
+          ? "existing_account"
+          : "email_verification_required";
     if (phoneOtpRequired) {
       console.log("[jp-vfs-account] SMS OTP required; waiting for a one-time code on stdin");
       const otpArgument = process.argv.find((value) => value.startsWith("--otp="))?.split("=")[1]?.trim();
@@ -266,14 +431,33 @@ async function main(): Promise<void> {
     }
     const payload = {
       user_id: authUserId, application_id: applicationId, country_code: "JP", portal: "vfs_japan_sg",
-      account_email: alias, encrypted_account_password: status === "existing_account" ? null : encryptSecret(password), account_status: status,
-      email_verified: emailVerified, metadata_redacted_json: { placeholderAccountTest: true, phone: "+65******00", browserbaseProxy: true }, updated_at: new Date().toISOString(),
+      account_email: alias,
+      encrypted_account_password: ["existing_account", "mobile_already_registered"].includes(status) ? null : encryptSecret(password),
+      account_status: status,
+      email_verified: emailVerified,
+      metadata_redacted_json: {
+        authorizedAccountTest: true,
+        phone: "+65******00",
+        browserbaseProxy: true,
+        mobileAlreadyRegistered,
+      },
+      updated_at: new Date().toISOString(),
     };
     const { data: existing } = await supabase.from("appointment_accounts").select("id").eq("application_id", applicationId).eq("portal", "vfs_japan_sg").maybeSingle();
     const write = existing?.id ? await supabase.from("appointment_accounts").update(payload).eq("id", existing.id) : await supabase.from("appointment_accounts").insert(payload);
     if (write.error) throw new Error(`Test account persistence failed: ${write.error.message}`);
     await cloud.page.screenshot({ path: path.join(artifactDir, "after-continue-redacted.png"), fullPage: true, mask: [cloud.page.locator("input")] });
-    console.log(JSON.stringify({ ok: true, submittedRegistration: true, accountCreated: status === "registered", phoneOtpRequired, emailVerified, accountStatus: status, browserbaseProxy: cloud.proxiesEnabled, replayAvailable: Boolean(cloud.replayUrl) }));
+    console.log(JSON.stringify({
+      ok: true,
+      submittedRegistration: true,
+      accountCreated: status === "registered",
+      phoneOtpRequired,
+      mobileAlreadyRegistered,
+      emailVerified,
+      accountStatus: status,
+      browserbaseProxy: cloud.proxiesEnabled,
+      replayAvailable: Boolean(cloud.replayUrl),
+    }));
   } finally { await cloud.browser.close().catch(() => undefined); }
 }
 

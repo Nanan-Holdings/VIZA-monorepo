@@ -827,7 +827,7 @@ export async function POST(
 
   const now = new Date().toISOString();
   const registrationCode = readRegistrationCode(application.submission_result);
-  const queueStatus = registrationCode ? "vn_payment_pending" : "vn_live_assisted_pending";
+  const queueStatus = registrationCode ? "vn_payment_pending" : "vn_cloud_live_pending";
   const { data: queue, error: queueError } = await admin
     .from("submission_queue")
     .insert({

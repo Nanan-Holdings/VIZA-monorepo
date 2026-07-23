@@ -81,7 +81,10 @@ filling and one-shot submission for the applicant.
 - `src/submission-queue-claim.ts`: service-role RPC wrapper around
   `claim_submission_queue_batch`, which atomically claims legacy
   `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
-  submission-service runners can run safely.
+  submission-service runners can run safely. Vietnam e-Visa production jobs
+  use the separate `claim_vn_cloud_submission_queue_batch` RPC and
+  `vn_cloud_live_pending`; only the Fly legacy worker may enable
+  `VN_CLOUD_QUEUE_ENABLED`.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature

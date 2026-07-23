@@ -124,7 +124,7 @@ function requeuePatch(queue: QueueRow, application: ApplicationRow, now: string)
   }
   if (isVietnamJob(queue, application)) {
     return {
-      status: "vn_live_assisted_pending",
+      status: "vn_cloud_live_pending",
       mode: "live_assisted",
       provider: "vietnam_evisa_live",
       manual_action_status: "completed",

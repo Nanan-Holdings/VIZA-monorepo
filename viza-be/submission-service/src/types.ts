@@ -37,6 +37,7 @@ export interface SubmissionQueueItem {
     | "vn_dry_run_pending"
     | "vn_dry_run_processing"
     | "vn_dry_run_failed"
+    | "vn_cloud_live_pending"
     | "vn_live_assisted_pending"
     | "vn_live_assisted_processing"
     | "vn_live_assisted_failed"

@@ -114,6 +114,12 @@ The current internal automation migrations are:
 - `0115_france_tls_applicant_profile_parity.sql`: adds the TLScontact China
   origin-departure date and French-overseas-territory questions to the France
   Schengen review form before the cloud runner opens the official profile.
+- `0116_vietnam_cloud_only_queue_claim.sql`: introduces the dedicated,
+  service-role-only claim RPC for `vn_cloud_live_pending`, keeping Vietnam
+  e-Visa production jobs invisible to older local queue consumers.
+- `0117_vietnam_prearrival_queue_claim.sql`: adds Vietnam Pre-Arrival dry-run,
+  scheduled, and live pending states to the atomic legacy queue claim RPC so
+  cloud workers do not depend on the unlocked compatibility fallback.
 
 ## Guardrails
 
