@@ -1042,9 +1042,14 @@ async function chooseHeadlessComboboxByInputName(
   await input.click({ timeout: 10_000, force: true });
   await input.fill(typedText, { timeout: 10_000 });
   await page.waitForTimeout(700);
+  const exactText = new RegExp(
+    `^\\s*${typedText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`,
+    "i",
+  );
   const clicked = await clickFirstAvailable(page, [
-    page.getByText(expectedText),
+    page.getByRole("option", { name: exactText }),
     page.getByRole("option", { name: expectedText }),
+    page.locator("[role='option'], li, [data-slot='select-item']").filter({ hasText: exactText }),
     page.locator("[role='option'], li, [data-slot='select-item']").filter({ hasText: expectedText }),
   ]);
   if (!clicked) {
@@ -1149,6 +1154,7 @@ async function completeEgovPermanentResidenceOnboarding(
     countryText,
     countryOptionPattern(payload.countryOfResidence),
   );
+  await page.waitForTimeout(1_200);
   const address = payload.residenceAddress || payload.countryOfResidence;
   const addressParts = (payload.residenceAddressLine2 || address)
     .split(",")
@@ -1159,23 +1165,25 @@ async function completeEgovPermanentResidenceOnboarding(
   const province = addressParts.at(-1) || payload.residenceAddressLine1 || address;
   const city = addressParts.at(-2) || addressParts.at(-1) || address;
   const barangay = addressParts[0] || city;
-  const choseProvince = await chooseDropdownOption(
+  const choseProvince = await chooseHeadlessComboboxByInputName(
     page,
-    /state\s*\/?\s*province|province|state/i,
-    new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    "province_code",
     province,
+    new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
-  const choseCity = await chooseDropdownOption(
+  await page.waitForTimeout(1_200);
+  const choseCity = await chooseHeadlessComboboxByInputName(
     page,
-    /city\s*\/?\s*municipality|municipality|city/i,
-    new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    "municipality_code",
     city,
+    new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   );
-  const choseBarangay = await chooseDropdownOption(
+  await page.waitForTimeout(1_200);
+  const choseBarangay = await chooseHeadlessComboboxByInputName(
     page,
-    /barangay/i,
-    new RegExp(barangay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    "barangay_code",
     barangay,
+    new RegExp(barangay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
   ) || await fillVisibleTextField(page, "Barangay", barangay);
   const streetAddress = payload.residenceAddressLine1 || address;
   const filledAddress = await fillVisibleByPlaceholder(page, /house|no\.?\/bldg|street|address line 1/i, streetAddress)
@@ -1183,6 +1191,14 @@ async function completeEgovPermanentResidenceOnboarding(
   if (payload.residenceAddressLine2) {
     await fillVisibleByPlaceholder(page, /address line 2/i, payload.residenceAddressLine2);
   }
+  const selectedResidenceValues = await page.evaluate(() => Object.fromEntries(
+    ["country_code", "province_code", "municipality_code", "barangay_code", "street"]
+      .map((name) => [
+        name,
+        document.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value ?? "",
+      ]),
+  )).catch(() => ({}));
+  logs.push(`ph_etravel_egov_residence_values ${JSON.stringify(selectedResidenceValues)}`);
 
   if (!choseCountry || !choseProvince || !choseCity || !choseBarangay || !filledAddress) {
     logs.push(`ph_etravel_egov_residence_precheck_incomplete ${JSON.stringify({
