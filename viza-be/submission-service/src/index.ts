@@ -100,8 +100,14 @@ import {
   processQueuedVietnamStatusChecks,
 } from "./vietnam/status-tracking";
 import { resumeVietnamOfficialPayment } from "./vietnam/payment-resume";
-import { consumeVietnamCardSession } from "./vietnam/card-session.js";
-import { consumeIndonesiaCardSession } from "./indonesia/card-session.js";
+import {
+  consumeVietnamCardSession,
+  hasVietnamCardSessions,
+} from "./vietnam/card-session.js";
+import {
+  consumeIndonesiaCardSession,
+  hasIndonesiaCardSessions,
+} from "./indonesia/card-session.js";
 import {
   normalizeVietnamProgressStage,
   shouldPersistVietnamProgressStage,
@@ -7619,7 +7625,12 @@ async function main(): Promise<void> {
 
   // DEP-004: local handoff endpoints and Cloud Run probes should be available
   // before slower runner configuration logging and queue startup complete.
-  startHealthServer({ isWorkerStarted: () => runnerStarted });
+  startHealthServer({
+    isWorkerStarted: () => runnerStarted,
+    isWorkerBusy: () => pollInFlight,
+    hasOneTimeCardSessions: () =>
+      hasVietnamCardSessions() || hasIndonesiaCardSessions(),
+  });
 
   console.log("[main] VIZA Submission Service starting...");
   console.log(`[main] Polling every ${POLL_INTERVAL_MS / 1000}s`);

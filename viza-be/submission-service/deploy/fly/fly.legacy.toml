@@ -1,6 +1,8 @@
 # Dedicated legacy submission_queue consumer. Country workers must not enable it.
 app = "viza-submission-legacy"
 primary_region = "sin"
+kill_signal = "SIGINT"
+kill_timeout = "5m"
 
 [env]
   NODE_ENV = "production"
