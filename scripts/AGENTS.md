@@ -49,6 +49,9 @@ smoke-test helpers for the VIZA monorepo.
   internal portal on separate local ports.
 - `audit-bilingual-schema-clarity.ts`: scans visa form schema seed sources and
   fallback form definitions, then writes bilingual schema clarity reports.
+- `generate-vn-prearrival-administrative-zh.mjs`: joins the official Vietnam
+  34-province/3321-unit code snapshot to the Chinese 2025 administrative lists
+  province by province and refuses to write a partial Chinese-name snapshot.
 - `doctor-env.ps1`: reports env files, BOMs, frontend secret variable names,
   and unsafe `NEXT_PUBLIC_` names without printing values.
 - `doctor-env.ts`: cross-platform env doctor used by package scripts and the

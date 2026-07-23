@@ -37,6 +37,7 @@ export interface VnPrearrivalPortalPayload {
   accommodationType: string;
   provinceCityOfHotel: string;
   wardCommuneOfHotel: string;
+  usesCustomHotelAccommodationAddress: boolean;
   accommodationAddress: string;
   workplaceInformation: string | null;
   departureDateFromVietnam: string | null;
@@ -137,9 +138,16 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
   const usesHotelDropdown = accommodationType === "hotel";
   const provinceCityOfHotel = usesHotelDropdown ? requireAnswer(payload, "province_city_of_hotel", missing) : "";
   const wardCommuneOfHotel = usesHotelDropdown ? requireAnswer(payload, "ward_commune_of_hotel", missing) : "";
-  const accommodationAddress = usesHotelDropdown
+  const hotelAccommodationAddress = usesHotelDropdown
     ? requireAnswer(payload, "hotel_accommodation_address", missing)
-    : requireAnswer(payload, "accommodation_address", missing);
+    : "";
+  const usesCustomHotelAccommodationAddress =
+    usesHotelDropdown && hotelAccommodationAddress.toLowerCase() === "other";
+  const accommodationAddress = usesCustomHotelAccommodationAddress
+    ? requireAnswer(payload, "custom_hotel_accommodation_address", missing)
+    : usesHotelDropdown
+      ? hotelAccommodationAddress
+      : requireAnswer(payload, "accommodation_address", missing);
   const visaType = requireAnswer(payload, "visa_type", missing);
   const visaNumber = requireAnswer(payload, "visa_number", missing);
   if (visaType === "EV" && !/^\d{9}$/.test(visaNumber)) {
@@ -179,6 +187,7 @@ export function normalizeVnPrearrivalPortalPayload(payload: SubmissionPayload): 
     accommodationType,
     provinceCityOfHotel,
     wardCommuneOfHotel,
+    usesCustomHotelAccommodationAddress,
     accommodationAddress,
     workplaceInformation: answer(payload, "workplace_information") || null,
     departureDateFromVietnam: answer(payload, "departure_date_from_vietnam") || null,

@@ -86,6 +86,17 @@ export interface JapanAppointmentSnapshot {
     documentTypes: string[];
     passportUploaded: boolean;
     photoUploaded: boolean;
+    review: {
+      englishName: string;
+      dateOfBirth: string;
+      nationality: string;
+      passportNumber: string;
+      passportExpiryDate: string;
+      phone: string;
+      email: string;
+      residentialAddress: string;
+      appointmentCenter: string;
+    };
   };
 }
 
@@ -189,11 +200,24 @@ function validatePreflight(application: JapanAppointmentApplication, eligibility
 function applicationPreflight(application: JapanAppointmentApplication) {
   const missingApplicationFields = REQUIRED_FIELDS.filter((field) => !first(application, [field]));
   const documentTypes = application.documentTypes.map((value) => value.toLowerCase());
+  const givenNames = first(application, ["given_names", "given_name", "first_name"]);
+  const surname = first(application, ["surname", "family_name", "last_name"]);
   return {
     missingApplicationFields,
     documentTypes: application.documentTypes,
     passportUploaded: documentTypes.some((value) => value.includes("passport")),
     photoUploaded: documentTypes.some((value) => value.includes("photo")),
+    review: {
+      englishName: [givenNames, surname].filter(Boolean).join(" "),
+      dateOfBirth: first(application, ["date_of_birth", "birth_date"]),
+      nationality: first(application, ["nationality", "nationality_country", "current_nationality"]),
+      passportNumber: first(application, ["passport_number"]),
+      passportExpiryDate: first(application, ["passport_expiry_date", "passport_expiry"]),
+      phone: first(application, ["phone", "phone_number", "mobile"]),
+      email: first(application, ["email", "personal_email"]),
+      residentialAddress: first(application, ["residential_address", "full_address", "address"]),
+      appointmentCenter: "Japan Visa Application Centre Singapore",
+    },
   };
 }
 

@@ -771,6 +771,14 @@ const VN_PREARRIVAL_OTHER_FLIGHT_OPTION: VisaFormFieldOption = {
   official_label: "Other",
   code: "other",
 };
+const VN_PREARRIVAL_OTHER_HOTEL_OPTION: VisaFormFieldOption = {
+  value: "other",
+  text: "Other",
+  label_en: "Other",
+  label_zh: "其他",
+  official_label: "Other",
+  code: "other",
+};
 
 function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
@@ -783,6 +791,95 @@ function withVnPrearrivalOtherFlightOption(
     ...options.filter((option) => optionValue(option).toLowerCase() !== "other"),
     VN_PREARRIVAL_OTHER_FLIGHT_OPTION,
   ];
+}
+
+export function withVnPrearrivalOtherHotelOption(
+  options: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  return [
+    ...options.filter((option) => optionValue(option).toLowerCase() !== "other"),
+    VN_PREARRIVAL_OTHER_HOTEL_OPTION,
+  ];
+}
+
+export function ensureVnPrearrivalOtherFlightFlow(
+  steps: WizardStep[],
+): WizardStep[] {
+  return steps.map((step) => {
+    const flightField = step.fields.find((field) => field.fieldName === "flight_number");
+    if (!flightField || flightField.visaType !== "VN_PREARRIVAL_DECLARATION") return step;
+
+    let changed = false;
+    let hasCustomFlightField = false;
+    const fields = step.fields.map((field) => {
+      if (field.fieldName === "custom_flight_number") {
+        hasCustomFlightField = true;
+        const expectedCondition = "mode_of_travel === air && flight_number === other";
+        const currentCondition = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+        if (currentCondition === expectedCondition) return field;
+        changed = true;
+        return {
+          ...field,
+          conditionalLogic: { ...field.conditionalLogic, showIf: expectedCondition },
+        };
+      }
+
+      if (field.fieldName !== "border_gate_airport") return field;
+
+      const rules = field.validationRules ?? {};
+      if (
+        rules.locked_by === "flight_number"
+        && rules.read_only === true
+        && rules.editable_when_value === "other"
+      ) {
+        return field;
+      }
+
+      changed = true;
+      return {
+        ...field,
+        validationRules: {
+          ...rules,
+          locked_by: "flight_number",
+          read_only: true,
+          editable_when_value: "other",
+        },
+      };
+    });
+
+    if (!hasCustomFlightField) {
+      changed = true;
+      fields.push({
+        id: `${flightField.id}:custom-flight-number`,
+        visaType: flightField.visaType,
+        fieldName: "custom_flight_number",
+        label: "Flight Number",
+        fieldType: "text",
+        required: true,
+        stepNumber: flightField.stepNumber,
+        stepName: flightField.stepName,
+        displayOrder: flightField.displayOrder + 1,
+        placeholder: "Enter flight number",
+        validationRules: {
+          label_zh: "手动填写航班号",
+          official: true,
+          maxLength: 40,
+          helper_zh: "仅当官网航班列表中没有你的航班时填写。",
+          helper_en: "Enter this only when your flight is not available in the official list.",
+        },
+        options: null,
+        conditionalLogic: {
+          showIf: "mode_of_travel === air && flight_number === other",
+        },
+      });
+    }
+
+    if (!changed) return step;
+    return {
+      ...step,
+      fields: fields.sort((left, right) => left.displayOrder - right.displayOrder),
+    };
+  });
 }
 
 function mergeVnPrearrivalFlightPages(
@@ -2543,6 +2640,8 @@ export function DynamicStepForm({
             : options;
           if (source.endsWith(":flight")) {
             nextOptions = withVnPrearrivalOtherFlightOption(nextOptions);
+          } else if (source.endsWith(":hotel")) {
+            nextOptions = withVnPrearrivalOtherHotelOption(nextOptions);
           }
           return {
             ...current,
@@ -2579,7 +2678,11 @@ export function DynamicStepForm({
         if ((error as { name?: string }).name !== "AbortError") {
           setVnPrearrivalOptions((current) => ({
             ...current,
-            [key]: source.endsWith(":flight") ? [VN_PREARRIVAL_OTHER_FLIGHT_OPTION] : [],
+            [key]: source.endsWith(":flight")
+              ? [VN_PREARRIVAL_OTHER_FLIGHT_OPTION]
+              : source.endsWith(":hotel")
+                ? [VN_PREARRIVAL_OTHER_HOTEL_OPTION]
+                : [],
           }));
           setVnPrearrivalPagination((current) => ({
             ...current,

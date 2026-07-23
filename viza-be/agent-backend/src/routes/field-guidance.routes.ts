@@ -322,6 +322,17 @@ function findQuestionMatchingOption(
     if (optionText && evidence.includes(optionText)) {
       return option;
     }
+    for (const candidate of [option.value, option.text]) {
+      const normalizedCandidate = normalizeComparableText(candidate);
+      const administrativeCore = normalizedCandidate.replace(/[市区町村郡府県]$/u, "");
+      if (
+        /[\u3400-\u9fff]/u.test(administrativeCore) &&
+        administrativeCore.length >= 2 &&
+        evidence.includes(administrativeCore)
+      ) {
+        return option;
+      }
+    }
 
     const tokens = optionCoreTokens(option);
     if (tokens.length === 0) continue;
@@ -371,8 +382,8 @@ function optionSelectionQuestionFallback(
   const matchedOption = findQuestionMatchingOption(reqBody, field);
   if (matchedOption) {
     return locale === "zh"
-      ? `这个地址/答案最匹配当前题目的官方选项“${matchedOption.text || matchedOption.value}”（保存值：${matchedOption.value || matchedOption.text}）。建议优先选择这个选项；如果官方页面动态下拉里的文字与 VIZA 当前显示不一致，请以官方页面当前显示的 ward/commune 选项为准。`
-      : `This address or answer best matches the current field option "${matchedOption.text || matchedOption.value}" (saved value: ${matchedOption.value || matchedOption.text}). Select that option first; if the official portal's live dropdown differs from VIZA, follow the live official ward/commune option.`;
+      ? `你提供的信息最匹配当前题目的官方选项“${matchedOption.text || matchedOption.value}”（保存值：${matchedOption.value || matchedOption.text}）。请优先选择这一项；如果官方页面当前显示的选项文字不同，请以官方页面为准。`
+      : `Your information best matches the current field option "${matchedOption.text || matchedOption.value}" (saved value: ${matchedOption.value || matchedOption.text}). Select this option first; if the live official page shows different wording, follow the official page.`;
   }
 
   return locale === "zh"
@@ -1290,20 +1301,20 @@ async function generateQuestionReply(
     .filter(Boolean)
     .join("\n\n");
   const optionContext = questionOptionContext(reqBody, field);
+  const deterministicOption = findQuestionMatchingOption(reqBody, field);
   const conversation = history.map((message) => ({
     role: message.role,
     content: message.content,
   }));
 
   try {
-    const message = await client.chat.completions.create({
+    const message = await client.responses.create({
       model: OPENAI_FIELD_GUIDANCE_MODEL,
-      max_tokens: 350,
-      messages: [
-        {
-          role: "system",
-          content: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the user asks which option to choose and the field has official options, compare the user's question, current answer, and other filled answers against those exact options first. If one option clearly matches, state that option directly before explaining uncertainty. Do not answer only with generic field meaning when the user asked for an option. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. For standard identity/passport fields, the passport or official document text is the answer; never infer a passport issuing authority from the pickup city, residence city, or application country. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
-        },
+      max_output_tokens: 700,
+      reasoning: { effort: "low" },
+      text: { verbosity: "low" },
+      instructions: `You answer user questions about one visa form field. Active application scope: ${activeScopeLabel(reqBody)}. Stay strictly within this country and visa type. Do not mention DS-160, CEAC, U.S. consular forms, or U.S. visa requirements unless the active scope is U.S. DS-160/B1_B2. If the user asks which option to choose and the field has official options, compare the user's question, current answer, and other filled answers against those exact options first. If one option clearly matches, state that option directly before explaining uncertainty. Do not answer only with generic field meaning when the user asked for an option. If the source context is thin, explain the field meaning and tell the user to follow the current destination's official form and documents. For standard identity/passport fields, the passport or official document text is the answer; never infer a passport issuing authority from the pickup city, residence city, or application country. Use ${locale === "zh" ? "Simplified Chinese only, even when the source context is English, Indonesian, or another language" : "English"}. Be concise, practical, and cite uncertainty when the source context is thin. Use plain chat text only: no Markdown headings, bold, bullets, numbered lists, code formatting, or tables.`,
+      input: [
         ...conversation,
         {
           role: "user",
@@ -1313,11 +1324,22 @@ async function generateQuestionReply(
     });
 
     const reply = stripOutOfScopeFormReferences(
-      stripMarkdown(message.choices[0]?.message?.content?.trim() ?? ""),
+      stripMarkdown(message.output_text?.trim() ?? ""),
       reqBody
     );
     if (locale === "zh" && isLikelyNonChineseSentence(reply)) {
       return { reply: scopedFallback, aiUsed: false };
+    }
+    if (deterministicOption) {
+      const normalizedReply = normalizeComparableText(reply);
+      const optionMentioned = [deterministicOption.value, deterministicOption.text]
+        .map(normalizeComparableText)
+        .filter(Boolean)
+        .some((candidate) => normalizedReply.includes(candidate));
+      const contradictsMatch = /乱码|无法判断|不能判断|不能可靠|不确定|cannot determine|cannot reliably|garbled/i.test(reply);
+      if (!optionMentioned || contradictsMatch) {
+        return { reply: scopedFallback, aiUsed: false };
+      }
     }
     return { reply: reply || scopedFallback, aiUsed: Boolean(reply) };
   } catch (error) {

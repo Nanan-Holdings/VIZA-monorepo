@@ -1,9 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { getPhoneCountryCodeOptions } from "@/components/dynamic-step-form";
+import {
+  ensureVnPrearrivalOtherFlightFlow,
+  getPhoneCountryCodeOptions,
+  withVnPrearrivalOtherHotelOption,
+} from "@/components/dynamic-step-form";
 import { getVnPrearrivalAdministrativeOptions } from "@/lib/vn-prearrival/administrative-options";
 import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
+import type { WizardStep } from "@/types/visa-form-fields";
 
 describe("Vietnam pre-arrival dynamic form options", () => {
+  it("repairs stale schemas so Other flight exposes a manual number and editable airport", () => {
+    const staleSteps: WizardStep[] = [{
+      stepNumber: 2,
+      stepName: "Trip Information",
+      fields: [
+        {
+          id: "flight",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "flight_number",
+          label: "Flight Number",
+          fieldType: "select",
+          required: true,
+          stepNumber: 2,
+          stepName: "Trip Information",
+          displayOrder: 4,
+          placeholder: null,
+          validationRules: null,
+          options: null,
+          conditionalLogic: { showIf: "mode_of_travel === air" },
+        },
+        {
+          id: "airport",
+          visaType: "VN_PREARRIVAL_DECLARATION",
+          fieldName: "border_gate_airport",
+          label: "Border Gate",
+          fieldType: "select",
+          required: true,
+          stepNumber: 2,
+          stepName: "Trip Information",
+          displayOrder: 6,
+          placeholder: "Select Airport",
+          validationRules: { read_only: true },
+          options: null,
+          conditionalLogic: { showIf: "mode_of_travel === air" },
+        },
+      ],
+    }];
+
+    const [repairedStep] = ensureVnPrearrivalOtherFlightFlow(staleSteps);
+    const customFlight = repairedStep.fields.find((field) => field.fieldName === "custom_flight_number");
+    const airport = repairedStep.fields.find((field) => field.fieldName === "border_gate_airport");
+
+    expect(customFlight?.conditionalLogic).toEqual({
+      showIf: "mode_of_travel === air && flight_number === other",
+    });
+    expect(airport?.validationRules).toMatchObject({
+      locked_by: "flight_number",
+      read_only: true,
+      editable_when_value: "other",
+    });
+  });
+
   it("provides selectable phone country codes when the official category is not session-readable", () => {
     const options = getPhoneCountryCodeOptions();
 
@@ -106,10 +163,44 @@ describe("Vietnam pre-arrival dynamic form options", () => {
         expect.objectContaining({
           value: "20410",
           label_en: "Hoi An Ward",
-          label_zh: "Phường Hội An",
+          label_zh: "会安坊",
+        }),
+        expect.objectContaining({
+          value: "20285",
+          label_en: "Ngu Hanh Son Ward",
+          label_zh: "五行山坊",
+        }),
+        expect.objectContaining({
+          value: "20200",
+          label_en: "Hoa Khanh Ward",
+          label_zh: "和庆坊",
         }),
       ]),
     );
+    expect(
+      getVnPrearrivalAdministrativeOptions("level2").length,
+    ).toBe(0);
+    const allWards = [
+      "01", "04", "08", "11", "12", "14", "15", "19", "20", "22", "24",
+      "25", "31", "33", "37", "38", "40", "42", "44", "46", "48", "51",
+      "52", "56", "66", "68", "75", "79", "80", "82", "86", "91", "92",
+      "96",
+    ].flatMap((province) =>
+      getVnPrearrivalAdministrativeOptions("level2", province),
+    );
+    expect(allWards).toHaveLength(3321);
+    expect(
+      allWards.every((ward) => {
+        if (ward.label_en.endsWith(" Ward")) return ward.label_zh.endsWith("坊");
+        if (ward.label_en.endsWith(" Commune")) return ward.label_zh.endsWith("社");
+        if (ward.label_en.startsWith("Dac Khu ")) return ward.label_zh.endsWith("特区");
+        if (ward.value === "06325") return ward.label_zh.endsWith("社");
+        return false;
+      }),
+    ).toBe(true);
+    expect(
+      allWards.some((ward) => /(?:坊坊|社社|特特区|特区特区)$/u.test(ward.label_zh)),
+    ).toBe(false);
     expect(wards).not.toEqual(expect.arrayContaining([expect.objectContaining({ value: "48033" })]));
   });
 
@@ -143,5 +234,27 @@ describe("Vietnam pre-arrival dynamic form options", () => {
       }),
       expect.objectContaining({ value: "KSDN_05" }),
     ]));
+  });
+
+  it("always keeps the official Other hotel option available after remote search", () => {
+    const options = withVnPrearrivalOtherHotelOption([
+      {
+        value: "KSDN_60",
+        text: "T & D Hoi An House",
+        label_en: "T & D Hoi An House",
+        label_zh: "T&D会安之家",
+      },
+    ]);
+
+    expect(options).toEqual([
+      expect.objectContaining({ value: "KSDN_60" }),
+      expect.objectContaining({
+        value: "other",
+        label_zh: "其他",
+        label_en: "Other",
+        official_label: "Other",
+      }),
+    ]);
+    expect(withVnPrearrivalOtherHotelOption(options)).toHaveLength(2);
   });
 });

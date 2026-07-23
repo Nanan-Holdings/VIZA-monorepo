@@ -194,6 +194,23 @@ test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", as
   assert.match(result.confirmationNumber ?? "", /^DRYRUN-VNPREARRIVAL-/);
 });
 
+test("registry: Vietnam Pre-Arrival requires a manual address for the official Other hotel option", () => {
+  const application = baseApplication({
+    countryCode: "vietnam",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    answers: {
+      hotel_accommodation_address: "other",
+      custom_hotel_accommodation_address: "",
+    },
+  });
+  const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
+  assert.ok(provider);
+
+  const validation = provider.validate(application);
+  assert.equal(validation.ok, false);
+  assert.ok(validation.missingRequiredFields.includes("answers.custom_hotel_accommodation_address"));
+});
+
 test("registry: valid base profile dry-runs with a mock confirmation", async () => {
   const result = await runDryRunSubmission(baseApplication());
   assert.equal(result.status, "submitted_mock");

@@ -214,7 +214,10 @@ function cleanOptionDisplayText(text: string): string {
 
 function normalizeSearchText(value: string): string {
   return value
-    .normalize("NFKC")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/Đ/g, "D")
+    .replace(/đ/g, "d")
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
