@@ -1256,23 +1256,42 @@ async function completeEgovPermanentResidenceOnboarding(
   await page.waitForTimeout(2_000);
   text = await bodyText(page);
   if (/onboarding summary|kindly double check/i.test(text)) {
-    await clickFirstEnabledAvailable(page, [
-      page.getByRole("button", { name: /continue|next|submit|save/i }),
-      page.locator("button").filter({ hasText: /continue|next|submit|save/i }),
-    ], 60_000);
+    let leftOnboardingSummary = false;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const submitted = await clickFirstEnabledAvailable(page, [
+        page.getByRole("button", { name: /^submit$/i }),
+        page.locator("button").filter({ hasText: /^submit$/i }),
+        page.getByRole("button", { name: /continue|next|save/i }),
+      ], 60_000);
+      logs.push(`ph_etravel_egov_onboarding_summary_submit attempt=${attempt} clicked=${submitted}`);
+      if (!submitted) continue;
+      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+      leftOnboardingSummary = await page.waitForFunction(
+        () => {
+          const current = document.body?.innerText ?? "";
+          return /dashboard|new travel declaration|travel history/i.test(current)
+            && !/onboarding summary|kindly double check/i.test(current);
+        },
+        undefined,
+        { timeout: 30_000 },
+      ).then(() => true).catch(() => false);
+      text = await bodyText(page);
+      if (leftOnboardingSummary) break;
+      await page.waitForTimeout(2_000);
+    }
+    if (!leftOnboardingSummary) {
+      screenshots.push(await saveScreenshot(page, "egov-onboarding-summary-still-open", logs));
+      await saveHtmlSnapshot(page, "egov-onboarding-summary-still-open", logs);
+      throw new PhEtravelPortalError(
+        "Official eGovPH onboarding summary did not advance to the dashboard after Submit.",
+        {
+          code: "ph_etravel_egov_onboarding_summary_not_completed",
+          screenshotPaths: screenshots,
+          portalSummary: text.slice(0, 700),
+        },
+      );
+    }
     logs.push("ph_etravel_egov_onboarding_summary_submitted");
-    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForFunction(
-      () => {
-        const current = document.body?.innerText ?? "";
-        return /dashboard|new travel declaration|travel history/i.test(current)
-          || !/^loading/i.test(current.trim());
-      },
-      undefined,
-      { timeout: 20_000 },
-    ).catch(() => undefined);
-    await page.waitForTimeout(3_000);
-    text = await bodyText(page);
     logs.push("ph_etravel_egov_onboarding_residence_submitted");
     return text;
   }
