@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "about": "About",
+    "contact": "Contact",
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "badge": "Now Live",
+    "title": "Visa Applications, Simplified",
+    "subtitle": "VIZA helps you manage your visa application process with ease, saving time and reducing stress",
+    "cta": "Start for Free",
+    "ctaSecondary": "Learn More"
+  },
+  "features": {
+    "title": "Why Choose VIZA",
+    "subtitle": "We provide a comprehensive visa application management solution",
+    "items": {
+      "fast": { "title": "Fast & Efficient", "desc": "Automated processes make applications 10x faster" },
+      "secure": { "title": "Secure & Reliable", "desc": "Bank-level encryption protects your privacy" },
+      "smart": { "title": "Smart Reminders", "desc": "Automatically track progress and send important notifications" },
+      "global": { "title": "Global Coverage", "desc": "Supports visa applications for 190+ countries and regions" }
+    }
+  },
+  "pricing": {
+    "title": "Simple, Transparent Pricing",
+    "subtitle": "No hidden fees. Choose the plan that works for you",
+    "monthly": "Monthly",
+    "annual": "Annual",
+    "save": "Save 20%",
+    "plans": {
+      "starter": { "name": "Starter", "price": "Free", "desc": "Perfect for individuals", "cta": "Start for Free" },
+      "pro": { "name": "Pro", "price": "$14", "desc": "Perfect for small teams", "cta": "Start Trial" },
+      "enterprise": { "name": "Enterprise", "price": "Contact Us", "desc": "Perfect for large organizations", "cta": "Contact Sales" }
+    }
+  },
+  "footer": {
+    "rights": "All rights reserved",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  }
+}
