@@ -1690,6 +1690,43 @@ link. Guest rails set it `true`; authenticated rails leave it `false`.
 - DB: migration `viza-be/agent-backend/drizzle/0086_wechat_pay.sql` adds `wechat_out_trade_no`, `wechat_prepay_id`, `wechat_transaction_id`, `wechat_payer_openid` to `order`.
 - Env vars: `WECHAT_PAY_MCH_ID`, `WECHAT_PAY_APP_ID`, `WECHAT_PAY_API_V3_KEY`, `WECHAT_PAY_MERCHANT_SERIAL_NO`, `WECHAT_PAY_PRIVATE_KEY`, `WECHAT_PAY_NOTIFY_URL`, optional `WECHAT_PAY_PLATFORM_CERT_CACHE_TTL_S` (default 3600s).
 
+### PhotonPay Cashier v5 (光子易 收单) — card gateway, alternative to Stripe
+- **Opt-in replacement for the guest card rail.** When `PHOTONPAY_ENABLED` is truthy,
+  `app/actions/card-checkout.ts` mints a PhotonPay hosted cashier session
+  instead of a Stripe Checkout session. Everything before that — profile upsert,
+  application draft, `pending` order with `guest_checkout=true`, prefill — is
+  shared with the Stripe path. Default is OFF; Stripe remains the default rail.
+- Client: `lib/photonpay/client.ts` — token cache with in-flight de-duplication,
+  `X-PD-SIGN` = base64(MD5withRSA(rawBody)) request signing, webhook signature
+  verification. No SDK, just `node:crypto` + `fetch`, mirroring
+  `lib/wechatpay/client.ts`. Signing is pinned to PhotonPay's published worked
+  example in `lib/photonpay/client.test.ts`.
+- Order correlation: `lib/photonpay/reqid.ts` encodes the order id into the
+  merchant `reqId` (`<orderId>~<nonce>`) and decodes it in the webhook — no
+  schema change, the same trick WeChat avoids by having a dedicated column. The
+  encoding **must stay reversible**; a lossy one silently acks paid orders
+  without marking them paid.
+- Webhook: `app/api/webhooks/photonpay/route.ts` — verifies `x-pd-sign`, marks
+  the order `paid` + `paid_at`, records the settlement ids under
+  `order.metadata.photonpay`, then calls the shared
+  `runPostPaidSideEffects(orderId, "photonpay")`. Replies the exact
+  `{"roger": true}` PhotonPay requires; **8 consecutive non-conforming replies
+  disable every webhook topic on the account**, so it acks anything it has
+  finished with and only returns non-2xx when a retry could still succeed.
+- **Deployment constraint:** PhotonPay enforces a merchant IP allowlist on every
+  OpenAPI call (a non-allowlisted caller gets `HTTP 200 {"code":"403"}`).
+  Vercel has no static egress IP, so the OUTBOUND cashier-session call cannot
+  run from a Vercel function — it needs a static-IP host on the allowlist. The
+  webhook direction is unaffected (inbound + local crypto).
+- Env vars: `PHOTONPAY_ENABLED`, `PHOTONPAY_BASE_URL` (**required when enabled —
+  no production default, on purpose**), `PHOTONPAY_APP_ID`,
+  `PHOTONPAY_APP_SECRET`, `PHOTONPAY_PRIVATE_KEY(_PATH)`,
+  `PHOTONPAY_PLATFORM_PUBLIC_KEY(_PATH)`, `PHOTONPAY_SITE_ID`,
+  optional `PHOTONPAY_NOTIFY_URL`.
+- Issuing (发卡, the other half of the PhotonPay relationship) lives in
+  `viza-be/submission-service` — see `docs/photonpay-issuing-integration.md`
+  there. Separate concern, same vendor and signing scheme.
+
 ---
 
 ## 🎯 Quick Reference
