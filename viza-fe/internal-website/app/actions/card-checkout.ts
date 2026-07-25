@@ -288,9 +288,34 @@ export async function startCardCheckout(
       if (!session.payRedirectUrl) {
         throw new Error("PhotonPay did not return a hosted checkout URL");
       }
+      // Persist the session the way the Stripe branch persists its session id.
+      // `order` has no PhotonPay columns, so this goes in the generic metadata
+      // jsonb — without it, a payment whose webhook never arrives cannot be
+      // reconciled back to this order. Merge rather than overwrite: the order
+      // row is reused across checkout attempts.
+      const { data: existing } = await admin
+        .from("order")
+        .select("metadata")
+        .eq("id", orderId)
+        .maybeSingle();
+      const existingMetadata =
+        existing?.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata)
+          ? (existing.metadata as Record<string, unknown>)
+          : {};
       await admin
         .from("order")
-        .update({ updated_at: new Date().toISOString() })
+        .update({
+          metadata: {
+            ...existingMetadata,
+            photonpay: {
+              reqId,
+              payId: session.payId ?? null,
+              payMethod: session.payMethod ?? null,
+              sessionCreatedAt: new Date().toISOString(),
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", orderId);
       return {
         orderId,
