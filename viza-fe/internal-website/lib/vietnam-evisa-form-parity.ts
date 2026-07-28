@@ -677,6 +677,8 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
           return mergeRules(patchedField, {
             min_days_after_field: "visa_valid_from",
             min_days_after_field_days: 1,
+            helper_zh: "结束日期必须至少晚于开始日期 1 天。",
+            helper_en: "The end date must be at least 1 day after the start date.",
           });
         }
         if (patchedField.fieldName === "passport_expiry_date") {

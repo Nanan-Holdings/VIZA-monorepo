@@ -52,6 +52,7 @@ describe("augmentVietnamEVisaOfficialParitySteps", () => {
 
     expect(validTo?.validationRules?.min_days_after_field).toBe("visa_valid_from");
     expect(validTo?.validationRules?.min_days_after_field_days).toBe(1);
+    expect(validTo?.validationRules?.helper_zh).toBe("结束日期必须至少晚于开始日期 1 天。");
   });
 
   it("inserts missing relatives fields immediately after the relatives yes/no question", () => {
