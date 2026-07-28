@@ -73,6 +73,10 @@ import {
 import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
 import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
 import {
+  attemptStaleServerActionReload,
+  isStaleServerActionError,
+} from "@/lib/server-action-recovery";
+import {
   buildApplicationStepSections,
   getDynamicStepTranslationCandidates,
   type ApplicationStepSection,
@@ -1594,6 +1598,16 @@ function applyCountrySpecificUniversalProfileAnswers(input: {
   };
 }
 
+function recoverOrFormatServerActionError(
+  error: unknown,
+  fallbackMessage: string,
+  stalePageMessage: string,
+): string | null {
+  if (attemptStaleServerActionReload(error)) return null;
+  if (isStaleServerActionError(error)) return stalePageMessage;
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
 type LoadedApplication = {
   id?: string | null;
   country?: string | null;
@@ -1641,7 +1655,10 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const packagePromise = getUserVisaPackage().catch(() => null);
+    const packagePromise = getUserVisaPackage().catch((error) => {
+      attemptStaleServerActionReload(error);
+      return null;
+    });
     void packagePromise.then((pkg) => {
       if (!cancelled && pkg) setVisaPackage(pkg);
     });
@@ -1671,7 +1688,8 @@ export default function ApplicationPage() {
           setDbSteps(ensureVnPrearrivalOtherFlightFlow(steps));
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        attemptStaleServerActionReload(error);
         // Silent fallback to hardcoded steps
       })
       .finally(() => {
@@ -2272,7 +2290,12 @@ export default function ApplicationPage() {
       }
     } catch (err) {
       console.error("Failed to load application data", err);
-      setError(err instanceof Error ? err.message : t("errors.noApplicationFound"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.noApplicationFound"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setLoading(false);
     }
@@ -2441,7 +2464,12 @@ export default function ApplicationPage() {
       await saveDynamicDraftForStep(currentStep);
       setCurrentStep(targetStepId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       navigationSaveInFlightRef.current = false;
       setSaving(false);
@@ -2491,7 +2519,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, 1));
       setCurrentStep(1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2532,7 +2565,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, 2));
       setCurrentStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2569,7 +2607,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, 3));
       setCurrentStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2608,7 +2651,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, currentStepPosition + 1));
       setCurrentStep(nextStepId ?? stepIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2670,7 +2718,12 @@ export default function ApplicationPage() {
 
       returnToTeam();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2729,7 +2782,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
       setCurrentStep(targetStatusStepIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2924,7 +2982,13 @@ export default function ApplicationPage() {
         }));
       }
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
-      setError(submissionError.message);
+      const message = recoverOrFormatServerActionError(
+        submissionError,
+        t("errors.failedToSubmit"),
+        t("errors.stalePage"),
+      );
+      if (!message) return;
+      setError(message);
       throw submissionError;
     } finally {
       setSaving(false);
@@ -3011,7 +3075,13 @@ export default function ApplicationPage() {
       setCurrentStep(fallbackStatusStepIndex);
     } catch (err) {
       const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
-      setError(submissionError.message);
+      const message = recoverOrFormatServerActionError(
+        submissionError,
+        t("errors.failedToSubmit"),
+        t("errors.stalePage"),
+      );
+      if (!message) return;
+      setError(message);
       throw submissionError;
     } finally {
       setSaving(false);
@@ -3082,7 +3152,12 @@ export default function ApplicationPage() {
       .catch((err) => {
         if (!cancelled) {
           setDocumentCenterData(null);
-          setDocumentCenterError(err instanceof Error ? err.message : t("errors.failedToSave"));
+          const message = recoverOrFormatServerActionError(
+            err,
+            t("errors.failedToSave"),
+            t("errors.stalePage"),
+          );
+          if (message) setDocumentCenterError(message);
           setDocumentCenterLoaded(true);
         }
       });

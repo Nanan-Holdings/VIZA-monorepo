@@ -69,6 +69,10 @@ filling and one-shot submission for the applicant.
   `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
   claimed/running jobs are reused, and stale jobs for only that application
   are superseded before a replacement is inserted.
+- Generic retry enqueue operations use migration
+  `0119_submission_retry_queue_isolation.sql`: supersede-and-insert is one
+  transaction, one application has at most one active browser job, and
+  different application IDs remain independent queue items.
 - Cloud worker topology: `RUNNER_JOB_COUNTRY` scopes a Fly worker to one
   `runner_job` country bucket, while `SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED`
   must remain false there. Only the dedicated legacy worker may poll

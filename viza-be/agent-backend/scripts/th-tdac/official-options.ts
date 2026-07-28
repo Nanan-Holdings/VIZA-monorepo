@@ -1,4 +1,14 @@
-import { TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_GENERATED } from "./tdac-residence-regions.generated";
+import {
+  TDAC_OFFICIAL_BOARDED_COUNTRY_ENTRIES,
+  TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE,
+  TDAC_OFFICIAL_NATIONALITY_ENTRIES,
+  TDAC_OFFICIAL_PROVINCE_LABELS,
+  TDAC_OFFICIAL_RESIDENCE_COUNTRY_ENTRIES,
+  TDAC_OFFICIAL_RESIDENCE_REGIONS_BY_COUNTRY,
+  TDAC_OFFICIAL_SUBDISTRICTS_BY_PROVINCE_DISTRICT,
+  TDAC_OFFICIAL_VISITED_COUNTRY_ENTRIES,
+  type TdacOfficialCountryEntry,
+} from "./tdac-official-dropdowns.generated";
 
 export interface TdacOption {
   value: string;
@@ -75,18 +85,18 @@ export const TDAC_YES_NO_OPTIONS = [
 ];
 
 export const TDAC_HEALTH_SYMPTOM_OPTIONS = [
-  option("diarrhea", "腹泻", "DIARRHEA"),
-  option("fever", "发烧", "FEVER"),
-  option("sore_throat", "喉咙痛", "SORE THROAT"),
-  option("enlarged_lymph_glands", "淋巴结肿大或有压痛肿块", "ENLARGE LYMPH GLANDS OR TENDER LUMPS"),
-  option("vomiting", "呕吐", "VOMITING"),
-  option("rash", "皮疹", "RASH"),
-  option("jaundice", "黄疸", "JAUNDICE"),
-  option("abdominal_pain", "腹痛", "ABDOMINAL PAIN"),
-  option("headache", "头痛", "HEADACHE"),
-  option("cough_shortness_of_breath", "咳嗽或呼吸急促", "COUGH OR SHORTNESS OF BREATH"),
-  option("other", "其他（请说明）", "OTHER (PLEASE SPECIFY)"),
-  option("no_symptom", "无症状", "NO SYMPTOM"),
+  option("diarrhea", "腹泻", "DIARRHEA", "Diarrhea"),
+  option("vomiting", "呕吐", "VOMITING", "Vomiting"),
+  option("abdominal_pain", "腹痛", "ABDOMINAL PAIN", "Abdominal pain"),
+  option("fever", "发烧", "FEVER", "Fever"),
+  option("rash", "皮疹", "RASH", "Rash"),
+  option("headache", "头痛", "HEADACHE", "Headache"),
+  option("sore_throat", "喉咙痛", "SORE THROAT", "Sore throat"),
+  option("jaundice", "黄疸", "JAUNDICE", "Jaundice"),
+  option("cough_shortness_of_breath", "咳嗽或呼吸急促", "COUGH OR SHORTNESS OF BREATH", "Cough or shortness of breath"),
+  option("enlarged_lymph_glands", "淋巴结肿大或有压痛肿块", "ENLARGE LYMPH GLANDS OR TENDER LUMPS", "Enlarge lymph glands or tender lumps"),
+  option("no_symptom", "无症状", "NO SYMPTOM", "No Symptom"),
+  option("other", "其他（请说明）", "OTHER (PLEASE SPECIFY)", "Other (Please Specify)"),
 ];
 
 const regionDisplayNames = {
@@ -96,11 +106,10 @@ const regionDisplayNames = {
 
 const countryLabel = (locale: "zh" | "en", alpha2: string): string => regionDisplayNames[locale].of(alpha2) ?? alpha2;
 
-const countryOption = ([alpha3, alpha2]: readonly [string, string]): TdacOption => {
-  const labelEn = `${alpha3} : ${countryLabel("en", alpha2).toUpperCase()}`;
-  return option(alpha3, countryLabel("zh", alpha2), labelEn, labelEn);
-};
-
+/**
+ * ISO alpha-3/alpha-2 pairs are retained only for localized display labels.
+ * They are not the official TDAC option inventory.
+ */
 export const TDAC_COUNTRY_CODE_PAIRS = `
 ABW:AW AFG:AF AGO:AO AIA:AI ALA:AX ALB:AL AND:AD ARE:AE ARG:AR ARM:AM ASM:AS ATA:AQ ATF:TF ATG:AG AUS:AU AUT:AT AZE:AZ
 BDI:BI BEL:BE BEN:BJ BES:BQ BFA:BF BGD:BD BGR:BG BHR:BH BHS:BS BIH:BA BLM:BL BLR:BY BLZ:BZ BMU:BM BOL:BO BRA:BR BRB:BB BRN:BN BTN:BT BVT:BV BWA:BW
@@ -122,7 +131,41 @@ UGA:UG UKR:UA UMI:UM URY:UY USA:US UZB:UZ VAT:VA VCT:VC VEN:VE VGB:VG VIR:VI VNM
     return [alpha3, alpha2];
   });
 
-export const TDAC_COUNTRY_OPTIONS = TDAC_COUNTRY_CODE_PAIRS.map(countryOption);
+const tdacAlpha2ByAlpha3 = new Map(TDAC_COUNTRY_CODE_PAIRS);
+
+const TDAC_SPECIAL_COUNTRY_LABELS_ZH: Record<string, string> = {
+  ANT: "荷属安的列斯",
+  GBN: "英国国民（海外）",
+  N02: "几内亚共和国",
+  PCI: "太平洋群岛托管地",
+  RKS: "科索沃共和国",
+  SCT: "苏格兰",
+  UNO: "联合国",
+  XKX: "科索沃",
+  XXA: "无国籍",
+  XXB: "难民（1951 年公约）",
+  XXC: "难民（其他）",
+  XXX: "未知",
+};
+
+const officialCountryOption = (entry: TdacOfficialCountryEntry): TdacOption => {
+  const officialLabel = `${entry.code} : ${entry.label}`;
+  const alpha2 = tdacAlpha2ByAlpha3.get(entry.code);
+  const labelZh = TDAC_SPECIAL_COUNTRY_LABELS_ZH[entry.code] ??
+    (alpha2 ? countryLabel("zh", alpha2) : entry.label);
+  return option(entry.code, labelZh, officialLabel, officialLabel);
+};
+
+export const TDAC_NATIONALITY_OPTIONS = TDAC_OFFICIAL_NATIONALITY_ENTRIES.map(officialCountryOption);
+export const TDAC_BOARDED_COUNTRY_OPTIONS = TDAC_OFFICIAL_BOARDED_COUNTRY_ENTRIES.map(officialCountryOption);
+export const TDAC_RESIDENCE_COUNTRY_OPTIONS = TDAC_OFFICIAL_RESIDENCE_COUNTRY_ENTRIES.map(officialCountryOption);
+export const TDAC_VISITED_COUNTRY_OPTIONS = TDAC_OFFICIAL_VISITED_COUNTRY_ENTRIES.map(officialCountryOption);
+
+/**
+ * Backward-compatible export for code that previously treated every TDAC
+ * country field as one list. New form fields must use the field-specific list.
+ */
+export const TDAC_COUNTRY_OPTIONS = TDAC_BOARDED_COUNTRY_OPTIONS;
 
 /**
  * Thailand Ministry of Public Health yellow-fever infected-zone list.
@@ -185,7 +228,7 @@ export type TdacCountryHealthRule = {
  * country has one rule so additions to the official option list cannot fall
  * through an implicit or unknown branch.
  */
-export const TDAC_COUNTRY_HEALTH_RULES: TdacCountryHealthRule[] = TDAC_COUNTRY_OPTIONS.map((country) => ({
+export const TDAC_COUNTRY_HEALTH_RULES: TdacCountryHealthRule[] = TDAC_VISITED_COUNTRY_OPTIONS.map((country) => ({
   countryCode: country.value,
   additionalQuestions: tdacYellowFeverCountryCodeSet.has(country.value) ? "yellow_fever" : "none",
 }));
@@ -198,7 +241,7 @@ export const TDAC_YELLOW_FEVER_SHOW_IF = [
   `nationality in [${yellowFeverCountryListExpression}]`,
 ].join(" || ");
 
-export const TDAC_PROVINCE_OPTIONS = [
+const TDAC_PROVINCE_TRANSLATION_OPTIONS = [
   option("amnat_charoen", "安纳乍能府", "AMNAT CHAROEN"),
   option("ang_thong", "红统府", "ANG THONG"),
   option("bangkok", "曼谷", "BANGKOK"),
@@ -237,7 +280,7 @@ export const TDAC_PROVINCE_OPTIONS = [
   option("nonthaburi", "暖武里府", "NONTHABURI"),
   option("pathum_thani", "巴吞他尼府", "PATHUM THANI"),
   option("pattani", "北大年府", "PATTANI"),
-  option("phangnga", "攀牙府", "PHANGNGA"),
+  option("phang_nga", "攀牙府", "PHANG NGA"),
   option("phatthalung", "博他仑府", "PHATTHALUNG"),
   option("phayao", "帕尧府", "PHAYAO"),
   option("phetchabun", "碧差汶府", "PHETCHABUN"),
@@ -277,6 +320,22 @@ export const TDAC_PROVINCE_OPTIONS = [
   option("yala", "也拉府", "YALA"),
   option("yasothon", "益梭通府", "YASOTHON"),
 ];
+
+const tdacProvinceTranslationZh = new Map(
+  TDAC_PROVINCE_TRANSLATION_OPTIONS.map((item) => [item.official_label.toUpperCase(), item.label_zh]),
+);
+
+export const TDAC_PROVINCE_OPTIONS = TDAC_OFFICIAL_PROVINCE_LABELS.map((label) =>
+  option(
+    label
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, ""),
+    tdacProvinceTranslationZh.get(label.toUpperCase()) ?? label,
+    label,
+    label,
+  ));
 
 const residenceRegion = (labelEn: string, labelZh = labelEn): TdacOption => option(labelEn, labelZh, labelEn, labelEn);
 
@@ -399,12 +458,36 @@ const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL: Record<string, TdacOption
   ],
 };
 
-export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption[]> = {
-  ...TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_GENERATED,
-  ...TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL,
-};
+const tdacOptionKey = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 
-export const TDAC_DISTRICT_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
+const tdacResidenceRegionTranslationZh = new Map<string, string>();
+for (const [countryCode, options] of Object.entries(TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY_MANUAL)) {
+  for (const item of options) {
+    tdacResidenceRegionTranslationZh.set(`${countryCode}:${item.official_label.toUpperCase()}`, item.label_zh);
+  }
+}
+
+export const TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY: Record<string, TdacOption[]> = Object.fromEntries(
+  Object.entries(TDAC_OFFICIAL_RESIDENCE_REGIONS_BY_COUNTRY).map(([countryCode, labels]) => [
+    countryCode,
+    labels.map((label) =>
+      option(
+        tdacOptionKey(label),
+        tdacResidenceRegionTranslationZh.get(`${countryCode}:${label.toUpperCase()}`) ?? label,
+        label,
+        label,
+      )),
+  ]),
+);
+
+const TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
   amnat_charoen: [option("mueang_amnat_charoen", "安纳乍能府直辖县", "MUEANG AMNAT CHAROEN")],
   bangkok: [
     option("pathum_wan", "巴吞旺区", "PATHUM WAN"),
@@ -419,7 +502,7 @@ export const TDAC_DISTRICT_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = {
   surat_thani: [option("ko_samui", "苏梅岛县", "KO SAMUI"), option("mueang_surat_thani", "素叻他尼府直辖县", "MUEANG SURAT THANI")],
 };
 
-export const TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {
+const TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {
   mueang_amnat_charoen: [option("non_pho", "农坡", "NON PHO")],
   pathum_wan: [option("lumphini", "伦披尼", "LUMPHINI"), option("rong_mueang", "荣孟", "RONG MUEANG")],
   khlong_toei: [option("khlong_toei", "空堤", "KHLONG TOEI")],
@@ -435,3 +518,71 @@ export const TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> 
   ko_samui: [option("bo_phut", "波卜", "BO PHUT")],
   mueang_surat_thani: [option("talat", "达叻", "TALAT")],
 };
+
+const tdacDistrictTranslationZh = new Map<string, string>();
+for (const options of Object.values(TDAC_DISTRICT_TRANSLATION_OPTIONS_BY_PROVINCE)) {
+  for (const item of options) {
+    tdacDistrictTranslationZh.set(item.official_label.toUpperCase(), item.label_zh);
+  }
+}
+
+const tdacSubdistrictTranslationZh = new Map<string, string>();
+for (const options of Object.values(TDAC_SUBDISTRICT_TRANSLATION_OPTIONS_BY_DISTRICT)) {
+  for (const item of options) {
+    tdacSubdistrictTranslationZh.set(item.official_label.toUpperCase(), item.label_zh);
+  }
+}
+
+const tdacDistrictValue = (
+  province: string,
+  district: { label: string; postcode?: string },
+  duplicateLabels: Set<string>,
+): string => [
+  tdacOptionKey(province),
+  tdacOptionKey(district.label),
+  ...(duplicateLabels.has(district.label.toUpperCase()) ? [district.postcode ?? "no_postcode"] : []),
+].join("|");
+
+export const TDAC_DISTRICT_OPTIONS_BY_PROVINCE: Record<string, TdacOption[]> = Object.fromEntries(
+  Object.entries(TDAC_OFFICIAL_DISTRICTS_BY_PROVINCE).map(([province, districts]) => {
+    const labelCounts = new Map<string, number>();
+    for (const district of districts) {
+      const label = district.label.toUpperCase();
+      labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+    }
+    const duplicateLabels = new Set(
+      [...labelCounts.entries()].filter(([, count]) => count > 1).map(([label]) => label),
+    );
+    return [
+      tdacOptionKey(province),
+      districts.map((district) =>
+        option(
+          tdacDistrictValue(province, district, duplicateLabels),
+          tdacDistrictTranslationZh.get(district.label.toUpperCase()) ?? district.label,
+          duplicateLabels.has(district.label.toUpperCase()) && district.postcode
+            ? `${district.label} (${district.postcode})`
+            : district.label,
+          district.label,
+        )),
+    ];
+  }),
+);
+
+export const TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT: Record<string, TdacOption[]> = {};
+for (const [provinceDistrict, subdistricts] of Object.entries(
+  TDAC_OFFICIAL_SUBDISTRICTS_BY_PROVINCE_DISTRICT,
+)) {
+  const [province = "", district = "", postcode] = provinceDistrict.split("::");
+  const districtValue = [
+    tdacOptionKey(province),
+    tdacOptionKey(district),
+    ...(postcode ? [postcode] : []),
+  ].join("|");
+  TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT[districtValue] = subdistricts.map((subdistrict) =>
+    option(
+      `${districtValue}|${tdacOptionKey(subdistrict)}`,
+      tdacSubdistrictTranslationZh.get(subdistrict.toUpperCase()) ?? subdistrict,
+      subdistrict,
+      subdistrict,
+    ));
+}

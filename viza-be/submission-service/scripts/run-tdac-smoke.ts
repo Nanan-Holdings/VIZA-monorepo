@@ -1,5 +1,7 @@
 #!/usr/bin/env npx tsx
 import "dotenv/config";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { runTdacPortalSubmission } from "../src/tdac/runner";
 import type { TdacPortalPayload } from "../src/tdac/normalize";
 
@@ -18,6 +20,27 @@ const stopBeforeSubmit = !process.argv.includes("--submit");
 const transit = process.argv.includes("--transit");
 const arrivalDate = isoDatePlus(2);
 const yellowFeverAnswer = argumentValue("yellow-fever-certificate");
+const auditApiPath = argumentValue("audit-api");
+const resumeAudit = process.argv.includes("--audit-resume");
+const completedAuditLabels = new Set<string>();
+if (auditApiPath) {
+  const resolvedAuditPath = resolve(auditApiPath);
+  mkdirSync(dirname(resolvedAuditPath), { recursive: true });
+  if (resumeAudit && existsSync(resolvedAuditPath)) {
+    for (const line of readFileSync(resolvedAuditPath, "utf8").split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const record = JSON.parse(line) as { url?: unknown };
+      if (typeof record.url !== "string") continue;
+      const marker = "#audit=";
+      const markerIndex = record.url.indexOf(marker);
+      if (markerIndex >= 0) {
+        completedAuditLabels.add(decodeURIComponent(record.url.slice(markerIndex + marker.length)));
+      }
+    }
+  } else {
+    writeFileSync(resolvedAuditPath, "", "utf8");
+  }
+}
 
 const payload: TdacPortalPayload = {
   applicationId: "tdac-smoke",
@@ -71,6 +94,13 @@ async function main(): Promise<void> {
   const result = await runTdacPortalSubmission(payload, {
     stopBeforeSubmit,
     headless: process.env.TDAC_PLAYWRIGHT_HEADLESS !== "false",
+    auditFullOfficialDropdowns: Boolean(auditApiPath),
+    officialDropdownAuditSkipLabels: completedAuditLabels,
+    onInitialOfficialApiResponse: auditApiPath
+      ? (response) => {
+          appendFileSync(resolve(auditApiPath), `${JSON.stringify(response)}\n`, "utf8");
+        }
+      : undefined,
   });
   console.log(JSON.stringify(result, null, 2));
 }
