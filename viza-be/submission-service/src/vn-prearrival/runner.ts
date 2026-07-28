@@ -25,7 +25,12 @@ import {
   type VnPrearrivalEmailVerificationState,
 } from "./email-verification";
 import { solveVietnamImageCaptcha } from "../vietnam/captcha";
-import { inbox, type InboundMessage } from "../inbox/wait-for-message";
+import {
+  InboxDomainUnroutableError,
+  InboxTimeoutError,
+  inbox,
+  type InboundMessage,
+} from "../inbox/wait-for-message";
 
 export interface VnPrearrivalPortalSubmissionResult {
   submitted: boolean;
@@ -572,16 +577,54 @@ async function handleEmailVerification(
 
   logs.push("vn_prearrival_otp_wait_started");
   const timeoutMs = Number.parseInt(process.env.VN_PREARRIVAL_OTP_TIMEOUT_MS ?? "300000", 10);
-  const message = await inbox.waitForMessage(
-    applicantId,
-    (candidate) => {
-      const content = [candidate.subject ?? "", candidate.text ?? "", candidate.html ?? ""].join("\n");
-      return /verification|verify|one[- ]?time|otp|6-digit|pre-arrival/i.test(content)
-        && extractSixDigitCode(candidate) !== null;
-    },
-    timeoutMs,
-    { since: requestedAfter, pollIntervalMs: 3_000 },
-  );
+  let message: InboundMessage;
+  try {
+    message = await inbox.waitForMessage(
+      applicantId,
+      (candidate) => {
+        const content = [candidate.subject ?? "", candidate.text ?? "", candidate.html ?? ""].join("\n");
+        return /verification|verify|one[- ]?time|otp|6-digit|pre-arrival/i.test(content)
+          && extractSixDigitCode(candidate) !== null;
+      },
+      timeoutMs,
+      { since: requestedAfter, pollIntervalMs: 3_000 },
+    );
+  } catch (error) {
+    if (error instanceof InboxDomainUnroutableError) {
+      logs.push("vn_prearrival_otp_inbox_unroutable");
+      const routingScreenshot = await saveScreenshot(
+        page,
+        tempDir,
+        "email-verification-inbox-unroutable",
+        logs,
+      );
+      if (routingScreenshot) screenshots.push(routingScreenshot);
+      throw new VnPrearrivalPortalError(
+        "Vietnam Pre-Arrival verification email cannot be delivered because the managed inbox domain is not routable.",
+        "vn_prearrival_otp_inbox_unroutable",
+        "The managed inbox domain has no usable MX record. The saved application can be retried after inbox routing is restored.",
+        screenshots,
+        logs,
+      );
+    }
+    if (!(error instanceof InboxTimeoutError)) throw error;
+
+    logs.push("vn_prearrival_otp_delivery_timeout");
+    const timeoutScreenshot = await saveScreenshot(
+      page,
+      tempDir,
+      "email-verification-delivery-timeout",
+      logs,
+    );
+    if (timeoutScreenshot) screenshots.push(timeoutScreenshot);
+    throw new VnPrearrivalPortalError(
+      "Vietnam Pre-Arrival verification email was not delivered to the managed inbox before the timeout.",
+      "vn_prearrival_otp_delivery_timeout",
+      "The official portal requested email verification, but no matching verification email reached the managed inbox. The saved application can be retried after inbox routing is restored.",
+      screenshots,
+      logs,
+    );
+  }
   const code = extractSixDigitCode(message);
   if (!code || !(await fillEmailVerificationCode(page, code))) {
     throw new VnPrearrivalPortalError(

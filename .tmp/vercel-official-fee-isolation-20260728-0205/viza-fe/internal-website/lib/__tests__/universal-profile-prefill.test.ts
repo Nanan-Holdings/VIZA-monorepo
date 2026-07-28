@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildMalaysiaMdacUniversalProfileAnswerPatch,
+  buildUniversalProfileAnswerPatch,
+} from "@/lib/universal-profile-prefill";
+
+describe("universal profile prefill", () => {
+  it("maps reusable profile fields to creation-time application answers", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      full_name_zh: "李晓明",
+      full_name_en: "Xiaoming Li",
+      surname_zh: "李",
+      surname_en: "Li",
+      given_names_zh: "晓明",
+      given_names_en: "Xiaoming",
+      date_of_birth: "1998-03-15",
+      birth_country: "China",
+      birth_province_or_state_zh: "湖南",
+      birth_province_or_state_en: "Hunan",
+      birth_city_zh: "长沙",
+      birth_city_en: "Changsha",
+      gender: "male",
+      nationality: "China",
+      passport_number: "E12345678",
+      passport_issue_date: "2024-01-01",
+      passport_expiry_date: "2034-01-01",
+      passport_issuing_country: "China",
+      phone: "+86 13312345678",
+      email: "xiaoming.li@example.com",
+    });
+
+    expect(patch).toMatchObject({
+      full_name: "Xiaoming Li",
+      full_name_zh: "李晓明",
+      full_name_en: "Xiaoming Li",
+      surname: "Li",
+      surname_zh: "李",
+      surname_en: "Li",
+      given_names: "Xiaoming",
+      given_names_zh: "晓明",
+      given_names_en: "Xiaoming",
+      date_of_birth: "1998-03-15",
+      birth_city: "Changsha",
+      birth_city_zh: "长沙",
+      birth_city_en: "Changsha",
+      birth_province: "Hunan",
+      birth_province_zh: "湖南",
+      birth_province_en: "Hunan",
+      country_of_birth: "China",
+      sex: "male",
+      nationality_country: "China",
+      city_state_of_residence: "Hunan",
+      city_state_of_residence_zh: "湖南",
+      city_state_of_residence_en: "Hunan",
+      passport_number: "E12345678",
+      passport_issuance_date: "2024-01-01",
+      passport_expiration_date: "2034-01-01",
+      passport_issuing_country: "China",
+      phone: "+86 13312345678",
+      email: "xiaoming.li@example.com",
+    });
+  });
+
+  it("does not emit empty answers for blank profile fields", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      surname: " ",
+      given_names: "",
+      passport_number: null,
+      email: undefined,
+    });
+
+    expect(patch).toEqual({});
+  });
+
+  it("repairs Chinese text accidentally stored in official English name columns", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      full_name_zh: "黄小敏",
+      full_name_en: "黄小敏",
+      surname_zh: "黄",
+      surname_en: "黄",
+      given_names_zh: "小敏",
+      given_names_en: "小敏",
+    });
+
+    expect(patch).toMatchObject({
+      full_name: "XIAOMIN HUANG",
+      full_name_zh: "黄小敏",
+      full_name_en: "XIAOMIN HUANG",
+      surname: "HUANG",
+      surname_en: "HUANG",
+      given_names: "XIAOMIN",
+      given_names_en: "XIAOMIN",
+    });
+  });
+
+  it("maps MDAC place of birth to the official alpha-3 birth country value", () => {
+    const patch = buildMalaysiaMdacUniversalProfileAnswerPatch({
+      birth_country: "China",
+      birth_city_en: "Changsha",
+      place_of_birth: "China | Hunan | Changsha",
+    });
+
+    expect(patch).toEqual({
+      place_of_birth: "CHN",
+    });
+  });
+
+  it("maps reusable residence details to TDAC residence fields", () => {
+    const patch = buildUniversalProfileAnswerPatch({
+      nationality: "China",
+      birth_province_or_state_zh: "湖南",
+      birth_province_or_state_en: "Hunan",
+    });
+
+    expect(patch).toMatchObject({
+      city_state_of_residence: "Hunan",
+      city_state_of_residence_zh: "湖南",
+      city_state_of_residence_en: "Hunan",
+    });
+  });
+});
