@@ -82,6 +82,19 @@
 3. **账号模型**:第3.5节提到的"全局共享一个 eTravel 账号密码去提交所有申请人的申报"这个假设,是要继续沿用、改成每个申请人各自的账号、还是有其他官网支持的模式(比如"For someone else"免登录直接填的可能性,这个我没有登录验证过是否存在)?
 4. 上面 3 点一旦定下来,真正要写的东西会涉及新建 `viza-be/submission-service/src/ph-etravel/{selectors,page-bindings,fillers,apply}.ts`(照抄台湾模式)、给 `document_requirements` 加菲律宾照片上传的种子数据(DB 改动)、以及可能同步改 `viza-fe` 那边的 wizard 字段(跨包改动)——按你的规则,这些我会先出一份具体方案给你确认,这份报告本身不包含任何这类改动。
 
+## 5.5 登录后现场核对(你登录、我只读 DOM,没有输入你的账号密码)——第一页「Onboarding - Personal Information」
+
+你登录后停在 `https://etravel.gov.ph/en/onboarding-wizard?wizard_page=0`,我在这一页用 `javascript_tool` 直接读了真实 DOM(`querySelectorAll('input,select,textarea')` 拿每个控件的 `name`/`id`/`type`),以下是这一页确认的真实结构,**部分修正了第 3 节纯读 JS 代码块时的推测**:
+
+- **姓名不是一个字段,是拆开的**:真实 DOM 是 `first_name`(必填,原生 text input)/`middle_name`(可选)/`last_name`(页面文案写"optional"——姓氏本身是选填!)/隐藏字段 `extension_name`(对应"Suffix"下拉,用 react-select 实现)。**VIZA 现在 `normalize.ts`/`form-fields.ts` 只有一个 `full_name` 字段**,真要接这条线,要么改成收集分开的名/中间名/姓/后缀,要么在 `apply.ts` 里做姓名拆分——拆分有风险(护照姓名格式五花八门),需要你决定怎么处理,不建议我自己猜规则拆。
+- **Sex 不是原生下拉,是隐藏字段 + react-select 组合**:真实字段名是 `gender`(不是 VIZA 现在用的 `sex`),可见的是一个 `react-select-2-input` 搜索框,实际值写入旁边的 `<input type=hidden name="gender">`。Playwright 不能用 `selectOption`,要走"点开→点选项文字"这条路,跟 UK 那套自定义下拉的处理方式类似。
+- **国籍/出生国家/护照签发国/职业,都是同一种自定义 combobox(HeadlessUI),不是原生 `<select>`**:真实字段名 `nationality_country_code`/`country_of_birth_code`/`passport_issued_country_code`/`occupation_code`——都是"code"后缀,确认是编码字典,不是自由文本(**`occupation_code` 这一条是新发现:VIZA 现在把 occupation 当成自由文本字段,官网真实是一个编码下拉**)。这几个 combobox 的 DOM id 是 `headlessui-combobox-input-:r1:` 这种自动生成、随渲染次数变化的 id,**不能拿 id 做选择器**,要靠前面的 label 文字或容器结构定位。
+- **手机号输入框没有 `name` 属性**:真实 DOM 是一个 `type=tel`、不带 `name` 的 input,前面挂一个国旗+区号下拉(默认 `+63`),VIZA 现在假设的 `mobile_country_code`/`mobile_number` 两个独立字段,在真实 DOM 里目前看到的是"一个不带 name 的 tel 输入 + 一个国旗下拉",具体区号怎么真实提交(是拼在一起,还是国旗下拉自己有别的 name)还需要再点开那个国旗下拉确认一次。
+- **`passport_number`/`birth_date`/`passport_issued_date` 是原生 text input**,不是自定义组件——这几个可以放心当"简单字段"处理;但日期是不是只读弹窗(仿 TW 的 datepicker 坑),这次没点开日历图标测,还不确定。
+- **照片上传没有原生 `<input type=file>` 挂在 DOM 上**——"Take a photo or upload a file"这个按钮点击后大概率是动态生成 input 或弹出摄像头组件,这次没有点开测,具体交互方式还不知道。
+- **这一页从头到尾没有看到任何红色星号之类的"必填标记"**——跟台湾"必填字段用红星号核实"这条不一样,菲律宾这边不能靠肉眼扫必填标记,只能靠登录后试提交(留空点 Next 看报什么错)或者继续抠 Yup 校验规则来确定哪些字段真必填。
+- 这一页**没有出现 `civil_status`**(婚姻状况)——跟第 3 节"没搜到对应校验规则"的怀疑一致,基本可以确认第一页个人信息里没有这一项,不代表后面的页面没有,还需要翻页确认。
+
 ## 6. 你的决策记录(2026-07-28)
 
 1. **验证码策略:接入 reCAPTCHA Enterprise 解码服务**(不走台湾"停在验证码框前"的保守路线)。
