@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   buildAntSelectSearchTerms,
   buildAntSelectOptionRegex,
@@ -20,6 +22,7 @@ import {
   toPortalDateForField,
   validateVietnamPortalValidityRange,
 } from "../run.js";
+import { VN_COUNTRY_NAME_BY_ALPHA3 } from "../country-options.js";
 
 /**
  * RUN-VN-001: covers a full step fill at the (browser-free) plan level —
@@ -192,4 +195,45 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
     "Pa-n",
     "",
   ]);
+});
+
+test("vn.step-fill: every official country code maps both ways and matches the frontend source", () => {
+  const officialEntries = Object.entries(VN_COUNTRY_NAME_BY_ALPHA3);
+  assert.equal(officialEntries.length, 205);
+  assert.equal("HKG" in VN_COUNTRY_NAME_BY_ALPHA3, false);
+  assert.equal("MAC" in VN_COUNTRY_NAME_BY_ALPHA3, false);
+
+  for (const [code, officialLabel] of officialEntries) {
+    assert.equal(normalizeVnCountryOptionText(code), officialLabel, `${code} code -> label`);
+    assert.equal(getVnPortalOptionText("nationality", code), officialLabel, `${code} portal label`);
+    assert.equal(getVnCountryAlpha3ForOptionText(officialLabel), code, `${officialLabel} label -> code`);
+  }
+
+  const frontendSourcePath = resolve(
+    process.cwd(),
+    "../../viza-fe/internal-website/lib/vietnam-evisa-official-countries.ts",
+  );
+  const frontendSource = readFileSync(frontendSourcePath, "utf8");
+  const sourceMatch = frontendSource.match(
+    /VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS_SOURCE = `([\s\S]*?)`;/,
+  );
+  assert.ok(sourceMatch?.[1], "frontend official-country source is present");
+  const frontendEntries = sourceMatch[1].split(/\r?\n/).map((row) => {
+    const separatorIndex = row.indexOf("|");
+    return [row.slice(0, separatorIndex), row.slice(separatorIndex + 1)];
+  });
+  assert.deepEqual(frontendEntries, officialEntries);
+
+  const migrationPath = resolve(
+    process.cwd(),
+    "../../viza-fe/internal-website/supabase/migrations/20260728083839_vn_evisa_official_country_options.sql",
+  );
+  const migrationSource = readFileSync(migrationPath, "utf8");
+  const migrationMatch = migrationSource.match(/\$countries\$([\s\S]*?)\$countries\$/);
+  assert.ok(migrationMatch?.[1], "database migration official-country source is present");
+  const migrationEntries = migrationMatch[1].split(/\r?\n/).map((row) => {
+    const separatorIndex = row.indexOf("|");
+    return [row.slice(0, separatorIndex), row.slice(separatorIndex + 1)];
+  });
+  assert.deepEqual(migrationEntries, officialEntries);
 });
