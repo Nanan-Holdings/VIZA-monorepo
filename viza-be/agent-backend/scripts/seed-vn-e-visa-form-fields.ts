@@ -24,6 +24,7 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
+import { VN_COUNTRY_NAME_BY_ALPHA3 } from "../../submission-service/src/vietnam/country-options";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,6 +65,19 @@ interface FieldOption {
 }
 
 const YES_NO = [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }];
+const VN_OFFICIAL_COUNTRY_OPTIONS: FieldOption[] = Object.entries(
+  VN_COUNTRY_NAME_BY_ALPHA3,
+).map(([value, text]) => ({
+  value,
+  text,
+  label_en: text,
+  official_label: text,
+}));
+const VN_OFFICIAL_COUNTRY_RULES = {
+  source: "VN_E_VISA_OFFICIAL_COUNTRIES",
+  official_option_count: VN_OFFICIAL_COUNTRY_OPTIONS.length,
+  official_source: "client-service/public/dm-qt/get-all?type=",
+};
 
 // Reusable gate constants
 const HAS_MULTIPLE_NATIONALITIES = "has_multiple_nationalities === yes";
@@ -538,7 +552,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "given_name", label: "Middle and given name (First name)", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 2, placeholder: "Enter middle and given name", validation_rules: { maxLength: 50, live_dom_id: "basic_ttcnDemVaTen" } },
   { field_name: "date_of_birth", label: "Date of birth", field_type: "date", required: true, step_number: 1, step_name: "Personal Information", display_order: 3, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY", live_dom_id: "basic_ttcnNgayThangNamSinhStr" } },
   { field_name: "sex", label: "Sex", field_type: "select", required: true, step_number: 1, step_name: "Personal Information", display_order: 4, placeholder: "Choose one", options: SEX_OPTIONS, validation_rules: { live_dom_id: "basic_ttcnGioiTinh" } },
-  { field_name: "nationality", label: "Nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 5, placeholder: "Choose nationality", validation_rules: { source: "ISO3166-1", live_dom_id: "basic_ttcnMaQt" } },
+  { field_name: "nationality", label: "Nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 5, placeholder: "Choose nationality", options: VN_OFFICIAL_COUNTRY_OPTIONS, validation_rules: { ...VN_OFFICIAL_COUNTRY_RULES, live_dom_id: "basic_ttcnMaQt" } },
   { field_name: "identity_card_number", label: "Identity card number", field_type: "text", required: false, step_number: 1, step_name: "Personal Information", display_order: 6, placeholder: "ID Card", validation_rules: { maxLength: 30, live_dom_id: "basic_ttcnCccd" } },
   { field_name: "email_address", label: "Email", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 7, placeholder: "Enter email", validation_rules: { maxLength: 100, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", live_dom_id: "basic_ttcnEmail" } },
   { field_name: "re_enter_email_address", label: "Re-enter Email", field_type: "text", required: true, step_number: 1, step_name: "Personal Information", display_order: 8, placeholder: "Re-enter email", validation_rules: { maxLength: 100, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", live_dom_id: "basic_ttcnConfirmEmail" } },
@@ -547,7 +561,7 @@ const FIELDS: FieldDef[] = [
 
   // Inline Yes/No toggles rendered outside ant-form-item on live (screenshot-confirmed)
   { field_name: "has_multiple_nationalities", label: "Have you ever held any other nationalities?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 11, options: YES_NO, validation_rules: { live_dom_id: "basic_ttcnCoQtKhac" } },
-  { field_name: "other_nationality", label: "Other nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 12, conditional_logic: { showIf: HAS_MULTIPLE_NATIONALITIES }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_nationalities", max_items: 3 } },
+  { field_name: "other_nationality", label: "Other nationality", field_type: "country", required: true, step_number: 1, step_name: "Personal Information", display_order: 12, options: VN_OFFICIAL_COUNTRY_OPTIONS, conditional_logic: { showIf: HAS_MULTIPLE_NATIONALITIES }, validation_rules: { ...VN_OFFICIAL_COUNTRY_RULES, repeatable: true, repeat_group: "other_nationalities", max_items: 3 } },
   { field_name: "has_violated_vietnam_laws", label: "Have you violated Vietnamese laws/regulations?", field_type: "radio", required: true, step_number: 1, step_name: "Personal Information", display_order: 13, options: YES_NO, validation_rules: { live_dom_id: "basic_ttcnViPhamPl" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -616,7 +630,7 @@ const FIELDS: FieldDef[] = [
   { field_name: "has_relatives_in_vietnam", label: "Do you have relatives currently residing in Viet Nam?", field_type: "radio", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 13, options: YES_NO, validation_rules: { live_dom_id: "basic_ttcdCoThanNhan" } },
   { field_name: "relative_full_name_in_vn", label: "Relative's full name", field_type: "text", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 14, conditional_logic: { showIf: HAS_RELATIVES_VN }, validation_rules: { maxLength: 100, block_group: "relatives_in_vn" } },
   { field_name: "relative_date_of_birth", label: "Relative's date of birth", field_type: "date", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 15, conditional_logic: { showIf: HAS_RELATIVES_VN }, validation_rules: { format: "DD/MM/YYYY", block_group: "relatives_in_vn" } },
-  { field_name: "relative_nationality", label: "Relative's nationality", field_type: "country", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 16, conditional_logic: { showIf: HAS_RELATIVES_VN }, validation_rules: { source: "ISO3166-1", block_group: "relatives_in_vn" } },
+  { field_name: "relative_nationality", label: "Relative's nationality", field_type: "country", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 16, options: VN_OFFICIAL_COUNTRY_OPTIONS, conditional_logic: { showIf: HAS_RELATIVES_VN }, validation_rules: { ...VN_OFFICIAL_COUNTRY_RULES, block_group: "relatives_in_vn" } },
   { field_name: "relative_relationship", label: "Relationship to the relative in Viet Nam", field_type: "text", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 17, conditional_logic: { showIf: HAS_RELATIVES_VN }, placeholder: "e.g., Brother, Uncle, Cousin", validation_rules: { maxLength: 40, block_group: "relatives_in_vn" } },
   { field_name: "relative_address_in_vn", label: "Relative's address in Vietnam", field_type: "text", required: true, step_number: 6, step_name: "Information About the Trip", display_order: 18, conditional_logic: { showIf: HAS_RELATIVES_VN }, validation_rules: { maxLength: 200, block_group: "relatives_in_vn" } },
 

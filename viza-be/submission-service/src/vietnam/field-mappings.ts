@@ -234,7 +234,7 @@ export function normalizeVnCountryOptionText(rawValue: string): string | null {
   const trimmed = rawValue.trim();
   if (!trimmed) return null;
   const alpha3 = trimmed.toUpperCase();
-  if (/^[A-Z]{3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) {
+  if (/^[A-Z0-9-]{1,3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) {
     return VN_COUNTRY_NAME_BY_ALPHA3[alpha3];
   }
   const lookup = normalizeCountryLookupKey(trimmed);
