@@ -1,11 +1,13 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
   role: "user" | "agent" | "system" | "error";
   content: string;
   timestamp?: number;
+  density?: "default" | "compact";
 }
 
 function normalizePlainTextContent(content: string): string {
@@ -51,14 +53,29 @@ function renderPlainContent(content: string): React.ReactNode {
 export function ChatMessage({
   role,
   content,
-  timestamp,
+  timestamp: _timestamp,
+  density = "default",
 }: ChatMessageProps) {
+  const compact = density === "compact";
+
   // User message
   if (role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="bg-brand-500 text-white rounded-xl rounded-br-md px-6 py-4 max-w-[85%]">
-          <p className="text-base sm:text-lg whitespace-pre-wrap leading-relaxed">{content}</p>
+        <div
+          className={cn(
+            "bg-brand-500 text-white rounded-xl rounded-br-md",
+            compact ? "max-w-[80%] px-4 py-3" : "max-w-[85%] px-6 py-4"
+          )}
+        >
+          <p
+            className={cn(
+              "whitespace-pre-wrap",
+              compact ? "text-base leading-7" : "text-base leading-relaxed sm:text-lg"
+            )}
+          >
+            {content}
+          </p>
         </div>
       </div>
     );
@@ -94,7 +111,12 @@ export function ChatMessage({
   return (
     <div className="w-full">
       {/* Message content */}
-      <div className="text-gray-700 text-base sm:text-lg whitespace-pre-wrap leading-relaxed">
+      <div
+        className={cn(
+          "text-gray-700 whitespace-pre-wrap",
+          compact ? "text-base leading-7" : "text-base leading-relaxed sm:text-lg"
+        )}
+      >
         {renderPlainContent(content)}
       </div>
     </div>

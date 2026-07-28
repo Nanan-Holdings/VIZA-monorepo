@@ -9,6 +9,7 @@ import {
 import {
   extractIndonesiaOtpCode,
   isIndonesiaBillingCodeOnlyPaymentSnapshot,
+  isIndonesiaApplicationDetailOtpChallenge,
   isExpiredIndonesiaApplicationText,
   isIndonesiaPortalAccountOtpChallenge,
   normalizeIndonesiaMobilePhone,
@@ -403,6 +404,28 @@ test("distinguishes an unresolved Indonesia account OTP from bank authentication
     isIndonesiaPortalAccountOtpChallenge({
       url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/payment/662d5998-c0db-46a9-bf54-e06f14a389f8`,
       text: "Card number CVV Bank verification",
+      controlsVisible: true,
+    }),
+    false,
+  );
+  assert.equal(
+    isIndonesiaPortalAccountOtpChallenge({
+      url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/application-detail-otp/redacted`,
+      text: "Enter OTP Code",
+      controlsVisible: true,
+    }),
+    false,
+  );
+  assert.equal(
+    isIndonesiaApplicationDetailOtpChallenge({
+      url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/application-detail-otp/redacted`,
+      controlsVisible: true,
+    }),
+    true,
+  );
+  assert.equal(
+    isIndonesiaApplicationDetailOtpChallenge({
+      url: "https://live.finpay.id/pg/payment/card/id/v4/access/redacted",
       controlsVisible: true,
     }),
     false,

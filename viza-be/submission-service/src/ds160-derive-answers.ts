@@ -44,12 +44,12 @@ const DATE_SPLITS: ReadonlyArray<DateSplit> = [
   { source: "passport_expiration_date", targetPrefix: "passport_expiry" },
   { source: "father_date_of_birth", targetPrefix: "father_dob", monthAsAbbrev: true },
   { source: "mother_date_of_birth", targetPrefix: "mother_dob", monthAsAbbrev: true },
-  // Travel dates: arrival is split twice — CEAC's travel page exposes both
-  // an "arrival" trio and an "intended arrival" trio, distinct repeaters.
-  { source: "arrival_date", targetPrefix: "arrival_date" },
-  { source: "arrival_date", targetPrefix: "intended_arrival_date" },
-  { source: "intended_arrival_date", targetPrefix: "intended_arrival_date" },
-  { source: "departure_date", targetPrefix: "departure_date" },
+  // CEAC date dropdown values use three-letter month codes (JAN, FEB...),
+  // including the Travel Information page. The active arrival source is
+  // reconciled by deriveIntendedArrivalDate before these splits run.
+  { source: "arrival_date", targetPrefix: "arrival_date", monthAsAbbrev: true },
+  { source: "intended_arrival_date", targetPrefix: "intended_arrival_date", monthAsAbbrev: true },
+  { source: "departure_date", targetPrefix: "departure_date", monthAsAbbrev: true },
 ];
 
 interface NaPair {
@@ -431,11 +431,28 @@ function deriveLengthOfStay(answers: Record<string, string>): void {
  * day/month/year trio.
  */
 function deriveIntendedArrivalDate(answers: Record<string, string>): void {
+  const hasSpecificPlans = answers.has_specific_travel_plans;
   const arrival = answers.arrival_date;
-  if (!arrival || isNaToken(arrival)) return;
-  if (answers.intended_arrival_date === undefined) {
-    answers.intended_arrival_date = arrival;
-  }
+  const intendedArrival = answers.intended_arrival_date;
+
+  // Both conditional fields may remain persisted when an applicant changes
+  // the "specific travel plans" answer. CEAC has only one active branch, so
+  // choose its source deterministically instead of allowing whichever stale
+  // field happens to be split first to win.
+  const activeArrival = hasSpecificPlans === "N"
+    ? intendedArrival || arrival
+    : hasSpecificPlans === "Y"
+      ? arrival || intendedArrival
+      : intendedArrival || arrival;
+
+  if (!activeArrival || isNaToken(activeArrival)) return;
+  answers.intended_arrival_date = activeArrival;
+
+  // Stored split fields can also be stale. Clear only the derived CEAC trio;
+  // deriveDateSplits immediately rebuilds it from the active full date.
+  delete answers.intended_arrival_date_day;
+  delete answers.intended_arrival_date_month;
+  delete answers.intended_arrival_date_year;
 }
 
 /**
@@ -446,16 +463,17 @@ function deriveIntendedArrivalDate(answers: Record<string, string>): void {
 export function deriveDS160Answers(
   answers: Record<string, string>,
 ): Record<string, string> {
-  // Order matters: aliases first so date-split sources resolve to their
-  // canonical key, then CEAC value-code normalization, then date splits,
+  // Order matters: aliases first so date sources resolve to their canonical
+  // keys, then CEAC value-code normalization, travel-branch reconciliation,
+  // and finally date splits,
   // then NA flags (NA may delete source keys, so do it last to avoid losing
   // data needed by date-split source resolution).
   applyEnglishAliases(answers);
   applyAliases(answers);
   normalizeCeacValueCodes(answers);
   normalizeCeacTextFields(answers);
-  deriveDateSplits(answers);
   deriveIntendedArrivalDate(answers);
+  deriveDateSplits(answers);
   deriveLengthOfStay(answers);
   deriveContactPageConsistency(answers);
   deriveNaFlags(answers);
