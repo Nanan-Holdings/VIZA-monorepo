@@ -329,6 +329,11 @@ export interface TwSubmissionResult {
   pagesFilled?: string[];
   /** ISO timestamp the automation reached the CAPTCHA step. */
   capturedAt?: string;
+  /** Whether the CAPTCHA was auto-solved and pre-filled (best-effort,
+   *  unverified — the automation never clicks the real "確認資料" submit
+   *  button, so there's no way to confirm the solve was correct). Applicant
+   *  should still check the value before submitting on the official site. */
+  captchaAutoFilled?: boolean;
   /** Present on "failed". */
   error?: string;
   url?: string;

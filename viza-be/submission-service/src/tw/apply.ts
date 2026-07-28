@@ -40,6 +40,7 @@ import {
 } from "./fillers";
 import { TwEmailVerificationError, TwTermsModalError, TwUnexpectedPageError } from "./errors";
 import { waitForTwVerificationCode } from "./inbox";
+import { solveTwCaptcha } from "./captcha";
 
 export interface TwApplyInput {
   applicantId: string;
@@ -101,6 +102,10 @@ export type TwFillResult =
       portalUrl: string;
       pagesFilled: string[];
       capturedAt: string;
+      /** Whether the CAPTCHA was auto-solved and pre-filled (best-effort,
+       *  unverified — see solveTwCaptcha in ./captcha.ts). The applicant
+       *  should still review the value before submitting themselves. */
+      captchaAutoFilled: boolean;
     }
   | {
       status: "failed";
@@ -549,7 +554,11 @@ async function tryReadTwCaseNumber(page: Page): Promise<string | undefined> {
 /**
  * Main orchestrator: launch → terms modal → delivery location → application
  * form tab → email OTP → every remaining field, top to bottom → stop at
- * CAPTCHA. Never clicks "確認資料"; never attempts CAPTCHA solving.
+ * CAPTCHA. Auto-solves and pre-fills the CAPTCHA (best-effort, via
+ * solveTwCaptcha) but NEVER clicks "確認資料" — that button is a real,
+ * irreversible POST of the application directly to the National Immigration
+ * Agency (confirmed live: no client-side preview/review step exists), so the
+ * applicant always makes that final click themselves.
  */
 export async function fillTwEntryPermitApplication(
   input: TwApplyInput,
@@ -607,6 +616,14 @@ export async function fillTwEntryPermitApplication(
       });
     }
 
+    // Best-effort only — never blocks the halt, never verified against the
+    // real server (that would require the one click this automation refuses
+    // to make). See ./captcha.ts for why.
+    const captchaOutcome = await solveTwCaptcha(page).catch(
+      (): { solved: false } => ({ solved: false }),
+    );
+    pagesFilled.push(captchaOutcome.solved ? "captcha_auto_filled" : "captcha_boundary");
+
     const caseNumber = await tryReadTwCaseNumber(page);
     return {
       status: "stopped_at_captcha",
@@ -614,6 +631,7 @@ export async function fillTwEntryPermitApplication(
       portalUrl: page.url(),
       pagesFilled,
       capturedAt: new Date().toISOString(),
+      captchaAutoFilled: captchaOutcome.solved,
     };
   } catch (err) {
     const url = session?.page.url();

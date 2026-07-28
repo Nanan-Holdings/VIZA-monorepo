@@ -355,6 +355,7 @@ export const runTwHalt: RunOne = async (applicationId, jobId) => {
       portalUrl: result.portalUrl,
       pagesFilled: result.pagesFilled,
       capturedAt: result.capturedAt,
+      captchaAutoFilled: result.captchaAutoFilled,
       ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
     };
     // "needs_user_action": CAPTCHA is exactly the human-checkpoint case this
