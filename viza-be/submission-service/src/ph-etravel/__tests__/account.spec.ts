@@ -1,0 +1,159 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  choosePhEtravelAccountPlan,
+  isMissingPhEtravelAccountsTableError,
+  phEtravelAccountEmailFromManagedAlias,
+} from "../account";
+
+test("PH eTravel uses the exact active managed alias for official email delivery", () => {
+  assert.equal(
+    phEtravelAccountEmailFromManagedAlias("  APPL-ACTIVE@HAGGSTORM.COM "),
+    "appl-active@haggstorm.com",
+  );
+});
+
+test("choosePhEtravelAccountPlan reuses an existing PH eTravel account", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_existing",
+      email: "appl-existing@haggstorm.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "verified",
+      storageState: null,
+    },
+    aliasEmail: "appl-new@haggstorm.com",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "reuse_existing",
+    accountId: "acct_existing",
+    email: "appl-existing@haggstorm.com",
+    password: "saved-password",
+    mpin: "123456",
+  });
+});
+
+test("choosePhEtravelAccountPlan reuses an existing account even when mpin is missing", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_existing",
+      email: "appl-existing@haggstorm.com",
+      password: "saved-password",
+      mpin: null,
+      status: "verified",
+      storageState: null,
+    },
+    aliasEmail: "APPL-NEW+PH@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "reuse_existing",
+    accountId: "acct_existing",
+    email: "appl-existing@haggstorm.com",
+    password: "saved-password",
+    mpin: null,
+  });
+});
+
+test("choosePhEtravelAccountPlan replaces a pending derived alias rejected by the email worker", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "vault:applicant",
+      email: "appl-existing-ph123456@haggstorm.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "pending_registration",
+      storageState: null,
+    },
+    aliasEmail: "appl-new@haggstorm.com",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    email: "appl-new@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
+  });
+});
+
+test("choosePhEtravelAccountPlan creates an alias account when none exists", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: null,
+    aliasEmail: "APPL-NEW@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    email: "appl-new@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
+  });
+});
+
+test("choosePhEtravelAccountPlan resumes the same alias after a failed prior attempt", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_existing",
+      email: "appl-existing@haggstorm.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "failed",
+      storageState: null,
+    },
+    aliasEmail: "APPL-EXISTING@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    accountId: "acct_existing",
+    email: "appl-existing@haggstorm.com",
+    password: "saved-password",
+    mpin: "123456",
+  });
+});
+
+test("choosePhEtravelAccountPlan rotates an incomplete account outside the managed alias domain", () => {
+  const plan = choosePhEtravelAccountPlan({
+    existingAccount: {
+      id: "acct_legacy_gmail",
+      email: "legacy+ph@gmail.com",
+      password: "saved-password",
+      mpin: "123456",
+      status: "pending_registration",
+      storageState: null,
+    },
+    aliasEmail: "APPL-NEW-PH123456@HAGGSTORM.COM",
+    generatedPassword: "new-password",
+    generatedMpin: "654321",
+  });
+
+  assert.deepEqual(plan, {
+    mode: "create_new",
+    email: "appl-new-ph123456@haggstorm.com",
+    password: "new-password",
+    mpin: "654321",
+  });
+});
+
+test("isMissingPhEtravelAccountsTableError detects missing PostgREST table errors", () => {
+  assert.equal(isMissingPhEtravelAccountsTableError({
+    code: "PGRST205",
+    message: "Could not find the table 'public.ph_etravel_accounts' in the schema cache",
+  }), true);
+  assert.equal(isMissingPhEtravelAccountsTableError({
+    code: "42501",
+    message: "permission denied",
+  }), false);
+});

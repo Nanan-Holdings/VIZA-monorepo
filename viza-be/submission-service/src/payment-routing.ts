@@ -40,6 +40,7 @@ export const GOVT_FEE_ROUTING: ReadonlyArray<RoutingEntry> = [
   { country: "japan", visaType: "JP_TOURIST", mechanism: "paper_only_no_fee" },
   { country: "indonesia", visaType: "B211A", mechanism: "runner_escrow_card" },
   { country: "indonesia", visaType: "ID_C1_TOURIST", mechanism: "runner_escrow_card" },
+  { country: "indonesia", visaType: "ID_B1_EVOA", mechanism: "runner_escrow_card" },
   { country: "egypt", visaType: "EG_E_VISA", mechanism: "runner_escrow_card" },
   { country: "south_korea", visaType: "KR_C39_SHORT_TERM_VISIT", mechanism: "applicant_direct_link" },
   { country: "thailand", visaType: "TH_TOURIST_E_VISA", mechanism: "runner_escrow_card" },
@@ -126,7 +127,7 @@ export function policyFor(mechanism: GovtFeeMechanism): FeePolicy {
  * cross-package import. Edit alongside pricing.ts.
  */
 export const GOVT_FEE_CENTS: Record<string, Record<string, number>> = {
-  indonesia: { B211A: 15000, ID_C1_TOURIST: 18500 },
+  indonesia: { B211A: 15000, ID_C1_TOURIST: 18500, ID_B1_EVOA: 5000 },
   egypt: { EG_E_VISA: 2500 },
   malaysia: { MY_TOURIST_E_VISA: 1500 },
   canada: { CA_TRV: 10000 },
@@ -147,7 +148,7 @@ const AGENCY_FEE_CENTS = 9900; // flat USD 99 (mirrors pricing.ts AGENCY_USD)
  * Full per-country fee table (mirrors viza-fe/internal-website/lib/pricing.ts +
  * the marketing mirror, MKT-006). Government fee is in the listed currency;
  * agency fee is USD. Kept here to avoid a cross-package import — edit
- * alongside pricing.ts. Covers all 16 launch countries.
+ * alongside pricing.ts. Covers all 17 launch countries.
  */
 export interface PackageFee {
   govtCents: number;
@@ -155,7 +156,11 @@ export interface PackageFee {
   currency: string;
 }
 export const PACKAGE_FEES: Record<string, Record<string, PackageFee>> = {
-  indonesia: { B211A: { govtCents: 15000, currency: "USD" }, ID_C1_TOURIST: { govtCents: 18500, currency: "USD" } },
+  indonesia: {
+    B211A: { govtCents: 15000, currency: "USD" },
+    ID_C1_TOURIST: { govtCents: 18500, currency: "USD" },
+    ID_B1_EVOA: { govtCents: 5000, currency: "USD" },
+  },
   egypt: { EG_E_VISA: { govtCents: 2500, currency: "USD" } },
   australia: { AU_VISITOR_600: { govtCents: 19000, currency: "AUD" } },
   saudi_arabia: { SA_E_VISA: { govtCents: 8000, currency: "USD" } },
@@ -163,6 +168,7 @@ export const PACKAGE_FEES: Record<string, Record<string, PackageFee>> = {
   vietnam: { VN_E_VISA: { govtCents: 2500, currency: "USD" } },
   malaysia: { MY_TOURIST_E_VISA: { govtCents: 1500, currency: "USD" } },
   japan: { JP_TOURIST: { govtCents: 0, currency: "USD" } },
+  south_korea: { KR_C39_SHORT_TERM_VISIT: { govtCents: 0, currency: "USD" } },
   united_states: { B1_B2: { govtCents: 18500, currency: "USD" } },
   canada: { CA_TRV: { govtCents: 10000, currency: "CAD" } },
   turkey: { TR_E_VISA: { govtCents: 5000, currency: "USD" } },

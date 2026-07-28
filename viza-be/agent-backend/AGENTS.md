@@ -41,16 +41,52 @@ explicitly reintroduces another provider.
   `submission-service`; `agent-backend` must keep browser automation out of
   this service and preserve explicit user slot selection plus payment/final
   approval actions.
+- France Schengen TLS appointment assistant:
+  `src/routes/france-appointment.routes.ts` and
+  `src/services/france-appointment/**`. Reuses the shared `appointment_*`
+  tables for mainland China `TLSCONTACT_CN_FR`, requires France-Visas official
+  reference plus user consent, enforces slot/status cooldowns, exposes only
+  safe slot/confirmation/account metadata, and stores TLS payment authorization
+  as redacted metadata only. Assisted-live slot checks call the localhost
+  submission-service `/local/france-tls/check-slots` endpoint via
+  `FRANCE_TLS_SUBMISSION_SERVICE_URL`; browser automation and WAF/CDP handling
+  must remain in submission-service. Assisted-live booking calls the protected
+  `/internal/france-tls/book-selected-slot` handoff and accepts success only
+  when submission-service returns a verifiable official confirmation number;
+  dry-run confirmation IDs must never be used for assisted-live jobs. With
+  `FRANCE_TLS_ACCOUNT_PREP_ENABLED=true`, the assisted-live action first calls
+  the token-protected `/internal/france-tls/register-account` endpoint to
+  provision/activate/login the applicant alias and prefill the France-Visas
+  reference, stopping before reference submission or slot selection.
+  Render declares the URL/gate in `render.yaml`; the shared internal token is
+  an unsynced Render secret and must match the Fly secret.
+- Japan temporary-visitor appointment preparation:
+  `src/routes/japan-appointment.routes.ts` and
+  `src/services/japan-appointment/**` reuse the shared `appointment_*` tables
+  for eligible Chinese ordinary-passport holders filing through VFS/JVAC
+  Singapore. The backend validates stored VIZA answers and passport/photo
+  uploads, prepares a redacted alias account record, and delegates official
+  portal observation to submission-service. Free Plan mode stops before slot
+  selection, payment, and final booking.
 - DB schema and migrations: `src/db/schema.ts` and `drizzle/*.sql`.
+- Transactional notification delivery: `src/notify/templates/**` and
+  `src/notify/worker.ts`; Vietnam status changes use the locale-aware
+  `vietnam_status_update` template and link to the VIZA status center.
 - Seed/ingestion scripts: `scripts/*.ts`.
 - Tests: `tests/setup.ts` plus the nearest test/module `AGENTS.md`.
 - Arrival-card seeds:
   `scripts/sgac/**` for `SG_ARRIVAL_CARD`, `scripts/my-mdac/**` for
   `MY_MDAC_ARRIVAL_CARD`, and `scripts/th-tdac/**` for
-  `TH_TDAC_ARRIVAL_CARD`, and `scripts/ph-etravel/**` for
-  `PH_ETRAVEL_ARRIVAL_CARD`. Keep the top-level
+  `TH_TDAC_ARRIVAL_CARD`, `scripts/ph-etravel/**` for
+  `PH_ETRAVEL_ARRIVAL_CARD`, and `scripts/vn-prearrival/**` for
+  `VN_PREARRIVAL_DECLARATION`. Keep the top-level
   `scripts/seed-*-form-fields.ts` files as command entries and keep country
   packages separate from visa flows.
+- Taiwan entry-permit seed: `scripts/seed-tw-entry-permit-form-fields.ts` owns
+  `TW_ENTRY_PERMIT` for mainland Chinese nationals residing abroad or in
+  Hong Kong/Macau. It is an entry permit, not an arrival card. Migrations
+  `0104`/`0105` add the package + document_requirements rows (not yet run
+  against the production DB as of this writing).
 - Vietnam schema audit: `src/tests/vietnam-schema-localization.test.ts`
   verifies the Vietnam seed has clear bilingual labels and localized options.
 
@@ -64,7 +100,8 @@ explicitly reintroduces another provider.
   uncertain.
 - Do not move browser automation into this service; official portal automation,
   CAPTCHA handling, proxy/fingerprint handling, and runner artifacts belong
-  outside this website automation scope. The U.S. appointment assistant may
+  outside this website automation scope. The U.S. and France appointment
+  assistants may
   create/link appointment account records and model checkpoint state, but
   actual login, official account registration, CAPTCHA/MFA/email handling,
   waiting-room/rate-limit handling, and slot capture belong in
@@ -105,14 +142,17 @@ Smoke `GET /health` after startup and `/client/chat` after Socket.IO changes.
 - `src/routes/internal-automation/*`
 - `src/routes/official-fee.routes.ts`
 - `src/routes/us-appointment.routes.ts`
+- `src/routes/france-appointment.routes.ts`
 - `src/services/internal-automation/*`
 - `src/services/official-fee/*`
 - `src/services/us-appointment/*`
+- `src/services/france-appointment/*`
 - `src/services/visa-knowledge.service.ts`
 - `src/services/visa-conversation-state.service.ts`
 - `src/config/visa-destination-registry.ts`
 - `src/routes/*`
 - `scripts/ingest-country-visa-rag.ts`
+- `scripts/enrich-field-answer-norms-rag.ts`
 - `scripts/ingest-photo-requirements-rag.ts`
 - `scripts/import-geonames-destinations.ts`
 - `scripts/import-geonames-aliases.ts`

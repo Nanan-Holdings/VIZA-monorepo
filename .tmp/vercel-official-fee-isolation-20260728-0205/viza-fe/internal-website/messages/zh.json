@@ -1,0 +1,5380 @@
+{
+  "common": {
+    "loading": "正在加载您的仪表板...",
+    "error": "发生错误",
+    "searchLanguage": "搜索语言...",
+    "noLanguagesFound": "未找到语言"
+  },
+  "nav": {
+    "home": "首页",
+    "application": "申请",
+    "status": "状态",
+    "chat": "智能助手",
+    "documents": "材料",
+    "settings": "设置",
+    "support": "帮助",
+    "visaConsultant": "签证顾问",
+    "travelAgent": "旅行顾问",
+    "mockInterview": "模拟面试",
+    "inviteFriends": "邀请朋友"
+  },
+  "menu": {
+    "changeCountry": "切换申请国家",
+    "inviteFriends": "邀请朋友",
+    "status": "状态",
+    "documents": "材料",
+    "support": "帮助",
+    "settings": "设置",
+    "help": "帮助",
+    "logout": "退出登录",
+    "loggingOut": "正在退出..."
+  },
+  "destinationsPage": {
+    "backToHome": "返回首页",
+    "title": "切换申请国家",
+    "subtitle": "在您的签证申请之间切换，或在下方开始新的目的地申请。",
+    "myApplications": "我的申请",
+    "ongoingApplications": "进行中的申请",
+    "purchasedApplications": "已购买的申请",
+    "purchasedApplicationsHint": "您已购买的套餐——随时可以开始。",
+    "loading": "正在加载您的申请...",
+    "noApplications": "您还没有开始任何申请——请在下方选择目的地开始。",
+    "current": "当前",
+    "notStarted": "未开始",
+    "continue": "继续",
+    "start": "开始",
+    "progressAriaLabel": "申请进度",
+    "showAll": "展开全部 {count} 个申请",
+    "showLess": "收起"
+  },
+  "session": {
+    "invalidatedTitle": "会话已失效",
+    "invalidatedBody": "另一个申请人视图已在其他标签页中打开。出于安全原因，此会话已停止显示。",
+    "invalidatedHint": "请关闭此标签页并使用新的申请人视图标签页。"
+  },
+  "home": {
+    "welcomeBack": "欢迎回来，{name}。",
+    "vizaApplication": "这是您的VIZA申请",
+    "vizaApplicationForCountry": "这是您的{country}签证申请",
+    "recentActivity": "最近活动",
+    "applicationCategories": "申请类别",
+    "applicationCategoriesHint": "快速切换不同的申请类别。",
+    "noRecentActivity": "暂无最近活动。开始您的申请以在此查看更新。",
+    "loadingDashboard": "正在加载您的仪表板...",
+    "authError": "认证失败。请重新点击链接。",
+    "dashboardError": "加载仪表板时发生错误",
+    "application": "申请",
+    "activeApplicationCount": "共 {count} 个进行中的签证",
+    "applicationProgress": "申请进度",
+    "indonesia": "印度尼西亚",
+    "touristVisaB211A": "旅游签证 B211A",
+    "notStarted": "未开始",
+    "submitted": "提交于 {date}",
+    "documentsTitle": "状态",
+    "ofRequired": "共需 {total} 份",
+    "percentComplete": "已完成 {pct}%",
+    "quickActions": {
+      "title": "快捷操作",
+      "visaAI": "进入签证 AI",
+      "travelAI": "进入旅行 AI",
+      "viewStatus": "查看申请状态"
+    },
+    "subscriptionPlan": {
+      "title": "VIZA 申请",
+      "subtitle": "申请方案与订阅状态",
+      "planTitle": "VIZA 申请",
+      "planStatus": "体验版 · 续费暂未启用",
+      "viewPlan": "查看方案",
+      "viewDetails": "查看详情"
+    },
+    "universalInfo": {
+      "title": "通用资料",
+      "subtitle": "自动用于相似签证问题",
+      "saved": "{completed}/{total} 项已保存",
+      "fields": "姓氏、名字、生日、出生地、护照、联系方式",
+      "edit": "编辑通用资料"
+    },
+    "emptyApplication": {
+      "noActiveApplication": "暂无活跃申请",
+      "subtitle": "请先在下方选择目的地，VIZA 会进入对应的访客签证流程。",
+      "cta": "选择目的地"
+    },
+    "statusLabels": {
+      "draft": "草稿",
+      "in_progress": "进行中",
+      "submitted": "已提交",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    },
+    "docLabels": {
+      "passport_bio_page": "护照资料页",
+      "passport_copy": "护照复印件",
+      "passport_photo": "护照照片",
+      "portrait_photo": "证件照",
+      "visa_photo": "签证照片",
+      "photo": "照片",
+      "flight_booking": "航班预订",
+      "hotel_booking": "酒店预订",
+      "travel_itinerary": "旅行行程",
+      "bank_statement": "银行对账单",
+      "employment_letter": "在职证明",
+      "student_certificate": "在读证明",
+      "accommodation_proof": "住宿证明",
+      "invitation_letter": "邀请函",
+      "insurance": "保险",
+      "financial_proof": "资金证明",
+      "other": "其他材料"
+    },
+    "activity": {
+      "applicationSubmitted": "申请已提交",
+      "applicationCreated": "申请已创建",
+      "visaType": "访客签证",
+      "documentUploaded": "{docType} 已上传",
+      "documentRejected": "文件被拒绝——请重新上传",
+      "documentReceived": "文件已收到",
+      "justNow": "刚刚",
+      "minutesAgo": "{count}分钟前",
+      "hoursAgo": "{count}小时前",
+      "daysAgo": "{count}天前"
+    },
+    "popularDestinations": {
+      "heading": "选择热门目的地",
+      "subheading": "从目的地卡片开始，VIZA 会绑定对应的申请流程。申根国家会共用 C 类短期签证表单，同时保留所选国家作为主要目的地。",
+      "featuredHeading": "热门目的地",
+      "regionHeading": "按区域浏览",
+      "searchResultsHeading": "搜索结果",
+      "schemaReady": "官方表单结构已接入",
+      "start": "开始",
+      "open": "打开",
+      "continue": "继续",
+      "starting": "正在开始",
+      "browseRegion": "查看分区",
+      "selected": "已选择",
+      "readyToStart": "可开始",
+      "addedNotStarted": "已添加 · 尚未开始",
+      "chooseCountry": "选择国家",
+      "chooseCategory": "选择类别",
+      "comingSoon": "待接入",
+      "countriesCount": "{count} 个国家",
+      "categoryCount": "{count} 个类别",
+      "progressPill": "{pct}% 已填写",
+      "progressAriaLabel": "{country}申请填写进度",
+      "selectedNotFilled": "已选择，未填写",
+      "fillable": "可填写",
+      "searchPlaceholder": "搜索国家、签证或表单...",
+      "noSearchResults": "没有找到匹配的签证表单。",
+      "selectError": "暂时无法选择该目的地，请重试。"
+    },
+    "visaTimeline": {
+      "heading": "选择目的地后开始申请",
+      "subheading": "完成每个步骤以提交您的签证申请",
+      "stages": {
+        "application": {
+          "title": "完善您的申请",
+          "subtitle": "填写个人信息、护照和旅行详情",
+          "badge": "开始"
+        },
+        "documents": {
+          "title": "上传您的文件",
+          "subtitle": "B211A旅游签证需要6份文件",
+          "badge": "尚未完成"
+        },
+        "submit": {
+          "title": "提交申请",
+          "subtitle": "检查所有内容并提交给我们的处理团队",
+          "badge": "尚未完成"
+        },
+        "review": {
+          "title": "审核中",
+          "subtitle": "通常在3个工作日内处理",
+          "badge": "等待中"
+        },
+        "decision": {
+          "title": "决定",
+          "subtitle": "签证获批并将电子签证文件发送给您",
+          "badge": "等待中"
+        }
+      }
+    },
+    "overview": {
+      "phaseOfTotal": "第 {current} 步,共 {total} 步",
+      "notStartedYet": "尚未开始",
+      "etaLabel": "预计出签",
+      "estimatedTotal": "预计总用时"
+    },
+    "nextAction": {
+      "title": "下一步",
+      "allDone": "已全部完成",
+      "allDoneSub": "等待领事馆出签结果。",
+      "getStarted": "开始申请",
+      "getStartedSub": "准备好后即可继续。",
+      "cta": {
+        "start": "开始",
+        "continue": "继续",
+        "payNow": "立即支付",
+        "signDeclaration": "签署声明",
+        "uploadDocs": "上传材料",
+        "bookAppointment": "预约",
+        "bookInterview": "预约面签",
+        "viewDetails": "查看详情"
+      }
+    },
+    "duration": {
+      "day1": "第 1 天",
+      "daysOneToThree": "1–3 天",
+      "daysThreeToFive": "3–5 天",
+      "sameDay": "当日",
+      "withinOneWeek": "1 周内",
+      "aboutOneWeek": "约 1 周",
+      "oneToTwoWeeks": "1–2 周",
+      "aboutThreeWeeks": "约 3 周",
+      "threeToSixWeeks": "3–6 周",
+      "aboutFifteenWorkingDays": "约 15 个工作日",
+      "aboutThreeWorkingDays": "约 3 个工作日",
+      "aboutFiveWorkingDays": "约 5 个工作日",
+      "dayOf": "当天",
+      "varies": "不定"
+    },
+    "realWorld": {
+      "in_person": "现场",
+      "mail": "邮寄",
+      "online": "线上"
+    },
+    "phase": {
+      "doneOn": "完成 · {date}",
+      "startedOn": "开始 · {date}"
+    },
+    "journey": {
+      "etaWithDate": "{date} · {rough}",
+      "etaRoughOnly": "{rough}",
+      "subheading": "申请的后续步骤如下。预计用时:",
+      "UK_STANDARD_VISITOR": {
+        "ukvi_account": {
+          "title": "创建 UKVI 账户",
+          "subtitle": "注册英国签证与移民局账户以开始申请。"
+        },
+        "form": {
+          "title": "在线申请",
+          "subtitle": "填写 44 页的英国标准访客签证申请表。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "在线支付英国签证申请费。"
+        },
+        "documents": {
+          "title": "辅助材料",
+          "subtitle": "上传银行流水、行程及住宿证明。"
+        },
+        "ukvcas": {
+          "title": "UKVCAS 生物信息采集",
+          "subtitle": "在 UKVCAS 中心预约并完成生物信息采集。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "UKVI 完成审理并发出结果。"
+        }
+      },
+      "EU_SCHENGEN_C_SHORT_STAY": {
+        "form": {
+          "title": "申根申请",
+          "subtitle": "完成统一的申根短期签证申请表。"
+        },
+        "documents": {
+          "title": "辅助材料",
+          "subtitle": "保险、住宿、财力与行程证明。"
+        },
+        "vfs_appointment": {
+          "title": "VFS 预约",
+          "subtitle": "在 VFS Global 中心预约递签时间。"
+        },
+        "biometrics": {
+          "title": "生物信息采集",
+          "subtitle": "在预约时间提供指纹与照片。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "领事馆作出短期签证决定。"
+        },
+        "passport_pickup": {
+          "title": "领取护照",
+          "subtitle": "审理完成后到 VFS 中心领取护照。"
+        }
+      },
+      "AU_VISITOR_600": {
+        "stream_select": {
+          "title": "选择访客流",
+          "subtitle": "在旅游、商务、担保亲属、ADS 或常旅客之间选择。"
+        },
+        "form": {
+          "title": "在线申请",
+          "subtitle": "在 ImmiAccount 完成 600 类签证申请。"
+        },
+        "signing": {
+          "title": "签署声明",
+          "subtitle": "提交前请确认品行与健康声明并签署。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "在 ImmiAccount 缴纳签证申请费。"
+        },
+        "submit_online": {
+          "title": "线上递交",
+          "subtitle": "通过 ImmiAccount 递交申请。"
+        },
+        "biometrics_optional": {
+          "title": "生物信息(如需)",
+          "subtitle": "部分国籍需在 VAC 录入生物信息。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "内政部完成审核并出具结果。"
+        }
+      },
+      "VN_E_VISA": {
+        "form": {
+          "title": "电子签证表格",
+          "subtitle": "在线填写越南电子签证申请。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "在线支付电子签证费用。"
+        },
+        "wait_email": {
+          "title": "等待邮件",
+          "subtitle": "越南移民局通过邮件发送电子签证 PDF。"
+        },
+        "print_and_travel": {
+          "title": "打印出行",
+          "subtitle": "打印电子签证 PDF,入境时出示。"
+        }
+      },
+      "_fallback": {
+        "application": {
+          "title": "申请",
+          "subtitle": "完成签证申请。"
+        },
+        "documents": {
+          "title": "材料",
+          "subtitle": "上传必要的辅助材料。"
+        },
+        "submit": {
+          "title": "递交",
+          "subtitle": "提交申请进入审理。"
+        },
+        "review": {
+          "title": "审核",
+          "subtitle": "申请正在审核中。"
+        },
+        "decision": {
+          "title": "结果",
+          "subtitle": "等待最终结果。"
+        }
+      },
+      "B1_B2": {
+        "form": {
+          "title": "DS-160 表格",
+          "subtitle": "在线完成 DS-160 非移民签证申请。"
+        },
+        "pay": {
+          "title": "缴纳 MRV 费用",
+          "subtitle": "在指定银行或线上缴纳签证费。"
+        },
+        "schedule_interview": {
+          "title": "预约面签",
+          "subtitle": "在美国大使馆或领事馆预约面签时间。"
+        },
+        "documents": {
+          "title": "辅助材料",
+          "subtitle": "准备护照、照片、财力与行程证明。"
+        },
+        "interview": {
+          "title": "领事面签",
+          "subtitle": "前往美国领事馆完成面签。"
+        },
+        "passport_pickup": {
+          "title": "护照寄回",
+          "subtitle": "签证贴签后护照将寄回或自取。"
+        },
+        "decision": {
+          "title": "审理结果",
+          "subtitle": "领事官在面签后做出决定。"
+        }
+      },
+      "B211A": {
+        "form": {
+          "title": "申请表",
+          "subtitle": "完成印尼旅游签证 B211A 申请表。"
+        },
+        "submit": {
+          "title": "递交申请",
+          "subtitle": "通过印尼移民门户递交申请。"
+        },
+        "pay": {
+          "title": "支付签证费",
+          "subtitle": "缴纳 B211A 签证申请费。"
+        },
+        "email_visa": {
+          "title": "电子签证邮件",
+          "subtitle": "通过邮件接收 B211A 批准函。"
+        }
+      }
+    }
+  },
+  "client": {
+    "signing": {
+      "loading": "正在加载您的声明…",
+      "errorTitle": "无法加载签名页面",
+      "notAuApplication": "仅澳大利亚 600 类访客签证需要签署声明。",
+      "alreadySignedTitle": "声明已完成签署",
+      "alreadySignedBody": "您的签名已保存,后续提交由系统处理。",
+      "submittedTitle": "签名已提交",
+      "submittedBody": "我们已将您的申请加入最终提交队列。",
+      "backToHome": "返回主页",
+      "pageTitle": "签署您的声明",
+      "pageSubtitle": "请核对以下回答,并在下方完成签名。系统会将您的签名渲染到正式的 600 类声明文件,再提交至 ImmiAccount。",
+      "healthHeading": "健康声明",
+      "characterHeading": "品行声明",
+      "finalHeading": "最终确认",
+      "yes": "是",
+      "no": "否",
+      "unanswered": "未回答",
+      "signHeading": "在此签名",
+      "signSubtitle": "使用手指、触控笔或鼠标签名。需要重写请点「清除」。",
+      "padAriaLabel": "签名板",
+      "clear": "清除",
+      "submit": "提交签名",
+      "submitting": "正在提交…"
+    }
+  },
+  "services": {
+    "title": "服务",
+    "scheduled": "已预约",
+    "yourHistory": "您的历史",
+    "reschedule": "重新预约",
+    "cancel": "取消",
+    "cancelling": "取消中...",
+    "cannotReschedule": "24小时内无法重新预约",
+    "comingSoon": "即将推出",
+    "noScheduledServices": "没有已预约的服务",
+    "noScheduledDescription": "您没有即将到来的服务。浏览下方推荐的检测项目开始使用。",
+    "noServiceHistory": "没有服务历史",
+    "noHistoryDescription": "您尚未完成任何服务。您的历史记录将显示在此处。",
+    "cancelDialog": {
+      "title": "取消已预约的服务？",
+      "keep": "保留"
+    },
+    "recommended": {
+      "heading": "为您推荐",
+      "subheading": "我们的热门检测推荐"
+    },
+    "personalized": {
+      "heading": "个性化推荐",
+      "subheading": "基于您的个人资料和健康数据的检测"
+    },
+    "upcoming": {
+      "heading": "即将推出的检测",
+      "subheading": "我们正在开发的新检测项目"
+    },
+    "marketplace": {
+      "supplement": {
+        "title": "营养品商城",
+        "description": "300+精选长寿产品的内部价格"
+      },
+      "service": {
+        "title": "处方药商城",
+        "description": "获取精选处方药如药物或肽类"
+      }
+    },
+    "cards": {
+      "bloodPanel": {
+        "title": "血液检测",
+        "description": "40+项生物标志物的全面综合血液检测。",
+        "cta": "包含在您的计划中"
+      },
+      "advancedBloodPanel": {
+        "title": "高级血液检测",
+        "description": "130+项生物标志物的全面综合血液检测。",
+        "cta": "开始使用",
+        "badge": "推荐"
+      },
+      "glp1": {
+        "title": "GLP-1 治疗",
+        "description": "您可能适合接受GLP-1治疗。了解它如何帮助您。",
+        "cta": "开始使用"
+      },
+      "allergyTesting": {
+        "title": "食物和环境过敏检测",
+        "description": "确定您的特定食物和环境过敏源。",
+        "cta": "即将推出"
+      },
+      "cancerTest": {
+        "title": "Grail Galleri 多癌检测",
+        "description": "通过这项全面检测提前了解您的癌症风险。可检测超过100种癌症。",
+        "cta": "即将推出"
+      },
+      "dexaScan": {
+        "title": "DEXA 骨密度扫描",
+        "description": "测量您的骨密度和骨质疏松风险。",
+        "cta": "即将推出"
+      },
+      "gutMicrobiome": {
+        "title": "肠道微生物检测",
+        "description": "分析您的肠道微生物组以了解消化健康。",
+        "cta": "即将推出"
+      },
+      "toxicology": {
+        "title": "环境毒理学检测",
+        "description": "分析您的环境毒素和暴露情况。",
+        "cta": "即将推出"
+      }
+    }
+  },
+  "application": {
+    "title": "印度尼西亚旅游签证 B211A",
+    "saving": "保存中...",
+    "edit": "编辑",
+    "findingRecentApplication": "正在打开最近的申请表单...",
+    "noRecentStartedTitle": "还没有选择申请",
+    "noRecentStartedBody": "请先从首页选择目的地；之后点击申请会直接回到最近开启的表单。",
+    "chooseDestination": "从首页选择目的地",
+    "stepOf": "第 {current} 步，共 {total} 步：{name}",
+    "steps": {
+      "personalInfo": {
+        "name": "个人信息",
+        "description": "全名、出生日期、国籍"
+      },
+      "passport": {
+        "name": "护照",
+        "description": "护照号码、日期、签发国"
+      },
+      "travelDetails": {
+        "name": "旅行详情",
+        "description": "到达、离开、住宿"
+      },
+      "documents": {
+        "name": "文件",
+        "description": "上传全部6份必要文件"
+      },
+      "review": {
+        "name": "审核",
+        "description": "确认您的信息正确"
+      },
+      "team": {
+        "name": "团队",
+        "description": "添加或审核同行人"
+      },
+      "status": {
+        "name": "状态",
+        "description": "申请已提交"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "未经认证",
+      "failedToSave": "保存失败",
+      "failedToSubmit": "提交失败",
+      "profileNotFound": "未找到个人资料",
+      "noApplicationFound": "未找到申请"
+    },
+    "statusHub": {
+      "loading": "正在加载申请状态...",
+      "loadError": "申请状态加载失败",
+      "eyebrow": "Full cycle applications",
+      "title": "申请状态中心",
+      "subtitle": "这里展示每个签证申请从开始填写、材料、提交队列到官方结果的完整周期；首页仍只展示轻量表单进度。",
+      "chooseDestination": "从首页选择目的地",
+      "cardProgress": "完整周期进度",
+      "updatedAt": "最近更新",
+      "noFilteredResults": "这个筛选下暂时没有申请。",
+      "emptyTitle": "还没有申请",
+      "emptyBody": "先从首页选择一个目的地，VIZA 会为该国家和签证类型创建对应的申请流程。",
+      "emptyStartedTitle": "还没有开始填写的申请",
+      "emptyStartedBody": "从首页选择目的地并填写一部分表单后，这里会显示该申请的完整状态。",
+      "backToOverview": "返回申请总览",
+      "detailMissingTitle": "未找到该申请",
+      "detailMissingBody": "这个申请可能尚未开始，或当前账户没有对应记录。你仍然可以从对应国家和签证类型开始填写。",
+      "startApplication": "开始填写",
+      "continueForm": "继续填写表单",
+      "fullCycleProgress": "完整周期进度",
+      "timelineTitle": "申请周期",
+      "detailsTitle": "申请详情",
+      "evidenceTitle": "表单与材料",
+      "submissionTitle": "提交队列",
+      "yes": "已完成",
+      "no": "未完成",
+      "viewReceipt": "查看回执",
+      "filters": {
+        "all": "全部",
+        "not_submitted": "未提交",
+        "processing": "处理中",
+        "needs_attention": "需处理",
+        "completed": "已完成"
+      },
+      "statuses": {
+        "not_started": "未开始",
+        "not_submitted": "未提交",
+        "in_progress": "填写中",
+        "needs_documents": "待补材料",
+        "submitting": "提交中",
+        "submitted": "已提交",
+        "needs_attention": "需要处理",
+        "approved": "已批准",
+        "rejected": "被拒"
+      },
+      "nextActions": {
+        "start": "开始填写",
+        "continue": "继续填写",
+        "upload_documents": "补充材料",
+        "wait": "查看进度",
+        "fix": "处理问题",
+        "view": "查看详情"
+      },
+      "checklist": {
+        "destination": "目的地",
+        "form": "表单",
+        "photo": "照片",
+        "documents": "材料"
+      },
+      "timeline": {
+        "destination": {
+          "title": "选择目的地与签证类型",
+          "description": "申请已经绑定到具体国家和签证路径。"
+        },
+        "form": {
+          "title": "填写申请表",
+          "description": "完成官方表单所需问题，并保存可复用的个人信息。"
+        },
+        "photo": {
+          "title": "上传照片",
+          "description": "准备符合该国家要求的护照式照片或身份图片。"
+        },
+        "documents": {
+          "title": "上传支持材料",
+          "description": "补齐护照、行程、资金、住宿或该签证类型需要的材料。"
+        },
+        "submission": {
+          "title": "提交与处理",
+          "description": "申请进入提交队列或已经提交到对应官方/人工处理流程。"
+        },
+        "result": {
+          "title": "官方结果",
+          "description": "等待官方审批结果；VIZA 不会伪造批准或拒签状态。"
+        }
+      },
+      "metrics": {
+        "applicationId": "申请 ID",
+        "rawStatus": "数据库状态",
+        "createdAt": "创建时间",
+        "submittedAt": "提交时间",
+        "confirmation": "确认号",
+        "answerCount": "已保存答案",
+        "photo": "照片",
+        "docsUploaded": "已上传材料",
+        "docsRejected": "被拒材料",
+        "queueStatus": "队列状态",
+        "queueAttempts": "尝试次数",
+        "queueUpdatedAt": "队列更新时间"
+      }
+    },
+    "dynamicSteps": {
+      "Personal Information": "个人信息",
+      "Personal Information 1": "个人信息 1",
+      "Personal Information 2": "个人信息 2",
+      "Personal Information II": "个人信息 II",
+      "Travel Information": "旅行信息",
+      "Travel Companions": "同行人员",
+      "Previous US Travel": "以往赴美记录",
+      "Address and Phone": "地址和电话信息",
+      "Address and Phone Information": "地址和电话信息",
+      "Passport Information": "护照信息",
+      "US Contact Information": "美国联系人信息",
+      "US Point of Contact": "美国联系人",
+      "Family Information": "家庭信息",
+      "Family Information: Relatives": "家庭信息：亲属",
+      "Family Information: Spouse": "家庭信息：配偶",
+      "Family Information: Partner": "家庭信息：伴侣",
+      "Family Information: Deceased Spouse": "家庭信息：已故配偶",
+      "Family Information: Former Spouse": "家庭信息：前配偶",
+      "Work/Education/Training": "工作/教育/培训",
+      "Work/Education/Training: Present": "工作/教育/培训：当前",
+      "Work/Education/Training: Previous": "工作/教育/培训：过往",
+      "Work/Education/Training: Additional": "工作/教育/培训：补充",
+      "Work and Education": "工作与教育",
+      "Education & Employment": "教育与就业",
+      "Security and Background": "安全与背景",
+      "Security and Background: Part 1": "安全与背景：第1部分",
+      "Security and Background: Part 2": "安全与背景：第2部分",
+      "Security and Background: Part 3": "安全与背景：第3部分",
+      "Security and Background: Part 4": "安全与背景：第4部分",
+      "Security and Background: Part 5": "安全与背景：第5部分",
+      "Visa Selection": "签证选择",
+      "Visa Category & Passport": "签证类别与护照",
+      "Personal Info": "个人信息",
+      "Personal Details": "个人信息",
+      "About You — Personal Details": "关于您：个人信息",
+      "Passport": "护照",
+      "Passport Details": "护照信息",
+      "Passport & Travel Document": "护照与旅行证件",
+      "About You — Passport & Identity Documents": "关于您：护照与身份证件",
+      "Travel Document & Identity": "旅行证件与身份",
+      "National Identity Document": "国家身份证件",
+      "EU/EEA/CH Family Member": "欧盟/欧洲经济区/瑞士家庭成员",
+      "Contact Information": "联系信息",
+      "Contact Details": "联系信息",
+      "Contact Details & Residence": "联系方式与居住信息",
+      "Contact & Home Address": "联系方式与住址",
+      "Contact & Emergency Contact": "联系方式与紧急联系人",
+      "Your Contact Details": "您的联系方式",
+      "Occupation": "职业",
+      "Your Employment": "您的就业信息",
+      "Application Context": "申请背景",
+      "Stream-Specific Details": "类别相关信息",
+      "Purpose-Specific Details": "目的相关信息",
+      "Requested Information": "所需信息",
+      "ImmiAccount": "ImmiAccount 账户",
+      "UKVI Account": "UKVI 账户",
+      "Travel Details": "旅行信息",
+      "Trip Details": "行程详情",
+      "Visit Details": "访问详情",
+      "Information About the Trip": "行程信息",
+      "Trip & Visit": "行程与访问",
+      "Your Trip to the UK": "您的英国行程",
+      "Your Trip to the UK — Purpose": "您的英国行程：目的",
+      "Your Accommodation in the UK": "您的英国住宿",
+      "Accommodation in Schengen": "申根住宿信息",
+      "Accommodation": "住宿信息",
+      "Host in Cambodia": "柬埔寨联系人",
+      "Host in Canada": "加拿大联系人",
+      "Host in Egypt": "埃及联系人",
+      "Host in Hong Kong": "香港联系人",
+      "Host in India": "印度联系人",
+      "Host in Indonesia": "印度尼西亚联系人",
+      "Host in Laos": "老挝联系人",
+      "Host in Macau": "澳门联系人",
+      "Host in Malaysia": "马来西亚联系人",
+      "Host in New Zealand": "新西兰联系人",
+      "Host in Philippines": "菲律宾联系人",
+      "Host in Russia": "俄罗斯联系人",
+      "Host in Singapore": "新加坡联系人",
+      "Host in South Africa": "南非联系人",
+      "Host in Sri Lanka": "斯里兰卡联系人",
+      "Host in Thailand": "泰国联系人",
+      "Host in Türkiye": "土耳其联系人",
+      "Host in UAE": "阿联酋联系人",
+      "Inviter in Japan": "日本邀请人",
+      "Local Sponsor": "当地担保人",
+      "Sponsor": "担保人",
+      "Sponsor in Indonesia": "印度尼西亚担保人",
+      "Travel History": "旅行历史",
+      "Travel & Background": "旅行与背景",
+      "Travel & Visa History": "旅行与签证历史",
+      "Travel History & Family": "旅行历史与家庭",
+      "Your Travel History": "您的旅行历史",
+      "Financial Support": "资金支持",
+      "Funding & Financial Capacity": "资金与财务能力",
+      "Trip Expenses & Insurance": "行程费用与保险",
+      "Your Finances": "您的财务情况",
+      "Marital & Family": "婚姻与家庭",
+      "Family Composition": "家庭组成",
+      "Your Family": "您的家庭",
+      "Dependants Travelling With You": "随行受抚养人",
+      "Accompanying Children Under 14": "14 岁以下随行儿童",
+      "Parental Authority (for minors)": "父母授权（未成年人）",
+      "Health & Character": "健康与品格",
+      "Health & Health Insurance": "健康与医疗保险",
+      "Health Declaration": "健康声明",
+      "Customs Declaration": "海关申报",
+      "Character & Declaration": "品格与声明",
+      "Character Declarations": "品格声明",
+      "Invitation, Funding & Declaration": "邀请、资金与声明",
+      "Authorised Recipient & Migration Agent": "授权接收人与移民代理",
+      "Additional Information": "补充信息",
+      "Declaration": "声明",
+      "Document Upload": "材料上传",
+      "Supporting Documents": "支持材料",
+      "Upload Photo": "上传照片",
+      "Review": "审核申请",
+      "Review & Submit": "审核并提交",
+      "Confirmation": "确认"
+    },
+    "dynamicSections": {
+      "personal": "个人信息",
+      "travel": "旅行",
+      "stay": "在马来西亚停留",
+      "travelCompanions": "同行人员",
+      "previousTravel": "以往赴美记录",
+      "addressAndPhone": "地址和电话信息",
+      "passport": "护照信息",
+      "usContact": "美国联系人",
+      "family": "家庭信息",
+      "workEducationTraining": "工作/教育/培训",
+      "securityAndBackground": "安全与背景",
+      "documents": "材料",
+      "photo": "上传照片",
+      "review": "审核申请",
+      "team": "团队",
+      "confirmation": "确认"
+    },
+    "dynamicStepDescription": "{count, plural, one {# 个字段} other {# 个字段}}",
+    "documentsStepDescription": "上传必需和可选的支持材料",
+    "photoStepDescription": "上传您的护照照片",
+    "reviewStepDescription": "审核并确认您的信息",
+    "teamStepDescription": "添加或审核同行人",
+    "statusStepDescription": "申请已提交",
+    "dynamicButtons": {
+      "continue": "继续",
+      "saving": "保存中...",
+      "selectFallback": "请选择…",
+      "addAnother": "添加更多",
+      "remove": "删除"
+    },
+    "team": {
+      "title": "团队",
+      "subtitle": "如果本次申请包含同行人，可以在这里添加。每位同行人都有独立申请表，并会预填共享行程信息和常用同行人资料。",
+      "listTitle": "同行人",
+      "listSubtitle": "最终提交前，可以审核、修改或移除同行人。",
+      "add": "添加同行人",
+      "loading": "正在加载同行人...",
+      "loadError": "暂时无法加载同行人。",
+      "createError": "暂时无法创建同行人申请。",
+      "noApplication": "请先创建或打开主申请，再添加同行人。",
+      "deleteError": "暂时无法移除该同行人。",
+      "deleted": "已移除同行人。",
+      "addedSuccess": "同行人已审核并添加到本团队。",
+      "emptyTitle": "还没有添加同行人",
+      "emptyDescription": "可以直接继续，也可以添加常用或自定义同行人。",
+      "hint": "请在本人和所有同行人都审核完成后再最终提交。",
+      "edit": "审核",
+      "delete": "移除",
+      "submitting": "正在提交...",
+      "continueToTeam": "继续到团队",
+      "confirmCompanion": "确认同行人并返回",
+      "finalSubmit": "提交申请",
+      "status": {
+        "draft": "草稿",
+        "in_progress": "填写中",
+        "ready_for_submission": "已审核",
+        "submitted": "已提交",
+        "approved": "已批准",
+        "rejected": "被拒"
+      },
+      "dialog": {
+        "title": "添加同行人",
+        "subtitle": "选择常用同行人或输入新的同行人。自定义同行人会保存，方便下次使用。",
+        "tabs": {
+          "frequent": "常用同行人",
+          "custom": "自定义同行人"
+        },
+        "noFrequent": "还没有常用同行人。",
+        "select": "选择",
+        "cancel": "取消",
+        "save": "保存并审核"
+      },
+      "deleteDialog": {
+        "title": "移除同行人？",
+        "description": "这会将该同行人的申请从本团队中移除，常用同行人资料仍会保留。",
+        "cancel": "取消",
+        "confirm": "移除"
+      }
+    }
+  },
+  "clientStatus": {
+    "eyebrow": "自动化进度",
+    "title": "状态中心",
+    "subtitle": "在一个页面查看付款、授权、表单答案、材料、申请包准备、外部交接和官方结果交付。",
+    "chooseDestination": "选择其他目的地",
+    "partialData": "部分自动化详情暂时不可用。当前显示的状态仍然只包含适合客户查看的信息。",
+    "progress": "进度",
+    "updated": "更新时间",
+    "metric": "数据",
+    "status": "状态",
+    "download": "下载",
+    "secureFileStored": "已安全存储",
+    "officialReference": "官方参考号",
+    "vizaReference": "VIZA 参考号",
+    "timelineTitle": "申请时间线",
+    "timelineSubtitle": "每一步都来自 VIZA 网站状态以及已接入的外部提交或结果更新。",
+    "nextActionsTitle": "下一步",
+    "referencesTitle": "参考信息",
+    "filesTitle": "回执与结果文件",
+    "filesSubtitle": "仅当 VIZA 已有回执、申请包、批准、签证、拒签或结果引用时才显示链接。",
+    "filesEmpty": "生成或收到回执和结果文件后，会显示在这里。",
+    "activityTitle": "最近更新",
+    "activityEmpty": "暂无可向客户展示的自动化更新。",
+    "applicationsTitle": "申请",
+    "notCreated": "尚未创建",
+    "notStarted": "未开始",
+    "notAssigned": "暂未分配",
+    "liveAction": {
+      "title": "需要处理官网步骤",
+      "description": "VIZA 已打开并准备好官方门户。请你亲自在官网完成当前可见步骤，然后回到这里继续辅助提交。",
+      "actionType": "动作",
+      "checkpoint": "检查点",
+      "openOfficial": "打开官方网站",
+      "continue": "完成后继续",
+      "continuing": "正在继续",
+      "completed": "动作已完成，VIZA 将恢复任务。",
+      "failed": "暂时无法恢复任务，请重试或联系支持。"
+    },
+    "empty": {
+      "title": "暂无进行中的申请",
+      "description": "请先从首页选择目的地并开始签证流程。创建申请后，这里会显示付款、授权、材料、申请包、交接和结果状态。",
+      "cta": "选择目的地"
+    },
+    "stats": {
+      "applications": "申请数量",
+      "averageProgress": "平均进度",
+      "nextActions": "待处理步骤",
+      "files": "可用文件"
+    },
+    "states": {
+      "not_started": "未开始",
+      "needs_payment": "待付款",
+      "needs_consent": "待授权",
+      "in_progress": "进行中",
+      "needs_documents": "待补材料",
+      "packet_pending": "申请包准备中",
+      "external_pending": "等待外部交接",
+      "submitted": "已提交或等待中",
+      "needs_attention": "需要处理",
+      "approved": "已批准",
+      "rejected": "已拒签"
+    },
+    "stepStates": {
+      "complete": "已完成",
+      "current": "当前步骤",
+      "attention": "需要处理",
+      "blocked": "受阻",
+      "upcoming": "待开始"
+    },
+    "steps": {
+      "payment": {
+        "title": "付款",
+        "description": "确认 VIZA 服务费付款后，才会继续准备申请流程。"
+      },
+      "consent": {
+        "title": "授权与同意",
+        "description": "VIZA 处理材料或申请包前，需要先记录您的同意和代理授权。"
+      },
+      "form": {
+        "title": "表单答案",
+        "description": "这里跟踪已保存的申请答案和官方格式字段。"
+      },
+      "documents": {
+        "title": "材料",
+        "description": "检查护照、照片、行程、资金以及该签证类型所需文件的上传状态。"
+      },
+      "packet": {
+        "title": "申请包生成",
+        "description": "核心要求准备好后，VIZA 会生成适合客户查看的申请包。"
+      },
+      "handoff": {
+        "title": "外部交接",
+        "description": "如已接入外部提交状态或官方参考号，会在这里显示。"
+      },
+      "result": {
+        "title": "结果交付",
+        "description": "只有在已有官方结果数据时，才会显示批准、签证、拒签或结果文件。"
+      }
+    },
+    "metrics": {
+      "signed": "已签署",
+      "accepted": "已同意",
+      "answerCount": "已保存 {count} 个答案",
+      "fileReady": "文件已准备"
+    },
+    "actions": {
+      "startApplication": "开始申请",
+      "pay": "支付服务费",
+      "giveConsent": "查看授权",
+      "continueForm": "继续填写",
+      "uploadDocuments": "上传材料",
+      "waitPacket": "查看申请包状态",
+      "waitExternal": "查看交接状态",
+      "downloadResult": "下载结果",
+      "contactSupport": "联系客服"
+    },
+    "details": {
+      "applicationId": "申请 ID",
+      "payment": "付款",
+      "agencyFee": "VIZA 服务费",
+      "governmentFee": "政府费用",
+      "formAnswers": "已保存答案",
+      "documents": "已收到材料",
+      "externalStatus": "外部状态",
+      "resultStatus": "结果状态",
+      "notifications": "已发送更新"
+    },
+    "files": {
+      "applicationReceipt": "申请回执",
+      "paymentReceipt": "付款回执",
+      "packet": "已准备申请包",
+      "arrivalCardConfirmation": "SG Arrival Card 确认 PDF（可下载打印）",
+      "approvedResult": "批准信 / 已签发签证 PDF",
+      "rejectionLetter": "拒签信",
+      "resultFile": "结果文件"
+    },
+    "events": {
+      "payment_completed": "付款已完成",
+      "consent_accepted": "授权已同意",
+      "document_uploaded": "材料已上传",
+      "packet_generated": "申请包已生成",
+      "external_status_updated": "外部状态已更新",
+      "official_status_changed": "越南 e‑Visa 官网状态已更新",
+      "arrival_card_submitted": "SG Arrival Card 已成功提交",
+      "result_received": "已收到结果",
+      "notification_sent": "通知已发送"
+    }
+  },
+  "applicationSteps": {
+    "continue": "继续",
+    "submit": "提交",
+    "confirm": "确认",
+    "cancel": "取消",
+    "edit": "编辑",
+    "select": "选择...",
+    "uploadFailed": "上传失败",
+    "upload": "上传",
+    "replace": "替换",
+    "personalInfo": {
+      "fullName": "全名（与护照一致）",
+      "fullNamePlaceholder": "张三",
+      "surname": "姓",
+      "surnamePlaceholder": "如：张",
+      "givenNames": "名",
+      "givenNamesPlaceholder": "如：三",
+      "fullNameNative": "中文姓名",
+      "fullNameNativePlaceholder": "如：张三",
+      "dateOfBirth": "出生日期",
+      "dateOfBirthPlaceholder": "选择出生日期",
+      "placeOfBirth": "出生地",
+      "placeOfBirthPlaceholder": "城市，国家",
+      "maritalStatus": "婚姻状况",
+      "single": "未婚",
+      "married": "已婚",
+      "divorced": "离异",
+      "widowed": "丧偶",
+      "separated": "分居",
+      "otherMarital": "其他",
+      "gender": "性别",
+      "male": "男",
+      "female": "女",
+      "other": "其他",
+      "nationality": "国籍",
+      "nationalityPlaceholder": "如：中国",
+      "cityOfBirth": "出生城市",
+      "cityOfBirthPlaceholder": "如：北京",
+      "stateOfBirth": "出生省 / 州",
+      "stateOfBirthPlaceholder": "如：北京",
+      "countryOfBirth": "出生国家",
+      "countryOfBirthPlaceholder": "如：中国",
+      "occupation": "职业",
+      "occupationPlaceholder": "如：软件工程师",
+      "currentAddress": "现居地址",
+      "currentAddressPlaceholder": "街道，城市，国家"
+    },
+    "passport": {
+      "documentType": "护照类型",
+      "regular": "普通护照",
+      "official": "公务护照",
+      "diplomatic": "外交护照",
+      "otherType": "其他",
+      "passportNumber": "护照号码",
+      "passportNumberPlaceholder": "PA1234567",
+      "bookNumber": "护照本号",
+      "bookNumberPlaceholder": "如护照没有单独本号可留空",
+      "issueDate": "签发日期",
+      "issueDatePlaceholder": "选择签发日期",
+      "expiryDate": "到期日期",
+      "expiryDatePlaceholder": "选择到期日期",
+      "issuingCountry": "签发国家",
+      "issuingCountryPlaceholder": "如：中国",
+      "issuanceCity": "签发城市",
+      "issuanceCityPlaceholder": "如：北京",
+      "issuingAuthority": "签发机关",
+      "issuingAuthorityPlaceholder": "如：出入境管理局"
+    },
+    "travel": {
+      "arrivalDate": "到达日期",
+      "arrivalDatePlaceholder": "选择到达日期",
+      "departureDate": "离开日期",
+      "departureDatePlaceholder": "选择离开日期",
+      "portOfEntry": "入境口岸",
+      "portOfEntryPlaceholder": "如：伍拉·赖国际机场（巴厘岛）",
+      "purposeOfVisit": "访问目的",
+      "selectPurpose": "选择目的...",
+      "tourism": "旅游",
+      "business": "商务",
+      "socialCultural": "社交/文化",
+      "familyVisit": "探亲",
+      "student": "学生",
+      "exchange": "交流访问",
+      "other": "其他",
+      "arrivalCity": "到达城市 / 口岸",
+      "arrivalCityPlaceholder": "如：纽约肯尼迪国际机场",
+      "accommodationName": "住宿名称",
+      "accommodationNamePlaceholder": "酒店/民宿名称",
+      "accommodationAddress": "住宿地址",
+      "accommodationAddressPlaceholder": "印度尼西亚完整地址",
+      "usAddress": "住宿街道地址",
+      "usStreetPlaceholder": "街道地址",
+      "usCity": "住宿城市",
+      "usCityPlaceholder": "城市",
+      "usState": "州",
+      "usStatePlaceholder": "州",
+      "usZip": "邮编",
+      "usZipPlaceholder": "邮编"
+    },
+    "documentUpload": {
+      "title": "文件上传",
+      "description": "上传印度尼西亚B211A旅游签证申请所需的全部文件。",
+      "uploadAllToContinue": "上传全部 {count} 份文件以继续。",
+      "docs": {
+        "passport_copy": "护照资料页（扫描件或照片）",
+        "photo": "近期护照尺寸照片",
+        "flight_booking": "航班预订确认",
+        "hotel_booking": "酒店/住宿预订",
+        "travel_itinerary": "旅行行程",
+        "bank_statement": "银行对账单（最近3个月）"
+      }
+    },
+    "dynamicField": {
+      "selectCountry": "选择国家",
+      "doNotKnow": "不知道",
+      "doesNotApply": "不适用",
+      "usSocialSecurityNumber": "美国社会安全号码"
+    },
+    "review": {
+      "title": "审核您的申请",
+      "personalInformation": "个人信息",
+      "fullName": "全名",
+      "dateOfBirth": "出生日期",
+      "placeOfBirth": "出生地",
+      "gender": "性别",
+      "nationality": "国籍",
+      "occupation": "职业",
+      "address": "地址",
+      "passportDetails": "护照信息",
+      "passportNumber": "护照号码",
+      "issueDate": "签发日期",
+      "expiryDate": "到期日期",
+      "issuingCountry": "签发国家",
+      "issuingAuthority": "签发机关",
+      "travelInformation": "旅行信息",
+      "arrivalDate": "到达日期",
+      "departureDate": "离开日期",
+      "portOfEntry": "入境口岸",
+      "purpose": "目的",
+      "accommodation": "住宿",
+      "accommodationAddress": "住宿地址",
+      "reviewMessage": "提交前请仔细检查您的信息。",
+      "confirmAndSubmit": "确认并提交",
+      "continueToTeam": "继续到团队",
+      "validation": {
+        "failed": "验证失败",
+        "hasErrors": "申请存在错误——请在提交前修正",
+        "hasWarnings": "警告——请在提交前检查",
+        "allGood": "申请已验证——可以提交",
+        "errorFallback": "⚠️ {error}——您仍可在下方提交。",
+        "validating": "验证中…",
+        "validateButton": "验证申请",
+        "submitWithWarnings": "提交（包含警告）"
+      }
+    },
+    "photoUpload": {
+      "title": "上传照片",
+      "prepareTitle": "准备提交照片",
+      "instructions": "请参阅美国国务院的图像要求。您的照片必须为JPEG格式（.jpg），文件大小不超过240KB，且在过去6个月内拍摄。",
+      "cropToolTitle": "照片裁剪工具",
+      "cropToolDescription": "使用此工具调整大小并裁剪您的照片，以符合美国国务院的头部尺寸和数字图像提交要求。",
+      "startCropTool": "启动照片工具",
+      "selectPhoto": "选择您的照片",
+      "browse": "浏览",
+      "formatHint": "选择JPEG格式图像（.jpg文件类型），文件大小不超过240KB。",
+      "qualityTitle": "照片质量标准",
+      "qualityDescription": "为确保最终打印的旅行证件使用最高质量的照片：彩色照片、纯白色或灰白色背景、正面直视相机、中性面部表情、双眼睁开、在过去6个月内拍摄。",
+      "resultTitle": "照片质量标准结果",
+      "passed": "照片通过质量标准。您的照片已成功上传并通过了所有质量检查。",
+      "failed": "提交的照片不符合图像质量要求。",
+      "reasonsTitle": "照片未通过的原因：",
+      "backSelect": "返回：选择其他照片",
+      "nextWithPhoto": "下一步：使用此照片继续",
+      "nextWithoutPhoto": "下一步：不使用照片继续",
+      "confirmTitle": "确认照片",
+      "confirmNotice": "请注意，面签时可能需要携带护照式照片。",
+      "uploadNew": "上传新照片",
+      "continue": "继续",
+      "uploading": "正在上传照片...",
+      "uploadError": "照片上传失败，请重试。",
+      "noPhoto": "未提供照片",
+      "photoProvided": "照片已提供",
+      "formatSpec": "JPEG (.jpg) · 最大 240KB",
+      "notAuthenticated": "未经认证",
+      "failures": {
+        "file_too_large": "文件大小超过240KB限制",
+        "wrong_format": "文件必须为JPEG格式（.jpg）",
+        "dimensions_too_small": "图像至少需要600×600像素",
+        "not_square": "图像必须为正方形（1:1）比例",
+        "poor_illumination": "光线似乎不足"
+      },
+      "applyCrop": "应用裁剪",
+      "cancelCrop": "取消",
+      "zoom": "缩放"
+    },
+    "translation": {
+      "tabOriginal": "中文（原文）",
+      "tabEnglish": "英文翻译",
+      "aiTranslated": "自动翻译",
+      "userEdited": "已编辑",
+      "translating": "正在翻译您的申请...",
+      "translationFailed": "自动翻译未能完成。",
+      "retryTranslation": "重试",
+      "editTranslation": "编辑",
+      "saveTranslation": "保存",
+      "sectionPersonal": "个人信息",
+      "sectionPassport": "护照信息",
+      "sectionTravel": "旅行信息",
+      "sectionDynamic": "申请问题",
+      "bilingualTitle": "双语对照核对",
+      "bilingualHint": "提交前请对照检查原始答案和官方英文/格式化结果。翻译异常不会阻止提交，但姓名拼写和日期格式应与护照及官方表格一致。",
+      "sourceColumn": "原始答案",
+      "officialColumn": "官方英文 / 格式",
+      "passportSpellingWarning": "请确认这里的拼音/罗马字母拼写与护照完全一致。",
+      "dateFormatWarning": "请确认日期使用官方格式：{format}。",
+      "officialFormatBadge": "官方格式",
+      "optionLabelBadge": "官方选项",
+      "noReviewRows": "暂无可核对的已填写答案。"
+    },
+    "status": {
+      "title": "申请已提交",
+      "confirmationNumber": "确认号",
+      "submittedOn": "提交日期",
+      "estimatedProcessing": "预计处理时间",
+      "businessDays": "个工作日",
+      "message": "您的申请已提交至印度尼西亚电子签证门户。签证获批后您将收到电子邮件确认。请保存您的确认号以供参考。",
+      "travelPlannerTitle": "下一步：规划你的行程",
+      "travelPlannerHint": "现在表格已经完成，你可以启动 travel chatbot 来生成行程、选择航班酒店并导出 Word/PDF。",
+      "openTravelPlanner": "打开 Travel Chatbot",
+      "viewReceipt": "查看收据",
+      "done": "完成"
+    },
+    "documentChecklist": {
+      "missingDocuments": "缺失文件（{count}）",
+      "missingDescription": "以下文件在提交申请前仍需上传：",
+      "uploadNow": "好的，我现在就上传",
+      "docs": {
+        "passport_copy": "护照资料页",
+        "photo": "护照尺寸照片",
+        "flight_booking": "航班预订确认",
+        "hotel_booking": "酒店预订确认",
+        "travel_itinerary": "旅行行程",
+        "bank_statement": "银行对账单（3个月）"
+      }
+    },
+    "statusCard": {
+      "applicationStatus": "申请状态",
+      "draft": "草稿",
+      "inProgress": "进行中",
+      "submitted": "已提交",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    }
+  },
+  "simplifiedForm": {
+    "loading": "正在准备您的快速表单…",
+    "progress": "第 {current}/{total} 步 · {name}",
+    "steps": {
+      "0": "身份",
+      "1": "联系方式",
+      "2": "护照",
+      "3": "行程",
+      "usStay": "在美住宿",
+      "usContact": "美国联系人",
+      "4": "家庭",
+      "5": "背景",
+      "6": "工作与教育"
+    },
+    "common": {
+      "continue": "继续",
+      "back": "返回",
+      "submitting": "正在保存您的答案…",
+      "yes": "是",
+      "no": "否"
+    },
+    "identity": {
+      "scanTitle": "先从您的身份开始",
+      "scanSubtitle": "扫描护照自动填充,或手动输入。",
+      "scanOption": "扫描护照",
+      "scanOptionHint": "通过照片自动填充您的信息",
+      "scanComingSoon": "即将推出 — 请先手动输入",
+      "scanStepEyebrow": "第 1 步 / 共 3 步",
+      "scanUploadTitle": "上传您的护照",
+      "scanAutoReadSubtitle": "我们会自动读取您的护照信息，无需手动输入。请使用带照片的资料页。",
+      "scanInstructions": "请将护照资料页平整放置,光线充足。我们需要清晰读取照片、机读区和所有印刷文字。",
+      "scanUploadFile": "上传文件",
+      "scanBrowse": "选择文件",
+      "scanBrowseHint": "JPG、PNG、WEBP 或 PDF — 最大 10 MB",
+      "scanTakePhoto": "拍照",
+      "scanTakePhotoHint": "使用您的相机(手机)",
+      "scanDropTitle": "将护照照片拖到这里",
+      "scanDropSubtitle": "或点击选择文件 — 文件会加密传输，不会被分享",
+      "scanFormatsLimit": "最大 10 MB",
+      "scanReadingDocument": "正在读取文件",
+      "scanExtractingDetails": "正在提取您的信息",
+      "scanVerifyingAuthenticity": "正在验证真实性",
+      "scanExtracting": "正在读取您的护照…",
+      "scanExtractError": "无法识别此照片。请重新拍摄清晰照片或手动输入。",
+      "scanPreviewAlt": "护照预览",
+      "scanTipCornersTitle": "四个角都清晰可见",
+      "scanTipCornersBody": "请完整拍入资料页，包括底部机读区。",
+      "scanTipLightTitle": "光线明亮均匀",
+      "scanTipLightBody": "避免手或手机壳造成阴影。",
+      "scanTipGlareTitle": "避免反光",
+      "scanTipGlareBody": "如果防伪膜反光，请稍微调整拍摄角度。",
+      "scanResultTitle": "确认识别结果",
+      "scanResultSubtitle": "如有不正确的字段,请在继续前修改。",
+      "scanUseDetails": "使用这些信息",
+      "scanSaving": "正在保存",
+      "scanUploadedSuccess": "护照页已上传成功，并已保存到材料记录。",
+      "scanRetry": "重新拍摄",
+      "scanFallbackManual": "改为手动输入",
+      "scanPrivacyNote": "扫描件经加密传输,仅用于识别,提交后即删除。",
+      "scanNoDraft": "无法启动草稿申请。请刷新页面后重试。",
+      "scanWrongFormat": "请上传 JPG、PNG 或 WEBP 格式图片。",
+      "scanTooLarge": "图片过大 — 请使用小于 8 MB 的图片。",
+      "scanNotAuthenticated": "请重新登录以扫描护照。",
+      "scanPassportNumber": "护照号码",
+      "scanPassportType": "护照类型",
+      "scanIssuingCountry": "签发国家",
+      "scanIssueDate": "签发日期",
+      "scanExpiryDate": "有效期至",
+      "scanWarningsTitle": "注意",
+      "scanConfidence": {
+        "high": "识别可信度高",
+        "medium": "识别可信度中等 — 请仔细核对",
+        "low": "识别可信度低 — 请逐字核对"
+      },
+      "manualOption": "手动输入",
+      "manualDescription": "手动输入您的信息",
+      "title": "您的信息",
+      "subtitle": "请按护照上的信息逐字填写。",
+      "firstName": "名",
+      "firstNamePlaceholder": "例如:Edward",
+      "lastName": "姓",
+      "lastNamePlaceholder": "例如:Zhang",
+      "dateOfBirth": "出生日期",
+      "dateOfBirthPlaceholder": "请选择出生日期",
+      "gender": "性别",
+      "male": "男",
+      "female": "女",
+      "countryOfBirth": "出生国家",
+      "countryOfBirthPlaceholder": "选择国家",
+      "cityOfBirth": "出生城市",
+      "cityOfBirthPlaceholder": "例如:上海",
+      "stateOfBirth": "出生州/省",
+      "stateOfBirthPlaceholder": "例如 广东省",
+      "noStateProvince": "我的出生国家没有州/省",
+      "nationality": "国籍",
+      "nationalityPlaceholder": "选择国籍",
+      "maritalStatus": "婚姻状况",
+      "maritalStatusPlaceholder": "选择婚姻状况",
+      "single": "未婚",
+      "married": "已婚",
+      "commonLawMarriage": "事实婚姻",
+      "civilUnion": "民事结合/家庭伴侣",
+      "legallySeparated": "合法分居",
+      "divorced": "离异",
+      "widowed": "丧偶",
+      "other": "其他",
+      "maritalStatusOtherExplain": "请说明您的婚姻状况",
+      "maritalStatusOtherExplainPlaceholder": "请描述您的婚姻状况",
+      "hasOtherName": "您曾用过其他名字吗?",
+      "hasOtherNameTooltip": "这包括婚前姓名、宗教名、职业名或官方文件上使用过的任何其他姓名。例如：曾用名：王小红 → 李小红 (婚后)",
+      "otherFirstName": "其他名",
+      "otherFirstNamePlaceholder": "曾用名或别名(名)",
+      "otherLastName": "其他姓",
+      "otherLastNamePlaceholder": "曾用名或别名(姓)",
+      "hasNativeAlphabet": "您的姓名是否使用非英文字符?",
+      "hasNativeAlphabetTooltip": "如果您的护照上显示中文姓名，请选择'是'并按原样输入。例如：张伟 或 李明",
+      "nativeAlphabetName": "母语字母的完整姓名",
+      "nativeAlphabetNamePlaceholder": "例如:张泽华",
+      "hasTelecode": "您是否有代表您姓名的电码?",
+      "hasTelecodeTooltip": "电码是代表汉字的4位数字。如果您知道您的电码，请选择'是'并输入数字。例如：张 = 1728, 伟 = 0251, 李 = 2621, 明 = 2494",
+      "telecodeFirstName": "电码名",
+      "telecodeFirstNamePlaceholder": "电码名",
+      "telecodeLastName": "电码姓",
+      "telecodeLastNamePlaceholder": "电码姓",
+      "spouseTitle": "配偶信息",
+      "spouseFirstName": "配偶名",
+      "spouseLastName": "配偶姓",
+      "spouseDob": "配偶出生日期",
+      "spouseNationality": "配偶国籍",
+      "spouseCityOfBirth": "配偶出生城市",
+      "spouseCountryOfBirth": "配偶出生国家"
+    },
+    "contact": {
+      "title": "领事馆如何联系您?",
+      "subtitle": "您的主要联系方式、家庭住址，以及官方表格要求的社交平台信息。",
+      "email": "邮箱",
+      "emailPlaceholder": "you@example.com",
+      "phone": "电话",
+      "phonePlaceholder": "+86 138 0000 0000",
+      "secondaryPhone": "其他电话(可选)",
+      "secondaryPhoneHint": "领事馆可联系到您的另一个号码",
+      "secondaryPhonePlaceholder": "其他电话号码",
+      "secondaryEmail": "其他邮箱(可选)",
+      "secondaryEmailHint": "您使用的另一个邮箱",
+      "secondaryEmailPlaceholder": "another@example.com",
+      "homeAddressTitle": "家庭住址",
+      "homeCountry": "国家",
+      "homeCountryPlaceholder": "选择国家",
+      "street": "街道地址",
+      "streetPlaceholder": "街道和门牌号",
+      "city": "城市",
+      "cityPlaceholder": "城市",
+      "state": "省/州",
+      "statePlaceholder": "省或州(可选)",
+      "postalCode": "邮政编码",
+      "postalCodePlaceholder": "邮政编码",
+      "mailingSame": "邮寄地址与家庭住址相同吗?",
+      "socialMedia": "社交媒体",
+      "socialMediaHint": "请选择官方表格询问的平台；只有在该签证表单要求时，我们才会带入社交媒体信息。",
+      "useSocialMedia": "您使用社交媒体吗?",
+      "socialHandlePlaceholder": "{platform} 用户名或账号",
+      "otherPlatforms": "更多平台",
+      "otherPlatformsPlaceholder": "选择平台",
+      "customPlatformLabel": "平台",
+      "customPlatformPlaceholder": "例如 微信",
+      "customUsernameLabel": "用户名",
+      "customUsernamePlaceholder": "@用户名",
+      "addAnotherPlatform": "添加其他平台（自行输入）"
+    },
+    "passport": {
+      "title": "护照与身份证明",
+      "subtitle": "请与护照上的信息完全一致。",
+      "type": "护照类型",
+      "typeRegular": "普通",
+      "typeRegularHint": "最常见",
+      "typeOfficial": "公务",
+      "typeDiplomatic": "外交",
+      "typePermit": "通行证",
+      "typeOther": "其他",
+      "number": "护照号码",
+      "numberPlaceholder": "例如:E12345678",
+      "numberHint": "在护照的护照页上。通常为8-9个字符。",
+      "bookNumber": "护照本号",
+      "bookNumberQuestion": "您的护照是否有单独的本号?",
+      "bookNumberHint": "仅当您的护照有独立簿号时填写",
+      "bookNumberHelp": "部分护照在封面内页有额外号码。大多数没有 — 如果不确定，请选择「否」。",
+      "bookNumberPlaceholder": "护照簿号",
+      "issuingCountry": "签发国家",
+      "issuingCountryPlaceholder": "选择国家",
+      "issuedInAnotherCountry": "您是否在另一个国家领取的?",
+      "issuedInAnotherCountryCountry": "领取护照的国家",
+      "issuanceCity": "城市",
+      "issuanceCityPlaceholder": "城市",
+      "issuanceProvince": "省",
+      "issuanceProvincePlaceholder": "省",
+      "extraQuestionsTitle": "几个额外问题",
+      "extraOtherCitizenship": "您是否拥有其他国家的公民身份?",
+      "extraOtherCountryPermanentResidence": "您是否在其他国家永久居住?",
+      "extraUsSocialSecurityOrTaxId": "您是否曾拥有美国社会安全号码或税务编号?",
+      "extraNationalityCardTitle": "国籍 {index}",
+      "extraNationalityCountry": "国家",
+      "extraNationalityCountryPlaceholder": "Select",
+      "extraNationalityHasPassport": "您是否持有该国护照?",
+      "extraNationalityPassportNumber": "护照号码",
+      "extraNationalityPassportNumberPlaceholder": "护照号码",
+      "extraAddNationality": "添加国籍",
+      "extraAddCountry": "添加国家",
+      "extraSsnLabel": "社会安全号码（SSN）",
+      "extraSsnInputLabel": "SSN",
+      "extraSsnPlaceholder": "•••-••-••••",
+      "extraSsnHint": "仅在您之前有过的情况下填写（例如曾在美国工作）。",
+      "extraItinLabel": "纳税人识别号（ITIN）",
+      "extraItinInputLabel": "ITIN",
+      "extraItinPlaceholder": "9XX-XX-XXXX",
+      "extraItinHint": "IRS 签发的税务号码 — 仅在您之前报过美国税的情况下填写。",
+      "nationalIdSectionTitle": "国民身份证明",
+      "nationalIdInputLabel": "Resident ID Number (身份证号)",
+      "nationalIdHelp": "您的18位中国居民身份证号码。",
+      "nationalIdPlaceholderLong": "e.g. 110101199001011234",
+      "nationalIdNone": "我没有",
+      "lostPassportSectionTitle": "遗失或被盗的护照",
+      "lostPassportQuestion": "您是否曾遗失护照或护照被盗?",
+      "lostPassportCardTitle": "遗失的护照 1",
+      "lostPassportKnowNumber": "您是否知道护照号码?",
+      "lostPassportNumber": "护照号码",
+      "lostPassportCountry": "国家/签发机构",
+      "lostPassportExplanationPlaceholderLong": "描述发生了什么...",
+      "issueDate": "签发日期",
+      "issueDatePlaceholder": "选择签发日期",
+      "expiryDate": "到期日期",
+      "expiryDatePlaceholder": "选择到期日期",
+      "additionalNationality": "您是否持有其他国家的国籍?",
+      "additionalNationalityPlaceholder": "选择其他国籍",
+      "nationalId": "您是否拥有本国的身份证?",
+      "nationalIdHint": "例如中国居民身份证、印度 Aadhaar",
+      "nationalIdPlaceholder": "身份证号",
+      "lostPassport": "您是否曾丢失或被盗过护照?",
+      "lostPassportExplanation": "请简要说明",
+      "lostPassportExplanationPlaceholder": "简述发生的情况"
+    },
+    "travel": {
+      "title": "您的行程与美签历史",
+      "subtitle": "大致日期即可。下方问题多为是/否。",
+      "specificPlanTitle": "旅行日期",
+      "estimatedPlanTitle": "大致旅行详情",
+      "usAddressTitle": "您将在美国的地址",
+      "usStayPageTitle": "您在美国将住在哪里？",
+      "usStayPageSubtitle": "请填写您在美国停留期间的住宿地址信息。",
+      "accomTypeTitle": "住宿类型",
+      "accomHotel": "酒店/度假村",
+      "accomAirbnb": "Airbnb/短租",
+      "accomFriends": "亲友",
+      "accomBusiness": "商务",
+      "accomSchool": "学校/大学",
+      "accomOther": "其他",
+      "accomHotelNameTitle": "酒店/度假村名称",
+      "accomHostNameTitle": "房东姓名",
+      "accomFriendsContactTitle": "联系人姓名",
+      "accomBusinessTitle": "公司名称",
+      "accomSchoolTitle": "学校/大学名称",
+      "accomOtherContactTitle": "联系人",
+      "accomContactSubtitle": "您将住在谁那里或什么地方",
+      "hotelHint": "您可以在预订确认邮件或酒店网站上找到酒店的地址和电话。",
+      "airbnbHint": "请使用Airbnb预订中的房东姓名和房产地址。",
+      "howKnowThem": "您是如何认识他们的？",
+      "relative": "亲属",
+      "friend": "朋友",
+      "accomHotelAddressTitle": "酒店地址",
+      "accomAirbnbAddressTitle": "租赁地址",
+      "accomFriendsAddressTitle": "对方在美国的地址",
+      "accomBusinessAddressTitle": "公司地址",
+      "accomSchoolAddressTitle": "学校地址",
+      "accomOtherAddressTitle": "联系地址",
+      "accomAddressSubtitle": "您在美国住宿的完整地址",
+      "schoolName": "学校名称",
+      "schoolNamePlaceholder": "学校或大学名称",
+      "hostFirstNamePlaceholder": "例如 John",
+      "hostLastNamePlaceholder": "例如 Smith",
+      "contactFirstNamePlaceholder": "例如 John",
+      "contactLastNamePlaceholder": "例如 Doe",
+      "usStreet2": "地址第2行",
+      "usStreet2Placeholder": "例如 Apt 4B",
+      "usStateLabel": "州",
+      "usCityPlaceholderUs": "例如 New York",
+      "usStatePlaceholderUs": "例如 New York",
+      "usZipPlaceholderUs": "例如 10001",
+      "contactInfoHotel": "酒店联系信息",
+      "contactInfoAirbnb": "房东联系信息",
+      "contactInfoFriends": "您联系人的电话和邮箱",
+      "contactInfoBusiness": "公司联系信息",
+      "contactInfoSchool": "学校联系信息",
+      "contactInfoOther": "联系人信息",
+      "contactInfoHotelSubtitle": "酒店的电话和邮箱——不是您的",
+      "contactInfoFriendsSubtitle": "您的亲友的电话和邮箱——不是您的",
+      "contactInfoDefaultSubtitle": "对方的电话和邮箱——不是您的",
+      "contactEmailHotelPlaceholder": "例如 hotel@example.com",
+      "contactEmailPlaceholder": "例如 contact@example.com",
+      "unknownContactEmail": "我不知道对方的邮箱",
+      "plans": "您是否有具体的旅行计划?",
+      "plansYes": "有",
+      "plansYesHint": "日期和地址已确定",
+      "plansIdea": "有大致想法",
+      "plansIdeaHint": "大概日期",
+      "plansUnsure": "还不确定",
+      "plansUnsureHint": "跳过这些细节",
+      "arrivalDate": "抵达日期",
+      "arrivalDatePlaceholder": "选择抵达日期",
+      "departureDate": "离开日期",
+      "departureDatePlaceholder": "选择离开日期",
+      "arrivalCity": "到达城市",
+      "arrivalCityPlaceholder": "例如 纽约",
+      "arrivalFlight": "到达航班（如已知）",
+      "arrivalFlightPlaceholder": "例如 AA1234",
+      "departureCity": "离开城市",
+      "departureCityPlaceholder": "例如 洛杉矶",
+      "departureFlight": "离开航班（如已知）",
+      "departureFlightPlaceholder": "例如 UA5678",
+      "placesToVisit": "您计划在美国访问的地方",
+      "placeToVisitPlaceholder": "例如 纽约",
+      "addPlace": "添加地点",
+      "estimatedArrivalDate": "大约到达日期",
+      "lengthOfStay": "停留时间",
+      "lengthOfStayPlaceholder": "14",
+      "lengthUnit": "时长",
+      "days": "天",
+      "weeks": "周",
+      "months": "月",
+      "years": "年",
+      "lessThan24Hours": "不到24小时",
+      "accommodationPlaceholder": "选择住宿类型",
+      "accommodation": "您将在哪里住宿?",
+      "hotelMotel": "酒店/汽车旅馆",
+      "privateHome": "私人住宅",
+      "shortTermRental": "短期租赁",
+      "other": "其他",
+      "hotelName": "酒店名称",
+      "hotelNamePlaceholder": "例如 希尔顿花园酒店",
+      "usStreet": "美国街道地址",
+      "usStreetPlaceholder": "例如:350 Fifth Avenue",
+      "usCity": "城市",
+      "usCityPlaceholder": "城市",
+      "usState": "州",
+      "usStatePlaceholder": "州",
+      "usZip": "邮编",
+      "usZipPlaceholder": "邮编",
+      "companionsTitle": "同行人员",
+      "payer": "谁支付此次旅行费用?",
+      "payerSelf": "本人",
+      "payerFamily": "家人",
+      "payerEmployer": "雇主",
+      "payerOther": "其他",
+      "embassyLocation": "面签的使领馆",
+      "embassyLocationHint": "通常是距离您最近的美国使领馆",
+      "embassyLocationPlaceholder": "例如:中国 — 北京",
+      "tripPaymentTitle": "旅费支付",
+      "payerPlaceholder": "选择付款方",
+      "payerOtherPerson": "其他人",
+      "payerCurrentEmployer": "现任雇主",
+      "payerUsEmployer": "美国雇主",
+      "payerOtherCompany": "其他公司/组织",
+      "payerOtherPersonDetails": "其他人详情",
+      "firstName": "名",
+      "firstNamePlaceholder": "例如 张",
+      "lastName": "姓",
+      "lastNamePlaceholder": "例如 伟",
+      "phone": "电话号码",
+      "phonePlaceholder": "11位数字号码",
+      "dialCode": "区号",
+      "email": "电子邮箱",
+      "emailPlaceholder": "例如 email@example.com",
+      "unknownPayerEmail": "我不知道对方的电子邮箱",
+      "yourRelationship": "与您的关系",
+      "relationshipPlaceholder": "选择关系",
+      "payerAddressSameAsYou": "对方的地址与您相同吗?",
+      "street1": "街道地址（第1行）",
+      "street1Placeholder": "例如 123 Main St",
+      "street2": "街道地址（第2行）",
+      "street2Placeholder": "例如 Apt 4B",
+      "city": "城市",
+      "cityPlaceholder": "例如 北京",
+      "stateProvince": "州/省",
+      "stateProvincePlaceholder": "州/省",
+      "noStateProvince": "该国没有州/省",
+      "postalCode": "邮政编码",
+      "postalCodePlaceholder": "邮政编码",
+      "noPostalCode": "该国没有邮政编码",
+      "country": "国家",
+      "payerOrgDetails": "公司/组织详情",
+      "orgName": "公司/组织名称",
+      "orgNamePlaceholder": "例如 Acme Corp",
+      "orgRelationshipPlaceholder": "例如 赞助方、雇主",
+      "visaHistoryTitle": "美签历史",
+      "previousVisa": "您是否曾获发美签?",
+      "previousVisaNumber": "签证号码",
+      "previousVisaNumberPlaceholder": "之前的美签号码",
+      "previousVisaExpiry": "签证有效期",
+      "previousVisaExpiryPlaceholder": "到期日期",
+      "previousRefusal": "您是否曾被拒签或拒绝入境美国?",
+      "refusalExplanation": "简要说明",
+      "refusalExplanationPlaceholder": "请说明日期和具体情况",
+      "estaDenied": "您是否曾被 ESTA 拒绝?",
+      "petitionFiled": "是否有人为您递交过移民申请?",
+      "hasCompanions": "是否有其他人与您同行?",
+      "companionGroupTravel": "您是否作为团组或组织的一部分旅行?",
+      "companionGroupName": "团组/组织名称",
+      "companionGroupNamePlaceholder": "团组或组织名称",
+      "travelerN": "旅客 {index}",
+      "hasCompanionsHint": "家人、朋友或同事",
+      "companionFirstName": "同行者名",
+      "companionFirstNamePlaceholder": "例如:Jane",
+      "companionLastName": "同行者姓",
+      "companionLastNamePlaceholder": "例如:Doe",
+      "companionRelationship": "关系",
+      "companionRelationshipPlaceholder": "请选择...",
+      "relationshipChild": "子女",
+      "relationshipParent": "父母",
+      "relationshipSpouse": "配偶",
+      "relationshipRelative": "亲属",
+      "relationshipFriend": "朋友",
+      "relationshipBusinessPartner": "商业伙伴",
+      "addTraveler": "添加旅客",
+      "internationalTravelTitle": "国际旅行记录",
+      "hasVisitedOtherCountriesLast5Years": "过去五年内您是否去过其他国家?",
+      "visitedCountries": "访问过的国家",
+      "countryPlaceholder": "Select",
+      "addCountry": "添加国家",
+      "previousUsTravelTitle": "以前的美国旅行",
+      "previousVisits": "以前的访问",
+      "visitN": "访问 {index}",
+      "unit": "单位",
+      "addVisit": "添加访问",
+      "licenseN": "驾照 {index}",
+      "unknownLicenseNumber": "我不知道驾照号码",
+      "addLicense": "添加驾照",
+      "previousUsVisaTitle": "以前的美国签证",
+      "visaIssueCountry": "签证签发国家",
+      "visaIssueDate": "签发日期",
+      "visaValidUntil": "有效期",
+      "unknownVisaNumber": "我不知道签证号码",
+      "sameVisaType": "您是否申请同一类型的签证?",
+      "sameCountryApply": "您是否在签发签证的同一国家申请?",
+      "tenPrinted": "您是否曾采集过十指指纹?",
+      "visaLostStolen": "您的签证是否曾遗失或被盗?",
+      "visaLostStolenYear": "遗失年份",
+      "visaCancelledRevoked": "您的签证是否曾被取消或撤销?",
+      "received221g": "您是否曾收到过221(g)行政处理通知?",
+      "explanation": "说明",
+      "explanationPlaceholder": "简要说明",
+      "explanationDetailPlaceholder": "描述情况...",
+      "refusalDateKnown": "拒签日期（如已知）",
+      "refusalDatePlaceholder": "选择拒签日期",
+      "hasBeenInUs": "您以前是否去过美国?",
+      "hasBeenInUsHint": "哪怕只是短期旅游也算",
+      "previousVisitDate": "上次入境日期",
+      "previousVisitDatePlaceholder": "上次入境日期",
+      "previousVisitLength": "停留时长",
+      "previousVisitLengthPlaceholder": "14",
+      "hasUsDriversLicense": "您是否持有美国驾照?",
+      "driversLicenseNumber": "驾照号码",
+      "driversLicenseNumberPlaceholder": "驾照号码",
+      "driversLicenseState": "签发州",
+      "driversLicenseStatePlaceholder": "例如:加利福尼亚"
+    },
+    "work": {
+      "title": "工作与教育",
+      "subtitle": "您日常的工作或学习情况 — 用于DS-160就业/学习栏目。",
+      "primaryOccupation": "主要职业",
+      "primaryOccupationPlaceholder": "请选择职业",
+      "occupations": {
+        "business": "商务",
+        "education": "教育",
+        "engineering": "工程",
+        "computerScience": "计算机科学",
+        "medical": "医疗 / 卫生",
+        "government": "政府",
+        "artist": "艺术家 / 表演者",
+        "student": "学生",
+        "homemaker": "家庭主妇 / 主夫",
+        "retired": "已退休",
+        "notEmployed": "无业",
+        "other": "其他"
+      },
+      "occupationOtherExplain": "请描述您的职业",
+      "occupationOtherExplainPlaceholder": "例如:自由翻译",
+      "employerTitle": "当前雇主 / 学校",
+      "employerName": "雇主或学校名称",
+      "employerNamePlaceholder": "例如:腾讯",
+      "jobTitle": "职位",
+      "jobTitlePlaceholder": "例如:软件工程师",
+      "employmentStartDate": "入职日期",
+      "employmentStartDatePlaceholder": "选择入职日期",
+      "monthlySalary": "月薪(本币)",
+      "monthlySalaryPlaceholder": "例如:30000",
+      "jobDuties": "工作职责简述",
+      "jobDutiesPlaceholder": "例如:广告平台后端开发",
+      "employerPhone": "雇主电话",
+      "employerPhonePlaceholder": "+86 10 0000 0000",
+      "employerStreet": "雇主地址",
+      "employerStreetPlaceholder": "街道与门牌号",
+      "employerCity": "城市",
+      "employerCityPlaceholder": "城市",
+      "employerState": "省份",
+      "employerStatePlaceholder": "省份",
+      "employerPostal": "邮政编码",
+      "employerPostalPlaceholder": "邮政编码",
+      "employerCountry": "国家",
+      "employerCountryPlaceholder": "选择国家",
+      "hasPreviousEmployer": "是否曾有过其他雇主?",
+      "prevEmployerTitle": "前雇主",
+      "prevEmployerName": "前雇主名称",
+      "prevEmployerNamePlaceholder": "例如:阿里巴巴",
+      "prevJobTitle": "前职位",
+      "prevJobTitlePlaceholder": "例如:初级工程师",
+      "prevEmploymentStart": "起始日期",
+      "prevEmploymentEnd": "结束日期",
+      "hasAttendedEducation": "您是否就读过中学以上的学校?",
+      "educationTitle": "教育",
+      "educationInstitution": "学校名称",
+      "educationInstitutionPlaceholder": "例如:清华大学",
+      "educationCourse": "专业",
+      "educationCoursePlaceholder": "例如:计算机科学",
+      "educationStart": "起始日期",
+      "educationEnd": "结束日期",
+      "educationCity": "城市",
+      "educationCityPlaceholder": "城市",
+      "educationCountry": "国家",
+      "educationCountryPlaceholder": "选择国家"
+    },
+    "usContact": {
+      "title": "您的美国联系人",
+      "subtitle": "美国境内认识您的人或机构。每份DS-160均需填写。",
+      "contactType": "联系人类型",
+      "typePerson": "个人",
+      "typeOrganization": "机构",
+      "organizationName": "机构名称",
+      "organizationNamePlaceholder": "例如:ABC公司",
+      "contactFirstName": "名",
+      "contactFirstNamePlaceholder": "例如:Jane",
+      "contactLastName": "姓",
+      "contactLastNamePlaceholder": "例如:Smith",
+      "relationship": "与您的关系",
+      "relationshipPlaceholder": "选择关系",
+      "relationships": {
+        "relative": "亲戚",
+        "spouse": "配偶",
+        "friend": "朋友",
+        "businessAssociate": "商业伙伴",
+        "employer": "雇主",
+        "schoolOfficial": "学校负责人",
+        "other": "其他"
+      },
+      "street1": "街道地址",
+      "street1Placeholder": "街道与门牌号",
+      "street2": "地址第二行(可选)",
+      "street2Placeholder": "公寓、套房等",
+      "city": "城市",
+      "cityPlaceholder": "城市",
+      "state": "州",
+      "statePlaceholder": "选择州",
+      "zip": "邮政编码",
+      "zipPlaceholder": "例如:10001",
+      "phone": "电话",
+      "phonePlaceholder": "+1 555 000 0000",
+      "email": "邮箱",
+      "emailPlaceholder": "contact@example.com"
+    },
+    "family": {
+      "title": "家庭与背景",
+      "subtitle": "关于您家庭的几个问题——这是所有签证申请的标准要求",
+      "fatherTitle": "父亲信息",
+      "motherTitle": "母亲",
+      "parentSubtitle": "按照身份证上显示的或您所知的信息填写",
+      "fatherUnknown": "我不知道父亲的信息",
+      "fatherMarkedUnknown": "Father的信息标记为未知",
+      "motherUnknown": "我不知道母亲的信息",
+      "motherMarkedUnknown": "Mother的信息标记为未知",
+      "givenName": "名",
+      "givenNamePlaceholder": "例如 张",
+      "surname": "姓",
+      "surnamePlaceholder": "例如 伟",
+      "noGivenName": "没有名（仅单名）",
+      "notApplicable": "不适用",
+      "required": "必填",
+      "wrongStatus": "状态不对？返回修改",
+      "spouseTitle": "配偶信息",
+      "spouseSubtitle": "法定姓名和基本详情",
+      "deceasedSpouseTitle": "已故配偶",
+      "formerSpouseTitle": "前配偶",
+      "formerSpouseSubtitle": "请提供每位前配偶的信息（最多5位）",
+      "formerSpouseN": "前配偶 {n}",
+      "addFormerSpouse": "添加前配偶",
+      "addAnotherFormerSpouse": "添加另一位前配偶",
+      "dateOfBirth": "出生日期",
+      "dateOfBirthPlaceholder": "选择日期",
+      "nationality": "国籍",
+      "cityOfBirth": "出生城市",
+      "cityOfBirthPlaceholder": "例如 北京",
+      "countryOfBirth": "出生国家",
+      "countryPlaceholder": "选择",
+      "datePlaceholder": "选择日期",
+      "spouseAddressType": "配偶地址类型",
+      "spouseAddressTypePlaceholder": "选择地址类型",
+      "addressHome": "与家庭地址相同",
+      "addressWork": "与工作地址相同",
+      "addressOther": "其他地址",
+      "street1": "街道地址（第1行）",
+      "street1Placeholder": "例如 123 Main St",
+      "street2": "街道地址（第2行）",
+      "street2Placeholder": "例如 Apt 4B",
+      "city": "城市",
+      "cityPlaceholder": "例如 北京",
+      "stateProvince": "州/省",
+      "stateProvincePlaceholder": "州/省",
+      "noStateProvince": "该国没有州/省",
+      "postalCode": "邮政编码",
+      "postalCodePlaceholder": "邮政编码",
+      "noPostalCode": "该国没有邮政编码",
+      "country": "国家",
+      "marriageDate": "结婚日期",
+      "divorceDate": "婚姻结束日期",
+      "howEnded": "婚姻如何结束？",
+      "howEndedHint": "自由文本——最多200个字符",
+      "howEndedPlaceholder": "例如 协议离婚",
+      "divorceCountry": "婚姻结束的国家",
+      "fatherKnown": "是否知道父亲信息",
+      "fatherFirstName": "父亲名",
+      "fatherLastName": "父亲姓",
+      "motherKnown": "是否知道母亲信息",
+      "motherFirstName": "母亲名",
+      "motherLastName": "母亲姓",
+      "iKnow": "我知道",
+      "iDontKnow": "我不知道",
+      "firstNamePlaceholder": "名",
+      "lastNamePlaceholder": "姓",
+      "relativesInUs": "您在美国有直系亲属吗?",
+      "relativesInUsHint": "配偶、未婚夫/妻、子女、兄弟姐妹或父母",
+      "relativeN": "亲属 {n}",
+      "relativeFirstName": "名",
+      "relativeFirstNamePlaceholder": "名",
+      "relativeLastName": "姓",
+      "relativeLastNamePlaceholder": "姓",
+      "relativeRelationship": "关系",
+      "relationSpouse": "配偶",
+      "relationFiance": "未婚夫/妻",
+      "relationChild": "子女",
+      "relationSibling": "兄弟姐妹",
+      "relativeStatus": "其在美身份",
+      "statusCitizen": "公民",
+      "statusLpr": "永久居民",
+      "statusNonimmigrant": "非移民",
+      "statusOther": "其他/不详",
+      "hasOtherRelatives": "您在美国还有其他亲属吗?",
+      "hasOtherRelativesHint": "表亲、姻亲等 — 大多数人选择「否」",
+      "addAnotherRelative": "添加另一位亲属",
+      "removeRelative": "移除亲属",
+      "clanTribe": "您是否属于某个部落或氏族?",
+      "clanTribeHint": "大多数申请人选择「否」",
+      "clanTribeName": "部落/氏族名称",
+      "clanTribeNamePlaceholder": "部落或氏族名称",
+      "languages": "您会说的语言",
+      "languagesHint": "选择所有适用项,可添加更多",
+      "recommendedLanguages": "为您推荐",
+      "languageN": "语言 {n}",
+      "languageEnglish": "英语",
+      "languageSpanish": "西班牙语",
+      "languageFrench": "法语",
+      "languageArabic": "阿拉伯语",
+      "languageChineseMandarin": "中文（普通话）",
+      "languageChineseCantonese": "中文（粤语）",
+      "languageHindi": "印地语",
+      "languagePortuguese": "葡萄牙语",
+      "languageRussian": "俄语",
+      "languageJapanese": "日语",
+      "languageKorean": "韩语",
+      "languageGerman": "德语",
+      "languageItalian": "意大利语",
+      "languageTurkish": "土耳其语",
+      "languageVietnamese": "越南语",
+      "languageThai": "泰语",
+      "languageMalay": "马来语",
+      "languageTamil": "泰米尔语",
+      "addLanguage": "添加另一种语言",
+      "addLanguagePlaceholder": "其他语言",
+      "removeLanguage": "移除 {lang}"
+    },
+    "background": {
+      "title": "背景与使馆账户",
+      "subtitle": "大多数申请人选择「均不适用」。底部三个安全问题是每份 DS-160 都要求的。",
+      "grounds": "以下情况是否适用于您?",
+      "noneApply": "均不适用",
+      "noneApplyHint": "健康、犯罪、安全、移民 — 全部设为「否」",
+      "someApply": "有一项或多项适用",
+      "someApplyHint": "完整表单会继续询问",
+      "addMoreInFullForm": "我们会先将明显问题设为「否」。您可在完整表单审阅时修改。",
+      "needAnswer": "是，我需要回答",
+      "needAnswerHint": "选择适用类别后回答具体问题",
+      "categoryPrompt": "哪些类别适用于您？请选择所有适用的：",
+      "categoryHealth": "健康状况",
+      "categoryHealthSubtitle": "传染病、精神或身体疾病、药物滥用",
+      "categoryCriminal": "犯罪记录",
+      "categoryCriminalSubtitle": "逮捕、定罪、毒品违规及相关违法行为",
+      "categorySecurity": "安全与恐怖主义",
+      "categorySecuritySubtitle": "间谍、破坏、恐怖主义及相关活动",
+      "categoryPolitical": "政治与社会关联",
+      "categoryPoliticalSubtitle": "政党成员、纳粹参与或迫害",
+      "categoryImmigration": "移民违规",
+      "categoryImmigrationSubtitle": "签证欺诈、驱逐、非法居留及监护问题",
+      "categoryOther": "其他问题",
+      "categoryOtherSubtitle": "公共负担、扣留出席权、其他理由",
+      "detailPlaceholder": "请提供详情...",
+      "questions": {
+        "has_communicable_disease": "您是否患有具有重大公共卫生意义的传染病？",
+        "has_physical_mental_disorder": "您是否有可能对自己或他人的安全或福利构成威胁的精神或身体疾病？",
+        "has_drug_abuse": "您是否曾经是药物滥用者或吸毒成瘾者？",
+        "has_been_arrested": "您是否曾因任何违法行为或犯罪被逮捕或定罪，即使已获得赦免、大赦或类似行为？",
+        "has_violated_substance_law": "您是否曾违反或密谋违反有关管制物质的法律？",
+        "has_prostitution_involvement": "您是否前往美国从事卖淫或非法商业化恶行，或在过去10年内从事卖淫或拉客？",
+        "has_money_laundering": "您是否曾参与或试图参与洗钱活动？",
+        "has_human_trafficking": "您是否曾在美国境内或境外实施或密谋实施人口贩运罪行？",
+        "has_supported_trafficking": "您是否故意帮助、教唆、协助或勾结实施或密谋实施严重人口贩运的个人？",
+        "is_trafficking_relative": "您是否是实施或密谋实施人口贩运罪行者的子女、配偶、儿子或女儿，并在过去5年内故意从贩运活动中获益？",
+        "has_been_detained": "您是否曾被任何国家拘留、扣押或监禁？",
+        "intends_espionage": "您是否试图在美国从事间谍、破坏、出口管制违规或任何其他非法活动？",
+        "intends_terrorism": "您是否试图在美国从事恐怖活动，或曾经参与恐怖活动？",
+        "will_support_terrorists": "您是否曾经或打算向恐怖分子或恐怖组织提供资金援助或其他支持？",
+        "is_terrorist_organization_member": "您是否是恐怖组织的成员或代表？",
+        "is_terrorist_relative": "您是否是曾参与恐怖活动并对他人造成伤害的个人的配偶、儿子或女儿？",
+        "has_committed_genocide": "您是否曾命令、煽动、实施、协助或以其他方式参与种族灭绝？",
+        "has_committed_torture": "您是否曾实施、命令、煽动、协助或以其他方式参与酷刑？",
+        "has_committed_extrajudicial_killings": "您是否曾实施、命令、煽动、协助或以其他方式参与法外处决、政治杀害或其他暴力行为？",
+        "has_used_child_soldiers": "您是否曾参与招募或使用童兵？",
+        "violated_religious_freedom": "您在担任政府官员期间，是否曾负责或直接实施特别严重的侵犯宗教自由的行为？",
+        "involved_population_control": "您是否曾命令、煽动、实施、协助或以其他方式参与强制绝育？",
+        "involved_organ_trafficking": "您是否曾直接参与强制移植人体器官或身体组织？",
+        "obtained_visa_by_fraud": "您是否曾试图通过欺诈或故意虚假陈述获得或协助他人获得签证、进入美国或任何其他美国移民利益？",
+        "has_been_removed": "您是否曾被任何国家驱逐或遣返？",
+        "subject_to_removal_order": "您是否曾受到美国递解或驱逐令的约束？",
+        "failed_removal_hearing": "您是否未能参加美国递解或驱逐听证？",
+        "has_overstayed": "您是否曾在美国境内非法滞留或违反入境条件？",
+        "withheld_child_custody": "您是否曾在美国境外扣留美国法院授予合法监护权的美国公民儿童？",
+        "voted_illegally": "您是否曾违反任何法律或法规在美国投票？",
+        "renounced_citizenship": "您是否曾为逃避纳税而放弃美国公民身份？",
+        "practicing_polygamy": "您是否正在实行一夫多妻制？"
+      },
+      "embassyTitle": "使馆账户安全问题",
+      "embassySubtitle": "用于创建您的使馆账户。请选择您能记住的答案。",
+      "birthCity": "您在哪个城市出生?",
+      "birthCityPlaceholder": "例如:伦敦",
+      "favoriteFood": "您最不爱吃的食物?",
+      "favoriteFoodPlaceholder": "例如:西兰花",
+      "childhoodHero": "您童年的英雄是谁?",
+      "childhoodHeroPlaceholder": "例如:超人",
+      "submit": "继续审阅"
+    },
+    "workEducation": {
+      "title": "工作与教育",
+      "subtitle": "请填写您当前的工作、学习和过往经历。",
+      "currentTitle": "当前工作或学习",
+      "currentSubtitle": "用于 DS-160 的工作/教育/培训部分。",
+      "educationDetailsTitle": "教育详情",
+      "educationDetailsSubtitle": "请填写当前学校或大学信息。",
+      "primaryOccupation": "主要职业",
+      "primaryOccupationPlaceholder": "选择主要职业",
+      "occupation": {
+        "AGRICULTURE": "农业",
+        "ARTIST/PERFORMER": "艺术家/表演者",
+        "BUSINESS": "商业",
+        "COMMUNICATIONS": "传播/通讯",
+        "COMPUTER SCIENCE": "计算机科学",
+        "CULINARY/FOOD SERVICES": "烹饪/餐饮服务",
+        "EDUCATION": "教育",
+        "ENGINEERING": "工程",
+        "GOVERNMENT": "政府",
+        "LEGAL PROFESSION": "法律职业",
+        "MEDICAL/HEALTH": "医疗/健康",
+        "MILITARY": "军队",
+        "NATURAL SCIENCE": "自然科学",
+        "PHYSICAL SCIENCES": "物理科学",
+        "RELIGIOUS VOCATION": "宗教职业",
+        "RESEARCH": "研究",
+        "SOCIAL SCIENCE": "社会科学",
+        "STUDENT": "学生",
+        "HOMEMAKER": "家庭主妇/主夫",
+        "RETIRED": "退休",
+        "NOT EMPLOYED": "未就业",
+        "OTHER": "其他"
+      },
+      "occupationOtherExplain": "请说明",
+      "occupationOtherExplainPlaceholder": "请说明您的职业或情况...",
+      "employerName": "雇主/公司名称",
+      "employerNamePlaceholder": "例如 Acme Corp",
+      "schoolName": "学校名称",
+      "schoolNamePlaceholder": "例如 北京大学",
+      "jobTitle": "职位",
+      "jobTitlePlaceholder": "例如 产品经理",
+      "courseOfStudy": "专业/课程",
+      "courseOfStudyPlaceholder": "例如 计算机科学",
+      "employmentStartDate": "开始日期",
+      "datePlaceholder": "选择日期",
+      "monthlySalary": "月收入",
+      "monthlySalaryPlaceholder": "例如 5000",
+      "monthlySalaryHint": "货币仅供参考——仅提交数字。",
+      "noMonthlySalary": "我没有固定月收入",
+      "salaryCurrency": "收入币种",
+      "employerPhone": "工作电话",
+      "schoolPhone": "学校电话",
+      "dialCode": "电话区号",
+      "phonePlaceholder": "电话号码",
+      "employerCountry": "国家",
+      "countryPlaceholder": "选择国家",
+      "employerStreet": "雇主地址",
+      "schoolStreet": "学校地址",
+      "streetPlaceholder": "例如 123 Main St",
+      "employerCity": "城市",
+      "cityPlaceholder": "例如 北京",
+      "employerState": "州/省",
+      "statePlaceholder": "州/省",
+      "employerPostal": "邮政编码",
+      "postalPlaceholder": "邮政编码",
+      "jobDuties": "简要描述您的职责",
+      "jobDutiesPlaceholder": "例如 管理客户账户并准备报告",
+      "previousEmployerTitle": "过去5年内有其他工作吗？",
+      "previousEmployerSubtitle": "只需1-2份最近的工作——填写您记得的内容",
+      "hasPreviousEmployer": "您之前有其他雇主吗？",
+      "previousEmployerN": "以前的工作 {n}",
+      "addPreviousEmployer": "添加另一份工作",
+      "removePreviousEmployer": "移除以前的工作",
+      "prevEmployerName": "前雇主名称",
+      "prevJobTitle": "前职位",
+      "prevJobDuties": "您在那里做什么？",
+      "prevJobDutiesPlaceholder": "简要描述职责（可选）",
+      "supervisorFirstName": "主管名",
+      "supervisorFirstNamePlaceholder": "名（可选）",
+      "supervisorLastName": "主管姓",
+      "supervisorLastNamePlaceholder": "姓（可选）",
+      "prevEmploymentStart": "开始日期",
+      "prevEmploymentEnd": "结束日期",
+      "educationTitle": "教育经历",
+      "educationSubtitle": "如有中学以上教育经历，请填写。",
+      "educationHistoryTitle": "告诉我们您的教育经历",
+      "educationHistorySubtitle": "我们只需要您最高或最近的学历。保持简单。",
+      "hasAttendedEducation": "您是否上过学校？",
+      "educationN": "教育 {n}",
+      "addEducation": "添加另一个（可选）",
+      "removeEducation": "移除教育经历",
+      "educationHistoryFootnote": "大多数人只需填写1-2所学校",
+      "noEducationHint": "没有教育经历需要报告？直接选择“否”并继续。",
+      "educationLevel": "学历水平",
+      "educationLevelPlaceholder": "选择水平（可选）",
+      "educationLevelSecondary": "高中",
+      "educationLevelCollege": "大学/学院",
+      "educationLevelVocationalOther": "职业/其他",
+      "educationInstitution": "学校/机构名称",
+      "educationInstitutionPlaceholder": "学校或机构名称",
+      "educationCourse": "专业/课程",
+      "educationStart": "开始日期",
+      "educationEnd": "结束日期",
+      "educationCity": "城市",
+      "educationCountry": "国家",
+      "organizationTitle": "是否有俱乐部、团体或组织？",
+      "organizationSubtitle": "专业、社交或慈善组织——只需名称即可",
+      "organizationN": "组织 {n}",
+      "organizationName": "组织名称",
+      "organizationNamePlaceholder": "组织名称",
+      "addOrganization": "添加另一个组织",
+      "removeOrganization": "移除组织",
+      "militaryTitle": "您是否服过兵役？",
+      "militarySubtitle": "任何国家、任何军种——包括预备役",
+      "militaryServiceN": "兵役 {n}",
+      "militaryCountry": "服役国家",
+      "militaryBranch": "军种",
+      "militaryBranchPlaceholder": "军种",
+      "militaryRank": "军衔/职位",
+      "militaryRankPlaceholder": "军衔/职位",
+      "militarySpecialty": "军事专业",
+      "militarySpecialtyPlaceholder": "军事专业",
+      "militaryStartDate": "开始日期",
+      "militaryEndDate": "结束日期",
+      "addMilitaryService": "添加另一段服役记录",
+      "removeMilitaryService": "移除服役记录",
+      "specializedSkillsTitle": "是否有专门技能或培训？",
+      "specializedSkillsSubtitle": "例如 枪械、爆炸物、核能、生物或化学经验",
+      "specializedSkillsExplain": "请说明",
+      "specializedSkillsExplainPlaceholder": "描述您的专门技能或培训...",
+      "submit": "继续审阅"
+    },
+    "shared": {
+      "loading": "正在准备您的申请表…",
+      "progress": "第 {current} 步 / 共 {total} 步 · {name}",
+      "back": "返回",
+      "continue": "继续",
+      "documents": "材料",
+      "documentsLoadError": "材料加载失败",
+      "submitting": "正在保存…",
+      "edit": "编辑",
+      "yes": "是",
+      "no": "否",
+      "openLongFormLead": "需要填写完整版表格?",
+      "openLongFormLink": "打开完整版",
+      "review": {
+        "label": "审核",
+        "title": "请确认您的回答",
+        "subtitle": "逐项检查无误后再提交。",
+        "submit": "确认提交",
+        "empty": "暂未填写。",
+        "notProvided": "—"
+      },
+      "tripDates": {
+        "duration": "行程长度: {days} 天",
+        "invalid": "离境日期不能早于抵达日期。"
+      }
+    },
+    "us": {
+      "steps": {
+        "identity": "身份信息",
+        "contact": "联系方式",
+        "passport": "护照",
+        "travel": "旅行",
+        "usStay": "在美住宿",
+        "work": "工作与教育",
+        "usContact": "美国联系人",
+        "family": "家庭",
+        "background": "背景问题"
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的 DS-160 答案",
+        "subtitle": "提交前请修改任何不正确的信息。",
+        "identity": "身份信息",
+        "contact": "联系方式",
+        "passport": "护照",
+        "travel": "旅行",
+        "work": "工作与教育",
+        "usContact": "美国联系人",
+        "family": "家庭",
+        "background": "背景问题",
+        "fields": {
+          "fullName": "姓名",
+          "dob": "出生日期",
+          "sex": "性别",
+          "nationality": "国籍",
+          "maritalStatus": "婚姻状态",
+          "email": "电子邮箱",
+          "phone": "电话",
+          "homeCountry": "居住国家/地区",
+          "homeAddress": "家庭住址",
+          "passportNumber": "护照号码",
+          "passportIssuing": "签发国家/地区",
+          "passportIssueDate": "签发日期",
+          "passportExpiry": "护照有效期至",
+          "arrivalDate": "到达日期",
+          "departureDate": "离境日期",
+          "purposeOfTrip": "旅行目的",
+          "tripPayer": "旅行费用承担人",
+          "occupation": "职业",
+          "employerName": "雇主名称",
+          "jobTitle": "职位",
+          "usContactName": "美国联系人姓名",
+          "usContactRelationship": "关系",
+          "usContactPhone": "美国联系人电话",
+          "father": "父亲",
+          "mother": "母亲",
+          "spouse": "配偶",
+          "backgroundFlag": "背景问题答案"
+        }
+      }
+    },
+    "schengen": {
+      "steps": {
+        "purpose": {
+          "label": "目的",
+          "title": "出行目的",
+          "subtitle": "选择最贴合您本次出行主要原因的选项。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "document": {
+          "label": "证件",
+          "title": "旅行证件",
+          "subtitle": "护照或其他申根接受的旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "领事馆联系您的方式。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "行程日期",
+          "subtitle": "申根 C 签 180 天内最多停留 90 天。"
+        },
+        "trip_destination": {
+          "label": "地点",
+          "title": "目的地信息",
+          "subtitle": "主要目的地及首次入境的申根国家。"
+        },
+        "accommodation": {
+          "label": "住宿",
+          "title": "住宿信息",
+          "subtitle": "在申根停留期间的住宿安排。"
+        },
+        "occupation": {
+          "label": "工作",
+          "title": "职业信息",
+          "subtitle": "雇主或学校信息。"
+        },
+        "family_eu": {
+          "label": "欧盟亲属",
+          "title": "欧盟/欧经/瑞士公民亲属",
+          "subtitle": "仅当您以欧盟/欧经/瑞士公民亲属身份出行时填写。"
+        },
+        "travel_history": {
+          "label": "历史",
+          "title": "旅行历史",
+          "subtitle": "过往申根签证、指纹采集与后续入境许可。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方与是否持有旅行医疗保险。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明确认",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的申根 C 签答案",
+        "subtitle": "提交前可编辑修正。",
+        "purpose": "目的",
+        "personal": "个人",
+        "document": "旅行证件",
+        "contact": "联系方式",
+        "tripDates": "行程日期",
+        "tripDestination": "目的地",
+        "accommodation": "住宿",
+        "occupation": "职业",
+        "familyEu": "欧盟亲属",
+        "travelHistory": "旅行历史",
+        "funding": "资金",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over90Hint": "申根 C 签每 180 天内停留不得超过 90 天。"
+      },
+      "fields": {
+        "surname": "姓 (Family name)",
+        "surnameAtBirthDifferent": "出生时的姓与现在的姓是否不同?",
+        "surnameAtBirth": "出生时的姓",
+        "givenNames": "名 (Given names)",
+        "dob": "出生日期",
+        "placeOfBirth": "出生地 (城市/地区)",
+        "countryOfBirth": "出生国家",
+        "nationality": "现国籍",
+        "nationalityAtBirth": "出生时国籍 (如不同)",
+        "nationalIdNumber": "身份证号码",
+        "sex": "性别",
+        "civilStatus": "婚姻状况",
+        "passportType": "旅行证件类型",
+        "passportNumber": "证件号码",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "passportIssuingCountry": "签发国家",
+        "homeAddress": "家庭住址",
+        "city": "城市",
+        "postalCode": "邮政编码",
+        "countryOfResidence": "居住国家",
+        "email": "电子邮箱",
+        "phone": "电话号码",
+        "mainDestination": "主要目的地 (申根国)",
+        "firstEntry": "首次入境的申根国",
+        "arrivalDate": "预计抵达日期",
+        "departureDate": "预计离境日期",
+        "numberOfEntries": "申请入境次数",
+        "accommodationType": "住宿类型",
+        "accommodationName": "酒店名称或住宿标识",
+        "accommodationAddress": "住宿地址",
+        "accommodationCity": "城市",
+        "accommodationCountry": "国家",
+        "accommodationPhone": "住宿电话",
+        "occupation": "现职业",
+        "employerName": "雇主或学校名称",
+        "employerAddress": "雇主或学校地址",
+        "employerPhone": "雇主或学校电话",
+        "isFamilyMemberOfEu": "您是否为欧盟/欧经/瑞士公民的亲属?",
+        "euFamilySurname": "亲属姓",
+        "euFamilyGivenNames": "亲属名",
+        "euFamilyDob": "亲属出生日期",
+        "euFamilyNationality": "亲属国籍",
+        "euFamilyRelationship": "与您的关系",
+        "hadPreviousSchengenVisas": "近 3 年是否持有过申根签证?",
+        "previousSchengenVisaDates": "过往申根签证日期",
+        "fingerprintsCollectedPreviously": "是否曾被采集过申根签证指纹?",
+        "fingerprintsCollectedDate": "指纹采集大致日期",
+        "hasOnwardEntryPermit": "您是否持有申根之后任一国家的入境许可?",
+        "costsCoveredBy": "出行及生活费用由谁承担",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "fundsAmount": "可用资金金额",
+        "fundsAmountPlaceholder": "如 2000",
+        "fundsCurrency": "币种",
+        "hasInsurance": "您是否为本次行程购买了旅行医疗保险?"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "civil": {
+          "single": "未婚",
+          "married": "已婚",
+          "registeredPartnership": "已登记伴侣关系",
+          "separated": "分居",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "passport": {
+          "ordinary": "普通护照",
+          "diplomatic": "外交护照",
+          "service": "公务护照",
+          "official": "官员护照",
+          "special": "特别护照",
+          "other": "其他"
+        },
+        "purpose": {
+          "tourism": "旅游",
+          "business": "商务",
+          "family": "探亲访友",
+          "cultural": "文化",
+          "sports": "体育",
+          "official": "官方访问",
+          "medical": "就医",
+          "study": "短期学习",
+          "transit": "机场过境",
+          "other": "其他"
+        },
+        "purposeDesc": {
+          "tourism": "度假或观光",
+          "business": "会议、洽谈、签约",
+          "family": "探望在申根的亲属或好友",
+          "cultural": "节庆、展览、演出",
+          "sports": "赛事、训练或体育活动",
+          "official": "政府或外交代表团",
+          "medical": "前往申根接受医疗",
+          "study": "90 天以内的短期课程或培训",
+          "transit": "经申根机场转机",
+          "other": "其他原因 — 后续步骤将进一步说明"
+        },
+        "entries": {
+          "single": "单次入境",
+          "two": "两次入境",
+          "multiple": "多次入境"
+        },
+        "accommodation": {
+          "hotel": "酒店",
+          "private": "私人住宅",
+          "rental": "短租",
+          "other": "其他"
+        },
+        "funding": {
+          "self": "本人",
+          "sponsor": "担保人",
+          "employer": "雇主",
+          "both": "本人与担保人"
+        },
+        "currency": {
+          "eur": "欧元",
+          "usd": "美元",
+          "gbp": "英镑",
+          "cny": "人民币"
+        },
+        "relationship": {
+          "spouse": "配偶",
+          "child": "子女",
+          "grandchild": "孙辈",
+          "dependentAscendant": "被赡养尊亲属",
+          "registeredPartner": "登记伴侣"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开申根领土。",
+        "understandsNoEntryGuarantee": "本人理解签证并不保证入境,边检官员仍有权拒绝入境。",
+        "awareDataProcessing": "本人知晓个人信息将由申根领事及边境机构处理。"
+      }
+    },
+    "uk": {
+      "steps": {
+        "purpose": {
+          "label": "目的",
+          "title": "赴英目的",
+          "subtitle": "选择最贴合主要出行原因的选项。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "用于本次签证的旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "UKVI 联系您的方式。"
+        },
+        "ukvi": {
+          "label": "UKVI",
+          "title": "UKVI 账户",
+          "subtitle": "关联用于本次申请的 UKVI 账户。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "赴英时间",
+          "subtitle": "Standard Visitor 单次最多停留 6 个月。"
+        },
+        "uk_address": {
+          "label": "英国住址",
+          "title": "在英住址",
+          "subtitle": "首站英国住址及接待人 (如有)。"
+        },
+        "employment": {
+          "label": "工作",
+          "title": "职业 & 收入",
+          "subtitle": "工作单位与收入情况。"
+        },
+        "history": {
+          "label": "历史",
+          "title": "出行 & 签证历史",
+          "subtitle": "过往赴英记录及签证拒签情况。"
+        },
+        "background": {
+          "label": "访问详情",
+          "title": "您的访问与关系",
+          "subtitle": "在英国的活动安排，以及与英国的关联。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明确认",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的 UK Standard Visitor 答案",
+        "subtitle": "提交前可编辑修正。",
+        "purpose": "目的",
+        "personal": "个人",
+        "passport": "护照",
+        "contact": "联系方式",
+        "ukvi": "UKVI 账户",
+        "tripDates": "行程日期",
+        "ukAddress": "英国住址",
+        "employment": "职业",
+        "history": "历史",
+        "background": "访问详情",
+        "funding": "资金",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over180Hint": "Standard Visitor 单次入境最多 6 个月。"
+      },
+      "fields": {
+        "givenNames": "名 (Given names)",
+        "givenNamesPlaceholder": "如 John Michael",
+        "surname": "姓 (Surname)",
+        "surnamePlaceholder": "如 Smith",
+        "anyOtherNames": "是否曾用过其他姓名?",
+        "otherNames": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "nationality": "国籍",
+        "hasOtherNationalities": "是否持有其他国籍?",
+        "countryOfBirth": "出生国家",
+        "placeOfBirth": "出生城市",
+        "placeOfBirthPlaceholder": "如 Manchester",
+        "maritalStatus": "婚姻状况",
+        "passportNumber": "护照号码",
+        "passportNumberPlaceholder": "如 123456789",
+        "passportIssuingCountry": "签发国家",
+        "passportPlaceOfIssue": "签发地",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "email": "电子邮箱",
+        "emailPlaceholder": "name@example.com",
+        "phone": "电话号码",
+        "phonePlaceholder": "+44 20 …",
+        "homeAddressLine1": "家庭住址",
+        "homeAddressLine1Placeholder": "街道及门牌号",
+        "homeAddressCity": "城市",
+        "postalCode": "邮政编码",
+        "homeCountry": "居住国家",
+        "ownsHome": "是否拥有自有住房?",
+        "hasUkviAccount": "是否已有 UKVI 账户?",
+        "ukviEmail": "UKVI 账户邮箱",
+        "ukviEmailPlaceholder": "您的 UKVI 邮箱",
+        "ukAddress": "英国住址",
+        "ukAddressPlaceholder": "酒店名称、街道、门牌号",
+        "ukCity": "英国城市",
+        "ukPostcode": "英国邮编",
+        "ukContactPhone": "英国联系电话",
+        "stayingWithSomeone": "是否将寄住在英国某人家中?",
+        "hostName": "接待人姓名",
+        "hostRelationship": "与接待人关系",
+        "arrivalDate": "预计抵达日期",
+        "departureDate": "预计离境日期",
+        "numberOfEntries": "申请签证类型",
+        "employmentStatus": "就业状况",
+        "employerName": "雇主名称",
+        "jobTitle": "职位",
+        "employerAddress": "雇主地址",
+        "employerPhone": "雇主电话",
+        "monthlyIncome": "月收入",
+        "monthlyIncomePlaceholder": "税后,英镑",
+        "hasVisitedUkBefore": "是否曾赴英?",
+        "previousUkVisitDates": "过往赴英大致日期",
+        "hasBeenRefusedUkVisa": "是否曾被拒签英国签证?",
+        "ukRefusalExplanation": "请简述拒签情况",
+        "hasBeenRefusedOtherVisa": "是否被任何其他国家拒签过?",
+        "visitActivitiesDescription": "您在英国期间计划做什么?",
+        "hasFamilyInUk": "您在英国是否有家人?",
+        "hasFinancialDependants": "是否有人经济上依赖您?",
+        "travellingInOrganisedGroup": "您是否随有组织的团队出行?",
+        "travellingWithNonPartner": "您是否与非配偶/受抚养人的他人同行?",
+        "fundingSource": "行程资金来源",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "estimatedTripCost": "预计行程花费",
+        "estimatedTripCostPlaceholder": "如 3000",
+        "fundsAmount": "预计行程花费",
+        "fundsAmountPlaceholder": "如 3000",
+        "fundsCurrency": "币种",
+        "hasSavings": "是否有储蓄支持本次行程?"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "civilPartnership": "民事伴侣关系",
+          "unmarriedPartner": "未婚伴侣",
+          "divorced": "离异",
+          "widowed": "丧偶",
+          "separated": "分居"
+        },
+        "purpose": {
+          "tourism": "旅游",
+          "business": "商务",
+          "visitingFamily": "探亲",
+          "study": "短期学习",
+          "medical": "就医",
+          "wedding": "婚礼/民事伴侣登记",
+          "transit": "过境",
+          "other": "其他"
+        },
+        "purposeDesc": {
+          "tourism": "度假或观光",
+          "business": "会议、洽谈、签约",
+          "family": "探望亲属或好友",
+          "study": "6 个月以内课程或培训",
+          "medical": "在英接受医疗",
+          "wedding": "参加或举办婚礼/民事伴侣登记",
+          "transit": "经英国过境",
+          "other": "其他原因"
+        },
+        "entries": {
+          "single": "单次访问",
+          "multi2y": "2 年多次",
+          "multi5y": "5 年多次",
+          "multi10y": "10 年多次"
+        },
+        "employment": {
+          "employed": "在职",
+          "selfEmployed": "自雇",
+          "student": "学生",
+          "retired": "退休",
+          "unemployed": "待业"
+        },
+        "funding": {
+          "self": "本人",
+          "family": "家人",
+          "employer": "雇主",
+          "sponsor": "担保人"
+        },
+        "currency": {
+          "gbp": "英镑",
+          "usd": "美元",
+          "eur": "欧元",
+          "cny": "人民币"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "noCriminalConvictions": "是否在任何国家有过犯罪定罪记录?",
+        "noWarCrimes": "是否曾涉及战争罪、反人类罪或种族灭绝?",
+        "noTerrorism": "是否曾参与或支持过恐怖主义活动?",
+        "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开英国。"
+      }
+    },
+    "vn": {
+      "steps": {
+        "purpose": {
+          "label": "目的",
+          "title": "赴越目的",
+          "subtitle": "选择最贴合本次行程的选项。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "入境所用旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "我们联系您的方式。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "行程日期",
+          "subtitle": "越南电子签最长停留 90 天。"
+        },
+        "vn_destination": {
+          "label": "地点",
+          "title": "目的地信息",
+          "subtitle": "在越住址及出入境口岸。"
+        },
+        "host": {
+          "label": "接待",
+          "title": "在越联系人",
+          "subtitle": "接待人 (如有)。"
+        },
+        "occupation": {
+          "label": "工作",
+          "title": "职业",
+          "subtitle": "雇主或学校信息。"
+        },
+        "companions": {
+          "label": "家属",
+          "title": "随行家属",
+          "subtitle": "是否随行未成年人或家属。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明确认",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的越南电子签答案",
+        "subtitle": "提交前可编辑修正。",
+        "purpose": "目的",
+        "personal": "个人",
+        "passport": "护照",
+        "contact": "联系方式",
+        "tripDates": "行程日期",
+        "vnDestination": "目的地",
+        "host": "接待人",
+        "occupation": "职业",
+        "companions": "家属",
+        "funding": "资金",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over90Hint": "越南电子签每次停留不得超过 90 天。"
+      },
+      "fields": {
+        "surname": "姓",
+        "givenName": "名",
+        "otherNamesUsed": "曾用其他姓名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "nationality": "国籍",
+        "nationalityAtBirth": "出生时国籍",
+        "countryOfBirth": "出生国家",
+        "placeOfBirth": "出生地",
+        "nationalIdNumber": "身份证号",
+        "religion": "宗教",
+        "maritalStatus": "婚姻状况",
+        "passportNumber": "护照号码",
+        "passportType": "护照类型",
+        "passportIssuing": "签发机关",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "hasOtherPassports": "是否持有其他护照?",
+        "permanentAddress": "长期居住地址",
+        "contactAddress": "通讯地址",
+        "city": "城市",
+        "country": "国家",
+        "phone": "电话",
+        "email": "邮箱",
+        "emergencyContactName": "紧急联系人姓名",
+        "emergencyContactPhone": "紧急联系人电话",
+        "intendedAddress": "在越拟住地址",
+        "borderGateEntry": "入境口岸",
+        "borderGateExit": "出境口岸",
+        "hasVnContact": "是否有越南本地联系人/接待人?",
+        "vnContactName": "联系人姓名",
+        "vnContactRelationship": "与您的关系",
+        "vnContactPhone": "联系人电话",
+        "vnContactAddress": "联系人地址",
+        "occupation": "职业",
+        "employerOrSchool": "雇主或学校名称",
+        "employerAddress": "雇主地址",
+        "position": "职位",
+        "employerPhone": "雇主电话",
+        "isAccompaniedByMinor": "是否随行未成年人?",
+        "accompanyingMinorCount": "随行未成年人数",
+        "parentOrGuardianName": "监护人姓名",
+        "entryDate": "预计入境日期",
+        "exitDate": "预计出境日期",
+        "requestedVisaType": "签证类型",
+        "tripPayer": "出行费用承担方",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "fundsAmount": "行程预算",
+        "fundsAmountPlaceholder": "如 1500",
+        "fundsCurrency": "币种",
+        "hasInsurance": "是否为本次行程购买了旅行保险?"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "religion": {
+          "none": "无",
+          "buddhism": "佛教",
+          "christianity": "基督教",
+          "islam": "伊斯兰教",
+          "hinduism": "印度教",
+          "other": "其他"
+        },
+        "passport": {
+          "ordinary": "普通护照",
+          "diplomatic": "外交护照",
+          "official": "公务护照"
+        },
+        "purpose": {
+          "tourism": "旅游",
+          "business": "商务",
+          "relatives": "探亲",
+          "investment": "投资",
+          "study": "学习",
+          "work": "工作",
+          "press": "新闻",
+          "other": "其他"
+        },
+        "purposeDesc": {
+          "tourism": "度假或观光",
+          "business": "会议、签约",
+          "relatives": "探望在越亲属",
+          "investment": "投资相关",
+          "study": "课程或培训",
+          "work": "短期工作",
+          "press": "新闻采访",
+          "other": "其他原因"
+        },
+        "visa": {
+          "single": "单次入境 (最长 90 天)",
+          "multiple": "多次入境 (最长 90 天)"
+        },
+        "gates": {
+          "noiBai": "内排 (河内)",
+          "tanSonNhat": "新山一 (胡志明市)",
+          "daNang": "岘港",
+          "camRanh": "金兰 (芽庄)",
+          "phuQuoc": "富国",
+          "landBorder": "陆路口岸",
+          "other": "其他"
+        },
+        "funding": {
+          "self": "本人",
+          "family": "家人",
+          "employer": "雇主",
+          "host": "在越接待人"
+        },
+        "currency": {
+          "usd": "美元",
+          "vnd": "越南盾",
+          "eur": "欧元",
+          "cny": "人民币"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "noCriminalConvictions": "是否在任何国家有过犯罪定罪记录?",
+        "noCommunicableDisease": "目前是否患有公共卫生关注的传染病?",
+        "noDrugAddiction": "是否有药物成瘾历史?",
+        "willObeyLocalLaws": "本人承诺在越期间遵守越南法律。"
+      }
+    },
+    "au": {
+      "steps": {
+        "stream": {
+          "label": "类别",
+          "title": "600 类下哪个 stream?",
+          "subtitle": "选择最贴合您出行目的的 stream。"
+        },
+        "personal": {
+          "label": "个人",
+          "title": "个人信息",
+          "subtitle": "请按护照原文填写。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "用于本次签证的旅行证件。"
+        },
+        "contact": {
+          "label": "联系",
+          "title": "联系方式 & 居住地址",
+          "subtitle": "内政部联系您的方式。"
+        },
+        "application_context": {
+          "label": "背景",
+          "title": "申请背景",
+          "subtitle": "申请所在地及本次出行性质。"
+        },
+        "tripDates": {
+          "label": "日期",
+          "title": "赴澳时间",
+          "subtitle": "600 类各 stream 单次停留可达 3、6 或 12 个月。"
+        },
+        "visit": {
+          "label": "访问",
+          "title": "访问信息",
+          "subtitle": "出行原因、入境口岸、过往访澳记录。"
+        },
+        "companions": {
+          "label": "家属",
+          "title": "随行家属",
+          "subtitle": "随行家属信息 (如有)。"
+        },
+        "funding": {
+          "label": "资金",
+          "title": "行程经费",
+          "subtitle": "出行费用承担方。"
+        },
+        "health": {
+          "label": "健康",
+          "title": "健康声明",
+          "subtitle": "逐题确认健康相关问题。"
+        },
+        "character": {
+          "label": "品行",
+          "title": "品行声明",
+          "subtitle": "逐题确认品行相关问题。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "最终声明",
+          "subtitle": "提交前请逐条确认。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的 600 类答案",
+        "subtitle": "提交前可编辑修正。",
+        "stream": "类别",
+        "personal": "个人",
+        "passport": "护照",
+        "contact": "联系方式",
+        "applicationContext": "申请背景",
+        "tripDates": "行程日期",
+        "visit": "访问",
+        "companions": "家属",
+        "funding": "资金",
+        "health": "健康",
+        "character": "品行",
+        "declaration": "声明"
+      },
+      "tripDates": {
+        "over12mHint": "600 类签证单次停留通常上限为 3、6 或 12 个月。"
+      },
+      "fields": {
+        "givenNames": "名",
+        "familyName": "姓",
+        "anyOtherNames": "是否曾用过其他姓名?",
+        "otherNames": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "nationality": "国籍",
+        "countryOfBirth": "出生国家",
+        "placeOfBirth": "出生城市",
+        "relationshipStatus": "婚姻状况",
+        "hasNationalId": "是否有身份证?",
+        "nationalIdNumber": "身份证号",
+        "pacificAustraliaCardHolder": "是否持有 Pacific-Australia 卡?",
+        "passportNumber": "护照号码",
+        "passportIssuing": "签发国家",
+        "passportIssueDate": "签发日期",
+        "passportExpiryDate": "有效期至",
+        "passportPlaceOfIssue": "签发地",
+        "chineseCommercialCodeNumber": "中国商业代码 (仅中国大陆)",
+        "email": "电子邮箱",
+        "phoneMobile": "手机",
+        "phoneHome": "家庭电话",
+        "phoneBusiness": "工作电话",
+        "residentialAddress": "居住地址",
+        "city": "城市",
+        "postcode": "邮编",
+        "country": "国家",
+        "applyingAllOutside": "决定本申请时所有申请人是否都在澳洲境外?",
+        "currentLocationLegalStatus": "您在所在国家的合法居留身份是?",
+        "purposeOfStayInitial": "初次停留的主要目的",
+        "significantDatesInAustralia": "在澳是否有重要日期 (活动、典礼、截止)?",
+        "eventInvitedByOrganisation": "是否由澳洲机构邀请参加活动?",
+        "eventPaidByAustralianOrganisation": "澳洲机构是否承担本次行程任何费用?",
+        "applyingAsPartOfGroup": "是否作为团体申请的一部分?",
+        "arrivalDate": "预计抵达日期",
+        "departureDate": "预计离境日期",
+        "mainReason": "主要出行原因",
+        "portOfArrival": "入境口岸",
+        "previousAuTravel": "是否曾赴澳?",
+        "previousAuVisaGrantDates": "过往澳洲签证批准大致日期",
+        "hasAccompanyingFamily": "是否有家属随行?",
+        "accompanyingFamilyCount": "随行家属人数",
+        "hasNonAccompanyingFamily": "是否有不随行的家属?",
+        "fundingSource": "行程资金来源",
+        "sponsorName": "担保人姓名",
+        "sponsorNamePlaceholder": "完整法定姓名",
+        "sponsorRelationship": "与担保人关系",
+        "sponsorRelationshipPlaceholder": "如父母、雇主等",
+        "fundsAmount": "可用资金",
+        "fundsAmountPlaceholder": "如 5000",
+        "fundsCurrency": "币种"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女",
+          "indeterminate": "未指定"
+        },
+        "rel": {
+          "never": "未婚",
+          "married": "已婚",
+          "deFacto": "事实婚",
+          "engaged": "已订婚",
+          "separated": "分居",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "stream": {
+          "tourist": "旅游",
+          "business": "商务访客",
+          "sponsored": "亲属担保",
+          "frequent": "频繁旅客"
+        },
+        "streamDesc": {
+          "tourist": "度假、观光、探亲访友",
+          "business": "短期商务活动 — 会议、洽谈",
+          "sponsored": "亲属担保探访",
+          "frequent": "特定护照持有人的长效多次签证"
+        },
+        "locStatus": {
+          "citizen": "公民",
+          "pr": "永久居民",
+          "temporary": "临签持有人",
+          "visitor": "访客",
+          "other": "其他"
+        },
+        "initial": {
+          "business": "商务",
+          "tourism": "旅游",
+          "family": "探亲",
+          "study": "学习",
+          "religious": "宗教活动",
+          "other": "其他"
+        },
+        "port": {
+          "sydney": "悉尼",
+          "melbourne": "墨尔本",
+          "brisbane": "布里斯班",
+          "perth": "珀斯",
+          "adelaide": "阿德莱德",
+          "goldCoast": "黄金海岸",
+          "cairns": "凯恩斯",
+          "darwin": "达尔文",
+          "hobart": "霍巴特",
+          "other": "其他"
+        },
+        "funding": {
+          "self": "本人",
+          "family": "家人",
+          "employer": "雇主",
+          "sponsor": "担保人"
+        },
+        "currency": {
+          "aud": "澳元",
+          "usd": "美元",
+          "eur": "欧元",
+          "gbp": "英镑",
+          "cny": "人民币"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "healthLivedOutsidePassport": "过去 5 年是否在护照国之外居住超过 5 年(或近一年内超过 3 个月)?",
+        "healthVisitedFacility": "过去 5 年是否曾以住院形式住进医院或医疗机构?",
+        "healthHealthcareWorker": "您是否为医疗工作者(医生、护士、急救员等)?",
+        "healthAgedOrChildcare": "过去 5 年是否从事过养老护理或儿童托管工作?",
+        "healthClassroom3Months": "过去 5 年是否在教室(作为学生或教师)连续待过 3 个月以上?",
+        "healthTbOrChestXray": "是否曾患结核病、胸片异常,或与结核患者密切接触?",
+        "hasHealthInsurance": "是否有覆盖在澳期间的医疗保险?",
+        "charCriminalConvictions": "是否在任何地方被指控或定罪过任何刑事罪?",
+        "charWarCrimes": "是否曾涉及战争罪、反人类罪或种族灭绝?",
+        "charSexualOffence": "是否曾被指控或定罪过性犯罪(含针对未成年人)?",
+        "charTerrorism": "是否曾参与或支持过恐怖主义?",
+        "charPeopleSmuggling": "是否曾涉及人口走私或贩运?",
+        "charMilitaryTraining": "是否接受过专门的军事、准军事或武器/爆炸物训练?",
+        "charVisaRefused": "是否曾被任何国家拒签或取消签证?",
+        "informationCorrect": "本人确认所填信息真实、完整、准确。",
+        "understandsNoEntryGuarantee": "本人理解签证并不保证入境,边检官员仍有权拒绝入境。",
+        "awareDataProcessing": "本人知晓个人信息将由澳洲相关机构处理。",
+        "willLeaveBeforeExpiry": "本人承诺将在签证到期前离开澳洲。",
+        "genuineVisitor": "本人确认为真实访客,仅按所述目的临时停留。"
+      }
+    },
+    "id": {
+      "steps": {
+        "personal": {
+          "label": "个人信息",
+          "title": "个人信息",
+          "subtitle": "用于印度尼西亚电子签表单的姓名、出生信息、国籍和婚姻状态。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "请填写您入境印度尼西亚时会使用的同一本旅行证件。"
+        },
+        "contact": {
+          "label": "联系方式",
+          "title": "联系方式与居住地址",
+          "subtitle": "家庭住址、联系电话和电子邮箱。"
+        },
+        "occupation": {
+          "label": "职业",
+          "title": "职业信息",
+          "subtitle": "当前工作、学习或职业情况。"
+        },
+        "trip": {
+          "label": "行程",
+          "title": "印度尼西亚行程信息",
+          "subtitle": "B211A 旅游签停留、入境口岸、住宿和费用承担信息。"
+        },
+        "sponsor": {
+          "label": "担保人",
+          "title": "印度尼西亚担保人",
+          "subtitle": "如有印尼个人或公司支持此次访问，请填写本页。"
+        },
+        "travel_history": {
+          "label": "旅行历史",
+          "title": "旅行历史",
+          "subtitle": "过往印尼访问记录，以及签证或入境被拒情况。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明",
+          "subtitle": "提交前请确认每一项印度尼西亚电子签声明。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的印度尼西亚 B211A 答案",
+        "subtitle": "请修改任何与护照、行程或支持材料不一致的信息。",
+        "personal": "个人信息",
+        "passport": "护照",
+        "contact": "联系方式",
+        "occupation": "职业",
+        "trip": "行程",
+        "sponsor": "担保人",
+        "travelHistory": "旅行历史",
+        "declaration": "声明"
+      },
+      "fields": {
+        "surname": "姓",
+        "givenNames": "名",
+        "hasOtherNamesUsed": "是否使用过其他姓名?",
+        "otherNamesUsed": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "placeOfBirthCity": "出生城市",
+        "placeOfBirthCountry": "出生国家/地区",
+        "nationality": "国籍",
+        "hasOtherNationalities": "是否持有其他国籍?",
+        "otherNationality": "其他国籍",
+        "idCardNumber": "身份证件号码",
+        "motherFullName": "母亲全名",
+        "maritalStatus": "婚姻状态",
+        "spouseFullName": "配偶全名",
+        "spouseDob": "配偶出生日期",
+        "spouseNationality": "配偶国籍",
+        "passportNumber": "护照号码",
+        "passportType": "护照类型",
+        "passportIssuingCountry": "护照签发国家/地区",
+        "passportCountry": "护照签发国家/地区",
+        "passportIssueDate": "护照签发日期",
+        "passportExpiryDate": "护照有效期至",
+        "passportPlaceOfIssue": "护照签发地点",
+        "passportIssuingAuthority": "签发机关",
+        "hasOtherPassports": "是否持有其他护照?",
+        "otherPassportNumber": "其他护照号码",
+        "otherPassportCountry": "其他护照签发国家/地区",
+        "homeAddress": "家庭住址",
+        "city": "城市",
+        "state": "省/州",
+        "postalCode": "邮政编码",
+        "countryOfResidence": "居住国家/地区",
+        "phone": "电话号码",
+        "mobile": "手机号码",
+        "email": "电子邮箱",
+        "currentProfession": "当前职业",
+        "positionTitle": "职位/职称",
+        "employerOrSchool": "雇主或学校名称",
+        "employerAddress": "雇主或学校地址",
+        "employerPhone": "雇主或学校电话",
+        "purposeOfVisit": "访问目的",
+        "intendedArrivalDate": "预计到达日期",
+        "intendedLengthOfStay": "预计停留时长",
+        "portOfEntry": "入境口岸",
+        "carrierName": "承运人名称",
+        "flightOrVoyageNumber": "航班或航次号码",
+        "accommodationType": "住宿类型",
+        "accommodationName": "住宿名称",
+        "accommodationAddress": "住宿地址",
+        "accommodationCity": "住宿城市或区域",
+        "accommodationPhone": "住宿联系电话",
+        "expenseBearer": "谁承担本次旅行费用?",
+        "hasSponsorInIndonesia": "是否有印度尼西亚担保人?",
+        "sponsorType": "担保人类型",
+        "sponsorIndividualFullName": "个人担保人全名",
+        "sponsorIndividualNik": "担保人 NIK",
+        "sponsorIndividualRelationship": "与担保人的关系",
+        "sponsorCorporateName": "公司担保人名称",
+        "sponsorCorporateNib": "公司 NIB",
+        "sponsorCorporateNpwp": "公司 NPWP",
+        "sponsorCorporatePicName": "公司联系人姓名",
+        "sponsorAddress": "担保人地址",
+        "sponsorPhone": "担保人电话",
+        "sponsorEmail": "担保人邮箱",
+        "visitedIndonesiaBefore": "此前是否访问过印度尼西亚?",
+        "priorVisitArrival": "上次到达印尼日期",
+        "priorVisitDeparture": "上次离开印尼日期",
+        "priorVisitPurpose": "上次访问印尼目的",
+        "priorVisitVisaType": "上次印尼签证类型",
+        "refusedVisaIndonesia": "是否曾被拒发印尼签证或被拒绝入境?",
+        "refusedVisaIndonesiaDetails": "印尼拒签/拒入境说明",
+        "refusedVisaOtherCountry": "是否曾被其他国家拒签或拒绝入境?",
+        "refusedVisaOtherDetails": "其他拒签/拒入境说明",
+        "criminalRecordDetails": "犯罪记录说明",
+        "deportationDetails": "遣返或驱逐说明",
+        "overstayDetails": "逾期停留说明",
+        "remarksSpecialCircumstances": "特殊情况说明",
+        "applicationDate": "申请日期"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "passport": {
+          "ordinary": "普通护照",
+          "diplomatic": "外交护照",
+          "official": "公务/官方护照",
+          "travelDocument": "旅行证件",
+          "other": "其他"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "occupation": {
+          "employed": "受雇",
+          "selfEmployed": "自雇",
+          "student": "学生",
+          "retired": "退休",
+          "housewife": "家务/家庭主妇",
+          "unemployed": "无业",
+          "other": "其他"
+        },
+        "purpose": {
+          "tourism": "旅游"
+        },
+        "idAccommodation": {
+          "hotel": "酒店",
+          "villa": "别墅",
+          "friend": "朋友或亲属住所",
+          "other": "其他"
+        },
+        "idExpense": {
+          "self": "本人",
+          "employer": "雇主",
+          "sponsor": "担保人",
+          "family": "家人",
+          "other": "其他"
+        },
+        "sponsorType": {
+          "individual": "个人",
+          "corporate": "公司"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "hasCriminalRecord": "是否曾被判定有刑事犯罪记录?",
+        "hasBeenDeported": "是否曾被任何国家遣返或驱逐?",
+        "hasOverstayedIndonesia": "是否曾在印度尼西亚逾期停留?",
+        "hasDrugOrTrafficking": "是否曾涉及毒品、贩运或相关犯罪?",
+        "finalDeclaration": "本人确认本印度尼西亚电子签申请所填信息真实、完整。"
+      }
+    },
+    "eg": {
+      "steps": {
+        "personal": {
+          "label": "个人信息",
+          "title": "个人信息",
+          "subtitle": "用于埃及电子签表单的姓名、出生信息、国籍和家庭信息。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照信息",
+          "subtitle": "本线上旅游电子签流程适用于普通护照。"
+        },
+        "contact": {
+          "label": "联系方式",
+          "title": "联系方式与居住地址",
+          "subtitle": "家庭住址、联系电话和电子邮箱。"
+        },
+        "occupation": {
+          "label": "职业",
+          "title": "职业信息",
+          "subtitle": "当前工作、学习或职业情况。"
+        },
+        "trip": {
+          "label": "行程",
+          "title": "埃及行程信息",
+          "subtitle": "签证类型、到达日期、入境口岸、住宿和费用承担信息。"
+        },
+        "host": {
+          "label": "接待人",
+          "title": "埃及接待人",
+          "subtitle": "如有埃及当地人员接待或支持此次访问，请填写本页。"
+        },
+        "travel_history": {
+          "label": "旅行历史",
+          "title": "旅行历史",
+          "subtitle": "过往埃及访问记录，以及签证或入境被拒情况。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明",
+          "subtitle": "提交前请确认每一项埃及电子签声明。"
+        }
+      },
+      "review": {
+        "label": "审核",
+        "title": "审核您的埃及电子签答案",
+        "subtitle": "请修改任何与护照、行程或支持材料不一致的信息。",
+        "personal": "个人信息",
+        "passport": "护照",
+        "contact": "联系方式",
+        "occupation": "职业",
+        "trip": "行程",
+        "host": "接待人",
+        "travelHistory": "旅行历史",
+        "declaration": "声明"
+      },
+      "fields": {
+        "surname": "姓",
+        "givenNames": "名",
+        "hasOtherNamesUsed": "是否使用过其他姓名?",
+        "otherNamesUsed": "曾用名",
+        "dob": "出生日期",
+        "sex": "性别",
+        "placeOfBirthCity": "出生城市",
+        "placeOfBirthCountry": "出生国家/地区",
+        "nationality": "国籍",
+        "hasOtherNationalities": "是否持有其他国籍?",
+        "otherNationality": "其他国籍",
+        "nationalIdNumber": "身份证件号码",
+        "maritalStatus": "婚姻状态",
+        "spouseFullName": "配偶全名",
+        "spouseNationality": "配偶国籍",
+        "fatherFullName": "父亲全名",
+        "motherFullName": "母亲全名",
+        "passportNumber": "护照号码",
+        "passportType": "护照类型",
+        "passportIssuingCountry": "护照签发国家/地区",
+        "passportIssueDate": "护照签发日期",
+        "passportExpiryDate": "护照有效期至",
+        "passportPlaceOfIssue": "护照签发地点",
+        "hasOtherPassports": "是否持有其他护照?",
+        "otherPassportNumber": "其他护照号码",
+        "otherPassportCountry": "其他护照签发国家/地区",
+        "homeAddress": "家庭住址",
+        "city": "城市",
+        "state": "省/州",
+        "postalCode": "邮政编码",
+        "countryOfResidence": "居住国家/地区",
+        "phone": "电话号码",
+        "mobile": "手机号码",
+        "email": "电子邮箱",
+        "currentProfession": "当前职业",
+        "positionTitle": "职位/职称",
+        "employerOrSchool": "雇主或学校名称",
+        "employerAddress": "雇主或学校地址",
+        "employerPhone": "雇主或学校电话",
+        "visaTypeRequested": "申请签证类型",
+        "purposeOfVisit": "访问目的",
+        "intendedArrivalDate": "预计到达日期",
+        "intendedLengthOfStay": "预计停留时长",
+        "portOfEntry": "入境口岸",
+        "portOfEntryOther": "其他入境口岸",
+        "carrierName": "承运人名称",
+        "accommodationType": "住宿类型",
+        "accommodationName": "住宿名称",
+        "accommodationAddress": "住宿地址",
+        "accommodationCity": "住宿城市",
+        "accommodationPhone": "住宿联系电话",
+        "expenseBearer": "谁承担本次旅行费用?",
+        "hasHostInEgypt": "是否有埃及接待人?",
+        "hostFullName": "接待人全名",
+        "hostRelationship": "与接待人的关系",
+        "hostAddress": "接待人地址",
+        "hostPhone": "接待人电话",
+        "hostNationality": "接待人国籍",
+        "visitedEgyptBefore": "此前是否访问过埃及?",
+        "priorVisitArrival": "上次到达埃及日期",
+        "priorVisitDeparture": "上次离开埃及日期",
+        "priorVisitPurpose": "上次访问埃及目的",
+        "refusedVisaEgypt": "是否曾被拒发埃及签证或被拒绝入境?",
+        "refusedVisaEgyptDetails": "埃及拒签/拒入境说明",
+        "refusedVisaOtherCountry": "是否曾被其他国家拒签或拒绝入境?",
+        "refusedVisaOtherDetails": "其他拒签/拒入境说明",
+        "criminalRecordDetails": "犯罪记录说明",
+        "deportationDetails": "遣返或驱逐说明",
+        "remarksSpecialCircumstances": "特殊情况说明",
+        "applicationDate": "申请日期"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        },
+        "passport": {
+          "ordinary": "普通护照"
+        },
+        "marital": {
+          "single": "未婚",
+          "married": "已婚",
+          "divorced": "离异",
+          "widowed": "丧偶"
+        },
+        "occupation": {
+          "employed": "受雇",
+          "selfEmployed": "自雇",
+          "businessperson": "商务人士",
+          "student": "学生",
+          "retired": "退休",
+          "homemaker": "家务",
+          "unemployed": "无业",
+          "other": "其他"
+        },
+        "egVisa": {
+          "single": "单次入境",
+          "multiple": "多次入境"
+        },
+        "purpose": {
+          "tourism": "旅游"
+        },
+        "egPort": {
+          "cairo": "开罗国际机场",
+          "hurghada": "赫尔格达国际机场",
+          "sharm": "沙姆沙伊赫国际机场",
+          "luxor": "卢克索国际机场",
+          "marsaAlam": "阿拉姆港国际机场",
+          "alexAirport": "亚历山大 Borg El Arab 机场",
+          "aswan": "阿斯旺国际机场",
+          "alexSeaport": "亚历山大海港",
+          "portSaid": "塞得港海港",
+          "safaga": "萨法加海港",
+          "other": "其他"
+        },
+        "egAccommodation": {
+          "hotel": "酒店",
+          "resort": "度假村",
+          "rental": "租赁公寓",
+          "host": "接待人住所",
+          "cruise": "邮轮",
+          "other": "其他"
+        },
+        "egExpense": {
+          "self": "本人",
+          "employer": "雇主",
+          "family": "家人",
+          "host": "接待人",
+          "other": "其他"
+        }
+      },
+      "declarations": {
+        "explainPlaceholder": "请简要说明情况",
+        "hasCriminalRecord": "是否曾被判定有刑事犯罪记录?",
+        "hasBeenDeported": "是否曾被任何国家遣返或驱逐?",
+        "terrorismOrSecurity": "是否曾涉及恐怖主义、安全犯罪或相关活动?",
+        "finalDeclaration": "本人确认本埃及电子签申请所填信息真实、完整。"
+      }
+    },
+    "standardEvisa": {
+      "steps": {
+        "personal": {
+          "label": "个人信息",
+          "title": "个人信息",
+          "subtitle": "请填写以下字段。"
+        },
+        "passport": {
+          "label": "护照",
+          "title": "护照",
+          "subtitle": "请填写以下字段。"
+        },
+        "contact": {
+          "label": "联系方式",
+          "title": "联系方式",
+          "subtitle": "请填写以下字段。"
+        },
+        "trip": {
+          "label": "行程信息",
+          "title": "行程信息",
+          "subtitle": "请填写以下字段。"
+        },
+        "declaration": {
+          "label": "声明",
+          "title": "声明",
+          "subtitle": "请填写以下字段。"
+        }
+      },
+      "fields": {
+        "surname": "姓",
+        "givenNames": "名",
+        "sex": "性别",
+        "dob": "出生日期",
+        "dateOfBirth": "出生日期",
+        "placeOfBirthCity": "出生城市",
+        "nationality": "国籍",
+        "passportNumber": "护照号码",
+        "passportIssuingCountry": "护照签发国",
+        "passportExpiryDate": "护照到期日",
+        "email": "电子邮箱",
+        "phone": "电话",
+        "homeAddress": "家庭住址",
+        "intendedArrival": "计划入境日期",
+        "intendedArrivalDate": "计划入境日期",
+        "intendedDeparture": "计划离境日期",
+        "intendedDepartureDate": "计划离境日期",
+        "purposeOfVisit": "访问目的",
+        "occupation": "职业",
+        "hasCriminalRecord": "您有犯罪记录吗？",
+        "finalDeclaration": "我确认以上信息真实准确。"
+      },
+      "options": {
+        "sex": {
+          "male": "男",
+          "female": "女"
+        }
+      },
+      "declarations": {
+        "hasCriminalRecord": "您有犯罪记录吗？",
+        "finalDeclaration": "我确认以上信息真实准确。"
+      },
+      "review": {
+        "personal": "个人信息",
+        "passport": "护照",
+        "contact": "联系方式",
+        "trip": "行程信息",
+        "declaration": "声明"
+      }
+    }
+  },
+  "documents": {
+    "title": "文件",
+    "loading": "正在加载文件...",
+    "documentsUploaded": "已上传 {count}/{total} 份文件",
+    "percentComplete": "已完成 {pct}%",
+    "rejected": "被拒绝：",
+    "upload": "上传",
+    "uploading": "上传中...",
+    "reupload": "重新上传",
+    "replace": "替换",
+    "statusLabels": {
+      "uploaded": "已上传",
+      "validated": "已验证",
+      "missing": "缺失",
+      "rejected": "已拒绝"
+    },
+    "requiredDocs": {
+      "passport_copy": {
+        "label": "护照复印件",
+        "description": "护照资料页"
+      },
+      "photo": {
+        "label": "照片",
+        "description": "近期护照尺寸照片，白色背景"
+      },
+      "flight_booking": {
+        "label": "航班预订",
+        "description": "往返航班预订确认"
+      },
+      "hotel_booking": {
+        "label": "酒店预订",
+        "description": "住宿确认"
+      },
+      "travel_itinerary": {
+        "label": "旅行行程",
+        "description": "详细旅行计划"
+      },
+      "bank_statement": {
+        "label": "银行对账单",
+        "description": "最近3个月，显示充足资金"
+      }
+    },
+    "errors": {
+      "notAuthenticated": "未经认证。请登录。",
+      "noProfile": "未找到申请人资料。请完成注册。",
+      "noApplication": "未找到申请。请开始您的申请。",
+      "uploadFailed": "上传失败：{message}",
+      "completeApplicationFirst": "请先完成您的申请，然后再上传文件。"
+    }
+  },
+  "chat": {
+    "searchChats": "搜索聊天",
+    "searchPlaceholder": "搜索聊天...",
+    "noResults": "未找到结果",
+    "sessionHistory": "会话历史",
+    "noConversations": "暂无对话",
+    "chatWith": "与",
+    "vizaAI": "签证顾问",
+    "travelAI": "旅行顾问",
+    "vizaAIDescription": "签证指导、文件帮助和问答",
+    "noApplicationFound": "暂未找到申请。请先在申请页创建。",
+    "travelApplicationLinked": "已关联申请，可使用旅行顾问。",
+    "currentApplicationStatus": "当前申请状态：{status}",
+    "openTravelAI": "打开旅行顾问",
+    "consultantDisclaimer": "签证顾问可能出错，重要信息请再次核实。",
+    "immediate": "即时回复",
+    "askSupportTeam": "咨询支持团队",
+    "supportDescription": "复杂问题和客户服务",
+    "supportResponseTime": "工作日<24小时",
+    "newChatGreeting": "您好！我是 VIZA，您的签证助手。告诉我目的地、国籍、出行目的和计划停留时间，我会帮您判断合适的签证路线。",
+    "inputPlaceholder": "询问关于您的签证申请...",
+    "supportComingSoon": "支持团队聊天即将推出",
+    "connectionReconnecting": "连接问题 - 正在重新连接...",
+    "connectedSending": "已连接 - 正在发送排队消息",
+    "agentNotified": "您的签证顾问已收到此对话通知",
+    "failedToStart": "无法开始对话",
+    "willSendWhenConnected": "连接后将发送消息"
+  },
+  "inviteFriends": {
+    "heroTitle": "邀请您的朋友",
+    "heroSubtitle": "赚取 VIZA 积分",
+    "referHeading": "分享 referral code，赚取 99 积分",
+    "referDescription": "把您的专属 referral code 分享给朋友和家人。新用户注册时使用该 code 后，你们两人各获得 99 VIZA 积分。",
+    "referralCode": "Referral code",
+    "loadingLink": "正在加载您的 code...",
+    "copyCode": "复制 code",
+    "copied": "已复制！",
+    "codeCopiedToast": "Referral code 已复制。",
+    "inviteSentToast": "邀请已发送至 {email}。",
+    "inviteFailedToast": "发送邀请失败。",
+    "rewardForYouLabel": "您获得",
+    "rewardForFriendLabel": "朋友获得",
+    "pointsAmount": "99 积分",
+    "errors": {
+      "not_authenticated": "请重新登录后再发送邀请。",
+      "invalid_email": "请输入有效的电子邮件地址。",
+      "missing_referral_code": "您的 referral code 还在加载，请稍后再试。",
+      "email_not_configured": "邮件发送还没有配置，请检查 Supabase Auth 邮件设置。",
+      "send_failed": "暂时无法发送邀请，请稍后重试。"
+    },
+    "orInviteViaEmail": "或通过电子邮件邀请",
+    "emailPlaceholder": "您朋友的电子邮件",
+    "sendInvite": "发送邀请",
+    "sending": "发送中...",
+    "howItWorks": "如何运作",
+    "steps": {
+      "share": {
+        "title": "分享您的 referral code",
+        "description": "邀请朋友使用您的专属 code 加入 VIZA。"
+      },
+      "give": {
+        "title": "赠送朋友 99 积分",
+        "description": "新用户注册时填写您的 code，即可获得 99 积分。"
+      },
+      "earn": {
+        "title": "赚取 99 积分",
+        "description": "每位新用户使用您的 code 注册后，您也将获得 99 积分。"
+      },
+      "redeem": {
+        "title": "兑换积分奖励",
+        "description": "在设置里的积分中心使用积分商城兑换奖励。"
+      }
+    },
+    "faqTitle": "常见问题",
+    "supportCta": {
+      "title": "还需要帮助？",
+      "description": "选择问题类型并描述细节，我们会先给出智能解答；需要人工跟进时可提交客服请求。",
+      "action": "前往智能帮助"
+    },
+    "faqs": {
+      "whenReward": {
+        "question": "我什么时候能获得奖励？",
+        "answer": "新用户成功使用您的 referral code 注册后，99 积分会计入您的账户。"
+      },
+      "howUseCredit": {
+        "question": "如何使用积分？",
+        "answer": "打开设置里的积分中心，即可在积分商城兑换可用奖励。"
+      },
+      "whoEligible": {
+        "question": "谁有资格？",
+        "answer": "仅限新会员。每位新会员一次折扣。"
+      }
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "subtitle": "在这里管理付款偏好、通用签证资料、账户安全和帮助入口。",
+    "backToSettings": "返回设置",
+    "loading": "正在加载您的设置...",
+    "tabs": {
+      "billing": "账单",
+      "account": "账户"
+    },
+    "privacy": {
+      "title": "隐私和数据权利"
+    },
+    "profile": {
+      "fallbackName": "VIZA 申请人",
+      "editDetails": "编辑资料",
+      "completion": "通用资料完整度",
+      "completionHint": "提前补全一次，后续签证表单会优先自动预填。"
+    },
+    "quickSnapshot": {
+      "label": "账户概览",
+      "passport": "护照",
+      "phone": "手机号",
+      "payment": "付款",
+      "notSet": "未设置"
+    },
+    "pointsCenter": {
+      "eyebrow": "积分中心",
+      "title": "VIZA 积分",
+      "totalLabel": "当前积分总额",
+      "referralRule": "新用户注册时使用您的 referral code 后，两边账号各获得 99 积分。",
+      "purchaseRule": "每实际消费 100 元人民币可获得 100 VIZA 积分，付款确认后会自动计入当前积分总额。",
+      "lifetimeEarned": "累计获得",
+      "lifetimeSpent": "累计使用",
+      "marketplaceTitle": "积分商城",
+      "marketplaceDescription": "使用积分兑换 VIZA 奖励；余额足够时即可兑换。",
+      "cost": "{points} 积分",
+      "redeem": "兑换",
+      "notEnough": "积分不足",
+      "rewards": {
+        "arrivalCardSubmission": {
+          "title": "入境卡免费提交",
+          "description": "1000 积分可兑换一次入境卡免费提交服务。",
+          "countries": [
+            "新加坡",
+            "马来西亚",
+            "泰国"
+          ]
+        },
+        "priorityChecklist": {
+          "title": "优先材料清单整理",
+          "description": "为下一次申请加速材料清单核对。"
+        },
+        "consultationCredit": {
+          "title": "顾问咨询抵扣",
+          "description": "兑换人工签证顾问咨询的费用抵扣。"
+        }
+      }
+    },
+    "sections": {
+      "general": "通用",
+      "payments": "付款",
+      "support": "支持"
+    },
+    "rows": {
+      "universalInfo": {
+        "title": "通用资料",
+        "description": "编辑身份、护照、联系方式和地址等可复用信息。",
+        "badge": "推荐"
+      },
+      "account": {
+        "title": "个人资料",
+        "description": "查看 VIZA 准备申请时会使用的基础信息。"
+      },
+      "travelers": {
+        "title": "常用出行人",
+        "description": "添加家人、同事或同行人资料，后续团单可直接选择。",
+        "badge": "团单"
+      },
+      "pointsCenter": {
+        "title": "积分中心",
+        "description": "查看 VIZA 积分总额，并在积分商城兑换奖励。",
+        "badge": "奖励"
+      },
+      "language": {
+        "title": "语言",
+        "description": "可通过顶部语言切换器切换界面语言，也可查看资料填写指南。"
+      },
+      "paymentMethods": {
+        "title": "付款方式设置",
+        "description": "管理银行卡、微信和支付宝，并设置每类支付的优先账号。",
+        "badge": "管理"
+      },
+      "subscription": {
+        "title": "订阅方案管理",
+        "description": "查看当前月付方案、续费日期、付款方式和取消状态。",
+        "badge": "月付"
+      },
+      "billing": {
+        "title": "回执与发票",
+        "description": "查看付款历史、回执、发票申请和退款状态。"
+      },
+      "helpCenter": {
+        "title": "帮助中心",
+        "description": "阅读账户、付款、隐私和申请流程相关说明。"
+      },
+      "feedback": {
+        "title": "分享反馈",
+        "description": "如需人工跟进，可提交客服请求。"
+      }
+    },
+    "payment": {
+      "selected": "默认",
+      "pendingVerification": "待验证",
+      "setDefault": "设为默认",
+      "manage": "管理账号",
+      "manageSelected": "正在管理",
+      "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
+      "managerHints": {
+        "bank_card": "银行卡通过托管安全验证完成绑定，VIZA 不会接收完整卡号或 CVV。",
+        "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
+        "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
+      },
+      "boundCount": "已绑定 {count} 个",
+      "defaultAccount": "默认：{account}",
+      "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
+      "addTitle": "添加付款账号",
+      "cardAddTitle": "添加银行卡",
+      "qrAddTitle": "扫码绑定账号",
+      "editTitle": "编辑付款账号",
+      "addAccount": "添加账号",
+      "verifyWithStripe": "打开安全验证",
+      "verifyWithAirwallex": "加载安全卡组件",
+      "generateQr": "生成绑定二维码",
+      "regenerateQr": "重新生成二维码",
+      "checkQrStatus": "检查绑定状态",
+      "saveEdit": "保存修改",
+      "cancelEdit": "取消编辑",
+      "edit": "编辑",
+      "delete": "删除",
+      "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
+      "stripeHint": "银行卡详情只会在托管安全页面中填写；VIZA 不保存完整卡号或 CVV。",
+      "cardHint": "银行卡详情只会在 Airwallex 托管安全组件中填写；VIZA 不接收或保存完整卡号、有效期或 CVV。",
+      "cardElementPreparing": "正在加载 Airwallex 银行卡安全组件。",
+      "completeCardBinding": "完成银行卡绑定",
+      "cardIdentifier": "银行卡 · 安全验证中",
+      "qrAlt": "付款账号绑定二维码",
+      "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
+      "qrExpires": "二维码有效期至 {time}。",
+      "qrHint": {
+        "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
+        "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
+      },
+      "fields": {
+        "label": "账号名称",
+        "identifier": "识别信息",
+        "nickname": "昵称",
+        "cardNumber": "卡号",
+        "cvv": "CVV"
+      },
+      "placeholders": {
+        "bank_card": {
+          "label": "例如：招商银行储蓄卡",
+          "identifier": "例如：尾号 5857",
+          "nickname": "例如：招商银行储蓄卡",
+          "cardNumber": "请输入银行卡号",
+          "cvv": "卡背面 3 或 4 位安全码"
+        },
+        "wechat_pay": {
+          "label": "例如：我的微信",
+          "identifier": "例如：微信昵称或手机号后四位"
+        },
+        "alipay": {
+          "label": "例如：我的支付宝",
+          "identifier": "例如：支付宝账号备注"
+        }
+      },
+      "messages": {
+        "required": "请填写账号名称和识别信息。",
+        "nicknameRequired": "请填写银行卡昵称。",
+        "cardNumberInvalid": "请输入有效的银行卡号。",
+        "cvvInvalid": "请输入有效的 CVV。",
+        "added": "付款账号已添加。",
+        "updated": "付款账号已更新。",
+        "deleted": "付款账号已删除。",
+        "defaultUpdated": "默认付款账号已更新。",
+        "stripeUnavailable": "托管银行卡验证尚未配置，暂时无法验证银行卡。",
+        "stripeStartFailed": "暂时无法启动银行卡验证，请稍后重试。",
+        "stripeRedirect": "正在打开托管安全验证页面。",
+        "stripeReturned": "银行卡验证已返回，绑定状态会在支付服务确认后更新。",
+        "stripeCancelled": "银行卡验证已取消，银行卡尚未完成绑定。",
+        "cardUnavailable": "Airwallex 银行卡验证尚未配置，暂时无法验证银行卡。",
+        "cardStartFailed": "暂时无法启动 Airwallex 银行卡验证，请稍后重试。",
+        "cardReady": "银行卡安全组件已准备好，请填写卡信息后完成绑定。",
+        "cardElementFailed": "银行卡安全组件加载失败，请刷新后重试。",
+        "cardBindFailed": "银行卡绑定未完成，请检查卡信息后重试。",
+        "cardBound": "银行卡已通过 Airwallex 安全验证并完成绑定。",
+        "walletBindingUnavailable": "微信/支付宝账号绑定暂未配置。请在创建订单后使用结账页生成的真实支付二维码扫码付款。",
+        "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
+        "qrReady": "二维码已生成，请使用对应 App 扫码。",
+        "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
+        "qrExpired": "二维码已过期，请重新生成。",
+        "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
+        "qrBound": "扫码绑定已完成。"
+      },
+      "methods": {
+        "bank_card": {
+          "title": "银行卡",
+          "description": "填写昵称后通过 Airwallex 托管卡组件完成绑定。"
+        },
+        "wechat_pay": {
+          "title": "微信支付",
+          "description": "通过微信扫码授权绑定账号。"
+        },
+        "alipay": {
+          "title": "支付宝",
+          "description": "通过支付宝扫码授权绑定账号。"
+        }
+      }
+    },
+    "travelers": {
+      "title": "常用出行人",
+      "description": "保存经常一起出行的申请人资料。这里的资料不会自动提交，只是为后续团单选择做准备。",
+      "add": "添加出行人",
+      "addFirst": "添加第一个出行人",
+      "addTitle": "添加常用出行人",
+      "editTitle": "编辑出行人",
+      "formHint": "建议填写姓名、国籍和护照信息；之后团单表单可复用这些资料。",
+      "loading": "正在加载出行人...",
+      "emptyTitle": "还没有常用出行人",
+      "emptyDescription": "可以先添加家人、同事或同行朋友。之后做团单时，就能从这里选择。",
+      "notSet": "未填写",
+      "edit": "编辑",
+      "delete": "删除",
+      "save": "保存出行人",
+      "saving": "保存中...",
+      "cancel": "取消",
+      "created": "出行人已添加。",
+      "updated": "出行人已更新。",
+      "deleted": "出行人已删除。",
+      "loadError": "暂时无法加载常用出行人。",
+      "saveError": "暂时无法保存该出行人，请检查姓名后重试。",
+      "deleteError": "暂时无法删除该出行人。",
+      "handoffHint": "之后接入团单表单时，可以把这里的出行人作为同行申请人加入同一订单。",
+      "sections": {
+        "identity": "基本身份信息",
+        "passport": "护照信息",
+        "contact": "联系方式"
+      },
+      "fields": {
+        "fullName": "姓名",
+        "surname": "姓氏 / Surname",
+        "givenNames": "名字 / Given names",
+        "dateOfBirth": "出生日期 / Date of birth",
+        "birthCountry": "出生国家 / Country of birth",
+        "birthProvinceOrState": "出生省/州 / State/Province of birth",
+        "birthCity": "出生城市 / City of birth",
+        "gender": "性别 / Gender",
+        "nationality": "国籍 / Nationality",
+        "occupation": "职业 / Occupation",
+        "passportNumber": "护照号码 / Passport number",
+        "passportIssuingCountry": "签发国家 / Issuing country",
+        "passportIssueDate": "签发日期 / Issue date",
+        "passportExpiryDate": "护照有效期至 / Expiry date",
+        "email": "邮箱 / Email",
+        "phone": "手机号 / Phone number",
+        "wechat": "微信 / WeChat",
+        "address": "常住地址 / Residential address"
+      },
+      "placeholders": {
+        "fullName": "例如：张小明 / ZHANG XIAOMING",
+        "surnameZh": "如：李",
+        "surnameEn": "For example: LI",
+        "givenNamesZh": "如：晓明",
+        "givenNamesEn": "For example: XIAOMING",
+        "dateOfBirthZh": "选择出生日期",
+        "dateOfBirthEn": "Select date of birth",
+        "birthCountryZh": "选择出生国家...",
+        "birthCountryEn": "Select country of birth...",
+        "birthProvinceOrStateZh": "如：湖南",
+        "birthProvinceOrStateEn": "For example: Hunan",
+        "birthCityZh": "如：长沙",
+        "birthCityEn": "For example: Changsha",
+        "genderZh": "请选择",
+        "genderEn": "Select...",
+        "nationality": "例如：中国 / China",
+        "nationalityZh": "选择国家...",
+        "nationalityEn": "Select country...",
+        "occupationZh": "如：软件工程师",
+        "occupationEn": "For example: Software engineer",
+        "passportNumber": "按护照填写",
+        "passportIssuingCountryZh": "选择签发国家...",
+        "passportIssuingCountryEn": "Select issuing country...",
+        "passportIssueDateZh": "选择签发日期",
+        "passportIssueDateEn": "Select issue date",
+        "passportExpiryDateZh": "选择有效期",
+        "passportExpiryDateEn": "Select expiry date",
+        "email": "name@example.com",
+        "phone": "包含国家/地区号码",
+        "wechat": "可选",
+        "addressZh": "如：北京市朝阳区翻斗花园",
+        "addressEn": "For example: 1 Example Road"
+      },
+      "deleteDialog": {
+        "title": "删除这个出行人？",
+        "description": "将从常用出行人中移除 {name}。已创建的申请不会被自动删除。",
+        "cancel": "保留",
+        "confirm": "删除"
+      }
+    },
+    "account": {
+      "title": "账户",
+      "email": "电子邮件",
+      "displayName": "显示名称",
+      "namePlaceholder": "您的全名",
+      "saveChanges": "保存更改",
+      "saving": "保存中...",
+      "failedToSave": "保存失败。",
+      "saved": "已保存。"
+    },
+    "security": {
+      "title": "安全设置",
+      "passwordTitle": "修改密码",
+      "passwordDescription": "先验证当前邮箱验证码，验证后即可设置新密码。",
+      "emailTitle": "更改绑定邮箱",
+      "emailDescription": "通过当前邮箱验证码确认身份，保留原有密码。",
+      "guideDescription": "查看密码、邮箱和账号保护建议。",
+      "description": "请使用未在其他网站重复使用的强密码。VIZA 官方客服不会索要您的密码。",
+      "verifyDescription": "我们会向 {email} 发送 8 位验证码，验证后继续操作。",
+      "verificationCode": "邮箱验证码",
+      "codePlaceholder": "输入 8 位验证码",
+      "sendCode": "发送验证码",
+      "resendCode": "重新发送",
+      "verifyCode": "验证邮箱",
+      "verificationSent": "验证码已发送，请查看邮箱。",
+      "verificationSendFailed": "暂时无法发送验证码，请稍后重试。",
+      "codeInvalid": "请输入 8 位验证码。",
+      "codeFailed": "验证码无效或已过期，请重试。",
+      "verified": "邮箱验证已通过。",
+      "verifyFirst": "请先完成邮箱验证码验证。",
+      "newPassword": "新密码",
+      "confirmPassword": "确认密码",
+      "newEmail": "新绑定邮箱",
+      "newEmailPlaceholder": "name@example.com",
+      "updatePassword": "更新密码",
+      "updateEmail": "更新邮箱",
+      "saving": "更新中...",
+      "savingEmail": "更新中...",
+      "updated": "密码已更新。",
+      "emailUpdated": "绑定邮箱已更新，原密码保持不变。",
+      "mismatch": "两次输入的密码不一致。",
+      "tooShort": "密码至少需要 8 个字符。",
+      "requirementError": "密码必须包含字母、数字和特殊符号。",
+      "failed": "暂时无法更新密码，请重试。",
+      "emailMissing": "当前账号邮箱不可用，请重新登录后再试。",
+      "emailInvalid": "请输入有效的新邮箱地址。",
+      "emailSame": "新邮箱不能与当前邮箱相同。",
+      "emailUpdateFailed": "暂时无法更新邮箱，请重试。",
+      "passwordRequirements": {
+        "length": "至少 8 个字符",
+        "letter": "包含字母",
+        "digit": "包含数字",
+        "symbol": "包含特殊符号"
+      },
+      "guide": "安全指南"
+    },
+    "signOut": {
+      "title": "退出登录",
+      "description": "从此设备退出您的账户。",
+      "button": "退出登录"
+    },
+    "billing": {
+      "title": "账单",
+      "noPaymentMethods": "没有付款方式",
+      "noPaymentDescription": "账单和付款管理即将推出。如需更新账单信息，请联系客服。"
+    }
+  },
+  "supportCenter": {
+    "eyebrow": "帮助中心",
+    "title": "帮助",
+    "subtitle": "先选择问题类型，我们会根据知识库给出答复；若未解决，可提交客服请求。",
+    "activitiesTitle": "你需要哪类帮助？",
+    "activitiesSubtitle": "先选问题类型，再描述细节，我们会带上对应上下文。",
+    "viewMore": "查看更多",
+    "showLess": "收起",
+    "questionLabel": "描述你的问题",
+    "questionPlaceholder": "请描述你遇到的问题或疑问...",
+    "send": "发送",
+    "activities": {
+      "application": {
+        "title": "申请进度与材料",
+        "meta": "填写、提交、审核、补件"
+      },
+      "documents": {
+        "title": "文件上传与格式",
+        "meta": "护照、照片、材料上传"
+      },
+      "billing": {
+        "title": "付款与退款",
+        "meta": "支付失败、退款、发票"
+      },
+      "status": {
+        "title": "订单与时效",
+        "meta": "进度、时长、加急需求"
+      },
+      "account": {
+        "title": "账号与通知",
+        "meta": "登录、资料、消息提醒"
+      }
+    },
+    "actions": {
+      "faqs": {
+        "title": "浏览 FAQ",
+        "description": "阅读帮助中心文章和指南。"
+      },
+      "requests": {
+        "title": "我的反馈",
+        "description": "查看未解决、正在解决和已解决的问题。"
+      }
+    },
+    "requests": {
+      "title": "我的反馈",
+      "loading": "正在加载反馈...",
+      "empty": "还没有反馈记录。提交客服请求后会显示在这里。",
+      "ticketMeta": "工单 #{id}",
+      "status": {
+        "unresolved": "未解决",
+        "inProgress": "正在解决",
+        "sent": "未解决",
+        "pending": "正在解决",
+        "resolved": "已解决"
+      }
+    },
+    "requestsPage": {
+      "eyebrow": "反馈记录",
+      "title": "我的反馈",
+      "subtitle": "查看已提交的反馈、处理状态，并在需要时进入完整客服对话。",
+      "back": "返回帮助",
+      "newRequest": "提交新反馈",
+      "listTitle": "反馈历史",
+      "listSubtitle": "每条反馈都会集中展示主题、最新状态和客服对话入口。",
+      "emptyTitle": "暂无反馈",
+      "errorTitle": "无法加载反馈",
+      "error": "暂时无法加载你的客服请求，请稍后重试。"
+    },
+    "agent": {
+      "cardTitle": "智能解答",
+      "cardDescription": "先选问题类型，再描述细节，我们会先给出知识库答复。",
+      "title": "智能解答",
+      "subtitle": "问题类型：{activity}",
+      "openActivity": "打开相关页面",
+      "greeting": "你选择了“{activity}”。请描述问题，我会先根据知识库给出答复。",
+      "kbAnswer": "知识库正在完善中，当前仅能提供基础答复。如需进一步协助，请提交客服请求。",
+      "handoffHint": "如果答案未解决问题，可以提交客服请求，我们会尽快处理。",
+      "handoffCta": "提交客服请求"
+    },
+    "requestForm": {
+      "title": "提交客服请求",
+      "subtitle": "像写邮件一样描述问题并添加附件，我们会尽快处理。",
+      "issueLabel": "问题类型：{activity}",
+      "subjectLabel": "主题",
+      "subjectPlaceholder": "例如：付款失败 / 申请进度疑问",
+      "descriptionLabel": "问题描述",
+      "descriptionPlaceholder": "请描述问题发生的步骤、时间和期望的解决方式。",
+      "attachmentsLabel": "附件（可选）",
+      "attachmentsHint": "可上传截图或文件以便我们更快定位问题。",
+      "submit": "发送请求",
+      "sending": "正在发送...",
+      "helper": "提交后可在“我的反馈”页面查看状态。",
+      "successTitle": "请求已发送",
+      "successBody": "我们已收到你的问题，会尽快处理并更新状态。",
+      "successMeta": "工单 #{id}",
+      "backToHelp": "返回帮助",
+      "subjectError": "请填写主题（至少 3 个字符）。",
+      "descriptionError": "请填写更完整的描述（至少 10 个字符）。",
+      "submitError": "暂时无法提交请求，请稍后重试。"
+    },
+    "quickIssues": {
+      "stuck": "流程卡住了",
+      "change": "我需要修改内容",
+      "refund": "我有付款或退款问题",
+      "deadline": "我担心时间来不及"
+    }
+  },
+  "help": {
+    "heroTitle": "帮助中心",
+    "heroSubtitle": "查找答案、指南和账户支持。",
+    "quickLinks": {
+      "title": "快捷链接",
+      "accountProfile": {
+        "title": "账户和个人资料",
+        "description": "更新您的个人资料、密码和偏好设置。"
+      },
+      "referrals": {
+        "title": "推荐",
+        "description": "邀请朋友并追踪您的奖励。"
+      },
+      "payments": {
+        "title": "付款和积分",
+        "description": "查看交易、积分和收据。"
+      }
+    },
+    "guides": {
+      "title": "指南",
+      "gettingStarted": {
+        "title": "入门",
+        "completeProfile": "完善您的个人资料",
+        "addPayment": "添加付款方式",
+        "exploreServices": "探索服务"
+      },
+      "usingCredits": {
+        "title": "使用您的积分",
+        "whereApply": "积分适用范围",
+        "expiration": "过期规则",
+        "troubleshooting": "故障排除"
+      },
+      "privacy": {
+        "title": "隐私和安全",
+        "dataUsage": "数据使用",
+        "securityTips": "账户安全提示",
+        "twoFactor": "双重认证支持"
+      }
+    },
+    "faqTitle": "常见问题",
+    "supportCta": {
+      "title": "还需要帮助？"
+    },
+    "faqs": {
+      "resetPassword": {
+        "question": "如何重置密码？",
+        "answer": "前往设置，打开安全部分重置密码。输入当前密码，然后两次输入新密码确认。更改立即生效。"
+      },
+      "seeCredits": {
+        "question": "在哪里查看积分？",
+        "answer": "积分显示在设置页面的账单部分，也会在您确认购买前的结账页面显示。"
+      },
+      "referrals": {
+        "question": "推荐如何运作？",
+        "answer": "从推荐朋友页面分享您的专属推荐链接。当朋友注册并完成首次购买后，你们各自将获得 ₱9,999 积分用于VIZA服务。"
+      },
+      "bookBloodTest": {
+        "question": "如何预约血液检测？",
+        "answer": "导航到服务标签，选择符合您目标的血液检测。按照预约流程选择日期和时间。您可以在已预约标签中查看和管理即将到来的预约。"
+      },
+      "labResults": {
+        "question": "何时收到实验室结果？",
+        "answer": "结果通常在抽血后3-5个工作日内可用。报告准备好后您会收到通知，可在数据标签中查看。"
+      },
+      "updateInfo": {
+        "question": "如何更新个人信息？",
+        "answer": "前往设置，选择个人资料标签。您可以更新姓名、出生日期、电话号码和地址。点击保存以应用更改。"
+      },
+      "updatePayment": {
+        "question": "如何添加或更新付款方式？",
+        "answer": "账单和付款方式管理目前由线下处理。请联系我们的客服团队更新您的账单信息。"
+      },
+      "cancelReschedule": {
+        "question": "可以取消或重新预约已预定的服务吗？",
+        "answer": "可以。打开服务标签，进入已预约预约。选择您要管理的预约，按提示重新预约或取消。"
+      },
+      "dataPrivate": {
+        "question": "我的健康数据是否保密？",
+        "answer": "是的。您的健康数据被安全存储，仅您和您的指定医疗团队可以访问。我们绝不会将个人健康信息出售给第三方。"
+      },
+      "contactSupport": {
+        "question": "如何联系客服？",
+        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.it.com 联系我们。"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "登录您的账户",
+      "noAccount": "还没有账户？",
+      "signUp": "注册",
+      "emailPlaceholder": "输入您的电子邮件",
+      "passwordPlaceholder": "输入您的密码",
+      "passwordLogin": "密码登录",
+      "codeLogin": "验证码登录",
+      "sendCodeButton": "获取验证码",
+      "sendingCode": "正在发送验证码...",
+      "signingIn": "正在登录...",
+      "loginButton": "登录",
+      "forgotPassword": "忘记密码？",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "registeredSuccess": "您的账户已准备好。可以输入密码登录，或获取验证码登录。",
+      "resetSuccess": "密码已更新。请使用新密码登录。",
+      "noAccountFound": "未找到与此电子邮件关联的账户。请联系客服。",
+      "failedToSendCode": "发送验证码失败",
+      "noAccountWithEmail": "未找到与此电子邮件关联的账户",
+      "notRegistered": "此电子邮件未注册为申请人。",
+      "authFailed": "认证失败。请重试。",
+      "invalidCredentials": "邮箱或密码不正确，请重新输入。",
+      "tooManyRequests": "尝试次数过多，请稍后再试。",
+      "requestTimedOut": "登录服务响应较慢，请重试。",
+      "providerUnavailable": "Supabase 登录服务暂时不可用。未提交你的登录信息，请稍后重试。",
+      "unexpectedError": "发生意外错误。请重试。",
+      "failedToResend": "重新发送验证码失败。",
+      "checkEmail": "查看您的邮箱",
+      "sentCodeTo": "我们已发送8位验证码到",
+      "clickLink": "请在下方输入验证码登录。",
+      "resendIn": "{seconds}秒后重新发送",
+      "resendCode": "重新发送验证码",
+      "privacyPolicy": "隐私政策",
+      "termsOfService": "服务条款",
+      "disclaimer": "免责声明"
+    },
+    "signup": {
+      "title": "创建您的账户",
+      "subtitle": "输入电子邮件，开始设置您的 VIZA 账户。",
+      "emailPlaceholder": "输入您的电子邮件",
+      "referralCodePlaceholder": "Referral code（选填）",
+      "referralCodeHint": "新用户注册时填写 referral code，两边账号各获得 99 积分。",
+      "invalidEmail": "请输入有效的电子邮件地址。",
+      "submitting": "提交中...",
+      "continueToPassword": "继续",
+      "sendCodeButton": "发送验证码",
+      "sendingCode": "正在发送验证码...",
+      "failedToSendCode": "发送验证码失败",
+      "failedToResend": "重新发送验证码失败。",
+      "authFailed": "验证失败。请重新获取验证码后再试。",
+      "verifyEmailTitle": "验证您的邮箱",
+      "sentCodeTo": "我们已发送8位验证码到",
+      "resendIn": "{seconds}秒后重新发送",
+      "resendCode": "重新发送验证码",
+      "otpDigitLabel": "验证码第 {digit} 位",
+      "requestInvite": "申请邀请",
+      "acceptTos": "我同意",
+      "acceptPrivacy": "我同意",
+      "acceptDisclaimer": "我同意",
+      "acceptRequired": "请先同意服务条款、隐私政策和免责声明。",
+      "back": "返回",
+      "setPasswordTitle": "设置您的密码",
+      "setPasswordSubtitle": "密码需要包含字母、数字和特殊符号。",
+      "passwordPlaceholder": "创建密码",
+      "confirmPasswordPlaceholder": "再次输入密码",
+      "passwordStrength": "密码安全等级",
+      "strength": {
+        "weak": "弱",
+        "fair": "一般",
+        "good": "良好",
+        "strong": "强"
+      },
+      "requirements": {
+        "length": "至少 8 个字符",
+        "letter": "包含字母",
+        "digit": "包含数字",
+        "symbol": "包含特殊符号"
+      },
+      "passwordRequirementError": "密码必须包含字母、数字和特殊符号。",
+      "passwordMismatch": "两次输入的密码不一致。",
+      "verifyEmailFirst": "请先验证邮箱，再设置密码。",
+      "creatingAccount": "正在创建账户...",
+      "createAccount": "创建账户",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "unexpectedError": "无法创建账户，请重试。",
+      "thankYou": "谢谢。如果您符合访问条件，我们将通过电子邮件通知您。",
+      "urgentAccess": "如需紧急访问，请联系 support@viza.it.com。",
+      "backToLogin": "返回登录",
+      "privacyPolicy": "隐私政策",
+      "termsOfService": "服务条款",
+      "disclaimer": "免责声明"
+    },
+    "forgotPassword": {
+      "title": "重置您的密码",
+      "subtitle": "输入邮箱，我们会发送 8 位验证码来确认身份。",
+      "emailPlaceholder": "输入您的电子邮件",
+      "invalidEmail": "请输入有效的电子邮件地址。",
+      "sendCodeButton": "发送验证码",
+      "sendingCode": "正在发送验证码...",
+      "failedToSendCode": "发送验证码失败，请稍后重试。",
+      "failedToResend": "重新发送验证码失败。",
+      "authFailed": "验证码验证失败。请重新获取验证码后再试。",
+      "verifyEmailTitle": "验证您的邮箱",
+      "sentCodeTo": "我们已发送 8 位验证码到",
+      "resendIn": "{seconds}秒后重新发送",
+      "resendCode": "重新发送验证码",
+      "otpDigitLabel": "验证码第 {digit} 位",
+      "back": "返回",
+      "backToLogin": "返回登录",
+      "setPasswordTitle": "设置新密码",
+      "setPasswordSubtitle": "密码需要包含字母、数字和特殊符号。",
+      "passwordPlaceholder": "输入新密码",
+      "confirmPasswordPlaceholder": "再次输入新密码",
+      "passwordStrength": "密码安全等级",
+      "strength": {
+        "weak": "弱",
+        "fair": "一般",
+        "good": "良好",
+        "strong": "强"
+      },
+      "requirements": {
+        "length": "至少 8 个字符",
+        "letter": "包含字母",
+        "digit": "包含数字",
+        "symbol": "包含特殊符号"
+      },
+      "passwordRequirementError": "密码必须包含字母、数字和特殊符号。",
+      "passwordMismatch": "两次输入的密码不一致。",
+      "failedToUpdate": "更新密码失败，请重试。",
+      "updatingPassword": "正在更新密码...",
+      "updatePassword": "更新密码",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "unexpectedError": "无法重置密码，请重试。",
+      "privacyPolicy": "隐私政策",
+      "termsOfService": "服务条款"
+    },
+    "register": {
+      "accountCreated": "账户已创建！",
+      "accountCreatedMessage": "您的账户已成功创建。您现在可以登录开始使用VIZA。",
+      "goToLogin": "前往登录",
+      "validatingReferral": "正在验证推荐...",
+      "referredBy": "由 {name} 推荐——您将获得 99 积分！",
+      "noReferralCode": "未找到推荐码。请使用有效的推荐链接注册。",
+      "invalidReferralCode": "无效的推荐码。请检查您的链接并重试。",
+      "createAccount": "创建您的账户",
+      "alreadyHaveAccount": "已有账户？",
+      "logIn": "登录",
+      "fullNamePlaceholder": "输入全名",
+      "emailPlaceholder": "输入您的电子邮件",
+      "creatingAccount": "正在创建账户...",
+      "signUpButton": "注册",
+      "agreeToTerms": "我同意",
+      "termsOfService": "服务条款",
+      "and": "和",
+      "privacyPolicy": "隐私政策",
+      "pleaseAgree": "请同意服务条款和隐私政策",
+      "invalidReferralLink": "无效的推荐链接",
+      "registrationFailed": "注册失败",
+      "unexpectedError": "发生意外错误。请重试。"
+    },
+    "loginForm": {
+      "email": "电子邮件地址",
+      "emailPlaceholder": "you@example.com",
+      "password": "密码",
+      "forgotPassword": "忘记密码？",
+      "passwordPlaceholder": "输入您的密码",
+      "signingIn": "正在登录...",
+      "signIn": "登录"
+    },
+    "polaroids": {
+      "sanFrancisco": "旧金山",
+      "newYork": "纽约",
+      "tokyo": "东京",
+      "sydney": "悉尼",
+      "beijing": "北京",
+      "egypt": "埃及",
+      "pisa": "比萨",
+      "singapore": "新加坡"
+    }
+  },
+  "terms": {
+    "title": "服务条款",
+    "subtitle": "管理您使用我们平台的规则和指南。",
+    "sections": {
+      "acceptance": {
+        "title": "接受条款",
+        "p1": "访问或使用 VIZA 平台即表示您同意受这些服务条款的约束。如果您不同意这些条款，请不要使用我们的服务。",
+        "p2": "这些条款适用于平台的所有用户，包括患者、注册会员以及访问我们服务的任何访客。"
+      },
+      "services": {
+        "title": "我们的服务",
+        "intro": "VIZA 提供远程医疗平台，将患者与持证医疗专业人员连接起来，提供咨询、实验室预约、健康评估和相关健康服务。",
+        "item1": "与持证医生进行在线医疗咨询。",
+        "item2": "血液检测预约和实验室结果交付。",
+        "item3": "通过服务市场购买营养品和产品。",
+        "item4": "个性化行动计划和健康建议。",
+        "item5": "为您的健康之旅提供礼宾支持。",
+        "disclaimer": "我们的平台不能替代紧急医疗护理。如果您正在经历医疗紧急情况，请立即联系当地紧急服务。"
+      },
+      "eligibility": {
+        "title": "资格",
+        "intro": "要使用我们的服务，您必须：",
+        "item1": "年满18岁，或获得父母或监护人的同意。",
+        "item2": "注册时提供准确、最新和完整的信息。",
+        "item3": "维护您的账户凭证安全。",
+        "item4": "居住在我们提供服务的地区。"
+      },
+      "responsibilities": {
+        "title": "用户责任",
+        "intro": "使用我们的平台时，您同意：",
+        "item1": "在咨询和问卷中提供真实和完整的健康信息。",
+        "item2": "负责任地遵循我们持证专业人员提供的医疗建议。",
+        "item3": "不与任何其他人共享您的账户凭证。",
+        "item4": "不将平台用于任何非法或未经授权的目的。",
+        "item5": "如果您怀疑有任何未经授权的账户访问，请立即通知我们。"
+      },
+      "visa": {
+        "title": "医疗免责声明",
+        "p1": "我们平台上的医疗服务由独立持证医师和医疗保健专业人员提供。VIZA 促进您获得这些专业人员的服务，但本身不从事医疗实践。",
+        "p2": "通过我们平台提供的健康信息仅供参考，不能替代专业医疗建议、诊断或治疗。如有任何疑问，请咨询您的医生或其他合格的医疗保健提供者。"
+      },
+      "payments": {
+        "title": "付款和积分",
+        "p1": "在我们的平台上进行购买即表示您授权我们通过您选择的付款方式收取适用费用。所有价格以菲律宾比索（PHP）显示。",
+        "p2": "通过推荐或促销获得的积分没有现金价值，不可转让。",
+        "p3": "退款受我们的退款政策和适用的菲律宾消费者保护法约束。",
+        "p4": "订阅费用（如有）预先计费，除法律要求外不可退款。"
+      },
+      "ip": {
+        "title": "知识产权",
+        "p1": "VIZA 平台上的所有内容、功能和操作——包括文本、图形、标识和软件——均为 VIZA 的专有财产，受适用知识产权法保护。未经我们明确书面许可，您不得复制、分发或创建衍生作品。"
+      },
+      "liability": {
+        "title": "责任限制",
+        "p1": "在法律允许的最大范围内，VIZA 不对因您使用或无法使用我们的服务而产生的任何间接、附带、特殊、后果性或惩罚性损害承担责任。我们对您因这些条款产生的任何索赔的总责任不超过您在索赔前十二个月内向我们支付的金额。"
+      },
+      "termination": {
+        "title": "终止",
+        "p1": "我们保留自行决定暂停或终止您访问平台的权利，恕不另行通知，原因包括我们认为违反这些服务条款或对其他用户、我们或第三方有害的行为。",
+        "p2": "您可以随时通过联系我们的客服团队关闭您的账户。终止不影响在终止日期之前产生的任何权利或义务。"
+      },
+      "changes": {
+        "title": "条款变更",
+        "p1": "我们可能会不时更新这些服务条款。我们将通过在此页面上发布更新后的条款来通知您重大变更。在变更生效后继续使用我们的平台即表示您接受修订后的条款。"
+      },
+      "law": {
+        "title": "管辖法律",
+        "p1": "这些服务条款受菲律宾共和国法律管辖并据此解释。因这些条款产生的任何争议应受菲律宾法院的专属管辖。"
+      },
+      "contact": {
+        "title": "联系我们",
+        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.it.com。"
+      }
+    }
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "subtitle": "我们如何收集、使用和保护您的个人信息。",
+    "sections": {
+      "introduction": {
+        "title": "简介",
+        "p1": "VIZA（“我们”）致力于保护您的隐私。本隐私政策说明了当您使用我们的平台和相关服务时，我们如何收集、使用、披露和保护您的信息。",
+        "p2": "访问或使用我们的服务即表示您同意按照本政策收集和使用信息。请在使用我们的平台之前仔细阅读。"
+      },
+      "collect": {
+        "title": "我们收集的信息",
+        "intro": "我们收集您直接提供给我们的信息以及通过您使用我们服务生成的信息。",
+        "item1": "个人标识信息，如您的姓名、电子邮件地址、电话号码和出生日期。",
+        "item2": "健康和医疗信息，包括实验室结果、生命体征、病史、过敏史和当前用药。",
+        "item3": "通过我们的支付提供商安全处理的付款信息。",
+        "item4": "您与我们医疗团队之间的通信，包括咨询记录和消息。",
+        "item5": "设备和使用数据，如IP地址、浏览器类型和访问的页面。"
+      },
+      "use": {
+        "title": "我们如何使用您的信息",
+        "intro": "我们使用收集的信息来提供和改进我们的服务，包括：",
+        "item1": "提供远程医疗咨询、实验室预约和处方服务。",
+        "item2": "就您的健康、预约和订单与您沟通。",
+        "item3": "通过我们的平台处理付款和履行订单。",
+        "item4": "提高我们健康评估的准确性和质量。",
+        "item5": "遵守适用的法律、法规和医疗标准。",
+        "noSell": "我们绝不会将您的个人或健康信息出售给第三方用于营销目的。"
+      },
+      "sharing": {
+        "title": "信息共享",
+        "intro": "我们仅在以下有限情况下共享您的信息：",
+        "item1": "与参与您护理的持证医疗专业人员。",
+        "item2": "与履行您订单所需的可信服务提供商（如实验室、药房）。",
+        "item3": "与支付处理商安全完成交易。",
+        "item4": "法律、法院命令或适用法规要求时。",
+        "item5": "经您明确同意用于任何其他目的。"
+      },
+      "security": {
+        "title": "数据安全",
+        "p1": "我们实施行业标准的安全措施，以保护您的信息免受未经授权的访问、更改、披露或销毁。这些措施包括传输和存储加密、基于角色的访问控制以及定期安全审查。",
+        "p2": "虽然我们采取了所有合理的预防措施，但没有任何互联网传输方法是100%安全的。我们建议您保护好您的账户凭证，如果您怀疑有未经授权的访问，请立即通知我们。"
+      },
+      "rights": {
+        "title": "您的权利",
+        "intro": "您对您的个人信息享有以下权利：",
+        "access": "访问：请求获取我们持有的关于您的个人信息副本。",
+        "correction": "更正：请求更正不准确或不完整的信息。",
+        "deletion": "删除：请求删除您的个人信息，但须遵守法律和医疗记录保留义务。",
+        "portability": "可携带性：在适用的情况下，请求以机器可读格式获取您的数据。",
+        "withdrawal": "撤回同意：随时撤回对非必要数据处理的同意。"
+      },
+      "retention": {
+        "title": "数据保留",
+        "p1": "我们保留您的个人和健康信息，只要提供我们的服务和遵守适用法律所必需。医疗记录可能按照菲律宾医疗法规的要求保留最低期限。"
+      },
+      "changes": {
+        "title": "政策变更",
+        "p1": "我们可能会不时更新本隐私政策。我们将通过在此页面上发布新政策并更新生效日期来通知您任何重大变更。我们建议您定期查看本政策。"
+      },
+      "contact": {
+        "title": "联系我们",
+        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.it.com。"
+      }
+    }
+  },
+  "subscriptionManagement": {
+    "back": "返回设置",
+    "eyebrow": "订阅方案",
+    "title": "管理订阅方案",
+    "subtitle": "查看当前月付方案、续费日期和付款方式；需要时可以取消到期续费或恢复自动续费。",
+    "currentPlan": "当前方案",
+    "price": "月费",
+    "monthlyPrice": "{amount} / 月",
+    "period": "当前周期",
+    "notEnabled": "暂未启用",
+    "paymentMethod": "付款方式",
+    "countryLimit": "每月国家额度",
+    "countryLimitValue": "最多 {count} 个国家",
+    "renewal": "续费状态",
+    "actionsTitle": "订阅操作",
+    "actionsDescription": "取消后本周期仍可使用，到期后不再自动续费。",
+    "confirmCancel": "确认取消自动续费？当前周期仍可继续使用，到期后失效。",
+    "cancelFailed": "暂时无法取消订阅，请稍后重试。",
+    "resumeFailed": "暂时无法恢复订阅，请稍后重试。",
+    "cancelled": "已设置为到期后取消。",
+    "resumed": "已恢复自动续费。",
+    "cancel": "取消自动续费",
+    "resume": "恢复自动续费",
+    "choosePlan": "选择月付方案",
+    "changePlan": "更换方案",
+    "managePayment": "管理付款方式",
+    "billing": "查看付款记录"
+  },
+  "subscription": {
+    "back": "返回首页",
+    "eyebrow": "VIZA Application",
+    "title": "选择适合你的 VIZA 申请方式",
+    "subtitle": "高频申请可以选择月付，偶尔出行可以按国家次付。所有价格均以人民币展示，点击在线付后再选择银行卡、微信支付或支付宝。",
+    "current": {
+      "label": "当前方案",
+      "plan": "VIZA 申请体验版",
+      "badge": "预览中",
+      "renewalLabel": "续费状态",
+      "renewalValue": "暂未启用",
+      "paymentLabel": "支付方式",
+      "paymentValue": "暂未设置",
+      "countryLimitLabel": "月度国家额度"
+    },
+    "highlights": {
+      "allCountries": {
+        "title": "全国家入口",
+        "body": "月付方案覆盖平台支持的所有国家申请入口。"
+      },
+      "threeWays": {
+        "title": "三种支付入口",
+        "body": "可使用银行卡、微信支付二维码或支付宝在线支付。"
+      },
+      "officialFees": {
+        "title": "费用清晰",
+        "body": "页面价格为 VIZA 服务费，不包含官方签证费和第三方费用。"
+      }
+    },
+    "monthly": {
+      "title": "月付方案",
+      "subtitle": "月付适合同时规划多个目的地的用户。两个方案都可以访问所有国家，区别在每月申请额度和高级能力。",
+      "badge": "Global Access",
+      "recommended": "推荐",
+      "countryLimit": "每月最多 {count} 个国家",
+      "cadence": "/月",
+      "cta": "选择方案",
+      "plans": {
+        "access": {
+          "name": "Access",
+          "description": "适合个人高频出行，保留核心申请工具和进度管理。"
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "适合家庭、团队或多目的地行程，开启 AI、团单和 Travel Agent 能力。"
+        }
+      },
+      "features": {
+        "countryAccess": "所有国家申请入口",
+        "requirements": "签证要求核对",
+        "checklist": "动态材料清单",
+        "multilingual": "多语言申请辅助",
+        "status": "申请进度与提醒",
+        "ai": "AI assistance 与自动填表辅助",
+        "group": "团单申请",
+        "travel": "Travel Agent 行程规划"
+      }
+    },
+    "payPer": {
+      "title": "次付申请",
+      "subtitle": "每一次申请按国家单独计费，适合偶尔出行或只准备一个目的地的用户。",
+      "limitTitle": "单次申请周期",
+      "limitBody": "每次购买覆盖 1 个国家，用户需要在 1 个月内完成资料填写和提交准备。",
+      "groupTitle": "包含核心能力",
+      "groupBody": "次付默认包含申请要求核对、动态材料清单、多语言辅助、AI assistance、团单和 Travel Agent。",
+      "paymentNote": "次付目的地按首页相同的大区和表单入口归类，便于从订阅页直接进入对应服务。",
+      "searchPlaceholder": "搜索国家或签证表单",
+      "searchResults": "搜索结果",
+      "noResults": "没有找到匹配的国家或表单。",
+      "chooseRegion": "选择一个大区卡片进入独立页面，查看该大区下全部可次付的国家表单；也可以直接搜索国家。",
+      "collapse": "收起",
+      "expand": "展开",
+      "backToSubscription": "返回订阅方案",
+      "regionDetailEyebrow": "次付申请大区",
+      "regionCountSuffix": "项",
+      "feeNote": "所有价格均为每次申请的 VIZA 服务费，不包含官方签证费、签证中心费、生物信息采集费、快递费或加急费。",
+      "countries": {
+        "singapore": "新加坡",
+        "malaysia": "马来西亚",
+        "thailand": "泰国",
+        "indonesia": "印度尼西亚",
+        "vietnam": "越南",
+        "cambodia": "柬埔寨",
+        "uae": "阿联酋",
+        "turkey": "土耳其",
+        "japan": "日本",
+        "southKorea": "韩国",
+        "australia": "澳大利亚",
+        "newZealand": "新西兰",
+        "schengen": "申根区",
+        "uk": "英国",
+        "canada": "加拿大",
+        "us": "美国"
+      }
+    }
+  },
+  "usAppointment": {
+    "page": {
+      "eyebrow": "美国面签预约助手",
+      "title": "B1/B2 预约设置",
+      "subtitle": "DS-160 完成后，使用中国 USVisaScheduling assisted-live 预约助手继续。VIZA 可处理支持的账号、CAPTCHA、政策、付款、名额读取和确认节点，但选位和最终预约批准必须明确完成。"
+    },
+    "stateMachine": {
+      "subtitle": "一次只处理一个阶段。只有完成当前确认或收到官网结果后，VIZA 才会进入下一步。",
+      "ariaLabel": "预约进度",
+      "steps": {
+        "review": "复核资料",
+        "account": "官网账号",
+        "slots": "选择名额",
+        "confirm": "最终确认",
+        "result": "预约结果"
+      },
+      "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
+      "accountTitle": "官网账号与申请人资料",
+      "accountBody": "VIZA 正在创建或继续已授权的官网账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "reviewAgain": "重新复核资料",
+      "startAgain": "重新开始",
+      "noSlotsBody": "官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
+    },
+    "review": {
+      "title": "继续前请复核",
+      "body": "请将下列已保存资料与护照和已提交的 DS-160 核对。如需修改请选择“修改申请资料”；只有您确认后，VIZA 才会进入官网账号流程。",
+      "back": "返回申请表",
+      "fullName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passportNumber": "护照号码",
+      "passportExpiry": "护照有效期至",
+      "phone": "手机号码",
+      "email": "个人邮箱",
+      "address": "现居住地址",
+      "ds160": "DS-160 确认编号",
+      "post": "面签使领馆",
+      "missing": "尚未填写",
+      "confirmation": "我已将以上资料与护照及已提交的 DS-160 核对，并授权 VIZA 继续进入官网账号流程。选择名额和最终预约仍需分别确认。",
+      "edit": "修改申请资料",
+      "confirmAndContinue": "确认资料无误并继续"
+    },
+    "loading": "正在加载预约助手...",
+    "errorTitle": "预约助手需要处理",
+    "dryRunNoticeTitle": "受控 assisted-live",
+    "dryRunNotice": "中国首版流程只会在明确用户动作后运行。VIZA 可通过受控 runner 处理支持的官方节点，记录脱敏官方证据；不支持的官方阻塞会明确显示为需要人工处理。",
+    "cloud": {
+      "title": "云端自动化状态",
+      "ready": "Fly worker 已就绪",
+      "unavailable": "Worker 暂不可用",
+      "worker": "云端 worker",
+      "alias": "Alias 预约账号",
+      "portal": "官网预约日历",
+      "preSubmit": "已到最终提交前",
+      "complete": "已完成",
+      "pending": "待完成",
+      "stopTitle": "官网最终按钮受保护",
+      "stopBody": "只有后端观察到名额、用户选择时段并记录最终批准后，VIZA 才会启用官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
+    "requirements": {
+      "title": "请按顺序完成以下步骤",
+      "body": "从第 1 步依次向下完成。每一步都会说明由谁操作、使用哪些信息，以及当前是否已就绪。",
+      "officialCheckTitle": "已对照 USVisaScheduling 真实注册页核验",
+      "officialCheckBody": "官网当前要求填写用户名、Alias 邮箱验证码、英文名、英文姓、密码，以及 3 组安全问题答案。VIZA 负责账号字段，您只需提供准确的申请人和 DS-160 信息。",
+      "openApplication": "返回申请表复核资料",
+      "userInputTitle": "您需要在 VIZA 填写什么",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、已提交的 DS-160 确认编号及对应面签使领馆。预约用户名和密码、Alias 邮箱及验证码、3 组官网账号恢复答案由 VIZA 准备。",
+      "states": {
+        "ready": "已就绪",
+        "review": "请复核一次",
+        "managed": "VIZA 自动处理",
+        "action": "必须补充",
+        "pending": "后续步骤"
+      },
+      "roles": {
+        "user": "您操作",
+        "viza": "VIZA 处理",
+        "joint": "您与 VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "复核申请人资料",
+          "body": "确认与护照一致的英文名和英文姓、出生日期与国家、国籍、性别、护照号码与有效期、手机、个人邮箱、现住址及护照资料页。"
+        },
+        "ds160": {
+          "title": "确认 DS-160 与面签使领馆",
+          "body": "填写已提交的 DS-160 确认编号，并选择该 DS-160 上相同的中国使领馆。两者一致后才能预约。"
+        },
+        "account": {
+          "title": "创建并验证官网账号",
+          "body": "VIZA 创建用户名和密码，使用申请人 Alias 邮箱，读取验证码，填写护照英文姓名，并准备官网要求的 3 组安全问题答案。"
+        },
+        "profile": {
+          "title": "关联个人资料、DS-160 与缴费状态",
+          "body": "VIZA 登录并填写支持的资料，关联 DS-160 和使领馆，进入官网缴费与日历路径；CAPTCHA、政策或付款挑战会作为清晰节点显示。"
+        },
+        "booking": {
+          "title": "选择名额并批准预约",
+          "body": "VIZA 只展示从官网日历读取的真实名额。您选择一个时段、复核缴费节点，并明确批准最终预约动作。"
+        }
+      }
+    },
+    "errors": {
+      "generic": "预约请求暂时无法完成，请稍后重试。",
+      "withCode": "预约请求暂时无法完成。参考代码：{code}。",
+      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，或 SUPABASE_URL 和 SUPABASE_ANON_KEY，然后重启后端。",
+      "appointmentSchemaNotConfigured": "预约服务的数据库表尚未部署。请先执行 agent-backend 的 0091_us_appointment_assistant.sql 迁移，然后重启后端。"
+    },
+    "modes": {
+      "dry_run": "Dry run 演练",
+      "assisted_live": "人工辅助 live",
+      "manual": "手动"
+    },
+    "countries": {
+      "sg": "新加坡",
+      "ca": "加拿大",
+      "gb": "英国",
+      "cn": "中国",
+      "in": "印度",
+      "jp": "日本",
+      "de": "德国"
+    },
+    "posts": {
+      "beijing": "北京",
+      "shanghai": "上海",
+      "guangzhou": "广州",
+      "shenyang": "沈阳",
+      "wuhan": "武汉"
+    },
+    "statusLabels": {
+      "appointment_not_started": "未开始",
+      "appointment_consent_required": "需要授权",
+      "appointment_consent_received": "已收到授权",
+      "appointment_missing_ds160_confirmation": "需要 DS-160 编号",
+      "appointment_missing_applying_post": "DS-160 缺少使领馆",
+      "appointment_account_required": "需要预约账号",
+      "appointment_account_creation_started": "账号设置已开始",
+      "appointment_email_verification_required": "邮箱验证节点",
+      "appointment_login_required": "登录节点",
+      "appointment_captcha_required": "CAPTCHA 节点",
+      "appointment_profile_fill_in_progress": "资料填写进行中",
+      "appointment_profile_filled": "资料填写完成",
+      "appointment_ds160_linked": "DS-160 已关联",
+      "appointment_payment_required": "付款节点",
+      "appointment_payment_in_progress": "付款处理中",
+      "appointment_payment_completed": "付款节点完成",
+      "appointment_calendar_opened": "日历已打开",
+      "appointment_slots_observed": "已发现名额",
+      "appointment_no_slots_available": "暂无名额",
+      "appointment_slot_selection_required": "需要选择名额",
+      "appointment_slot_selected": "已选择名额",
+      "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_final_confirmation_approved": "最终确认已记录",
+      "appointment_booked": "已请求预约",
+      "appointment_confirmation_captured": "官方确认已记录",
+      "appointment_status_check_in_progress": "状态检查中",
+      "appointment_status_checked": "状态已检查",
+      "appointment_manual_required": "需要人工处理",
+      "appointment_blocked_by_site_policy": "因网站政策暂停",
+      "appointment_failed": "失败",
+      "appointment_cancelled": "已取消"
+    },
+    "completed": {
+      "title": "DS-160 已完成",
+      "applicationId": "VIZA 申请",
+      "ds160Code": "DS-160 确认编号",
+      "pendingCode": "可使用已保存编号，或在下方填写"
+    },
+    "setup": {
+      "title": "预约设置",
+      "ds160Code": "DS-160 确认编号",
+      "ds160CodeHint": "如果 VIZA 已在上一步保存 DS-160 Application ID，可留空。",
+      "ds160CodePlaceholder": "例如：AA00BC1234",
+      "slotScenario": "测试名额场景",
+      "slotScenarioSlots": "显示示例名额",
+      "slotScenarioNoSlots": "显示暂无名额",
+      "aliasNoticeTitle": "VIZA 别名邮箱",
+      "aliasNotice": "新建预约账号时，VIZA 使用此申请人资料分配的别名邮箱。验证邮件经 Cloudflare Email Routing 入站并从 Supabase inbound_email 消费；此流程不使用旧 IMAP 邮箱轮询。",
+      "createJob": "创建 Alias 账号并开始",
+      "creating": "正在创建...",
+      "recordConsent": "记录授权",
+      "consentRequiredError": "请先阅读并同意授权说明。"
+    },
+    "consent": {
+      "title": "授权与边界",
+      "body1": "VIZA 可以通过受控 USVisaScheduling runner 协助处理 DS-160 后的中国美国签证预约步骤。",
+      "body2": "VIZA 可处理支持的登录、别名邮箱验证、CAPTCHA、政策、付款、名额读取和确认节点。您仍需选择具体名额，并在官方预约确认前完成最终批准。",
+      "checkbox": "我授权 VIZA 为本申请运行中国 USVisaScheduling assisted-live 操作，并保留明确选位、最终 VIZA 批准和官方证据记录。",
+      "recorded": "授权已记录",
+      "security": "敏感输入会从助手日志中脱敏。"
+    },
+    "account": {
+      "title": "官方预约账号",
+      "email": "账号邮箱",
+      "password": "账号密码",
+      "status": "账号状态",
+      "notCreated": "尚未创建",
+      "revealTitle": "显式显示",
+      "revealBody": "账号、密码和安全问题答案只会在您点击显示时从服务端解密返回；普通状态轮询不会携带密码。",
+      "reveal": "显示官方账号",
+      "show": "显示",
+      "hide": "隐藏",
+      "securityAnswer": "安全问题答案 {index}",
+      "prefillDs160": "DS-160 编号",
+      "prefillPost": "面签使领馆",
+      "missing": "待补充",
+      "autofillTitle": "自动化会使用这些前端资料",
+      "autofillDs160": "DS-160 确认编号和面签使领馆从当前申请读取。",
+      "autofillProfile": "护照、姓名、联系方式等资料应提前在申请表/通用资料中填写，runner 会从 Supabase 自动取值。",
+      "autofillSlots": "官方日历名额由 runner 抓取后写入下方列表，您只需要选择时间。",
+      "autofillEvidence": "预约后会持续追踪状态，并在有官方确认号、截图或 PDF 时展示凭证。"
+    },
+    "panel": {
+      "title": "实时助手",
+      "noJob": "从这里开始预约：先确认左侧 DS-160 信息并授权。VIZA 会使用 DS-160 中已经保存的面签使领馆，再由后端获取当前可预约时段。",
+      "startStepPreferences": "如页面未显示已保存编号，请填写 DS-160 确认编号。",
+      "startStepConsent": "勾选左侧授权确认，允许受控 assisted-live 处理。",
+      "startStepRun": "点击“开始预约助手”，再点击“检查名额”查看后端获取的可选时间。",
+      "consentHint": "请先勾选左侧授权确认后再开始。",
+      "provider": "预约平台",
+      "providerUnknown": "待识别",
+      "mode": "模式",
+      "run": "运行第一步",
+      "resume": "继续",
+      "running": "处理中...",
+      "progressTitle": "预约任务运行中",
+      "progressBody": "VIZA 每隔数秒读取自己数据库中的最新任务状态；官方网站检查只会在用户触发或后端 cooldown 后执行。",
+      "checkSlots": "检查名额",
+      "checkStatus": "检查状态",
+      "cancel": "取消"
+    },
+    "manual": {
+      "title": "人工节点",
+      "checkpointTitle": "完成节点",
+      "emailCode": "邮箱验证码",
+      "emailCodePlaceholder": "输入您收到的验证码",
+      "emailCodeRequired": "请先输入邮箱验证码。",
+      "complete": "完成节点",
+      "completing": "正在完成...",
+      "instructions": {
+        "consent": "请阅读并接受授权说明。",
+        "account_email_verification": "VIZA 会先自动从 inbound_email 读取 Alias 验证邮件；只有自动提取失败时，才需要在此输入验证码。",
+        "login": "Runner 遇到不支持自动处理的官方登录或风控节点，需要人工复核。",
+        "captcha": "Runner 遇到不支持自动处理的 CAPTCHA 或 MFA 节点，需要人工复核。",
+        "payment": "请复核官方付款节点。只有在 VIZA 已获授权时才继续。",
+        "slot_selection": "请选择一个已发现的预约名额。",
+        "final_confirmation": "请复核所选官方名额，并在 VIZA 请求预约前完成最终批准。",
+        "site_policy_review": "请复核不支持自动处理的官方网站状态。助手会暂停，等待用户或运营决定。"
+      },
+      "actions": {
+        "consent": "确认已完成授权。",
+        "account_email_verification": "请输入验证码。",
+        "login": "确认已复核该不支持自动处理的登录节点。",
+        "captcha": "确认已复核该不支持自动处理的 CAPTCHA/MFA 节点。",
+        "payment": "确认已复核官方付款节点。",
+        "slot_selection": "请在下方选择名额。",
+        "final_confirmation": "请使用下方最终确认控件。",
+        "site_policy_review": "确认您已阅读政策提示，并希望手动继续。"
+      }
+    },
+    "slots": {
+      "title": "发现的名额",
+      "empty": "后端尚未返回可预约时段。请先开始或继续助手，再由用户触发一次名额检查。",
+      "noSlots": "官方日历返回暂无名额。只有在您明确点击“检查名额”时才会再次检查。",
+      "choose": "选择",
+      "selected": "已选择",
+      "observedAt": "发现时间 {value}",
+      "datePending": "日期待定",
+      "timePending": "时间待定",
+      "locationPending": "地点待定",
+      "slotLine": "{date} {time}"
+    },
+    "final": {
+      "title": "最终确认",
+      "requirement": "请先选择一个已发现的官方名额，再进行最终确认。",
+      "selected": "已选名额：{date} {time}。请复核后再确认。",
+      "approve": "批准最终步骤",
+      "approving": "正在确认...",
+      "book": "点击官网最终确认",
+      "approvedBadge": "已批准"
+    },
+    "results": {
+      "title": "结果",
+      "none": "尚未记录官方预约确认。",
+      "confirmationNumber": "官方确认号",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "地点",
+      "statusCheck": "状态检查完成",
+      "statusCheckBody": "最近状态检查：{value}。"
+    },
+    "cancel": {
+      "title": "取消预约助手？",
+      "description": "这会停止当前预约辅助任务。如有需要，之后可以重新创建任务。",
+      "keep": "继续保留",
+      "confirm": "取消任务"
+    },
+    "ds160Card": {
+      "title": "DS-160 申请已记录",
+      "submitted": "已提交",
+      "awaitingSignature": "等待您签名",
+      "body": "请保存这些信息。准备签名和提交时，您需要用它们在 ceac.state.gov 找回 DS-160。",
+      "submittedBody": "您的 DS-160 已提交到 CEAC。请保存这些信息，之后可用于找回确认页。",
+      "confirmationNumber": "确认号码",
+      "submittedAt": "提交时间",
+      "successEvidence": "成功证据",
+      "successEvidenceBody": "CEAC 官方确认页已显示提交成功，并生成确认号码。",
+      "officialActions": "官方确认页文件",
+      "printConfirmation": "Print Confirmation",
+      "printApplication": "Print Application",
+      "emailConfirmation": "Email Confirmation",
+      "artifactUnavailable": "本次提交未保存该 PDF；系统会从 CEAC 官方网站找回。",
+      "proofPreparing": "正在准备 DS-160 官方证明文件...",
+      "proofQueued": "已开始从 CEAC 官方网站找回证明文件，请稍候。",
+      "proofReady": "证明文件已准备好，正在打开下载。",
+      "proofFailed": "DS-160 证明文件处理失败",
+      "proofTimeout": "CEAC 找回仍在进行中，请稍后再次点击。",
+      "proofEmailSent": "DS-160 证明文件已发送至 {email}。",
+      "sendToAccountEmail": "发送到绑定邮箱",
+      "sendToCustomEmail": "发送到其他邮箱",
+      "customEmailPlaceholder": "输入其他收件邮箱",
+      "newApplication": "重新提交新的申请表",
+      "startingNewApplication": "正在创建新提交任务",
+      "newApplicationError": "创建新提交任务失败",
+      "applicationId": "Application ID",
+      "surnameFirst5": "姓氏前 5 个字母",
+      "yearOfBirth": "出生年份",
+      "embassyOrConsulate": "使领馆",
+      "securityQuestion": "安全问题",
+      "securityAnswer": "您的答案",
+      "securityAnswerUnavailable": "答案暂不可用",
+      "openCeac": "打开 ceac.state.gov 找回"
+    },
+    "nextStepCard": {
+      "title": "下一步：预约设置",
+      "body": "继续进入中国 USVisaScheduling assisted-live 预约设置，保留明确选位、最终批准和官方证据记录。",
+      "button": "打开预约助手",
+      "badge": "Assisted live"
+    }
+  },
+  "franceAppointment": {
+    "page": {
+      "eyebrow": "法国申根预约助手",
+      "title": "TLScontact 预约设置",
+      "subtitle": "在 VIZA 已取得 France-Visas 官方申请编号后，读取 TLScontact 中国大陆名额，由用户选择后端刚观察到的时段，记录一次性 TLS 服务费授权，并在最终确认后请求官网预约。"
+    },
+    "stateMachine": {
+      "subtitle": "一次只处理一个阶段。只有完成当前确认或收到官网结果后，VIZA 才会进入下一步。",
+      "ariaLabel": "预约进度",
+      "steps": {
+        "review": "复核资料",
+        "account": "官网账号",
+        "slots": "选择名额",
+        "confirm": "最终确认",
+        "result": "预约结果"
+      },
+      "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
+      "accountTitle": "TLScontact 账号与申请人资料",
+      "accountBody": "VIZA 正在创建或继续已授权的 TLScontact 账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "reviewAgain": "重新复核资料",
+      "noSlotsBody": "TLScontact 官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
+    },
+    "review": {
+      "title": "继续前请复核",
+      "body": "请将下列已保存资料与护照和 France-Visas 申请核对。如需修改请选择“修改申请资料”；只有您确认后，VIZA 才会进入 TLScontact 官网账号流程。",
+      "back": "返回申请表",
+      "fullName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passportNumber": "护照号码",
+      "passportExpiry": "护照有效期至",
+      "phone": "手机号码",
+      "email": "个人邮箱",
+      "address": "现居住地址",
+      "center": "TLScontact 签证中心",
+      "missing": "尚未填写",
+      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 继续进入 TLScontact 官网账号流程。选择名额、付款授权和最终预约仍需分别确认。",
+      "edit": "修改申请资料",
+      "confirmAndContinue": "确认资料无误并继续"
+    },
+    "loading": "正在加载法国预约助手...",
+    "errorTitle": "法国预约助手需要处理",
+    "dryRunNoticeTitle": "TLS 中国受控流程",
+    "dryRunNotice": "该流程只会在用户明确操作后运行。VIZA 通过后端读取 TLScontact 名额，不替申请人随意选位；遇到不支持自动化的官网风控、MFA、实名或支付挑战时会暂停。 ",
+    "cloud": {
+      "ready": "Fly worker 已就绪",
+      "unavailable": "Worker 暂不可用",
+      "worker": "云端 worker",
+      "alias": "已验证 Alias 账号",
+      "portal": "已观察 TLS 日历",
+      "preSubmit": "已到最终提交前",
+      "stopTitle": "官网最终按钮受保护",
+      "stopBody": "只有后端观察到名额、用户选择时段、完成所需支付授权并记录最终批准后，VIZA 才会启用 TLS 官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
+    "requirements": {
+      "title": "请按顺序完成以下步骤",
+      "body": "先完成 France-Visas 申请，再依次向下操作。每一步都会把您要提供的资料与 VIZA 处理的动作分开说明。",
+      "officialCheckTitle": "已对照 TLScontact 中国真实注册页核验",
+      "officialCheckBody": "官网当前要求邮箱、密码及密码确认、必须接受的法律条款和 reCAPTCHA。邮件、电话、短信及推送营销同意均为可选项，注册不需要勾选。",
+      "openApplication": "返回申请表复核资料",
+      "userInputTitle": "您需要在 VIZA 填写什么",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件；之后由您选择官网名额并批准费用与最终预约。",
+      "states": {
+        "ready": "已就绪",
+        "review": "请复核一次",
+        "managed": "VIZA 自动处理",
+        "action": "必须补充",
+        "pending": "后续步骤"
+      },
+      "roles": {
+        "user": "您操作",
+        "viza": "VIZA 处理",
+        "joint": "您与 VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "完成 France-Visas 并复核申请资料",
+          "body": "确认与护照一致的英文姓名、出生信息、国籍、护照号码与有效期、联系方式与住址、护照资料页，以及 France-Visas 官方申请编号。"
+        },
+        "account": {
+          "title": "创建并激活 TLScontact 账号",
+          "body": "VIZA 填写 Alias 邮箱和生成的密码、再次确认密码，在您授权范围内只接受必需法律条款，处理支持的 reCAPTCHA 并读取激活邮件；可选营销同意保持关闭。"
+        },
+        "link": {
+          "title": "选择签证中心并关联申请",
+          "body": "确认中国 TLScontact 办理中心。VIZA 登录并关联 France-Visas 编号；若缺少资料或遇到实名、MFA、官网政策限制，会明确暂停。"
+        },
+        "calendar": {
+          "title": "读取日历并复核服务费",
+          "body": "VIZA 读取官网名额，不替您选择。您选择一个已观察到的时段并授权所需 TLS 服务费；3DS 或银行验证仍由您完成。"
+        },
+        "booking": {
+          "title": "批准最终预约",
+          "body": "复核中心、日期、时间与缴费状态。只有您明确最终批准后，VIZA 才能点击官网预约按钮并记录官方确认凭证。"
+        }
+      }
+    },
+    "errors": {
+      "generic": "法国预约请求暂时无法完成，请稍后重试。",
+      "withCode": "法国预约请求暂时无法完成。参考代码：{code}。",
+      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，或 SUPABASE_URL 和 SUPABASE_ANON_KEY，然后重启后端。",
+      "appointmentSchemaNotConfigured": "预约服务的数据库表尚未部署。请先执行预约助手迁移，然后重启后端。"
+    },
+    "modes": {
+      "dry_run": "Dry run 演练",
+      "assisted_live": "人工辅助 live",
+      "manual": "手动"
+    },
+    "statusLabels": {
+      "appointment_not_started": "未开始",
+      "appointment_consent_required": "需要授权",
+      "appointment_consent_received": "已收到授权",
+      "appointment_account_required": "需要 TLS 账号",
+      "appointment_account_creation_started": "TLS 账号设置已开始",
+      "appointment_email_verification_required": "邮箱验证节点",
+      "appointment_login_required": "登录节点",
+      "appointment_captcha_required": "CAPTCHA 节点",
+      "appointment_profile_fill_in_progress": "资料填写进行中",
+      "appointment_profile_filled": "资料填写完成",
+      "appointment_ds160_linked": "France-Visas 编号已关联",
+      "appointment_payment_required": "需要 TLS 服务费授权",
+      "appointment_payment_in_progress": "付款处理中",
+      "appointment_payment_completed": "付款授权已记录",
+      "appointment_calendar_opened": "日历已打开",
+      "appointment_slots_observed": "已发现名额",
+      "appointment_no_slots_available": "暂无名额",
+      "appointment_slot_selection_required": "需要选择名额",
+      "appointment_slot_selected": "已选择名额",
+      "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_final_confirmation_approved": "已记录最终批准",
+      "appointment_booked": "已请求预约",
+      "appointment_confirmation_captured": "官方确认已记录",
+      "appointment_status_check_in_progress": "状态检查中",
+      "appointment_status_checked": "状态已检查",
+      "appointment_manual_required": "需要人工处理",
+      "appointment_blocked_by_site_policy": "因网站政策暂停",
+      "appointment_failed": "失败",
+      "appointment_cancelled": "已取消"
+    },
+    "centers": {
+      "beijing": "北京",
+      "guangzhou": "广州",
+      "chengdu": "成都",
+      "shanghai": "上海",
+      "shenyang": "沈阳",
+      "wuhan": "武汉",
+      "chongqing": "重庆",
+      "changsha": "长沙",
+      "fuzhou": "福州",
+      "hangzhou": "杭州",
+      "kunming": "昆明",
+      "nanjing": "南京",
+      "shenzhen": "深圳",
+      "jinan": "济南",
+      "xian": "西安"
+    },
+    "setup": {
+      "title": "TLS 设置",
+      "center": "TLScontact 中心",
+      "referenceHint": "创建 TLS 预约任务前必须已有 France-Visas 官方申请编号；如编号缺失，后端会阻止任务创建。",
+      "createJob": "创建 Alias 账号并开始",
+      "jobCreated": "预约任务已创建",
+      "creating": "正在创建账号并打开 TLScontact...",
+      "recordConsent": "记录授权",
+      "consentRequiredError": "请先阅读并同意授权说明。"
+    },
+    "consent": {
+      "title": "授权与边界",
+      "body1": "VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。",
+      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。",
+      "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
+    },
+    "account": {
+      "title": "VIZA Alias 与 TLS 账号",
+      "alias": "Alias 邮箱",
+      "status": "官网账号状态",
+      "verification": "邮箱验证",
+      "verified": "已自动验证",
+      "notVerified": "待验证",
+      "pending": "Runner 启动时创建",
+      "body": "云端 runner 使用本申请专属 alias 注册 TLScontact。Cloudflare Email Worker 会把激活邮件写入 inbound_email；密码和激活链接只保留在服务端。"
+    },
+    "checkpoint": {
+      "title": "官网检查点",
+      "body": "TLScontact 要求复核后才能继续自动流程。"
+    },
+    "panel": {
+      "title": "预约 runner",
+      "progressTitle": "预约进度",
+      "stepComplete": "已完成",
+      "stepPending": "待完成",
+      "noJob": "请在授权并选择中心后开始。打开本页只读取状态，不会自动创建或重跑 TLS 任务。",
+      "progressBody": "后端从 VIZA 表读取最新预约状态；TLS 名额检查只会在用户触发且满足后端 cooldown 后运行。",
+      "provider": "预约平台",
+      "providerUnknown": "待识别",
+      "mode": "模式",
+      "run": "运行第一步",
+      "checkSlots": "检查名额",
+      "cancel": "取消"
+    },
+    "slots": {
+      "title": "发现的 TLS 名额",
+      "empty": "后端尚未返回 TLS 可预约时间。请先开始助手，再在需要时点击检查名额。",
+      "noSlots": "TLScontact 返回暂无可预约名额。只有在您明确点击检查名额时才会再次检查。",
+      "choose": "选择",
+      "selected": "已选择",
+      "observedAt": "发现时间 {value}",
+      "observedPending": "发现时间待定",
+      "datePending": "日期待定",
+      "timePending": "时间待定",
+      "locationPending": "地点待定",
+      "slotLine": "{date} {time}"
+    },
+    "payment": {
+      "title": "一次性 TLS 服务费授权",
+      "body": "这里仅记录脱敏后的支付授权交接状态。完整卡号、CVV、OTP 和支付密码不得进入 VIZA 数据库、日志、截图或浏览器状态接口。",
+      "brand": "卡组织",
+      "brandPlaceholder": "Visa",
+      "last4": "后四位",
+      "expMonth": "有效期月份",
+      "expYear": "有效期年份",
+      "record": "记录授权",
+      "authorized": "授权已记录",
+      "validation": "请输入后四位、有效期月份和四位有效期年份。"
+    },
+    "final": {
+      "title": "最终确认",
+      "requirement": "请先选择一个已发现的 TLS 名额，再进行最终确认。",
+      "selected": "已选名额：{date} {time}。请复核 TLS 时间和支付授权后再确认。",
+      "approve": "批准最终步骤",
+      "book": "点击官网最终确认",
+      "approvedBadge": "已批准"
+    },
+    "results": {
+      "title": "结果",
+      "none": "尚未记录 TLS 官方预约确认。",
+      "confirmationNumber": "官方确认号",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "中心",
+      "captured": "官方证据已记录"
+    },
+    "nextStepCard": {
+      "title": "下一步：TLS 预约",
+      "body": "继续进入 TLScontact 中国预约设置，保留用户触发名额检查、明确选位、一次性支付授权和最终批准。",
+      "button": "打开 TLS 预约助手",
+      "badge": "TLScontact 中国"
+    }
+  },
+  "JapanAppointment": {
+    "loading": "正在加载日本预约准备…",
+    "back": "返回日本签证申请",
+    "eyebrow": "日本短期旅游签证 · 新加坡 JVAC",
+    "title": "日本 VFS 网站自动化",
+    "subtitle": "VIZA 会核验新加坡递交资格和材料，然后打开并检查 VFS 官方公开入口。本模式不会创建账号、登录、读取受保护名额、付款或预约。",
+    "select": "请选择",
+    "yes": "可用",
+    "no": "不可用",
+    "steps": { "label": "预约进度", "review": "资料确认", "account": "官方网站", "slots": "选择时段", "confirm": "确认预约", "result": "预约结果" },
+    "review": { "title": "核对申请人与递交信息", "englishName": "护照英文姓名", "dateOfBirth": "出生日期", "nationality": "国籍", "passport": "护照号码", "passportExpiry": "护照到期日", "phone": "手机号", "email": "个人邮箱", "address": "居住地址", "center": "预约中心", "notProvided": "尚未提供", "edit": "编辑申请资料" },
+    "account": { "title": "官方网站检查点", "mobileAlreadyRegisteredTitle": "该手机号已绑定其他 VFS 账号", "mobileAlreadyRegisteredBody": "官网注册表已接受全部字段并通过 Turnstile，但随后提示该手机号已经注册。继续登录需要提供原 VFS 账号邮箱；或者更换一个可接收新 VFS 验证码的手机号。" },
+    "free": { "title": "仅自动化公开网站", "body": "本模式只使用一个云端浏览器会话访问 VFS 官方公开入口并保存脱敏证据；遇到账号创建或登录边界即停止，无法读取受保护的预约名额。" },
+    "eligibility": { "title": "1. 申请资格", "visaType": "签证请求", "occupation": "职业状态", "passType": "新加坡长期准证", "passExpiry": "准证到期日", "returnDate": "预计返回新加坡日期", "pass": "资格通过", "incomplete": "待补充", "passBody": "新加坡当地递交的基础资格检查已通过。", "incompleteBody": "请提供覆盖返回日期的有效长期准证。" },
+    "visaTypes": { "single_entry": "单次入境", "double_entry": "双次入境", "multiple_entry": "多次入境" },
+    "occupations": { "employed": "受雇", "self_employed": "企业主／自雇", "student": "学生", "retired": "退休", "housewife": "家庭主妇／主夫", "unemployed": "待业" },
+    "passTypes": { "pr": "永久居民 PR", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
+    "documents": { "title": "2. 材料预检", "body": "选择通用资料中最近保存的证件照，或为本次申请更换照片。", "manage": "打开材料中心", "passportStored": "VIZA 已存储护照", "photoStored": "已选择证件照", "profilePhotoTitle": "通用资料证件照", "profilePhotoSelected": "已为本次日本申请选择通用资料证件照；如需使用其他照片，请点击更换。", "profilePhotoLoading": "正在选择最近保存的通用证件照…", "profilePhotoMissing": "通用资料中没有可复用证件照，请上传后继续。", "useProfilePhoto": "使用通用资料证件照", "replaceProfilePhoto": "更换证件照", "noProfilePhoto": "通用资料中尚未保存证件照，请在下方上传。", "photoUploadFailed": "证件照上传失败。请使用 JPG、PNG 或 WebP 图片后重试。", "profileIncomplete": "申请资料尚未完整", "profileMissing": "准备预约前，请先在申请表补齐这些字段：{fields}。" },
+    "workflow": { "title": "3. 网站自动化", "consent": "我确认信息真实，并授权 VIZA 打开和检查日本 VFS 新加坡官方公开入口。本授权不包含创建账号、发送短信或邮件、登录、读取受保护名额、付款或预约。", "saving": "正在保存…", "saveConsent": "记录授权", "consentRecorded": "授权已记录", "consentRecordedBody": "后端已为当前申请保存公开网站自动化授权。", "creating": "正在启动…", "create": "开始网站自动化", "restart": "重新开始", "restartTitle": "自动化已取消", "restartBody": "核对最新资料后，可以重新开始公开网站检查。", "checking": "正在检查…", "check": "运行 VFS 公开入口检查", "publicOnlyTitle": "账号创建已关闭", "publicOnlyBody": "Worker 只能打开 VFS 公开入口并保存脱敏证据；遇到登录或安全边界即停止。", "aliasReady": "账号创建已关闭", "aliasBody": "公开网站模式不会创建 VFS alias 或账号。", "openOfficial": "打开官方 VFS", "cancel": "取消自动化" },
+    "evidence": { "title": "云端证据", "httpStatus": "HTTP 状态", "pageTitle": "官方页面", "observedAt": "检查时间", "entryClick": "已点击 Book now", "replay": "Browserbase 回放" },
+    "checkpoints": { "login": "需要官方登录", "existing_mobile_account": "需要已有 VFS 账号资料", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "slot_selection": "请选择预约时间", "payment": "需要官网付款", "site_policy_review": "官方政策检查点" },
+    "checkpointBodies": { "login": "VFS 官方公开入口已成功渲染并到达登录边界。账号创建已关闭，因此自动化按预期停在这里。", "existing_mobile_account": "VFS 已确认所填手机号已经注册。请提供原 VFS 账号邮箱以继续登录，或提供另一个可接收新验证码的手机号。", "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，没有创建账号，也不会把该状态误报为预约成功。", "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。", "identity_verification": "官方网站要求申请人身份验证；公开网站自动化在此停止。", "selector_drift": "官方网站当前页面与已验证的公开入口状态不匹配，VIZA 已暂停等待复核。", "no_slots": "最近一次观察中，官方网站没有显示可预约时间。", "slot_selection": "请选择后端刚观察到的一个 VFS 官方预约时间。", "payment": "请继续完成 VFS 官方托管的服务费付款步骤。", "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。" },
+    "slots": { "title": "官网预约时间", "empty": "尚未观察到官网名额。VFS 账号准备完成后，请点击“检查官方门户”。", "choose": "选择", "selected": "已选择" },
+    "payment": { "title": "VFS 服务费付款", "officialTitle": "请在 VFS 官方页面完成付款", "officialBody": "VIZA 预约助手不会收集完整银行卡资料；公开网站模式下付款功能保持关闭。", "secureTitle": "一次性安全付款", "secureBody": "卡片资料只会一次性传给内存中的预约 worker，数分钟后过期，绝不写入数据库或日志；发卡行仍可能要求完成 3-D Secure 验证。", "holder": "持卡人姓名", "cardNumber": "卡号", "expiry": "有效期", "cvv": "CVV", "authorize": "准备一次性付款" },
+    "final": { "title": "最终预约确认", "consent": "我已核对官网时段和付款条款，并授权 VIZA 请求最终 VFS 预约。", "approve": "批准最终预约", "book": "预约所选时段", "confirmed": "官网预约已确认", "confirmation": "确认号 {number} · {date} {time}" },
+    "result": { "openEvidence": "打开官网证据" },
+    "statuses": { "not_started": "尚未开始", "appointment_account_required": "公开检查已就绪", "appointment_manual_required": "已停在官网边界", "appointment_no_slots_available": "暂无时段", "appointment_slot_selection_required": "请选择时段", "appointment_payment_required": "需要付款", "appointment_payment_completed": "付款授权已记录", "appointment_payment_ready": "付款已就绪", "appointment_final_confirmation_approved": "最终批准已记录", "appointment_confirmation_captured": "预约已确认", "appointment_cancelled": "已取消" },
+    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。", "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。", "consentRequired": "请先记录授权，再准备预约。", "cancelled": "本次准备已取消，请重新开始后再检查官方网站。", "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。", "slotRequired": "请先选择当前可用的 VFS 官网时段。", "paymentRequired": "请先完成 VFS 安全付款授权。", "finalRequired": "提交前请批准最终预约。", "sessionRequired": "登录会话已过期，请重新登录后继续。" }
+  }
+}

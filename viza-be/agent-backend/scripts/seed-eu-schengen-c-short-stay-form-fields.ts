@@ -237,8 +237,10 @@ const FIELDS: FieldDef[] = [
     { value: "multiple", text: "Multiple entries" },
   ] },
   { field_name: "intended_duration_days", label: "Duration of the intended stay or transit (number of days)", field_type: "text", required: true, step_number: 7, step_name: "Trip Details", display_order: 6, placeholder: "e.g., 14", validation_rules: { pattern: "^[0-9]{1,3}$" } },
-  { field_name: "intended_arrival_date", label: "Intended date of arrival in the Schengen Area", field_type: "date", required: true, step_number: 7, step_name: "Trip Details", display_order: 7, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
-  { field_name: "intended_departure_date", label: "Intended date of departure from the Schengen Area", field_type: "date", required: true, step_number: 7, step_name: "Trip Details", display_order: 8, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
+  { field_name: "departure_from_origin_date", label: "Date of departure from your country of residence", field_type: "date", required: true, step_number: 7, step_name: "Trip Details", display_order: 7, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
+  { field_name: "intended_arrival_date", label: "Intended date of arrival in the Schengen Area", field_type: "date", required: true, step_number: 7, step_name: "Trip Details", display_order: 8, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
+  { field_name: "intended_departure_date", label: "Intended date of departure from the Schengen Area", field_type: "date", required: true, step_number: 7, step_name: "Trip Details", display_order: 9, validation_rules: { format: "DD/MM/YYYY", inline_group: "trip_dates" } },
+  { field_name: "visits_french_overseas_territories", label: "Are you going to French overseas territories?", field_type: "radio", required: true, step_number: 7, step_name: "Trip Details", display_order: 10, options: YES_NO },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 8: Purpose-Specific Details (Annex I fields 24, 34–35 by purpose)

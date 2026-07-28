@@ -99,7 +99,7 @@ Most current forms use a bilingual layout:
 - left column: Chinese question and Chinese input
 - right column: English or official question and English/official input
 
-For text fields, the user can type in either side. The other language side updates automatically where the product has a deterministic mapping or translation helper. Official names, passport names, dates, and country names should still be checked by the user before submitting.
+For text fields, the user can type in either side. Chinese-side edits can update the English or official side where the product has a deterministic mapping or translation helper. English-side edits do not overwrite the Chinese side. Official names, passport names, dates, and country names should still be checked by the user before submitting.
 
 For select, radio, date, country, and upload controls, both sides represent the same answer. Choosing a value on either side updates the shared answer.
 

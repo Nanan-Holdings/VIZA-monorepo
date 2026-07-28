@@ -13,6 +13,7 @@ import {
   getVisaDestinationKey,
   getVisaDestinationRegionName,
   getVisaDestinationVisaName,
+  matchesVisaDestinationSearch,
   type PopularVisaDestination,
 } from "@/lib/visa-destinations";
 import { DestinationFlag } from "./DestinationFlag";
@@ -22,6 +23,9 @@ import {
 } from "@/app/actions/user-package";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { isCountryLaunched } from "@/lib/launched-countries";
+import type { DestinationApplicationProgress } from "@/lib/client/application-progress";
+
+export type { DestinationApplicationProgress };
 
 function isSelectedDestination(
   destination: PopularVisaDestination,
@@ -34,27 +38,8 @@ function isSelectedDestination(
   );
 }
 
-function matchesDestinationSearch(destination: PopularVisaDestination, normalizedSearch: string): boolean {
-  const searchableText = [
-    destination.countryName,
-    destination.countryNameZh,
-    destination.visaName,
-    destination.visaNameZh,
-    destination.description,
-    destination.descriptionZh,
-    destination.region,
-    destination.supportLabel,
-    ...(destination.searchAliases ?? []),
-  ].join(" ").toLowerCase();
-  return searchableText.includes(normalizedSearch);
-}
-
-export interface DestinationApplicationProgress {
-  applicationId: string;
-  status: string;
-  percent: number;
-  label: string;
-  updatedAt: string | null;
+function isSchemaChoiceCountry(country: string): boolean {
+  return country === "indonesia" || country === "vietnam" || country === "philippines";
 }
 
 export function PopularDestinationsSection({
@@ -73,7 +58,10 @@ export function PopularDestinationsSection({
   const [isPending, startTransition] = useTransition();
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const searchResults = normalizedSearch
-    ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) => matchesDestinationSearch(destination, normalizedSearch))
+    ? SEARCHABLE_VISA_DESTINATIONS.filter((destination) =>
+        matchesVisaDestinationSearch(destination, normalizedSearch) &&
+        (!isSchemaChoiceCountry(destination.country) || destination.kind === "group")
+      )
     : [];
 
   function handleSelect(destination: PopularVisaDestination) {
@@ -122,16 +110,21 @@ export function PopularDestinationsSection({
         : selected
           ? t("open")
           : t("start");
+    const isSchemaChoiceGroup = isGroup && isSchemaChoiceCountry(destination.country);
     const progressLabel = progress
       ? progress.label
-      : selected
-        ? t("addedNotStarted")
-        : isGroup
-          ? t("countriesCount", { count: destination.countryCount ?? 0 })
+        : selected
+          ? t("addedNotStarted")
+          : isGroup
+          ? isSchemaChoiceGroup
+            ? t("categoryCount", { count: destination.countryCount ?? 0 })
+            : t("countriesCount", { count: destination.countryCount ?? 0 })
           : t("readyToStart");
     const progressPill = isGroup
       ? (destination.countryCount ?? 0) > 0
-        ? t("chooseCountry")
+        ? isSchemaChoiceGroup
+          ? t("chooseCategory")
+          : t("chooseCountry")
         : t("comingSoon")
       : progress
         ? t("progressPill", { pct: progress.percent })
@@ -148,7 +141,7 @@ export function PopularDestinationsSection({
         title={launched ? undefined : t("comingSoon")}
         aria-disabled={!launched}
         className={[
-          "group flex min-h-[172px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
+          "group flex min-h-[150px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[172px] sm:p-5",
           highlighted
             ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
             : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
@@ -156,10 +149,10 @@ export function PopularDestinationsSection({
         ].join(" ")}
       >
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <DestinationFlag flag={destination.flag} />
             <div>
-              <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
+              <p className="font-heading text-[16px] font-medium leading-tight text-[#222] sm:text-[18px]">
                 {countryName}
               </p>
               <p className="mt-1 text-[13px] font-medium text-[#637083]">
@@ -211,7 +204,7 @@ export function PopularDestinationsSection({
     <section className="mt-10 w-full max-w-[1090px] xl:mt-12">
       <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="font-heading text-[30px] font-medium leading-[1.3] tracking-[-0.9px] text-[#3d3d3d]">
+          <p className="font-heading text-[24px] font-medium leading-[1.3] tracking-[-0.72px] text-[#3d3d3d] sm:text-[30px] sm:tracking-[-0.9px]">
             {t("heading")}
           </p>
           <p className="mt-2 max-w-3xl text-[16px] leading-6 text-[rgba(0,0,0,0.52)]">
@@ -244,7 +237,7 @@ export function PopularDestinationsSection({
       {normalizedSearch ? (
         <>
           <p className="mb-3 text-[15px] font-semibold text-[#03346E]">{t("searchResultsHeading")}</p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {searchResults.map(renderDestinationCard)}
           </div>
           {searchResults.length === 0 && (
@@ -257,14 +250,14 @@ export function PopularDestinationsSection({
         <div className="flex flex-col gap-8">
           <div>
             <p className="mb-3 text-[15px] font-semibold text-[#03346E]">{t("featuredHeading")}</p>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
               {FEATURED_VISA_DESTINATIONS.map(renderDestinationCard)}
             </div>
           </div>
 
           <div>
             <p className="mb-3 text-[15px] font-semibold text-[#03346E]">{t("regionHeading")}</p>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
               {DESTINATION_REGION_GROUP_DESTINATIONS.map(renderDestinationCard)}
             </div>
           </div>

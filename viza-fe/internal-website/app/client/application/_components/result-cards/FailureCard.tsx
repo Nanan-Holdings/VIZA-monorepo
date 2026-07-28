@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
-import { AlertTriangle, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
+import { AlertTriangle, CreditCard, ExternalLink, Eye, EyeOff, RotateCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BrandActionButton } from "@/components/client/brand-action-button";
@@ -14,8 +14,21 @@ interface FailureCardProps {
   applicationId?: string;
   errorMessage?: string;
   retryModes?: Array<{ mode: SubmissionMode; label: string }>;
-  onRetry?: (mode: SubmissionMode) => Promise<void> | void;
+  onRetry?: (
+    mode: SubmissionMode,
+    vietnamPaymentCard?: VietnamOneTimePaymentCard,
+  ) => Promise<void> | void;
   showFranceAccount?: boolean;
+  requiresOfficialPaymentCard?: boolean;
+  requiresVietnamPaymentCard?: boolean;
+  requiresIndonesiaPaymentCard?: boolean;
+}
+
+export interface VietnamOneTimePaymentCard {
+  pan: string;
+  expiry: string;
+  cvv: string;
+  holderName: string;
 }
 
 type FvOfficialAccount = {
@@ -63,6 +76,9 @@ const VALIDATION_LABELS: Record<string, string> = {
   "answers.declaration_temporary_residence": "临时居住申报承诺 / Temporary residence declaration",
   "answers.visited_vietnam_in_last_year": "过去一年是否到访越南 / Previous Viet Nam visit",
   "answers.has_relatives_in_vietnam": "是否有亲属在越南 / Relatives in Viet Nam",
+  "answers.relative_date_of_birth": "在越亲属出生日期 / Relative date of birth",
+  "answers.relative_nationality": "在越亲属国籍 / Relative nationality",
+  "answers.relative_relationship": "与在越亲属关系 / Relative relationship",
   "answers.final_declaration": "最终声明确认 / Final declaration",
 };
 
@@ -92,6 +108,56 @@ function isWorkerPickupError(errorMessage?: string): boolean {
   return normalized.includes("worker did not pick up") ||
     normalized.includes("worker heartbeat stopped") ||
     normalized.includes("submission job stalled");
+}
+
+function isVnPrearrivalVisaNumberError(errorMessage?: string): boolean {
+  const normalized = (errorMessage ?? "").toLowerCase();
+  const isPreciseError =
+    normalized.includes("vn_prearrival_invalid_evisa_number") ||
+    normalized.includes("rejected the e-visa number") ||
+    normalized.includes("9-digit numeric value from the “số / no.” line");
+  const isLegacyTransitionCascade =
+    normalized.includes("trip_information_form_not_ready") &&
+    normalized.includes("mode_of_travel") &&
+    normalized.includes("flight_number") &&
+    normalized.includes("accommodation_address");
+
+  return isPreciseError || isLegacyTransitionCascade;
+}
+
+function getVnPrearrivalOtpErrorKind(
+  errorMessage?: string,
+): "consent_required" | "delivery_timeout" | "rejected" | "timeout" | null {
+  const normalized = (errorMessage ?? "").toLowerCase();
+  if (
+    normalized.includes("vn_prearrival_email_forwarding_consent_required") ||
+    normalized.includes("official email forwarding authorization is required")
+  ) {
+    return "consent_required";
+  }
+  if (
+    normalized.includes("vn_prearrival_otp_delivery_timeout") ||
+    normalized.includes("vn_prearrival_otp_inbox_unroutable") ||
+    normalized.includes("managed inbox domain") ||
+    normalized.includes("verification email was not delivered") ||
+    normalized.includes("inbox.waitformessage timeout")
+  ) {
+    return "delivery_timeout";
+  }
+  if (
+    normalized.includes("vn_prearrival_otp_rejected") ||
+    normalized.includes("rejected the email verification code")
+  ) {
+    return "rejected";
+  }
+  if (
+    normalized.includes("vn_prearrival_otp_confirmation_timeout") ||
+    normalized.includes("email verification dialog remained open") ||
+    normalized.includes("did not finish email verification")
+  ) {
+    return "timeout";
+  }
+  return null;
 }
 
 function FormattedFailureText({ message }: { message: string }) {
@@ -124,17 +190,52 @@ export function FailureCard({
   retryModes,
   onRetry,
   showFranceAccount = false,
+  requiresOfficialPaymentCard = false,
+  requiresVietnamPaymentCard = false,
+  requiresIndonesiaPaymentCard = false,
 }: FailureCardProps) {
   const isZh = isChineseLocale(useLocale());
   const [retryingMode, setRetryingMode] = useState<SubmissionMode | null>(null);
   const [officialAccount, setOfficialAccount] = useState<FvOfficialAccount | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardHolderName, setCardHolderName] = useState("");
+  const [retryFailure, setRetryFailure] = useState<string | null>(null);
+  const cardNumberRef = useRef<HTMLInputElement>(null);
+  const cardExpiryRef = useRef<HTMLInputElement>(null);
+  const cardCvvRef = useRef<HTMLInputElement>(null);
+  const cardHolderNameRef = useRef<HTMLInputElement>(null);
   const validationError = parseValidationError(errorMessage);
   const workerPickupError = isWorkerPickupError(errorMessage);
+  const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
+  const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
   const officialImageError = translateOfficialImagePortalError(errorMessage, isZh ? "zh" : "en");
+  const indonesiaPaymentFailure =
+    requiresIndonesiaPaymentCard ||
+    /(?:indonesia.{0,80}payment|payment.{0,80}indonesia)/i.test(errorMessage ?? "");
   const modes = retryModes && retryModes.length > 0
     ? retryModes
     : [{ mode: "dry_run" as const, label: "Retry submission" }];
+  const requiresPaymentCard =
+    requiresOfficialPaymentCard || requiresVietnamPaymentCard || indonesiaPaymentFailure;
+  const cardReady =
+    !requiresPaymentCard ||
+    (
+      cardNumber.replace(/\D/g, "").length >= 12 &&
+      cardExpiry.trim().length >= 4 &&
+      cardCvv.replace(/\D/g, "").length >= 3 &&
+      (!indonesiaPaymentFailure || cardHolderName.trim().length >= 2)
+    );
+  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = requiresPaymentCard
+    ? {
+        pan: cardNumber,
+        expiry: cardExpiry,
+        cvv: cardCvv,
+        holderName: cardHolderName,
+      }
+    : undefined;
 
   useEffect(() => {
     if (!applicationId || !showFranceAccount) return;
@@ -165,11 +266,50 @@ export function FailureCard({
   }, [applicationId, showFranceAccount]);
 
   const handleRetry = async (mode: SubmissionMode) => {
-    if (!onRetry) return;
+    if (!onRetry || retryingMode !== null) return;
+    if (!cardReady) {
+      setRetryFailure(
+        isZh
+          ? indonesiaPaymentFailure
+            ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
+            : "请填写银行卡号、有效期和 CVV 后再提交。"
+          : indonesiaPaymentFailure
+            ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
+            : "Enter the card number, expiry, and CVV before submitting.",
+      );
+      if (cardNumber.replace(/\D/g, "").length < 12) {
+        cardNumberRef.current?.focus();
+      } else if (cardExpiry.trim().length < 4) {
+        cardExpiryRef.current?.focus();
+      } else if (cardCvv.replace(/\D/g, "").length < 3) {
+        cardCvvRef.current?.focus();
+      } else {
+        cardHolderNameRef.current?.focus();
+      }
+      return;
+    }
+    setRetryFailure(null);
     setRetryingMode(mode);
     try {
-      await onRetry(mode);
+      await onRetry(mode, vietnamPaymentCard);
+      if (requiresPaymentCard) {
+        setCardCvv("");
+      }
+    } catch (error) {
+      setRetryFailure(
+        error instanceof Error
+          ? error.message
+          : isZh
+            ? "提交任务启动失败，请稍后重试。"
+            : "The submission job could not be started. Please try again.",
+      );
     } finally {
+      if (requiresPaymentCard) {
+        setCardNumber("");
+        setCardExpiry("");
+        setCardCvv("");
+        setCardHolderName("");
+      }
       setRetryingMode(null);
     }
   };
@@ -179,22 +319,72 @@ export function FailureCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-foreground">
           <AlertTriangle className="h-5 w-5 text-destructive" />
-          {workerPickupError
-            ? (isZh ? "提交服务没有接到任务" : "Submission worker did not pick up the job")
+          {vnPrearrivalVisaNumberError
+            ? (isZh ? "电子签证号码错误" : "Invalid E-Visa number")
+            : vnPrearrivalOtpErrorKind === "consent_required"
+            ? (isZh ? "请先授权官方邮件转发" : "Authorize official email forwarding")
+            : vnPrearrivalOtpErrorKind
+            ? (isZh ? "邮箱验证码未完成" : "Email verification was not completed")
+            : workerPickupError
+            ? (isZh ? "云端任务没有完成" : "Cloud submission did not complete")
             : (isZh ? "提交没有完成" : "We couldn't complete your submission")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {workerPickupError
+          {vnPrearrivalVisaNumberError
             ? (isZh
-                ? "这不是 ICA 表单内容错误，而是本地 submission-service worker 没有运行或没有及时消费队列。你的答案已保存；启动 worker 后可直接重试。"
-                : "This is not an ICA form-data error. The local submission-service worker was not running or did not consume the queue in time. Your answers are saved; retry after the worker is running.")
+                ? "官网拒绝了当前电子签证号码。请返回“旅客信息”，填写电子签证文件顶部“Số / No.”后的 9 位纯数字；不要填写申请代码、登记码，也不要添加“/EV”。"
+                : "The official portal rejected the current E-Visa number. Return to Passenger Information and enter the 9-digit numeric value shown after “Số / No.”; do not enter the application or registration code, and do not add “/EV”.")
+            : vnPrearrivalOtpErrorKind === "consent_required"
+            ? (isZh
+                ? "越南官网会先向 VIZA 的内部申请邮箱发送验证码，再把成功确认邮件、二维码、PDF 和附件原样转发到你的真实邮箱。请先完成一次官方邮件转发授权；你的真实邮箱不会显示在官网自动化流程中。"
+                : "Vietnam sends the verification code to VIZA's internal application inbox. The official success email, QR code, PDF, and attachments are then forwarded unchanged to your real email. Authorize official email forwarding before submission.")
+            : vnPrearrivalOtpErrorKind === "rejected"
+            ? (isZh
+                ? "官网明确拒绝了本次邮箱验证码，验证码可能已过期或不正确。你的答案已保存；重新提交后，系统会请求并使用一封新的验证码邮件。"
+                : "The official portal rejected this email verification code because it was invalid or expired. Your answers are saved; retrying will request and consume a new code.")
+            : vnPrearrivalOtpErrorKind === "delivery_timeout"
+            ? (isZh
+                ? "官网已请求邮箱验证码，但验证码邮件没有送达 VIZA 的托管收件箱。你的答案已保存；请先恢复官方邮件收件路由并完成“官方邮件转发授权”，然后再重新提交。成功确认邮件、二维码和附件会继续转发到你的真实邮箱。"
+                : "The official portal requested an email verification code, but the message did not reach VIZA's managed inbox. Your answers are saved. Restore the official-email route and accept Official Email Forwarding before retrying; confirmation mail, QR codes, and attachments will still be forwarded to your real email.")
+            : vnPrearrivalOtpErrorKind === "timeout"
+            ? (isZh
+                ? "官网在验证码确认后没有及时完成页面切换。你的答案已保存；系统重试时会等待官方确认完成，并避免重复使用旧验证码。"
+                : "The official portal did not finish the page transition after email verification. Your answers are saved; the retry will wait for confirmation and avoid reusing an old code.")
+            : workerPickupError
+            ? (isZh
+                ? "云端提交任务没有及时推进。你的答案已保存；请直接重新提交，VIZA 会创建新的云端任务并继续跟踪。"
+                : "The cloud submission job did not advance in time. Your answers are saved; submit again to create a new cloud job and continue tracking it.")
+            : indonesiaPaymentFailure
+            ? (isZh
+                ? "印尼官网付款没有成功。你的申请答案已保存；请重新填写本次银行卡后重试，VIZA 会再次在云端完成付款并确认最终结果。"
+                : "The Indonesia official payment did not succeed. Your application answers are saved; enter the one-time card again and VIZA will retry and confirm the final result in the cloud.")
             : (isZh
                 ? "官网在填写申请时返回错误。你的答案已保存，可以直接重新提交。"
                 : "The portal returned an error while we were filing your application. Your answers are saved — you can retry without re-entering anything.")}
         </p>
-        {officialImageError ? (
+        {vnPrearrivalVisaNumberError ? (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-950">
+            {isZh
+              ? "正确格式示例：106527303（共 9 位，只能包含数字）。修改并保存后再重新提交。"
+              : "Correct format example: 106527303 (exactly 9 digits, numbers only). Save the corrected value before retrying."}
+          </div>
+        ) : vnPrearrivalOtpErrorKind ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
+            {vnPrearrivalOtpErrorKind === "consent_required"
+              ? (isZh
+                  ? "授权完成后返回本页重新提交即可，无需重新填写申请。"
+                  : "After authorizing, return here and retry without re-entering the application.")
+              : vnPrearrivalOtpErrorKind === "delivery_timeout"
+              ? (isZh
+                  ? "无需重新填写表单。可以点击下方“提交”创建新的云端任务；系统会重新检查收件路由并明确返回结果。"
+                  : "You do not need to re-enter the form. Use Submit below to create a new cloud job; the system will recheck inbox routing and return a clear result.")
+              : (isZh
+                  ? "可以直接点击下方“提交”重试，无需重新填写表单。"
+                  : "Use the Submit button below to retry; you do not need to re-enter the form.")}
+          </div>
+        ) : officialImageError ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
             <FormattedFailureText message={officialImageError} />
           </div>
@@ -214,14 +404,119 @@ export function FailureCard({
             {errorMessage}
           </pre>
         )}
+        {applicationId &&
+          (vnPrearrivalOtpErrorKind === "consent_required" ||
+            vnPrearrivalOtpErrorKind === "delivery_timeout") && (
+          <Button asChild variant="outline" className="w-full">
+            <a href={`/client/consent?applicationId=${encodeURIComponent(applicationId)}`}>
+              {vnPrearrivalOtpErrorKind === "delivery_timeout"
+                ? (isZh ? "检查并授权官方邮件转发" : "Check official email forwarding")
+                : (isZh ? "授权官方邮件转发" : "Authorize official email forwarding")}
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        )}
+        {requiresPaymentCard && (
+          <div className="space-y-3 rounded-lg border border-brand-100 bg-brand-50 p-4">
+            <div className="flex items-start gap-3">
+              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-foreground">
+                  {isZh ? "补填本次官方付款银行卡" : "Add one-time official payment card"}
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {isZh
+                    ? "重新提交前，请补填本次官方付款使用的银行卡号、有效期、CVV 和银行卡上的持卡人姓名。卡号和 CVV 只会发送到 VIZA 云端 submission-service 的短时内存会话，不会保存。"
+                    : "Before retrying, enter the card number, expiry, CVV, and cardholder name printed on the card. Card number and CVV are sent only to the short-lived VIZA cloud submission-service session and are not stored."}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">{isZh ? "银行卡号" : "Card number"}</span>
+                <input
+                  ref={cardNumberRef}
+                  value={cardNumber}
+                  onChange={(event) => setCardNumber(event.target.value)}
+                  autoComplete="cc-number"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder={isZh ? "请输入银行卡号" : "Enter card number"}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">{isZh ? "有效期" : "Expiry"}</span>
+                <input
+                  ref={cardExpiryRef}
+                  value={cardExpiry}
+                  onChange={(event) => setCardExpiry(event.target.value)}
+                  autoComplete="cc-exp"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder="MM/YY"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">CVV</span>
+                <input
+                  ref={cardCvvRef}
+                  value={cardCvv}
+                  onChange={(event) => setCardCvv(event.target.value)}
+                  autoComplete="cc-csc"
+                  inputMode="numeric"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder="CVV"
+                />
+              </label>
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">
+                  {indonesiaPaymentFailure
+                    ? (isZh ? "持卡人姓名（必填，按银行卡）" : "Cardholder name (required, as on card)")
+                    : (isZh ? "持卡人姓名（可选）" : "Cardholder name (optional)")}
+                </span>
+                <input
+                  ref={cardHolderNameRef}
+                  value={cardHolderName}
+                  onChange={(event) => setCardHolderName(event.target.value)}
+                  autoComplete="cc-name"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-brand-500"
+                  placeholder={indonesiaPaymentFailure
+                    ? (isZh ? "请输入银行卡上的姓名" : "Name printed on card")
+                    : (isZh ? "不填则使用 VIZA" : "Defaults to VIZA")}
+                />
+              </label>
+            </div>
+            {!cardReady && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {isZh
+                  ? indonesiaPaymentFailure
+                    ? "请填写银行卡号、有效期、CVV 和银行卡上的持卡人姓名后再提交。"
+                    : "请填写银行卡号、有效期和 CVV 后再提交。"
+                  : indonesiaPaymentFailure
+                    ? "Enter the card number, expiry, CVV, and cardholder name before submitting."
+                    : "Enter the card number, expiry, and CVV before submitting."}
+              </p>
+            )}
+          </div>
+        )}
+        {retryFailure && (
+          <div
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-800"
+          >
+            {retryFailure}
+          </div>
+        )}
         {applicationId && onRetry && (
-          <div className={modes.length > 1 ? "grid gap-2 sm:grid-cols-2" : "grid gap-2"}>
+          <div className={workerPickupError || modes.length <= 1 ? "grid gap-2" : "grid gap-2 sm:grid-cols-2"}>
             {modes.map((item) => (
               <BrandActionButton
                 key={item.mode}
+                type="button"
                 onClick={() => {
                   void handleRetry(item.mode).catch(() => undefined);
                 }}
+                disabled={retryingMode !== null}
                 loading={retryingMode === item.mode}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >

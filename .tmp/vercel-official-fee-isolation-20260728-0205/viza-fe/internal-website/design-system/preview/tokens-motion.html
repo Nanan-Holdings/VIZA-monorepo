@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #efefef;border-radius:12px;overflow:hidden;font:400 13px var(--font-sans)}
+  th,td{padding:10px 16px;text-align:left;border-bottom:1px solid #f3f4f6}
+  thead th{font:500 11px var(--font-sans);color:rgba(0,0,0,.5);background:#fbfbfb;letter-spacing:.04em;text-transform:uppercase}
+  tbody tr:last-child td{border-bottom:0}
+  .k{font:600 13px ui-monospace,"SF Mono",Menlo,monospace;color:#03346E}
+  .v{color:rgba(0,0,0,.55);font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .demo{background:#fff;border:1px solid #efefef;border-radius:12px;padding:24px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .box{width:36px;height:36px;background:#03346E;border-radius:6px;animation:f 2s infinite cubic-bezier(.4,0,.2,1)}
+  .box.slow{animation-duration:3s;background:#3D6DAD}
+  .box.fade{animation:g 2s infinite ease-in-out}
+  @keyframes f{0%,100%{transform:translateY(16px);opacity:0}30%,70%{transform:translateY(0);opacity:1}}
+  @keyframes g{0%,100%{opacity:.2}50%{opacity:1}}
+  .principle{font:400 13px/1.5 var(--font-sans);color:rgba(0,0,0,.6)}
+  .principle b{color:#3d3d3d;font-weight:600}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Duration & easing tokens</div>
+    <table>
+      <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td class="k">--dur-fast</td><td class="v">150ms</td><td>Button hover, icon color, focus ring</td></tr>
+        <tr><td class="k">--dur-base</td><td class="v">250ms</td><td>Card hover, shadow change, small reveals</td></tr>
+        <tr><td class="k">--dur-slow</td><td class="v">400ms</td><td>Page-level entry animations (y: 16→0)</td></tr>
+        <tr><td class="k">--dur-nav</td><td class="v">600ms</td><td>Nav bar color transition (dark ↔ light)</td></tr>
+        <tr><td class="k">--ease-standard</td><td class="v">cubic-bezier(.4, 0, .2, 1)</td><td>Default for everything</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <div class="label">Live preview · entry y:16 → 0 fade · standard ease</div>
+    <div class="demo">
+      <div class="box"></div>
+      <div class="box" style="animation-delay:.1s"></div>
+      <div class="box" style="animation-delay:.2s"></div>
+      <div class="box" style="animation-delay:.3s"></div>
+      <div class="box slow fade" style="margin-left:auto"></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Principles</div>
+    <div class="demo">
+      <p class="principle"><b>Only transform and opacity.</b> Never animate width, height, top, or left — they trigger layout and look cheap. &nbsp;
+      <b>Never exceed 600ms.</b> Users wait on us; we don't wait on our animations. &nbsp;
+      <b>No scale on press.</b> Use color-only depression (one step darker in the brand scale). &nbsp;
+      <b>Stagger with delay: 0.1 × index</b> for lists up to ~6 items. Beyond that, animate as one block. &nbsp;
+      <b>Respect prefers-reduced-motion.</b> Fall back to opacity-only fades at 200ms or skip entirely.</p>
+    </div>
+  </div>
+</div></body></html>

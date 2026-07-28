@@ -19,6 +19,7 @@
     "inviteFriends": "Invite Friends"
   },
   "menu": {
+    "changeCountry": "Switch Application Country",
     "inviteFriends": "Invite Friends",
     "status": "Status",
     "documents": "Documents",
@@ -28,6 +29,24 @@
     "logout": "Logout",
     "loggingOut": "Logging out..."
   },
+  "destinationsPage": {
+    "backToHome": "Back to Home",
+    "title": "Change country",
+    "subtitle": "Switch between your visa applications, or start a new destination below.",
+    "myApplications": "My applications",
+    "ongoingApplications": "Ongoing applications",
+    "purchasedApplications": "Purchased applications",
+    "purchasedApplicationsHint": "Packages you've purchased — start whenever you're ready.",
+    "loading": "Loading your applications...",
+    "noApplications": "You haven't started any applications yet — choose a destination below to begin.",
+    "current": "Current",
+    "notStarted": "Not started",
+    "continue": "Continue",
+    "start": "Start",
+    "progressAriaLabel": "Application progress",
+    "showAll": "Show all {count} applications",
+    "showLess": "Show less"
+  },
   "session": {
     "invalidatedTitle": "Session No Longer Active",
     "invalidatedBody": "Another applicant view was opened in a different tab. This session has stopped displaying for security.",
@@ -36,7 +55,10 @@
   "home": {
     "welcomeBack": "Welcome back, {name}.",
     "vizaApplication": "Here is your VIZA Application",
+    "vizaApplicationForCountry": "This is your {country} visa application",
     "recentActivity": "Recent Activity",
+    "applicationCategories": "Application categories",
+    "applicationCategoriesHint": "Quickly switch between available application types.",
     "noRecentActivity": "No recent activity yet. Start your application to see updates here.",
     "loadingDashboard": "Loading your dashboard...",
     "authError": "Authentication failed. Please try clicking the link again.",
@@ -131,8 +153,10 @@
       "readyToStart": "Ready to start",
       "addedNotStarted": "Added · not started",
       "chooseCountry": "Choose country",
+      "chooseCategory": "Choose category",
       "comingSoon": "Coming soon",
       "countriesCount": "{count} countries",
+      "categoryCount": "{count} categories",
       "progressPill": "{pct}% filled",
       "progressAriaLabel": "{country} application progress",
       "selectedNotFilled": "Selected, not filled",
@@ -549,7 +573,8 @@
       "failedToSave": "Failed to save",
       "failedToSubmit": "Failed to submit",
       "profileNotFound": "Profile not found",
-      "noApplicationFound": "No application found"
+      "noApplicationFound": "No application found",
+      "stalePage": "This page was updated while it was open. Refresh the page and continue; your saved answers are unchanged."
     },
     "statusHub": {
       "loading": "Loading application status...",
@@ -690,6 +715,7 @@
     "dynamicSections": {
       "personal": "Personal",
       "travel": "Travel",
+      "stay": "Stay in Malaysia",
       "travelCompanions": "Travel Companions",
       "previousTravel": "Previous U.S. Travel",
       "addressAndPhone": "Address and Phone",
@@ -909,6 +935,7 @@
       "document_uploaded": "Document uploaded",
       "packet_generated": "Packet generated",
       "external_status_updated": "External status updated",
+      "official_status_changed": "Vietnam e-Visa official status updated",
       "arrival_card_submitted": "SG Arrival Card submitted successfully",
       "result_received": "Result received",
       "notification_sent": "Notification sent"
@@ -3674,7 +3701,11 @@
         "arrivalCardSubmission": {
           "title": "Free arrival card submission",
           "description": "Redeem 1,000 points for one free arrival card submission for eligible destinations.",
-          "countries": ["Singapore", "Malaysia", "Thailand"]
+          "countries": [
+            "Singapore",
+            "Malaysia",
+            "Thailand"
+          ]
         },
         "priorityChecklist": {
           "title": "Priority checklist preparation",
@@ -3738,115 +3769,115 @@
         "description": "Send a support request if something needs human follow-up."
       }
     },
-  "payment": {
-    "selected": "Default",
-    "pendingVerification": "Verification pending",
-    "setDefault": "Set as default",
-    "manage": "Manage accounts",
-    "manageSelected": "Managing",
-    "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
-    "managerHints": {
-      "bank_card": "Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
-      "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
-      "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
-    },
-    "boundCount": "{count} bound",
-    "defaultAccount": "Default: {account}",
-    "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
-    "addTitle": "Add payment account",
-    "cardAddTitle": "Add card",
-    "qrAddTitle": "Scan to bind account",
-    "editTitle": "Edit payment account",
-    "addAccount": "Add account",
-    "verifyWithStripe": "Open secure verification",
-    "verifyWithAirwallex": "Load secure card element",
-    "generateQr": "Generate binding QR",
-    "regenerateQr": "Regenerate QR",
-    "checkQrStatus": "Check binding status",
-    "saveEdit": "Save changes",
-    "cancelEdit": "Cancel edit",
-    "edit": "Edit",
-    "delete": "Delete",
-    "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
-    "stripeHint": "Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
-    "cardHint": "Card details are entered only in the Airwallex hosted secure element. VIZA does not receive or store the full card number, expiry, or CVV.",
-    "cardElementPreparing": "Loading the Airwallex secure card element.",
-    "completeCardBinding": "Complete card binding",
-    "cardIdentifier": "Card · secure verification pending",
-    "qrAlt": "Payment account binding QR code",
-    "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
-    "qrExpires": "QR code expires at {time}.",
-    "qrHint": {
-      "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
-      "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
-    },
-    "fields": {
-      "label": "Account name",
-      "identifier": "Identifier",
-      "nickname": "Nickname",
-      "cardNumber": "Card number",
-      "cvv": "CVV"
-    },
-    "placeholders": {
-      "bank_card": {
-        "label": "For example: DBS debit card",
-        "identifier": "For example: ending in 5857",
-        "nickname": "For example: DBS debit card",
-        "cardNumber": "Enter card number",
-        "cvv": "3 or 4 digit security code"
+    "payment": {
+      "selected": "Default",
+      "pendingVerification": "Verification pending",
+      "setDefault": "Set as default",
+      "manage": "Manage accounts",
+      "manageSelected": "Managing",
+      "managerHint": "Bind multiple accounts for this payment method and choose the default account to try first.",
+      "managerHints": {
+        "bank_card": "Cards complete hosted secure verification. VIZA does not receive the full card number or CVV.",
+        "wechat_pay": "WeChat Pay uses QR scan binding, so you no longer enter a WeChat ID or phone number manually.",
+        "alipay": "Alipay uses QR scan binding, so you no longer enter an Alipay ID or phone number manually."
       },
-      "wechat_pay": {
-        "label": "For example: My WeChat",
-        "identifier": "For example: WeChat nickname or phone suffix"
+      "boundCount": "{count} bound",
+      "defaultAccount": "Default: {account}",
+      "empty": "No account is bound yet. Add one to edit, delete, or set it as default here.",
+      "addTitle": "Add payment account",
+      "cardAddTitle": "Add card",
+      "qrAddTitle": "Scan to bind account",
+      "editTitle": "Edit payment account",
+      "addAccount": "Add account",
+      "verifyWithStripe": "Open secure verification",
+      "verifyWithAirwallex": "Load secure card element",
+      "generateQr": "Generate binding QR",
+      "regenerateQr": "Regenerate QR",
+      "checkQrStatus": "Check binding status",
+      "saveEdit": "Save changes",
+      "cancelEdit": "Cancel edit",
+      "edit": "Edit",
+      "delete": "Delete",
+      "safeHint": "Only save a nickname and identifying note here. Do not enter a full card number, security code, or password.",
+      "stripeHint": "Card details are entered only on the hosted secure page. VIZA does not store the full card number or CVV.",
+      "cardHint": "Card details are entered only in the Airwallex hosted secure element. VIZA does not receive or store the full card number, expiry, or CVV.",
+      "cardElementPreparing": "Loading the Airwallex secure card element.",
+      "completeCardBinding": "Complete card binding",
+      "cardIdentifier": "Card · secure verification pending",
+      "qrAlt": "Payment account binding QR code",
+      "qrEmpty": "Generate a QR code, then scan it with the matching app to bind the account.",
+      "qrExpires": "QR code expires at {time}.",
+      "qrHint": {
+        "wechat_pay": "Scan with WeChat to authorize account binding, then return here and check the status.",
+        "alipay": "Scan with Alipay to authorize account binding, then return here and check the status."
       },
-      "alipay": {
-        "label": "For example: My Alipay",
-        "identifier": "For example: Alipay account note"
+      "fields": {
+        "label": "Account name",
+        "identifier": "Identifier",
+        "nickname": "Nickname",
+        "cardNumber": "Card number",
+        "cvv": "CVV"
+      },
+      "placeholders": {
+        "bank_card": {
+          "label": "For example: DBS debit card",
+          "identifier": "For example: ending in 5857",
+          "nickname": "For example: DBS debit card",
+          "cardNumber": "Enter card number",
+          "cvv": "3 or 4 digit security code"
+        },
+        "wechat_pay": {
+          "label": "For example: My WeChat",
+          "identifier": "For example: WeChat nickname or phone suffix"
+        },
+        "alipay": {
+          "label": "For example: My Alipay",
+          "identifier": "For example: Alipay account note"
+        }
+      },
+      "messages": {
+        "required": "Enter an account name and identifier.",
+        "nicknameRequired": "Enter a card nickname.",
+        "cardNumberInvalid": "Enter a valid card number.",
+        "cvvInvalid": "Enter a valid CVV.",
+        "added": "Payment account added.",
+        "updated": "Payment account updated.",
+        "deleted": "Payment account deleted.",
+        "defaultUpdated": "Default payment account updated.",
+        "stripeUnavailable": "Hosted card verification is not configured, so card verification is unavailable.",
+        "stripeStartFailed": "Could not start card verification. Please try again later.",
+        "stripeRedirect": "Opening the hosted secure verification page.",
+        "stripeReturned": "Card verification returned. The payment service will update the binding status after confirmation.",
+        "stripeCancelled": "Card verification was cancelled. The card is not fully bound yet.",
+        "cardUnavailable": "Airwallex card verification is not configured, so card verification is unavailable.",
+        "cardStartFailed": "Could not start Airwallex card verification. Please try again later.",
+        "cardReady": "The secure card element is ready. Enter the card details to complete binding.",
+        "cardElementFailed": "Could not load the secure card element. Refresh and try again.",
+        "cardBindFailed": "Card binding was not completed. Check the card details and try again.",
+        "cardBound": "The card was verified by Airwallex and bound successfully.",
+        "walletBindingUnavailable": "Wallet account binding is not configured yet. Use wallet QR codes at checkout after the order is created.",
+        "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
+        "qrReady": "QR code generated. Scan it with the matching app.",
+        "qrStatusFailed": "Could not check binding status. Please try again later.",
+        "qrExpired": "This QR code has expired. Generate a new one.",
+        "qrPending": "No scan result has been received yet. Scan first, then check again.",
+        "qrBound": "QR binding completed."
+      },
+      "methods": {
+        "bank_card": {
+          "title": "Card",
+          "description": "Enter a nickname, then complete binding in the Airwallex hosted card element."
+        },
+        "wechat_pay": {
+          "title": "WeChat Pay",
+          "description": "Bind by scanning a QR code with WeChat."
+        },
+        "alipay": {
+          "title": "Alipay",
+          "description": "Bind by scanning a QR code with Alipay."
+        }
       }
     },
-    "messages": {
-      "required": "Enter an account name and identifier.",
-      "nicknameRequired": "Enter a card nickname.",
-      "cardNumberInvalid": "Enter a valid card number.",
-      "cvvInvalid": "Enter a valid CVV.",
-      "added": "Payment account added.",
-      "updated": "Payment account updated.",
-      "deleted": "Payment account deleted.",
-      "defaultUpdated": "Default payment account updated.",
-      "stripeUnavailable": "Hosted card verification is not configured, so card verification is unavailable.",
-      "stripeStartFailed": "Could not start card verification. Please try again later.",
-      "stripeRedirect": "Opening the hosted secure verification page.",
-      "stripeReturned": "Card verification returned. The payment service will update the binding status after confirmation.",
-      "stripeCancelled": "Card verification was cancelled. The card is not fully bound yet.",
-      "cardUnavailable": "Airwallex card verification is not configured, so card verification is unavailable.",
-      "cardStartFailed": "Could not start Airwallex card verification. Please try again later.",
-      "cardReady": "The secure card element is ready. Enter the card details to complete binding.",
-      "cardElementFailed": "Could not load the secure card element. Refresh and try again.",
-      "cardBindFailed": "Card binding was not completed. Check the card details and try again.",
-      "cardBound": "The card was verified by Airwallex and bound successfully.",
-      "walletBindingUnavailable": "Wallet account binding is not configured yet. Use wallet QR codes at checkout after the order is created.",
-      "qrStartFailed": "Could not generate a binding QR code. Please try again later.",
-      "qrReady": "QR code generated. Scan it with the matching app.",
-      "qrStatusFailed": "Could not check binding status. Please try again later.",
-      "qrExpired": "This QR code has expired. Generate a new one.",
-      "qrPending": "No scan result has been received yet. Scan first, then check again.",
-      "qrBound": "QR binding completed."
-    },
-    "methods": {
-      "bank_card": {
-        "title": "Card",
-        "description": "Enter a nickname, then complete binding in the Airwallex hosted card element."
-      },
-      "wechat_pay": {
-        "title": "WeChat Pay",
-        "description": "Bind by scanning a QR code with WeChat."
-      },
-      "alipay": {
-        "title": "Alipay",
-        "description": "Bind by scanning a QR code with Alipay."
-      }
-    }
-  },
     "travelers": {
       "title": "Frequent travelers",
       "description": "Save people who often travel with you. These details are not submitted automatically; they are ready for future group-order selection.",
@@ -4193,7 +4224,7 @@
       },
       "contactSupport": {
         "question": "How do I contact support?",
-        "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.com."
+        "answer": "You can reach our support team through the Concierge tab in the app for real-time assistance, or by emailing us directly at support@viza.it.com."
       }
     }
   },
@@ -4222,6 +4253,8 @@
       "authFailed": "Authentication failed. Please try again.",
       "invalidCredentials": "Email or password is incorrect. Please try again.",
       "tooManyRequests": "Too many attempts. Please try again later.",
+      "requestTimedOut": "The sign-in service is taking longer than expected. Please try again.",
+      "providerUnavailable": "Supabase sign-in is temporarily unavailable. Your details were not submitted. Please try again shortly.",
       "unexpectedError": "An unexpected error occurred. Please try again.",
       "failedToResend": "Failed to resend code.",
       "checkEmail": "Check your email",
@@ -4284,7 +4317,7 @@
       "hidePassword": "Hide password",
       "unexpectedError": "Could not create your account. Please try again.",
       "thankYou": "Thanks. We will email you if you are eligible for access.",
-      "urgentAccess": "For urgent access, contact support at support@viza.com.",
+      "urgentAccess": "For urgent access, contact support at support@viza.it.com.",
       "backToLogin": "Back to Login",
       "privacyPolicy": "Privacy Policy",
       "termsOfService": "Terms of Service",
@@ -4450,7 +4483,7 @@
       },
       "contact": {
         "title": "Contact us",
-        "p1": "If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.com."
+        "p1": "If you have any questions about these Terms of Service, please contact us through the Concierge section of your VIZA account or email us at legal@viza.it.com."
       }
     }
   },
@@ -4515,7 +4548,7 @@
       },
       "contact": {
         "title": "Contact us",
-        "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.com."
+        "p1": "If you have questions or concerns about this Privacy Policy or how we handle your data, please contact our team through the Concierge section of your VIZA account or email us at privacy@viza.it.com."
       }
     }
   },
@@ -4649,10 +4682,102 @@
       "title": "B1/B2 appointment setup",
       "subtitle": "Continue after DS-160 with China USVisaScheduling assisted-live support. VIZA can handle supported account, CAPTCHA, policy, payment, slot observation, and confirmation checkpoints while keeping slot choice and final booking approval explicit."
     },
+    "stateMachine": {
+      "subtitle": "Complete one stage at a time. VIZA advances only after the required user confirmation or official result.",
+      "ariaLabel": "Appointment progress",
+      "steps": {
+        "review": "Review",
+        "account": "Official account",
+        "slots": "Choose a slot",
+        "confirm": "Confirm",
+        "result": "Result"
+      },
+      "workerUnavailable": "The appointment worker is not ready. You can review your information, but official-site work cannot start yet.",
+      "accountTitle": "Official account and profile",
+      "accountBody": "VIZA is creating or resuming the authorized official account flow. Any required verification or website checkpoint appears here.",
+      "reviewAgain": "Review details again",
+      "startAgain": "Start again",
+      "noSlotsBody": "No official appointment time is currently available. Refresh later; VIZA will never invent a slot."
+    },
+    "review": {
+      "title": "Review before continuing",
+      "body": "Check the saved applicant details below against the passport and submitted DS-160. Select Edit to correct anything; VIZA starts the official account flow only after you confirm.",
+      "back": "Back to application",
+      "fullName": "Passport name",
+      "dateOfBirth": "Date of birth",
+      "nationality": "Nationality",
+      "passportNumber": "Passport number",
+      "passportExpiry": "Passport expiry date",
+      "phone": "Phone",
+      "email": "Personal email",
+      "address": "Residential address",
+      "ds160": "DS-160 confirmation number",
+      "post": "Interview post",
+      "missing": "Not provided",
+      "confirmation": "I have checked these details against the passport and submitted DS-160, and I authorize VIZA to continue to the official account workflow. Slot selection and final booking remain separate confirmations.",
+      "edit": "Edit application",
+      "confirmAndContinue": "Confirm details and continue"
+    },
     "loading": "Loading appointment assistant...",
     "errorTitle": "Appointment assistant needs attention",
     "dryRunNoticeTitle": "Gated assisted live",
     "dryRunNotice": "This China-first workflow runs only after explicit user actions. VIZA can handle supported official-site checkpoints through the gated runner, records redacted official evidence, and surfaces unsupported gates for manual review.",
+    "cloud": {
+      "title": "Cloud automation status",
+      "ready": "Fly worker ready",
+      "unavailable": "Worker unavailable",
+      "worker": "Cloud worker",
+      "alias": "Alias account",
+      "portal": "Official calendar",
+      "preSubmit": "Ready before submit",
+      "complete": "Complete",
+      "pending": "Pending",
+      "stopTitle": "The official final button is protected",
+      "stopBody": "VIZA stops before the official confirmation click until an observed slot is selected and final approval is recorded. Opening this page never starts or submits an appointment."
+    },
+    "requirements": {
+      "title": "Complete these steps in order",
+      "body": "Start at step 1 and continue downward. Each step shows who acts, what information is used, and whether it is ready.",
+      "officialCheckTitle": "Checked against the live USVisaScheduling registration page",
+      "officialCheckBody": "The official form currently asks for a username, alias email verification, given name, surname, password, and three security question answers. VIZA manages the account fields; you provide accurate applicant and DS-160 information.",
+      "openApplication": "Review application details",
+      "userInputTitle": "What you need to enter in VIZA",
+      "userInputBody": "Accurate passport identity, passport details, contact/address information, the submitted DS-160 confirmation number, and its matching interview post. VIZA generates the appointment username and password, manages the alias mailbox and verification code, and prepares the three official account recovery answers.",
+      "states": {
+        "ready": "Ready",
+        "review": "Review once",
+        "managed": "Handled by VIZA",
+        "action": "Required",
+        "pending": "Later step"
+      },
+      "roles": {
+        "user": "You",
+        "viza": "VIZA",
+        "joint": "You + VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "Review the applicant record",
+          "body": "Confirm the passport-matching English given name and surname, date and country of birth, nationality, gender, passport number and validity, phone, personal email, residential address, and passport bio-page upload."
+        },
+        "ds160": {
+          "title": "Confirm DS-160 and interview post",
+          "body": "Enter the submitted DS-160 confirmation number and choose the same China embassy or consulate used on that DS-160. These must match before scheduling."
+        },
+        "account": {
+          "title": "Create and verify the official account",
+          "body": "VIZA creates the username and password, uses the applicant alias email, reads the verification code, fills the passport name, and prepares all three required security question answers."
+        },
+        "profile": {
+          "title": "Link the profile, DS-160, and fee status",
+          "body": "VIZA signs in, completes supported profile fields, links the DS-160 and interview post, and opens the official fee/calendar path. CAPTCHA, policy, or payment challenges remain visible checkpoints."
+        },
+        "booking": {
+          "title": "Choose a slot and approve booking",
+          "body": "VIZA shows only slots observed from the official calendar. You select one slot, review any fee checkpoint, and explicitly approve the final booking action."
+        }
+      }
+    },
     "errors": {
       "generic": "The appointment request could not be completed. Please try again.",
       "withCode": "The appointment request could not be completed. Reference: {code}.",
@@ -4703,6 +4828,7 @@
       "appointment_slot_selection_required": "Slot selection required",
       "appointment_slot_selected": "Slot selected",
       "appointment_final_confirmation_required": "Final approval required",
+      "appointment_final_confirmation_approved": "Final approval recorded",
       "appointment_booked": "Booking requested",
       "appointment_confirmation_captured": "Official confirmation captured",
       "appointment_status_check_in_progress": "Status check in progress",
@@ -4728,7 +4854,7 @@
       "slotScenarioNoSlots": "Show no slots",
       "aliasNoticeTitle": "VIZA alias email",
       "aliasNotice": "For new appointment accounts, VIZA uses the applicant alias email assigned to this profile. Verification messages are received through Cloudflare Email Routing and consumed from Supabase inbound mail; VIZA does not use legacy IMAP for this flow.",
-      "createJob": "Start appointment assistant",
+      "createJob": "Create alias account and start",
       "creating": "Creating...",
       "recordConsent": "Record consent",
       "consentRequiredError": "Please review and accept the consent statement before continuing."
@@ -4740,6 +4866,27 @@
       "checkbox": "I authorize VIZA to run China USVisaScheduling assisted-live actions for this application, with explicit slot selection, final VIZA approval, and official evidence capture.",
       "recorded": "Consent recorded",
       "security": "Sensitive inputs are redacted from assistant logs."
+    },
+    "account": {
+      "title": "Official appointment account",
+      "email": "Account email",
+      "password": "Account password",
+      "status": "Account status",
+      "notCreated": "Not created yet",
+      "revealTitle": "Explicit reveal",
+      "revealBody": "The email, password, and security answers are decrypted only after you click reveal. Normal status polling never carries the password.",
+      "reveal": "Reveal official account",
+      "show": "Show",
+      "hide": "Hide",
+      "securityAnswer": "Security answer {index}",
+      "prefillDs160": "DS-160 code",
+      "prefillPost": "Interview post",
+      "missing": "Missing",
+      "autofillTitle": "Automation uses these frontend records",
+      "autofillDs160": "The DS-160 confirmation and interview post are read from the current application.",
+      "autofillProfile": "Passport, name, contact, and profile details should be completed in the application/universal profile; the runner reads them from Supabase.",
+      "autofillSlots": "The runner writes official calendar timings into the slot list below. You only choose the time.",
+      "autofillEvidence": "After booking, VIZA tracks status and displays official confirmation numbers, screenshots, or PDFs when captured."
     },
     "panel": {
       "title": "Live assistant",
@@ -4770,7 +4917,7 @@
       "completing": "Completing...",
       "instructions": {
         "consent": "Review and accept the consent statement.",
-        "account_email_verification": "Enter the verification code from your email. VIZA will not access your inbox.",
+        "account_email_verification": "VIZA first reads the alias verification message from inbound_email automatically. Enter a code here only if the automatic extraction checkpoint failed.",
         "login": "The runner needs manual review for an unsupported official-site login or risk checkpoint.",
         "captcha": "The runner needs manual review for an unsupported CAPTCHA or MFA checkpoint.",
         "payment": "Review the official payment checkpoint. Continue only if VIZA is authorized to proceed.",
@@ -4807,7 +4954,7 @@
       "selected": "Selected slot: {date} at {time}. Approve only after reviewing the details.",
       "approve": "Approve final step",
       "approving": "Approving...",
-      "book": "Request official booking",
+      "book": "Click official confirmation",
       "approvedBadge": "Approved"
     },
     "results": {
@@ -4868,5 +5015,283 @@
       "button": "Open appointment assistant",
       "badge": "Assisted live"
     }
+  },
+  "franceAppointment": {
+    "page": {
+      "eyebrow": "France Schengen appointment assistant",
+      "title": "TLScontact appointment setup",
+      "subtitle": "After VIZA has a France-Visas official reference, check TLScontact China slots, choose one observed timing, record one-time TLS service-fee authorization, and approve the final booking step."
+    },
+    "stateMachine": {
+      "subtitle": "Complete one stage at a time. VIZA advances only after the required user confirmation or official result.",
+      "ariaLabel": "Appointment progress",
+      "steps": {
+        "review": "Review",
+        "account": "Official account",
+        "slots": "Choose a slot",
+        "confirm": "Confirm",
+        "result": "Result"
+      },
+      "workerUnavailable": "The appointment worker is not ready. You can review your information, but official-site work cannot start yet.",
+      "accountTitle": "TLScontact account and profile",
+      "accountBody": "VIZA is creating or resuming the authorized TLScontact account flow. Any required verification or website checkpoint appears here.",
+      "reviewAgain": "Review details again",
+      "noSlotsBody": "No official TLScontact appointment time is currently available. Refresh later; VIZA will never invent a slot."
+    },
+    "review": {
+      "title": "Review before continuing",
+      "body": "Check the saved applicant details below against the passport and France-Visas application. Select Edit to correct anything; VIZA starts the TLScontact account flow only after you confirm.",
+      "back": "Back to application",
+      "fullName": "Passport name",
+      "dateOfBirth": "Date of birth",
+      "nationality": "Nationality",
+      "passportNumber": "Passport number",
+      "passportExpiry": "Passport expiry date",
+      "phone": "Phone",
+      "email": "Personal email",
+      "address": "Residential address",
+      "center": "TLScontact center",
+      "missing": "Not provided",
+      "confirmation": "I have checked these details against the passport and France-Visas application, and I authorize VIZA to continue to the TLScontact account workflow. Slot selection, payment authorization, and final booking remain separate confirmations.",
+      "edit": "Edit application",
+      "confirmAndContinue": "Confirm details and continue"
+    },
+    "loading": "Loading France appointment assistant...",
+    "errorTitle": "France appointment assistant needs attention",
+    "dryRunNoticeTitle": "TLS China gated flow",
+    "dryRunNotice": "This workflow only runs after explicit user actions. VIZA reads TLScontact slots through the backend, never chooses a slot for the applicant, and pauses on unsupported official-site risk, MFA, identity, or payment challenges.",
+    "cloud": {
+      "ready": "Fly worker ready",
+      "unavailable": "Worker unavailable",
+      "worker": "Cloud worker",
+      "alias": "Verified alias account",
+      "portal": "Observed TLS calendar",
+      "preSubmit": "Ready before submit",
+      "stopTitle": "The official final button is protected",
+      "stopBody": "VIZA stops before the official TLS confirmation click until an observed slot is selected, any required payment authorization is present, and final approval is recorded. Opening this page never starts or submits an appointment."
+    },
+    "requirements": {
+      "title": "Complete these steps in order",
+      "body": "Start with the France-Visas application, then continue downward. Each step separates your information from actions handled by VIZA.",
+      "officialCheckTitle": "Checked against the live TLScontact China registration page",
+      "officialCheckBody": "The official form currently asks for email, password and password confirmation, mandatory legal consent, and reCAPTCHA. Email, phone, SMS, and push marketing consents are optional and are not required for registration.",
+      "openApplication": "Review application details",
+      "userInputTitle": "What you need to enter in VIZA",
+      "userInputBody": "Accurate passport identity, passport details, contact/address information, the France-Visas application reference, and the preferred China application centre. VIZA manages the alias account and activation email; you later choose the observed slot and approve any fee and final booking.",
+      "states": {
+        "ready": "Ready",
+        "review": "Review once",
+        "managed": "Handled by VIZA",
+        "action": "Required",
+        "pending": "Later step"
+      },
+      "roles": {
+        "user": "You",
+        "viza": "VIZA",
+        "joint": "You + VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "Complete France-Visas and review applicant data",
+          "body": "Confirm the passport-matching English name, birth details, nationality, passport number and validity, contact/address information, passport bio page, and the official France-Visas application reference."
+        },
+        "account": {
+          "title": "Create and activate the TLScontact account",
+          "body": "VIZA enters the alias email and generated password, confirms the password, accepts only the required legal terms under your authorization, handles supported reCAPTCHA, and reads the activation email. Optional marketing consent stays off."
+        },
+        "link": {
+          "title": "Choose the centre and link the application",
+          "body": "Confirm the China TLScontact centre. VIZA signs in and links the France-Visas reference, then pauses on missing data, identity checks, MFA, or site-policy restrictions."
+        },
+        "calendar": {
+          "title": "Read the calendar and review the service fee",
+          "body": "VIZA reads official availability without choosing for you. You select one observed slot and authorize the required TLS service-fee step; 3DS or bank verification remains yours."
+        },
+        "booking": {
+          "title": "Approve the final appointment",
+          "body": "Review the centre, date, time, and fee status. VIZA can click the official booking control only after your explicit final approval and records the official confirmation evidence."
+        }
+      }
+    },
+    "errors": {
+      "generic": "The France appointment request could not be completed. Please try again.",
+      "withCode": "The France appointment request could not be completed. Reference: {code}.",
+      "supabaseAuthNotConfigured": "The appointment service is missing Supabase auth configuration. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or SUPABASE_URL and SUPABASE_ANON_KEY, to agent-backend, then restart the backend.",
+      "appointmentSchemaNotConfigured": "The appointment database tables have not been deployed yet. Run the appointment assistant migration, then restart the backend."
+    },
+    "modes": {
+      "dry_run": "Dry run",
+      "assisted_live": "Assisted live",
+      "manual": "Manual"
+    },
+    "statusLabels": {
+      "appointment_not_started": "Not started",
+      "appointment_consent_required": "Consent required",
+      "appointment_consent_received": "Consent received",
+      "appointment_account_required": "TLS account required",
+      "appointment_account_creation_started": "TLS account setup started",
+      "appointment_email_verification_required": "Email checkpoint",
+      "appointment_login_required": "Login checkpoint",
+      "appointment_captcha_required": "CAPTCHA checkpoint",
+      "appointment_profile_fill_in_progress": "Profile fill in progress",
+      "appointment_profile_filled": "Profile fill complete",
+      "appointment_ds160_linked": "France-Visas reference linked",
+      "appointment_payment_required": "TLS service fee authorization required",
+      "appointment_payment_in_progress": "Payment in progress",
+      "appointment_payment_completed": "Payment authorization recorded",
+      "appointment_calendar_opened": "Calendar opened",
+      "appointment_slots_observed": "Slots observed",
+      "appointment_no_slots_available": "No slots available",
+      "appointment_slot_selection_required": "Slot selection required",
+      "appointment_slot_selected": "Slot selected",
+      "appointment_final_confirmation_required": "Final approval required",
+      "appointment_final_confirmation_approved": "Final approval recorded",
+      "appointment_booked": "Booking requested",
+      "appointment_confirmation_captured": "Official confirmation captured",
+      "appointment_status_check_in_progress": "Status check in progress",
+      "appointment_status_checked": "Status checked",
+      "appointment_manual_required": "Manual review required",
+      "appointment_blocked_by_site_policy": "Stopped by site policy",
+      "appointment_failed": "Failed",
+      "appointment_cancelled": "Cancelled"
+    },
+    "centers": {
+      "beijing": "Beijing",
+      "guangzhou": "Guangzhou",
+      "chengdu": "Chengdu",
+      "shanghai": "Shanghai",
+      "shenyang": "Shenyang",
+      "wuhan": "Wuhan",
+      "chongqing": "Chongqing",
+      "changsha": "Changsha",
+      "fuzhou": "Fuzhou",
+      "hangzhou": "Hangzhou",
+      "kunming": "Kunming",
+      "nanjing": "Nanjing",
+      "shenzhen": "Shenzhen",
+      "jinan": "Jinan",
+      "xian": "Xi'an"
+    },
+    "setup": {
+      "title": "TLS setup",
+      "center": "TLScontact center",
+      "referenceHint": "A France-Visas official reference must exist before VIZA can create a TLS appointment job. The backend blocks the job if the reference is missing.",
+      "createJob": "Create alias account and start",
+      "jobCreated": "Appointment job created",
+      "creating": "Creating account and opening TLScontact...",
+      "recordConsent": "Record consent",
+      "consentRequiredError": "Please review and accept the consent statement before continuing."
+    },
+    "consent": {
+      "title": "Consent and boundaries",
+      "body1": "VIZA can assist the mainland China TLScontact flow after the France-Visas application reference has been created.",
+      "body2": "VIZA may handle supported TLS login, alias-email verification, CAPTCHA, slot observation, service-fee payment handoff, and confirmation checkpoints. You still choose the slot, authorize payment, and approve final booking.",
+      "checkbox": "I authorize VIZA to run France Schengen TLScontact China appointment actions for this application, with explicit slot selection, one-time payment authorization, final approval, and official evidence capture."
+    },
+    "account": {
+      "title": "VIZA alias and TLS account",
+      "alias": "Alias email",
+      "status": "Official account status",
+      "verification": "Email verification",
+      "verified": "Verified automatically",
+      "notVerified": "Pending",
+      "pending": "Created when the runner starts",
+      "body": "The cloud runner registers TLScontact with this application-specific alias. Cloudflare Email Worker writes the activation message to inbound_email; passwords and activation links stay server-side."
+    },
+    "checkpoint": {
+      "title": "Official portal checkpoint",
+      "body": "TLScontact requires review before the automated flow can continue."
+    },
+    "panel": {
+      "title": "Appointment runner",
+      "progressTitle": "Appointment progress",
+      "stepComplete": "Complete",
+      "stepPending": "Pending",
+      "noJob": "Start after consent and center selection. Opening this page only reads status; no TLS job is created or rerun automatically.",
+      "progressBody": "The backend reads the latest appointment state from VIZA tables. TLS slot checks run only after a user-triggered action and backend cooldown.",
+      "provider": "Scheduling provider",
+      "providerUnknown": "To be detected",
+      "mode": "Mode",
+      "run": "Run first step",
+      "checkSlots": "Check slots",
+      "cancel": "Cancel"
+    },
+    "slots": {
+      "title": "Observed TLS slots",
+      "empty": "No TLS timings have been returned yet. Start the assistant, then use Check slots when you intentionally want a backend observation.",
+      "noSlots": "TLScontact returned no available slots. Use Check slots only when you intentionally want another user-triggered check.",
+      "choose": "Choose",
+      "selected": "Selected",
+      "observedAt": "Observed {value}",
+      "observedPending": "Observation time pending",
+      "datePending": "Date pending",
+      "timePending": "Time pending",
+      "locationPending": "Location pending",
+      "slotLine": "{date} at {time}"
+    },
+    "payment": {
+      "title": "One-time TLS fee authorization",
+      "body": "Record only the redacted payment authorization handoff here. Full PAN, CVV, OTP, and payment passwords must stay out of VIZA DB, logs, screenshots, and browser status APIs.",
+      "brand": "Brand",
+      "brandPlaceholder": "Visa",
+      "last4": "Last 4",
+      "expMonth": "Expiry month",
+      "expYear": "Expiry year",
+      "record": "Record authorization",
+      "authorized": "Authorization recorded",
+      "validation": "Enter last 4 digits, expiry month, and four-digit expiry year."
+    },
+    "final": {
+      "title": "Final approval",
+      "requirement": "Choose an observed TLS slot before final approval is available.",
+      "selected": "Selected slot: {date} at {time}. Approve only after reviewing the TLS timing and payment authorization.",
+      "approve": "Approve final step",
+      "book": "Click official confirmation",
+      "approvedBadge": "Approved"
+    },
+    "results": {
+      "title": "Results",
+      "none": "No TLS appointment confirmation has been captured yet.",
+      "confirmationNumber": "Official confirmation",
+      "date": "Appointment date",
+      "time": "Appointment time",
+      "location": "Center",
+      "captured": "Official evidence captured"
+    },
+    "nextStepCard": {
+      "title": "Next: TLS appointment",
+      "body": "Continue to TLScontact China appointment setup with user-triggered slot checks, explicit slot selection, one-time payment authorization, and final approval.",
+      "button": "Open TLS appointment assistant",
+      "badge": "TLScontact China"
+    }
+  },
+  "JapanAppointment": {
+    "loading": "Loading Japan appointment preparation…",
+    "back": "Back to Japan application",
+    "eyebrow": "Japan temporary visitor visa · Singapore JVAC",
+    "title": "Japan VFS website automation",
+    "subtitle": "VIZA validates your Singapore eligibility and documents, then opens and inspects the official public VFS route. Account creation, login, slot access, payment, and booking are disabled in this mode.",
+    "select": "Select",
+    "yes": "Available",
+    "no": "Not available",
+    "steps": { "label": "Appointment progress", "review": "Review", "account": "Official site", "slots": "Slots", "confirm": "Confirm", "result": "Result" },
+    "review": { "title": "Review applicant and filing details", "englishName": "Passport English name", "dateOfBirth": "Date of birth", "nationality": "Nationality", "passport": "Passport number", "passportExpiry": "Passport expiry", "phone": "Phone", "email": "Personal email", "address": "Residential address", "center": "Appointment center", "notProvided": "Not provided", "edit": "Edit application" },
+    "account": { "title": "Official website checkpoint", "mobileAlreadyRegisteredTitle": "This mobile number is linked to another VFS account", "mobileAlreadyRegisteredBody": "The official registration form accepted all fields and Turnstile, then reported that this mobile number is already registered. To continue, provide the email address of the existing VFS account for login, or replace the phone number with one that can receive a new VFS OTP." },
+    "free": { "title": "Public-site automation only", "body": "This mode uses one cloud browser session to reach the official public VFS route and preserve redacted evidence. It stops before account creation or login and cannot read protected appointment slots." },
+    "eligibility": { "title": "1. Eligibility", "visaType": "Visa request", "occupation": "Occupation", "passType": "Singapore long-term pass", "passExpiry": "Pass expiry date", "returnDate": "Return to Singapore date", "pass": "Eligible", "incomplete": "Incomplete", "passBody": "The basic Singapore filing eligibility check passed.", "incompleteBody": "Provide a valid long-term pass covering the return date." },
+    "visaTypes": { "single_entry": "Single entry", "double_entry": "Double entry", "multiple_entry": "Multiple entry" },
+    "occupations": { "employed": "Employed", "self_employed": "Self-employed", "student": "Student", "retired": "Retired", "housewife": "Homemaker", "unemployed": "Unemployed" },
+    "passTypes": { "pr": "Permanent Resident", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
+    "documents": { "title": "2. Document preflight", "body": "Select the latest portrait saved in Universal Profile, or replace it for this application.", "manage": "Open Document Center", "passportStored": "Passport stored in VIZA", "photoStored": "Portrait selected", "profilePhotoTitle": "Universal Profile portrait", "profilePhotoSelected": "The saved Universal Profile portrait is selected for this Japan application. Use Replace if you want a different photo.", "profilePhotoLoading": "Selecting the latest reusable portrait…", "profilePhotoMissing": "No reusable portrait was found. Upload one to continue.", "useProfilePhoto": "Use Universal Profile photo", "replaceProfilePhoto": "Replace portrait", "noProfilePhoto": "No portrait is saved in Universal Profile. Upload one below.", "photoUploadFailed": "The portrait could not be uploaded. Use a JPG, PNG, or WebP image and try again.", "profileIncomplete": "Application profile is incomplete", "profileMissing": "Complete these fields in the application before preparing the appointment: {fields}." },
+    "workflow": { "title": "3. Website automation", "consent": "I confirm the information is truthful and authorize VIZA to open and inspect the public Japan VFS Singapore route. This authorization does not create an account, send an SMS or email, log in, read protected slots, pay, or book.", "saving": "Saving…", "saveConsent": "Record consent", "consentRecorded": "Consent recorded", "consentRecordedBody": "The backend has stored your public-site automation authorization for this application.", "creating": "Starting…", "create": "Start website automation", "restart": "Start again", "restartTitle": "Automation cancelled", "restartBody": "You can review the latest details and start a new public-site check when ready.", "checking": "Checking…", "check": "Run public VFS check", "publicOnlyTitle": "Account creation is off", "publicOnlyBody": "The worker may open the public VFS route and save redacted evidence only. It will stop at the login or security boundary.", "aliasReady": "Account creation disabled", "aliasBody": "No VFS alias or account is created in public-site mode.", "openOfficial": "Open official VFS", "cancel": "Cancel automation" },
+    "evidence": { "title": "Cloud evidence", "httpStatus": "HTTP status", "pageTitle": "Official page", "observedAt": "Observed at", "entryClick": "Book now clicked", "replay": "Browserbase replay" },
+    "checkpoints": { "login": "Official login required", "existing_mobile_account": "Existing VFS account details required", "captcha": "CAPTCHA detected", "waf": "WAF checkpoint", "identity_verification": "Identity verification required", "selector_drift": "Portal state requires review", "no_slots": "No slots visible", "slot_selection": "Choose an appointment", "payment": "Official payment required", "site_policy_review": "Official policy checkpoint" },
+    "checkpointBodies": { "login": "The public official route rendered successfully and reached the login boundary. Account creation is disabled, so automation stopped here as intended.", "existing_mobile_account": "VFS confirmed that the supplied mobile number is already registered. Provide the existing VFS account email for login, or a different phone number that can receive a new OTP.", "captcha": "The official portal requires a CAPTCHA check. VIZA has paused without creating an account or claiming an appointment.", "waf": "The official portal is showing a security or regional access checkpoint. VIZA has preserved the observation and paused.", "identity_verification": "The official portal requires applicant identity verification. Public-site automation stops here.", "selector_drift": "The official page did not match a verified public entry state. VIZA has paused for review.", "no_slots": "The official page did not expose an available appointment time during the latest observation.", "slot_selection": "Choose one of the currently observed official VFS appointment times.", "payment": "Continue through the secure VFS-hosted service-fee payment step.", "site_policy_review": "The official portal requires a policy review before automation can continue." },
+    "slots": { "title": "Official appointment slots", "empty": "No official slots have been observed yet. Use Check official portal after the VFS account is ready.", "choose": "Choose", "selected": "Selected" },
+    "payment": { "title": "VFS service-fee payment", "officialTitle": "Complete payment on the official VFS page", "officialBody": "VIZA does not collect full card details in this assistant. Payment remains unavailable while public-only mode is active.", "secureTitle": "One-time secure payment", "secureBody": "Card data is transferred once to the in-memory booking worker, expires within minutes, and is never written to the database or logs. A bank 3-D Secure challenge may still require approval.", "holder": "Name on card", "cardNumber": "Card number", "expiry": "Expiry", "cvv": "CVV", "authorize": "Prepare one-time payment" },
+    "final": { "title": "Final booking confirmation", "consent": "I reviewed the selected official slot and payment terms and authorize VIZA to request the final VFS booking.", "approve": "Approve final booking", "book": "Book selected slot", "confirmed": "Official appointment confirmed", "confirmation": "Confirmation {number} · {date} {time}" },
+    "result": { "openEvidence": "Open official evidence" },
+    "statuses": { "not_started": "Not started", "appointment_account_required": "Public check ready", "appointment_manual_required": "Stopped at official boundary", "appointment_no_slots_available": "No slots", "appointment_slot_selection_required": "Choose a slot", "appointment_payment_required": "Payment required", "appointment_payment_completed": "Payment authorized", "appointment_payment_ready": "Payment ready", "appointment_final_confirmation_approved": "Final approval recorded", "appointment_confirmation_captured": "Confirmed", "appointment_cancelled": "Cancelled" },
+    "errors": { "title": "Could not continue", "load": "Japan appointment status could not be loaded.", "action": "Japan appointment action failed.", "missingRequiredFields": "Complete the missing application fields and upload the passport and photo before preparing the appointment.", "consentRequired": "Record your consent before preparing the appointment.", "cancelled": "This preparation was cancelled. Start a new preparation before checking the portal.", "runnerUnavailable": "The official-portal worker is not available. Please try again later.", "slotRequired": "Choose a currently available VFS slot first.", "paymentRequired": "Complete the secure VFS payment authorization first.", "finalRequired": "Approve the final booking before submission.", "sessionRequired": "Your sign-in session expired. Sign in again to continue." }
   }
 }

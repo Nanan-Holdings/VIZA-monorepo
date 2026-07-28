@@ -40,6 +40,7 @@ export interface SubmissionQueueItem {
     | "vn_dry_run_pending"
     | "vn_dry_run_processing"
     | "vn_dry_run_failed"
+    | "vn_cloud_live_pending"
     | "vn_live_assisted_pending"
     | "vn_live_assisted_processing"
     | "vn_live_assisted_failed"
@@ -79,6 +80,22 @@ export interface SubmissionQueueItem {
     | "tdac_live_assisted_failed"
     | "tdac_live_assisted_cancelled"
     | "tdac_blocked"
+    | "id_c1_live_assisted_pending"
+    | "id_c1_live_assisted_processing"
+    | "id_c1_payment_pending"
+    | "id_c1_payment_processing"
+    | "id_c1_payment_paid"
+    | "id_c1_payment_failed"
+    | "id_c1_live_assisted_failed"
+    | "id_c1_blocked"
+    | "id_b1_evoa_live_assisted_pending"
+    | "id_b1_evoa_live_assisted_processing"
+    | "id_b1_evoa_payment_pending"
+    | "id_b1_evoa_payment_processing"
+    | "id_b1_evoa_payment_paid"
+    | "id_b1_evoa_payment_failed"
+    | "id_b1_evoa_live_assisted_failed"
+    | "id_b1_evoa_blocked"
     | "phetravel_dry_run_pending"
     | "phetravel_dry_run_processing"
     | "phetravel_dry_run_failed"
@@ -88,12 +105,24 @@ export interface SubmissionQueueItem {
     | "phetravel_live_assisted_failed"
     | "phetravel_live_assisted_cancelled"
     | "phetravel_blocked"
+    | "vn_prearrival_dry_run_pending"
+    | "vn_prearrival_dry_run_processing"
+    | "vn_prearrival_dry_run_failed"
+    | "vn_prearrival_live_assisted_pending"
+    | "vn_prearrival_live_assisted_scheduled"
+    | "vn_prearrival_live_assisted_processing"
+    | "vn_prearrival_live_assisted_failed"
+    | "vn_prearrival_live_assisted_cancelled"
+    | "vn_prearrival_blocked"
     | "au_prefill_pending"
     | "au_prefill_processing"
     | "au_prefilled"
     | "au_prefill_failed"
     | "au_blocked";
   attempts: number;
+  locked_by?: string | null;
+  locked_at?: string | null;
+  locked_until?: string | null;
   mode?: "dry_run" | "live_assisted" | string | null;
   provider?: string | null;
   last_error: string | null;
@@ -245,6 +274,19 @@ export interface FvAccount {
   password_encrypted: string;
   official_account_email_encrypted?: string | null;
   official_account_password_encrypted?: string | null;
+  storage_state_json: Record<string, unknown> | null;
+  last_authenticated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PhEtravelAccount {
+  id: string;
+  applicant_id: string;
+  email: string;
+  password_encrypted: string | null;
+  mpin_encrypted: string | null;
+  status: string;
   storage_state_json: Record<string, unknown> | null;
   last_authenticated_at: string | null;
   created_at: string;

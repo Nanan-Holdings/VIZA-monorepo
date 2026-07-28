@@ -30,6 +30,7 @@ const COUNTRY_ZH_OVERRIDES: Record<string, string> = {
   "CAYMAN ISLANDS": "开曼群岛",
   CROATIA: "克罗地亚",
   CURACAO: "库拉索",
+  "CZECH REPUBLIC": "捷克",
   "DPR OF KOREA": "朝鲜",
   ESTONIA: "爱沙尼亚",
   ESWATINI: "斯威士兰",
@@ -38,6 +39,7 @@ const COUNTRY_ZH_OVERRIDES: Record<string, string> = {
   "FEDERATED STATES OF MICRONESIA": "密克罗尼西亚联邦",
   "FRENCH GUIANA": "法属圭亚那",
   "FRENCH POLYNESIA": "法属波利尼西亚",
+  GERMANY: "德国",
   GEORGIA: "格鲁吉亚",
   GIBRALTAR: "直布罗陀",
   GREENLAND: "格陵兰",
@@ -54,6 +56,7 @@ const COUNTRY_ZH_OVERRIDES: Record<string, string> = {
   "MIDWAY ISLANDS": "中途岛",
   MONTENEGRO: "黑山",
   MONTSERRAT: "蒙特塞拉特",
+  MYANMAR: "缅甸",
   "NEW CALEDONIA": "新喀里多尼亚",
   "NIUE ISLAND": "纽埃",
   "NORFOLK ISLAND": "诺福克岛",
@@ -609,7 +612,7 @@ function normalizeCitySegment(segment: string, firstCountryEn: string, firstCoun
 }
 
 function splitTranslatedParts(value: string): string[] {
-  return value.split(/[，,]/).map((part) => part.trim()).filter(Boolean);
+  return value.split(/[，,、]/).map((part) => part.trim()).filter(Boolean);
 }
 
 function cityOtherRegionLabelZh(segment: string, firstCountryEn: string, firstCountryZh: string | null, cachedPart?: string): string {
@@ -626,6 +629,38 @@ function cityOtherRegionLabelZh(segment: string, firstCountryEn: string, firstCo
   return `${placeZh ?? "该地"}其他地区`;
 }
 
+function compactCityHierarchy(officialParts: string[], translatedParts: string[]): string[] {
+  const compacted: string[] = [];
+  const seenOfficialParts = new Set<string>();
+
+  officialParts.forEach((part, index) => {
+    const normalized = normalizeKey(part);
+    const othersPrefix = "OTHERS IN ";
+    const isOtherRegion = normalized.startsWith(othersPrefix);
+    const parent = isOtherRegion ? normalized.slice(othersPrefix.length) : normalized;
+
+    if (seenOfficialParts.has(normalized)) return;
+    if (isOtherRegion && compacted.at(-1) === "其他地区") return;
+
+    let translated = translatedParts[index] ?? "";
+    if (
+      isOtherRegion &&
+      (seenOfficialParts.has(parent) ||
+        compacted.some((ancestor) => translated === `${ancestor}其他地区`))
+    ) {
+      translated = "其他地区";
+    }
+
+    if (translated && compacted.at(-1) !== translated) {
+      compacted.push(translated);
+    }
+    seenOfficialParts.add(normalized);
+    if (!isOtherRegion) seenOfficialParts.add(parent);
+  });
+
+  return compacted;
+}
+
 function cityLabelZh(option: SgacOfficialOption): string {
   const cached = TRANSLATION_CACHE.city?.[option.value]?.trim();
   const officialParts = option.value.split(",").map((part) => part.trim()).filter(Boolean);
@@ -633,16 +668,15 @@ function cityLabelZh(option: SgacOfficialOption): string {
 
   const cachedParts = cached ? splitTranslatedParts(sanitizeCachedZh(cached)) : [];
   const existingParts = option.labelZh.split("，").map((part) => part.trim());
-  const firstCountryZh = countryZh(officialParts[0], existingParts[0]);
-  return officialParts
-    .map((part, index) => {
-      if (index === 0) return firstCountryZh ?? cachedParts[0] ?? "指定国家/地区";
-      if (normalizeKey(part).startsWith("OTHERS IN ")) {
-        return cityOtherRegionLabelZh(part, officialParts[0], firstCountryZh, cachedParts[index]);
-      }
-      return cachedParts[index] ?? normalizeCitySegment(part, officialParts[0], firstCountryZh, index);
-    })
-    .join("，");
+  const firstCountryZh = countryZh(officialParts[0], cachedParts[0] ?? existingParts[0]);
+  const translatedParts = officialParts.map((part, index) => {
+    if (index === 0) return firstCountryZh ?? cachedParts[0] ?? "指定国家/地区";
+    if (normalizeKey(part).startsWith("OTHERS IN ")) {
+      return cityOtherRegionLabelZh(part, officialParts[0], firstCountryZh, cachedParts[index]);
+    }
+    return cachedParts[index] ?? normalizeCitySegment(part, officialParts[0], firstCountryZh, index);
+  });
+  return compactCityHierarchy(officialParts, translatedParts).join("，");
 }
 
 function countryLabelZh(option: SgacOfficialOption): string {

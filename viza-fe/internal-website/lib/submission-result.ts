@@ -44,6 +44,7 @@ export type SubmissionResult =
   | AuSubmissionResult
   | JpSubmissionResult
   | TwSubmissionResult
+  | KrSubmissionResult
   | GenericSubmissionResult
   | GenericEvisaSubmissionResult;
 
@@ -60,6 +61,8 @@ export interface GenericEvisaSubmissionResult {
   status: "submitted" | "stopped_at_pay" | "form_ready_for_agency";
   /** Portal reference / registration code, when captured. */
   reference?: string;
+  /** Official portal URL, including payment/resume URL when the runner reached a handoff page. */
+  portalUrl?: string;
   /** submission-artifacts bucket path for the e-visa / confirmation PDF. */
   artifactStoragePath?: string;
 }
@@ -242,11 +245,11 @@ export interface SgArrivalCardSubmissionResult {
 }
 
 export interface DigitalArrivalCardSubmissionResult {
-  country: "MY" | "TH" | "PH";
-  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD";
+  country: "MY" | "TH" | "PH" | "VN";
+  visaType: "MY_MDAC_ARRIVAL_CARD" | "TH_TDAC_ARRIVAL_CARD" | "PH_ETRAVEL_ARRIVAL_CARD" | "PH_ETRAVEL_DEPARTURE_CARD" | "VN_PREARRIVAL_DECLARATION";
   status: "submitted" | "scheduled" | "validation_failed" | "official_portal_error";
   mode: "live_assisted";
-  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live";
+  provider: "malaysia_mdac_live" | "thailand_tdac_live" | "philippines_etravel_live" | "vietnam_prearrival_live";
   applicationId: string;
   submitted: boolean;
   confirmationNumber?: string | null;
@@ -261,6 +264,7 @@ export interface DigitalArrivalCardSubmissionResult {
   };
   artifacts?: {
     screenshots?: string[];
+    qrCodes?: string[];
     pdfs?: string[];
     logs?: string[];
     traces?: string[];
@@ -339,6 +343,54 @@ export interface TwSubmissionResult {
   url?: string;
 }
 
+export interface KrSubmissionResult {
+  country: "KR";
+  status: "form_ready_for_kvac" | "official_eform_required" | "official_eform_ready";
+  applicationId: string;
+  annex17PdfUrl?: string | null;
+  officialEformPdfStoragePath?: string | null;
+  officialEformApplicationNumber?: string | null;
+  officialEformPortalUrl?: string | null;
+  officialEformStatus?:
+    | "not_started"
+    | "queued"
+    | "processing"
+    | "manual_action_required"
+    | "ready"
+    | "failed";
+  manualAction?: {
+    type:
+      | "official_eform_generation_required"
+      | "official_eform_first_page_filled"
+      | "official_eform_portal_review_required"
+      | "official_eform_unsupported_for_post"
+      | "official_eform_download_required"
+      | "official_portal_error";
+    status: "open" | "completed";
+    instructions: string;
+    evidence?: {
+      filledSelectors?: string[];
+      missingUploads?: string[];
+      screenshotPath?: string | null;
+      fillAuditFailures?: Array<{
+        selector: string;
+        expected: string;
+        actual: string | null;
+        ok: boolean;
+        reason?: "missing_selector" | "empty_value" | "value_mismatch" | "radio_not_checked";
+      }>;
+    };
+  };
+  recommendedCenter?: {
+    code: string;
+    nameEn: string;
+    nameZh: string;
+    bookingUrl: string;
+    addressZh: string;
+  };
+  appointmentStatus?: string | null;
+}
+
 export interface GenericSubmissionResult {
   country: "GENERIC";
   targetCountry: string;
@@ -347,6 +399,7 @@ export interface GenericSubmissionResult {
   mode: "dry_run" | "live_assisted";
   applicationId: string;
   confirmationNumber?: string;
+  portalUrl?: string;
   actionType?: string;
   actionInstructions?: string;
   implementationStatus:
@@ -375,4 +428,5 @@ export type SubmissionResultStatus =
   | "stopped_at_review"
   | "final_review_required"
   | "form_ready_for_agency"
+  | "form_ready_for_kvac"
   | "failed";

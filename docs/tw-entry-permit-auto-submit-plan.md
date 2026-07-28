@@ -16,7 +16,7 @@
 - **接入方式走 `runner_job` + `queue/dispatch.ts` + `runner.ts` 导出 `runOne`**（第1类的契约），不去扩 `src/index.ts` 里那个 `ArrivalCardCode` union——因为把"台湾入境许可申请"硬塞进"数字入境卡"的分类里在语义上不对（入境卡是当场生效的免费通知，台湾这个是要审核+核准+另外付款的正式许可证申请），会让那个本来就很大的 `processDigitalArrivalCardLiveItem` 文件更难维护。这是"有没有更优雅做法"的取舍：优雅的做法是"产品分类归 UK 那一类的契约，实现细节借 MDAC 那一类的简单session"，而不是照抄某一类的全部。
 - **状态命名**：`queue/types.ts` 里 `DispatchOutcome.outcome` 是写死的三选一 `"halted_before_pay" | "submitted_pending_pay" | "paper_ready"`，这是所有 `runOne` 实现共用的队列层通用状态，UK/France/AU halt 在这一层都统一映射成 `halted_before_pay`（即使他们各自真实卡住的原因不同）。台湾也照这个既有惯例，在队列层映射成 `halted_before_pay`；但在国家专属的 `TwSubmissionResult.status` 里用更准确的 `stopped_at_captcha`，跟 `UkSubmissionResult.status = "stopped_at_pay"` 是同一个设计模式（队列层统一记账，国家层保留真实语义）。
 - **验证码——刻意跟 MDAC 不一样**：MDAC/TDAC 会自动解验证码（滑块几何计算/2captcha）才停在最终送出前。台湾这条线**不接 2captcha、不解验证码**，填完所有栏位后直接停在验证码输入框，状态就是 `stopped_at_captcha`——这是你已经明确选定的边界，不因为"抄近的模式"而妥协。
-- DB 改动缩减为：一条 `visa_packages` 目录行迁移（照抄 `0098_sg_arrival_card_package.sql`/`0100_mdac_tdac_arrival_card_packages.sql`/`0103_ph_etravel_arrival_card_package.sql` 的写法，序号定为 `0104_tw_entry_permit_package.sql`），不需要账号表迁移。
+- DB 改动缩减为：一条 `visa_packages` 目录行迁移（照抄 `0098_sg_arrival_card_package.sql`/`0100_mdac_tdac_arrival_card_packages.sql`/`0103_ph_etravel_arrival_card_package.sql` 的写法，序号定为 `0121_tw_entry_permit_package.sql`——同步同事分支时发现 `0104`/`0105` 已被占用，改用同步后的下一个可用序号），不需要账号表迁移。
 
 以下第 1-3 节是第一版内容，**除了"tw_accounts 表"和"账号模型"相关描述已被上面这段取代之外，其余（字段清单、页面结构、停止边界、验证码位置）仍然有效**，不用重复确认。
 
@@ -153,7 +153,7 @@
 ### 5.4 文件上传的真实架构——发现一个从最早实现开始就存在的死路
 本来想直接复用现有的"照片上传桥接"逻辑（`visa_application_answers.photo_upload` 文本字段），一查才发现这条桥根本没接通：DocumentCenterClient 真实上传时只写 `application_documents` 表（按 `document_type`/`requirement_key` 归档 `storage_path`），从来不会写回 `visa_application_answers`。也就是说包括最早就有的"照片"在内，这条自动化流程里从来没有一段代码真正把上传的文件解析成本地文件路径喂给 Playwright。
 
-已修正为正确路径：`document_requirements` 表新增台湾这几类文件的定义（迁移 `0105_tw_entry_permit_document_requirements.sql`），运行时由新增的 `src/documents/resolve-application-documents.ts`（按 `requirement_key` 查 `application_documents` 拿 `storage_path`，从 Supabase Storage 下载成本地文件）在 `queue/halt-runners.ts` 的 `runTwHalt` 里解析，再通过 `TwApplyOptions.supportingDocuments`/`photoFilePath` 传给 `apply.ts`——不再经过 `normalize.ts`（文字类答案）这条线，`normalize.ts` 里对应位置留了清楚的注释说明为什么这几个字段不走 `requireStr` 校验。
+已修正为正确路径：`document_requirements` 表新增台湾这几类文件的定义（迁移 `0122_tw_entry_permit_document_requirements.sql`），运行时由新增的 `src/documents/resolve-application-documents.ts`（按 `requirement_key` 查 `application_documents` 拿 `storage_path`，从 Supabase Storage 下载成本地文件）在 `queue/halt-runners.ts` 的 `runTwHalt` 里解析，再通过 `TwApplyOptions.supportingDocuments`/`photoFilePath` 传给 `apply.ts`——不再经过 `normalize.ts`（文字类答案）这条线，`normalize.ts` 里对应位置留了清楚的注释说明为什么这几个字段不走 `requireStr` 校验。
 
 ### 5.5 仍然没做/没验证的（诚实清单）
 - 「未成年监护人同意」文件的四类资格覆盖情况没测全，VIZA 也没收集监护人同意书本身。
@@ -161,3 +161,13 @@
 - 邮箱验证码的真实格式（位数、发件域名）还没有收过一封真实验证邮件确认。
 - 全流程端到端（Playwright 实际执行，不只是 DOM 核对 + 类型检查）还没跑过一次。
 - IP 地域限制、案号提取正则——低优先级，仍未测。
+
+### 6. 同步同事分支时发现的重复实现（已按你的决定处理）
+
+同步 `origin/main`（同事 Chen Hongyu 7/13 推的 992 个提交）时发现同事独立做了一套台湾自动化：`src/tw-entry-permit/`，visa_type `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`，专门给"旅居新加坡的大陆护照持有人"，实现只到"email 验证 + selector-recon 断点"，填表用的是占位数据（`placeholder-draft.ts`），且 `captcha.ts` 会自动调 2captcha 解验证码后继续。
+
+按你的决定（"保留 captcha，其他全部用我的"）：
+- 移除了同事的 `src/tw-entry-permit/`、`scripts/tw-entry-permit/**`、`scripts/seed-tw-overseas-cn-tourism-entry-permit-form-fields.ts`、`scripts/run-tw-entry-permit-smoke.ts`，`country-submissions/registry.ts`/各处 AGENTS.md/chat AGENTS.md 里指向它的引用也一并改回 `TW_ENTRY_PERMIT`。
+- 从同事的 `captcha.ts` 里搬了验证码自动识别能力过来（`src/tw/captcha.ts`），复用共享的 `../captcha/two-captcha.ts`；选择器现场重新核实过（`img.captcha[alt='驗證碼']` / `input#captchaToken`），跟同事写的一致。
+- 但**没有**采用同事"解完验证码自动继续"的做法——现场确认"確認資料"是一个真实的 `<form method=post>` 提交按钮、点了就是直接把申请送到移民署（没有中间预览页），所以自动化仍然停在这一步不点，只是把验证码识别结果先帮忙填好，申请人自己核对后点最后一下。
+- DB 迁移编号跟同事的撞了（都用了 0104/0105），改成 `0121`/`0122`（同事目前最新到 0120）。

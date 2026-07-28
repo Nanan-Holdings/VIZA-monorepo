@@ -48,6 +48,7 @@ export interface TdacPortalPayload {
   subDistrict?: string;
   postalCode?: string;
   countriesVisitedLast14Days: string[];
+  yellowFeverVaccinationCertificate?: boolean;
 }
 
 function text(value: unknown): string {
@@ -79,16 +80,58 @@ function splitFullName(fullName: string): { familyName: string; firstName: strin
   };
 }
 
-function booleanAnswer(value: unknown): boolean {
-  return ["true", "yes", "1", "on"].includes(text(value).toLowerCase());
-}
-
 function listAnswer(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(text).filter(Boolean);
   return text(value)
     .split(/[,;\n]/)
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function optionalBooleanAnswer(value: unknown): boolean | undefined {
+  const normalized = text(value).toLowerCase();
+  if (["yes", "true", "1"].includes(normalized)) return true;
+  if (["no", "false", "0"].includes(normalized)) return false;
+  return undefined;
+}
+
+const TDAC_PURPOSE_ALIASES: Record<string, string> = {
+  holiday: "holiday",
+  tourism: "holiday",
+  vacation: "holiday",
+  leisure: "holiday",
+  meeting: "meeting",
+  sports: "sports",
+  business: "business",
+  incentive: "incentive",
+  medical: "medical_wellness",
+  medical_wellness: "medical_wellness",
+  education: "education",
+  convention: "convention",
+  employment: "employment",
+  exhibition: "exhibition",
+  others: "others",
+};
+
+export function normalizeTdacPurpose(
+  purpose: string,
+  purposeOther?: string,
+): { purpose: string; purposeOther?: string; valid: boolean } {
+  const normalized = purpose.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "transit") {
+    return { purpose: "others", purposeOther: purposeOther?.trim() || "TRANSIT", valid: true };
+  }
+  if (normalized === "return_resident") {
+    return { purpose: "others", purposeOther: purposeOther?.trim() || "RETURN RESIDENT", valid: true };
+  }
+
+  const canonical = TDAC_PURPOSE_ALIASES[normalized];
+  if (!canonical) return { purpose: normalized, purposeOther: purposeOther?.trim() || undefined, valid: false };
+  return {
+    purpose: canonical,
+    purposeOther: purposeOther?.trim() || undefined,
+    valid: true,
+  };
 }
 
 export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPortalPayload {
@@ -99,13 +142,15 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     );
   }
 
-  const answers = payload.countrySpecific;
+  const answers = payload.countrySpecific ?? {};
+  const personal = payload.personal ?? {};
+  const trip = payload.trip ?? {};
   const missing: string[] = [];
-  const splitName = splitFullName(firstText([answers.full_name, payload.personal.fullName]));
-  const arrivalDate = requireFirstText([answers.arrival_date, payload.trip.arrivalDate], "answers.arrival_date", missing);
-  const departureDate = requireFirstText([answers.departure_date, payload.trip.departureDate], "answers.departure_date", missing);
+  const splitName = splitFullName(firstText([answers.full_name, personal.fullName]));
+  const arrivalDate = requireFirstText([answers.arrival_date, trip.arrivalDate], "answers.arrival_date", missing);
+  const departureDate = requireFirstText([answers.departure_date, trip.departureDate], "answers.departure_date", missing);
   const sameDayTransit = arrivalDate === departureDate;
-  const isTransitTraveler = sameDayTransit || booleanAnswer(answers.is_transit_traveler);
+  const isTransitTraveler = sameDayTransit;
 
   const arrivalModeOfTravel = requireFirstText(
     [answers.arrival_mode_of_travel, answers.mode_of_travel],
@@ -143,39 +188,45 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
   const accommodationType = firstText([answers.accommodation_type]);
   const province = firstText([answers.province]);
   const district = firstText([answers.district]);
+  const subDistrict = firstText([answers.sub_district, answers.subdistrict]);
+  const postalCode = firstText([answers.postcode, answers.postal_code]);
   const addressInThailand = firstText([answers.address_in_thailand]);
   if (!isTransitTraveler) {
     if (!accommodationType) missing.push("answers.accommodation_type");
     if (!province) missing.push("answers.province");
-    if (!district) missing.push("answers.district");
     if (!addressInThailand) missing.push("answers.address_in_thailand");
   }
+  const purpose = normalizeTdacPurpose(
+    requireFirstText([answers.purpose_of_travel], "answers.purpose_of_travel", missing),
+    firstText([answers.purpose_of_travel_other]),
+  );
+  if (!purpose.valid) missing.push("answers.purpose_of_travel(official_option)");
 
   const fields: TdacPortalPayload = {
     applicationId: payload.applicationId,
     familyName: requireFirstText([answers.family_name, splitName.familyName], "answers.family_name", missing),
     firstName: requireFirstText([answers.first_name, splitName.firstName], "answers.first_name", missing),
     middleName: firstText([answers.middle_name, splitName.middleName]),
-    passportNumber: requireFirstText([answers.passport_number, payload.personal.passportNumber], "answers.passport_number", missing),
-    nationality: requireFirstText([answers.nationality, payload.personal.nationality], "answers.nationality", missing),
-    dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "answers.date_of_birth", missing),
-    gender: requireFirstText([answers.gender, answers.sex, payload.personal.gender], "answers.gender", missing),
-    occupation: requireFirstText([answers.occupation, payload.personal.occupation], "answers.occupation", missing),
+    passportNumber: requireFirstText([answers.passport_number, personal.passportNumber], "answers.passport_number", missing),
+    nationality: requireFirstText([answers.nationality, personal.nationality], "answers.nationality", missing),
+    dateOfBirth: requireFirstText([answers.date_of_birth, personal.dateOfBirth], "answers.date_of_birth", missing),
+    gender: requireFirstText([answers.gender, answers.sex, personal.gender], "answers.gender", missing),
+    occupation: requireFirstText([answers.occupation, personal.occupation], "answers.occupation", missing),
     visaNumber: firstText([answers.visa_number]),
     residenceCountry: requireFirstText(
-      [answers.country_territory_of_residence, payload.personal.nationality],
+      [answers.country_territory_of_residence, personal.nationality],
       "answers.country_territory_of_residence",
       missing,
     ),
     residenceCity: requireFirstText([answers.city_state_of_residence], "answers.city_state_of_residence", missing),
     phoneCountryCode: requireFirstText([answers.phone_country_code], "answers.phone_country_code", missing),
-    phoneNumber: requireFirstText([answers.phone_number, answers.mobile_number, payload.personal.phone], "answers.phone_number", missing),
-    emailAddress: requireFirstText([answers.email_address, payload.personal.email], "answers.email_address", missing),
+    phoneNumber: requireFirstText([answers.phone_number, answers.mobile_number, personal.phone], "answers.phone_number", missing),
+    emailAddress: requireFirstText([answers.email_address, personal.email], "answers.email_address", missing),
     arrivalDate,
     departureDate,
     countryBoarded: requireFirstText([answers.country_boarded], "answers.country_boarded", missing),
-    purposeOfTravel: requireFirstText([answers.purpose_of_travel], "answers.purpose_of_travel", missing),
-    purposeOfTravelOther: firstText([answers.purpose_of_travel_other]),
+    purposeOfTravel: purpose.purpose,
+    purposeOfTravelOther: purpose.purposeOther,
     arrivalModeOfTravel,
     arrivalModeOfTransport,
     arrivalTransportOther: firstText([answers.arrival_transport_other]),
@@ -190,9 +241,12 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
     addressInThailand,
     province,
     district,
-    subDistrict: firstText([answers.sub_district, answers.subdistrict]),
-    postalCode: firstText([answers.postcode, answers.postal_code]),
+    subDistrict,
+    postalCode,
     countriesVisitedLast14Days,
+    yellowFeverVaccinationCertificate: optionalBooleanAnswer(
+      answers.yellow_fever_vaccination_certificate,
+    ),
   };
 
   if (fields.purposeOfTravel === "others" && !fields.purposeOfTravelOther) missing.push("answers.purpose_of_travel_other");
@@ -200,6 +254,9 @@ export function normalizeTdacPortalPayload(payload: SubmissionPayload): TdacPort
   if (fields.departureModeOfTransport === "others" && !fields.departureTransportOther) missing.push("answers.departure_transport_other");
   if (!fields.isTransitTraveler && fields.accommodationType === "others" && !fields.accommodationTypeOther) {
     missing.push("answers.accommodation_type_other");
+  }
+  if (fields.addressInThailand && fields.addressInThailand.length > 215) {
+    missing.push("answers.address_in_thailand(max_215)");
   }
 
   if (missing.length > 0) {
