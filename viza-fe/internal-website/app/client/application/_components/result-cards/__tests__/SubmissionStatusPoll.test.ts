@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   getSubmissionStatusPollDelay,
   isRetryableSubmissionStatusResponse,
+  shouldPreferDurableTerminalProps,
+  shouldStopSubmissionStatusPolling,
   SUBMISSION_STATUS_POLL_BASE_DELAY_MS,
   SUBMISSION_STATUS_POLL_MAX_DELAY_MS,
 } from "../submission-status-poll";
@@ -24,5 +26,49 @@ describe("submission status polling", () => {
     expect(getSubmissionStatusPollDelay(3)).toBe(12_000);
     expect(getSubmissionStatusPollDelay(4)).toBe(SUBMISSION_STATUS_POLL_MAX_DELAY_MS);
     expect(getSubmissionStatusPollDelay(20)).toBe(SUBMISSION_STATUS_POLL_MAX_DELAY_MS);
+  });
+
+  it("keeps polling a stalled queue so a late worker pickup can recover the UI", () => {
+    expect(
+      shouldStopSubmissionStatusPolling({
+        completedWithResult: false,
+        failed: false,
+        snapshotHasQueue: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("stops polling completed results and durable failures", () => {
+    expect(
+      shouldStopSubmissionStatusPolling({
+        completedWithResult: true,
+        failed: false,
+        snapshotHasQueue: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldStopSubmissionStatusPolling({
+        completedWithResult: false,
+        failed: true,
+        snapshotHasQueue: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("lets an active queue override an older durable terminal result after reload", () => {
+    expect(
+      shouldPreferDurableTerminalProps({
+        durableTerminalPropsAvailable: true,
+        localRetryActive: false,
+        snapshotIsActive: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPreferDurableTerminalProps({
+        durableTerminalPropsAvailable: true,
+        localRetryActive: false,
+        snapshotIsActive: false,
+      }),
+    ).toBe(true);
   });
 });

@@ -127,6 +127,9 @@ The current internal automation migrations are:
 - `0119_submission_retry_queue_isolation.sql`: makes generic retry enqueue a
   per-application transaction, reuses an already-active job, expires stale
   checkpoints, and enforces one active submission job per application.
+- `0120_vn_evisa_strict_validity_range.sql`: requires the Vietnam e-Visa
+  validity end date to be at least one calendar day after its start date,
+  matching the official portal's strict date-order validation.
 
 ## Guardrails
 

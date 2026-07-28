@@ -170,6 +170,25 @@ export async function fillVietnamApplication(
   input: FillVietnamInput,
   options: FillVietnamOptions = {},
 ): Promise<FillVietnamResult> {
+  if (!options.stopAtFirstCheckpoint) {
+    const validityErrors = validateVietnamPortalValidityRange(input.answers);
+    if (validityErrors.length > 0) {
+      return {
+        status: "scaffolded_pending_walk",
+        runId: options.runId,
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validityErrors
+          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+          .join("; ")}`,
+        url: options.officialBaseUrl ?? VN_LANDING_URL,
+        diagnostics: {
+          consoleErrors: [],
+          failedRequests: [],
+          validationErrors: validityErrors,
+        },
+      };
+    }
+  }
+
   if (options.portalAttempt) {
     return fillVietnamApplicationOnce(input, options);
   }
@@ -1333,6 +1352,32 @@ export function toPortalDateForField(fieldName: string, rawValue: string, now = 
   if (!parsed) return formatted;
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return parsed < today ? formatDdMmYyyy(today) : formatted;
+}
+
+export function validateVietnamPortalValidityRange(
+  answers: Record<string, string>,
+  now = new Date(),
+): VietnamPortalValidationError[] {
+  const rawFrom = answers.visa_valid_from?.trim();
+  const rawTo = answers.visa_valid_to?.trim();
+  if (!rawFrom || !rawTo) return [];
+
+  const portalFrom = parseDdMmYyyy(toPortalDateForField("visa_valid_from", rawFrom, now));
+  const portalTo = parseDdMmYyyy(toPortalDateForField("visa_valid_to", rawTo, now));
+  if (!portalFrom || !portalTo || portalFrom < portalTo) return [];
+
+  return [
+    {
+      label: "Grant e-Visa valid from",
+      domId: VN_FIELD_MAPPINGS.visa_valid_from.domId,
+      message: "Grant e-Visa valid from must be before Grant e-Visa valid to",
+    },
+    {
+      label: "Grant e-Visa valid to",
+      domId: VN_FIELD_MAPPINGS.visa_valid_to.domId,
+      message: "Grant e-Visa valid to must be after Grant e-Visa valid from",
+    },
+  ];
 }
 
 function parseDdMmYyyy(value: string): Date | null {

@@ -46,6 +46,8 @@ import { SgArrivalCardResultCard } from "@/features/sgac/SgArrivalCardResultCard
 import {
   getSubmissionStatusPollDelay,
   isRetryableSubmissionStatusResponse,
+  shouldPreferDurableTerminalProps,
+  shouldStopSubmissionStatusPolling,
 } from "./submission-status-poll";
 
 interface SubmissionStatusStepProps {
@@ -1442,7 +1444,11 @@ export function SubmissionStatusStep({
   // result. Otherwise the old application props immediately replace the new
   // queued snapshot and stop polling, which makes the Submit button appear to
   // do nothing even though the retry request succeeded.
-  const terminalPropsAvailable = durableTerminalPropsAvailable && !localRetryActive;
+  const terminalPropsAvailable = shouldPreferDurableTerminalProps({
+    durableTerminalPropsAvailable,
+    localRetryActive,
+    snapshotIsActive,
+  });
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -1542,8 +1548,15 @@ export function SubmissionStatusStep({
 
   useEffect(() => {
     if (!applicationId) return;
-    if (completedWithResult) return;
-    if ((failed || stalled) && snapshotHasQueue) return;
+    if (
+      shouldStopSubmissionStatusPolling({
+        completedWithResult,
+        failed,
+        snapshotHasQueue,
+      })
+    ) {
+      return;
+    }
 
     let cancelled = false;
     let pollingStoppedForAuth = false;
@@ -1682,7 +1695,6 @@ export function SubmissionStatusStep({
     applicationId,
     completedWithResult,
     failed,
-    stalled,
     country,
     isZh,
     localRetryActive,
