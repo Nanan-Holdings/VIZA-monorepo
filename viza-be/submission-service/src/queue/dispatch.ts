@@ -28,6 +28,7 @@ import { runOne as runCanada } from "../ca/runner.js";
 import { runOne as runTurkey } from "../tr/runner.js";
 import { runOne as runThailand } from "../th/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
+import { runOne as runTaiwan } from "../tw/runner.js";
 
 // Types + error classes live in the leaf module ./types.js to avoid an
 // import cycle (runners import these; dispatch imports runners). Re-exported
@@ -58,7 +59,7 @@ function unsupported(country: string): RunOne {
 
 /* --------------------------- Dispatch table --------------------------- */
 
-/** The 16 launch countries (canonical codes). */
+/** The 17 launch countries (canonical codes). */
 export const LAUNCH_COUNTRIES = [
   "indonesia",
   "egypt",
@@ -76,6 +77,7 @@ export const LAUNCH_COUNTRIES = [
   "france",
   "italy",
   "india",
+  "taiwan",
 ] as const;
 
 export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
@@ -118,6 +120,10 @@ export const DISPATCH: Record<string, RunOne> = {
   saudi_arabia: (a, j) => runSaudi(a, j),
   // RUN-JP-001: Japan paper-pack runner (paper_ready terminal, no online submit).
   japan: (a, j) => runJapan(a, j),
+  // Taiwan Online Entry Permit: single continuous session, no persistent
+  // account, halts at the CAPTCHA + "確認資料" submit boundary (no gov-pay
+  // gate in this session — see docs/tw-entry-permit-auto-submit-plan.md).
+  taiwan: (a, j) => runTaiwan(a, j),
 };
 
 /**
@@ -145,6 +151,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   australia: { runner: "au/runner.runOne", implemented: true },
   saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
   japan: { runner: "jp/runner.runOne (paper_ready)", implemented: true },
+  taiwan: { runner: "tw/runner.runOne", implemented: true },
 };
 
 /**
@@ -175,6 +182,7 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   kh: "cambodia",
   la: "laos",
   za: "south_africa",
+  tw: "taiwan",
 };
 
 export function normalizeCountry(country: string): string {

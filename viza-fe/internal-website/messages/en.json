@@ -682,6 +682,7 @@
       "Security and Background: Part 4": "Security and Background: Part 4",
       "Security and Background: Part 5": "Security and Background: Part 5",
       "Supporting Documents": "Supporting Documents",
+      "Passport Upload": "Passport Upload",
       "Upload Photo": "Upload Photo",
       "Review": "Review Application",
       "Confirmation": "Confirmation"
@@ -3484,7 +3485,8 @@
         "trip": "Trip details",
         "declaration": "Declaration"
       }
-    }
+    },
+    "tw": {}
   },
   "documents": {
     "title": "Documents",
