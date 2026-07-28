@@ -938,7 +938,23 @@ export function DynamicFormField({
 
     case "country":
       {
+        const opts = normaliseOptions(options, sideLocale);
         const isSchengenMemberState = usesSchengenMemberStateList(field);
+        if (opts.length > 0) {
+          return (
+            <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
+              <SearchableSelectControl
+                value={value}
+                onChange={onChange}
+                options={opts}
+                placeholder={localizedPlaceholder ?? (sideLocale === "zh" ? t("dynamicField.selectCountry") : "Select country...")}
+                disabled={disabled}
+                whiteControlClass={whiteControlClass}
+                sideLocale={sideLocale}
+              />
+            </FieldWrapper>
+          );
+        }
         return (
           <FieldWrapper label={label} required={required} sideLocale={sideLocale} helperText={helperText}>
             <CountryDropdown

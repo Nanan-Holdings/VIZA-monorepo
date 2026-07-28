@@ -154,6 +154,12 @@ function proofEmailErrorMessage(error: unknown): string {
   if (message.includes("RESEND_API_KEY")) {
     return "邮件服务未配置：请在 viza-fe/internal-website/.env.local 设置 RESEND_API_KEY，然后重启前端服务。";
   }
+  if (
+    message.includes("domain is not verified") ||
+    message.includes('"name":"validation_error"')
+  ) {
+    return "DS-160 文件已保存，但邮件未发送：当前发件域名尚未在 Resend 验证。请在 Resend 验证域名，并将 NOTIFY_FROM_EMAIL 配置为该域名下的发件地址；你仍可直接下载文件。";
+  }
   return message;
 }
 
@@ -175,7 +181,7 @@ async function sendProofEmail(input: {
   const applicationLabel =
     typeof input.result.applicationId === "string" ? input.result.applicationId : input.applicationId;
   const sent = await sendEmail({
-    from: "VIZA <updates@viza.it.com>",
+    from: process.env.NOTIFY_FROM_EMAIL?.trim() || "VIZA <updates@viza.it.com>",
     to: input.to,
     subject: `DS-160 confirmation ${applicationLabel}`,
     text:

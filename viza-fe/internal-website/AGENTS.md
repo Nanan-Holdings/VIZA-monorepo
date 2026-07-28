@@ -89,6 +89,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
   `lib/client-session.ts`, and `lib/impersonation-session.ts`.
+- Supabase client credentials are normalized by `lib/supabase/env.ts` before
+  use so BOM or surrounding whitespace from local environment files cannot
+  produce invalid HTTP authorization headers.
 - User-facing copy through `messages/en.json` and `messages/zh.json`.
 - Local admin test-account bootstrap through
   `scripts/init-admin-account.mjs`, with password-reset decisions covered by
@@ -156,6 +159,8 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `lib/vietnam-evisa-form-parity.ts` mirrors the same official parity metadata
   as a runtime safety net when the local database has not applied the migration
   yet; keep it in sync with the migration and avoid duplicating fields.
+  `lib/vietnam-evisa-official-countries.ts` is the exact 205-option official
+  nationality source used by all four Vietnam e-Visa country fields.
 - Vietnam e-Visa strict validity ordering is applied by
   `supabase/migrations/20260728090000_vn_evisa_strict_validity_range.sql`:
   `visa_valid_to` must be at least one calendar day after `visa_valid_from`,

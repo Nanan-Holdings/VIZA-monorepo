@@ -533,7 +533,7 @@ const ANSI_ESCAPE_SEQUENCE = new RegExp(
   "gu",
 );
 
-function userFacingSubmissionRuntimeMessage(
+export function userFacingSubmissionRuntimeMessage(
   message: string | null | undefined,
   isZh: boolean,
 ): string | undefined {
@@ -544,7 +544,7 @@ function userFacingSubmissionRuntimeMessage(
   if (!normalized) return undefined;
 
   if (
-    /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|playwright|Target page, context or browser has been closed/i.test(
+    /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|Executable doesn't exist|Failed to launch|Target page, context or browser has been closed/i.test(
       normalized,
     )
   ) {
@@ -704,19 +704,12 @@ function GenericResultCard({
     result.mode === "dry_run" &&
     isUkStandardVisitorApplication(applicationCountry, applicationVisaType ?? result.visaType);
   const canContinueIndonesiaLive = Boolean(applicationId) && isIndonesiaAction;
-  const liveTarget = canStartDs160Live
-    ? "ds160"
-    : canStartFranceLive
-      ? "france"
-      : canContinueIndonesiaLive
-        ? "indonesia"
-        : null;
-  const indonesiaPaymentAction =
-    isIndonesiaAction &&
-    (result.actionType === "official_visa_selection_reached" ||
-      result.actionType === "official_fee_otp_required" ||
-      result.actionType === "official_fee_payment_required" ||
-      result.actionType === "official_fee_payment_failed");
+  const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : canContinueIndonesiaLive ? "indonesia" : null;
+  // Indonesia recovery jobs always need a fresh one-time card session. The
+  // previous session is destroyed as soon as the cloud worker consumes it, so
+  // retrying an account/application checkpoint without a card can never reach
+  // the official payment gateway.
+  const indonesiaPaymentAction = isIndonesiaAction;
   const indonesiaCardReady =
     indonesiaCardNumber.replace(/\D/g, "").length >= 12 &&
     indonesiaCardExpiry.trim().length >= 4 &&
@@ -887,6 +880,7 @@ function GenericResultCard({
       const redactedCard = cardSession?.redactedCard as Record<string, unknown> | undefined;
       setIndonesiaCardLast4(typeof redactedCard?.last4 === "string" ? redactedCard.last4 : null);
       setIndonesiaCardNumber("");
+      setIndonesiaCardExpiry("");
       setIndonesiaCardCvv("");
       setIndonesiaCardHolderName("");
       window.setTimeout(() => window.location.reload(), 250);
@@ -981,7 +975,7 @@ function GenericResultCard({
             {indonesiaPaymentAction ? (
               <div className="mt-3 space-y-3 rounded-md border border-brand-100 bg-white p-3">
                 <div className="text-sm font-semibold text-foreground">
-                  {isZh ? "重新自动付款银行卡" : "Restart automated payment card"}
+                  {isZh ? "本次官方流程与付款银行卡" : "Card for this official application and payment"}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-1 sm:col-span-2">
@@ -1061,6 +1055,8 @@ function GenericResultCard({
                     ? indonesiaPaymentAction
                       ? result.actionType === "official_visa_selection_reached"
                         ? (isZh ? "继续并自动付款" : "Continue and pay automatically")
+                        : result.actionType === "official_account_automation_required"
+                          ? (isZh ? "重新开始并自动付款" : "Restart and pay automatically")
                         : (isZh ? "重新自动付款" : "Restart automated payment")
                       : (isZh ? "继续自动申请" : "Continue automated application")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
@@ -1495,7 +1491,10 @@ export function SubmissionStatusStep({
         });
         return;
       }
-      if (onResubmit) {
+      // A failed DS-160 already has a persisted answer set. Retry it directly
+      // through the fresh-application endpoint instead of re-running the
+      // long-form save/validation callback before the queue write.
+      if (onResubmit && !isDs160VisaType(retryVisaType)) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
         return;
@@ -1505,8 +1504,12 @@ export function SubmissionStatusStep({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          country: snapshot?.country ?? country,
-          visaType: snapshot?.visaType ?? visaType,
+          country: retryCountry,
+          visaType: retryVisaType,
+          // A failed DS-160 retry must create a fresh CEAC application. A
+          // normal retry is intentionally idempotent and returns the previous
+          // successful submission when this VIZA application has history.
+          intent: isDs160VisaType(retryVisaType) ? "new_application" : "retry",
         }),
       });
       const body = (await response.json().catch(() => null)) as {

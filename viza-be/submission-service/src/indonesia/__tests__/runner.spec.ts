@@ -9,7 +9,9 @@ import {
 import {
   extractIndonesiaOtpCode,
   isIndonesiaBillingCodeOnlyPaymentSnapshot,
+  isIndonesiaApplicationDetailOtpChallenge,
   isExpiredIndonesiaApplicationText,
+  isIndonesiaPortalAccountOtpChallenge,
   normalizeIndonesiaMobilePhone,
   normalizeIndonesiaPostalCode,
   normalizeIndonesiaPaymentWaitState,
@@ -376,6 +378,55 @@ test("does not auto-submit bank payment OTP with email OTP automation", () => {
     shouldSubmitIndonesiaPortalEmailOtp({
       url: `${INDONESIA_C1_PORTAL_URL}front/login/otp`,
       text: "Payment OTP Code Bank 3DS verification Card CVV Submit",
+    }),
+    false,
+  );
+});
+
+test("distinguishes an unresolved Indonesia account OTP from bank authentication", () => {
+  assert.equal(
+    isIndonesiaPortalAccountOtpChallenge({
+      url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/payment/662d5998-c0db-46a9-bf54-e06f14a389f8`,
+      text: "Enter OTP Code to continue the login process",
+      controlsVisible: true,
+    }),
+    true,
+  );
+  assert.equal(
+    isIndonesiaPortalAccountOtpChallenge({
+      url: "https://live.finpay.id/pg/payment/card/id/v4/access/redacted",
+      text: "Enter OTP Code for bank 3DS verification",
+      controlsVisible: true,
+    }),
+    false,
+  );
+  assert.equal(
+    isIndonesiaPortalAccountOtpChallenge({
+      url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/payment/662d5998-c0db-46a9-bf54-e06f14a389f8`,
+      text: "Card number CVV Bank verification",
+      controlsVisible: true,
+    }),
+    false,
+  );
+  assert.equal(
+    isIndonesiaPortalAccountOtpChallenge({
+      url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/application-detail-otp/redacted`,
+      text: "Enter OTP Code",
+      controlsVisible: true,
+    }),
+    false,
+  );
+  assert.equal(
+    isIndonesiaApplicationDetailOtpChallenge({
+      url: `${INDONESIA_B1_EVOA_PORTAL_URL}web/application-detail-otp/redacted`,
+      controlsVisible: true,
+    }),
+    true,
+  );
+  assert.equal(
+    isIndonesiaApplicationDetailOtpChallenge({
+      url: "https://live.finpay.id/pg/payment/card/id/v4/access/redacted",
+      controlsVisible: true,
     }),
     false,
   );

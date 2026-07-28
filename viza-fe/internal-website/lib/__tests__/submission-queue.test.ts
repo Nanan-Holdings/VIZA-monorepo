@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
+  isFreshDs160SubmissionIntent,
   isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
@@ -10,6 +11,7 @@ import {
   retryQueueInsertCanUseLegacyPayload,
   queueProviderForApplication,
   queueProviderForVisaType,
+  parseSubmissionRetryIntent,
   submissionQueueRequiresServerEnqueue,
   queueStatusForApplication,
   queueStatusForVisaType,
@@ -51,6 +53,14 @@ describe("queueStatusForVisaType", () => {
     expect(queueStatusForApplication("united_kingdom", "UK_STANDARD_VISITOR", "live_assisted")).toBe(
       "uk_live_assisted_pending",
     );
+  });
+
+  it("only treats an explicit DS-160 new-application request as a fresh submission", () => {
+    expect(parseSubmissionRetryIntent("new_application")).toBe("new_application");
+    expect(parseSubmissionRetryIntent("unexpected")).toBe("retry");
+    expect(isFreshDs160SubmissionIntent("new_application", "US-B1/B2")).toBe(true);
+    expect(isFreshDs160SubmissionIntent("retry", "US-B1/B2")).toBe(false);
+    expect(isFreshDs160SubmissionIntent("new_application", "VN_E_VISA")).toBe(false);
   });
 
   it("marks France Schengen submissions with the France-Visas provider for each mode", () => {

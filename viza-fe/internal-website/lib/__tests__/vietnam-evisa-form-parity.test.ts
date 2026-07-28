@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { augmentVietnamEVisaOfficialParitySteps } from "../vietnam-evisa-form-parity";
+import {
+  VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+  VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS,
+} from "../vietnam-evisa-official-countries";
 import type { VisaFormFieldRow, WizardStep } from "@/types/visa-form-fields";
 
 function field(input: Partial<VisaFormFieldRow> & { fieldName: string; displayOrder: number }): VisaFormFieldRow {
@@ -21,6 +25,44 @@ function field(input: Partial<VisaFormFieldRow> & { fieldName: string; displayOr
 }
 
 describe("augmentVietnamEVisaOfficialParitySteps", () => {
+  it("uses the exact 205 official country options for every Vietnam eVisa nationality field", () => {
+    const countryFieldNames = [
+      "nationality",
+      "other_nationality",
+      "other_vietnam_passport_nationality",
+      "relative_nationality",
+    ];
+    const steps: WizardStep[] = [
+      {
+        stepNumber: 1,
+        stepName: "Personal Information",
+        fields: countryFieldNames.map((fieldName, index) =>
+          field({
+            fieldName,
+            fieldType: "country",
+            displayOrder: index + 1,
+            stepNumber: 1,
+            stepName: "Personal Information",
+          }),
+        ),
+      },
+    ];
+
+    const patchedFields = augmentVietnamEVisaOfficialParitySteps(steps).flatMap((step) => step.fields);
+    expect(VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS).toHaveLength(205);
+    expect(new Set(VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS.map((row) => row.code)).size).toBe(205);
+    expect(VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS.some((option) => option.value === "HKG")).toBe(false);
+    expect(VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS.some((option) => option.value === "MAC")).toBe(false);
+    expect(VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS.some((option) => /hong kong|macao|macau/i.test(option.text))).toBe(false);
+
+    for (const fieldName of countryFieldNames) {
+      const patched = patchedFields.find((item) => item.fieldName === fieldName);
+      expect(patched?.options).toEqual(VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS);
+      expect(patched?.validationRules?.source).toBe("VN_E_VISA_OFFICIAL_COUNTRIES");
+      expect(patched?.validationRules?.official_option_count).toBe(205);
+    }
+  });
+
   it("requires the e-Visa end date to be at least one day after the start date", () => {
     const steps: WizardStep[] = [
       {

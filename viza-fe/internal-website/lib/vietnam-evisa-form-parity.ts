@@ -1,4 +1,8 @@
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
+import {
+  VIETNAM_E_VISA_COUNTRY_FIELD_NAMES,
+  VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+} from "@/lib/vietnam-evisa-official-countries";
 
 type FieldPatch = Partial<Omit<VisaFormFieldRow, "fieldName">> & {
   fieldName: string;
@@ -776,7 +780,22 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
   return Array.from(stepMap.values())
     .map((step) => ({
       ...step,
-      fields: [...step.fields].sort((a, b) => a.displayOrder - b.displayOrder),
+      fields: step.fields
+        .map((field) => {
+          if (!VIETNAM_E_VISA_COUNTRY_FIELD_NAMES.has(field.fieldName)) return field;
+          return {
+            ...field,
+            fieldType: "country" as const,
+            options: VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS,
+            validationRules: {
+              ...(field.validationRules ?? {}),
+              source: "VN_E_VISA_OFFICIAL_COUNTRIES",
+              official_option_count: VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS.length,
+              official_source: "client-service/public/dm-qt/get-all?type=",
+            },
+          };
+        })
+        .sort((a, b) => a.displayOrder - b.displayOrder),
     }))
     .sort((a, b) => a.stepNumber - b.stepNumber);
 }

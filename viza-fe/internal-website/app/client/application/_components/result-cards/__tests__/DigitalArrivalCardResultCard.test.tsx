@@ -4,6 +4,7 @@ import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result
 import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
+  userFacingSubmissionRuntimeMessage,
 } from "../SubmissionStatusStep";
 import { FailureCard } from "../FailureCard";
 
@@ -14,6 +15,19 @@ vi.mock("next-intl", () => ({
 describe("DigitalArrivalCardResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("does not hide portal field-selection errors as browser launch failures", () => {
+    const fieldError =
+      "Official Vietnam e-Visa portal rejected this value: playwright_selection_not_confirmed for nationality";
+
+    expect(userFacingSubmissionRuntimeMessage(fieldError, true)).toBe(fieldError);
+    expect(
+      userFacingSubmissionRuntimeMessage(
+        "browserType.launch: Failed to launch chromium because the executable is missing",
+        true,
+      ),
+    ).toContain("云端浏览器启动失败");
   });
 
   it("shows downloadable Vietnam QR and PDF artifacts", () => {
@@ -286,6 +300,49 @@ describe("cloud submission retry routing", () => {
     vi.unstubAllGlobals();
   });
 
+  it("starts a fresh CEAC application when retrying a failed DS-160", async () => {
+    const onResubmit = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        jobId: "new-ds160-queue-id",
+        queueStatus: "ds160_live_assisted_pending",
+        provider: "ceac",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="united_states"
+        visaType="DS160"
+        status="failed"
+        result={null}
+        onResubmit={onResubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "提交" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/application-id/retry-submission",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            mode: "live_assisted",
+            country: "united_states",
+            visaType: "DS160",
+            intent: "new_application",
+          }),
+        }),
+      );
+    });
+    expect(onResubmit).not.toHaveBeenCalled();
+  });
+
   it("retries through the cloud handler without starting a local worker", async () => {
     const onRetry = vi.fn().mockResolvedValue(undefined);
     const fetchMock = vi.fn();
@@ -399,6 +456,71 @@ describe("cloud submission retry routing", () => {
       );
       expect(screen.queryByText("提交没有完成")).not.toBeInTheDocument();
       expect(screen.getByText("正在提交您的申请")).toBeInTheDocument();
+    });
+  });
+
+  it("requires a fresh one-time card when restarting an Indonesia account checkpoint", async () => {
+    const accountCheckpoint = {
+      country: "GENERIC",
+      targetCountry: "ID",
+      visaType: "ID_B1_EVOA",
+      status: "action_required",
+      mode: "live_assisted",
+      applicationId: "application-id",
+      actionType: "official_account_automation_required",
+      actionInstructions: "Restart the managed official application.",
+      implementationStatus: "implemented",
+      message: "The previous one-time card session was consumed.",
+    } as const;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        cardSession: { redactedCard: { last4: "1111" } },
+        queueId: "new-indonesia-queue",
+        queueStatus: "pending",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <SubmissionStatusStep
+        applicationId="application-id"
+        country="indonesia"
+        visaType="ID_B1_EVOA"
+        status="action_required"
+        result={accountCheckpoint}
+      />,
+    );
+
+    expect(screen.getByText("本次官方流程与付款银行卡")).toBeInTheDocument();
+    const restartButton = screen.getByRole("button", { name: "重新开始并自动付款" });
+    expect(restartButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("银行卡号"), { target: { value: "4111111111111111" } });
+    fireEvent.change(screen.getByLabelText("有效期"), { target: { value: "12/30" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.change(screen.getByLabelText("持卡人姓名（必填，按银行卡）"), {
+      target: { value: "REAL CARDHOLDER" },
+    });
+    expect(restartButton).toBeEnabled();
+    fireEvent.click(restartButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/application-id/official-fee/pay",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            card: {
+              pan: "4111111111111111",
+              expiry: "12/30",
+              cvv: "123",
+              holderName: "REAL CARDHOLDER",
+            },
+          }),
+        }),
+      );
     });
   });
 

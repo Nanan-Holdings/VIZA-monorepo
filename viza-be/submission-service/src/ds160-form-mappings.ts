@@ -282,7 +282,7 @@ export const ds160PassportMappings: Record<string, FormFieldMapping> = {
     type: "text",
     label: "Passport Expiry Year",
   },
-  passport_has_expiry: {
+  passport_expiry_na: {
     selector: 'input[id*="cbxPPT_EXPIRE_NA"]',
     type: "checkbox",
     label: "Passport No Expiration",

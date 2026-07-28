@@ -3,6 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { getImpersonationSessionFromRequest } from "@/lib/impersonation-session";
+import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -110,8 +111,14 @@ async function getSupabaseUserSession(request: NextRequest): Promise<{
     });
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      normalizeSupabaseEnvValue(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        "NEXT_PUBLIC_SUPABASE_URL"
+      ),
+      normalizeSupabaseEnvValue(
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      ),
       {
         cookies: {
           getAll() {

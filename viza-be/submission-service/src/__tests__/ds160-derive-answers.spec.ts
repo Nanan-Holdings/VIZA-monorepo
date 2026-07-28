@@ -92,4 +92,63 @@ describe("deriveDS160Answers", () => {
 
     assert.equal(answers.has_other_education, "N");
   });
+
+  it("uses the intended date for the no-specific-plans CEAC branch", () => {
+    const answers = deriveDS160Answers({
+      has_specific_travel_plans: "no",
+      arrival_date: "2026-09-10",
+      intended_arrival_date: "2026-10-20",
+      intended_arrival_date_day: "10",
+      intended_arrival_date_month: "SEP",
+      intended_arrival_date_year: "2026",
+    });
+
+    assert.equal(answers.has_specific_travel_plans, "N");
+    assert.equal(answers.intended_arrival_date, "2026-10-20");
+    assert.equal(answers.intended_arrival_date_day, "20");
+    assert.equal(answers.intended_arrival_date_month, "OCT");
+    assert.equal(answers.intended_arrival_date_year, "2026");
+  });
+
+  it("uses the booked arrival date for the specific-plans CEAC branch", () => {
+    const answers = deriveDS160Answers({
+      has_specific_travel_plans: "yes",
+      arrival_date: "2026-09-10",
+      intended_arrival_date: "2026-10-20",
+    });
+
+    assert.equal(answers.has_specific_travel_plans, "Y");
+    assert.equal(answers.intended_arrival_date, "2026-09-10");
+    assert.equal(answers.intended_arrival_date_day, "10");
+    assert.equal(answers.intended_arrival_date_month, "SEP");
+    assert.equal(answers.intended_arrival_date_year, "2026");
+    assert.equal(answers.arrival_date_month, "SEP");
+  });
+
+  it("derives CEAC passport expiration state from the persisted date", () => {
+    const answers = deriveDS160Answers({
+      passport_has_expiry: "no",
+      passport_expiration_date: "2034-08-19",
+    });
+
+    assert.equal(answers.passport_has_expiry, "Y");
+    assert.equal(answers.passport_expiry_na, "N");
+    assert.equal(answers.passport_expiry_day, "19");
+    assert.equal(answers.passport_expiry_month, "08");
+    assert.equal(answers.passport_expiry_year, "2034");
+  });
+
+  it("checks CEAC no-expiration only when no date exists", () => {
+    const answers = deriveDS160Answers({
+      passport_has_expiry: "no",
+      passport_expiry_day: "19",
+      passport_expiry_month: "08",
+      passport_expiry_year: "2034",
+    });
+
+    assert.equal(answers.passport_expiry_na, "Y");
+    assert.equal(answers.passport_expiry_day, undefined);
+    assert.equal(answers.passport_expiry_month, undefined);
+    assert.equal(answers.passport_expiry_year, undefined);
+  });
 });
