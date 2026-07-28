@@ -1,6 +1,7 @@
 ﻿import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/rbac";
 import type { Database } from "@/types/database";
+import { normalizeSupabaseEnvValue } from "./env";
 
 type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
 
@@ -13,12 +14,14 @@ type UserRole = Database["public"]["Tables"]["users"]["Row"]["role"];
  * - Always verify permissions before using
  */
 export function createAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error("Missing Supabase admin credentials");
-  }
+  const supabaseUrl = normalizeSupabaseEnvValue(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    "NEXT_PUBLIC_SUPABASE_URL"
+  );
+  const supabaseServiceRoleKey = normalizeSupabaseEnvValue(
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    "SUPABASE_SERVICE_ROLE_KEY"
+  );
 
   return createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
