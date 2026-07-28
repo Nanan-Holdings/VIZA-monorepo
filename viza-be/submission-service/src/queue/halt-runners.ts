@@ -23,7 +23,7 @@ import { resumeUkApplication, normalizeUkAnswers, UkNormalizationError } from ".
 import { registerUkAccount } from "../uk/register.js";
 import { writeSubmissionResult } from "../result-writer.js";
 import { encryptSecret } from "../secret-cipher.js";
-import type { UkSubmissionResult } from "../submission-result.js";
+import type { UkSubmissionResult, TwSubmissionResult } from "../submission-result.js";
 import {
   fillFranceVisasApplication,
   buildAnswerMap,
@@ -34,6 +34,14 @@ import { fillVisitor600Application } from "../au-visitor/run.js";
 import { generateTotp } from "../au-visitor/totp.js";
 import { launchStealthBrowser } from "../ceac/stealth-browser.js";
 import { loadUkAccount, loadFvAccount, loadAuAccount } from "../account-loader.js";
+import {
+  fillTwEntryPermitApplication,
+  normalizeTwAnswers,
+  TwNormalizationError,
+  HK_MACAU_EMBASSY_OFFICE_VALUES,
+} from "../tw/index.js";
+import { resolveApplicationDocumentPaths } from "../documents/resolve-application-documents.js";
+import { ensureApplicantInboxAlias } from "../inbox/alias.js";
 import type { VisaApplicationAnswer, ApplicantProfile, Application } from "../types.js";
 import {
   RetryableRunnerError,
@@ -276,6 +284,88 @@ export const runFranceHalt: RunOne = async (applicationId, jobId) => {
     default:
       throw new Error(`unexpected france status: ${(result as { status: string }).status}`);
   }
+};
+
+/* ----------------------------- Taiwan ----------------------------- */
+
+/**
+ * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). Unlike
+ * UK/France/Australia there is no persistent portal account — every run is a
+ * single continuous session (terms modal → delivery location → application
+ * form → email OTP verification → every field → CAPTCHA). See
+ * docs/tw-entry-permit-auto-submit-plan.md "架构修正" and src/tw/AGENTS.md.
+ */
+export const runTwHalt: RunOne = async (applicationId, jobId) => {
+  const runId = jobId ?? applicationId;
+  const { applicantId, profile } = await loadProfileAndApp(applicationId);
+  const answerMap = buildAnswerMap(await loadRawAnswers(applicationId));
+
+  let answers: Record<string, string>;
+  try {
+    answers = normalizeTwAnswers({ answers: answerMap, profile });
+  } catch (err) {
+    if (err instanceof TwNormalizationError) {
+      throw new NeedsHumanError(`taiwan: ${err.message}`);
+    }
+    throw err;
+  }
+
+  // The email OTP step needs an inbox the shared inbox infra actually
+  // watches — the applicant's monitored alias, not necessarily their real
+  // personal email (mirrors how uk/register.ts sources its account email).
+  const { alias } = await ensureApplicantInboxAlias(applicantId);
+
+  // Applicant-uploaded documents (photo + the "應檢附文件" supporting
+  // documents) live in application_documents, keyed by requirement_key —
+  // NOT in visa_application_answers, so they can't come through `answers`
+  // (see the comment on this in src/tw/normalize.ts). Resolve them here.
+  const documentPaths = await resolveApplicationDocumentPaths(applicationId);
+  const requiredDocMissing = (key: string, condition: boolean): void => {
+    if (condition && !documentPaths.get(key)) {
+      throw new NeedsHumanError(`taiwan: required document "${key}" has not been uploaded yet`);
+    }
+  };
+  requiredDocMissing("mainland_travel_document", true);
+  requiredDocMissing("eligibility_supporting_document", true);
+  requiredDocMissing("hk_macau_id_scan", HK_MACAU_EMBASSY_OFFICE_VALUES.has(answers.embassy_office));
+  requiredDocMissing("other_nationality_passport_scan", answers.has_other_nationality_passport === "yes");
+  requiredDocMissing("mainland_id_card_scan", answers.mainland_id_number_not_applicable !== "true");
+
+  const result = await fillTwEntryPermitApplication(
+    { applicantId, email: alias, answers },
+    {
+      headless: true,
+      runId,
+      photoFilePath: documentPaths.get("photo") ?? null,
+      supportingDocuments: {
+        mainlandTravelDocumentPath: documentPaths.get("mainland_travel_document"),
+        eligibilityProofPath: documentPaths.get("eligibility_supporting_document"),
+        hkMacauIdScanPath: documentPaths.get("hk_macau_id_scan"),
+        otherNationalityPassportScanPath: documentPaths.get("other_nationality_passport_scan"),
+        mainlandIdCardScanPath: documentPaths.get("mainland_id_card_scan"),
+        otherSupportingDocumentPath: documentPaths.get("other_supporting_document"),
+      },
+    },
+  );
+
+  if (result.status === "stopped_at_captcha") {
+    const twPayload: TwSubmissionResult = {
+      country: "TW",
+      status: "stopped_at_captcha",
+      portalUrl: result.portalUrl,
+      pagesFilled: result.pagesFilled,
+      capturedAt: result.capturedAt,
+      ...(result.caseNumber ? { caseNumber: result.caseNumber } : {}),
+    };
+    // "needs_user_action": CAPTCHA is exactly the human-checkpoint case this
+    // shared status was documented for (see submission-result.ts header).
+    await writeSubmissionResult(applicationId, twPayload, "needs_user_action");
+    return HALTED(result.status);
+  }
+  if (result.status === "failed") {
+    throw new RetryableRunnerError(`taiwan failed: ${result.error}`);
+  }
+  throw new Error(`unexpected taiwan status: ${(result as { status: string }).status}`);
 };
 
 /* --------------------------- Australia --------------------------- */

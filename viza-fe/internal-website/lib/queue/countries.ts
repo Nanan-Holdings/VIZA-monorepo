@@ -28,6 +28,7 @@ export const LAUNCH_COUNTRIES = [
   "india",
   "new_zealand",
   "singapore",
+  "taiwan",
 ] as const;
 
 export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
@@ -69,6 +70,7 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   kh: "cambodia",
   la: "laos",
   za: "south_africa",
+  tw: "taiwan",
 };
 
 export function normalizeCountry(country: string): string {
