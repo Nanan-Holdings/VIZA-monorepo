@@ -1862,7 +1862,6 @@ export default function ApplicationPage() {
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
-  const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
