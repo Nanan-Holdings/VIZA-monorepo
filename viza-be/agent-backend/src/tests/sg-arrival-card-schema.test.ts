@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { SGAC_FORM_FIELDS } from "../../scripts/sgac/form-fields";
-import { SGAC_HOTEL_NAME_OPTIONS } from "../../scripts/sgac/official-options";
+import {
+  SGAC_HOTEL_NAME_OPTIONS,
+  SGAC_NATIONALITY_OPTIONS,
+} from "../../scripts/sgac/official-options";
 
 const seedSource = readFileSync(
   new URL("../../scripts/sgac/form-fields.ts", import.meta.url),
@@ -9,6 +12,14 @@ const seedSource = readFileSync(
 );
 const officialOptionsSource = readFileSync(
   new URL("../../scripts/sgac/official-options.ts", import.meta.url),
+  "utf8",
+);
+const submissionNormalizerSource = readFileSync(
+  new URL("../../../submission-service/src/sgac/normalize.ts", import.meta.url),
+  "utf8",
+);
+const submissionRegistrySource = readFileSync(
+  new URL("../../../submission-service/src/country-submissions/registry.ts", import.meta.url),
   "utf8",
 );
 const translationCache = JSON.parse(
@@ -54,6 +65,20 @@ describe("Singapore SG Arrival Card schema seed", () => {
       expect(fieldNames.has(requiredField), `${requiredField} missing`).toBe(true);
     }
     expect(fieldNames.has("purpose_of_visit"), "legacy purpose_of_visit must not be used for SGAC").toBe(false);
+  });
+
+  test("keeps every SGAC form field referenced by the submission mapping contract", () => {
+    const fieldNames = extractFieldNames();
+    expect(fieldNames).toHaveLength(39);
+    expect(new Set(fieldNames).size).toBe(39);
+
+    for (const fieldName of fieldNames) {
+      const quotedFieldName = `"${fieldName}"`;
+      const isMapped =
+        submissionNormalizerSource.includes(quotedFieldName) ||
+        submissionRegistrySource.includes(quotedFieldName);
+      expect(isMapped, `${fieldName} is not referenced by the SGAC submission mapper`).toBe(true);
+    }
   });
 
   test("uses the SGAC canonical purpose field and bilingual label", () => {
@@ -115,6 +140,30 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('field_name: "next_city_or_port_after_singapore", label: "Next City/Port of Disembarkation After Singapore", field_type: "select"');
     expect(officialOptionsSource).toContain('"value": "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR"');
     expect(officialOptionsSource).toContain('"value": "CHINESE"');
+  });
+
+  test("matches the complete ICA nationality list, including frontend-injected SAR entries", () => {
+    expect(SGAC_NATIONALITY_OPTIONS).toHaveLength(206);
+    expect(new Set(SGAC_NATIONALITY_OPTIONS.map((option) => option.value)).size).toBe(206);
+    expect(SGAC_NATIONALITY_OPTIONS).toEqual(
+      expect.arrayContaining([
+        {
+          value: "CHINESE / HONG KONG SAR",
+          labelZh: "中国籍 / 香港特别行政区",
+          labelEn: "CHINESE / HONG KONG SAR",
+        },
+        {
+          value: "CHINESE / MACAO SAR",
+          labelZh: "中国籍 / 澳门特别行政区",
+          labelEn: "CHINESE / MACAO SAR",
+        },
+        {
+          value: "TAIWANESE",
+          labelZh: "台湾籍",
+          labelEn: "TAIWANESE",
+        },
+      ]),
+    );
   });
 
   test("keeps arrival and departure dates together in trip information", () => {
@@ -186,6 +235,8 @@ describe("Singapore SG Arrival Card schema seed", () => {
 
     expect(labelZh("nationality", "BRITISH OVERSEAS TERRITORIES CITIZ")).toBe("英国海外领土公民");
     expect(labelZh("nationality", "BRITISH SUBJECT")).toBe("英国臣民");
+    expect(labelZh("nationality", "CHINESE / HONG KONG SAR")).toBe("中国籍 / 香港特别行政区");
+    expect(labelZh("nationality", "CHINESE / MACAO SAR")).toBe("中国籍 / 澳门特别行政区");
     expect(labelZh("nationality", "CAMBODIAN")).toBe("柬埔寨籍");
     expect(labelZh("nationality", "CROATIAN")).toBe("克罗地亚籍");
     expect(labelZh("nationality", "ESTONIAN")).toBe("爱沙尼亚籍");
@@ -202,6 +253,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("nationality", "SAMOAN")).toBe("萨摩亚籍");
     expect(labelZh("nationality", "STATELESS")).toBe("无国籍");
     expect(labelZh("nationality", "SWAZI")).toBe("斯威士兰籍");
+    expect(labelZh("nationality", "TAIWANESE")).toBe("台湾籍");
     expect(labelZh("nationality", "TAJIKISTANI")).toBe("塔吉克斯坦籍");
     expect(labelZh("nationality", "UKRAINIAN")).toBe("乌克兰籍");
     expect(labelZh("nationality", "YEMENI")).toBe("也门籍");

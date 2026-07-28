@@ -115,6 +115,20 @@ const NATIONALITY_LABELS: Record<string, string> = {
   china: "CHINESE",
   chinese: "CHINESE",
   cn: "CHINESE",
+  hong_kong: "CHINESE / HONG KONG SAR",
+  hong_kong_sar: "CHINESE / HONG KONG SAR",
+  chinese_hong_kong_sar: "CHINESE / HONG KONG SAR",
+  chn_hk: "CHINESE / HONG KONG SAR",
+  macao: "CHINESE / MACAO SAR",
+  macao_sar: "CHINESE / MACAO SAR",
+  macau: "CHINESE / MACAO SAR",
+  macau_sar: "CHINESE / MACAO SAR",
+  chinese_macao_sar: "CHINESE / MACAO SAR",
+  chn_mc: "CHINESE / MACAO SAR",
+  taiwan: "TAIWANESE",
+  taiwanese: "TAIWANESE",
+  tw: "TAIWANESE",
+  twn: "TAIWANESE",
   malaysia: "MALAYSIAN",
   malaysian: "MALAYSIAN",
   my: "MALAYSIAN",
@@ -377,6 +391,21 @@ function splitFlightNumber(raw: string): { carrierCodeQuery: string; flightNo: s
   return { carrierCodeQuery: raw.trim(), flightNo: "" };
 }
 
+function resolveCommercialFlightParts(
+  transportNumber: string,
+  explicitCarrierCode: string | null,
+): { carrierCodeQuery: string; flightNo: string } {
+  const split = splitFlightNumber(transportNumber);
+  const standaloneFlightNumber = /^(\d+[A-Za-z]?)$/.exec(transportNumber.trim());
+  if (explicitCarrierCode?.trim() && standaloneFlightNumber) {
+    return {
+      carrierCodeQuery: explicitCarrierCode.trim().toUpperCase(),
+      flightNo: standaloneFlightNumber[1].toUpperCase(),
+    };
+  }
+  return split;
+}
+
 function normalizeCarrierForIca(
   explicitCarrierCode: string | null,
   split: { carrierCodeQuery: string; flightNo: string },
@@ -411,14 +440,15 @@ function buildTransport(payload: SubmissionPayload, missing: string[]): SgacTran
   if (mode === "air") {
     const transportNumber = required(read(payload, "transport_number"), "transport_number", "Flight number", missing);
     const transportType = normalizeKey(read(payload, "air_transport_type") ?? "commercial");
-    const split = splitFlightNumber(transportNumber);
+    const explicitCarrierCode = read(payload, "carrier_code");
+    const split = resolveCommercialFlightParts(transportNumber, explicitCarrierCode);
     const isCommercial =
       (transportType !== "private" && transportType !== "cargo" && transportType !== "other") ||
       looksLikeCommercialFlightNumber(split);
     const carrier = isCommercial
-      ? normalizeCarrierForIca(read(payload, "carrier_code"), split, missing)
+      ? normalizeCarrierForIca(explicitCarrierCode, split, missing)
       : split;
-    if (isCommercial && (!split.carrierCodeQuery || !split.flightNo)) {
+    if (isCommercial && (!carrier.carrierCodeQuery || !carrier.flightNo)) {
       missing.push("transport_number");
     }
     return {
@@ -579,7 +609,10 @@ export function normalizeSgacPortalPayload(
       place_of_residence: "Place of residence",
       last_city_or_port_before_singapore: "Last City/Port of Embarkation Before Singapore must be an official ICA city/port option",
       next_city_or_port_after_singapore: "Next City/Port of Disembarkation After Singapore must be an official ICA city/port option",
-      transport_number: "Transport number",
+      transport_number: "Flight number",
+      vehicle_number: "Vehicle number",
+      cruise_name: "Cruise name",
+      vessel_name: "Vessel name",
       accommodation_name: "Hotel name must be an official ICA hotel option",
       carrier_code: "Carrier code must be an official ICA airline option",
     };

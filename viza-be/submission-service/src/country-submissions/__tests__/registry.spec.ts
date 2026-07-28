@@ -529,6 +529,84 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
   assert.equal(result.targetCountry, "SG");
 });
 
+test("registry: SG Arrival Card validates every conditional transport and health branch", () => {
+  const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
+  assert.ok(provider);
+
+  const baseAnswers = {
+    purpose_of_travel: "holiday",
+    place_of_birth_country: "Singapore",
+    place_of_residence: "CHINA, BEIJING, BEIJING",
+    mobile_country_code: "65",
+    has_used_different_name_to_enter_singapore: "no",
+    last_city_or_port_before_singapore: "Kuala Lumpur",
+    next_city_or_port_after_singapore: "Bangkok",
+    accommodation_type: "others",
+    accommodation_other_type: "transit",
+    has_health_symptoms: "no",
+    recent_country_visit_history: "no",
+  };
+  const validate = (answers: Record<string, string>) =>
+    provider.validate(
+      baseApplication({
+        countryCode: "singapore",
+        visaType: "SG_ARRIVAL_CARD",
+        answers: { ...baseAnswers, ...answers },
+      }),
+    );
+
+  assert.equal(
+    validate({
+      mode_of_travel: "air",
+      air_transport_type: "commercial",
+      carrier_code: "AS",
+      transport_number: "223",
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validate({
+      mode_of_travel: "land",
+      land_transport_type: "car",
+      vehicle_number: "SBA1234A",
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validate({
+      mode_of_travel: "sea",
+      sea_transport_type: "cruise",
+      cruise_name: "ADONIA",
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validate({
+      mode_of_travel: "sea",
+      sea_transport_type: "commercial_vessel",
+      vessel_name: "TEST VESSEL",
+    }).ok,
+    true,
+  );
+
+  const missingVessel = validate({
+    mode_of_travel: "sea",
+    sea_transport_type: "ferry",
+  });
+  assert.equal(missingVessel.ok, false);
+  assert.ok(missingVessel.missingRequiredFields.includes("answers.vessel_name"));
+
+  const symptomsYes = validate({
+    mode_of_travel: "land",
+    land_transport_type: "bus",
+    vehicle_number: "BUS123",
+    has_health_symptoms: "yes",
+    recent_country_visit_history: "",
+    recent_high_risk_region_visit_history: "no",
+  });
+  assert.equal(symptomsYes.ok, true);
+});
+
 test("from-records: prefers the latest SGAC answers over stale profile and application columns", () => {
   const profile: ApplicantProfile = {
     id: "test-applicant",

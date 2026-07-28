@@ -5884,7 +5884,12 @@ async function processSgacLiveItem(item: SubmissionQueueItem): Promise<void> {
       purposeOfTravel: payload.countrySpecific.purpose_of_travel ?? payload.trip.purpose ?? null,
       arrivalDate: payload.trip.arrivalDate ?? null,
       modeOfTravel: payload.countrySpecific.mode_of_travel ?? null,
-      transportNumber: payload.countrySpecific.transport_number ?? null,
+      transportNumber:
+        payload.countrySpecific.transport_number ??
+        payload.countrySpecific.vehicle_number ??
+        payload.countrySpecific.cruise_name ??
+        payload.countrySpecific.vessel_name ??
+        null,
       accommodationAddressProvided: Boolean(payload.countrySpecific.accommodation_address?.trim()),
     };
     lastPayloadSummary = payloadSummary;
