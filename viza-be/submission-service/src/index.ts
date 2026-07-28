@@ -83,6 +83,7 @@ import {
   ensureApplicantInboxAliasForDomain,
   generateApplicantInboxAlias,
 } from "./inbox/alias";
+import { assertInboxAliasDomainRoutable } from "./inbox/wait-for-message";
 import { createSupabaseMailboxProvider } from "./france-visas/mailbox-provider";
 import {
   startUkSession,
@@ -6134,6 +6135,32 @@ async function uploadArrivalCardArtifacts(input: {
   return uploaded;
 }
 
+const VN_PREARRIVAL_FORWARDING_CONSENT = {
+  type: "alias_email_forwarding",
+  version: "2026-07-22",
+  documentHash:
+    "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212",
+} as const;
+
+async function hasCurrentVnPrearrivalEmailForwardingConsent(
+  applicantId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("consent_events")
+    .select("id")
+    .eq("applicant_id", applicantId)
+    .eq("consent_type", VN_PREARRIVAL_FORWARDING_CONSENT.type)
+    .eq("version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
+    .eq("document_hash", VN_PREARRIVAL_FORWARDING_CONSENT.documentHash)
+    .eq("accepted", true)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Vietnam Pre-Arrival email forwarding consent lookup failed: ${error.message}`);
+  }
+  return Boolean(data?.id);
+}
+
 async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Promise<void> {
   console.log(
     `[vn-prearrival] Processing live submission application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
@@ -6242,6 +6269,32 @@ async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Prom
 
     const storedAnswers = await loadDs160Answers(item.application_id);
     const managedAlias = await ensureApplicantInboxAlias(profile.id);
+    try {
+      await assertInboxAliasDomainRoutable(managedAlias.alias);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      await writeFailure({
+        status: "official_portal_error",
+        code: "vn_prearrival_otp_inbox_unroutable",
+        message: detail,
+        portalSummary:
+          "Vietnam Pre-Arrival was not started because the managed OTP inbox cannot currently receive official email.",
+        logs: ["vn_prearrival_otp_inbox_unroutable"],
+      });
+      return;
+    }
+    if (!(await hasCurrentVnPrearrivalEmailForwardingConsent(profile.id))) {
+      await writeFailure({
+        status: "validation_failed",
+        code: "vn_prearrival_email_forwarding_consent_required",
+        message:
+          "Official email forwarding authorization is required before Vietnam Pre-Arrival can start.",
+        portalSummary:
+          "Vietnam Pre-Arrival was not started because official confirmation emails, QR codes, PDFs, and attachments are not yet authorized for forwarding to the traveller's profile email.",
+        logs: ["vn_prearrival_email_forwarding_consent_required"],
+      });
+      return;
+    }
     const answers = routeVnPrearrivalEmailAnswers(
       storedAnswers,
       managedAlias.alias,

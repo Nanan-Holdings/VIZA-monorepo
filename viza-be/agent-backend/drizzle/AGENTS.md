@@ -120,6 +120,10 @@ The current internal automation migrations are:
 - `0117_vietnam_prearrival_queue_claim.sql`: adds Vietnam Pre-Arrival dry-run,
   scheduled, and live pending states to the atomic legacy queue claim RPC so
   cloud workers do not depend on the unlocked compatibility fallback.
+- `0118_official_fee_queue_isolation.sql`: serializes Vietnam/Indonesia
+  official-fee enqueue operations per application, supersedes stale work and
+  manual checkpoints, and enforces one active payment browser job per
+  application/provider.
 
 ## Guardrails
 

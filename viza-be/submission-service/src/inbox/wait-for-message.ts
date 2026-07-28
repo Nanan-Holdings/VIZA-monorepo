@@ -1,3 +1,4 @@
+import { resolveMx } from "node:dns/promises";
 import { supabase } from "../supabase";
 
 /**
@@ -61,6 +62,42 @@ export class InboxAliasMissingError extends Error {
       `applicant_profiles.inbox_alias is null for ${applicantId} — call assignApplicantInboxAlias() first`,
     );
     this.name = "InboxAliasMissingError";
+  }
+}
+
+export class InboxDomainUnroutableError extends Error {
+  constructor(domain: string, reason?: string) {
+    super(
+      `Managed inbox domain ${domain} cannot receive email because it has no usable MX record${reason ? `: ${reason}` : "."}`,
+    );
+    this.name = "InboxDomainUnroutableError";
+  }
+}
+
+type MxResolver = (domain: string) => Promise<Array<{ exchange: string; priority: number }>>;
+
+export async function assertInboxAliasDomainRoutable(
+  alias: string,
+  resolver: MxResolver = resolveMx,
+): Promise<void> {
+  const domain = alias.trim().toLowerCase().split("@")[1];
+  if (!domain) {
+    throw new InboxDomainUnroutableError(alias, "the alias address is invalid");
+  }
+
+  try {
+    const records = await resolver(domain);
+    const hasUsableMx = records.some((record) => {
+      const exchange = record.exchange.trim();
+      return exchange.length > 0 && exchange !== ".";
+    });
+    if (!hasUsableMx) {
+      throw new InboxDomainUnroutableError(domain);
+    }
+  } catch (error) {
+    if (error instanceof InboxDomainUnroutableError) throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new InboxDomainUnroutableError(domain, reason);
   }
 }
 
@@ -128,6 +165,7 @@ export async function waitForMessage(
   const now = opts.now ?? (() => Date.now());
   const since = opts.since ?? new Date(now() - 60_000).toISOString();
   const alias = await loadAlias(applicantId);
+  await assertInboxAliasDomainRoutable(alias);
 
   const deadline = now() + timeoutMs;
   while (now() < deadline) {

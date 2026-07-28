@@ -1,0 +1,951 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleAlert,
+  CircleDot,
+  Clock3,
+  CreditCard,
+  Download,
+  ExternalLink,
+  FileCheck2,
+  FileText,
+  FolderCheck,
+  Landmark,
+  Package,
+  Receipt,
+  Send,
+  ShieldCheck,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  getClientStatusData,
+  hasClientSession,
+  isArrivalCardVisaType,
+  type ClientStatusData,
+  type ClientStatusState,
+  type CountryApplicationRecord,
+  type StatusAction,
+  type StatusApplication,
+  type StatusEvent,
+  type StatusFile,
+  type StatusFileKey,
+  type StatusStep,
+  type StatusStepKey,
+  type StatusStepState,
+} from "./status-data";
+import { SmoothProgressBar } from "@/components/smooth-progress";
+import { LiveManualActionCard } from "./live-manual-action-card";
+import { OfficialStatusAutoPoller } from "./official-status-auto-poller";
+import { OfficialStatusRefreshButton } from "./official-status-refresh-button";
+
+type SearchParams = Promise<{
+  applicationId?: string | string[];
+  packageId?: string | string[];
+  country?: string | string[];
+  view?: string | string[];
+}>;
+
+export const dynamic = "force-dynamic";
+
+const STEP_ICONS: Record<StatusStepKey, LucideIcon> = {
+  payment: CreditCard,
+  consent: ShieldCheck,
+  form: FileText,
+  documents: FolderCheck,
+  packet: Package,
+  handoff: Send,
+  result: FileCheck2,
+};
+
+const STATE_TONE: Record<
+  StatusStepState,
+  { icon: LucideIcon; circle: string; border: string; badge: string; text: string }
+> = {
+  complete: {
+    icon: CheckCircle2,
+    circle: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    border: "border-emerald-100",
+    badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    text: "text-emerald-700",
+  },
+  current: {
+    icon: Clock3,
+    circle: "border-brand-200 bg-brand-50 text-brand-500",
+    border: "border-brand-100",
+    badge: "border-brand-200 bg-brand-50 text-brand-600",
+    text: "text-brand-600",
+  },
+  attention: {
+    icon: CircleAlert,
+    circle: "border-amber-200 bg-amber-50 text-amber-800",
+    border: "border-amber-200",
+    badge: "border-amber-200 bg-amber-50 text-amber-800",
+    text: "text-amber-800",
+  },
+  blocked: {
+    icon: CircleAlert,
+    circle: "border-rose-200 bg-rose-50 text-rose-700",
+    border: "border-rose-100",
+    badge: "border-rose-200 bg-rose-50 text-rose-700",
+    text: "text-rose-700",
+  },
+  upcoming: {
+    icon: CircleDot,
+    circle: "border-slate-200 bg-slate-50 text-slate-500",
+    border: "border-slate-100",
+    badge: "border-slate-200 bg-slate-50 text-slate-600",
+    text: "text-slate-600",
+  },
+};
+
+const APPLICATION_TONE: Record<ClientStatusState, string> = {
+  not_started: "border-slate-200 bg-slate-50 text-slate-700",
+  needs_payment: "border-rose-200 bg-rose-50 text-rose-700",
+  needs_consent: "border-amber-200 bg-amber-50 text-amber-800",
+  in_progress: "border-brand-200 bg-brand-50 text-brand-600",
+  needs_documents: "border-amber-200 bg-amber-50 text-amber-800",
+  packet_pending: "border-blue-200 bg-blue-50 text-blue-700",
+  external_pending: "border-cyan-200 bg-cyan-50 text-cyan-700",
+  submitted: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  needs_attention: "border-amber-200 bg-amber-50 text-amber-800",
+  approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  rejected: "border-rose-200 bg-rose-50 text-rose-700",
+};
+
+const FILE_ICONS: Record<StatusFileKey, LucideIcon> = {
+  applicationReceipt: Receipt,
+  paymentReceipt: Receipt,
+  packet: Package,
+  arrivalCardConfirmation: FileCheck2,
+  approvedResult: FileCheck2,
+  rejectionLetter: FileText,
+  resultFile: FileText,
+};
+
+const KNOWN_EVENT_KEYS = new Set([
+  "payment_completed",
+  "consent_accepted",
+  "document_uploaded",
+  "packet_generated",
+  "external_status_updated",
+  "official_status_changed",
+  "arrival_card_submitted",
+  "result_received",
+  "notification_sent",
+]);
+
+function getParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+function normalizeCountryParam(value: string | null): string | null {
+  if (!value) return null;
+  const decoded = decodeURIComponent(value).trim().toLowerCase();
+  if (!decoded) return null;
+  const aliases: Record<string, string> = {
+    malaysia: "马来西亚",
+    my: "马来西亚",
+    马来西亚: "马来西亚",
+    thailand: "泰国",
+    th: "泰国",
+    泰国: "泰国",
+    singapore: "新加坡",
+    sg: "新加坡",
+    新加坡: "新加坡",
+  };
+  return aliases[decoded] ?? decoded;
+}
+
+function getSelectionHref(application: StatusApplication): string {
+  if (application.applicationRecords.length > 0) return `/client/status?country=${encodeURIComponent(application.countryKey)}`;
+  if (application.id) return `/client/status?applicationId=${encodeURIComponent(application.id)}`;
+  if (application.packageId) return `/client/status?packageId=${encodeURIComponent(application.packageId)}`;
+  return "/client/status";
+}
+
+function getSelectionKey(application: StatusApplication): string {
+  if (application.applicationRecords.length > 0) return `country:${application.countryKey}`;
+  return application.id ? `app:${application.id}` : `package:${application.packageId ?? application.key}`;
+}
+
+function formatDate(value: string | null, locale: string): string {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat(locale.startsWith("zh") ? "zh-CN" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string | null, locale: string): string {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat(locale.startsWith("zh") ? "zh-CN" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatMoney(amountCents: number | null, currency: string | null, locale: string): string {
+  if (amountCents === null || !currency) return "-";
+  try {
+    return new Intl.NumberFormat(locale.startsWith("zh") ? "zh-CN" : "en-US", {
+      style: "currency",
+      currency,
+    }).format(amountCents / 100);
+  } catch {
+    return `${currency} ${(amountCents / 100).toFixed(2)}`;
+  }
+}
+
+function humanize(value: string | null): string {
+  if (!value) return "-";
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatVietnamOfficialStatus(value: string | null, locale: string): string {
+  const normalized = (value ?? "").toLowerCase();
+  const zh = locale.startsWith("zh");
+  const labels: Record<string, [string, string]> = {
+    processing: ["Processing on the official portal", "越南官网处理中"],
+    pending_official_review: ["Processing on the official portal", "越南官网处理中"],
+    needs_correction: ["Correction required", "需要补充或修改资料"],
+    needs_attention: ["Correction required", "需要补充或修改资料"],
+    payment_required: ["Official payment required", "等待完成官方付款"],
+    approved_pending_document: ["Approved — retrieving visa document", "签证已获批，正在获取文件"],
+    approved: ["Approved — visa ready to print", "签证已获批，可打印"],
+    rejected: ["Application rejected", "申请被拒绝"],
+  };
+  const label = labels[normalized];
+  return label ? label[zh ? 1 : 0] : humanize(value);
+}
+
+function formatStepMetric(application: StatusApplication, step: StatusStep, locale: string, t: Awaited<ReturnType<typeof getTranslations>>) {
+  if (!step.metricValue) return null;
+  if (step.key === "payment") return formatMoney(application.payment.amountCents, application.payment.currency, locale);
+  if (step.key === "consent") return t(`metrics.${step.metricValue}`);
+  if (step.key === "form") return t("metrics.answerCount", { count: Number(step.metricValue) });
+  if (step.key === "documents") return step.metricValue;
+  if (step.key === "packet" || step.key === "result") return t("metrics.fileReady");
+  return step.metricValue;
+}
+
+function formatEvent(event: StatusEvent, t: Awaited<ReturnType<typeof getTranslations>>): string {
+  const normalized = event.eventType.toLowerCase();
+  if (KNOWN_EVENT_KEYS.has(normalized)) return t(`events.${normalized}`);
+  return humanize(event.eventType);
+}
+
+function getArrivalCardStateLabel(state: ClientStatusState, locale: string): string | null {
+  if (!locale.startsWith("zh")) {
+    if (state === "in_progress" || state === "needs_payment" || state === "needs_consent") return "Details in preparation";
+    if (state === "packet_pending" || state === "external_pending") return "Waiting for official submission";
+    if (state === "submitted") return "Submitted or queued";
+    return null;
+  }
+
+  if (state === "in_progress" || state === "needs_payment" || state === "needs_consent") return "资料准备中";
+  if (state === "packet_pending" || state === "external_pending") return "等待官网提交";
+  if (state === "submitted") return "已提交或等待中";
+  return null;
+}
+
+function isArrivalCardStatusTarget(target: {
+  country?: string | null;
+  visaType?: string | null;
+  visaTypeLabel?: string | null;
+  visaTypeLabelZh?: string | null;
+  applicationRecords?: Array<Pick<CountryApplicationRecord, "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh">>;
+}): boolean {
+  if (isArrivalCardVisaType(target.visaType)) return true;
+  if (target.applicationRecords?.some((record) => isArrivalCardStatusTarget(record))) return true;
+  const haystack = [target.country, target.visaTypeLabel, target.visaTypeLabelZh]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+  return (
+    haystack.includes("arrival card") ||
+    haystack.includes("sgac") ||
+    haystack.includes("mdac") ||
+    haystack.includes("tdac") ||
+    haystack.includes("入境卡")
+  );
+}
+
+function getStatusBadgeLabel(
+  target:
+    | Pick<StatusApplication, "state" | "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh" | "applicationRecords">
+    | Pick<CountryApplicationRecord, "state" | "country" | "visaType" | "visaTypeLabel" | "visaTypeLabelZh">,
+  locale: string,
+): string | null {
+  if (isArrivalCardStatusTarget(target)) return getArrivalCardStateLabel(target.state, locale);
+  return null;
+}
+
+function StatusBadge({
+  state,
+  label,
+  t,
+}: {
+  state: ClientStatusState;
+  label?: string | null;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const toneState =
+    label && (state === "needs_payment" || state === "needs_consent")
+      ? "in_progress"
+      : state;
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", APPLICATION_TONE[toneState])}>
+      {label ?? t(`states.${state}`)}
+    </span>
+  );
+}
+
+function StatPanel({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
+  return (
+    <div className="rounded-[8px] border border-[#e7edf5] bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[13px] font-medium text-[#66758a]">{label}</p>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-500">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-3 font-heading text-[26px] font-medium leading-none text-[#26364a]">{value}</p>
+    </div>
+  );
+}
+
+function ApplicationCard({
+  application,
+  selected,
+  locale,
+  t,
+}: {
+  application: StatusApplication;
+  selected: boolean;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <Link
+      href={getSelectionHref(application)}
+      className={cn(
+        "block rounded-[8px] border bg-white p-4 text-left shadow-sm transition hover:border-brand-200 hover:shadow-md",
+        selected ? "border-brand-300 ring-1 ring-brand-200" : "border-[#e7edf5]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="text-[30px] leading-none" aria-hidden="true">
+            {application.countryFlag}
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate font-heading text-[17px] font-medium text-[#26364a]">
+              {locale.startsWith("zh") ? application.countryNameZh : application.countryName}
+            </h2>
+            <p className="mt-1 truncate text-[13px] font-medium text-[#66758a]">
+              {locale.startsWith("zh") ? application.visaTypeLabelZh : application.visaTypeLabel}
+            </p>
+          </div>
+        </div>
+        <StatusBadge state={application.state} label={getStatusBadgeLabel(application, locale)} t={t} />
+      </div>
+
+      <SmoothProgressBar
+        displayedProgress={application.progressPercent}
+        label={t("progress")}
+        className="mt-4"
+      />
+
+      <div className="mt-4 flex items-center justify-between gap-3 text-[12px] text-[#66758a]">
+        <span>{t("updated")}</span>
+        <span className="font-semibold text-[#3d4b5f]">{formatDate(application.updatedAt ?? application.createdAt, locale)}</span>
+      </div>
+    </Link>
+  );
+}
+
+function ActionLink({ action, t }: { action: StatusAction; t: Awaited<ReturnType<typeof getTranslations>> }) {
+  const className = cn(
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold transition",
+    action.primary
+      ? "bg-brand-500 text-white hover:bg-brand-600"
+      : "border border-[#dce5f0] bg-white text-brand-500 hover:border-brand-300",
+  );
+
+  if (action.href.startsWith("http")) {
+    return (
+      <a href={action.href} target="_blank" rel="noreferrer" className={className}>
+        {t(`actions.${action.key}`)}
+        {action.primary ? <Download className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={action.href} className={className}>
+      {t(`actions.${action.key}`)}
+      <ArrowRight className="h-4 w-4" />
+    </Link>
+  );
+}
+
+function StepRow({
+  application,
+  step,
+  locale,
+  t,
+}: {
+  application: StatusApplication;
+  step: StatusStep;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const StepIcon = STEP_ICONS[step.key];
+  const StateIcon = STATE_TONE[step.state].icon;
+  const metric = formatStepMetric(application, step, locale, t);
+
+  return (
+    <li className={cn("rounded-[8px] border bg-white p-4", STATE_TONE[step.state].border)}>
+      <div className="flex gap-3">
+        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full border", STATE_TONE[step.state].circle)}>
+          <StepIcon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-heading text-[18px] font-medium text-[#26364a]">{t(`steps.${step.key}.title`)}</h3>
+              <p className="mt-1 text-[14px] leading-6 text-[#66758a]">{t(`steps.${step.key}.description`)}</p>
+            </div>
+            <span className={cn("inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold", STATE_TONE[step.state].badge)}>
+              <StateIcon className="h-3.5 w-3.5" />
+              {t(`stepStates.${step.state}`)}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-[#66758a]">
+            {metric && (
+              <span>
+                {t("metric")}: <span className="font-semibold text-[#3d4b5f]">{metric}</span>
+              </span>
+            )}
+            {step.statusValue && (
+              <span>
+                {t("status")}: <span className="font-semibold text-[#3d4b5f]">
+                  {application.country.toUpperCase() === "VN" || application.country.toLowerCase() === "vietnam"
+                    ? formatVietnamOfficialStatus(step.statusValue, locale)
+                    : humanize(step.statusValue)}
+                </span>
+              </span>
+            )}
+            {step.updatedAt && (
+              <span>
+                {t("updated")}: <span className="font-semibold text-[#3d4b5f]">{formatDateTime(step.updatedAt, locale)}</span>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[8px] border border-[#edf1f6] bg-white px-4 py-3">
+      <p className="text-[12px] font-medium text-[#8a94a3]">{label}</p>
+      <p className="mt-1 break-words [overflow-wrap:anywhere] text-[15px] font-semibold text-[#26364a]">{value}</p>
+    </div>
+  );
+}
+
+function FileRow({ file, locale, t }: { file: StatusFile; locale: string; t: Awaited<ReturnType<typeof getTranslations>> }) {
+  const Icon = FILE_ICONS[file.key];
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[8px] border border-[#edf1f6] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="font-heading text-[16px] font-medium text-[#26364a]">{t(`files.${file.key}`)}</p>
+          <p className="mt-1 truncate text-[13px] text-[#66758a]">{formatDate(file.createdAt, locale)}</p>
+        </div>
+      </div>
+      {file.href ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {file.printHref && (
+            <a
+              href={file.printHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+            >
+              {locale.startsWith("zh") ? "查看/打印" : "View / print"}
+            </a>
+          )}
+          <a
+            href={file.href}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+          >
+            {t("download")}
+            <Download className="h-4 w-4" />
+          </a>
+        </div>
+      ) : (
+        <span className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-[#66758a]">
+          {t("secureFileStored")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CountryApplicationRecordRow({
+  record,
+  locale,
+  t,
+}: {
+  record: CountryApplicationRecord;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <div className="rounded-[8px] border border-[#edf1f6] bg-white p-4">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-center">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DetailMetric
+            label={locale.startsWith("zh") ? "申请记录" : "Submitted at"}
+            value={formatDateTime(record.updatedAt ?? record.submittedAt ?? record.createdAt, locale)}
+          />
+          <DetailMetric
+            label={locale.startsWith("zh") ? "申请编号" : "Reference number"}
+            value={record.confirmationNumber ?? "-"}
+          />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-heading text-[16px] font-medium text-[#26364a]">
+              {locale.startsWith("zh") ? record.visaTypeLabelZh : record.visaTypeLabel}
+            </p>
+            <StatusBadge state={record.state} label={getStatusBadgeLabel(record, locale)} t={t} />
+          </div>
+          <SmoothProgressBar
+            displayedProgress={record.progressPercent}
+            label={t("progress")}
+            className="mt-3"
+          />
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
+          <Link
+            href={record.detailHref}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand-500 px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-brand-600"
+          >
+            {locale.startsWith("zh") ? "点击查看详情" : "View details"}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          {record.file?.href ? (
+            <a
+              href={record.file.href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#dce5f0] px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+            >
+              {locale.startsWith("zh") ? "下载确认文件" : "Download confirmation"}
+              <Download className="h-4 w-4" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CountryApplicationRecords({
+  application,
+  locale,
+  t,
+}: {
+  application: StatusApplication;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const visibleRecords = application.applicationRecords.slice(0, 3);
+  const hiddenRecords = application.applicationRecords.slice(3);
+
+  return (
+    <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">
+          {locale.startsWith("zh") ? "申请记录" : "Submission records"}
+        </h2>
+        <p className="text-[13px] font-medium text-[#66758a]">
+          {locale.startsWith("zh")
+            ? `共 ${application.applicationRecords.length} 条`
+            : `${application.applicationRecords.length} total`}
+        </p>
+      </div>
+
+      {application.applicationRecords.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {visibleRecords.map((record) => (
+            <CountryApplicationRecordRow key={record.id} record={record} locale={locale} t={t} />
+          ))}
+          {hiddenRecords.length > 0 && (
+            <details className="rounded-[8px] border border-[#edf1f6] bg-[#fbfdff] p-3">
+              <summary className="cursor-pointer list-none rounded-[8px] px-2 py-2 text-[14px] font-semibold text-brand-500 transition hover:bg-brand-50">
+                {locale.startsWith("zh")
+                  ? `查看其余 ${hiddenRecords.length} 条申请记录`
+                  : `Show ${hiddenRecords.length} more submission records`}
+              </summary>
+              <div className="mt-3 space-y-3">
+                {hiddenRecords.map((record) => (
+                  <CountryApplicationRecordRow key={record.id} record={record} locale={locale} t={t} />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-[8px] border border-dashed border-[#dce5f0] bg-white p-5 text-[14px] text-[#66758a]">
+          {t("filesEmpty")}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EmptyState({ t }: { t: Awaited<ReturnType<typeof getTranslations>> }) {
+  return (
+    <section className="rounded-[8px] border border-dashed border-[#cbd8ea] bg-white px-6 py-14 text-center shadow-sm">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-500">
+        <FileText className="h-6 w-6" />
+      </div>
+      <h2 className="mt-4 font-heading text-[24px] font-medium text-[#26364a]">{t("empty.title")}</h2>
+      <p className="mx-auto mt-2 max-w-lg text-[15px] leading-6 text-[#66758a]">{t("empty.description")}</p>
+      <Link
+        href="/client/home"
+        className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand-500 px-5 py-2 text-[14px] font-semibold text-white transition hover:bg-brand-600"
+      >
+        {t("empty.cta")}
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </section>
+  );
+}
+
+function DetailView({
+  application,
+  locale,
+  t,
+}: {
+  application: StatusApplication;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const isVietnam = application.country.toLowerCase() === "vietnam" || application.country.toUpperCase() === "VN";
+  const isCountryGroup = application.applicationRecords.length > 0;
+  const shouldPollOfficialStatus =
+    isVietnam &&
+    Boolean(application.id) &&
+    application.officialTracking?.status === "active";
+  return (
+    <section className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5 lg:p-6">
+      {application.id && (
+        <OfficialStatusAutoPoller
+          applicationId={application.id}
+          enabled={shouldPollOfficialStatus}
+        />
+      )}
+      <div className="space-y-5">
+      {application.liveSubmission?.pendingManualAction && (
+        <LiveManualActionCard
+          liveSubmission={application.liveSubmission}
+          copy={{
+            title: t("liveAction.title"),
+            description: t("liveAction.description"),
+            actionType: t("liveAction.actionType"),
+            checkpoint: t("liveAction.checkpoint"),
+            openOfficial: t("liveAction.openOfficial"),
+            continue: t("liveAction.continue"),
+            continuing: t("liveAction.continuing"),
+            completed: t("liveAction.completed"),
+            failed: t("liveAction.failed"),
+          }}
+        />
+      )}
+      <section className="rounded-[8px] border border-[#e7edf5] bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 gap-4">
+            <span className="text-[42px] leading-none" aria-hidden="true">
+              {application.countryFlag}
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-heading text-[28px] font-medium leading-tight text-[#26364a] sm:text-[34px]">
+                  {locale.startsWith("zh") ? application.countryNameZh : application.countryName}
+                </h2>
+                <StatusBadge state={application.state} label={getStatusBadgeLabel(application, locale)} t={t} />
+              </div>
+              <p className="mt-2 text-[15px] font-medium text-[#66758a]">
+                {locale.startsWith("zh") ? application.visaTypeLabelZh : application.visaTypeLabel}
+              </p>
+              {application.officialReference && !isCountryGroup && (
+                <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#dce5f0] bg-[#fbfdff] px-3 py-1.5 text-[13px] font-semibold text-[#3d4b5f]">
+                  <Landmark className="h-4 w-4 text-brand-500" />
+                  {application.officialReferenceKind === "official" ? t("officialReference") : t("vizaReference")}: {application.officialReference}
+                </p>
+              )}
+            </div>
+          </div>
+          {!isCountryGroup && (
+          <div className="flex flex-wrap gap-2">
+            {application.actions.map((action) => (
+              <ActionLink key={`${action.key}-${action.href}`} action={action} t={t} />
+            ))}
+          </div>
+          )}
+        </div>
+
+        <SmoothProgressBar
+          displayedProgress={application.progressPercent}
+          label={t("progress")}
+          className="mt-6"
+        />
+      </section>
+
+      {isCountryGroup ? (
+        <CountryApplicationRecords application={application} locale={locale} t={t} />
+      ) : (
+      <>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        <section className="space-y-3">
+          <div>
+            <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("timelineTitle")}</h2>
+            <p className="mt-1 text-[14px] leading-6 text-[#66758a]">{t("timelineSubtitle")}</p>
+          </div>
+          <ol className="space-y-3">
+            {application.steps.map((step) => (
+              <StepRow key={step.key} application={application} step={step} locale={locale} t={t} />
+            ))}
+          </ol>
+        </section>
+
+        <aside className="space-y-5">
+          <section>
+            <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("nextActionsTitle")}</h2>
+            <div className="mt-3 space-y-2">
+              {application.actions.map((action) => (
+                <ActionLink key={`side-${action.key}-${action.href}`} action={action} t={t} />
+              ))}
+              {application.id && isVietnam && application.officialTracking?.status === "active" && (
+                <OfficialStatusRefreshButton
+                  applicationId={application.id}
+                  label={locale.startsWith("zh") ? "刷新官网状态" : "Refresh official status"}
+                  loadingLabel={locale.startsWith("zh") ? "正在刷新" : "Refreshing"}
+                  errorLabel={locale.startsWith("zh") ? "官网状态刷新失败" : "Official status refresh failed"}
+                  locale={locale}
+                />
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("referencesTitle")}</h2>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <DetailMetric label={t("details.applicationId")} value={application.id ?? t("notCreated")} />
+              <DetailMetric label={t("details.payment")} value={application.payment.status ? humanize(application.payment.status) : t("notStarted")} />
+              <DetailMetric label={t("details.agencyFee")} value={formatMoney(application.payment.amountCents, application.payment.currency, locale)} />
+              <DetailMetric label={t("details.governmentFee")} value={formatMoney(application.governmentFee.amountCents, application.governmentFee.currency, locale)} />
+              <DetailMetric
+                label={locale.startsWith("zh") ? "官方费用状态" : "Official fee status"}
+                value={application.officialFee.status ? humanize(application.officialFee.status) : t("notStarted")}
+              />
+              <DetailMetric label={t("details.formAnswers")} value={String(application.formAnswerCount)} />
+              <DetailMetric
+                label={t("details.documents")}
+                value={`${application.documents.uploaded + application.documents.validated}/${application.documents.total}`}
+              />
+              <DetailMetric label={t("details.externalStatus")} value={application.externalStatus ? (isVietnam ? formatVietnamOfficialStatus(application.externalStatus, locale) : humanize(application.externalStatus)) : t("notAssigned")} />
+              <DetailMetric label={t("details.resultStatus")} value={application.resultStatus ? (isVietnam ? formatVietnamOfficialStatus(application.resultStatus, locale) : humanize(application.resultStatus)) : t("notAssigned")} />
+              {application.officialTracking && (
+                <>
+                  <DetailMetric
+                    label={locale.startsWith("zh") ? "上次官网查询" : "Last official check"}
+                    value={formatDateTime(application.officialTracking.lastSuccessfulCheckAt, locale)}
+                  />
+                  <DetailMetric
+                    label={locale.startsWith("zh") ? "下次例行查询" : "Next daily check"}
+                    value={application.officialTracking.status === "active"
+                      ? formatDateTime(application.officialTracking.nextDailyCheckAt, locale)
+                      : (locale.startsWith("zh") ? "追踪已完成" : "Tracking completed")}
+                  />
+                </>
+              )}
+              <DetailMetric label={t("details.notifications")} value={String(application.notifications.total)} />
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <section>
+        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("filesTitle")}</h2>
+        <p className="mt-1 text-[14px] leading-6 text-[#66758a]">{t("filesSubtitle")}</p>
+        {application.files.length > 0 ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {application.files.map((file) => (
+              <FileRow key={`${file.key}-${file.reference}`} file={file} locale={locale} t={t} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 rounded-[8px] border border-dashed border-[#dce5f0] bg-white p-5 text-[14px] text-[#66758a]">
+            {t("filesEmpty")}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("activityTitle")}</h2>
+        {application.events.length > 0 ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {application.events.map((event) => (
+              <div key={`${event.eventType}-${event.createdAt}`} className="rounded-[8px] border border-[#edf1f6] bg-white p-4">
+                <p className="font-semibold text-[#26364a]">{formatEvent(event, t)}</p>
+                <p className="mt-1 text-[13px] text-[#66758a]">{formatDateTime(event.createdAt, locale)}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 rounded-[8px] border border-dashed border-[#dce5f0] bg-white p-5 text-[14px] text-[#66758a]">
+            {t("activityEmpty")}
+          </div>
+        )}
+      </section>
+      </>
+      )}
+      </div>
+    </section>
+  );
+}
+
+function Dashboard({
+  data,
+  selectedApplication,
+  locale,
+  t,
+}: {
+  data: ClientStatusData;
+  selectedApplication: StatusApplication | null;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  const fileCount = data.applications.reduce(
+    (count, application) =>
+      count +
+      (application.applicationRecords.length > 0
+        ? application.applicationRecords.filter((record) => Boolean(record.file)).length
+        : application.files.length),
+    0,
+  );
+  const nextActionCount = data.applications.reduce((count, application) => count + application.actions.filter((action) => action.primary).length, 0);
+  const averageProgress = data.applications.length > 0
+    ? Math.round(data.applications.reduce((sum, application) => sum + application.progressPercent, 0) / data.applications.length)
+    : 0;
+
+  return (
+    <div className="mx-auto w-full max-w-[1180px] pb-14">
+      <section className="pt-5 sm:pt-8">
+        <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6b7687]">{t("eyebrow")}</p>
+        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="font-heading text-[32px] font-medium leading-tight text-[#26364a] sm:text-[42px]">{t("title")}</h1>
+            <p className="mt-3 max-w-2xl text-[15px] leading-6 text-[#66758a]">{t("subtitle")}</p>
+          </div>
+          <Link
+            href="/client/home"
+            className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-full border border-[#dce5f0] bg-white px-4 py-2 text-[14px] font-semibold text-brand-500 transition hover:border-brand-300"
+          >
+            {t("chooseDestination")}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatPanel label={t("stats.applications")} value={String(data.applications.length)} icon={FileText} />
+        <StatPanel label={t("stats.averageProgress")} value={`${averageProgress}%`} icon={CheckCircle2} />
+        <StatPanel label={t("stats.nextActions")} value={String(nextActionCount)} icon={Upload} />
+        <StatPanel label={t("stats.files")} value={String(fileCount)} icon={Download} />
+      </div>
+
+      {data.applications.length === 0 ? (
+        <div className="mt-6">
+          <EmptyState t={t} />
+        </div>
+      ) : (
+        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+          <aside className="rounded-[8px] border border-[#d9e5f4] bg-[#fbfdff] p-4 shadow-sm sm:p-5">
+            <h2 className="font-heading text-[22px] font-medium text-[#26364a]">{t("applicationsTitle")}</h2>
+            <div className="mt-4 space-y-3">
+              {data.applications.map((application) => (
+                <ApplicationCard
+                  key={getSelectionKey(application)}
+                  application={application}
+                  selected={selectedApplication ? application.countryKey === selectedApplication.countryKey : false}
+                  locale={locale}
+                  t={t}
+                />
+              ))}
+            </div>
+          </aside>
+          {selectedApplication && <DetailView application={selectedApplication} locale={locale} t={t} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default async function ClientStatusPage({ searchParams }: { searchParams?: SearchParams }) {
+  const hasSession = await hasClientSession();
+  if (!hasSession) redirect("/client/login");
+
+  const params = searchParams ? await searchParams : {};
+  const [t, locale, data] = await Promise.all([
+    getTranslations("clientStatus"),
+    getLocale(),
+    getClientStatusData(),
+  ]);
+
+  const selectedApplicationId = getParam(params.applicationId);
+  const selectedPackageId = getParam(params.packageId);
+  const selectedCountry = normalizeCountryParam(getParam(params.country));
+  const detailView = getParam(params.view) === "detail";
+  const detailApplication =
+    detailView
+      ? data.detailApplications.find((application) => application.id && application.id === selectedApplicationId) ??
+        data.detailApplications.find((application) => application.packageId && application.packageId === selectedPackageId) ??
+        null
+      : null;
+  const selectedApplication =
+    detailApplication ??
+    data.applications.find((application) => normalizeCountryParam(application.countryKey) === selectedCountry) ??
+    data.applications.find((application) => application.applicationRecords.some((record) => record.id === selectedApplicationId)) ??
+    data.applications.find((application) => application.applicationRecords.some((record) => record.packageId === selectedPackageId)) ??
+    data.applications[0] ??
+    null;
+
+  return <Dashboard data={data} selectedApplication={selectedApplication} locale={locale} t={t} />;
+}

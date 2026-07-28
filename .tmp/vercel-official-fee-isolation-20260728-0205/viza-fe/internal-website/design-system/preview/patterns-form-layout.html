@@ -1,0 +1,60 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box}
+  .form-card{background:#fff;border:1px solid #efefef;border-radius:12px;padding:28px}
+  h3{font:500 20px var(--font-heading);letter-spacing:-.4px;margin:0 0 6px;color:#3d3d3d}
+  .sub{font:400 13px/1.5 var(--font-sans);color:rgba(0,0,0,.55);margin:0 0 24px}
+  .section{margin-bottom:24px}
+  .section-title{font:500 11px "Geist";letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.45);margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid #efefef}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  .field label{font:500 13px var(--font-sans);color:#374151;letter-spacing:-.1px}
+  .field label .req{color:hsl(0 72% 51%);margin-left:2px}
+  .field label .opt{color:rgba(0,0,0,.45);font-weight:400;margin-left:4px}
+  .field input, .field select{height:44px;padding:0 14px;border:1px solid #e8e8e8;border-radius:8px;font:400 15px var(--font-sans);color:#3d3d3d;background:#fff;outline:none}
+  .field input:focus{border-color:#03346E;box-shadow:0 0 0 1px #03346E}
+  .field .help{font:400 12px var(--font-sans);color:rgba(0,0,0,.5)}
+  .field.err input{border-color:hsl(0 72% 51%)}
+  .field.err .help{color:hsl(0 72% 45%)}
+  .actions{display:flex;justify-content:flex-end;gap:8px;padding-top:8px;border-top:1px solid #efefef;margin-top:8px}
+  .btn{height:44px;padding:0 22px;border-radius:999px;font:500 14px var(--font-sans);border:0;cursor:pointer}
+  .btn-p{background:#03346E;color:#fff}
+  .btn-g{background:transparent;color:#3d3d3d;border:1px solid #e8e8e8}
+</style></head>
+<body><div class="stage">
+  <div class="form-card">
+    <h3>Personal information</h3>
+    <p class="sub">We'll use these details exactly as they appear on your passport.</p>
+
+    <div class="section">
+      <div class="section-title">Identity</div>
+      <div class="grid2">
+        <div class="field"><label>Family name<span class="req">*</span></label><input value="陈 · Chen"/></div>
+        <div class="field"><label>Given names<span class="req">*</span></label><input value="佳慧 · Jiahui"/></div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label>Date of birth<span class="req">*</span></label><input value="1994-08-12" placeholder="YYYY-MM-DD"/></div>
+        <div class="field"><label>Nationality<span class="req">*</span></label><input value="People's Republic of China"/></div>
+        <div class="field err"><label>National ID<span class="req">*</span></label><input value="11010519940812" />
+          <div class="help">National ID must be 18 digits.</div></div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:0">
+      <div class="section-title">Contact</div>
+      <div class="grid2">
+        <div class="field"><label>Email<span class="req">*</span></label><input value="jiahui.chen@example.com"/>
+          <div class="help">We'll send your confirmation here.</div></div>
+        <div class="field"><label>Phone<span class="opt">· optional</span></label><input value="+86 139 ·"/></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-g">Back</button>
+      <button class="btn btn-p">Continue</button>
+    </div>
+  </div>
+</div></body></html>

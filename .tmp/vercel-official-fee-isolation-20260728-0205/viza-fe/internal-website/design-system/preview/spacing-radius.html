@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .sec { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .box { border: 1px solid var(--border-hairline); border-radius: 12px; padding: 16px; background: #fff; }
+  h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-2); margin-bottom: 12px; font-weight: 500; }
+  .radii { display: flex; align-items: flex-end; gap: 14px; }
+  .r { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .r .box2 { width: 48px; height: 48px; background: var(--brand-500); }
+  .r .cap { font-size: 10px; color: var(--fg-2); font-family: ui-monospace, Menlo, monospace; }
+  .spaces { display: flex; align-items: center; gap: 10px; }
+  .sp { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .sp .bar { background: var(--brand-200); border-radius: 2px; height: 18px; }
+  .sp .l { font-size: 10px; color: var(--fg-2); font-family: ui-monospace, Menlo, monospace; }
+</style></head>
+<body><div class="stage">
+  <div class="sec">
+    <div class="box">
+      <h4>Radius scale</h4>
+      <div class="radii">
+        <div class="r"><div class="box2" style="border-radius:0"></div><div class="cap">0</div></div>
+        <div class="r"><div class="box2" style="border-radius:2px"></div><div class="cap">sm · 2</div></div>
+        <div class="r"><div class="box2" style="border-radius:4px"></div><div class="cap">md · 4</div></div>
+        <div class="r"><div class="box2" style="border-radius:8px"></div><div class="cap">8 · input</div></div>
+        <div class="r"><div class="box2" style="border-radius:12px"></div><div class="cap">xl · card</div></div>
+        <div class="r"><div class="box2" style="border-radius:16px"></div><div class="cap">2xl · stage</div></div>
+        <div class="r"><div class="box2" style="border-radius:999px"></div><div class="cap">pill</div></div>
+      </div>
+    </div>
+    <div class="box">
+      <h4>Spacing (4pt)</h4>
+      <div class="spaces">
+        <div class="sp"><div class="bar" style="width:4px"></div><div class="l">1 · 4</div></div>
+        <div class="sp"><div class="bar" style="width:8px"></div><div class="l">2 · 8</div></div>
+        <div class="sp"><div class="bar" style="width:12px"></div><div class="l">3 · 12</div></div>
+        <div class="sp"><div class="bar" style="width:16px"></div><div class="l">4 · 16</div></div>
+        <div class="sp"><div class="bar" style="width:24px"></div><div class="l">6 · 24</div></div>
+        <div class="sp"><div class="bar" style="width:32px"></div><div class="l">8 · 32</div></div>
+        <div class="sp"><div class="bar" style="width:48px"></div><div class="l">12 · 48</div></div>
+      </div>
+    </div>
+  </div>
+</div></body></html>

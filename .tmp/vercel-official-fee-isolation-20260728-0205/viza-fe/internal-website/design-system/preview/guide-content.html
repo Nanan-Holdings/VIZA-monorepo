@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #efefef;border-radius:12px;overflow:hidden;font:400 13px var(--font-sans)}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid #f3f4f6;vertical-align:top}
+  thead th{font:500 11px var(--font-sans);color:rgba(0,0,0,.5);background:#fbfbfb;letter-spacing:.04em;text-transform:uppercase}
+  .no{background:#fef7f7;border-left:3px solid hsl(0 72% 51%);padding:8px 12px;border-radius:4px;color:hsl(0 72% 35%);margin-bottom:6px}
+  .yes{background:#f0fdf4;border-left:3px solid #16a34a;padding:8px 12px;border-radius:4px;color:#166534}
+  .col{display:flex;flex-direction:column;gap:4px}
+  .mono{font-family:ui-monospace,Menlo;font-size:12px}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Button verbs · one word when possible · imperative</div>
+    <table><thead><tr><th>Context</th><th>zh-CN</th><th>en-US</th></tr></thead><tbody>
+      <tr><td>Start / continue a flow</td><td>立即开始申请 · 继续</td><td>Start my application · Continue</td></tr>
+      <tr><td>Save without leaving</td><td>保存</td><td>Save</td></tr>
+      <tr><td>Submit final</td><td>提交申请</td><td>Submit application</td></tr>
+      <tr><td>Destructive</td><td>删除 · 取消申请</td><td>Delete · Cancel application</td></tr>
+      <tr><td>Upload</td><td>上传护照</td><td>Upload passport</td></tr>
+      <tr><td>Dismiss a dialog</td><td>取消 · 关闭</td><td>Cancel · Close</td></tr>
+    </tbody></table>
+  </div>
+  <div>
+    <div class="label">Dates, times, numbers, money</div>
+    <table><thead><tr><th>Type</th><th>zh-CN</th><th>en-US</th></tr></thead><tbody>
+      <tr><td class="mono">Date (short)</td><td>2026年4月24日</td><td>24 Apr 2026</td></tr>
+      <tr><td class="mono">Date (ISO for fields)</td><td colspan="2" style="font-family:ui-monospace;font-size:12px">YYYY-MM-DD — always. Passport dates, DOB, input values.</td></tr>
+      <tr><td class="mono">Time</td><td>14:30</td><td>2:30 PM</td></tr>
+      <tr><td class="mono">Money</td><td>¥1,280</td><td>S$380</td></tr>
+      <tr><td class="mono">Duration</td><td>2个工作日</td><td>2 business days</td></tr>
+      <tr><td class="mono">Passport number</td><td colspan="2" style="font-family:ui-monospace;font-size:12px">Uppercase, monospace font, letter-spacing: 0.02em</td></tr>
+    </tbody></table>
+  </div>
+  <div>
+    <div class="label">Error-message templates</div>
+    <div class="no"><b>Don't:</b> "Oops! Something went wrong 😬 Please try again later."</div>
+    <div class="yes"><b>Do:</b> "We couldn't save your changes. Check your connection and try again." Include a retry action when possible.</div>
+    <div class="no" style="margin-top:8px"><b>Don't:</b> "Error 422: Invalid date format"</div>
+    <div class="yes"><b>Do:</b> "Please enter your birthday as YYYY-MM-DD." Always tell the user what to do next.</div>
+  </div>
+  <div>
+    <div class="label">Country & visa naming</div>
+    <div class="yes">Use the full English name: "Indonesia · B211A Business", "UK Standard Visitor Visa", "Japan Tourist Visa".<br/>For zh-CN: "印度尼西亚 · B211A 商务签证", "英国标准访客签证". Never abbreviate country names.</div>
+  </div>
+</div></body></html>

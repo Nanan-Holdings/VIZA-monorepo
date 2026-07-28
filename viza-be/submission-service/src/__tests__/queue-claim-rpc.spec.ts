@@ -31,6 +31,13 @@ const vietnamPrearrivalMigrationPath = path.join(
   "drizzle",
   "0117_vietnam_prearrival_queue_claim.sql",
 );
+const officialFeeIsolationMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0118_official_fee_queue_isolation.sql",
+);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -63,6 +70,21 @@ test("Vietnam Pre-Arrival states are included in the atomic legacy queue claim",
   assert.match(sql, /for update skip locked/);
   assert.match(sql, /create or replace function public\.claim_submission_queue_batch/);
   assert.match(sql, /grant execute on function public\.claim_submission_queue_batch[\s\S]*to service_role/);
+});
+
+test("official-fee enqueue is serialized per application and cannot create competing active jobs", () => {
+  const sql = readFileSync(officialFeeIsolationMigrationPath, "utf8").toLowerCase();
+
+  assert.match(sql, /create unique index if not exists submission_queue_one_active_official_fee_job_idx/);
+  assert.match(sql, /on public\.submission_queue\(application_id, provider\)/);
+  assert.match(sql, /create or replace function public\.enqueue_official_fee_submission/);
+  assert.match(sql, /from public\.applications[\s\S]*where id = p_application_id[\s\S]*for update/);
+  assert.match(sql, /sq\.application_id = p_application_id/);
+  assert.match(sql, /sq\.provider = p_provider/);
+  assert.match(sql, /status = 'retry_superseded'/);
+  assert.match(sql, /locked_until > p_now/);
+  assert.match(sql, /revoke all on function public\.enqueue_official_fee_submission/);
+  assert.match(sql, /grant execute on function public\.enqueue_official_fee_submission[\s\S]*to service_role/);
 });
 
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {

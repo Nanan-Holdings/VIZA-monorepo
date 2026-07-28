@@ -65,6 +65,10 @@ filling and one-shot submission for the applicant.
   single-runner local maximum is 10 via `SUBMISSION_SERVICE_MAX_CONCURRENCY`;
   wider product-scale concurrency uses `src/submission-queue-claim.ts` and
   migration `0105_submission_queue_claim_locks.sql` for DB-level leases.
+- Official-fee enqueue operations use migration
+  `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
+  claimed/running jobs are reused, and stale jobs for only that application
+  are superseded before a replacement is inserted.
 - Cloud worker topology: `RUNNER_JOB_COUNTRY` scopes a Fly worker to one
   `runner_job` country bucket, while `SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED`
   must remain false there. Only the dedicated legacy worker may poll
