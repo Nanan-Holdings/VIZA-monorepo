@@ -69,6 +69,8 @@ viza-fe/
 viza-be/
   agent-backend/          Express + Socket.IO + Drizzle + Supabase service,
                           VIZA AI, RAG, field guidance, seeds/migrations
+  email-worker/           Cloudflare Email Routing worker for per-applicant
+                          aliases, OTP ingestion, R2 retention, and forwarding
   submission-service/     Playwright worker for e-visa and DS-160 CEAC prefill
   travel-service/         Python FastAPI travel planner and export service
 

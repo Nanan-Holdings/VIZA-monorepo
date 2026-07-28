@@ -49,16 +49,57 @@ filling and one-shot submission for the applicant.
   button, watching queue pickup/progress in the UI, and preserving the official
   portal trace/screenshot plus DB result evidence. If this browser-click test
   cannot be completed, report the exact blocker.
+- For any official portal blocked by Cloudflare, Turnstile, or a government
+  WAF, follow the local `browser-api-cloudflare-runner` skill first. 所有
+  Cloudflare/Turnstile/WAF 的场景优先按该 skill 执行：优先国家级 Browser
+  API/CDP，其次是显式允许的全局 Browser API。不得静默降级，必须保留官方阻断与
+  放行证据。端点凭证不得入日志。
 
 ## Key Flows
 
 - `src/index.ts`: polling loop, Supabase data loading, document download,
   per-country dispatch, retry/failure handling, queue status transitions.
+- `src/queue-scheduler.ts`: local submission queue concurrency scheduler.
+  Allows different account/country/provider work to run in parallel while
+  serializing the same application and the same user/provider lane. The current
+  single-runner local maximum is 10 via `SUBMISSION_SERVICE_MAX_CONCURRENCY`;
+  wider product-scale concurrency uses `src/submission-queue-claim.ts` and
+  migration `0105_submission_queue_claim_locks.sql` for DB-level leases.
+- Official-fee enqueue operations use migration
+  `0118_official_fee_queue_isolation.sql`: the application row is the mutex,
+  claimed/running jobs are reused, and stale jobs for only that application
+  are superseded before a replacement is inserted.
+- Generic retry enqueue operations use migration
+  `0119_submission_retry_queue_isolation.sql`: supersede-and-insert is one
+  transaction, one application has at most one active browser job, and
+  different application IDs remain independent queue items.
+- Cloud worker topology: `RUNNER_JOB_COUNTRY` scopes a Fly worker to one
+  `runner_job` country bucket, while `SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED`
+  must remain false there. Only the dedicated legacy worker may poll
+  `submission_queue` during the migration.
+- `deploy/fly/` contains credential-free Fly templates and country mappings.
+  Production endpoints and keys belong only in Fly Secrets.
+  `deploy/fly/fly.south-korea.toml` pins the interactive Korea e-Form/KVAC
+  service to one always-on machine so an OTP request and its follow-up code use
+  the same in-memory official browser session.
+- `scripts/fly/` renders and deploys country workers, deploys the dedicated
+  legacy worker, syncs the three boot-required runtime secrets, and applies
+  autoscaler decisions. These scripts require operator-provided Fly
+  authentication and must never print or persist secret values.
+- `src/submission-queue-claim.ts`: service-role RPC wrapper around
+  `claim_submission_queue_batch`, which atomically claims legacy
+  `submission_queue` rows with `FOR UPDATE SKIP LOCKED` so multiple
+  submission-service runners can run safely. Vietnam e-Visa production jobs
+  use the separate `claim_vn_cloud_submission_queue_batch` RPC and
+  `vn_cloud_live_pending`; only the Fly legacy worker may enable
+  `VN_CLOUD_QUEUE_ENABLED`.
 - `src/ds160-live-config.ts`: DS-160 dry-run/live-assisted feature flags and
   startup safety validation. Dry-run is the default.
 - `src/france-live-config.ts`: France Schengen dry-run/live-assisted feature
-  flags and safety validation. Dry-run is the default; live assisted is visible
-  browser only and blocks final validation, payment, and appointment booking.
+  flags and safety validation. Dry-run is the default; France-Visas live
+  assisted is visible-browser only and blocks final validation/payment/booking;
+  TLS appointment/payment require separate explicit
+  `FRANCE_TLS_APPOINTMENT_ENABLED` and `FRANCE_TLS_PAYMENT_ENABLED` gates.
 - `src/form-mappings.ts`: Indonesian e-visa portal selectors.
 - `src/ds160-form-mappings.ts`: DS-160 field selector mappings.
 - `src/ds160-coverage-audit.ts` and `src/ds160-completeness-verify.ts`:
@@ -68,23 +109,104 @@ filling and one-shot submission for the applicant.
   reference capture, optional CERFA PDF finalization, standard Chromium launch,
   VIZA-alias account registration, registration CAPTCHA solving when explicitly
   enabled, manual checkpoints, and typed failures.
-- `src/inbox/alias.ts` and `src/france-visas/mailbox-provider.ts`: VIZA email
-  alias provisioning and inbound-email verification-link extraction for
-  official account registration.
+- `src/france-tls/**`: TLScontact China appointment scaffold for France
+  Schengen. Keeps the mainland China center registry in one provider, models
+  selector/page boundaries, reads backend-observed slots, consumes short-TTL
+  payment sessions, clears sensitive PAN/CVV after use, and must capture
+  redacted confirmation/payment evidence only after explicit user slot,
+  payment, and final approval. `src/france-tls/recaptcha-grid.ts` maps visible
+  reCAPTCHA image-grid challenges to 2captcha `GridTask` solves and page
+  clicks; it must not be treated as a Cloudflare/WAF, MFA, identity, or
+  payment-challenge bypass. `src/france-tls/browser-api.ts` owns TLS-specific
+  Browser API/CDP endpoint selection, provider-native CAPTCHA solve attempts,
+  Cloudflare/WAF classification, and shared live-smoke page state detection.
+  Bright Data Browser API zones block password entry by default; TLS login can
+  only be fully automated in the same session when the configured Browser API
+  zone has password entry enabled by the provider, or when a local/TLS CDP
+  session is already past Cloudflare and authorized for official login.
+  `src/france-tls/account-registration.ts` owns the idempotent VIZA-alias
+  account preparation path: encrypted password persistence, mandatory legal
+  consent only, Cloudflare Email Worker activation, login, and France-Visas
+  reference prefill. It always stops before submitting appointment data,
+  selecting a slot, payment, or booking; real account creation also requires
+  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true` at the caller boundary.
+- `POST /local/france-tls/check-slots`: localhost-only health-server endpoint
+  gated by `FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED=true`. It opens the
+  configured TLS VAC official URL through France-specific Browser API/CDP or a
+  local browser, returns visible slots when safely observed, and otherwise
+  returns structured checkpoints such as `login`, `captcha`, `waf`, `payment`,
+  or `selector_drift` without logging Browser API endpoints.
+- `POST /internal/vietnam/card-session`: bearer-protected production handoff
+  from Vercel to the single Fly legacy queue worker. It keeps one Vietnam
+  official-fee card in worker memory until one consumption or expiry and must
+  never log or persist PAN/CVV.
+- `POST /internal/france-tls/register-account`: internal-token protected
+  account preparation endpoint gated by
+  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`. It runs exactly one
+  application/session, persists only encrypted credentials, activates through
+  `inbound_email`, and stops before reference submission, slot selection,
+  payment, or booking.
+- `POST /internal/france-tls/book-selected-slot`: internal-token protected live
+  booking handoff gated by `FRANCE_TLS_LIVE_BOOKING_ENABLED=true`. It logs in
+  with the stored alias account, matches only the exact backend-observed slot
+  selected by the applicant, and returns either a verifiable official
+  confirmation number or an explicit payment/WAF/CAPTCHA/selector checkpoint.
+  It must never synthesize a live confirmation number.
+- `src/jp-vfs-sg/runner.ts`: Japan VFS Singapore appointment runner. It reuses
+  one encrypted VIZA-alias portal account per application, consumes VFS account
+  verification mail through `inbound_email`, logs in, opens the official
+  booking calendar, returns observed slots, and matches only the exact
+  applicant-selected slot. Payment remains an explicit hosted-provider
+  checkpoint; a booking may be persisted only when VFS displays a real
+  confirmation/reference number.
+- `src/jp-vfs-sg/payment-session.ts`: short-lived in-memory Japan VFS card
+  handoff. It binds a validated one-time card to one booking job, exposes only
+  redacted metadata, and deletes the full card on consume or expiry.
+- `scripts/run-japan-vfs-registration-fill-smoke.ts`: opens the real empty VFS
+  Japan/Singapore registration form, fills clearly synthetic placeholder data
+  through the same production selector helper, verifies the rendered values,
+  masks evidence, and exits without clicking Continue or creating an account.
+- `scripts/run-japan-vfs-placeholder-account.ts`: explicit operator-only
+  Browserbase-proxy smoke that creates one clearly marked placeholder VFS
+  account for a supplied local test application, consumes managed-alias
+  activation mail when available, encrypts the generated password, and never
+  proceeds to slot selection, payment, or booking.
+- `scripts/recover-japan-vfs-account.ts`: activates a newly registered Japan
+  VFS account from the VIZA-managed inbox, resets an unavailable test password
+  through the official portal, and persists only the encrypted replacement.
+- `POST /internal/japan-vfs-sg/book-selected-slot`: internal-token protected
+  Japan live-booking handoff gated by `JP_VFS_SG_LIVE_BOOKING_ENABLED=true`.
+  It never logs card data or fabricates slot/payment/confirmation success.
+- `src/inbox/alias.ts`, `src/email/inbound-ingest.ts`, and
+  `src/france-visas/mailbox-provider.ts`: VIZA email alias provisioning,
+  official-email ingestion, original-message forwarding to the applicant's
+  real email, and verification-link extraction for official account
+  registration. Country runners that need email OTP must force the managed
+  alias into the official form; user-entered email remains the forwarding
+  destination only.
 - `scripts/ts-node-js-resolver.cjs`: local dev preload that lets `ts-node`
   resolve relative `.js` source imports to sibling `.ts` files while preserving
   build output imports.
 - `src/country-submissions/**`: safe provider registry, schema/dry-run
   validation, unsupported-country handling, and inventory metadata for country
   submission capability audits.
-- `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC and
-  TDAC can use a configured Browser API/CDP endpoint such as Bright Data
-  Scraping Browser before falling back to local Chromium. PH eTravel defaults
-  away from global Bright Data endpoints because generic zones may block
-  government sites; use `PH_ETRAVEL_BROWSER_API_ENDPOINT`, local
-  `PH_ETRAVEL_CDP_ENDPOINT`, or explicitly set
-  `PH_ETRAVEL_USE_GLOBAL_BROWSER_API=true` after verifying policy access. Never
-  log endpoint credentials.
+- `src/arrival-card-browser.ts`: shared arrival-card browser provider. MDAC,
+  TDAC, PH eTravel, and Vietnam Pre-Arrival can use a configured Browser API/CDP endpoint such as
+  Bright Data Scraping Browser before local Chromium. PH eTravel is
+  Cloudflare-protected and now accepts the global `BRIGHTDATA_BROWSER_API_*`
+  endpoint by default when no PH-specific endpoint is configured; when a
+  Browser API endpoint is configured, PH eTravel must not silently fall back to
+  local Chromium on connection failure. Use `PH_ETRAVEL_BROWSER_API_ENDPOINT`
+  for a country-specific endpoint, `PH_ETRAVEL_CDP_ENDPOINT` for an already
+  authorized local session, or `PH_ETRAVEL_REQUIRE_BROWSER_API=false` only when
+  intentionally debugging local fallback. Never log endpoint credentials.
+- `src/arrival-card-success-guard.ts`: prevents completed dry runs from being
+  mistaken for official arrival-card submissions when suppressing duplicate
+  live retries. A live queue counts as success only with persisted official
+  submitted evidence.
+- `src/vn-prearrival/data/`: build-owned snapshots of the official Vietnam
+  Pre-Arrival option catalogs used by the cloud worker. Keep these synchronized
+  with the frontend catalogs whenever the official portal options are refreshed.
 - `src/uk/**`: UKVI pre-auth/resume scaffold; post-auth selector integration is
   still a known gap.
 - `src/us-appointment/**`: China `CN/usvisascheduling` assisted-live
@@ -98,27 +220,166 @@ filling and one-shot submission for the applicant.
   and writes follow-up checks to `appointment_status_checks`. Keep the DB state
   machine in `runner.ts` and official-page selectors/page interactions in
   `usvisascheduling-portal.ts`.
+- `scripts/run-us-appointment-registration-recon.ts`: Browserbase Developer
+  single-session registration-entry recon. It clicks the official B2C
+  `Sign up now` control, verifies the empty registration form, saves masked
+  screenshots, and stops before entering alias/credentials, sending email, or
+  creating a permanent account. The recon and production registration share
+  `reachUSVisaSchedulingRegistrationForm()` so selector drift is detected in
+  the same path.
 - `src/au-visitor/**`: ImmiAccount Subclass 600 runner; walks to Review and
   stops before applicant-controlled submit.
 - `src/vietnam/**`: Vietnam e-Visa runner; uses a portal state machine for
   landing/NOTE/CAPTCHA/form/payment/white-screen checkpoints, fills the SPA
-  when the official form is reached, and stops before payment/submission.
+  when the official form is reached, uses a VIZA alias for official
+  correspondence, tracks newly paid submissions through daily/email/user
+  official queries, and privately delivers validated official PDFs.
 - `src/sgac/**`: Singapore SG Arrival Card runner. Normalizes
   `SG_ARRIVAL_CARD` answers only, fills ICA SGAC Foreign Visitor pages, submits
   after Review in worker mode, and captures confirmation/error artifacts.
+- `src/sg/**`: runner_job adapter for the Singapore worker. It maps canonical
+  answers into the SGAC package-specific payload and never claims success
+  without an ICA confirmation/reference.
+- `scripts/fly/verify-country-worker.sh`: read-only Fly post-deploy readiness
+  probe; it verifies the country worker without creating an applicant job.
 - `src/mdac/**`: Malaysia MDAC arrival-card runner. Normalizes
   `MY_MDAC_ARRIVAL_CARD` answers only, keeps MDAC separate from Malaysia eVisa,
   dispatches through the official MDAC portal, and captures confirmation/error
   evidence artifacts.
 - `src/tdac/**`: Thailand TDAC arrival-card runner. Normalizes
   `TH_TDAC_ARRIVAL_CARD` answers only, keeps TDAC separate from Thailand eVisa,
-  dispatches through the official TDAC portal, and captures confirmation/error
-  evidence artifacts.
-- `src/ph-etravel/**`: Philippines eTravel arrival-card runner. Normalizes
-  `PH_ETRAVEL_ARRIVAL_CARD` answers only, keeps eTravel separate from
+  defaults to a Thailand-targeted Browserbase session (Bright Data rejects the
+  government portal), dispatches through the official TDAC portal, and captures
+  confirmation/error evidence artifacts.
+- `src/ph-etravel/**`: Philippines eTravel arrival/departure runner. Normalizes
+  independent `PH_ETRAVEL_ARRIVAL_CARD` and `PH_ETRAVEL_DEPARTURE_CARD` answers, keeps eTravel separate from
   `PH_TEMPORARY_VISITOR_VISA`, respects the 72-hour official window, defaults
-  smoke/live runs to stop-before-submit, and must capture QR/reference evidence
-  before marking success.
+  smoke/live runs to stop-before-submit, clicks into the official eTravel login
+  path when live submission is explicitly enabled, and must capture
+  QR/reference evidence before marking success. Local VIZA portal credentials
+  are not official eTravel credentials; use `PH_ETRAVEL_ACCOUNT_EMAIL` /
+  `PH_ETRAVEL_ACCOUNT_PASSWORD` or a local `PH_ETRAVEL_CDP_ENDPOINT` session
+  that is already authorized for the official portal. When no official account
+  is configured, live PH eTravel may create/verify an official account using the
+  applicant's VIZA inbox alias and the Cloudflare Email Worker ->
+  `inbound_email` path; non-email steps such as SMS, app approval, CAPTCHA, or
+  MFA must stop with a structured checkpoint instead of being hidden. Reuse
+  `ph_etravel_accounts` by applicant before creating a new official account;
+  do not mint a fresh inbox-alias account when a prior PH eTravel account row
+  exists. `src/ph-etravel/form-filler.ts` owns the post-authenticated official
+  form state machine, reaches Review in stop-before-submit mode, and allows the
+  worker to click final Submit only when that safety stop is explicitly off.
+- `src/browserbase-session.ts`: API-key-only Browserbase session creation for
+  arrival-card and appointment runners. It can request a country-targeted
+  managed residential proxy and, for organizations explicitly approved by
+  Browserbase, a Verified Browser via the country-scoped
+  `*_BROWSERBASE_VERIFIED=true` gate. It returns only a replay URL to
+  caller-visible diagnostics; CDP connection URLs and signing credentials must
+  never be logged. MDAC keeps this provider explicitly gated by
+  `MDAC_BROWSERBASE_ENABLED` and defaults to requiring Browserbase proxy access
+  when enabled.
+- `src/appointment-free-smoke.ts` and
+  `scripts/run-appointment-free-smoke.ts`: Browserbase reachability validation
+  for China USVisaScheduling, China France TLScontact, and Japan VFS/JVAC
+  Singapore. It defaults to the proxy-free Free Plan, while the explicit
+  `--proxies` and `--verified` flags test paid proxy and approved Verified
+  sessions. It forces cloud concurrency 1, runs selected portals sequentially,
+  strips URL query secrets, masks form values before screenshots, and classifies
+  each portal as `pass`, `conditional`, or `proxy_required`.
+  `--application-id` validates canonical VIZA answers/documents without using
+  placeholders; `--prepare-alias` is the only option that writes an applicant
+  alias, and the smoke never pays, selects a real slot, or confirms a booking.
+- `scripts/run-france-tls-registration-recon.ts`: Browserbase-only TLScontact
+  registration-entry recon. It establishes CAPTCHA clearance from `/en-us`,
+  navigates to a selected mainland China center, and may click only empty
+  login/register entry controls. It records redacted form structure and stops
+  before entering account data, sending verification email, selecting a slot,
+  paying, or booking. On the official generic center error page it may perform
+  at most two sequential delayed refreshes in the same session; it must never
+  fan out across centers. Run with `npm run france-tls:registration-recon --
+  --center=shanghai --refresh-retries=2`.
+- `scripts/check-france-tls-readiness.ts`: redacted, read-only readiness probe
+  for a single France application. It verifies the application/profile alias,
+  encrypted France-Visas reference, TLS account state, and `inbound_email`
+  table reachability without exposing applicant data or credentials.
+- `scripts/run-france-tls-register-account.ts`: single-application TLScontact
+  account preparation command. It is dry-run/form-entry by default; a real
+  registration additionally requires both `--submit-registration` and
+  `FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED=true`, then waits for the applicant
+  alias activation email and stops before appointment reference submission.
+- `scripts/run-france-tls-appointment-flow.ts`: resumable, single-application
+  TLScontact operator flow. It prepares the alias account, observes and persists
+  official slots, stops for the applicant's Portal slot choice and final
+  approval, and can click the official final booking control only with both a
+  completed `final_confirmation` action, `--book-approved-slot`, and
+  `FRANCE_TLS_LIVE_BOOKING_ENABLED=true`.
+- `scripts/run-us-appointment-flow.ts`: processes one persisted
+  USVisaScheduling job at a time through the same production runner used by the
+  Fly worker. It automatically consumes alias verification mail when possible,
+  but stops for Portal slot selection and final approval; only a job already
+  transitioned to `appointment_booked` may reach the official confirmation
+  click.
+- `scripts/run-appointment-pre-submit-fixture.ts`: offline Playwright safety
+  fixture for the U.S. and France appointment paths. It uses only synthetic
+  placeholder values, exercises the production selector maps through local
+  registration/login, profile/reference, calendar, slot, and review screens,
+  saves screenshots with the final official-style control visible, asserts
+  zero final-submit clicks, and never sends a request to an official portal.
+- `src/vn-prearrival/**`: Vietnam Pre-Arrival Information Declaration runner,
+  including its pure OTP response classifier and official result capture.
+  Normalizes `VN_PREARRIVAL_DECLARATION` answers only, keeps pre-arrival
+  declaration separate from Vietnam e-Visa, respects the 72-hour pre-arrival
+  window, uses only `https://prearrival.immigration.gov.vn/`, and must fail
+  with structured validation/portal errors instead of falling back dropdown or
+  boolean values. Health declaration automation stays disabled until an
+  official Ministry of Health electronic declaration system is confirmed
+  active.
+- `src/korea-eform/**`: Korea Visa Portal official e-Form/barcode PDF runner
+  scaffold. `src/korea-eform/documents.ts` downloads uploaded applicant photo
+  and passport scan files from `application-documents` for official portal
+  upload. `src/korea-eform/address-search.ts` calls the official Juso address
+  APIs used by the Korea Visa Portal address popup, and
+  `scripts/crawl-korea-addresses.ts` / `npm run korea-addresses:crawl` provide
+  a resumable JSONL crawler for nationwide Korea stay-address options. Live
+  automation must be explicitly env-gated and must not mark success until the
+  official portal-generated PDF is captured in storage.
+- `scripts/start-korea-eform-local.ts` / `npm run korea-eform:local`: local-only
+  health-server entrypoint for the Korea official e-Form endpoint on port 8081.
+  It enables the gated local e-Form runner for browser-click smoke tests and
+  still requires the official portal PDF to be downloaded before success.
+- `scripts/audit-korea-eform-fill.ts` / `npm run korea-eform:audit`: real
+  Korea Visa Portal fill-retention smoke. It fills the official e-Form, reads
+  each selector/radio back from the DOM, and writes screenshots plus
+  `output/playwright/korea-eform-audit-report.json` so selector drift is caught
+  before the frontend reports a generated PDF.
+- `src/kr/**`: Korea C-3-9 dispatch adapter. It writes the customer-facing
+  `KR` result for KVAC/Annex-17 readiness and keeps live Korea Visa Portal
+  e-Form completion behind the gated `src/korea-eform/**` automation.
+- `src/korea-kvac/**`: Korea C-3-9 KVAC appointment runner scaffold. Dry-run
+  observes deterministic slots and books only after a user-selected slot. Live
+  KVAC booking must be explicitly env-gated, use TWOCAPTCHA if CAPTCHA appears,
+  and stop with structured manual-required evidence for unsupported SMS,
+  real-name, WAF, or center-specific policy gates instead of marking success.
+  The Korea KVAC endpoints are
+  `/local/korea-kvac/sms/start`, `/local/korea-kvac/sms/submit`, and
+  `/local/korea-kvac/sms/complete`. They accept localhost calls or remote
+  private-service calls authenticated with `KR_SUBMISSION_INTERNAL_TOKEN`; the
+  final endpoint may report success only after the official portal returns a
+  confirmation number. Official confirmation PDFs must be uploaded to the
+  private `submission-artifacts` bucket so cloud workers never return ephemeral
+  Fly filesystem paths to the portal.
+- `src/jp-vfs-sg/**`: Japan VFS/JVAC Singapore observer. It uses an authorized
+  Browser API/CDP session, validates canonical application answers when an
+  application id is supplied, optionally prepares the VIZA alias, records
+  redacted page state, and stops at official
+  login, CAPTCHA/WAF, identity verification, payment, or selector drift.
+  The observation endpoint is `/local/japan-vfs-sg/observe`, requires
+  `JP_VFS_SG_LOCAL_OFFICIAL_SESSION_ENABLED=true`, and accepts remote private
+  service calls only with `JP_VFS_SG_INTERNAL_TOKEN`.
+- `scripts/smoke-korea-kvac-centers.ts`: local Korea KVAC/consulate reachability
+  smoke for all mainland China filing channels. It opens the official booking
+  or guidance entry for each center and saves evidence screenshots without
+  sending SMS codes or clicking final booking.
 - `src/in/**`, `src/lk/**`, `src/kh/**`, `src/la/**`, `src/za/**`,
   `src/italy-vfs-cn/**`, `src/egypt/**`: smoke/recon/scaffold modules at
   varying maturity. Check `docs/visa-packages-status.md` before extending.
@@ -127,12 +388,28 @@ filling and one-shot submission for the applicant.
   `scripts/run-mdac-smoke.ts`, `scripts/run-tdac-smoke.ts`: local live smoke
   entry points for official portal reach/fill validation. Arrival-card smokes
   stop before final submit unless run with `--submit` and real applicant data.
+- `src/tw/**`: Taiwan Online Entry Permit (`TW_ENTRY_PERMIT`) — real
+  DOM-name-attribute-driven fill of the coa.immigration.gov.tw application
+  (no persistent portal account, single continuous session), best-effort
+  CAPTCHA auto-fill via the shared `src/captcha/two-captcha.ts` client, and a
+  hard stop before the real "確認資料" submit button (a genuine POST to the
+  National Immigration Agency — never clicked by automation). See
+  `docs/tw-entry-permit-auto-submit-plan.md` for the full live-verification
+  trail. Supersedes an earlier, unrelated `src/tw-entry-permit/` scaffold
+  (Singapore-resident-only, placeholder-draft filler, 2captcha-solved final
+  submit) that has been removed in favor of this implementation.
 - `scripts/setup-vn-card-profile.ps1` and `scripts/start-vn-autopay-dev.ps1`:
   local-only Vietnam official-fee payment helpers. The dev start script enables
   one-time frontend card sessions by default and reads no card values in the
   terminal unless `-FixedCard` is passed. The setup script may save only
   non-sensitive card metadata such as last4/expiry/holder in ignored local
   files. Full PAN and CVV must not be committed, logged, or stored in `.env`.
+- `scripts/start-local-official-helpers.ps1` / `npm run local:official-helpers`:
+  local watchdog for developer smoke testing across official-helper endpoints.
+  It keeps the submission-service running with Vietnam and Indonesia one-time
+  card-session endpoints plus Korea local helper endpoints enabled, prefers
+  port 18080, falls back when that port is already occupied, and restarts the
+  worker if it exits. It must not read, log, or persist PAN/CVV values.
 - `scripts/start-us-appointment-user-chrome.ps1`: local helper that starts the
   Chrome with a CDP port for the USVisaScheduling runner. If normal Chrome is
   already running, it starts an isolated VIZA automation profile under
@@ -144,6 +421,10 @@ filling and one-shot submission for the applicant.
   with a CDP port for Philippines eTravel. It defaults to an isolated VIZA
   automation profile under `output/chrome-profiles/ph-etravel-cdp` and prints
   the `PH_ETRAVEL_CDP_ENDPOINT` value for smoke/worker runs.
+- `scripts/check-ph-etravel-browserbase-test-profile.ts`: sanitized Browserbase
+  connectivity check that authenticates only as the local VIZA test client and
+  reports whether its own profile/alias are available without printing PII,
+  passwords, tokens, or Browserbase session credentials.
 - `src/vietnam/card-session.ts` plus the health-server
   `POST /local/vietnam/card-session` endpoint: local-only one-time card handoff
   for frontend-entered Vietnam official-fee payments. It is enabled only by
@@ -151,6 +432,26 @@ filling and one-shot submission for the applicant.
   and CVV in process memory with a short TTL, and deletes the card when the
   payment worker consumes it. Do not persist these values to DB, queue payloads,
   logs, traces, `.env`, AGENTS, or profile records.
+- `src/indonesia/card-session.ts` supports the same one-consumption, short-TTL
+  memory contract for Indonesia C1/B1 official-fee payments. Local development
+  uses `POST /local/indonesia/card-session`; production may use
+  `POST /internal/indonesia/card-session` only on the single always-on legacy
+  Fly worker with `ID_CLOUD_CARD_SESSION_ENABLED=true` and a matching
+  `INDONESIA_CARD_SESSION_INTERNAL_TOKEN` supplied as Fly/Vercel secrets.
+- `GET /deploy-ready` reports whether the legacy worker is idle and holds no
+  unconsumed Vietnam/Indonesia card session. `scripts/fly/deploy-legacy.sh`
+  must fail closed unless this endpoint returns HTTP 200 both before secret
+  staging and immediately before a rolling deploy. Runtime secrets are staged
+  into that release so secret synchronization cannot independently restart the
+  single memory-backed worker.
+- `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
+  registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
+  or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,
+  uses the applicant inbox alias when `--applicant-id` is provided without an
+  explicit email, can consume USVisaScheduling verification mail from
+  `inbound_email`, types account fields with the US appointment typing-delay
+  range, and must not print passwords, Browser API endpoints, verification
+  codes, or links.
 - Vietnam runner note/acknowledgement handling must never auto-check
   "Agree to create account by email" or similar account-creation checkboxes.
   It may auto-check required official declarations needed to continue the
@@ -173,22 +474,34 @@ filling and one-shot submission for the applicant.
 | --- | --- | --- |
 | US DS-160 / CEAC | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, uses CAPTCHA solving when needed, and completes applicant Sign/Submit as part of one-shot submission. |
 | US B1/B2 appointment / China USVisaScheduling | Assisted-live gated | Requires `US_APPOINTMENT_ASSISTED_LIVE_ENABLED=true`, `US_APPOINTMENT_PROVIDER_ALLOWLIST=usvisascheduling`, and `US_APPOINTMENT_SUPPORTED_COUNTRIES=CN`; reads VIZA-created appointment account credentials, automates supported login/account-prep and official slot/status observation, books only after user slot selection plus payment/final approval, and must handle supported CAPTCHA, waiting rooms, policy warnings, and approval checkpoints without hiding unsupported gates or skipping user slot selection/payment/final VIZA approval. |
-| France Schengen | Live assisted gated | Dry-run by default; live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation, payment, or appointment booking. |
+| France Schengen | Live assisted gated + TLS appointment scaffold | Dry-run by default; France-Visas live assisted requires explicit env enablement, can register a France-Visas account with a VIZA alias and 2captcha for the registration image CAPTCHA only, captures encrypted/redacted official references where available, and stops before final validation/payment/booking. TLScontact China appointment/payment require separate explicit env gates, use the shared mainland China center registry, and book only after backend slot observation, user slot selection, one-time payment authorization, and final approval. |
 | Australia Subclass 600 | Phase 3 | Walks ImmiAccount form to Review, captures TRN/review artifact; user submits. |
 | Vietnam e-Visa | Phase 3 + gated payment pilot | Fills form and stops before Pay/Submit by default; captures registration code when portal review is reached. With explicit VIZA official-fee authorization plus fixed-card pilot env flags, may continue from the official payment page until paid or a 3DS/OTP/unknown-gateway manual checkpoint appears. |
 | Singapore SG Arrival Card | Live assisted | Dry-run validates `SG_ARRIVAL_CARD`; live worker fills ICA SGAC and submits after Review, returning confirmation/reference details when available. |
 | Malaysia MDAC | Live dispatch + portal evidence | Dry-run validates `MY_MDAC_ARRIVAL_CARD`; live worker dispatches to the official MDAC portal and records exact portal block/error evidence. Current official-form completion depends on MDAC portal reachability from the runner network/session. |
 | Thailand TDAC | Live dispatch + Turnstile entry | Dry-run validates `TH_TDAC_ARRIVAL_CARD`; live worker dispatches to the official TDAC portal, attempts official Turnstile solving through the configured CAPTCHA provider, and records exact portal block/error evidence until the complete final-submit selector path is mapped. |
 | Philippines eTravel | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `PH_ETRAVEL_ARRIVAL_CARD`; live worker dispatches to `https://etravel.gov.ph`, defaults to stop-before-submit, stores portal block/error evidence, and must not mark success without official QR/reference evidence. |
+| Vietnam Pre-Arrival | Live dispatch scaffold + 72-hour scheduling | Dry-run validates `VN_PREARRIVAL_DECLARATION`; live worker dispatches to `https://prearrival.immigration.gov.vn/`, records portal mismatch/error evidence, and must not mark success without official QR/reference evidence. |
+| Taiwan Online Entry Permit | `runner_job` dispatch, DOM-verified fill | `TW_ENTRY_PERMIT` fills every field via confirmed-live DOM `name` attributes (see `src/tw/**`), uploads required supporting documents, best-effort auto-fills the CAPTCHA, and halts before the real "確認資料" submit POST — never clicks it. No persistent account; single continuous session with inline email-OTP verification. |
 | UK Standard Visitor | Phase 2 | Pre-auth/register/resume scaffold only; post-auth full form selectors remain unmapped. |
 | India/Sri Lanka/Cambodia/Laos/South Africa | Smoke/scaffold | Use per-country smoke scripts and status docs before promoting. |
-| Italy/Egypt/Indonesia/Japan/Korea/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
+| Italy/Egypt/Indonesia/Japan/Canada | Recon/docs or document renderer scope | Requires official-form recon and schema/runner acceptance before queue enablement. |
+| Korea C-3-9 | Official e-Form + appointment scaffold | Frontend prioritizes Korea Visa Portal barcode e-Form generation/download and keeps Annex-17 only as fallback; `src/korea-eform/**` models official e-Form checkpoints and `src/korea-kvac/**` supports dry-run slot observation/booking after user selection. Live portal completion remains gated pending per-center/post selector validation and official PDF capture. |
 
 ## Ownership Boundaries
 - France-Visas registration CAPTCHA solving is allowed only for the explicit
   account-registration flow guarded by `FRANCE_ACCOUNT_REGISTRATION_ENABLED`
   and `FRANCE_REGISTRATION_2CAPTCHA_ENABLED`; login risk challenges and
   anti-bot/Cloudflare gates remain manual checkpoints.
+- France TLS service-fee payment sessions must be short TTL, in-memory/local
+  handoffs. Do not persist full card numbers, CVV, OTP, payment passwords, or
+  official TLS cookies to DB, logs, traces, screenshots, `.env`, or AGENTS.
+- France TLS official-page checks should prefer `FRANCE_TLS_BROWSER_API_ENDPOINT`
+  or `FRANCE_TLS_CDP_ENDPOINT` before global Browser API settings. Never log
+  endpoint URLs or embedded credentials.
+- France TLS live booking must not bypass unsupported official-site MFA,
+  real-name, WAF, policy, or payment-challenge gates. Stop with structured
+  checkpoint/error evidence instead of marking success.
 - Keep Playwright selectors isolated in mapping files where possible.
 - Keep retries and queue status transitions explicit.
 - Do not move AI/RAG logic here; use `agent-backend`.
@@ -218,15 +531,29 @@ npm run install-browsers
 npx ts-node src/ceac/smoke.ts
 # Requires FV_EMAIL/FV_PASSWORD and creates a France-Visas draft/reference:
 npx ts-node scripts/run-fv-smoke.ts .\scripts\fv-answers.example.json
+# Requires an authorized FRANCE_TLS_* or global Browser API/CDP endpoint;
+# captures official TLS WAF/login/slot/payment checkpoints:
+npm run france-tls:live-smoke -- --url=https://visas-fr.tlscontact.com/en-us/login
 # Requires AU_USERNAME/AU_PASSWORD, optional AU_TOTP_SECRET:
 npm run au:smoke
 # Public Vietnam form; stops before Pay/Submit:
 npm run vn:smoke
+# Read-only local/Browserbase reachability matrix for Indonesia B1/C1,
+# Vietnam eVisa, SGAC, TDAC, DS-160, and France-Visas. Never fills or submits:
+npm run portal:connectivity-smoke
+# Browserbase Free Plan, no proxies, sequential appointment reachability.
+# Optional: -- --application-id=<authorized-id> --prepare-alias
+npm run appointment:free-smoke
+# Offline placeholder coverage for U.S./France through final-button visibility.
+# Never contacts an official portal and never clicks the final control:
+npm run appointment:pre-submit-fixture
 # Public arrival-card forms; stop before final Submit unless --submit is passed:
 npx tsx scripts/run-mdac-smoke.ts
 npx tsx scripts/run-tdac-smoke.ts
 npm run ph-etravel:chrome
 npx tsx scripts/run-ph-etravel-smoke.ts
+# Korea KVAC/consulate center reachability only; no SMS/final booking:
+npx ts-node scripts/smoke-korea-kvac-centers.ts
 # UK recon/pre-auth walk:
 npx ts-node scripts/walk-uk-portal.ts
 ```
@@ -264,11 +591,23 @@ the France-Visas account after confirming the run.
 - `viza-be/submission-service/README.md`
 - `viza-be/submission-service/.env.example`
 - `viza-be/submission-service/src/index.ts`
+- `viza-be/submission-service/src/queue-scheduler.ts`
+- `viza-be/submission-service/src/submission-queue-claim.ts`
 - `viza-be/submission-service/src/__tests__/queue-pickup-order.spec.js`
+- `viza-be/submission-service/src/__tests__/queue-scheduler.spec.ts`
+- `viza-be/submission-service/src/__tests__/queue-claim-rpc.spec.ts`
 - `viza-be/submission-service/src/country-submissions/*`
+- `viza-be/submission-service/src/korea-eform/*`
+- `viza-be/submission-service/src/korea-kvac/*`
 - `viza-be/submission-service/src/types.ts`
 - `viza-be/submission-service/src/inbox/alias.ts`
 - `viza-be/submission-service/src/france-visas/mailbox-provider.ts`
+- `viza-be/submission-service/src/france-tls/*`
+- `viza-be/submission-service/src/tw/*`
+- `viza-be/submission-service/scripts/run-france-tls-live-smoke.ts`
+- `viza-be/submission-service/src/france-tls/__tests__/browser-api.spec.ts`
+- `viza-be/submission-service/src/france-tls/__tests__/recaptcha-grid.spec.ts`
+- `viza-be/submission-service/src/captcha/__tests__/two-captcha-grid.spec.ts`
 - `viza-be/submission-service/src/ceac/AGENTS.md`
 - `viza-be/agent-backend/src/db/schema.ts`
 - `docs/prd-ds160-ceac-runtime-validation.md`

@@ -1,13 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildAntSelectSearchTerms,
   buildAntSelectOptionRegex,
   isAcceptableAntSelectMatch,
   rankAntSelectCandidates,
   resolveStepPlan,
 } from "../fillers.js";
-import { VN_FIELD_MAPPINGS } from "../field-mappings.js";
-import { toPortalDateForField } from "../run.js";
+import {
+  getVnCountryAlpha3ForOptionText,
+  getVnCountryOptionIndex,
+  getVnCountrySearchTextForOptionText,
+  getVnPortalOptionText,
+  normalizeVnCountryOptionText,
+  VN_FIELD_MAPPINGS,
+} from "../field-mappings.js";
+import {
+  fillVietnamApplication,
+  toPortalDateForField,
+  validateVietnamPortalValidityRange,
+} from "../run.js";
 
 /**
  * RUN-VN-001: covers a full step fill at the (browser-free) plan level —
@@ -37,15 +49,54 @@ test("vn.step-fill: date fields are reformatted to DD/MM/YYYY", () => {
   assert.equal(dob.type, "date");
 });
 
-test("vn.step-fill: visa valid-from date is not earlier than today", () => {
+test("vn.step-fill: portal date formatting does not silently change applicant dates", () => {
+  assert.equal(toPortalDateForField("visa_valid_from", "2026-06-20"), "20/06/2026");
+  assert.equal(toPortalDateForField("visa_valid_from", "2026-06-30"), "30/06/2026");
+});
+
+test("vn.step-fill: portal validity range requires valid-to after the effective valid-from", () => {
   assert.equal(
-    toPortalDateForField("visa_valid_from", "2026-06-20", new Date(2026, 5, 22)),
-    "22/06/2026",
+    validateVietnamPortalValidityRange(
+      { visa_valid_from: "2026-06-22", visa_valid_to: "2026-06-22" },
+      new Date(2026, 5, 22),
+    ).length,
+    2,
   );
-  assert.equal(
-    toPortalDateForField("visa_valid_from", "2026-06-30", new Date(2026, 5, 22)),
-    "30/06/2026",
+  assert.match(
+    validateVietnamPortalValidityRange(
+      { visa_valid_from: "2026-06-20", visa_valid_to: "2026-06-21" },
+      new Date(2026, 5, 22),
+    )[0]?.message ?? "",
+    /cannot be earlier than today/i,
   );
+  assert.deepEqual(
+    validateVietnamPortalValidityRange(
+      { visa_valid_from: "2026-06-22", visa_valid_to: "2026-06-30" },
+      new Date(2026, 5, 22),
+    ),
+    [],
+  );
+});
+
+test("vn.step-fill: invalid validity range is rejected before browser launch", async () => {
+  const result = await fillVietnamApplication(
+    {
+      answers: {
+        visa_valid_from: "2099-06-22",
+        visa_valid_to: "2099-06-22",
+      },
+    },
+    {
+      officialBaseUrl: "https://example.invalid/",
+    },
+  );
+
+  assert.equal(result.status, "scaffolded_pending_walk");
+  assert.match(
+    result.status === "scaffolded_pending_walk" ? result.reason : "",
+    /valid from must be before.*valid to must be after/i,
+  );
+  assert.equal(result.diagnostics?.validationErrors?.length, 2);
 });
 
 test("vn.step-fill: uploads and unanswered fields are excluded", () => {
@@ -82,4 +133,58 @@ test("vn.step-fill: weak airport overlap is not accepted as a final select match
   )[0];
   assert.ok(weakMatch, "candidate is ranked");
   assert.equal(isAcceptableAntSelectMatch(weakMatch.score), false);
+});
+
+test("vn.step-fill: country dropdown values normalize to official option text", () => {
+  assert.equal(normalizeVnCountryOptionText("HUN"), "Hungary");
+  assert.equal(normalizeVnCountryOptionText("Hungary"), "Hungary");
+  assert.equal(normalizeVnCountryOptionText("Hungarian"), "Hungary");
+  assert.equal(normalizeVnCountryOptionText("PAN"), "Panama");
+  assert.equal(normalizeVnCountryOptionText("Panama"), "Panama");
+  assert.equal(normalizeVnCountryOptionText("Panamanian"), "Panama");
+  assert.equal(normalizeVnCountryOptionText("VNM"), "Viet Nam");
+  assert.equal(normalizeVnCountryOptionText("CZE"), "Czech Republic");
+  assert.equal(
+    normalizeVnCountryOptionText("GBR"),
+    "United Kingdom of Great Britain and Northern Ireland",
+  );
+  assert.equal(getVnPortalOptionText("nationality", "HUN"), "Hungary");
+  assert.equal(getVnPortalOptionText("other_vietnam_passport_nationality", "HUN"), "Hungary");
+  assert.equal(getVnPortalOptionText("relative_nationality", "PAN"), "Panama");
+  assert.equal(getVnPortalOptionText("nationality", "VNM"), "Viet Nam");
+  assert.equal(getVnCountryAlpha3ForOptionText("Panama"), "PAN");
+  assert.equal(getVnCountryOptionIndex("Panama"), 141);
+  assert.equal(getVnCountrySearchTextForOptionText("China"), "Trung Quốc");
+  assert.equal(getVnCountrySearchTextForOptionText("Hungary"), "Hung-ga-ri");
+  assert.equal(getVnCountrySearchTextForOptionText("Panama"), "Pa-na-ma");
+  assert.deepEqual(buildAntSelectSearchTerms("China").slice(0, 6), [
+    "China",
+    "Chin",
+    "Chi",
+    "Ch",
+    "C",
+    "Trung Quốc",
+  ]);
+  assert.deepEqual(buildAntSelectSearchTerms("Hungary").slice(0, 7), [
+    "Hungary",
+    "Hungar",
+    "Hunga",
+    "Hung",
+    "Hun",
+    "Hu",
+    "H",
+  ]);
+  assert.deepEqual(buildAntSelectSearchTerms("Panama"), [
+    "Panama",
+    "Panam",
+    "Pana",
+    "Pan",
+    "Pa",
+    "P",
+    "Pa-na-ma",
+    "Pa-na-m",
+    "Pa-na",
+    "Pa-n",
+    "",
+  ]);
 });

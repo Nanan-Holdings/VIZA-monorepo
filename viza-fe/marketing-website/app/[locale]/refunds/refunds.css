@@ -584,56 +584,74 @@
   }
   .updated-strip a { color: var(--brand-500); }
 
-  /* ========== Footer (mirrors explore.html) ========== */
-  .site-foot { background: #fafafa; margin-top: 0; padding: 0 40px; font-family: var(--font-sans); }
-  .site-foot .foot-rule {
-    max-width: 1280px; margin: 0 auto; height: 1px;
-    background-image: linear-gradient(to right, var(--border-hairline) 50%, transparent 0%);
-    background-size: 8px 1px; background-repeat: repeat-x;
-    position: relative;
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Heading step-down (fluid) */
+  .hero h1 { font-size: clamp(30px, 7.5vw, 64px); }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+    .promise { grid-template-columns: repeat(2, 1fr); gap: 8px 24px; }
+    .promise-cell { border-right: 0; padding: 14px 0; }
+    .promise-cell:not(:first-child) { padding-left: 0; }
+    /* TOC moves above the content */
+    .layout { grid-template-columns: 1fr; gap: 32px; }
+    .toc { position: static; }
   }
-  .site-foot .foot-rule::before, .site-foot .foot-rule::after {
-    content: ""; position: absolute; top: -2px;
-    width: 5px; height: 5px; border-radius: 999px;
-    background: var(--border-hairline);
+
+  @media (max-width: 720px) {
+    .hero h1 { letter-spacing: -1.2px; }
+    .crumbs { padding: 16px 20px 0; }
+    .hero { padding: 20px 20px 32px; }
+    .promise { padding: 20px; }
+    .layout { padding: 40px 20px 56px; }
+    .content h2 { font-size: clamp(24px, 6vw, 34px); }
+
+    /* Scenario matrix: scenario title spans the row, the three
+       fee cells stay 3-up so they keep lining up with the
+       gov/service/partner column headers */
+    .matrix-row { grid-template-columns: repeat(3, 1fr); }
+    .matrix-row .mc { padding: 14px 12px; font-size: 13px; }
+    .matrix-head .mc { padding: 12px; }
+    .matrix-row .mc:first-child {
+      grid-column: 1 / -1;
+      border-right: 0;
+      border-bottom: 1px dashed var(--border-hairline);
+    }
+    .matrix-head .mc:first-child { border-bottom: 1px solid var(--border-hairline); }
+
+    /* Timeline: 2-up; the horizontal connector line makes no sense wrapped */
+    .timeline { grid-template-columns: repeat(2, 1fr); gap: 24px 0; padding: 24px 8px; }
+    .timeline::before { display: none; }
+    .tl-dot { margin-bottom: 10px; }
+
+    .final-cta { flex-direction: column; align-items: flex-start; padding: 28px 24px; gap: 20px; }
+    .final-cta::before { width: 200px; height: 200px; right: -60px; top: -60px; }
+    .final-cta .ctas { flex-wrap: wrap; }
+
+    .faq summary { padding: 16px 20px; }
+    .faq .answer { padding: 0 20px 20px; }
+
+    .updated-strip { padding: 0 20px 8px; }
   }
-  .site-foot .foot-rule::before { left: 0; } .site-foot .foot-rule::after  { right: 0; }
-  .site-foot .foot-main {
-    max-width: 1280px; margin: 0 auto; padding: 72px 0 64px;
-    display: grid; grid-template-columns: 1.45fr 1fr 1.05fr 1.1fr; gap: 48px;
+
+  @media (max-width: 600px) {
+    /* Fee anatomy: keep the proportional 38/32/30 bar but shrink its
+       labels; stack the legend as rows (fk labels identify each row) */
+    .fee-anatomy { padding: 20px 16px; }
+    .fa-bar { height: 44px; }
+    .fa-seg { font-size: 11px; letter-spacing: 0; padding: 0 4px; text-align: center; }
+    .fa-legend { grid-template-columns: 1fr; gap: 14px; }
   }
-  .site-foot .foot-brand .foot-logo img { height: 22px; }
-  .site-foot .foot-brand .foot-tag {
-    margin-top: 22px; max-width: 320px; font-size: 14px; line-height: 1.55;
-    color: var(--fg-2); letter-spacing: -0.01em;
+
+  @media (max-width: 560px) {
+    .promise { grid-template-columns: 1fr; gap: 0; }
+    .promise-cell { border-bottom: 1px solid var(--border-hairline); }
+    .promise-cell:last-child { border-bottom: 0; }
   }
-  .site-foot .col-head {
-    font: 500 13px/1 var(--font-heading); letter-spacing: 0.02em;
-    color: var(--fg-1); margin: 4px 0 22px;
-  }
-  .site-foot .col-list {
-    list-style: none; padding: 0; margin: 0;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .site-foot .col-list a { color: var(--fg-2); font-size: 14px; letter-spacing: -0.01em; }
-  .site-foot .col-list a:hover { color: var(--brand-500); }
-  .site-foot .col-list .here { color: var(--brand-500); font-weight: 500; }
-  .site-foot .office-row {
-    display: flex; align-items: flex-start; gap: 10px;
-    color: var(--fg-2); font-size: 13.5px; line-height: 1.5; max-width: 280px;
-  }
-  .site-foot .office-pin { flex: 0 0 auto; margin-top: 2px; color: var(--brand-400); }
-  .site-foot .foot-bottom {
-    max-width: 1280px; margin: 0 auto; padding: 28px 0 40px;
-    display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  }
-  .site-foot .legal {
-    display: flex; align-items: center; gap: 18px;
-    font-size: 13px; color: var(--fg-2);
-  }
-  .site-foot .legal .sep {
-    width: 3px; height: 3px; border-radius: 999px; background: #d6d6d6;
-  }
-  .site-foot .legal a { color: var(--fg-2); }
-  .site-foot .legal a:hover { color: var(--brand-500); }
-  .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+
+  

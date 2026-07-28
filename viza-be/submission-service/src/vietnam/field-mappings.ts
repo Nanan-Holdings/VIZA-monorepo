@@ -1,3 +1,5 @@
+import { VN_COUNTRY_NAME_BY_ALPHA3, VN_COUNTRY_OPTION_ORDER, VN_COUNTRY_SEARCH_TEXT_BY_ALPHA3 } from "./country-options.js";
+
 /**
  * Vietnam e-Visa field-name → live DOM id mapping.
  *
@@ -49,12 +51,25 @@ export interface VnFieldFallbackRecord {
 
 const YES_NO_LABELS = { yes: "Yes", no: "No", true: "Yes", false: "No" };
 const SEX_LABELS = { male: "Male", m: "Male", female: "Female", f: "Female" };
-const NATIONALITY_LABELS = {
-  chn: "China",
-  cn: "China",
-  china: "China",
+const COUNTRY_NAME_BY_NORMALIZED = Object.fromEntries(
+  Object.values(VN_COUNTRY_NAME_BY_ALPHA3).map((name) => [normalizeCountryLookupKey(name), name]),
+);
+const COUNTRY_ALPHA3_BY_NORMALIZED_NAME = Object.fromEntries(
+  Object.entries(VN_COUNTRY_NAME_BY_ALPHA3).map(([alpha3, name]) => [normalizeCountryLookupKey(name), alpha3]),
+);
+const NATIONALITY_DEMONYM_LABELS: Record<string, string> = {
   chinese: "China",
+  hungarian: "Hungary",
+  panamanian: "Panama",
+  vietnamese: "Vietnam",
+  american: VN_COUNTRY_NAME_BY_ALPHA3.USA,
+  british: VN_COUNTRY_NAME_BY_ALPHA3.GBR,
 };
+const NATIONALITY_LABELS = buildCountryOptionLabels({
+  cn: "China",
+  prc: "China",
+  chinese: "China",
+});
 const PASSPORT_TYPE_LABELS = {
   ordinary_passport: "Ordinary passport",
   diplomatic_passport: "Diplomatic passport",
@@ -88,89 +103,49 @@ const EXPENSE_COVERAGE_LABELS = {
   personal: "Personal",
   company: "Company",
 };
+const EXPENSE_PAYMENT_METHOD_LABELS = {
+  cash: "Cash",
+  credit_card: "Credit card",
+  travellers_cheques: "Traveller's cheques",
+  traveller_cheques: "Traveller's cheques",
+  traveler_cheques: "Traveller's cheques",
+};
 
 const PROVINCE_LABELS: Record<string, string> = {
+  an_giang: "AN GIANG",
+  bac_ninh: "BAC NINH",
+  cao_bang: "CAO BANG",
+  ca_mau: "CA MAU",
+  gia_lai: "GIA LAI",
+  ha_tinh: "HA TINH",
+  hung_yen: "HUNG YEN",
+  khanh_hoa: "KHANH HOA",
+  lai_chau: "LAI CHAU",
+  lam_dong: "LAM DONG",
+  lao_cai: "LAO CAI",
+  lang_son: "LANG SON",
+  nghe_an: "NGHE AN",
+  quang_ngai: "QUANG NGAI",
+  ninh_binh: "NINH BINH",
+  quang_ninh: "QUANG NINH",
+  phu_tho: "PHU THO",
+  quang_tri: "QUANG TRI",
+  hue_city: "HUE City",
+  son_la: "SON LA",
   ha_noi_city: "HA NOI City",
-};
-
-const WARD_COMMUNE_FALLBACK_BY_PROVINCE: Record<string, string> = {
-  an_giang: "BINH DUC WARD",
-  bac_ninh: "BAC GIANG WARD",
-  cao_bang: "NUNG TRI CAO WARD",
-  ca_mau: "AN XUYEN WARD",
-  gia_lai: "AN BINH WARD",
-  ha_tinh: "BAC HONG LINH WARD",
-  hung_yen: "HONG CHAU WARD",
-  khanh_hoa: "PHUONG HOA THANG",
-  lai_chau: "TAN PHONG WARD",
-  lao_cai: "CAM DUONG WARD",
-  lam_dong: "1 BAO LOC WARD",
-  lang_son: "HOANG VAN THU WARD",
-  nghe_an: "CUA LO WARD",
-  ninh_binh: "CHAU SON WARD",
-  phu_tho: "HOA BINH WARD",
-  quang_ngai: "CAM THANH WARD",
-  quang_ninh: "AN SINH WARD",
-  quang_tri: "BA DON WARD",
-  son_la: "CHIENG AN WARD",
-  can_tho_city: "AN BINH WARD",
-  hue_city: "AN CUU WARD",
-  ha_noi_city: "BA DINH WARD",
-  hai_phong_city: "AN BIEN WARD",
-  ho_chi_minh_city: "PHUONG AN NHON",
-  da_nang_city: "AN HAI WARD",
-  thanh_hoa: "BIM SON WARD",
-  thai_nguyen: "BA XUYEN WARD",
-  tuyen_quang: "AN TUONG WARD",
-  tay_ninh: "AN TINH WARD",
-  vinh_long: "PHUONG LONG CHAU",
-  dien_bien: "MUONG LAY WARD",
-  dak_lak: "BUON MA THUOT WARD",
-  dong_nai: "AN LOC WARD",
-  dong_thap: "AN BINH WARD",
-};
-
-const LATIN_TEXT_SCHEMA_RULE = {
-  pattern: "^[A-Za-z0-9 .,'()/-]+$",
-  maxLength: 120,
-  normalizeToUppercase: true,
-} as const;
-
-const VN_FIELD_FALLBACK_DEFAULTS: Record<
-  string,
-  {
-    value: string;
-    schemaRuleSuggestion: Omit<VnFieldFallbackRecord["schemaRuleSuggestion"], "fallbackDefault">;
-  }
-> = {
-  religion: {
-    value: "NONE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  occupation_info: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  company_or_school_name: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  position_course: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  company_address: {
-    value: "NOT APPLICABLE",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  emergency_contact_relationship: {
-    value: "FRIEND",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
-  intended_ward_commune: {
-    value: "BA DINH WARD",
-    schemaRuleSuggestion: LATIN_TEXT_SCHEMA_RULE,
-  },
+  can_tho_city: "CAN THO City",
+  hai_phong_city: "HAI PHONG City",
+  thanh_hoa: "THANH HOA",
+  ho_chi_minh_city: "HO CHI MINH City",
+  thai_nguyen: "THAI NGUYEN",
+  da_nang_city: "DA NANG City",
+  tuyen_quang: "TUYEN QUANG",
+  dien_bien: "DIEN BIEN",
+  tay_ninh: "TAY NINH",
+  dak_lak: "DAK LAK",
+  vinh_long: "VINH LONG",
+  dong_nai: "DONG NAI",
+  dong_thap: "DONG THAP",
 };
 
 function titleizeOptionSlug(value: string): string {
@@ -213,10 +188,18 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
   const normalizedSlug = normalized.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const explicit = mapping?.optionLabels?.[normalized];
   if (explicit) return explicit;
+  const countryText = normalizeVnCountryOptionText(rawValue);
+  if (
+    countryText &&
+    (mapping?.type === "country" || fieldName.toLowerCase().includes("nationality"))
+  ) {
+    return countryText;
+  }
   if (fieldName === "intended_province_city" && PROVINCE_LABELS[normalized]) {
     return PROVINCE_LABELS[normalized];
   }
   if (fieldName === "intended_province_city") return provinceLabel(normalized);
+  if (fieldName === "intended_ward_commune") return titleizeOptionSlug(normalized).toUpperCase();
   if (
     fieldName === "intended_border_gate_of_entry" ||
     fieldName === "intended_border_gate_of_exit"
@@ -234,8 +217,64 @@ export function getVnPortalOptionText(fieldName: string, rawValue: string): stri
   return rawValue;
 }
 
+export function normalizeVnCountryOptionText(rawValue: string): string | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+  const alpha3 = trimmed.toUpperCase();
+  if (/^[A-Z]{3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) {
+    return VN_COUNTRY_NAME_BY_ALPHA3[alpha3];
+  }
+  const lookup = normalizeCountryLookupKey(trimmed);
+  return COUNTRY_NAME_BY_NORMALIZED[lookup] ?? NATIONALITY_DEMONYM_LABELS[lookup] ?? null;
+}
+
+export function getVnCountryAlpha3ForOptionText(rawValue: string): string | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+  const alpha3 = trimmed.toUpperCase();
+  if (/^[A-Z0-9-]{1,3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) return alpha3;
+  return COUNTRY_ALPHA3_BY_NORMALIZED_NAME[normalizeCountryLookupKey(trimmed)] ?? null;
+}
+
+export function getVnCountryOptionIndex(rawValue: string): number | null {
+  const optionText = normalizeVnCountryOptionText(rawValue) ?? rawValue.trim();
+  if (!optionText) return null;
+  const normalized = normalizeCountryLookupKey(optionText);
+  const index = VN_COUNTRY_OPTION_ORDER.findIndex((candidate) => normalizeCountryLookupKey(candidate) === normalized);
+  return index >= 0 ? index : null;
+}
+
+export function getVnCountrySearchTextForOptionText(rawValue: string): string | null {
+  const optionText = normalizeVnCountryOptionText(rawValue) ?? rawValue.trim();
+  if (!optionText) return null;
+  const alpha3 = getVnCountryAlpha3ForOptionText(optionText);
+  return alpha3 ? (VN_COUNTRY_SEARCH_TEXT_BY_ALPHA3[alpha3] ?? null) : null;
+}
+
+function buildCountryOptionLabels(extra: Record<string, string> = {}): Record<string, string> {
+  const labels: Record<string, string> = {};
+  for (const [alpha3, name] of Object.entries(VN_COUNTRY_NAME_BY_ALPHA3)) {
+    labels[alpha3.toLowerCase()] = name;
+    labels[normalizeCountryLookupKey(name)] = name;
+  }
+  return { ...labels, ...extra };
+}
+
+function normalizeCountryLookupKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(citizen|national|nationality|passport|holder|of|the)\b/g, " ")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 export function getVnFieldFallbackValue(fieldName: string): string | null {
-  return VN_FIELD_FALLBACK_DEFAULTS[fieldName]?.value ?? null;
+  void fieldName;
+  return null;
 }
 
 export function normalizeVnProvinceKey(rawValue: string | null | undefined): string {
@@ -251,11 +290,9 @@ export function getVnDependentFieldFallbackValue(
   fieldName: string,
   answers: Record<string, string>,
 ): string | null {
-  if (fieldName === "intended_ward_commune") {
-    const provinceKey = normalizeVnProvinceKey(answers.intended_province_city);
-    return WARD_COMMUNE_FALLBACK_BY_PROVINCE[provinceKey] ?? getVnFieldFallbackValue(fieldName);
-  }
-  return getVnFieldFallbackValue(fieldName);
+  void fieldName;
+  void answers;
+  return null;
 }
 
 export function buildVnFieldFallback(input: {
@@ -266,21 +303,8 @@ export function buildVnFieldFallback(input: {
   fallbackValue?: string | null;
   errorMessage: string;
 }): VnFieldFallbackRecord | null {
-  const fallback = VN_FIELD_FALLBACK_DEFAULTS[input.fieldName];
-  if (!fallback) return null;
-  const fallbackValue = input.fallbackValue?.trim() || fallback.value;
-  return {
-    fieldName: input.fieldName,
-    domId: input.domId,
-    type: input.type,
-    userValue: input.userValue,
-    fallbackValue,
-    reason: input.errorMessage,
-    schemaRuleSuggestion: {
-      ...fallback.schemaRuleSuggestion,
-      fallbackDefault: fallbackValue,
-    },
-  };
+  void input;
+  return null;
 }
 
 export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
@@ -301,6 +325,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   religion: { domId: "basic_ttcnTonGiao", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   place_of_birth: { domId: "basic_ttcnNoiSinh", type: "text", section: "1. PERSONAL INFORMATION", required: true },
   has_multiple_nationalities: { domId: "basic_ttcnCoQtKhac", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
+  has_other_passports_used_for_vietnam: { domId: "basic_ttcnDaDungHcKhacVaoVn", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
   has_violated_vietnam_laws: { domId: "basic_ttcnViPhamPl", type: "radio", section: "1. PERSONAL INFORMATION", required: true, optionLabels: YES_NO_LABELS },
 
   // 2. Requested Information
@@ -343,6 +368,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   intended_border_gate_of_entry: { domId: "basic_ttcdNcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   intended_border_gate_of_exit: { domId: "basic_ttcdXcCuaKhau", type: "select", section: "6. INFORMATION ABOUT THE TRIP", required: true },
   declaration_temporary_residence: { domId: "basic_ttcdCqTcCamDoan", type: "checkbox", section: "6. INFORMATION ABOUT THE TRIP", required: true },
+  has_contact_in_vietnam: { domId: "basic_ttcdCoCqTcCaNhanLienHe", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
   visited_vietnam_in_last_year: { domId: "basic_ttcdDaDenVn", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
   has_relatives_in_vietnam: { domId: "basic_ttcdCoThanNhan", type: "radio", section: "6. INFORMATION ABOUT THE TRIP", required: true, optionLabels: YES_NO_LABELS },
 
@@ -350,6 +376,7 @@ export const VN_FIELD_MAPPINGS: Record<string, VnFieldMapping> = {
   intended_expenses_usd: { domId: "basic_kpbhDuTinh", type: "text", section: "8. TRIP'S EXPENSES, INSURANCE", required: false },
   bought_travel_insurance: { domId: "basic_kpbhMuaBaoHiem", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: YES_NO_LABELS },
   expense_coverage: { domId: "basic_kpbhNguoiDamBao", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: false, optionLabels: EXPENSE_COVERAGE_LABELS },
+  expense_payment_method: { domId: "basic_kpbhHinhThuc", type: "select", section: "8. TRIP'S EXPENSES, INSURANCE", required: true, optionLabels: EXPENSE_PAYMENT_METHOD_LABELS },
 };
 
 /** Selector for the registration-code element shown after a successful save

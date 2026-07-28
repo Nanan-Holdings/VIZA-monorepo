@@ -462,6 +462,28 @@ usAppointmentApplicationRouter.get(
   },
 );
 
+usAppointmentApplicationRouter.get(
+  "/:applicationId/us-appointment/account",
+  requireOwnerUser,
+  async (_req: Request, res: Response): Promise<void> => {
+    const locals = getLocals(res);
+    if (!locals.applicationId || locals.requester.kind !== "user") {
+      res.status(400).json({ error: true, code: "application_id_missing" });
+      return;
+    }
+
+    try {
+      const account = await services.orchestrator.revealAccount(
+        locals.applicationId,
+        locals.requester.userId,
+      );
+      res.json({ error: false, data: account });
+    } catch (error) {
+      sendUSAppointmentError(res, error, "us_appointment_account_reveal_failed");
+    }
+  },
+);
+
 usAppointmentOperationsRouter.post(
   "/jobs/:jobId/run",
   requireJobAccess,

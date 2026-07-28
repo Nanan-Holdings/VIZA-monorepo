@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Bot, Loader2, Plus, Trash2 } from "lucide-react";
+import { Bot, CircleHelp, Loader2, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { BrandActionButton } from "@/components/client/brand-action-button";
 import { DynamicFormField } from "@/components/dynamic-form-field";
 import { FieldGuidancePanel } from "@/components/field-guidance-panel";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { type VisaFormFieldOption, type VisaFormFieldRow, type WizardStep } from "@/types/visa-form-fields";
 import {
   getChinesePlaceholder,
@@ -26,6 +35,9 @@ import {
 } from "@/lib/translation/use-realtime-bilingual-translate";
 import { cn } from "@/lib/utils";
 import { VIETNAM_WARDS_BY_PROVINCE } from "@/lib/vietnam-administrative-units";
+import { getVnPrearrivalStaticOptions } from "@/lib/vn-prearrival/static-options";
+import { localizePhEtravelOptions } from "@/features/ph-etravel/option-labels";
+import { countries } from "country-data-list";
 
 interface DynamicStepFormProps {
   step: WizardStep;
@@ -86,9 +98,123 @@ const SCHENGEN_DESTINATION_BY_COUNTRY_SLUG: Record<string, string> = {
 
 type BilingualSide = "zh" | "en";
 
+type IndonesiaPostalLookup =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "resolved"; summaryZh: string; summaryEn: string }
+  | { status: "invalid" | "unavailable"; messageZh: string; messageEn: string };
+
+function isIndonesiaOfficialEVisaContext(country: string | null | undefined, visaType: string | undefined): boolean {
+  const normalizedCountry = country?.trim().toLowerCase();
+  return (normalizedCountry === "indonesia" || normalizedCountry === "id") &&
+    (visaType === "ID_B1_EVOA" || visaType === "ID_C1_TOURIST");
+}
+
+function normalizeIndonesiaMobileNumber(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 15);
+}
+
+interface CountryDataListCountry {
+  alpha2: string;
+  countryCallingCodes: string[];
+  name: string;
+  status: string;
+}
+
+let phoneCountryCodeOptionsCache: VisaFormFieldOption[] | null = null;
+
+function getChineseRegionName(alpha2: string): string {
+  try {
+    return new Intl.DisplayNames(["zh-CN"], { type: "region" }).of(alpha2.toUpperCase()) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function getPhoneCountryCodeOptions(): VisaFormFieldOption[] {
+  if (phoneCountryCodeOptionsCache) return phoneCountryCodeOptionsCache;
+
+  const seen = new Set<string>();
+  phoneCountryCodeOptionsCache = (countries.all as CountryDataListCountry[])
+    .filter((country) => country.status !== "deleted")
+    .flatMap((country) =>
+      country.countryCallingCodes
+        .filter((code) => /^\+\d+$/.test(code))
+        .map((code) => ({ country, code })),
+    )
+    .filter(({ country, code }) => {
+      const key = `${country.alpha2}:${code}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => {
+      const codeCompare = Number(a.code.slice(1)) - Number(b.code.slice(1));
+      return codeCompare || a.country.name.localeCompare(b.country.name);
+    })
+    .map(({ country, code }) => {
+      const labelZh = `${getChineseRegionName(country.alpha2) || country.name} (${code})`;
+      return {
+      value: code,
+      text: `(${code}) ${country.name}`,
+      label_en: `(${code}) ${country.name}`,
+      label_zh: labelZh,
+      official_label: `(${code})`,
+      };
+    });
+
+  return phoneCountryCodeOptionsCache;
+}
+
 interface BilingualTextValue {
   zh: string;
   en: string;
+}
+
+function VnPrearrivalEvisaNumberHelp() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
+        >
+          <CircleHelp className="h-4 w-4" />
+          在哪里查看电子签证号码？
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100vh-32px)] w-[calc(100vw-32px)] max-w-[900px] gap-0 overflow-y-auto rounded-2xl border-0 bg-white px-8 pb-8 pt-[104px] shadow-2xl sm:translate-y-[calc(-50%+20px)] [&>button]:right-8 [&>button]:top-8 [&>button>svg]:h-8 [&>button>svg]:w-8">
+        <DialogHeader className="space-y-0">
+          <DialogTitle className="sr-only">电子签证号码在哪里？</DialogTitle>
+          <DialogDescription className="text-left text-[clamp(18px,3vw,30px)] leading-[1.35] text-[#111827]">
+            查看电子签证上的“Số / No.”一行，并输入该行显示的准确号码。电子签证号码必须是 9 位纯数字。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div
+          role="img"
+          aria-label="越南电子签证号码位于 Số / No. 一行的官网示例"
+          className="mt-8 aspect-[837/468] w-full rounded-lg border border-[#e5e7eb] bg-white bg-no-repeat shadow-sm sm:mt-[72px]"
+          style={{
+            backgroundImage: "url('/images/vietnam/evisa-number-help-official.png')",
+            backgroundPosition: "52.4% 69.5%",
+            backgroundSize: "122.35% 194.44%",
+          }}
+        />
+
+        <div className="flex justify-end pt-8">
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="inline-flex h-[60px] min-w-[128px] items-center justify-center rounded-full bg-[#e5e5e5] px-7 text-[30px] font-medium text-[#111827] transition-colors hover:bg-[#d9d9d9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+            >
+              关闭
+            </button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 interface FormHistorySnapshot {
@@ -102,6 +228,11 @@ type FieldIssueSeverity = "ok" | "warning" | "error";
 interface FieldIssue {
   severity: FieldIssueSeverity;
   message: string;
+}
+
+function isIndonesiaPostalAutoFillField(field: VisaFormFieldRow): boolean {
+  const rules = field.validationRules as { auto_filled_by?: string } | null;
+  return rules?.auto_filled_by === "postal_code";
 }
 
 const TEXT_EDITING_INPUT_TYPES = new Set([
@@ -141,6 +272,12 @@ function isTextLikeField(field: VisaFormFieldRow): boolean {
   return field.fieldType === "text" || field.fieldType === "textarea";
 }
 
+function usesBilingualTextPair(field: VisaFormFieldRow): boolean {
+  // Postal codes are structured identifiers. Translating them can replace a
+  // valid numeric value with a place name and breaks the official lookup.
+  return isTextLikeField(field) && field.fieldName !== "postal_code";
+}
+
 function hasChineseText(value: string): boolean {
   return /[\u3400-\u9fff]/.test(value);
 }
@@ -149,9 +286,8 @@ function isMachineTranslationSensitiveField(field: VisaFormFieldRow): boolean {
   const fieldName = field.fieldName.toLowerCase();
   const label = field.label.toLowerCase();
   return (
-    /(?:^|_)(surname|surnames|given_names?|family_name|first_name|last_name|middle_name|full_name|native_full_name)(?:_|$)/.test(fieldName)
-    || /\b(surname|surnames|given names|family name|first name|last name|middle name|full name)\b/.test(label)
-    || /(?:^|_)(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)(?:_|$)/.test(fieldName)
+    /(?:^|_)(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)(?:_|$)/.test(fieldName)
+    || /\b(email|phone|telephone|number|identifier|password|url|ssn|taxpayer)\b/.test(label)
   );
 }
 
@@ -176,14 +312,15 @@ function getBilingualPrefillText(
   fallbackValue?: string,
 ): BilingualTextValue {
   const zh = prefill[`${key}_zh`]?.trim();
-  const en = prefill[`${key}_en`]?.trim();
+  const storedEnglish = prefill[`${key}_en`]?.trim();
+  const en = storedEnglish && !hasChineseText(storedEnglish) ? storedEnglish : "";
   if (zh || en) {
     return {
-      zh: zh || toChineseSourceValue(en ?? fallbackValue ?? ""),
-      en: en || toOfficialEnglishValue(zh ?? fallbackValue ?? ""),
+      zh: zh || toChineseSourceValue(en || fallbackValue || ""),
+      en: en || toOfficialEnglishValue(zh || storedEnglish || fallbackValue || ""),
     };
   }
-  return toInitialBilingualText(fallbackValue);
+  return toInitialBilingualText(storedEnglish || fallbackValue);
 }
 
 function toInitialBilingualText(value?: string): BilingualTextValue {
@@ -241,7 +378,7 @@ function RealtimeTranslationStatusLine({
     >
       {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
       <span>{message}</span>
-      {status === "failed" && error ? <span className="sr-only">{error}</span> : null}
+      {status === "failed" && error ? <span className="text-[12px] font-normal">{error}</span> : null}
       {(status === "failed" || status === "user_edited") ? (
         <button
           type="button"
@@ -343,6 +480,47 @@ function isYearOnlyDateValue(value: string): boolean {
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getVietnamNow(): Date {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000);
+}
+
+function formatOfficialDateFromUtcDate(date: Date): string {
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function getVnPrearrivalArrivalDateOptions(): Array<Exclude<VisaFormFieldOption, string>> {
+  const vietnamNow = getVietnamNow();
+  const startOfVietnamToday = Date.UTC(
+    vietnamNow.getUTCFullYear(),
+    vietnamNow.getUTCMonth(),
+    vietnamNow.getUTCDate(),
+  );
+  return Array.from({ length: 3 }, (_, index) => {
+    const date = new Date(startOfVietnamToday + index * 24 * 60 * 60 * 1000);
+    const value = formatOfficialDateFromUtcDate(date);
+    return {
+      value,
+      text: value,
+      label_en: value,
+      label_zh: value,
+      official_label: value,
+    };
+  });
+}
+
+function normaliseVnPrearrivalArrivalDate(value: string): string | null {
+  const parsed = parseFlexibleDate(value);
+  if (!parsed) return null;
+  return formatOfficialDateFromUtcDate(new Date(Date.UTC(
+    parsed.getFullYear(),
+    parsed.getMonth(),
+    parsed.getDate(),
+  )));
 }
 
 function addMonths(date: Date, months: number): Date {
@@ -577,6 +755,190 @@ const COUNTRY_VALUE_ALIASES: Record<string, string> = {
   美国: "USA",
 };
 
+function getVnPrearrivalOfficialSource(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { official_source?: unknown } | null;
+  const source = typeof rules?.official_source === "string" ? rules.official_source : "";
+  return source.startsWith("prearrival_category:") ? source : null;
+}
+
+function isVnPrearrivalContext(visaType: string | undefined, field?: VisaFormFieldRow): boolean {
+  return visaType === "VN_PREARRIVAL_DECLARATION"
+    || field?.visaType === "VN_PREARRIVAL_DECLARATION";
+}
+
+function getVnPrearrivalDependsOn(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { depends_on?: unknown; dependsOn?: unknown } | null;
+  const dependsOn = rules?.depends_on ?? rules?.dependsOn;
+  return typeof dependsOn === "string" && dependsOn.trim() ? dependsOn.trim() : null;
+}
+
+function vnPrearrivalOptionKey(field: VisaFormFieldRow): string {
+  return `${field.fieldName}:${getVnPrearrivalOfficialSource(field) ?? ""}`;
+}
+
+const VN_PREARRIVAL_FLIGHT_PAGE_SIZE = 10;
+const VN_PREARRIVAL_OTHER_FLIGHT_OPTION: VisaFormFieldOption = {
+  value: "other",
+  text: "Other",
+  label_en: "Other",
+  label_zh: "其他",
+  official_label: "Other",
+  code: "other",
+};
+const VN_PREARRIVAL_OTHER_HOTEL_OPTION: VisaFormFieldOption = {
+  value: "other",
+  text: "Other",
+  label_en: "Other",
+  label_zh: "其他",
+  official_label: "Other",
+  code: "other",
+};
+
+function optionValue(option: VisaFormFieldOption): string {
+  return typeof option === "string" ? option : option.value;
+}
+
+function withVnPrearrivalOtherFlightOption(
+  options: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  return [
+    ...options.filter((option) => optionValue(option).toLowerCase() !== "other"),
+    VN_PREARRIVAL_OTHER_FLIGHT_OPTION,
+  ];
+}
+
+export function withVnPrearrivalOtherHotelOption(
+  options: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  return [
+    ...options.filter((option) => optionValue(option).toLowerCase() !== "other"),
+    VN_PREARRIVAL_OTHER_HOTEL_OPTION,
+  ];
+}
+
+export function ensureVnPrearrivalOtherFlightFlow(
+  steps: WizardStep[],
+): WizardStep[] {
+  return steps.map((step) => {
+    const flightField = step.fields.find((field) => field.fieldName === "flight_number");
+    if (!flightField || flightField.visaType !== "VN_PREARRIVAL_DECLARATION") return step;
+
+    let changed = false;
+    let hasCustomFlightField = false;
+    const fields = step.fields.map((field) => {
+      if (field.fieldName === "custom_flight_number") {
+        hasCustomFlightField = true;
+        const expectedCondition = "mode_of_travel === air && flight_number === other";
+        const currentCondition = (field.conditionalLogic as { showIf?: string } | null)?.showIf;
+        if (currentCondition === expectedCondition) return field;
+        changed = true;
+        return {
+          ...field,
+          conditionalLogic: { ...field.conditionalLogic, showIf: expectedCondition },
+        };
+      }
+
+      if (field.fieldName !== "border_gate_airport") return field;
+
+      const rules = field.validationRules ?? {};
+      if (
+        rules.locked_by === "flight_number"
+        && rules.read_only === true
+        && rules.editable_when_value === "other"
+      ) {
+        return field;
+      }
+
+      changed = true;
+      return {
+        ...field,
+        validationRules: {
+          ...rules,
+          locked_by: "flight_number",
+          read_only: true,
+          editable_when_value: "other",
+        },
+      };
+    });
+
+    if (!hasCustomFlightField) {
+      changed = true;
+      fields.push({
+        id: `${flightField.id}:custom-flight-number`,
+        visaType: flightField.visaType,
+        fieldName: "custom_flight_number",
+        label: "Flight Number",
+        fieldType: "text",
+        required: true,
+        stepNumber: flightField.stepNumber,
+        stepName: flightField.stepName,
+        displayOrder: flightField.displayOrder + 1,
+        placeholder: "Enter flight number",
+        validationRules: {
+          label_zh: "手动填写航班号",
+          official: true,
+          maxLength: 40,
+          helper_zh: "仅当官网航班列表中没有你的航班时填写。",
+          helper_en: "Enter this only when your flight is not available in the official list.",
+        },
+        options: null,
+        conditionalLogic: {
+          showIf: "mode_of_travel === air && flight_number === other",
+        },
+      });
+    }
+
+    if (!changed) return step;
+    return {
+      ...step,
+      fields: fields.sort((left, right) => left.displayOrder - right.displayOrder),
+    };
+  });
+}
+
+function mergeVnPrearrivalFlightPages(
+  current: VisaFormFieldOption[],
+  incoming: VisaFormFieldOption[],
+): VisaFormFieldOption[] {
+  const merged = new Map<string, VisaFormFieldOption>();
+  for (const option of [...current, ...incoming]) {
+    const value = optionValue(option);
+    if (!value || value.toLowerCase() === "other") continue;
+    merged.set(value, option);
+  }
+  return withVnPrearrivalOtherFlightOption([...merged.values()]);
+}
+
+function getVnPrearrivalLoadingText(source: string | null, side: BilingualSide): string {
+  if (!source) return side === "zh" ? "正在加载官方选项..." : "Loading official options...";
+  if (source.endsWith(":flight")) {
+    return side === "zh" ? "正在加载官方航班列表..." : "Loading official flight list...";
+  }
+  if (source.endsWith(":hotel")) {
+    return side === "zh" ? "正在加载官方酒店地址..." : "Loading official hotel addresses...";
+  }
+  if (source.endsWith(":country_code")) {
+    return side === "zh" ? "正在加载电话区号..." : "Loading country calling codes...";
+  }
+  if (source.endsWith(":visa_issue_place")) {
+    return side === "zh" ? "正在加载对应签证类型的签发地点..." : "Loading issue places for this visa type...";
+  }
+  return side === "zh" ? "正在加载官方选项..." : "Loading official options...";
+}
+
+function getPhEtravelOfficialOptionSource(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { official_options_source?: unknown } | null;
+  return rules?.official_options_source === "ph_etravel:flight_numbers"
+    ? rules.official_options_source
+    : null;
+}
+
+function getPhEtravelDependsOn(field: VisaFormFieldRow): string | null {
+  const rules = field.validationRules as { depends_on?: unknown; dependsOn?: unknown } | null;
+  const dependsOn = rules?.depends_on ?? rules?.dependsOn;
+  return typeof dependsOn === "string" && dependsOn.trim() ? dependsOn.trim() : null;
+}
+
 function findCanonicalOptionValue(
   options: VisaFormFieldRow["options"],
   rawValue: string | null | undefined,
@@ -615,6 +977,103 @@ function parsePhoneParts(rawPhone: string | null | undefined) {
   return { countryCode: "", localNumber: value.replace(/[^\d\s-]/g, "").trim() };
 }
 
+const TDAC_ACCOMMODATION_VALUE_KEYS = [
+  "accommodation_type",
+  "accommodation_type_other",
+  "province",
+  "district",
+  "sub_district",
+  "postcode",
+  "address_in_thailand",
+];
+
+const TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS = new Set([
+  "accommodation_type",
+  "province",
+  "address_in_thailand",
+]);
+
+function isSameCalendarDayValue(left?: string, right?: string): boolean {
+  const leftDate = parseFlexibleDate(left);
+  const rightDate = parseFlexibleDate(right);
+  return Boolean(leftDate && rightDate && startOfDay(leftDate).getTime() === startOfDay(rightDate).getTime());
+}
+
+function getAirportCodeFromFlightValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const underscoreMatch = trimmed.match(/_([A-Z]{3})$/);
+  if (underscoreMatch) return underscoreMatch[1];
+  const dashMatch = trimmed.match(/-\s*([A-Z]{3})$/);
+  return dashMatch?.[1] ?? "";
+}
+
+function restoreVnPrearrivalHotelHierarchy(values: Record<string, string>): Record<string, string> {
+  const hotelCode = values.hotel_accommodation_address?.trim() ?? "";
+  if (!hotelCode) return values;
+
+  const hotelOptions = getVnPrearrivalStaticOptions("prearrival_category:hotel") ?? [];
+  const selectedHotel = hotelOptions.find((option) =>
+    typeof option !== "string" && option.value === hotelCode,
+  );
+  if (!selectedHotel || typeof selectedHotel === "string") return values;
+
+  const provinceCity = selectedHotel.province_city?.trim() ?? "";
+  const ward = selectedHotel.ward?.trim() ?? "";
+  if (!provinceCity || !ward) return values;
+  if (
+    values.province_city_of_hotel === provinceCity &&
+    values.ward_commune_of_hotel === ward
+  ) return values;
+
+  return {
+    ...values,
+    province_city_of_hotel: provinceCity,
+    ward_commune_of_hotel: ward,
+  };
+}
+
+function getVnPrearrivalSelectedHotelWardOption(
+  values: Record<string, string>,
+): VisaFormFieldOption | null {
+  const hotelCode = values.hotel_accommodation_address?.trim() ?? "";
+  const wardCode = values.ward_commune_of_hotel?.trim() ?? "";
+  if (!hotelCode || !wardCode) return null;
+
+  const hotelOptions = getVnPrearrivalStaticOptions("prearrival_category:hotel") ?? [];
+  const selectedHotel = hotelOptions.find((option) =>
+    typeof option !== "string" && option.value === hotelCode,
+  );
+  if (!selectedHotel || typeof selectedHotel === "string") return null;
+
+  const englishAddress = selectedHotel.label_en ?? selectedHotel.text ?? "";
+  const wardLabel = englishAddress
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => /\b(?:ward|commune|town|village)$/i.test(part));
+  if (!wardLabel) return null;
+
+  return {
+    value: wardCode,
+    text: wardLabel,
+    label_en: wardLabel,
+    label_zh: localizeVietnamAdministrativeUnitText(wardLabel),
+    official_label: wardLabel,
+    searchText: `${wardLabel} ${wardCode}`,
+  };
+}
+
+function normalizeTdacTransitValue(values: Record<string, string>): Record<string, string> {
+  const sameDayTransit = isSameCalendarDayValue(values.arrival_date, values.departure_date);
+  const next: Record<string, string> = { ...values, is_transit_traveler: sameDayTransit ? "yes" : "" };
+  if (sameDayTransit) {
+    for (const fieldName of TDAC_ACCOMMODATION_VALUE_KEYS) {
+      next[fieldName] = "";
+    }
+  }
+  return next;
+}
+
 function normalizeTdacStepValues(
   fields: VisaFormFieldRow[],
   values: Record<string, string>,
@@ -627,10 +1086,26 @@ function normalizeTdacStepValues(
 
   const normalizeOptionField = (fieldName: string, fallbackKeys: string[] = []) => {
     const field = fieldByName.get(fieldName);
-    if (!field?.options) return;
+    if (!field) return;
     const currentValue = next[fieldName]?.trim();
     const fallbackValue = fallbackKeys.map((key) => next[key]?.trim()).find(Boolean);
-    const canonical = findCanonicalOptionValue(field.options, currentValue || fallbackValue);
+    let options = field.options;
+    const rules = field.validationRules as {
+      dependent_on?: string;
+      depends_on?: string;
+      dependsOn?: string;
+      dependent_options?: Record<string, VisaFormFieldOption[]>;
+    } | null;
+    const parentFieldName = rules?.dependent_on ?? rules?.depends_on ?? rules?.dependsOn;
+    const parentValue = parentFieldName ? next[parentFieldName]?.trim() : "";
+    if ((!options || options.length === 0) && rules?.dependent_options && parentValue) {
+      options =
+        rules.dependent_options[parentValue] ??
+        rules.dependent_options[normalizeOptionKey(parentValue)] ??
+        null;
+    }
+    if (!options || options.length === 0) return;
+    const canonical = findCanonicalOptionValue(options, currentValue || fallbackValue);
     if (canonical) next[fieldName] = canonical;
   };
 
@@ -647,6 +1122,18 @@ function normalizeTdacStepValues(
     "nationality",
     "nationality_country",
   ]);
+  normalizeOptionField("city_state_of_residence", [
+    "residence_city_state",
+    "residence_state",
+    "residence_province",
+    "home_address_state",
+    "home_address_city",
+    "residential_address_state",
+    "residential_address_city",
+    "birth_province",
+    "state_of_birth",
+    "birth_state",
+  ]);
   normalizeOptionField("country_boarded", ["country_territory_of_residence", "nationality"]);
   normalizeOptionField("arrival_mode_of_travel");
   normalizeOptionField("arrival_mode_of_transport");
@@ -655,8 +1142,8 @@ function normalizeTdacStepValues(
   normalizeOptionField("purpose_of_travel");
   normalizeOptionField("accommodation_type");
   normalizeOptionField("province");
-  normalizeOptionField("district_area");
-  normalizeOptionField("subdistrict_subarea");
+  normalizeOptionField("district");
+  normalizeOptionField("sub_district");
 
   const genderField = fieldByName.get("gender");
   if (genderField?.options) {
@@ -688,7 +1175,7 @@ function normalizeTdacStepValues(
     next.phone_number = parsedPhone.localNumber;
   }
 
-  return next;
+  return normalizeTdacTransitValue(next);
 }
 
 function isCheckedCheckboxValue(value: string): boolean {
@@ -726,6 +1213,35 @@ function filterCurrentStepValues(
   return filtered;
 }
 
+function buildCurrentStepAnswerPatch(
+  fields: VisaFormFieldRow[],
+  values: Record<string, string>,
+  groupCounts: Record<string, number>,
+  textPairs: Record<string, BilingualTextValue>,
+): Record<string, string> {
+  const answers = filterCurrentStepValues(fields, values, groupCounts);
+
+  for (const field of fields) {
+    if (!usesBilingualTextPair(field)) continue;
+    const group = getRepeatGroup(field);
+    const keys = group
+      ? Array.from(
+          { length: groupCounts[group] ?? 1 },
+          (_, index) => instanceKey(field.fieldName, index),
+        )
+      : [field.fieldName];
+
+    for (const key of keys) {
+      const pair = textPairs[key];
+      if (!pair) continue;
+      answers[`${key}_zh`] = pair.zh;
+      answers[`${key}_en`] = pair.en;
+    }
+  }
+
+  return answers;
+}
+
 function getLocalFieldIssue(
   field: VisaFormFieldRow,
   valueKey: string,
@@ -740,11 +1256,19 @@ function getLocalFieldIssue(
     pattern?: string;
     allow_year_only?: boolean;
     min_date?: "today";
+    max_days_from_today?: number;
+    submission_window_hours?: number;
     not_before_today?: boolean;
     not_before_field?: string;
     after_or_equal_field?: string;
     min_days_after_field?: string;
     min_days_after_field_days?: number;
+    official_source?: string;
+    numeric_length_when?: {
+      field?: string;
+      equals?: string;
+      length?: number;
+    };
   } | null;
   const issue = (severity: FieldIssueSeverity, message: string): FieldIssue => ({ severity, message });
 
@@ -754,6 +1278,30 @@ function getLocalFieldIssue(
 
   if (rules?.maxLength && trimmed.length > rules.maxLength) {
     return issue("error", isZh ? `最多 ${rules.maxLength} 个字符` : `Maximum ${rules.maxLength} characters`);
+  }
+
+  const numericLengthRule = rules?.numeric_length_when
+    ?? (
+      isVnPrearrivalContext(undefined, field)
+      && field.fieldName === "visa_number"
+      && values.visa_type?.trim() === "EV"
+        ? { field: "visa_type", equals: "EV", length: 9 }
+        : undefined
+    );
+  if (
+    trimmed &&
+    numericLengthRule?.field &&
+    numericLengthRule.equals &&
+    numericLengthRule.length &&
+    values[numericLengthRule.field]?.trim() === numericLengthRule.equals &&
+    !new RegExp(`^\\d{${numericLengthRule.length}}$`).test(trimmed)
+  ) {
+    return issue(
+      "error",
+      isZh
+        ? `电子签证编号必须是“Số / No.”后的 ${numericLengthRule.length} 位纯数字`
+        : `The E-Visa number must be the ${numericLengthRule.length}-digit numeric value on the “Số / No.” line`,
+    );
   }
 
   if (rules?.pattern && trimmed) {
@@ -774,7 +1322,8 @@ function getLocalFieldIssue(
   if (
     (field.fieldType === "select" || field.fieldType === "multi_select" || field.fieldType === "radio" || field.fieldType === "checkbox") &&
     trimmed &&
-    options.length > 0
+    options.length > 0 &&
+    !rules?.official_source
   ) {
     const selectedValues = field.fieldType === "multi_select"
       ? trimmed.split(",").map((part) => part.trim()).filter(Boolean)
@@ -812,9 +1361,24 @@ function getLocalFieldIssue(
   }
 
   if (currentDate && (rules?.min_date === "today" || rules?.not_before_today)) {
-    const today = startOfDay(new Date());
+    const today = startOfDay(getVietnamNow());
     if (startOfDay(currentDate) < today) {
       return issue("error", isZh ? "日期不能早于今天" : "Date cannot be earlier than today");
+    }
+  }
+
+  if (currentDate && typeof rules?.max_days_from_today === "number") {
+    const today = startOfDay(getVietnamNow());
+    const maxDate = startOfDay(new Date(today));
+    maxDate.setDate(maxDate.getDate() + Math.max(0, rules.max_days_from_today));
+    if (startOfDay(currentDate) > maxDate) {
+      const hours = rules.submission_window_hours ?? (rules.max_days_from_today + 1) * 24;
+      return issue(
+        "error",
+        isZh
+          ? `此申报只能在入境前 ${hours} 小时内填写`
+          : `This declaration can only be completed within ${hours} hours before arrival`,
+      );
     }
   }
 
@@ -993,10 +1557,11 @@ function getDynamicDependentOptions(
   const rules = field.validationRules as {
     dependent_options_key?: string;
     dependent_on?: string;
+    depends_on?: string;
     dependsOn?: string;
     dependent_options?: Record<string, VisaFormFieldOption[]>;
   } | null;
-  const parentFieldName = rules?.dependent_on ?? rules?.dependsOn;
+  const parentFieldName = rules?.dependent_on ?? rules?.depends_on ?? rules?.dependsOn;
   if (!parentFieldName) return null;
 
   const parentValue = values[parentFieldName];
@@ -1421,6 +1986,14 @@ function normalizeVietnamUnitSuffixOrder(text: string): string {
 
 function localizeVietnamAdministrativeUnitText(text: string): string {
   const trimmed = text.replace(/\s+/g, " ").trim();
+  const vietnameseProvinceMatch = trimmed.match(/^Tỉnh\s+(.+)$/i);
+  if (vietnameseProvinceMatch) {
+    return `${translateVietnamesePlaceName(vietnameseProvinceMatch[1])}省`;
+  }
+  const vietnameseCityMatch = trimmed.match(/^Thành phố\s+(.+)$/i);
+  if (vietnameseCityMatch) {
+    return `${translateVietnamesePlaceName(vietnameseCityMatch[1])}市`;
+  }
   const localizedPrefixMatch = trimmed.match(/^(坊|公社|市镇)\s+(.+)$/);
   if (localizedPrefixMatch) {
     return normalizeVietnamUnitSuffixOrder(`${translateVietnamesePlaceName(localizedPrefixMatch[2])}${localizedPrefixMatch[1]}`);
@@ -1558,6 +2131,11 @@ function getDefaultFieldValue(
   country?: string | null,
   visaType?: string,
 ): string {
+  const configuredDefault = (field.validationRules as { defaultValue?: unknown } | null)?.defaultValue;
+  if (typeof configuredDefault === "string" && configuredDefault.trim()) {
+    return configuredDefault.trim();
+  }
+
   if (
     visaType === "EU_SCHENGEN_C_SHORT_STAY" &&
     field.fieldName === "main_destination_country"
@@ -1716,14 +2294,17 @@ export function DynamicStepForm({
         }
       }
     }
-    return normalizeTdacStepValues(step.fields, init, visaType);
+    const normalizedValues = normalizeTdacStepValues(step.fields, init, visaType);
+    return isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field))
+      ? restoreVnPrearrivalHotelHierarchy(normalizedValues)
+      : normalizedValues;
   });
 
   const [textPairs, setTextPairs] = useState<Record<string, BilingualTextValue>>(() => {
     const init: Record<string, BilingualTextValue> = {};
     const normalizedPrefill = normalizeTdacStepValues(step.fields, { ...prefill }, visaType);
     for (const field of step.fields) {
-      if (!isTextLikeField(field)) continue;
+      if (!usesBilingualTextPair(field)) continue;
       const group = getRepeatGroup(field);
       if (group) {
         const count = groupCounts[group] ?? 1;
@@ -1738,11 +2319,38 @@ export function DynamicStepForm({
     return init;
   });
   const [manualEnglishValueKeys, setManualEnglishValueKeys] = useState<Record<string, boolean>>({});
+  const [koreaAddressOptions, setKoreaAddressOptions] = useState<VisaFormFieldOption[]>([]);
+  const [koreaAddressSearchQuery, setKoreaAddressSearchQuery] = useState("");
+  const [koreaAddressSearching, setKoreaAddressSearching] = useState(false);
+  const [vnPrearrivalQueries, setVnPrearrivalQueries] = useState<Record<string, string>>({});
+  const [vnPrearrivalOptions, setVnPrearrivalOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
+  const [vnPrearrivalSearching, setVnPrearrivalSearching] = useState<Record<string, boolean>>({});
+  const [vnPrearrivalPagination, setVnPrearrivalPagination] = useState<
+    Record<string, { page: number; hasMore: boolean }>
+  >({});
+  const [vnPrearrivalLoadingMore, setVnPrearrivalLoadingMore] = useState<Record<string, boolean>>({});
+  const [phEtravelOptions, setPhEtravelOptions] = useState<Record<string, VisaFormFieldOption[]>>({});
+  const [phEtravelSearching, setPhEtravelSearching] = useState<Record<string, boolean>>({});
+  const [indonesiaPostalLookup, setIndonesiaPostalLookup] = useState<IndonesiaPostalLookup>({ status: "idle" });
+  const isVnPrearrivalStep = useMemo(
+    () => isVnPrearrivalContext(visaType) || step.fields.some((field) => isVnPrearrivalContext(undefined, field)),
+    [step.fields, visaType],
+  );
+  const isPhEtravelStep = visaType === "PH_ETRAVEL_ARRIVAL_CARD"
+    || visaType === "PH_ETRAVEL_DEPARTURE_CARD"
+    || step.fields.some((field) =>
+      field.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || field.visaType === "PH_ETRAVEL_DEPARTURE_CARD"
+    );
+  const isIndonesiaOfficialEVisa = useMemo(
+    () => isIndonesiaOfficialEVisaContext(country, visaType),
+    [country, visaType],
+  );
 
   const valuesRef = useRef(values);
   const textPairsRef = useRef(textPairs);
   const manualEnglishValueKeysRef = useRef(manualEnglishValueKeys);
   const groupCountsRef = useRef(groupCounts);
+  const vnPrearrivalLoadingMoreRef = useRef<Record<string, boolean>>({});
   const onDraftChangeRef = useRef(onDraftChange);
   const previousPrefillRef = useRef(prefill);
   const undoStackRef = useRef<FormHistorySnapshot[]>([]);
@@ -1757,6 +2365,471 @@ export function DynamicStepForm({
     onDraftChangeRef.current = onDraftChange;
   }, [onDraftChange]);
 
+  useEffect(() => {
+    if (!isIndonesiaOfficialEVisa || !step.fields.some((field) => field.fieldName === "postal_code")) {
+      setIndonesiaPostalLookup({ status: "idle" });
+      return;
+    }
+
+    const postalCode = values.postal_code?.replace(/\D/g, "") ?? "";
+    if (!postalCode) {
+      setIndonesiaPostalLookup({ status: "idle" });
+      return;
+    }
+    if (postalCode.length !== 5) {
+      setIndonesiaPostalLookup({
+        status: "invalid",
+        messageZh: "请输入住宿地址对应的 5 位印尼邮政编码。",
+        messageEn: "Enter the 5-digit Indonesian postal code for your accommodation.",
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIndonesiaPostalLookup({ status: "checking" });
+      try {
+        const address = valuesRef.current.address_in_indonesia?.trim() ?? "";
+        const query = new URLSearchParams({ postalCode });
+        if (address) query.set("address", address);
+        const response = await fetch(`/api/indonesia/postal-code?${query.toString()}`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json() as {
+          ok?: boolean;
+          messageZh?: string;
+          messageEn?: string;
+          location?: { province: string; city: string; district: string; village: string };
+          addressCheck?: { status?: "valid" | "invalid" | "indeterminate"; messageZh?: string; messageEn?: string };
+        };
+        if (!response.ok || !payload.ok || !payload.location) {
+          setIndonesiaPostalLookup({
+            status: response.status === 503 ? "unavailable" : "invalid",
+            messageZh: payload.messageZh ?? "无法识别该印尼邮政编码。",
+            messageEn: payload.messageEn ?? "This Indonesian postal code could not be recognized.",
+          });
+          return;
+        }
+
+        if (payload.addressCheck?.status === "invalid") {
+          setIndonesiaPostalLookup({
+            status: "invalid",
+            messageZh: payload.addressCheck.messageZh ?? "住宿地址必须位于印度尼西亚。",
+            messageEn: payload.addressCheck.messageEn ?? "The accommodation address must be in Indonesia.",
+          });
+          return;
+        }
+
+        const { province, city, district, village } = payload.location;
+        const nextValues = {
+          ...valuesRef.current,
+          postal_code: postalCode,
+          province_name: province,
+          city_name: city,
+          district_name: district,
+          village_name: village,
+        };
+        valuesRef.current = nextValues;
+        setValues(nextValues);
+        setIndonesiaPostalLookup({
+          status: "resolved",
+          summaryZh: `已自动填写：${province} / ${city} / ${district} / ${village}`,
+          summaryEn: `Auto-filled: ${province} / ${city} / ${district} / ${village}`,
+        });
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setIndonesiaPostalLookup({
+          status: "unavailable",
+          messageZh: "暂时无法校验印尼邮政编码，请稍后重试。",
+          messageEn: "Indonesia postal-code validation is temporarily unavailable. Please try again shortly.",
+        });
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [isIndonesiaOfficialEVisa, step.fields, values.address_in_indonesia, values.postal_code]);
+
+  useEffect(() => {
+    if (!isVnPrearrivalStep || !step.fields.some((field) => field.fieldName === "expected_arrival_date")) return;
+
+    const allowedDates = getVnPrearrivalArrivalDateOptions();
+    const allowedValues = new Set(allowedDates.map((option) => option.value));
+    const currentValue = valuesRef.current.expected_arrival_date?.trim() ?? "";
+    const normalisedValue = normaliseVnPrearrivalArrivalDate(currentValue);
+    if (!currentValue || (normalisedValue && allowedValues.has(normalisedValue))) return;
+
+    // A saved draft may predate the 72-hour rule. Remove it before the next
+    // save so the user cannot remain trapped on an invalid date value.
+    const nextValues = {
+      ...valuesRef.current,
+      expected_arrival_date: "",
+      flight_number: "",
+      custom_flight_number: "",
+      border_gate_airport: "",
+    };
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+  }, [isVnPrearrivalStep, step.fields]);
+
+  useEffect(() => {
+    if (
+      !isVnPrearrivalStep
+      || !step.fields.some((field) => field.fieldName === "flight_number")
+      || !step.fields.some((field) => field.fieldName === "border_gate_airport")
+    ) return;
+
+    if ((valuesRef.current.flight_number ?? "").toLowerCase() === "other") return;
+    const derivedAirport = getAirportCodeFromFlightValue(valuesRef.current.flight_number ?? "");
+    if ((valuesRef.current.border_gate_airport ?? "") === derivedAirport) return;
+
+    const nextValues = { ...valuesRef.current, border_gate_airport: derivedAirport };
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+  }, [isVnPrearrivalStep, step.fields, values.flight_number, values.border_gate_airport]);
+
+  useEffect(() => {
+    if (
+      !isVnPrearrivalStep ||
+      !step.fields.some((field) => field.fieldName === "hotel_accommodation_address")
+    ) return;
+
+    const nextValues = restoreVnPrearrivalHotelHierarchy(valuesRef.current);
+    if (nextValues === valuesRef.current) return;
+    valuesRef.current = nextValues;
+    setValues(nextValues);
+  }, [
+    isVnPrearrivalStep,
+    step.fields,
+    values.hotel_accommodation_address,
+    values.province_city_of_hotel,
+    values.ward_commune_of_hotel,
+  ]);
+
+  const hasKoreaAddressSearchField = useMemo(
+    () =>
+      visaType === "KR_C39_SHORT_TERM_VISIT" &&
+      step.fields.some(
+        (field) =>
+          field.fieldName === "address_in_korea" &&
+          (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search",
+      ),
+    [step.fields, visaType],
+  );
+
+  useEffect(() => {
+    if (!hasKoreaAddressSearchField) return;
+    const keyword = koreaAddressSearchQuery.trim();
+    if (keyword.length < 2) {
+      setKoreaAddressOptions([]);
+      setKoreaAddressSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setKoreaAddressSearching(true);
+        const response = await fetch(`/api/korea-addresses?keyword=${encodeURIComponent(keyword)}&limit=100`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = (await response.json()) as { options?: VisaFormFieldOption[] };
+        setKoreaAddressOptions(Array.isArray(payload.options) ? payload.options : []);
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          setKoreaAddressOptions([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setKoreaAddressSearching(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [hasKoreaAddressSearchField, koreaAddressSearchQuery]);
+
+  const vnPrearrivalRemoteFields = useMemo(
+    () =>
+      isVnPrearrivalStep
+        ? step.fields.filter((field) => {
+            const source = getVnPrearrivalOfficialSource(field);
+            if (!source) return false;
+            if (field.fieldName === "phone_country_code") return false;
+            if (source.endsWith(":flight") || source.endsWith(":hotel")) return true;
+            const parentKey = getVnPrearrivalDependsOn(field);
+            return getVnPrearrivalStaticOptions(source, parentKey ? values[parentKey] ?? "" : "") === null;
+          })
+        : [],
+    [isVnPrearrivalStep, step.fields, values],
+  );
+  const vnPrearrivalParentSnapshot = useMemo(
+    () =>
+      vnPrearrivalRemoteFields
+        .map((field) => {
+          const parentKey = getVnPrearrivalDependsOn(field);
+          return parentKey ? `${parentKey}:${values[parentKey] ?? ""}` : "";
+        })
+        .join("|"),
+    [values, vnPrearrivalRemoteFields],
+  );
+
+  useEffect(() => {
+    if (vnPrearrivalRemoteFields.length === 0) return;
+    setVnPrearrivalQueries((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const field of vnPrearrivalRemoteFields) {
+        const key = vnPrearrivalOptionKey(field);
+        if (!(key in next)) {
+          next[key] = "";
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [vnPrearrivalRemoteFields]);
+
+  useEffect(() => {
+    if (vnPrearrivalRemoteFields.length === 0) return;
+    const entries = Object.entries(vnPrearrivalQueries);
+    if (entries.length === 0) return;
+
+    const controller = new AbortController();
+    const timers = entries.map(([key, keyword]) => window.setTimeout(async () => {
+      const field = vnPrearrivalRemoteFields.find((candidate) => vnPrearrivalOptionKey(candidate) === key);
+      const source = field ? getVnPrearrivalOfficialSource(field) : null;
+      if (!field || !source) return;
+      const parentKey = getVnPrearrivalDependsOn(field);
+      const parent = parentKey ? valuesRef.current[parentKey] ?? "" : "";
+      const waitsForKeyword =
+        source.endsWith(":hotel") &&
+        !parent.trim() &&
+        keyword.trim().length < 2;
+      if (waitsForKeyword) {
+        setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
+        setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
+        return;
+      }
+      if (source.endsWith("administrative_unit_level2") && !parent.trim()) {
+        setVnPrearrivalOptions((current) => ({ ...current, [key]: [] }));
+        setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
+        return;
+      }
+
+      try {
+        setVnPrearrivalSearching((current) => ({ ...current, [key]: true }));
+        const params = new URLSearchParams({
+          source,
+          keyword,
+          limit: source.endsWith(":hotel") ? "100" : "10000",
+        });
+        if (source.endsWith(":flight")) {
+          params.set("page", "0");
+          params.set("size", String(VN_PREARRIVAL_FLIGHT_PAGE_SIZE));
+        }
+        if (parent.trim()) params.set("parent", parent.trim());
+        if (source.endsWith(":hotel")) {
+          const province = valuesRef.current.province_city_of_hotel?.trim() ?? "";
+          if (province) params.set("province", province);
+        }
+        const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = (await response.json()) as {
+          options?: VisaFormFieldOption[];
+          page?: number;
+          hasMore?: boolean;
+        };
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        setVnPrearrivalOptions((current) => {
+          const selectedValue = valuesRef.current[field.fieldName]?.trim();
+          const selectedOption = selectedValue
+            ? (current[key] ?? []).find((option) =>
+                typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+              ) ?? (
+                source.endsWith(":flight")
+                  ? getVnPrearrivalStaticOptions(source)?.find((option) =>
+                      typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+                    )
+                  : null
+              )
+            : null;
+          let nextOptions = selectedOption && !options.some((option) =>
+            typeof option === "string" ? option === selectedValue : option.value === selectedValue
+          )
+            ? [selectedOption, ...options]
+            : options;
+          if (source.endsWith(":flight")) {
+            nextOptions = withVnPrearrivalOtherFlightOption(nextOptions);
+          } else if (source.endsWith(":hotel")) {
+            nextOptions = withVnPrearrivalOtherHotelOption(nextOptions);
+          }
+          return {
+            ...current,
+            [key]: nextOptions,
+          };
+        });
+        setVnPrearrivalPagination((current) => ({
+          ...current,
+          [key]: {
+            page: payload.page ?? 0,
+            hasMore: Boolean(payload.hasMore),
+          },
+        }));
+        if (field.fieldName === "phone_country_code") {
+          const currentValue = valuesRef.current[field.fieldName]?.trim();
+          const matchingCodeOption = currentValue
+            ? options.find((option) => {
+                if (typeof option === "string") return false;
+                const optionWithCode = option as { value?: string; code?: string };
+                return optionWithCode.code === currentValue && optionWithCode.value !== currentValue;
+              })
+            : null;
+          if (matchingCodeOption && typeof matchingCodeOption !== "string") {
+            const normalizedValue = (matchingCodeOption as { value: string }).value;
+            valuesRef.current = { ...valuesRef.current, [field.fieldName]: normalizedValue };
+            setValues((current) => ({ ...current, [field.fieldName]: normalizedValue }));
+          }
+        }
+        // A parent-field change is handled synchronously in `handleChange`.
+        // Do not invalidate a selected dependent value from an asynchronous
+        // refresh: an earlier response can otherwise erase the value the user
+        // just selected and trap them in this step.
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          setVnPrearrivalOptions((current) => ({
+            ...current,
+            [key]: source.endsWith(":flight")
+              ? [VN_PREARRIVAL_OTHER_FLIGHT_OPTION]
+              : source.endsWith(":hotel")
+                ? [VN_PREARRIVAL_OTHER_HOTEL_OPTION]
+                : [],
+          }));
+          setVnPrearrivalPagination((current) => ({
+            ...current,
+            [key]: { page: 0, hasMore: false },
+          }));
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setVnPrearrivalSearching((current) => ({ ...current, [key]: false }));
+        }
+      }
+    }, 0));
+
+    return () => {
+      controller.abort();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [vnPrearrivalParentSnapshot, vnPrearrivalQueries, vnPrearrivalRemoteFields]);
+
+  const loadMoreVnPrearrivalOptions = async (key: string) => {
+    const pagination = vnPrearrivalPagination[key];
+    if (!pagination?.hasMore || vnPrearrivalLoadingMoreRef.current[key]) return;
+    const field = vnPrearrivalRemoteFields.find((candidate) => vnPrearrivalOptionKey(candidate) === key);
+    const source = field ? getVnPrearrivalOfficialSource(field) : null;
+    if (!field || !source?.endsWith(":flight")) return;
+
+    vnPrearrivalLoadingMoreRef.current[key] = true;
+    setVnPrearrivalLoadingMore((current) => ({ ...current, [key]: true }));
+    try {
+      const nextPage = pagination.page + 1;
+      const params = new URLSearchParams({
+        source,
+        keyword: vnPrearrivalQueries[key] ?? "",
+        page: String(nextPage),
+        size: String(VN_PREARRIVAL_FLIGHT_PAGE_SIZE),
+      });
+      const response = await fetch(`/api/vn-prearrival/options?${params.toString()}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json() as {
+        options?: VisaFormFieldOption[];
+        page?: number;
+        hasMore?: boolean;
+      };
+      const options = Array.isArray(payload.options) ? payload.options : [];
+      setVnPrearrivalOptions((current) => ({
+        ...current,
+        [key]: mergeVnPrearrivalFlightPages(current[key] ?? [], options),
+      }));
+      setVnPrearrivalPagination((current) => ({
+        ...current,
+        [key]: {
+          page: payload.page ?? nextPage,
+          hasMore: Boolean(payload.hasMore),
+        },
+      }));
+    } catch {
+      setVnPrearrivalPagination((current) => ({
+        ...current,
+        [key]: {
+          page: current[key]?.page ?? pagination.page,
+          hasMore: false,
+        },
+      }));
+    } finally {
+      vnPrearrivalLoadingMoreRef.current[key] = false;
+      setVnPrearrivalLoadingMore((current) => ({ ...current, [key]: false }));
+    }
+  };
+
+  const phEtravelRemoteFields = useMemo(
+    () => isPhEtravelStep
+      ? step.fields.filter((field) => Boolean(getPhEtravelOfficialOptionSource(field)))
+      : [],
+    [isPhEtravelStep, step.fields],
+  );
+  const phEtravelParentSnapshot = phEtravelRemoteFields
+    .map((field) => {
+      const parentKey = getPhEtravelDependsOn(field);
+      return `${field.fieldName}:${parentKey ? values[parentKey] ?? "" : ""}`;
+    })
+    .join("|");
+
+  useEffect(() => {
+    if (phEtravelRemoteFields.length === 0) return;
+    const controller = new AbortController();
+    for (const field of phEtravelRemoteFields) {
+      const source = getPhEtravelOfficialOptionSource(field);
+      const parentKey = getPhEtravelDependsOn(field);
+      const parent = parentKey ? valuesRef.current[parentKey]?.trim() ?? "" : "";
+      if (!source || !parent) {
+        setPhEtravelOptions((current) => ({ ...current, [field.fieldName]: [] }));
+        continue;
+      }
+      void (async () => {
+        try {
+          setPhEtravelSearching((current) => ({ ...current, [field.fieldName]: true }));
+          const params = new URLSearchParams({ source, parent });
+          const response = await fetch(`/api/ph-etravel/options?${params.toString()}`, { signal: controller.signal });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const payload = await response.json() as { options?: VisaFormFieldOption[] };
+          setPhEtravelOptions((current) => ({
+            ...current,
+            [field.fieldName]: Array.isArray(payload.options) ? payload.options : [],
+          }));
+        } catch (error) {
+          if ((error as { name?: string }).name !== "AbortError") {
+            setPhEtravelOptions((current) => ({ ...current, [field.fieldName]: [] }));
+          }
+        } finally {
+          if (!controller.signal.aborted) {
+            setPhEtravelSearching((current) => ({ ...current, [field.fieldName]: false }));
+          }
+        }
+      })();
+    }
+    return () => controller.abort();
+  }, [phEtravelParentSnapshot, phEtravelRemoteFields]);
+
   const getSnapshot = (): FormHistorySnapshot => ({
     values: { ...valuesRef.current },
     textPairs: cloneTextPairs(textPairsRef.current),
@@ -1764,10 +2837,11 @@ export function DynamicStepForm({
   });
 
   const restoreSnapshot = (snapshot: FormHistorySnapshot) => {
-    valuesRef.current = snapshot.values;
+    const normalizedValues = normalizeTdacStepValues(step.fields, snapshot.values, visaType);
+    valuesRef.current = normalizedValues;
     textPairsRef.current = snapshot.textPairs;
     groupCountsRef.current = snapshot.groupCounts;
-    setValues(snapshot.values);
+    setValues(normalizedValues);
     setTextPairs(snapshot.textPairs);
     setGroupCounts(snapshot.groupCounts);
   };
@@ -1830,12 +2904,27 @@ export function DynamicStepForm({
         valuesChanged = true;
       }
 
-      if (isTextLikeField(field)) {
+      if (usesBilingualTextPair(field)) {
         const currentPair = textPairsRef.current[key] ?? { zh: "", en: "" };
         const pairWasEdited = Boolean(currentPair.zh.trim() || currentPair.en.trim()) && currentValue !== previousValue;
         if (!pairWasEdited) {
-          nextTextPairs[key] = getBilingualPrefillText(key, prefill, nextPrefill);
+          const repairedPair = getBilingualPrefillText(key, prefill, nextPrefill);
+          nextTextPairs[key] = repairedPair;
           textPairsChanged = true;
+
+          // Older applications can contain Chinese text in an `_en` answer.
+          // The official submission value must immediately follow the repaired
+          // English side, even if the translation request is unavailable.
+          const officialValue = repairedPair.en.trim();
+          const currentNormalizedValue = nextValues[key]?.trim() ?? "";
+          if (
+            officialValue &&
+            !hasChineseText(officialValue) &&
+            (!currentNormalizedValue || hasChineseText(currentNormalizedValue) || currentNormalizedValue === repairedPair.zh.trim())
+          ) {
+            nextValues[key] = officialValue;
+            valuesChanged = true;
+          }
         }
       }
     };
@@ -1852,7 +2941,10 @@ export function DynamicStepForm({
       }
     }
 
-    const normalizedNextValues = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    const normalizedStepValues = normalizeTdacStepValues(step.fields, nextValues, visaType);
+    const normalizedNextValues = isVnPrearrivalStep
+      ? restoreVnPrearrivalHotelHierarchy(normalizedStepValues)
+      : normalizedStepValues;
     for (const [key, value] of Object.entries(normalizedNextValues)) {
       if (nextValues[key] !== value) {
         nextValues[key] = value;
@@ -1860,7 +2952,7 @@ export function DynamicStepForm({
       }
     }
     for (const field of step.fields) {
-      if (!isTextLikeField(field)) continue;
+      if (!usesBilingualTextPair(field)) continue;
       const group = getRepeatGroup(field);
       const keys = group
         ? Array.from({ length: groupCountsRef.current[group] ?? 1 }, (_, index) => instanceKey(field.fieldName, index))
@@ -1887,11 +2979,13 @@ export function DynamicStepForm({
       textPairsRef.current = nextTextPairs;
       setTextPairs(nextTextPairs);
     }
-  }, [prefill, step.fields, visaType]);
+  }, [isVnPrearrivalStep, prefill, step.fields, visaType]);
 
   useEffect(() => {
-    onDraftChangeRef.current?.(filterCurrentStepValues(step.fields, values, groupCounts));
-  }, [groupCounts, step.fields, values]);
+    onDraftChangeRef.current?.(
+      buildCurrentStepAnswerPatch(step.fields, values, groupCounts, textPairs),
+    );
+  }, [groupCounts, step.fields, textPairs, values]);
 
   const undoLastFormChange = () => {
     const previous = undoStackRef.current.at(-1);
@@ -1942,74 +3036,110 @@ export function DynamicStepForm({
   // Find all fields whose visibility depends on a given parent field.
   const getDependentFields = useCallback(
     (parentFieldName: string): string[] => {
-      return step.fields
-        .filter((f) => {
-          if (f.fieldName === parentFieldName) return false;
+      const directlyDependsOn = (f: VisaFormFieldRow, candidateParent: string): boolean => {
+          if (f.fieldName === candidateParent) return false;
           const showIf = (f.conditionalLogic as { showIf?: string } | null)?.showIf;
-          if (showIf && showIf.includes(parentFieldName)) return true;
-          const rules = f.validationRules as { dependent_on?: string; dependsOn?: string } | null;
-          if (rules?.dependent_on === parentFieldName || rules?.dependsOn === parentFieldName) return true;
+          if (showIf && showIf.includes(candidateParent)) return true;
+          const rules = f.validationRules as {
+            dependent_on?: string;
+            depends_on?: string;
+            dependsOn?: string;
+          } | null;
+          if (
+            rules?.dependent_on === candidateParent ||
+            rules?.depends_on === candidateParent ||
+            rules?.dependsOn === candidateParent
+          ) return true;
           if (!f.conditionalLogic) {
-            const withYes = { ...values, [parentFieldName]: "yes" };
-            const withNo = { ...values, [parentFieldName]: "" };
+            const currentValues = valuesRef.current;
+            const withYes = { ...currentValues, [candidateParent]: "yes" };
+            const withNo = { ...currentValues, [candidateParent]: "" };
             const visibleWithYes = evaluateShowIf(f, withYes, step.fields);
             const visibleWithNo = evaluateShowIf(f, withNo, step.fields);
             if (visibleWithYes !== visibleWithNo) return true;
           }
           return false;
-        })
-        .map((f) => f.fieldName);
+      };
+
+      const dependents = new Set<string>();
+      const queue = [parentFieldName];
+      while (queue.length > 0) {
+        const candidateParent = queue.shift();
+        if (!candidateParent) continue;
+        for (const field of step.fields) {
+          if (dependents.has(field.fieldName) || !directlyDependsOn(field, candidateParent)) continue;
+          dependents.add(field.fieldName);
+          queue.push(field.fieldName);
+        }
+      }
+      return [...dependents];
     },
-    [step.fields, values]
+    [step.fields]
   );
 
   const handleChange = (fieldName: string, value: string, options?: { recordUndo?: boolean }) => {
-    if (options?.recordUndo !== false && valuesRef.current[fieldName] !== value) {
+    const normalizedValue = isIndonesiaOfficialEVisa && fieldName === "mobile_phone"
+      ? normalizeIndonesiaMobileNumber(value)
+      : isIndonesiaOfficialEVisa && fieldName === "postal_code"
+        ? value.replace(/\D/g, "").slice(0, 5)
+        : value;
+    if (options?.recordUndo !== false && valuesRef.current[fieldName] !== normalizedValue) {
       pushUndoSnapshot();
     }
 
-    setValues((prev) => {
-      const next = { ...prev, [fieldName]: value };
-      const dependents = getDependentFields(fieldName);
-      for (const dep of dependents) {
-        const depField = step.fields.find((f) => f.fieldName === dep);
-        if (depField && !evaluateShowIf(depField, next, step.fields)) {
+    const next = { ...valuesRef.current, [fieldName]: normalizedValue };
+    if (isVnPrearrivalStep && fieldName === "expected_arrival_date") {
+      next.flight_number = "";
+      next.custom_flight_number = "";
+      next.border_gate_airport = "";
+    }
+    if (isVnPrearrivalStep && fieldName === "flight_number") {
+      next.border_gate_airport = getAirportCodeFromFlightValue(value);
+      next.custom_flight_number = "";
+    }
+    const dependents = getDependentFields(fieldName);
+    for (const dep of dependents) {
+      const depField = step.fields.find((f) => f.fieldName === dep);
+      if (depField && !evaluateShowIf(depField, next, step.fields)) {
+        next[dep] = "";
+      } else if (depField) {
+        const rules = depField.validationRules as {
+          dependent_on?: string;
+          depends_on?: string;
+          dependsOn?: string;
+        } | null;
+        if (rules?.dependent_on || rules?.depends_on || rules?.dependsOn) {
           next[dep] = "";
-        } else if (depField) {
-          const rules = depField.validationRules as { dependent_on?: string; dependsOn?: string } | null;
-          if (rules?.dependent_on === fieldName || rules?.dependsOn === fieldName) {
-            next[dep] = "";
+        }
+      }
+    }
+
+    // Clear inline-group sibling value fields when LESS_THAN_24_HOURS is selected
+    if (normalizedValue === "LESS_THAN_24_HOURS") {
+      const baseFieldName = fieldName.replace(/__\d+$/, "");
+      const suffix = fieldName.substring(baseFieldName.length);
+      const changedField = step.fields.find((f) => f.fieldName === baseFieldName);
+      if (changedField) {
+        const ig = getInlineGroup(changedField);
+        if (ig) {
+          for (const f of step.fields) {
+            if (f.fieldName === baseFieldName || getInlineGroup(f) !== ig || f.fieldType === "select") continue;
+            next[f.fieldName + suffix] = "";
           }
         }
       }
+    }
 
-      // Clear inline-group sibling value fields when LESS_THAN_24_HOURS is selected
-      if (value === "LESS_THAN_24_HOURS") {
-        const baseFieldName = fieldName.replace(/__\d+$/, "");
-        const suffix = fieldName.substring(baseFieldName.length);
-        const changedField = step.fields.find((f) => f.fieldName === baseFieldName);
-        if (changedField) {
-          const ig = getInlineGroup(changedField);
-          if (ig) {
-            for (const f of step.fields) {
-              if (f.fieldName === baseFieldName || getInlineGroup(f) !== ig || f.fieldType === "select") continue;
-              next[f.fieldName + suffix] = "";
-            }
-          }
-        }
-      }
-
-      valuesRef.current = next;
-      return next;
-    });
+    const normalizedNext = normalizeTdacStepValues(step.fields, next, visaType);
+    valuesRef.current = normalizedNext;
+    setValues(normalizedNext);
   };
 
   const handleBilingualTextChange = (fieldName: string, side: BilingualSide, value: string) => {
     const currentPair = textPairsRef.current[fieldName] ?? toInitialBilingualText(valuesRef.current[fieldName]);
-    const targetWasManuallyEdited = Boolean(manualEnglishValueKeysRef.current[fieldName] && currentPair.en.trim());
     const nextPair = side === "zh"
-      ? { zh: value, en: targetWasManuallyEdited ? currentPair.en : toOfficialEnglishValue(value) }
-      : { zh: toChineseSourceValue(value), en: value };
+      ? { zh: value, en: toOfficialEnglishValue(value) }
+      : { zh: currentPair.zh, en: value };
     if (currentPair.zh === nextPair.zh && currentPair.en === nextPair.en) return;
 
     pushUndoSnapshot();
@@ -2017,7 +3147,7 @@ export function DynamicStepForm({
       const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: Boolean(value.trim()) };
       manualEnglishValueKeysRef.current = nextManualKeys;
       setManualEnglishValueKeys(nextManualKeys);
-    } else if (!value.trim()) {
+    } else {
       const nextManualKeys = { ...manualEnglishValueKeysRef.current, [fieldName]: false };
       manualEnglishValueKeysRef.current = nextManualKeys;
       setManualEnglishValueKeys(nextManualKeys);
@@ -2027,7 +3157,7 @@ export function DynamicStepForm({
     textPairsRef.current = nextTextPairs;
     setTextPairs(nextTextPairs);
 
-    const officialValue = nextPair.en || nextPair.zh || currentPair.en || currentPair.zh;
+    const officialValue = side === "en" ? value : nextPair.en || nextPair.zh;
     handleChange(fieldName, officialValue, { recordUndo: false });
   };
 
@@ -2055,7 +3185,7 @@ export function DynamicStepForm({
     setTextPairs((prev) => {
       const next = { ...prev };
       for (const field of repeatGroupFields[group] ?? []) {
-        if (isTextLikeField(field)) {
+        if (usesBilingualTextPair(field)) {
           next[instanceKey(field.fieldName, count - 1)] = { zh: "", en: "" };
         }
       }
@@ -2090,13 +3220,13 @@ export function DynamicStepForm({
       const fields = repeatGroupFields[group] ?? [];
       for (let i = instanceIdx; i < count - 1; i++) {
         for (const field of fields) {
-          if (isTextLikeField(field)) {
+          if (usesBilingualTextPair(field)) {
             next[instanceKey(field.fieldName, i)] = next[instanceKey(field.fieldName, i + 1)] ?? { zh: "", en: "" };
           }
         }
       }
       for (const field of fields) {
-        if (isTextLikeField(field)) {
+        if (usesBilingualTextPair(field)) {
           delete next[instanceKey(field.fieldName, count - 1)];
         }
       }
@@ -2128,7 +3258,13 @@ export function DynamicStepForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const stepData = filterCurrentStepValues(step.fields, values, groupCounts);
+    if (indonesiaPostalLookupBlocksContinue) return;
+    const stepData = buildCurrentStepAnswerPatch(
+      step.fields,
+      valuesRef.current,
+      groupCountsRef.current,
+      textPairsRef.current,
+    );
     onDraftChangeRef.current?.(stepData);
     onComplete(stepData);
   };
@@ -2184,14 +3320,30 @@ export function DynamicStepForm({
   }, [gatingToggles, values]);
 
   const visibleFields = step.fields.filter((f) => {
+      if (isIndonesiaPostalAutoFillField(f)) return false;
       if (isGatedByUnansweredToggle(f)) return false;
       if (isDisabledByLT24(f, f.fieldName, values, step.fields)) return false;
       return evaluateShowIf(f, values, step.fields);
     });
+  const isTdacSameDayTransit = visaType === "TH_TDAC_ARRIVAL_CARD"
+    && isSameCalendarDayValue(values.arrival_date, values.departure_date);
+  const isRequiredField = (field: VisaFormFieldRow): boolean => {
+    if (
+      visaType === "TH_TDAC_ARRIVAL_CARD" &&
+      !isTdacSameDayTransit &&
+      TDAC_NON_TRANSIT_REQUIRED_ACCOMMODATION_KEYS.has(field.fieldName)
+    ) {
+      return true;
+    }
+    return field.required;
+  };
 
   // Required validation: only check visible fields (and all instances of repeat groups)
   const requiredFilled = visibleFields
-    .filter((f) => f.required)
+    .filter((f) => isRequiredField(f))
+    // File fields are mirrored from official portals for parity, but the
+    // actual upload state is managed by Document Center.
+    .filter((f) => f.fieldType !== "file")
     // Annex-I-style starred fields: required_unless exempts the field when its
     // expression evaluates true (e.g. UK Withdrawal Agreement beneficiaries
     // skip fields 21/22/30/31/32 of the Schengen form).
@@ -2208,6 +3360,7 @@ export function DynamicStepForm({
     });
 
   const blockingErrorsClear = visibleFields.every((f) => {
+    if (f.fieldType === "file") return true;
     const group = getRepeatGroup(f);
     if (group) {
       const count = groupCounts[group] ?? 1;
@@ -2218,6 +3371,11 @@ export function DynamicStepForm({
     }
     return getLocalFieldIssue(f, f.fieldName, values[f.fieldName] ?? "", values, locale).severity !== "error";
   });
+  const indonesiaPostalLookupBlocksContinue = isIndonesiaOfficialEVisa &&
+    step.fields.some((field) => field.fieldName === "postal_code") &&
+    (indonesiaPostalLookup.status === "checking" ||
+      indonesiaPostalLookup.status === "invalid" ||
+      indonesiaPostalLookup.status === "unavailable");
 
   /** Translate and render a single field */
   const renderField = (field: VisaFormFieldRow, valueKey: string, forceWhiteBackground = false) => {
@@ -2229,11 +3387,98 @@ export function DynamicStepForm({
 
     // Filter purpose of trip to only show "B" option
     let fieldOptions = field.options;
+    if (field.fieldName === "phone_country_code" && (!fieldOptions || fieldOptions.length === 0)) {
+      fieldOptions = getPhoneCountryCodeOptions();
+    }
     const dynamicOptions = getDynamicDependentOptions(field, values);
     if (dynamicOptions) {
       fieldOptions = field.fieldName === "intended_ward_commune"
         ? localizeVietnamWardOptions(dynamicOptions)
         : dynamicOptions;
+    }
+    const phEtravelSource = getPhEtravelOfficialOptionSource(field);
+    if (phEtravelSource) {
+      const remoteOptions = phEtravelOptions[field.fieldName] ?? [];
+      const selectedValue = values[valueKey]?.trim();
+      const hasSelectedValue = selectedValue && remoteOptions.some((option) =>
+        typeof option === "string" ? option === selectedValue : option.value === selectedValue,
+      );
+      fieldOptions = selectedValue && !hasSelectedValue
+        ? [{ value: selectedValue, text: selectedValue }, ...remoteOptions]
+        : remoteOptions;
+    }
+    if (
+      field.fieldName === "address_in_korea" &&
+      (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search"
+    ) {
+      const selectedValue = values[valueKey]?.trim();
+      const hasSelectedValue =
+        selectedValue &&
+        koreaAddressOptions.some((option) => {
+          if (typeof option === "string") return option === selectedValue;
+          return option.value === selectedValue;
+        });
+      fieldOptions = selectedValue && !hasSelectedValue
+        ? [{ value: selectedValue, text: selectedValue }, ...koreaAddressOptions]
+        : koreaAddressOptions;
+    }
+    const vnPrearrivalSource = getVnPrearrivalOfficialSource(field);
+    const vnPrearrivalKey = vnPrearrivalSource ? vnPrearrivalOptionKey(field) : null;
+    const isVnPrearrivalField = isVnPrearrivalContext(visaType, field);
+    const isVnPrearrivalArrivalDateField =
+      isVnPrearrivalField && field.fieldName === "expected_arrival_date";
+    let hasVnPrearrivalStaticOptions = false;
+    if (isVnPrearrivalField && field.fieldName === "phone_country_code") {
+      hasVnPrearrivalStaticOptions = true;
+    }
+    if (isVnPrearrivalArrivalDateField) {
+      fieldOptions = getVnPrearrivalArrivalDateOptions();
+      hasVnPrearrivalStaticOptions = true;
+    }
+    if (vnPrearrivalSource) {
+      const parentKey = getVnPrearrivalDependsOn(field);
+      const staticOptions = vnPrearrivalSource.endsWith(":flight") || vnPrearrivalSource.endsWith(":hotel")
+        ? null
+        : getVnPrearrivalStaticOptions(vnPrearrivalSource, parentKey ? values[parentKey] ?? "" : "");
+      if (staticOptions) {
+        hasVnPrearrivalStaticOptions = true;
+        fieldOptions = field.fieldName === "phone_country_code" && staticOptions.length === 0
+          ? fieldOptions
+          : staticOptions;
+      }
+    }
+    if (vnPrearrivalKey && !hasVnPrearrivalStaticOptions) {
+      const remoteOptions = vnPrearrivalOptions[vnPrearrivalKey] ?? [];
+      const isLiveFlightSource = vnPrearrivalSource?.endsWith(":flight") ?? false;
+      const localizedRemoteOptions = vnPrearrivalSource?.endsWith("administrative_unit_level1") ||
+        vnPrearrivalSource?.endsWith("administrative_unit_level2")
+        ? localizeVietnamWardOptions(remoteOptions)
+        : remoteOptions;
+      const selectedValue = values[valueKey]?.trim();
+      const hasSelectedValue =
+        selectedValue &&
+        localizedRemoteOptions.some((option) => {
+          if (typeof option === "string") return option === selectedValue;
+          return option.value === selectedValue;
+        });
+      const selectedHotelWardOption =
+        field.fieldName === "ward_commune_of_hotel" && selectedValue && !hasSelectedValue
+          ? getVnPrearrivalSelectedHotelWardOption(values)
+          : null;
+      fieldOptions = localizedRemoteOptions.length > 0
+        ? field.fieldName === "phone_country_code" && localizedRemoteOptions.length === 0
+          ? fieldOptions
+          : selectedValue && !hasSelectedValue
+          ? [
+              selectedHotelWardOption ?? { value: selectedValue, text: selectedValue },
+              ...localizedRemoteOptions,
+            ]
+          : localizedRemoteOptions
+        : isLiveFlightSource
+          ? []
+          : selectedHotelWardOption
+            ? [selectedHotelWardOption]
+            : fieldOptions;
     }
     if (isPurposeOfTripField(field) && fieldOptions) {
       fieldOptions = fieldOptions.filter(isBTripPurposeOption);
@@ -2241,17 +3486,44 @@ export function DynamicStepForm({
     if (isVietnamBorderGateField(field)) {
       fieldOptions = localizeVietnamBorderGateOptions(fieldOptions);
     }
+    if (visaType === "PH_ETRAVEL_ARRIVAL_CARD" || visaType === "PH_ETRAVEL_DEPARTURE_CARD") {
+      fieldOptions = localizePhEtravelOptions(field.fieldName, fieldOptions);
+    }
 
     const lt24Disabled = isDisabledByLT24(field, valueKey, values, step.fields);
-    const isTextLike = isTextLikeField(field);
+    const tdacTransitCheckboxLocked =
+      visaType === "TH_TDAC_ARRIVAL_CARD" && field.fieldName === "is_transit_traveler";
+    const isTextLike = usesBilingualTextPair(field);
     const pair = textPairs[valueKey] ?? getBilingualPrefillText(valueKey, values, values[valueKey]);
     const targetWasManuallyEdited = Boolean(manualEnglishValueKeys[valueKey] && pair.en.trim());
 
     const renderSide = (side: BilingualSide) => {
+      const isKoreaAddressSearchSelect =
+        field.fieldName === "address_in_korea" &&
+        (field.validationRules as { source?: string } | null)?.source === "korea_visa_portal_address_search";
+      const isVnPrearrivalRemoteSelect = Boolean(vnPrearrivalKey && !hasVnPrearrivalStaticOptions);
+      const vnReadOnlyRules = field.validationRules as {
+        read_only?: boolean;
+        locked_by?: string;
+        editable_when_value?: string;
+      } | null;
+      const lockedByValue = vnReadOnlyRules?.locked_by
+        ? values[vnReadOnlyRules.locked_by]?.trim().toLowerCase()
+        : "";
+      const editableWhenValue = vnReadOnlyRules?.editable_when_value?.trim().toLowerCase();
+      const isVnPrearrivalEditableOverride = Boolean(
+        editableWhenValue && lockedByValue === editableWhenValue,
+      );
+      const isVnPrearrivalReadOnly =
+        isVnPrearrivalField &&
+        !isVnPrearrivalEditableOverride &&
+        Boolean(vnReadOnlyRules?.read_only || (vnReadOnlyRules?.locked_by && lockedByValue));
       const sideField: VisaFormFieldRow = {
         ...field,
         fieldName: `${valueKey}-${side}`,
+        fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
         label: getLocalizedFieldLabel(field, side),
+        required: isRequiredField(field),
         placeholder: getLocalizedPlaceholder(
           field,
           side,
@@ -2273,23 +3545,82 @@ export function DynamicStepForm({
             handleChange(valueKey, nextValue);
           }}
           forceWhiteBackground={forceWhiteBackground}
-          disabled={lt24Disabled}
+          disabled={lt24Disabled || tdacTransitCheckboxLocked || isVnPrearrivalReadOnly}
           displayLocale={side}
+          onSearchQuery={
+            isKoreaAddressSearchSelect
+              ? setKoreaAddressSearchQuery
+              : isVnPrearrivalRemoteSelect && vnPrearrivalKey
+                ? (query) => setVnPrearrivalQueries((current) => ({ ...current, [vnPrearrivalKey]: query }))
+                : undefined
+          }
+          onLoadMore={
+            isVnPrearrivalRemoteSelect
+              && vnPrearrivalKey
+              && vnPrearrivalSource?.endsWith(":flight")
+              ? () => void loadMoreVnPrearrivalOptions(vnPrearrivalKey)
+              : undefined
+          }
+          hasMore={
+            Boolean(
+              vnPrearrivalKey
+              && vnPrearrivalSource?.endsWith(":flight")
+              && vnPrearrivalPagination[vnPrearrivalKey]?.hasMore,
+            )
+          }
+          loadingMore={
+            Boolean(vnPrearrivalKey && vnPrearrivalLoadingMore[vnPrearrivalKey])
+          }
+          searching={
+            isKoreaAddressSearchSelect
+              ? koreaAddressSearching
+              : phEtravelSource
+                ? Boolean(phEtravelSearching[field.fieldName])
+              : vnPrearrivalKey
+                ? Boolean(vnPrearrivalSearching[vnPrearrivalKey])
+                : false
+          }
+          loadingText={
+            isKoreaAddressSearchSelect
+              ? side === "zh" ? "正在搜索韩国官方地址..." : "Searching official Korean addresses..."
+              : phEtravelSource
+                ? side === "zh" ? "正在加载菲律宾 eTravel 官方航班..." : "Loading official Philippines eTravel flights..."
+              : isVnPrearrivalRemoteSelect
+                ? getVnPrearrivalLoadingText(vnPrearrivalSource, side)
+                : undefined
+          }
         />
       );
     };
 
     const guidanceField: VisaFormFieldRow = {
       ...field,
+      fieldType: isVnPrearrivalArrivalDateField ? "radio" : field.fieldType,
       label: getLocalizedFieldLabel(field, isChineseInterface ? "zh" : "en"),
       options: resolveLocalizedOptions(fieldOptions, isChineseInterface ? "zh" : "en"),
     };
-    const issue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
+    const localIssue = getLocalFieldIssue(guidanceField, valueKey, values[valueKey] ?? "", values, locale);
+    const postalLookupIssue = field.fieldName === "postal_code" && indonesiaPostalLookup.status !== "idle" && indonesiaPostalLookup.status !== "resolved"
+      ? indonesiaPostalLookup.status === "checking"
+        ? {
+            severity: "warning" as const,
+            message: isChineseInterface ? "正在核验印尼邮政编码..." : "Checking the Indonesian postal code...",
+          }
+        : {
+            severity: "error" as const,
+            message: isChineseInterface ? indonesiaPostalLookup.messageZh : indonesiaPostalLookup.messageEn,
+          }
+      : null;
+    const issue = postalLookupIssue ?? localIssue;
     const panelOpen = activeGuidanceKey === valueKey;
     const resolvedVisaType = visaType ?? field.visaType ?? step.fields[0]?.visaType ?? "B211A";
     const buttonLabel = panelOpen
       ? (isChineseInterface ? "收起 AI 帮助" : "Hide AI help")
       : (isChineseInterface ? "问 AI" : "Ask AI");
+    const showVnPrearrivalEvisaHelp =
+      isVnPrearrivalField &&
+      field.fieldName === "visa_number" &&
+      values.visa_type?.trim() === "EV";
 
     if (!isChineseInterface) {
       return (
@@ -2304,6 +3635,10 @@ export function DynamicStepForm({
             {renderSide("en")}
           </div>
           <div className="mt-2 flex items-center justify-end gap-2">
+            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
+            {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+              <span className="text-[13px] font-medium text-emerald-700">{indonesiaPostalLookup.summaryEn}</span>
+            )}
             {issue.severity !== "ok" && (
               <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                 {issue.message}
@@ -2357,7 +3692,9 @@ export function DynamicStepForm({
           {renderSide("en")}
         </div>
         <div className="mt-2 grid min-w-0 gap-3 md:grid-cols-2">
-          <div aria-hidden="true" className="hidden md:block" />
+          <div className="flex min-w-0 items-start">
+            {showVnPrearrivalEvisaHelp && <VnPrearrivalEvisaNumberHelp />}
+          </div>
           <div className="flex min-w-0 flex-col items-end gap-2">
             {isTextLike ? (
               <DynamicFieldRealtimeTranslation
@@ -2372,6 +3709,11 @@ export function DynamicStepForm({
               />
             ) : null}
             <div className="flex items-center justify-end gap-2">
+              {field.fieldName === "postal_code" && indonesiaPostalLookup.status === "resolved" && (
+                <span className="text-[13px] font-medium text-emerald-700">
+                  {indonesiaPostalLookup.summaryZh}
+                </span>
+              )}
               {issue.severity !== "ok" && (
                 <span className={cn("text-[13px] font-medium", issueMessageClasses(issue.severity))}>
                   {issue.message}
@@ -2425,6 +3767,7 @@ export function DynamicStepForm({
         // Skip fields handled by an external control (e.g. passport OCR upload
         // card). They stay in required validation but are not rendered here.
         if (externallyHandled.has(field.fieldName)) return null;
+        if (isIndonesiaPostalAutoFillField(field)) return null;
         // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
         if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
         // Hide fields gated by an unanswered toggle (e.g. travel plans)
@@ -2446,7 +3789,8 @@ export function DynamicStepForm({
                 !getRepeatGroup(f) &&
                 getBlockGroup(f) === bg &&
                 (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
-                !isGatedByUnansweredToggle(f),
+                !isGatedByUnansweredToggle(f) &&
+                !isIndonesiaPostalAutoFillField(f),
             );
 
             if (blockFields.length === 0) return null;
@@ -2487,7 +3831,8 @@ export function DynamicStepForm({
                 !getRepeatGroup(f) &&
                 getInlineGroup(f) === ig &&
                 (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)) &&
-                !isGatedByUnansweredToggle(f)
+                !isGatedByUnansweredToggle(f) &&
+                !isIndonesiaPostalAutoFillField(f)
             );
 
             if (inlineFields.length <= 1) {
@@ -2510,7 +3855,8 @@ export function DynamicStepForm({
         const groupFields = repeatGroupFields[group] ?? [];
         // Check if at least one field in group is visible
         const visibleGroupFields = groupFields.filter((f) =>
-          evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields)
+          !isIndonesiaPostalAutoFillField(f) &&
+            (evaluateShowIf(f, values, step.fields) || isDisabledByLT24(f, f.fieldName, values, step.fields))
         );
         if (visibleGroupFields.length === 0) return null;
 
@@ -2566,7 +3912,10 @@ export function DynamicStepForm({
 
       <BrandActionButton
         type="submit"
-        disabled={!requiredFilled || !blockingErrorsClear}
+        disabled={!requiredFilled || !blockingErrorsClear || indonesiaPostalLookupBlocksContinue}
+        data-required-filled={requiredFilled ? "true" : "false"}
+        data-blocking-errors-clear={blockingErrorsClear ? "true" : "false"}
+        data-postal-lookup-blocked={indonesiaPostalLookupBlocksContinue ? "true" : "false"}
         loading={saving}
         loadingText={tButtons("saving")}
         className="mt-2"

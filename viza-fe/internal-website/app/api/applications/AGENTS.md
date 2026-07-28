@@ -19,6 +19,18 @@ ports directly.
 - Keep official submission automation out of these routes. Status routes may
   read queue/application state, but runner execution remains in
   `viza-be/submission-service`.
+- Vietnam/Indonesia official-fee payment enqueue must call the service-role
+  `enqueue_official_fee_submission` RPC. It serializes by application, reuses
+  claimed work, supersedes only same-application stale work, and prevents
+  duplicate active browser jobs.
+- Generic retry enqueue must call the service-role `enqueue_submission_retry`
+  RPC so supersede-and-insert is atomic. Never reintroduce separate update and
+  insert calls; concurrent retries for one application must reuse one job.
+- Korea C-3-9 routes may render the filled Annex-17 fallback PDF, proxy official
+  e-Form/KVAC actions to gated `viza-be/submission-service` runners, expose
+  redacted evidence artifacts, and record appointment state in existing
+  `appointment_*` tables. They must not fake official e-Form PDF or booking
+  success without runner-captured official evidence.
 
 ## Related Files
 
@@ -26,6 +38,7 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/authorize/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/pay/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/official-fee/status/route.test.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/official-status/refresh/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/artifact-url/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
@@ -33,6 +46,13 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
+  returns a retryable `503` response when its database dependency times out so
+  the client can keep polling without losing the durable submission state.
+- `viza-fe/internal-website/app/api/applications/[id]/kr-annex17-pdf/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/korea-official-eform/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/korea-appointment/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/korea-evidence/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/korea-appointment-proof-pdf/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.test.ts`
 - `viza-fe/internal-website/components/application-steps/dynamic-review-step.tsx`
 - `viza-fe/internal-website/components/application-steps/translation-panel.tsx`

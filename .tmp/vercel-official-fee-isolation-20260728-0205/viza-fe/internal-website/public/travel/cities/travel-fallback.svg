@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Travel image pending verification</title>
+  <desc id="desc">Neutral travel placeholder shown only when no verified local city image exists.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8f5ff"/>
+      <stop offset="0.55" stop-color="#e8f7f2"/>
+      <stop offset="1" stop-color="#fff8ea"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <path d="M0 612c118-41 240-49 366-24 99 20 183 58 279 69 157 18 318-42 555-9v152H0z" fill="#dfe8e2"/>
+  <path d="M0 690c166-33 322-33 469 0 138 31 274 26 408-13 100-29 206-33 323-12v135H0z" fill="#c9dbd5"/>
+  <circle cx="907" cy="198" r="78" fill="#ffffff" opacity=".75"/>
+  <path d="M350 495h500" fill="none" stroke="#2d143b" stroke-width="28" stroke-linecap="round" opacity=".18"/>
+  <path d="M458 500l145-242 145 242" fill="none" stroke="#2d143b" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".48"/>
+  <path d="M526 500l77-127 77 127" fill="none" stroke="#7c4dff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" opacity=".65"/>
+</svg>

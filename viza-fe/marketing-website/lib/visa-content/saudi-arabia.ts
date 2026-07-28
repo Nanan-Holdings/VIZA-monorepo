@@ -1,31 +1,46 @@
 import type { VisaContent } from "./types";
 
 /**
- * Saudi Arabia Tourist e-Visa content.
- * Fact-checked: 2026-06-10 against visa.visitsaudi.com and moi.gov.sa.
+ * Saudi Arabia Tourist eVisa content.
+ * Last fact-checked: 2026-07-05 against visa.visitsaudi.com (portal, Terms &
+ * Conditions, photo specifications), visitsaudi.com, ksavisa.sa and spa.gov.sa.
  *
  * Confirmed:
- *  - 1-year (365-day) multiple-entry, 90-day stay per visit — correct.
- *  - Travel insurance: still mandatory and bundled (SAR ~180 included in
- *    total fee of ~SAR 535); coverage up to SAR 100,000 emergency medical.
- *  - Overstay fine: SAR 100/day (corrected from incorrect SAR 10,000/day);
- *    maximum penalty up to SAR 50,000 + up to 6 months imprisonment.
- *    A 30-day grace period introduced June 2025 (via Absher/Tawasul).
- *  - visa.visitsaudi.com confirmed as official e-Visa portal.
+ *  - 1-year multiple-entry tourist eVisa (Ministry of Tourism), up to 90 days
+ *    per visit; NOT extendable (official T&C 7.4).
+ *  - Fee: SAR 535 online all-in (≈ SGD 183, incl. mandatory bundled medical
+ *    insurance + VAT); visa on arrival SAR 480 (≈ SGD 164). Non-refundable
+ *    even if refused (T&C 5.3–5.4).
+ *  - Passport: 6+ months validity from date of entry; must arrive on the same
+ *    passport used to apply. Photo: 200x200 px, 5–100 KB, white background.
+ *  - Overstay (Jawazat/MOI): 1st offence SAR 15,000; 2nd SAR 25,000 + 3 months
+ *    jail; 3rd SAR 50,000 + 6 months jail, deportation and re-entry bans.
+ *    (The widely cited SAR 100/day figure is NOT officially documented.)
+ *  - Singapore and China (incl. HK/Macau) are both on the eligible-country
+ *    list — neither is visa-exempt.
  *
- * OPS NOTE: Grace period extension (post-June 2025) and exact current daily
- * rate should be re-verified against moi.gov.sa before each content refresh.
+ * Items needing ops confirmation:
+ *  - Live checkout fee amount (one early-2026 secondary source claimed
+ *    ~SAR 395 after an insurance-premium cut — unverified officially).
+ *  - Processing time has no published SLA; "minutes to 24 hours" is from
+ *    portal marketing snippets + consistent secondary reporting.
+ *  - Visa-on-arrival fee (SAR 480) and VOA counter availability for SG/CN
+ *    passports not confirmed on an official page.
+ *  - Jawazat/Absher "extension" announcements are exit-regularisation
+ *    mechanisms, not routine tourist extensions — confirm for edge cases.
+ *  - Official-portal facts captured via Wayback snapshots (portal blocks
+ *    automated access) — do a manual live check before publishing.
  */
 export const saudiArabia: VisaContent = {
   slug: "saudi-arabia",
 
-  heroTitle: "Saudi Arabia e-Visa",
-  lede: "A multiple-entry tourist e-Visa, valid 365 days from issue with stays of up to 90 days per visit. Applied for online and tracked end-to-end by your VIZA consultant.",
+  heroTitle: "Saudi Arabia Tourist eVisa",
+  lede: "A one-year, multiple-entry tourist eVisa issued by the Ministry of Tourism, with stays of up to 90 days per visit and medical insurance bundled in. Filed on the official visa.visitsaudi.com portal and tracked end-to-end by your VIZA consultant.",
   heroImage: "/assets/heroes/saudi-arabia.jpg",
   meta: [
-    { k: "Type", v: "e-Visa" },
+    { k: "Type", v: "Tourist eVisa" },
     { k: "Length of stay", v: "90 days per visit" },
-    { k: "Validity", v: "365 days" },
+    { k: "Validity", v: "1 year" },
     { k: "Entry", v: "Multiple" },
   ],
   tags: [
@@ -36,38 +51,38 @@ export const saudiArabia: VisaContent = {
 
   overviewTitle: "Saudi Arabia, at a glance",
   overviewSub:
-    "Saudi Arabia's tourist e-Visa opens the Kingdom to eligible travellers for leisure, heritage tourism, and cultural exploration — no sponsor or prior embassy visit required.",
+    "The tourist eVisa opens the Kingdom to passport holders of 66 eligible countries — including Singapore and China — for tourism, events, family visits, leisure and Umrah (excluding Hajj). No sponsor or embassy visit required.",
   glance: [
     { icon: "globe", k: "Capital", v: "Riyadh", sub: "UTC +3 (Arabia Standard Time)" },
     { icon: "clock", k: "Best time to visit", v: "Nov – Mar", sub: "Cooler season · 18 – 27°C" },
-    { icon: "currency", k: "Currency", v: "Saudi Riyal", sub: "SGD 1 ≈ SAR 2.80 (approx.)" },
+    { icon: "currency", k: "Currency", v: "Saudi Riyal", sub: "SGD 1 ≈ SAR 2.90 (approx.)" },
     { icon: "pin", k: "Top destinations", v: "Riyadh · Jeddah · AlUla", sub: "Plus Diriyah, NEOM, Red Sea coast" },
   ],
 
-  processTitle: "How the Saudi Arabia e-Visa process works",
+  processTitle: "How the Saudi tourist eVisa process works",
   processSub:
-    "Submit once. We handle every step with Saudi Arabia's e-Visa authority and notify you the moment your visa is approved.",
+    "Submit once. We file directly on the Ministry of Tourism's official portal (visa.visitsaudi.com) and notify you the moment your eVisa is issued.",
   steps: [
     {
       title: "Apply on VIZA",
-      body: "Upload your passport bio page, a recent photo, and your travel dates. No embassy appointment required.",
+      body: "Upload your passport bio page, a compliant digital photo (200 × 200 px, white background), and your travel dates. No embassy appointment, no sponsor.",
     },
     {
       title: "Your documents are verified",
-      body: "Your VIZA consultant cross-checks every field for compliance with Saudi e-Visa requirements, then submits directly to the official portal.",
+      body: "Your VIZA consultant cross-checks every field — passport validity, photo spec, name spelling — then submits the application on visa.visitsaudi.com. Mandatory medical insurance is auto-assigned and bundled into the government fee.",
     },
     {
-      title: "Your e-Visa gets processed",
-      body: "We track each handoff so we can flag delays before they affect your travel plans.",
+      title: "Your eVisa gets processed",
+      body: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours. We track the application and flag any delay well before your departure — we recommend applying at least 72 hours before travel.",
       statusRows: [
-        { label: "Application submitted to Saudi e-Visa portal", ts: "13 Jun, 8:30 AM", onTime: true },
-        { label: "Identity and passport verification completed", ts: "13 Jun, 11:15 AM", onTime: true },
+        { label: "Application submitted to visa.visitsaudi.com", ts: "13 Jun, 8:30 AM", onTime: true },
+        { label: "Payment confirmed · insurance policy assigned", ts: "13 Jun, 8:42 AM", onTime: true },
         { label: "Awaiting final approval", ts: "In progress" },
       ],
     },
     {
-      title: "Get your e-Visa on 14 Jun, 02:15 PM",
-      body: "Your visa approval arrives in your inbox and VIZA app. Print it or save it digitally — you will need it at Saudi immigration.",
+      title: "Get your eVisa on 14 Jun, 02:15 PM",
+      body: "The eVisa arrives as an email attachment and in your VIZA app. Carry a printed or electronic copy on your first arrival — immigration will link it to your passport and capture your biometrics.",
       delivered: true,
     },
   ],
@@ -76,35 +91,42 @@ export const saudiArabia: VisaContent = {
   docsSub:
     "Your VIZA consultant double-checks each document before submission. Re-uploads are unlimited and free.",
   documents: [
-    { name: "Passport bio page", sub: "Valid for 6+ months · clear scan" },
-    { name: "Recent photograph", sub: "Plain white background · last 6 months" },
-    { name: "Return flight ticket", sub: "Departure within the stay window" },
-    { name: "Hotel or accommodation proof", sub: "Booking confirmation · any platform" },
+    { name: "Passport bio page", sub: "Eligible-country passport · valid 6+ months from your entry date · arrive on the same passport" },
+    { name: "Digital photograph", sub: "200 × 200 px · 5 – 100 KB · plain white background · taken within 6 months" },
+    { name: "Travel & accommodation details", sub: "Entered on the online application — must be accurate; false information leads to rejection" },
+    { name: "Payment card & valid email", sub: "Fee paid online by credit/debit card · eVisa delivered as an email attachment" },
+    { name: "Medical insurance", sub: "Mandatory — auto-assigned from a Saudi-approved insurer and bundled into the fee, nothing to buy separately" },
+    { name: "For travellers under 18", sub: "A parent or guardian must apply on the minor's behalf" },
   ],
 
-  rejectionTitle: "Why Saudi e-Visas get rejected",
+  rejectionTitle: "Why Saudi eVisas get rejected",
   rejectionSub:
-    "Saudi Arabia's e-Visa authority may refuse an application for any of the following. VIZA flags these before you submit.",
+    "The Ministry of Tourism may refuse an application for any of the following — and the SAR 535 government fee is not refunded on refusal. VIZA flags these before you submit.",
   rejectionReasons: [
-    { title: "Passport validity too short", body: "A passport expiring within 6 months of the intended arrival date will not be accepted." },
-    { title: "Nationality not eligible", body: "The Saudi tourist e-Visa is available to passport holders of approximately 50 eligible countries. Ineligible nationalities must apply through an embassy." },
-    { title: "Prior violations or security concerns", body: "Overstaying a previous Saudi visa, prior deportation, or adverse security checks can result in an automatic refusal." },
+    { title: "False or misleading information", body: "Any application containing false or misleading details is rejected outright, and may be shared with Saudi authorities." },
+    { title: "Passport validity too short", body: "A passport with less than 6 months remaining from your date of entry into Saudi Arabia will not be accepted." },
+    { title: "Non-compliant photo", body: "Photos that miss the official spec — 200 × 200 px, 5 – 100 KB, plain white background, face filling 70 – 80% of the frame — are a leading cause of failed applications." },
+    { title: "Payment failure", body: "The application is suspended if payment isn't completed — and paying the fee does not by itself guarantee approval." },
+    { title: "Prior violations or security grounds", body: "Approval is at the sole discretion of the Ministry of Tourism. Previous overstays, deportations, or adverse security checks can trigger refusal." },
+    { title: "Wrong visa for your purpose", body: "The eVisa covers tourism, events, family visits, leisure and Umrah only. Work, study, or Hajj requires a different visa — as does any passport outside the 66 eligible countries." },
   ],
 
   entryTitle: "Entry & exit regulations",
   entrySub:
-    "Carry your e-Visa approval document, a valid return ticket, and hotel confirmation at all Saudi entry points. The visa is linked electronically to your passport.",
+    "No arrival card is required. Carry a printed or electronic copy of your eVisa on first arrival and travel on the passport you applied with — immigration captures your fingerprints and photo at the border, and may ask for proof of funds or an onward ticket. The eVisa is valid at all Saudi air and sea ports.",
   entryExit: [
-    { icon: "refresh", k: "Entry", v: "Multiple", sub: "Travel freely within the 365-day validity" },
-    { icon: "clock", k: "Activate within", v: "365 days", sub: "From the date of issue" },
+    { icon: "refresh", k: "Entry", v: "Multiple", sub: "Travel freely within the 1-year validity" },
+    { icon: "clock", k: "Enter within", v: "1 year", sub: "If it expires unused, you must reapply and pay again" },
+    { icon: "doc", k: "On arrival", v: "eVisa copy + biometrics", sub: "Fingerprints and photo taken at immigration" },
+    { icon: "ban", k: "Makkah in Hajj season", v: "Off-limits", sub: "Visit-visa holders barred 18 Apr – 1 Jun 2026 · holy mosque premises are for Muslims only" },
   ],
 
   extensionTitle: "Visa extension & overstays",
   extensionSub:
-    "Extensions beyond the 90-day stay limit may be requested through the Absher platform or the Ministry of Interior. Overstays carry daily fines (SAR 100/day) up to a maximum of SAR 50,000, plus potential imprisonment and deportation.",
+    "The tourist eVisa cannot be extended — the 90-day stay and 1-year validity are fixed by the official terms. For a longer trip, exit and re-enter on the same multiple-entry visa. Overstaying triggers heavy Jawazat penalties, settled via Absher before you can exit.",
   extension: [
-    { icon: "extend", k: "Extension", v: "Apply via Absher", sub: "Ministry of Interior platform" },
-    { icon: "alert", k: "Overstay fine", v: "SAR 100 / day", sub: "Max SAR 50,000 · imprisonment possible — see moi.gov.sa" },
+    { icon: "ban", k: "Extension", v: "Not possible", sub: "Fixed 90-day stay · exit and re-enter instead" },
+    { icon: "alert", k: "Overstay fine", v: "SAR 15,000", sub: "≈ SGD 5,200 · repeat offences SAR 25,000 – 50,000 + jail, deportation and re-entry bans" },
   ],
 
   reviews: {
@@ -137,43 +159,60 @@ export const saudiArabia: VisaContent = {
   faq: [
     {
       category: "General information",
-      q: "What is the Saudi Arabia tourist e-Visa?",
-      a: "Saudi Arabia's tourist e-Visa is a multiple-entry, electronically issued permit that allows eligible passport holders to visit the Kingdom for leisure, culture, and heritage tourism. No embassy visit or sponsor is required.",
+      q: "What is the Saudi Arabia tourist eVisa?",
+      a: "A one-year, multiple-entry electronic travel authorization issued by the Ministry of Tourism via visa.visitsaudi.com. It allows stays of up to 90 days per visit for tourism, events, family visits, leisure and Umrah (excluding Hajj). No embassy visit or sponsor is required.",
     },
     {
       category: "General information",
-      q: "Does the e-Visa include travel insurance?",
-      a: "Yes — Saudi Arabia's tourist e-Visa includes mandatory travel insurance as part of the visa fee. The policy covers emergency medical expenses during the stay.",
+      q: "Do Singapore passport holders need a visa for Saudi Arabia?",
+      a: "Yes. Singapore has no visa-exemption or ETA arrangement with Saudi Arabia, but it is on the 66-country eVisa eligible list. Apply online for the eVisa (SAR 535 all-in) or get a visa on arrival (SAR 480) at Saudi international airports. VIZA files the eVisa for you end-to-end — it's cheaper to arrive with the visa already issued.",
+    },
+    {
+      category: "General information",
+      q: "Can Chinese passport holders apply?",
+      a: "Yes — China (including Hong Kong and Macau) is on the official eligible list, and the portal is available in Simplified Chinese. The same 1-year multiple-entry, 90-day terms apply. Note: China's trial visa-free entry for Saudi citizens works in the reverse direction only — Chinese citizens still need a Saudi visa.",
+    },
+    {
+      category: "General information",
+      q: "How much does the eVisa cost, and is insurance included?",
+      a: "SAR 535 online, all-in (≈ SGD 183) — that covers the visa fee, mandatory medical insurance auto-assigned from a Saudi-approved insurer, and VAT. There is nothing to buy separately. Note the government fee is non-refundable even if the application is refused.",
     },
     {
       category: "Application process",
-      q: "How long does VIZA take to process a Saudi e-Visa?",
-      a: "Most Saudi tourist e-Visas are approved within 24 hours. Applying direct through the government portal typically takes 1 – 3 business days. We back our timeline with an on-time guarantee — your money back if we're late.",
+      q: "How long does VIZA take to process a Saudi eVisa?",
+      a: "The Ministry of Tourism typically issues eVisas within minutes to 24 hours, delivered as an email attachment. We back our 24-hour timeline with an on-time guarantee — your money back if we're late — and recommend applying at least 72 hours before travel as a buffer.",
     },
     {
       category: "Application process",
       q: "Can I apply for my whole family in one order?",
-      a: "Yes. Add each traveller during the application — your consultant submits them together so approvals arrive on the same timeline.",
+      a: "Yes. Add each traveller during the application — your consultant submits them together so approvals arrive on the same timeline. For children under 18, a parent or guardian applies on their behalf, as the official terms require.",
     },
     {
       category: "Refunds, rejections & reapplications",
-      q: "What happens if my Saudi e-Visa is rejected?",
-      a: "Saudi authorities retain the government fee on rejection. VIZA's service fee is fully refunded. Your consultant will review the refusal reason with you and help you assess whether a reapplication or embassy application is the right next step.",
+      q: "What happens if my Saudi eVisa is rejected?",
+      a: "Under the official terms, Saudi authorities retain the full government fee on refusal. VIZA's service fee is fully refunded, and your consultant will review the refusal with you and advise whether a corrected reapplication or an embassy application is the right next step.",
+    },
+    {
+      category: "Refunds, rejections & reapplications",
+      q: "Can I extend my stay beyond 90 days?",
+      a: "No — the official terms state the tourist eVisa cannot be extended. Since it's multiple-entry, the practical route for a longer trip is to exit and re-enter. Never overstay: Jawazat fines start at SAR 15,000 for a first offence, rising to SAR 50,000 plus imprisonment and deportation for repeat offences.",
     },
   ],
 
   sources: [
-    { label: "Saudi eVisa Official Portal", url: "https://visa.visitsaudi.com", display: "visa.visitsaudi.com" },
-    { label: "Visit Saudi — Tourism & Visa Information", url: "https://www.visitsaudi.com", display: "visitsaudi.com" },
-    { label: "Saudi Ministry of Interior — Absher Platform", url: "https://absher.sa", display: "absher.sa" },
+    { label: "Saudi eVisa Official Portal (Ministry of Tourism)", url: "https://visa.visitsaudi.com", display: "visa.visitsaudi.com" },
+    { label: "Official eVisa Terms & Conditions", url: "https://visa.visitsaudi.com/Home/TermsConditions", display: "visa.visitsaudi.com" },
+    { label: "Visit Saudi — Visa Regulations", url: "https://www.visitsaudi.com/en/plan-your-trip/visa-regulations", display: "visitsaudi.com" },
+    { label: "KSA Visa Unified Platform — Tourism Visa", url: "https://ksavisa.sa/visa/tourism/details", display: "ksavisa.sa" },
+    { label: "Saudi Press Agency — Overstay Penalties (MOI)", url: "https://www.spa.gov.sa/en/N2303510", display: "spa.gov.sa" },
   ],
 
   price: {
     etaLabel: "Apply now, get it by",
     etaValue: "14 Jun 2026, 02:15 PM",
-    title: "e-Visa · 365-day validity · 90-day stays",
+    title: "Tourist eVisa · 1-year multiple entry · 90-day stays",
     saving: "1 day faster",
-    sub: "All-inclusive of government fee, travel insurance, document review, and on-time guarantee.",
+    sub: "All-inclusive of government fee, mandatory medical insurance, document review, and on-time guarantee.",
     foot: "Government fee and VIZA processing are collected together at checkout, backed by our on-time guarantee.",
   },
 

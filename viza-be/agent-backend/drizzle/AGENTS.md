@@ -86,9 +86,50 @@ The current internal automation migrations are:
 - `0102_vn_evisa_photo_face_rules.sql`: Vietnam e-Visa photo/passport upload
   metadata, 2MB official image limits, face-match hints, and passport expiry
   validity relative to the e-Visa start date.
+- `0104_ph_etravel_accounts.sql`: Philippines eTravel/eGovPH official account
+  records, reused per applicant before creating a new VIZA inbox-alias account.
 - `0095_universal_profile_documents.sql`: reusable Universal Profile passport
   document records, creation-time application profile snapshots, and answer
   source metadata for profile autofill provenance.
+- `0105_submission_queue_claim_locks.sql`: legacy `submission_queue` claim
+  leases and service-role RPC using `FOR UPDATE SKIP LOCKED` for horizontally
+  scaled submission-service workers.
+- `0107_indonesia_official_evisa_packages.sql`: Indonesia C1 and B1 official
+  eVisa package catalog rows and provider metadata.
+- `0108_indonesia_b1_evoa_document_requirements.sql`: Indonesia B1 e-VoA
+  official document checklist, replacing the generic proof-of-funds fallback
+  with passport/photo, return-or-onward ticket, and passport-validity support
+  materials.
+- `0109_taiwan_overseas_cn_tourism_entry_permit.sql`: Taiwan package catalog
+  and official document requirements for mainland Chinese passport holders
+  resident in Singapore; keep it separate from Taiwan arrival-card concepts.
+- `0111_vietnam_evisa_status_tracking_delivery.sql`: service-only Vietnam
+  tracking rows, idempotent daily queueing, atomic claims, email/user audit
+  fields, and private official-PDF delivery pointers.
+- `0112_inbound_email_alias_forwarding.sql`: delivery and retry state for
+  forwarding VIZA alias inbox messages, including official OTP, QR, and PDF
+  correspondence, to the applicant's real profile email.
+- `0114_appointment_slot_check_timestamp.sql`: last official appointment-slot
+  observation timestamp used by France appointment cooldown and recovery state.
+- `0115_france_tls_applicant_profile_parity.sql`: adds the TLScontact China
+  origin-departure date and French-overseas-territory questions to the France
+  Schengen review form before the cloud runner opens the official profile.
+- `0116_vietnam_cloud_only_queue_claim.sql`: introduces the dedicated,
+  service-role-only claim RPC for `vn_cloud_live_pending`, keeping Vietnam
+  e-Visa production jobs invisible to older local queue consumers.
+- `0117_vietnam_prearrival_queue_claim.sql`: adds Vietnam Pre-Arrival dry-run,
+  scheduled, and live pending states to the atomic legacy queue claim RPC so
+  cloud workers do not depend on the unlocked compatibility fallback.
+- `0118_official_fee_queue_isolation.sql`: serializes Vietnam/Indonesia
+  official-fee enqueue operations per application, supersedes stale work and
+  manual checkpoints, and enforces one active payment browser job per
+  application/provider.
+- `0119_submission_retry_queue_isolation.sql`: makes generic retry enqueue a
+  per-application transaction, reuses an already-active job, expires stale
+  checkpoints, and enforces one active submission job per application.
+- `0120_vn_evisa_strict_validity_range.sql`: requires the Vietnam e-Visa
+  validity end date to be at least one calendar day after its start date,
+  matching the official portal's strict date-order validation.
 
 ## Guardrails
 

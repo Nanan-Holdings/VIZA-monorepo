@@ -1,0 +1,57 @@
+{
+  "version": "2026-07-13",
+  "country": "taiwan",
+  "notes": "Official-source VIZA RAG seed for the Taiwan tourist entry permit available to Chinese mainland passport holders resident in Singapore.",
+  "documents": [
+    {
+      "slug": "taiwan-overseas-chinese-mainland-tourist-entry-permit",
+      "country": "taiwan",
+      "visaType": "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT",
+      "documentType": "requirements",
+      "title": "Taiwan Overseas Chinese Mainland Tourist Entry Permit",
+      "sourceUrl": "https://coa.immigration.gov.tw/coa-frontend/overseas-foreign-china",
+      "chunks": [
+        {
+          "id": "taiwan_singapore_overseas_cn_eligibility",
+          "title": "旅居新加坡大陆居民观光入台资格",
+          "tags": ["taiwan", "入台证", "singapore", "mainland-china", "tourism"],
+          "content": "本流程只适用于持中国大陆护照、旅居新加坡并赴台观光的申请人。移民署线上系统列出的资格包括：海外或港澳留学生、取得当地永久居留权者、在当地居住一年以上且有工作证明者，以及取得依亲居留权并有财力证明者；随行的大陆地区配偶或二亲等内血亲也可依规则申请。资格或证件不符时，VIZA 不应承诺可以获批。"
+        },
+        {
+          "id": "taiwan_singapore_overseas_cn_timing_fee",
+          "title": "审理、费用与许可下载",
+          "tags": ["taiwan", "fee", "payment", "permit", "review"],
+          "content": "官方线上系统说明，单次入出境许可费为新台币600元，一年多次许可费为新台币1000元；核准日期两个月内须完成线上缴费。可使用 JCB、Visa 或 Mastercard，不支持中国银联或 American Express。缴费成功通知后，申请人可下载电子入出境许可和收据。官方没有付费加急机制；通常审核以受理翌日起五个工作日为基准，补件时间不计入。"
+        }
+      ]
+    },
+    {
+      "slug": "taiwan-overseas-cn-form-requirements",
+      "country": "taiwan",
+      "visaType": "TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT",
+      "documentType": "form_requirements",
+      "title": "Taiwan Entry Permit Intake Requirements",
+      "sourceUrl": "https://www.immigration.gov.tw/media/44181/1080412%E4%B8%89%E9%A1%9E%E9%9B%B2%E7%AB%AF%E7%B3%BB%E7%B5%B1%E7%94%B3%E8%AB%8B%E9%A0%88%E7%9F%A5.pdf",
+      "chunks": [
+        {
+          "id": "taiwan_entry_permit_form_scope",
+          "title": "Official channel and scope",
+          "tags": ["taiwan", "application-form", "official-source"],
+          "content": "使用内政部移民署境外人士线上申办系统办理旅居海外大陆地区人民来台观光。申请人先通过官网邮箱验证；大陆地区邮箱不得用于该验证。VIZA 应以专属托管 alias 接收验证码和官方通知，并把官网的补件、缴费和下载状态显示给申请人。"
+        },
+        {
+          "id": "taiwan_entry_permit_fields_documents",
+          "title": "Fields and evidence to collect",
+          "tags": ["taiwan", "form-requirements", "documents", "passport", "singapore"],
+          "content": "收集护照姓名、出生资料、性别、护照号码与签发/有效期、新加坡居留资料、联系电话、在台行程及住宿地址，并按资格路径收集学生证明、永久居留证明、工作及最近一年旅居证明、依亲居留和最近一个月等值新台币十万元以上存款证明，或随行亲属关系证明。护照须有六个月以上效期；上传两年内二寸白底彩色照片。完整官网字段和下拉值必须以后续经授权的会话勘测结果为准。"
+        },
+        {
+          "id": "standard_passport_identity_field_rules",
+          "title": "Standard passport identity-field answer rules",
+          "tags": ["standard-fields", "passport", "identity-document", "field-guidance"],
+          "content": "护照号码、姓名、出生日期、性别、国籍、签发机关、签发日期和有效期必须从护照资料页逐字填写。不得从居住地、旅行目的地或旧申请猜测。中国普通护照的签发机关以该申请人护照印制内容为准。"
+        }
+      ]
+    }
+  ]
+}

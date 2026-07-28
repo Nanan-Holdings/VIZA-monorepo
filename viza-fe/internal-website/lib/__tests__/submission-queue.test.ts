@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
+  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
+  RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   retryQueueInsertCanUseLegacyPayload,
   queueProviderForApplication,
   queueProviderForVisaType,
@@ -30,7 +32,7 @@ describe("queueStatusForVisaType", () => {
   it("routes legacy Vietnam e-visa tourism packages by country without hijacking other countries", () => {
     expect(queueStatusForApplication("vietnam", "evisa_tourism")).toBe("vn_dry_run_pending");
     expect(queueStatusForApplication("Viet Nam", "tourist-e-visa")).toBe("vn_dry_run_pending");
-    expect(queueStatusForApplication("VN", "evisa_tourism", "live_assisted")).toBe("vn_live_assisted_pending");
+    expect(queueStatusForApplication("VN", "evisa_tourism", "live_assisted")).toBe("vn_cloud_live_pending");
     expect(queueStatusForApplication("egypt", "evisa_tourism")).toBe("pending");
   });
 
@@ -68,7 +70,7 @@ describe("queueStatusForVisaType", () => {
   it("requires server-side queue creation for Vietnam e-visa in both modes", () => {
     expect(submissionQueueRequiresServerEnqueue("vietnam", "evisa_tourism", "dry_run")).toBe(true);
     expect(submissionQueueRequiresServerEnqueue("vietnam", "evisa_tourism", "live_assisted")).toBe(true);
-    expect(submissionQueueRequiresServerEnqueue("indonesia", "B211A", "dry_run")).toBe(false);
+    expect(submissionQueueRequiresServerEnqueue("indonesia", "B211A", "dry_run")).toBe(true);
   });
 
   it("uses live official mode for the one-click Vietnam submit action", () => {
@@ -80,7 +82,27 @@ describe("queueStatusForVisaType", () => {
     expect(submissionQueueRequiresServerEnqueue("united_kingdom", "UK_STANDARD_VISITOR", "dry_run")).toBe(
       true,
     );
-    expect(submitModeForPrimaryApplicationAction("indonesia", "B211A")).toBe("dry_run");
+    expect(submitModeForPrimaryApplicationAction("indonesia", "B211A")).toBe("live_assisted");
+  });
+
+  it("routes Indonesia C1 and B1 e-visa applications to separate live providers", () => {
+    expect(isIndonesiaEVisaApplication("indonesia", "ID_C1_TOURIST")).toBe(true);
+    expect(isIndonesiaEVisaApplication("ID", "ID_B1_EVOA")).toBe(true);
+    expect(queueStatusForApplication("indonesia", "ID_C1_TOURIST", "live_assisted")).toBe(
+      "id_c1_live_assisted_pending",
+    );
+    expect(queueStatusForApplication("indonesia", "ID_B1_EVOA", "live_assisted")).toBe(
+      "id_b1_evoa_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("indonesia", "ID_C1_TOURIST", "live_assisted")).toBe(
+      "indonesia_c1_live",
+    );
+    expect(queueProviderForApplication("indonesia", "ID_B1_EVOA", "live_assisted")).toBe(
+      "indonesia_b1_evoa_live",
+    );
+    expect(queueStatusForApplication("singapore", "ID_C1_TOURIST", "live_assisted")).not.toBe(
+      "id_c1_live_assisted_pending",
+    );
   });
 
   it("routes SG Arrival Card to its own queue and never to Singapore visitor visa", () => {
@@ -130,9 +152,40 @@ describe("queueStatusForVisaType", () => {
       "philippines_etravel_live",
     );
     expect(submitModeForPrimaryApplicationAction("philippines", "PH_ETRAVEL_ARRIVAL_CARD")).toBe("live_assisted");
+    expect(isDigitalArrivalCardApplication("philippines", "PH_ETRAVEL_DEPARTURE_CARD")).toBe(true);
+    expect(queueStatusForApplication("PH", "PH_ETRAVEL_DEPARTURE_CARD", "dry_run")).toBe("phetravel_dry_run_pending");
+    expect(queueStatusForApplication("philippines", "PH_ETRAVEL_DEPARTURE_CARD", "live_assisted")).toBe("phetravel_live_assisted_pending");
+    expect(queueProviderForApplication("philippines", "PH_ETRAVEL_DEPARTURE_CARD", "live_assisted")).toBe("philippines_etravel_live");
+    expect(submitModeForPrimaryApplicationAction("philippines", "PH_ETRAVEL_DEPARTURE_CARD")).toBe("live_assisted");
     expect(queueStatusForApplication("philippines", "PH_TEMPORARY_VISITOR_VISA", "live_assisted")).not.toBe(
       "phetravel_live_assisted_pending",
     );
+  });
+
+  it("routes Vietnam Pre-Arrival declarations separately from Vietnam eVisa", () => {
+    expect(isDigitalArrivalCardApplication("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe(true);
+    expect(queueStatusForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "dry_run")).toBe(
+      "vn_prearrival_dry_run_pending",
+    );
+    expect(queueStatusForApplication("VN", "VN_PREARRIVAL_DECLARATION", "live_assisted")).toBe(
+      "vn_prearrival_live_assisted_pending",
+    );
+    expect(queueProviderForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "dry_run")).toBe(
+      "vietnam_prearrival_dry_run",
+    );
+    expect(queueProviderForApplication("vietnam", "VN_PREARRIVAL_DECLARATION", "live_assisted")).toBe(
+      "vietnam_prearrival_live",
+    );
+    expect(submitModeForPrimaryApplicationAction("vietnam", "VN_PREARRIVAL_DECLARATION")).toBe("live_assisted");
+    expect(queueProviderForApplication("vietnam", "VN_E_VISA", "live_assisted")).toBe("vietnam_evisa_live");
+  });
+
+  it("does not let retry supersede active processing arrival-card jobs", () => {
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).toContain("tdac_live_assisted_pending");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).toContain("tdac_live_assisted_failed");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).not.toContain("tdac_live_assisted_processing");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).not.toContain("mdac_live_assisted_processing");
+    expect(RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES).not.toContain("sgac_live_assisted_processing");
   });
 
   it("allows legacy queue inserts for live France and SGAC retry rows when Supabase cache lacks live columns", () => {
@@ -152,6 +205,14 @@ describe("queueStatusForVisaType", () => {
     expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
       mode: "live_assisted",
       queueStatus: "sgac_live_assisted_scheduled",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "id_c1_live_assisted_pending",
+    })).toBe(true);
+    expect(retryQueueInsertCanUseLegacyPayload(schemaCacheError, {
+      mode: "live_assisted",
+      queueStatus: "id_b1_evoa_live_assisted_pending",
     })).toBe(true);
   });
 });

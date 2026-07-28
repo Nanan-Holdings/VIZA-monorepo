@@ -399,7 +399,7 @@ WITH fields(field_name, label, field_type, required, step_number, step_name, dis
       'Travel Expenses and Insurance',
       5,
       'Choose one',
-      '{"label_zh":"付款方式"}'::jsonb,
+      '{"label_zh":"付款方式","live_dom_id":"basic_kpbhHinhThuc"}'::jsonb,
       '[{"value":"cash","text":"Cash","label_zh":"现金","label_en":"Cash"},{"value":"credit_card","text":"Credit card","label_zh":"信用卡","label_en":"Credit card"},{"value":"travellers_cheques","text":"Traveller''s cheques","label_zh":"旅行支票","label_en":"Traveller''s cheques"}]'::jsonb,
       '{"showIf":"expense_coverage === personal || expense_coverage === company"}'::jsonb
     ),

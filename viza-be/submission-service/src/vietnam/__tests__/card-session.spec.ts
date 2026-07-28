@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   clearVietnamCardSessions,
   consumeVietnamCardSession,
+  hasVietnamCardSessions,
   peekVietnamCardSession,
   putVietnamCardSession,
 } from "../card-session";
@@ -59,5 +60,7 @@ test("vn.card-session: expired sessions are unavailable", () => {
   });
 
   assert.equal(peekVietnamCardSession("app_789", 2_000)?.applicationId, "app_789");
+  assert.equal(hasVietnamCardSessions(2_000), true);
   assert.equal(peekVietnamCardSession("app_789", 31_001), null);
+  assert.equal(hasVietnamCardSessions(31_001), false);
 });

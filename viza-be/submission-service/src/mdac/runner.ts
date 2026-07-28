@@ -218,8 +218,8 @@ function formatDmy(isoDate: string): string {
   return `${day}/${month}/${year}`;
 }
 
-function normalizeForMatch(value: string): string {
-  return value
+function normalizeForMatch(value: string | null | undefined): string {
+  return (value ?? "")
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
@@ -229,15 +229,18 @@ function uniqueValues(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
-function officialMdacCountryAliases(country: string): string[] {
+function officialMdacCountryAliases(country: string | null | undefined): string[] {
   const normalized = normalizeForMatch(country);
   const aliases: Record<string, string[]> = {
     CHINA: ["CHN", "CHN CHINA"],
     "PEOPLE S REPUBLIC OF CHINA": ["CHN", "CHN CHINA", "CHINA"],
-    KOREA: ["KOR", "KOR KOREA"],
-    "KOREA REPUBLIC OF": ["KOR", "KOR KOREA", "REPUBLIC OF KOREA", "SOUTH KOREA"],
-    "REPUBLIC OF KOREA": ["KOR", "KOR KOREA", "KOREA REPUBLIC OF", "SOUTH KOREA"],
-    "SOUTH KOREA": ["KOR", "KOR KOREA", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA"],
+    KOR: ["KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    KOREA: ["KOR", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "KOREA REPUBLIC OF": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "KOREA REPUBLIC": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "REPUBLIC OF KOREA": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "SOUTH KOREA"],
+    "KOREA OF REPUBLIC": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA", "SOUTH KOREA"],
+    "SOUTH KOREA": ["KOR", "KOREA", "KOR KOREA", "KOR KOREA REPUBLIC OF", "KOREA REPUBLIC OF", "REPUBLIC OF KOREA"],
     "UNITED STATES": ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES OF AMERICA"],
     "UNITED STATES OF AMERICA": ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES"],
     AMERICA: ["USA", "USA UNITED STATES OF AMERICA", "UNITED STATES OF AMERICA"],
@@ -247,7 +250,7 @@ function officialMdacCountryAliases(country: string): string[] {
   };
   const codeMatch = normalized.match(/^[A-Z]{3}\b/);
   return uniqueValues([
-    country,
+    country ?? "",
     normalized,
     codeMatch?.[0] ?? "",
     ...(aliases[normalized] ?? []),
@@ -312,44 +315,65 @@ async function selectOptionByTextOrValue(
 ): Promise<void> {
   const select = page.locator(selector).first();
   await select.waitFor({ state: "visible", timeout: 30_000 });
+  await page.waitForFunction(
+    (targetSelector) => {
+      const selectElement = document.querySelector(targetSelector) as HTMLSelectElement | null;
+      return Boolean(selectElement && selectElement.options.length > 1);
+    },
+    selector,
+    { timeout: 30_000 },
+  ).catch((error) => {
+    logs.push(`mdac_select_options_wait_timeout ${selector} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+  });
   const desiredValues = options.byDialCode
     ? uniqueValues([wanted, ...(options.aliases ?? [])].map((value) => value.replace(/\D/g, "")))
     : uniqueValues([wanted, ...(options.aliases ?? [])].map(normalizeForMatch));
-  const match = await select.evaluate(
-    (element, args) => {
-      const selectElement = element as HTMLSelectElement;
-      const candidates = Array.from(selectElement.options);
-      const desiredValues = args.desiredValues;
-      const option = candidates.find((candidate) => {
-        if (!candidate.value) return false;
-        if (args.byDialCode) {
-          const optionValueDigits = candidate.value.replace(/\D/g, "");
-          const optionLabelDigits = (candidate.textContent ?? "").replace(/\D/g, "");
-          return desiredValues.includes(optionValueDigits) || desiredValues.includes(optionLabelDigits);
-        }
-        const label = (candidate.textContent ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
-        const value = candidate.value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
-        return desiredValues.some((desiredValue) =>
-          value === desiredValue ||
-          label === desiredValue ||
-          label.includes(desiredValue) ||
-          (desiredValue.length === 3 && value.startsWith(desiredValue))
-        );
-      });
-      return option ? { value: option.value, label: option.textContent ?? "" } : null;
-    },
-    { desiredValues, byDialCode: options.byDialCode === true },
-  );
+  let match: { value: string; label: string } | null = null;
+  for (let attempt = 0; attempt < 5 && !match; attempt += 1) {
+    match = await select.evaluate(
+      (element, args) => {
+        const selectElement = element as HTMLSelectElement;
+        const candidates = Array.from(selectElement.options);
+        const desiredValues = args.desiredValues;
+        const option = candidates.find((candidate) => {
+          if (!candidate.value) return false;
+          if (args.byDialCode) {
+            const optionValueDigits = candidate.value.replace(/\D/g, "");
+            const optionLabelDigits = (candidate.textContent ?? "").replace(/\D/g, "");
+            return desiredValues.includes(optionValueDigits) || desiredValues.includes(optionLabelDigits);
+          }
+          const label = (candidate.textContent ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+          const value = candidate.value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+          return desiredValues.some((desiredValue) => {
+            if (!desiredValue) return false;
+            if (value === desiredValue || label === desiredValue) return true;
+            if (desiredValue.length === 3 && (value === desiredValue || label.split(/\s+/)[0] === desiredValue)) return true;
+            if (desiredValue.length === 3 && candidate.value.toUpperCase() === desiredValue) return true;
+            if (label.includes(desiredValue)) return true;
+            if (desiredValue.length === 3) {
+              return value.startsWith(desiredValue) || label.startsWith(desiredValue);
+            }
+            return false;
+          });
+        });
+        return option ? { value: option.value, label: option.textContent ?? "" } : null;
+      },
+      { desiredValues, byDialCode: options.byDialCode === true },
+    );
+    if (!match) {
+      await page.waitForTimeout(1_000);
+    }
+  }
 
   if (!match) {
     const sample = await select.evaluate((element) =>
       Array.from((element as HTMLSelectElement).options)
-        .slice(0, 20)
+        .slice(0, 60)
         .map((option) => option.textContent?.trim())
         .filter(Boolean)
         .join(" | "),
     );
-    throw new MdacPortalError(`MDAC dropdown option not found for ${selector}: "${wanted}".`, {
+    throw new MdacPortalError(`MDAC dropdown option not found for ${selector}: "${wanted}". Desired aliases: ${desiredValues.join(", ")}.`, {
       code: "mdac_dropdown_option_not_found",
       portalSummary: sample,
     });
@@ -455,6 +479,100 @@ function isMdacConfirmationText(text: string): boolean {
   return /successfully|submission\s+successful|registration\s+successful|thank\s+you|berjaya/i.test(text);
 }
 
+async function getMdacOfficialInvalidFields(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const labelFor = (element: Element): string => {
+      const input = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+      const id = input.id ? `#${input.id}` : "";
+      const explicitLabel = input.id
+        ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent?.trim()
+        : "";
+      const rowLabel = input.closest(".form-group, .row, tr, p")?.textContent?.split(":")[0]?.trim();
+      return (explicitLabel || rowLabel || input.name || input.id || id || "Unknown field").replace(/\s+/g, " ");
+    };
+
+    return Array.from(document.querySelectorAll("input, select, textarea"))
+      .filter((element) => {
+        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        if (control.disabled || control.type === "hidden" || !control.willValidate) return false;
+        return !control.checkValidity();
+      })
+      .map((element) => {
+        const control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        const message = control.validationMessage || "invalid value";
+        return `${labelFor(element)}: ${message}`;
+      });
+  });
+}
+
+async function assertMdacOfficialFormValid(page: Page, screenshots: string[], logs: string[], stage: string): Promise<void> {
+  const invalidFields = await getMdacOfficialInvalidFields(page).catch((error) => {
+    logs.push(`mdac_validity_check_failed ${stage} ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  });
+  if (invalidFields.length === 0) return;
+
+  screenshots.push(await saveScreenshot(page, `official-invalid-${stage}`, logs));
+  throw new MdacPortalError(`Official Malaysia MDAC form validation failed: ${invalidFields.join("; ")}`, {
+    code: "mdac_official_form_validation_failed",
+    screenshotPaths: screenshots,
+    portalSummary: invalidFields.join("\n"),
+  });
+}
+
+async function submitMdacRegistrationForm(page: Page, screenshots: string[], logs: string[]): Promise<void> {
+  await assertMdacOfficialFormValid(page, screenshots, logs, "before-submit");
+
+  const beforeUrl = page.url();
+  let dialogMessage: string | null = null;
+  page.once("dialog", async (dialog) => {
+    dialogMessage = dialog.message();
+    logs.push(`mdac_dialog ${dialog.type()} ${dialogMessage}`);
+    await dialog.accept().catch((error) => {
+      logs.push(`mdac_dialog_accept_failed ${error instanceof Error ? error.message : String(error)}`);
+    });
+  });
+
+  const submit = page.locator("#submit").first();
+  await submit.waitFor({ state: "visible", timeout: 15_000 });
+  await submit.scrollIntoViewIfNeeded().catch(() => undefined);
+  await page.waitForTimeout(500);
+  const disabled = await submit.isDisabled().catch(() => true);
+  if (disabled) {
+    throw new MdacPortalError("Official Malaysia MDAC submit button is still disabled after slider verification.", {
+      code: "mdac_submit_button_disabled",
+      screenshotPaths: screenshots,
+    });
+  }
+
+  await submit.click({ timeout: 10_000 }).catch(async (error) => {
+    logs.push(`mdac_submit_click_retry ${error instanceof Error ? error.message : String(error)}`);
+    await submit.evaluate((element) => (element as HTMLElement).click());
+  });
+
+  await Promise.race([
+    page.waitForURL((url) => url.toString() !== beforeUrl, { timeout: 20_000 }),
+    page.waitForFunction(
+      () => {
+        const text = document.body?.innerText ?? "";
+        return /successfully|submission\s+successful|registration\s+successful|thank\s+you|berjaya/i.test(text);
+      },
+      undefined,
+      { timeout: 20_000 },
+    ),
+  ]).catch((error) => {
+    logs.push(`mdac_submit_wait_no_transition ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+  });
+
+  await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
+  await page.waitForTimeout(3_000);
+
+  if (dialogMessage) {
+    await assertMdacOfficialFormValid(page, screenshots, logs, "after-dialog");
+  }
+}
+
 export async function runMdacPortalSubmission(
   payload: MdacPortalPayload,
   options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
@@ -504,14 +622,12 @@ export async function runMdacPortalSubmission(
 
     await solveMdacSliderCaptcha(page, logs);
     screenshots.push(await saveScreenshot(page, "after-slider", logs));
-    await page.locator("#submit, input[name='submitRegistration'], input[type='submit']").first().click({ timeout: 15_000 });
-    await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => undefined);
-    await page.waitForTimeout(3_000);
+    await submitMdacRegistrationForm(page, screenshots, logs);
     screenshots.push(await saveScreenshot(page, "after-submit", logs));
 
     const portalText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => currentText);
     if (!isMdacConfirmationText(portalText)) {
+      await assertMdacOfficialFormValid(page, screenshots, logs, "after-submit");
       throw new MdacPortalError("Official Malaysia MDAC portal did not return a recognizable confirmation.", {
         code: "mdac_confirmation_not_reached",
         screenshotPaths: screenshots,

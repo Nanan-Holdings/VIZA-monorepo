@@ -1,9 +1,17 @@
 # viza-email-worker
 
 Cloudflare Email Worker that ingests every message at `*@haggstorm.com`
-into the Supabase `inbound_email` table (INBOX-002). Bodies above 1 MB
-are offloaded to the `viza-inbox-bodies` R2 bucket; the row stores the
-key.
+into the Supabase `inbound_email` table (INBOX-002). Cloudflare's native
+forwarding sends the original RFC 822 message to the applicant's verified
+destination address, so official QR/PDF attachments remain intact. When the
+account has R2 enabled, the same raw message is archived in
+`viza-inbox-bodies` and a one-minute scheduled handler can retry transient
+failures through the configured outbound provider.
+
+Forwarding is fail-closed: the Worker only resolves a destination after the
+applicant has accepted the current `alias_email_forwarding` consent document.
+Cloudflare destination-address verification remains a separate mailbox-control
+step that the applicant must complete from their own inbox.
 
 ## Layout
 
@@ -11,7 +19,7 @@ key.
 src/
   index.ts        — `email(message, env)` entrypoint
   types.d.ts      — local ambient types for tsc --noEmit (without npm install)
-wrangler.toml    — bindings, vars, R2 buckets, preview env
+wrangler.toml    — bindings, vars, schedules, preview env
 package.json     — wrangler + typescript devDeps, deploy + tail scripts
 tsconfig.json    — strict, ES2022, no @types deps required for typecheck
 ```
@@ -22,16 +30,19 @@ tsconfig.json    — strict, ES2022, no @types deps required for typecheck
 cd viza-be/email-worker
 npm install
 wrangler login                                 # one-time
-wrangler r2 bucket create viza-inbox-bodies    # one-time
-wrangler r2 bucket create viza-inbox-bodies-preview
 wrangler secret put SUPABASE_URL
 wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+wrangler secret put RESEND_API_KEY
 npm run deploy
 ```
 
 Then bind the deployed worker as the catch-all in
 `Cloudflare → haggstorm.com → Email → Email Routing → Routes →
 Catch-all → Send to a Worker`.
+
+R2 is optional. After enabling it for the account, create
+`viza-inbox-bodies` and `viza-inbox-bodies-preview`, then uncomment the
+`r2_buckets` binding in `wrangler.toml` to enable durable retries.
 
 ## Schema
 
@@ -51,6 +62,11 @@ Migration: `viza-be/agent-backend/drizzle/0045_inbound_email.sql`.
 | `spam_score` | REAL | nullable |
 | `received_at` | TIMESTAMPTZ | message receipt time |
 | `processed` | BOOLEAN | runners flip to `true` after consumption |
+| `forwarding_status` | TEXT | `pending`, `sent`, `failed`, or `skipped` |
+| `forwarded_to` | TEXT | applicant real email used for forwarding |
+| `forwarded_at` | TIMESTAMPTZ | successful delivery handoff time |
+| `forwarding_attempts` | INTEGER | bounded retry counter |
+| `forwarding_error` | TEXT | latest redacted forwarding failure |
 
 ## Local dev
 

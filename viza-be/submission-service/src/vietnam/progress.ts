@@ -12,6 +12,7 @@ export const VN_PROGRESS_STAGES = [
   "advancing_to_review",
   "payment_required",
   "payment_handoff",
+  "bank_authentication_waiting",
   "registration_code_visible",
   "failed",
 ] as const;

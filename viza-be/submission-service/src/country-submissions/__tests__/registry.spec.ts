@@ -114,7 +114,86 @@ test("registry: every provider declares implementation and dry-run metadata", ()
 test("registry: resolves by country and visa type", () => {
   assert.equal(getCountrySubmissionProvider("canada", "CA_TRV")?.countryCode, "CA");
   assert.equal(getCountrySubmissionProvider("germany", "EU_SCHENGEN_C_SHORT_STAY")?.countryCode, "SCHENGEN");
+  assert.equal(getCountrySubmissionProvider("indonesia", "ID_C1_TOURIST")?.countryCode, "ID");
+  assert.equal(getCountrySubmissionProvider("indonesia", "ID_B1_EVOA")?.countryCode, "ID");
+  assert.equal(getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION")?.countryCode, "VN");
+  assert.equal(getCountrySubmissionProvider("taiwan", "TW_ENTRY_PERMIT")?.countryCode, "TW");
   assert.equal(getCountrySubmissionProvider("unknownland", "NOPE"), null);
+});
+
+test("registry: Philippines eTravel does not require removed questionnaire answers", () => {
+  const provider = getCountrySubmissionProvider("philippines", "PH_ETRAVEL_ARRIVAL_CARD");
+  assert.ok(provider);
+  const requiredKeys = provider.requiredFields
+    .filter((field) => field.required)
+    .map((field) => field.key);
+
+  assert.equal(requiredKeys.includes("answers.has_accompanied_family_members"), false);
+  assert.equal(requiredKeys.includes("answers.customs_signature_file"), false);
+});
+
+test("registry: Vietnam Pre-Arrival declaration validates dedicated answers", async () => {
+  const application = baseApplication({
+    countryCode: "vietnam",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    answers: {
+      expected_arrival_date: "2026-07-14",
+      passport_type: "P",
+      passport_number: "TEST123456",
+      passport_expiry_date: "2033-01-01",
+      gender: "male",
+      given_name: "ALEX",
+      date_of_birth: "1999-01-15",
+      nationality: "Singapore",
+      phone_country_code: "+65",
+      phone_number: "91234567",
+      alias_email_address: "alias-test@inbox.viza.test",
+      visa_information_acknowledgement: "true",
+      visa_type: "EV",
+      visa_number: "123456789",
+      visa_expiry_date: "2026-08-01",
+      departure_country_before_arrival: "Singapore",
+      purpose_of_travel: "travel",
+      mode_of_travel: "air",
+      flight_number: "VJ5439_CXR",
+      border_gate_airport: "CXR",
+      accommodation_type: "hotel",
+      province_city_of_hotel: "Da Nang City",
+      ward_commune_of_hotel: "Hoa Xuan Ward",
+      hotel_accommodation_address: "T&D Hoi An House",
+      final_declaration: "true",
+    },
+  });
+  const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
+  assert.ok(provider);
+  assert.equal(provider.validate(application).ok, true);
+  const payload = provider.mapToSubmissionPayload(application);
+  assert.equal(payload.countrySpecific.expected_arrival_date, "2026-07-14");
+  assert.equal(payload.countrySpecific.flight_number, "VJ5439_CXR");
+  assert.equal(payload.countrySpecific.hotel_accommodation_address, "T&D Hoi An House");
+  const result = await runDryRunSubmission(application, {
+    dryRun: true,
+    idempotencyKey: "registry-vn-prearrival",
+  });
+  assert.equal(result.status, "submitted_mock");
+  assert.match(result.confirmationNumber ?? "", /^DRYRUN-VNPREARRIVAL-/);
+});
+
+test("registry: Vietnam Pre-Arrival requires a manual address for the official Other hotel option", () => {
+  const application = baseApplication({
+    countryCode: "vietnam",
+    visaType: "VN_PREARRIVAL_DECLARATION",
+    answers: {
+      hotel_accommodation_address: "other",
+      custom_hotel_accommodation_address: "",
+    },
+  });
+  const provider = getCountrySubmissionProvider("vietnam", "VN_PREARRIVAL_DECLARATION");
+  assert.ok(provider);
+
+  const validation = provider.validate(application);
+  assert.equal(validation.ok, false);
+  assert.ok(validation.missingRequiredFields.includes("answers.custom_hotel_accommodation_address"));
 });
 
 test("registry: valid base profile dry-runs with a mock confirmation", async () => {
@@ -303,6 +382,72 @@ test("from-records: maps common Vietnam fields into runner-required aliases", ()
   assert.equal(answers.expense_coverage, "personal");
 });
 
+test("from-records: maps Thailand TDAC profile and alias fields into runner-required answers", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "CHEN HONGYU",
+    date_of_birth: "2006-07-27",
+    place_of_birth: "Changsha",
+    gender: "male",
+    nationality: "CHN",
+    occupation: "Software Engineer",
+    address: "Changsha, Hunan, China",
+    passport_number: "EM7429107",
+    passport_issue_date: "2024-06-25",
+    passport_expiry_date: "2034-06-24",
+    issuing_country: "CHN",
+    issuing_authority: "China",
+    email: "test.viza.user@example.com",
+    phone: "+8613312345678",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "thailand",
+    visa_type: "TH_TDAC_ARRIVAL_CARD",
+    status: "submitted",
+    arrival_date: "2026-10-01",
+    departure_date: "2026-10-10",
+    port_of_entry: null,
+    purpose: "tourism",
+    accommodation_name: null,
+    accommodation_address: "1 Test Hotel Road, Bangkok",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: "test-package",
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const tdacApplication = buildCountrySubmissionApplication(profile, application, {
+    city_state_of_residence: "TIBET",
+    phone_number: "13312345678",
+    arrival_mode_of_travel: "air",
+    arrival_mode_of_transport: "commercial_flight",
+    arrival_transport_number: "SQ221",
+    departure_mode_of_travel: "air",
+    departure_mode_of_transport: "commercial_flight",
+    departure_transport_number: "SQ222",
+    countries_visited_last_14_days: "CHN",
+    accommodation_type: "guest_house",
+    province: "bangkok",
+    address_in_thailand: "1 Test Hotel Road, Bangkok",
+  });
+  const provider = getCountrySubmissionProvider("thailand", "TH_TDAC_ARRIVAL_CARD");
+  assert.ok(provider);
+  const answers = tdacApplication.answers ?? {};
+
+  assert.equal(answers.family_name, "CHEN");
+  assert.equal(answers.first_name, "HONGYU");
+  assert.equal(answers.country_territory_of_residence, "CHN");
+  assert.equal(answers.phone_country_code, "86");
+  assert.equal(answers.occupation, "Software Engineer");
+  assert.equal(provider.validate(tdacApplication).ok, true);
+});
+
 test("registry: Vietnam provider retains seeded answers in dry-run payload", () => {
   const provider = getCountrySubmissionProvider("vietnam", "VN_E_VISA");
   assert.ok(provider);
@@ -339,12 +484,18 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
     },
     answers: {
       purpose_of_travel: "holiday",
+      place_of_birth_country: "Singapore",
       place_of_residence: "CHINA, BEIJING, BEIJING",
+      mobile_country_code: "65",
+      has_used_different_name_to_enter_singapore: "no",
       last_city_or_port_before_singapore: "Kuala Lumpur",
       next_city_or_port_after_singapore: "Bangkok",
       mode_of_travel: "air",
+      air_transport_type: "commercial",
+      carrier_code: "SQ",
       transport_number: "SQ317",
       accommodation_type: "others",
+      accommodation_other_type: "friends",
       recent_country_visit_history: "none",
       has_health_symptoms: "no",
       health_declaration: "yes",
@@ -361,6 +512,167 @@ test("registry: SG Arrival Card maps purpose_of_travel into validation and paylo
   const result = await runDryRunSubmission(application);
   assert.equal(result.status, "submitted_mock");
   assert.equal(result.targetCountry, "SG");
+});
+
+test("registry: SG Arrival Card validates every conditional transport and health branch", () => {
+  const provider = getCountrySubmissionProvider("singapore", "SG_ARRIVAL_CARD");
+  assert.ok(provider);
+
+  const baseAnswers = {
+    purpose_of_travel: "holiday",
+    place_of_birth_country: "Singapore",
+    place_of_residence: "CHINA, BEIJING, BEIJING",
+    mobile_country_code: "65",
+    has_used_different_name_to_enter_singapore: "no",
+    last_city_or_port_before_singapore: "Kuala Lumpur",
+    next_city_or_port_after_singapore: "Bangkok",
+    accommodation_type: "others",
+    accommodation_other_type: "transit",
+    has_health_symptoms: "no",
+    recent_country_visit_history: "no",
+  };
+  const validate = (answers: Record<string, string>) =>
+    provider.validate(
+      baseApplication({
+        countryCode: "singapore",
+        visaType: "SG_ARRIVAL_CARD",
+        answers: { ...baseAnswers, ...answers },
+      }),
+    );
+
+  assert.equal(
+    validate({
+      mode_of_travel: "air",
+      air_transport_type: "commercial",
+      carrier_code: "AS",
+      transport_number: "223",
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validate({
+      mode_of_travel: "land",
+      land_transport_type: "car",
+      vehicle_number: "SBA1234A",
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validate({
+      mode_of_travel: "sea",
+      sea_transport_type: "cruise",
+      cruise_name: "ADONIA",
+    }).ok,
+    true,
+  );
+  assert.equal(
+    validate({
+      mode_of_travel: "sea",
+      sea_transport_type: "commercial_vessel",
+      vessel_name: "TEST VESSEL",
+    }).ok,
+    true,
+  );
+
+  const missingVessel = validate({
+    mode_of_travel: "sea",
+    sea_transport_type: "ferry",
+  });
+  assert.equal(missingVessel.ok, false);
+  assert.ok(missingVessel.missingRequiredFields.includes("answers.vessel_name"));
+
+  const symptomsYes = validate({
+    mode_of_travel: "land",
+    land_transport_type: "bus",
+    vehicle_number: "BUS123",
+    has_health_symptoms: "yes",
+    recent_country_visit_history: "",
+    recent_high_risk_region_visit_history: "no",
+  });
+  assert.equal(symptomsYes.ok, true);
+});
+
+test("from-records: prefers the latest SGAC answers over stale profile and application columns", () => {
+  const profile: ApplicantProfile = {
+    id: "test-applicant",
+    auth_user_id: "test-user",
+    full_name: "OLD PROFILE NAME",
+    date_of_birth: "1980-01-01",
+    place_of_birth: "Old place",
+    gender: "female",
+    nationality: "OLD_NATIONALITY",
+    occupation: "Old occupation",
+    address: "Old profile address",
+    passport_number: "OLD123456",
+    passport_issue_date: "2020-01-01",
+    passport_expiry_date: "2030-01-01",
+    issuing_country: "OLD_COUNTRY",
+    issuing_authority: "Old authority",
+    email: "old-profile@example.com",
+    phone: "+6500000000",
+    wechat: null,
+  };
+  const application: Application = {
+    id: "11111111-2222-4333-8444-555555555555",
+    applicant_id: "test-applicant",
+    country: "singapore",
+    visa_type: "SG_ARRIVAL_CARD",
+    status: "submitted",
+    arrival_date: "2026-08-01",
+    departure_date: "2026-08-02",
+    port_of_entry: null,
+    purpose: "old-purpose",
+    accommodation_name: "Old Hotel",
+    accommodation_address: "Old accommodation address",
+    confirmation_number: null,
+    submitted_at: null,
+    visa_package_id: "test-package",
+    ds160_application_id: null,
+    ds160_retrieval_url: null,
+    ds160_dat_storage_path: null,
+  };
+
+  const sgacApplication = buildCountrySubmissionApplication(profile, application, {
+    full_name: "LATEST PASSPORT NAME",
+    date_of_birth: "1999-06-15",
+    gender: "male",
+    nationality: "CHN",
+    passport_number: "LATEST98765",
+    passport_issue_date: "2025-01-02",
+    passport_expiry_date: "2035-01-01",
+    passport_issuing_country: "CHN",
+    email_address: "latest@example.com",
+    mobile_country_code: "86",
+    mobile_number: "13800138000",
+    residential_address: "Latest residential address",
+    occupation: "Engineer",
+    arrival_date: "2026-08-03",
+    departure_date: "2026-08-05",
+    purpose_of_travel: "holiday",
+    hotel_name: "MARINA BAY SANDS",
+    accommodation_address: "10 Bayfront Avenue",
+  });
+
+  assert.deepEqual(sgacApplication.profile, {
+    fullName: "LATEST PASSPORT NAME",
+    dateOfBirth: "1999-06-15",
+    gender: "male",
+    nationality: "CHN",
+    passportNumber: "LATEST98765",
+    passportIssueDate: "2025-01-02",
+    passportExpiryDate: "2035-01-01",
+    passportIssuingCountry: "CHN",
+    email: "latest@example.com",
+    phone: "8613800138000",
+    address: "Latest residential address",
+    occupation: "Engineer",
+    employerOrSchool: null,
+  });
+  assert.equal(sgacApplication.trip.arrivalDate, "2026-08-03");
+  assert.equal(sgacApplication.trip.departureDate, "2026-08-05");
+  assert.equal(sgacApplication.trip.purpose, "holiday");
+  assert.equal(sgacApplication.trip.accommodationName, "MARINA BAY SANDS");
+  assert.equal(sgacApplication.trip.accommodationAddress, "10 Bayfront Avenue");
 });
 
 test("registry: SG Arrival Card rejects missing purpose_of_travel without using SG visitor visa", async () => {

@@ -1,0 +1,116 @@
+# ========================================
+# VIZA Admin Website - Cloud Build Config
+# ========================================
+# MONOREPO SETUP: Cloud Build trigger should be configured with:
+#   - Build configuration file location: /admin-website/cloudbuild.yaml
+# The build context and Dockerfile paths are relative to repo root.
+# ========================================
+
+steps:
+  # Build the Docker image with build-time environment variables
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "--no-cache"
+      # Build arguments for NEXT_PUBLIC_* variables (embedded in JS bundle)
+      - "--build-arg"
+      - "NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_AGENT_BACKEND_URL=${_NEXT_PUBLIC_AGENT_BACKEND_URL}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_SITE_URL=${_NEXT_PUBLIC_SITE_URL}"
+      - "-t"
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - "-f"
+      - admin-website/Dockerfile
+      - admin-website
+    id: Build
+
+  # Push the built image to Artifact Registry
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+    id: Push
+
+  # Deploy to Cloud Run with runtime environment variables
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - "--platform=managed"
+      - >-
+        --image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$_TRIGGER_ID
+      - "--region=$_DEPLOY_REGION"
+      # Runtime environment variables (server-side only)
+      # Using ^||^ delimiter to allow commas in PRESCRIPTION_API_ALLOWED_ORIGINS
+      - >-
+        --set-env-vars=^||^LAB_REPORT_API_BASE=${_LAB_REPORT_API_BASE}||SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}||SHOPIFY_STORE_DOMAIN=${_SHOPIFY_STORE_DOMAIN}||SHOPIFY_ACCESS_TOKEN=${_SHOPIFY_ACCESS_TOKEN}||SHOPIFY_WEBHOOK_SECRET=${_SHOPIFY_WEBHOOK_SECRET}||CALCOM_API_KEY=${_CALCOM_API_KEY}||CAL_WEBHOOK_SECRET=${_CAL_WEBHOOK_SECRET}||CLIENT_SESSION_SECRET=${_CLIENT_SESSION_SECRET}||PRESCRIPTION_API_KEY=${_PRESCRIPTION_API_KEY}||PRESCRIPTION_API_ALLOWED_ORIGINS=${_PRESCRIPTION_API_ALLOWED_ORIGINS}
+      - "--quiet"
+    id: Deploy
+    entrypoint: gcloud
+
+images:
+  - >-
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: ph-senate
+  _PLATFORM: managed
+  _SERVICE_NAME: viza-admin-website
+  _TRIGGER_ID: 80d353e1-da6c-40ed-9bcd-cf3ca865794b
+  _DEPLOY_REGION: asia-southeast1
+  _AR_HOSTNAME: asia-southeast1-docker.pkg.dev
+
+  # ========================================
+  # BUILD-TIME VARIABLES (NEXT_PUBLIC_*)
+  # ========================================
+  # These are embedded into the JavaScript bundle during build
+  # and are accessible on both client and server side
+  # ⚠️ SET THESE IN CLOUD BUILD TRIGGER SUBSTITUTION VARIABLES — NOT HERE
+  _NEXT_PUBLIC_SUPABASE_URL: "REPLACE_VIA_TRIGGER"
+  _NEXT_PUBLIC_SUPABASE_ANON_KEY: "REPLACE_VIA_TRIGGER"
+  _NEXT_PUBLIC_AGENT_BACKEND_URL: "REPLACE_VIA_TRIGGER"
+  _NEXT_PUBLIC_SITE_URL: "REPLACE_VIA_TRIGGER"
+
+  # ========================================
+  # RUNTIME VARIABLES (Server-side only)
+  # ========================================
+  # These are injected at container startup and only accessible server-side
+  # ⚠️ SET THESE IN CLOUD BUILD TRIGGER SUBSTITUTION VARIABLES — NOT HERE
+  _SUPABASE_SERVICE_ROLE_KEY: "REPLACE_VIA_TRIGGER"
+  _SHOPIFY_STORE_DOMAIN: "REPLACE_VIA_TRIGGER"
+  _SHOPIFY_ACCESS_TOKEN: "REPLACE_VIA_TRIGGER"
+  _SHOPIFY_WEBHOOK_SECRET: "REPLACE_VIA_TRIGGER"
+
+  # Cal.com Integration
+  _CALCOM_API_KEY: "REPLACE_VIA_TRIGGER"
+  _CAL_WEBHOOK_SECRET: "REPLACE_VIA_TRIGGER"
+
+  # Client Session
+  _CLIENT_SESSION_SECRET: "REPLACE_VIA_TRIGGER"
+
+  # Lab Report API
+  _LAB_REPORT_API_BASE: "REPLACE_VIA_TRIGGER"
+
+  # Public Prescription API
+  _PRESCRIPTION_API_KEY: "REPLACE_VIA_TRIGGER"
+  _PRESCRIPTION_API_ALLOWED_ORIGINS: "REPLACE_VIA_TRIGGER"
+
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - viza-admin-website

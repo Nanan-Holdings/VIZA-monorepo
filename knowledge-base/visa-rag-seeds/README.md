@@ -4,7 +4,24 @@ This directory is the source of truth for country-level visa RAG knowledge.
 
 Each file in `countries/*.json` owns one country's visitor/tourism visa knowledge and should evolve with that country's dedicated form-filling workflow. Keep country-specific rules, official source URLs, application-route notes, form-intake context, and future form-flow context in the same country seed instead of adding a shared multi-country seed.
 
+`countries/taiwan.json` is limited to `TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT`: Chinese mainland passport holders resident in Singapore applying for tourism. It is not a Taiwan arrival-card or a generic visitor-visa seed.
+
 Every country seed should include exactly one `documentType: "form_requirements"` document. This document is the bridge between RAG and future form automation: it describes the official application channel, the form fields VIZA should collect before filling, the supporting documents/uploads to prepare, and review/submission guardrails.
+
+Each `form_requirements` document should also carry the shared
+`standard_passport_identity_field_rules` chunk. Field-level copilot retrieval
+uses this chunk for standard-answer questions such as passport issuing
+authority, place of issue, passport type, nationality, passport dates, and
+other identity fields where the correct answer must come from the passport,
+official identity document, MRZ, or official dropdown options rather than a
+free-form guess.
+
+Country seeds may also carry an `official_field_answer_norms` chunk inside the
+same `form_requirements` document. Generate or refresh this chunk with
+`npm run enrich:field-answer-norms-rag` from `viza-be/agent-backend`; the script
+crawls the official or authorized URLs already present in the seed, extracts
+field-answer evidence, filters common webpage noise, and writes only
+source-backed filling norms.
 
 ## Ingestion
 

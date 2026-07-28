@@ -1,0 +1,128 @@
+"use client";
+
+import { useState, useCallback, useRef, useEffect, KeyboardEvent } from "react";
+import { ArrowUp } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface ChatInputProps {
+  onSend: (message: string) => void;
+  disabled?: boolean;
+  isConnecting?: boolean;
+  placeholder?: string;
+  className?: string;
+  textareaClassName?: string;
+  buttonClassName?: string;
+}
+
+const MAX_ROWS = 10;
+const LINE_HEIGHT = 28; // Approximate line height in pixels
+
+export function ChatInput({
+  onSend,
+  disabled = false,
+  isConnecting = false,
+  placeholder = "Ask anything...",
+  className,
+  textareaClassName,
+  buttonClassName,
+}: ChatInputProps) {
+  const [value, setValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = "auto";
+
+    // Calculate new height (capped at MAX_ROWS)
+    const maxHeight = LINE_HEIGHT * MAX_ROWS;
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+
+    textarea.style.height = `${newHeight}px`;
+    textarea.style.overflowY = "auto";
+  }, [value]);
+
+  const handleSend = useCallback(() => {
+    const trimmed = value.trim();
+    if (!trimmed || disabled) return;
+
+    onSend(trimmed);
+    setValue("");
+
+    // Focus back on textarea
+    textareaRef.current?.focus();
+  }, [value, disabled, onSend]);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      const isComposing =
+        e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+      if (isComposing) return;
+
+      if (e.key === "Escape" && value.length > 0) {
+        e.preventDefault();
+        setValue("");
+        return;
+      }
+
+      // Enter sends, Shift+Enter keeps the native newline behavior.
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend, value.length]
+  );
+
+  const canSend = value.trim().length > 0 && !disabled;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border bg-white px-5 sm:px-6 pb-5 pt-2 shadow-sm transition-all duration-200",
+        disabled
+          ? "border-gray-100 opacity-60"
+          : "border-gray-200 hover:border-gray-300 focus-within:border-brand-500",
+        className
+      )}
+    >
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={1}
+        className={cn(
+          "w-full bg-transparent text-xl outline-none placeholder:text-gray-400 min-w-0 resize-none overflow-y-auto pr-2 pt-4 pb-2",
+          "leading-7", // Matches LINE_HEIGHT
+          textareaClassName
+        )}
+        style={{ height: "40px", maxHeight: `${LINE_HEIGHT * MAX_ROWS}px` }}
+        aria-label="Message input"
+        aria-keyshortcuts="Enter Control+Enter Meta+Enter Escape"
+      />
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSend}
+          disabled={!canSend}
+          className={cn(
+            "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200",
+            canSend
+              ? "bg-brand-500 text-white hover:bg-brand-600 cursor-pointer"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed",
+            buttonClassName
+          )}
+          aria-label={isConnecting ? "Connecting..." : "Send message"}
+        >
+          <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
+        </button>
+      </div>
+    </div>
+  );
+}

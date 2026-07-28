@@ -9,6 +9,7 @@ import type {
   AppointmentAssistanceAttempt,
   AppointmentAssistanceJob,
   AppointmentManualAction,
+  RevealedAppointmentAccount,
   AppointmentStatusSnapshot,
   CreateAppointmentJobInput,
   JsonObject,
@@ -20,7 +21,7 @@ import type {
 import type { USAppointmentRepository } from "./repository.js";
 import { redactToObject } from "./redaction.js";
 import { validateUSAppointmentPreconditions } from "./validators/usAppointmentPreconditions.js";
-import { encryptSecret } from "../../utils/secret-cipher.js";
+import { decryptSecret, encryptSecret } from "../../utils/secret-cipher.js";
 
 export class USAppointmentServiceError extends Error {
   public readonly status: number;
@@ -72,12 +73,11 @@ function latestCompleted(actions: AppointmentManualAction[], actionType: string)
 }
 
 function generateOfficialAccountPassword(): string {
-  return [
-    "Viza",
-    randomBytes(8).toString("base64url"),
-    randomBytes(8).toString("base64url"),
-    "9!",
-  ].join("-");
+  const suffix = randomBytes(8)
+    .toString("base64url")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .slice(0, 8);
+  return `Viza9!${suffix}`;
 }
 
 function encryptOfficialPassword(password: string): string {
@@ -87,6 +87,11 @@ function encryptOfficialPassword(password: string): string {
     if (process.env.NODE_ENV === "test") return password;
     throw error;
   }
+}
+
+function decryptOfficialPassword(value: string): string {
+  if (value.split(":").length !== 4) return value;
+  return decryptSecret(value);
 }
 
 function isMissingAppointmentSchemaError(error: unknown): boolean {
@@ -908,6 +913,53 @@ export class USAppointmentOrchestrator {
     return job;
   }
 
+  async revealAccount(applicationId: string, userId: string): Promise<RevealedAppointmentAccount> {
+    const application = await this.getApplicationOrThrow(applicationId);
+    if (application.userId !== userId) {
+      throw new USAppointmentServiceError(403, "forbidden", "You cannot access this application.");
+    }
+
+    const job = await this.repository.getLatestJobForApplication(application.id);
+    const provider = job?.schedulingProvider ?? "usvisascheduling";
+    const account = job?.appointmentAccountId
+      ? await this.repository.getAccount(job.appointmentAccountId)
+      : await this.ensureAssistedLiveAccount({
+        application,
+        userId,
+        schedulingProvider: provider,
+        mode: job?.mode ?? "assisted_live",
+      });
+    if (!account?.accountEmail || !account.encryptedAccountPassword) {
+      throw new USAppointmentServiceError(
+        404,
+        "appointment_account_not_ready",
+        "The official appointment account has not been provisioned yet.",
+      );
+    }
+
+    return {
+      id: account.id,
+      portal: account.portal,
+      accountEmail: account.accountEmail,
+      accountPassword: decryptOfficialPassword(account.encryptedAccountPassword),
+      accountStatus: account.accountStatus,
+      emailVerified: account.emailVerified,
+      securityQuestions: [
+        { label: "Security answer 1", answer: "VizaAnswer1" },
+        { label: "Security answer 2", answer: "VizaAnswer2" },
+        { label: "Security answer 3", answer: "VizaAnswer3" },
+      ],
+      prefill: {
+        ds160ConfirmationCode: getStoredDs160Code(application),
+        applyingPostCity: getStoredApplyingPostCity(application),
+        source: "viza_application",
+      },
+      notice:
+        "Shown only after an explicit user reveal action. Do not share these official portal credentials outside VIZA and USVisaScheduling.",
+      revealedAt: new Date().toISOString(),
+    };
+  }
+
   private async attachStoredAccountIfAvailable(
     job: AppointmentAssistanceJob,
   ): Promise<AppointmentAssistanceJob> {
@@ -971,6 +1023,8 @@ export class USAppointmentOrchestrator {
         inbox_alias_created: alias.created,
         provider: input.schedulingProvider,
         password_generated: true,
+        security_questions_auto_answer: "VIZA",
+        security_question_count: 3,
       },
     });
     await this.auditService.record({

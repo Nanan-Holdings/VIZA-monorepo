@@ -10,6 +10,7 @@
  *   APPLICANT_ID=<uuid> npx tsx scripts/inbox-smoke.ts vn
  *   APPLICANT_ID=<uuid> npx tsx scripts/inbox-smoke.ts uk-resume
  *   APPLICANT_ID=<uuid> npx tsx scripts/inbox-smoke.ts uk-security
+ *   APPLICANT_ID=<uuid> npx tsx scripts/inbox-smoke.ts us-appointment
  *
  * Required env (loaded from .env via dotenv):
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -25,8 +26,9 @@ import {
   waitForUkResumeEmail,
   waitForUkSecurityCode,
 } from "../src/uk/inbox.js";
+import { waitForUSAppointmentVerificationEmail } from "../src/us-appointment/inbox.js";
 
-type Mode = "vn" | "uk-resume" | "uk-security";
+type Mode = "vn" | "uk-resume" | "uk-security" | "us-appointment";
 
 const TIMEOUT_MS = 30_000;
 
@@ -71,6 +73,12 @@ const SYNTHETIC: Record<Mode, (toAddr: string) => SyntheticMessage> = {
     subject: "Your UK Visa security code",
     text: "Your security code is 909123.\n",
   }),
+  "us-appointment": (to) => ({
+    to_addr: to,
+    from_addr: "no-reply@do-not-reply.usvisascheduling.com",
+    subject: "Verify your USVisaScheduling account",
+    text: "Your verification code is 654321. This code expires shortly.\n",
+  }),
 };
 
 async function insertSynthetic(msg: SyntheticMessage): Promise<void> {
@@ -113,10 +121,14 @@ async function main() {
     const out = await waitForUkResumeEmail(applicantId, TIMEOUT_MS);
     label = "UK resume";
     summary = { resumeUrl: out.resumeUrl };
-  } else {
+  } else if (mode === "uk-security") {
     const out = await waitForUkSecurityCode(applicantId, TIMEOUT_MS);
     label = "UK security code";
-    summary = { code: out.code };
+    summary = { hasCode: Boolean(out.code) };
+  } else {
+    const out = await waitForUSAppointmentVerificationEmail(applicantId, TIMEOUT_MS);
+    label = "US appointment verification";
+    summary = { hasCode: Boolean(out.code), hasLink: Boolean(out.link) };
   }
   const elapsed = Date.now() - start;
 

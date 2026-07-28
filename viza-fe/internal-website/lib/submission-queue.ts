@@ -36,6 +36,7 @@ export type SubmissionQueueStatus =
   | "vn_dry_run_pending"
   | "vn_dry_run_processing"
   | "vn_dry_run_failed"
+  | "vn_cloud_live_pending"
   | "vn_live_assisted_pending"
   | "vn_live_assisted_processing"
   | "vn_live_assisted_failed"
@@ -48,6 +49,15 @@ export type SubmissionQueueStatus =
   | "vn_payment_paid"
   | "vn_payment_failed"
   | "vn_blocked"
+  | "vn_prearrival_dry_run_pending"
+  | "vn_prearrival_dry_run_processing"
+  | "vn_prearrival_dry_run_failed"
+  | "vn_prearrival_live_assisted_pending"
+  | "vn_prearrival_live_assisted_scheduled"
+  | "vn_prearrival_live_assisted_processing"
+  | "vn_prearrival_live_assisted_failed"
+  | "vn_prearrival_live_assisted_cancelled"
+  | "vn_prearrival_blocked"
   | "sgac_dry_run_pending"
   | "sgac_dry_run_processing"
   | "sgac_dry_run_failed"
@@ -75,6 +85,22 @@ export type SubmissionQueueStatus =
   | "tdac_live_assisted_failed"
   | "tdac_live_assisted_cancelled"
   | "tdac_blocked"
+  | "id_c1_live_assisted_pending"
+  | "id_c1_live_assisted_processing"
+  | "id_c1_payment_pending"
+  | "id_c1_payment_processing"
+  | "id_c1_payment_paid"
+  | "id_c1_payment_failed"
+  | "id_c1_live_assisted_failed"
+  | "id_c1_blocked"
+  | "id_b1_evoa_live_assisted_pending"
+  | "id_b1_evoa_live_assisted_processing"
+  | "id_b1_evoa_payment_pending"
+  | "id_b1_evoa_payment_processing"
+  | "id_b1_evoa_payment_paid"
+  | "id_b1_evoa_payment_failed"
+  | "id_b1_evoa_live_assisted_failed"
+  | "id_b1_evoa_blocked"
   | "phetravel_dry_run_pending"
   | "phetravel_dry_run_processing"
   | "phetravel_dry_run_failed"
@@ -117,6 +143,10 @@ const VIETNAM_EVISA_TYPES = new Set([
   "TOURIST_EVISA",
 ]);
 
+const VIETNAM_PREARRIVAL_TYPES = new Set([
+  "VN_PREARRIVAL_DECLARATION",
+]);
+
 const SINGAPORE_COUNTRY_ALIASES = new Set([
   "SG",
   "SINGAPORE",
@@ -151,6 +181,24 @@ const PHILIPPINES_COUNTRY_ALIASES = new Set([
 
 const PHILIPPINES_ETRAVEL_TYPES = new Set([
   "PH_ETRAVEL_ARRIVAL_CARD",
+  "PH_ETRAVEL_DEPARTURE_CARD",
+]);
+
+const INDONESIA_COUNTRY_ALIASES = new Set([
+  "ID",
+  "INDONESIA",
+]);
+
+const INDONESIA_C1_TYPES = new Set([
+  "ID_C1_TOURIST",
+  "C1_TOURIST",
+  "B211A",
+]);
+
+const INDONESIA_B1_EVOA_TYPES = new Set([
+  "ID_B1_EVOA",
+  "B1_EVOA",
+  "EVOA",
 ]);
 
 const UK_COUNTRY_ALIASES = new Set([
@@ -195,6 +243,7 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "uk_live_processing",
   "vn_dry_run_pending",
   "vn_dry_run_processing",
+  "vn_cloud_live_pending",
   "vn_live_assisted_pending",
   "vn_live_assisted_processing",
   "sgac_dry_run_pending",
@@ -212,6 +261,14 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "tdac_live_assisted_pending",
   "tdac_live_assisted_scheduled",
   "tdac_live_assisted_processing",
+  "id_c1_live_assisted_pending",
+  "id_c1_live_assisted_processing",
+  "id_c1_payment_pending",
+  "id_c1_payment_processing",
+  "id_b1_evoa_live_assisted_pending",
+  "id_b1_evoa_live_assisted_processing",
+  "id_b1_evoa_payment_pending",
+  "id_b1_evoa_payment_processing",
   "phetravel_dry_run_pending",
   "phetravel_dry_run_processing",
   "phetravel_live_assisted_pending",
@@ -221,12 +278,48 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "vn_prefill_processing",
   "vn_payment_pending",
   "vn_payment_processing",
+  "vn_prearrival_dry_run_pending",
+  "vn_prearrival_dry_run_processing",
+  "vn_prearrival_live_assisted_pending",
+  "vn_prearrival_live_assisted_scheduled",
+  "vn_prearrival_live_assisted_processing",
   "au_prefill_pending",
   "au_prefill_processing",
 ];
 
 export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
-  ...ACTIVE_SUBMISSION_QUEUE_STATUSES,
+  "pending",
+  "ds160_prefill_pending",
+  "ds160_live_assisted_pending",
+  "ds160_proof_pending",
+  "fv_prefill_pending",
+  "france_live_assisted_pending",
+  "uk_prefill_pending",
+  "vn_dry_run_pending",
+  "vn_cloud_live_pending",
+  "vn_live_assisted_pending",
+  "sgac_dry_run_pending",
+  "sgac_live_assisted_scheduled",
+  "sgac_live_assisted_pending",
+  "mdac_dry_run_pending",
+  "mdac_live_assisted_pending",
+  "mdac_live_assisted_scheduled",
+  "tdac_dry_run_pending",
+  "tdac_live_assisted_pending",
+  "tdac_live_assisted_scheduled",
+  "id_c1_live_assisted_pending",
+  "id_c1_payment_pending",
+  "id_b1_evoa_live_assisted_pending",
+  "id_b1_evoa_payment_pending",
+  "phetravel_dry_run_pending",
+  "phetravel_live_assisted_pending",
+  "phetravel_live_assisted_scheduled",
+  "vn_prefill_pending",
+  "vn_payment_pending",
+  "vn_prearrival_dry_run_pending",
+  "vn_prearrival_live_assisted_pending",
+  "vn_prearrival_live_assisted_scheduled",
+  "au_prefill_pending",
   "stalled",
   "action_required",
   "needs_manual_verification",
@@ -253,6 +346,18 @@ export const RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus
   "tdac_live_assisted_failed",
   "tdac_live_assisted_cancelled",
   "tdac_blocked",
+  "id_c1_live_assisted_failed",
+  "id_c1_payment_pending",
+  "id_c1_payment_processing",
+  "id_c1_payment_paid",
+  "id_c1_payment_failed",
+  "id_c1_blocked",
+  "id_b1_evoa_live_assisted_failed",
+  "id_b1_evoa_payment_pending",
+  "id_b1_evoa_payment_processing",
+  "id_b1_evoa_payment_paid",
+  "id_b1_evoa_payment_failed",
+  "id_b1_evoa_blocked",
   "phetravel_dry_run_failed",
   "phetravel_live_assisted_failed",
   "phetravel_live_assisted_cancelled",
@@ -300,6 +405,16 @@ export function isSgArrivalCardApplication(
   );
 }
 
+export function isVietnamPrearrivalApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    VIETNAM_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    VIETNAM_PREARRIVAL_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
 export function isMalaysiaMdacApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
@@ -330,12 +445,24 @@ export function isPhilippinesEtravelApplication(
   );
 }
 
+export function isIndonesiaEVisaApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  const normalizedVisaType = normalizeVisaType(visaType);
+  return (
+    INDONESIA_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    (INDONESIA_C1_TYPES.has(normalizedVisaType) || INDONESIA_B1_EVOA_TYPES.has(normalizedVisaType))
+  );
+}
+
 export function isDigitalArrivalCardApplication(
   country: string | null | undefined,
   visaType: string | null | undefined,
 ): boolean {
   return (
     isSgArrivalCardApplication(country, visaType) ||
+    isVietnamPrearrivalApplication(country, visaType) ||
     isMalaysiaMdacApplication(country, visaType) ||
     isThailandTdacApplication(country, visaType) ||
     isPhilippinesEtravelApplication(country, visaType)
@@ -362,6 +489,8 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     case "VN_E_VISA":
     case "VIETNAM_E_VISA":
       return "vn_dry_run_pending";
+    case "VN_PREARRIVAL_DECLARATION":
+      return "vn_prearrival_dry_run_pending";
     case "SG_ARRIVAL_CARD":
       return "sgac_dry_run_pending";
     case "MY_MDAC_ARRIVAL_CARD":
@@ -369,6 +498,7 @@ export function queueStatusForVisaType(visaType: string | null | undefined): Sub
     case "TH_TDAC_ARRIVAL_CARD":
       return "tdac_dry_run_pending";
     case "PH_ETRAVEL_ARRIVAL_CARD":
+    case "PH_ETRAVEL_DEPARTURE_CARD":
       return "phetravel_dry_run_pending";
     case "AU_VISITOR_600":
       return "au_prefill_pending";
@@ -399,7 +529,10 @@ export function queueStatusForApplication(
   mode: SubmissionMode = "dry_run",
 ): SubmissionQueueStatus {
   if (isVietnamEVisaApplication(country, visaType)) {
-    return mode === "live_assisted" ? "vn_live_assisted_pending" : "vn_dry_run_pending";
+    return mode === "live_assisted" ? "vn_cloud_live_pending" : "vn_dry_run_pending";
+  }
+  if (isVietnamPrearrivalApplication(country, visaType)) {
+    return mode === "live_assisted" ? "vn_prearrival_live_assisted_pending" : "vn_prearrival_dry_run_pending";
   }
   if (isSgArrivalCardApplication(country, visaType)) {
     return mode === "live_assisted" ? "sgac_live_assisted_pending" : "sgac_dry_run_pending";
@@ -412,6 +545,11 @@ export function queueStatusForApplication(
   }
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return mode === "live_assisted" ? "phetravel_live_assisted_pending" : "phetravel_dry_run_pending";
+  }
+  if (isIndonesiaEVisaApplication(country, visaType) && mode === "live_assisted") {
+    return INDONESIA_B1_EVOA_TYPES.has(normalizeVisaType(visaType))
+      ? "id_b1_evoa_live_assisted_pending"
+      : "id_c1_live_assisted_pending";
   }
 
   return queueStatusForSubmissionMode(visaType, mode);
@@ -473,6 +611,9 @@ export function queueProviderForVisaType(
   if (UK_STANDARD_VISITOR_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted" ? "uk_standard_visitor_live" : "uk_standard_visitor";
   }
+  if (VIETNAM_PREARRIVAL_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "vietnam_prearrival_live" : "vietnam_prearrival_dry_run";
+  }
   return null;
 }
 
@@ -483,6 +624,9 @@ export function queueProviderForApplication(
 ): string | null {
   if (isVietnamEVisaApplication(country, visaType)) {
     return mode === "live_assisted" ? "vietnam_evisa_live" : "vietnam_evisa_dry_run";
+  }
+  if (isVietnamPrearrivalApplication(country, visaType)) {
+    return mode === "live_assisted" ? "vietnam_prearrival_live" : "vietnam_prearrival_dry_run";
   }
   if (isSgArrivalCardApplication(country, visaType)) {
     return mode === "live_assisted" ? "sg_arrival_card_live" : "sg_arrival_card_dry_run";
@@ -496,6 +640,11 @@ export function queueProviderForApplication(
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
   }
+  if (isIndonesiaEVisaApplication(country, visaType) && mode === "live_assisted") {
+    return INDONESIA_B1_EVOA_TYPES.has(normalizeVisaType(visaType))
+      ? "indonesia_b1_evoa_live"
+      : "indonesia_c1_live";
+  }
   return queueProviderForVisaType(visaType, mode);
 }
 
@@ -508,7 +657,8 @@ export function submissionQueueRequiresServerEnqueue(
     mode === "live_assisted" ||
     isUkStandardVisitorApplication(country, visaType) ||
     isVietnamEVisaApplication(country, visaType) ||
-    isDigitalArrivalCardApplication(country, visaType)
+    isDigitalArrivalCardApplication(country, visaType) ||
+    isIndonesiaEVisaApplication(country, visaType)
   );
 }
 
@@ -536,7 +686,10 @@ export function retryQueueInsertCanUseLegacyPayload(
   if (input.mode === "dry_run") return true;
   return (
     input.queueStatus === "ds160_live_assisted_pending" ||
+    input.queueStatus === "vn_cloud_live_pending" ||
     input.queueStatus === "vn_live_assisted_pending" ||
+    input.queueStatus === "vn_prearrival_live_assisted_pending" ||
+    input.queueStatus === "vn_prearrival_live_assisted_scheduled" ||
     input.queueStatus === "france_live_assisted_pending" ||
     input.queueStatus === "sgac_live_assisted_pending" ||
     input.queueStatus === "sgac_live_assisted_scheduled" ||
@@ -544,6 +697,16 @@ export function retryQueueInsertCanUseLegacyPayload(
     input.queueStatus === "mdac_live_assisted_scheduled" ||
     input.queueStatus === "tdac_live_assisted_pending" ||
     input.queueStatus === "tdac_live_assisted_scheduled" ||
+    input.queueStatus === "id_c1_live_assisted_pending" ||
+    input.queueStatus === "id_b1_evoa_live_assisted_pending" ||
+    input.queueStatus === "id_c1_payment_pending" ||
+    input.queueStatus === "id_b1_evoa_payment_pending" ||
+    input.queueStatus === "id_c1_payment_processing" ||
+    input.queueStatus === "id_b1_evoa_payment_processing" ||
+    input.queueStatus === "id_c1_payment_paid" ||
+    input.queueStatus === "id_b1_evoa_payment_paid" ||
+    input.queueStatus === "id_c1_payment_failed" ||
+    input.queueStatus === "id_b1_evoa_payment_failed" ||
     input.queueStatus === "phetravel_live_assisted_pending" ||
     input.queueStatus === "phetravel_live_assisted_scheduled"
   );
@@ -556,7 +719,8 @@ export function submitModeForPrimaryApplicationAction(
   if (
     isUkStandardVisitorApplication(country, visaType) ||
     isVietnamEVisaApplication(country, visaType) ||
-    isDigitalArrivalCardApplication(country, visaType)
+    isDigitalArrivalCardApplication(country, visaType) ||
+    isIndonesiaEVisaApplication(country, visaType)
   ) {
     return "live_assisted";
   }
