@@ -21,6 +21,39 @@ function field(input: Partial<VisaFormFieldRow> & { fieldName: string; displayOr
 }
 
 describe("augmentVietnamEVisaOfficialParitySteps", () => {
+  it("requires the e-Visa end date to be at least one day after the start date", () => {
+    const steps: WizardStep[] = [
+      {
+        stepNumber: 2,
+        stepName: "Requested Information",
+        fields: [
+          field({
+            fieldName: "visa_valid_from",
+            fieldType: "date",
+            displayOrder: 2,
+            stepNumber: 2,
+            stepName: "Requested Information",
+          }),
+          field({
+            fieldName: "visa_valid_to",
+            fieldType: "date",
+            displayOrder: 3,
+            stepNumber: 2,
+            stepName: "Requested Information",
+            validationRules: { not_before_field: "visa_valid_from" },
+          }),
+        ],
+      },
+    ];
+
+    const validTo = augmentVietnamEVisaOfficialParitySteps(steps)
+      .find((step) => step.stepNumber === 2)
+      ?.fields.find((item) => item.fieldName === "visa_valid_to");
+
+    expect(validTo?.validationRules?.min_days_after_field).toBe("visa_valid_from");
+    expect(validTo?.validationRules?.min_days_after_field_days).toBe(1);
+  });
+
   it("inserts missing relatives fields immediately after the relatives yes/no question", () => {
     const steps: WizardStep[] = [
       {

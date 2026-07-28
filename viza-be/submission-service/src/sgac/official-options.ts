@@ -9245,6 +9245,14 @@ export const SGAC_NATIONALITY_OPTIONS: SgacOfficialCodeOption[] = [
     "label": "CHINESE"
   },
   {
+    "code": "CHN_HK",
+    "label": "CHINESE / HONG KONG SAR"
+  },
+  {
+    "code": "CHN_MC",
+    "label": "CHINESE / MACAO SAR"
+  },
+  {
     "code": "COL",
     "label": "COLOMBIAN"
   },

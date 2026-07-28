@@ -380,7 +380,7 @@ const FIELD_HELPER_ZH: Record<string, string> = {
   has_multiple_nationalities: "如当前或过去拥有其他国籍，请选择“是”并补充国籍。",
   has_violated_vietnam_laws: "如曾在越南有违法、处罚、驱逐或类似记录，请选择“是”并说明。",
   visa_valid_from: "越南电子签证有效期最多90天，请与行程日期保持一致。",
-  visa_valid_to: "结束日期不能早于开始日期。",
+  visa_valid_to: "结束日期必须至少晚于开始日期 1 天。",
   residential_address_in_vietnam: "可填写酒店、住宿、邀请方或预计停留地址。",
   intended_ward_commune: "官方门户可能根据省/市动态加载该选项；如无法确认，请保存为可核对的地址信息。",
   declaration_temporary_residence: "抵达越南后通常需要按当地规定完成住宿或临时居住申报。",
@@ -393,7 +393,7 @@ const FIELD_HELPER_EN: Record<string, string> = {
   has_multiple_nationalities: "Select Yes if you currently hold or previously held another nationality.",
   has_violated_vietnam_laws: "Select Yes if you have any Vietnam law, penalty, removal, or similar record to declare.",
   visa_valid_from: "Vietnam e-Visas can be valid for up to 90 days. Keep this aligned with your travel dates.",
-  visa_valid_to: "The end date must not be before the start date.",
+  visa_valid_to: "The end date must be at least 1 day after the start date.",
   residential_address_in_vietnam: "Use your hotel, accommodation, host, or planned stay address in Viet Nam.",
   intended_ward_commune: "The official portal may load this dynamically after province/city selection.",
   declaration_temporary_residence: "After arrival, temporary residence/accommodation reporting may be required under local rules.",
@@ -555,7 +555,7 @@ const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   { field_name: "visa_type_requested", label: "Type of visa requested", field_type: "radio", required: true, step_number: 2, step_name: "Requested Information", display_order: 1, options: VISA_TYPE_REQUESTED_OPTIONS, validation_rules: { live_dom_id: "basic_nddnTtdtLoai" } },
   { field_name: "visa_valid_from", label: "Grant e-Visa valid from", field_type: "date", required: true, step_number: 2, step_name: "Requested Information", display_order: 2, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY", inline_group: "visa_validity", live_dom_id: "basic_nddnTtdtTuNgayStr" } },
-  { field_name: "visa_valid_to", label: "Grant e-Visa valid to", field_type: "date", required: true, step_number: 2, step_name: "Requested Information", display_order: 3, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY", inline_group: "visa_validity", live_dom_id: "basic_nddnTtdtDenNgayStr" } },
+  { field_name: "visa_valid_to", label: "Grant e-Visa valid to", field_type: "date", required: true, step_number: 2, step_name: "Requested Information", display_order: 3, placeholder: "DD/MM/YYYY", validation_rules: { format: "DD/MM/YYYY", inline_group: "visa_validity", live_dom_id: "basic_nddnTtdtDenNgayStr", min_days_after_field: "visa_valid_from", min_days_after_field_days: 1 } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 3: Passport Information  (live section "3. PASSPORT INFORMATION")

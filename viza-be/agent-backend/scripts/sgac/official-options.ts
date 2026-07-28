@@ -11558,6 +11558,16 @@ export const SGAC_NATIONALITY_OPTIONS: SgacOfficialOption[] = [
     "labelEn": "CHINESE"
   },
   {
+    "value": "CHINESE / HONG KONG SAR",
+    "labelZh": "中国籍 / 香港特别行政区",
+    "labelEn": "CHINESE / HONG KONG SAR"
+  },
+  {
+    "value": "CHINESE / MACAO SAR",
+    "labelZh": "中国籍 / 澳门特别行政区",
+    "labelEn": "CHINESE / MACAO SAR"
+  },
+  {
     "value": "COLOMBIAN",
     "labelZh": "哥伦比亚籍",
     "labelEn": "COLOMBIAN"

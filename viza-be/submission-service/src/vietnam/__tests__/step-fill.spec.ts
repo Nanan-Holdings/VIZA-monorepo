@@ -15,7 +15,11 @@ import {
   normalizeVnCountryOptionText,
   VN_FIELD_MAPPINGS,
 } from "../field-mappings.js";
-import { toPortalDateForField } from "../run.js";
+import {
+  fillVietnamApplication,
+  toPortalDateForField,
+  validateVietnamPortalValidityRange,
+} from "../run.js";
 
 /**
  * RUN-VN-001: covers a full step fill at the (browser-free) plan level —
@@ -54,6 +58,52 @@ test("vn.step-fill: visa valid-from date is not earlier than today", () => {
     toPortalDateForField("visa_valid_from", "2026-06-30", new Date(2026, 5, 22)),
     "30/06/2026",
   );
+});
+
+test("vn.step-fill: portal validity range requires valid-to after the effective valid-from", () => {
+  assert.equal(
+    validateVietnamPortalValidityRange(
+      { visa_valid_from: "2026-06-22", visa_valid_to: "2026-06-22" },
+      new Date(2026, 5, 22),
+    ).length,
+    2,
+  );
+  assert.equal(
+    validateVietnamPortalValidityRange(
+      { visa_valid_from: "2026-06-20", visa_valid_to: "2026-06-21" },
+      new Date(2026, 5, 22),
+    ).length,
+    2,
+    "clamping an expired start date must not create an invalid portal range",
+  );
+  assert.deepEqual(
+    validateVietnamPortalValidityRange(
+      { visa_valid_from: "2026-06-20", visa_valid_to: "2026-06-30" },
+      new Date(2026, 5, 22),
+    ),
+    [],
+  );
+});
+
+test("vn.step-fill: invalid validity range is rejected before browser launch", async () => {
+  const result = await fillVietnamApplication(
+    {
+      answers: {
+        visa_valid_from: "2026-06-22",
+        visa_valid_to: "2026-06-22",
+      },
+    },
+    {
+      officialBaseUrl: "https://example.invalid/",
+    },
+  );
+
+  assert.equal(result.status, "scaffolded_pending_walk");
+  assert.match(
+    result.status === "scaffolded_pending_walk" ? result.reason : "",
+    /valid from must be before.*valid to must be after/i,
+  );
+  assert.equal(result.diagnostics?.validationErrors?.length, 2);
 });
 
 test("vn.step-fill: uploads and unanswered fields are excluded", () => {

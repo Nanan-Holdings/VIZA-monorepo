@@ -5,6 +5,10 @@ Scope: Singapore `SG_ARRIVAL_CARD` form schema only.
 - `form-fields.ts` is the official ICA field inventory used by the DB seed.
 - `official-options.ts` owns SGAC official-option lists exposed in VIZA; fields
   backed by ICA autocomplete, such as Hotel Name, must not fall back to free text.
+- ICA's nationality API currently returns 204 base records, but its SGAC
+  frontend injects `CHN_HK` and `CHN_MC` immediately after `CHN`. Keep the
+  effective 206-option portal snapshot, including the official English labels
+  `CHINESE / HONG KONG SAR` and `CHINESE / MACAO SAR`.
 - `option-labels.ts` owns SGAC-only Chinese display labels for official ICA
   dropdown values. Keep ICA `value`/English labels unchanged for submission.
 - `option-translations.zh.json` stores the reviewed zh-CN display snapshot for

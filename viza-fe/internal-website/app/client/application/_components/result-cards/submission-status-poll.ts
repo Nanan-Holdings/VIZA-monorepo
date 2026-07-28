@@ -21,3 +21,28 @@ export function getSubmissionStatusPollDelay(failureCount: number): number {
     SUBMISSION_STATUS_POLL_MAX_DELAY_MS,
   );
 }
+
+export function shouldStopSubmissionStatusPolling({
+  completedWithResult,
+  failed,
+  snapshotHasQueue,
+}: {
+  completedWithResult: boolean;
+  failed: boolean;
+  snapshotHasQueue: boolean;
+}): boolean {
+  if (completedWithResult) return true;
+  return failed && snapshotHasQueue;
+}
+
+export function shouldPreferDurableTerminalProps({
+  durableTerminalPropsAvailable,
+  localRetryActive,
+  snapshotIsActive,
+}: {
+  durableTerminalPropsAvailable: boolean;
+  localRetryActive: boolean;
+  snapshotIsActive: boolean;
+}): boolean {
+  return durableTerminalPropsAvailable && !localRetryActive && !snapshotIsActive;
+}

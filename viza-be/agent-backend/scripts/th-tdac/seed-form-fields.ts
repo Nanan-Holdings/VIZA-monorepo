@@ -16,12 +16,19 @@ if (!url || !key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_
 const supabase = createClient(url, key);
 
 async function seed() {
-  const { error: deleteError } = await supabase.from("visa_form_fields").delete().eq("visa_type", TH_TDAC_VISA_TYPE);
-  if (deleteError) throw deleteError;
-
-  const rows = TH_TDAC_FORM_FIELDS.map((field) => toBilingualSeedRow(TH_TDAC_VISA_TYPE, field));
+  // Preserve stable field IDs and avoid exposing an empty TDAC schema between
+  // delete/insert requests while applicants may have the form open.
+  const updatedAt = new Date().toISOString();
+  const rows = TH_TDAC_FORM_FIELDS.map((field) => ({
+    ...toBilingualSeedRow(TH_TDAC_VISA_TYPE, field),
+    updated_at: updatedAt,
+  }));
   for (let index = 0; index < rows.length; index += 20) {
-    const { error } = await supabase.from("visa_form_fields").insert(rows.slice(index, index + 20));
+    const { error } = await supabase
+      .from("visa_form_fields")
+      .upsert(rows.slice(index, index + 20), {
+        onConflict: "visa_type,field_name",
+      });
     if (error) throw error;
   }
 

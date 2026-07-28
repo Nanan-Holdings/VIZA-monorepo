@@ -435,13 +435,17 @@ export class PhotonPayClient {
     } catch {
       /* body not clonable/readable — log without it */
     }
+    const responseHeaders: Record<string, string> = {};
+    res.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
     this.emitLog({
       direction: "response",
       method,
       path,
       status: res.status,
       durationMs: Date.now() - started,
-      headers: Object.fromEntries(res.headers),
+      headers: responseHeaders,
       body: respText,
     });
     return res;

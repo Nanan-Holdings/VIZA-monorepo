@@ -218,6 +218,26 @@ const WHEN_SGAC_SEA_CRUISE = {
   key: "answers.sea_transport_type",
   equals: "cruise",
 };
+const WHEN_SGAC_SEA_COMMERCIAL_VESSEL = {
+  key: "answers.sea_transport_type",
+  equals: "commercial_vessel",
+};
+const WHEN_SGAC_SEA_FERRY = {
+  key: "answers.sea_transport_type",
+  equals: "ferry",
+};
+const WHEN_SGAC_SEA_PRIVATE_CRAFT = {
+  key: "answers.sea_transport_type",
+  equals: "private_craft",
+};
+const WHEN_SGAC_HAS_HEALTH_SYMPTOMS = {
+  key: "answers.has_health_symptoms",
+  equals: "yes",
+};
+const WHEN_SGAC_HAS_NO_HEALTH_SYMPTOMS = {
+  key: "answers.has_health_symptoms",
+  equals: "no",
+};
 
 const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   { key: "profile.fullName", label: "Full name", category: "personal", required: true },
@@ -245,13 +265,17 @@ const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   sgacField("vehicle_number", "Vehicle number", "trip", WHEN_SGAC_LAND),
   sgacField("sea_transport_type", "Sea transport type", "trip", WHEN_SGAC_SEA),
   sgacField("cruise_name", "Cruise name", "trip", WHEN_SGAC_SEA_CRUISE),
+  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_COMMERCIAL_VESSEL),
+  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_FERRY),
+  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_PRIVATE_CRAFT),
   sgacField("accommodation_type", "Accommodation type", "trip"),
   sgacField("accommodation_name", "Hotel name", "trip", WHEN_SGAC_HOTEL),
   sgacField("accommodation_other_type", "Other accommodation type", "trip", WHEN_SGAC_OTHER_ACCOMMODATION),
   sgacField("accommodation_postcode", "Singapore postal code", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("accommodation_block_number", "Block/house number", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("accommodation_street_name", "Street name", "trip", WHEN_SGAC_RESIDENTIAL),
-  sgacField("recent_country_visit_history", "Recent travel history declaration", "security"),
+  sgacField("recent_country_visit_history", "Yellow-fever travel history declaration", "security", WHEN_SGAC_HAS_NO_HEALTH_SYMPTOMS),
+  sgacField("recent_high_risk_region_visit_history", "High-risk-region travel history declaration", "security", WHEN_SGAC_HAS_HEALTH_SYMPTOMS),
   sgacField("has_health_symptoms", "Health symptoms declaration", "security"),
 ];
 

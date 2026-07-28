@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveMx } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
@@ -56,6 +57,7 @@ type ProfileForRetry = {
   email: string | null;
   phone: string | null;
   address: string | null;
+  inbox_alias: string | null;
 };
 
 type RetrySubmissionRequest = {
@@ -108,6 +110,34 @@ const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE || 0.7);
 const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
+const DEFAULT_MANAGED_INBOX_DOMAIN = "haggstorm.com";
+
+function managedInboxDomain(alias: string | null): string {
+  const aliasDomain = alias?.trim().toLowerCase().split("@").at(-1);
+  return (
+    aliasDomain ||
+    process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
+    DEFAULT_MANAGED_INBOX_DOMAIN
+  );
+}
+
+async function getManagedInboxRouteBlocker(alias: string | null): Promise<string | null> {
+  const domain = managedInboxDomain(alias);
+  try {
+    const records = await resolveMx(domain);
+    const hasUsableMx = records.some(
+      (record) => record.exchange.trim().length > 0 && record.exchange.trim() !== ".",
+    );
+    if (hasUsableMx) return null;
+  } catch {
+    // The user-facing result below deliberately avoids exposing DNS internals.
+  }
+  return (
+    "vn_prearrival_otp_inbox_unroutable: The VIZA managed inbox cannot currently receive " +
+    "the official email verification code. Your answers are saved. Restore the official-email " +
+    "route before retrying."
+  );
+}
 
 async function triggerCloudSubmissionWorker(jobId: string | null): Promise<boolean> {
   if (!jobId) return false;
@@ -539,11 +569,11 @@ function collectVietnamAnswerValidationIssues(answers: Record<string, string>): 
     }
   }
 
-  if (visaValidFrom && visaValidTo && visaValidTo < visaValidFrom) {
+  if (visaValidFrom && visaValidTo && visaValidTo <= visaValidFrom) {
     issues.push({
       field: "visa_valid_to",
-      labelZh: "签证结束日期不能早于生效日期",
-      labelEn: "E-visa valid to cannot be earlier than valid from",
+      labelZh: "签证结束日期必须至少晚于生效日期 1 天",
+      labelEn: "E-visa valid to must be at least 1 day after valid from",
     });
   }
 
@@ -1320,7 +1350,7 @@ export async function POST(
   const admin = createAdminClient();
   const profileQuery = admin
     .from("applicant_profiles")
-    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address");
+    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address, inbox_alias");
   const { data: profile, error: profileError } = legacySession
     ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
     : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
@@ -1424,6 +1454,18 @@ export async function POST(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
+    }
+    if (isVietnamPrearrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const inboxRouteBlocker = await getManagedInboxRouteBlocker(ownedProfile.inbox_alias);
+      if (inboxRouteBlocker) {
+        return NextResponse.json(
+          {
+            error: inboxRouteBlocker,
+            code: "vn_prearrival_otp_inbox_unroutable",
+          },
+          { status: 503 },
+        );
+      }
     }
     if (isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const schemaBlocker = await getVietnamLiveSchemaBlocker(admin);

@@ -674,7 +674,10 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
           return mergeRules(patchedField, { min_date: "today" });
         }
         if (patchedField.fieldName === "visa_valid_to") {
-          return mergeRules(patchedField, { not_before_field: "visa_valid_from" });
+          return mergeRules(patchedField, {
+            min_days_after_field: "visa_valid_from",
+            min_days_after_field_days: 1,
+          });
         }
         if (patchedField.fieldName === "passport_expiry_date") {
           return mergeRules(patchedField, {
