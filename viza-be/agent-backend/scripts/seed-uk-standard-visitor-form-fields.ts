@@ -46,7 +46,7 @@ interface FieldDef {
   display_order: number;
   placeholder?: string;
   validation_rules?: Record<string, unknown>;
-  options?: Array<{ value: string; text: string }>;
+  options?: Array<{ value: string; text: string; label_zh?: string; official_label?: string }>;
   conditional_logic?: Record<string, unknown>;
 }
 
@@ -65,63 +65,14 @@ const IS_CLINICAL = "purpose_of_visit === clinical_training";
 
 const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
-  // STEP 0: UKVI Account (collected so submission-service can resume)
-  //
-  // Today the applicant registers themselves on apply-uk-visa.service.gov.uk
-  // (the runner stops at the registration page) and pastes the
-  // forceResume URL + their chosen email/password back here. Future
-  // iterations will mint these on the applicant's behalf — the field
-  // contract stays the same so the seed/runner doesn't churn.
+  // STEP 0: Passport Upload
+  // The applicant uploads their passport bio-data page here. The gov.uk UKVI
+  // account (email / password / "save your answers" resume link) is minted
+  // automatically by the submission-service (src/uk/register.ts) — the
+  // applicant never enters those credentials, so the former "UKVI Account"
+  // step (uk_account_email / uk_account_password / uk_resume_url) is gone.
   // ═══════════════════════════════════════════════════════════════════════════
-  {
-    field_name: "uk_account_email",
-    label: "UKVI account email",
-    field_type: "text",
-    required: true,
-    step_number: 0,
-    step_name: "UKVI Account",
-    display_order: 1,
-    placeholder: "Same email you used to register on apply-uk-visa.service.gov.uk",
-    validation_rules: {
-      maxLength: 100,
-      pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-    },
-  },
-  {
-    field_name: "uk_account_password",
-    label: "UKVI account password",
-    field_type: "password",
-    required: true,
-    step_number: 0,
-    step_name: "UKVI Account",
-    display_order: 2,
-    placeholder: "The password you set during gov.uk registration",
-    validation_rules: {
-      maxLength: 200,
-      sensitive: true,
-      // The agent-backend POST /api/applications/:id/uk-account endpoint
-      // encrypts via AES-256-GCM (SUBMISSION_RESULT_SECRET_KEY) before
-      // persisting to uk_accounts. Submission-service decrypts at runtime.
-    },
-  },
-  {
-    field_name: "uk_resume_url",
-    label: "UKVI Resume URL",
-    field_type: "text",
-    required: true,
-    step_number: 0,
-    step_name: "UKVI Account",
-    display_order: 3,
-    placeholder: "https://visas-immigration.service.gov.uk/forceResume/<uuid>",
-    validation_rules: {
-      maxLength: 200,
-      pattern: "^https://visas-immigration\\.service\\.gov\\.uk/forceResume/[a-f0-9-]{36}$",
-      // TODO(uk-runner): future iterations will mint this on the applicant's
-      // behalf via the pre-auth scaffold (src/uk/orchestrator.ts) writing
-      // the forceResume URL into uk_accounts directly. Drop the user-input
-      // requirement when that lands.
-    },
-  },
+  { field_name: "passport_upload", label: "Upload your passport bio-data page", field_type: "file", required: true, step_number: 0, step_name: "Passport Upload", display_order: 1, validation_rules: { accept: "image/*,application/pdf" } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 1: About You — Personal Details
@@ -152,7 +103,6 @@ const FIELDS: FieldDef[] = [
   { field_name: "passport_number", label: "Passport number", field_type: "text", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 1, placeholder: "e.g., 123456789", validation_rules: { maxLength: 20 } },
   { field_name: "passport_issue_date", label: "Date of issue", field_type: "date", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 2, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates" } },
   { field_name: "passport_expiry_date", label: "Date of expiry", field_type: "date", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 3, validation_rules: { format: "DD/MM/YYYY", inline_group: "passport_dates" } },
-  { field_name: "passport_issuing_authority", label: "Issuing authority", field_type: "text", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 4, placeholder: "e.g., Government of Indonesia", validation_rules: { maxLength: 60 } },
   { field_name: "passport_place_of_issue", label: "Place of issue", field_type: "text", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 5, validation_rules: { maxLength: 60 } },
   { field_name: "has_other_passports", label: "Do you have any other valid passports or travel documents?", field_type: "radio", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 6, options: YES_NO },
   { field_name: "other_passport_nationality", label: "Nationality shown on other passport", field_type: "country", required: true, step_number: 2, step_name: "About You — Passport & Identity Documents", display_order: 7, conditional_logic: { showIf: "has_other_passports === yes" }, validation_rules: { source: "ISO3166-1", repeatable: true, repeat_group: "other_passports", max_items: 5 } },
@@ -179,7 +129,6 @@ const FIELDS: FieldDef[] = [
   { field_name: "home_address_postcode", label: "Postcode / ZIP code", field_type: "text", required: false, step_number: 3, step_name: "Your Contact Details", display_order: 9, validation_rules: { maxLength: 15, block_group: "home_address" } },
   { field_name: "home_address_country", label: "Country", field_type: "country", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 10, validation_rules: { source: "ISO3166-1", block_group: "home_address" } },
   { field_name: "how_long_at_address", label: "How long have you lived at this address?", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 11, placeholder: "e.g., 3 years", validation_rules: { maxLength: 40 } },
-  { field_name: "owns_home", label: "Do you own your home?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 12, options: YES_NO },
   { field_name: "correspondence_address_different", label: "Is your correspondence address different from your home address?", field_type: "radio", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 13, options: YES_NO },
   { field_name: "correspondence_address_line_1", label: "Correspondence address — line 1", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 14, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { maxLength: 100 } },
   { field_name: "correspondence_address_city", label: "Correspondence address — town or city", field_type: "text", required: true, step_number: 3, step_name: "Your Contact Details", display_order: 15, conditional_logic: { showIf: "correspondence_address_different === yes" }, validation_rules: { maxLength: 60 } },
@@ -188,7 +137,7 @@ const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 4: Your Family
   // ═══════════════════════════════════════════════════════════════════════════
-  { field_name: "marital_status", label: "What is your current marital or civil partnership status?", field_type: "select", required: true, step_number: 4, step_name: "Your Family", display_order: 1, options: [{ value: "single", text: "Single" }, { value: "married", text: "Married" }, { value: "civil_partnership", text: "In a civil partnership" }, { value: "unmarried_partner", text: "Unmarried partner" }, { value: "divorced", text: "Divorced" }, { value: "widowed", text: "Widowed" }, { value: "separated", text: "Separated" }] },
+  { field_name: "marital_status", label: "What is your current marital or civil partnership status?", field_type: "select", required: true, step_number: 4, step_name: "Your Family", display_order: 1, options: [{ value: "single", text: "Single", label_zh: "单身" }, { value: "married", text: "Married or a civil partner", label_zh: "已婚 / 民事伴侣" }, { value: "unmarried_partner", text: "Unmarried partner", label_zh: "未婚伴侣" }, { value: "divorced", text: "Divorced or civil partnership dissolved", label_zh: "离婚 / 民事伴侣关系解除" }, { value: "separated", text: "Separated", label_zh: "分居" }, { value: "widowed", text: "Widowed or a surviving civil partner", label_zh: "丧偶 / 尚存民事伴侣" }] },
   { field_name: "partner_given_names", label: "Partner's given names", field_type: "text", required: true, step_number: 4, step_name: "Your Family", display_order: 2, conditional_logic: { showIf: "marital_status === married || marital_status === civil_partnership || marital_status === unmarried_partner" }, validation_rules: { maxLength: 50 } },
   { field_name: "partner_surname", label: "Partner's family name / surname", field_type: "text", required: true, step_number: 4, step_name: "Your Family", display_order: 3, conditional_logic: { showIf: "marital_status === married || marital_status === civil_partnership || marital_status === unmarried_partner" }, validation_rules: { maxLength: 50 } },
   { field_name: "partner_date_of_birth", label: "Partner's date of birth", field_type: "date", required: true, step_number: 4, step_name: "Your Family", display_order: 4, conditional_logic: { showIf: "marital_status === married || marital_status === civil_partnership || marital_status === unmarried_partner" }, validation_rules: { format: "DD/MM/YYYY" } },
@@ -209,16 +158,18 @@ const FIELDS: FieldDef[] = [
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 5: Your Accommodation in the UK
   // ═══════════════════════════════════════════════════════════════════════════
-  { field_name: "uk_accommodation_type", label: "Where will you be staying in the UK?", field_type: "select", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 1, options: [{ value: "hotel", text: "Hotel or other commercial accommodation" }, { value: "family_friends", text: "With family or friends" }, { value: "rented", text: "Rented accommodation" }, { value: "own_property", text: "Own property" }, { value: "other", text: "Other" }] },
-  { field_name: "uk_accommodation_address_line_1", label: "UK accommodation address — line 1", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 2, validation_rules: { maxLength: 100, block_group: "uk_address" } },
-  { field_name: "uk_accommodation_address_line_2", label: "UK accommodation address — line 2", field_type: "text", required: false, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 3, validation_rules: { maxLength: 100, block_group: "uk_address" } },
-  { field_name: "uk_accommodation_city", label: "Town or city", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 4, validation_rules: { maxLength: 60, block_group: "uk_address" } },
-  { field_name: "uk_accommodation_postcode", label: "Postcode", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 5, placeholder: "e.g., SW1A 1AA", validation_rules: { maxLength: 10, block_group: "uk_address" } },
-  { field_name: "uk_host_name", label: "Name of the person you are staying with", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 6, conditional_logic: { showIf: "uk_accommodation_type === family_friends" }, validation_rules: { maxLength: 80 } },
-  { field_name: "uk_host_relationship", label: "What is your relationship to this person?", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 7, conditional_logic: { showIf: "uk_accommodation_type === family_friends" }, placeholder: "e.g., Friend, Uncle, Cousin", validation_rules: { maxLength: 40 } },
-  { field_name: "uk_host_email", label: "Host's email address", field_type: "text", required: false, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 8, conditional_logic: { showIf: "uk_accommodation_type === family_friends" }, validation_rules: { maxLength: 100 } },
-  { field_name: "uk_host_phone", label: "Host's phone number", field_type: "text", required: false, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 9, conditional_logic: { showIf: "uk_accommodation_type === family_friends" }, validation_rules: { maxLength: 20 } },
-  { field_name: "uk_accommodation_other_explain", label: "Please describe your accommodation arrangements", field_type: "textarea", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 10, conditional_logic: { showIf: "uk_accommodation_type === other" }, validation_rules: { maxLength: 500 } },
+  // Accommodation — mirrors the gov.uk flow: ask if the applicant has an
+  // address; if YES collect place + address + arrival/departure (repeatable —
+  // "add another place" until they stop); if NO collect a free-text plan.
+  { field_name: "has_uk_accommodation_address", label: "Do you have an address for where you are going to stay in the UK?", field_type: "radio", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 1, options: YES_NO },
+  { field_name: "uk_accommodation_name", label: "Where are you planning to stay in the UK?", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 2, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, placeholder: "Hotel name, or the full name of the person you are staying with", validation_rules: { maxLength: 100, repeatable: true, repeat_group: "uk_accommodation", max_items: 10 } },
+  { field_name: "uk_accommodation_address_line_1", label: "UK accommodation address — line 1", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 3, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, validation_rules: { maxLength: 100, repeatable: true, repeat_group: "uk_accommodation" } },
+  { field_name: "uk_accommodation_address_line_2", label: "UK accommodation address — line 2", field_type: "text", required: false, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 4, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, validation_rules: { maxLength: 100, repeatable: true, repeat_group: "uk_accommodation" } },
+  { field_name: "uk_accommodation_city", label: "Town or city", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 5, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, validation_rules: { maxLength: 60, repeatable: true, repeat_group: "uk_accommodation" } },
+  { field_name: "uk_accommodation_postcode", label: "Postcode", field_type: "text", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 6, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, placeholder: "e.g., SW1A 1AA", validation_rules: { maxLength: 10, repeatable: true, repeat_group: "uk_accommodation" } },
+  { field_name: "uk_accommodation_arrival_date", label: "When will you arrive there?", field_type: "date", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 7, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "uk_accommodation" } },
+  { field_name: "uk_accommodation_departure_date", label: "When will you leave there?", field_type: "date", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 8, conditional_logic: { showIf: "has_uk_accommodation_address === yes" }, validation_rules: { format: "DD/MM/YYYY", repeatable: true, repeat_group: "uk_accommodation" } },
+  { field_name: "uk_accommodation_plan", label: "Where do you plan to stay in the UK?", field_type: "textarea", required: true, step_number: 5, step_name: "Your Accommodation in the UK", display_order: 9, conditional_logic: { showIf: "has_uk_accommodation_address === no" }, placeholder: "Give as much detail as possible, for example a hotel, private housing, or staying with friends", validation_rules: { maxLength: 500 } },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 6: Your Travel History

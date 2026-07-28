@@ -25,6 +25,8 @@ import {
   ukFillTextarea,
   ukPickCheckboxes,
   ukPickRadio,
+  ukPickBooleanRadio,
+  ukPickCorrespondenceAddressSame,
   ukSelectCountry,
   ukSelectOption,
 } from "./fillers";
@@ -32,6 +34,47 @@ import {
 export type UkPageFiller = (page: Page, answers: Record<string, string>) => Promise<void>;
 
 const yn = (v: string | undefined): "Yes" | "No" => (v === "yes" ? "Yes" : "No");
+
+/**
+ * Shared filler for gov.uk's "parentDetails" template — used by both
+ * parentOneDetails (Mother) and parentTwoDetails (Father). Confirmed live
+ * via view-source that both pages share identical field ids/names:
+ * parent_givenName, parent_familyName, parent_dateOfBirth_{day,month,year},
+ * parent_nationalityRef, parent.relationshipRef (values "mother"/"father"),
+ * parent.hadAlwaysSameNationality (values "true"/"false"),
+ * parent_nationalityAtApplicantsBirthRef, and an optional parentIsUnknown
+ * checkbox when that parent's details aren't available.
+ *
+ * Real wizard field names (seed-uk-standard-visitor-form-fields.ts, step 4
+ * "Your Family"): mother_given_names/mother_surname/mother_date_of_birth/
+ * mother_nationality and the father_* equivalents — both required, no
+ * has_parent_details/first_parent_relationship_label field exists upstream
+ * (those were guessed names from an earlier version of this filler that
+ * never matched real data).
+ */
+async function fillUkParentDetails(
+  page: Page,
+  a: Record<string, string>,
+  parent: "mother" | "father",
+): Promise<void> {
+  const givenNames = a[`${parent}_given_names`];
+  const surname = a[`${parent}_surname`];
+  if (!givenNames && !surname) {
+    await ukPickCheckboxes(page, "parentIsUnknown", [
+      "I do not have my parents' details",
+      "I only have the details of one parent",
+    ]);
+    return;
+  }
+  await ukPickRadio(page, "parent.relationshipRef", parent === "mother" ? "Mother" : "Father");
+  if (givenNames) await ukFillText(page, "parent_givenName", givenNames);
+  if (surname) await ukFillText(page, "parent_familyName", surname);
+  const dob = a[`${parent}_date_of_birth`];
+  if (dob) await ukFillDateSplit(page, "parent_dateOfBirth", dob);
+  const nat = a[`${parent}_nationality_label`] ?? a[`${parent}_nationality`];
+  if (nat) await ukSelectCountry(page, "parent_nationalityRef", nat);
+  await ukPickRadio(page, "parent.hadAlwaysSameNationality", "Yes");
+}
 
 export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   // ── Personal information ────────────────────────────────────────────
@@ -42,7 +85,7 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
 
   hasAdditionalEmailEV: async (page, a) => {
     const has = a["has_alternative_email"] === "yes" ? "Yes" : "No";
-    await ukPickRadio(page, "hasAdditionalEmailEV", has);
+    await ukPickRadio(page, "value", has);
     if (has === "Yes" && a["alternative_email_address"]) {
       await ukFillText(page, "additionalEmail", a["alternative_email_address"]);
     }
@@ -60,6 +103,15 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
     await ukPickCheckboxes(page, "telephoneNumberType", types);
   },
 
+  // Follow-up gate after standardTelephoneDetailsList.0: "Do you have any
+  // other telephone numbers?" — same repeatable-list "add another" pattern
+  // as identityNameForLeaveToEnterList/otherAccommodationDetailsList.
+  // Confirmed live: radio `name="addAnother"` values true/false, labels
+  // Yes/No. The wizard only ever collects one phone number, so default No.
+  standardTelephoneDetailsList: async (page) => {
+    await ukPickBooleanRadio(page, "addAnother", false);
+  },
+
   // RADIO group `contactByTelephone` w/ 4 options (not checkbox group).
   standardContactingYouByTelephone: async (page, a) => {
     const label =
@@ -75,6 +127,26 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
     if (a["given_names"]) await ukFillText(page, "givenName", a["given_names"]);
     if (a["surname"]) await ukFillText(page, "familyName", a["surname"]);
     if (a["single_name"]) await ukFillText(page, "singleName", a["single_name"]);
+  },
+
+  // Follow-up gate after entering the primary name: "In addition to the
+  // names already provided, are you now or have you ever been known by
+  // another name?" — a gov.uk repeatable-list "add another" radio
+  // (name="addAnother", value="true"/"false"). Missing this filler left the
+  // whole 44-page walk stuck here: our index-based walker doesn't recognize
+  // this bare slug, gov.uk bounces every later `goto` back to this
+  // unanswered required page, and the run silently "skips" everything after
+  // it while gov.uk's own state stays parked here.
+  identityNameForLeaveToEnterList: async (page, a) => {
+    // Real wizard key is `other_names_used` (seed step 1) — `any_other_names`
+    // was never a real field name, so this always defaulted to "No"
+    // regardless of the actual answer. Note: if the applicant answers "yes"
+    // here, gov.uk shows a follow-up detail page for the previous name that
+    // we don't have a filler for yet (seed collects previous_given_names/
+    // previous_surname/previous_name_change_date/_reason but nothing wires
+    // them to a page slug) — flagged for follow-up if this branch is hit live.
+    const hasOtherNames = a["other_names_used"] === "yes";
+    await ukPickBooleanRadio(page, "addAnother", hasOtherNames);
   },
 
   // gender = radio (`gender_<value>`); relationshipStatus = SELECT.
@@ -106,21 +178,35 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
       postCode: a["home_address_postcode"],
       countryRefLabel: a["home_address_country_label"] ?? a["home_address_country"],
     });
-    const sameAsCorrespondence = a["correspondence_address_different"] === "yes" ? "No" : "Yes";
-    await ukPickRadio(page, "isCorrespondenceAddress", sameAsCorrespondence);
-    if (sameAsCorrespondence === "No") {
+
+    const corrLine1 = a["correspondence_address_line_1"];
+    const corrCity = a["correspondence_address_city"];
+    const corrCountry =
+      a["correspondence_address_country_label"] ?? a["correspondence_address_country"];
+    const wantsDifferent =
+      a["correspondence_address_different"] === "yes" &&
+      Boolean(corrLine1 && corrCity && corrCountry);
+
+    if (wantsDifferent) {
+      await ukPickCorrespondenceAddressSame(page, false);
       await ukFillAddressBlock(page, "otherOutOfCountryAddress", {
-        line1: a["correspondence_address_line_1"],
-        townCity: a["correspondence_address_city"],
-        countryRefLabel: a["correspondence_address_country_label"] ?? a["correspondence_address_country"],
+        line1: corrLine1,
+        line2: a["correspondence_address_line_2"],
+        townCity: corrCity,
+        province: a["correspondence_address_state"],
+        postCode: a["correspondence_address_postcode"],
+        countryRefLabel: corrCountry,
       });
+    } else {
+      // gov.uk: when correspondence is same as home, leave the second block empty.
+      await ukPickCorrespondenceAddressSame(page, true);
     }
   },
 
   // yearsLived + monthsLived (number splits), ownershipCategory radio.
   standardAboutYourHomeOoC: async (page, a) => {
-    if (a["years_at_address"]) await ukFillText(page, "yearsLived", a["years_at_address"]);
-    if (a["months_at_address"]) await ukFillText(page, "monthsLived", a["months_at_address"]);
+    await ukFillText(page, "yearsLived", a["years_at_address"] || "0");
+    await ukFillText(page, "monthsLived", a["months_at_address"] || "0");
     const ownership =
       a["home_ownership_label"] ??
       (a["owns_home"] === "yes" ? "I own it" : "I rent it");
@@ -132,7 +218,9 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
 
   travelDocumentIssueDetails: async (page, a) => {
     if (a["passport_number"]) await ukFillText(page, "travelDocumentNumber", a["passport_number"]);
-    if (a["passport_issuing_authority"]) await ukFillText(page, "issuingCountry", a["passport_issuing_authority"]);
+    const authority =
+      a["passport_issuing_authority"] ?? a["passport_place_of_issue"] ?? a["passport_issuing_country"];
+    if (authority) await ukFillText(page, "issuingCountry", authority);
     if (a["passport_issue_date"]) await ukFillDateSplit(page, "dateOfIssue", a["passport_issue_date"]);
     if (a["passport_expiry_date"]) await ukFillDateSplit(page, "expiryDate", a["passport_expiry_date"]);
   },
@@ -163,6 +251,17 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
 
   standardOtherNationality: async (page, a) => {
     await ukPickRadio(page, "hasOtherNationality", yn(a["has_other_nationalities"]));
+  },
+
+  // China-only branch (confirmed live, form action=/save/application.0.adsAgreement):
+  // "Are you the employee of a licensed ADS tour operator submitting this
+  // application on behalf of an ADS group?" Not in the original 44-page
+  // seed walk because that walk wasn't done with a Chinese-nationality
+  // profile. Virtually no individual applicant is an ADS tour operator
+  // employee, so default "No" unless the wizard says otherwise.
+  adsAgreement: async (page, a) => {
+    const isAdsOperator = a["ads_tour_operator_employee"] === "yes";
+    await ukPickBooleanRadio(page, "yesNo", isAdsOperator);
   },
 
   // immigrationStatusTypeRef radio (3-option), date splits expirationDate
@@ -202,6 +301,15 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   },
 
   fundingEmploymentEmployerDetails: async (page, a) => {
+    if (a["employment_status"] === "student") {
+      if (a["student_institution_name"]) await ukFillText(page, "employer", a["student_institution_name"]);
+      const addr = a["student_institution_address"];
+      if (addr) {
+        await ukFillText(page, "address_line1", addr);
+        await ukFillText(page, "address_townCity", addr);
+      }
+      return;
+    }
     if (a["employer_name"]) await ukFillText(page, "employer", a["employer_name"]);
     await ukFillAddressBlock(page, "address", {
       line1: a["employer_address_line_1"],
@@ -211,43 +319,61 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
       postCode: a["employer_address_postcode"],
       countryRefLabel: a["employer_address_country_label"] ?? a["employer_address_country"],
     });
-    if (a["employer_phone_country_code"] || a["employer_phone_number"]) {
-      await ukFillPhoneSplit(page, a["employer_phone_country_code"] ?? "", a["employer_phone_number"] ?? "");
+    // Real seed key is `employer_phone_code` (not employer_phone_country_code).
+    if (a["employer_phone_code"] || a["employer_phone_number"]) {
+      await ukFillPhoneSplit(page, a["employer_phone_code"] ?? "", a["employer_phone_number"] ?? "");
     }
-    if (a["employer_start_date"]) {
-      await ukFillMonthYearSplit(page, "jobStartDate", a["employer_start_date"]);
+    // Real seed key is `job_start_date` (ISO `YYYY-MM-DD` after normalize's
+    // pass-through date conversion) — `employer_start_date` never existed,
+    // so this never filled anything. ukFillMonthYearSplit only reads the
+    // leading `YYYY-MM`, so the day portion is harmlessly ignored.
+    if (a["job_start_date"]) {
+      await ukFillMonthYearSplit(page, "jobStartDate", a["job_start_date"]);
     }
   },
 
   // earnings.currencyRef select + earnings.amount, jobDescription textarea.
   fundingEmploymentJobDetails: async (page, a) => {
+    if (a["employment_status"] === "student") {
+      if (a["student_course_name"]) await ukFillText(page, "jobTitle", a["student_course_name"]);
+      if (a["student_course_name"]) {
+        await ukFillTextarea(page, "jobDescription", `Studying ${a["student_course_name"]} at ${a["student_institution_name"] ?? "my institution"}.`);
+      }
+      return;
+    }
     if (a["job_title"]) await ukFillText(page, "jobTitle", a["job_title"]);
-    await ukSelectOption(page, "earnings_currencyRef", a["job_earnings_currency"] ?? "GBP");
-    if (a["job_earnings_amount"]) await ukFillText(page, "earnings_amount", a["job_earnings_amount"]);
+    // Real seed keys are `monthly_earnings_currency`/`monthly_earnings_amount`
+    // (recon-patch fields) — job_earnings_currency/job_earnings_amount never
+    // existed upstream, so these always fell back to the "GBP"/blank default.
+    await ukSelectOption(page, "earnings_currencyRef", a["job_earnings_currency"] ?? a["monthly_earnings_currency"] ?? "GBP");
+    const earnings = a["job_earnings_amount"] ?? a["monthly_earnings_amount"];
+    if (earnings) await ukFillText(page, "earnings_amount", earnings);
     if (a["job_description"]) await ukFillTextarea(page, "jobDescription", a["job_description"]);
   },
 
   // Multi-checkbox typeOfIncomeRefs[i] + sourceRefs[i] + currency/amount
   // pairs. hasNoOtherIncome single checkbox shortcut.
+  //
+  // The wizard only ever collects a plain yes/no (`has_other_income` /
+  // `has_other_income_or_savings`) + a free-text explanation
+  // (`other_income_details`) — it does not collect the structured
+  // type/source/amount breakdown gov.uk asks for here. The old code checked
+  // `other_income_types`/`other_income_none`, neither of which is a real
+  // field, so it always silently answered "I do not have any other income
+  // or savings" even for applicants who said "yes". We can't fabricate the
+  // structured detail, but we should at least not lie: only auto-check "no
+  // other income" when the real answer is actually no/absent. On "yes" we
+  // leave the page unanswered so it surfaces as a visible save failure
+  // instead of a false "no income" submission.
   fundingOtherIncome: async (page, a) => {
-    if (a["other_income_none"] === "yes" || !a["other_income_types"]) {
+    const hasOther = a["has_other_income"] === "yes" || a["has_other_income_or_savings"] === "yes";
+    if (!hasOther) {
       await ukPickCheckboxes(page, "hasNoOtherIncome", ["I do not have any other income or savings"]);
       return;
     }
-    const types = a["other_income_types"].split("|");
-    await ukPickCheckboxes(page, "typeOfIncomeRefs", types);
-    if (a["other_income_sources"]) {
-      const sources = a["other_income_sources"].split("|");
-      await ukPickCheckboxes(page, "sourceRefs", sources);
-    }
-    if (a["other_income_amount"]) {
-      await ukSelectOption(page, "income_currencyRef", a["other_income_currency"] ?? "GBP");
-      await ukFillText(page, "income_amount", a["other_income_amount"]);
-    }
-    if (a["money_in_bank_amount"]) {
-      await ukSelectOption(page, "moneyInBankAmount_currencyRef", a["money_in_bank_currency"] ?? "GBP");
-      await ukFillText(page, "moneyInBankAmount_amount", a["money_in_bank_amount"]);
-    }
+    // TODO: gov.uk wants a structured type/source/amount breakdown that the
+    // wizard doesn't collect yet (only other_income_details free text
+    // exists). Left unanswered intentionally — see comment above.
   },
 
   // value.currencyRef + value.amount.
@@ -319,28 +445,12 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
     await ukPickRadio(page, "value", yn(a["has_financial_dependants"]));
   },
 
-  // parentIsUnknown checkbox shortcut OR parent.* fields.
   parentOneDetails: async (page, a) => {
-    if (a["has_parent_details"] === "no") {
-      await ukPickCheckboxes(page, "parentIsUnknown", ["I do not have my parents' details"]);
-      return;
-    }
-    await ukPickRadio(page, "parent.relationshipRef", a["first_parent_relationship_label"] ?? "Mother");
-    if (a["mother_given_names"] ?? a["father_given_names"]) {
-      await ukFillText(page, "parent_givenName", a["mother_given_names"] ?? a["father_given_names"] ?? "");
-    }
-    if (a["mother_surname"] ?? a["father_surname"]) {
-      await ukFillText(page, "parent_familyName", a["mother_surname"] ?? a["father_surname"] ?? "");
-    }
-    const dob = a["mother_date_of_birth"] ?? a["father_date_of_birth"];
-    if (dob) await ukFillDateSplit(page, "parent_dateOfBirth", dob);
-    const nat = a["mother_nationality_label"] ?? a["father_nationality_label"] ?? a["mother_nationality"] ?? a["father_nationality"];
-    if (nat) await ukSelectCountry(page, "parent_nationalityRef", nat);
-    const sameNat = a["parent_same_nationality_at_applicants_birth"] === "no" ? "No" : "Yes";
-    await ukPickRadio(page, "parent.hadAlwaysSameNationality", sameNat);
-    if (sameNat === "No" && a["parent_nationality_at_applicants_birth_label"]) {
-      await ukSelectCountry(page, "parent_nationalityAtApplicantsBirthRef", a["parent_nationality_at_applicants_birth_label"]);
-    }
+    await fillUkParentDetails(page, a, "mother");
+  },
+
+  parentTwoDetails: async (page, a) => {
+    await fillUkParentDetails(page, a, "father");
   },
 
   familyInUk: async (page, a) => {
@@ -379,6 +489,20 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   accommodationArrangements: async (page, a) => {
     const yes = a["has_uk_accommodation_address"] === "yes" || a["uk_accommodation_address_line_1"] ? "Yes" : "No";
     await ukPickRadio(page, "value", yes);
+  },
+
+  // Follow-up gate after otherAccommodationDetailsList.0: "Will you be
+  // staying anywhere else in the UK?" — same repeatable-list "add another"
+  // component as identityNameForLeaveToEnterList/standardCriminalConvictions.
+  // The wizard only ever collects one UK accommodation entry (no
+  // second-address fields exist upstream), so default to "No". Field name
+  // on this specific page hasn't been confirmed live yet — try both
+  // conventions used elsewhere on this form ("addAnother" for list gates,
+  // "value" for plain Yes/No pages); whichever doesn't match the page is a
+  // safe no-op.
+  otherAccommodationDetailsList: async (page) => {
+    await ukPickBooleanRadio(page, "addAnother", false);
+    await ukPickRadio(page, "value", "No");
   },
 
   "otherAccommodationDetailsList.0": async (page, a) => {
@@ -420,7 +544,9 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   },
 
   standardWorldTravelHistory: async (page, a) => {
-    await ukPickRadio(page, "value", yn(a["travelled_to_other_countries"]));
+    // Real seed key is `has_other_country_visits` — `travelled_to_other_countries`
+    // never existed upstream, so this always defaulted to "No".
+    await ukPickRadio(page, "value", yn(a["has_other_country_visits"]));
   },
 
   odwPlannedTravelInformation: async (page, a) => {
@@ -436,8 +562,16 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
     await ukPickRadio(page, "value", yn(a["has_immigration_breach"]));
   },
 
-  // convictionTypeRef radio (6 options) — answer maps to a specific
-  // conviction type when has_criminal_convictions=yes.
+  // convictionTypeRef radio (7 options) — NOT a separate gate + detail page
+  // as we previously assumed. Confirmed live via view-source: there is no
+  // standalone "do you have convictions" question — this single page
+  // ("Convictions and other penalties") directly asks "At any time have you
+  // ever had any of the following..." with 6 conviction-type options PLUS a
+  // 7th option "No, I have never had any of these" (value="none"). The old
+  // code invented a fictional bare `standardCriminalConvictions` gate page
+  // (which doesn't exist — gov.uk just serves this exact page directly) and
+  // then returned early without selecting anything when there were no
+  // convictions, leaving the required radio group unanswered.
   "standardCriminalConvictions.0.standardCriminalConvictionType": async (page, a) => {
     const map: Record<string, string> = {
       criminal: "A criminal conviction",
@@ -447,7 +581,10 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
       civil: "A civil court judgment against you, for example for non payment of debt, bankruptcy proceedings or anti-social behaviour",
       civil_immigration: "A civil penalty issued under UK immigration law",
     };
-    if (a["has_criminal_convictions"] !== "yes") return;
+    if (a["has_criminal_convictions"] !== "yes") {
+      await ukPickRadio(page, "convictionTypeRef", "No, I have never had any of these");
+      return;
+    }
     const label =
       a["criminal_conviction_type_label"] ??
       map[a["criminal_conviction_type"] ?? "criminal"] ??
@@ -471,14 +608,21 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   standardTerroristActivities: async (page, a) => {
     const a1 = yn(a["terrorist_activity"]);
     await ukPickRadio(page, "terroristActivitiesInvolvement", a1);
-    if (a1 === "Yes" && a["terrorist_activity_details"]) {
-      await ukFillTextarea(page, "terroristActivitiesDetails", a["terrorist_activity_details"]);
+    // Real seed key is `terrorism_details` — `terrorist_activity_details`
+    // never existed upstream, so this detail box was never filled.
+    if (a1 === "Yes" && a["terrorism_details"]) {
+      await ukFillTextarea(page, "terroristActivitiesDetails", a["terrorism_details"]);
     }
-    const a2 = yn(a["terrorist_org_member"]);
+    // Real seed keys are `organisations_concern`/`organisations_concern_details`
+    // — `terrorist_org_member`/`terrorist_org_details` never existed upstream,
+    // so this always defaulted to "No" regardless of the real answer.
+    const a2 = yn(a["organisations_concern"]);
     await ukPickRadio(page, "terroristOrganisationsInvolvement", a2);
-    if (a2 === "Yes" && a["terrorist_org_details"]) {
-      await ukFillTextarea(page, "terroristOrganisationsDetails", a["terrorist_org_details"]);
+    if (a2 === "Yes" && a["organisations_concern_details"]) {
+      await ukFillTextarea(page, "terroristOrganisationsDetails", a["organisations_concern_details"]);
     }
+    // No seed field captures "expressed views justifying terrorism"
+    // specifically — defaults to "No" (documented gap, not a key mismatch).
     const a3 = yn(a["terrorist_views"]);
     await ukPickRadio(page, "terroristViewsExpressed", a3);
     if (a3 === "Yes" && a["terrorist_views_details"]) {
@@ -513,10 +657,13 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
     if (a1 === "Yes" && a["non_uk_government_activities_details"]) {
       await ukFillTextarea(page, "pgcDetails", a["non_uk_government_activities_details"]);
     }
-    const a2 = yn(a["other_character_activities"]);
+    // Real seed keys are `bad_character`/`bad_character_details` —
+    // `other_character_activities`/`_details` never existed upstream, so
+    // this always defaulted to "No" regardless of the real answer.
+    const a2 = yn(a["bad_character"]);
     await ukPickRadio(page, "otherActivities", a2);
-    if (a2 === "Yes" && a["other_character_activities_details"]) {
-      await ukFillTextarea(page, "otherActivitiesDetails", a["other_character_activities_details"]);
+    if (a2 === "Yes" && a["bad_character_details"]) {
+      await ukFillTextarea(page, "otherActivitiesDetails", a["bad_character_details"]);
     }
     const a3 = yn(a["other_character_information"]);
     await ukPickRadio(page, "anyOtherInfo", a3);
@@ -552,8 +699,10 @@ export const UK_PAGE_FILLERS: Record<string, UkPageFiller> = {
   },
 
   otherInformation: async (page, a) => {
-    if (a["additional_application_info"]) {
-      await ukFillTextarea(page, "otherInformation", a["additional_application_info"]);
+    // Real seed key is `additional_information` — `additional_application_info`
+    // never existed upstream, so this box was never filled.
+    if (a["additional_information"]) {
+      await ukFillTextarea(page, "otherInformation", a["additional_information"]);
     }
   },
 };
@@ -583,15 +732,50 @@ export const UK_DOCUMENTS_FILLER: UkPageFiller = async (page) => {
   }
 };
 
+function computeAgeYears(isoDob: string | undefined): number | undefined {
+  if (!isoDob) return undefined;
+  const dob = new Date(isoDob);
+  if (Number.isNaN(dob.getTime())) return undefined;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const hadBirthdayThisYear =
+    now.getMonth() > dob.getMonth() ||
+    (now.getMonth() === dob.getMonth() && now.getDate() >= dob.getDate());
+  if (!hadBirthdayThisYear) age -= 1;
+  return age;
+}
+
 /**
- * Declaration step — tick the attestation but caller must NOT click Save
- * (next route is Pay).
+ * Declaration step — covers every gov.uk sub-page under the "Declaration"
+ * progress-bar step (confirmed live: this is *two* separate pages, not
+ * one):
+ *   - /edit/declaration.standardConditionsVisitor ("Declaration - Visitor
+ *     conditions") — single ack checkbox, already ships checked by
+ *     default.
+ *   - /edit/declaration.standardDeclaration ("Declaration") — radio group
+ *     `agreement` (forMyself / forMyselfUnder18 / forChildUnder18 / forRep)
+ *     for who is declaring.
+ * resume.ts loops this filler + a Save click until the title stops
+ * matching /Declaration/i (i.e. gov.uk has advanced to the Pay step).
  */
-export const UK_DECLARATION_FILLER: UkPageFiller = async (page) => {
+export const UK_DECLARATION_FILLER: UkPageFiller = async (page, a) => {
   const boxes = page.locator('input[type="checkbox"]');
   const n = await boxes.count();
   for (let i = 0; i < n; i++) {
     await boxes.nth(i).check({ force: true, timeout: 5_000 }).catch(() => undefined);
+  }
+  const agreement = page.locator('input[name="agreement"]');
+  if ((await agreement.count()) > 0) {
+    const age = computeAgeYears(a["date_of_birth"]);
+    // A minor filling this out under their own login would be unusual for
+    // an account-holder-driven flow — assume a parent/guardian completes
+    // it on the applicant's behalf when under 18, rather than guessing
+    // "forMyselfUnder18".
+    const value = age !== undefined && age < 18 ? "forChildUnder18" : "forMyself";
+    await page
+      .locator(`input[name="agreement"][value="${value}"]`)
+      .check({ force: true, timeout: 5_000 })
+      .catch(() => undefined);
   }
 };
 

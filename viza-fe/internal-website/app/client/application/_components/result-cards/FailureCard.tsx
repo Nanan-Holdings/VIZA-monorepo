@@ -28,6 +28,13 @@ type FvOfficialAccount = {
 const VALIDATION_LABELS: Record<string, string> = {
   "trip.purpose": "旅行目的 / Purpose of travel",
   "trip.accommodationName": "住宿名称 / Accommodation name",
+  "answers.phone_number": "电话号码 / Phone number",
+  "answers.home_address_line_1": "居住地址 / Home address",
+  "answers.employment_status": "就业状况 / Employment status",
+  "answers.uk_arrival_date": "抵英日期 / UK arrival date",
+  "answers.uk_departure_date": "离英日期 / UK departure date",
+  "answers.uk_accommodation_name": "英国住宿名称 / UK accommodation name",
+  "answers.uk_accommodation_plan": "英国住宿安排 / UK accommodation details",
   "answers.given_name": "名字 / Given names",
   "answers.re_enter_email_address": "确认电子邮箱地址 / Re-enter email",
   "answers.religion": "宗教信仰 / Religion",

@@ -77,6 +77,7 @@ import {
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
+  isUkStandardVisitorApplication,
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
@@ -123,7 +124,10 @@ const TDAC_LIVE_ASSISTED_ENABLED =
 const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
 
-type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | "phetravel" | null;
+const UK_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_UK_LIVE_SUBMISSION_ENABLED !== "false";
+
+type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | "phetravel" | "uk" | null;
 
 interface VietnamOneTimePaymentCard {
   pan: string;
@@ -1203,7 +1207,7 @@ async function insertSubmissionQueueJob(
       queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : null,
       provider: typeof payload?.provider === "string" ? payload.provider : null,
       submissionResultStatus: payload?.scheduled ? "scheduled" : "waiting",
-      submissionResult: payload?.scheduled ? payload.result ?? null : null,
+      submissionResult: payload?.result ?? null,
     };
   }
 
@@ -1236,6 +1240,7 @@ async function insertSubmissionQueueJob(
     isMissingSubmissionModeColumnError(error) &&
     (input.mode === "dry_run" ||
       status === "ds160_live_assisted_pending" ||
+      status === "uk_live_assisted_pending" ||
       status === "vn_live_assisted_pending" ||
       status === "sgac_live_assisted_pending" ||
       status === "mdac_live_assisted_pending" ||
@@ -1593,10 +1598,13 @@ export default function ApplicationPage() {
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
+  const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
       ? "france"
+      : isUkStandardVisitor
+        ? "uk"
       : isVietnamEVisa
         ? "vietnam"
         : isSgArrivalCard
@@ -1612,6 +1620,8 @@ export default function ApplicationPage() {
     ? DS160_LIVE_ASSISTED_ENABLED
     : liveAssistedTarget === "france"
       ? FRANCE_LIVE_ASSISTED_ENABLED
+      : liveAssistedTarget === "uk"
+        ? UK_LIVE_ASSISTED_ENABLED
       : liveAssistedTarget === "vietnam"
         ? VN_LIVE_ASSISTED_ENABLED
         : liveAssistedTarget === "sgac"
@@ -2547,8 +2557,13 @@ export default function ApplicationPage() {
         setAppState((prev) => ({
           ...prev,
           submittedAt,
-          submissionResultStatus: queueJob.submissionResultStatus,
-          submissionResult: queueJob.submissionResult,
+          submissionResultStatus:
+            queueJob.submissionResultStatus === "waiting" &&
+            isUkStandardVisitor &&
+            prev.submissionResult
+              ? (prev.submissionResultStatus ?? "action_required")
+              : queueJob.submissionResultStatus,
+          submissionResult: queueJob.submissionResult ?? prev.submissionResult,
           confirmationNumber: undefined,
         }));
       }
@@ -2781,6 +2796,38 @@ export default function ApplicationPage() {
     }));
   }, []);
 
+  // When the first form step has a dedicated passport-upload field (e.g. the UK
+  // "Passport Upload" step), the passport OCR card above the form is the real
+  // uploader. Hide that field from the form body and satisfy its required
+  // validation from the upload state instead.
+  const passportUploadHandledFields = useMemo(
+    () =>
+      useDynamic && dbSteps[firstFormStepId]?.fields?.some((f) => f.fieldName === "passport_upload")
+        ? ["passport_upload"]
+        : [],
+    [useDynamic, dbSteps, firstFormStepId],
+  );
+  const hasPassportUploadField = passportUploadHandledFields.length > 0;
+
+  const handlePassportBioUploaded = useCallback(
+    (fileName: string) => {
+      setLocalPassportBioPageName(fileName);
+      if (!hasPassportUploadField) return;
+      setDynamicAnswers((prev) =>
+        prev.passport_upload === fileName ? prev : { ...prev, passport_upload: fileName },
+      );
+    },
+    [hasPassportUploadField],
+  );
+
+  useEffect(() => {
+    if (!hasPassportUploadField || !passportOcrInitialUploaded) return;
+    const name = passportOcrInitialFileName ?? "uploaded";
+    setDynamicAnswers((prev) =>
+      prev.passport_upload ? prev : { ...prev, passport_upload: name },
+    );
+  }, [hasPassportUploadField, passportOcrInitialUploaded, passportOcrInitialFileName]);
+
   if (loading || !packageLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -2883,7 +2930,7 @@ export default function ApplicationPage() {
                         initialFileName={passportOcrInitialFileName}
                         initialUploaded={passportOcrInitialUploaded}
                         onFieldsApplied={handlePassportOcrFieldsApplied}
-                        onUploaded={setLocalPassportBioPageName}
+                        onUploaded={handlePassportBioUploaded}
                       />
                     )}
                     {useDynamic ? (
@@ -2900,6 +2947,7 @@ export default function ApplicationPage() {
                             saving={saving}
                             country={activeCountry}
                             visaType={activeVisaType}
+                            externallyHandledFieldNames={passportUploadHandledFields}
                           />
                         )}
 
