@@ -38,6 +38,13 @@ const officialFeeIsolationMigrationPath = path.join(
   "drizzle",
   "0118_official_fee_queue_isolation.sql",
 );
+const submissionRetryIsolationMigrationPath = path.join(
+  repoRoot,
+  "viza-be",
+  "agent-backend",
+  "drizzle",
+  "0119_submission_retry_queue_isolation.sql",
+);
 
 test("submission_queue claim migration uses skip-locked leases and service-role-only RPC access", () => {
   const sql = readFileSync(migrationPath, "utf8").toLowerCase();
@@ -81,10 +88,27 @@ test("official-fee enqueue is serialized per application and cannot create compe
   assert.match(sql, /from public\.applications[\s\S]*where id = p_application_id[\s\S]*for update/);
   assert.match(sql, /sq\.application_id = p_application_id/);
   assert.match(sql, /sq\.provider = p_provider/);
+  assert.match(sql, /queue claimers use skip locked[\s\S]*for update/);
   assert.match(sql, /status = 'retry_superseded'/);
   assert.match(sql, /locked_until > p_now/);
   assert.match(sql, /revoke all on function public\.enqueue_official_fee_submission/);
   assert.match(sql, /grant execute on function public\.enqueue_official_fee_submission[\s\S]*to service_role/);
+});
+
+test("generic submission retries atomically supersede only the same application", () => {
+  const sql = readFileSync(submissionRetryIsolationMigrationPath, "utf8").toLowerCase();
+
+  assert.match(sql, /create unique index if not exists submission_queue_one_active_job_per_application_idx/);
+  assert.match(sql, /on public\.submission_queue\(application_id\)/);
+  assert.match(sql, /create or replace function public\.enqueue_submission_retry/);
+  assert.match(sql, /from public\.applications[\s\S]*where id = p_application_id[\s\S]*for update/);
+  assert.match(sql, /sq\.application_id = p_application_id/);
+  assert.match(sql, /queue claimers use skip locked[\s\S]*for update/);
+  assert.match(sql, /sq\.locked_until > p_now/);
+  assert.match(sql, /status = 'retry_superseded'/);
+  assert.match(sql, /insert into public\.submission_queue/);
+  assert.match(sql, /revoke all on function public\.enqueue_submission_retry/);
+  assert.match(sql, /grant execute on function public\.enqueue_submission_retry[\s\S]*to service_role/);
 });
 
 test("claimPendingSubmissionQueueItems calls the DB claim RPC with worker and lease settings", async () => {

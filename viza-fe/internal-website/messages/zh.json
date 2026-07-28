@@ -573,7 +573,8 @@
       "failedToSave": "保存失败",
       "failedToSubmit": "提交失败",
       "profileNotFound": "未找到个人资料",
-      "noApplicationFound": "未找到申请"
+      "noApplicationFound": "未找到申请",
+      "stalePage": "页面在打开期间已更新，请刷新后继续；已保存的答案不会丢失。"
     },
     "statusHub": {
       "loading": "正在加载申请状态...",

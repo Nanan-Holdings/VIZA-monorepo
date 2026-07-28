@@ -62,17 +62,32 @@ describe("FailureCard", () => {
     expect(screen.queryByText(/vn_prearrival_otp_rejected/u)).not.toBeInTheDocument();
   });
 
-  it("hides managed-inbox timeout internals and explains email forwarding recovery", () => {
+  it("hides managed-inbox timeout internals and explains email forwarding recovery", async () => {
+    const onRetry = vi.fn();
+
     render(
       <FailureCard
+        applicationId="app-vn-prearrival"
         errorMessage="inbox.waitForMessage timeout after 300000ms for applicant private-applicant-id"
+        retryModes={[{ mode: "live_assisted", label: "提交" }]}
+        onRetry={onRetry}
       />,
     );
 
     expect(screen.getByText("邮箱验证码未完成")).toBeInTheDocument();
     expect(screen.getByText(/验证码邮件没有送达 VIZA 的托管收件箱/u)).toBeInTheDocument();
     expect(screen.getByText(/成功确认邮件、二维码和附件会继续转发到你的真实邮箱/u)).toBeInTheDocument();
-    expect(screen.getByText(/当前不能直接重试/u)).toBeInTheDocument();
+    expect(screen.getByText(/可以点击下方“提交”创建新的云端任务/u)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /检查并授权官方邮件转发/u })).toHaveAttribute(
+      "href",
+      "/client/consent?applicationId=app-vn-prearrival",
+    );
+    const submitButton = screen.getByRole("button", { name: "提交" });
+    expect(submitButton).toBeEnabled();
+    fireEvent.click(submitButton);
+    await waitFor(() => {
+      expect(onRetry).toHaveBeenCalledWith("live_assisted", undefined);
+    });
     expect(screen.queryByText(/private-applicant-id/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/inbox\.waitForMessage/u)).not.toBeInTheDocument();
   });

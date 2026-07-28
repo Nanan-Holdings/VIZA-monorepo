@@ -15,6 +15,11 @@ Scope: Thailand `TH_TDAC_ARRIVAL_CARD` official TDAC portal automation only.
   keeps legacy `transit` answers compatible by sending official `OTHERS
   (PLEASE SPECIFY)` with `TRANSIT`; the separate transit-passenger checkbox
   remains the source of truth for no-stay transit.
+- `scripts/run-tdac-smoke.ts --audit-api=<temp-jsonl>` performs a read-only,
+  stop-before-submit official dropdown audit. Use `--audit-resume` after a
+  rate-limited run. Raw JSONL contains session-scoped encrypted IDs and must
+  stay outside the repository; only the sanitized generated option snapshot
+  belongs in source control.
 - The Ministry of Public Health can reveal conditional Yellow Fever questions
   after the visited-country chips are selected. Never invent this medical
   declaration: require `yellow_fever_vaccination_certificate` when the official

@@ -146,6 +146,30 @@ BEGIN
       USING ERRCODE = '23503';
   END IF;
 
+  -- Lock all active rows for this application/provider before deciding. Queue
+  -- claimers use SKIP LOCKED and therefore cannot pick an unlocked pending row
+  -- while it is being superseded.
+  PERFORM sq.id
+  FROM public.submission_queue AS sq
+  WHERE sq.application_id = p_application_id
+    AND sq.provider = p_provider
+    AND sq.status IN (
+      'vn_cloud_live_pending',
+      'vn_live_assisted_pending',
+      'vn_live_assisted_processing',
+      'vn_payment_pending',
+      'vn_payment_processing',
+      'id_c1_live_assisted_pending',
+      'id_c1_live_assisted_processing',
+      'id_c1_payment_pending',
+      'id_c1_payment_processing',
+      'id_b1_evoa_live_assisted_pending',
+      'id_b1_evoa_live_assisted_processing',
+      'id_b1_evoa_payment_pending',
+      'id_b1_evoa_payment_processing'
+    )
+  FOR UPDATE;
+
   -- Do not replace a browser session that is already running, or a pending row
   -- whose claim lease is still live. Reuse it so a second click cannot start a
   -- competing official-portal session.

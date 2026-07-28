@@ -300,6 +300,7 @@ Smoke URLs:
 - `lib/client/recent-application-form.ts`
 - `lib/runtime-abort-errors.ts`
 - `lib/runtime-abort-retry.ts`
+- `lib/server-action-recovery.ts`
 - `supabase/migrations/*`
 - `supabase/manual/*`
 - `supabase/templates/*`

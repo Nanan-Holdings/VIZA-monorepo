@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { type Download, type Page } from "@playwright/test";
+import { type Download, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 
@@ -425,6 +425,27 @@ function tdacCountrySearchValue(value: string): string {
   return aliases[normalized] ?? codeMatch?.[0] ?? value.toUpperCase();
 }
 
+export interface TdacOfficialApiResponse {
+  url: string;
+  status: number;
+  method: string;
+  requestBody: unknown;
+  body: unknown;
+}
+
+export interface TdacPortalRunOptions {
+  headless?: boolean;
+  stopBeforeSubmit?: boolean;
+  auditFullOfficialDropdowns?: boolean;
+  officialDropdownAuditSkipLabels?: ReadonlySet<string>;
+  /**
+   * Read-only audit hook for official non-security API responses loaded before
+   * final submission. This is used to refresh TDAC dropdown contract data
+   * without recording action tokens or submitted applicant answers.
+   */
+  onInitialOfficialApiResponse?: (response: TdacOfficialApiResponse) => void | Promise<void>;
+}
+
 function tdacCountrySearchCandidates(value: string): string[] {
   const primary = tdacCountrySearchValue(value);
   const normalized = value
@@ -449,11 +470,12 @@ function tdacCountrySearchCandidates(value: string): string[] {
     .filter(Boolean);
 }
 
-function tdacNationalitySearchValue(value: string): string {
+export function tdacNationalitySearchValue(value: string): string {
   const normalized = value
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
+  if (/^[A-Z0-9]{3}$/.test(normalized)) return normalized;
   const aliases: Record<string, string> = {
     CHINA: "CHINESE",
     CHN: "CHINESE",
@@ -473,8 +495,16 @@ function tdacNationalitySearchValue(value: string): string {
   return aliases[normalized] ?? value.toUpperCase();
 }
 
-function tdacOfficialOptionSearchValue(value: string): string {
-  return value
+export function tdacOfficialOptionSearchValue(value: string): string {
+  const compositeParts = value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const lastPart = compositeParts.at(-1) ?? value;
+  const officialPart = /^\d{5}$/.test(lastPart) && compositeParts.length > 1
+    ? compositeParts.at(-2) ?? lastPart
+    : lastPart;
+  return officialPart
     .trim()
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
@@ -1697,7 +1727,7 @@ async function fillTdacHealthStep(
 
 export async function runTdacPortalSubmission(
   payload: TdacPortalPayload,
-  options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
+  options: TdacPortalRunOptions = {},
 ): Promise<TdacPortalSubmissionResult> {
   const logs: string[] = [`tdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
@@ -1710,6 +1740,211 @@ export async function runTdacPortalSubmission(
   logs.push(...browserSession.diagnostics);
 
   try {
+    const officialRequestTemplates = new Map<string, {
+      url: string;
+      headers: Record<string, string>;
+      requestBody: unknown;
+    }>();
+    let initialOfficialData: Record<string, unknown> | null = null;
+    const auditInitialOfficialResponse = async (response: Response): Promise<void> => {
+      if (!options.onInitialOfficialApiResponse) return;
+      const url = response.url();
+      if (!url.startsWith("https://tdac.immigration.go.th/arrival-card-api/api/v1/")) return;
+      if (url.includes("/security/")) return;
+      const contentType = response.headers()["content-type"] ?? "";
+      if (!contentType.toLowerCase().includes("application/json")) return;
+      const body = await response.json().catch(() => undefined);
+      if (body === undefined) return;
+      const endpoint = new URL(url).pathname;
+      const headers = await response.request().allHeaders();
+      for (const headerName of Object.keys(headers)) {
+        if (
+          headerName.startsWith(":") ||
+          headerName === "content-length" ||
+          headerName === "cookie" ||
+          headerName === "host"
+        ) {
+          delete headers[headerName];
+        }
+      }
+      officialRequestTemplates.set(endpoint, {
+        url,
+        headers,
+        requestBody: response.request().postDataJSON(),
+      });
+      if (endpoint.endsWith("/arrivalcard/gotoAdd")) {
+        const data = (body as { data?: unknown }).data;
+        if (data && typeof data === "object" && !Array.isArray(data)) {
+          initialOfficialData = data as Record<string, unknown>;
+        }
+      }
+      await options.onInitialOfficialApiResponse({
+        url,
+        status: response.status(),
+        method: response.request().method(),
+        requestBody: response.request().postDataJSON(),
+        body,
+      });
+    };
+    const attachInitialOfficialResponseAudit = (): void => {
+      if (options.onInitialOfficialApiResponse) {
+        page.on("response", auditInitialOfficialResponse);
+      }
+    };
+    const detachInitialOfficialResponseAudit = (): void => {
+      page.off("response", auditInitialOfficialResponse);
+    };
+    const runFullOfficialDropdownAudit = async (): Promise<void> => {
+      if (!options.auditFullOfficialDropdowns || !options.onInitialOfficialApiResponse) return;
+
+      const auditPost = async (
+        endpoint: string,
+        requestBody: Record<string, unknown>,
+        auditLabel: string,
+      ): Promise<unknown> => {
+        const template = officialRequestTemplates.get(endpoint);
+        if (!template) {
+          throw new Error(`TDAC official dropdown audit request template was not observed: ${endpoint}`);
+        }
+        let lastFailure = "";
+        for (let attempt = 1; attempt <= 5; attempt += 1) {
+          const response = await browserSession.context.request.post(template.url, {
+            headers: template.headers,
+            data: requestBody,
+            timeout: 120_000,
+          });
+          const responseText = await response.text();
+          try {
+            const body = JSON.parse(responseText) as unknown;
+            await options.onInitialOfficialApiResponse?.({
+              url: `${template.url}#audit=${encodeURIComponent(auditLabel)}`,
+              status: response.status(),
+              method: "POST",
+              requestBody,
+              body,
+            });
+            return body;
+          } catch {
+            lastFailure = `status=${response.status()} contentType=${response.headers()["content-type"] ?? "unknown"}`;
+            if (attempt < 5) {
+              await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+            }
+          }
+        }
+        throw new Error(`TDAC official dropdown audit returned a non-JSON response after retries: ${auditLabel}; ${lastFailure}`);
+      };
+      const responseData = (body: unknown): Array<Record<string, unknown>> => {
+        if (!body || typeof body !== "object") return [];
+        const data = (body as { data?: unknown }).data;
+        return Array.isArray(data)
+          ? data.filter((item): item is Record<string, unknown> =>
+              Boolean(item) && typeof item === "object" && !Array.isArray(item))
+          : [];
+      };
+      const mapWithConcurrency = async <T>(
+        values: T[],
+        concurrency: number,
+        task: (value: T) => Promise<void>,
+      ): Promise<void> => {
+        let cursor = 0;
+        const workers = Array.from(
+          { length: Math.min(concurrency, values.length) },
+          async () => {
+            while (cursor < values.length) {
+              const index = cursor;
+              cursor += 1;
+              const value = values[index];
+              if (value !== undefined) await task(value);
+            }
+          },
+        );
+        await Promise.all(workers);
+      };
+
+      await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchNationalityActiveSelectItem",
+        { term: "" },
+        "nationalities-all",
+      );
+      const countriesWithPhoneBody = await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchCountryWithPhoneSelectItem",
+        { term: "", ddcCountrys: null },
+        "countries-with-phone-all",
+      );
+      await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchCountrySelectItem",
+        { term: "" },
+        "countries-all",
+      );
+      await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchDdcCountrySelectItem",
+        { term: "", ddcCountrys: "" },
+        "ddc-countries-all",
+      );
+      const provincesBody = await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchProvinceSelectItem",
+        { term: "" },
+        "provinces-all",
+      );
+
+      const travelModes = Array.isArray(initialOfficialData?.listTraMode)
+        ? initialOfficialData.listTraMode as Array<{ key?: unknown; value?: unknown }>
+        : [];
+      for (const travelMode of travelModes) {
+        if (typeof travelMode.key !== "string" || typeof travelMode.value !== "string") continue;
+        await auditPost(
+          "/arrival-card-api/api/v1/selectitem/searchTranModeSelectItem",
+          { modeOfTravelId: travelMode.key },
+          `transport-${travelMode.value.toLowerCase()}`,
+        );
+      }
+
+      await mapWithConcurrency(responseData(countriesWithPhoneBody), 3, async (country) => {
+        if (typeof country.id !== "string" || typeof country.value !== "string") return;
+        const countryCode = country.value.split(":")[0]?.trim().toUpperCase();
+        if (!countryCode) return;
+        if (options.officialDropdownAuditSkipLabels?.has(`residence-${countryCode}`)) return;
+        await auditPost(
+          "/arrival-card-api/api/v1/selectitem/searchSuggestionStateOfResidence",
+          { countryId: country.id, term: "" },
+          `residence-${countryCode}`,
+        );
+      });
+
+      await mapWithConcurrency(responseData(provincesBody), 3, async (province) => {
+        if (typeof province.key !== "string" || typeof province.value !== "string") return;
+        const provinceLabel = province.value.trim().toUpperCase();
+        const districtsBody = await auditPost(
+          "/arrival-card-api/api/v1/selectitem/searchDistrictSelectItem",
+          { term: "", provinceCode: province.key },
+          `districts-${provinceLabel}`,
+        );
+        const districtItems = responseData(districtsBody);
+        const districtLabelCounts = new Map<string, number>();
+        for (const district of districtItems) {
+          if (typeof district.value !== "string") continue;
+          const label = district.value.trim().toUpperCase();
+          districtLabelCounts.set(label, (districtLabelCounts.get(label) ?? 0) + 1);
+        }
+        await mapWithConcurrency(districtItems, 4, async (district) => {
+          if (typeof district.key !== "string" || typeof district.value !== "string") return;
+          const districtLabel = district.value.trim().toUpperCase();
+          const districtPostcode = typeof district.code === "string" ? district.code.trim() : "";
+          const discriminator = (districtLabelCounts.get(districtLabel) ?? 0) > 1
+            ? `-${districtPostcode || "NO-POSTCODE"}`
+            : "";
+          const auditLabel = `subdistricts-${provinceLabel}-${districtLabel}${discriminator}`;
+          if (options.officialDropdownAuditSkipLabels?.has(auditLabel)) return;
+          await auditPost(
+            "/arrival-card-api/api/v1/selectitem/searchSubDistrictSelectItem",
+            { term: "", provinceCode: province.key, districtCode: district.key },
+            auditLabel,
+          );
+        });
+      });
+    };
+    attachInitialOfficialResponseAudit();
+
     const prepareBrowserPage = async () => {
       if (!browserSession.nativeCloudflareUnblock) {
         await installTurnstileHook(page);
@@ -1749,6 +1984,7 @@ export async function runTdacPortalSubmission(
         headless: options.headless,
       });
       page = browserSession.page;
+      attachInitialOfficialResponseAudit();
       logs.push(`tdac_browser_provider=${browserSession.provider}`);
       logs.push(...browserSession.diagnostics);
       await prepareBrowserPage();
@@ -1848,6 +2084,8 @@ export async function runTdacPortalSubmission(
     screenshots.push(await saveScreenshot(page, "after-trip", logs));
 
     await fillTdacHealthStep(page, payload, screenshots, logs);
+    await runFullOfficialDropdownAudit();
+    detachInitialOfficialResponseAudit();
     await page.waitForTimeout(3_000);
     screenshots.push(await saveScreenshot(page, "after-health-preview", logs));
 

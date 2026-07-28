@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { normalizeTdacPortalPayload, normalizeTdacPurpose } from "./normalize";
+import {
+  tdacNationalitySearchValue,
+  tdacOfficialOptionSearchValue,
+} from "./runner";
 import type { SubmissionPayload } from "../country-submissions/types";
 
 test("TDAC purpose aliases match the current official dropdown", () => {
@@ -35,6 +39,22 @@ test("legacy transit purpose uses official Others while preserving transit seman
     purposeOther: "TRANSIT",
     valid: true,
   });
+});
+
+test("TDAC dropdown search mapping preserves every official code and composite Thai address value", () => {
+  for (const code of ["CHN", "FRA", "N02", "XXA", "XXB", "XXX"]) {
+    assert.equal(tdacNationalitySearchValue(code), code);
+  }
+  assert.equal(tdacNationalitySearchValue("China"), "CHINESE");
+  assert.equal(
+    tdacOfficialOptionSearchValue("phra_nakhon_si_ayutthaya|bang_sai|13190"),
+    "BANG SAI",
+  );
+  assert.equal(
+    tdacOfficialOptionSearchValue("phra_nakhon_si_ayutthaya|bang_sai|13190|mai_tra"),
+    "MAI TRA",
+  );
+  assert.equal(tdacOfficialOptionSearchValue("pathum_wan"), "PATHUM WAN");
 });
 
 test("TDAC payload preserves conditional health answers and rejects an unknown purpose", () => {

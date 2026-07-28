@@ -259,7 +259,7 @@ export function FailureCard({
   }, [applicationId, showFranceAccount]);
 
   const handleRetry = async (mode: SubmissionMode) => {
-    if (!onRetry) return;
+    if (!onRetry || retryingMode !== null) return;
     if (!cardReady) {
       setRetryFailure(
         isZh
@@ -371,8 +371,8 @@ export function FailureCard({
                   : "After authorizing, return here and retry without re-entering the application.")
               : vnPrearrivalOtpErrorKind === "delivery_timeout"
               ? (isZh
-                  ? "当前不能直接重试：收件路由未恢复前，新验证码仍会投递失败。无需重新填写表单。"
-                  : "Do not retry yet: a new code will fail the same way until inbox routing is restored. You do not need to re-enter the form.")
+                  ? "无需重新填写表单。可以点击下方“提交”创建新的云端任务；系统会重新检查收件路由并明确返回结果。"
+                  : "You do not need to re-enter the form. Use Submit below to create a new cloud job; the system will recheck inbox routing and return a clear result.")
               : (isZh
                   ? "可以直接点击下方“提交”重试，无需重新填写表单。"
                   : "Use the Submit button below to retry; you do not need to re-enter the form.")}
@@ -397,10 +397,14 @@ export function FailureCard({
             {errorMessage}
           </pre>
         )}
-        {applicationId && vnPrearrivalOtpErrorKind === "consent_required" && (
+        {applicationId &&
+          (vnPrearrivalOtpErrorKind === "consent_required" ||
+            vnPrearrivalOtpErrorKind === "delivery_timeout") && (
           <Button asChild variant="outline" className="w-full">
             <a href={`/client/consent?applicationId=${encodeURIComponent(applicationId)}`}>
-              {isZh ? "授权官方邮件转发" : "Authorize official email forwarding"}
+              {vnPrearrivalOtpErrorKind === "delivery_timeout"
+                ? (isZh ? "检查并授权官方邮件转发" : "Check official email forwarding")
+                : (isZh ? "授权官方邮件转发" : "Authorize official email forwarding")}
               <ExternalLink className="ml-2 h-4 w-4" />
             </a>
           </Button>
@@ -501,9 +505,11 @@ export function FailureCard({
             {modes.map((item) => (
               <BrandActionButton
                 key={item.mode}
+                type="button"
                 onClick={() => {
                   void handleRetry(item.mode).catch(() => undefined);
                 }}
+                disabled={retryingMode !== null}
                 loading={retryingMode === item.mode}
                 loadingText={isZh ? "正在提交" : "Submitting"}
               >

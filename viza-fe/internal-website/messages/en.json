@@ -573,7 +573,8 @@
       "failedToSave": "Failed to save",
       "failedToSubmit": "Failed to submit",
       "profileNotFound": "Profile not found",
-      "noApplicationFound": "No application found"
+      "noApplicationFound": "No application found",
+      "stalePage": "This page was updated while it was open. Refresh the page and continue; your saved answers are unchanged."
     },
     "statusHub": {
       "loading": "Loading application status...",
