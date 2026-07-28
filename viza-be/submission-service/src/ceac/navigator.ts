@@ -253,6 +253,28 @@ async function runTransition(
     return await waitForPage(page, expectedList, { timeoutMs, pollIntervalMs });
   } catch (err) {
     const detected = (err as { context?: { detected?: CeacPageId | "unknown" } })?.context?.detected;
+    // ASP.NET validators can be rendered by a late UpdatePanel response after
+    // the initial post-click probe. Re-read them at the failure boundary so a
+    // rejected form is reported as validation, not a misleading timeout.
+    const lateValidation = await readValidationMessages(page);
+    if (lateValidation.all.length > 0) {
+      const lateProbe = await detectPage(page);
+      throw new ValidationFailedError(
+        `CEAC ${params.action} rejected on page "${params.from}": ${lateValidation.all[0]}`,
+        {
+          expected: params.from,
+          detected: lateProbe.id,
+          url: lateProbe.url,
+          validationMessages: lateValidation.all,
+          details: {
+            action: params.action,
+            heading: lateProbe.heading,
+            summary: lateValidation.summary,
+            fieldErrors: lateValidation.fieldErrors,
+          },
+        },
+      );
+    }
     throw new NavigationError(
       `CEAC ${params.action} from "${params.from}" did not reach [${expectedList.join(", ")}] within ${timeoutMs}ms`,
       {
