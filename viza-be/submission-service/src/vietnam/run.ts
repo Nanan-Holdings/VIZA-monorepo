@@ -1345,13 +1345,8 @@ async function waitForDependentAntSelectToHydrate(
   }
 }
 
-export function toPortalDateForField(fieldName: string, rawValue: string, now = new Date()): string {
-  const formatted = toDdMmYyyy(rawValue);
-  if (fieldName !== "visa_valid_from") return formatted;
-  const parsed = parseDdMmYyyy(formatted);
-  if (!parsed) return formatted;
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return parsed < today ? formatDdMmYyyy(today) : formatted;
+export function toPortalDateForField(_fieldName: string, rawValue: string): string {
+  return toDdMmYyyy(rawValue);
 }
 
 export function validateVietnamPortalValidityRange(
@@ -1362,22 +1357,32 @@ export function validateVietnamPortalValidityRange(
   const rawTo = answers.visa_valid_to?.trim();
   if (!rawFrom || !rawTo) return [];
 
-  const portalFrom = parseDdMmYyyy(toPortalDateForField("visa_valid_from", rawFrom, now));
-  const portalTo = parseDdMmYyyy(toPortalDateForField("visa_valid_to", rawTo, now));
-  if (!portalFrom || !portalTo || portalFrom < portalTo) return [];
+  const portalFrom = parseDdMmYyyy(toPortalDateForField("visa_valid_from", rawFrom));
+  const portalTo = parseDdMmYyyy(toPortalDateForField("visa_valid_to", rawTo));
+  if (!portalFrom || !portalTo) return [];
 
-  return [
-    {
+  const errors: VietnamPortalValidationError[] = [];
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (portalFrom < today) {
+    errors.push({
+      label: "Grant e-Visa valid from",
+      domId: VN_FIELD_MAPPINGS.visa_valid_from.domId,
+      message: "Grant e-Visa valid from cannot be earlier than today",
+    });
+  }
+  if (portalFrom >= portalTo) {
+    errors.push({
       label: "Grant e-Visa valid from",
       domId: VN_FIELD_MAPPINGS.visa_valid_from.domId,
       message: "Grant e-Visa valid from must be before Grant e-Visa valid to",
-    },
-    {
+    });
+    errors.push({
       label: "Grant e-Visa valid to",
       domId: VN_FIELD_MAPPINGS.visa_valid_to.domId,
       message: "Grant e-Visa valid to must be after Grant e-Visa valid from",
-    },
-  ];
+    });
+  }
+  return errors;
 }
 
 function parseDdMmYyyy(value: string): Date | null {
@@ -1391,12 +1396,6 @@ function parseDdMmYyyy(value: string): Date | null {
     return null;
   }
   return parsed;
-}
-
-function formatDdMmYyyy(value: Date): string {
-  const day = `${value.getDate()}`.padStart(2, "0");
-  const month = `${value.getMonth() + 1}`.padStart(2, "0");
-  return `${day}/${month}/${value.getFullYear()}`;
 }
 
 async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fieldName: string): Promise<void> {

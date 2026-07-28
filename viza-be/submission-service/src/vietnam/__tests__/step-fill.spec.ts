@@ -49,15 +49,9 @@ test("vn.step-fill: date fields are reformatted to DD/MM/YYYY", () => {
   assert.equal(dob.type, "date");
 });
 
-test("vn.step-fill: visa valid-from date is not earlier than today", () => {
-  assert.equal(
-    toPortalDateForField("visa_valid_from", "2026-06-20", new Date(2026, 5, 22)),
-    "22/06/2026",
-  );
-  assert.equal(
-    toPortalDateForField("visa_valid_from", "2026-06-30", new Date(2026, 5, 22)),
-    "30/06/2026",
-  );
+test("vn.step-fill: portal date formatting does not silently change applicant dates", () => {
+  assert.equal(toPortalDateForField("visa_valid_from", "2026-06-20"), "20/06/2026");
+  assert.equal(toPortalDateForField("visa_valid_from", "2026-06-30"), "30/06/2026");
 });
 
 test("vn.step-fill: portal validity range requires valid-to after the effective valid-from", () => {
@@ -68,17 +62,16 @@ test("vn.step-fill: portal validity range requires valid-to after the effective 
     ).length,
     2,
   );
-  assert.equal(
+  assert.match(
     validateVietnamPortalValidityRange(
       { visa_valid_from: "2026-06-20", visa_valid_to: "2026-06-21" },
       new Date(2026, 5, 22),
-    ).length,
-    2,
-    "clamping an expired start date must not create an invalid portal range",
+    )[0]?.message ?? "",
+    /cannot be earlier than today/i,
   );
   assert.deepEqual(
     validateVietnamPortalValidityRange(
-      { visa_valid_from: "2026-06-20", visa_valid_to: "2026-06-30" },
+      { visa_valid_from: "2026-06-22", visa_valid_to: "2026-06-30" },
       new Date(2026, 5, 22),
     ),
     [],
@@ -89,8 +82,8 @@ test("vn.step-fill: invalid validity range is rejected before browser launch", a
   const result = await fillVietnamApplication(
     {
       answers: {
-        visa_valid_from: "2026-06-22",
-        visa_valid_to: "2026-06-22",
+        visa_valid_from: "2099-06-22",
+        visa_valid_to: "2099-06-22",
       },
     },
     {
