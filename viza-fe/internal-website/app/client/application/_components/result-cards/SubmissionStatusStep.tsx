@@ -528,7 +528,7 @@ const ANSI_ESCAPE_SEQUENCE = new RegExp(
   "gu",
 );
 
-function userFacingSubmissionRuntimeMessage(
+export function userFacingSubmissionRuntimeMessage(
   message: string | null | undefined,
   isZh: boolean,
 ): string | undefined {
@@ -539,7 +539,7 @@ function userFacingSubmissionRuntimeMessage(
   if (!normalized) return undefined;
 
   if (
-    /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|playwright|Target page, context or browser has been closed/i.test(
+    /browserType\.launch|Browser logs:|Call log:|Missing X server|XServer|Executable doesn't exist|Failed to launch|Target page, context or browser has been closed/i.test(
       normalized,
     )
   ) {

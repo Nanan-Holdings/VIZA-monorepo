@@ -144,10 +144,15 @@ test("vn.step-fill: country dropdown values normalize to official option text", 
   assert.equal(normalizeVnCountryOptionText("Panamanian"), "Panama");
   assert.equal(normalizeVnCountryOptionText("VNM"), "Viet Nam");
   assert.equal(normalizeVnCountryOptionText("CZE"), "Czech Republic");
+  assert.equal(normalizeVnCountryOptionText("HKG"), "China");
+  assert.equal(normalizeVnCountryOptionText("Hong Kong"), "China");
+  assert.equal(normalizeVnCountryOptionText("Macau SAR"), "China");
   assert.equal(
     normalizeVnCountryOptionText("GBR"),
     "United Kingdom of Great Britain and Northern Ireland",
   );
+  assert.equal(getVnPortalOptionText("nationality", "Hong Kong"), "China");
+  assert.equal(getVnCountryAlpha3ForOptionText("Hong Kong"), "CHN");
   assert.equal(getVnPortalOptionText("nationality", "HUN"), "Hungary");
   assert.equal(getVnPortalOptionText("other_vietnam_passport_nationality", "HUN"), "Hungary");
   assert.equal(getVnPortalOptionText("relative_nationality", "PAN"), "Panama");

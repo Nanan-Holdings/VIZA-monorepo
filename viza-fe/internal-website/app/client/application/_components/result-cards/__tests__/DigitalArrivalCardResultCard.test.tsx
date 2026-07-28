@@ -4,6 +4,7 @@ import type { DigitalArrivalCardSubmissionResult } from "@/lib/submission-result
 import {
   DigitalArrivalCardResultCard,
   SubmissionStatusStep,
+  userFacingSubmissionRuntimeMessage,
 } from "../SubmissionStatusStep";
 import { FailureCard } from "../FailureCard";
 
@@ -14,6 +15,19 @@ vi.mock("next-intl", () => ({
 describe("DigitalArrivalCardResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("does not hide portal field-selection errors as browser launch failures", () => {
+    const fieldError =
+      "Official Vietnam e-Visa portal rejected this value: playwright_selection_not_confirmed for nationality";
+
+    expect(userFacingSubmissionRuntimeMessage(fieldError, true)).toBe(fieldError);
+    expect(
+      userFacingSubmissionRuntimeMessage(
+        "browserType.launch: Failed to launch chromium because the executable is missing",
+        true,
+      ),
+    ).toContain("云端浏览器启动失败");
   });
 
   it("shows downloadable Vietnam QR and PDF artifacts", () => {
