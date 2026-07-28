@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:10px}
+  /* Horizontal numbered */
+  .h-stepper{display:flex;align-items:flex-start;gap:0;background:#fff;padding:20px;border-radius:12px;border:1px solid #efefef}
+  .h-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative}
+  .h-step .num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 13px var(--font-sans);background:#fff;border:1.5px solid #e8e8e8;color:#989898;z-index:2}
+  .h-step.done .num{background:#03346E;border-color:#03346E;color:#fff}
+  .h-step.active .num{background:#fff;border-color:#03346E;color:#03346E;box-shadow:0 0 0 4px rgba(3,52,110,.12)}
+  .h-step .t{font:500 12px var(--font-sans);color:rgba(0,0,0,.5);text-align:center;letter-spacing:-.2px}
+  .h-step.done .t,.h-step.active .t{color:#3d3d3d}
+  .h-step.active .t{color:#03346E}
+  .h-step::after{content:"";position:absolute;top:16px;left:calc(50% + 20px);right:calc(-50% + 20px);height:1.5px;background:#e8e8e8;z-index:1}
+  .h-step:last-child::after{display:none}
+  .h-step.done::after{background:#03346E}
+
+  /* Vertical with body */
+  .v-stepper{background:#fff;border:1px solid #efefef;border-radius:12px;padding:20px 24px;display:flex;flex-direction:column;gap:0}
+  .v-step{display:grid;grid-template-columns:32px 1fr;gap:14px;padding-bottom:18px;position:relative}
+  .v-step:last-child{padding-bottom:0}
+  .v-step::before{content:"";position:absolute;left:15px;top:32px;bottom:0;width:1.5px;background:#e8e8e8}
+  .v-step.done::before{background:#03346E}
+  .v-step:last-child::before{display:none}
+  .v-step .num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 13px var(--font-sans);background:#fff;border:1.5px solid #e8e8e8;color:#989898;z-index:2;position:relative}
+  .v-step.done .num{background:#03346E;border-color:#03346E;color:#fff}
+  .v-step.active .num{border-color:#03346E;color:#03346E;box-shadow:0 0 0 4px rgba(3,52,110,.12)}
+  .v-step h6{font:500 14px var(--font-sans);margin:5px 0 3px;color:#3d3d3d;letter-spacing:-.2px}
+  .v-step.active h6{color:#03346E}
+  .v-step p{font:400 13px/1.5 var(--font-sans);color:rgba(0,0,0,.55);margin:0 0 10px}
+  .v-step .eta{font:400 11px var(--font-sans);color:rgba(0,0,0,.45);margin-top:2px}
+
+  /* Dashboard stage row (from the repo) */
+  .stage-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .stage-cell{background:#fff;border:1px solid #efefef;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:108px}
+  .stage-cell .g{font-size:22px;line-height:1}
+  .stage-cell .n{font:500 13px var(--font-sans);color:#3d3d3d;letter-spacing:-.2px}
+  .stage-cell .s{font:500 11px var(--font-sans);color:rgba(0,0,0,.45);margin-top:auto}
+  .stage-cell.active{background:#03346E;border-color:#03346E}
+  .stage-cell.active .n{color:#fff}
+  .stage-cell.active .s{color:rgba(255,255,255,.75)}
+  .stage-cell.locked{background:rgba(239,239,239,.5)}
+  .stage-cell.locked .n,.stage-cell.locked .s,.stage-cell.locked .g{color:#989898;opacity:.7}
+  .stage-cell.done{background:#EEF3FA;border-color:#D4E0F0}
+  .stage-cell.done .n{color:#03346E}
+  .stage-cell.done .s{color:#03346E;opacity:.7}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Horizontal stepper · numbered</div>
+    <div class="h-stepper">
+      <div class="h-step done"><div class="num">✓</div><div class="t">Personal info</div></div>
+      <div class="h-step done"><div class="num">✓</div><div class="t">Passport</div></div>
+      <div class="h-step active"><div class="num">3</div><div class="t">Travel details</div></div>
+      <div class="h-step"><div class="num">4</div><div class="t">Photo</div></div>
+      <div class="h-step"><div class="num">5</div><div class="t">Review</div></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Vertical stepper · with body copy</div>
+    <div class="v-stepper">
+      <div class="v-step done"><div class="num">✓</div>
+        <div><h6>Personal info</h6><p>Name, birthday, occupation, contact.</p><div class="eta">Completed · Apr 20</div></div></div>
+      <div class="v-step active"><div class="num">2</div>
+        <div><h6>Passport details</h6><p>Upload your passport bio page. AI will extract the details automatically.</p></div></div>
+      <div class="v-step"><div class="num">3</div>
+        <div><h6>Travel info</h6><p>Flights, accommodation, and trip purpose.</p><div class="eta">~5 minutes</div></div></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Dashboard stage row · application journey</div>
+    <div class="stage-row">
+      <div class="stage-cell done"><div class="g">📋</div><div class="n">Application</div><div class="s">Completed</div></div>
+      <div class="stage-cell active"><div class="g">📁</div><div class="n">Documents</div><div class="s">4 of 6 ↗</div></div>
+      <div class="stage-cell locked"><div class="g">✈️</div><div class="n">Submit</div><div class="s">Locked</div></div>
+      <div class="stage-cell locked"><div class="g">🔍</div><div class="n">Review</div><div class="s">Locked</div></div>
+      <div class="stage-cell locked"><div class="g">✅</div><div class="n">Decision</div><div class="s">Locked</div></div>
+    </div>
+  </div>
+</div></body></html>

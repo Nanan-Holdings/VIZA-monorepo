@@ -12,6 +12,12 @@ interface Props {
    *  `inline` is for chip-style placement next to another button. */
   variant?: "block" | "inline";
   className?: string;
+  /** Prefill for the portal checkout form (collected by the /apply wizard). */
+  email?: string;
+  fullName?: string;
+  /** Base64url wizard payload (passport OCR, arrival date, tier) — opaque here,
+   *  decoded server-side by the portal (lib/checkout/prefill.ts). */
+  prefill?: string;
 }
 
 /**
@@ -28,13 +34,19 @@ export function PayByCardButton({
   visaType,
   variant = "block",
   className,
+  email,
+  fullName,
+  prefill,
 }: Props) {
   const locale = useLocale();
   const t = useTranslations("cta");
   const href = portalUrl(
     `/checkout/card?country=${encodeURIComponent(country)}` +
       `&visa=${encodeURIComponent(visaType)}` +
-      `&locale=${encodeURIComponent(locale)}`,
+      `&locale=${encodeURIComponent(locale)}` +
+      (email ? `&email=${encodeURIComponent(email)}` : "") +
+      (fullName ? `&name=${encodeURIComponent(fullName)}` : "") +
+      (prefill ? `&prefill=${encodeURIComponent(prefill)}` : ""),
   );
 
   const base =

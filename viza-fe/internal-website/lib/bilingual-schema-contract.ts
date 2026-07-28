@@ -16,6 +16,7 @@ type FieldLike = Pick<
 >;
 
 type OptionObject = Extract<VisaFormFieldOption, { value: string }>;
+const LOCALIZED_OPTIONS_CACHE = new WeakMap<VisaFormFieldOption[], Partial<Record<BilingualSide, VisaFormFieldOption[]>>>();
 
 export const VAGUE_CHINESE_LABELS = new Set([
   "声明",
@@ -450,8 +451,10 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   planned_arrival_date: "计划抵达日期",
   intended_arrival_date: "预计抵达日期",
   arrival_date: "计划抵达日期",
+  departure_from_origin_date: "从居住国出发日期",
   planned_departure_date: "计划离开日期",
   intended_departure_date: "预计离开日期",
+  visits_french_overseas_territories: "是否前往法国海外领地",
   departure_date: "计划离开日期",
   intended_length_of_stay: "预计停留时间",
   intended_length_of_stay_value: "预计停留时间（数值）",
@@ -1404,7 +1407,9 @@ export function resolveLocalizedOptions(
   side: BilingualSide,
 ): VisaFormFieldOption[] | null {
   if (!options) return null;
-  return options.map((option) => {
+  const cached = LOCALIZED_OPTIONS_CACHE.get(options)?.[side];
+  if (cached) return cached;
+  const localized = options.map((option) => {
     const normalized = normalizeBilingualOption(option);
     const normalizedObject = normalized as OptionObject;
     return {
@@ -1412,6 +1417,10 @@ export function resolveLocalizedOptions(
       text: side === "zh" ? normalizedObject.label_zh : normalizedObject.label_en,
     };
   });
+  const nextCache = LOCALIZED_OPTIONS_CACHE.get(options) ?? {};
+  nextCache[side] = localized;
+  LOCALIZED_OPTIONS_CACHE.set(options, nextCache);
+  return localized;
 }
 
 export function resolveOptionDisplayLabel(

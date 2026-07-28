@@ -13,6 +13,7 @@ export const usVisaSchedulingProfile: ExtractorProfile = {
     "usvisascheduling.com",
     "www.usvisascheduling.com",
     "do-not-reply.usvisascheduling.com",
+    "microsoftonline.com",
   ],
   subjectMatch: /(verify|verification|code|appointment|schedule|account)/i,
   extract: ({ subject, text, html }) => {

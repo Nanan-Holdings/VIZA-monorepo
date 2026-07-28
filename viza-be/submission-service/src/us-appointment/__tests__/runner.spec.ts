@@ -16,7 +16,13 @@ import {
   type USAppointmentRunnerRepository,
   type AppointmentAccountCredentials,
 } from "../runner";
-import { classifyUSVisaSchedulingGateText } from "../usvisascheduling-portal";
+import {
+  buildUSAppointmentBrowserApiEndpointForAttempt,
+  buildUSVisaSchedulingUsername,
+  classifyUSVisaSchedulingAuthenticationState,
+  classifyUSVisaSchedulingGateText,
+  US_VISA_SCHEDULING_SELECTORS,
+} from "../usvisascheduling-portal";
 
 const baseJob: USAppointmentJobRow = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -49,6 +55,9 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
   }> = [];
   jobUpdates: Array<{ jobId: string; status: string; currentManualAction: string | null }> = [];
   credentials: AppointmentAccountCredentials | null = null;
+  verificationEmail: { code: string | null; link: string | null } | null = null;
+  accountMarkedVerified = false;
+  finalApprovalCompleted = false;
 
   async listCandidateJobs(): Promise<USAppointmentJobRow[]> {
     return [];
@@ -107,6 +116,19 @@ class InMemoryRunnerRepository implements USAppointmentRunnerRepository {
     return this.selectedSlot;
   }
 
+  async hasCompletedFinalApproval(): Promise<boolean> {
+    return this.finalApprovalCompleted;
+  }
+
+  async waitForAccountVerificationEmail(): Promise<{ code: string | null; link: string | null }> {
+    if (!this.verificationEmail) throw new Error("verification email unavailable");
+    return this.verificationEmail;
+  }
+
+  async markAppointmentAccountVerified(): Promise<void> {
+    this.accountMarkedVerified = true;
+  }
+
   async updateApplicationAppointmentState(input: {
     applicationId: string;
     status: string;
@@ -162,6 +184,19 @@ test("US appointment runner reads user Chrome CDP configuration", () => {
   assert.equal(config.playwrightStorageStatePath, "output/playwright/usvisascheduling.json");
 });
 
+test("US appointment runner reads local Chrome CDP bridge configuration", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
+    US_APPOINTMENT_BROWSER_API_ENDPOINT: "wss://user:pass@brd.superproxy.io:9222",
+    US_APPOINTMENT_LOCAL_CDP_ENDPOINT: "http://127.0.0.1:9222",
+    US_APPOINTMENT_BROWSER_API_SESSION_ATTEMPTS: "3",
+  });
+
+  assert.equal(config.playwrightCdpEndpoint, "wss://user:pass@brd.superproxy.io:9222");
+  assert.equal(config.localCdpEndpoint, "http://127.0.0.1:9222");
+  assert.equal(config.browserApiSessionAttempts, 3);
+});
+
 test("US appointment runner can read Bright Data Browser API endpoint", () => {
   const config = loadUSAppointmentRunnerConfig({
     US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
@@ -170,6 +205,58 @@ test("US appointment runner can read Bright Data Browser API endpoint", () => {
 
   assert.equal(config.playwrightEnabled, true);
   assert.equal(config.playwrightCdpEndpoint, "wss://user:pass@brd.superproxy.io:9222");
+});
+
+test("US appointment runner prefers US-specific Browser API endpoint", () => {
+  const config = loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_PLAYWRIGHT_ENABLED: "true",
+    US_APPOINTMENT_BROWSER_API_ENDPOINT: "wss://us-user:pass@brd.superproxy.io:9222",
+    BRIGHTDATA_BROWSER_API_ENDPOINT: "wss://global-user:pass@brd.superproxy.io:9222",
+  });
+
+  assert.equal(config.playwrightEnabled, true);
+  assert.equal(config.playwrightCdpEndpoint, "wss://us-user:pass@brd.superproxy.io:9222");
+});
+
+test("US appointment runner defaults to human-paced 80-120ms typing", () => {
+  const config = loadUSAppointmentRunnerConfig({});
+
+  assert.equal(config.typingDelayMinMs, 80);
+  assert.equal(config.typingDelayMaxMs, 120);
+});
+
+test("USVisaScheduling selectors avoid mixed text-engine comma lists", () => {
+  for (const [name, selector] of Object.entries(US_VISA_SCHEDULING_SELECTORS)) {
+    assert.equal(
+      selector.includes(", text="),
+      false,
+      `${name} mixes Playwright text selectors into a CSS selector list`,
+    );
+  }
+});
+
+test("USVisaScheduling registration username is deterministic and not an email address", () => {
+  const username = buildUSVisaSchedulingUsername("Applicant.Example+US@Example.COM");
+
+  assert.match(username, /^viza[a-f0-9]{16}$/);
+  assert.equal(username.includes("@"), false);
+  assert.equal(username, buildUSVisaSchedulingUsername("applicant.example+us@example.com"));
+});
+
+test("USVisaScheduling Browser API endpoint rotation changes only Bright Data session usernames", () => {
+  const first = buildUSAppointmentBrowserApiEndpointForAttempt(
+    "wss://brd-customer-test-zone-us:pass@brd.superproxy.io:9222",
+    1,
+  );
+  const second = buildUSAppointmentBrowserApiEndpointForAttempt(
+    "wss://brd-customer-test-zone-us-session-old:pass@brd.superproxy.io:9222",
+    1,
+  );
+  const local = buildUSAppointmentBrowserApiEndpointForAttempt("http://127.0.0.1:9222", 1);
+
+  assert.match(first, /^wss:\/\/brd-customer-test-zone-us-session-vizaus[a-f0-9]{8}:pass@brd\.superproxy\.io:9222\/$/);
+  assert.match(second, /^wss:\/\/brd-customer-test-zone-us-session-vizaus[a-f0-9]{8}:pass@brd\.superproxy\.io:9222\/$/);
+  assert.equal(local, "http://127.0.0.1:9222");
 });
 
 test("US appointment runner only accepts enabled China usvisascheduling assisted-live jobs", () => {
@@ -195,7 +282,10 @@ test("US appointment runner only accepts enabled China usvisascheduling assisted
 });
 
 test("US appointment runner handoff records manual-required unsupported gate metadata", () => {
-  const handoff = buildRunnerHandoff(baseJob);
+  const handoff = buildRunnerHandoff(baseJob, loadUSAppointmentRunnerConfig({
+    US_APPOINTMENT_CAPTCHA_SOLVING_ENABLED: "false",
+    TWOCAPTCHA_API_KEY: "",
+  }));
   assert.equal(handoff.jobStatus, "appointment_manual_required");
   assert.equal(handoff.actionType, "site_policy_review");
   assert.match(handoff.instruction, /manual review/i);
@@ -456,6 +546,68 @@ test("US appointment runner persists account email verification as an explicit c
   );
 });
 
+test("US appointment runner reads the alias inbox and completes account email verification", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.credentials = {
+    email: "applicant@example.com",
+    password: "secret-password",
+  };
+  repository.verificationEmail = { code: "123456", link: null };
+  let prepareCalls = 0;
+  let receivedCode: string | null | undefined;
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      prepareCalls += 1;
+      if (prepareCalls === 1) {
+        return {
+          readyForSlotCapture: false,
+          gate: {
+            jobStatus: "appointment_manual_required",
+            actionType: "account_email_verification",
+            instruction: "Verify the account email.",
+            metadata: { provider: "usvisascheduling" },
+          },
+        };
+      }
+      return { readyForSlotCapture: true };
+    },
+    async completeAccountEmailVerification(input) {
+      receivedCode = input.emailCode;
+      return { readyForSlotCapture: false };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    { ...baseJob, status: "appointment_login_required" },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(receivedCode, "123456");
+  assert.equal(repository.accountMarkedVerified, true);
+  assert.equal(repository.manualActions.length, 0);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_payment_completed");
+});
+
 test("US appointment runner writes observed slots from a portal fixture", async () => {
   const repository = new InMemoryRunnerRepository();
   const result = await processUSAppointmentJob(
@@ -464,6 +616,7 @@ test("US appointment runner writes observed slots from a portal fixture", async 
       status: "appointment_payment_completed",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           slots: [
             {
               date: "2026-08-18",
@@ -496,6 +649,7 @@ test("US appointment runner rechecks slots after a no-slots result", async () =>
       status: "appointment_no_slots_available",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           slots: [
             {
               date: "2026-10-03",
@@ -522,7 +676,7 @@ test("US appointment runner can use an injected portal client for slot observati
   const repository = new InMemoryRunnerRepository();
   const portalClient: USAppointmentPortalClient = {
     async prepareAppointmentFlow() {
-      return { readyForSlotCapture: false };
+      return { readyForSlotCapture: true };
     },
     async observeSlots(job) {
       return [
@@ -573,8 +727,107 @@ test("US appointment runner can use an injected portal client for slot observati
   assert.equal(repository.slots[0]?.appointment_location, "U.S. Consulate General Shanghai");
 });
 
+test("US appointment runner does not report no-slots when slot recheck is gated", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return {
+        readyForSlotCapture: false,
+        gate: {
+          jobStatus: "appointment_manual_required",
+          actionType: "login",
+          instruction: "USVisaScheduling login is required before slot observation.",
+          metadata: {
+            gate_type: "login_required",
+            provider: "usvisascheduling",
+          },
+          errorCode: "login_required",
+          errorMessage: "USVisaScheduling login is required before slot observation.",
+        },
+      };
+    },
+    async observeSlots() {
+      throw new Error("observeSlots should not run before the portal is prepared.");
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_no_slots_available",
+      user_preferences_json: {},
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.slots.length, 0);
+  assert.equal(repository.manualActions.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
+});
+
+test("US appointment runner records a login gate when portal login automation throws", async () => {
+  const repository = new InMemoryRunnerRepository();
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      throw new Error("password input was not editable on the official login page");
+    },
+    async observeSlots() {
+      throw new Error("observeSlots should not run after login automation failure.");
+    },
+    async captureConfirmation() {
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  const result = await processUSAppointmentJob(
+    {
+      ...baseJob,
+      status: "appointment_no_slots_available",
+      user_preferences_json: {},
+    },
+    repository,
+    loadUSAppointmentRunnerConfig({
+      US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true",
+    }),
+    portalClient,
+  );
+
+  assert.equal(result, "processed");
+  assert.equal(repository.manualActions.length, 1);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_manual_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "login");
+});
+
 test("US appointment runner writes confirmation after final approved booking fixture", async () => {
   const repository = new InMemoryRunnerRepository();
+  repository.finalApprovalCompleted = true;
   repository.selectedSlot = {
     id: "44444444-4444-4444-8444-444444444444",
     job_id: baseJob.id,
@@ -593,6 +846,7 @@ test("US appointment runner writes confirmation after final approved booking fix
       status: "appointment_booked",
       user_preferences_json: {
         portalFixture: {
+          autoPrepare: true,
           confirmation: {
             confirmationNumber: "CN-BJ-123456",
             screenshotUrl: "https://storage.example/confirmation.png",
@@ -618,6 +872,52 @@ test("US appointment runner writes confirmation after final approved booking fix
     jobId: baseJob.id,
     confirmationId: "55555555-5555-4555-8555-555555555555",
   });
+});
+
+test("US appointment runner never clicks the official confirmation without persisted final approval", async () => {
+  const repository = new InMemoryRunnerRepository();
+  repository.selectedSlot = {
+    id: "44444444-4444-4444-8444-444444444444",
+    job_id: baseJob.id,
+    appointment_date: "2026-08-18",
+    appointment_time: "09:00",
+    appointment_location: "U.S. Embassy Beijing",
+    appointment_type: "interview",
+    metadata_redacted_json: null,
+  };
+  let confirmationCaptureAttempted = false;
+  const portalClient: USAppointmentPortalClient = {
+    async prepareAppointmentFlow() {
+      return { readyForSlotCapture: true };
+    },
+    async observeSlots() {
+      return [];
+    },
+    async captureConfirmation() {
+      confirmationCaptureAttempted = true;
+      return null;
+    },
+    async captureStatusCheck(job) {
+      return {
+        job_id: job.id,
+        application_id: job.application_id,
+        user_id: job.user_id,
+        status: "unknown",
+        result_redacted_json: {},
+      };
+    },
+  };
+
+  await processUSAppointmentJob(
+    { ...baseJob, status: "appointment_booked" },
+    repository,
+    loadUSAppointmentRunnerConfig({ US_APPOINTMENT_ASSISTED_LIVE_ENABLED: "true" }),
+    portalClient,
+  );
+
+  assert.equal(confirmationCaptureAttempted, false);
+  assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_final_confirmation_required");
+  assert.equal(repository.jobUpdates.at(-1)?.currentManualAction, "final_confirmation");
 });
 
 test("US appointment runner writes follow-up status check fixture", async () => {
@@ -649,20 +949,20 @@ test("US appointment runner writes follow-up status check fixture", async () => 
   assert.equal(repository.jobUpdates.at(-1)?.status, "appointment_status_checked");
 });
 
-test("USVisaScheduling gate classifier identifies unsupported official-site gates", () => {
+test("USVisaScheduling gate classifier identifies official-site gates", () => {
   assert.deepEqual(
     classifyUSVisaSchedulingGateText("Please complete hCaptcha verification before continuing."),
     {
       jobStatus: "appointment_manual_required",
       actionType: "captcha",
-      instruction: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      instruction: "USVisaScheduling presented a CAPTCHA checkpoint that requires the configured solver or manual completion.",
       metadata: {
-        gate_type: "unsupported_captcha",
+        gate_type: "captcha_checkpoint",
         provider: "hcaptcha",
         visible_text: "[REDACTED]",
       },
-      errorCode: "unsupported_captcha",
-      errorMessage: "USVisaScheduling presented an unsupported CAPTCHA or MFA checkpoint.",
+      errorCode: "captcha_checkpoint",
+      errorMessage: "USVisaScheduling presented a CAPTCHA checkpoint.",
     },
   );
   assert.equal(
@@ -670,11 +970,54 @@ test("USVisaScheduling gate classifier identifies unsupported official-site gate
     "waiting_room",
   );
   assert.equal(
+    classifyUSVisaSchedulingGateText("请稍候... Just a moment while we verify you are human.")?.metadata.provider,
+    "cloudflare",
+  );
+  assert.equal(
     classifyUSVisaSchedulingGateText("Review and accept the privacy policy before continuing.")?.actionType,
     "site_policy_review",
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("Privacy Policy | Terms and Conditions"),
+    null,
+  );
+  assert.equal(
+    classifyUSVisaSchedulingGateText(
+      "https://www.usvisascheduling.com/en-US/Account/Login/TermsAndConditions Access Denied You're offline. This is a read only version of the page. var isPortalUserLoggedIn = 'False';",
+    )?.metadata.gate_type,
+    "power_pages_access_or_terms",
   );
   assert.equal(
     classifyUSVisaSchedulingGateText("Payment required before scheduling your appointment.")?.actionType,
     "payment",
   );
+  assert.equal(
+    classifyUSVisaSchedulingGateText("Enter the MFA authenticator security code.")?.metadata.gate_type,
+    "mfa_required",
+  );
+});
+
+test("USVisaScheduling uses the current B2C email verification selector", () => {
+  assert.match(US_VISA_SCHEDULING_SELECTORS.verificationCodeInputs, /#email_ver_input/);
+});
+
+test("USVisaScheduling only accepts an OAuth redirect after reaching the authenticated portal", () => {
+  assert.equal(classifyUSVisaSchedulingAuthenticationState({
+    url: "https://atlasauth.b2clogin.com/atlasauth.onmicrosoft.com/oauth2/v2.0/authorize",
+    bodyText: "Sign in",
+    loginVisible: true,
+    invalidCredentialsVisible: false,
+  }), "pending");
+  assert.equal(classifyUSVisaSchedulingAuthenticationState({
+    url: "https://www.usvisascheduling.com/en-US/",
+    bodyText: "Continue Application",
+    loginVisible: false,
+    invalidCredentialsVisible: false,
+  }), "authenticated");
+  assert.equal(classifyUSVisaSchedulingAuthenticationState({
+    url: "https://www.usvisascheduling.com/en-US/",
+    bodyText: "var isPortalUserLoggedIn = 'False';",
+    loginVisible: false,
+    invalidCredentialsVisible: false,
+  }), "rejected");
 });

@@ -31,13 +31,24 @@ test("dispatch: unwired country throws UnsupportedCountryError", () => {
   assert.throws(() => getRunOne("atlantis"), UnsupportedCountryError);
 });
 
-test("dispatch: all 16 launch countries resolve to a runOne", () => {
+test("dispatch: all launch countries resolve to a runOne", () => {
   const launch = [
     "indonesia", "egypt", "australia", "saudi_arabia", "united_kingdom", "vietnam",
     "malaysia", "japan", "united_states", "canada", "turkey", "thailand",
-    "united_arab_emirates", "france", "italy", "india",
+    "singapore", "united_arab_emirates", "france", "italy", "india", "south_korea",
   ];
   for (const c of launch) {
     assert.equal(typeof getRunOne(c), "function", `${c} resolves`);
   }
+});
+
+test("dispatch: Singapore aliases normalize and resolve", () => {
+  assert.equal(normalizeCountry("SG"), "singapore");
+  assert.equal(getRunOne("sg"), getRunOne("singapore"));
+});
+
+test("dispatch: Korea aliases normalize and resolve", () => {
+  assert.equal(normalizeCountry("KR"), "south_korea");
+  assert.equal(normalizeCountry("Korea"), "south_korea");
+  assert.equal(getRunOne("kr"), getRunOne("south_korea"));
 });

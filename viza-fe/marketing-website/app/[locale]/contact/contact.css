@@ -220,22 +220,49 @@
   .faq[open] summary .plus { background: var(--brand-500); color: #fff; border-color: var(--brand-500); transform: rotate(45deg); }
   .faq p { margin: 12px 0 0; font-size: 14px; line-height: 1.6; color: var(--fg-2); }
 
-  /* Footer */
-  .site-foot { background: #fafafa; padding: 0 40px; font-family: var(--font-sans); }
-  .site-foot .foot-rule { max-width: 1280px; margin: 0 auto; height: 1px; background-image: linear-gradient(to right, var(--border-hairline) 50%, transparent 0%); background-size: 8px 1px; background-repeat: repeat-x; position: relative; }
-  .site-foot .foot-rule::before, .site-foot .foot-rule::after { content: ""; position: absolute; top: -2px; width: 5px; height: 5px; border-radius: 999px; background: var(--border-hairline); }
-  .site-foot .foot-rule::before { left: 0; }
-  .site-foot .foot-rule::after { right: 0; }
-  .site-foot .foot-main { max-width: 1280px; margin: 0 auto; padding: 64px 0 56px; display: grid; grid-template-columns: 1.6fr 1fr 1.05fr 1.1fr; gap: 48px; }
-  .site-foot .foot-brand .foot-logo img { height: 22px; }
-  .site-foot .foot-brand .foot-tag { margin-top: 22px; max-width: 320px; font-size: 14px; line-height: 1.55; color: var(--fg-2); }
-  .site-foot .col-head { font: 500 13px/1 var(--font-heading); color: var(--fg-1); margin: 4px 0 22px; }
-  .site-foot .col-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
-  .site-foot .col-list a { color: var(--fg-2); font-size: 14px; transition: color .12s; }
-  .site-foot .col-list a:hover { color: var(--brand-500); }
-  .site-foot .foot-bottom { max-width: 1280px; margin: 0 auto; padding: 28px 0 40px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-  .site-foot .legal { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--fg-2); }
-  .site-foot .legal .sep { width: 3px; height: 3px; border-radius: 999px; background: #d6d6d6; }
-  .site-foot .legal a { color: var(--fg-2); }
-  .site-foot .legal a:hover { color: var(--brand-500); }
-  .site-foot .foot-mark img { height: 22px; opacity: 0.85; }
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Headline floor lowered so it fits a 375px viewport */
+  .hero-headline { font-size: clamp(34px, 9vw, 132px); }
+  .sec-head h2 { font-size: clamp(30px, 5.5vw, 44px); }
+
+  @media (max-width: 900px) {
+    .hero-band { grid-template-columns: 1fr; gap: 28px; align-items: start; }
+    .channel-grid { grid-template-columns: repeat(2, 1fr); }
+    .desks-grid { grid-template-columns: repeat(2, 1fr); }
+    .contact-form-wrap { grid-template-columns: 1fr; gap: 24px; }
+    .emergency { grid-template-columns: 1fr; gap: 24px; }
+    .emergency .right { align-items: flex-start; }
+  }
+
+  @media (max-width: 720px) {
+    .hero-headline { letter-spacing: -1px; }
+    .hero-inner { padding: 56px 20px 0; }
+    .hero-band { margin-top: 36px; padding-bottom: 28px; }
+
+    .section { padding: 56px 20px; }
+    .sec-head { margin-bottom: 32px; }
+
+    .form-shell { padding: 24px 20px; }
+    .form-head { flex-direction: column; gap: 12px; }
+    .form-head .form-ref { text-align: left; }
+
+    .emergency { margin-left: 20px; margin-right: 20px; margin-bottom: 56px; padding: 32px 24px; }
+
+    .faq-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 560px) {
+    .channel-grid { grid-template-columns: 1fr; }
+    .desks-grid { grid-template-columns: 1fr; }
+  }
+
+  

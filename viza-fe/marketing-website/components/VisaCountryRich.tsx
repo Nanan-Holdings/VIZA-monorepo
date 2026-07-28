@@ -8,6 +8,7 @@ import { LAUNCHED_COUNTRIES, visaHref, type CountryMeta } from "@/lib/countries"
 import { priceBreakdownSgd } from "@/lib/pricing";
 import type { IconName, VisaContent } from "@/lib/visa-content/types";
 import "./visa-rich.css";
+import SiteFooter from "@/components/SiteFooter";
 
 /**
  * Reusable, data-driven visa destination page (MKT-004/005).
@@ -428,17 +429,18 @@ export default function VisaCountryRich({
 
             {price ? (
               <div className="price-rows">
+                {/* Fully free products (e.g. the test-checkout demo) read "Free", not "SGD 0". */}
                 <div className="price-row">
                   <span className="lk">{t("priceGovt")} <span className="pill">{t("pillCheckout")}</span></span>
-                  <span className="vk">SGD {price.govtSgd}</span>
+                  <span className="vk">{price.totalSgd === 0 ? t("priceFree") : `SGD ${price.govtSgd}`}</span>
                 </div>
                 <div className="price-row">
                   <span className="lk">{t("priceProcessing")} <span className="pill later">{t("pillAllInclusive")}</span></span>
-                  <span className="vk">SGD {price.agencySgd}</span>
+                  <span className="vk">{price.totalSgd === 0 ? t("priceFree") : `SGD ${price.agencySgd}`}</span>
                 </div>
                 <div className="price-total">
                   <span className="lk">{t("priceTotal")}</span>
-                  <span className="vk">SGD {price.totalSgd}</span>
+                  <span className="vk">{price.totalSgd === 0 ? t("priceFree") : `SGD ${price.totalSgd}`}</span>
                 </div>
               </div>
             ) : null}
@@ -466,104 +468,7 @@ export default function VisaCountryRich({
         </button>
       </div>
 
-      {/* Site footer */}
-      <footer className="site-foot" data-screen-label="Footer">
-        <div className="foot-rule"></div>
-
-        <div className="foot-main">
-          <div className="foot-brand">
-            <a className="foot-logo" href="/"><img src="/assets/viza-logo-black.svg" alt="VIZA" /></a>
-            <p className="foot-tag">VIZA helps you plan, apply, and track visas seamlessly across the world.</p>
-
-            <div className="ask-ai">Ask AI about VIZA</div>
-            <div className="ai-chips">
-              <button className="ai-chip c1" title="Ask in your AI assistant">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
-              </button>
-              <button className="ai-chip c2" title="Ask in your AI assistant">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /><path d="M11 8v6" /><path d="M8 11h6" /></svg>
-              </button>
-              <button className="ai-chip c3" title="Ask in your AI assistant">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 13.8 8.4 20 10.5 13.8 12.6 12 19 10.2 12.6 4 10.5 10.2 8.4 12 2Z" /></svg>
-              </button>
-              <button className="ai-chip c4" title="Ask in your AI assistant">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4" /><path d="M12 18v4" /><path d="M4.93 4.93l2.83 2.83" /><path d="M16.24 16.24l2.83 2.83" /><path d="M2 12h4" /><path d="M18 12h4" /><path d="M4.93 19.07l2.83-2.83" /><path d="M16.24 7.76l2.83-2.83" /></svg>
-              </button>
-            </div>
-          </div>
-
-          <div className="col-company">
-            <h4 className="col-head">Company</h4>
-            <ul className="col-list">
-              <li><a href="/careers">Careers</a></li>
-              <li><a href="/contact">Contact</a></li>
-              <li><a href="/security">Security</a></li>
-              <li><a href="/refunds">Refunds Policy</a></li>
-              <li><a href="/status">Status</a></li>
-              <li><a href="/legal/privacy">Privacy</a></li>
-              <li><a href="/legal/terms">Terms</a></li>
-            </ul>
-          </div>
-
-          <div className="col-products">
-            <h4 className="col-head">Products</h4>
-            <ul className="col-list">
-              <li><a href="#">U.S. Mock Interview</a></li>
-              <li><a href="#">Visa Requirements</a></li>
-              <li><a href="#">Schengen Appointment Checker</a></li>
-              <li><a href="#">Visa Photo Creator</a></li>
-              <li><a href="#">VIZA Emergency Helpline</a></li>
-              <li><a href="#">Student Visa</a></li>
-            </ul>
-          </div>
-
-          <div className="col-offices">
-            <h4 className="col-head">Offices</h4>
-            <ul className="col-list">
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <span>1 Marina Boulevard, #20-01,<br />Singapore 018989</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <span>301 Mission Street, San Francisco,<br />CA 94105, USA</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <span>M16 — Al Makateb Building,<br />Al Quoz 3, Sheikh Zayed Rd, Dubai</span>
-              </li>
-              <li className="office-row">
-                <svg className="office-pin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                <span>Suite 203, Davina House,<br />137-149 Goswell Road, London EC1V 7ET</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="foot-apps">
-            <a className="app-badge" href="#" aria-label="Download VIZA on the App Store">
-              <img src="/assets/app-store-badge.png" alt="Download on the App Store" />
-            </a>
-            <a className="app-badge" href="#" aria-label="Get VIZA on Google Play">
-              <img src="/assets/google-play-badge.png" alt="Get it on Google Play" />
-            </a>
-          </div>
-        </div>
-
-        <div className="foot-rule"></div>
-
-        <div className="foot-bottom">
-          <div className="legal">
-            <span>© VIZA, All rights reserved</span>
-            <span className="sep"></span>
-            <a href="#">Privacy</a>
-            <span className="sep"></span>
-            <a href="#">Terms</a>
-          </div>
-          <div className="foot-mark">
-            <img src="/assets/viza-logo-black.svg" alt="VIZA" />
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }

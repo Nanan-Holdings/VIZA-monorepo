@@ -1,0 +1,61 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .field{display:flex;flex-direction:column;gap:8px}
+  label{font:500 14px/1 "Geist", system-ui, sans-serif;color:#374151;letter-spacing:-.2px;display:flex;align-items:center;justify-content:space-between}
+  label .req{color:hsl(0 84% 60%);margin-left:4px}
+  label .opt{color:rgba(0,0,0,.45);font-weight:400;font-size:12px}
+  .ta{min-height:104px;padding:12px 14px;border-radius:8px;border:1px solid #e8e8e8;font:400 15px "Geist", "PingFang SC", system-ui, sans-serif;background:#fff;color:#3d3d3d;resize:vertical;line-height:1.5}
+  .ta:focus{outline:none;border-color:#03346E;box-shadow:0 0 0 1px #03346E}
+  .ta.focus{border-color:#03346E;box-shadow:0 0 0 1px #03346E}
+  .ta.err{border-color:hsl(0 84% 60%)}
+  .ta::placeholder{color:rgba(0,0,0,.35)}
+  .meta{display:flex;justify-content:space-between;align-items:center}
+  .hint{font:400 12px "Geist", system-ui, sans-serif;color:rgba(0,0,0,.45)}
+  .count{font:400 12px "Geist", system-ui, sans-serif;color:rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+  .count.near{color:#d97706}
+  .count.over{color:hsl(0 84% 60%)}
+  .err-msg{font:400 12px "Geist", system-ui, sans-serif;color:hsl(0 84% 60%)}
+</style></head>
+<body><div class="stage">
+<div class="grid">
+
+  <div class="field">
+    <label>Purpose of travel<span class="opt">optional</span></label>
+    <textarea class="ta" placeholder="Briefly describe why you're visiting — meetings, conference, training, etc."></textarea>
+    <div class="hint">Helps your consultant tailor the cover letter</div>
+  </div>
+
+  <div class="field">
+    <label>Additional notes<span class="opt">240 char limit</span></label>
+    <textarea class="ta focus">签证上次被拒，这次希望 VIZA 顾问重点审核行程合理性与资金证明。</textarea>
+    <div class="meta">
+      <span class="hint">Focus · 1px brand ring</span>
+      <span class="count">38 / 240</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Cover letter draft<span class="req">*</span></label>
+    <textarea class="ta">Dear Sir/Madam,
+
+I am writing to apply for a Business Visa (B211A) for the purpose of attending client meetings in Jakarta from May 12–19, 2026.</textarea>
+    <div class="meta">
+      <span class="hint">Auto-expands up to 6 lines</span>
+      <span class="count near">198 / 240</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Reason for previous refusal<span class="req">*</span></label>
+    <textarea class="ta err">Visa denied last year due to insufficient documentation — bank statements were not legible, missing employer letter, and my travel dates overlapped with the expiry of the passport which has since been renewed and verified by the consulate.</textarea>
+    <div class="meta">
+      <span class="err-msg" role="alert">Keep under 240 characters.</span>
+      <span class="count over">253 / 240</span>
+    </div>
+  </div>
+
+</div>
+</div></body></html>

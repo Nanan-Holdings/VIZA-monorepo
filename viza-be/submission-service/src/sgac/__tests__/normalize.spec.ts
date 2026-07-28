@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeSgacPortalPayload, SgacPortalValidationError } from "../normalize";
+import { SGAC_HOTEL_OPTIONS, SGAC_NATIONALITY_OPTIONS } from "../official-options";
 import type { SubmissionPayload } from "../../country-submissions/types";
 
 function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayload {
@@ -48,6 +49,62 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
   };
 }
 
+test("SGAC hotel snapshot preserves every current ICA record", () => {
+  assert.equal(SGAC_HOTEL_OPTIONS.length, 472);
+  assert.equal(new Set(SGAC_HOTEL_OPTIONS.map((option) => option.label)).size, 469);
+  assert.deepEqual(
+    SGAC_HOTEL_OPTIONS.filter((option) => option.label === "ASCOTT ORCHARD SINGAPORE").map((option) => option.code),
+    ["M0082", "M0106"],
+  );
+  assert.deepEqual(
+    SGAC_HOTEL_OPTIONS.filter((option) => option.label === "JIN DONG HOTEL").map((option) => option.code),
+    ["S0079", "S0531"],
+  );
+  assert.deepEqual(
+    SGAC_HOTEL_OPTIONS.filter((option) => option.label === "LODGE 41").map((option) => option.code),
+    ["S0221", "S0534"],
+  );
+});
+
+test("SGAC nationality snapshot includes the ICA frontend-injected SAR entries", () => {
+  assert.equal(SGAC_NATIONALITY_OPTIONS.length, 206);
+  assert.equal(new Set(SGAC_NATIONALITY_OPTIONS.map((option) => option.label)).size, 206);
+  assert.deepEqual(
+    SGAC_NATIONALITY_OPTIONS.filter((option) => option.code.startsWith("CHN")),
+    [
+      { code: "CHN", label: "CHINESE" },
+      { code: "CHN_HK", label: "CHINESE / HONG KONG SAR" },
+      { code: "CHN_MC", label: "CHINESE / MACAO SAR" },
+    ],
+  );
+  assert.deepEqual(
+    SGAC_NATIONALITY_OPTIONS.find((option) => option.code === "TWN"),
+    { code: "TWN", label: "TAIWANESE" },
+  );
+});
+
+test("normalizeSgacPortalPayload maps Hong Kong, Macao, and Taiwan aliases to ICA nationality labels", () => {
+  const cases = [
+    ["Hong Kong", "CHINESE / HONG KONG SAR"],
+    ["Macau", "CHINESE / MACAO SAR"],
+    ["Taiwan", "TAIWANESE"],
+  ] as const;
+
+  for (const [nationality, expectedLabel] of cases) {
+    const payload = normalizeSgacPortalPayload(
+      basePayload({
+        personal: {
+          ...basePayload().personal,
+          nationality,
+        },
+      }),
+      { now: new Date("2026-06-12T08:00:00+08:00") },
+    );
+
+    assert.equal(payload.nationalityLabel, expectedLabel);
+  }
+});
+
 test("normalizeSgacPortalPayload maps purpose_of_travel and transport number into ICA fields", () => {
   const payload = normalizeSgacPortalPayload(basePayload(), {
     now: new Date("2026-06-12T08:00:00+08:00"),
@@ -65,6 +122,26 @@ test("normalizeSgacPortalPayload maps purpose_of_travel and transport number int
   assert.equal(payload.nextCityQuery, "THAILAND, BANGKOK, BANGKOK");
   assert.equal(payload.phoneCountryCode, "86");
   assert.equal(payload.phoneNumber, "13800138000");
+});
+
+test("normalizeSgacPortalPayload combines a separately selected ICA carrier with a bare flight number", () => {
+  const payload = normalizeSgacPortalPayload(
+    basePayload({
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        air_transport_type: "commercial",
+        carrier_code: "AS",
+        transport_number: "223",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.transport.mode, "air");
+  assert.equal(payload.transport.airTransportType, "commercial");
+  assert.equal(payload.transport.carrierCodeQuery, "AS");
+  assert.equal(payload.transport.flightNo, "223");
+  assert.equal(payload.transport.transportNumber, "223");
 });
 
 test("normalizeSgacPortalPayload treats standard airline flight numbers as commercial flights", () => {

@@ -23,6 +23,10 @@ and internal admin flows.
 - `us-appointment.routes.ts`: U.S. B1/B2 appointment consent, dry-run job,
   manual checkpoint, slot selection, final approval, mock booking, and
   user-triggered status/slot check APIs.
+- `france-appointment.routes.ts`: France Schengen TLScontact China consent,
+  job creation, user-triggered slot check, observed-slot selection, redacted
+  payment authorization, final approval, booking request, cancellation, and
+  status APIs.
 - `supabase-user-auth-config.ts`: shared Supabase URL/anon-key env resolver for
   applicant bearer-token verification in browser-facing backend routes.
 - `chat-save-block.routes.ts`: chat block persistence.
@@ -41,8 +45,8 @@ and internal admin flows.
 - Do not log PII or secrets.
 - Do not implement official portal automation, CAPTCHA solving, proxy handling,
   real official-site payment submission, or browser runner behavior in route
-  handlers. Official-fee routes and U.S. appointment routes must stay
-  dry-run/manual-review by default.
+  handlers. Official-fee, U.S. appointment, and France TLS appointment routes
+  must keep those actions delegated to gated services/runners.
 
 ## Validation
 

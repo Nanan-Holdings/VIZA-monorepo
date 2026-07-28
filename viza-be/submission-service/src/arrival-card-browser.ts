@@ -1,6 +1,11 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  BrowserbaseSessionError,
+  connectBrowserbaseCloudBrowser,
+} from "./browserbase-session";
 
-export type ArrivalCardBrowserProvider = "local" | "local-cdp" | "remote-browser-api";
+export type ArrivalCardBrowserProvider = "local" | "local-cdp" | "remote-browser-api" | "browserbase";
 
 export interface ArrivalCardBrowserSession {
   browser: Browser;
@@ -8,6 +13,7 @@ export interface ArrivalCardBrowserSession {
   page: Page;
   provider: ArrivalCardBrowserProvider;
   nativeCloudflareUnblock: boolean;
+  replayUrl?: string;
   diagnostics: string[];
   close: () => Promise<void>;
 }
@@ -29,14 +35,21 @@ function firstConfiguredEndpoint(envNames: string[]): string | null {
   return null;
 }
 
-export type ArrivalCardBrowserPrefix = "MDAC" | "TDAC" | "PH_ETRAVEL";
+export type ArrivalCardBrowserPrefix = "MDAC" | "SGAC" | "TDAC" | "PH_ETRAVEL" | "VN_PREARRIVAL" | "TW_ENTRY_PERMIT";
 
 export function resolveArrivalCardBrowserEndpoint(prefix: ArrivalCardBrowserPrefix): string | null {
   const envNames = [
     `${prefix}_BROWSER_API_ENDPOINT`,
-    `${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`,
   ];
-  if (prefix === "TDAC" || process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true") {
+  if (prefix !== "TDAC") {
+    envNames.push(`${prefix}_BRIGHTDATA_BROWSER_API_ENDPOINT`);
+  }
+  if (
+    prefix !== "TDAC" && (
+      prefix === "PH_ETRAVEL" ||
+      process.env[`${prefix}_USE_GLOBAL_BROWSER_API`]?.trim() === "true"
+    )
+  ) {
     envNames.push(
       "BRIGHTDATA_BROWSER_WS",
       "BRIGHTDATA_BROWSER_API_ENDPOINT",
@@ -53,8 +66,24 @@ export function resolveArrivalCardLocalCdpEndpoint(prefix: ArrivalCardBrowserPre
   ]);
 }
 
+/**
+ * Uses Playwright's bundled Chromium unless an operator explicitly selects a
+ * browser channel for a runner. Production images do not necessarily include
+ * the system Chrome channel.
+ */
+export function resolveArrivalCardLaunchChannel(prefix: ArrivalCardBrowserPrefix): string | undefined {
+  const configuredChannel = process.env[`${prefix}_PLAYWRIGHT_CHANNEL`]?.trim();
+  return configuredChannel && configuredChannel !== "bundled" ? configuredChannel : undefined;
+}
+
 function isBrightDataBrowserEndpoint(endpoint: string | null): boolean {
   return /brd\.superproxy\.io/i.test(endpoint ?? "");
+}
+
+function requiresRemoteBrowserApi(prefix: ArrivalCardBrowserPrefix, endpoint: string | null): boolean {
+  const explicit = process.env[`${prefix}_REQUIRE_BROWSER_API`]?.trim();
+  if (explicit) return explicit !== "false";
+  return (prefix === "PH_ETRAVEL" || prefix === "TDAC") && Boolean(endpoint);
 }
 
 export async function createArrivalCardBrowserSession(options: {
@@ -63,7 +92,20 @@ export async function createArrivalCardBrowserSession(options: {
   forceLocal?: boolean;
 }): Promise<ArrivalCardBrowserSession> {
   const diagnostics: string[] = [];
-  const endpoint = options.forceLocal ? null : resolveArrivalCardBrowserEndpoint(options.prefix);
+  // A country runner can explicitly opt into Browserbase to avoid a configured
+  // global Browser API provider whose policy does not permit the official site.
+  // Do not let that global endpoint silently win over the explicit choice.
+  // Bright Data rejects the Thai and Philippines government portals by policy.
+  // Browserbase is therefore the default for both runners; an operator can
+  // explicitly disable it for local/CDP tests.
+  const preferBrowserbase = !options.forceLocal && browserbaseEnabled(
+    options.prefix,
+    options.prefix === "TDAC" || options.prefix === "PH_ETRAVEL",
+  );
+  const endpoint = options.forceLocal || preferBrowserbase
+    ? null
+    : resolveArrivalCardBrowserEndpoint(options.prefix);
+  const requireRemoteBrowserApi = !options.forceLocal && requiresRemoteBrowserApi(options.prefix, endpoint);
   if (endpoint) {
     let browser: Browser | null = null;
     const maxAttempts = Number(process.env[`${options.prefix}_BROWSER_API_CONNECT_ATTEMPTS`] ?? "3");
@@ -93,6 +135,36 @@ export async function createArrivalCardBrowserSession(options: {
         close: () => browser.close(),
       };
     }
+    if (requireRemoteBrowserApi) {
+      throw new ArrivalCardBrowserError(
+        `${options.prefix} Browser API endpoint was configured but could not be reached; refusing to fall back to local browser for a Cloudflare-protected portal.`,
+      );
+    }
+  }
+
+  if (preferBrowserbase) {
+    try {
+      const cloudSession = await connectBrowserbaseCloudBrowser({ prefix: options.prefix });
+      const { browser, context, page } = cloudSession;
+      diagnostics.push(
+        `${options.prefix.toLowerCase()}_browserbase_connected proxies=${cloudSession.proxiesEnabled}`,
+      );
+      return {
+        browser,
+        context,
+        page,
+        provider: "browserbase",
+        nativeCloudflareUnblock: false,
+        replayUrl: cloudSession.replayUrl,
+        diagnostics,
+        close: () => browser.close(),
+      };
+    } catch (error) {
+      const message = error instanceof BrowserbaseSessionError
+        ? error.message
+        : "Browserbase session could not be connected.";
+      throw new ArrivalCardBrowserError(message);
+    }
   }
 
   const cdpEndpoint = resolveArrivalCardLocalCdpEndpoint(options.prefix);
@@ -114,14 +186,9 @@ export async function createArrivalCardBrowserSession(options: {
     };
   }
 
-  const channel = process.env[`${options.prefix}_PLAYWRIGHT_CHANNEL`]?.trim()
-    || (["MDAC", "TDAC", "PH_ETRAVEL"].includes(options.prefix) ? "chrome" : undefined);
+  const channel = resolveArrivalCardLaunchChannel(options.prefix);
   const explicitHeadless = process.env[`${options.prefix}_PLAYWRIGHT_HEADLESS`]?.trim();
-  const headless = explicitHeadless
-    ? explicitHeadless !== "false"
-    : ["MDAC", "TDAC", "PH_ETRAVEL"].includes(options.prefix)
-      ? false
-      : options.headless ?? true;
+  const headless = options.headless ?? (explicitHeadless ? explicitHeadless !== "false" : true);
   const browser = await chromium.launch({ channel, headless });
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();

@@ -218,6 +218,26 @@ const WHEN_SGAC_SEA_CRUISE = {
   key: "answers.sea_transport_type",
   equals: "cruise",
 };
+const WHEN_SGAC_SEA_COMMERCIAL_VESSEL = {
+  key: "answers.sea_transport_type",
+  equals: "commercial_vessel",
+};
+const WHEN_SGAC_SEA_FERRY = {
+  key: "answers.sea_transport_type",
+  equals: "ferry",
+};
+const WHEN_SGAC_SEA_PRIVATE_CRAFT = {
+  key: "answers.sea_transport_type",
+  equals: "private_craft",
+};
+const WHEN_SGAC_HAS_HEALTH_SYMPTOMS = {
+  key: "answers.has_health_symptoms",
+  equals: "yes",
+};
+const WHEN_SGAC_HAS_NO_HEALTH_SYMPTOMS = {
+  key: "answers.has_health_symptoms",
+  equals: "no",
+};
 
 const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   { key: "profile.fullName", label: "Full name", category: "personal", required: true },
@@ -245,13 +265,17 @@ const SGAC_REQUIRED_FIELDS: FieldRequirement[] = [
   sgacField("vehicle_number", "Vehicle number", "trip", WHEN_SGAC_LAND),
   sgacField("sea_transport_type", "Sea transport type", "trip", WHEN_SGAC_SEA),
   sgacField("cruise_name", "Cruise name", "trip", WHEN_SGAC_SEA_CRUISE),
+  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_COMMERCIAL_VESSEL),
+  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_FERRY),
+  sgacField("vessel_name", "Vessel name", "trip", WHEN_SGAC_SEA_PRIVATE_CRAFT),
   sgacField("accommodation_type", "Accommodation type", "trip"),
   sgacField("accommodation_name", "Hotel name", "trip", WHEN_SGAC_HOTEL),
   sgacField("accommodation_other_type", "Other accommodation type", "trip", WHEN_SGAC_OTHER_ACCOMMODATION),
   sgacField("accommodation_postcode", "Singapore postal code", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("accommodation_block_number", "Block/house number", "trip", WHEN_SGAC_RESIDENTIAL),
   sgacField("accommodation_street_name", "Street name", "trip", WHEN_SGAC_RESIDENTIAL),
-  sgacField("recent_country_visit_history", "Recent travel history declaration", "security"),
+  sgacField("recent_country_visit_history", "Yellow-fever travel history declaration", "security", WHEN_SGAC_HAS_NO_HEALTH_SYMPTOMS),
+  sgacField("recent_high_risk_region_visit_history", "High-risk-region travel history declaration", "security", WHEN_SGAC_HAS_HEALTH_SYMPTOMS),
   sgacField("has_health_symptoms", "Health symptoms declaration", "security"),
 ];
 
@@ -280,7 +304,6 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
   arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
   arrivalCardField("transport_number", "Flight / vehicle / vessel number", "trip"),
   arrivalCardField("last_embarkation_country", "Last embarkation country", "trip"),
-  arrivalCardField("port_of_entry", "Point of entry", "trip"),
   arrivalCardField("purpose_of_visit", "Purpose of visit", "trip"),
   arrivalCardField("accommodation_type", "Accommodation type", "trip"),
   arrivalCardField("address_in_malaysia", "Address in Malaysia", "trip"),
@@ -290,70 +313,220 @@ const MDAC_REQUIRED_FIELDS: FieldRequirement[] = [
 ];
 
 const WHEN_TDAC_AIR = {
-  key: "answers.mode_of_travel",
+  key: "answers.arrival_mode_of_travel",
   equals: "air",
 };
 const WHEN_TDAC_LAND = {
-  key: "answers.mode_of_travel",
+  key: "answers.arrival_mode_of_travel",
   equals: "land",
 };
 const WHEN_TDAC_SEA = {
-  key: "answers.mode_of_travel",
+  key: "answers.arrival_mode_of_travel",
   equals: "sea",
+};
+const WHEN_TDAC_NOT_TRANSIT = {
+  key: "answers.is_transit_traveler",
+  notEquals: true,
+};
+const WHEN_TDAC_PURPOSE_OTHER = {
+  key: "answers.purpose_of_travel",
+  equals: "others",
+};
+const WHEN_TDAC_ARRIVAL_TRANSPORT_OTHER = {
+  key: "answers.arrival_mode_of_transport",
+  equals: "others",
+};
+const WHEN_TDAC_DEPARTURE_TRANSPORT_OTHER = {
+  key: "answers.departure_mode_of_transport",
+  equals: "others",
+};
+const WHEN_TDAC_ACCOMMODATION_OTHER = {
+  key: "answers.accommodation_type",
+  equals: "others",
 };
 
 const TDAC_REQUIRED_FIELDS: FieldRequirement[] = [
-  arrivalCardField("full_name", "Full name", "personal"),
+  arrivalCardField("family_name", "Family name", "personal"),
+  arrivalCardField("first_name", "First name", "personal"),
   arrivalCardField("date_of_birth", "Date of birth", "personal"),
-  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("gender", "Gender", "personal"),
   arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("country_territory_of_residence", "Country/territory of residence", "personal"),
+  arrivalCardField("city_state_of_residence", "City/state of residence", "personal"),
   arrivalCardField("passport_number", "Passport number", "passport"),
   arrivalCardField("email_address", "Email", "contact"),
-  arrivalCardField("mobile_number", "Phone", "contact"),
+  arrivalCardField("phone_country_code", "Phone country code", "contact"),
+  arrivalCardField("phone_number", "Phone", "contact"),
   arrivalCardField("occupation", "Occupation", "personal"),
   arrivalCardField("arrival_date", "Arrival date", "trip"),
   arrivalCardField("departure_date", "Departure date", "trip"),
-  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
-  arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
-  arrivalCardField("flight_number", "Flight number", "trip", WHEN_TDAC_AIR),
-  arrivalCardField("vehicle_or_vessel_number", "Vehicle / vessel number", "trip", WHEN_TDAC_LAND),
-  arrivalCardField("vehicle_or_vessel_number", "Vehicle / vessel number", "trip", WHEN_TDAC_SEA),
   arrivalCardField("country_boarded", "Country/region where boarded", "trip"),
-  arrivalCardField("port_of_arrival", "Port of arrival", "trip"),
-  arrivalCardField("accommodation_type", "Accommodation type", "trip"),
-  arrivalCardField("address_in_thailand", "Address in Thailand", "trip"),
-  arrivalCardField("province", "Province", "trip"),
-  arrivalCardField("district", "District", "trip"),
+  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
+  arrivalCardField("purpose_of_travel_other", "Other purpose of travel", "trip", WHEN_TDAC_PURPOSE_OTHER),
+  arrivalCardField("arrival_mode_of_travel", "Arrival mode of travel", "trip"),
+  arrivalCardField("arrival_mode_of_transport", "Arrival mode of transport", "trip"),
+  arrivalCardField("arrival_transport_other", "Other arrival transport", "trip", WHEN_TDAC_ARRIVAL_TRANSPORT_OTHER),
+  arrivalCardField("arrival_transport_number", "Arrival flight / vehicle / vessel number", "trip", WHEN_TDAC_AIR),
+  arrivalCardField("arrival_transport_number", "Arrival flight / vehicle / vessel number", "trip", WHEN_TDAC_LAND),
+  arrivalCardField("arrival_transport_number", "Arrival flight / vehicle / vessel number", "trip", WHEN_TDAC_SEA),
+  arrivalCardField("departure_mode_of_travel", "Departure mode of travel", "trip"),
+  arrivalCardField("departure_mode_of_transport", "Departure mode of transport", "trip"),
+  arrivalCardField("departure_transport_other", "Other departure transport", "trip", WHEN_TDAC_DEPARTURE_TRANSPORT_OTHER),
+  arrivalCardField("departure_transport_number", "Departure flight / vehicle / vessel number", "trip"),
+  arrivalCardField("accommodation_type", "Accommodation type", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("accommodation_type_other", "Other accommodation type", "trip", WHEN_TDAC_ACCOMMODATION_OTHER),
+  arrivalCardField("address_in_thailand", "Address in Thailand", "trip", WHEN_TDAC_NOT_TRANSIT),
+  arrivalCardField("province", "Province", "trip", WHEN_TDAC_NOT_TRANSIT),
   arrivalCardField("countries_visited_last_14_days", "Countries visited within 14 days", "security"),
-  arrivalCardField("has_health_symptoms", "Health symptoms declaration", "security"),
-  arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
 const PH_ETRAVEL_REQUIRED_FIELDS: FieldRequirement[] = [
-  arrivalCardField("full_name", "Full name", "personal"),
+  arrivalCardField("registration_for", "Travel registration owner", "trip"),
+  arrivalCardField("first_name", "First name", "personal"),
   arrivalCardField("date_of_birth", "Date of birth", "personal"),
   arrivalCardField("sex", "Sex", "personal"),
   arrivalCardField("nationality", "Nationality", "personal"),
   arrivalCardField("country_of_birth", "Country of birth", "personal"),
   arrivalCardField("country_of_residence", "Country of residence", "personal"),
+  arrivalCardField("residence_address_line1", "Permanent residence address", "personal"),
   arrivalCardField("occupation", "Occupation", "personal"),
   arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_issuing_authority", "Passport issuing authority", "passport"),
+  arrivalCardField("passport_issue_date", "Passport issue date", "passport"),
   arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
   arrivalCardField("email_address", "Email", "contact"),
+  arrivalCardField("mobile_country_code", "Phone country code", "contact"),
   arrivalCardField("mobile_number", "Phone", "contact"),
-  arrivalCardField("travel_type", "Travel type", "trip"),
   arrivalCardField("transport_type", "Transport type", "trip"),
-  arrivalCardField("arrival_date", "Arrival date", "trip"),
-  arrivalCardField("departure_date", "Departure date", "trip"),
+  arrivalCardField("flight_arrival_date", "Flight arrival date", "trip"),
+  arrivalCardField("flight_departure_date", "Flight departure date", "trip"),
   arrivalCardField("origin_country", "Origin country", "trip"),
+  arrivalCardField("airport_of_origin", "Airport of origin", "trip"),
   arrivalCardField("port_of_entry", "Port of entry", "trip"),
-  arrivalCardField("flight_number", "Flight / vessel number", "trip"),
+  arrivalCardField("traveller_type", "Traveller type", "trip"),
+  arrivalCardField("airline_name", "Airline", "trip"),
+  arrivalCardField("flight_number", "Flight number", "trip"),
   arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
-  arrivalCardField("philippines_address", "Philippines address", "trip"),
-  arrivalCardField("has_health_symptoms", "Health declaration", "security"),
-  arrivalCardField("has_checked_baggage", "Checked baggage declaration", "security"),
-  arrivalCardField("has_dutiable_goods", "Dutiable goods declaration", "security"),
-  arrivalCardField("has_currency_over_threshold", "Currency declaration", "security"),
+  arrivalCardField("destination_type", "Destination type", "trip"),
+  arrivalCardField("has_recent_travel_history_30d", "Recent travel history health declaration", "security"),
+  arrivalCardField("has_exposure_to_sick_person_30d", "Exposure health declaration", "security"),
+  arrivalCardField("has_been_sick_30d", "Sickness health declaration", "security"),
+  arrivalCardField("checked_baggage_count", "Checked baggage count", "security"),
+  arrivalCardField("handcarry_baggage_count", "Hand-carried baggage count", "security"),
+  arrivalCardField("first_time_visiting_philippines", "First time visiting Philippines", "trip"),
+  arrivalCardField("customs_information_acknowledgement", "Customs information acknowledgement", "security"),
+  arrivalCardField("has_baggage_or_currency_to_declare", "Baggage or currency declaration", "security"),
+  arrivalCardField("customs_signature_declaration", "Customs signature declaration", "security"),
+  arrivalCardField("final_declaration", "Final declaration", "security"),
+];
+
+const PH_ETRAVEL_DEPARTURE_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("registration_for", "Travel registration owner", "trip"),
+  arrivalCardField("transport_type", "Transport type", "trip"),
+  arrivalCardField("travel_type", "Travel type", "trip"),
+  arrivalCardField("passport_holder_type", "Travel document holder", "personal"),
+  arrivalCardField("first_name", "First name", "personal"),
+  arrivalCardField("last_name", "Last name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("sex", "Sex", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("country_of_birth", "Country of birth", "personal"),
+  arrivalCardField("country_of_residence", "Country of residence", "personal"),
+  arrivalCardField("residence_address_line1", "Permanent residence address", "personal"),
+  arrivalCardField("occupation", "Occupation", "personal"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_issuing_authority", "Passport issuing authority", "passport"),
+  arrivalCardField("passport_issue_date", "Passport issue date", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("email", "Email", "contact"),
+  arrivalCardField("mobile_country_code", "Phone country code", "contact"),
+  arrivalCardField("mobile_number", "Phone", "contact"),
+  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
+  arrivalCardField("traveller_type", "Traveller type", "trip"),
+  arrivalCardField("flight_departure_date", "Philippines departure date", "trip"),
+  arrivalCardField("flight_arrival_date", "Destination arrival date", "trip"),
+  arrivalCardField("destination_country", "Destination country", "trip"),
+  arrivalCardField("destination_port", "Destination airport or seaport", "trip"),
+  arrivalCardField("airline_name", "Airline", "trip", { key: "answers.transport_type", equals: "air" }),
+  arrivalCardField("flight_number", "Flight number", "trip", { key: "answers.transport_type", equals: "air" }),
+  arrivalCardField("departure_airport", "Philippines departure airport", "trip", { key: "answers.transport_type", equals: "air" }),
+  arrivalCardField("vessel_name", "Vessel name", "trip", { key: "answers.transport_type", equals: "sea" }),
+  arrivalCardField("departure_seaport", "Philippines departure seaport", "trip", { key: "answers.transport_type", equals: "sea" }),
+  arrivalCardField("customs_information_acknowledgement", "Customs information acknowledgement", "security"),
+  arrivalCardField("has_goods_to_declare", "Goods declaration", "security"),
+  arrivalCardField("has_currency_to_declare", "Currency declaration", "security"),
+  arrivalCardField("customs_signature_declaration", "Customs signature declaration", "security"),
+  arrivalCardField("final_declaration", "Final declaration", "security"),
+];
+
+// This must stay in lockstep with agent-backend/scripts/vn-prearrival/form-fields.ts
+// and vn-prearrival/normalize.ts. The previous generic arrival-card field list
+// predated the dedicated Vietnam Pre-Arrival schema, so valid saved answers were
+// incorrectly reported as missing at the final confirmation step.
+const WHEN_VN_PREARRIVAL_AIR = {
+  key: "answers.mode_of_travel",
+  equals: "air",
+};
+const WHEN_VN_PREARRIVAL_LAND = {
+  key: "answers.mode_of_travel",
+  equals: "land",
+};
+const WHEN_VN_PREARRIVAL_SEA = {
+  key: "answers.mode_of_travel",
+  equals: "sea",
+};
+const WHEN_VN_PREARRIVAL_NON_AIR = {
+  key: "answers.mode_of_travel",
+  notEquals: "air",
+};
+const WHEN_VN_PREARRIVAL_HOTEL = {
+  key: "answers.accommodation_type",
+  equals: "hotel",
+};
+const WHEN_VN_PREARRIVAL_NON_HOTEL = {
+  key: "answers.accommodation_type",
+  notEquals: "hotel",
+};
+const WHEN_VN_PREARRIVAL_OTHER_HOTEL_ADDRESS = {
+  key: "answers.hotel_accommodation_address",
+  equals: "other",
+};
+
+const VN_PREARRIVAL_REQUIRED_FIELDS: FieldRequirement[] = [
+  arrivalCardField("expected_arrival_date", "Expected arrival date", "trip"),
+  arrivalCardField("passport_type", "Passport type", "passport"),
+  arrivalCardField("passport_number", "Passport number", "passport"),
+  arrivalCardField("passport_expiry_date", "Passport expiry date", "passport"),
+  arrivalCardField("gender", "Gender", "personal"),
+  arrivalCardField("given_name", "Given name", "personal"),
+  arrivalCardField("date_of_birth", "Date of birth", "personal"),
+  arrivalCardField("nationality", "Nationality", "personal"),
+  arrivalCardField("phone_country_code", "Phone country code", "contact"),
+  arrivalCardField("phone_number", "Phone number", "contact"),
+  arrivalCardField("alias_email_address", "VIZA alias email", "contact"),
+  arrivalCardField("visa_information_acknowledgement", "Visa information acknowledgement", "passport"),
+  arrivalCardField("visa_type", "Visa type / purpose", "passport"),
+  arrivalCardField("visa_number", "Visa number", "passport"),
+  arrivalCardField("visa_expiry_date", "Visa expiry date", "passport"),
+  arrivalCardField("departure_country_before_arrival", "Departure country before arrival", "trip"),
+  arrivalCardField("purpose_of_travel", "Purpose of travel", "trip"),
+  arrivalCardField("mode_of_travel", "Mode of travel", "trip"),
+  arrivalCardField("flight_number", "Flight number", "trip", WHEN_VN_PREARRIVAL_AIR),
+  arrivalCardField("border_gate_airport", "Arrival airport", "trip", WHEN_VN_PREARRIVAL_AIR),
+  arrivalCardField("vehicle_identification_number", "Vehicle identification number", "trip", WHEN_VN_PREARRIVAL_NON_AIR),
+  arrivalCardField("land_border_gate", "Land border gate", "trip", WHEN_VN_PREARRIVAL_LAND),
+  arrivalCardField("sea_port", "Sea port", "trip", WHEN_VN_PREARRIVAL_SEA),
+  arrivalCardField("accommodation_type", "Accommodation type", "trip"),
+  arrivalCardField("province_city_of_hotel", "Hotel province / city", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField("ward_commune_of_hotel", "Hotel ward / commune", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField("hotel_accommodation_address", "Hotel accommodation address", "trip", WHEN_VN_PREARRIVAL_HOTEL),
+  arrivalCardField(
+    "custom_hotel_accommodation_address",
+    "Other hotel accommodation address",
+    "trip",
+    WHEN_VN_PREARRIVAL_OTHER_HOTEL_ADDRESS,
+  ),
+  arrivalCardField("accommodation_address", "Accommodation address", "trip", WHEN_VN_PREARRIVAL_NON_HOTEL),
   arrivalCardField("final_declaration", "Final declaration", "security"),
 ];
 
@@ -478,17 +651,20 @@ const CONFIGS: ProviderConfig[] = [
     countryCode: "ID",
     countryAliases: ["id", "indonesia"],
     displayName: "Indonesia e-Visa",
-    supportedVisaTypes: ["B211A", "ID_C1_TOURIST"],
-    implementationStatus: "dry_run_only",
+    supportedVisaTypes: ["B211A", "ID_C1_TOURIST", "ID_B1_EVOA"],
+    implementationStatus: "partial",
     dryRunAvailable: true,
     sandboxAvailable: false,
-    realSubmitAvailable: false,
-    routeStatus: "frontend_only",
-    serviceFiles: ["src/form-mappings.ts"],
-    schemaFiles: ["../agent-backend/scripts/seed-id-c1-tourist-form-fields.ts"],
-    mapperFiles: ["src/form-mappings.ts"],
-    automationFiles: [],
-    notes: "Legacy default filler existed but clicked final submit; now dry-run/unsupported unless explicitly enabled.",
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/indonesia/**", "src/index.ts"],
+    schemaFiles: [
+      "../agent-backend/scripts/seed-id-c1-tourist-form-fields.ts",
+      "../agent-backend/scripts/seed-id-b1-evoa-form-fields.ts",
+    ],
+    mapperFiles: ["src/indonesia/index.ts"],
+    automationFiles: ["src/indonesia/**"],
+    notes: "Live assisted queue dispatch exists for C1 official eVisa and B1 official e-VoA through evisa.imigrasi.go.id. The worker prepares the VIZA-managed alias email automatically and stops only for payment authorization or portal recon/action gates; VFS e-VoA is fallback recon only.",
   },
   {
     countryCode: "EG",
@@ -556,13 +732,15 @@ const CONFIGS: ProviderConfig[] = [
     countryAliases: ["kr", "south_korea", "korea"],
     displayName: "Korea C-3-9",
     supportedVisaTypes: ["KR_C39_SHORT_TERM_VISIT"],
-    implementationStatus: "not_started",
+    implementationStatus: "partial",
     dryRunAvailable: true,
     sandboxAvailable: false,
     realSubmitAvailable: false,
-    routeStatus: "package_catalog_only",
+    routeStatus: "module_only",
+    serviceFiles: ["src/korea-kvac/**"],
     schemaFiles: ["../agent-backend/scripts/seed-kr-c39-short-term-visit-form-fields.ts"],
-    notes: "Package and schema seed exist; no submission-service runner.",
+    automationFiles: ["src/korea-kvac/runner.ts"],
+    notes: "Package and schema seed exist. PDF/KVAC appointment dry-run scaffold exists; live KVAC booking remains gated pending per-center selector and CAPTCHA/SMS validation.",
   },
   {
     countryCode: "AE",
@@ -652,6 +830,47 @@ const CONFIGS: ProviderConfig[] = [
     includeAllAnswersInPayload: true,
     dryRunConfirmationPrefix: "DRYRUN-PHETRAVEL",
     notes: "Dry-run validates Philippines eTravel traveller, trip, health, customs, currency, and declaration data. Live assisted submission uses only etravel.gov.ph and stays separate from PH_TEMPORARY_VISITOR_VISA.",
+  },
+  {
+    countryCode: "PH",
+    countryAliases: ["ph", "philippines"],
+    displayName: "Philippines eTravel Departure",
+    supportedVisaTypes: ["PH_ETRAVEL_DEPARTURE_CARD"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/index.ts", "src/ph-etravel/**"],
+    schemaFiles: ["../agent-backend/scripts/seed-ph-etravel-departure-card-form-fields.ts", "../agent-backend/scripts/ph-etravel/departure-form-fields.ts"],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/ph-etravel/normalize.ts"],
+    automationFiles: ["src/ph-etravel/runner.ts", "scripts/run-ph-etravel-departure-smoke.ts"],
+    requiredFields: PH_ETRAVEL_DEPARTURE_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-PHETRAVEL-DEPARTURE",
+    notes: "Departure-only package with air/sea and Filipino/foreigner branches. The official 72-hour window is evaluated from the Philippines departure date.",
+  },
+  {
+    countryCode: "VN",
+    countryAliases: ["vn", "vietnam", "viet_nam"],
+    displayName: "Vietnam Pre-Arrival Information Declaration",
+    supportedVisaTypes: ["VN_PREARRIVAL_DECLARATION"],
+    implementationStatus: "partial",
+    dryRunAvailable: true,
+    sandboxAvailable: false,
+    realSubmitAvailable: true,
+    routeStatus: "submission_queue_dispatched",
+    serviceFiles: ["src/country-submissions/**", "src/index.ts", "src/vn-prearrival/**"],
+    schemaFiles: [
+      "../agent-backend/scripts/seed-vn-prearrival-declaration-form-fields.ts",
+      "../agent-backend/scripts/vn-prearrival/**",
+    ],
+    mapperFiles: ["src/country-submissions/from-records.ts", "src/vn-prearrival/normalize.ts"],
+    automationFiles: ["src/vn-prearrival/runner.ts"],
+    requiredFields: VN_PREARRIVAL_REQUIRED_FIELDS,
+    includeAllAnswersInPayload: true,
+    dryRunConfirmationPrefix: "DRYRUN-VNPREARRIVAL",
+    notes: "Dry-run validates the dedicated Vietnam Pre-Arrival traveller, passport, arrival, and accommodation schema. Live assisted submission uses only prearrival.immigration.gov.vn and stays separate from VN_E_VISA.",
   },
   {
     countryCode: "SG",
@@ -777,11 +996,13 @@ function normalizeToken(value: string): string {
 
 function readAnswer(application: CountrySubmissionApplication, key: string): string | null {
   const value = application.answers?.[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
 }
 
-function normalizeRequirementValue(value: string): string {
-  const normalized = normalizeToken(value);
+function normalizeRequirementValue(value: string | boolean): string {
+  const normalized = normalizeToken(String(value));
   if (["1", "true", "on", "agree", "i_agree", "y"].includes(normalized)) return "yes";
   if (["0", "false", "off", "disagree", "n"].includes(normalized)) return "no";
   return normalized;
@@ -794,6 +1015,14 @@ function readStringValue(value: unknown): string | null {
 }
 
 function readValueByKey(application: CountrySubmissionApplication, key: string): string | null {
+  if (key === "answers.is_transit_traveler") {
+    const explicit = readAnswer(application, "is_transit_traveler");
+    if (explicit) return explicit;
+    const arrivalDate = readAnswer(application, "arrival_date") ?? readStringValue(application.trip?.arrivalDate);
+    const departureDate = readAnswer(application, "departure_date") ?? readStringValue(application.trip?.departureDate);
+    if (arrivalDate && departureDate && arrivalDate === departureDate) return "true";
+  }
+
   const [scope, ...path] = key.split(".");
   const field = path.join(".");
   if (scope === "profile" && field) {
@@ -831,9 +1060,17 @@ function shouldValidateRequirement(
 ): boolean {
   if (!requirement.condition) return true;
   const actual = readValueByKey(application, requirement.condition.key);
-  return actual
-    ? normalizeRequirementValue(actual) === normalizeRequirementValue(requirement.condition.equals)
-    : false;
+  if (requirement.condition.equals !== undefined) {
+    return actual
+      ? normalizeRequirementValue(actual) === normalizeRequirementValue(requirement.condition.equals)
+      : false;
+  }
+  if (requirement.condition.notEquals !== undefined) {
+    return actual
+      ? normalizeRequirementValue(actual) !== normalizeRequirementValue(requirement.condition.notEquals)
+      : true;
+  }
+  return true;
 }
 
 function validateRequiredFields(
@@ -875,7 +1112,7 @@ function buildCountrySpecificPayload(
       normalizedKey.includes("overstay") ||
       normalizedKey.includes("refused_visa")
     ) {
-      output[key] = value;
+      output[key] = String(value);
     }
   }
   return output;

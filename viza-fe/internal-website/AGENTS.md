@@ -32,9 +32,33 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `app/api/passport-ocr/**`, `app/api/translations/**`,
   `app/api/translate/**`, and
   `app/api/external-submission/**`.
+- Vietnam Pre-Arrival official dropdown lookup is proxied through
+  `app/api/vn-prearrival/options/**`; this route may read official category
+  options but must not submit declarations or pretend a session-gated official
+  list is complete when the portal returns an auth/session error.
+  `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
+  guards the local country-code dropdown fallback used when the official
+  category endpoint is session-gated.
+- Vietnam Pre-Arrival E-Visa number guidance uses the official visual reference
+  at `public/images/vietnam/evisa-number-help-official.png`; keep its modal
+  layout aligned with the official portal while presenting the instructions in
+  Chinese.
+- Philippines eTravel airline-dependent flight numbers are proxied read-only
+  through `app/api/ph-etravel/options/**`; the form stores the exact official
+  flight code and reloads options whenever the official airline code changes.
+- Indonesia eVisa postal-code preflight is proxied through
+  `app/api/indonesia/postal-code/**`. It may only validate and derive the
+  province/city/district/village display values; the official eVisa portal
+  remains the final authority and portal-side rejection must be surfaced to
+  the applicant.
 - Applicant upload storage is the private Supabase Storage bucket
   `application-documents`, created by `supabase/migrations/**` with user-id
   path-prefix policies.
+- Reusable passport, portrait, and electronic-signature metadata is stored in
+  the server-only `universal_profile_documents` table created by
+  `supabase/migrations/20260721030018_create_universal_profile_documents.sql`;
+  application document requirements may map their country-specific photo and
+  signature aliases to these canonical profile materials.
 - Commercial and agency payment records are stored in `payment_records`,
   created by `supabase/migrations/*create_payment_records.sql`.
 - Customer support ticket storage for `/client/support` and `/admin/support`
@@ -51,6 +75,16 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   use China USVisaScheduling gated assisted-live with VIZA-created appointment
   account credentials, select observed official slots, approve payment/final
   booking, and display confirmation/status snapshots from the DB.
+- Japan VFS/JVAC Singapore appointment preparation under
+  `app/client/applications/[applicationId]/japan-appointment/**`,
+  `components/client/japan-appointment/**`, `lib/japan-vfs-sg.ts`,
+  `lib/japan-appointment-client.ts`, and `types/japan-appointment.ts`.
+  It is limited to Chinese ordinary-passport holders with a Singapore long-term
+  pass that covers their return date, records explicit consent, validates
+  stored uploads through the backend, defaults the portrait to the latest
+  reusable `universal_profile_documents` photo while allowing replacement,
+  and displays Browser API evidence. Slot choice, one-time payment preparation,
+  and final booking remain separate explicit user approvals.
 - Travel AI under `app/client/travel-chat/**`, `components/client/travel/**`,
   `lib/travel/**`, and `app/api/travel/**`.
 - Auth and session protection through `proxy.ts`, `lib/supabase/**`,
@@ -83,6 +117,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
 - Live-assisted official submission status summaries are loaded through
   `lib/submission-live-status.ts`; keep service-role access server-only and
   expose customer/staff actions through route handlers or server actions.
+- Local developer recovery for stalled official submission jobs is exposed
+  through `app/api/applications/[id]/local-submission-worker/route.ts`; it is
+  localhost-only and may only start the repository `viza-be/submission-service`
+  worker before the normal retry flow.
 - Chinese and English legal article copy for `/terms`, `/privacy`, and
   `/disclaimer` lives in `lib/legal/*-legal-content.ts`; auth footers and
   signup consent link to these routes.
@@ -96,6 +134,21 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260625_vietnam_payment_status_tracking.sql`; these
   create the quote/intent/attempt/receipt tables and queue/status columns used
   by the Vietnam e-Visa payment checkpoint UI and submission-service runner.
+- Production Indonesia official-fee card handoff uses the bearer-protected Fly
+  endpoint configured by `SUBMISSION_SERVICE_CLOUD_URL` and
+  `INDONESIA_CARD_SESSION_INTERNAL_TOKEN`; it must not fall back to localhost.
+- Production Vietnam official-fee card handoff uses the bearer-protected Fly
+  endpoint configured by `VIETNAM_SUBMISSION_SERVICE_URL` (with
+  `SUBMISSION_SERVICE_CLOUD_URL` as a compatibility fallback) and
+  `VIETNAM_CARD_SESSION_INTERNAL_TOKEN`; it must not fall back to localhost.
+- Local Indonesia payment testing may set
+  `INDONESIA_OFFICIAL_FEE_RELAY_URL` to the HTTPS Vercel production origin.
+  The local authenticated request is relayed server-to-server so the Fly
+  internal token does not need to be stored on the developer workstation.
+- Vietnam post-submission tracking and official PDF delivery are defined by
+  `supabase/migrations/20260718025937_vietnam_evisa_status_tracking_delivery.sql`,
+  mirrored in `supabase/manual/viza_required_schema.sql`, and exposed only by
+  ownership-checked status refresh and artifact routes.
 - Vietnam official e-Visa form parity migration under
   `supabase/migrations/20260625_vn_evisa_official_form_parity.sql`; it keeps
   the DB-driven VIZA form aligned with official conditional questions, tables,
@@ -103,6 +156,10 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `lib/vietnam-evisa-form-parity.ts` mirrors the same official parity metadata
   as a runtime safety net when the local database has not applied the migration
   yet; keep it in sync with the migration and avoid duplicating fields.
+- Vietnam e-Visa strict validity ordering is applied by
+  `supabase/migrations/20260728090000_vn_evisa_strict_validity_range.sql`:
+  `visa_valid_to` must be at least one calendar day after `visa_valid_from`,
+  matching the official portal rather than allowing a same-day interval.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,
@@ -151,6 +208,19 @@ comments.
   approval explicit in VIZA. Supported login/CAPTCHA/MFA/email/policy
   checkpoints belong in the gated runner with redacted official evidence and
   manual-required fallback.
+- Korea C-3-9 official e-Form/KVAC flow lives under
+  `app/api/applications/[id]/korea-official-eform/**`,
+  `app/api/applications/[id]/kr-annex17-pdf/**`,
+  `app/api/applications/[id]/korea-appointment/**`,
+  `app/api/korea-addresses/**`,
+  `app/client/applications/[applicationId]/korea-appointment/**`,
+  `components/client/korea-appointment/**`, and `lib/korea-c39/**`.
+  It prioritizes Korea Visa Portal barcode e-Form generation/download, keeps
+  the printable Annex-17 packet as a fallback, resolves the recommended China
+  KVAC center, and keeps cancellation/rebooking state transitions in
+  `lib/korea-c39/appointment-rebooking.ts` while preserving old confirmations
+  as history. Real KVAC portal booking must remain gated behind the
+  submission-service runner and explicit user-selected slot.
 
 ## Validation
 
@@ -201,15 +271,21 @@ Smoke URLs:
 - `app/api/translate/*`
 - `app/api/stripe/*`
 - `app/api/travel/*`
+- `app/api/vn-prearrival/options/*`
+- `app/api/ph-etravel/options/*`
 - `components/ui/*`
 - `components/smooth-progress.tsx`
 - `components/runtime-abort-error-guard.tsx`
 - `components/runtime-abort-error-script.tsx`
 - `components/client/*`
 - `components/client/passport-ocr-upload.tsx`
+- `components/client/universal-profile-documents-carousel.tsx`
 - `components/client/us-appointment/*`
+- `components/client/japan-appointment/*`
+- `components/client/korea-appointment/*`
 - `components/application-steps/*`
 - `components/dynamic-step-form.tsx`
+- `components/__tests__/dynamic-step-form-vn-prearrival-options.test.ts`
 - `components/dynamic-form-field.tsx`
 - `components/field-guidance-panel.tsx`
 - `hooks/use-smooth-progress.ts`
@@ -223,9 +299,12 @@ Smoke URLs:
 - `lib/visa-form-schema-aliases.ts`
 - `lib/__tests__/universal-profile-prefill.test.ts`
 - `lib/us-appointment/*`
+- `lib/japan-vfs-sg.ts`
+- `lib/korea-c39/*`
 - `lib/client/recent-application-form.ts`
 - `lib/runtime-abort-errors.ts`
 - `lib/runtime-abort-retry.ts`
+- `lib/server-action-recovery.ts`
 - `supabase/migrations/*`
 - `supabase/manual/*`
 - `supabase/templates/*`
@@ -238,6 +317,7 @@ Smoke URLs:
 - `lib/applicant-profile-identity.ts`
 - `lib/ds160-proof.ts`
 - `lib/__tests__/ds160-proof.spec.ts`
+- `lib/__tests__/form-utils.test.ts`
 - `lib/legal/*`
 - `lib/travel/*`
 - `messages/en.json`

@@ -2,7 +2,9 @@ param(
   [int]$FrontendPort = 3000,
   [int]$MarketingPort = 3001,
   [int]$AgentPort = 3002,
-  [int]$SubmissionPort = 8085,
+  # 8085 is commonly reserved by Windows (for example, by Hyper-V). Keep the
+  # submission worker outside the dynamic excluded-port range by default.
+  [int]$SubmissionPort = 18080,
   [int]$TravelPort = 8000,
   [int]$StartupTimeoutSeconds = 120,
   [string]$PortalPath = "/client/login",
@@ -155,6 +157,11 @@ function Get-PortListener {
   return Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 
+function Get-PortConnection {
+  param([int]$Port)
+  return Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
 function Get-ProcessInfo {
   param([int]$ProcessId)
   return Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
@@ -203,6 +210,90 @@ function Test-HttpProbe {
   }
 }
 
+function Test-TcpPortBindable {
+  param([int]$Port)
+
+  $listener = $null
+  try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $Port)
+    $listener.Start()
+    return $true
+  } catch {
+    return $false
+  } finally {
+    if ($listener) {
+      $listener.Stop()
+    }
+  }
+}
+
+function Format-PortOwner {
+  param([int]$Port)
+
+  $connection = Get-PortConnection -Port $Port
+  if (!$connection) {
+    return "unknown owner"
+  }
+
+  $process = Get-ProcessInfo -ProcessId $connection.OwningProcess
+  $processName = if ($process) { $process.Name } else { "unknown" }
+  return "PID $($connection.OwningProcess) ($processName, state $($connection.State))"
+}
+
+function Set-UriPort {
+  param(
+    [string]$Uri,
+    [int]$Port
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Uri)) {
+    return ""
+  }
+
+  $builder = [System.UriBuilder]::new($Uri)
+  $builder.Port = $Port
+  return $builder.Uri.AbsoluteUri
+}
+
+function Resolve-AutoPort {
+  param(
+    [string]$Name,
+    [int]$Port,
+    [bool]$Explicit,
+    [string]$HealthUri = "",
+    [string[]]$ExpectedContent = @(),
+    [int]$SearchLimit = 50
+  )
+
+  if (Test-HttpProbe -Uri $HealthUri -ExpectedContent $ExpectedContent) {
+    return $Port
+  }
+
+  if (Test-TcpPortBindable -Port $Port) {
+    return $Port
+  }
+
+  $owner = Format-PortOwner -Port $Port
+  if ($Explicit) {
+    throw "$Name port $Port is not bindable ($owner). Choose a different -TravelPort or stop the owning process."
+  }
+
+  for ($candidate = $Port + 1; $candidate -le ($Port + $SearchLimit); $candidate++) {
+    $candidateHealthUri = Set-UriPort -Uri $HealthUri -Port $candidate
+    if (Test-HttpProbe -Uri $candidateHealthUri -ExpectedContent $ExpectedContent) {
+      Write-Warn "$Name port $Port is not bindable ($owner); reusing $Name on port $candidate."
+      return $candidate
+    }
+
+    if (Test-TcpPortBindable -Port $candidate) {
+      Write-Warn "$Name port $Port is not bindable ($owner); using port $candidate for this run."
+      return $candidate
+    }
+  }
+
+  throw "$Name port $Port is not bindable ($owner), and no free port was found between $($Port + 1) and $($Port + $SearchLimit)."
+}
+
 function Assert-PortAvailableOrExpected {
   param(
     [string]$Name,
@@ -241,6 +332,25 @@ function Find-RunningProcessByPath {
       $_.CommandLine -and $_.CommandLine.ToLowerInvariant().Contains($fullPath)
     } |
     Select-Object -First 1
+}
+
+function Stop-ProcessesByPath {
+  param([string]$Path)
+
+  $fullPath = [System.IO.Path]::GetFullPath($Path).ToLowerInvariant()
+  $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.CommandLine -and $_.CommandLine.ToLowerInvariant().Contains($fullPath)
+    }
+
+  if (!$processes -or $processes.Count -eq 0) {
+    return
+  }
+
+  foreach ($process in $processes) {
+    Write-Warn "Stopping lingering process tree from path match: PID $($process.ProcessId)"
+    & cmd.exe /c "taskkill /PID $($process.ProcessId) /T /F >nul 2>nul"
+  }
 }
 
 function Stop-StartedProcesses {
@@ -620,6 +730,11 @@ if ($Stop) {
 
 if ($Reset) {
   Stop-StartedProcesses
+  Stop-ProcessesByPath -Path $agentBackendDir
+  Stop-ProcessesByPath -Path $submissionServiceDir
+  Stop-ProcessesByPath -Path $travelServiceDir
+  Stop-ProcessesByPath -Path $marketingDir
+  Stop-ProcessesByPath -Path $frontendDir
   Start-Sleep -Seconds 2
 }
 
@@ -631,6 +746,22 @@ New-Item -ItemType Directory -Force -Path $runLogDir | Out-Null
 Assert-ServiceInputs
 Start-DatabaseServices
 Invoke-VizaRequiredMigrations
+
+$travelPortExplicit = $PSBoundParameters.ContainsKey("TravelPort")
+$TravelPort = Resolve-AutoPort `
+  -Name "travel-service" `
+  -Port $TravelPort `
+  -Explicit $travelPortExplicit `
+  -HealthUri "http://127.0.0.1:$TravelPort/openapi.json" `
+  -ExpectedContent @('"/generate"', '"/chat"', '"/flight-options"')
+
+$submissionPortExplicit = $PSBoundParameters.ContainsKey("SubmissionPort")
+$SubmissionPort = Resolve-AutoPort `
+  -Name "submission-service" `
+  -Port $SubmissionPort `
+  -Explicit $submissionPortExplicit `
+  -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
+  -ExpectedContent @('"status":"ok"')
 
 $frontendAlreadyRunning = Assert-PortAvailableOrExpected `
   -Name "frontend" `
@@ -662,6 +793,33 @@ $submissionAlreadyRunning = Assert-PortAvailableOrExpected `
   -ExpectedPath $submissionServiceDir `
   -HealthUri "http://127.0.0.1:$SubmissionPort/health" `
   -ExpectedContent @('"status":"ok"')
+$submissionVietnamCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session"
+$submissionIndonesiaCardSessionUri = "http://127.0.0.1:$SubmissionPort/local/indonesia/card-session"
+$submissionCardSessionEndpointsReady =
+  (Test-HttpProbe -Uri $submissionVietnamCardSessionUri -ExpectedContent @('"enabled":true')) -and
+  (Test-HttpProbe -Uri $submissionIndonesiaCardSessionUri -ExpectedContent @('"enabled":true'))
+if ($submissionAlreadyRunning -and !$submissionCardSessionEndpointsReady) {
+  Write-Warn "submission-service is running but the Vietnam/Indonesia card-session endpoints are not both enabled; restarting it with local payment env."
+  Stop-ProcessesByPath -Path $submissionServiceDir
+  Start-Sleep -Seconds 2
+  $submissionAlreadyRunning = $false
+}
+
+$frontendNeedsRestartForSubmissionServiceEnv = $frontendAlreadyRunning
+if ($frontendNeedsRestartForSubmissionServiceEnv) {
+  Write-Warn "frontend is already running; restarting it so SUBMISSION_SERVICE_LOCAL_URL and live-submission env match this start-all run."
+  Stop-ProcessesByPath -Path $frontendDir
+  Start-Sleep -Seconds 2
+  $frontendAlreadyRunning = $false
+}
+
+if ($Reset) {
+  $agentAlreadyRunning = $false
+  $marketingAlreadyRunning = $false
+  $travelAlreadyRunning = $false
+  $submissionAlreadyRunning = $false
+  $frontendAlreadyRunning = $false
+}
 
 $started = @()
 
@@ -677,11 +835,23 @@ if (!$agentAlreadyRunning) {
 if (!$submissionAlreadyRunning) {
   $submissionProcess = Find-RunningProcessByPath -Path $submissionServiceDir
   if ($submissionProcess) {
-    Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
+    if ($submissionCardSessionEndpointsReady) {
+      Write-Warn "submission-service already running (PID $($submissionProcess.ProcessId)); reusing it."
+    } else {
+      Write-Warn "submission-service process found (PID $($submissionProcess.ProcessId)) but the Vietnam/Indonesia card-session endpoints are not ready; restarting it."
+      Stop-ProcessesByPath -Path $submissionServiceDir
+      Start-Sleep -Seconds 2
+      $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
+      $started += Start-ManagedProcess `
+        -Name "submission-service worker with Vietnam and Indonesia local payments" `
+        -SafeName "submission-service" `
+        -WorkingDirectory $submissionServiceDir `
+        -Command $submissionCommand
+    }
   } else {
-    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; npm run dev"
+    $submissionCommand = "`$env:PORT = '$SubmissionPort'; `$env:SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = 'false'; `$env:VN_OFFICIAL_PAYMENT_AUTOPAY = 'true'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:VN_LIVE_ASSISTED_ONLY = 'true'; `$env:VN_PLAYWRIGHT_HEADLESS = 'false'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
     $started += Start-ManagedProcess `
-      -Name "submission-service worker with Vietnam autopay" `
+      -Name "submission-service worker with Vietnam and Indonesia local payments" `
       -SafeName "submission-service" `
       -WorkingDirectory $submissionServiceDir `
       -Command $submissionCommand
@@ -710,7 +880,7 @@ if (!$marketingAlreadyRunning) {
 }
 
 if (!$frontendAlreadyRunning) {
-  $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; `$env:SUBMISSION_SERVICE_LOCAL_URL = 'http://127.0.0.1:$SubmissionPort'; `$env:NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_VN_SUBMISSION_MODE = 'live_assisted'; npm run dev -- -p $FrontendPort"
+  $frontendCommand = "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$AgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$TravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$FrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$FrontendPort'; `$env:SUBMISSION_SERVICE_LOCAL_URL = 'http://127.0.0.1:$SubmissionPort'; `$env:NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_VN_SUBMISSION_MODE = 'live_assisted'; `$env:INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'; npm run dev -- -p $FrontendPort"
   $started += Start-ManagedProcess `
     -Name "frontend" `
     -SafeName "frontend" `
@@ -724,7 +894,8 @@ foreach ($process in $started) {
 
 Wait-HttpReady -Name "agent-backend" -Uri "http://127.0.0.1:$AgentPort/health" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
-Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri "http://127.0.0.1:$SubmissionPort/local/vietnam/card-session" -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "Vietnam one-time card session endpoint" -Uri $submissionVietnamCardSessionUri -TimeoutSeconds $StartupTimeoutSeconds
+Wait-HttpReady -Name "Indonesia one-time card session endpoint" -Uri $submissionIndonesiaCardSessionUri -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$TravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "marketing web" -Uri "http://127.0.0.1:$MarketingPort/" -TimeoutSeconds $StartupTimeoutSeconds
 Wait-HttpReady -Name "frontend" -Uri "http://127.0.0.1:$FrontendPort/client/login" -TimeoutSeconds $StartupTimeoutSeconds

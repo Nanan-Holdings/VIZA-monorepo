@@ -6,6 +6,7 @@
 	boolean,
 	date,
 	integer,
+	smallint,
 	bigint,
 	jsonb,
 	numeric,
@@ -227,6 +228,65 @@ export const universalProfileDocuments = pgTable("universal_profile_documents", 
 	sourceApplicationIdx: index("universal_profile_documents_source_app_idx").on(table.sourceApplicationId),
 }));
 
+export const officialApplicationTracking = pgTable("official_application_tracking", {
+	applicationId: uuid("application_id").primaryKey(),
+	applicantId: uuid("applicant_id").notNull(),
+	authUserId: uuid("auth_user_id").notNull(),
+	countryCode: text("country_code").default("VN").notNull(),
+	provider: text("provider").default("vietnam_evisa").notNull(),
+	officialLookupEmail: text("official_lookup_email").notNull(),
+	trackingStatus: text("tracking_status").default("active").notNull(),
+	dailyCheckHour: smallint("daily_check_hour").notNull(),
+	dailyCheckMinute: smallint("daily_check_minute").notNull(),
+	nextDailyCheckAt: timestamp("next_daily_check_at", { withTimezone: true }).notNull(),
+	lastDailyCheckAt: timestamp("last_daily_check_at", { withTimezone: true }),
+	lastSuccessfulCheckAt: timestamp("last_successful_check_at", { withTimezone: true }),
+	lastEmailMessageId: uuid("last_email_message_id"),
+	lastKnownStatus: text("last_known_status"),
+	lastArtifactHash: text("last_artifact_hash"),
+	lastArtifactStoragePath: text("last_artifact_storage_path"),
+	consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	dueIdx: index("official_application_tracking_due_idx").on(table.trackingStatus, table.nextDailyCheckAt),
+	applicantIdx: index("official_application_tracking_applicant_idx").on(table.applicantId),
+}));
+
+export const officialStatusChecks = pgTable("official_status_checks", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	userId: uuid("user_id"),
+	countryCode: text("country_code").notNull(),
+	provider: text("provider").notNull(),
+	status: text("status").default("queued").notNull(),
+	officialReference: text("official_reference"),
+	officialStatus: text("official_status"),
+	resultStatus: text("result_status"),
+	requestedBy: text("requested_by").default("system").notNull(),
+	triggerSource: text("trigger_source").default("daily").notNull(),
+	idempotencyKey: text("idempotency_key"),
+	inboundEmailId: uuid("inbound_email_id"),
+	scheduledFor: timestamp("scheduled_for", { withTimezone: true }).defaultNow().notNull(),
+	startedAt: timestamp("started_at", { withTimezone: true }),
+	checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow(),
+	completedAt: timestamp("completed_at", { withTimezone: true }),
+	attemptCount: integer("attempt_count").default(0).notNull(),
+	artifactStoragePath: text("artifact_storage_path"),
+	artifactSha256: text("artifact_sha256"),
+	rawStatusJson: jsonb("raw_status_json").default({}).notNull(),
+	errorCode: text("error_code"),
+	errorMessage: text("error_message"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => ({
+	applicationIdx: index("official_status_checks_application_idx").on(table.applicationId),
+	statusIdx: index("official_status_checks_status_idx").on(table.status),
+	idempotencyIdx: uniqueIndex("official_status_checks_idempotency_idx").on(table.idempotencyKey),
+	claimIdx: index("official_status_checks_claim_idx").on(table.status, table.scheduledFor, table.createdAt),
+}));
+
 // =============================================================================
 // SUBMISSION QUEUE
 // Tracks automation submissions to evisa.imigrasi.go.id
@@ -258,6 +318,19 @@ export const auAccounts = pgTable("au_accounts", {
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+export const phEtravelAccounts = pgTable("ph_etravel_accounts", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicantId: uuid("applicant_id").notNull(),
+	email: text("email").notNull(),
+	passwordEncrypted: text("password_encrypted"),
+	mpinEncrypted: text("mpin_encrypted"),
+	status: text("status").default("pending_registration").notNull(),
+	storageStateJson: jsonb("storage_state_json"),
+	lastAuthenticatedAt: timestamp("last_authenticated_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 export const submissionQueue = pgTable("submission_queue", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),
@@ -267,6 +340,9 @@ export const submissionQueue = pgTable("submission_queue", {
 	provider: text("provider"),
 	attempts: integer("attempts").default(0).notNull(),
 	lastError: text("last_error"),
+	lockedBy: text("locked_by"),
+	lockedAt: timestamp("locked_at", { withTimezone: true }),
+	lockedUntil: timestamp("locked_until", { withTimezone: true }),
 	pausedReason: text("paused_reason"),
 	officialApplicationIdEncrypted: text("official_application_id_encrypted"),
 	officialApplicationReferenceEncrypted: text("official_application_reference_encrypted"),
@@ -1274,6 +1350,7 @@ export const appointmentAssistanceJobs = pgTable("appointment_assistance_jobs", 
   currentManualAction: text("current_manual_action"),
   lastErrorCode: text("last_error_code"),
   lastErrorMessage: text("last_error_message"),
+  lastSlotCheckAt: timestamp("last_slot_check_at", { withTimezone: true }),
   idempotencyKey: text("idempotency_key").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

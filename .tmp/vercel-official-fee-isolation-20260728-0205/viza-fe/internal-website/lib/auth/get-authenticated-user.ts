@@ -1,0 +1,144 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getImpersonationSession } from "@/lib/impersonation-session";
+
+/**
+ * Get the authenticated user linked to the current Supabase auth session
+ */
+export async function getAuthenticatedUser(): Promise<{
+  id: string;
+  name: string;
+  email: string;
+  date_of_birth: string | null;
+  sex: "M" | "F" | null;
+  isImpersonation?: boolean;
+} | null> {
+  // 1. Check for impersonation session first
+  const impersonation = await getImpersonationSession();
+  if (impersonation) {
+    const adminClient = createAdminClient();
+    const { data: profile, error } = await adminClient
+      .from("users")
+      .select("id, name, email, date_of_birth, sex")
+      .eq("id", impersonation.userId)
+      .single();
+
+    if (!error && profile) {
+      return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        date_of_birth: profile.date_of_birth,
+        sex: profile.sex as "M" | "F" | null,
+        isImpersonation: true,
+      };
+    }
+  }
+
+  // 2. Fall back to normal Supabase auth session
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) {
+    return null;
+  }
+
+  // Use admin client to bypass RLS for auth_user_id lookup
+  const adminClient = createAdminClient();
+  const { data: profile, error } = await adminClient
+    .from("users")
+    .select("id, name, email, date_of_birth, sex")
+    .eq("auth_user_id", authUser.id)
+    .single();
+
+  if (!error && profile) {
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      date_of_birth: profile.date_of_birth,
+      sex: profile.sex as "M" | "F" | null,
+    };
+  }
+
+  const { data: applicantProfile } = await adminClient
+    .from("applicant_profiles")
+    .select("id, full_name, email, date_of_birth, gender")
+    .eq("auth_user_id", authUser.id)
+    .maybeSingle();
+
+  if (!applicantProfile && !authUser.email) return null;
+
+  return {
+    id: applicantProfile?.id ?? authUser.id,
+    name: applicantProfile?.full_name ?? authUser.user_metadata?.name ?? authUser.email ?? "Applicant",
+    email: applicantProfile?.email ?? authUser.email ?? "",
+    date_of_birth: applicantProfile?.date_of_birth ?? null,
+    sex: applicantProfile?.gender === "male" || applicantProfile?.gender === "M"
+      ? "M"
+      : applicantProfile?.gender === "female" || applicantProfile?.gender === "F"
+        ? "F"
+        : null,
+  };
+}
+
+export async function resolveAuthenticatedUserId({
+  authUserId,
+  userRowId,
+  applicantProfileId,
+}: {
+  authUserId: string;
+  userRowId?: string | null;
+  applicantProfileId?: string | null;
+}): Promise<string | null> {
+  void authUserId;
+  return userRowId ?? applicantProfileId ?? null;
+}
+
+/**
+ * Get only the user ID for the authenticated user
+ */
+export async function getAuthenticatedUserId(): Promise<string | null> {
+  // 1. Check for impersonation session first
+  const impersonation = await getImpersonationSession();
+  if (impersonation) {
+    return impersonation.userId;
+  }
+
+  // 2. Fall back to normal Supabase auth session
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) {
+    return null;
+  }
+
+  const adminClient = createAdminClient();
+  const { data: profile, error } = await adminClient
+    .from("users")
+    .select("id")
+    .eq("auth_user_id", authUser.id)
+    .single();
+
+  if (!error && profile) {
+    return profile.id;
+  }
+
+  const { data: applicantProfile } = await adminClient
+    .from("applicant_profiles")
+    .select("id")
+    .eq("auth_user_id", authUser.id)
+    .maybeSingle();
+
+  return await resolveAuthenticatedUserId({
+    authUserId: authUser.id,
+    userRowId: null,
+    applicantProfileId: applicantProfile?.id ?? null,
+  });
+}

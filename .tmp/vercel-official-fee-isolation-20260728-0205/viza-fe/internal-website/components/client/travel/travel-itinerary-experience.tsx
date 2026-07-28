@@ -1,0 +1,6869 @@
+"use client";
+
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  BedDouble,
+  CalendarDays,
+  Car,
+  Check,
+  ChevronRight,
+  Clock3,
+  Compass,
+  Download,
+  FileText,
+  Loader2,
+  MapPin,
+  MapPinned,
+  Pause,
+  Pencil,
+  Plane,
+  Play,
+  Plus,
+  Route,
+  Share2,
+  Sparkles,
+  Star,
+  TrainFront,
+  Trash2,
+  Utensils,
+  Users,
+  WalletCards,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type {
+  FlightLegResult,
+  FlightOptionResult,
+  HotelOptionResult,
+  HotelStayResult,
+  ItineraryDay,
+  SelectedFlightOption,
+  SelectedHotelOption,
+  TravelState,
+} from "@/lib/travel/planner";
+import {
+  TripRouteMap,
+  type TripMapPoint,
+} from "@/components/client/travel/trip-route-map";
+import {
+  TRAVEL_ITINERARY_SHARE_PARAM,
+  buildTravelItinerarySharePayload,
+  encodeTravelItinerarySharePayload,
+} from "@/components/client/travel/travel-itinerary-data";
+import {
+  findTravelAttraction,
+  getTravelAttractionNamesForCity,
+  getTravelAttractionsForCity,
+  getTravelCityImage,
+} from "@/components/client/travel/travel-attraction-knowledge";
+import {
+  CURATED_CITY_EN_LABELS_BY_KEY,
+  CURATED_CITY_ZH_LABELS_BY_KEY,
+  getCuratedCityLabel,
+} from "@/lib/travel/locations";
+import type {
+  TravelGoogleAttraction,
+  TravelGoogleEnrichedDestination,
+} from "@/lib/travel/google-places-enrichment-types";
+
+type ItineryTableRow = {
+  time?: string;
+  type: string;
+  date: string;
+  route: string;
+  name: string;
+  details: string;
+  contact: string;
+};
+
+type GoogleGeocodeCoordinate = {
+  lat: number;
+  lng: number;
+  formattedAddress?: string;
+  placeId?: string;
+  locationType?: string;
+};
+
+type GoogleGeocodeResult = {
+  key: string;
+  query: string;
+  lat?: number;
+  lng?: number;
+  formattedAddress?: string;
+  placeId?: string;
+  locationType?: string;
+  status: string;
+  error?: string;
+};
+
+type GoogleGeocodeRequestItem = {
+  key: string;
+  query: string;
+};
+
+type AttractionChoiceCard = {
+  name: string;
+  location: string;
+  imageSrc: string;
+  lat?: number;
+  lng?: number;
+};
+
+type DetailResourceTab = "attractions" | "flights" | "hotels";
+type ApiOptionsStatus = "idle" | "loading" | "success" | "error";
+
+type ResourceOptionsSheetState =
+  | {
+      kind: "flight";
+      leg: FlightLegResult;
+      legIndex: number;
+    }
+  | {
+      kind: "hotel";
+      stay: HotelStayResult;
+      stayIndex: number;
+    };
+
+type TravelItineraryExperienceProps = {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+  interfaceLocale: TravelInterfaceLocale;
+  orderedCities: string[];
+  routeCoordinates: Array<[number, number]>;
+  mapPoints: TripMapPoint[];
+  activePointId?: string | null;
+  initialItineryRows?: ItineryTableRow[];
+  modulePatch?: Record<string, unknown>;
+  versionOptions?: TravelItineraryVersionOption[];
+  activeVersionId?: string;
+  activeVersionSummary?: string;
+  onPointSelect?: (id: string) => void;
+  onVersionSelect?: (versionId: string) => void;
+  onItineraryChange?: (update: TravelItineraryStateUpdate) => void;
+};
+
+export type TravelItineraryStateUpdate = {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+  selectedFlights: SelectedFlightOption[];
+  selectedHotels: SelectedHotelOption[];
+  reason: string;
+};
+
+type TravelItineraryVersionOption = {
+  id: string;
+  label: string;
+  createdAt: string;
+  editSummary?: string;
+  isLatest: boolean;
+};
+
+type CitySegment = {
+  city: string;
+  label: string;
+  dayStart: number;
+  dayEnd: number;
+  rangeLabel: string;
+  imageSrc: string;
+  lat?: number;
+  lng?: number;
+  enrichment?: TravelGoogleEnrichedDestination | null;
+};
+
+type ItineraryTravelStatePatch = Pick<
+  TravelState,
+  "cities" | "city_days" | "travel_days" | "travel_order"
+>;
+
+type RouteNode = {
+  id: string;
+  label: string;
+  caption: string;
+  kind: "origin" | "city" | "return";
+  city?: string;
+};
+
+type TravelDownloadEndpoint =
+  | "/api/travel/download-word"
+  | "/api/travel/download-pdf";
+
+type TravelExportLanguage = "zh" | "en" | "bilingual";
+type TravelInterfaceLocale = "zh" | "en";
+
+type TravelExportPayload = {
+  country: string;
+  countries: string[];
+  cities: string[];
+  city_days: Record<string, number>;
+  departure_date?: string;
+  date_flexibility?: string;
+  travel_days: number;
+  travelers: number;
+  budget: number;
+  travel_order: string[];
+  origin_country?: string;
+  origin_city?: string;
+  return_country?: string;
+  return_city?: string;
+  selected_flights: SelectedFlightOption[];
+  selected_hotels: SelectedHotelOption[];
+  final_note: string;
+  attached_files: string[];
+  itinerary: ItineraryDay[];
+  itinery_rows: ItineryTableRow[];
+  export_language: TravelExportLanguage;
+};
+
+const EXPORT_LANGUAGE_OPTIONS: Array<{
+  value: TravelExportLanguage;
+  label: string;
+}> = [
+  { value: "zh", label: "中文" },
+  { value: "en", label: "English" },
+  { value: "bilingual", label: "中英双语" },
+];
+
+const CITY_IMAGE_FALLBACK = "/travel/cities/travel-fallback.svg";
+
+const CITY_IMAGE_BY_KEY: Record<string, string> = {
+  bali: "/travel/cities/bali.jpg",
+  denpasar: "/travel/cities/bali.jpg",
+  tokyo: "/travel/cities/tokyo.jpg",
+  singapore: "/travel/cities/singapore.jpg",
+  sydney: "/travel/cities/sydney.jpg",
+  london: "/travel/cities/london.jpg",
+  paris: "/travel/cities/paris.jpg",
+  newyork: "/travel/cities/newyork.jpg",
+  nyc: "/travel/cities/newyork.jpg",
+  beijing: "/travel/cities/beijing.jpg",
+  sanfrancisco: "/travel/cities/sanfrancisco.jpg",
+  sf: "/travel/cities/sanfrancisco.jpg",
+  pisa: "/travel/cities/pisa.jpg",
+  dubai: "/travel/cities/dubai.jpg",
+  guangzhou: "/travel/cities/guangzhou.jpg",
+  hangzhou: "/travel/cities/hangzhou.jpg",
+  shanghai: "/travel/cities/shanghai.jpg",
+  moscow: "/travel/cities/moscow.jpg",
+  istanbul: "/travel/cities/istanbul.jpg",
+  melbourne: "/travel/cities/melbourne.jpg",
+  hawaii: "/travel/cities/hawaii.jpg",
+};
+
+const LOCAL_CITY_LABELS: Record<string, string> = {
+  ...CURATED_CITY_ZH_LABELS_BY_KEY,
+  bali: "巴厘岛",
+  denpasar: "登巴萨",
+  chengdu: "成都",
+  tokyo: "东京",
+  kyoto: "京都",
+  osaka: "大阪",
+  singapore: "新加坡",
+  sydney: "悉尼",
+  london: "伦敦",
+  paris: "巴黎",
+  lyon: "里昂",
+  marseille: "马赛",
+  nice: "尼斯",
+  newyork: "纽约",
+  nyc: "纽约",
+  beijing: "北京",
+  sanfrancisco: "旧金山",
+  sf: "旧金山",
+  pisa: "比萨",
+  naples: "那不勒斯",
+  kohsamui: "苏梅岛",
+  samui: "苏梅岛",
+  "koh samui": "苏梅岛",
+  rome: "罗马",
+  seoul: "首尔",
+  fukuoka: "福冈",
+  福冈: "福冈",
+  bangkok: "曼谷",
+  曼谷: "曼谷",
+  phuket: "普吉岛",
+  普吉岛: "普吉岛",
+  chiangmai: "清迈",
+  清迈: "清迈",
+  pattaya: "芭提雅",
+  芭提雅: "芭提雅",
+  芭堤雅: "芭提雅",
+  hongkong: "香港",
+};
+
+const EN_CITY_LABELS: Record<string, string> = {
+  ...CURATED_CITY_EN_LABELS_BY_KEY,
+  bali: "Bali",
+  denpasar: "Denpasar",
+  chengdu: "Chengdu",
+  tokyo: "Tokyo",
+  kyoto: "Kyoto",
+  osaka: "Osaka",
+  singapore: "Singapore",
+  sydney: "Sydney",
+  london: "London",
+  paris: "Paris",
+  lyon: "Lyon",
+  marseille: "Marseille",
+  nice: "Nice",
+  newyork: "New York",
+  nyc: "New York",
+  beijing: "Beijing",
+  sanfrancisco: "San Francisco",
+  sf: "San Francisco",
+  pisa: "Pisa",
+  naples: "Naples",
+  kohsamui: "Koh Samui",
+  samui: "Koh Samui",
+  kohsamuiisland: "Koh Samui",
+  rome: "Rome",
+  seoul: "Seoul",
+  fukuoka: "Fukuoka",
+  bangkok: "Bangkok",
+  phuket: "Phuket",
+  chiangmai: "Chiang Mai",
+  pattaya: "Pattaya",
+  hongkong: "Hong Kong",
+  巴厘岛: "Bali",
+  登巴萨: "Denpasar",
+  成都: "Chengdu",
+  东京: "Tokyo",
+  京都: "Kyoto",
+  大阪: "Osaka",
+  新加坡: "Singapore",
+  悉尼: "Sydney",
+  伦敦: "London",
+  巴黎: "Paris",
+  里昂: "Lyon",
+  马赛: "Marseille",
+  尼斯: "Nice",
+  纽约: "New York",
+  北京: "Beijing",
+  旧金山: "San Francisco",
+  比萨: "Pisa",
+  那不勒斯: "Naples",
+  苏梅岛: "Koh Samui",
+  罗马: "Rome",
+  首尔: "Seoul",
+  福冈: "Fukuoka",
+  曼谷: "Bangkok",
+  普吉岛: "Phuket",
+  清迈: "Chiang Mai",
+  芭提雅: "Pattaya",
+  芭堤雅: "Pattaya",
+  香港: "Hong Kong",
+};
+
+const TRAVEL_ITINERARY_COPY = {
+  zh: {
+    latest: "最新行程",
+    preview: "预览",
+    days: "天数",
+    cities: "城市",
+    experiences: "体验",
+    hotels: "酒店",
+    transports: "运输",
+    travelers: "旅行者",
+    shareLink: "分享链接",
+    tableTitle: "行程表",
+    itemCount: "项",
+    addItem: "添加项目",
+    resetDefault: "重置默认",
+    tableHeaders: [
+      "时间",
+      "类型",
+      "日期/天数",
+      "城市/路线",
+      "名称",
+      "详情",
+      "联系方式/航班号",
+      "操作",
+    ],
+    emptyRows: "暂无可导出的行程项目",
+    viewFullMap: "查看完整地图",
+    optionalFlights: "可选航班",
+    optionalFlightsHint: "来自 API，点击卡片替换默认选择",
+    openFlightOptions: "查看可选航班",
+    openHotelOptions: "查看可选酒店",
+    flightOptionsSheetTitle: "选择航班",
+    hotelOptionsSheetTitle: "选择酒店",
+    flightOptionsSheetHint: "点击候选卡片后会替换当天默认航班。",
+    hotelOptionsSheetHint: "点击候选卡片后会替换当天默认酒店。",
+    flightLoadingTitle: "航班还没有加载出来",
+    flightLoadingDescription:
+      "API 正在查询这段交通，加载完成后会显示默认航班。",
+    hotelLoadingTitle: "酒店还没有加载出来",
+    hotelLoadingDescription: "API 正在查询这段住宿，加载完成后会显示默认酒店。",
+    networkErrorTitle: "网络出错了",
+    flightNetworkErrorDescription: "暂时无法加载航班候选，请稍后再试。",
+    hotelNetworkErrorDescription: "暂时无法加载酒店候选，请稍后再试。",
+    publicTransport: "乘坐公共交通",
+    publicTransportDescription:
+      "这段暂时没有 API 航班候选，建议优先查看火车、巴士或本地交通。",
+    hotelPendingTitle: "暂无酒店候选",
+    hotelPendingDescription:
+      "这座城市暂时没有 API 酒店候选，行程会先保留当前安排。",
+    optionalHotels: "可选酒店",
+    optionalHotelsHint: "地址和电话会同步到行程表",
+    returnFlight: "返程航班",
+    route: "航线",
+    time: "时间",
+    date: "日期",
+    durationStops: "时长/经停",
+    depart: "出发",
+    arrive: "到达",
+    direct: "直飞",
+    transfer: "次中转",
+    stopsPending: "经停待确认",
+    pending: "待确认",
+    apiFlight: "API 推荐航班",
+    apiAirline: "API 推荐航司",
+    flightNumberPending: "航班号待补充",
+    durationPending: "时长待确认",
+    hotelFallback: "精选酒店",
+    fourStarApplied: "已应用 4 星酒店偏好，可继续编辑替换",
+    nights: "晚上",
+    contactPhone: "联系方式",
+    from: "来自",
+    hotelFallbackApi: "API 酒店",
+    hotelAddressFallback: "地址由 API 返回后显示",
+    ratingPending: "评分待补充",
+    ratingSuffix: "分",
+    suggestedTransport: "建议交通",
+    edit: "编辑",
+    delete: "删除",
+    addRowName: "新的景点/酒店/航班",
+    addRowDetails: "点击单元格修改详情",
+    addRowRoute: "待填写",
+    attraction: "景点",
+    dining: "餐饮",
+    flight: "航班",
+    hotel: "酒店",
+    morning: "上午",
+    afternoon: "下午",
+    lunch: "午餐",
+    dinner: "晚餐",
+    lodging: "住宿",
+    cityCenterArea: "市中心区域",
+    bookingContactFallback: "联系方式请通过预订平台确认",
+    selected: "已选择",
+    apiRecommended: "API 推荐",
+    dayPrefix: "天",
+    localRestaurant: "本地餐厅",
+    localDinner: "晚餐",
+  },
+  en: {
+    latest: "Latest itinerary",
+    preview: "Preview",
+    days: "days",
+    cities: "cities",
+    experiences: "experiences",
+    hotels: "hotels",
+    transports: "transports",
+    travelers: "travelers",
+    shareLink: "Share link",
+    tableTitle: "itinerary",
+    itemCount: "items",
+    addItem: "Add item",
+    resetDefault: "Reset default",
+    tableHeaders: [
+      "Time",
+      "Type",
+      "Date / day",
+      "City / route",
+      "Name",
+      "Details",
+      "Contact / flight no.",
+      "Actions",
+    ],
+    emptyRows: "No itinerary items to export yet",
+    viewFullMap: "View full map",
+    optionalFlights: "Flight options",
+    optionalFlightsHint:
+      "From API. Click a card to replace the default choice.",
+    openFlightOptions: "View flight options",
+    openHotelOptions: "View hotel options",
+    flightOptionsSheetTitle: "Choose flight",
+    hotelOptionsSheetTitle: "Choose hotel",
+    flightOptionsSheetHint:
+      "Click an option to replace the default flight for this day.",
+    hotelOptionsSheetHint:
+      "Click an option to replace the default hotel for this day.",
+    flightLoadingTitle: "Flights are still loading",
+    flightLoadingDescription:
+      "The API is checking this transport leg. The default flight will appear once it is ready.",
+    hotelLoadingTitle: "Hotels are still loading",
+    hotelLoadingDescription:
+      "The API is checking this stay. The default hotel will appear once it is ready.",
+    networkErrorTitle: "Network error",
+    flightNetworkErrorDescription:
+      "Flight options could not be loaded. Please try again later.",
+    hotelNetworkErrorDescription:
+      "Hotel options could not be loaded. Please try again later.",
+    publicTransport: "Use public transport",
+    publicTransportDescription:
+      "No API flight option is available for this leg yet. Check train, bus, or local transit first.",
+    hotelPendingTitle: "No hotel options yet",
+    hotelPendingDescription:
+      "No API hotel option is available for this city yet. The current itinerary will stay in place.",
+    optionalHotels: "Hotel options",
+    optionalHotelsHint:
+      "Address and contact sync to the itinerary when selected.",
+    returnFlight: "Return flight",
+    route: "Route",
+    time: "Time",
+    date: "Date",
+    durationStops: "Duration / stops",
+    depart: "depart",
+    arrive: "arrive",
+    direct: "Direct",
+    transfer: "stops",
+    stopsPending: "Stops pending",
+    pending: "Pending",
+    apiFlight: "API recommended flight",
+    apiAirline: "API airline",
+    flightNumberPending: "Flight no. pending",
+    durationPending: "Duration pending",
+    hotelFallback: "selected hotel",
+    fourStarApplied: "4-star hotel preference applied. You can still edit it.",
+    nights: "nights",
+    contactPhone: "Contact",
+    from: "from",
+    hotelFallbackApi: "API hotel",
+    hotelAddressFallback: "Address will appear after the API returns it",
+    ratingPending: "Rating pending",
+    ratingSuffix: "",
+    suggestedTransport: "Suggested transport",
+    edit: "Edit",
+    delete: "Delete",
+    addRowName: "New attraction / hotel / flight",
+    addRowDetails: "Click the cell to edit details",
+    addRowRoute: "To fill",
+    attraction: "Attraction",
+    dining: "Dining",
+    flight: "Flight",
+    hotel: "Hotel",
+    morning: "Morning",
+    afternoon: "Afternoon",
+    lunch: "Lunch",
+    dinner: "Dinner",
+    lodging: "Hotel",
+    cityCenterArea: "city center area",
+    bookingContactFallback: "Confirm contact details on the booking platform",
+    selected: "Selected",
+    apiRecommended: "API recommended",
+    dayPrefix: "Day",
+    localRestaurant: "local restaurant",
+    localDinner: "dinner",
+  },
+} as const;
+
+const LOCAL_TEXT_LABELS: Record<string, string> = {
+  ...LOCAL_CITY_LABELS,
+  bali: "巴厘岛",
+  naples: "那不勒斯",
+  chengdu: "成都",
+  denpasar: "登巴萨",
+  kuta: "库塔",
+  ubud: "乌布",
+  "nusa penida": "努沙佩尼达",
+  penida: "佩尼达",
+  "senso-ji and nakamise street": "浅草寺与仲见世商店街",
+  "tokyo tower and shiba park": "东京塔与芝公园",
+  "tsukiji outer market": "筑地场外市场",
+  "ueno park and tokyo national museum": "上野公园与东京国立博物馆",
+  "ohori park": "大濠公园",
+  "canal city hakata": "博多运河城",
+  "tokyo local restaurant": "东京本地餐厅",
+  "shinjuku ramen": "新宿拉面",
+  "fukuoka ramen": "福冈拉面",
+  ramen: "拉面",
+  "yatai dinner": "屋台晚餐",
+  yatai: "屋台",
+  hermitage: "赫米蒂奇",
+  nishishin: "西新",
+  "jl.": "路",
+  jalan: "路",
+  hotel: "酒店",
+  villa: "别墅",
+  lodge: "旅馆",
+  ricefield: "稻田",
+  alba: "阿尔巴",
+  vita: "维塔",
+  "domu alba vita": "多穆阿尔巴维塔酒店",
+  "elmon ricefield hotel": "埃尔蒙稻田酒店",
+  "hermitage hotel nishishin": "赫米蒂奇西新酒店",
+  "amalla lodge penida by omanera": "奥马内拉佩尼达阿玛拉旅馆",
+  "sayuban villa": "萨尤班别墅",
+};
+
+const EN_TEXT_LABELS: Record<string, string> = {
+  ...EN_CITY_LABELS,
+  乌鲁瓦图寺: "Uluwatu Temple",
+  德格拉朗梯田: "Tegallalang Rice Terrace",
+  库塔海滩: "Kuta Beach",
+  乌布圣猴森林: "Ubud Monkey Forest",
+  海神庙: "Tanah Lot Temple",
+  水明漾海滩: "Seminyak Beach",
+  登巴萨巴吉拉桑迪纪念碑: "Bajra Sandhi Monument",
+  巴东市场: "Badung Market",
+  沙努尔海滩: "Sanur Beach",
+  巴厘博物馆: "Bali Museum",
+  那不勒斯历史中心: "Naples Historic Center",
+  斯帕卡纳波利: "Spaccanapoli",
+  那不勒斯国家考古博物馆: "National Archaeological Museum of Naples",
+  蛋堡: "Castel dell'Ovo",
+  平民表决广场: "Piazza del Plebiscito",
+  托莱多街: "Via Toledo",
+  多穆阿尔巴维塔酒店: "Domu Alba Vita",
+  埃尔蒙稻田酒店: "Elmon Ricefield Hotel",
+  赫米蒂奇西新酒店: "Hermitage Hotel Nishishin",
+  奥马内拉佩尼达阿玛拉旅馆: "Amalla Lodge Penida by Omanera",
+  萨尤班别墅: "Sayuban Villa",
+  浅草寺与仲见世商店街: "Senso-ji and Nakamise Street",
+  东京塔与芝公园: "Tokyo Tower and Shiba Park",
+  筑地场外市场: "Tsukiji Outer Market",
+  上野公园与东京国立博物馆: "Ueno Park and Tokyo National Museum",
+  大濠公园: "Ohori Park",
+  博多运河城: "Canal City Hakata",
+  东京本地餐厅: "Tokyo local restaurant",
+  新宿拉面: "Shinjuku ramen",
+  福冈拉面: "Fukuoka ramen",
+  屋台晚餐: "Yatai dinner",
+  中国国际航空: "Air China",
+  国泰航空: "Cathay Pacific",
+  中国东方航空: "China Eastern Airlines",
+  深圳航空: "Shenzhen Airlines",
+  济州航空: "Jeju Air",
+  酷航: "Scoot",
+  乐桃航空: "Peach",
+  市中心区域: "city center area",
+  本地餐厅: "local restaurant",
+  晚餐: "dinner",
+};
+
+const LOCAL_AIRLINE_LABELS: Record<string, string> = {
+  "air china": "中国国际航空",
+  "cathay pacific airways": "国泰航空",
+  "cathay pacific": "国泰航空",
+  "china eastern": "中国东方航空",
+  "china eastern airlines": "中国东方航空",
+  "shenzhen airlines": "深圳航空",
+  "jeju air": "济州航空",
+  scoot: "酷航",
+  peach: "乐桃航空",
+};
+
+const SPECIFIC_ATTRACTIONS_BY_KEY: Record<string, string[]> = {
+  tokyo: [
+    "浅草寺与仲见世商店街",
+    "东京塔与芝公园",
+    "明治神宫",
+    "涩谷十字路口与忠犬八公像",
+    "筑地场外市场",
+    "上野公园与东京国立博物馆",
+    "新宿御苑",
+    "秋叶原电器街",
+  ],
+  kyoto: [
+    "清水寺与二年坂三年坂",
+    "伏见稻荷大社千本鸟居",
+    "金阁寺",
+    "岚山竹林小径与渡月桥",
+    "祇园花见小路",
+    "锦市场",
+  ],
+  osaka: [
+    "大阪城公园与天守阁",
+    "道顿堀格力高跑者看板",
+    "黑门市场",
+    "梅田蓝天大厦空中庭园",
+    "通天阁与新世界",
+    "心斋桥筋商店街",
+  ],
+  paris: [
+    "埃菲尔铁塔与战神广场",
+    "卢浮宫与玻璃金字塔",
+    "奥赛博物馆",
+    "巴黎圣母院与西岱岛",
+    "蒙马特高地与圣心大教堂",
+    "凯旋门与香榭丽舍大街",
+  ],
+  lyon: [
+    "富维耶圣母圣殿",
+    "里昂老城与圣让街区",
+    "白莱果广场",
+    "金头公园",
+    "里昂美术馆",
+    "特拉布勒隐秘通道",
+  ],
+  marseille: [
+    "马赛老港",
+    "守护圣母圣殿",
+    "卡朗格国家公园",
+    "欧洲及地中海文明博物馆 Mucem",
+    "伊夫堡",
+    "勒帕尼耶老城区",
+  ],
+  nice: [
+    "英国人漫步大道",
+    "城堡山公园",
+    "尼斯老城",
+    "马塞纳广场",
+    "萨雷雅市场",
+    "马蒂斯美术馆",
+  ],
+  singapore: [
+    "滨海湾金沙空中花园",
+    "滨海湾花园云雾林与擎天树",
+    "鱼尾狮公园",
+    "牛车水佛牙寺",
+    "小印度实龙岗路",
+    "圣淘沙西乐索海滩",
+  ],
+  sydney: [
+    "悉尼歌剧院",
+    "海港大桥观景点",
+    "岩石区 The Rocks",
+    "邦迪海滩与 Bondi to Coogee 海岸步道",
+    "达令港",
+    "皇家植物园麦考利夫人椅",
+  ],
+  london: [
+    "大英博物馆",
+    "塔桥与伦敦塔",
+    "威斯敏斯特宫与大本钟",
+    "白金汉宫",
+    "科文特花园",
+    "博罗市场",
+  ],
+  rome: [
+    "罗马斗兽场",
+    "古罗马广场",
+    "万神殿",
+    "特莱维喷泉",
+    "梵蒂冈博物馆与西斯廷礼拜堂",
+    "特拉斯提弗列街区",
+  ],
+  seoul: [
+    "景福宫与光化门",
+    "北村韩屋村",
+    "明洞购物街",
+    "南山首尔塔",
+    "广藏市场",
+    "弘大街区",
+  ],
+  bangkok: [
+    "大皇宫与玉佛寺",
+    "卧佛寺",
+    "郑王庙",
+    "乍都乍周末市场",
+    "唐人街耀华力路",
+    "ICONSIAM",
+  ],
+  曼谷: [
+    "大皇宫与玉佛寺",
+    "卧佛寺",
+    "郑王庙",
+    "乍都乍周末市场",
+    "唐人街耀华力路",
+    "ICONSIAM",
+  ],
+  phuket: [
+    "普吉老镇与彩色骑楼",
+    "查龙寺",
+    "普吉大佛",
+    "卡塔海滩",
+    "神仙半岛观景台",
+    "班赞海鲜市场",
+  ],
+  普吉岛: [
+    "普吉老镇与彩色骑楼",
+    "查龙寺",
+    "普吉大佛",
+    "卡塔海滩",
+    "神仙半岛观景台",
+    "班赞海鲜市场",
+  ],
+  chiangmai: [
+    "契迪龙寺",
+    "帕辛寺",
+    "素贴山双龙寺",
+    "清迈古城塔佩门",
+    "宁曼路咖啡街区",
+    "清迈夜间动物园",
+  ],
+  清迈: [
+    "契迪龙寺",
+    "帕辛寺",
+    "素贴山双龙寺",
+    "清迈古城塔佩门",
+    "宁曼路咖啡街区",
+    "清迈夜间动物园",
+  ],
+  pattaya: [
+    "真理寺",
+    "格兰岛",
+    "芭提雅海滩路",
+    "四方水上市场",
+    "东芭乐园",
+    "乔木提恩海滩",
+  ],
+  芭提雅: [
+    "真理寺",
+    "格兰岛",
+    "芭提雅海滩路",
+    "四方水上市场",
+    "东芭乐园",
+    "乔木提恩海滩",
+  ],
+  芭堤雅: [
+    "真理寺",
+    "格兰岛",
+    "芭提雅海滩路",
+    "四方水上市场",
+    "东芭乐园",
+    "乔木提恩海滩",
+  ],
+  hongkong: [
+    "太平山顶凌霄阁",
+    "中环半山扶梯",
+    "尖沙咀星光大道",
+    "天星小轮",
+    "香港故宫文化博物馆",
+    "庙街夜市",
+  ],
+  beijing: [
+    "故宫博物院",
+    "天安门广场",
+    "天坛公园",
+    "颐和园",
+    "八达岭长城",
+    "什刹海与烟袋斜街",
+  ],
+  sanfrancisco: [
+    "金门大桥游客中心",
+    "渔人码头 39 号码头",
+    "恶魔岛",
+    "九曲花街",
+    "渡轮大厦市场",
+    "双子峰",
+  ],
+  sf: [
+    "金门大桥游客中心",
+    "渔人码头 39 号码头",
+    "恶魔岛",
+    "九曲花街",
+    "渡轮大厦市场",
+    "双子峰",
+  ],
+  pisa: [
+    "比萨斜塔",
+    "奇迹广场",
+    "比萨主教座堂",
+    "圣若望洗礼堂",
+    "骑士广场",
+    "阿诺河岸 Lungarni",
+  ],
+  bali: [
+    "乌鲁瓦图寺",
+    "德格拉朗梯田",
+    "库塔海滩",
+    "乌布圣猴森林",
+    "海神庙",
+    "水明漾海滩",
+  ],
+  denpasar: [
+    "登巴萨巴吉拉桑迪纪念碑",
+    "巴东市场",
+    "沙努尔海滩",
+    "巴厘博物馆",
+    "普普坦广场",
+  ],
+  naples: [
+    "那不勒斯历史中心",
+    "斯帕卡纳波利",
+    "那不勒斯国家考古博物馆",
+    "蛋堡",
+    "平民表决广场",
+    "托莱多街",
+  ],
+};
+
+const SPECIFIC_ATTRACTIONS_EN_BY_KEY: Record<string, string[]> = {
+  bali: [
+    "Uluwatu Temple",
+    "Tegallalang Rice Terrace",
+    "Kuta Beach",
+    "Ubud Monkey Forest",
+    "Tanah Lot Temple",
+    "Seminyak Beach",
+  ],
+  denpasar: [
+    "Bajra Sandhi Monument",
+    "Badung Market",
+    "Sanur Beach",
+    "Bali Museum",
+    "Puputan Square",
+  ],
+  naples: [
+    "Naples Historic Center",
+    "Spaccanapoli",
+    "National Archaeological Museum of Naples",
+    "Castel dell'Ovo",
+    "Piazza del Plebiscito",
+    "Via Toledo",
+  ],
+  pisa: [
+    "Leaning Tower of Pisa",
+    "Piazza dei Miracoli",
+    "Pisa Cathedral",
+    "Baptistery of San Giovanni",
+    "Piazza dei Cavalieri",
+    "Lungarni riverside walk",
+  ],
+};
+
+const VAGUE_ACTIVITY_RE =
+  /(城市地标|地标打卡|本地文化|当地文化|当地特色|本地特色|文化体验|自由活动|城市漫步|city landmark|local culture|local experience)/i;
+
+const CITY_COORDINATES: Record<string, [number, number]> = {
+  bali: [-8.4095, 115.1889],
+  denpasar: [-8.65, 115.2167],
+  chengdu: [30.5728, 104.0668],
+  tokyo: [35.6762, 139.6503],
+  kyoto: [35.0116, 135.7681],
+  osaka: [34.6937, 135.5023],
+  singapore: [1.3521, 103.8198],
+  新加坡: [1.3521, 103.8198],
+  changsha: [28.2278, 112.9389],
+  长沙: [28.2278, 112.9389],
+  长沙市: [28.2278, 112.9389],
+  sydney: [-33.8688, 151.2093],
+  london: [51.5072, -0.1276],
+  paris: [48.8566, 2.3522],
+  lyon: [45.764, 4.8357],
+  marseille: [43.2965, 5.3698],
+  nice: [43.7102, 7.262],
+  newyork: [40.7128, -74.006],
+  nyc: [40.7128, -74.006],
+  beijing: [39.9042, 116.4074],
+  sanfrancisco: [37.7749, -122.4194],
+  sf: [37.7749, -122.4194],
+  pisa: [43.7228, 10.4017],
+  naples: [40.8518, 14.2681],
+  rome: [41.9028, 12.4964],
+  seoul: [37.5665, 126.978],
+  fukuoka: [33.5902, 130.4017],
+  福冈: [33.5902, 130.4017],
+  bangkok: [13.7563, 100.5018],
+  曼谷: [13.7563, 100.5018],
+  phuket: [7.8804, 98.3923],
+  普吉岛: [7.8804, 98.3923],
+  chiangmai: [18.7883, 98.9853],
+  清迈: [18.7883, 98.9853],
+  pattaya: [12.9236, 100.8825],
+  芭提雅: [12.9236, 100.8825],
+  芭堤雅: [12.9236, 100.8825],
+  hongkong: [22.3193, 114.1694],
+};
+
+function normalizeLookupKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, "");
+}
+
+function isFiniteLatLng(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined
+): boolean {
+  return (
+    typeof latitude === "number" &&
+    Number.isFinite(latitude) &&
+    typeof longitude === "number" &&
+    Number.isFinite(longitude)
+  );
+}
+
+function isRealGooglePhoto(
+  photo: { url?: string | null; isPlaceholder?: boolean; provider?: string } | null | undefined
+): photo is { url: string; isPlaceholder?: boolean; provider?: string } {
+  return Boolean(
+    photo?.url &&
+      photo.provider === "google_places" &&
+      photo.isPlaceholder !== true &&
+      !photo.url.includes("travel-fallback") &&
+      !photo.url.includes("placeholder")
+  );
+}
+
+function isPlacesPhotoProxySrc(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.startsWith("/api/places/photo?");
+}
+
+function getDestinationEnrichmentFromPatch(
+  modulePatch?: Record<string, unknown>
+): TravelGoogleEnrichedDestination | null {
+  const value = modulePatch?.destinationEnrichment;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<TravelGoogleEnrichedDestination>;
+  if (
+    candidate.source !== "google_places" ||
+    typeof candidate.canonicalName !== "string" ||
+    typeof candidate.nameEn !== "string" ||
+    !candidate.coverImage ||
+    !Array.isArray(candidate.attractions)
+  ) {
+    return null;
+  }
+  return candidate as TravelGoogleEnrichedDestination;
+}
+
+function enrichmentMatchesCity(
+  enrichment: TravelGoogleEnrichedDestination | null,
+  city: string
+): boolean {
+  if (!enrichment) return false;
+  const cityKey = normalizeLookupKey(city);
+  return [
+    enrichment.canonicalName,
+    enrichment.nameEn,
+    enrichment.nameZh,
+  ].some((value) => normalizeLookupKey(value) === cityKey);
+}
+
+function getEnrichmentForCity(
+  enrichment: TravelGoogleEnrichedDestination | null,
+  city: string
+): TravelGoogleEnrichedDestination | null {
+  return enrichmentMatchesCity(enrichment, city) ? enrichment : null;
+}
+
+function getEnrichedAttractionForName(
+  enrichment: TravelGoogleEnrichedDestination | null,
+  attractionName: string
+): TravelGoogleAttraction | null {
+  if (!enrichment) return null;
+  const key = normalizeLookupKey(attractionName);
+  return (
+    enrichment.attractions.find((item) =>
+      [item.nameZh, item.nameEn].some((name) => normalizeLookupKey(name) === key)
+    ) ?? null
+  );
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getLocalCityLabel(city: string): string {
+  const key = normalizeLookupKey(city);
+  return getCuratedCityLabel(city, "zh") ?? LOCAL_CITY_LABELS[key] ?? city;
+}
+
+function getCityLabel(city: string, language: TravelInterfaceLocale): string {
+  if (language === "zh") return getLocalCityLabel(city);
+  const key = normalizeLookupKey(city);
+  return getCuratedCityLabel(city, "en") ?? EN_CITY_LABELS[key] ?? city;
+}
+
+function getCopy(language: TravelInterfaceLocale) {
+  return TRAVEL_ITINERARY_COPY[language];
+}
+
+function containsCjk(value: string): boolean {
+  return /[\u3400-\u9fff]/.test(value);
+}
+
+function getMappedTravelText(
+  labels: Record<string, string>,
+  value: string | null | undefined
+): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  const key = normalizeLookupKey(raw);
+  for (const [source, target] of Object.entries(labels)) {
+    if (normalizeLookupKey(source) === key) return target;
+  }
+  return null;
+}
+
+function replaceMappedTravelText(
+  value: string,
+  labels: Record<string, string>
+): string {
+  return Object.entries(labels)
+    .sort((first, second) => second[0].length - first[0].length)
+    .reduce((text, [source, target]) => {
+      const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = containsCjk(source)
+        ? new RegExp(escaped, "g")
+        : new RegExp(`\\b${escaped}\\b`, "gi");
+      return text.replace(pattern, target);
+    }, value);
+}
+
+function localizeKnownTravelText(value: string | null | undefined): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+
+  const exact = getMappedTravelText(LOCAL_TEXT_LABELS, raw);
+  if (exact) return exact;
+
+  return replaceMappedTravelText(raw, LOCAL_TEXT_LABELS);
+}
+
+function englishizeKnownTravelText(value: string | null | undefined): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+
+  const exact = getMappedTravelText(EN_TEXT_LABELS, raw);
+  if (exact) return exact;
+
+  const replaced = replaceMappedTravelText(raw, EN_TEXT_LABELS)
+    .replace(/第\s*(\d+)\s*天/g, "Day $1")
+    .replace(/(\d+)月(\d+)日/g, "$1/$2")
+    .replace(/；/g, "; ")
+    .replace(/，/g, ", ")
+    .replace(/。/g, ".")
+    .replace(/：/g, ": ")
+    .replace(/、/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return replaced;
+}
+
+function getTravelTextForLanguage(
+  value: string | null | undefined,
+  language: TravelInterfaceLocale,
+  fallback = "-"
+): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return fallback;
+  const localized =
+    language === "zh"
+      ? localizeKnownTravelText(raw)
+      : englishizeKnownTravelText(raw);
+  if (language === "en" && containsCjk(localized)) {
+    return containsCjk(fallback) ? "Local experience" : fallback;
+  }
+  return localized || fallback;
+}
+
+function getHotelNameForLanguage(
+  option: HotelOptionResult | null | undefined,
+  fallbackCity: string,
+  language: TravelInterfaceLocale
+): string {
+  if (language === "zh") return getLocalizedHotelName(option, fallbackCity);
+  const rawName = option?.name?.trim();
+  const cityLabel = getCityLabel(fallbackCity, "en");
+  return getTravelTextForLanguage(rawName, "en", `${cityLabel} hotel`);
+}
+
+function getHotelAddressForLanguage(
+  option: HotelOptionResult | null | undefined,
+  fallbackCity: string,
+  language: TravelInterfaceLocale
+): string {
+  if (language === "zh") return getLocalizedHotelAddress(option, fallbackCity);
+  const rawAddress = option?.address?.trim();
+  const cityLabel = getCityLabel(fallbackCity, "en");
+  return getTravelTextForLanguage(
+    rawAddress,
+    "en",
+    `${cityLabel} city center area`
+  );
+}
+
+function getAirlineNameForLanguage(
+  option: FlightOptionResult | null | undefined,
+  language: TravelInterfaceLocale
+): string {
+  if (language === "zh") return getLocalizedAirlineName(option);
+  const rawName = option?.airline ?? option?.provider ?? "";
+  return getTravelTextForLanguage(rawName, "en", "Selected flight");
+}
+
+function getLocalizedHotelName(
+  option: HotelOptionResult | null | undefined,
+  fallbackCity: string
+): string {
+  const rawName = option?.name?.trim();
+  const localized = localizeKnownTravelText(rawName);
+  if (localized) return localized;
+  return `${getLocalCityLabel(fallbackCity)}酒店`;
+}
+
+function getLocalizedHotelAddress(
+  option: HotelOptionResult | null | undefined,
+  fallbackCity: string
+): string {
+  const rawAddress = option?.address?.trim();
+  const localized = localizeKnownTravelText(rawAddress);
+  if (localized) return localized;
+  return `${getLocalCityLabel(fallbackCity)}市中心区域`;
+}
+
+function getLocalizedAirlineName(
+  option: FlightOptionResult | null | undefined
+): string {
+  const rawName = option?.airline ?? option?.provider ?? "";
+  const exact = LOCAL_AIRLINE_LABELS[normalizeLookupKey(rawName)];
+  if (exact) return exact;
+  return localizeKnownTravelText(rawName) || "已选航班";
+}
+
+function getCityImage(city: string, _seed: string = "default"): string {
+  const curatedCityImage = getTravelCityImage(city);
+  if (curatedCityImage) return curatedCityImage;
+
+  const key = normalizeLookupKey(city);
+  const direct = CITY_IMAGE_BY_KEY[key];
+  if (direct) return direct;
+
+  return CITY_IMAGE_FALLBACK;
+}
+
+function getCityCoordinates(city: string): [number, number] {
+  const key = normalizeLookupKey(city);
+  const direct = CITY_COORDINATES[key];
+  if (direct) return direct;
+
+  const attractions = getTravelAttractionsForCity(city);
+  if (attractions.length) {
+    const total = attractions.reduce(
+      (sum, item) => ({
+        lat: sum.lat + item.lat,
+        lng: sum.lng + item.lng,
+      }),
+      { lat: 0, lng: 0 }
+    );
+    return [
+      Number((total.lat / attractions.length).toFixed(6)),
+      Number((total.lng / attractions.length).toFixed(6)),
+    ];
+  }
+
+  const seed = hashString(city);
+  const lat = (seed % 110) - 45;
+  const lng = ((seed * 7) % 260) - 130;
+  return [lat, lng];
+}
+
+function offsetCoordinate(
+  center: [number, number],
+  seed: string,
+  radius = 0.045
+): [number, number] {
+  const hash = hashString(seed);
+  const angle = ((hash % 360) * Math.PI) / 180;
+  const distance = radius * (0.55 + (hash % 45) / 100);
+  const lat = center[0] + Math.sin(angle) * distance;
+  const lngScale = Math.max(0.35, Math.cos((center[0] * Math.PI) / 180));
+  const lng = center[1] + (Math.cos(angle) * distance) / lngScale;
+  return [Number(lat.toFixed(6)), Number(lng.toFixed(6))];
+}
+
+function getUniqueCities(
+  itinerary: ItineraryDay[],
+  orderedCities: string[]
+): string[] {
+  const seenPreferred = new Set<string>();
+  const preferred = orderedCities.filter((city) => {
+    const key = normalizeLookupKey(city);
+    if (!key || seenPreferred.has(key)) return false;
+    seenPreferred.add(key);
+    return true;
+  });
+  if (preferred.length) return preferred;
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const day of itinerary) {
+    const key = normalizeLookupKey(day.city);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(day.city);
+  }
+  return result;
+}
+
+function formatMonthDay(
+  value: string,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  if (language === "en") {
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
+  return `${parsed.getMonth() + 1}月${parsed.getDate()}日`;
+}
+
+function getDepartureDate(travelState: TravelState): string {
+  return travelState.departure_date ?? new Date().toISOString().slice(0, 10);
+}
+
+function parseIsoDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const datePart = value.includes("T") ? value.split("T")[0] : value;
+  const parsed = new Date(`${datePart}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function addDays(date: Date, days: number): Date {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDayNumberForDate(
+  value: string | null | undefined,
+  travelState: TravelState
+) {
+  const start = parseIsoDate(getDepartureDate(travelState));
+  const target = parseIsoDate(value);
+  if (!start || !target) return 1;
+  const diff = target.getTime() - start.getTime();
+  return Math.max(1, Math.round(diff / 86_400_000) + 1);
+}
+
+function getDisplayDayNumberForDate(
+  value: string | null | undefined,
+  travelState: TravelState,
+  totalDays: number
+): number {
+  const dayNumber = getDayNumberForDate(value, travelState);
+  return Math.min(Math.max(dayNumber, 1), Math.max(totalDays, 1));
+}
+
+function getDayNumber(day: ItineraryDay): number {
+  if (typeof day.day === "number" && Number.isFinite(day.day)) {
+    return Math.max(1, day.day);
+  }
+  const match = String(day.day).match(/\d+/);
+  return match ? Math.max(1, Number(match[0])) : 1;
+}
+
+function extractClockTime(
+  value: string | null | undefined,
+  fallback: string
+): string {
+  if (!value) return fallback;
+  const match = value.match(/(?:T|\s)(\d{1,2}):(\d{2})/);
+  if (match) return `${match[1].padStart(2, "0")}:${match[2]}`;
+  const loose = value.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (loose) return `${loose[1].padStart(2, "0")}:${loose[2]}`;
+  return fallback;
+}
+
+function timeToMinutes(value: string): number {
+  const match = value.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return 0;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function makeTimelineSortKey(dayNumber: number, time: string): number {
+  return dayNumber * 1440 + timeToMinutes(time);
+}
+
+type TimedItineryRow = ItineryTableRow & { sortKey: number };
+
+function createTimedItineryRow(
+  row: ItineryTableRow,
+  dayNumber: number,
+  time: string,
+  sortTime = time
+): TimedItineryRow {
+  return {
+    ...row,
+    time,
+    sortKey: makeTimelineSortKey(dayNumber, sortTime),
+  };
+}
+
+function finalizeTimedRows(rows: TimedItineryRow[]): ItineryTableRow[] {
+  return [...rows]
+    .sort((first, second) => first.sortKey - second.sortKey)
+    .map(({ sortKey: _sortKey, ...row }) => row);
+}
+
+function getFlightNumberFallback(route: string): string {
+  return `VZ${String((hashString(route) % 900) + 100)}`;
+}
+
+function findHotelForCity(
+  hotels: SelectedHotelOption[],
+  city: string
+): SelectedHotelOption | null {
+  const cityKey = normalizeLookupKey(city);
+  return (
+    hotels.find((hotel) => normalizeLookupKey(hotel.city) === cityKey) ?? null
+  );
+}
+
+function formatCityRange(
+  segment: Pick<CitySegment, "dayStart" | "dayEnd">,
+  hotel: SelectedHotelOption | null,
+  language: TravelInterfaceLocale
+): string {
+  if (hotel) {
+    const checkIn = formatMonthDay(hotel.check_in, language);
+    const checkOut = formatMonthDay(hotel.check_out, language);
+    return checkIn === checkOut ? checkIn : `${checkIn} - ${checkOut}`;
+  }
+
+  if (language === "en") {
+    if (segment.dayStart === segment.dayEnd) return `Day ${segment.dayStart}`;
+    return `Days ${segment.dayStart}-${segment.dayEnd}`;
+  }
+  if (segment.dayStart === segment.dayEnd) return `第 ${segment.dayStart} 天`;
+  return `第 ${segment.dayStart} - ${segment.dayEnd} 天`;
+}
+
+function buildCitySegments(
+  itinerary: ItineraryDay[],
+  orderedCities: string[],
+  travelState: TravelState,
+  language: TravelInterfaceLocale,
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
+): CitySegment[] {
+  const cities = getUniqueCities(itinerary, orderedCities);
+  let cursor = 1;
+
+  return cities.map((city, index) => {
+    const daysFromState = travelState.city_days[city];
+    const normalizedCity = normalizeLookupKey(city);
+    const daysFromItinerary = itinerary.filter(
+      (day) => normalizeLookupKey(day.city) === normalizedCity
+    ).length;
+    const dayCount = Math.max(1, daysFromState ?? daysFromItinerary);
+    const dayStart = cursor;
+    const dayEnd = cursor + dayCount - 1;
+    cursor = dayEnd + 1;
+
+    const partialSegment = { dayStart, dayEnd };
+    const hotel = findHotelForCity(travelState.selected_hotels, city);
+    const enrichment = getEnrichmentForCity(destinationEnrichment, city);
+    const enrichedCover = isRealGooglePhoto(enrichment?.coverImage)
+      ? enrichment.coverImage.url
+      : null;
+    const hasEnrichedCoordinates = isFiniteLatLng(
+      enrichment?.latitude,
+      enrichment?.longitude
+    );
+
+    return {
+      city,
+      label: getCityLabel(city, language),
+      dayStart,
+      dayEnd,
+      rangeLabel: formatCityRange(partialSegment, hotel, language),
+      imageSrc: enrichedCover ?? getCityImage(city, `segment-${index}`),
+      lat: hasEnrichedCoordinates ? enrichment?.latitude ?? undefined : undefined,
+      lng: hasEnrichedCoordinates ? enrichment?.longitude ?? undefined : undefined,
+      enrichment,
+    };
+  });
+}
+
+function getDisplayCities(
+  travelState: TravelState,
+  orderedCities: string[],
+  segments: CitySegment[] = []
+): string[] {
+  const cities =
+    travelState.cities.length > 0
+      ? travelState.cities
+      : orderedCities.length > 0
+        ? orderedCities
+        : travelState.travel_order.length > 0
+          ? travelState.travel_order
+          : segments.map((segment) => segment.city);
+
+  const seen = new Set<string>();
+  return cities.filter((city) => {
+    const key = normalizeLookupKey(city);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildFallbackFlightLegsForDisplay(
+  travelState: TravelState,
+  orderedCities: string[],
+  segments: CitySegment[]
+): FlightLegResult[] {
+  const cities = getDisplayCities(travelState, orderedCities, segments);
+  const route = [
+    travelState.origin_city?.trim(),
+    ...cities,
+    travelState.return_city?.trim(),
+  ].filter((city): city is string => Boolean(city));
+
+  if (route.length < 2) return [];
+
+  const startDate = parseIsoDate(getDepartureDate(travelState)) ?? new Date();
+  const legs: FlightLegResult[] = [];
+
+  for (let index = 0; index < route.length - 1; index += 1) {
+    const from = route[index];
+    const to = route[index + 1];
+    if (!from || !to || normalizeLookupKey(from) === normalizeLookupKey(to))
+      continue;
+
+    const priorCities = index === 0 ? [] : cities.slice(0, index);
+    const totalTripDays =
+      travelState.travel_days ??
+      cities.reduce((sum, city) => sum + (travelState.city_days[city] ?? 1), 0);
+    const isFinalReturnLeg =
+      index === route.length - 2 &&
+      Boolean(travelState.return_city?.trim()) &&
+      normalizeLookupKey(to) === normalizeLookupKey(travelState.return_city ?? "");
+    const offsetDays = isFinalReturnLeg
+      ? Math.max(0, totalTripDays - 1)
+      : priorCities.reduce(
+          (sum, city) => sum + (travelState.city_days[city] ?? 1),
+          0
+        );
+
+    legs.push({
+      from,
+      to,
+      departure_date: toIsoDate(addDays(startDate, offsetDays)),
+      options: [],
+    });
+  }
+
+  return legs;
+}
+
+function buildFallbackHotelStaysForDisplay(
+  travelState: TravelState,
+  orderedCities: string[],
+  segments: CitySegment[]
+): HotelStayResult[] {
+  const cities = getDisplayCities(travelState, orderedCities, segments);
+  const startDate = parseIsoDate(getDepartureDate(travelState)) ?? new Date();
+  const stays: HotelStayResult[] = [];
+  let elapsedDays = 0;
+
+  cities.forEach((city) => {
+    const nights = Math.max(1, travelState.city_days[city] ?? 1);
+    stays.push({
+      city,
+      check_in: toIsoDate(addDays(startDate, elapsedDays)),
+      check_out: toIsoDate(addDays(startDate, elapsedDays + nights)),
+      nights,
+      adults: travelState.travelers ?? undefined,
+      options: [],
+    });
+    elapsedDays += nights;
+  });
+
+  return stays;
+}
+
+function travelRouteKey(from: string | null | undefined, to: string | null | undefined): string {
+  return `${normalizeLookupKey(from ?? "")}->${normalizeLookupKey(to ?? "")}`;
+}
+
+function replaceDatePart(
+  value: string | undefined,
+  nextDate: string
+): string | undefined {
+  if (!value) return value;
+  const timeMatch = value.match(/(?:T|\s)(\d{1,2}:\d{2}(?::\d{2})?)/);
+  const time = timeMatch?.[1]?.padStart(5, "0");
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return `${nextDate}T${time ?? "00:00:00"}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}\s/.test(value)) {
+    return `${nextDate} ${time ?? "00:00"}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return nextDate;
+  }
+  return value;
+}
+
+function shiftDateByOriginalOffset(
+  originalDeparture: string | undefined,
+  originalTarget: string | undefined,
+  nextDepartureDate: string
+): string {
+  const originalStart = parseIsoDate(originalDeparture);
+  const originalEnd = parseIsoDate(originalTarget);
+  const nextStart = parseIsoDate(nextDepartureDate);
+  if (!originalStart || !originalEnd || !nextStart) return nextDepartureDate;
+
+  const offsetDays = Math.max(
+    0,
+    Math.round((originalEnd.getTime() - originalStart.getTime()) / 86_400_000)
+  );
+  return toIsoDate(addDays(nextStart, offsetDays));
+}
+
+function realignFlightOptionDate(
+  option: FlightOptionResult | null | undefined,
+  leg: FlightLegResult
+): FlightOptionResult | null | undefined {
+  if (!option) return option;
+  const arrivalDate = shiftDateByOriginalOffset(
+    option.departure,
+    option.arrival,
+    leg.departure_date
+  );
+  return {
+    ...option,
+    from: option.from ?? leg.from,
+    to: option.to ?? leg.to,
+    departure: replaceDatePart(option.departure, leg.departure_date),
+    arrival: replaceDatePart(option.arrival, arrivalDate),
+  };
+}
+
+function realignHotelOptionDate(
+  option: HotelOptionResult,
+  stay: HotelStayResult
+): HotelOptionResult {
+  return {
+    ...option,
+    city: option.city ?? stay.city,
+    check_in: stay.check_in,
+    check_out: stay.check_out,
+  };
+}
+
+function reconcileSelectedFlightsForSchedule(
+  selectedFlights: SelectedFlightOption[],
+  legs: FlightLegResult[]
+): SelectedFlightOption[] {
+  const byRoute = new Map<string, SelectedFlightOption>();
+  selectedFlights.forEach((flight) => {
+    byRoute.set(travelRouteKey(flight.from, flight.to), flight);
+  });
+
+  return legs
+    .map((leg, index): SelectedFlightOption | null => {
+      const legIndex = index + 1;
+      const existing =
+        byRoute.get(travelRouteKey(leg.from, leg.to)) ??
+        selectedFlights.find((flight) => flight.leg_index === legIndex);
+      if (!existing) return null;
+
+      return {
+        ...existing,
+        leg_index: legIndex,
+        from: leg.from,
+        to: leg.to,
+        departure_date: leg.departure_date,
+        option: existing.skip
+          ? null
+          : realignFlightOptionDate(existing.option, leg) ?? undefined,
+      };
+    })
+    .filter((flight): flight is SelectedFlightOption => Boolean(flight));
+}
+
+function reconcileSelectedHotelsForSchedule(
+  selectedHotels: SelectedHotelOption[],
+  stays: HotelStayResult[]
+): SelectedHotelOption[] {
+  const byCity = new Map<string, SelectedHotelOption>();
+  selectedHotels.forEach((hotel) => {
+    byCity.set(normalizeLookupKey(hotel.city), hotel);
+  });
+
+  return stays
+    .map((stay, index): SelectedHotelOption | null => {
+      const stayIndex = index + 1;
+      const existing =
+        byCity.get(normalizeLookupKey(stay.city)) ??
+        selectedHotels.find((hotel) => hotel.stay_index === stayIndex);
+      if (!existing) return null;
+
+      return {
+        ...existing,
+        stay_index: stayIndex,
+        city: stay.city,
+        check_in: stay.check_in,
+        check_out: stay.check_out,
+        nights: stay.nights,
+        option: realignHotelOptionDate(existing.option, stay),
+      };
+    })
+    .filter((hotel): hotel is SelectedHotelOption => Boolean(hotel));
+}
+
+function reconcileTravelAgentState(options: {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+  orderedCities: string[];
+  selectedFlights: SelectedFlightOption[];
+  selectedHotels: SelectedHotelOption[];
+  language: TravelInterfaceLocale;
+}): TravelItineraryStateUpdate {
+  const itinerary = renumberItineraryDays(options.itinerary);
+  const statePatch = buildItineraryTravelStatePatch(
+    itinerary,
+    options.travelState,
+    options.orderedCities
+  );
+  const baseState: TravelState = {
+    ...options.travelState,
+    ...statePatch,
+    city_days: statePatch.city_days,
+    selected_flights: [],
+    selected_hotels: [],
+  };
+  const segments = buildCitySegments(
+    itinerary,
+    statePatch.travel_order,
+    baseState,
+    options.language
+  );
+  const flightLegs = buildFallbackFlightLegsForDisplay(
+    baseState,
+    statePatch.travel_order,
+    segments
+  );
+  const hotelStays = buildFallbackHotelStaysForDisplay(
+    baseState,
+    statePatch.travel_order,
+    segments
+  );
+  const selectedFlights = reconcileSelectedFlightsForSchedule(
+    options.selectedFlights,
+    flightLegs
+  );
+  const selectedHotels = reconcileSelectedHotelsForSchedule(
+    options.selectedHotels,
+    hotelStays
+  );
+  const travelState: TravelState = {
+    ...baseState,
+    selected_flights: selectedFlights,
+    selected_hotels: selectedHotels,
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    validateTravelAgentState({ itinerary, travelState });
+  }
+
+  return {
+    itinerary,
+    travelState,
+    selectedFlights,
+    selectedHotels,
+    reason: "local_itinerary_edit",
+  };
+}
+
+function validateTravelAgentState(update: {
+  itinerary: ItineraryDay[];
+  travelState: TravelState;
+}): void {
+  const totalDays = update.itinerary.length;
+  if (update.travelState.travel_days !== totalDays) {
+    console.warn("Travel itinerary day count mismatch after reconciliation.", {
+      itineraryDays: totalDays,
+      travelDays: update.travelState.travel_days,
+    });
+  }
+
+  const start = parseIsoDate(update.travelState.departure_date);
+  if (!start) return;
+  const end = addDays(start, Math.max(0, totalDays - 1));
+  update.travelState.selected_flights.forEach((flight) => {
+    const date = parseIsoDate(flight.departure_date);
+    if (!date || date < start || date > end) {
+      console.warn("Travel flight date is outside itinerary date range.", {
+        flight,
+        itineraryStart: toIsoDate(start),
+        itineraryEnd: toIsoDate(end),
+      });
+    }
+  });
+}
+
+function createRouteNodes(
+  travelState: TravelState,
+  segments: CitySegment[],
+  language: TravelInterfaceLocale
+): RouteNode[] {
+  const nodes: RouteNode[] = [];
+  const copy = getCopy(language);
+  const originCity = travelState.origin_city?.trim();
+  const returnCity = travelState.return_city?.trim();
+
+  if (originCity) {
+    nodes.push({
+      id: "origin",
+      label: getCityLabel(originCity, language),
+      caption: copy.depart,
+      kind: "origin",
+    });
+  }
+
+  segments.forEach((segment) => {
+    nodes.push({
+      id: `city-${normalizeLookupKey(segment.city)}`,
+      label: segment.label,
+      caption: segment.rangeLabel,
+      kind: "city",
+      city: segment.city,
+    });
+  });
+
+  const lastTripCity = segments[segments.length - 1]?.city ?? originCity ?? "";
+  if (
+    returnCity &&
+    normalizeLookupKey(returnCity) !== normalizeLookupKey(lastTripCity)
+  ) {
+    nodes.push({
+      id: "return",
+      label: getCityLabel(returnCity, language),
+      caption: language === "zh" ? "返程" : "Return",
+      kind: "return",
+    });
+  }
+
+  return nodes;
+}
+
+function createTripTitle(
+  totalDays: number,
+  cities: string[],
+  language: TravelInterfaceLocale
+): string {
+  if (language === "en") {
+    const cityTitle = cities.map((city) => getCityLabel(city, "en")).join(" ");
+    if (cityTitle) return `${totalDays}-day ${cityTitle} classic trip`;
+    return `${totalDays}-day custom trip`;
+  }
+  const cityTitle = cities.map((city) => getCityLabel(city, "zh")).join("");
+  if (cityTitle) return `${totalDays}天${cityTitle}经典游`;
+  return `${totalDays}天定制旅行`;
+}
+
+function summarizeDay(
+  day: ItineraryDay,
+  language: TravelInterfaceLocale
+): string {
+  const firstActivity = getTravelTextForLanguage(
+    day.activities[0],
+    language,
+    language === "zh" ? "城市精华体验" : "City highlights"
+  );
+  const secondActivity = getTravelTextForLanguage(
+    day.activities[1] ?? day.food[0],
+    language,
+    language === "zh" ? "当地美食" : "Local dining"
+  );
+  return `${firstActivity} · ${secondActivity}`;
+}
+
+function getAttractionImage(
+  city: string,
+  attraction: string,
+  _fallbackSeed: string
+): string {
+  const knowledgeImage = findTravelAttraction(city, attraction)?.imageSrc;
+  if (knowledgeImage) return knowledgeImage;
+
+  return CITY_IMAGE_FALLBACK;
+}
+
+function getDayImage(
+  day: ItineraryDay,
+  index: number,
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
+): string {
+  const enrichment = getEnrichmentForCity(destinationEnrichment, day.city);
+  const enrichedActivityPhoto = day.activities
+    .map((activity) => getEnrichedAttractionForName(enrichment, activity)?.photo)
+    .find((photo) => isRealGooglePhoto(photo));
+  if (enrichedActivityPhoto) return enrichedActivityPhoto.url;
+
+  const enrichedFallbackPhoto = enrichment?.attractions
+    ?.map((item) => item.photo)
+    .filter((photo) => isRealGooglePhoto(photo))[index];
+  if (enrichedFallbackPhoto) return enrichedFallbackPhoto.url;
+
+  if (isRealGooglePhoto(enrichment?.coverImage)) {
+    return enrichment.coverImage.url;
+  }
+
+  const representedActivity =
+    day.activities.find((activity) =>
+      findTravelAttraction(day.city, activity)
+    ) ??
+    day.activities[0] ??
+    getSpecificAttraction(day.city, index, 0);
+  const attractionImage = getAttractionImage(
+    day.city,
+    representedActivity,
+    `day-${day.day}-${index}`
+  );
+  return attractionImage === CITY_IMAGE_FALLBACK
+    ? getCityImage(day.city, `day-city-${index}`)
+    : attractionImage;
+}
+
+function getPointIdForCity(
+  points: TripMapPoint[],
+  city: string
+): string | null {
+  const cityKey = normalizeLookupKey(city);
+  const point = points.find((item) => {
+    if (item.kind !== "city") return false;
+    const pointCity = item.city ?? item.label;
+    return normalizeLookupKey(pointCity) === cityKey;
+  });
+  return point?.id ?? null;
+}
+
+function filterEssentialMapPoints(points: TripMapPoint[]): TripMapPoint[] {
+  const essential = points.filter(
+    (point) => point.kind === "city" || point.kind === "hotel"
+  );
+  return essential.length ? essential : points;
+}
+
+function buildFallbackMapPoints(
+  segments: CitySegment[],
+  language: TravelInterfaceLocale
+): TripMapPoint[] {
+  return segments.map((segment, index) => {
+    const [lat, lng] = isFiniteLatLng(segment.lat, segment.lng)
+      ? [segment.lat as number, segment.lng as number]
+      : getCityCoordinates(segment.city);
+    return {
+      id: `itinerary-city-${normalizeLookupKey(segment.city)}-${index}`,
+      kind: "city",
+      label: segment.label,
+      subtitle: segment.rangeLabel,
+      localName: segment.label,
+      intro:
+        language === "zh"
+          ? `${segment.label}行程节点，建议围绕当天住宿和核心景点安排动线。`
+          : `${segment.label} itinerary node. Plan the route around the hotel and core stops for the day.`,
+      imageSrc: segment.imageSrc,
+      lat,
+      lng,
+      city: segment.city,
+    };
+  });
+}
+
+function buildFallbackRouteCoordinates(
+  travelState: TravelState,
+  segments: CitySegment[]
+): Array<[number, number]> {
+  if (!segments.length) return [];
+
+  const routeItems: Array<string | CitySegment> = [];
+  if (travelState.origin_city) routeItems.push(travelState.origin_city);
+  routeItems.push(...segments);
+  if (
+    travelState.return_city &&
+    normalizeLookupKey(travelState.return_city) !==
+      normalizeLookupKey(
+        typeof routeItems[routeItems.length - 1] === "string"
+          ? (routeItems[routeItems.length - 1] as string)
+          : (routeItems[routeItems.length - 1] as CitySegment | undefined)?.city ?? ""
+      )
+  ) {
+    routeItems.push(travelState.return_city);
+  }
+
+  return routeItems.map((item) => {
+    if (typeof item === "string") return getCityCoordinates(item);
+    if (isFiniteLatLng(item.lat, item.lng)) return [item.lat as number, item.lng as number];
+    return getCityCoordinates(item.city);
+  });
+}
+
+function formatDayTab(
+  day: ItineraryDay,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const dayNumber = typeof day.day === "number" ? day.day : String(day.day);
+  if (language === "en") return `Day ${dayNumber}`;
+  return `天 ${dayNumber}`;
+}
+
+function getCitySectionKey(city: string): string {
+  return normalizeLookupKey(city) || city;
+}
+
+function getAttractionCoordinateKey(city: string, attraction: string): string {
+  return `${normalizeLookupKey(city)}:${normalizeLookupKey(attraction)}`;
+}
+
+function isFiniteCoordinate(
+  coordinate: GoogleGeocodeCoordinate | undefined
+): coordinate is GoogleGeocodeCoordinate {
+  return Boolean(
+    coordinate &&
+    Number.isFinite(coordinate.lat) &&
+    Number.isFinite(coordinate.lng)
+  );
+}
+
+function buildAttractionGeocodeItems(
+  city: string,
+  attractionNames: string[]
+): GoogleGeocodeRequestItem[] {
+  const cityLabel = getLocalCityLabel(city);
+  const seen = new Set<string>();
+
+  return attractionNames
+    .map((name) => name.trim())
+    .filter((name) => {
+      const key = getAttractionCoordinateKey(city, name);
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 14)
+    .map((name) => ({
+      key: getAttractionCoordinateKey(city, name),
+      query: `${name}, ${cityLabel}`,
+    }));
+}
+
+function getAttractionChoicesForCity(
+  city: string,
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
+): AttractionChoiceCard[] {
+  const enrichment = getEnrichmentForCity(destinationEnrichment, city);
+  const enrichedChoices =
+    enrichment?.attractions
+      .filter(
+        (item) =>
+          isFiniteLatLng(item.latitude, item.longitude) &&
+          isRealGooglePhoto(item.photo)
+      )
+      .map((item) => ({
+        name: item.nameZh || item.nameEn,
+        location: item.googleMapsUri ?? `${enrichment.nameZh} · Google Places`,
+        imageSrc: item.photo.url,
+        lat: item.latitude ?? undefined,
+        lng: item.longitude ?? undefined,
+      })) ?? [];
+  const cityKey = normalizeLookupKey(city);
+  const knowledgeChoices = getTravelAttractionsForCity(city).map((item) => ({
+    name: item.name,
+    location: item.location,
+    imageSrc: item.imageSrc,
+    lat: item.lat,
+    lng: item.lng,
+  }));
+  if (enrichedChoices.length || knowledgeChoices.length) {
+    return [...enrichedChoices, ...knowledgeChoices].slice(0, 10);
+  }
+
+  const knownKeys = new Set(
+    knowledgeChoices.map((item) => normalizeLookupKey(item.name))
+  );
+  const fallbackNames = SPECIFIC_ATTRACTIONS_BY_KEY[cityKey] ?? [];
+  const fallbackChoices = fallbackNames
+    .filter((name) => !knownKeys.has(normalizeLookupKey(name)))
+    .map((name, index) => ({
+      name,
+      location: `${getLocalCityLabel(city)} · Google Maps 精准定位`,
+      imageSrc: getAttractionImage(
+        city,
+        name,
+        `attraction-choice-${name}-${index}`
+      ),
+    }));
+
+  return [...knowledgeChoices, ...fallbackChoices].slice(0, 10);
+}
+
+function getSegmentDays(
+  itinerary: ItineraryDay[],
+  segment: CitySegment
+): ItineraryDay[] {
+  const cityKey = normalizeLookupKey(segment.city);
+  const daysByCity = itinerary.filter(
+    (day) => normalizeLookupKey(day.city) === cityKey
+  );
+  if (daysByCity.length) return daysByCity;
+
+  return itinerary.filter((day) => {
+    const dayNumber =
+      typeof day.day === "number"
+        ? day.day
+        : Number.parseInt(String(day.day), 10);
+    return dayNumber >= segment.dayStart && dayNumber <= segment.dayEnd;
+  });
+}
+
+function getCityIntro(
+  segment: CitySegment,
+  days: ItineraryDay[],
+  language: TravelInterfaceLocale
+): string {
+  const highlights = Array.from(
+    new Set(
+      days.flatMap((day) => [...day.activities, ...day.food]).filter(Boolean)
+    )
+  )
+    .map((item) => getTravelTextForLanguage(item, language, item))
+    .slice(0, 4);
+  if (language === "en") {
+    const highlightText = highlights.length
+      ? highlights.join(", ")
+      : "classic sights, local dining, and route-friendly experiences";
+    return `During ${segment.rangeLabel} in ${segment.label}, the plan centers on ${highlightText}. Open a day card for the detailed route, and the map will sync to the city and nearby nodes.`;
+  }
+  const highlightText = highlights.length
+    ? highlights.join("、")
+    : "经典景点、当地美食和顺路体验";
+
+  return `在${segment.rangeLabel}的${segment.label}行程中，你会围绕${highlightText}展开安排。点击下方每天卡片可以进入详细动线，地图会同步展示当天城市和相关节点。`;
+}
+
+function getCityGalleryImages(
+  segment: CitySegment,
+  days: ItineraryDay[]
+): string[] {
+  const enrichmentImages = [
+    isRealGooglePhoto(segment.enrichment?.coverImage)
+      ? segment.enrichment.coverImage.url
+      : null,
+    ...(segment.enrichment?.attractions ?? [])
+      .filter((item) => isRealGooglePhoto(item.photo))
+      .map((item) => item.photo.url),
+  ].filter((item): item is string => Boolean(item));
+  const attractionImages = getTravelAttractionsForCity(segment.city).map(
+    (item) => item.imageSrc
+  );
+  const images = [
+    ...enrichmentImages,
+    ...attractionImages,
+    segment.imageSrc,
+    ...days.map((day, index) => getDayImage(day, index, segment.enrichment)),
+  ];
+  return Array.from(new Set(images)).slice(0, 3);
+}
+
+function getHotelDisplayPrice(
+  hotel: SelectedHotelOption,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const rawPrice =
+    hotel.option.total_price ??
+    hotel.option.average_price_per_night ??
+    hotel.option.price_per_night;
+  if (!rawPrice) return getCopy(language).selected;
+
+  const currency = hotel.option.currency?.trim();
+  const priceText = String(rawPrice);
+  if (!currency || priceText.includes(currency)) return priceText;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${priceText}`;
+}
+
+function getFlightNumber(flight: SelectedFlightOption): string {
+  const route = `${flight.from} → ${flight.to}`;
+  return flight.option?.flight_number ?? getFlightNumberFallback(route);
+}
+
+function getFlightDisplayPrice(
+  flight: SelectedFlightOption,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const price = flight.option?.price;
+  if (!price) return language === "zh" ? "API 默认" : "API default";
+  const currency = flight.option?.currency?.trim();
+  if (!currency || price.includes(currency)) return price;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${price}`;
+}
+
+function findHotelStayForCity(
+  stays: HotelStayResult[],
+  city: string
+): { stay: HotelStayResult; stayIndex: number } | null {
+  const cityKey = normalizeLookupKey(city);
+  const stayIndex = stays.findIndex(
+    (stay) => normalizeLookupKey(stay.city) === cityKey
+  );
+  if (stayIndex < 0) return null;
+  return {
+    stay: stays[stayIndex],
+    stayIndex: stayIndex + 1,
+  };
+}
+
+function getSelectedFlightForLeg(
+  flights: SelectedFlightOption[],
+  legIndex: number
+): SelectedFlightOption | null {
+  return (
+    flights.find((flight) => flight.leg_index === legIndex && !flight.skip) ??
+    null
+  );
+}
+
+function getSelectedHotelForStay(
+  hotels: SelectedHotelOption[],
+  stayIndex: number
+): SelectedHotelOption | null {
+  return hotels.find((hotel) => hotel.stay_index === stayIndex) ?? null;
+}
+
+function getFlightLegEntriesForDay(
+  legs: FlightLegResult[],
+  selectedFlights: SelectedFlightOption[],
+  travelState: TravelState,
+  dayNumber: number,
+  totalDays: number
+): Array<{
+  leg: FlightLegResult;
+  legIndex: number;
+  selectedFlight: SelectedFlightOption | null;
+}> {
+  const knownLegIndexes = new Set<number>();
+  const entries = legs.map((leg, index) => {
+    const legIndex = index + 1;
+    knownLegIndexes.add(legIndex);
+    const selectedFlight = getSelectedFlightForLeg(selectedFlights, legIndex);
+    return { leg, legIndex, selectedFlight };
+  });
+
+  selectedFlights.forEach((flight) => {
+    if (flight.skip || !flight.option || knownLegIndexes.has(flight.leg_index))
+      return;
+    entries.push({
+      leg: {
+        from: flight.from,
+        to: flight.to,
+        departure_date: flight.departure_date,
+        options: flight.option ? [flight.option] : [],
+      },
+      legIndex: flight.leg_index,
+      selectedFlight: flight,
+    });
+  });
+
+  return entries
+    .filter(({ leg, selectedFlight }) => {
+      const resourceDate = selectedFlight?.departure_date ?? leg.departure_date;
+      return (
+        getDisplayDayNumberForDate(resourceDate, travelState, totalDays) ===
+        dayNumber
+      );
+    })
+    .sort((first, second) => {
+      const firstIsReturn = isReturnFlightEntry(first, travelState);
+      const secondIsReturn = isReturnFlightEntry(second, travelState);
+      if (firstIsReturn !== secondIsReturn) return firstIsReturn ? 1 : -1;
+
+      const firstTime = extractClockTime(
+        first.selectedFlight?.option?.departure ??
+          first.leg.options[0]?.departure,
+        MORNING_SLOT_TIME
+      );
+      const secondTime = extractClockTime(
+        second.selectedFlight?.option?.departure ??
+          second.leg.options[0]?.departure,
+        MORNING_SLOT_TIME
+      );
+      return timeToMinutes(firstTime) - timeToMinutes(secondTime);
+    });
+}
+
+function getHotelStayEntriesForDay(
+  stays: HotelStayResult[],
+  selectedHotels: SelectedHotelOption[],
+  travelState: TravelState,
+  dayNumber: number,
+  totalDays: number
+): Array<{
+  stay: HotelStayResult;
+  stayIndex: number;
+  selectedHotel: SelectedHotelOption | null;
+}> {
+  const knownStayIndexes = new Set<number>();
+  const entries = stays.map((stay, index) => {
+    const stayIndex = index + 1;
+    knownStayIndexes.add(stayIndex);
+    const selectedHotel =
+      getSelectedHotelForStay(selectedHotels, stayIndex) ??
+      findHotelForCity(selectedHotels, stay.city);
+    return { stay, stayIndex, selectedHotel };
+  });
+
+  selectedHotels.forEach((hotel) => {
+    if (knownStayIndexes.has(hotel.stay_index)) return;
+    entries.push({
+      stay: {
+        city: hotel.city,
+        check_in: hotel.check_in,
+        check_out: hotel.check_out,
+        nights: hotel.nights,
+        options: [hotel.option],
+      },
+      stayIndex: hotel.stay_index,
+      selectedHotel: hotel,
+    });
+  });
+
+  return entries
+    .filter(({ stay, selectedHotel }) => {
+      const resourceDate = selectedHotel?.check_in ?? stay.check_in;
+      return (
+        getDisplayDayNumberForDate(resourceDate, travelState, totalDays) ===
+        dayNumber
+      );
+    })
+    .sort((first, second) => first.stayIndex - second.stayIndex);
+}
+
+function createSelectedFlightFromOption(
+  leg: FlightLegResult,
+  legIndex: number,
+  option: FlightOptionResult,
+  optionIndex: number
+): SelectedFlightOption {
+  return {
+    leg_index: legIndex,
+    from: leg.from,
+    to: leg.to,
+    departure_date: leg.departure_date,
+    skip: false,
+    option_index: optionIndex,
+    option,
+  };
+}
+
+function createSelectedHotelFromOption(
+  stay: HotelStayResult,
+  stayIndex: number,
+  option: HotelOptionResult,
+  optionIndex: number
+): SelectedHotelOption {
+  return {
+    stay_index: stayIndex,
+    city: stay.city,
+    check_in: stay.check_in,
+    check_out: stay.check_out,
+    nights: stay.nights,
+    option_index: optionIndex,
+    option,
+  };
+}
+
+function getFlightOptionDisplayPrice(
+  option: FlightOptionResult,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const price = option.price;
+  if (!price) return getCopy(language).apiRecommended;
+  const currency = option.currency?.trim();
+  if (!currency || price.includes(currency)) return price;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${price}`;
+}
+
+function getHotelOptionDisplayPrice(
+  option: HotelOptionResult,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const rawPrice =
+    option.total_price ??
+    option.average_price_per_night ??
+    option.price_per_night;
+  if (!rawPrice) return getCopy(language).apiRecommended;
+  const currency = option.currency?.trim();
+  if (!currency || rawPrice.includes(currency)) return rawPrice;
+  const currencyLabel = currency.toUpperCase() === "AUD" ? "AU$" : currency;
+  return `${currencyLabel}${rawPrice}`;
+}
+
+function getHotelContactLabel(
+  option: HotelOptionResult,
+  language: TravelInterfaceLocale = "zh"
+): string {
+  return (
+    option.contact_phone ??
+    option.contact_email ??
+    option.website ??
+    getCopy(language).bookingContactFallback
+  );
+}
+
+function getFlightOptionKey(
+  legIndex: number,
+  option: FlightOptionResult,
+  optionIndex: number
+): string {
+  return [
+    legIndex,
+    optionIndex,
+    option.flight_number,
+    option.airline,
+    option.departure,
+    option.arrival,
+  ]
+    .filter(Boolean)
+    .join(":");
+}
+
+function getHotelOptionKey(
+  stayIndex: number,
+  option: HotelOptionResult,
+  optionIndex: number
+): string {
+  return [stayIndex, optionIndex, option.hotel_id, option.name, option.address]
+    .filter(Boolean)
+    .join(":");
+}
+
+type DayTimelineItem = {
+  time: string;
+  label: string;
+  value: string;
+  sortTime?: string;
+};
+
+type ActivityTimesByDay = Record<string, string[]>;
+
+const MORNING_SLOT_TIME = "09:00";
+const AFTERNOON_SLOT_TIME = "14:30";
+const HOTEL_SLOT_TIME = "21:00";
+const RETURN_FLIGHT_SORT_TIME = "23:59";
+const DEFAULT_ACTIVITY_TIMES = [
+  MORNING_SLOT_TIME,
+  AFTERNOON_SLOT_TIME,
+  "16:30",
+  "19:30",
+] as const;
+
+function minutesToClockTime(minutes: number): string {
+  const safeMinutes = Math.min(Math.max(minutes, 0), 23 * 60 + 59);
+  const hours = Math.floor(safeMinutes / 60);
+  const minute = safeMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function normalizeActivityTime(value: string | undefined): string | null {
+  const match = value?.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function getDefaultActivityTime(index: number): string {
+  const defaultTime = DEFAULT_ACTIVITY_TIMES[index];
+  if (defaultTime) return defaultTime;
+  return minutesToClockTime(Math.min(22 * 60, 19 * 60 + 30 + (index - 3) * 75));
+}
+
+function getActivityDayKey(
+  day: ItineraryDay | undefined,
+  dayIndex: number
+): string {
+  return String(day ? getDayNumber(day) : dayIndex + 1);
+}
+
+function getActivityTimeAtIndex(
+  day: ItineraryDay,
+  index: number,
+  activityTimesByDay: ActivityTimesByDay = {},
+  dayIndex: number
+): string {
+  const dayKey = getActivityDayKey(day, dayIndex);
+  return (
+    normalizeActivityTime(activityTimesByDay?.[dayKey]?.[index]) ??
+    getDefaultActivityTime(index)
+  );
+}
+
+function getActivityTimesForDay(
+  day: ItineraryDay,
+  activityTimesByDay: ActivityTimesByDay = {},
+  dayIndex: number
+): string[] {
+  return day.activities.map((_, index) =>
+    getActivityTimeAtIndex(day, index, activityTimesByDay, dayIndex)
+  );
+}
+
+function haveSameActivities(first: ItineraryDay, second: ItineraryDay): boolean {
+  if (first.activities.length !== second.activities.length) return false;
+  return first.activities.every(
+    (activity, index) => activity === second.activities[index]
+  );
+}
+
+function findPreviousDayIndex(
+  previousDays: ItineraryDay[],
+  nextDay: ItineraryDay,
+  nextIndex: number,
+  usedIndexes: Set<number>
+): number {
+  const nextCityKey = normalizeLookupKey(nextDay.city);
+  const exactIndex = previousDays.findIndex(
+    (previousDay, previousIndex) =>
+      !usedIndexes.has(previousIndex) &&
+      normalizeLookupKey(previousDay.city) === nextCityKey &&
+      haveSameActivities(previousDay, nextDay)
+  );
+  if (exactIndex >= 0) return exactIndex;
+
+  const sameIndexDay = previousDays[nextIndex];
+  if (
+    sameIndexDay &&
+    !usedIndexes.has(nextIndex) &&
+    normalizeLookupKey(sameIndexDay.city) === nextCityKey
+  ) {
+    return nextIndex;
+  }
+
+  return previousDays.findIndex(
+    (previousDay, previousIndex) =>
+      !usedIndexes.has(previousIndex) &&
+      normalizeLookupKey(previousDay.city) === nextCityKey
+  );
+}
+
+function remapActivityTimesForItinerary(
+  previousDays: ItineraryDay[],
+  nextDays: ItineraryDay[],
+  activityTimesByDay: ActivityTimesByDay = {}
+): ActivityTimesByDay {
+  const usedPreviousIndexes = new Set<number>();
+  const nextTimesByDay: ActivityTimesByDay = {};
+
+  nextDays.forEach((nextDay, nextIndex) => {
+    const previousIndex = findPreviousDayIndex(
+      previousDays,
+      nextDay,
+      nextIndex,
+      usedPreviousIndexes
+    );
+    const previousDay = previousDays[previousIndex];
+    const previousTimes =
+      previousDay && previousIndex >= 0
+        ? getActivityTimesForDay(previousDay, activityTimesByDay, previousIndex)
+        : [];
+
+    if (previousIndex >= 0) {
+      usedPreviousIndexes.add(previousIndex);
+    }
+
+    nextTimesByDay[getActivityDayKey(nextDay, nextIndex)] =
+      nextDay.activities.map(
+        (_, activityIndex) =>
+          normalizeActivityTime(previousTimes[activityIndex]) ??
+          getDefaultActivityTime(activityIndex)
+      );
+  });
+
+  return nextTimesByDay;
+}
+
+function getActivityPeriodLabel(
+  time: string,
+  language: TravelInterfaceLocale
+): string {
+  const copy = getCopy(language);
+  const minutes = timeToMinutes(time);
+  if (minutes < 12 * 60) return copy.morning;
+  if (minutes < 18 * 60) return copy.afternoon;
+  return language === "zh" ? "晚上" : "Evening";
+}
+
+function formatActivityTimeLabel(
+  time: string,
+  language: TravelInterfaceLocale
+): string {
+  const copy = getCopy(language);
+  return `${time} · ${getActivityPeriodLabel(time, language)} ${copy.attraction}`;
+}
+
+function moveArrayItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= items.length ||
+    toIndex >= items.length
+  ) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [item] = nextItems.splice(fromIndex, 1);
+  if (item === undefined) return items;
+  nextItems.splice(toIndex, 0, item);
+  return nextItems;
+}
+
+function isReturnRoute(
+  from: string | null | undefined,
+  to: string | null | undefined,
+  travelState: TravelState
+): boolean {
+  const returnCity = travelState.return_city?.trim();
+  if (!returnCity || !to) return false;
+  return (
+    normalizeLookupKey(to) === normalizeLookupKey(returnCity) &&
+    normalizeLookupKey(from ?? "") !== normalizeLookupKey(returnCity)
+  );
+}
+
+function isReturnFlight(
+  flight: SelectedFlightOption,
+  travelState: TravelState
+): boolean {
+  return isReturnRoute(flight.from, flight.to, travelState);
+}
+
+function isReturnFlightEntry(
+  entry: {
+    leg: FlightLegResult;
+    selectedFlight: SelectedFlightOption | null;
+  },
+  travelState: TravelState
+): boolean {
+  return isReturnRoute(
+    entry.selectedFlight?.from ?? entry.leg.from,
+    entry.selectedFlight?.to ?? entry.leg.to,
+    travelState
+  );
+}
+
+function getFlightsForDay(
+  flights: SelectedFlightOption[],
+  travelState: TravelState,
+  dayNumber: number,
+  totalDays: number
+): SelectedFlightOption[] {
+  return flights
+    .filter((flight) => !flight.skip && flight.option)
+    .filter(
+      (flight) =>
+        getDisplayDayNumberForDate(
+          flight.departure_date,
+          travelState,
+          totalDays
+        ) === dayNumber
+    )
+    .sort((first, second) => {
+      const firstIsReturn = isReturnFlight(first, travelState);
+      const secondIsReturn = isReturnFlight(second, travelState);
+      if (firstIsReturn !== secondIsReturn) return firstIsReturn ? 1 : -1;
+
+      const firstTime = extractClockTime(
+        first.option?.departure,
+        MORNING_SLOT_TIME
+      );
+      const secondTime = extractClockTime(
+        second.option?.departure,
+        MORNING_SLOT_TIME
+      );
+      return timeToMinutes(firstTime) - timeToMinutes(secondTime);
+    });
+}
+
+function formatFlightTimelineValue(flight: SelectedFlightOption): string {
+  const airline = getAirlineNameForLanguage(flight.option, "zh");
+  const route = `${getLocalCityLabel(flight.from)} → ${getLocalCityLabel(flight.to)}`;
+  const flightNumber = getFlightNumber(flight);
+  const departureTime = extractClockTime(flight.option?.departure, "待确认");
+  return `${route} · ${airline} ${flightNumber} · ${departureTime}`;
+}
+
+function formatFlightTimelineValueForLanguage(
+  flight: SelectedFlightOption,
+  language: TravelInterfaceLocale
+): string {
+  if (language === "zh") return formatFlightTimelineValue(flight);
+  const airline = getAirlineNameForLanguage(flight.option, "en");
+  const route = `${getCityLabel(flight.from, "en")} → ${getCityLabel(flight.to, "en")}`;
+  const flightNumber = getFlightNumber(flight);
+  const departureTime = extractClockTime(flight.option?.departure, "pending");
+  return `${route} · ${airline} ${flightNumber} · ${departureTime}`;
+}
+
+function buildDayTimelineItems(
+  day: ItineraryDay,
+  dayIndex: number,
+  travelState: TravelState,
+  flights: SelectedFlightOption[],
+  hotels: SelectedHotelOption[],
+  language: TravelInterfaceLocale,
+  totalDays: number,
+  activityTimesByDay: ActivityTimesByDay = {}
+): DayTimelineItem[] {
+  const copy = getCopy(language);
+  const dayNumber = getDayNumber(day);
+  const dayFlights = getFlightsForDay(
+    flights,
+    travelState,
+    dayNumber,
+    totalDays
+  );
+  const hotel = findHotelForCity(hotels, day.city);
+  const hotelLabel = hotel
+    ? getHotelNameForLanguage(hotel.option, hotel.city, language)
+    : `${getCityLabel(day.city, language)} ${copy.hotelFallback}`;
+  const fallbackActivities =
+    day.activities.length > 0
+      ? day.activities
+      : [
+          getSpecificAttraction(day.city, dayIndex, 0, language),
+          getSpecificAttraction(day.city, dayIndex, 1, language),
+        ];
+  const activityItems = fallbackActivities.map((activity, index) => {
+    const activityTime = getActivityTimeAtIndex(
+      day,
+      index,
+      activityTimesByDay,
+      dayIndex
+    );
+    const fallback = getSpecificAttraction(day.city, dayIndex, index, language);
+    const activityLabel = isVagueActivityName(activity)
+      ? fallback
+      : getTravelTextForLanguage(activity, language, fallback);
+
+    return {
+      time: activityTime,
+      label: `${getActivityPeriodLabel(activityTime, language)} ${copy.attraction}`,
+      value: activityLabel,
+    };
+  });
+  const flightItems = dayFlights.map((flight) => {
+    const time = extractClockTime(flight.option?.departure, MORNING_SLOT_TIME);
+    const returnFlight = isReturnFlight(flight, travelState);
+    return {
+      time,
+      label: returnFlight ? copy.returnFlight : copy.flight,
+      value: formatFlightTimelineValueForLanguage(flight, language),
+      sortTime: returnFlight ? RETURN_FLIGHT_SORT_TIME : time,
+    };
+  });
+
+  const items: DayTimelineItem[] = [
+    ...flightItems,
+    ...activityItems,
+    {
+      time: "12:30",
+      label: copy.lunch,
+      value:
+        getTravelTextForLanguage(day.food[0], language, "") ||
+        `${getCityLabel(day.city, language)} ${copy.localRestaurant}`,
+    },
+    {
+      time: "18:30",
+      label: copy.dinner,
+      value:
+        getTravelTextForLanguage(day.food[1], language, "") ||
+        getTravelTextForLanguage(day.food[0], language, "") ||
+        `${getCityLabel(day.city, language)} ${copy.localDinner}`,
+    },
+    {
+      time: HOTEL_SLOT_TIME,
+      label: copy.lodging,
+      value: hotelLabel,
+    },
+  ];
+
+  return items.sort(
+    (first, second) =>
+      timeToMinutes(first.sortTime ?? first.time) -
+      timeToMinutes(second.sortTime ?? second.time)
+  );
+}
+
+function isVagueActivityName(value: string): boolean {
+  return !value.trim() || VAGUE_ACTIVITY_RE.test(value);
+}
+
+function getSpecificAttraction(
+  city: string,
+  dayIndex: number,
+  activityIndex: number,
+  excludedAttractionsOrLanguage:
+    | Set<string>
+    | TravelInterfaceLocale = new Set(),
+  language: TravelInterfaceLocale = "zh"
+): string {
+  const selectedLanguage =
+    typeof excludedAttractionsOrLanguage === "string"
+      ? excludedAttractionsOrLanguage
+      : language;
+  const excludedAttractions =
+    typeof excludedAttractionsOrLanguage === "string"
+      ? new Set<string>()
+      : excludedAttractionsOrLanguage;
+  const knowledgeAttractions =
+    selectedLanguage === "zh" ? getTravelAttractionNamesForCity(city) : [];
+  const key = normalizeLookupKey(city);
+  const attractions =
+    selectedLanguage === "en"
+      ? SPECIFIC_ATTRACTIONS_EN_BY_KEY[key]
+      : knowledgeAttractions.length
+        ? knowledgeAttractions
+        : SPECIFIC_ATTRACTIONS_BY_KEY[key];
+  if (!attractions?.length) {
+    const cityLabel = getCityLabel(city, selectedLanguage);
+    return selectedLanguage === "en"
+      ? `${cityLabel} historic city center`
+      : `${cityLabel}市中心历史街区`;
+  }
+
+  const startIndex = (dayIndex * 2 + activityIndex) % attractions.length;
+  for (let offset = 0; offset < attractions.length; offset += 1) {
+    const candidate = attractions[(startIndex + offset) % attractions.length];
+    if (!excludedAttractions.has(normalizeLookupKey(candidate))) {
+      return candidate;
+    }
+  }
+
+  return attractions[startIndex];
+}
+
+function renumberItineraryDays(days: ItineraryDay[]): ItineraryDay[] {
+  return days.map((day, index) => ({
+    ...day,
+    day: index + 1,
+  }));
+}
+
+function itineraryStateSignature(days: ItineraryDay[]): string {
+  return JSON.stringify(
+    days.map((day) => ({
+      day: getDayNumber(day),
+      city: day.city,
+      activities: day.activities,
+      food: day.food,
+      cost: day.cost,
+    }))
+  );
+}
+
+function buildItineraryTravelStatePatch(
+  days: ItineraryDay[],
+  travelState: TravelState,
+  orderedCities: string[]
+): ItineraryTravelStatePatch {
+  const cityDays: Record<string, number> = {};
+  days.forEach((day) => {
+    cityDays[day.city] = (cityDays[day.city] ?? 0) + 1;
+  });
+
+  const dayCityKeys = new Set(days.map((day) => normalizeLookupKey(day.city)));
+  const cities = getUniqueCities(days, [
+    ...travelState.travel_order,
+    ...orderedCities,
+    ...travelState.cities,
+  ]).filter((city) => dayCityKeys.has(normalizeLookupKey(city)));
+
+  return {
+    cities: cities.length ? cities : days.map((day) => day.city),
+    city_days: cityDays,
+    travel_days: Math.max(1, days.length),
+    travel_order: cities.length ? cities : days.map((day) => day.city),
+  };
+}
+
+function shouldSuppressFlights(modulePatch?: Record<string, unknown>): boolean {
+  return (
+    modulePatch?.remove_flights === true ||
+    modulePatch?.flight_policy === "skip_all"
+  );
+}
+
+function shouldPreferFourStarHotel(
+  modulePatch?: Record<string, unknown>
+): boolean {
+  return (
+    typeof modulePatch?.hotel_note === "string" &&
+    /4星|四星|four.?star|4.?star/i.test(modulePatch.hotel_note)
+  );
+}
+
+function buildAttractionMapPoints(
+  days: ItineraryDay[],
+  city: string,
+  seedPrefix: string,
+  googleCoordinates: Record<string, GoogleGeocodeCoordinate> = {},
+  language: TravelInterfaceLocale = "zh",
+  destinationEnrichment: TravelGoogleEnrichedDestination | null = null
+): TripMapPoint[] {
+  const cityKey = normalizeLookupKey(city);
+  const cityLabel = getCityLabel(city, language);
+  const enrichment = getEnrichmentForCity(destinationEnrichment, city);
+  const center =
+    enrichment && isFiniteLatLng(enrichment.latitude, enrichment.longitude)
+      ? ([enrichment.latitude, enrichment.longitude] as [number, number])
+      : getCityCoordinates(city);
+  const seen = new Set<string>();
+  const activities = days
+    .filter((day) => normalizeLookupKey(day.city) === cityKey)
+    .flatMap((day) => day.activities)
+    .map((activity) => activity.trim())
+    .filter((activity) => {
+      const key = normalizeLookupKey(activity);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  const pointNames =
+    activities.length >= 2
+      ? activities
+      : [
+          getSpecificAttraction(city, 0, 0, language),
+          getSpecificAttraction(city, 0, 1, language),
+          getSpecificAttraction(city, 1, 0, language),
+        ];
+
+  return pointNames.slice(0, 10).map((activity, index) => {
+    const activityLabel = getTravelTextForLanguage(
+      activity,
+      language,
+      activity
+    );
+    const enrichedAttraction = getEnrichedAttractionForName(enrichment, activity);
+    const attraction = findTravelAttraction(city, activity);
+    const googleCoordinate =
+      googleCoordinates[getAttractionCoordinateKey(city, activity)];
+    let coordinate: [number, number];
+    if (isFiniteCoordinate(googleCoordinate)) {
+      coordinate = [googleCoordinate.lat, googleCoordinate.lng];
+    } else if (
+      enrichedAttraction &&
+      isFiniteLatLng(enrichedAttraction.latitude, enrichedAttraction.longitude)
+    ) {
+      coordinate = [
+        enrichedAttraction.latitude as number,
+        enrichedAttraction.longitude as number,
+      ];
+    } else if (attraction) {
+      coordinate = [attraction.lat, attraction.lng];
+    } else {
+      coordinate = offsetCoordinate(
+        center,
+        `${seedPrefix}-${city}-${activity}`,
+        0.05
+      );
+    }
+    const [lat, lng] = coordinate;
+    const locationText =
+      googleCoordinate?.formattedAddress ??
+      enrichedAttraction?.googleMapsUri ??
+      attraction?.location ??
+      cityLabel;
+    return {
+      id: `${seedPrefix}-${cityKey}-${index}`,
+      kind: "hotspot",
+      label: activityLabel,
+      subtitle:
+        language === "zh"
+          ? `${cityLabel}第 ${index + 1} 站`
+          : `${cityLabel} stop ${index + 1}`,
+      localName: cityLabel,
+      intro:
+        enrichedAttraction?.descriptionZh ??
+        attraction?.description ??
+        (language === "zh"
+          ? `${activityLabel} 位于 ${locationText}，地图路线会按当天顺序串联这些景点。`
+          : `${activityLabel} is near ${locationText}. The map follows the day order.`),
+      imageSrc:
+        (isRealGooglePhoto(enrichedAttraction?.photo)
+          ? enrichedAttraction.photo.url
+          : null) ??
+        attraction?.imageSrc ??
+        getAttractionImage(city, activity, `${seedPrefix}-${index}`),
+      lat,
+      lng,
+      city,
+    };
+  });
+}
+
+function buildAttractionRows(
+  itinerary: ItineraryDay[],
+  language: TravelInterfaceLocale,
+  activityTimesByDay: ActivityTimesByDay = {}
+): TimedItineryRow[] {
+  const copy = getCopy(language);
+  return itinerary.flatMap((day, dayIndex) => {
+    const dayNumber = getDayNumber(day);
+    const activities =
+      day.activities.length > 0
+        ? day.activities
+        : [
+            getSpecificAttraction(day.city, dayIndex, 0, language),
+            getSpecificAttraction(day.city, dayIndex, 1, language),
+          ];
+    const cityLabel = getCityLabel(day.city, language);
+    const rows: TimedItineryRow[] = activities.map((activity, index) => {
+      const fallback = getSpecificAttraction(
+        day.city,
+        dayIndex,
+        index,
+        language
+      );
+      const activityName = isVagueActivityName(activity)
+        ? fallback
+        : getTravelTextForLanguage(activity, language, fallback);
+      const activityTime = getActivityTimeAtIndex(
+        day,
+        index,
+        activityTimesByDay,
+        dayIndex
+      );
+      const periodLabel = getActivityPeriodLabel(activityTime, language);
+
+      return createTimedItineryRow(
+        {
+          time: formatActivityTimeLabel(activityTime, language),
+          type: copy.attraction,
+          date: formatDayTab(day, language),
+          route: cityLabel,
+          name: activityName,
+          details:
+            language === "zh"
+              ? `${periodLabel}：游览 ${activityName}，建议停留 2-3 小时。`
+              : `${periodLabel}: visit ${activityName}. Suggested stay: 2-3 hours.`,
+          contact: "-",
+        },
+        dayNumber,
+        activityTime
+      );
+    });
+
+    if (day.food[0]) {
+      rows.push(
+        createTimedItineryRow(
+          {
+            time: language === "zh" ? "12:30 午餐" : "12:30 Lunch",
+            type: copy.dining,
+            date: formatDayTab(day, language),
+            route: cityLabel,
+            name: getTravelTextForLanguage(day.food[0], language),
+            details:
+              language === "zh"
+                ? `午餐：${getTravelTextForLanguage(day.food[0], language)}。`
+                : `Lunch: ${getTravelTextForLanguage(day.food[0], language)}.`,
+            contact: "-",
+          },
+          dayNumber,
+          "12:30"
+        )
+      );
+    }
+
+    if (day.food[1]) {
+      rows.push(
+        createTimedItineryRow(
+          {
+            time: language === "zh" ? "18:30 晚餐" : "18:30 Dinner",
+            type: copy.dining,
+            date: formatDayTab(day, language),
+            route: cityLabel,
+            name: getTravelTextForLanguage(day.food[1], language),
+            details:
+              language === "zh"
+                ? `晚餐：${getTravelTextForLanguage(day.food[1], language)}。`
+                : `Dinner: ${getTravelTextForLanguage(day.food[1], language)}.`,
+            contact: "-",
+          },
+          dayNumber,
+          "18:30"
+        )
+      );
+    }
+
+    return rows;
+  });
+}
+
+function buildSelectedHotelRows(
+  hotels: SelectedHotelOption[],
+  travelState: TravelState,
+  modulePatch: Record<string, unknown> | undefined,
+  language: TravelInterfaceLocale
+): TimedItineryRow[] {
+  const copy = getCopy(language);
+  const preferFourStar = shouldPreferFourStarHotel(modulePatch);
+  return hotels.map((hotel) => {
+    const cityLabel = getCityLabel(hotel.city, language);
+    const checkInTime = extractClockTime(hotel.option.check_in_time, "15:00");
+    const checkOutTime = hotel.option.check_out_time ?? "11:00";
+    const address = getHotelAddressForLanguage(
+      hotel.option,
+      hotel.city,
+      language
+    );
+    const contact = getHotelContactLabel(hotel.option, language);
+
+    return createTimedItineryRow(
+      {
+        time:
+          language === "zh" ? `${checkInTime} 入住` : `${checkInTime} check-in`,
+        type: copy.hotel,
+        date: `${formatMonthDay(hotel.check_in, language)} - ${formatMonthDay(hotel.check_out, language)}`,
+        route: cityLabel,
+        name: getHotelNameForLanguage(hotel.option, hotel.city, language),
+        details:
+          language === "zh"
+            ? `${hotel.nights}晚；地址：${address}；价格：${getHotelDisplayPrice(
+                hotel,
+                language
+              )}；${preferFourStar ? "偏好：4星级酒店；" : ""}入住 ${checkInTime}，退房 ${checkOutTime}。`
+            : `${hotel.nights} nights; address: ${address}; price: ${getHotelDisplayPrice(
+                hotel,
+                language
+              )}; ${preferFourStar ? "preference: 4-star hotel; " : ""}check-in ${checkInTime}, check-out ${checkOutTime}.`,
+        contact,
+      },
+      getDayNumberForDate(hotel.check_in, travelState),
+      checkInTime
+    );
+  });
+}
+
+function buildFallbackHotelRows(
+  stays: HotelStayResult[],
+  travelState: TravelState,
+  language: TravelInterfaceLocale
+): TimedItineryRow[] {
+  const copy = getCopy(language);
+  return stays.map((stay) => {
+    const cityLabel = getCityLabel(stay.city, language);
+    const checkInTime = "15:00";
+    const checkOutTime = "11:00";
+
+    return createTimedItineryRow(
+      {
+        time:
+          language === "zh" ? `${checkInTime} 入住` : `${checkInTime} check-in`,
+        type: copy.hotel,
+        date: `${formatMonthDay(stay.check_in, language)} - ${formatMonthDay(stay.check_out, language)}`,
+        route: cityLabel,
+        name: `${cityLabel} ${copy.hotelFallback}`,
+        details:
+          language === "zh"
+            ? `${stay.nights}晚；${copy.hotelPendingDescription}；入住 ${checkInTime}，退房 ${checkOutTime}。`
+            : `${stay.nights} nights; ${copy.hotelPendingDescription}; check-in ${checkInTime}, check-out ${checkOutTime}.`,
+        contact: "-",
+      },
+      getDayNumberForDate(stay.check_in, travelState),
+      checkInTime
+    );
+  });
+}
+
+function buildSelectedFlightRows(
+  flights: SelectedFlightOption[],
+  travelState: TravelState,
+  language: TravelInterfaceLocale
+): TimedItineryRow[] {
+  const copy = getCopy(language);
+  return flights
+    .filter((flight) => !flight.skip)
+    .map((flight) => {
+      const option = flight.option;
+      const airline = getAirlineNameForLanguage(option, language);
+      const route = `${getCityLabel(flight.from, language)} → ${getCityLabel(
+        flight.to,
+        language
+      )}`;
+      const departureTime = extractClockTime(option?.departure, "08:00");
+      const arrivalTime = extractClockTime(option?.arrival, "");
+      const airports = [
+        option?.from_id ?? option?.from,
+        option?.to_id ?? option?.to,
+      ]
+        .filter(Boolean)
+        .join(" → ");
+      const stops =
+        option?.stops === 0
+          ? copy.direct
+          : typeof option?.stops === "number"
+            ? language === "zh"
+              ? `${option.stops}次中转`
+              : `${option.stops} ${copy.transfer}`
+            : "-";
+
+      const flightNumber =
+        option?.flight_number ?? getFlightNumberFallback(route);
+      const detailItems = [
+        option?.departure
+          ? `出发：${option.departure}`
+          : `出发：${departureTime}`,
+        option?.arrival
+          ? `到达：${option.arrival}`
+          : arrivalTime
+            ? `到达：${arrivalTime}`
+            : "",
+        airports ? `机场：${airports}` : "",
+        option?.duration ? `时长：${option.duration}` : "",
+        `经停：${stops}`,
+        option?.cabin_class ? `舱位：${option.cabin_class}` : "",
+        option?.price
+          ? `价格：${option.price} ${option.currency ?? ""}`.trim()
+          : "",
+      ].filter(Boolean);
+
+      return createTimedItineryRow(
+        {
+          time:
+            language === "zh"
+              ? `${departureTime} 出发`
+              : `${departureTime} departure`,
+          type: copy.flight,
+          date: formatMonthDay(flight.departure_date, language),
+          route,
+          name: `${airline} ${flightNumber}`,
+          details:
+            language === "zh"
+              ? detailItems.map((item) => item).join("；") || "-"
+              : [
+                  option?.departure
+                    ? `departure: ${option.departure}`
+                    : `departure: ${departureTime}`,
+                  option?.arrival
+                    ? `arrival: ${option.arrival}`
+                    : arrivalTime
+                      ? `arrival: ${arrivalTime}`
+                      : "",
+                  airports ? `airports: ${airports}` : "",
+                  option?.duration ? `duration: ${option.duration}` : "",
+                  `stops: ${stops}`,
+                  option?.cabin_class ? `cabin: ${option.cabin_class}` : "",
+                  option?.price
+                    ? `price: ${option.price} ${option.currency ?? ""}`.trim()
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join("; ") || "-",
+          contact: flightNumber,
+        },
+        getDayNumberForDate(flight.departure_date, travelState),
+        departureTime,
+        isReturnFlight(flight, travelState)
+          ? RETURN_FLIGHT_SORT_TIME
+          : departureTime
+      );
+    });
+}
+
+function buildItineryTableRows(
+  itinerary: ItineraryDay[],
+  travelState: TravelState,
+  modulePatch: Record<string, unknown> | undefined,
+  language: TravelInterfaceLocale,
+  activityTimesByDay: ActivityTimesByDay = {},
+  hotelStays: HotelStayResult[] = []
+): ItineryTableRow[] {
+  const attractionRows = buildAttractionRows(
+    itinerary,
+    language,
+    activityTimesByDay
+  );
+  const selectedHotelRows = travelState.selected_hotels.length
+    ? buildSelectedHotelRows(
+        travelState.selected_hotels,
+        travelState,
+        modulePatch,
+        language
+      )
+    : [];
+  const selectedHotelCityKeys = new Set(
+    travelState.selected_hotels.map((hotel) => normalizeLookupKey(hotel.city))
+  );
+  const fallbackHotelRows = buildFallbackHotelRows(
+    hotelStays.filter(
+      (stay) => !selectedHotelCityKeys.has(normalizeLookupKey(stay.city))
+    ),
+    travelState,
+    language
+  );
+  const hotelRows = [...selectedHotelRows, ...fallbackHotelRows];
+  const selectedFlightRows = buildSelectedFlightRows(
+    travelState.selected_flights,
+    travelState,
+    language
+  );
+  const flightRows = shouldSuppressFlights(modulePatch)
+    ? []
+    : selectedFlightRows;
+
+  return finalizeTimedRows([...flightRows, ...hotelRows, ...attractionRows]);
+}
+
+function buildTravelExportPayload(
+  itinerary: ItineraryDay[],
+  travelState: TravelState,
+  orderedCities: string[],
+  itineryRows: ItineryTableRow[],
+  exportLanguage: TravelExportLanguage
+): TravelExportPayload {
+  const cities =
+    travelState.cities.length > 0
+      ? travelState.cities
+      : orderedCities.length > 0
+        ? orderedCities
+        : getUniqueCities(itinerary, orderedCities);
+  const travelOrder =
+    travelState.travel_order.length > 0 ? travelState.travel_order : cities;
+
+  return {
+    country: travelState.country ?? travelState.countries[0] ?? "",
+    countries: travelState.countries,
+    cities,
+    city_days: travelState.city_days,
+    departure_date: travelState.departure_date ?? undefined,
+    date_flexibility: travelState.date_flexibility ?? undefined,
+    travel_days: travelState.travel_days ?? Math.max(1, itinerary.length),
+    travelers: travelState.travelers ?? 1,
+    budget: travelState.budget ?? 1,
+    travel_order: travelOrder,
+    origin_country: travelState.origin_country ?? undefined,
+    origin_city: travelState.origin_city ?? undefined,
+    return_country: travelState.return_country ?? undefined,
+    return_city: travelState.return_city ?? undefined,
+    selected_flights: travelState.selected_flights,
+    selected_hotels: travelState.selected_hotels,
+    final_note: travelState.final_note ?? "",
+    attached_files: travelState.attached_files,
+    itinerary,
+    itinery_rows: itineryRows,
+    export_language: exportLanguage,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function stringField(
+  record: Record<string, unknown>,
+  key: string
+): string | undefined {
+  const value = record[key];
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  return undefined;
+}
+
+function numberField(
+  record: Record<string, unknown>,
+  key: string
+): number | undefined {
+  const value = record[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function coerceFlightOption(value: unknown): FlightOptionResult {
+  const record = asRecord(value);
+  if (!record) return {};
+
+  const stops = numberField(record, "stops");
+  return {
+    provider: stringField(record, "provider"),
+    airline: stringField(record, "airline"),
+    price: stringField(record, "price"),
+    currency: stringField(record, "currency"),
+    departure: stringField(record, "departure"),
+    arrival: stringField(record, "arrival"),
+    from: stringField(record, "from"),
+    to: stringField(record, "to"),
+    from_id: stringField(record, "from_id"),
+    to_id: stringField(record, "to_id"),
+    offer_token: stringField(record, "offer_token"),
+    departure_airport: stringField(record, "departure_airport"),
+    arrival_airport: stringField(record, "arrival_airport"),
+    duration: stringField(record, "duration"),
+    stops,
+    cabin_class: stringField(record, "cabin_class"),
+    booking_url: stringField(record, "booking_url"),
+    flight_number: stringField(record, "flight_number"),
+    aircraft: stringField(record, "aircraft"),
+  };
+}
+
+function coerceHotelOption(value: unknown): HotelOptionResult {
+  const record = asRecord(value);
+  if (!record) return {};
+
+  const adults = numberField(record, "adults");
+  const ratingValue = record.rating;
+  const rating =
+    typeof ratingValue === "number" || typeof ratingValue === "string"
+      ? ratingValue
+      : undefined;
+  const latitudeValue = record.latitude;
+  const longitudeValue = record.longitude;
+
+  return {
+    provider: stringField(record, "provider"),
+    city: stringField(record, "city"),
+    name: stringField(record, "name"),
+    hotel_id:
+      stringField(record, "hotel_id") ?? numberField(record, "hotel_id"),
+    price_per_night: stringField(record, "price_per_night"),
+    taxes_and_fees: stringField(record, "taxes_and_fees"),
+    currency: stringField(record, "currency"),
+    check_in: stringField(record, "check_in"),
+    check_out: stringField(record, "check_out"),
+    adults,
+    rating,
+    average_price_per_night: stringField(record, "average_price_per_night"),
+    total_price: stringField(record, "total_price"),
+    address: stringField(record, "address"),
+    latitude:
+      typeof latitudeValue === "number" || typeof latitudeValue === "string"
+        ? latitudeValue
+        : undefined,
+    longitude:
+      typeof longitudeValue === "number" || typeof longitudeValue === "string"
+        ? longitudeValue
+        : undefined,
+    contact_phone: stringField(record, "contact_phone"),
+    contact_email: stringField(record, "contact_email"),
+    website: stringField(record, "website"),
+    review_text: stringField(record, "review_text"),
+    check_in_time: stringField(record, "check_in_time"),
+    check_out_time: stringField(record, "check_out_time"),
+    distance_to_center: stringField(record, "distance_to_center"),
+  };
+}
+
+function coerceApiFlightLegs(payload: unknown): FlightLegResult[] {
+  const record = asRecord(payload);
+  const rawLegs = Array.isArray(record?.legs) ? record.legs : [];
+
+  return rawLegs
+    .map((rawLeg) => {
+      const leg = asRecord(rawLeg);
+      if (!leg) return null;
+      const from = stringField(leg, "from");
+      const to = stringField(leg, "to");
+      const departureDate = stringField(leg, "departure_date");
+      if (!from || !to || !departureDate) return null;
+
+      const options = Array.isArray(leg.options)
+        ? leg.options.map(coerceFlightOption)
+        : [];
+      return {
+        from,
+        to,
+        departure_date: departureDate,
+        options,
+      };
+    })
+    .filter((leg): leg is FlightLegResult => leg !== null);
+}
+
+function coerceApiHotelStays(payload: unknown): HotelStayResult[] {
+  const record = asRecord(payload);
+  const rawStays = Array.isArray(record?.stays) ? record.stays : [];
+
+  return rawStays
+    .map((rawStay): HotelStayResult | null => {
+      const stay = asRecord(rawStay);
+      if (!stay) return null;
+      const city = stringField(stay, "city");
+      const checkIn = stringField(stay, "check_in");
+      const checkOut = stringField(stay, "check_out");
+      const nights = numberField(stay, "nights") ?? 1;
+      if (!city || !checkIn || !checkOut) return null;
+
+      const adults = numberField(stay, "adults");
+      const options = Array.isArray(stay.options)
+        ? stay.options.map(coerceHotelOption)
+        : [];
+      return {
+        city,
+        check_in: checkIn,
+        check_out: checkOut,
+        nights,
+        ...(adults === undefined ? {} : { adults }),
+        options,
+      };
+    })
+    .filter((stay): stay is HotelStayResult => stay !== null);
+}
+
+function selectApiDefaultFlights(
+  legs: FlightLegResult[]
+): SelectedFlightOption[] {
+  return legs
+    .map((leg, index): SelectedFlightOption | null => {
+      const option = leg.options[0];
+      if (!option) return null;
+      return {
+        leg_index: index + 1,
+        from: leg.from,
+        to: leg.to,
+        departure_date: leg.departure_date,
+        skip: false,
+        option_index: 1,
+        option,
+      };
+    })
+    .filter((flight): flight is SelectedFlightOption => flight !== null);
+}
+
+function selectApiDefaultHotels(
+  stays: HotelStayResult[]
+): SelectedHotelOption[] {
+  return stays
+    .map((stay, index): SelectedHotelOption | null => {
+      const option = stay.options[0];
+      if (!option) return null;
+      return {
+        stay_index: index + 1,
+        city: stay.city,
+        check_in: stay.check_in,
+        check_out: stay.check_out,
+        nights: stay.nights,
+        option_index: 1,
+        option,
+      };
+    })
+    .filter((hotel): hotel is SelectedHotelOption => hotel !== null);
+}
+
+function hasSelectedFlightOption(flights: SelectedFlightOption[]): boolean {
+  return flights.some((flight) => !flight.skip && Boolean(flight.option));
+}
+
+function hasSelectedHotelOption(hotels: SelectedHotelOption[]): boolean {
+  return hotels.some((hotel) => {
+    const provider = hotel.option.provider ?? "";
+    const name = hotel.option.name ?? "";
+    return provider !== "self-arranged" && name !== "自行安排";
+  });
+}
+
+function buildApiOptionsPayload(
+  travelState: TravelState,
+  orderedCities: string[]
+): Omit<TravelExportPayload, "itinerary" | "itinery_rows" | "export_language"> {
+  const cities =
+    travelState.cities.length > 0
+      ? travelState.cities
+      : orderedCities.length > 0
+        ? orderedCities
+        : travelState.travel_order;
+  const travelOrder =
+    travelState.travel_order.length > 0 ? travelState.travel_order : cities;
+
+  return {
+    country: travelState.country ?? travelState.countries[0] ?? "",
+    countries: travelState.countries,
+    cities,
+    city_days: travelState.city_days,
+    departure_date: travelState.departure_date ?? undefined,
+    date_flexibility: travelState.date_flexibility ?? undefined,
+    travel_days: travelState.travel_days ?? Math.max(1, cities.length),
+    travelers: travelState.travelers ?? 1,
+    budget: travelState.budget ?? 1,
+    travel_order: travelOrder,
+    origin_country: travelState.origin_country ?? undefined,
+    origin_city: travelState.origin_city ?? undefined,
+    return_country: travelState.return_country ?? undefined,
+    return_city: travelState.return_city ?? undefined,
+    selected_flights: [],
+    selected_hotels: [],
+    final_note: travelState.final_note ?? "",
+    attached_files: travelState.attached_files,
+  };
+}
+
+async function downloadBlob(
+  endpoint: TravelDownloadEndpoint,
+  payload: TravelExportPayload,
+  fallbackFilename: string
+): Promise<void> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || `Failed to download ${fallbackFilename}.`);
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition");
+  const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/i);
+  const filename = filenameMatch?.[1] ?? fallbackFilename;
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
+export function TravelItineraryExperience({
+  itinerary,
+  travelState,
+  interfaceLocale,
+  orderedCities,
+  routeCoordinates,
+  mapPoints,
+  activePointId,
+  activeVersionId,
+  modulePatch,
+  onPointSelect,
+  onItineraryChange,
+}: TravelItineraryExperienceProps) {
+  const isZh = interfaceLocale === "zh";
+  const copy = getCopy(interfaceLocale);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [fullMapOpen, setFullMapOpen] = useState(false);
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const [activeCityKey, setActiveCityKey] = useState("");
+  const [highlightCityKey, setHighlightCityKey] = useState("");
+  const [fullMapActiveCity, setFullMapActiveCity] = useState("");
+  const [isRoutePlaying, setIsRoutePlaying] = useState(true);
+  const [editableItinerary, setEditableItinerary] =
+    useState<ItineraryDay[]>(itinerary);
+  const [editableItineryRows, setEditableItineryRows] = useState<
+    ItineryTableRow[]
+  >([]);
+  const [isDownloadingWord, setIsDownloadingWord] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isSharingLink, setIsSharingLink] = useState(false);
+  const [exportLanguage, setExportLanguage] =
+    useState<TravelExportLanguage>("zh");
+  const [detailResourceTab, setDetailResourceTab] =
+    useState<DetailResourceTab>("attractions");
+  const [customizeDayEditor, setCustomizeDayEditor] = useState(false);
+  const [activityTimesByDay, setActivityTimesByDay] =
+    useState<ActivityTimesByDay>({});
+  const [apiFlightLegs, setApiFlightLegs] = useState<FlightLegResult[]>([]);
+  const [apiHotelStays, setApiHotelStays] = useState<HotelStayResult[]>([]);
+  const [apiFlightStatus, setApiFlightStatus] =
+    useState<ApiOptionsStatus>("idle");
+  const [apiHotelStatus, setApiHotelStatus] =
+    useState<ApiOptionsStatus>("idle");
+  const [apiDefaultFlights, setApiDefaultFlights] = useState<
+    SelectedFlightOption[]
+  >([]);
+  const [apiDefaultHotels, setApiDefaultHotels] = useState<
+    SelectedHotelOption[]
+  >([]);
+  const [localSelectedFlights, setLocalSelectedFlights] = useState<
+    SelectedFlightOption[] | null
+  >(null);
+  const [localSelectedHotels, setLocalSelectedHotels] = useState<
+    SelectedHotelOption[] | null
+  >(null);
+  const [localTravelStatePatch, setLocalTravelStatePatch] =
+    useState<ItineraryTravelStatePatch | null>(null);
+  const [resourceOptionsSheet, setResourceOptionsSheet] =
+    useState<ResourceOptionsSheetState | null>(null);
+  const [googleAttractionCoordinates, setGoogleAttractionCoordinates] =
+    useState<Record<string, GoogleGeocodeCoordinate>>({});
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failedAttractionGeocodeKeysRef = useRef<Set<string>>(new Set());
+
+  const apiOptionsPayload = useMemo(
+    () => buildApiOptionsPayload(travelState, orderedCities),
+    [orderedCities, travelState]
+  );
+  const apiOptionsPayloadKey = useMemo(
+    () => JSON.stringify(apiOptionsPayload),
+    [apiOptionsPayload]
+  );
+  const destinationEnrichment = useMemo(
+    () => getDestinationEnrichmentFromPatch(modulePatch),
+    [modulePatch]
+  );
+  const baseSelectedFlights =
+    localSelectedFlights ?? travelState.selected_flights;
+  const baseSelectedHotels = localSelectedHotels ?? travelState.selected_hotels;
+  const shouldLoadApiFlightOptions =
+    !shouldSuppressFlights(modulePatch) && apiOptionsPayload.cities.length > 0;
+  const shouldLoadApiHotelOptions = apiOptionsPayload.cities.length > 0;
+  const shouldUseApiFlightDefaults =
+    !hasSelectedFlightOption(baseSelectedFlights);
+  const shouldUseApiHotelDefaults = !hasSelectedHotelOption(baseSelectedHotels);
+  const exportLanguageOptions = useMemo(
+    () =>
+      interfaceLocale === "en"
+        ? EXPORT_LANGUAGE_OPTIONS.filter((option) => option.value === "en")
+        : EXPORT_LANGUAGE_OPTIONS,
+    [interfaceLocale]
+  );
+
+  const effectiveSelectedFlights = useMemo(
+    () =>
+      hasSelectedFlightOption(baseSelectedFlights)
+        ? baseSelectedFlights
+        : apiDefaultFlights,
+    [apiDefaultFlights, baseSelectedFlights]
+  );
+  const effectiveSelectedHotels = useMemo(
+    () =>
+      hasSelectedHotelOption(baseSelectedHotels)
+        ? baseSelectedHotels
+        : apiDefaultHotels,
+    [apiDefaultHotels, baseSelectedHotels]
+  );
+  const effectiveTravelState = useMemo(
+    () => ({
+      ...travelState,
+      ...(localTravelStatePatch ?? {}),
+      city_days: localTravelStatePatch?.city_days ?? travelState.city_days,
+      selected_flights: effectiveSelectedFlights,
+      selected_hotels: effectiveSelectedHotels,
+    }),
+    [
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      localTravelStatePatch,
+      travelState,
+    ]
+  );
+
+  const segments = useMemo(
+    () =>
+      buildCitySegments(
+        editableItinerary,
+        orderedCities,
+        effectiveTravelState,
+        interfaceLocale,
+        destinationEnrichment
+      ),
+    [
+      destinationEnrichment,
+      editableItinerary,
+      effectiveTravelState,
+      interfaceLocale,
+      orderedCities,
+    ]
+  );
+  const routeNodes = useMemo(
+    () => createRouteNodes(effectiveTravelState, segments, interfaceLocale),
+    [effectiveTravelState, interfaceLocale, segments]
+  );
+  const title = useMemo(
+    () =>
+      createTripTitle(
+        editableItinerary.length,
+        segments.map((segment) => segment.city),
+        interfaceLocale
+      ),
+    [editableItinerary.length, interfaceLocale, segments]
+  );
+  const activeDay = editableItinerary[activeDayIndex] ?? editableItinerary[0];
+  const activeDayTimeline = useMemo(
+    () =>
+      activeDay
+        ? buildDayTimelineItems(
+            activeDay,
+            activeDayIndex,
+            effectiveTravelState,
+            effectiveSelectedFlights,
+            effectiveSelectedHotels,
+            interfaceLocale,
+            editableItinerary.length,
+            activityTimesByDay
+          )
+        : [],
+    [
+      activeDay,
+      activeDayIndex,
+      activityTimesByDay,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+      editableItinerary.length,
+      interfaceLocale,
+    ]
+  );
+  const activeDayAttractionChoices = useMemo(
+    () =>
+      activeDay
+        ? getAttractionChoicesForCity(activeDay.city, destinationEnrichment)
+        : [],
+    [activeDay, destinationEnrichment]
+  );
+  const heroImage =
+    segments[0]?.imageSrc ??
+    getDayImage(editableItinerary[0], 0, destinationEnrichment);
+  const totalExperiences = editableItinerary.reduce(
+    (sum, day) => sum + day.activities.length,
+    0
+  );
+  const hotelDisplayCount = Math.max(
+    effectiveTravelState.selected_hotels.length,
+    segments.length
+  );
+  const fallbackMapPoints = useMemo(
+    () => buildFallbackMapPoints(segments, interfaceLocale),
+    [interfaceLocale, segments]
+  );
+  const resolvedMapPoints = useMemo(
+    () => [
+      ...fallbackMapPoints,
+      ...mapPoints.filter((point) => point.kind === "hotel"),
+    ],
+    [fallbackMapPoints, mapPoints]
+  );
+  const resolvedRouteCoordinates = useMemo(
+    () =>
+      segments.length
+        ? buildFallbackRouteCoordinates(effectiveTravelState, segments)
+        : routeCoordinates,
+    [effectiveTravelState, routeCoordinates, segments]
+  );
+  const essentialMapPoints = useMemo(
+    () => filterEssentialMapPoints(resolvedMapPoints),
+    [resolvedMapPoints]
+  );
+  const activeSegment = useMemo(
+    () =>
+      segments.find(
+        (segment) => getCitySectionKey(segment.city) === activeCityKey
+      ) ?? segments[0],
+    [activeCityKey, segments]
+  );
+  const activeDaySegment = useMemo(() => {
+    if (!activeDay) return activeSegment;
+    const activeDayNumber = getDayNumber(activeDay);
+    return (
+      segments.find(
+        (segment) =>
+          activeDayNumber >= segment.dayStart &&
+          activeDayNumber <= segment.dayEnd
+      ) ??
+      segments.find(
+        (segment) =>
+          normalizeLookupKey(segment.city) ===
+          normalizeLookupKey(activeDay.city)
+      ) ??
+      activeSegment
+    );
+  }, [activeDay, activeSegment, segments]);
+  const activeCityDays = useMemo(
+    () =>
+      activeSegment ? getSegmentDays(editableItinerary, activeSegment) : [],
+    [activeSegment, editableItinerary]
+  );
+  const activeCityAttractionPoints = useMemo(
+    () =>
+      activeSegment
+        ? buildAttractionMapPoints(
+            activeCityDays,
+            activeSegment.city,
+            "itinerary-attraction",
+            googleAttractionCoordinates,
+            interfaceLocale,
+            destinationEnrichment
+          )
+        : [],
+    [
+      activeCityDays,
+      activeSegment,
+      destinationEnrichment,
+      googleAttractionCoordinates,
+      interfaceLocale,
+    ]
+  );
+  const activeCityHotelPoints = useMemo(
+    () =>
+      activeSegment
+        ? resolvedMapPoints.filter(
+            (point) =>
+              point.kind === "hotel" &&
+              normalizeLookupKey(point.city ?? point.label) ===
+                normalizeLookupKey(activeSegment.city)
+          )
+        : [],
+    [activeSegment, resolvedMapPoints]
+  );
+  const cityFocusedMapPoints = useMemo(
+    () =>
+      activeCityAttractionPoints.length
+        ? [...activeCityAttractionPoints, ...activeCityHotelPoints]
+        : essentialMapPoints,
+    [activeCityAttractionPoints, activeCityHotelPoints, essentialMapPoints]
+  );
+  const cityFocusedRouteCoordinates = useMemo<Array<[number, number]>>(
+    () =>
+      activeCityAttractionPoints.length >= 2
+        ? activeCityAttractionPoints.map((point) => [point.lat, point.lng])
+        : resolvedRouteCoordinates,
+    [activeCityAttractionPoints, resolvedRouteCoordinates]
+  );
+  const activeDayMapPoints = useMemo(
+    () =>
+      activeDay
+        ? buildAttractionMapPoints(
+            [activeDay],
+            activeDay.city,
+            "detail-attraction",
+            googleAttractionCoordinates,
+            interfaceLocale,
+            destinationEnrichment
+          )
+        : [],
+    [activeDay, destinationEnrichment, googleAttractionCoordinates, interfaceLocale]
+  );
+  const fallbackFlightLegs = useMemo(
+    () =>
+      buildFallbackFlightLegsForDisplay(
+        effectiveTravelState,
+        orderedCities,
+        segments
+      ),
+    [effectiveTravelState, orderedCities, segments]
+  );
+  const displayFlightLegs = apiFlightLegs.length
+    ? apiFlightLegs
+    : fallbackFlightLegs;
+  const fallbackHotelStays = useMemo(
+    () =>
+      buildFallbackHotelStaysForDisplay(
+        effectiveTravelState,
+        orderedCities,
+        segments
+      ),
+    [effectiveTravelState, orderedCities, segments]
+  );
+  const displayHotelStays = apiHotelStays.length
+    ? apiHotelStays
+    : fallbackHotelStays;
+  const activeDayFlightLegs = useMemo(
+    () =>
+      activeDay && !shouldSuppressFlights(modulePatch)
+        ? getFlightLegEntriesForDay(
+            displayFlightLegs,
+            effectiveSelectedFlights,
+            effectiveTravelState,
+            getDayNumber(activeDay),
+            editableItinerary.length
+          ).map(({ leg, legIndex }) => ({ leg, legIndex }))
+        : [],
+    [
+      activeDay,
+      displayFlightLegs,
+      editableItinerary.length,
+      effectiveSelectedFlights,
+      effectiveTravelState,
+      modulePatch,
+    ]
+  );
+  const activeDayHotelStay = useMemo(
+    () =>
+      activeDaySegment
+        ? findHotelStayForCity(displayHotelStays, activeDaySegment.city)
+        : null,
+    [activeDaySegment, displayHotelStays]
+  );
+  const activeDayHotel = useMemo(
+    () =>
+      activeDaySegment
+        ? findHotelForCity(effectiveSelectedHotels, activeDaySegment.city)
+        : null,
+    [activeDaySegment, effectiveSelectedHotels]
+  );
+  const attractionGeocodeItems = useMemo(() => {
+    const city = activeDay?.city ?? activeSegment?.city ?? "";
+    if (!city) return [];
+    const activeNames = activeDay
+      ? [
+          ...activeDay.activities,
+          ...activeDayAttractionChoices.map((item) => item.name),
+        ]
+      : activeCityDays.flatMap((day) => day.activities);
+    return buildAttractionGeocodeItems(city, activeNames);
+  }, [activeDay, activeDayAttractionChoices, activeCityDays, activeSegment]);
+  const detailMapPoints = activeDayMapPoints.length
+    ? activeDayMapPoints
+    : cityFocusedMapPoints;
+  const detailRouteCoordinates =
+    activeDayMapPoints.length >= 2
+      ? activeDayMapPoints.map(
+          (point) => [point.lat, point.lng] as [number, number]
+        )
+      : cityFocusedRouteCoordinates;
+  const focusedPointId = activeDay
+    ? (activeDayMapPoints[0]?.id ??
+      activeCityAttractionPoints[0]?.id ??
+      getPointIdForCity(resolvedMapPoints, activeDay.city) ??
+      activePointId ??
+      null)
+    : (activePointId ?? null);
+  const fullMapActivePointId = fullMapActiveCity
+    ? getPointIdForCity(resolvedMapPoints, fullMapActiveCity)
+    : null;
+  const defaultItineryRows = useMemo(
+    () =>
+      buildItineryTableRows(
+        editableItinerary,
+        effectiveTravelState,
+        modulePatch,
+        interfaceLocale,
+        activityTimesByDay,
+        displayHotelStays
+      ),
+    [
+      activityTimesByDay,
+      displayHotelStays,
+      editableItinerary,
+      effectiveTravelState,
+      interfaceLocale,
+      modulePatch,
+    ]
+  );
+  const exportPayload = useMemo(
+    () =>
+      buildTravelExportPayload(
+        editableItinerary,
+        effectiveTravelState,
+        orderedCities,
+        editableItineryRows,
+        exportLanguage
+      ),
+    [
+      editableItinerary,
+      editableItineryRows,
+      exportLanguage,
+      orderedCities,
+      effectiveTravelState,
+    ]
+  );
+  const sharePayload = useMemo(
+    () =>
+      buildTravelItinerarySharePayload(
+        title,
+        editableItinerary,
+        effectiveTravelState,
+        editableItineryRows,
+        interfaceLocale
+      ),
+    [
+      editableItinerary,
+      editableItineryRows,
+      effectiveTravelState,
+      interfaceLocale,
+      title,
+    ]
+  );
+  const exportFilenameSuffix =
+    exportLanguage === "zh" ? "" : `-${exportLanguage}`;
+  const incomingItinerarySignature = useMemo(
+    () => itineraryStateSignature(itinerary),
+    [itinerary]
+  );
+  const editableItinerarySignature = useMemo(
+    () => itineraryStateSignature(editableItinerary),
+    [editableItinerary]
+  );
+  const lastLoadedVersionIdRef = useRef(activeVersionId ?? "");
+
+  useEffect(() => {
+    const nextVersionId = activeVersionId ?? "";
+    const versionChanged = lastLoadedVersionIdRef.current !== nextVersionId;
+    if (!versionChanged && incomingItinerarySignature === editableItinerarySignature) {
+      return;
+    }
+
+    lastLoadedVersionIdRef.current = nextVersionId;
+    setEditableItinerary(itinerary);
+    setActiveDayIndex(0);
+    setLocalSelectedFlights(null);
+    setLocalSelectedHotels(null);
+    setLocalTravelStatePatch(null);
+    setActivityTimesByDay({});
+    setDetailResourceTab("attractions");
+    setCustomizeDayEditor(false);
+  }, [
+    activeVersionId,
+    editableItinerarySignature,
+    incomingItinerarySignature,
+    itinerary,
+  ]);
+
+  useEffect(() => {
+    setExportLanguage(interfaceLocale === "en" ? "en" : "zh");
+  }, [interfaceLocale]);
+
+  useEffect(() => {
+    if (!shouldLoadApiFlightOptions) {
+      setApiFlightLegs([]);
+      setApiDefaultFlights([]);
+      setApiFlightStatus("idle");
+      return;
+    }
+
+    let disposed = false;
+    setApiFlightStatus("loading");
+    setApiFlightLegs([]);
+    setApiDefaultFlights([]);
+    fetch("/api/travel/flights", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: apiOptionsPayloadKey,
+    })
+      .then(async (response) => {
+        const payload = (await response
+          .json()
+          .catch(() => ({ legs: [] }))) as unknown;
+        if (!response.ok) {
+          throw new Error("Failed to load flight options.");
+        }
+        return payload;
+      })
+      .then((payload) => {
+        if (disposed) return;
+        const legs = coerceApiFlightLegs(payload);
+        setApiFlightLegs(legs);
+        setApiDefaultFlights(
+          shouldUseApiFlightDefaults ? selectApiDefaultFlights(legs) : []
+        );
+        setApiFlightStatus("success");
+      })
+      .catch(() => {
+        if (disposed) return;
+        setApiFlightLegs([]);
+        setApiDefaultFlights([]);
+        setApiFlightStatus("error");
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [
+    apiOptionsPayloadKey,
+    shouldLoadApiFlightOptions,
+    shouldUseApiFlightDefaults,
+  ]);
+
+  useEffect(() => {
+    if (!shouldLoadApiHotelOptions) {
+      setApiHotelStays([]);
+      setApiDefaultHotels([]);
+      setApiHotelStatus("idle");
+      return;
+    }
+
+    let disposed = false;
+    setApiHotelStatus("loading");
+    setApiHotelStays([]);
+    setApiDefaultHotels([]);
+    fetch("/api/travel/hotels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: apiOptionsPayloadKey,
+    })
+      .then(async (response) => {
+        const payload = (await response
+          .json()
+          .catch(() => ({ stays: [] }))) as unknown;
+        if (!response.ok) {
+          throw new Error("Failed to load hotel options.");
+        }
+        return payload;
+      })
+      .then((payload) => {
+        if (disposed) return;
+        const stays = coerceApiHotelStays(payload);
+        setApiHotelStays(stays);
+        setApiDefaultHotels(
+          shouldUseApiHotelDefaults ? selectApiDefaultHotels(stays) : []
+        );
+        setApiHotelStatus("success");
+      })
+      .catch(() => {
+        if (disposed) return;
+        setApiHotelStays([]);
+        setApiDefaultHotels([]);
+        setApiHotelStatus("error");
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [
+    apiOptionsPayloadKey,
+    shouldLoadApiHotelOptions,
+    shouldUseApiHotelDefaults,
+  ]);
+
+  useEffect(() => {
+    const pendingItems = attractionGeocodeItems.filter((item) => {
+      if (googleAttractionCoordinates[item.key]) return false;
+      return !failedAttractionGeocodeKeysRef.current.has(item.key);
+    });
+
+    if (pendingItems.length === 0) return;
+
+    let disposed = false;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/travel/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: pendingItems }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          results?: GoogleGeocodeResult[];
+          error?: string;
+        };
+
+        if (!response.ok) {
+          pendingItems.forEach((item) =>
+            failedAttractionGeocodeKeysRef.current.add(item.key)
+          );
+          return;
+        }
+
+        const nextCoordinates: Record<string, GoogleGeocodeCoordinate> = {};
+        payload.results?.forEach((result) => {
+          if (
+            typeof result.lat === "number" &&
+            Number.isFinite(result.lat) &&
+            typeof result.lng === "number" &&
+            Number.isFinite(result.lng)
+          ) {
+            nextCoordinates[result.key] = {
+              lat: result.lat,
+              lng: result.lng,
+              formattedAddress: result.formattedAddress,
+              placeId: result.placeId,
+              locationType: result.locationType,
+            };
+            return;
+          }
+
+          failedAttractionGeocodeKeysRef.current.add(result.key);
+        });
+
+        if (!disposed && Object.keys(nextCoordinates).length > 0) {
+          setGoogleAttractionCoordinates((current) => ({
+            ...current,
+            ...nextCoordinates,
+          }));
+        }
+      } catch {
+        pendingItems.forEach((item) =>
+          failedAttractionGeocodeKeysRef.current.add(item.key)
+        );
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, [attractionGeocodeItems, googleAttractionCoordinates]);
+
+  useEffect(() => {
+    setEditableItineryRows(defaultItineryRows);
+  }, [defaultItineryRows]);
+
+  useEffect(() => {
+    setDetailResourceTab("attractions");
+    setCustomizeDayEditor(false);
+  }, [activeDayIndex, detailOpen]);
+
+  useEffect(() => {
+    const firstCityKey = segments[0] ? getCitySectionKey(segments[0].city) : "";
+    setActiveCityKey((currentKey) =>
+      segments.some((segment) => getCitySectionKey(segment.city) === currentKey)
+        ? currentKey
+        : firstCityKey
+    );
+    setFullMapActiveCity((currentCity) =>
+      segments.some(
+        (segment) =>
+          getCitySectionKey(segment.city) === getCitySectionKey(currentCity)
+      )
+        ? currentCity
+        : (segments[0]?.city ?? "")
+    );
+  }, [segments]);
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const root = scrollContainerRef.current;
+    if (
+      !root ||
+      !segments.length ||
+      typeof IntersectionObserver === "undefined"
+    ) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (first, second) =>
+              second.intersectionRatio - first.intersectionRatio
+          )[0];
+        const nextCityKey = visibleEntry?.target.getAttribute("data-city-key");
+        if (nextCityKey) {
+          setActiveCityKey(nextCityKey);
+        }
+      },
+      {
+        root,
+        rootMargin: "-18% 0px -60% 0px",
+        threshold: [0.2, 0.45, 0.7],
+      }
+    );
+
+    segments.forEach((segment) => {
+      const node = citySectionRefs.current[getCitySectionKey(segment.city)];
+      if (node) observer.observe(node);
+    });
+
+    return () => observer.disconnect();
+  }, [segments]);
+
+  const scrollToCity = useCallback(
+    (city: string) => {
+      const cityKey = getCitySectionKey(city);
+      const node = citySectionRefs.current[cityKey];
+      setActiveCityKey(cityKey);
+      setFullMapActiveCity(city);
+      setHighlightCityKey(cityKey);
+      const firstDayIndex = editableItinerary.findIndex(
+        (day) => normalizeLookupKey(day.city) === normalizeLookupKey(city)
+      );
+      if (firstDayIndex >= 0) {
+        setActiveDayIndex(firstDayIndex);
+      }
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+      highlightTimerRef.current = setTimeout(() => {
+        setHighlightCityKey((currentKey) =>
+          currentKey === cityKey ? "" : currentKey
+        );
+      }, 1600);
+      node?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [editableItinerary]
+  );
+
+  const openDetailAtDay = (index: number) => {
+    setActiveDayIndex(index);
+    setDetailOpen(true);
+  };
+
+  const updateItineraryList = useCallback(
+    (updater: (days: ItineraryDay[]) => ItineraryDay[]) => {
+      const reconciliation = reconcileTravelAgentState({
+        itinerary: updater(editableItinerary),
+        travelState,
+        orderedCities,
+        selectedFlights: effectiveSelectedFlights,
+        selectedHotels: effectiveSelectedHotels,
+        language: interfaceLocale,
+      });
+      const nextDays = reconciliation.itinerary;
+      setEditableItinerary(nextDays);
+      setActivityTimesByDay((currentTimes) =>
+        remapActivityTimesForItinerary(editableItinerary, nextDays, currentTimes)
+      );
+      setLocalSelectedFlights(reconciliation.selectedFlights);
+      setLocalSelectedHotels(reconciliation.selectedHotels);
+      setLocalTravelStatePatch({
+        cities: reconciliation.travelState.cities,
+        city_days: reconciliation.travelState.city_days,
+        travel_days: reconciliation.travelState.travel_days ?? nextDays.length,
+        travel_order: reconciliation.travelState.travel_order,
+      });
+      onItineraryChange?.(reconciliation);
+      const nextActiveIndex = Math.min(
+        activeDayIndex,
+        Math.max(0, nextDays.length - 1)
+      );
+      if (nextActiveIndex !== activeDayIndex) {
+        setActiveDayIndex(nextActiveIndex);
+      }
+    },
+    [
+      activeDayIndex,
+      editableItinerary,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      interfaceLocale,
+      onItineraryChange,
+      orderedCities,
+      travelState,
+    ]
+  );
+
+  const updateActivityTimesForDay = useCallback(
+    (dayIndex: number, updater: (times: string[]) => string[]) => {
+      const day = editableItinerary[dayIndex];
+      if (!day) return;
+
+      const dayKey = getActivityDayKey(day, dayIndex);
+      setActivityTimesByDay((current) => {
+        const currentTimes = getActivityTimesForDay(day, current, dayIndex);
+        return {
+          ...current,
+          [dayKey]: updater(currentTimes),
+        };
+      });
+    },
+    [editableItinerary]
+  );
+
+  const updateItineraryActivity = useCallback(
+    (dayIndex: number, activityIndex: number, value: string) => {
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                activities: day.activities.map((activity, itemIndex) =>
+                  itemIndex === activityIndex ? value : activity
+                ),
+              }
+            : day
+        )
+      );
+    },
+    [updateItineraryList]
+  );
+
+  const updateItineraryActivityTime = useCallback(
+    (dayIndex: number, activityIndex: number, value: string) => {
+      const normalizedTime = normalizeActivityTime(value);
+      if (!normalizedTime) return;
+
+      updateActivityTimesForDay(dayIndex, (times) =>
+        times.map((time, index) =>
+          index === activityIndex ? normalizedTime : time
+        )
+      );
+    },
+    [updateActivityTimesForDay]
+  );
+
+  const moveItineraryActivity = useCallback(
+    (dayIndex: number, activityIndex: number, direction: -1 | 1) => {
+      const day = editableItinerary[dayIndex];
+      const nextIndex = activityIndex + direction;
+      if (!day || nextIndex < 0 || nextIndex >= day.activities.length) return;
+
+      updateItineraryList((days) =>
+        days.map((item, index) =>
+          index === dayIndex
+            ? {
+                ...item,
+                activities: moveArrayItem(
+                  item.activities,
+                  activityIndex,
+                  nextIndex
+                ),
+              }
+            : item
+        )
+      );
+    },
+    [editableItinerary, updateItineraryList]
+  );
+
+  const addItineraryActivity = useCallback(
+    (dayIndex: number) => {
+      const day = editableItinerary[dayIndex];
+      if (day) {
+        updateActivityTimesForDay(dayIndex, (times) => [
+          ...times,
+          getDefaultActivityTime(day.activities.length),
+        ]);
+      }
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                activities: [
+                  ...day.activities,
+                  getSpecificAttraction(
+                    day.city,
+                    dayIndex,
+                    day.activities.length,
+                    new Set(day.activities.map(normalizeLookupKey)),
+                    interfaceLocale
+                  ),
+                ],
+              }
+            : day
+        )
+      );
+    },
+    [
+      editableItinerary,
+      interfaceLocale,
+      updateActivityTimesForDay,
+      updateItineraryList,
+    ]
+  );
+
+  const addKnowledgeAttractionToDay = useCallback(
+    (dayIndex: number, attraction: AttractionChoiceCard) => {
+      const day = editableItinerary[dayIndex];
+      if (day && !day.activities.includes(attraction.name)) {
+        updateActivityTimesForDay(dayIndex, (times) => [
+          ...times,
+          getDefaultActivityTime(day.activities.length),
+        ]);
+      }
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                activities: day.activities.includes(attraction.name)
+                  ? day.activities
+                  : [...day.activities, attraction.name],
+              }
+            : day
+        )
+      );
+    },
+    [editableItinerary, updateActivityTimesForDay, updateItineraryList]
+  );
+
+  const selectFlightOption = useCallback(
+    (
+      leg: FlightLegResult,
+      legIndex: number,
+      option: FlightOptionResult,
+      optionIndex: number
+    ) => {
+      const nextFlight = createSelectedFlightFromOption(
+        leg,
+        legIndex,
+        option,
+        optionIndex
+      );
+      const seed = localSelectedFlights ?? effectiveSelectedFlights;
+      const withoutLeg = seed.filter((flight) => flight.leg_index !== legIndex);
+      const nextFlights = [...withoutLeg, nextFlight].sort(
+        (first, second) => first.leg_index - second.leg_index
+      );
+      setLocalSelectedFlights(nextFlights);
+      onItineraryChange?.({
+        itinerary: editableItinerary,
+        travelState: {
+          ...effectiveTravelState,
+          selected_flights: nextFlights,
+          selected_hotels: effectiveSelectedHotels,
+        },
+        selectedFlights: nextFlights,
+        selectedHotels: effectiveSelectedHotels,
+        reason: "flight_selection",
+      });
+      toast.success(
+        isZh ? "已更新这段航班。" : "This flight has been updated."
+      );
+    },
+    [
+      editableItinerary,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+      isZh,
+      localSelectedFlights,
+      onItineraryChange,
+    ]
+  );
+
+  const selectHotelOption = useCallback(
+    (
+      stay: HotelStayResult,
+      stayIndex: number,
+      option: HotelOptionResult,
+      optionIndex: number
+    ) => {
+      const nextHotel = createSelectedHotelFromOption(
+        stay,
+        stayIndex,
+        option,
+        optionIndex
+      );
+      const seed = localSelectedHotels ?? effectiveSelectedHotels;
+      const withoutStay = seed.filter((hotel) => hotel.stay_index !== stayIndex);
+      const nextHotels = [...withoutStay, nextHotel].sort(
+        (first, second) => first.stay_index - second.stay_index
+      );
+      setLocalSelectedHotels(nextHotels);
+      onItineraryChange?.({
+        itinerary: editableItinerary,
+        travelState: {
+          ...effectiveTravelState,
+          selected_flights: effectiveSelectedFlights,
+          selected_hotels: nextHotels,
+        },
+        selectedFlights: effectiveSelectedFlights,
+        selectedHotels: nextHotels,
+        reason: "hotel_selection",
+      });
+      toast.success(
+        isZh ? "已更新这段住宿。" : "This hotel stay has been updated."
+      );
+    },
+    [
+      editableItinerary,
+      effectiveSelectedFlights,
+      effectiveSelectedHotels,
+      effectiveTravelState,
+      isZh,
+      localSelectedHotels,
+      onItineraryChange,
+    ]
+  );
+
+  const removeItineraryActivity = useCallback(
+    (dayIndex: number, activityIndex: number) => {
+      updateActivityTimesForDay(dayIndex, (times) =>
+        times.filter((_, index) => index !== activityIndex)
+      );
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                activities: day.activities.filter(
+                  (_, itemIndex) => itemIndex !== activityIndex
+                ),
+              }
+            : day
+        )
+      );
+    },
+    [updateActivityTimesForDay, updateItineraryList]
+  );
+
+  const updateItineraryFood = useCallback(
+    (dayIndex: number, foodIndex: number, value: string) => {
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                food: day.food.map((food, itemIndex) =>
+                  itemIndex === foodIndex ? value : food
+                ),
+              }
+            : day
+        )
+      );
+    },
+    [updateItineraryList]
+  );
+
+  const addItineraryFood = useCallback(
+    (dayIndex: number) => {
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                food: [
+                  ...day.food,
+                  `${getCityLabel(day.city, interfaceLocale)} ${copy.localRestaurant}`,
+                ],
+              }
+            : day
+        )
+      );
+    },
+    [copy.localRestaurant, interfaceLocale, updateItineraryList]
+  );
+
+  const removeItineraryFood = useCallback(
+    (dayIndex: number, foodIndex: number) => {
+      updateItineraryList((days) =>
+        days.map((day, index) =>
+          index === dayIndex
+            ? {
+                ...day,
+                food: day.food.filter(
+                  (_, itemIndex) => itemIndex !== foodIndex
+                ),
+              }
+            : day
+        )
+      );
+    },
+    [updateItineraryList]
+  );
+
+  const addItineraryDay = useCallback(
+    (city: string) => {
+      updateItineraryList((days) => {
+        const insertAfter = (() => {
+          for (let index = days.length - 1; index >= 0; index -= 1) {
+            if (
+              normalizeLookupKey(days[index].city) === normalizeLookupKey(city)
+            ) {
+              return index + 1;
+            }
+          }
+          return days.length;
+        })();
+        const usedAttractions = new Set(
+          days
+            .filter(
+              (day) => normalizeLookupKey(day.city) === normalizeLookupKey(city)
+            )
+            .flatMap((day) => day.activities)
+            .map(normalizeLookupKey)
+        );
+        const firstAttraction = getSpecificAttraction(
+          city,
+          insertAfter,
+          0,
+          usedAttractions,
+          interfaceLocale
+        );
+        usedAttractions.add(normalizeLookupKey(firstAttraction));
+        const secondAttraction = getSpecificAttraction(
+          city,
+          insertAfter,
+          1,
+          usedAttractions,
+          interfaceLocale
+        );
+        const newDay: ItineraryDay = {
+          day: insertAfter + 1,
+          city,
+          activities: [firstAttraction, secondAttraction],
+          food: [
+            `${getCityLabel(city, interfaceLocale)} ${copy.localRestaurant}`,
+          ],
+          cost: "¥800",
+        };
+        return [
+          ...days.slice(0, insertAfter),
+          newDay,
+          ...days.slice(insertAfter),
+        ];
+      });
+    },
+    [copy.localRestaurant, interfaceLocale, updateItineraryList]
+  );
+
+  const removeItineraryDay = useCallback(
+    (dayIndex: number) => {
+      updateItineraryList((days) =>
+        days.filter((_, index) => index !== dayIndex)
+      );
+    },
+    [updateItineraryList]
+  );
+
+  const updateItineryRow = useCallback(
+    (rowIndex: number, field: keyof ItineryTableRow, value: string) => {
+      setEditableItineryRows((rows) =>
+        rows.map((row, index) =>
+          index === rowIndex
+            ? {
+                ...row,
+                [field]: value,
+              }
+            : row
+        )
+      );
+    },
+    []
+  );
+
+  const removeItineryRow = useCallback((rowIndex: number) => {
+    setEditableItineryRows((rows) =>
+      rows.filter((_, index) => index !== rowIndex)
+    );
+  }, []);
+
+  const handleShareLink = async () => {
+    if (typeof window === "undefined") return;
+
+    setIsSharingLink(true);
+    try {
+      const url = new URL("/travel-itinerary", window.location.origin);
+      url.searchParams.set(
+        TRAVEL_ITINERARY_SHARE_PARAM,
+        encodeTravelItinerarySharePayload(sharePayload)
+      );
+      url.hash = "";
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url.toString());
+        toast.success("分享链接已复制。");
+      } else {
+        window.prompt("复制分享链接", url.toString());
+      }
+    } catch {
+      toast.error("分享链接生成失败，请稍后再试。");
+    } finally {
+      setIsSharingLink(false);
+    }
+  };
+
+  const handleDownload = async (
+    endpoint: TravelDownloadEndpoint,
+    fallbackFilename: string,
+    setBusy: (busy: boolean) => void
+  ) => {
+    setBusy(true);
+    try {
+      await downloadBlob(endpoint, exportPayload, fallbackFilename);
+      toast.success(`${fallbackFilename} 已开始下载。`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : `${fallbackFilename} 下载失败。`;
+      toast.error(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFullMapOpenChange = useCallback(
+    (open: boolean) => {
+      setFullMapOpen(open);
+      if (open) {
+        setIsRoutePlaying(true);
+        setFullMapActiveCity(
+          (currentCity) => currentCity || segments[0]?.city || ""
+        );
+      }
+    },
+    [segments]
+  );
+
+  const handleFullMapPointSelect = useCallback(
+    (id: string) => {
+      onPointSelect?.(id);
+      const point = resolvedMapPoints.find((item) => item.id === id);
+      if (point) {
+        setFullMapActiveCity(point.city ?? point.label);
+      }
+    },
+    [onPointSelect, resolvedMapPoints]
+  );
+
+  const renderCityTabs = (placement: "map" | "sticky") => (
+    <div
+      className={cn(
+        "flex max-w-full items-center gap-2 overflow-x-auto rounded-full bg-white/95 p-2 shadow-[0_14px_36px_rgba(32,20,43,0.16)] backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        placement === "map"
+          ? "absolute left-1/2 top-4 z-20 -translate-x-1/2"
+          : "sticky top-4 z-30 mx-auto w-fit"
+      )}
+      data-testid={`travel-itinerary-city-tabs-${placement}`}
+    >
+      {segments.map((segment, index) => {
+        const cityKey = getCitySectionKey(segment.city);
+        const active = cityKey === activeCityKey;
+
+        return (
+          <button
+            aria-current={active ? "location" : undefined}
+            className={cn(
+              "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-[#2d1635] transition-colors",
+              active ? "bg-[#d9c2ff]" : "hover:bg-[#f5f0fb]"
+            )}
+            data-testid={`travel-itinerary-city-tab-${placement}-${cityKey}`}
+            key={`city-tab-${cityKey}-${placement}`}
+            onClick={() => scrollToCity(segment.city)}
+            type="button"
+          >
+            <span
+              className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-full border text-xs",
+                active
+                  ? "border-white bg-white text-[#2d1635]"
+                  : "border-[#d8d2dd] bg-white text-[#5f5166]"
+              )}
+            >
+              {index + 1}
+            </span>
+            {segment.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderExportLanguageSwitch = (placement: string) => (
+    <div
+      className="flex rounded-full bg-[#f6efff] p-1"
+      data-testid={`travel-itinerary-export-language-${placement}`}
+    >
+      {exportLanguageOptions.map((option) => (
+        <button
+          className={cn(
+            "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+            exportLanguage === option.value
+              ? "bg-white text-[#2d1635] shadow-sm"
+              : "text-[#7b4de8] hover:bg-white/70"
+          )}
+          key={`${placement}-${option.value}`}
+          onClick={() => setExportLanguage(option.value)}
+          type="button"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderLoadingResourceCard = (
+    kind: "flight" | "hotel",
+    routeLabel: string
+  ) => (
+    <article className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-[#2d1635]">
+            {kind === "flight"
+              ? copy.flightLoadingTitle
+              : copy.hotelLoadingTitle}
+          </span>
+          <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
+            {kind === "flight"
+              ? copy.flightLoadingDescription
+              : copy.hotelLoadingDescription}
+          </span>
+          <span className="mt-2 block text-xs font-bold text-[#8d5df7]">
+            {routeLabel}
+          </span>
+        </span>
+      </div>
+    </article>
+  );
+
+  const renderErrorResourceCard = (
+    kind: "flight" | "hotel",
+    routeLabel: string
+  ) => (
+    <article className="rounded-[22px] border border-[#ffd0d8] bg-[#fff7f8] px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#b42348]">
+          {kind === "flight" ? (
+            <Plane className="h-5 w-5" />
+          ) : (
+            <BedDouble className="h-5 w-5" />
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-[#7a1026]">
+            {copy.networkErrorTitle}
+          </span>
+          <span className="mt-1 block text-xs font-semibold text-[#8f4b5b]">
+            {kind === "flight"
+              ? copy.flightNetworkErrorDescription
+              : copy.hotelNetworkErrorDescription}
+          </span>
+          <span className="mt-2 block text-xs font-bold text-[#b42348]">
+            {routeLabel}
+          </span>
+        </span>
+      </div>
+    </article>
+  );
+
+  const renderPublicTransportCard = (leg: FlightLegResult) => (
+    <article
+      className="rounded-[22px] border border-[#eadfff] bg-white p-4 shadow-[0_10px_28px_rgba(32,20,43,0.08)]"
+      data-testid={`travel-itinerary-public-transport-${getCitySectionKey(
+        leg.from
+      )}-${getCitySectionKey(leg.to)}`}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <span className="min-w-0">
+          <span className="block text-xl font-bold text-[#2d1635]">
+            {getCityLabel(leg.from, interfaceLocale)}
+          </span>
+          <span className="block text-sm font-semibold text-[#8d8391]">
+            {formatMonthDay(leg.departure_date, interfaceLocale)}
+          </span>
+        </span>
+        <span className="flex min-w-[140px] flex-1 items-center justify-center gap-3 text-[#2d1635]">
+          <span className="h-1 flex-1 rounded-full bg-[#eadcff]" />
+          <TrainFront className="h-8 w-8 shrink-0" />
+          <span className="h-1 flex-1 rounded-full bg-[#eadcff]" />
+        </span>
+        <span className="min-w-0 text-right">
+          <span className="block text-xl font-bold text-[#2d1635]">
+            {getCityLabel(leg.to, interfaceLocale)}
+          </span>
+          <span className="block text-sm font-semibold text-[#8d8391]">
+            {formatMonthDay(leg.departure_date, interfaceLocale)}
+          </span>
+        </span>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+          <TrainFront className="h-4 w-4 text-[#6f40cc]" />
+          {copy.publicTransport}
+        </p>
+        <span className="rounded-full border border-[#d8c5ff] px-3 py-1 text-xs font-bold text-[#6f40cc]">
+          {copy.suggestedTransport}
+        </span>
+      </div>
+      <p className="mt-2 text-sm font-semibold leading-relaxed text-[#5f5166]">
+        {copy.publicTransportDescription}
+      </p>
+    </article>
+  );
+
+  const renderFlightResourceCard = ({
+    leg,
+    legIndex,
+    selectedFlight,
+  }: {
+    leg: FlightLegResult;
+    legIndex: number;
+    selectedFlight: SelectedFlightOption | null;
+  }) => {
+    if (shouldSuppressFlights(modulePatch)) return null;
+
+    const routeLabel = `${getCityLabel(leg.from, interfaceLocale)} → ${getCityLabel(
+      leg.to,
+      interfaceLocale
+    )}`;
+
+    if (selectedFlight?.option) {
+      return (
+        <button
+          className="w-full rounded-[22px] border border-transparent bg-white p-4 text-left shadow-[0_10px_28px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b990ff]"
+          data-testid={`travel-itinerary-day-flight-card-${legIndex}`}
+          key={`day-flight-${legIndex}`}
+          onClick={() =>
+            setResourceOptionsSheet({ kind: "flight", leg, legIndex })
+          }
+          type="button"
+        >
+          <span className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#6f40cc]">
+                <Plane className="h-4 w-4" />
+                {copy.flight} ·{" "}
+                {formatMonthDay(selectedFlight.departure_date, interfaceLocale)}
+              </span>
+              <span className="mt-2 block truncate text-lg font-bold text-[#2d1635]">
+                {getAirlineNameForLanguage(
+                  selectedFlight.option,
+                  interfaceLocale
+                ) || copy.apiFlight}{" "}
+                {getFlightNumber(selectedFlight)}
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+              {getFlightDisplayPrice(selectedFlight, interfaceLocale)}
+            </span>
+          </span>
+          <span className="mt-4 grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+            <span>
+              <span className="block text-xl font-bold text-[#2d1635]">
+                {getCityLabel(selectedFlight.from, interfaceLocale)}
+              </span>
+              <span className="block text-sm font-semibold text-[#756a7b]">
+                {extractClockTime(selectedFlight.option.departure, "08:00")}{" "}
+                {copy.depart}
+              </span>
+            </span>
+            <span className="flex items-center gap-2 text-[#6f40cc]">
+              <span className="h-1 w-14 rounded-full bg-[#eadcff]" />
+              <Plane className="h-7 w-7" />
+              <span className="h-1 w-14 rounded-full bg-[#eadcff]" />
+            </span>
+            <span className="sm:text-right">
+              <span className="block text-xl font-bold text-[#2d1635]">
+                {getCityLabel(selectedFlight.to, interfaceLocale)}
+              </span>
+              <span className="block text-sm font-semibold text-[#756a7b]">
+                {extractClockTime(selectedFlight.option.arrival, copy.pending)}{" "}
+                {copy.arrive}
+              </span>
+            </span>
+          </span>
+          <span className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-[#5f5166]">
+            <span>
+              {selectedFlight.option.duration ?? copy.durationPending} ·{" "}
+              {selectedFlight.option.stops === 0
+                ? copy.direct
+                : typeof selectedFlight.option.stops === "number"
+                  ? isZh
+                    ? `${selectedFlight.option.stops} 次中转`
+                    : `${selectedFlight.option.stops} ${copy.transfer}`
+                  : copy.stopsPending}
+            </span>
+            <span className="font-bold text-[#6f40cc]">
+              {copy.openFlightOptions}
+            </span>
+          </span>
+        </button>
+      );
+    }
+
+    if (apiFlightStatus === "loading") {
+      return renderLoadingResourceCard("flight", routeLabel);
+    }
+
+    if (apiFlightStatus === "error") {
+      return renderErrorResourceCard("flight", routeLabel);
+    }
+
+    return renderPublicTransportCard(leg);
+  };
+
+  const renderHotelResourceCard = ({
+    stay,
+    stayIndex,
+    selectedHotel,
+  }: {
+    stay: HotelStayResult;
+    stayIndex: number;
+    selectedHotel: SelectedHotelOption | null;
+  }) => {
+    const stayLabel = `${getCityLabel(stay.city, interfaceLocale)} · ${formatMonthDay(
+      stay.check_in,
+      interfaceLocale
+    )}`;
+
+    if (selectedHotel) {
+      return (
+        <button
+          className="w-full rounded-[22px] border border-transparent bg-white p-4 text-left shadow-[0_10px_28px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b990ff]"
+          data-testid={`travel-itinerary-day-hotel-card-${stayIndex}`}
+          key={`day-hotel-${stayIndex}`}
+          onClick={() =>
+            setResourceOptionsSheet({ kind: "hotel", stay, stayIndex })
+          }
+          type="button"
+        >
+          <span className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#6f40cc]">
+                <BedDouble className="h-4 w-4" />
+                {copy.hotel} ·{" "}
+                {formatMonthDay(selectedHotel.check_in, interfaceLocale)}
+              </span>
+              <span className="mt-2 block truncate text-lg font-bold text-[#2d1635]">
+                {getHotelNameForLanguage(
+                  selectedHotel.option,
+                  selectedHotel.city,
+                  interfaceLocale
+                )}
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full bg-[#f6efff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+              {getHotelDisplayPrice(selectedHotel, interfaceLocale)}
+            </span>
+          </span>
+          <span className="mt-3 block text-sm font-semibold text-[#756a7b]">
+            {selectedHotel.nights} {copy.nights} ·{" "}
+            {formatMonthDay(selectedHotel.check_in, interfaceLocale)} -{" "}
+            {formatMonthDay(selectedHotel.check_out, interfaceLocale)}
+          </span>
+          <span className="mt-2 line-clamp-1 block text-sm text-[#756a7b]">
+            {getHotelAddressForLanguage(
+              selectedHotel.option,
+              selectedHotel.city,
+              interfaceLocale
+            )}
+          </span>
+          <span className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-[#5f5166]">
+            <span className="line-clamp-1">
+              {getHotelContactLabel(selectedHotel.option, interfaceLocale)}
+            </span>
+            <span className="font-bold text-[#6f40cc]">
+              {copy.openHotelOptions}
+            </span>
+          </span>
+        </button>
+      );
+    }
+
+    if (apiHotelStatus === "loading") {
+      return renderLoadingResourceCard("hotel", stayLabel);
+    }
+
+    if (apiHotelStatus === "error") {
+      return renderErrorResourceCard("hotel", stayLabel);
+    }
+
+    return (
+      <article
+        className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]"
+        data-testid={`travel-itinerary-hotel-pending-${stayIndex}`}
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
+            <BedDouble className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-[#2d1635]">
+              {copy.hotelPendingTitle}
+            </span>
+            <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
+              {copy.hotelPendingDescription}
+            </span>
+            <span className="mt-2 block text-xs font-bold text-[#8d5df7]">
+              {stayLabel}
+            </span>
+          </span>
+        </div>
+      </article>
+    );
+  };
+
+  const renderResourceOptionsSheetContent = () => {
+    if (!resourceOptionsSheet) return null;
+
+    if (resourceOptionsSheet.kind === "flight") {
+      const { leg, legIndex } = resourceOptionsSheet;
+      const selectedFlight = getSelectedFlightForLeg(
+        effectiveTravelState.selected_flights,
+        legIndex
+      );
+      const routeLabel = `${getCityLabel(leg.from, interfaceLocale)} → ${getCityLabel(
+        leg.to,
+        interfaceLocale
+      )}`;
+
+      return (
+        <>
+          <SheetHeader className="border-b border-[#eadfff] bg-white px-6 py-5 pr-12">
+            <SheetTitle className="text-xl font-bold text-[#2d1635]">
+              {copy.flightOptionsSheetTitle}
+            </SheetTitle>
+            <SheetDescription className="text-sm font-semibold text-[#756a7b]">
+              {routeLabel} ·{" "}
+              {formatMonthDay(leg.departure_date, interfaceLocale)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-4 px-6 py-5">
+            <p className="text-sm font-semibold text-[#756a7b]">
+              {copy.flightOptionsSheetHint}
+            </p>
+            {apiFlightStatus === "loading" && !leg.options.length
+              ? renderLoadingResourceCard("flight", routeLabel)
+              : null}
+            {apiFlightStatus === "error" && !leg.options.length
+              ? renderErrorResourceCard("flight", routeLabel)
+              : null}
+            {apiFlightStatus !== "loading" &&
+            apiFlightStatus !== "error" &&
+            !leg.options.length
+              ? renderPublicTransportCard(leg)
+              : null}
+            {leg.options.map((option, optionIndex) => {
+              const displayOptionIndex = optionIndex + 1;
+              const selected =
+                selectedFlight?.option_index === displayOptionIndex ||
+                getFlightOptionKey(
+                  legIndex,
+                  selectedFlight?.option ?? {},
+                  selectedFlight?.option_index ?? 0
+                ) === getFlightOptionKey(legIndex, option, displayOptionIndex);
+
+              return (
+                <button
+                  className={cn(
+                    "w-full rounded-2xl border p-4 text-left transition-colors",
+                    selected
+                      ? "border-[#b990ff] bg-[#f7efff]"
+                      : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
+                  )}
+                  key={`sheet-flight-option-${getFlightOptionKey(
+                    legIndex,
+                    option,
+                    displayOptionIndex
+                  )}`}
+                  onClick={() => {
+                    selectFlightOption(
+                      leg,
+                      legIndex,
+                      option,
+                      displayOptionIndex
+                    );
+                    setResourceOptionsSheet(null);
+                  }}
+                  type="button"
+                >
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold text-[#8d5df7]">
+                        {routeLabel}
+                      </span>
+                      <span className="mt-1 block truncate text-base font-bold text-[#2d1635]">
+                        {getAirlineNameForLanguage(option, interfaceLocale) ||
+                          copy.apiAirline}{" "}
+                        {option.flight_number ?? copy.flightNumberPending}
+                      </span>
+                      <span className="mt-2 block text-sm font-semibold text-[#756a7b]">
+                        {extractClockTime(option.departure, "08:00")}{" "}
+                        {copy.depart} ·{" "}
+                        {option.duration ?? copy.durationPending} ·{" "}
+                        {option.stops === 0
+                          ? copy.direct
+                          : typeof option.stops === "number"
+                            ? isZh
+                              ? `${option.stops} 次中转`
+                              : `${option.stops} ${copy.transfer}`
+                            : copy.stopsPending}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                        {getFlightOptionDisplayPrice(option, interfaceLocale)}
+                      </span>
+                      {selected ? (
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6f40cc] text-white">
+                          <Check className="h-4 w-4" />
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      );
+    }
+
+    const { stay, stayIndex } = resourceOptionsSheet;
+    const selectedHotel = getSelectedHotelForStay(
+      effectiveTravelState.selected_hotels,
+      stayIndex
+    );
+    const stayLabel = `${getCityLabel(stay.city, interfaceLocale)} · ${formatMonthDay(
+      stay.check_in,
+      interfaceLocale
+    )} - ${formatMonthDay(stay.check_out, interfaceLocale)}`;
+
+    return (
+      <>
+        <SheetHeader className="border-b border-[#eadfff] bg-white px-6 py-5 pr-12">
+          <SheetTitle className="text-xl font-bold text-[#2d1635]">
+            {copy.hotelOptionsSheetTitle}
+          </SheetTitle>
+          <SheetDescription className="text-sm font-semibold text-[#756a7b]">
+            {stayLabel}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 px-6 py-5">
+          <p className="text-sm font-semibold text-[#756a7b]">
+            {copy.hotelOptionsSheetHint}
+          </p>
+          {apiHotelStatus === "loading" && !stay.options.length
+            ? renderLoadingResourceCard("hotel", stayLabel)
+            : null}
+          {apiHotelStatus === "error" && !stay.options.length
+            ? renderErrorResourceCard("hotel", stayLabel)
+            : null}
+          {apiHotelStatus !== "loading" &&
+          apiHotelStatus !== "error" &&
+          !stay.options.length ? (
+            <article className="rounded-[22px] border border-[#eadfff] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(32,20,43,0.08)]">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] text-[#6f40cc]">
+                  <BedDouble className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[#2d1635]">
+                    {copy.hotelPendingTitle}
+                  </span>
+                  <span className="mt-1 block text-xs font-semibold text-[#756a7b]">
+                    {copy.hotelPendingDescription}
+                  </span>
+                </span>
+              </div>
+            </article>
+          ) : null}
+          {stay.options.map((option, optionIndex) => {
+            const displayOptionIndex = optionIndex + 1;
+            const selected =
+              selectedHotel?.option_index === displayOptionIndex ||
+              getHotelOptionKey(
+                stayIndex,
+                selectedHotel?.option ?? {},
+                selectedHotel?.option_index ?? 0
+              ) === getHotelOptionKey(stayIndex, option, displayOptionIndex);
+
+            return (
+              <button
+                className={cn(
+                  "w-full rounded-2xl border p-4 text-left transition-colors",
+                  selected
+                    ? "border-[#b990ff] bg-[#f7efff]"
+                    : "border-[#eadfff] bg-white hover:border-[#c9a8ff]"
+                )}
+                key={`sheet-hotel-option-${getHotelOptionKey(
+                  stayIndex,
+                  option,
+                  displayOptionIndex
+                )}`}
+                onClick={() => {
+                  selectHotelOption(
+                    stay,
+                    stayIndex,
+                    option,
+                    displayOptionIndex
+                  );
+                  setResourceOptionsSheet(null);
+                }}
+                type="button"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-bold text-[#2d1635]">
+                      {getHotelNameForLanguage(
+                        option,
+                        stay.city,
+                        interfaceLocale
+                      )}
+                    </span>
+                    <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
+                      {getHotelAddressForLanguage(
+                        option,
+                        stay.city,
+                        interfaceLocale
+                      )}{" "}
+                      · {getHotelContactLabel(option, interfaceLocale)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="rounded-full bg-[#efe5ff] px-3 py-1 text-sm font-bold text-[#6f40cc]">
+                      {getHotelOptionDisplayPrice(option, interfaceLocale)}
+                    </span>
+                    {selected ? (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6f40cc] text-white">
+                        <Check className="h-4 w-4" />
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <>
+      <div
+        className="h-full min-h-0 overflow-y-auto bg-[#f7f6f2] px-5 py-6 [scrollbar-width:none] md:px-8 md:py-8 [&::-webkit-scrollbar]:hidden"
+        data-testid="travel-itinerary-experience"
+        ref={scrollContainerRef}
+      >
+        <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-6">
+          <section className="rounded-[28px] bg-white px-5 py-6 shadow-[0_22px_70px_rgba(32,20,43,0.12)] md:px-8 md:py-8">
+            <button
+              className="grid w-full gap-6 text-left outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#c5a8ff] lg:grid-cols-[270px_1fr]"
+              data-testid="travel-itinerary-cover-card"
+              onClick={() => openDetailAtDay(0)}
+              type="button"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-slate-200 shadow-[0_16px_35px_rgba(32,20,43,0.18)]">
+                <Image
+                  alt={title}
+                  className="h-full w-full object-cover"
+                  height={360}
+                  priority={false}
+                  src={heroImage}
+                  unoptimized={isPlacesPhotoProxySrc(heroImage)}
+                  width={480}
+                />
+                <div className="absolute inset-0 bg-black/18" />
+                <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-[#271431] shadow-lg">
+                  <Play className="h-8 w-8 fill-current" />
+                </span>
+                <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm font-semibold text-white underline underline-offset-4">
+                  {copy.preview}
+                </span>
+              </div>
+
+              <div className="flex min-w-0 flex-col justify-center">
+                <p className="inline-flex w-fit items-center gap-2 rounded-full bg-[#efe5ff] px-3 py-1 text-xs font-semibold text-[#6f40cc]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {copy.latest}
+                </p>
+                <h2 className="mt-4 text-2xl font-bold text-[#2d1635] md:text-4xl">
+                  {title}
+                </h2>
+                <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#2d1635] md:text-lg">
+                  <span className="inline-flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5" />
+                    {editableItinerary.length} {copy.days}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    {segments.length} {copy.cities}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    {totalExperiences} {copy.experiences}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <BedDouble className="h-5 w-5" />
+                    {hotelDisplayCount} {copy.hotels}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Car className="h-5 w-5" />
+                    {Math.max(
+                      routeNodes.length - 1,
+                      effectiveTravelState.selected_flights.length
+                    )}{" "}
+                    {copy.transports}
+                  </span>
+                  {effectiveTravelState.travelers ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      {effectiveTravelState.travelers} {copy.travelers}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </button>
+
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+              {renderExportLanguageSwitch("hero")}
+              <Button
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                data-testid="travel-itinerary-share-link-button"
+                disabled={isSharingLink}
+                onClick={handleShareLink}
+                type="button"
+                variant="outline"
+              >
+                <Share2 className="h-4 w-4" />
+                {copy.shareLink}
+              </Button>
+              <Button
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                data-testid="travel-itinerary-download-word-button"
+                disabled={isDownloadingWord}
+                onClick={() =>
+                  handleDownload(
+                    "/api/travel/download-word",
+                    `travel-itinerary${exportFilenameSuffix}.docx`,
+                    setIsDownloadingWord
+                  )
+                }
+                type="button"
+                variant="outline"
+              >
+                <FileText className="h-4 w-4" />
+                Word
+              </Button>
+              <Button
+                className="rounded-full border-[#d8c5ff] bg-white text-[#2d1635] hover:bg-[#f6efff]"
+                data-testid="travel-itinerary-download-pdf-button"
+                disabled={isDownloadingPdf}
+                onClick={() =>
+                  handleDownload(
+                    "/api/travel/download-pdf",
+                    `travel-itinerary${exportFilenameSuffix}.pdf`,
+                    setIsDownloadingPdf
+                  )
+                }
+                type="button"
+                variant="outline"
+              >
+                <Download className="h-4 w-4" />
+                PDF
+              </Button>
+            </div>
+
+            <div className="mt-8 flex items-center gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {routeNodes.map((node, index) => {
+                const cityIndex = node.city
+                  ? segments.findIndex(
+                      (segment) =>
+                        getCitySectionKey(segment.city) ===
+                        getCitySectionKey(node.city ?? "")
+                    )
+                  : -1;
+                const active =
+                  node.city !== undefined &&
+                  getCitySectionKey(node.city) === activeCityKey;
+                const nodeClasses = cn(
+                  "flex min-w-[132px] items-center gap-3 rounded-2xl px-4 py-3 text-[#2d1635]",
+                  node.kind === "city"
+                    ? "bg-white shadow-[0_8px_28px_rgba(32,20,43,0.08)] transition-colors hover:bg-[#f8f3ff]"
+                    : "bg-transparent",
+                  active && "bg-[#dcc7ff]"
+                );
+                const nodeContent = (
+                  <>
+                    {node.kind === "city" ? (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#efe5ff] text-xs font-bold text-[#6f40cc]">
+                        {cityIndex + 1}
+                      </span>
+                    ) : (
+                      <MapPin className="h-5 w-5" />
+                    )}
+                    <span>
+                      <span className="block text-base font-bold">
+                        {node.label}
+                      </span>
+                      <span className="block text-sm text-[#5f5166]">
+                        {node.caption}
+                      </span>
+                    </span>
+                  </>
+                );
+
+                return (
+                  <div
+                    className="flex shrink-0 items-center gap-3"
+                    key={node.id}
+                  >
+                    {node.kind === "city" && node.city ? (
+                      <button
+                        className={nodeClasses}
+                        data-testid={`travel-itinerary-route-city-${getCitySectionKey(
+                          node.city
+                        )}`}
+                        onClick={() => scrollToCity(node.city ?? "")}
+                        type="button"
+                      >
+                        {nodeContent}
+                      </button>
+                    ) : (
+                      <div className={nodeClasses}>{nodeContent}</div>
+                    )}
+                    {index < routeNodes.length - 1 ? (
+                      <div className="flex items-center gap-3 text-[#bcb5c2]">
+                        <span className="h-px w-9 bg-[#d8d2dd]" />
+                        {index === 0 || index === routeNodes.length - 2 ? (
+                          <Plane className="h-5 w-5 text-[#2d1635]" />
+                        ) : (
+                          <TrainFront className="h-5 w-5 text-[#6f40cc]" />
+                        )}
+                        <span className="h-px w-9 bg-[#d8d2dd]" />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section
+            className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(32,20,43,0.08)] md:p-6"
+            data-testid="travel-itinerary-itinery-table"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-2xl font-bold text-[#2d1635]">
+                  {copy.tableTitle}
+                </h3>
+              </div>
+            </div>
+            <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#e6dff0] [scrollbar-width:thin]">
+              <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
+                <thead className="sticky top-0 bg-[#efe5ff] text-[#2d1635]">
+                  <tr>
+                    {copy.tableHeaders.map((header) => (
+                      <th className="px-4 py-3 font-bold" key={header}>
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#eee7f5]">
+                  {editableItineryRows.length ? (
+                    editableItineryRows.map((row, index) => (
+                      <tr
+                        className="align-top text-[#3a273f]"
+                        key={`${row.type}-${index}`}
+                      >
+                        {(
+                          [
+                            ["time", "时间"],
+                            ["type", "类型"],
+                            ["date", "日期/天数"],
+                            ["route", "城市/路线"],
+                            ["name", "名称"],
+                            ["details", "详情"],
+                            ["contact", copy.tableHeaders[6]],
+                          ] as const
+                        ).map(([field, label]) => (
+                          <td className="px-3 py-2" key={`${field}-${index}`}>
+                            {field === "details" ? (
+                              <textarea
+                                aria-label={`${label}-${index + 1}`}
+                                className="min-h-16 w-full resize-none rounded-xl border border-transparent bg-transparent px-3 py-2 font-semibold text-[#5f5166] outline-none transition-colors hover:border-[#e6dff0] hover:bg-white focus:border-[#b990ff] focus:bg-white"
+                                onChange={(event) =>
+                                  updateItineryRow(
+                                    index,
+                                    field,
+                                    event.target.value
+                                  )
+                                }
+                                value={row[field] ?? ""}
+                              />
+                            ) : (
+                              <input
+                                aria-label={`${label}-${index + 1}`}
+                                className={cn(
+                                  "w-full rounded-xl border border-transparent bg-transparent px-3 py-2 outline-none transition-colors hover:border-[#e6dff0] hover:bg-white focus:border-[#b990ff] focus:bg-white",
+                                  field === "type" ||
+                                    field === "name" ||
+                                    field === "contact"
+                                    ? "font-bold text-[#2d1635]"
+                                    : "font-semibold text-[#5f5166]"
+                                )}
+                                onChange={(event) =>
+                                  updateItineryRow(
+                                    index,
+                                    field,
+                                    event.target.value
+                                  )
+                                }
+                                value={row[field] ?? ""}
+                              />
+                            )}
+                          </td>
+                        ))}
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <Button
+                            aria-label={`删除第 ${index + 1} 项`}
+                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => removeItineryRow(index)}
+                            size="icon"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-4 py-4 text-[#5f5166]" colSpan={8}>
+                        {copy.emptyRows}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="relative min-h-[260px] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_55px_rgba(32,20,43,0.1)]">
+            {segments.length > 1 ? renderCityTabs("map") : null}
+            <TripRouteMap
+              activePointId={
+                activeCityAttractionPoints[0]?.id ?? focusedPointId
+              }
+              className="h-[300px] w-full md:h-[360px]"
+              onPointSelect={onPointSelect}
+              points={cityFocusedMapPoints}
+              routeCoordinates={cityFocusedRouteCoordinates}
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/8 via-transparent to-white/10" />
+            <Button
+              className="absolute bottom-5 right-5 h-14 rounded-full bg-white px-6 text-base font-bold text-[#2d1635] shadow-[0_12px_32px_rgba(32,20,43,0.18)] hover:bg-white"
+              data-testid="travel-itinerary-full-map-button"
+              onClick={() => handleFullMapOpenChange(true)}
+              type="button"
+            >
+              <MapPinned className="h-5 w-5" />
+              {copy.viewFullMap}
+            </Button>
+          </section>
+
+          <section className="space-y-7 pb-3">
+            {segments.length > 1 ? renderCityTabs("sticky") : null}
+
+            <div className="space-y-9">
+              {segments.map((segment, segmentIndex) => {
+                const cityKey = getCitySectionKey(segment.city);
+                const days = getSegmentDays(editableItinerary, segment);
+                const galleryImages = getCityGalleryImages(segment, days);
+                const firstDayIndex = days[0]
+                  ? Math.max(0, editableItinerary.indexOf(days[0]))
+                  : 0;
+
+                return (
+                  <section
+                    className={cn(
+                      "grid scroll-mt-28 gap-5 rounded-[30px] transition-shadow duration-500 md:grid-cols-[164px_minmax(0,1fr)]",
+                      highlightCityKey === cityKey &&
+                        "ring-4 ring-[#d9c2ff] ring-offset-4 ring-offset-[#f7f6f2]"
+                    )}
+                    data-city-key={cityKey}
+                    data-testid={`travel-itinerary-city-section-${cityKey}`}
+                    id={`travel-itinerary-city-${cityKey}`}
+                    key={`city-section-${cityKey}`}
+                    ref={(node) => {
+                      citySectionRefs.current[cityKey] = node;
+                    }}
+                  >
+                    <aside className="relative hidden md:block">
+                      {segmentIndex < segments.length - 1 ? (
+                        <span className="absolute left-[31px] top-16 h-[calc(100%+48px)] w-px bg-[#d7d1dc]" />
+                      ) : null}
+                      <div className="sticky top-24 flex items-start gap-4">
+                        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#2d1635] text-white shadow-[0_12px_28px_rgba(32,20,43,0.2)]">
+                          <MapPin className="h-8 w-8" />
+                        </span>
+                        <span className="pt-2 text-[#2d1635]">
+                          <span className="block text-base font-bold">
+                            {isZh
+                              ? `天数 ${segment.dayStart}-${segment.dayEnd}`
+                              : `Days ${segment.dayStart}-${segment.dayEnd}`}
+                          </span>
+                          <span className="block text-sm font-semibold text-[#5f5166]">
+                            {segment.rangeLabel}
+                          </span>
+                        </span>
+                      </div>
+                    </aside>
+
+                    <div className="space-y-5">
+                      <div className="rounded-[28px] bg-white p-5 shadow-[0_16px_46px_rgba(32,20,43,0.08)] md:p-7">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#8d5df7]">
+                              {segment.rangeLabel}
+                            </p>
+                            <h3 className="mt-1 text-3xl font-bold text-[#2d1635]">
+                              {segment.label}
+                            </h3>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                              onClick={() => addItineraryDay(segment.city)}
+                              type="button"
+                              variant="outline"
+                            >
+                              <Plus className="h-4 w-4" />
+                              {isZh ? "添加天数" : "Add day"}
+                            </Button>
+                            <Button
+                              className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                              onClick={() => openDetailAtDay(firstDayIndex)}
+                              type="button"
+                              variant="outline"
+                            >
+                              {isZh ? "查看/编辑" : "View / edit"}
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="mt-4 max-w-3xl text-base font-medium leading-relaxed text-[#3a273f]">
+                          {getCityIntro(segment, days, interfaceLocale)}
+                        </p>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(160px,0.6fr)]">
+                          <div className="relative aspect-[16/9] overflow-hidden rounded-[22px] bg-slate-200">
+                            <Image
+                              alt={`${segment.label} itinerary hero`}
+                              className="h-full w-full object-cover"
+                              height={420}
+                              src={galleryImages[0] ?? segment.imageSrc}
+                              unoptimized={isPlacesPhotoProxySrc(
+                                galleryImages[0] ?? segment.imageSrc
+                              )}
+                              width={760}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 md:grid-cols-1">
+                            {(galleryImages.length > 1
+                              ? galleryImages.slice(1, 3)
+                              : [segment.imageSrc, segment.imageSrc]
+                            ).map((imageSrc, imageIndex) => (
+                              <div
+                                className="relative min-h-28 overflow-hidden rounded-[20px] bg-slate-200"
+                                key={`${cityKey}-gallery-${imageSrc}-${imageIndex}`}
+                              >
+                                <Image
+                                  alt={`${segment.label} gallery ${imageIndex + 1}`}
+                                  className="h-full w-full object-cover"
+                                  height={240}
+                                  src={imageSrc}
+                                  unoptimized={isPlacesPhotoProxySrc(imageSrc)}
+                                  width={320}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {days.map((day) => {
+                          const dayIndex = editableItinerary.indexOf(day);
+                          const safeDayIndex = dayIndex >= 0 ? dayIndex : 0;
+                          const timelineItems = buildDayTimelineItems(
+                            day,
+                            safeDayIndex,
+                            effectiveTravelState,
+                            effectiveSelectedFlights,
+                            effectiveSelectedHotels,
+                            interfaceLocale,
+                            editableItinerary.length,
+                            activityTimesByDay
+                          );
+                          const dayNumber = getDayNumber(day);
+                          const dayFlightEntries = shouldSuppressFlights(
+                            modulePatch
+                          )
+                            ? []
+                            : getFlightLegEntriesForDay(
+                                displayFlightLegs,
+                                effectiveSelectedFlights,
+                                effectiveTravelState,
+                                dayNumber,
+                                editableItinerary.length
+                              );
+                          const dayHotelEntries = getHotelStayEntriesForDay(
+                            displayHotelStays,
+                            effectiveSelectedHotels,
+                            effectiveTravelState,
+                            dayNumber,
+                            editableItinerary.length
+                          );
+
+                          return (
+                            <article
+                              className="grid w-full gap-4 rounded-[24px] bg-white p-3 text-left shadow-[0_12px_36px_rgba(32,20,43,0.08)] transition-transform hover:-translate-y-0.5 md:grid-cols-[150px_1fr_auto]"
+                              data-testid={`travel-itinerary-day-card-${cityKey}-${day.day}`}
+                              key={`${cityKey}-day-${day.day}`}
+                            >
+                              <div className="relative h-24 overflow-hidden rounded-[18px] md:h-full">
+                                <Image
+                                  alt={`${getCityLabel(day.city, interfaceLocale)} itinerary`}
+                                  className="h-full w-full object-cover"
+                                  height={160}
+                                  src={getDayImage(
+                                    day,
+                                    safeDayIndex,
+                                    segment.enrichment
+                                  )}
+                                  unoptimized={isPlacesPhotoProxySrc(
+                                    getDayImage(
+                                      day,
+                                      safeDayIndex,
+                                      segment.enrichment
+                                    )
+                                  )}
+                                  width={240}
+                                />
+                              </div>
+                              <div className="min-w-0 py-1">
+                                <p className="text-sm font-semibold text-[#8d5df7]">
+                                  {formatDayTab(day, interfaceLocale)} ·{" "}
+                                  {day.activities.length} {copy.experiences} ·{" "}
+                                  {day.cost}
+                                </p>
+                                <p className="mt-1 text-lg font-bold text-[#2d1635]">
+                                  {summarizeDay(day, interfaceLocale)}
+                                </p>
+                                <p className="mt-1 line-clamp-1 text-sm leading-relaxed text-[#5f5166]">
+                                  {getCityLabel(day.city, interfaceLocale)}
+                                </p>
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                  {timelineItems.map((item) => (
+                                    <div
+                                      className="rounded-2xl bg-[#f8f3ff] px-3 py-2"
+                                      key={`${cityKey}-${day.day}-${item.time}-${item.label}`}
+                                    >
+                                      <p className="text-xs font-bold text-[#8d5df7]">
+                                        {item.time} · {item.label}
+                                      </p>
+                                      <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-[#2d1635]">
+                                        {item.value}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                                {dayFlightEntries.length ||
+                                dayHotelEntries.length ? (
+                                  <div className="mt-4 space-y-3">
+                                    {dayFlightEntries.map((entry) => (
+                                      <div
+                                        key={`${cityKey}-${day.day}-flight-${entry.legIndex}`}
+                                      >
+                                        {renderFlightResourceCard(entry)}
+                                      </div>
+                                    ))}
+                                    {dayHotelEntries.map((entry) => (
+                                      <div
+                                        key={`${cityKey}-${day.day}-hotel-${entry.stayIndex}`}
+                                      >
+                                        {renderHotelResourceCard(entry)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center justify-end gap-2 self-center">
+                                <Button
+                                  aria-label={`${copy.edit} ${formatDayTab(
+                                    day,
+                                    interfaceLocale
+                                  )}`}
+                                  className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                                  onClick={() => openDetailAtDay(safeDayIndex)}
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  {copy.edit}
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  aria-label={`${copy.delete} ${formatDayTab(
+                                    day,
+                                    interfaceLocale
+                                  )}`}
+                                  className="h-9 w-9 rounded-full border-[#f2c7d0] text-[#b42348] hover:bg-[#fff1f3]"
+                                  onClick={() =>
+                                    removeItineraryDay(safeDayIndex)
+                                  }
+                                  size="icon"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent
+          className="h-[88vh] max-w-[min(1500px,94vw)] overflow-hidden p-0"
+          data-testid="travel-itinerary-detail-dialog"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>
+              {isZh
+                ? "查看每天行程和地图路线"
+                : "View daily itinerary and map route"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid h-full min-h-0 bg-white lg:grid-cols-[minmax(420px,0.92fr)_minmax(520px,1.08fr)]">
+            <section className="flex min-h-0 flex-col border-r border-slate-200">
+              <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-5">
+                <div className="flex items-center gap-3 text-sm font-semibold text-[#756a7b]">
+                  <Route className="h-4 w-4" />
+                  <span>{isZh ? "行程计划" : "Trip plan"}</span>
+                  <ChevronRight className="h-4 w-4" />
+                  <span className="text-[#2d1635]">
+                    {isZh ? "行程" : "Itinerary"}
+                  </span>
+                </div>
+                <div className="mt-6 flex items-center gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {editableItinerary.map((day, index) => (
+                    <button
+                      className={cn(
+                        "shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors",
+                        index === activeDayIndex
+                          ? "bg-[#d9c2ff] text-[#2d1635]"
+                          : "text-[#756a7b] hover:bg-slate-100"
+                      )}
+                      key={`tab-${day.day}-${index}`}
+                      onClick={() => setActiveDayIndex(index)}
+                      type="button"
+                    >
+                      {formatDayTab(day, interfaceLocale)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[#faf9f7] px-6 py-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {activeDay ? (
+                  <div className="space-y-5">
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h3 className="text-2xl font-bold text-[#2d1635]">
+                            {getCityLabel(activeDay.city, interfaceLocale)}
+                          </h3>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#efe5ff] px-2.5 py-1 text-sm font-bold text-[#6f40cc]">
+                            <Clock3 className="h-4 w-4" />
+                            {activeDay.cost}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() =>
+                              setCustomizeDayEditor((current) => !current)
+                            }
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            {isZh ? "自定义" : "Customize"}
+                          </Button>
+                          <Button
+                            className="rounded-full border-[#f2c7d0] text-[#b42348] hover:bg-[#fff1f3]"
+                            onClick={() => removeItineraryDay(activeDayIndex)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {isZh ? "删除当天" : "Delete day"}
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-base text-[#5f5166]">
+                        {summarizeDay(activeDay, interfaceLocale)}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {activeDayTimeline.map((item) => (
+                        <div
+                          className="rounded-2xl border border-[#eadfff] bg-white px-4 py-3"
+                          key={`detail-timeline-${item.time}-${item.label}`}
+                        >
+                          <p className="text-xs font-bold text-[#8d5df7]">
+                            {item.time} · {item.label}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-sm font-semibold text-[#2d1635]">
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#eadfff] bg-white px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#8d8391]">
+                            {isZh ? "当晚酒店" : "Tonight's hotel"}
+                          </p>
+                          <p className="mt-1 truncate text-sm font-bold text-[#2d1635]">
+                            {activeDayHotel
+                              ? getHotelNameForLanguage(
+                                  activeDayHotel.option,
+                                  activeDayHotel.city,
+                                  interfaceLocale
+                                )
+                              : isZh
+                                ? "待选择酒店"
+                                : "Hotel pending"}
+                          </p>
+                          {activeDayHotel ? (
+                            <p className="mt-1 text-xs font-semibold text-[#756a7b]">
+                              {formatMonthDay(
+                                activeDayHotel.check_in,
+                                interfaceLocale
+                              )}{" "}
+                              -{" "}
+                              {formatMonthDay(
+                                activeDayHotel.check_out,
+                                interfaceLocale
+                              )}
+                            </p>
+                          ) : activeDayHotelStay ? (
+                            <p className="mt-1 text-xs font-semibold text-[#756a7b]">
+                              {formatMonthDay(
+                                activeDayHotelStay.stay.check_in,
+                                interfaceLocale
+                              )}{" "}
+                              -{" "}
+                              {formatMonthDay(
+                                activeDayHotelStay.stay.check_out,
+                                interfaceLocale
+                              )}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Button
+                          className="rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                          onClick={() => setDetailResourceTab("hotels")}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          {activeDayHotel
+                            ? isZh
+                              ? "修改酒店"
+                              : "Change hotel"
+                            : isZh
+                              ? "选择酒店"
+                              : "Choose hotel"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 rounded-[22px] bg-[#efe5ff] p-1">
+                      {(
+                        [
+                          ["attractions", copy.attraction],
+                          ["flights", copy.flight],
+                          ["hotels", copy.hotel],
+                        ] as const
+                      ).map(([tab, label]) => (
+                        <button
+                          className={cn(
+                            "rounded-[18px] px-3 py-2 text-sm font-bold transition-colors",
+                            detailResourceTab === tab
+                              ? "bg-white text-[#2d1635] shadow-sm"
+                              : "text-[#6f40cc] hover:bg-white/55"
+                          )}
+                          key={`detail-resource-tab-${tab}`}
+                          onClick={() => setDetailResourceTab(tab)}
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {customizeDayEditor ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#eadfff] bg-white p-4 text-sm font-semibold text-[#5f5166]">
+                        <span>
+                          {isZh
+                            ? "自定义模式已开启。常规修改优先通过下面的候选卡片完成；只有需要临时补充时再手动输入。"
+                            : "Custom mode is on. Prefer the option cards below for normal edits; type manually only for temporary additions."}
+                        </span>
+                        <span className="flex gap-2">
+                          <Button
+                            className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => addItineraryActivity(activeDayIndex)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus className="h-4 w-4" />
+                            {copy.attraction}
+                          </Button>
+                          <Button
+                            className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                            onClick={() => addItineraryFood(activeDayIndex)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus className="h-4 w-4" />
+                            {copy.dining}
+                          </Button>
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {detailResourceTab === "attractions" ? (
+                      <>
+                        {activeDayAttractionChoices.length ? (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                                <MapPinned className="h-4 w-4 text-[#6f40cc]" />
+                                {isZh ? "景点库" : "Attraction library"}
+                              </p>
+                              <span className="text-xs font-semibold text-[#8d8391]">
+                                {isZh
+                                  ? "点击加入当天行程"
+                                  : "Click to add to this day"}
+                              </span>
+                            </div>
+                            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                              {activeDayAttractionChoices.map((attraction) => (
+                                <button
+                                  className="grid min-h-28 grid-cols-[88px_1fr] gap-3 rounded-2xl border border-[#eadfff] bg-[#fbf8ff] p-2 text-left transition-colors hover:border-[#b990ff] hover:bg-white"
+                                  key={`${activeDay.city}-${attraction.name}`}
+                                  onClick={() =>
+                                    addKnowledgeAttractionToDay(
+                                      activeDayIndex,
+                                      attraction
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  <span className="relative h-full min-h-24 overflow-hidden rounded-xl bg-slate-200">
+                                    <Image
+                                      alt={getTravelTextForLanguage(
+                                        attraction.name,
+                                        interfaceLocale,
+                                        interfaceLocale === "en"
+                                          ? attraction.location.split(",")[0] ||
+                                              "Attraction"
+                                          : attraction.name
+                                      )}
+                                      className="h-full w-full object-cover"
+                                      height={140}
+                                      src={attraction.imageSrc}
+                                      unoptimized={isPlacesPhotoProxySrc(
+                                        attraction.imageSrc
+                                      )}
+                                      width={140}
+                                    />
+                                  </span>
+                                  <span className="min-w-0 py-1">
+                                    <span className="line-clamp-2 text-sm font-bold text-[#2d1635]">
+                                      {getTravelTextForLanguage(
+                                        attraction.name,
+                                        interfaceLocale,
+                                        interfaceLocale === "en"
+                                          ? attraction.location.split(",")[0] ||
+                                              "Attraction"
+                                          : attraction.name
+                                      )}
+                                    </span>
+                                    <span className="mt-1 line-clamp-2 block text-xs font-semibold text-[#756a7b]">
+                                      {attraction.location}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="space-y-4">
+                          {activeDay.activities.map((activity, index) => {
+                            const activityTime = getActivityTimeAtIndex(
+                              activeDay,
+                              index,
+                              activityTimesByDay,
+                              activeDayIndex
+                            );
+                            const localizedActivity = getTravelTextForLanguage(
+                              activity,
+                              interfaceLocale,
+                              activity
+                            );
+                            const enrichedAttraction =
+                              getEnrichedAttractionForName(
+                                getEnrichmentForCity(
+                                  destinationEnrichment,
+                                  activeDay.city
+                                ),
+                                activity
+                              );
+                            const activeActivityImageSrc =
+                              (isRealGooglePhoto(enrichedAttraction?.photo)
+                                ? enrichedAttraction.photo.url
+                                : null) ??
+                              findTravelAttraction(activeDay.city, activity)
+                                ?.imageSrc ??
+                              getAttractionImage(
+                                activeDay.city,
+                                activity,
+                                `active-day-${activeDayIndex}-${index}`
+                              );
+
+                            return (
+                              <div
+                                className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_36px_rgba(32,20,43,0.08)] sm:grid-cols-[96px_1fr]"
+                                key={`${activeDay.city}-activity-${index}`}
+                              >
+                                <div className="relative h-24 overflow-hidden rounded-xl bg-slate-200">
+                                  <Image
+                                    alt={localizedActivity}
+                                    className="h-full w-full object-cover"
+                                    height={120}
+                                    src={activeActivityImageSrc}
+                                    unoptimized={isPlacesPhotoProxySrc(
+                                      activeActivityImageSrc
+                                    )}
+                                    width={140}
+                                  />
+                                </div>
+                                <div className="flex items-start gap-4">
+                                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#efe5ff] font-bold text-[#6f40cc]">
+                                    {index + 1}
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    {customizeDayEditor ? (
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <label className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#f6efff] px-3 py-1 text-xs font-bold text-[#6f40cc]">
+                                          <Clock3 className="h-3.5 w-3.5" />
+                                          <span>{copy.time}</span>
+                                          <input
+                                            aria-label={
+                                              isZh
+                                                ? `景点 ${index + 1} 时间`
+                                                : `Attraction ${index + 1} time`
+                                            }
+                                            className="w-[82px] bg-transparent font-semibold text-[#2d1635] outline-none"
+                                            onChange={(event) =>
+                                              updateItineraryActivityTime(
+                                                activeDayIndex,
+                                                index,
+                                                event.target.value
+                                              )
+                                            }
+                                            type="time"
+                                            value={activityTime}
+                                          />
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            aria-label={
+                                              isZh
+                                                ? `上移景点 ${index + 1}`
+                                                : `Move attraction ${index + 1} up`
+                                            }
+                                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                                            disabled={index === 0}
+                                            onClick={() =>
+                                              moveItineraryActivity(
+                                                activeDayIndex,
+                                                index,
+                                                -1
+                                              )
+                                            }
+                                            size="icon"
+                                            type="button"
+                                            variant="outline"
+                                          >
+                                            <ArrowUp className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            aria-label={
+                                              isZh
+                                                ? `下移景点 ${index + 1}`
+                                                : `Move attraction ${index + 1} down`
+                                            }
+                                            className="h-9 w-9 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                                            disabled={
+                                              index ===
+                                              activeDay.activities.length - 1
+                                            }
+                                            onClick={() =>
+                                              moveItineraryActivity(
+                                                activeDayIndex,
+                                                index,
+                                                1
+                                              )
+                                            }
+                                            size="icon"
+                                            type="button"
+                                            variant="outline"
+                                          >
+                                            <ArrowDown className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs font-semibold text-[#756a7b]">
+                                        {formatActivityTimeLabel(
+                                          activityTime,
+                                          interfaceLocale
+                                        )}
+                                      </p>
+                                    )}
+                                    {customizeDayEditor ? (
+                                      <input
+                                        aria-label={
+                                          isZh
+                                            ? `景点 ${index + 1} 名称`
+                                            : `Attraction ${index + 1} name`
+                                        }
+                                        className="mt-2 w-full rounded-xl border border-[#eadfff] bg-white px-3 py-2 text-lg font-bold text-[#2d1635] outline-none transition-colors focus:border-[#b990ff]"
+                                        onChange={(event) =>
+                                          updateItineraryActivity(
+                                            activeDayIndex,
+                                            index,
+                                            event.target.value
+                                          )
+                                        }
+                                        value={activity}
+                                      />
+                                    ) : (
+                                      <p className="mt-1 text-lg font-bold text-[#2d1635]">
+                                        {localizedActivity}
+                                      </p>
+                                    )}
+                                    {googleAttractionCoordinates[
+                                      getAttractionCoordinateKey(
+                                        activeDay.city,
+                                        activity
+                                      )
+                                    ]?.formattedAddress ? (
+                                      <p className="mt-1 line-clamp-1 text-xs font-semibold text-[#8d8391]">
+                                        {
+                                          googleAttractionCoordinates[
+                                            getAttractionCoordinateKey(
+                                              activeDay.city,
+                                              activity
+                                            )
+                                          ]?.formattedAddress
+                                        }
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                  <Button
+                                    aria-label={
+                                      isZh
+                                        ? `删除景点 ${index + 1}`
+                                        : `Delete attraction ${index + 1}`
+                                    }
+                                    className="h-9 w-9 shrink-0 rounded-full border-[#f2c7d0] text-[#b42348] hover:bg-[#fff1f3]"
+                                    onClick={() =>
+                                      removeItineraryActivity(
+                                        activeDayIndex,
+                                        index
+                                      )
+                                    }
+                                    size="icon"
+                                    type="button"
+                                    variant="outline"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {activeDay.food.length ? (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                                <Utensils className="h-4 w-4 text-[#6f40cc]" />
+                                {isZh ? "今日餐厅" : "Dining today"}
+                              </p>
+                              {customizeDayEditor ? (
+                                <Button
+                                  className="h-8 rounded-full border-[#d8c5ff] text-[#6f40cc] hover:bg-[#f6efff]"
+                                  onClick={() =>
+                                    addItineraryFood(activeDayIndex)
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  {copy.dining}
+                                </Button>
+                              ) : null}
+                            </div>
+                            <div className="mt-3 grid gap-2">
+                              {activeDay.food.map((food, index) => (
+                                <div
+                                  className="flex items-center gap-2 rounded-2xl bg-[#f6efff] px-3 py-2"
+                                  key={`${activeDay.city}-food-${food}-${index}`}
+                                >
+                                  {customizeDayEditor ? (
+                                    <input
+                                      aria-label={`餐饮 ${index + 1}`}
+                                      className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#6f40cc] outline-none"
+                                      onChange={(event) =>
+                                        updateItineraryFood(
+                                          activeDayIndex,
+                                          index,
+                                          event.target.value
+                                        )
+                                      }
+                                      value={food}
+                                    />
+                                  ) : (
+                                    <span className="min-w-0 flex-1 text-sm font-semibold text-[#6f40cc]">
+                                      {getTravelTextForLanguage(
+                                        food,
+                                        interfaceLocale,
+                                        food
+                                      )}
+                                    </span>
+                                  )}
+                                  <Button
+                                    aria-label={`删除餐饮 ${index + 1}`}
+                                    className="h-8 w-8 rounded-full text-[#b42348] hover:bg-white"
+                                    onClick={() =>
+                                      removeItineraryFood(activeDayIndex, index)
+                                    }
+                                    size="icon"
+                                    type="button"
+                                    variant="ghost"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+
+                    {detailResourceTab === "flights" ? (
+                      <div className="space-y-4">
+                        {activeDayFlightLegs.length ? (
+                          activeDayFlightLegs.map(({ leg, legIndex }) => (
+                            <div key={`detail-flight-leg-${legIndex}`}>
+                              {renderFlightResourceCard({
+                                leg,
+                                legIndex,
+                                selectedFlight: getSelectedFlightForLeg(
+                                  effectiveTravelState.selected_flights,
+                                  legIndex
+                                ),
+                              })}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
+                            {isZh
+                              ? "这个城市暂时没有 API 航班候选。若这是陆路移动城市，地图会继续显示景点动线。"
+                              : "No API flight options are available for this city yet. If this is a ground-transfer leg, the map will keep showing the attraction route."}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {detailResourceTab === "hotels" ? (
+                      <div className="space-y-4">
+                        {activeDayHotelStay ? (
+                          <div>
+                            {renderHotelResourceCard({
+                              stay: activeDayHotelStay.stay,
+                              stayIndex: activeDayHotelStay.stayIndex,
+                              selectedHotel:
+                                getSelectedHotelForStay(
+                                  effectiveTravelState.selected_hotels,
+                                  activeDayHotelStay.stayIndex
+                                ) ?? activeDayHotel,
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-[#eadfff] bg-white p-5 text-sm font-semibold text-[#5f5166]">
+                            {isZh
+                              ? "这个城市暂时没有 API 酒店候选。系统会继续保留当前行程。"
+                              : "No API hotel options are available for this city yet. The current itinerary will stay in place."}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_36px_rgba(32,20,43,0.08)]">
+                      <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                        <Compass className="h-4 w-4 text-[#6f40cc]" />
+                        {isZh ? "备注" : "Note"}
+                      </p>
+                      <p className="mt-3 text-base font-semibold text-[#2d1635]">
+                        {isZh
+                          ? "建议把同区域体验排在一起，减少跨城折返。"
+                          : "Group nearby experiences together to reduce backtracking between areas."}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <aside className="min-h-0 bg-slate-100 max-lg:h-[44vh]">
+              <TripRouteMap
+                activePointId={focusedPointId}
+                className="h-full w-full"
+                onPointSelect={onPointSelect}
+                points={detailMapPoints}
+                routeCoordinates={detailRouteCoordinates}
+              />
+            </aside>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Sheet
+        onOpenChange={(open) => {
+          if (!open) setResourceOptionsSheet(null);
+        }}
+        open={Boolean(resourceOptionsSheet)}
+      >
+        <SheetContent className="w-full overflow-y-auto bg-[#faf9f7] p-0 sm:max-w-xl">
+          {renderResourceOptionsSheetContent()}
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={fullMapOpen} onOpenChange={handleFullMapOpenChange}>
+        <DialogContent
+          className="h-[88vh] max-w-[min(1560px,94vw)] overflow-hidden p-0"
+          data-testid="travel-itinerary-dynamic-map-dialog"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>
+              {isZh ? `${title}完整地图` : `${title} full map`}
+            </DialogTitle>
+            <DialogDescription>
+              {isZh
+                ? "动态查看完整行程路线"
+                : "View the full itinerary route dynamically"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex h-full min-h-0 flex-col bg-white">
+            <div className="shrink-0 border-b border-slate-200 px-6 py-5 text-center">
+              <h3 className="text-2xl font-bold text-[#2d1635]">{title}</h3>
+              <p className="mt-1 text-sm font-semibold text-[#756a7b]">
+                {routeNodes.map((node) => node.label).join(" → ")}
+              </p>
+            </div>
+
+            <div className="relative min-h-0 flex-1">
+              <TripRouteMap
+                activePointId={fullMapActivePointId}
+                animateRoute={isRoutePlaying}
+                className="h-full w-full"
+                onPointSelect={handleFullMapPointSelect}
+                points={resolvedMapPoints}
+                routeCoordinates={resolvedRouteCoordinates}
+              />
+              <div className="absolute bottom-5 left-5 flex max-w-[calc(100%-40px)] items-end gap-3">
+                <Button
+                  aria-label={
+                    isRoutePlaying
+                      ? isZh
+                        ? "暂停动态行程"
+                        : "Pause route"
+                      : isZh
+                        ? "播放动态行程"
+                        : "Play route"
+                  }
+                  className="h-14 w-14 shrink-0 rounded-full bg-[#d9c2ff] text-[#2d1635] shadow-[0_18px_45px_rgba(32,20,43,0.2)] hover:bg-[#cdb0ff]"
+                  data-testid="travel-itinerary-full-map-play-toggle"
+                  onClick={() => setIsRoutePlaying((playing) => !playing)}
+                  size="icon"
+                  type="button"
+                >
+                  {isRoutePlaying ? (
+                    <Pause className="h-6 w-6 fill-current" />
+                  ) : (
+                    <Play className="h-6 w-6 fill-current" />
+                  )}
+                </Button>
+                <div className="max-w-[min(620px,calc(100vw-150px))] rounded-2xl bg-white/95 p-4 shadow-[0_18px_45px_rgba(32,20,43,0.18)] backdrop-blur">
+                  <p className="inline-flex items-center gap-2 text-sm font-bold text-[#2d1635]">
+                    <WalletCards className="h-4 w-4 text-[#6f40cc]" />
+                    {isZh ? "动态行程" : "Dynamic itinerary"}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {segments.map((segment) => {
+                      const active =
+                        getCitySectionKey(segment.city) ===
+                        getCitySectionKey(fullMapActiveCity);
+
+                      return (
+                        <button
+                          className={cn(
+                            "rounded-full px-3 py-1 text-sm font-semibold transition-colors",
+                            active
+                              ? "bg-[#d9c2ff] text-[#2d1635]"
+                              : "bg-[#f6efff] text-[#6f40cc] hover:bg-[#eadcff]"
+                          )}
+                          key={`full-map-${segment.city}`}
+                          onClick={() => setFullMapActiveCity(segment.city)}
+                          type="button"
+                        >
+                          {segment.label} · {segment.rangeLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

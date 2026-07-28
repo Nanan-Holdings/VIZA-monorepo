@@ -1,7 +1,7 @@
 param(
   [int]$FrontendPort = 3000,
   [int]$AgentPort = 3002,
-  [int]$SubmissionPort = 8085,
+  [int]$SubmissionPort = 18080,
   [int]$TravelPort = 8000,
   [switch]$NoBackend,
   [switch]$NoSubmission,
@@ -45,6 +45,23 @@ function Test-PortInUse {
   return $null -ne $connection
 }
 
+function Test-TcpPortBindable {
+  param([int]$Port)
+
+  $listener = $null
+  try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $Port)
+    $listener.Start()
+    return $true
+  } catch {
+    return $false
+  } finally {
+    if ($listener) {
+      $listener.Stop()
+    }
+  }
+}
+
 function Find-FreePort {
   param(
     [int]$PreferredPort,
@@ -55,7 +72,7 @@ function Find-FreePort {
     if ($AvoidPorts -contains $port) {
       continue
     }
-    if (!(Test-PortInUse -Port $port)) {
+    if (Test-TcpPortBindable -Port $port) {
       return $port
     }
   }
@@ -398,14 +415,14 @@ if (!$NoBackend) {
 }
 
 if (!$NoSubmission) {
-  if (Test-PortInUse -Port $SubmissionPort) {
+  if (!(Test-TcpPortBindable -Port $SubmissionPort)) {
     $SubmissionPort = Find-FreePort -PreferredPort ($SubmissionPort + 1) -AvoidPorts @($FrontendPort, $selectedAgentPort, $selectedTravelPort)
     Write-Warn "Submission service port is busy. Using $SubmissionPort."
   }
   $started += Start-DevProcess `
-    -Name "VIZA Submission Service" `
+    -Name "VIZA Submission Service with Indonesia local payment handoff" `
     -WorkingDirectory $submissionServiceDir `
-    -Command "`$env:PORT = '$SubmissionPort'; npm run dev"
+    -Command "`$env:PORT = '$SubmissionPort'; `$env:VN_LOCAL_CARD_SESSION_ENABLED = 'true'; `$env:ID_LOCAL_CARD_SESSION_ENABLED = 'true'; npm run dev"
 }
 
 if (!$NoTravel) {
@@ -423,7 +440,7 @@ if (!$NoTravel) {
 $started += Start-DevProcess `
   -Name "VIZA Frontend" `
   -WorkingDirectory $frontendDir `
-  -Command "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$selectedTravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$selectedFrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$selectedFrontendPort'; npm run dev -- -p $selectedFrontendPort"
+  -Command "`$env:NEXT_PUBLIC_AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:AGENT_BACKEND_URL = 'http://127.0.0.1:$selectedAgentPort'; `$env:TRAVEL_BACKEND_URL = 'http://127.0.0.1:$selectedTravelPort'; `$env:NEXT_PUBLIC_APP_URL = 'http://127.0.0.1:$selectedFrontendPort'; `$env:APP_BASE_URL = 'http://127.0.0.1:$selectedFrontendPort'; `$env:SUBMISSION_SERVICE_LOCAL_URL = 'http://127.0.0.1:$SubmissionPort'; `$env:INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'; `$env:NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED = 'true'; npm run dev -- -p $selectedFrontendPort"
 
 foreach ($process in $started) {
   Wait-ProcessAlive -Name $process.Name -ProcessId $process.Pid -Stdout $process.Stdout -Stderr $process.Stderr
@@ -452,6 +469,16 @@ if (!$NoBackend) {
 
 if (!$NoTravel) {
   Wait-HttpReady -Name "travel-service" -Uri "http://127.0.0.1:$selectedTravelPort/docs" -TimeoutSeconds $StartupTimeoutSeconds
+}
+
+if (!$NoSubmission) {
+  Wait-HttpReady -Name "submission-service" -Uri "http://127.0.0.1:$SubmissionPort/health" -TimeoutSeconds $StartupTimeoutSeconds
+  Wait-HttpJsonFieldReady `
+    -Name "Indonesia one-time card session endpoint" `
+    -Uri "http://127.0.0.1:$SubmissionPort/local/indonesia/card-session" `
+    -FieldName "enabled" `
+    -ExpectedValue $true `
+    -TimeoutSeconds $StartupTimeoutSeconds
 }
 
 Wait-HttpReady -Name "frontend" -Uri $clientLoginUrl -TimeoutSeconds $StartupTimeoutSeconds

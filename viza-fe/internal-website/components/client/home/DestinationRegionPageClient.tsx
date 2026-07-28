@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   getVisaDestinationCountryName,
   getVisaDestinationDescription,
   getVisaDestinationKey,
   getVisaDestinationRegionName,
   getVisaDestinationVisaName,
+  matchesVisaDestinationSearch,
   type PopularVisaDestination,
   type VisaDestinationRegionGroup,
 } from "@/lib/visa-destinations";
@@ -25,25 +26,11 @@ function isSelectedDestination(
   destination: PopularVisaDestination,
   selectedPackages: UserVisaPackage[],
 ): boolean {
+  if (destination.kind === "group") return false;
   const destinationKey = getVisaDestinationKey(destination.country, destination.visaType);
   return selectedPackages.some(
     (selectedPackage) => getVisaDestinationKey(selectedPackage.country, selectedPackage.visa_type) === destinationKey,
   );
-}
-
-function matchesDestinationSearch(destination: PopularVisaDestination, normalizedSearch: string): boolean {
-  const searchableText = [
-    destination.countryName,
-    destination.countryNameZh,
-    destination.visaName,
-    destination.visaNameZh,
-    destination.description,
-    destination.descriptionZh,
-    destination.region,
-    destination.supportLabel,
-    ...(destination.searchAliases ?? []),
-  ].join(" ").toLowerCase();
-  return searchableText.includes(normalizedSearch);
 }
 
 export function DestinationRegionPageClient({
@@ -55,6 +42,7 @@ export function DestinationRegionPageClient({
 }) {
   const router = useRouter();
   const locale = useLocale();
+  const destinationMessages = useTranslations("home.popularDestinations");
   const isZh = locale.toLowerCase().startsWith("zh");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPackages, setSelectedPackages] = useState<UserVisaPackage[]>([]);
@@ -75,11 +63,17 @@ export function DestinationRegionPageClient({
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     if (!normalizedSearch) return destinations;
-    return destinations.filter((destination) => matchesDestinationSearch(destination, normalizedSearch));
+    return destinations.filter((destination) => matchesVisaDestinationSearch(destination, normalizedSearch));
   }, [destinations, searchQuery]);
 
   function handleSelect(destination: PopularVisaDestination) {
     setSelectionError(null);
+
+    if (destination.kind === "group" && destination.href) {
+      router.push(destination.href);
+      return;
+    }
+
     setPendingDestinationId(destination.id);
 
     startTransition(async () => {
@@ -97,7 +91,7 @@ export function DestinationRegionPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] px-4 pb-16 pt-8 sm:px-6 lg:px-10">
+    <div className="min-h-screen bg-[#fcfcfc] pb-16 pt-8">
       <main className="mx-auto flex w-full max-w-[1090px] flex-col gap-6">
         <Link
           href="/client/home"
@@ -111,7 +105,7 @@ export function DestinationRegionPageClient({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[14px] font-semibold text-[#03346E]">{isZh ? region.name : "Destination region"}</p>
-              <h1 className="mt-2 font-heading text-[34px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
+              <h1 className="mt-2 font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
                 {isZh ? region.nameZh : region.name}
               </h1>
               <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[#667085]">
@@ -136,11 +130,16 @@ export function DestinationRegionPageClient({
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {
               const selected = isSelectedDestination(destination, selectedPackages);
               const loading = isPending && pendingDestinationId === destination.id;
-              const actionLabel = selected ? (isZh ? "打开" : "Open") : (isZh ? "开始" : "Start");
+              const isGroup = destination.kind === "group";
+              const actionLabel = isGroup
+                ? destinationMessages("chooseCategory")
+                : selected
+                  ? (isZh ? "打开" : "Open")
+                  : (isZh ? "开始" : "Start");
               const countryName = getVisaDestinationCountryName(destination, locale);
               const visaName = getVisaDestinationVisaName(destination, locale);
               const description = getVisaDestinationDescription(destination, locale);
@@ -153,7 +152,7 @@ export function DestinationRegionPageClient({
                   onClick={() => handleSelect(destination)}
                   disabled={loading}
                   className={[
-                    "group flex min-h-[164px] flex-col justify-between rounded-[16px] border bg-white p-5 text-left transition",
+                    "group flex min-h-[144px] flex-col justify-between rounded-[16px] border bg-white p-4 text-left transition sm:min-h-[164px] sm:p-5",
                     selected
                       ? "border-[#03346E] shadow-[0_12px_30px_rgba(3,52,110,0.12)]"
                       : "border-[#efefef] hover:border-[#c7d5e8] hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]",
@@ -161,10 +160,10 @@ export function DestinationRegionPageClient({
                   ].join(" ")}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <DestinationFlag flag={destination.flag} />
                       <div>
-                        <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
+                        <p className="font-heading text-[16px] font-medium leading-tight text-[#222] sm:text-[18px]">
                           {countryName}
                         </p>
                         <p className="mt-1 text-[13px] font-medium text-[#637083]">
@@ -172,7 +171,7 @@ export function DestinationRegionPageClient({
                         </p>
                       </div>
                     </div>
-                    {selected && <CheckCircle2 className="h-5 w-5 shrink-0 text-[#03346E]" />}
+                    {selected && !isGroup && <CheckCircle2 className="h-5 w-5 shrink-0 text-[#03346E]" />}
                   </div>
 
                   <div className="mt-5 space-y-3">
@@ -186,7 +185,9 @@ export function DestinationRegionPageClient({
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
-                        {destination.supportLabel}
+                        {isGroup
+                          ? destinationMessages("categoryCount", { count: destination.countryCount ?? 0 })
+                          : destination.supportLabel}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
                         {loading ? (isZh ? "正在开始" : "Starting") : actionLabel}

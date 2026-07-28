@@ -1,0 +1,4 @@
+{
+  "comment": "Allowed legacy a11y violations. Each row must have owner + due date. Empty = no allowances.",
+  "violations": []
+}

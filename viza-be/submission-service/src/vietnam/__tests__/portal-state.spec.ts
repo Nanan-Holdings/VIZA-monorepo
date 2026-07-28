@@ -84,6 +84,20 @@ test("Vietnam portal state: white screen is explicit terminal state", () => {
   assert.equal(state, "white_screen");
 });
 
+test("Vietnam portal state: asset 502 Error page is a portal error, not a layout change", () => {
+  const state = classifyVietnamPortalSnapshot(snapshot({
+    title: "Error",
+    bodyText: "An unexpected error occurred.",
+    bodyHtmlLength: 3_000,
+    buttonTexts: [],
+    linkHrefs: [],
+    hasApplyEntry: false,
+    failedRequestCount: 18,
+  }));
+
+  assert.equal(state, "portal_error");
+});
+
 test("Vietnam portal state: CAPTCHA and payment are detected before generic form", () => {
   assert.equal(
     classifyVietnamPortalSnapshot(snapshot({

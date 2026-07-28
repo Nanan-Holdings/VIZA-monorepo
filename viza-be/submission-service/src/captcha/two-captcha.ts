@@ -8,6 +8,8 @@
  *   - solveCaptcha({type, siteKey, pageUrl, ...}): token-based dispatcher for
  *     RecaptchaV2 / Turnstile / HCaptcha — returns the gRecaptchaResponse /
  *     cf-turnstile-response token to inject into the page.
+ *   - solveGridCaptcha(imageBuffer, options): GridTask for visible image-grid
+ *     challenges — returns one-based tile numbers that callers click.
  *
  * Callers decide retry policy. Errors are typed so callers can branch on
  * config / API / balance / network / timeout cleanly.
@@ -97,12 +99,30 @@ export interface CaptchaSolveResult {
   userAgent?: string;
 }
 
+export interface GridCaptchaSolveResult {
+  /** One-based tile numbers returned by 2captcha, e.g. [1, 5, 9] for a 3x3 grid. */
+  clicks: number[];
+  /** 2captcha task ID — needed for reportBadCaptcha(). */
+  solveId: string;
+  /** Wall-clock time from task creation to result, in milliseconds. */
+  durationMs: number;
+}
+
 export interface ImageCaptchaTaskOptions {
   case?: boolean;
   numeric?: number;
   minLength?: number;
   maxLength?: number;
   comment?: string;
+}
+
+export interface GridCaptchaTaskOptions {
+  rows: number;
+  columns: number;
+  comment: string;
+  imgType?: "recaptcha";
+  previousId?: string;
+  timeoutMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +155,7 @@ interface GetTaskResultResponse {
   errorCode?: string;
   errorDescription?: string;
   status?: "processing" | "ready";
-  solution?: { text?: string; gRecaptchaResponse?: string; token?: string; userAgent?: string };
+  solution?: { text?: string; gRecaptchaResponse?: string; token?: string; userAgent?: string; click?: number[] };
 }
 
 function classifyApiError(errorCode: string): never {
@@ -219,6 +239,52 @@ async function runTask(
   throw new TwoCaptchaSolveTimeoutError(timeoutMs);
 }
 
+async function runGridTask(
+  taskBody: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<GridCaptchaSolveResult> {
+  const apiKey = getApiKey();
+  const start = Date.now();
+
+  const createRes = await postJson<CreateTaskResponse>(`${API_BASE}/createTask`, {
+    clientKey: apiKey,
+    task: taskBody,
+  });
+
+  if (createRes.errorId !== 0 && createRes.errorCode) {
+    classifyApiError(createRes.errorCode);
+  }
+  if (!createRes.taskId) {
+    throw new TwoCaptchaApiError("NO_TASK_ID");
+  }
+
+  const taskId = createRes.taskId;
+  const deadline = start + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+
+    const resultRes = await postJson<GetTaskResultResponse>(`${API_BASE}/getTaskResult`, {
+      clientKey: apiKey,
+      taskId,
+    });
+
+    if (resultRes.errorId !== 0 && resultRes.errorCode) {
+      classifyApiError(resultRes.errorCode);
+    }
+
+    if (resultRes.status === "ready" && resultRes.solution?.click) {
+      return {
+        clicks: resultRes.solution.click,
+        solveId: String(taskId),
+        durationMs: Date.now() - start,
+      };
+    }
+  }
+
+  throw new TwoCaptchaSolveTimeoutError(timeoutMs);
+}
+
 // ---------------------------------------------------------------------------
 // Public API — image task (preserves legacy CEAC contract)
 // ---------------------------------------------------------------------------
@@ -249,6 +315,45 @@ export async function solveImageCaptcha(
       ...("comment" in taskOptions ? { comment: taskOptions.comment } : {}),
     },
     timeoutMs,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Public API — visible grid image tasks
+// ---------------------------------------------------------------------------
+
+/**
+ * Submit a visible image-grid challenge to 2captcha GridTask.
+ *
+ * This is intended for reCAPTCHA image challenges after the challenge iframe is
+ * already visible. It does not bypass WAF, MFA, or account checks; callers must
+ * still click the returned tile numbers in the official page and verify whether
+ * the challenge advanced.
+ */
+export async function solveGridCaptcha(
+  imageBuffer: Buffer,
+  options: GridCaptchaTaskOptions,
+): Promise<GridCaptchaSolveResult> {
+  const rows = Math.trunc(options.rows);
+  const columns = Math.trunc(options.columns);
+  if (rows <= 0 || columns <= 0) {
+    throw new TwoCaptchaApiError("INVALID_GRID_SIZE");
+  }
+  if (!options.comment.trim()) {
+    throw new TwoCaptchaApiError("MISSING_GRID_COMMENT");
+  }
+
+  return runGridTask(
+    {
+      type: "GridTask",
+      body: imageBuffer.toString("base64"),
+      rows,
+      columns,
+      comment: options.comment,
+      imgType: options.imgType ?? "recaptcha",
+      ...(options.previousId ? { previousId: options.previousId } : {}),
+    },
+    options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   );
 }
 

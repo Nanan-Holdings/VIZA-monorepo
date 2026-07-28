@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vietnam e-Visa Form Parity"
+  short_description: "Align VIZA Vietnam e-Visa forms with the official portal."
+  default_prompt: "Use this when updating or debugging Vietnam e-Visa form parity, dropdown localization, official submission mapping, or payment/status checkpoints."

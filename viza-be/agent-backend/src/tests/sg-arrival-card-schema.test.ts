@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { SGAC_FORM_FIELDS } from "../../scripts/sgac/form-fields";
+import {
+  SGAC_HOTEL_NAME_OPTIONS,
+  SGAC_NATIONALITY_OPTIONS,
+} from "../../scripts/sgac/official-options";
 
 const seedSource = readFileSync(
   new URL("../../scripts/sgac/form-fields.ts", import.meta.url),
@@ -10,6 +14,17 @@ const officialOptionsSource = readFileSync(
   new URL("../../scripts/sgac/official-options.ts", import.meta.url),
   "utf8",
 );
+const submissionNormalizerSource = readFileSync(
+  new URL("../../../submission-service/src/sgac/normalize.ts", import.meta.url),
+  "utf8",
+);
+const submissionRegistrySource = readFileSync(
+  new URL("../../../submission-service/src/country-submissions/registry.ts", import.meta.url),
+  "utf8",
+);
+const translationCache = JSON.parse(
+  readFileSync(new URL("../../scripts/sgac/option-translations.zh.json", import.meta.url), "utf8"),
+) as { city: Record<string, string>; hotel: Record<string, string> };
 
 function extractFieldNames(): string[] {
   return Array.from(seedSource.matchAll(/field_name:\s*"([^"]+)"/g), (match) => match[1]);
@@ -52,6 +67,20 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(fieldNames.has("purpose_of_visit"), "legacy purpose_of_visit must not be used for SGAC").toBe(false);
   });
 
+  test("keeps every SGAC form field referenced by the submission mapping contract", () => {
+    const fieldNames = extractFieldNames();
+    expect(fieldNames).toHaveLength(39);
+    expect(new Set(fieldNames).size).toBe(39);
+
+    for (const fieldName of fieldNames) {
+      const quotedFieldName = `"${fieldName}"`;
+      const isMapped =
+        submissionNormalizerSource.includes(quotedFieldName) ||
+        submissionRegistrySource.includes(quotedFieldName);
+      expect(isMapped, `${fieldName} is not referenced by the SGAC submission mapper`).toBe(true);
+    }
+  });
+
   test("uses the SGAC canonical purpose field and bilingual label", () => {
     expect(seedSource).toContain('field_name: "purpose_of_travel"');
     expect(seedSource).toContain('label: "Purpose of Travel"');
@@ -67,6 +96,40 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(officialOptionsSource).toContain('"labelEn": "MARINA BAY SANDS SINGAPORE"');
   });
 
+  test("keeps a complete one-to-one Chinese label snapshot for every ICA hotel", () => {
+    const officialHotelNames = SGAC_HOTEL_NAME_OPTIONS.map((option) => option.value);
+    const translatedHotelNames = Object.keys(translationCache.hotel);
+
+    expect(officialHotelNames).toHaveLength(469);
+    expect(new Set(officialHotelNames).size).toBe(469);
+    expect(translatedHotelNames).toHaveLength(469);
+    expect(new Set(translatedHotelNames)).toEqual(new Set(officialHotelNames));
+
+    for (const officialName of officialHotelNames) {
+      const labelZh = translationCache.hotel[officialName];
+      expect(labelZh, officialName).toMatch(/[\u3400-\u9fff]/);
+      expect(labelZh, officialName).not.toMatch(/[A-Za-zＡ-Ｚａ-ｚ]/);
+    }
+  });
+
+  test("keeps a complete one-to-one Chinese label snapshot for every ICA city or port", () => {
+    const officialCityPorts = SGAC_FORM_FIELDS
+      .find((field) => field.field_name === "last_city_or_port_before_singapore")
+      ?.options?.map((option) => option.value) ?? [];
+    const translatedCityPorts = Object.keys(translationCache.city);
+
+    expect(officialCityPorts).toHaveLength(2267);
+    expect(new Set(officialCityPorts).size).toBe(2267);
+    expect(translatedCityPorts).toHaveLength(2267);
+    expect(new Set(translatedCityPorts)).toEqual(new Set(officialCityPorts));
+
+    for (const officialCityPort of officialCityPorts) {
+      const labelZh = translationCache.city[officialCityPort];
+      expect(labelZh, officialCityPort).toMatch(/[\u3400-\u9fff]/);
+      expect(labelZh, officialCityPort).not.toMatch(/[A-Za-zＡ-Ｚａ-ｚ]/);
+    }
+  });
+
   test("keeps ICA autocomplete fields as official dropdowns instead of free text", () => {
     expect(seedSource).toContain('field_name: "nationality", label: "Nationality/Citizenship", field_type: "select"');
     expect(seedSource).toContain('options: NATIONALITIES');
@@ -77,6 +140,30 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(seedSource).toContain('field_name: "next_city_or_port_after_singapore", label: "Next City/Port of Disembarkation After Singapore", field_type: "select"');
     expect(officialOptionsSource).toContain('"value": "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR"');
     expect(officialOptionsSource).toContain('"value": "CHINESE"');
+  });
+
+  test("matches the complete ICA nationality list, including frontend-injected SAR entries", () => {
+    expect(SGAC_NATIONALITY_OPTIONS).toHaveLength(206);
+    expect(new Set(SGAC_NATIONALITY_OPTIONS.map((option) => option.value)).size).toBe(206);
+    expect(SGAC_NATIONALITY_OPTIONS).toEqual(
+      expect.arrayContaining([
+        {
+          value: "CHINESE / HONG KONG SAR",
+          labelZh: "中国籍 / 香港特别行政区",
+          labelEn: "CHINESE / HONG KONG SAR",
+        },
+        {
+          value: "CHINESE / MACAO SAR",
+          labelZh: "中国籍 / 澳门特别行政区",
+          labelEn: "CHINESE / MACAO SAR",
+        },
+        {
+          value: "TAIWANESE",
+          labelZh: "台湾籍",
+          labelEn: "TAIWANESE",
+        },
+      ]),
+    );
   });
 
   test("keeps arrival and departure dates together in trip information", () => {
@@ -148,6 +235,8 @@ describe("Singapore SG Arrival Card schema seed", () => {
 
     expect(labelZh("nationality", "BRITISH OVERSEAS TERRITORIES CITIZ")).toBe("英国海外领土公民");
     expect(labelZh("nationality", "BRITISH SUBJECT")).toBe("英国臣民");
+    expect(labelZh("nationality", "CHINESE / HONG KONG SAR")).toBe("中国籍 / 香港特别行政区");
+    expect(labelZh("nationality", "CHINESE / MACAO SAR")).toBe("中国籍 / 澳门特别行政区");
     expect(labelZh("nationality", "CAMBODIAN")).toBe("柬埔寨籍");
     expect(labelZh("nationality", "CROATIAN")).toBe("克罗地亚籍");
     expect(labelZh("nationality", "ESTONIAN")).toBe("爱沙尼亚籍");
@@ -164,6 +253,7 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("nationality", "SAMOAN")).toBe("萨摩亚籍");
     expect(labelZh("nationality", "STATELESS")).toBe("无国籍");
     expect(labelZh("nationality", "SWAZI")).toBe("斯威士兰籍");
+    expect(labelZh("nationality", "TAIWANESE")).toBe("台湾籍");
     expect(labelZh("nationality", "TAJIKISTANI")).toBe("塔吉克斯坦籍");
     expect(labelZh("nationality", "UKRAINIAN")).toBe("乌克兰籍");
     expect(labelZh("nationality", "YEMENI")).toBe("也门籍");
@@ -172,13 +262,17 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("place_of_birth_country", "RUSSIA")).toBe("俄罗斯");
     expect(labelZh("place_of_birth_country", "UKRAINE")).toBe("乌克兰");
 
-    expect(labelZh("place_of_residence", "AFGHANISTAN, KABUL, KABUL")).toBe("阿富汗，喀布尔，喀布尔");
-    expect(labelZh("place_of_residence", "ALBANIA, TIRANA, TIRANA")).toBe("阿尔巴尼亚，地拉那，地拉那");
-    expect(labelZh("place_of_residence", "CAMBODIA, PHNOM PENH, PHNOM PENH")).toBe("柬埔寨，金边，金边");
-    expect(labelZh("place_of_residence", "CHINA, BEIJING, BEIJING")).toBe("中国，北京，北京");
-    expect(labelZh("place_of_residence", "CHINA, SHANGHAI, SHANGHAI")).toBe("中国，上海，上海");
-    expect(labelZh("place_of_residence", "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR")).toBe("马来西亚，吉隆坡，吉隆坡");
+    expect(labelZh("place_of_residence", "AFGHANISTAN, KABUL, KABUL")).toBe("阿富汗，喀布尔");
+    expect(labelZh("place_of_residence", "ALBANIA, TIRANA, TIRANA")).toBe("阿尔巴尼亚，地拉那");
+    expect(labelZh("place_of_residence", "CAMBODIA, PHNOM PENH, PHNOM PENH")).toBe("柬埔寨，金边");
+    expect(labelZh("place_of_residence", "CHINA, BEIJING, BEIJING")).toBe("中国，北京");
+    expect(labelZh("place_of_residence", "CHINA, SHANGHAI, SHANGHAI")).toBe("中国，上海");
+    expect(labelZh("place_of_residence", "MALAYSIA, KUALA LUMPUR, KUALA LUMPUR")).toBe("马来西亚，吉隆坡");
     expect(labelZh("place_of_residence", "RUSSIA, CENTRAL, MOSCOW")).toBe("俄罗斯，中部，莫斯科");
+    expect(labelZh("place_of_residence", "AUSTRALIA, AUSTRALIAN CAPITAL TERRITORY, OTHERS IN AUSTRALIAN CAPITAL TERRITORY")).toBe("澳大利亚，澳大利亚首都领地，其他地区");
+    expect(labelZh("place_of_residence", "CZECH REPUBLIC, USTI, DECIN")).toBe("捷克，乌斯季州，杰钦");
+    expect(labelZh("place_of_residence", "GERMANY, BAVARIA, MUNICH")).toBe("德国，巴伐利亚州，慕尼黑");
+    expect(labelZh("place_of_residence", "MYANMAR, MON, OTHERS IN MON")).toBe("缅甸，孟邦，其他地区");
     for (const value of [
       "AFGHANISTAN, KABUL, KABUL",
       "ALBANIA, TIRANA, TIRANA",
@@ -195,15 +289,19 @@ describe("Singapore SG Arrival Card schema seed", () => {
     expect(labelZh("purpose_of_travel", "To take up residence")).toBe("定居");
     expect(labelZh("place_of_residence", "UNITED STATES, ARKANSAS, HOT SPRING")).toBe("美国，阿肯色州，温泉城");
     expect(labelZh("place_of_residence", "INDIA, WEST BENGAL, KOLKATA")).toBe("印度，西孟加拉邦，加尔各答");
-    expect(labelZh("place_of_residence", "AFGHANISTAN, OTHERS IN AFGHANISTAN, OTHERS IN AFGHANISTAN")).toBe("阿富汗，阿富汗其他地区，阿富汗其他地区");
-    expect(labelZh("place_of_residence", "ANGUILLA, OTHERS IN ANGUILLA, OTHERS IN ANGUILLA")).toBe("安圭拉，安圭拉其他地区，安圭拉其他地区");
-    expect(labelZh("place_of_residence", "ANTIGUA, OTHERS IN ANTIGUA, OTHERS IN ANTIGUA")).toBe("安提瓜，安提瓜其他地区，安提瓜其他地区");
-    expect(labelZh("place_of_residence", "BARBADOS, OTHERS IN BARNADOS, OTHERS IN BARBADOS")).toBe("巴巴多斯，巴巴多斯其他地区，巴巴多斯其他地区");
+    expect(labelZh("place_of_residence", "AFGHANISTAN, OTHERS IN AFGHANISTAN, OTHERS IN AFGHANISTAN")).toBe("阿富汗，其他地区");
+    expect(labelZh("place_of_residence", "ANGUILLA, OTHERS IN ANGUILLA, OTHERS IN ANGUILLA")).toBe("安圭拉，其他地区");
+    expect(labelZh("place_of_residence", "ANTIGUA, OTHERS IN ANTIGUA, OTHERS IN ANTIGUA")).toBe("安提瓜，其他地区");
+    expect(labelZh("place_of_residence", "BARBADOS, OTHERS IN BARNADOS, OTHERS IN BARBADOS")).toBe("巴巴多斯，其他地区");
     expect(labelZh("last_city_or_port_before_singapore", "UNITED STATES, ARKANSAS, LITTLE ROCK")).toBe("美国，阿肯色州，小石城");
-    expect(labelZh("next_city_or_port_after_singapore", "UNITED STATES, ARKANSAS, OTHERS IN ARKANSAS")).toBe("美国，阿肯色州，阿肯色州其他地区");
+    expect(labelZh("next_city_or_port_after_singapore", "UNITED STATES, ARKANSAS, OTHERS IN ARKANSAS")).toBe("美国，阿肯色州，其他地区");
+    expect(labelZh("last_city_or_port_before_singapore", "GUERNSEY, SAINT PETER PORT, SAINT PETER PORT")).toBe("根西岛，圣彼得港");
     expect(labelZh("accommodation_name", "MARINA BAY SANDS SINGAPORE")).toBe("新加坡滨海湾金沙");
     expect(labelZh("accommodation_name", "IBIS SINGAPORE ON BENCOOLEN")).toBe("新加坡明古连路宜必思酒店");
     expect(labelZh("accommodation_name", "VIBE HOTEL SINGAPORE ORCHARD")).toBe("新加坡乌节路维贝酒店");
+    expect(labelZh("accommodation_name", "AMARA SINGAPORE")).toBe("新加坡阿马拉酒店");
+    expect(labelZh("accommodation_name", "VILLAGE HOTEL SENTOSA")).toBe("悦乐圣淘沙酒店");
+    expect(labelZh("accommodation_name", "SHANGRI-LA RASA SENTOSA, SINGAPORE")).toBe("新加坡圣淘沙香格里拉");
     expect(labelZh("cruise_name", "ADONIA")).toBe("阿多尼亚");
     expect(labelZh("cruise_name", "ADORA MEDITERRANEA")).toBe("阿多拉地中海");
     expect(labelZh("cruise_name", "QUANTUM OF THE SEAS")).toBe("海洋量子号");
@@ -222,9 +320,14 @@ describe("Singapore SG Arrival Card schema seed", () => {
       "carrier_code",
     ]) {
       for (const option of optionsByField.get(fieldName) ?? []) {
-        expect(option.label_zh.replace(/（[A-Z0-9]{2}）/g, ""), `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-z]/);
+        expect(option.label_zh.replace(/（[A-Z0-9]{2}）/g, ""), `${fieldName}: ${option.value}`).not.toMatch(/[A-Za-zＡ-Ｚａ-ｚ]/);
         expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/其他人|境内/);
         expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/^选项：/);
+        if (fieldName.includes("city_or_port") || fieldName === "place_of_residence") {
+          expect(option.label_zh, `${fieldName}: ${option.value}`).not.toMatch(/[阿比克德伊夫格赫杰勒姆恩欧普丘尔斯特优维威克斯泽]{8,}/);
+          const hierarchy = option.label_zh.split("，");
+          expect(new Set(hierarchy).size, `${fieldName}: ${option.value}`).toBe(hierarchy.length);
+        }
       }
     }
   });

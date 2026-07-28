@@ -1,3 +1,4 @@
+import { resolveMx } from "node:dns/promises";
 import { supabase } from "../supabase";
 
 /**
@@ -38,6 +39,10 @@ export interface WaitForMessageOpts {
   since?: string;
   /** Mark the matched row processed=true on resolution. Default true. */
   markProcessed?: boolean;
+  /** Include already-consumed mail when an external ingest worker owns marking. */
+  includeProcessed?: boolean;
+  /** Prefer the newest matching message. Default false preserves FIFO behavior. */
+  newestFirst?: boolean;
   /** Override clock — used in tests. */
   now?: () => number;
 }
@@ -60,6 +65,42 @@ export class InboxAliasMissingError extends Error {
   }
 }
 
+export class InboxDomainUnroutableError extends Error {
+  constructor(domain: string, reason?: string) {
+    super(
+      `Managed inbox domain ${domain} cannot receive email because it has no usable MX record${reason ? `: ${reason}` : "."}`,
+    );
+    this.name = "InboxDomainUnroutableError";
+  }
+}
+
+type MxResolver = (domain: string) => Promise<Array<{ exchange: string; priority: number }>>;
+
+export async function assertInboxAliasDomainRoutable(
+  alias: string,
+  resolver: MxResolver = resolveMx,
+): Promise<void> {
+  const domain = alias.trim().toLowerCase().split("@")[1];
+  if (!domain) {
+    throw new InboxDomainUnroutableError(alias, "the alias address is invalid");
+  }
+
+  try {
+    const records = await resolver(domain);
+    const hasUsableMx = records.some((record) => {
+      const exchange = record.exchange.trim();
+      return exchange.length > 0 && exchange !== ".";
+    });
+    if (!hasUsableMx) {
+      throw new InboxDomainUnroutableError(domain);
+    }
+  } catch (error) {
+    if (error instanceof InboxDomainUnroutableError) throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new InboxDomainUnroutableError(domain, reason);
+  }
+}
+
 async function loadAlias(applicantId: string): Promise<string> {
   const { data, error } = await supabase
     .from("applicant_profiles")
@@ -78,17 +119,20 @@ async function loadAlias(applicantId: string): Promise<string> {
 async function fetchUnprocessedSince(
   alias: string,
   since: string,
+  includeProcessed = false,
+  newestFirst = false,
 ): Promise<InboundMessage[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("inbound_email")
     .select(
       "id, to_addr, from_addr, subject, message_id, text, html, headers, raw_size, r2_key, spam_score, received_at, processed",
     )
     .eq("to_addr", alias)
     .gte("received_at", since)
-    .eq("processed", false)
-    .order("received_at", { ascending: true })
+    .order("received_at", { ascending: !newestFirst })
     .limit(20);
+  if (!includeProcessed) query = query.eq("processed", false);
+  const { data, error } = await query;
   if (error) {
     throw new Error(`waitForMessage poll failed: ${error.message}`);
   }
@@ -121,13 +165,19 @@ export async function waitForMessage(
   const now = opts.now ?? (() => Date.now());
   const since = opts.since ?? new Date(now() - 60_000).toISOString();
   const alias = await loadAlias(applicantId);
+  await assertInboxAliasDomainRoutable(alias);
 
   const deadline = now() + timeoutMs;
   while (now() < deadline) {
-    const rows = await fetchUnprocessedSince(alias, since);
+    const rows = await fetchUnprocessedSince(
+      alias,
+      since,
+      opts.includeProcessed,
+      opts.newestFirst,
+    );
     for (const row of rows) {
       if (predicate(row)) {
-        if (opts.markProcessed !== false) {
+        if (opts.markProcessed !== false && !row.processed) {
           await markProcessed(row.id);
         }
         return row;

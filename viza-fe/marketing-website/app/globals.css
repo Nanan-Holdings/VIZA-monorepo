@@ -232,3 +232,21 @@
     box-shadow: 0 0 0 2px rgba(3, 52, 110, 0.40);
   }
 }
+
+/* =============================================================
+   Mobile responsive overrides (target 375px; breakpoints 720/1100)
+   Appended last so cascade order wins at equal specificity.
+   ============================================================= */
+
+/* Guard against decorative absolutely-positioned circles (status/careers/
+   refunds heroes) creating horizontal scroll. `clip` (not `hidden`) so
+   position: sticky descendants keep working. */
+html, body {
+  overflow-x: clip;
+}
+
+@media (max-width: 720px) {
+  .container-page {
+    padding-inline: 20px;
+  }
+}

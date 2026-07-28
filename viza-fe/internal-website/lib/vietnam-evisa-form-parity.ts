@@ -85,7 +85,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
       repeatable: true,
       repeat_group: "other_passports_used_for_vietnam",
       max_items: 5,
-      maxLength: 64,
+      maxLength: 9,
     },
     conditionalLogic: { showIf: "has_other_passports_used_for_vietnam === yes" },
   },
@@ -225,6 +225,106 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
     placeholder: "Enter specify others type",
     validationRules: { label_zh: "如选择“其他”，请说明", maxLength: 120 },
     conditionalLogic: { showIf: "passport_type in [other, others]" },
+  },
+  {
+    fieldName: "has_relatives_in_vietnam",
+    label: "Do you have relatives currently residing in Viet Nam?",
+    fieldType: "radio",
+    required: true,
+    stepNumber: 6,
+    stepName: "Trip Information",
+    displayOrder: 13,
+    options: YES_NO_OPTIONS,
+    validationRules: { label_zh: "是否有亲属目前居住在越南？" },
+  },
+  {
+    fieldName: "relative_full_name_in_vn",
+    label: "Relative's full name",
+    fieldType: "text",
+    required: true,
+    stepNumber: 6,
+    stepName: "Trip Information",
+    displayOrder: 13.1,
+    placeholder: "Enter relative's full name",
+    validationRules: {
+      label_zh: "在越亲属姓名",
+      repeatable: true,
+      repeat_group: "vietnam_relatives",
+      max_items: 5,
+      maxLength: 100,
+    },
+    conditionalLogic: { showIf: "has_relatives_in_vietnam === yes" },
+  },
+  {
+    fieldName: "relative_date_of_birth",
+    label: "Relative's date of birth",
+    fieldType: "date",
+    required: true,
+    stepNumber: 6,
+    stepName: "Trip Information",
+    displayOrder: 13.2,
+    placeholder: "DD/MM/YYYY",
+    validationRules: {
+      label_zh: "在越亲属出生日期",
+      repeatable: true,
+      repeat_group: "vietnam_relatives",
+      max_items: 5,
+    },
+    conditionalLogic: { showIf: "has_relatives_in_vietnam === yes" },
+  },
+  {
+    fieldName: "relative_nationality",
+    label: "Relative's nationality",
+    fieldType: "country",
+    required: true,
+    stepNumber: 6,
+    stepName: "Trip Information",
+    displayOrder: 13.3,
+    placeholder: "Choose nationality",
+    validationRules: {
+      label_zh: "在越亲属国籍",
+      repeatable: true,
+      repeat_group: "vietnam_relatives",
+      max_items: 5,
+      source: "ISO3166-1",
+    },
+    conditionalLogic: { showIf: "has_relatives_in_vietnam === yes" },
+  },
+  {
+    fieldName: "relative_relationship",
+    label: "Relationship to the relative in Viet Nam",
+    fieldType: "text",
+    required: true,
+    stepNumber: 6,
+    stepName: "Trip Information",
+    displayOrder: 13.4,
+    placeholder: "e.g., Brother, Uncle, Cousin",
+    validationRules: {
+      label_zh: "与在越亲属的关系",
+      repeatable: true,
+      repeat_group: "vietnam_relatives",
+      max_items: 5,
+      maxLength: 40,
+    },
+    conditionalLogic: { showIf: "has_relatives_in_vietnam === yes" },
+  },
+  {
+    fieldName: "relative_address_in_vn",
+    label: "Relative's address in Vietnam",
+    fieldType: "text",
+    required: true,
+    stepNumber: 6,
+    stepName: "Trip Information",
+    displayOrder: 13.5,
+    placeholder: "Enter relative's address in Vietnam",
+    validationRules: {
+      label_zh: "在越亲属地址",
+      repeatable: true,
+      repeat_group: "vietnam_relatives",
+      max_items: 5,
+      maxLength: 200,
+    },
+    conditionalLogic: { showIf: "has_relatives_in_vietnam === yes" },
   },
   {
     fieldName: "has_contact_in_vietnam",
@@ -407,7 +507,7 @@ const OFFICIAL_PARITY_FIELDS: FieldPatch[] = [
       { value: "credit_card", text: "Credit card", label_zh: "信用卡", label_en: "Credit card" },
       { value: "travellers_cheques", text: "Traveller's cheques", label_zh: "旅行支票", label_en: "Traveller's cheques" },
     ],
-    validationRules: { label_zh: "付款方式" },
+    validationRules: { label_zh: "付款方式", live_dom_id: "basic_kpbhHinhThuc" },
     conditionalLogic: { showIf: "expense_coverage in [personal, company]" },
   },
   {
@@ -503,6 +603,58 @@ const PARITY_PATCH_BY_FIELD_NAME = new Map(
   [...OFFICIAL_PARITY_FIELDS, ...LEGACY_PARITY_PATCHES].map((patch) => [patch.fieldName, patch]),
 );
 
+const OFFICIAL_RELATIVE_FIELD_NAMES = [
+  "has_relatives_in_vietnam",
+  "relative_full_name_in_vn",
+  "relative_date_of_birth",
+  "relative_nationality",
+  "relative_relationship",
+  "relative_address_in_vn",
+] as const;
+
+function canonicalVietnamRelativeField(fieldName: string, existing?: VisaFormFieldRow): VisaFormFieldRow {
+  const patch = OFFICIAL_PARITY_FIELDS.find((item) => item.fieldName === fieldName);
+  if (!patch) {
+    if (existing) return existing;
+    throw new Error(`Missing Vietnam relatives parity patch for ${fieldName}`);
+  }
+  return existing ? applyFieldPatch(existing, patch) : createField(patch);
+}
+
+function normalizeVietnamRelativesGroup(stepMap: Map<number, WizardStep>): void {
+  const existingByName = new Map<string, VisaFormFieldRow>();
+
+  for (const step of stepMap.values()) {
+    const keptFields: VisaFormFieldRow[] = [];
+    for (const field of step.fields) {
+      if (OFFICIAL_RELATIVE_FIELD_NAMES.includes(field.fieldName as typeof OFFICIAL_RELATIVE_FIELD_NAMES[number])) {
+        existingByName.set(field.fieldName, field);
+        continue;
+      }
+      keptFields.push(field);
+    }
+    step.fields = keptFields;
+  }
+
+  const trigger = canonicalVietnamRelativeField(
+    "has_relatives_in_vietnam",
+    existingByName.get("has_relatives_in_vietnam"),
+  );
+  const targetStepNumber = trigger.stepNumber || 6;
+  const targetStep = stepMap.get(targetStepNumber) ?? {
+    stepNumber: targetStepNumber,
+    stepName: trigger.stepName ?? "Trip Information",
+    fields: [],
+  };
+
+  targetStep.fields.push(
+    ...OFFICIAL_RELATIVE_FIELD_NAMES.map((fieldName) =>
+      canonicalVietnamRelativeField(fieldName, existingByName.get(fieldName)),
+    ),
+  );
+  stepMap.set(targetStepNumber, targetStep);
+}
+
 export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): WizardStep[] {
   const stepMap = new Map<number, WizardStep>();
   const fieldNames = new Set<string>();
@@ -522,7 +674,12 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
           return mergeRules(patchedField, { min_date: "today" });
         }
         if (patchedField.fieldName === "visa_valid_to") {
-          return mergeRules(patchedField, { not_before_field: "visa_valid_from" });
+          return mergeRules(patchedField, {
+            min_days_after_field: "visa_valid_from",
+            min_days_after_field_days: 1,
+            helper_zh: "结束日期必须至少晚于开始日期 1 天。",
+            helper_en: "The end date must be at least 1 day after the start date.",
+          });
         }
         if (patchedField.fieldName === "passport_expiry_date") {
           return mergeRules(patchedField, {
@@ -613,6 +770,8 @@ export function augmentVietnamEVisaOfficialParitySteps(steps: WizardStep[]): Wiz
       });
     }
   }
+
+  normalizeVietnamRelativesGroup(stepMap);
 
   return Array.from(stepMap.values())
     .map((step) => ({

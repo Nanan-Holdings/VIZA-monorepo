@@ -1,34 +1,42 @@
 import type { VisaContent } from "./types";
 
 /**
- * Italy Schengen Visa (Type C).
+ * Italy Short-Stay Schengen Visa, Type C ("Visto per turismo").
  *
- * Content reflects the short-stay Schengen visa process for Italy: application
- * via the Italian consulate or VFS Global, biometrics in person, decision by the
- * consulate. Visa is valid across the Schengen Area (90 days per any 180-day
- * period).
+ * Last fact-checked: 2026-07-05 against vistoperitalia.esteri.it,
+ * ambsingapore.esteri.it, ambpechino.esteri.it, visa.vfsglobal.com,
+ * home-affairs.ec.europa.eu, travel-europe.europa.eu, and mfa.gov.sg.
+ * — Fee EUR 90 / EUR 45 (children 6–11) / free under 6, in force since 11 Jun 2024.
+ * — Processing: 15 calendar days standard (EU Visa Code), extendable to 45.
+ * — EES fully operational at all external borders since 10 Apr 2026 (biometrics
+ *   replace passport stamps, automatic overstay detection). No arrival card.
+ * — ETIAS (EUR 20) confirmed for Q4 2026 — affects visa-exempt travellers
+ *   (e.g. Singaporeans), NOT visa-required PRC nationals.
  *
- * Date-checked: 2026-06-10 against ec.europa.eu and esteri.it.
- * — Schengen member count updated to 29 (Bulgaria & Romania joined land borders 1 Jan 2025).
- * — Extension / force majeure wording verified against EU Visa Code Regulation 810/2009.
- * — NOTE: vistoperitalia.esteri.it returned 404 at time of check; esteri.it/en is the
- *   active Italian MFA portal. Ops should confirm the vistoperitalia URL resolves before publish.
- *
- * IMPORTANT: Fees, processing times, and document requirements change periodically.
- * Ops/legal must verify all specifics against vistoperitalia.esteri.it and
- * esteri.it before publishing.
+ * Items needing ops confirmation:
+ * — BLS International Singapore's exact service fee (not published on an official page).
+ * — Overstay fine EUR 5,000–10,000 (Art. 10-bis D.Lgs 286/1998) verified via
+ *   legal-sector secondary sources, not a live government page.
+ * — Ministry of Interior means-of-subsistence amounts date from the 1 Mar 2000
+ *   directive (e.g. EUR 269.60 fixed for 1–5 day stays) — not re-verified this session.
+ * — 35×45 mm photo size is the standard Schengen/ICAO spec; consulate pages only
+ *   say "passport-size, white background".
+ * — SGD conversions use ≈1.50 SGD/EUR and fluctuate.
+ * — Exact ETIAS go-live date within Q4 2026 not yet announced by the EU.
+ * — vistoperitalia.esteri.it 404s to automated fetches (likely bot-blocking);
+ *   confirm the URL resolves in a browser before publish.
  */
 export const italy: VisaContent = {
   slug: "italy",
 
   heroTitle: "Italy Schengen Visa",
-  lede: "A short-stay Type C Schengen visa, valid for up to 90 days within any 180-day period and recognised across all 29 Schengen member states.",
+  lede: "A short-stay Type C Schengen visa (\"Visto per turismo\") for up to 90 days in any 180-day period, recognised across all 29 Schengen states. Standard processing is 15 calendar days — your VIZA consultant prepares, lodges, and tracks the dossier end-to-end.",
   heroImage: "/assets/heroes/italy.jpg",
   meta: [
     { k: "Type", v: "Schengen (Type C)" },
-    { k: "Length of stay", v: "Up to 90 days" },
-    { k: "Validity", v: "90 days / 180-day period" },
-    { k: "Entry", v: "Single or multiple" },
+    { k: "Length of stay", v: "90 days / 180-day period" },
+    { k: "Validity", v: "Up to 180 days · multi up to 5 yrs" },
+    { k: "Entry", v: "Single · double · multiple" },
   ],
   tags: [
     { icon: "shield", label: "On-time guarantee" },
@@ -42,25 +50,25 @@ export const italy: VisaContent = {
   glance: [
     { icon: "globe", k: "Capital", v: "Rome", sub: "UTC +1 (CET) / +2 (CEST)" },
     { icon: "clock", k: "Best time to visit", v: "Apr – Jun, Sep – Oct", sub: "Pleasant weather, manageable crowds" },
-    { icon: "currency", k: "Currency", v: "Euro (EUR)", sub: "Widely accepted across Italy and the EU" },
+    { icon: "currency", k: "Currency", v: "Euro (EUR)", sub: "SGD 1 ≈ EUR 0.67" },
     { icon: "pin", k: "Top destinations", v: "Rome · Florence · Venice", sub: "Plus Milan, the Amalfi Coast, Cinque Terre" },
   ],
 
   processTitle: "How the Schengen visa process works",
   processSub:
-    "Submit once. We prepare and review your complete dossier, help you book the consulate appointment, and track every step until your visa is in hand.",
+    "Submit once. We build your dossier against the official vistoperitalia.esteri.it checklist, book your visa-centre appointment, and track every step until the sticker is in your passport.",
   steps: [
     {
       title: "Apply on VIZA",
-      body: "Upload your passport, photo, travel itinerary, and supporting documents. Your consultant checks everything against the Italian consulate's checklist before it leaves your hands.",
+      body: "Upload your passport, photo, itinerary, and supporting documents. Your consultant generates the exact per-consulate checklist from the official vistoperitalia.esteri.it tool and checks every item before anything is lodged.",
     },
     {
-      title: "Your documents are verified",
-      body: "Your VIZA consultant cross-checks every field for the Italian consulate's requirements, prepares the application form, and confirms your appointment slot at the consulate or VFS Global centre.",
+      title: "Your dossier is verified & your appointment booked",
+      body: "Your VIZA consultant prepares the Schengen application form and books your slot at the outsourced visa centre for your place of residence — BLS International in Singapore, or a VFS Global Italy centre in mainland China.",
     },
     {
       title: "Biometrics & consulate review",
-      body: "You attend the appointment in person to submit biometrics. We track the consulate's decision queue and alert you to any requests for additional information.",
+      body: "You attend in person to give fingerprints (waived if captured within the previous 59 months). The consulate's standard decision window is 15 calendar days, extendable to 45 when further scrutiny is needed — we track the queue and flag any document requests.",
       statusRows: [
         { label: "Biometrics appointment confirmed", ts: "15 Jun, 9:30 AM", onTime: true },
         { label: "Application lodged with consulate", ts: "15 Jun, 12:00 PM", onTime: true },
@@ -69,19 +77,24 @@ export const italy: VisaContent = {
     },
     {
       title: "Collect your visa on 29 Jun",
-      body: "The visa sticker is affixed to your passport. Your VIZA consultant notifies you the moment it is ready for collection or courier delivery.",
+      body: "The visa sticker is affixed to your passport, endorsed with your entries and validity. Your VIZA consultant notifies you the moment it is ready for collection or courier delivery.",
       delivered: true,
     },
   ],
 
   docsTitle: "Required documents",
   docsSub:
-    "The Italian consulate follows the Schengen visa checklist published on vistoperitalia.esteri.it. Your VIZA consultant verifies every item — re-uploads are unlimited and free.",
+    "The Italian consulate follows the Schengen checklist generated by vistoperitalia.esteri.it for your nationality and residence. Your VIZA consultant verifies every item — re-uploads are unlimited and free.",
   documents: [
-    { name: "Passport bio page", sub: "Valid for 3+ months beyond intended stay · issued within 10 years" },
-    { name: "Biometric photograph", sub: "35 × 45 mm · plain light background · last 6 months" },
-    { name: "Travel itinerary & return ticket", sub: "Outbound and return flights within the stay window" },
-    { name: "Accommodation proof & travel insurance", sub: "Hotel bookings · insurance covering €30,000 across Schengen" },
+    { name: "Schengen visa application form", sub: "Completed and signed · per-consulate checklist from vistoperitalia.esteri.it" },
+    { name: "Passport + copy", sub: "Valid 3+ months beyond Schengen departure · issued within 10 years · 2 blank pages" },
+    { name: "Passport photo", sub: "1 recent ICAO photo · 35 × 45 mm · white background" },
+    { name: "Proof of residence in consular jurisdiction", sub: "Singapore NRIC / residence pass (BLS Singapore) · PRC hukou or residence (VFS China)" },
+    { name: "Travel medical insurance", sub: "Minimum €30,000 cover · valid across the whole Schengen Area for the full stay" },
+    { name: "Round-trip flight reservation", sub: "Confirmed itinerary · inter-country transport proof if visiting several Schengen states" },
+    { name: "Proof of accommodation", sub: "Hotel bookings for every night, or a host's declaration of hospitality" },
+    { name: "Proof of financial means", sub: "Bank statements for the last 3 months · per Italy's Ministry of Interior subsistence table" },
+    { name: "Proof of employment / economic ties", sub: "Employer letter with position, tenure & salary · business licence · school letter" },
   ],
 
   rejectionTitle: "Why Schengen applications get rejected",
@@ -89,33 +102,48 @@ export const italy: VisaContent = {
     "The Italian consulate screens for these issues. VIZA flags them before you submit.",
   rejectionReasons: [
     {
-      title: "Insufficient travel insurance",
-      body: "Insurance that does not meet the mandatory €30,000 minimum cover across the full Schengen Area and the entire duration of the stay.",
+      title: "Purpose and conditions of stay not justified",
+      body: "A weak or inconsistent itinerary, unverifiable hotel bookings, or documents that do not match the stated tourism purpose.",
     },
     {
-      title: "Inadequate financial means",
-      body: "Inability to demonstrate sufficient funds to cover accommodation, living expenses, and the return journey for the duration of the intended stay.",
+      title: "Insufficient means of subsistence",
+      body: "Bank statements below the Ministry of Interior subsistence thresholds, or funds that cannot be shown to cover the stay and the return journey.",
     },
     {
-      title: "Unclear purpose of visit",
-      body: "An itinerary that does not clearly establish the purpose of the trip, or documents that are inconsistent with the stated reason for travel.",
+      title: "Doubt about intention to leave the Schengen area",
+      body: "Weak home-country or residence ties — employment, family, assets. The most common refusal ground for first-time PRC applicants.",
+    },
+    {
+      title: "Invalid or insufficient travel medical insurance",
+      body: "Coverage under €30,000, wrong dates, or a policy not valid across the whole Schengen Area.",
+    },
+    {
+      title: "False or unreliable supporting documents",
+      body: "Fabricated bookings or employment letters lead to refusal and can trigger an alert in the Schengen Information System.",
+    },
+    {
+      title: "Existing SIS alert or prior overstay",
+      body: "An entry-refusal alert in the Schengen Information System, or overstay history — now automatically visible through the EES.",
     },
   ],
 
   entryTitle: "Entry & exit regulations",
   entrySub:
-    "Carry your passport (with visa sticker), travel insurance certificate, return ticket, and accommodation proof at all Schengen borders. The 90/180 rule applies across all Schengen countries combined.",
+    "Italy has no digital arrival card. Since 10 April 2026 the EU Entry/Exit System (EES) registers your fingerprints and facial image at the border instead of passport stamps — expect biometric enrolment on first entry. Border police may ask for your return ticket, accommodation proof, and means of subsistence.",
   entryExit: [
-    { icon: "refresh", k: "Entry", v: "Single or multiple", sub: "As granted by the consulate" },
-    { icon: "clock", k: "90 / 180 rule", v: "Max 90 days", sub: "Per any rolling 180-day window across Schengen" },
+    { icon: "refresh", k: "Entries", v: "Single · double · multiple", sub: "As endorsed on the visa sticker" },
+    { icon: "clock", k: "90 / 180 rule", v: "Max 90 days", sub: "Per any rolling 180-day window, cumulative across Schengen" },
+    { icon: "photo", k: "EES biometrics", v: "At the border", sub: "Fingerprints + facial image replace stamps · no arrival card" },
+    { icon: "currency", k: "Subsistence checks", v: "Funds on request", sub: "≈ €269.60 fixed for 1 – 5 day stays per Ministry of Interior directive" },
   ],
 
   extensionTitle: "Visa extension & overstays",
   extensionSub:
-    "Schengen short-stay visas are generally not extendable except in exceptional circumstances. Overstaying carries serious consequences for future Schengen travel.",
+    "Extensions are exceptional only — granted at the local Questura (provincial police HQ) under Art. 33 of the EU Visa Code: free for force majeure or humanitarian reasons, €30 for serious personal reasons. Total stay can never exceed 90 days in 180, and routine tourism extensions are not granted.",
   extension: [
-    { icon: "extend", k: "Extension", v: "Exceptional only", sub: "Force majeure or humanitarian grounds" },
-    { icon: "alert", k: "Overstay consequences", v: "Entry ban", sub: "Up to 5-year Schengen-wide ban + future refusals" },
+    { icon: "extend", k: "Extension", v: "Exceptional only", sub: "At the Questura · free (force majeure) or €30 (serious personal reasons)" },
+    { icon: "alert", k: "Overstay fine", v: "EUR 5,000 – 10,000", sub: "≈ SGD 7,500 – 15,000 · plus an expulsion order if caught in-country" },
+    { icon: "ban", k: "Entry ban", v: "Up to 5 years", sub: "Schengen-wide · EES detects overstays automatically since Apr 2026" },
   ],
 
   reviews: {
@@ -149,43 +177,63 @@ export const italy: VisaContent = {
   faq: [
     {
       category: "General information",
+      q: "Do Singapore passport holders need a visa for Italy?",
+      a: "No. Singapore passport holders are visa-exempt for Italy and the whole Schengen Area — up to 90 days in any 180-day period for tourism, with no fee. You now register in the EES at the border (biometrics replace stamps). From the ETIAS launch, expected in the last quarter of 2026, Singaporeans will need a €20 ETIAS travel authorisation valid 3 years — applications are not yet open as of July 2026, and VIZA will handle it for you the moment they are.",
+    },
+    {
+      category: "General information",
+      q: "Do Chinese (PRC) passport holders need a visa for Italy?",
+      a: "Yes — a Schengen Type C visa. In mainland China, applications go through VFS Global Italy centres (Beijing, Shanghai, Guangzhou, Chongqing and others) on behalf of the Italian Embassy and consulates. PRC nationals legally resident in Singapore apply instead through BLS International Singapore under the Italian Embassy Singapore. Italy was the top Schengen destination for Chinese applicants in 2024 with a high approval rate — VIZA prepares and tracks the whole dossier either way.",
+    },
+    {
+      category: "General information",
       q: "Can I travel to other Schengen countries on an Italian visa?",
-      a: "Yes. A short-stay Schengen Type C visa issued by Italy is valid for travel across all 29 Schengen Area member states for the duration and entries granted. Italy must be your main destination or first port of entry when you apply.",
+      a: "Yes. A short-stay Schengen Type C visa issued by Italy is valid for travel across all 29 Schengen states for the duration and entries granted. Italy must be your main destination or first port of entry when you apply.",
     },
     {
       category: "General information",
       q: "What is the 90/180-day rule?",
-      a: "You may spend a maximum of 90 days in any rolling 180-day window across the entire Schengen Area. Days spent in any Schengen country — not just Italy — count toward this total.",
+      a: "You may spend a maximum of 90 days in any rolling 180-day window across the entire Schengen Area. Days spent in any Schengen country — not just Italy — count toward this total, and since April 2026 the EES tracks it automatically.",
     },
     {
       category: "Application process",
-      q: "How early should I apply?",
-      a: "The Italian consulate recommends applying at least 15 days before travel, and no earlier than 6 months in advance. We recommend applying 4 – 6 weeks ahead to allow for appointment availability and typical processing time.",
+      q: "How much does the visa cost?",
+      a: "The government fee is €90 per adult (≈ SGD 135), €45 for children aged 6 – 11 (≈ SGD 68), and free for children under 6 — non-refundable, paid in local currency. The outsourced visa centre charges its own service fee on top (e.g. RMB 78 at VFS Global China; BLS Singapore sets its own fee).",
+    },
+    {
+      category: "Application process",
+      q: "How long does processing take?",
+      a: "The EU Visa Code standard is 15 calendar days from lodgement, extendable to 45 days when further scrutiny is needed — peak seasons from China can run 30 – 45 days. Lodge at least 15 working days before departure and no more than 6 months in advance; we recommend 4 – 6 weeks ahead to cover appointment availability.",
     },
     {
       category: "Application process",
       q: "Do I have to attend the appointment in person?",
-      a: "Yes. Biometric data (fingerprints and photograph) must be submitted in person at the Italian consulate or an authorised VFS Global application centre. This requirement cannot be waived.",
+      a: "Yes. Fingerprints are captured at lodgement at BLS International Singapore or a VFS Global Italy centre in China — unless your biometrics were taken for a Schengen visa within the previous 59 months. There is no eVisa for Italy.",
     },
     {
       category: "Refunds, rejections & reapplications",
       q: "What happens if my visa application is refused?",
-      a: "The consulate will issue a refusal notice with the stated reason. The government fee is non-refundable. VIZA's processing fee is fully refunded, and your consultant will review the refusal grounds and advise on reapplying or submitting an appeal.",
+      a: "The consulate issues a refusal notice with the stated ground. The €90 government fee is non-refundable. VIZA's processing fee is fully refunded, and your consultant will review the refusal grounds and advise on reapplying or submitting an appeal.",
     },
   ],
 
   sources: [
-    { label: "Italian Ministry of Foreign Affairs — Visto per Italia", url: "https://vistoperitalia.esteri.it/", display: "vistoperitalia.esteri.it" },
-    { label: "Italian Ministry of Foreign Affairs — main portal", url: "https://www.esteri.it/en/", display: "esteri.it" },
+    { label: "Il Visto per l'Italia — official MAECI visa portal", url: "https://vistoperitalia.esteri.it", display: "vistoperitalia.esteri.it" },
+    { label: "Italian Embassy Singapore — Visas (BLS lodgement)", url: "https://ambsingapore.esteri.it/en/servizi-consolari-e-visti/servizi-per-il-cittadino-straniero/visti/", display: "ambsingapore.esteri.it" },
+    { label: "Italian Embassy Beijing — Visas", url: "https://ambpechino.esteri.it/en/servizi-consolari-e-visti/servizi-per-il-cittadino-straniero/visti/", display: "ambpechino.esteri.it" },
+    { label: "VFS Global China — Italy visa fee information", url: "https://visa.vfsglobal.com/chn/en/ita/visa-fee-information", display: "visa.vfsglobal.com" },
+    { label: "European Commission — EES fully operational 10 April 2026", url: "https://home-affairs.ec.europa.eu/news/entryexit-system-will-become-fully-operational-10-april-2026-2026-03-30_en", display: "home-affairs.ec.europa.eu" },
+    { label: "EU official — revised timeline for EES and ETIAS", url: "https://travel-europe.europa.eu/en/etias/about-etias/news-corner/revised-timeline-ees-and-etias", display: "travel-europe.europa.eu" },
+    { label: "Singapore MFA — Italy travel and visa information", url: "https://www.mfa.gov.sg/travelling-overseas/travel-advisories-notices-and-visa-information/italy/", display: "mfa.gov.sg" },
   ],
 
   price: {
     etaLabel: "Apply now, target collection by",
     etaValue: "29 Jun 2026, 03:00 PM",
-    title: "Schengen Visa · up to 90 days",
+    title: "Schengen Visa (Type C) · up to 90 days",
     saving: "Full dossier review included",
     sub: "All-inclusive of document review, form preparation, and on-time guarantee.",
-    foot: "Government visa fee is collected at checkout and paid directly to the consulate; VIZA's service fee covers preparation, review, and appointment support.",
+    foot: "Government visa fee (€90 adult) is collected at checkout and paid to the consulate; VIZA's service fee covers preparation, review, and appointment support.",
   },
 
   aiPlaceholder: "Ask anything about Italy Schengen visas — documents, biometrics, the 90/180 rule…",

@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:flex;flex-direction:column;gap:22px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:8px}
+  .row{display:flex;align-items:center;gap:16px}
+  .a{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#EEF3FA;color:#03346E;font:600 14px var(--font-sans);flex-shrink:0;position:relative}
+  .a.sm{width:28px;height:28px;font-size:11px}
+  .a.md{width:40px;height:40px;font-size:14px}
+  .a.lg{width:56px;height:56px;font-size:18px}
+  .a.xl{width:80px;height:80px;font-size:26px}
+  .a.brand{background:#03346E;color:#fff}
+  .a.dim{background:#dcdcdc;color:#989898}
+  .a .dot{position:absolute;right:0;bottom:0;width:10px;height:10px;border-radius:50%;background:#16a34a;border:2px solid #fff}
+  .group .a{border:2px solid #fff}
+  .group .a:not(:first-child){margin-left:-10px}
+  .more{width:28px;height:28px;border-radius:50%;background:#f3f4f6;color:rgba(0,0,0,.55);display:inline-flex;align-items:center;justify-content:center;font:500 11px var(--font-sans);border:2px solid #fff;margin-left:-10px}
+  .consultant{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border:1px solid #efefef;border-radius:999px}
+  .consultant .name{font:500 14px var(--font-sans);color:#3d3d3d}
+  .consultant .role{font:400 12px var(--font-sans);color:rgba(0,0,0,.5)}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Sizes · sm 28 · md 40 · lg 56 · xl 80</div>
+    <div class="row">
+      <span class="a sm">陈</span>
+      <span class="a md">陈</span>
+      <span class="a lg">陈</span>
+      <span class="a xl">陈</span>
+    </div>
+  </div>
+  <div>
+    <div class="label">Variants · initials · brand · disabled · with status</div>
+    <div class="row">
+      <span class="a md">JW</span>
+      <span class="a md brand">MW</span>
+      <span class="a md dim">—</span>
+      <span class="a md">陈<span class="dot"></span></span>
+    </div>
+  </div>
+  <div>
+    <div class="label">Avatar group · stacked</div>
+    <div class="row group">
+      <span class="a sm brand">AI</span>
+      <span class="a sm">陈</span>
+      <span class="a sm">MW</span>
+      <span class="a sm">李</span>
+      <span class="more">+4</span>
+    </div>
+  </div>
+  <div>
+    <div class="label">Consultant chip (used in companion chat)</div>
+    <div class="row">
+      <div class="consultant"><span class="a sm brand">SL</span><div><div class="name">Sarah Lim</div><div class="role">Senior consultant · online</div></div></div>
+    </div>
+  </div>
+</div></body></html>

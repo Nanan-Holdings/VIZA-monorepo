@@ -24,7 +24,8 @@ export interface FieldRequirement {
   required: boolean;
   condition?: {
     key: string;
-    equals: string;
+    equals?: string | boolean;
+    notEquals?: string | boolean;
   };
 }
 
@@ -76,7 +77,7 @@ export interface CountrySubmissionApplication {
   visaType: string;
   profile: CountrySubmissionProfile;
   trip: CountrySubmissionTrip;
-  answers?: Record<string, string>;
+  answers?: Record<string, string | boolean | number | null | undefined>;
   metadata?: Record<string, unknown>;
 }
 

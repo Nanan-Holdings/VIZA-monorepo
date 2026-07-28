@@ -28,7 +28,7 @@ import type { WizardConfig, WizardReviewSection, WizardReviewRow, WizardStep } f
  *    unconditionally appended after every country's steps in
  *    wizard-shell.tsx), which reads its required-document list from the
  *    `document_requirements` table. Taiwan's rows for all 7 of these were
- *    added in drizzle/0105_tw_entry_permit_document_requirements.sql — once
+ *    added in drizzle/0122_tw_entry_permit_document_requirements.sql — once
  *    that migration has run, the Documents step shows them automatically
  *    with no wizard-config changes needed. The 3 conditional ones (HK/Macau
  *    ID, other-nationality passport, mainland ID card) are stored as

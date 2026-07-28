@@ -27,7 +27,10 @@ import {
   type TravelInfoData,
   type DocumentType,
 } from "@/components/application-steps";
-import { DynamicStepForm } from "@/components/dynamic-step-form";
+import {
+  DynamicStepForm,
+  ensureVnPrearrivalOtherFlightFlow,
+} from "@/components/dynamic-step-form";
 import { SmoothProgressBar } from "@/components/smooth-progress";
 import { PassportOcrUpload } from "@/components/client/passport-ocr-upload";
 import {
@@ -37,12 +40,17 @@ import {
   loadDynamicAnswers,
 } from "@/app/actions/visa-application-answers";
 import { persistDS160AnswerSet } from "@/app/actions/ds160-normalize";
-import { getFormVisaType, getVisaPackageTitle } from "@/lib/visa-destinations";
+import {
+  getCanonicalVisaDestinationCountry,
+  getFormVisaType,
+  getVisaPackageTitle,
+} from "@/lib/visa-destinations";
 import type {
   SubmissionResult,
   SubmissionResultStatus,
 } from "@/lib/submission-result";
 import {
+  buildMalaysiaMdacUniversalProfileAnswerPatch,
   buildUniversalProfileAnswerPatch,
   mergeUniversalProfileIntoAnswers,
   splitUniversalFullName,
@@ -63,6 +71,11 @@ import {
   type MissingApplicationField,
 } from "@/lib/application-tab-completion";
 import { shouldShowSubmissionStatusStep } from "@/lib/application-submission-display";
+import { isIgnorableRuntimeAbortError } from "@/lib/runtime-abort-errors";
+import {
+  attemptStaleServerActionReload,
+  isStaleServerActionError,
+} from "@/lib/server-action-recovery";
 import {
   buildApplicationStepSections,
   getDynamicStepTranslationCandidates,
@@ -72,6 +85,7 @@ import {
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
+  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isPhilippinesEtravelApplication,
@@ -79,6 +93,7 @@ import {
   isThailandTdacApplication,
   isUkStandardVisitorApplication,
   isVietnamEVisaApplication,
+  isVietnamPrearrivalApplication,
   queueProviderForApplication,
   queueStatusForApplication,
   submissionQueueRequiresServerEnqueue,
@@ -112,6 +127,11 @@ const VN_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED === "true" &&
   process.env.NEXT_PUBLIC_VN_SUBMISSION_MODE === "live_assisted";
 
+// Vietnam Pre-Arrival is a free declaration with its own runner, so it must
+// not inherit the e-Visa payment-gated live configuration.
+const VN_PREARRIVAL_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false";
+
 const SGAC_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_SGAC_LIVE_SUBMISSION_ENABLED !== "false";
 
@@ -127,7 +147,21 @@ const PH_ETRAVEL_LIVE_ASSISTED_ENABLED =
 const UK_LIVE_ASSISTED_ENABLED =
   process.env.NEXT_PUBLIC_UK_LIVE_SUBMISSION_ENABLED !== "false";
 
-type LiveAssistedTarget = "ds160" | "france" | "vietnam" | "sgac" | "mdac" | "tdac" | "phetravel" | "uk" | null;
+const INDONESIA_LIVE_ASSISTED_ENABLED =
+  process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
+
+type LiveAssistedTarget =
+  | "ds160"
+  | "france"
+  | "vietnam"
+  | "vn_prearrival"
+  | "sgac"
+  | "mdac"
+  | "tdac"
+  | "phetravel"
+  | "uk"
+  | "indonesia"
+  | null;
 
 interface VietnamOneTimePaymentCard {
   pan: string;
@@ -154,12 +188,64 @@ const SGAC_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
 const ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
   ...SGAC_DYNAMIC_STEP_NAME_ZH,
   "Trip Information": "行程信息",
+  "Arrival and Departure Information": "抵达和离境信息",
+  "Accommodation Information": "住宿信息",
   "Stay in Malaysia": "在马来西亚停留",
   "Stay in Thailand": "在泰国停留",
   "Health Declaration": "健康申报",
   "eTravel Scope": "eTravel 范围",
   "Customs Declaration": "海关申报",
   "Declaration": "声明确认",
+};
+
+const PH_ETRAVEL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Travel Registration": "行程登记",
+  "Traveller Information": "旅客信息",
+  "Travel Details - Philippine Arrival": "菲律宾入境行程",
+  "Philippine Departure Details": "菲律宾出境行程",
+  "Philippine Traveller Declarations": "菲律宾旅客申报",
+  "Customs and Currency Declaration": "海关与货币申报",
+  "Destination in the Philippines": "在菲律宾的目的地",
+  "Health Declaration": "健康申报",
+  "Other Travel Details": "其他行程信息",
+  "Customs Declaration": "海关申报",
+  "Declaration Signature": "申报签名",
+};
+
+const INDONESIA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Upload passport and photo": "上传护照和照片",
+  "Application form": "申请表",
+  "Review and submit": "审核并提交",
+  Traveller: "旅客信息",
+  "Traveller Information": "旅客信息",
+  Passport: "护照",
+  "Passport Details": "护照",
+  Contact: "联系方式",
+  "Contact Information": "联系方式",
+  Trip: "行程",
+  "Trip Information": "行程",
+  Declarations: "声明确认",
+  Declaration: "声明确认",
+};
+
+const VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Passenger Information": "旅客信息",
+  "Trip Information": "行程信息",
+  Review: "审核申请",
+  Confirmation: "确认",
+};
+
+const KOREA_DYNAMIC_STEP_NAME_ZH: Record<string, string> = {
+  "Official e-Form Route": "官方 e-Form 路线",
+  "Personal Details": "个人信息",
+  Passport: "护照",
+  "Contact Details": "联系方式",
+  "Marital & Family": "婚姻与家庭",
+  "Education & Employment": "教育与就业",
+  "Visit Information": "访问信息",
+  "Travel History & Family": "旅行历史与家属",
+  "Invitation Company": "邀请公司",
+  "Expenses & Assistance": "费用与协助",
 };
 
 type StepSectionKey = ApplicationStepSectionKey;
@@ -201,14 +287,35 @@ function localizeDynamicStepName(
     translate: ReturnType<typeof useTranslations>;
   },
 ): string {
+  if (options.visaType === "VN_PREARRIVAL_DECLARATION") {
+    return VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
+  if (
+    options.isZhInterface &&
+    (options.visaType === "PH_ETRAVEL_ARRIVAL_CARD" || options.visaType === "PH_ETRAVEL_DEPARTURE_CARD")
+  ) {
+    return PH_ETRAVEL_DYNAMIC_STEP_NAME_ZH[stepName] ?? ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
   if (
     options.isZhInterface &&
     (options.visaType === "SG_ARRIVAL_CARD" ||
       options.visaType === "MY_MDAC_ARRIVAL_CARD" ||
-      options.visaType === "TH_TDAC_ARRIVAL_CARD" ||
-      options.visaType === "PH_ETRAVEL_ARRIVAL_CARD")
+      options.visaType === "TH_TDAC_ARRIVAL_CARD")
   ) {
     return ARRIVAL_CARD_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
+  if (
+    options.isZhInterface &&
+    (options.visaType === "ID_C1_TOURIST" || options.visaType === "ID_B1_EVOA")
+  ) {
+    return INDONESIA_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
+  }
+
+  if (options.isZhInterface && options.visaType === "KR_C39_SHORT_TERM_VISIT") {
+    return KOREA_DYNAMIC_STEP_NAME_ZH[stepName] ?? stepName;
   }
 
   const translationKey = getDynamicStepTranslationCandidates(stepName)
@@ -368,18 +475,15 @@ function MobileStepBar({
 
 function GroupedStepSidebar({
   sections,
-  steps,
   currentStep,
   completedStepIds,
   onStepClick,
 }: {
   sections: StepSectionDef[];
-  steps: StepDef[];
   currentStep: number;
   completedStepIds: ReadonlySet<number>;
   onStepClick: StepClickHandler;
 }) {
-  const currentStepIndexById = useMemo(() => new Map(steps.map((step, index) => [step.id, index])), [steps]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const getStatus = useCallback((stepId: number): StepStatus => {
     return completedStepIds.has(stepId) ? "complete" : stepId === currentStep ? "in_progress" : "locked";
@@ -407,10 +511,9 @@ function GroupedStepSidebar({
   return (
     <aside className="w-[380px] shrink-0 pl-4 pr-4 pt-9 hidden lg:flex lg:flex-col z-10 overflow-y-auto">
       <div className="space-y-3">
-        {sections.map((section) => {
+        {sections.map((section, sectionIndex) => {
           if (section.steps.length === 1) {
             const step = section.steps[0];
-            const stepIndex = currentStepIndexById.get(step.id) ?? 0;
             const status = getStatus(step.id);
             const isSelected = step.id === currentStep;
 
@@ -436,7 +539,7 @@ function GroupedStepSidebar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
@@ -456,7 +559,6 @@ function GroupedStepSidebar({
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
           const isExpanded = expandedSections[section.id] ?? activeInSection;
-          const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
             return completedStepIds.has(step.id);
           }).length;
@@ -489,7 +591,7 @@ function GroupedStepSidebar({
                   {sectionComplete ? (
                     <Check className="h-4 w-4" strokeWidth={3} />
                   ) : (
-                    firstIndex + 1
+                    sectionIndex + 1
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -521,7 +623,6 @@ function GroupedStepSidebar({
                   />
                   <div className="relative space-y-0.5">
                     {section.steps.map((step) => {
-                      const stepIndex = currentStepIndexById.get(step.id) ?? 0;
                       const status = getStatus(step.id);
                       const isSelected = step.id === currentStep;
 
@@ -537,10 +638,10 @@ function GroupedStepSidebar({
                             isSelected ? "bg-[#f5f9ff]" : "hover:bg-gray-50"
                           )}
                         >
-                          {/* Numbered marker — circle for in-progress/locked, bare check icon for complete */}
+                          {/* Child marker: substeps do not consume the main step numbers. */}
                           <span
                             className={cn(
-                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-sm font-semibold tabular-nums transition-all",
+                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center transition-all",
                               status === "complete" && "text-[#03346E]",
                               status === "in_progress" && "rounded-full border-2 border-[#03346E] bg-white text-[#03346E] shadow-[0_0_0_3px_rgba(3,52,110,0.14)]",
                               status === "locked" && "rounded-full border-2 border-gray-200 bg-white text-gray-400"
@@ -548,8 +649,10 @@ function GroupedStepSidebar({
                           >
                             {status === "complete" ? (
                               <Check className="h-5 w-5" strokeWidth={3} />
+                            ) : status === "in_progress" ? (
+                              <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
-                              stepIndex + 1
+                              <span className="h-2 w-2 rounded-full bg-gray-300" />
                             )}
                           </span>
                           <p
@@ -647,10 +750,9 @@ function GroupedMobileStepBar({
       </div>
 
       <div className="space-y-3">
-        {sections.map((section) => {
+        {sections.map((section, sectionIndex) => {
           if (section.steps.length === 1) {
             const step = section.steps[0];
-            const stepIndex = currentStepIndexById.get(step.id) ?? 0;
             const status = getStatus(step.id);
 
             return (
@@ -675,7 +777,7 @@ function GroupedMobileStepBar({
                     status === "locked" && "bg-white border-gray-200 text-gray-500"
                   )}
                 >
-                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : stepIndex + 1}
+                  {status === "complete" ? <Check className="h-4 w-4" strokeWidth={3} /> : sectionIndex + 1}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -696,7 +798,6 @@ function GroupedMobileStepBar({
 
           const activeInSection = section.steps.some((step) => step.id === currentStep);
           const isExpanded = expandedSections[section.id] ?? activeInSection;
-          const firstIndex = currentStepIndexById.get(section.steps[0].id) ?? 0;
           const completedCount = section.steps.filter((step) => {
             return completedStepIds.has(step.id);
           }).length;
@@ -728,7 +829,7 @@ function GroupedMobileStepBar({
                   {sectionComplete ? (
                     <Check className="h-4 w-4" strokeWidth={3} />
                   ) : (
-                    firstIndex + 1
+                    sectionIndex + 1
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -760,7 +861,6 @@ function GroupedMobileStepBar({
                   />
                   <div className="relative space-y-0.5">
                     {section.steps.map((step) => {
-                      const stepIndex = currentStepIndexById.get(step.id) ?? 0;
                       const status = getStatus(step.id);
                       const isSelected = step.id === currentStep;
 
@@ -776,10 +876,10 @@ function GroupedMobileStepBar({
                             isSelected ? "bg-[#f5f9ff]" : "active:bg-gray-50"
                           )}
                         >
-                          {/* Numbered marker — bare check for complete, circle otherwise */}
+                          {/* Child marker: substeps do not consume the main step numbers. */}
                           <span
                             className={cn(
-                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-sm font-semibold tabular-nums transition-all",
+                              "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center transition-all",
                               status === "complete" && "text-[#03346E]",
                               status === "in_progress" && "rounded-full border-2 border-[#03346E] bg-white text-[#03346E] shadow-[0_0_0_3px_rgba(3,52,110,0.14)]",
                               status === "locked" && "rounded-full border-2 border-gray-200 bg-white text-gray-400"
@@ -787,8 +887,10 @@ function GroupedMobileStepBar({
                           >
                             {status === "complete" ? (
                               <Check className="h-5 w-5" strokeWidth={3} />
+                            ) : status === "in_progress" ? (
+                              <span className="h-2.5 w-2.5 rounded-full bg-[#03346E]" />
                             ) : (
-                              stepIndex + 1
+                              <span className="h-2 w-2 rounded-full bg-gray-300" />
                             )}
                           </span>
                           <p
@@ -857,21 +959,26 @@ function FinalConfirmationPanel({
   const hasLiveAssistedTarget = liveAssistedTarget !== null;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
+  const isVietnamPrearrival = liveAssistedTarget === "vn_prearrival";
   const isSgac = liveAssistedTarget === "sgac";
   const isMdac = liveAssistedTarget === "mdac";
   const isTdac = liveAssistedTarget === "tdac";
   const isPhEtravel = liveAssistedTarget === "phetravel";
-  const vietnamCardReady =
-    !isVietnam ||
+  const isIndonesia = liveAssistedTarget === "indonesia";
+  // Indonesia opens its official payment gateway only after the application is
+  // created. A card must not block an initial submission or a pre-payment retry.
+  const requiresOneTimeOfficialPaymentCard = isVietnam;
+  const oneTimeOfficialPaymentCardReady =
+    !requiresOneTimeOfficialPaymentCard ||
     (
       cardNumber.replace(/\D/g, "").length >= 12 &&
       cardExpiry.trim().length >= 4 &&
       cardCvv.replace(/\D/g, "").length >= 3
     );
-  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !vietnamCardReady;
+  const liveDisabled = baseDisabled || !liveAssistedEnabled || !hasLiveAssistedTarget || !oneTimeOfficialPaymentCardReady;
   const liveDisabledReason = !hasLiveAssistedTarget
     ? (isZh ? "当前表单暂不支持 live assisted 官网辅助填写。" : "This form does not support live assisted official-site fill yet.")
-    : isVietnam && !vietnamCardReady
+    : requiresOneTimeOfficialPaymentCard && !oneTimeOfficialPaymentCardReady
       ? (isZh
           ? "请先填写本次官方付款使用的银行卡号、有效期和 CVV。"
           : "Enter the one-time official payment card number, expiry, and CVV before submitting.")
@@ -884,6 +991,10 @@ function FinalConfirmationPanel({
           ? (isZh
               ? "本地 Vietnam live assisted 环境未启用。请确认 VN_LIVE_SUBMISSION_ENABLED 和 VN_SUBMISSION_MODE。"
               : "Vietnam live assisted is not enabled locally. Check VN_LIVE_SUBMISSION_ENABLED and VN_SUBMISSION_MODE.")
+          : isVietnamPrearrival
+            ? (isZh
+                ? "本地越南入境前申报自动提交已关闭。请确认 VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED。"
+                : "Vietnam Pre-Arrival live submission is disabled locally. Check VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED.")
           : isSgac
             ? (isZh
                 ? "本地 SG Arrival Card live handoff 已关闭。请确认 SGAC_LIVE_SUBMISSION_ENABLED。"
@@ -900,6 +1011,10 @@ function FinalConfirmationPanel({
                   ? (isZh
                       ? "本地 Philippines eTravel live handoff 已关闭。请确认 PH_ETRAVEL_LIVE_SUBMISSION_ENABLED。"
                       : "Philippines eTravel live handoff is disabled locally. Check PH_ETRAVEL_LIVE_SUBMISSION_ENABLED.")
+                  : isIndonesia
+                    ? (isZh
+                        ? "本地 Indonesia live handoff 已关闭。请确认 INDONESIA_LIVE_SUBMISSION_ENABLED。"
+                        : "Indonesia live handoff is disabled locally. Check INDONESIA_LIVE_SUBMISSION_ENABLED.")
         : (isZh
             ? "本地 DS-160 live assisted 环境未启用。请确认前端和 submission service 的 DS160 配置。"
             : "DS-160 live assisted is not enabled locally. Check the frontend and submission service DS160 settings.")
@@ -907,7 +1022,7 @@ function FinalConfirmationPanel({
 
   const submitMode: SubmissionMode = hasLiveAssistedTarget ? "live_assisted" : "dry_run";
   const submitDisabled = hasLiveAssistedTarget ? liveDisabled : baseDisabled;
-  const vietnamPaymentCard: VietnamOneTimePaymentCard | undefined = isVietnam
+  const officialPaymentCard: VietnamOneTimePaymentCard | undefined = requiresOneTimeOfficialPaymentCard
     ? {
         pan: cardNumber,
         expiry: cardExpiry,
@@ -930,6 +1045,10 @@ function FinalConfirmationPanel({
       ? (isZh
           ? "越南 e-Visa 会打开官网并使用已保存答案填写；验证码、付款或官网风控会作为后续状态展示。"
           : "Vietnam e-Visa opens the official portal and uses saved answers to fill it. CAPTCHA, payment, or portal risk checks are surfaced as follow-up status.")
+      : isVietnamPrearrival
+        ? (isZh
+            ? "提交后会创建越南入境前申报官方提交任务，使用已保存答案填写官网表单，并在本页显示进度、确认编号、PDF 和二维码。"
+            : "Submitting creates a Vietnam Pre-Arrival official-submission task using your saved answers. Progress, the confirmation number, PDF, and QR code appear here.")
       : isSgac
         ? (isZh
             ? "提交后会创建 SG Arrival Card 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、确认/参考号和 ICA 响应摘要。"
@@ -946,6 +1065,10 @@ function FinalConfirmationPanel({
               ? (isZh
                   ? "提交后会创建 Philippines eTravel 官方提交任务；页面会显示正在提交，后端成功提交后会展示 submitted=true、官方 QR / 参考号和确认证据。"
                   : "Submitting creates a Philippines eTravel official-submission task. This page shows progress and, when the backend succeeds, displays submitted=true, the official QR/reference, and confirmation evidence.")
+              : isIndonesia
+                ? (isZh
+                    ? "提交后会创建 Indonesia e-Visa 官方提交任务；VIZA 会使用托管账号填写官网表单，并把流程推进到官方付款页。"
+                    : "Submitting creates an Indonesia e-Visa official-submission task. VIZA uses the managed account to fill the official portal and advance to the official payment page.")
               : (isZh
                   ? "提交会打开 CEAC 官网并使用已保存答案填写；验证码、风控或最终签名提交会作为后续状态展示。"
                   : "Submission opens CEAC and uses saved answers to fill it. CAPTCHA, risk checks, or final signature submission are surfaced as follow-up status.");
@@ -1007,7 +1130,7 @@ function FinalConfirmationPanel({
         </div>
       )}
 
-      {isVietnam && (
+      {requiresOneTimeOfficialPaymentCard && (
         <div className="space-y-3 rounded-xl border border-[#d7e6fb] bg-white p-5">
           <div className="flex items-start gap-3">
             <CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#03346E]" />
@@ -1017,8 +1140,8 @@ function FinalConfirmationPanel({
               </h3>
               <p className="mt-1 text-sm leading-relaxed text-[#3d5878]">
                 {isZh
-                  ? "越南 e-Visa 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到本机 submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。"
-                  : "Vietnam e-Visa submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to the local submission-service memory session and are not stored."}
+                  ? `${isIndonesia ? "印度尼西亚 e-Visa" : "越南 e-Visa"} 提交会在官网付款页继续处理官方费用。请在提交前填写本次使用的银行卡；未填写则不能提交。卡号和 CVV 只会发送到 VIZA submission-service 的短时内存会话，不会保存到数据库、env、日志或个人资料。`
+                  : `${isIndonesia ? "Indonesia e-Visa" : "Vietnam e-Visa"} submission continues through the official payment page. Enter the one-time card before submitting. Card number and CVV are sent only to a short-lived VIZA submission-service memory session and are not stored.`}
               </p>
             </div>
           </div>
@@ -1067,7 +1190,7 @@ function FinalConfirmationPanel({
               />
             </label>
           </div>
-          {!vietnamCardReady && (
+          {!oneTimeOfficialPaymentCardReady && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {isZh
                 ? "请填写银行卡号、有效期和 CVV 后再提交。"
@@ -1081,9 +1204,11 @@ function FinalConfirmationPanel({
         type="button"
         disabled={submitDisabled}
         onClick={() => {
-          void Promise.resolve(onSubmit(submitMode, vietnamPaymentCard)).finally(() => {
-            if (isVietnam) setCardCvv("");
-          });
+          void Promise.resolve(onSubmit(submitMode, officialPaymentCard))
+            .catch(() => undefined)
+            .finally(() => {
+              if (requiresOneTimeOfficialPaymentCard) setCardCvv("");
+            });
         }}
         className={cn(
           "flex min-h-12 w-full items-center justify-center rounded-full px-5 text-base font-semibold transition-colors",
@@ -1157,6 +1282,28 @@ type SubmissionQueueJobResult = {
   submissionResult: SubmissionResult | null;
 };
 
+type ApplicationSubmissionState = {
+  submittedAt: string | undefined;
+  submissionResultStatus: SubmissionResultStatus | null;
+  submissionResult: SubmissionResult | null;
+  confirmationNumber: string | undefined;
+};
+
+const TERMINAL_SUBMISSION_RESULT_STATUSES = [
+  "completed",
+  "submitted",
+  "submitted_mock",
+  "form_ready_for_agency",
+] as const;
+
+function applicationStatusForQueuedSubmission(queueJob: SubmissionQueueJobResult): "processing" | "submitted" {
+  return TERMINAL_SUBMISSION_RESULT_STATUSES.includes(
+    queueJob.submissionResultStatus as (typeof TERMINAL_SUBMISSION_RESULT_STATUSES)[number],
+  )
+    ? "submitted"
+    : "processing";
+}
+
 function isMissingSubmissionModeColumnError(error: { message?: string; code?: string }): boolean {
   const message = (error.message ?? "").toLowerCase();
   return (
@@ -1168,6 +1315,57 @@ function isMissingSubmissionModeColumnError(error: { message?: string; code?: st
     message.includes("could not find the 'mode' column") ||
     message.includes("could not find the 'provider' column")
   );
+}
+
+async function markApplicationSubmissionQueued(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    applicationId: string;
+    submittedAt: string;
+    queueJob: SubmissionQueueJobResult;
+  },
+): Promise<ApplicationSubmissionState> {
+  const selectColumns = "submitted_at, submission_result_status, submission_result, confirmation_number";
+  const { data: updatedApplication, error: updateError } = await supabase
+    .from("applications")
+    .update({
+      status: applicationStatusForQueuedSubmission(input.queueJob),
+      submitted_at: input.submittedAt,
+      submission_result_status: input.queueJob.submissionResultStatus,
+      submission_result: input.queueJob.submissionResult,
+      confirmation_number: null,
+      submission_result_updated_at: input.submittedAt,
+    })
+    .eq("id", input.applicationId)
+    .or(
+      [
+        "submission_result_status.is.null",
+        `submission_result_status.not.in.(${TERMINAL_SUBMISSION_RESULT_STATUSES.join(",")})`,
+      ].join(","),
+    )
+    .select(selectColumns)
+    .maybeSingle();
+  if (updateError) throw new Error(updateError.message);
+
+  const application = updatedApplication ?? (await supabase
+    .from("applications")
+    .select(selectColumns)
+    .eq("id", input.applicationId)
+    .maybeSingle()).data;
+
+  return {
+    submittedAt: application?.submitted_at ?? input.submittedAt,
+    submissionResultStatus:
+      (application?.submission_result_status as SubmissionResultStatus | null | undefined) ??
+      input.queueJob.submissionResultStatus,
+    submissionResult:
+      (application?.submission_result as SubmissionResult | null | undefined) ??
+      input.queueJob.submissionResult,
+    confirmationNumber:
+      typeof application?.confirmation_number === "string" && application.confirmation_number.trim()
+        ? application.confirmation_number
+        : undefined,
+  };
 }
 
 async function insertSubmissionQueueJob(
@@ -1242,6 +1440,7 @@ async function insertSubmissionQueueJob(
       status === "ds160_live_assisted_pending" ||
       status === "uk_live_assisted_pending" ||
       status === "vn_live_assisted_pending" ||
+      status === "vn_cloud_live_pending" ||
       status === "sgac_live_assisted_pending" ||
       status === "mdac_live_assisted_pending" ||
       status === "tdac_live_assisted_pending");
@@ -1267,7 +1466,7 @@ async function insertSubmissionQueueJob(
   };
 }
 
-async function insertVietnamSubmissionQueueJobWithCard(
+async function insertOfficialFeeSubmissionQueueJobWithCard(
   applicationId: string,
   card: VietnamOneTimePaymentCard | undefined,
 ): Promise<SubmissionQueueJobResult> {
@@ -1291,12 +1490,13 @@ async function insertVietnamSubmissionQueueJobWithCard(
     error?: unknown;
     queueId?: unknown;
     queueStatus?: unknown;
+    provider?: unknown;
   } | null;
   if (!response.ok) {
     throw new Error(
       typeof payload?.error === "string"
         ? payload.error
-        : `Vietnam official-fee queue creation failed with ${response.status}`,
+        : `Official-fee queue creation failed with ${response.status}`,
     );
   }
 
@@ -1304,8 +1504,8 @@ async function insertVietnamSubmissionQueueJobWithCard(
     scheduled: false,
     scheduledFor: null,
     jobId: typeof payload?.queueId === "string" ? payload.queueId : null,
-    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_live_assisted_pending",
-    provider: "vietnam_evisa_live",
+    queueStatus: typeof payload?.queueStatus === "string" ? payload.queueStatus : "vn_cloud_live_pending",
+    provider: typeof payload?.provider === "string" ? payload.provider : "vietnam_evisa_live",
     submissionResultStatus: "waiting",
     submissionResult: null,
   };
@@ -1383,6 +1583,37 @@ function normalizeAnswersToFieldOptions(answers: Record<string, string>, steps: 
   return next;
 }
 
+function applyCountrySpecificUniversalProfileAnswers(input: {
+  answers: Record<string, string>;
+  existingAnswers: Record<string, string>;
+  profile: UniversalProfileSnapshot;
+  country: string | null | undefined;
+  visaType: string | null | undefined;
+}) {
+  if (!isMalaysiaMdacApplication(input.country, input.visaType)) return input.answers;
+  if (input.existingAnswers.place_of_birth?.trim()) return input.answers;
+  const profilePatch = buildMalaysiaMdacUniversalProfileAnswerPatch(input.profile);
+  const stringPatch = Object.fromEntries(
+    Object.entries(profilePatch).filter((entry): entry is [string, string] =>
+      typeof entry[1] === "string",
+    ),
+  );
+  return {
+    ...input.answers,
+    ...stringPatch,
+  };
+}
+
+function recoverOrFormatServerActionError(
+  error: unknown,
+  fallbackMessage: string,
+  stalePageMessage: string,
+): string | null {
+  if (attemptStaleServerActionReload(error)) return null;
+  if (isStaleServerActionError(error)) return stalePageMessage;
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
 type LoadedApplication = {
   id?: string | null;
   country?: string | null;
@@ -1420,6 +1651,7 @@ export default function ApplicationPage() {
   const explicitVisaType =
     searchParams.get("visaType")?.trim() || searchParams.get("visa_type")?.trim() || null;
   const preferExplicitPackage = Boolean(explicitCountry || explicitVisaType);
+  const isExplicitStatusView = Boolean(explicitApplicationId && jumpToConfirmation);
 
   // DB-driven steps (loaded from visa_form_fields table)
   // Falls back to hardcoded STEPS if DB returns empty
@@ -1429,20 +1661,41 @@ export default function ApplicationPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const packagePromise = getUserVisaPackage().catch((error) => {
+      attemptStaleServerActionReload(error);
+      return null;
+    });
+    void packagePromise.then((pkg) => {
+      if (!cancelled && pkg) setVisaPackage(pkg);
+    });
 
-    getUserVisaPackage()
-      .then((pkg) => {
-        if (cancelled) return null;
-        if (pkg) setVisaPackage(pkg);
-        const visaType = explicitVisaType ?? pkg?.visa_type ?? "tourist_b211a";
-        const country = explicitCountry ?? pkg?.country ?? null;
-        return getVisaFormSteps(visaType, { country });
-      })
+    // A persisted submission/payment status view does not need the complete
+    // form schema. Loading that schema can be slow (or temporarily unavailable)
+    // for older packages such as Indonesia C1, and must not prevent the user
+    // from seeing a terminal result or starting an explicit payment retry.
+    if (isExplicitStatusView) {
+      setDbSteps([]);
+      setPackageLoaded(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const stepsPromise = explicitVisaType
+      ? getVisaFormSteps(explicitVisaType, { country: explicitCountry })
+      : packagePromise.then((pkg) => getVisaFormSteps(
+          pkg?.visa_type ?? "tourist_b211a",
+          { country: pkg?.country ?? null },
+        ));
+
+    void stepsPromise
       .then((steps) => {
-        if (cancelled) return;
-        if (steps && steps.length > 0) setDbSteps(steps);
+        if (!cancelled && steps.length > 0) {
+          setDbSteps(ensureVnPrearrivalOtherFlightFlow(steps));
+        }
       })
-      .catch(() => {
+      .catch((error) => {
+        attemptStaleServerActionReload(error);
         // Silent fallback to hardcoded steps
       })
       .finally(() => {
@@ -1452,7 +1705,7 @@ export default function ApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [explicitCountry, explicitVisaType]);
+  }, [explicitCountry, explicitVisaType, isExplicitStatusView]);
 
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1480,6 +1733,7 @@ export default function ApplicationPage() {
   const [localPassportBioPageName, setLocalPassportBioPageName] = useState<string | null>(null);
   const initialStepResolvedRef = useRef(false);
   const dynamicDraftRef = useRef<Record<number, Record<string, string>>>({});
+  const draftVersionTimerRef = useRef<number | null>(null);
   const navigationSaveInFlightRef = useRef(false);
   const mainScrollRef = useRef<HTMLElement | null>(null);
   const activeStepPanelRef = useRef<HTMLDivElement | null>(null);
@@ -1571,14 +1825,24 @@ export default function ApplicationPage() {
 
   const handleDynamicDraftChange = useCallback((stepId: number, data: Record<string, string>) => {
     dynamicDraftRef.current[stepId] = data;
-    setDraftVersion((version) => version + 1);
+    // Let a large official select close before recalculating outer step visibility.
+    if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
+    draftVersionTimerRef.current = window.setTimeout(() => {
+      draftVersionTimerRef.current = null;
+      setDraftVersion((version) => version + 1);
+    }, 120);
     setSubmitMissingFields([]);
+  }, []);
+
+  useEffect(() => () => {
+    if (draftVersionTimerRef.current !== null) window.clearTimeout(draftVersionTimerRef.current);
   }, []);
 
   const resolvedCountry = explicitCountry ?? visaPackage?.country ?? "indonesia";
   const resolvedVisaType = explicitVisaType ?? visaPackage?.visa_type ?? "tourist_b211a";
   const isArrivalCardApplication = isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
-  const showDocumentStep = !isArrivalCardApplication;
+  const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
+  const showDocumentStep = !isArrivalCardApplication || isPhilippinesEtravel;
   const showTeamStep = !isCompanionFlow && !isArrivalCardApplication;
   const STEPS: StepDef[] = STEP_KEYS
     .filter((key) => showTeamStep || key !== "team")
@@ -1594,11 +1858,13 @@ export default function ApplicationPage() {
     isFranceVisasVisaType(resolvedVisaType) &&
     ["france", "fr", "法国"].includes(normalizedCountryForLive);
   const isVietnamEVisa = isVietnamEVisaApplication(resolvedCountry, resolvedVisaType);
+  const isVietnamPrearrival = isVietnamPrearrivalApplication(resolvedCountry, resolvedVisaType);
   const isSgArrivalCard = isSgArrivalCardApplication(resolvedCountry, resolvedVisaType);
   const isMalaysiaMdac = isMalaysiaMdacApplication(resolvedCountry, resolvedVisaType);
   const isThailandTdac = isThailandTdacApplication(resolvedCountry, resolvedVisaType);
   const isPhilippinesEtravel = isPhilippinesEtravelApplication(resolvedCountry, resolvedVisaType);
   const isUkStandardVisitor = isUkStandardVisitorApplication(resolvedCountry, resolvedVisaType);
+  const isIndonesiaEVisa = isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType);
   const liveAssistedTarget: LiveAssistedTarget = isDs160Application
     ? "ds160"
     : isFranceSchengenApplication
@@ -1607,6 +1873,8 @@ export default function ApplicationPage() {
         ? "uk"
       : isVietnamEVisa
         ? "vietnam"
+        : isVietnamPrearrival
+          ? "vn_prearrival"
         : isSgArrivalCard
           ? "sgac"
           : isMalaysiaMdac
@@ -1615,7 +1883,9 @@ export default function ApplicationPage() {
               ? "tdac"
               : isPhilippinesEtravel
                 ? "phetravel"
-              : null;
+                : isIndonesiaEVisa
+                  ? "indonesia"
+                  : null;
   const liveAssistedEnabled = liveAssistedTarget === "ds160"
     ? DS160_LIVE_ASSISTED_ENABLED
     : liveAssistedTarget === "france"
@@ -1624,6 +1894,8 @@ export default function ApplicationPage() {
         ? UK_LIVE_ASSISTED_ENABLED
       : liveAssistedTarget === "vietnam"
         ? VN_LIVE_ASSISTED_ENABLED
+        : liveAssistedTarget === "vn_prearrival"
+          ? VN_PREARRIVAL_LIVE_ASSISTED_ENABLED
         : liveAssistedTarget === "sgac"
           ? SGAC_LIVE_ASSISTED_ENABLED
           : liveAssistedTarget === "mdac"
@@ -1632,7 +1904,9 @@ export default function ApplicationPage() {
               ? TDAC_LIVE_ASSISTED_ENABLED
               : liveAssistedTarget === "phetravel"
                 ? PH_ETRAVEL_LIVE_ASSISTED_ENABLED
-          : false;
+                : liveAssistedTarget === "indonesia"
+                  ? INDONESIA_LIVE_ASSISTED_ENABLED
+                  : false;
 
   useEffect(() => {
     const href = buildApplicationFormHref(
@@ -1730,7 +2004,9 @@ export default function ApplicationPage() {
               {
                 id: documentStepIndex,
                 sourceName: "Supporting Documents",
-                name: tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
+                name: isPhilippinesEtravel && isZhInterface
+                  ? "附加材料"
+                  : tDyn.has("Supporting Documents") ? tDyn("Supporting Documents" as never) : isZhInterface ? "材料" : "Documents",
                 description: tApp.has("documentsStepDescription") ? tApp("documentsStepDescription" as never) : "Upload required and optional supporting documents",
               },
             ]
@@ -1738,7 +2014,11 @@ export default function ApplicationPage() {
         {
           id: reviewStepIndex,
           sourceName: "Review",
-          name: tDyn.has("Review") ? tDyn("Review" as never) : "Review Application",
+          name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
+            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Review
+            : isPhilippinesEtravel && isZhInterface
+              ? "核对信息"
+            : tDyn.has("Review") ? tDyn("Review" as never) : isZhInterface ? "审核申请" : "Review Application",
           description: tApp.has("reviewStepDescription") ? tApp("reviewStepDescription" as never) : "Review and confirm your details",
         },
         ...(showTeamStep
@@ -1754,7 +2034,9 @@ export default function ApplicationPage() {
         {
           id: statusStepIndex,
           sourceName: "Confirmation",
-          name: tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : "Confirmation",
+          name: resolvedVisaType === "VN_PREARRIVAL_DECLARATION"
+            ? VN_PREARRIVAL_DYNAMIC_STEP_NAME_ZH.Confirmation
+            : tDyn.has("Confirmation") ? tDyn("Confirmation" as never) : isZhInterface ? "确认" : "Confirmation",
           description: tApp.has("statusStepDescription") ? tApp("statusStepDescription" as never) : "Application submitted",
         },
       ]
@@ -1768,6 +2050,7 @@ export default function ApplicationPage() {
       STEPS,
       teamStepIndex,
       resolvedVisaType,
+      isPhilippinesEtravel,
       isZhInterface,
       tApp,
       tDyn,
@@ -1779,6 +2062,7 @@ export default function ApplicationPage() {
   const dynamicSectionTitles = {
     personal: tApp.has("dynamicSections.personal") ? tApp("dynamicSections.personal" as never) : "Personal",
     travel: tApp.has("dynamicSections.travel") ? tApp("dynamicSections.travel" as never) : "Travel",
+    stay: tApp.has("dynamicSections.stay") ? tApp("dynamicSections.stay" as never) : isZhInterface ? "停留信息" : "Stay",
     travelCompanions: tApp.has("dynamicSections.travelCompanions") ? tApp("dynamicSections.travelCompanions" as never) : "Travel Companions",
     previousTravel: tApp.has("dynamicSections.previousTravel") ? tApp("dynamicSections.previousTravel" as never) : "Previous U.S. Travel",
     addressAndPhone: tApp.has("dynamicSections.addressAndPhone") ? tApp("dynamicSections.addressAndPhone" as never) : "Address and Phone",
@@ -1795,8 +2079,27 @@ export default function ApplicationPage() {
   } satisfies Record<StepSectionKey, string>;
 
   const groupedSections = useMemo(
-    () => (useDynamic ? buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles) : []),
-    [dynamicSectionTitles, sourceOrderedSteps, useDynamic],
+    () => {
+      if (!useDynamic) return [];
+      const sections = buildApplicationStepSections(sourceOrderedSteps, dynamicSectionTitles);
+      if (isPhilippinesEtravel) {
+        return sections.map((section) =>
+          section.steps.some((step) =>
+            step.sourceName === "Customs Declaration" || step.sourceName === "Declaration Signature",
+          )
+            ? { ...section, title: isZhInterface ? "海关申报与签名" : "Customs Declaration and Signature" }
+            : section,
+        );
+      }
+      if (!isIndonesiaEVisa) return sections;
+
+      return sections.map((section, index) =>
+        index === 0 && section.key === "review"
+          ? { ...section, title: isZhInterface ? "申请" : "Apply" }
+          : section,
+      );
+    },
+    [dynamicSectionTitles, isIndonesiaEVisa, isPhilippinesEtravel, isZhInterface, sourceOrderedSteps, useDynamic],
   );
 
   // Final list of steps in display order: flattened from grouped sections so
@@ -1860,6 +2163,19 @@ export default function ApplicationPage() {
     setCompletedUpTo(getContiguousCompletedCount(effectiveSteps, completedStepIds));
   }, [completedStepIds, effectiveSteps, loading]);
 
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setAppState((prev) => ({
+      ...prev,
+      applicationId: null,
+      confirmationNumber: undefined,
+      submittedAt: undefined,
+      submissionResult: null,
+      submissionResultStatus: null,
+    }));
+  }, [explicitApplicationId, resolvedCountry, resolvedVisaType]);
+
   const loadData = useCallback(async () => {
     try {
       const supabase = createClient();
@@ -1889,6 +2205,21 @@ export default function ApplicationPage() {
         application = (context.application as LoadedApplication | null) ?? null;
       }
 
+      if (application?.id && preferExplicitPackage) {
+        const applicationCountry = getCanonicalVisaDestinationCountry(application.country ?? "");
+        const routeCountry = getCanonicalVisaDestinationCountry(resolvedCountry);
+        const applicationVisaType = getFormVisaType(application.visa_type ?? "").toLowerCase();
+        const routeVisaType = getFormVisaType(resolvedVisaType).toLowerCase();
+        if (applicationCountry !== routeCountry || applicationVisaType !== routeVisaType) {
+          setError(
+            isZhInterface
+              ? "当前申请与页面国家不一致。为避免提交到错误的官网，系统已停止本次操作，请从“我的申请”重新打开正确申请。"
+              : "This application does not match the country shown on the page. Submission was stopped to prevent filing with the wrong official portal. Reopen the correct application from My Applications.",
+          );
+          return;
+        }
+      }
+
       if (profile) {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
         let ds160Answers: Record<string, string> = {};
@@ -1896,10 +2227,14 @@ export default function ApplicationPage() {
           const { answers } = await loadDynamicAnswers(application.id);
           ds160Answers = answers;
         }
-        const mergedDynamicAnswers = normalizeAnswersToFieldOptions(
-          mergeUniversalProfileIntoAnswers(ds160Answers, profile),
-          dbSteps,
-        );
+        const universalDynamicAnswers = applyCountrySpecificUniversalProfileAnswers({
+          answers: mergeUniversalProfileIntoAnswers(ds160Answers, profile),
+          existingAnswers: ds160Answers,
+          profile,
+          country: resolvedCountry,
+          visaType: resolvedVisaType,
+        });
+        const mergedDynamicAnswers = normalizeAnswersToFieldOptions(universalDynamicAnswers, dbSteps);
         const profileFallback = profile;
 
         // Hydrate hardcoded steps from DS-160 answers first, falling back to profile/application
@@ -1967,16 +2302,21 @@ export default function ApplicationPage() {
       }
     } catch (err) {
       console.error("Failed to load application data", err);
-      setError(err instanceof Error ? err.message : t("errors.noApplicationFound"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.noApplicationFound"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setLoading(false);
     }
-  }, [dbSteps, explicitApplicationId, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
+  }, [dbSteps, explicitApplicationId, isZhInterface, preferExplicitPackage, resolvedCountry, resolvedVisaType, statusStepIndex, t]);
 
   useEffect(() => {
-    if (!packageLoaded) return;
+    if (!packageLoaded || isExplicitStatusView) return;
     void loadData();
-  }, [loadData, packageLoaded]);
+  }, [isExplicitStatusView, loadData, packageLoaded]);
 
   // Honor deep links from redirects: once steps + any prefilled answers have
   // loaded, jump directly to the requested Review/Team/Confirmation step.
@@ -2136,7 +2476,12 @@ export default function ApplicationPage() {
       await saveDynamicDraftForStep(currentStep);
       setCurrentStep(targetStepId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       navigationSaveInFlightRef.current = false;
       setSaving(false);
@@ -2186,7 +2531,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, 1));
       setCurrentStep(1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2227,7 +2577,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, 2));
       setCurrentStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2264,7 +2619,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, 3));
       setCurrentStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2303,7 +2663,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, currentStepPosition + 1));
       setCurrentStep(nextStepId ?? stepIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2365,7 +2730,12 @@ export default function ApplicationPage() {
 
       returnToTeam();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2424,7 +2794,12 @@ export default function ApplicationPage() {
       setCompletedUpTo((c) => Math.max(c, teamStepPosition + 1));
       setCurrentStep(targetStatusStepIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSave"));
+      const message = recoverOrFormatServerActionError(
+        err,
+        t("errors.failedToSave"),
+        t("errors.stalePage"),
+      );
+      if (message) setError(message);
     } finally {
       setSaving(false);
     }
@@ -2471,7 +2846,8 @@ export default function ApplicationPage() {
     setError(null);
     const shouldShowArrivalSubmissionImmediately =
       mode === "live_assisted" &&
-      isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType);
+      (isDigitalArrivalCardApplication(resolvedCountry, resolvedVisaType) ||
+        isIndonesiaEVisaApplication(resolvedCountry, resolvedVisaType));
     const previousSubmissionState = {
       submittedAt: appState.submittedAt,
       submissionResultStatus: appState.submissionResultStatus,
@@ -2511,26 +2887,17 @@ export default function ApplicationPage() {
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         setCurrentStep(statusStepIndex);
-        setError(isZhInterface
+        throw new Error(isZhInterface
           ? "请先补齐最终确认页列出的缺失信息。"
           : "Please complete the missing information listed on the final confirmation step.");
-        return;
       }
 
-      // Persist the complete DS-160 answer set from hardcoded steps
-      const normalizeResult = await persistDS160AnswerSet(
-        applicationId,
-        appState.personal,
-        appState.passport,
-        appState.travel,
-      );
-      if (normalizeResult.error) throw new Error(normalizeResult.error);
-
       const isJpTourist = resolvedVisaType === "JP_TOURIST";
+      const isKrC39 = resolvedVisaType === "KR_C39_SHORT_TERM_VISIT";
 
-      if (!isJpTourist) {
+      if (!isJpTourist && !isKrC39) {
         const queueJob = mode === "live_assisted" && isVietnamEVisa
-          ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
+          ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
           : await (async () => {
               await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
               // Standard automated-submission countries enqueue a job for the
@@ -2544,27 +2911,23 @@ export default function ApplicationPage() {
               });
             })();
         const submittedAt = new Date().toISOString();
-        const { error: submitError } = await supabase.from("applications").update({
-          status: "submitted",
-          submitted_at: submittedAt,
-          submission_result_status: queueJob.submissionResultStatus,
-          submission_result: queueJob.submissionResult,
-          confirmation_number: null,
-          submission_result_updated_at: submittedAt,
-        }).eq("id", applicationId);
-        if (submitError) throw new Error(submitError.message);
+        const submissionState = await markApplicationSubmissionQueued(supabase, {
+          applicationId,
+          submittedAt,
+          queueJob,
+        });
 
         setAppState((prev) => ({
           ...prev,
-          submittedAt,
+          submittedAt: submissionState.submittedAt,
           submissionResultStatus:
-            queueJob.submissionResultStatus === "waiting" &&
+            submissionState.submissionResultStatus === "waiting" &&
             isUkStandardVisitor &&
             prev.submissionResult
               ? (prev.submissionResultStatus ?? "action_required")
-              : queueJob.submissionResultStatus,
-          submissionResult: queueJob.submissionResult ?? prev.submissionResult,
-          confirmationNumber: undefined,
+              : submissionState.submissionResultStatus,
+          submissionResult: submissionState.submissionResult,
+          confirmationNumber: submissionState.confirmationNumber,
         }));
       }
 
@@ -2590,18 +2953,60 @@ export default function ApplicationPage() {
           },
         }));
       }
+      if (isKrC39) {
+        const submittedAt = new Date().toISOString();
+        const krResult: SubmissionResult = {
+          country: "KR",
+          status: "form_ready_for_kvac",
+          applicationId,
+          annex17PdfUrl: null,
+          officialEformPortalUrl: "https://www.visa.go.kr/openPage.do?MENU_ID=10204",
+          officialEformStatus: "not_started",
+        };
+        const { error: submitError } = await supabase.from("applications").update({
+          status: "submitted",
+          submitted_at: submittedAt,
+          submission_result_status: "form_ready_for_kvac",
+          submission_result: krResult,
+          submission_result_updated_at: submittedAt,
+        }).eq("id", applicationId);
+        if (submitError) throw new Error(submitError.message);
+        setAppState((prev) => ({
+          ...prev,
+          submittedAt,
+          submissionResultStatus: "form_ready_for_kvac",
+          submissionResult: krResult,
+        }));
+      }
       setSubmitMissingFields([]);
       const completionPosition = getVisibleStepIndex(effectiveSteps, showTeamStep ? teamStepIndex : reviewStepIndex);
       setCompletedUpTo((c) => Math.max(c, completionPosition + 1));
       setCurrentStep(statusStepIndex);
     } catch (err) {
+      if (shouldShowArrivalSubmissionImmediately && isIgnorableRuntimeAbortError(err)) {
+        // Supabase/Next can abort the client request after the queue write has
+        // already committed. Keep the optimistic submission state and let the
+        // status endpoint reconcile the durable queue instead of showing the
+        // raw AbortSignal implementation message.
+        setError(null);
+        setCurrentStep(statusStepIndex);
+        return;
+      }
       if (shouldShowArrivalSubmissionImmediately) {
         setAppState((prev) => ({
           ...prev,
           ...previousSubmissionState,
         }));
       }
-      setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
+      const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
+      const message = recoverOrFormatServerActionError(
+        submissionError,
+        t("errors.failedToSubmit"),
+        t("errors.stalePage"),
+      );
+      if (!message) return;
+      setError(message);
+      throw submissionError;
     } finally {
       setSaving(false);
       setSubmittingMode(null);
@@ -2641,10 +3046,9 @@ export default function ApplicationPage() {
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         setCurrentStep(fallbackStatusStepIndex);
-        setError(isZhInterface
+        throw new Error(isZhInterface
           ? "请先补齐最终确认页列出的缺失信息。"
           : "Please complete the missing information listed on the final confirmation step.");
-        return;
       }
 
       // Persist the complete DS-160 answer set from hardcoded steps
@@ -2657,7 +3061,7 @@ export default function ApplicationPage() {
       if (normalizeResult.error) throw new Error(normalizeResult.error);
 
       const queueJob = mode === "live_assisted" && isVietnamEVisa
-        ? await insertVietnamSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
+        ? await insertOfficialFeeSubmissionQueueJobWithCard(applicationId, vietnamPaymentCard)
         : await (async () => {
             await authorizeVietnamOfficialFeeIfNeeded(applicationId, mode);
             return insertSubmissionQueueJob(supabase, {
@@ -2670,28 +3074,32 @@ export default function ApplicationPage() {
           })();
 
       const submittedAt = new Date().toISOString();
-      const { error: submitError } = await supabase.from("applications").update({
-        status: "submitted",
-        submitted_at: submittedAt,
-        submission_result_status: queueJob.submissionResultStatus,
-        submission_result: queueJob.submissionResult,
-        confirmation_number: null,
-        submission_result_updated_at: submittedAt,
-      }).eq("id", applicationId);
-      if (submitError) throw new Error(submitError.message);
+      const submissionState = await markApplicationSubmissionQueued(supabase, {
+        applicationId,
+        submittedAt,
+        queueJob,
+      });
 
       setAppState((prev) => ({
         ...prev,
-        submittedAt,
-        submissionResultStatus: queueJob.submissionResultStatus,
-        submissionResult: queueJob.submissionResult,
-        confirmationNumber: undefined,
+        submittedAt: submissionState.submittedAt,
+        submissionResultStatus: submissionState.submissionResultStatus,
+        submissionResult: submissionState.submissionResult,
+        confirmationNumber: submissionState.confirmationNumber,
       }));
       setSubmitMissingFields([]);
       setCompletedUpTo((c) => Math.max(c, fallbackStatusStepIndex));
       setCurrentStep(fallbackStatusStepIndex);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errors.failedToSubmit"));
+      const submissionError = err instanceof Error ? err : new Error(t("errors.failedToSubmit"));
+      const message = recoverOrFormatServerActionError(
+        submissionError,
+        t("errors.failedToSubmit"),
+        t("errors.stalePage"),
+      );
+      if (!message) return;
+      setError(message);
+      throw submissionError;
     } finally {
       setSaving(false);
       setSubmittingMode(null);
@@ -2761,7 +3169,12 @@ export default function ApplicationPage() {
       .catch((err) => {
         if (!cancelled) {
           setDocumentCenterData(null);
-          setDocumentCenterError(err instanceof Error ? err.message : t("errors.failedToSave"));
+          const message = recoverOrFormatServerActionError(
+            err,
+            t("errors.failedToSave"),
+            t("errors.stalePage"),
+          );
+          if (message) setDocumentCenterError(message);
           setDocumentCenterLoaded(true);
         }
       });
@@ -2828,6 +3241,20 @@ export default function ApplicationPage() {
     );
   }, [hasPassportUploadField, passportOcrInitialUploaded, passportOcrInitialFileName]);
 
+  if (isExplicitStatusView) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <SubmissionStatusStep
+          applicationId={explicitApplicationId}
+          country={activeCountry}
+          visaType={activeVisaType}
+          status={null}
+          result={null}
+        />
+      </main>
+    );
+  }
+
   if (loading || !packageLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -2848,7 +3275,6 @@ export default function ApplicationPage() {
       {useDynamic ? (
         <GroupedStepSidebar
           sections={groupedSections}
-          steps={effectiveSteps}
           currentStep={currentStep}
           completedStepIds={completedStepIds}
           onStepClick={handleStepNavigation}
@@ -2891,7 +3317,11 @@ export default function ApplicationPage() {
             </h1>
           </div>
 
-          {error && (
+          {error &&
+            !(
+              showSubmissionStatusStep &&
+              (currentStep === statusStepIndex || currentStep === fallbackStatusStepIndex)
+            ) && (
             <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm mb-6">
               {error}
             </div>
@@ -2923,12 +3353,14 @@ export default function ApplicationPage() {
                   </h2>
                   {/* Panel card */}
                   <div className="w-full rounded-xl border border-[#efefef] bg-white p-4 sm:p-6 md:p-8">
-                    {step.id === firstFormStepId && (
+                    {step.id === firstFormStepId && activeVisaType !== "VN_PREARRIVAL_DECLARATION" && (
                       <PassportOcrUpload
                         applicationId={appState.applicationId}
                         className="mb-6"
                         initialFileName={passportOcrInitialFileName}
                         initialUploaded={passportOcrInitialUploaded}
+                        country={activeCountry}
+                        visaType={activeVisaType}
                         onFieldsApplied={handlePassportOcrFieldsApplied}
                         onUploaded={handlePassportBioUploaded}
                       />

@@ -9,14 +9,20 @@
  */
 
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import {
+  browserbaseEnabled,
+  connectBrowserbaseCloudBrowser,
+} from "../browserbase-session";
 import fs from "node:fs";
 import path from "node:path";
 import { chooseVietnamApplyEntry } from "./apply-entry";
 import { solveVietnamImageCaptcha, type VietnamCaptchaSolveOutcome } from "./captcha";
+import {
+  fillVietnamConditionalRepeatGroups,
+  validateVietnamConditionalAnswers,
+} from "./conditional-fields";
 import { uncheckedVietnamDeclarationIndexes } from "./declaration";
 import {
-  buildVnFieldFallback,
-  getVnDependentFieldFallbackValue,
   getVnPortalOptionText,
   VN_FIELD_MAPPINGS,
   VN_REGISTRATION_CODE_SELECTOR,
@@ -44,7 +50,9 @@ import type { VietnamProgressStage } from "./progress";
 import { installVietnamPublicApiProxy } from "./public-api-proxy";
 import {
   buildVietnamBrowserAttempts,
+  finalizeVietnamResultAfterRetries,
   isRetryableVietnamResult,
+  MAX_VIETNAM_PORTAL_ATTEMPTS,
   type VietnamBrowserChannel,
 } from "./retry-policy";
 import { readVietnamValidationErrors, type VietnamPortalValidationError } from "./validation-errors";
@@ -162,11 +170,34 @@ export async function fillVietnamApplication(
   input: FillVietnamInput,
   options: FillVietnamOptions = {},
 ): Promise<FillVietnamResult> {
+  if (!options.stopAtFirstCheckpoint) {
+    const validityErrors = validateVietnamPortalValidityRange(input.answers);
+    if (validityErrors.length > 0) {
+      return {
+        status: "scaffolded_pending_walk",
+        runId: options.runId,
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validityErrors
+          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+          .join("; ")}`,
+        url: options.officialBaseUrl ?? VN_LANDING_URL,
+        diagnostics: {
+          consoleErrors: [],
+          failedRequests: [],
+          validationErrors: validityErrors,
+        },
+      };
+    }
+  }
+
   if (options.portalAttempt) {
     return fillVietnamApplicationOnce(input, options);
   }
 
-  const maxAttempts = options.maxPortalAttempts ?? readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, 3);
+  const maxAttempts = Math.min(
+    options.maxPortalAttempts ??
+      readPositiveInt(process.env.VN_PORTAL_MAX_ATTEMPTS, MAX_VIETNAM_PORTAL_ATTEMPTS),
+    MAX_VIETNAM_PORTAL_ATTEMPTS,
+  );
   const retryBackoffMs = options.retryBackoffMs ?? readPositiveInt(process.env.VN_PORTAL_RETRY_BACKOFF_MS, 5_000);
   const channels = options.browserChannel
     ? [options.browserChannel]
@@ -187,7 +218,10 @@ export async function fillVietnamApplication(
       finalScreenshotPath: suffixArtifactPath(options.finalScreenshotPath, attempt),
     });
     lastResult = result;
-    if (!isRetryableVietnamResult(result) || attempt >= channels.length) return result;
+    if (!isRetryableVietnamResult(result)) return result;
+    if (attempt >= channels.length) {
+      return finalizeVietnamResultAfterRetries(result, attempt);
+    }
 
     await options.onProgress?.(`portal_retry:${attempt + 1}`);
     await sleep(Math.min(retryBackoffMs * 2 ** index, 30_000));
@@ -246,11 +280,26 @@ async function fillVietnamApplicationOnce(
 
   try {
     await emitProgress("browser_launching");
-    browser = await chromium.launch({
-      headless,
-      ...(options.browserChannel ? { channel: options.browserChannel } : {}),
-    });
-    context = await browser.newContext({ acceptDownloads: false });
+    if (browserbaseEnabled("VN")) {
+      const cloud = await connectBrowserbaseCloudBrowser({ prefix: "VN" });
+      browser = cloud.browser;
+      context = cloud.context;
+      page = cloud.page;
+    } else {
+      browser = await chromium.launch({
+        headless,
+        ...(options.browserChannel ? { channel: options.browserChannel } : {}),
+      });
+      context = await browser.newContext({
+        acceptDownloads: false,
+        // The official captcha API currently serves a certificate chain that
+        // container Chromium cannot validate, even though the main e-Visa SPA
+        // is valid. Keep this opt-in and scoped to the Vietnam context so Fly
+        // can load the official captcha image instead of leaving a broken img.
+        ignoreHTTPSErrors: process.env.VN_IGNORE_HTTPS_ERRORS === "true",
+      });
+      page = await context.newPage();
+    }
     if (process.env.VN_PUBLIC_API_PROXY_ENABLED !== "false") {
       await installVietnamPublicApiProxy(context, {
         onSuccess: () => {
@@ -261,7 +310,6 @@ async function fillVietnamApplicationOnce(
         },
       });
     }
-    page = await context.newPage();
     await emitProgress("browser_ready");
     page.on("console", (message) => {
       if (message.type() === "error") {
@@ -343,6 +391,27 @@ async function fillVietnamApplicationOnce(
 
     // ── Fill every mapped field that we have an answer for ─────────────
     await emitProgress("application_form_visible");
+    const conditionalAnswerErrors = validateVietnamConditionalAnswers(input.answers);
+    if (conditionalAnswerErrors.length > 0) {
+      validationErrors.push(
+        ...conditionalAnswerErrors.map((error) => ({
+          label: error.fieldName,
+          domId: VN_FIELD_MAPPINGS[error.fieldName]?.domId,
+          message: error.message,
+        })),
+      );
+      return {
+        status: "scaffolded_pending_walk",
+        runId,
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
+          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+          .join("; ")}`,
+        checkpoint: "application_form_visible",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
+    }
+
     await emitProgress("filling_fields");
     let filled = 0;
     let skipped = 0;
@@ -357,40 +426,31 @@ async function fillVietnamApplicationOnce(
         if (fieldName === "intended_province_city") {
           await waitForDependentAntSelectToHydrate(page, VN_FIELD_MAPPINGS.intended_ward_commune.domId);
         }
+        filled += await fillVietnamConditionalRepeatGroups(page, input.answers, fieldName);
         filled++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const fallbackValue = getVnDependentFieldFallbackValue(fieldName, input.answers);
-        const fallbackRecord = buildVnFieldFallback({
-          fieldName,
+        validationErrors.push({
+          label: fieldName,
           domId: mapping.domId,
-          type: mapping.type,
-          userValue: value,
-          fallbackValue,
-          errorMessage: msg,
+          message: `Official Vietnam e-Visa portal rejected this value: ${msg}`,
         });
-        if (fallbackValue && fallbackRecord) {
-          try {
-            if (fieldName === "intended_ward_commune") {
-              await waitForDependentAntSelectToHydrate(page, mapping.domId);
-            }
-            await fillByType(page, fieldName, mapping.type, mapping.domId, fallbackValue);
-            fieldFallbacks.push(fallbackRecord);
-            filled++;
-            console.warn(
-              `[vn] fill fallback for ${fieldName} (${mapping.domId}): ${msg}; used ${fallbackValue}`,
-            );
-            continue;
-          } catch (fallbackErr) {
-            const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-            console.warn(
-              `[vn] fallback fill failed for ${fieldName} (${mapping.domId}): ${fallbackMsg}`,
-            );
-          }
-        }
-        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}): ${msg}`);
+        console.warn(`[vn] fill failed for ${fieldName} (${mapping.domId}); no fallback used: ${msg}`);
         skipped++;
       }
+    }
+
+    if (validationErrors.length > 0) {
+      return {
+        status: "scaffolded_pending_walk",
+        runId,
+        reason: `Official Vietnam e-Visa portal fill blocked submission: ${validationErrors
+          .map((error) => `${error.label || error.domId || "field"}: ${error.message}`)
+          .join("; ")}`,
+        checkpoint: "application_form_visible",
+        url: page.url(),
+        diagnostics: diagnostics(),
+      };
     }
 
     // ── Stop-at-pay sentinel + capture registration code ──────────────
@@ -531,7 +591,11 @@ async function fillVietnamApplicationOnce(
         : null;
       if (fixedCard) {
         await emitProgress("payment_handoff");
-        const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
+        const payment = await payVietnamPortalWithFixedCard({
+          page,
+          card: fixedCard,
+          onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
+        });
         if (payment.status === "paid" && payment.receiptReference) {
           return {
             status: "submitted_paid",
@@ -616,7 +680,11 @@ async function fillVietnamApplicationOnce(
         : null;
       if (fixedCard) {
         await emitProgress("payment_handoff");
-        const payment = await payVietnamPortalWithFixedCard({ page, card: fixedCard });
+        const payment = await payVietnamPortalWithFixedCard({
+          page,
+          card: fixedCard,
+          onBankAuthenticationRequired: () => emitProgress("bank_authentication_waiting"),
+        });
         if (payment.status === "paid" && payment.receiptReference) {
           return {
             status: "submitted_paid",
@@ -1277,13 +1345,44 @@ async function waitForDependentAntSelectToHydrate(
   }
 }
 
-export function toPortalDateForField(fieldName: string, rawValue: string, now = new Date()): string {
-  const formatted = toDdMmYyyy(rawValue);
-  if (fieldName !== "visa_valid_from") return formatted;
-  const parsed = parseDdMmYyyy(formatted);
-  if (!parsed) return formatted;
+export function toPortalDateForField(_fieldName: string, rawValue: string): string {
+  return toDdMmYyyy(rawValue);
+}
+
+export function validateVietnamPortalValidityRange(
+  answers: Record<string, string>,
+  now = new Date(),
+): VietnamPortalValidationError[] {
+  const rawFrom = answers.visa_valid_from?.trim();
+  const rawTo = answers.visa_valid_to?.trim();
+  if (!rawFrom || !rawTo) return [];
+
+  const portalFrom = parseDdMmYyyy(toPortalDateForField("visa_valid_from", rawFrom));
+  const portalTo = parseDdMmYyyy(toPortalDateForField("visa_valid_to", rawTo));
+  if (!portalFrom || !portalTo) return [];
+
+  const errors: VietnamPortalValidationError[] = [];
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return parsed < today ? formatDdMmYyyy(today) : formatted;
+  if (portalFrom < today) {
+    errors.push({
+      label: "Grant e-Visa valid from",
+      domId: VN_FIELD_MAPPINGS.visa_valid_from.domId,
+      message: "Grant e-Visa valid from cannot be earlier than today",
+    });
+  }
+  if (portalFrom >= portalTo) {
+    errors.push({
+      label: "Grant e-Visa valid from",
+      domId: VN_FIELD_MAPPINGS.visa_valid_from.domId,
+      message: "Grant e-Visa valid from must be before Grant e-Visa valid to",
+    });
+    errors.push({
+      label: "Grant e-Visa valid to",
+      domId: VN_FIELD_MAPPINGS.visa_valid_to.domId,
+      message: "Grant e-Visa valid to must be after Grant e-Visa valid from",
+    });
+  }
+  return errors;
 }
 
 function parseDdMmYyyy(value: string): Date | null {
@@ -1297,12 +1396,6 @@ function parseDdMmYyyy(value: string): Date | null {
     return null;
   }
   return parsed;
-}
-
-function formatDdMmYyyy(value: Date): string {
-  const day = `${value.getDate()}`.padStart(2, "0");
-  const month = `${value.getMonth() + 1}`.padStart(2, "0");
-  return `${day}/${month}/${value.getFullYear()}`;
 }
 
 async function uploadVietnamFile(page: Page, domId: string, rawPath: string, fieldName: string): Promise<void> {

@@ -9,7 +9,7 @@
     "home": "首页",
     "application": "申请",
     "status": "状态",
-    "chat": "聊天",
+    "chat": "智能助手",
     "documents": "材料",
     "settings": "设置",
     "support": "帮助",
@@ -19,6 +19,7 @@
     "inviteFriends": "邀请朋友"
   },
   "menu": {
+    "changeCountry": "切换申请国家",
     "inviteFriends": "邀请朋友",
     "status": "状态",
     "documents": "材料",
@@ -28,6 +29,24 @@
     "logout": "退出登录",
     "loggingOut": "正在退出..."
   },
+  "destinationsPage": {
+    "backToHome": "返回首页",
+    "title": "切换申请国家",
+    "subtitle": "在您的签证申请之间切换，或在下方开始新的目的地申请。",
+    "myApplications": "我的申请",
+    "ongoingApplications": "进行中的申请",
+    "purchasedApplications": "已购买的申请",
+    "purchasedApplicationsHint": "您已购买的套餐——随时可以开始。",
+    "loading": "正在加载您的申请...",
+    "noApplications": "您还没有开始任何申请——请在下方选择目的地开始。",
+    "current": "当前",
+    "notStarted": "未开始",
+    "continue": "继续",
+    "start": "开始",
+    "progressAriaLabel": "申请进度",
+    "showAll": "展开全部 {count} 个申请",
+    "showLess": "收起"
+  },
   "session": {
     "invalidatedTitle": "会话已失效",
     "invalidatedBody": "另一个申请人视图已在其他标签页中打开。出于安全原因，此会话已停止显示。",
@@ -36,7 +55,10 @@
   "home": {
     "welcomeBack": "欢迎回来，{name}。",
     "vizaApplication": "这是您的VIZA申请",
+    "vizaApplicationForCountry": "这是您的{country}签证申请",
     "recentActivity": "最近活动",
+    "applicationCategories": "申请类别",
+    "applicationCategoriesHint": "快速切换不同的申请类别。",
     "noRecentActivity": "暂无最近活动。开始您的申请以在此查看更新。",
     "loadingDashboard": "正在加载您的仪表板...",
     "authError": "认证失败。请重新点击链接。",
@@ -131,8 +153,10 @@
       "readyToStart": "可开始",
       "addedNotStarted": "已添加 · 尚未开始",
       "chooseCountry": "选择国家",
+      "chooseCategory": "选择类别",
       "comingSoon": "待接入",
       "countriesCount": "{count} 个国家",
+      "categoryCount": "{count} 个类别",
       "progressPill": "{pct}% 已填写",
       "progressAriaLabel": "{country}申请填写进度",
       "selectedNotFilled": "已选择，未填写",
@@ -549,7 +573,8 @@
       "failedToSave": "保存失败",
       "failedToSubmit": "提交失败",
       "profileNotFound": "未找到个人资料",
-      "noApplicationFound": "未找到申请"
+      "noApplicationFound": "未找到申请",
+      "stalePage": "页面在打开期间已更新，请刷新后继续；已保存的答案不会丢失。"
     },
     "statusHub": {
       "loading": "正在加载申请状态...",
@@ -776,6 +801,7 @@
     "dynamicSections": {
       "personal": "个人信息",
       "travel": "旅行",
+      "stay": "在马来西亚停留",
       "travelCompanions": "同行人员",
       "previousTravel": "以往赴美记录",
       "addressAndPhone": "地址和电话信息",
@@ -995,6 +1021,7 @@
       "document_uploaded": "材料已上传",
       "packet_generated": "申请包已生成",
       "external_status_updated": "外部状态已更新",
+      "official_status_changed": "越南 e‑Visa 官网状态已更新",
       "arrival_card_submitted": "SG Arrival Card 已成功提交",
       "result_received": "已收到结果",
       "notification_sent": "通知已发送"
@@ -3760,7 +3787,11 @@
         "arrivalCardSubmission": {
           "title": "入境卡免费提交",
           "description": "1000 积分可兑换一次入境卡免费提交服务。",
-          "countries": ["新加坡", "马来西亚", "泰国"]
+          "countries": [
+            "新加坡",
+            "马来西亚",
+            "泰国"
+          ]
         },
         "priorityChecklist": {
           "title": "优先材料清单整理",
@@ -3824,115 +3855,115 @@
         "description": "如需人工跟进，可提交客服请求。"
       }
     },
-  "payment": {
-    "selected": "默认",
-    "pendingVerification": "待验证",
-    "setDefault": "设为默认",
-    "manage": "管理账号",
-    "manageSelected": "正在管理",
-    "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
-    "managerHints": {
-      "bank_card": "银行卡通过托管安全验证完成绑定，VIZA 不会接收完整卡号或 CVV。",
-      "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
-      "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
-    },
-    "boundCount": "已绑定 {count} 个",
-    "defaultAccount": "默认：{account}",
-    "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
-    "addTitle": "添加付款账号",
-    "cardAddTitle": "添加银行卡",
-    "qrAddTitle": "扫码绑定账号",
-    "editTitle": "编辑付款账号",
-    "addAccount": "添加账号",
-    "verifyWithStripe": "打开安全验证",
-    "verifyWithAirwallex": "加载安全卡组件",
-    "generateQr": "生成绑定二维码",
-    "regenerateQr": "重新生成二维码",
-    "checkQrStatus": "检查绑定状态",
-    "saveEdit": "保存修改",
-    "cancelEdit": "取消编辑",
-    "edit": "编辑",
-    "delete": "删除",
-    "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
-    "stripeHint": "银行卡详情只会在托管安全页面中填写；VIZA 不保存完整卡号或 CVV。",
-    "cardHint": "银行卡详情只会在 Airwallex 托管安全组件中填写；VIZA 不接收或保存完整卡号、有效期或 CVV。",
-    "cardElementPreparing": "正在加载 Airwallex 银行卡安全组件。",
-    "completeCardBinding": "完成银行卡绑定",
-    "cardIdentifier": "银行卡 · 安全验证中",
-    "qrAlt": "付款账号绑定二维码",
-    "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
-    "qrExpires": "二维码有效期至 {time}。",
-    "qrHint": {
-      "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
-      "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
-    },
-    "fields": {
-      "label": "账号名称",
-      "identifier": "识别信息",
-      "nickname": "昵称",
-      "cardNumber": "卡号",
-      "cvv": "CVV"
-    },
-    "placeholders": {
-      "bank_card": {
-        "label": "例如：招商银行储蓄卡",
-        "identifier": "例如：尾号 5857",
-        "nickname": "例如：招商银行储蓄卡",
-        "cardNumber": "请输入银行卡号",
-        "cvv": "卡背面 3 或 4 位安全码"
+    "payment": {
+      "selected": "默认",
+      "pendingVerification": "待验证",
+      "setDefault": "设为默认",
+      "manage": "管理账号",
+      "manageSelected": "正在管理",
+      "managerHint": "可为此付款方式绑定多个账号，并选择优先使用的默认账号。",
+      "managerHints": {
+        "bank_card": "银行卡通过托管安全验证完成绑定，VIZA 不会接收完整卡号或 CVV。",
+        "wechat_pay": "微信支付通过扫码完成绑定，不再手动输入微信账号或手机号。",
+        "alipay": "支付宝通过扫码完成绑定，不再手动输入支付宝账号或手机号。"
       },
-      "wechat_pay": {
-        "label": "例如：我的微信",
-        "identifier": "例如：微信昵称或手机号后四位"
+      "boundCount": "已绑定 {count} 个",
+      "defaultAccount": "默认：{account}",
+      "empty": "还没有绑定账号。添加后可以在这里编辑、删除或设为默认。",
+      "addTitle": "添加付款账号",
+      "cardAddTitle": "添加银行卡",
+      "qrAddTitle": "扫码绑定账号",
+      "editTitle": "编辑付款账号",
+      "addAccount": "添加账号",
+      "verifyWithStripe": "打开安全验证",
+      "verifyWithAirwallex": "加载安全卡组件",
+      "generateQr": "生成绑定二维码",
+      "regenerateQr": "重新生成二维码",
+      "checkQrStatus": "检查绑定状态",
+      "saveEdit": "保存修改",
+      "cancelEdit": "取消编辑",
+      "edit": "编辑",
+      "delete": "删除",
+      "safeHint": "这里只保存付款账号的备注和识别信息，请不要输入完整银行卡号、验证码或密码。",
+      "stripeHint": "银行卡详情只会在托管安全页面中填写；VIZA 不保存完整卡号或 CVV。",
+      "cardHint": "银行卡详情只会在 Airwallex 托管安全组件中填写；VIZA 不接收或保存完整卡号、有效期或 CVV。",
+      "cardElementPreparing": "正在加载 Airwallex 银行卡安全组件。",
+      "completeCardBinding": "完成银行卡绑定",
+      "cardIdentifier": "银行卡 · 安全验证中",
+      "qrAlt": "付款账号绑定二维码",
+      "qrEmpty": "点击生成二维码后，使用对应 App 扫码完成账号绑定。",
+      "qrExpires": "二维码有效期至 {time}。",
+      "qrHint": {
+        "wechat_pay": "请使用微信扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。",
+        "alipay": "请使用支付宝扫一扫完成账号授权绑定，绑定完成后返回这里检查状态。"
       },
-      "alipay": {
-        "label": "例如：我的支付宝",
-        "identifier": "例如：支付宝账号备注"
+      "fields": {
+        "label": "账号名称",
+        "identifier": "识别信息",
+        "nickname": "昵称",
+        "cardNumber": "卡号",
+        "cvv": "CVV"
+      },
+      "placeholders": {
+        "bank_card": {
+          "label": "例如：招商银行储蓄卡",
+          "identifier": "例如：尾号 5857",
+          "nickname": "例如：招商银行储蓄卡",
+          "cardNumber": "请输入银行卡号",
+          "cvv": "卡背面 3 或 4 位安全码"
+        },
+        "wechat_pay": {
+          "label": "例如：我的微信",
+          "identifier": "例如：微信昵称或手机号后四位"
+        },
+        "alipay": {
+          "label": "例如：我的支付宝",
+          "identifier": "例如：支付宝账号备注"
+        }
+      },
+      "messages": {
+        "required": "请填写账号名称和识别信息。",
+        "nicknameRequired": "请填写银行卡昵称。",
+        "cardNumberInvalid": "请输入有效的银行卡号。",
+        "cvvInvalid": "请输入有效的 CVV。",
+        "added": "付款账号已添加。",
+        "updated": "付款账号已更新。",
+        "deleted": "付款账号已删除。",
+        "defaultUpdated": "默认付款账号已更新。",
+        "stripeUnavailable": "托管银行卡验证尚未配置，暂时无法验证银行卡。",
+        "stripeStartFailed": "暂时无法启动银行卡验证，请稍后重试。",
+        "stripeRedirect": "正在打开托管安全验证页面。",
+        "stripeReturned": "银行卡验证已返回，绑定状态会在支付服务确认后更新。",
+        "stripeCancelled": "银行卡验证已取消，银行卡尚未完成绑定。",
+        "cardUnavailable": "Airwallex 银行卡验证尚未配置，暂时无法验证银行卡。",
+        "cardStartFailed": "暂时无法启动 Airwallex 银行卡验证，请稍后重试。",
+        "cardReady": "银行卡安全组件已准备好，请填写卡信息后完成绑定。",
+        "cardElementFailed": "银行卡安全组件加载失败，请刷新后重试。",
+        "cardBindFailed": "银行卡绑定未完成，请检查卡信息后重试。",
+        "cardBound": "银行卡已通过 Airwallex 安全验证并完成绑定。",
+        "walletBindingUnavailable": "微信/支付宝账号绑定暂未配置。请在创建订单后使用结账页生成的真实支付二维码扫码付款。",
+        "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
+        "qrReady": "二维码已生成，请使用对应 App 扫码。",
+        "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
+        "qrExpired": "二维码已过期，请重新生成。",
+        "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
+        "qrBound": "扫码绑定已完成。"
+      },
+      "methods": {
+        "bank_card": {
+          "title": "银行卡",
+          "description": "填写昵称后通过 Airwallex 托管卡组件完成绑定。"
+        },
+        "wechat_pay": {
+          "title": "微信支付",
+          "description": "通过微信扫码授权绑定账号。"
+        },
+        "alipay": {
+          "title": "支付宝",
+          "description": "通过支付宝扫码授权绑定账号。"
+        }
       }
     },
-    "messages": {
-      "required": "请填写账号名称和识别信息。",
-      "nicknameRequired": "请填写银行卡昵称。",
-      "cardNumberInvalid": "请输入有效的银行卡号。",
-      "cvvInvalid": "请输入有效的 CVV。",
-      "added": "付款账号已添加。",
-      "updated": "付款账号已更新。",
-      "deleted": "付款账号已删除。",
-      "defaultUpdated": "默认付款账号已更新。",
-      "stripeUnavailable": "托管银行卡验证尚未配置，暂时无法验证银行卡。",
-      "stripeStartFailed": "暂时无法启动银行卡验证，请稍后重试。",
-      "stripeRedirect": "正在打开托管安全验证页面。",
-      "stripeReturned": "银行卡验证已返回，绑定状态会在支付服务确认后更新。",
-      "stripeCancelled": "银行卡验证已取消，银行卡尚未完成绑定。",
-      "cardUnavailable": "Airwallex 银行卡验证尚未配置，暂时无法验证银行卡。",
-      "cardStartFailed": "暂时无法启动 Airwallex 银行卡验证，请稍后重试。",
-      "cardReady": "银行卡安全组件已准备好，请填写卡信息后完成绑定。",
-      "cardElementFailed": "银行卡安全组件加载失败，请刷新后重试。",
-      "cardBindFailed": "银行卡绑定未完成，请检查卡信息后重试。",
-      "cardBound": "银行卡已通过 Airwallex 安全验证并完成绑定。",
-      "walletBindingUnavailable": "微信/支付宝账号绑定暂未配置。请在创建订单后使用结账页生成的真实支付二维码扫码付款。",
-      "qrStartFailed": "暂时无法生成绑定二维码，请稍后重试。",
-      "qrReady": "二维码已生成，请使用对应 App 扫码。",
-      "qrStatusFailed": "暂时无法检查绑定状态，请稍后重试。",
-      "qrExpired": "二维码已过期，请重新生成。",
-      "qrPending": "还没有收到扫码绑定结果，请扫码后再检查。",
-      "qrBound": "扫码绑定已完成。"
-    },
-    "methods": {
-      "bank_card": {
-        "title": "银行卡",
-        "description": "填写昵称后通过 Airwallex 托管卡组件完成绑定。"
-      },
-      "wechat_pay": {
-        "title": "微信支付",
-        "description": "通过微信扫码授权绑定账号。"
-      },
-      "alipay": {
-        "title": "支付宝",
-        "description": "通过支付宝扫码授权绑定账号。"
-      }
-    }
-  },
     "travelers": {
       "title": "常用出行人",
       "description": "保存经常一起出行的申请人资料。这里的资料不会自动提交，只是为后续团单选择做准备。",
@@ -4279,7 +4310,7 @@
       },
       "contactSupport": {
         "question": "如何联系客服？",
-        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.com 联系我们。"
+        "answer": "您可以通过应用中的礼宾标签获得实时帮助，或直接发邮件至 support@viza.it.com 联系我们。"
       }
     }
   },
@@ -4308,6 +4339,8 @@
       "authFailed": "认证失败。请重试。",
       "invalidCredentials": "邮箱或密码不正确，请重新输入。",
       "tooManyRequests": "尝试次数过多，请稍后再试。",
+      "requestTimedOut": "登录服务响应较慢，请重试。",
+      "providerUnavailable": "Supabase 登录服务暂时不可用。未提交你的登录信息，请稍后重试。",
       "unexpectedError": "发生意外错误。请重试。",
       "failedToResend": "重新发送验证码失败。",
       "checkEmail": "查看您的邮箱",
@@ -4370,7 +4403,7 @@
       "hidePassword": "隐藏密码",
       "unexpectedError": "无法创建账户，请重试。",
       "thankYou": "谢谢。如果您符合访问条件，我们将通过电子邮件通知您。",
-      "urgentAccess": "如需紧急访问，请联系 support@viza.com。",
+      "urgentAccess": "如需紧急访问，请联系 support@viza.it.com。",
       "backToLogin": "返回登录",
       "privacyPolicy": "隐私政策",
       "termsOfService": "服务条款",
@@ -4536,7 +4569,7 @@
       },
       "contact": {
         "title": "联系我们",
-        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.com。"
+        "p1": "如果您对这些服务条款有任何疑问，请通过您的 VIZA 账户中的礼宾部分联系我们，或发送电子邮件至 legal@viza.it.com。"
       }
     }
   },
@@ -4601,7 +4634,7 @@
       },
       "contact": {
         "title": "联系我们",
-        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.com。"
+        "p1": "如果您对本隐私政策或我们处理您数据的方式有疑问或担忧，请通过您的 VIZA 账户中的礼宾部分联系我们的团队，或发送电子邮件至 privacy@viza.it.com。"
       }
     }
   },
@@ -4735,10 +4768,102 @@
       "title": "B1/B2 预约设置",
       "subtitle": "DS-160 完成后，使用中国 USVisaScheduling assisted-live 预约助手继续。VIZA 可处理支持的账号、CAPTCHA、政策、付款、名额读取和确认节点，但选位和最终预约批准必须明确完成。"
     },
+    "stateMachine": {
+      "subtitle": "一次只处理一个阶段。只有完成当前确认或收到官网结果后，VIZA 才会进入下一步。",
+      "ariaLabel": "预约进度",
+      "steps": {
+        "review": "复核资料",
+        "account": "官网账号",
+        "slots": "选择名额",
+        "confirm": "最终确认",
+        "result": "预约结果"
+      },
+      "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
+      "accountTitle": "官网账号与申请人资料",
+      "accountBody": "VIZA 正在创建或继续已授权的官网账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "reviewAgain": "重新复核资料",
+      "startAgain": "重新开始",
+      "noSlotsBody": "官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
+    },
+    "review": {
+      "title": "继续前请复核",
+      "body": "请将下列已保存资料与护照和已提交的 DS-160 核对。如需修改请选择“修改申请资料”；只有您确认后，VIZA 才会进入官网账号流程。",
+      "back": "返回申请表",
+      "fullName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passportNumber": "护照号码",
+      "passportExpiry": "护照有效期至",
+      "phone": "手机号码",
+      "email": "个人邮箱",
+      "address": "现居住地址",
+      "ds160": "DS-160 确认编号",
+      "post": "面签使领馆",
+      "missing": "尚未填写",
+      "confirmation": "我已将以上资料与护照及已提交的 DS-160 核对，并授权 VIZA 继续进入官网账号流程。选择名额和最终预约仍需分别确认。",
+      "edit": "修改申请资料",
+      "confirmAndContinue": "确认资料无误并继续"
+    },
     "loading": "正在加载预约助手...",
     "errorTitle": "预约助手需要处理",
     "dryRunNoticeTitle": "受控 assisted-live",
     "dryRunNotice": "中国首版流程只会在明确用户动作后运行。VIZA 可通过受控 runner 处理支持的官方节点，记录脱敏官方证据；不支持的官方阻塞会明确显示为需要人工处理。",
+    "cloud": {
+      "title": "云端自动化状态",
+      "ready": "Fly worker 已就绪",
+      "unavailable": "Worker 暂不可用",
+      "worker": "云端 worker",
+      "alias": "Alias 预约账号",
+      "portal": "官网预约日历",
+      "preSubmit": "已到最终提交前",
+      "complete": "已完成",
+      "pending": "待完成",
+      "stopTitle": "官网最终按钮受保护",
+      "stopBody": "只有后端观察到名额、用户选择时段并记录最终批准后，VIZA 才会启用官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
+    "requirements": {
+      "title": "请按顺序完成以下步骤",
+      "body": "从第 1 步依次向下完成。每一步都会说明由谁操作、使用哪些信息，以及当前是否已就绪。",
+      "officialCheckTitle": "已对照 USVisaScheduling 真实注册页核验",
+      "officialCheckBody": "官网当前要求填写用户名、Alias 邮箱验证码、英文名、英文姓、密码，以及 3 组安全问题答案。VIZA 负责账号字段，您只需提供准确的申请人和 DS-160 信息。",
+      "openApplication": "返回申请表复核资料",
+      "userInputTitle": "您需要在 VIZA 填写什么",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、已提交的 DS-160 确认编号及对应面签使领馆。预约用户名和密码、Alias 邮箱及验证码、3 组官网账号恢复答案由 VIZA 准备。",
+      "states": {
+        "ready": "已就绪",
+        "review": "请复核一次",
+        "managed": "VIZA 自动处理",
+        "action": "必须补充",
+        "pending": "后续步骤"
+      },
+      "roles": {
+        "user": "您操作",
+        "viza": "VIZA 处理",
+        "joint": "您与 VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "复核申请人资料",
+          "body": "确认与护照一致的英文名和英文姓、出生日期与国家、国籍、性别、护照号码与有效期、手机、个人邮箱、现住址及护照资料页。"
+        },
+        "ds160": {
+          "title": "确认 DS-160 与面签使领馆",
+          "body": "填写已提交的 DS-160 确认编号，并选择该 DS-160 上相同的中国使领馆。两者一致后才能预约。"
+        },
+        "account": {
+          "title": "创建并验证官网账号",
+          "body": "VIZA 创建用户名和密码，使用申请人 Alias 邮箱，读取验证码，填写护照英文姓名，并准备官网要求的 3 组安全问题答案。"
+        },
+        "profile": {
+          "title": "关联个人资料、DS-160 与缴费状态",
+          "body": "VIZA 登录并填写支持的资料，关联 DS-160 和使领馆，进入官网缴费与日历路径；CAPTCHA、政策或付款挑战会作为清晰节点显示。"
+        },
+        "booking": {
+          "title": "选择名额并批准预约",
+          "body": "VIZA 只展示从官网日历读取的真实名额。您选择一个时段、复核缴费节点，并明确批准最终预约动作。"
+        }
+      }
+    },
     "errors": {
       "generic": "预约请求暂时无法完成，请稍后重试。",
       "withCode": "预约请求暂时无法完成。参考代码：{code}。",
@@ -4789,6 +4914,7 @@
       "appointment_slot_selection_required": "需要选择名额",
       "appointment_slot_selected": "已选择名额",
       "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_final_confirmation_approved": "最终确认已记录",
       "appointment_booked": "已请求预约",
       "appointment_confirmation_captured": "官方确认已记录",
       "appointment_status_check_in_progress": "状态检查中",
@@ -4814,7 +4940,7 @@
       "slotScenarioNoSlots": "显示暂无名额",
       "aliasNoticeTitle": "VIZA 别名邮箱",
       "aliasNotice": "新建预约账号时，VIZA 使用此申请人资料分配的别名邮箱。验证邮件经 Cloudflare Email Routing 入站并从 Supabase inbound_email 消费；此流程不使用旧 IMAP 邮箱轮询。",
-      "createJob": "开始预约助手",
+      "createJob": "创建 Alias 账号并开始",
       "creating": "正在创建...",
       "recordConsent": "记录授权",
       "consentRequiredError": "请先阅读并同意授权说明。"
@@ -4826,6 +4952,27 @@
       "checkbox": "我授权 VIZA 为本申请运行中国 USVisaScheduling assisted-live 操作，并保留明确选位、最终 VIZA 批准和官方证据记录。",
       "recorded": "授权已记录",
       "security": "敏感输入会从助手日志中脱敏。"
+    },
+    "account": {
+      "title": "官方预约账号",
+      "email": "账号邮箱",
+      "password": "账号密码",
+      "status": "账号状态",
+      "notCreated": "尚未创建",
+      "revealTitle": "显式显示",
+      "revealBody": "账号、密码和安全问题答案只会在您点击显示时从服务端解密返回；普通状态轮询不会携带密码。",
+      "reveal": "显示官方账号",
+      "show": "显示",
+      "hide": "隐藏",
+      "securityAnswer": "安全问题答案 {index}",
+      "prefillDs160": "DS-160 编号",
+      "prefillPost": "面签使领馆",
+      "missing": "待补充",
+      "autofillTitle": "自动化会使用这些前端资料",
+      "autofillDs160": "DS-160 确认编号和面签使领馆从当前申请读取。",
+      "autofillProfile": "护照、姓名、联系方式等资料应提前在申请表/通用资料中填写，runner 会从 Supabase 自动取值。",
+      "autofillSlots": "官方日历名额由 runner 抓取后写入下方列表，您只需要选择时间。",
+      "autofillEvidence": "预约后会持续追踪状态，并在有官方确认号、截图或 PDF 时展示凭证。"
     },
     "panel": {
       "title": "实时助手",
@@ -4856,7 +5003,7 @@
       "completing": "正在完成...",
       "instructions": {
         "consent": "请阅读并接受授权说明。",
-        "account_email_verification": "请输入邮箱中的验证码。VIZA 不会访问您的邮箱。",
+        "account_email_verification": "VIZA 会先自动从 inbound_email 读取 Alias 验证邮件；只有自动提取失败时，才需要在此输入验证码。",
         "login": "Runner 遇到不支持自动处理的官方登录或风控节点，需要人工复核。",
         "captcha": "Runner 遇到不支持自动处理的 CAPTCHA 或 MFA 节点，需要人工复核。",
         "payment": "请复核官方付款节点。只有在 VIZA 已获授权时才继续。",
@@ -4893,7 +5040,7 @@
       "selected": "已选名额：{date} {time}。请复核后再确认。",
       "approve": "批准最终步骤",
       "approving": "正在确认...",
-      "book": "请求官方预约",
+      "book": "点击官网最终确认",
       "approvedBadge": "已批准"
     },
     "results": {
@@ -4954,5 +5101,283 @@
       "button": "打开预约助手",
       "badge": "Assisted live"
     }
+  },
+  "franceAppointment": {
+    "page": {
+      "eyebrow": "法国申根预约助手",
+      "title": "TLScontact 预约设置",
+      "subtitle": "在 VIZA 已取得 France-Visas 官方申请编号后，读取 TLScontact 中国大陆名额，由用户选择后端刚观察到的时段，记录一次性 TLS 服务费授权，并在最终确认后请求官网预约。"
+    },
+    "stateMachine": {
+      "subtitle": "一次只处理一个阶段。只有完成当前确认或收到官网结果后，VIZA 才会进入下一步。",
+      "ariaLabel": "预约进度",
+      "steps": {
+        "review": "复核资料",
+        "account": "官网账号",
+        "slots": "选择名额",
+        "confirm": "最终确认",
+        "result": "预约结果"
+      },
+      "workerUnavailable": "预约 worker 尚未就绪。您仍可复核资料，但暂时不能启动官网流程。",
+      "accountTitle": "TLScontact 账号与申请人资料",
+      "accountBody": "VIZA 正在创建或继续已授权的 TLScontact 账号流程。需要验证码或遇到官网节点时，只会在这里提示当前操作。",
+      "reviewAgain": "重新复核资料",
+      "noSlotsBody": "TLScontact 官网当前没有可预约时段。请稍后刷新；VIZA 不会生成或猜测名额。"
+    },
+    "review": {
+      "title": "继续前请复核",
+      "body": "请将下列已保存资料与护照和 France-Visas 申请核对。如需修改请选择“修改申请资料”；只有您确认后，VIZA 才会进入 TLScontact 官网账号流程。",
+      "back": "返回申请表",
+      "fullName": "护照英文姓名",
+      "dateOfBirth": "出生日期",
+      "nationality": "国籍",
+      "passportNumber": "护照号码",
+      "passportExpiry": "护照有效期至",
+      "phone": "手机号码",
+      "email": "个人邮箱",
+      "address": "现居住地址",
+      "center": "TLScontact 签证中心",
+      "missing": "尚未填写",
+      "confirmation": "我已将以上资料与护照及 France-Visas 申请核对，并授权 VIZA 继续进入 TLScontact 官网账号流程。选择名额、付款授权和最终预约仍需分别确认。",
+      "edit": "修改申请资料",
+      "confirmAndContinue": "确认资料无误并继续"
+    },
+    "loading": "正在加载法国预约助手...",
+    "errorTitle": "法国预约助手需要处理",
+    "dryRunNoticeTitle": "TLS 中国受控流程",
+    "dryRunNotice": "该流程只会在用户明确操作后运行。VIZA 通过后端读取 TLScontact 名额，不替申请人随意选位；遇到不支持自动化的官网风控、MFA、实名或支付挑战时会暂停。 ",
+    "cloud": {
+      "ready": "Fly worker 已就绪",
+      "unavailable": "Worker 暂不可用",
+      "worker": "云端 worker",
+      "alias": "已验证 Alias 账号",
+      "portal": "已观察 TLS 日历",
+      "preSubmit": "已到最终提交前",
+      "stopTitle": "官网最终按钮受保护",
+      "stopBody": "只有后端观察到名额、用户选择时段、完成所需支付授权并记录最终批准后，VIZA 才会启用 TLS 官网确认动作。仅打开本页不会启动任务或提交预约。"
+    },
+    "requirements": {
+      "title": "请按顺序完成以下步骤",
+      "body": "先完成 France-Visas 申请，再依次向下操作。每一步都会把您要提供的资料与 VIZA 处理的动作分开说明。",
+      "officialCheckTitle": "已对照 TLScontact 中国真实注册页核验",
+      "officialCheckBody": "官网当前要求邮箱、密码及密码确认、必须接受的法律条款和 reCAPTCHA。邮件、电话、短信及推送营销同意均为可选项，注册不需要勾选。",
+      "openApplication": "返回申请表复核资料",
+      "userInputTitle": "您需要在 VIZA 填写什么",
+      "userInputBody": "准确的护照身份、护照资料、联系方式与住址、France-Visas 官方申请编号，以及希望办理的中国签证中心。VIZA 管理 Alias 账号和激活邮件；之后由您选择官网名额并批准费用与最终预约。",
+      "states": {
+        "ready": "已就绪",
+        "review": "请复核一次",
+        "managed": "VIZA 自动处理",
+        "action": "必须补充",
+        "pending": "后续步骤"
+      },
+      "roles": {
+        "user": "您操作",
+        "viza": "VIZA 处理",
+        "joint": "您与 VIZA"
+      },
+      "steps": {
+        "application": {
+          "title": "完成 France-Visas 并复核申请资料",
+          "body": "确认与护照一致的英文姓名、出生信息、国籍、护照号码与有效期、联系方式与住址、护照资料页，以及 France-Visas 官方申请编号。"
+        },
+        "account": {
+          "title": "创建并激活 TLScontact 账号",
+          "body": "VIZA 填写 Alias 邮箱和生成的密码、再次确认密码，在您授权范围内只接受必需法律条款，处理支持的 reCAPTCHA 并读取激活邮件；可选营销同意保持关闭。"
+        },
+        "link": {
+          "title": "选择签证中心并关联申请",
+          "body": "确认中国 TLScontact 办理中心。VIZA 登录并关联 France-Visas 编号；若缺少资料或遇到实名、MFA、官网政策限制，会明确暂停。"
+        },
+        "calendar": {
+          "title": "读取日历并复核服务费",
+          "body": "VIZA 读取官网名额，不替您选择。您选择一个已观察到的时段并授权所需 TLS 服务费；3DS 或银行验证仍由您完成。"
+        },
+        "booking": {
+          "title": "批准最终预约",
+          "body": "复核中心、日期、时间与缴费状态。只有您明确最终批准后，VIZA 才能点击官网预约按钮并记录官方确认凭证。"
+        }
+      }
+    },
+    "errors": {
+      "generic": "法国预约请求暂时无法完成，请稍后重试。",
+      "withCode": "法国预约请求暂时无法完成。参考代码：{code}。",
+      "supabaseAuthNotConfigured": "预约服务缺少 Supabase 鉴权配置。请在 agent-backend 环境中补充 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY，或 SUPABASE_URL 和 SUPABASE_ANON_KEY，然后重启后端。",
+      "appointmentSchemaNotConfigured": "预约服务的数据库表尚未部署。请先执行预约助手迁移，然后重启后端。"
+    },
+    "modes": {
+      "dry_run": "Dry run 演练",
+      "assisted_live": "人工辅助 live",
+      "manual": "手动"
+    },
+    "statusLabels": {
+      "appointment_not_started": "未开始",
+      "appointment_consent_required": "需要授权",
+      "appointment_consent_received": "已收到授权",
+      "appointment_account_required": "需要 TLS 账号",
+      "appointment_account_creation_started": "TLS 账号设置已开始",
+      "appointment_email_verification_required": "邮箱验证节点",
+      "appointment_login_required": "登录节点",
+      "appointment_captcha_required": "CAPTCHA 节点",
+      "appointment_profile_fill_in_progress": "资料填写进行中",
+      "appointment_profile_filled": "资料填写完成",
+      "appointment_ds160_linked": "France-Visas 编号已关联",
+      "appointment_payment_required": "需要 TLS 服务费授权",
+      "appointment_payment_in_progress": "付款处理中",
+      "appointment_payment_completed": "付款授权已记录",
+      "appointment_calendar_opened": "日历已打开",
+      "appointment_slots_observed": "已发现名额",
+      "appointment_no_slots_available": "暂无名额",
+      "appointment_slot_selection_required": "需要选择名额",
+      "appointment_slot_selected": "已选择名额",
+      "appointment_final_confirmation_required": "需要最终确认",
+      "appointment_final_confirmation_approved": "已记录最终批准",
+      "appointment_booked": "已请求预约",
+      "appointment_confirmation_captured": "官方确认已记录",
+      "appointment_status_check_in_progress": "状态检查中",
+      "appointment_status_checked": "状态已检查",
+      "appointment_manual_required": "需要人工处理",
+      "appointment_blocked_by_site_policy": "因网站政策暂停",
+      "appointment_failed": "失败",
+      "appointment_cancelled": "已取消"
+    },
+    "centers": {
+      "beijing": "北京",
+      "guangzhou": "广州",
+      "chengdu": "成都",
+      "shanghai": "上海",
+      "shenyang": "沈阳",
+      "wuhan": "武汉",
+      "chongqing": "重庆",
+      "changsha": "长沙",
+      "fuzhou": "福州",
+      "hangzhou": "杭州",
+      "kunming": "昆明",
+      "nanjing": "南京",
+      "shenzhen": "深圳",
+      "jinan": "济南",
+      "xian": "西安"
+    },
+    "setup": {
+      "title": "TLS 设置",
+      "center": "TLScontact 中心",
+      "referenceHint": "创建 TLS 预约任务前必须已有 France-Visas 官方申请编号；如编号缺失，后端会阻止任务创建。",
+      "createJob": "创建 Alias 账号并开始",
+      "jobCreated": "预约任务已创建",
+      "creating": "正在创建账号并打开 TLScontact...",
+      "recordConsent": "记录授权",
+      "consentRequiredError": "请先阅读并同意授权说明。"
+    },
+    "consent": {
+      "title": "授权与边界",
+      "body1": "VIZA 可以在 France-Visas 官方申请编号创建后，协助处理中国大陆 TLScontact 预约流程。",
+      "body2": "VIZA 可处理支持的 TLS 登录、别名邮箱验证、CAPTCHA、名额读取、服务费支付交接和确认节点。您仍需选择名额、授权支付并批准最终预约。",
+      "checkbox": "我授权 VIZA 为本申请运行法国申根 TLScontact 中国预约操作，并保留明确选位、一次性支付授权、最终确认和官方证据记录。"
+    },
+    "account": {
+      "title": "VIZA Alias 与 TLS 账号",
+      "alias": "Alias 邮箱",
+      "status": "官网账号状态",
+      "verification": "邮箱验证",
+      "verified": "已自动验证",
+      "notVerified": "待验证",
+      "pending": "Runner 启动时创建",
+      "body": "云端 runner 使用本申请专属 alias 注册 TLScontact。Cloudflare Email Worker 会把激活邮件写入 inbound_email；密码和激活链接只保留在服务端。"
+    },
+    "checkpoint": {
+      "title": "官网检查点",
+      "body": "TLScontact 要求复核后才能继续自动流程。"
+    },
+    "panel": {
+      "title": "预约 runner",
+      "progressTitle": "预约进度",
+      "stepComplete": "已完成",
+      "stepPending": "待完成",
+      "noJob": "请在授权并选择中心后开始。打开本页只读取状态，不会自动创建或重跑 TLS 任务。",
+      "progressBody": "后端从 VIZA 表读取最新预约状态；TLS 名额检查只会在用户触发且满足后端 cooldown 后运行。",
+      "provider": "预约平台",
+      "providerUnknown": "待识别",
+      "mode": "模式",
+      "run": "运行第一步",
+      "checkSlots": "检查名额",
+      "cancel": "取消"
+    },
+    "slots": {
+      "title": "发现的 TLS 名额",
+      "empty": "后端尚未返回 TLS 可预约时间。请先开始助手，再在需要时点击检查名额。",
+      "noSlots": "TLScontact 返回暂无可预约名额。只有在您明确点击检查名额时才会再次检查。",
+      "choose": "选择",
+      "selected": "已选择",
+      "observedAt": "发现时间 {value}",
+      "observedPending": "发现时间待定",
+      "datePending": "日期待定",
+      "timePending": "时间待定",
+      "locationPending": "地点待定",
+      "slotLine": "{date} {time}"
+    },
+    "payment": {
+      "title": "一次性 TLS 服务费授权",
+      "body": "这里仅记录脱敏后的支付授权交接状态。完整卡号、CVV、OTP 和支付密码不得进入 VIZA 数据库、日志、截图或浏览器状态接口。",
+      "brand": "卡组织",
+      "brandPlaceholder": "Visa",
+      "last4": "后四位",
+      "expMonth": "有效期月份",
+      "expYear": "有效期年份",
+      "record": "记录授权",
+      "authorized": "授权已记录",
+      "validation": "请输入后四位、有效期月份和四位有效期年份。"
+    },
+    "final": {
+      "title": "最终确认",
+      "requirement": "请先选择一个已发现的 TLS 名额，再进行最终确认。",
+      "selected": "已选名额：{date} {time}。请复核 TLS 时间和支付授权后再确认。",
+      "approve": "批准最终步骤",
+      "book": "点击官网最终确认",
+      "approvedBadge": "已批准"
+    },
+    "results": {
+      "title": "结果",
+      "none": "尚未记录 TLS 官方预约确认。",
+      "confirmationNumber": "官方确认号",
+      "date": "预约日期",
+      "time": "预约时间",
+      "location": "中心",
+      "captured": "官方证据已记录"
+    },
+    "nextStepCard": {
+      "title": "下一步：TLS 预约",
+      "body": "继续进入 TLScontact 中国预约设置，保留用户触发名额检查、明确选位、一次性支付授权和最终批准。",
+      "button": "打开 TLS 预约助手",
+      "badge": "TLScontact 中国"
+    }
+  },
+  "JapanAppointment": {
+    "loading": "正在加载日本预约准备…",
+    "back": "返回日本签证申请",
+    "eyebrow": "日本短期旅游签证 · 新加坡 JVAC",
+    "title": "日本 VFS 网站自动化",
+    "subtitle": "VIZA 会核验新加坡递交资格和材料，然后打开并检查 VFS 官方公开入口。本模式不会创建账号、登录、读取受保护名额、付款或预约。",
+    "select": "请选择",
+    "yes": "可用",
+    "no": "不可用",
+    "steps": { "label": "预约进度", "review": "资料确认", "account": "官方网站", "slots": "选择时段", "confirm": "确认预约", "result": "预约结果" },
+    "review": { "title": "核对申请人与递交信息", "englishName": "护照英文姓名", "dateOfBirth": "出生日期", "nationality": "国籍", "passport": "护照号码", "passportExpiry": "护照到期日", "phone": "手机号", "email": "个人邮箱", "address": "居住地址", "center": "预约中心", "notProvided": "尚未提供", "edit": "编辑申请资料" },
+    "account": { "title": "官方网站检查点", "mobileAlreadyRegisteredTitle": "该手机号已绑定其他 VFS 账号", "mobileAlreadyRegisteredBody": "官网注册表已接受全部字段并通过 Turnstile，但随后提示该手机号已经注册。继续登录需要提供原 VFS 账号邮箱；或者更换一个可接收新 VFS 验证码的手机号。" },
+    "free": { "title": "仅自动化公开网站", "body": "本模式只使用一个云端浏览器会话访问 VFS 官方公开入口并保存脱敏证据；遇到账号创建或登录边界即停止，无法读取受保护的预约名额。" },
+    "eligibility": { "title": "1. 申请资格", "visaType": "签证请求", "occupation": "职业状态", "passType": "新加坡长期准证", "passExpiry": "准证到期日", "returnDate": "预计返回新加坡日期", "pass": "资格通过", "incomplete": "待补充", "passBody": "新加坡当地递交的基础资格检查已通过。", "incompleteBody": "请提供覆盖返回日期的有效长期准证。" },
+    "visaTypes": { "single_entry": "单次入境", "double_entry": "双次入境", "multiple_entry": "多次入境" },
+    "occupations": { "employed": "受雇", "self_employed": "企业主／自雇", "student": "学生", "retired": "退休", "housewife": "家庭主妇／主夫", "unemployed": "待业" },
+    "passTypes": { "pr": "永久居民 PR", "employment_pass": "Employment Pass", "s_pass": "S Pass", "work_permit": "Work Permit", "dependent_pass": "Dependent Pass", "long_term_visit_pass": "Long-Term Visit Pass", "student_pass": "Student Pass" },
+    "documents": { "title": "2. 材料预检", "body": "选择通用资料中最近保存的证件照，或为本次申请更换照片。", "manage": "打开材料中心", "passportStored": "VIZA 已存储护照", "photoStored": "已选择证件照", "profilePhotoTitle": "通用资料证件照", "profilePhotoSelected": "已为本次日本申请选择通用资料证件照；如需使用其他照片，请点击更换。", "profilePhotoLoading": "正在选择最近保存的通用证件照…", "profilePhotoMissing": "通用资料中没有可复用证件照，请上传后继续。", "useProfilePhoto": "使用通用资料证件照", "replaceProfilePhoto": "更换证件照", "noProfilePhoto": "通用资料中尚未保存证件照，请在下方上传。", "photoUploadFailed": "证件照上传失败。请使用 JPG、PNG 或 WebP 图片后重试。", "profileIncomplete": "申请资料尚未完整", "profileMissing": "准备预约前，请先在申请表补齐这些字段：{fields}。" },
+    "workflow": { "title": "3. 网站自动化", "consent": "我确认信息真实，并授权 VIZA 打开和检查日本 VFS 新加坡官方公开入口。本授权不包含创建账号、发送短信或邮件、登录、读取受保护名额、付款或预约。", "saving": "正在保存…", "saveConsent": "记录授权", "consentRecorded": "授权已记录", "consentRecordedBody": "后端已为当前申请保存公开网站自动化授权。", "creating": "正在启动…", "create": "开始网站自动化", "restart": "重新开始", "restartTitle": "自动化已取消", "restartBody": "核对最新资料后，可以重新开始公开网站检查。", "checking": "正在检查…", "check": "运行 VFS 公开入口检查", "publicOnlyTitle": "账号创建已关闭", "publicOnlyBody": "Worker 只能打开 VFS 公开入口并保存脱敏证据；遇到登录或安全边界即停止。", "aliasReady": "账号创建已关闭", "aliasBody": "公开网站模式不会创建 VFS alias 或账号。", "openOfficial": "打开官方 VFS", "cancel": "取消自动化" },
+    "evidence": { "title": "云端证据", "httpStatus": "HTTP 状态", "pageTitle": "官方页面", "observedAt": "检查时间", "entryClick": "已点击 Book now", "replay": "Browserbase 回放" },
+    "checkpoints": { "login": "需要官方登录", "existing_mobile_account": "需要已有 VFS 账号资料", "captcha": "检测到 CAPTCHA", "waf": "WAF 检查点", "identity_verification": "需要身份验证", "selector_drift": "门户状态需要复核", "no_slots": "没有可见时段", "slot_selection": "请选择预约时间", "payment": "需要官网付款", "site_policy_review": "官方政策检查点" },
+    "checkpointBodies": { "login": "VFS 官方公开入口已成功渲染并到达登录边界。账号创建已关闭，因此自动化按预期停在这里。", "existing_mobile_account": "VFS 已确认所填手机号已经注册。请提供原 VFS 账号邮箱以继续登录，或提供另一个可接收新验证码的手机号。", "captcha": "官方网站要求完成 CAPTCHA。VIZA 已暂停，没有创建账号，也不会把该状态误报为预约成功。", "waf": "官方网站显示安全或地区访问检查点。VIZA 已保留观察证据并暂停。", "identity_verification": "官方网站要求申请人身份验证；公开网站自动化在此停止。", "selector_drift": "官方网站当前页面与已验证的公开入口状态不匹配，VIZA 已暂停等待复核。", "no_slots": "最近一次观察中，官方网站没有显示可预约时间。", "slot_selection": "请选择后端刚观察到的一个 VFS 官方预约时间。", "payment": "请继续完成 VFS 官方托管的服务费付款步骤。", "site_policy_review": "官方网站要求先复核政策提示，自动流程暂不继续。" },
+    "slots": { "title": "官网预约时间", "empty": "尚未观察到官网名额。VFS 账号准备完成后，请点击“检查官方门户”。", "choose": "选择", "selected": "已选择" },
+    "payment": { "title": "VFS 服务费付款", "officialTitle": "请在 VFS 官方页面完成付款", "officialBody": "VIZA 预约助手不会收集完整银行卡资料；公开网站模式下付款功能保持关闭。", "secureTitle": "一次性安全付款", "secureBody": "卡片资料只会一次性传给内存中的预约 worker，数分钟后过期，绝不写入数据库或日志；发卡行仍可能要求完成 3-D Secure 验证。", "holder": "持卡人姓名", "cardNumber": "卡号", "expiry": "有效期", "cvv": "CVV", "authorize": "准备一次性付款" },
+    "final": { "title": "最终预约确认", "consent": "我已核对官网时段和付款条款，并授权 VIZA 请求最终 VFS 预约。", "approve": "批准最终预约", "book": "预约所选时段", "confirmed": "官网预约已确认", "confirmation": "确认号 {number} · {date} {time}" },
+    "result": { "openEvidence": "打开官网证据" },
+    "statuses": { "not_started": "尚未开始", "appointment_account_required": "公开检查已就绪", "appointment_manual_required": "已停在官网边界", "appointment_no_slots_available": "暂无时段", "appointment_slot_selection_required": "请选择时段", "appointment_payment_required": "需要付款", "appointment_payment_completed": "付款授权已记录", "appointment_payment_ready": "付款已就绪", "appointment_final_confirmation_approved": "最终批准已记录", "appointment_confirmation_captured": "预约已确认", "appointment_cancelled": "已取消" },
+    "errors": { "title": "无法继续", "load": "无法加载日本预约状态。", "action": "日本预约操作失败。", "missingRequiredFields": "请先补齐申请资料，并上传护照和照片，再准备预约。", "consentRequired": "请先记录授权，再准备预约。", "cancelled": "本次准备已取消，请重新开始后再检查官方网站。", "runnerUnavailable": "官方门户 worker 当前不可用，请稍后重试。", "slotRequired": "请先选择当前可用的 VFS 官网时段。", "paymentRequired": "请先完成 VFS 安全付款授权。", "finalRequired": "提交前请批准最终预约。", "sessionRequired": "登录会话已过期，请重新登录后继续。" }
   }
 }

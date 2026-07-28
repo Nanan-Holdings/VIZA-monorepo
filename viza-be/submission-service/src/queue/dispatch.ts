@@ -24,9 +24,11 @@ import { runOne as runItaly } from "../italy-vfs-cn/runner.js";
 import { runOne as runSaudi } from "../sa/runner.js";
 import { runOne as runMalaysia } from "../my/runner.js";
 import { runOne as runJapan } from "../jp/runner.js";
+import { runOne as runKorea } from "../kr/runner.js";
 import { runOne as runCanada } from "../ca/runner.js";
 import { runOne as runTurkey } from "../tr/runner.js";
 import { runOne as runThailand } from "../th/runner.js";
+import { runOne as runSingapore } from "../sg/runner.js";
 import { runOne as runUae } from "../ae/runner.js";
 import { runOne as runTaiwan } from "../tw/runner.js";
 
@@ -73,17 +75,19 @@ export const LAUNCH_COUNTRIES = [
   "canada",
   "turkey",
   "thailand",
+  "singapore",
   "united_arab_emirates",
   "france",
   "italy",
   "india",
   "taiwan",
+  "south_korea",
 ] as const;
 
 export type LaunchCountry = (typeof LAUNCH_COUNTRIES)[number];
 
 /**
- * Country → runOne. Includes the 16 launch countries plus the additional
+ * Country → runOne. Includes the 17 launch countries plus the additional
  * prefill-capable countries that already have runners (Sri Lanka, Cambodia,
  * Laos, South Africa). `united_states`, `united_kingdom`, `france`,
  * `australia` are halt-via-legacy-queue and get real runOne wrappers in
@@ -98,6 +102,7 @@ export const DISPATCH: Record<string, RunOne> = {
   italy: (a, j) => runItaly(a, j),
   // RUN-TH-001: dedicated Thailand runner (shared core).
   thailand: (a, j) => runThailand(a, j),
+  singapore: (a, j) => runSingapore(a, j),
   // RUN-MY-001: dedicated Malaysia eVISA/MDAC runner (replaces generic t3 scaffold).
   malaysia: (a, j) => runMalaysia(a, j),
   // RUN-TR-001 / RUN-AE-001: dedicated Türkiye + UAE runners (shared core).
@@ -124,6 +129,8 @@ export const DISPATCH: Record<string, RunOne> = {
   // account, halts at the CAPTCHA + "確認資料" submit boundary (no gov-pay
   // gate in this session — see docs/tw-entry-permit-auto-submit-plan.md).
   taiwan: (a, j) => runTaiwan(a, j),
+  // RUN-KR-001: Korea C-3-9 paper/KVAC readiness result; live e-Form remains gated.
+  south_korea: (a, j) => runKorea(a, j),
 };
 
 /**
@@ -135,6 +142,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   egypt: { runner: "egypt/runner.runOne", implemented: true },
   italy: { runner: "italy-vfs-cn/runner.runOne", implemented: true },
   thailand: { runner: "th/runner.runOne", implemented: true },
+  singapore: { runner: "sg/runner.runOne", implemented: true },
   malaysia: { runner: "my/runner.runOne", implemented: true },
   turkey: { runner: "tr/runner.runOne", implemented: true },
   united_arab_emirates: { runner: "ae/runner.runOne", implemented: true },
@@ -152,6 +160,7 @@ export const DISPATCH_META: Record<string, { runner: string; implemented: boolea
   saudi_arabia: { runner: "sa/runner.runOne", implemented: true },
   japan: { runner: "jp/runner.runOne (paper_ready)", implemented: true },
   taiwan: { runner: "tw/runner.runOne", implemented: true },
+  south_korea: { runner: "kr/runner.runOne (form_ready_for_kvac)", implemented: true },
 };
 
 /**
@@ -172,9 +181,13 @@ export const COUNTRY_ALIASES: Record<string, string> = {
   vn: "vietnam",
   my: "malaysia",
   jp: "japan",
+  kr: "south_korea",
+  kor: "south_korea",
+  korea: "south_korea",
   ca: "canada",
   tr: "turkey",
   th: "thailand",
+  sg: "singapore",
   fr: "france",
   it: "italy",
   in: "india",

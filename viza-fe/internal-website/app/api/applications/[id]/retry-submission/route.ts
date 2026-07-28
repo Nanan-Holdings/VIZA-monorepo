@@ -1,15 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { resolveMx } from "node:dns/promises";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
 import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
 } from "@/features/sgac/date-window";
 import {
+  evaluatePhEtravelSubmissionWindow,
+  validatePhEtravelFlightDates,
+} from "@/features/ph-etravel/date-window";
+import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
+  isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
@@ -17,10 +24,9 @@ import {
   isUkStandardVisitorApplication,
   isUkPrefillSubmissionResult,
   isVietnamEVisaApplication,
+  isVietnamPrearrivalApplication,
   queueProviderForApplication,
   queueStatusForApplication,
-  retryQueueInsertCanUseLegacyPayload,
-  RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   type SubmissionMode,
   type SubmissionQueueStatus,
 } from "@/lib/submission-queue";
@@ -30,6 +36,8 @@ type ApplicationForRetry = {
   applicant_id: string;
   country: string | null;
   visa_type: string | null;
+  submission_result_status: string | null;
+  submission_result: unknown | null;
   arrival_date: string | null;
   departure_date: string | null;
   purpose: string | null;
@@ -53,6 +61,7 @@ type ProfileForRetry = {
   email: string | null;
   phone: string | null;
   address: string | null;
+  inbox_alias: string | null;
 };
 
 type RetrySubmissionRequest = {
@@ -64,6 +73,11 @@ type RetrySubmissionRequest = {
 type RetryQueueInsertResult = {
   error: string | null;
   jobId: string | null;
+  queueStatus: SubmissionQueueStatus | null;
+  mode: SubmissionMode | null;
+  provider: string | null;
+  reusedExisting: boolean;
+  supersededCount: number;
 };
 
 type SgacScheduleDecision =
@@ -100,6 +114,81 @@ const VIETNAM_OFFICIAL_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 const VIETNAM_FACE_MATCH_MIN_SCORE = Number(process.env.VN_FACE_MATCH_MIN_SCORE || 0.7);
 const VIETNAM_PASSPORT_DOCUMENT_TYPES = ["passport_copy", "passport_bio_page", "passport_scan", "passport"] as const;
 const VIETNAM_PORTRAIT_DOCUMENT_TYPES = ["photo", "applicant_photo", "portrait_photo"] as const;
+const DEFAULT_MANAGED_INBOX_DOMAIN = "haggstorm.com";
+
+function managedInboxDomain(alias: string | null): string {
+  const aliasDomain = alias?.trim().toLowerCase().split("@").at(-1);
+  return (
+    aliasDomain ||
+    process.env.INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
+    DEFAULT_MANAGED_INBOX_DOMAIN
+  );
+}
+
+async function getManagedInboxRouteBlocker(alias: string | null): Promise<string | null> {
+  const domain = managedInboxDomain(alias);
+  try {
+    const records = await resolveMx(domain);
+    const hasUsableMx = records.some(
+      (record) => record.exchange.trim().length > 0 && record.exchange.trim() !== ".",
+    );
+    if (hasUsableMx) return null;
+  } catch {
+    // The user-facing result below deliberately avoids exposing DNS internals.
+  }
+  return (
+    "vn_prearrival_otp_inbox_unroutable: The VIZA managed inbox cannot currently receive " +
+    "the official email verification code. Your answers are saved. Restore the official-email " +
+    "route before retrying."
+  );
+}
+
+async function triggerCloudSubmissionWorker(jobId: string | null): Promise<boolean> {
+  if (!jobId) return false;
+  const baseUrl = (
+    process.env.VIETNAM_SUBMISSION_SERVICE_URL ??
+    process.env.SUBMISSION_SERVICE_CLOUD_URL
+  )?.trim().replace(/\/+$/u, "");
+  const token = (
+    process.env.SUBMISSION_QUEUE_INTERNAL_TOKEN ??
+    process.env.VIETNAM_CARD_SESSION_INTERNAL_TOKEN
+  )?.trim();
+  if (!baseUrl || !token) {
+    console.warn("[submission-queue] Cloud worker wake is not configured.");
+    return false;
+  }
+  if (process.env.NODE_ENV === "production" && !baseUrl.startsWith("https://")) {
+    console.warn("[submission-queue] Refusing to wake a non-HTTPS cloud worker.");
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/internal/submission-queue/wake`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jobId }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      console.warn(
+        `[submission-queue] Cloud worker wake returned ${response.status}.`,
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn(
+      `[submission-queue] Cloud worker wake failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
 
 const VIETNAM_REQUIRED_FIELDS: VietnamRequirement[] = [
   { key: "surname", labelZh: "姓氏 / Surname", labelEn: "Surname" },
@@ -188,6 +277,27 @@ function normalizeComparable(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasCompletedOfficialSubmission(application: ApplicationForRetry): boolean {
+  if (isVietnamPrearrivalApplication(application.country, application.visa_type)) {
+    const result = application.submission_result;
+    if (!isRecord(result) || result.submitted !== true) return false;
+    const artifacts = isRecord(result.artifacts) ? result.artifacts : null;
+    return Boolean(
+      artifacts &&
+      Array.isArray(artifacts.qrCodes) &&
+      artifacts.qrCodes.some((value) => typeof value === "string" && value.trim().length > 0),
+    );
+  }
+  const normalizedStatus = normalizeComparable(application.submission_result_status);
+  if (["completed", "complete", "submitted", "success", "done"].includes(normalizedStatus)) return true;
+  const result = application.submission_result;
+  return isRecord(result) && result.submitted === true;
+}
+
 function requestedValueMatchesApplication(
   requested: string | null,
   actual: string | null,
@@ -205,6 +315,12 @@ function isUkLiveRetryApplication(country: string | null, visaType: string | nul
 }
 
 function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
+  if (isVietnamPrearrivalApplication(country, visaType)) {
+    return (
+      process.env.VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_VN_PREARRIVAL_LIVE_SUBMISSION_ENABLED !== "false"
+    );
+  }
   if (isVietnamEVisaApplication(country, visaType)) {
     return (
       envEnabled("VN_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_VN_LIVE_SUBMISSION_ENABLED") &&
@@ -245,6 +361,10 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
   if (isPhilippinesEtravelApplication(country, visaType)) {
     return process.env.PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false" &&
       process.env.NEXT_PUBLIC_PH_ETRAVEL_LIVE_SUBMISSION_ENABLED !== "false";
+  }
+  if (isIndonesiaEVisaApplication(country, visaType)) {
+    return process.env.INDONESIA_LIVE_SUBMISSION_ENABLED !== "false" &&
+      process.env.NEXT_PUBLIC_INDONESIA_LIVE_SUBMISSION_ENABLED !== "false";
   }
   return false;
 }
@@ -460,11 +580,11 @@ function collectVietnamAnswerValidationIssues(answers: Record<string, string>): 
     }
   }
 
-  if (visaValidFrom && visaValidTo && visaValidTo < visaValidFrom) {
+  if (visaValidFrom && visaValidTo && visaValidTo <= visaValidFrom) {
     issues.push({
       field: "visa_valid_to",
-      labelZh: "签证结束日期不能早于生效日期",
-      labelEn: "E-visa valid to cannot be earlier than valid from",
+      labelZh: "签证结束日期必须至少晚于生效日期 1 天",
+      labelEn: "E-visa valid to must be at least 1 day after valid from",
     });
   }
 
@@ -787,40 +907,58 @@ async function insertRetryQueueRow(
     currentStage?: string | null;
   },
 ): Promise<RetryQueueInsertResult> {
-  const { data, error } = await admin.from("submission_queue").insert({
-    application_id: input.applicationId,
-    status: input.queueStatus,
-    mode: input.mode,
-    provider: input.provider,
-    attempts: 0,
-    last_error: null,
-    current_stage: input.currentStage ?? null,
-    created_at: input.now,
-    updated_at: input.now,
-  }).select("id").single();
-  if (!error) {
-    const row = data as { id?: string | null } | null;
-    return { error: null, jobId: row?.id ?? null };
+  const { data, error } = await admin.rpc("enqueue_submission_retry", {
+    p_application_id: input.applicationId,
+    p_status: input.queueStatus,
+    p_mode: input.mode,
+    p_provider: input.provider,
+    p_current_stage: input.currentStage ?? null,
+    p_now: input.now,
+  });
+  if (error) {
+    return {
+      error: error.message,
+      jobId: null,
+      queueStatus: null,
+      mode: null,
+      provider: null,
+      reusedExisting: false,
+      supersededCount: 0,
+    };
   }
 
-  const canUseLegacyPayload = retryQueueInsertCanUseLegacyPayload(error, {
-    mode: input.mode,
-    queueStatus: input.queueStatus,
-  });
-  if (!canUseLegacyPayload) return { error: error.message, jobId: null };
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  const jobId = typeof row?.queue_id === "string" ? row.queue_id : null;
+  const queueStatus = typeof row?.queue_status === "string"
+    ? row.queue_status as SubmissionQueueStatus
+    : null;
+  const queueMode = row?.queue_mode === "dry_run" || row?.queue_mode === "live_assisted"
+    ? row.queue_mode
+    : null;
+  if (!jobId || !queueStatus) {
+    return {
+      error: "Submission retry queue RPC returned no job.",
+      jobId: null,
+      queueStatus: null,
+      mode: null,
+      provider: null,
+      reusedExisting: false,
+      supersededCount: 0,
+    };
+  }
 
-  const { data: legacyData, error: legacyError } = await admin.from("submission_queue").insert({
-    application_id: input.applicationId,
-    status: input.queueStatus,
-    attempts: 0,
-    last_error: null,
-    current_stage: input.currentStage ?? null,
-    created_at: input.now,
-    updated_at: input.now,
-  }).select("id").single();
-  if (legacyError) return { error: legacyError.message, jobId: null };
-  const legacyRow = legacyData as { id?: string | null } | null;
-  return { error: null, jobId: legacyRow?.id ?? null };
+  return {
+    error: null,
+    jobId,
+    queueStatus,
+    mode: queueMode,
+    provider: typeof row?.queue_provider === "string" ? row.queue_provider : null,
+    reusedExisting: row?.reused_existing === true,
+    supersededCount:
+      typeof row?.superseded_count === "number"
+        ? row.superseded_count
+        : Number(row?.superseded_count ?? 0),
+  };
 }
 
 async function readSgacDateAnswers(
@@ -834,9 +972,11 @@ async function readSgacDateAnswers(
     .eq("application_id", applicationId)
     .in("field_name", [
       "arrival_date",
+      "flight_arrival_date",
       "intended_arrival_date",
       "planned_arrival_date",
       "departure_date",
+      "flight_departure_date",
       "intended_departure_date",
       "planned_departure_date",
     ]);
@@ -852,12 +992,14 @@ async function readSgacDateAnswers(
 
   return {
     arrivalDate: firstText([
+      answers.flight_arrival_date,
       answers.arrival_date,
       answers.intended_arrival_date,
       answers.planned_arrival_date,
       application.arrival_date,
     ]),
     departureDate: firstText([
+      answers.flight_departure_date,
       answers.departure_date,
       answers.intended_departure_date,
       answers.planned_departure_date,
@@ -975,7 +1117,7 @@ async function decideMdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "mdac_invalid_arrival_date",
-      message: "MDAC arrival date must use YYYY-MM-DD.",
+      message: "MDAC 抵达日期必须使用 YYYY-MM-DD 格式。",
     };
   }
   if (window.status === "past") {
@@ -983,7 +1125,7 @@ async function decideMdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "mdac_arrival_date_past",
-      message: "MDAC arrival date is already in the past. Please update the travel dates before submitting.",
+      message: "MDAC 抵达日期不能早于今天。请更新旅行日期后再提交。",
     };
   }
   if (window.status === "scheduled") {
@@ -999,7 +1141,7 @@ async function decideMdacLiveSchedule(input: {
       referenceNumber: null,
       portalUrl: "https://imigresen-online.imi.gov.my/mdac/main",
       portalResponseSummary:
-        `Malaysia MDAC accepts submissions within three days before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `MDAC 只允许在抵达前三天内提交。此申请已排队，将在 ${window.earliestSubmissionDate} 自动提交。`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,
@@ -1056,7 +1198,7 @@ async function decideTdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "tdac_invalid_arrival_date",
-      message: "TDAC arrival date must use YYYY-MM-DD.",
+      message: "TDAC 抵达日期必须使用 YYYY-MM-DD 格式。",
     };
   }
   if (window.status === "past") {
@@ -1064,7 +1206,7 @@ async function decideTdacLiveSchedule(input: {
       action: "reject",
       status: 422,
       code: "tdac_arrival_date_past",
-      message: "TDAC arrival date is already in the past. Please update the travel dates before submitting.",
+      message: "TDAC 抵达日期不能早于今天。请更新旅行日期后再提交。",
     };
   }
   if (window.status === "scheduled") {
@@ -1080,7 +1222,7 @@ async function decideTdacLiveSchedule(input: {
       referenceNumber: null,
       portalUrl: "https://tdac.immigration.go.th",
       portalResponseSummary:
-        `Thailand TDAC accepts submissions within three days before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `TDAC 只允许在抵达前三天内提交。此申请已排队，将在 ${window.earliestSubmissionDate} 自动提交。`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,
@@ -1116,42 +1258,45 @@ async function decidePhEtravelLiveSchedule(input: {
   application: ApplicationForRetry;
   now: string;
 }): Promise<SgacScheduleDecision> {
+  const isDepartureCard = input.application.visa_type?.trim().toUpperCase() === "PH_ETRAVEL_DEPARTURE_CARD";
   const dates = await readSgacDateAnswers(input.admin, input.applicationId, input.application);
   if (dates.error) {
     return { action: "reject", status: 500, code: "phetravel_date_load_failed", message: dates.error };
   }
 
-  const travelDates = validateSgacTravelDates(dates.arrivalDate, dates.departureDate);
+  const travelDates = validatePhEtravelFlightDates(dates.departureDate, dates.arrivalDate);
   if (!travelDates.ok) {
     return {
       action: "reject",
       status: 422,
       code: `phetravel_${travelDates.code}`,
-      message: travelDates.message.replaceAll("SGAC", "Philippines eTravel"),
+      message: travelDates.message,
     };
   }
 
-  const window = evaluateSgacSubmissionWindow(travelDates.arrivalDate, new Date(input.now));
+  const submissionTravelDate = isDepartureCard ? travelDates.departureDate : travelDates.arrivalDate;
+  const travelDateLabel = isDepartureCard ? "departure" : "arrival";
+  const window = evaluatePhEtravelSubmissionWindow(submissionTravelDate, new Date(input.now));
   if (window.status === "invalid") {
     return {
       action: "reject",
       status: 422,
-      code: "phetravel_invalid_arrival_date",
-      message: "Philippines eTravel arrival date must use YYYY-MM-DD.",
+      code: `phetravel_invalid_${travelDateLabel}_date`,
+      message: `Philippines eTravel ${travelDateLabel} date must use YYYY-MM-DD.`,
     };
   }
   if (window.status === "past") {
     return {
       action: "reject",
       status: 422,
-      code: "phetravel_arrival_date_past",
-      message: "Philippines eTravel arrival date is already in the past. Please update the travel dates before submitting.",
+      code: `phetravel_${travelDateLabel}_date_past`,
+      message: `Philippines eTravel ${travelDateLabel} date is already in the past. Please update the travel dates before submitting.`,
     };
   }
   if (window.status === "scheduled") {
     const result = {
       country: "PH",
-      visaType: "PH_ETRAVEL_ARRIVAL_CARD",
+      visaType: isDepartureCard ? "PH_ETRAVEL_DEPARTURE_CARD" : "PH_ETRAVEL_ARRIVAL_CARD",
       status: "scheduled",
       mode: "live_assisted",
       provider: "philippines_etravel_live",
@@ -1161,7 +1306,7 @@ async function decidePhEtravelLiveSchedule(input: {
       referenceNumber: null,
       portalUrl: "https://etravel.gov.ph",
       portalResponseSummary:
-        `Philippines eTravel accepts submissions within 72 hours before arrival. This application is scheduled for ${window.earliestSubmissionDate}.`,
+        `Philippines eTravel accepts submissions within 72 hours before ${travelDateLabel}. This application is scheduled for ${window.earliestSubmissionDate}.`,
       scheduledFor: window.earliestSubmissionDate,
       arrivalDate: travelDates.arrivalDate,
       departureDate: travelDates.departureDate,
@@ -1192,7 +1337,7 @@ async function decidePhEtravelLiveSchedule(input: {
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -1200,22 +1345,26 @@ export async function POST(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const legacySession = await getClientSessionFromRequest(request);
+  let authUserId: string | null = null;
+  if (!legacySession) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+  }
+  if (!legacySession && !authUserId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = createAdminClient();
-  const { data: profile, error: profileError } = await admin
+  const profileQuery = admin
     .from("applicant_profiles")
-    .select(
-      "id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address",
-    )
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+    .select("id, auth_user_id, full_name, date_of_birth, place_of_birth, gender, nationality, passport_number, passport_issue_date, passport_expiry_date, email, phone, address, inbox_alias");
+  const { data: profile, error: profileError } = legacySession
+    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
+    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -1265,6 +1414,23 @@ export async function POST(
     );
   }
 
+  if (hasCompletedOfficialSubmission(ownedApplication)) {
+    return NextResponse.json({
+      ok: true,
+      applicationId,
+      jobId: null,
+      queueStatus: null,
+      mode,
+      provider: queueProviderForApplication(
+        ownedApplication.country,
+        ownedApplication.visa_type,
+        mode,
+      ),
+      alreadySubmitted: true,
+      result: ownedApplication.submission_result,
+    });
+  }
+
   let queueStatus = queueStatusForApplication(
     ownedApplication.country,
     ownedApplication.visa_type,
@@ -1285,7 +1451,8 @@ export async function POST(
       isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isUkLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type) ||
-      isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type);
+      isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isIndonesiaEVisaApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
       return NextResponse.json(
         { error: "Live assisted retry is not supported for this visa type." },
@@ -1297,6 +1464,18 @@ export async function POST(
         { error: "Live assisted retry is disabled by environment configuration." },
         { status: 403 },
       );
+    }
+    if (isVietnamPrearrivalApplication(ownedApplication.country, ownedApplication.visa_type)) {
+      const inboxRouteBlocker = await getManagedInboxRouteBlocker(ownedProfile.inbox_alias);
+      if (inboxRouteBlocker) {
+        return NextResponse.json(
+          {
+            error: inboxRouteBlocker,
+            code: "vn_prearrival_otp_inbox_unroutable",
+          },
+          { status: 503 },
+        );
+      }
     }
     if (isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type)) {
       const schemaBlocker = await getVietnamLiveSchemaBlocker(admin);
@@ -1447,19 +1626,6 @@ export async function POST(
     }
   }
 
-  const { error: supersedeError } = await admin
-    .from("submission_queue")
-    .update({
-      status: "retry_superseded",
-      updated_at: now,
-    })
-    .eq("application_id", applicationId)
-    .in("status", RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES);
-
-  if (supersedeError) {
-    return NextResponse.json({ error: supersedeError.message }, { status: 500 });
-  }
-
   const queueResult = await insertRetryQueueRow(admin, {
     applicationId,
     queueStatus,
@@ -1479,6 +1645,19 @@ export async function POST(
   });
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
+  }
+  if (queueResult.reusedExisting) {
+    return NextResponse.json({
+      ok: true,
+      applicationId,
+      jobId: queueResult.jobId,
+      queueStatus: queueResult.queueStatus,
+      mode: queueResult.mode ?? mode,
+      provider: queueResult.provider ?? provider,
+      alreadyQueued: true,
+      supersededCount: queueResult.supersededCount,
+      result: ownedApplication.submission_result,
+    });
   }
 
   const preservePortalPrefillResult =
@@ -1519,6 +1698,10 @@ export async function POST(
     return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
   }
 
+  const workerTriggered = scheduledResult
+    ? false
+    : await triggerCloudSubmissionWorker(queueResult.jobId);
+
   return NextResponse.json({
     ok: true,
     applicationId,
@@ -1526,8 +1709,10 @@ export async function POST(
     queueStatus,
     mode,
     provider,
+    supersededCount: queueResult.supersededCount,
     scheduled: Boolean(scheduledResult),
     scheduledFor,
     result: nextSubmissionResult,
+    workerTriggered,
   });
 }

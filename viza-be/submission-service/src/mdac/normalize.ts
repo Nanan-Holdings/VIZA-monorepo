@@ -67,29 +67,31 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
     );
   }
 
-  const answers = payload.countrySpecific;
+  const answers = payload.countrySpecific ?? {};
+  const personal = payload.personal ?? {};
+  const trip = payload.trip ?? {};
   const missing: string[] = [];
   const fields = {
-    fullName: requireFirstText([answers.full_name, payload.personal.fullName], "answers.full_name", missing),
+    fullName: requireFirstText([answers.full_name, personal.fullName], "answers.full_name", missing),
     passportNumber: requireFirstText(
-      [answers.passport_number, payload.personal.passportNumber],
+      [answers.passport_number, personal.passportNumber],
       "answers.passport_number",
       missing,
     ),
     passportExpiryDate: requireFirstText(
-      [answers.passport_expiry_date, payload.personal.passportExpiryDate],
+      [answers.passport_expiry_date, personal.passportExpiryDate],
       "answers.passport_expiry_date",
       missing,
     ),
-    nationality: requireFirstText([answers.nationality, payload.personal.nationality], "answers.nationality", missing),
+    nationality: requireFirstText([answers.nationality, personal.nationality], "answers.nationality", missing),
     placeOfBirth: requireText(answers, "place_of_birth", missing),
-    dateOfBirth: requireFirstText([answers.date_of_birth, payload.personal.dateOfBirth], "answers.date_of_birth", missing),
-    sex: requireFirstText([answers.sex, payload.personal.gender], "answers.sex", missing),
-    emailAddress: requireFirstText([answers.email_address, payload.personal.email], "answers.email_address", missing),
+    dateOfBirth: requireFirstText([answers.date_of_birth, personal.dateOfBirth], "answers.date_of_birth", missing),
+    sex: requireFirstText([answers.sex, personal.gender], "answers.sex", missing),
+    emailAddress: requireFirstText([answers.email_address, personal.email], "answers.email_address", missing),
     mobileCountryCode: requireText(answers, "mobile_country_code", missing),
-    mobileNumber: requireFirstText([answers.mobile_number, payload.personal.phone], "answers.mobile_number", missing),
-    arrivalDate: requireFirstText([answers.arrival_date, payload.trip.arrivalDate], "answers.arrival_date", missing),
-    departureDate: requireFirstText([answers.departure_date, payload.trip.departureDate], "answers.departure_date", missing),
+    mobileNumber: requireFirstText([answers.mobile_number, personal.phone], "answers.mobile_number", missing),
+    arrivalDate: requireFirstText([answers.arrival_date, trip.arrivalDate], "answers.arrival_date", missing),
+    departureDate: requireFirstText([answers.departure_date, trip.departureDate], "answers.departure_date", missing),
     modeOfTravel: requireText(answers, "mode_of_travel", missing),
     transportNumber: requireText(answers, "transport_number", missing),
     lastEmbarkationCountry: requireText(answers, "last_embarkation_country", missing),
@@ -103,6 +105,10 @@ export function normalizeMdacPortalPayload(payload: SubmissionPayload): MdacPort
 
   if (missing.length > 0) {
     throw new MdacPortalValidationError(`MDAC payload is missing: ${missing.join(", ")}`, missing);
+  }
+
+  if (!/^\d{5}$/.test(fields.postcode)) {
+    throw new MdacPortalValidationError("MDAC postcode must be exactly 5 digits.", ["answers.postcode"]);
   }
 
   return { applicationId: payload.applicationId, ...fields };

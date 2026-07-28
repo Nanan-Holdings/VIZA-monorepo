@@ -8,25 +8,30 @@
  *      message-id) and the spam score Cloudflare exposes via the headers.
  *   3. Split out a text/plain and a text/html body when the mime structure
  *      is simple (single part or top-level multipart/alternative).
- *   4. If the raw size exceeds INLINE_BODY_MAX_BYTES (default 1 MB), upload
- *      the raw bytes to R2 and store the key on the row instead of the
- *      inline text/html columns.
+ *   4. If an R2 binding is configured, archive the complete raw message for
+ *      retry/recovery. Forwarding still works when the account has not enabled
+ *      R2 yet.
  *   5. Insert one row into Supabase `inbound_email` via the service-role
  *      REST API.
  *
  * Failure mode: any error thrown here causes Cloudflare Email Routing to
  * 5xx the message, so the sender retries. Do NOT swallow errors silently.
  */
+import PostalMime from "postal-mime";
 
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
+  /** Resend key used to forward official mail to the applicant's real email. */
+  RESEND_API_KEY?: string;
+  /** Must use a domain verified in Resend. */
+  INBOX_FORWARD_FROM?: string;
   INLINE_BODY_MAX_BYTES?: string;
   /** Hard reject threshold in bytes. Default 26_214_400 (25 MB). */
   MAX_RAW_BYTES?: string;
   /** Spam score above which the worker quarantines the row (default 5). */
   SPAM_SCORE_QUARANTINE?: string;
-  INBOX_BODIES: R2Bucket;
+  INBOX_BODIES?: R2Bucket;
 }
 
 interface ParsedMessage {
@@ -38,6 +43,22 @@ interface ParsedMessage {
   subject: string | null;
   spamScore: number | null;
 }
+
+interface InsertedEmailRow {
+  id: string;
+  to_addr: string;
+  from_addr: string;
+  subject: string | null;
+  text: string | null;
+  html: string | null;
+  r2_key: string | null;
+  forwarding_attempts: number;
+}
+
+const EMAIL_FORWARDING_CONSENT_TYPE = "alias_email_forwarding";
+const EMAIL_FORWARDING_CONSENT_VERSION = "2026-07-22";
+const EMAIL_FORWARDING_DOCUMENT_HASH =
+  "sha256:5d2d7fcccd083bbde90b9d42529b5f8cab380fd7bf26a79eb2ba84315f1fb212";
 
 const HEADERS_OF_INTEREST = [
   "from",
@@ -103,46 +124,6 @@ function parseHeaderBlock(block: string): Record<string, string> {
   return out;
 }
 
-function getContentType(headersAll: string): string {
-  const m = /^content-type:\s*([^\r\n;]+)/im.exec(headersAll);
-  return m ? m[1].toLowerCase().trim() : "text/plain";
-}
-
-function getBoundary(headersAll: string): string | null {
-  const m = /boundary\s*=\s*"?([^";\r\n]+)"?/i.exec(headersAll);
-  return m ? m[1] : null;
-}
-
-function pickBodies(
-  rawText: string,
-): { text: string | null; html: string | null } {
-  const { headers, body } = splitHeadersBody(rawText);
-  const ct = getContentType(headers);
-  if (ct === "text/plain") return { text: body, html: null };
-  if (ct === "text/html") return { text: null, html: body };
-  if (!ct.startsWith("multipart/")) {
-    // unknown single part — preserve as text for forensic visibility
-    return { text: body, html: null };
-  }
-  const boundary = getBoundary(headers);
-  if (!boundary) return { text: body, html: null };
-  const parts = body.split(new RegExp(`--${escapeRegex(boundary)}(?:--)?`));
-  let text: string | null = null;
-  let html: string | null = null;
-  for (const part of parts) {
-    if (!part.trim()) continue;
-    const { headers: ph, body: pb } = splitHeadersBody(part.replace(/^\r?\n/, ""));
-    const partCt = getContentType(ph);
-    if (partCt === "text/plain" && text === null) text = pb;
-    else if (partCt === "text/html" && html === null) html = pb;
-  }
-  return { text, html };
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function parseSpamScore(headers: Record<string, string>): number | null {
   const raw = headers["x-spam-score"];
   if (!raw) return null;
@@ -150,38 +131,312 @@ function parseSpamScore(headers: Record<string, string>): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseMessage(rawText: string): ParsedMessage {
+export async function parseMessage(rawBytes: Uint8Array): Promise<ParsedMessage> {
+  const rawText = bytesToString(rawBytes);
   const { headers: headerBlock } = splitHeadersBody(rawText);
   const headers = parseHeaderBlock(headerBlock);
-  const { text, html } = pickBodies(rawText);
+  const parsed = await PostalMime.parse(rawBytes);
   return {
-    text,
-    html,
+    text: parsed.text?.trim() || null,
+    html: parsed.html?.trim() || null,
     headers,
-    messageId: headers["message-id"] ?? null,
-    subject: headers["subject"] ?? null,
+    messageId: parsed.messageId ?? headers["message-id"] ?? null,
+    subject: parsed.subject ?? headers["subject"] ?? null,
     spamScore: parseSpamScore(headers),
+  };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 32_768;
+  let binary = "";
+  for (let offset = 0; offset < bytes.byteLength; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, Math.min(offset + chunkSize, bytes.byteLength));
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function supabaseHeaders(env: Env): Record<string, string> {
+  return {
+    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
   };
 }
 
 async function insertRow(
   env: Env,
   row: Record<string, unknown>,
-): Promise<void> {
+): Promise<InsertedEmailRow> {
   const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/inbound_email`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-      Prefer: "return=minimal",
+      ...supabaseHeaders(env),
+      Prefer: "return=representation",
     },
     body: JSON.stringify(row),
   });
   if (!res.ok) {
     const detail = await res.text();
     throw new Error(`inbound_email insert failed: ${res.status} ${detail}`);
+  }
+  const rows = (await res.json()) as InsertedEmailRow[];
+  if (!rows[0]?.id) throw new Error("inbound_email insert returned no row id");
+  return rows[0];
+}
+
+async function updateInboundEmail(
+  env: Env,
+  id: string,
+  values: Record<string, unknown>,
+): Promise<void> {
+  const url = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/inbound_email?id=eq.${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...supabaseHeaders(env),
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(values),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`inbound_email update failed: ${res.status} ${detail}`);
+  }
+}
+
+interface ForwardingDestination {
+  email: string | null;
+  reason: "authorized" | "missing_profile_email" | "consent_required";
+}
+
+async function loadForwardingDestination(
+  env: Env,
+  alias: string,
+): Promise<ForwardingDestination> {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const url = `${base}/rest/v1/applicant_profiles?inbox_alias=eq.${encodeURIComponent(alias)}&select=id,email&limit=1`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`alias owner lookup failed: ${res.status} ${detail}`);
+  }
+  const rows = (await res.json()) as Array<{ id: string; email: string | null }>;
+  const owner = rows[0];
+  const email = owner?.email?.trim().toLowerCase() || null;
+  if (!owner?.id || !email) {
+    return { email: null, reason: "missing_profile_email" };
+  }
+
+  const consentQuery = [
+    `applicant_id=eq.${encodeURIComponent(owner.id)}`,
+    `consent_type=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_TYPE)}`,
+    `version=eq.${encodeURIComponent(EMAIL_FORWARDING_CONSENT_VERSION)}`,
+    `document_hash=eq.${encodeURIComponent(EMAIL_FORWARDING_DOCUMENT_HASH)}`,
+    "accepted=eq.true",
+    "select=id",
+    "limit=1",
+  ].join("&");
+  const consentRes = await fetch(`${base}/rest/v1/consent_events?${consentQuery}`, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (!consentRes.ok) {
+    const detail = await consentRes.text();
+    throw new Error(`forwarding consent lookup failed: ${consentRes.status} ${detail}`);
+  }
+  const consents = (await consentRes.json()) as Array<{ id: string }>;
+  return consents.length > 0
+    ? { email, reason: "authorized" }
+    : { email: null, reason: "consent_required" };
+}
+
+async function skipForwarding(
+  env: Env,
+  row: InsertedEmailRow,
+  reason: ForwardingDestination["reason"] | "identical_destination",
+): Promise<void> {
+  await updateInboundEmail(env, row.id, {
+    forwarding_status: "skipped",
+    forwarded_to: null,
+    forwarding_error: reason,
+    forwarding_attempts: row.forwarding_attempts,
+  });
+}
+
+async function sendForwardedEmail(
+  env: Env,
+  row: InsertedEmailRow,
+  rawBytes: Uint8Array,
+): Promise<void> {
+  if (!env.RESEND_API_KEY?.trim()) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+  const forwarding = await loadForwardingDestination(env, row.to_addr);
+  const destination = forwarding.email;
+  if (!destination) {
+    await skipForwarding(env, row, forwarding.reason);
+    return;
+  }
+  if (destination === row.to_addr) {
+    await skipForwarding(env, row, "identical_destination");
+    return;
+  }
+
+  const html = `
+    <p>此邮件由 VIZA 申请专属邮箱自动接收并转发。</p>
+    <p><strong>官方发件人：</strong> ${escapeHtml(row.from_addr)}</p>
+    <hr />
+    ${row.html || `<pre style="white-space:pre-wrap">${escapeHtml(row.text ?? "")}</pre>`}
+    <hr />
+    <p>完整原始邮件已作为 <code>official-message.eml</code> 附件保留，内含官方 QR、PDF 或其他附件。</p>
+  `;
+  const text = [
+    "此邮件由 VIZA 申请专属邮箱自动接收并转发。",
+    `官方发件人：${row.from_addr}`,
+    "",
+    row.text ?? "",
+    "",
+    "完整原始邮件已作为 official-message.eml 附件保留。",
+  ].join("\n");
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY.trim()}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": `viza-alias-forward-${row.id}`,
+    },
+    body: JSON.stringify({
+      from: env.INBOX_FORWARD_FROM?.trim() || "VIZA <noreply@viza.app>",
+      to: [destination],
+      subject: row.subject ? `[VIZA 转发] ${row.subject}` : "[VIZA 转发] 官方申请邮件",
+      html,
+      text,
+      attachments: [
+        {
+          filename: "official-message.eml",
+          content: bytesToBase64(rawBytes),
+        },
+      ],
+      tags: [
+        { name: "source", value: "alias_forward" },
+        { name: "inbound_email_id", value: row.id },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Resend forward failed: ${res.status} ${detail.slice(0, 300)}`);
+  }
+
+  await updateInboundEmail(env, row.id, {
+    forwarding_status: "sent",
+    forwarded_to: destination,
+    forwarded_at: new Date().toISOString(),
+    forwarding_attempts: row.forwarding_attempts + 1,
+    forwarding_error: null,
+  });
+}
+
+async function forwardOriginalEmail(
+  env: Env,
+  row: InsertedEmailRow,
+  message: CfEmailMessage,
+): Promise<void> {
+  const forwarding = await loadForwardingDestination(env, row.to_addr);
+  const destination = forwarding.email;
+  if (!destination) {
+    await skipForwarding(env, row, forwarding.reason);
+    return;
+  }
+  if (destination === row.to_addr) {
+    await skipForwarding(env, row, "identical_destination");
+    return;
+  }
+
+  // Cloudflare forwards the original RFC 822 message, preserving the official
+  // sender, QR, PDF, inline images, and all MIME attachments.
+  await message.forward(destination);
+  await updateInboundEmail(env, row.id, {
+    forwarding_status: "sent",
+    forwarded_to: destination,
+    forwarded_at: new Date().toISOString(),
+    forwarding_attempts: row.forwarding_attempts + 1,
+    forwarding_error: null,
+  });
+}
+
+async function recordForwardFailure(
+  env: Env,
+  row: InsertedEmailRow,
+  error: unknown,
+): Promise<void> {
+  const detail = error instanceof Error ? error.message : String(error);
+  await updateInboundEmail(env, row.id, {
+    forwarding_status: "failed",
+    forwarding_attempts: row.forwarding_attempts + 1,
+    forwarding_error: detail.slice(0, 500),
+  });
+  console.error(`[viza-email-worker] alias forward failed for ${row.id}: ${detail}`);
+}
+
+async function loadPendingForwards(env: Env): Promise<InsertedEmailRow[]> {
+  const base = env.SUPABASE_URL.replace(/\/$/, "");
+  const select = [
+    "id",
+    "to_addr",
+    "from_addr",
+    "subject",
+    "text",
+    "html",
+    "r2_key",
+    "forwarding_attempts",
+  ].join(",");
+  const url = `${base}/rest/v1/inbound_email?select=${select}&forwarding_status=in.(pending,failed)&forwarding_attempts=lt.5&quarantined=eq.false&order=received_at.asc&limit=25`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`pending alias forward query failed: ${res.status} ${detail}`);
+  }
+  return (await res.json()) as InsertedEmailRow[];
+}
+
+async function retryPendingForwards(env: Env): Promise<void> {
+  if (!env.RESEND_API_KEY?.trim()) return;
+  const rows = await loadPendingForwards(env);
+  for (const row of rows) {
+    if (!env.INBOX_BODIES || !row.r2_key) {
+      await recordForwardFailure(env, row, new Error("raw email is unavailable in R2"));
+      continue;
+    }
+    const object = await env.INBOX_BODIES.get(row.r2_key);
+    if (!object) {
+      await recordForwardFailure(env, row, new Error("raw email R2 object was not found"));
+      continue;
+    }
+    const rawBytes = new Uint8Array(await object.arrayBuffer());
+    try {
+      await sendForwardedEmail(env, row, rawBytes);
+    } catch (error) {
+      await recordForwardFailure(env, row, error);
+    }
   }
 }
 
@@ -234,19 +489,24 @@ export default {
     }
 
     const rawBytes = await readAll(message.raw);
-    const rawText = bytesToString(rawBytes);
-    const parsed = parseMessage(rawText);
+    const parsed = await parseMessage(rawBytes);
 
     let r2Key: string | null = null;
     let inlineText: string | null = parsed.text;
     let inlineHtml: string | null = parsed.html;
 
-    if (rawBytes.byteLength > inlineCap) {
+    // R2 is optional because a new Cloudflare account may not have the product
+    // enabled. The immediate forward still attaches these same raw bytes.
+    if (env.INBOX_BODIES) {
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      r2Key = `inbound/${toAddr}/${stamp}-${parsed.messageId ?? crypto.randomUUID()}.eml`;
+      r2Key =
+        `inbound/${toAddr}/${stamp}-${parsed.messageId ?? crypto.randomUUID()}.eml`;
       await env.INBOX_BODIES.put(r2Key, rawBytes, {
         httpMetadata: { contentType: "message/rfc822" },
       });
+    }
+
+    if (rawBytes.byteLength > inlineCap) {
       inlineText = null;
       inlineHtml = null;
     }
@@ -254,7 +514,7 @@ export default {
     const quarantined =
       parsed.spamScore !== null && parsed.spamScore >= spamQuarantineThreshold;
 
-    await insertRow(env, {
+    const inserted = await insertRow(env, {
       to_addr: toAddr,
       from_addr: message.from,
       subject: parsed.subject,
@@ -271,6 +531,25 @@ export default {
         : null,
       received_at: new Date().toISOString(),
       processed: false,
+      forwarding_status: quarantined ? "skipped" : "pending",
+      forwarding_attempts: 0,
     });
+    if (!quarantined) {
+      try {
+        await forwardOriginalEmail(env, inserted, message);
+      } catch (error) {
+        // Keep SMTP delivery successful. The scheduled handler retries when
+        // raw-message archival is available.
+        await recordForwardFailure(env, inserted, error);
+      }
+    }
+  },
+
+  async scheduled(
+    _controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    ctx.waitUntil(retryPendingForwards(env));
   },
 };

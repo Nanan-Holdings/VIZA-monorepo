@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa}
+  .row3{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card2{background:#fff;border:1px solid #efefef;border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card2 h3{font:500 18px "Switzer", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;letter-spacing:-.6px;margin-bottom:8px}
+  .card2 p{font:400 14px "Geist", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;color:rgba(0,0,0,.45)}
+  .hero{background:linear-gradient(180deg,#03346E 0%,#3D6DAD 100%);border-radius:16px;padding:24px;color:#fff;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .glass{backdrop-filter:blur(12px);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:20px}
+  .glass .lbl{font:500 16px "Switzer", system-ui, sans-serif;letter-spacing:-.6px}
+  .glass .val{font:400 42px "Switzer", system-ui, sans-serif;margin-top:12px;line-height:1}
+  .glass .foot{font:400 12px "Geist", system-ui, sans-serif;color:rgba(255,255,255,.55);margin-top:6px}
+  .bar{height:6px;background:rgba(255,255,255,.2);border-radius:999px;margin-top:10px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:66%;background:#fff;border-radius:999px}
+</style></head>
+<body><div class="stage">
+  <div class="row3">
+    <div class="card2"><h3>Application status</h3><p>顾问辅助 · Indonesia B211A — review in progress. ETA 2 business days.</p></div>
+    <div class="card2"><h3>Document checklist</h3><p>4 of 6 uploaded — passport scan + flight itinerary pending.</p></div>
+  </div>
+  <div class="hero">
+    <div class="glass"><div class="lbl">Documents</div><div class="val">4<span style="font-size:18px;color:rgba(255,255,255,.55);margin-left:8px">/ 6</span></div><div class="bar"><i></i></div><div class="foot">66% complete</div></div>
+    <div class="glass"><div class="lbl">ETA</div><div class="val">2d</div><div class="foot">Consultant reviewing now</div></div>
+  </div>
+</div></body></html>

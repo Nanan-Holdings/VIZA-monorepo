@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -6,6 +6,7 @@ import {
   isUkPrefillSubmissionResult,
   ukPrefillProgressPercent,
 } from "@/lib/submission-queue";
+import { getClientSessionFromRequest } from "@/lib/client-session";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,11 @@ type DerivedStatus = {
   error: string | null;
 };
 
-const STALE_AFTER_MS = 3 * 60 * 1000;
+// A live official portal session can take longer than a minute to launch and
+// pass its entry CAPTCHA. Do not present a recoverable queued job as failed
+// while the worker is still allowed to claim it.
+const PENDING_PICKUP_STALE_AFTER_MS = 5 * 60 * 1000;
+const RUNNING_STALE_AFTER_MS = 3 * 60 * 1000;
 
 const COMPLETED_APPLICATION_STATUSES = new Set([
   "completed",
@@ -102,10 +107,60 @@ function readPayloadString(payload: Record<string, unknown>, key: string): strin
 
 function isVietnamPaymentCheckpointQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
+  const queueStatus = normalizeStatus(queue.status);
+  const provider = normalizeStatus(queue.provider);
+  if (queueStatus.startsWith("id_") || provider.startsWith("indonesia_")) return false;
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
   const actionType = readPayloadString(payload, "actionType");
   return checkpoint === "payment_page_visible" || actionType === "payment_required";
+}
+
+function isIndonesiaPaymentCheckpointQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const queueStatus = normalizeStatus(queue.status);
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType");
+  // Indonesia payment queue rows are a closed cloud workflow. Their concrete
+  // pending/processing/paid/failed status is authoritative and must never be
+  // synthesized into a manual "open the official payment page" handoff.
+  if (queueStatus.startsWith("id_c1_payment_") || queueStatus.startsWith("id_b1_evoa_payment_")) {
+    return false;
+  }
+  return (
+    checkpoint === "payment_page_visible" ||
+    actionType === "official_fee_payment_required" ||
+    actionType === "official_fee_otp_required"
+  );
+}
+
+function isIndonesiaPassportScanInvalidDataQueue(queue: QueueRow | null): boolean {
+  if (!queue) return false;
+  const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
+  const checkpoint = readPayloadString(payload, "checkpoint") ?? queue.current_stage;
+  const actionType = readPayloadString(payload, "actionType") ?? queue.error_code;
+  const combined = [
+    checkpoint,
+    actionType,
+    queue.error_message,
+    queue.last_error,
+  ].filter(Boolean).join(" ");
+  return /step_1_passport_scan_invalid_data|official_passport_scan_invalid_data|indonesia_passport_scan_invalid_data/i.test(combined);
+}
+
+function normalizeVisaType(visaType: string | null | undefined): string {
+  return (visaType ?? "").trim().toUpperCase().replace(/[\s/-]+/g, "_");
+}
+
+function isIndonesiaB1Evoa(visaType: string | null | undefined): boolean {
+  return normalizeVisaType(visaType) === "ID_B1_EVOA";
+}
+
+function indonesiaProviderForQueue(queue: QueueRow | null, application: ApplicationForStatus): string {
+  if (queue?.provider && queue.provider !== "vietnam_evisa_live") return queue.provider;
+  if (isIndonesiaB1Evoa(application.visa_type)) return "indonesia_b1_evoa_live";
+  return "indonesia_c1_live";
 }
 
 function clampProgress(value: number): number {
@@ -136,14 +191,22 @@ function extractFieldFallbacks(payload: unknown): unknown[] {
 
 function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationForStatus): unknown | null {
   const queueStatus = normalizeStatus(queue?.status);
-  if (!queue || (queueStatus !== "vn_blocked" && !isVietnamPaymentCheckpointQueue(queue))) {
+  const isIndonesiaPayment = isIndonesiaPaymentCheckpointQueue(queue);
+  if (
+    !queue ||
+    !(
+      queueStatus === "vn_blocked" ||
+      isVietnamPaymentCheckpointQueue(queue) ||
+      isIndonesiaPayment
+    )
+  ) {
     return null;
   }
   const payload = isRecord(queue.vn_result_payload) ? queue.vn_result_payload : {};
   const actionType =
     typeof payload.actionType === "string" && payload.actionType.trim()
       ? payload.actionType.trim()
-      : isVietnamPaymentCheckpointQueue(queue)
+      : isVietnamPaymentCheckpointQueue(queue) || isIndonesiaPayment
         ? "payment_required"
         : "captcha_required";
   const instruction =
@@ -152,31 +215,50 @@ function synthesizeQueueResult(queue: QueueRow | null, application: ApplicationF
       : queue.error_message ??
         queue.last_error ??
         (actionType === "payment_required"
-          ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
-          : "Vietnam official portal needs action before VIZA can continue.");
-  const checkpoint =
-    typeof payload.checkpoint === "string" && payload.checkpoint.trim()
-      ? payload.checkpoint.trim()
-      : queue.current_stage ??
-        (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
+        ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+        : "Vietnam official portal needs action before VIZA can continue.");
+    const checkpoint =
+      typeof payload.checkpoint === "string" && payload.checkpoint.trim()
+        ? payload.checkpoint.trim()
+        : queue.current_stage ??
+          (actionType === "payment_required" ? "payment_page_visible" : "captcha_submitted_blocked");
   const evidence = isRecord(payload.evidence) ? payload.evidence : undefined;
+  const instructionText = isVietnamPaymentCheckpointQueue(queue)
+    ? "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page."
+    : isIndonesiaPayment
+      ? checkpoint === "user_payment_required"
+        ? actionType === "official_fee_otp_required"
+          ? "The official Indonesia bank OTP/3DS verification page is open. Enter the bank OTP in that visible official browser window."
+          : "The official Indonesia payment window is open. Complete card payment and OTP verification in that visible official browser window."
+        : "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page."
+      : "The official portal needs action before VIZA can continue.";
+  const resolvedPortalUrl = readPayloadString(payload, "url") ?? queue.official_portal_url;
 
-  return {
-    country: "VN",
-    status: actionType === "payment_required" ? "stopped_at_pay" : actionType,
-    mode: "live_assisted",
-    provider: "vietnam_evisa_live",
-    portalUrl: readPayloadString(payload, "url") ?? queue.official_portal_url ?? "https://evisa.gov.vn/e-visa/foreigners",
-    checkpoint,
-    manualAction: {
-      type: actionType,
-      status: "open",
-      instructions: instruction,
-    },
-    paymentStatus: actionType === "payment_required" ? "manual_required" : "not_required",
-    applicationCountry: application.country,
-    applicationVisaType: application.visa_type,
-    evidence,
+    return {
+      country: isIndonesiaPayment ? "ID" : "VN",
+      status: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
+        ? "stopped_at_pay"
+        : actionType,
+      mode: "live_assisted",
+      provider: isIndonesiaPayment
+        ? indonesiaProviderForQueue(queue, application)
+        : "vietnam_evisa_live",
+      portalUrl:
+        isIndonesiaPayment
+          ? resolvedPortalUrl ?? "https://evisa.imigrasi.go.id"
+          : resolvedPortalUrl ?? "https://evisa.gov.vn/e-visa/foreigners",
+      checkpoint,
+      manualAction: {
+        type: actionType,
+        status: "open",
+        instructions: isIndonesiaPayment ? instructionText : instruction,
+      },
+      paymentStatus: actionType === "payment_required" || actionType === "official_fee_payment_required" || actionType === "official_fee_otp_required"
+        ? "manual_required"
+        : "not_required",
+      applicationCountry: application.country,
+      applicationVisaType: application.visa_type,
+      evidence,
   };
 }
 
@@ -193,10 +275,10 @@ function latestTimestamp(...values: Array<string | null | undefined>): string | 
   return latest;
 }
 
-function isStale(updatedAt: string | null): boolean {
+function isStale(updatedAt: string | null, staleAfterMs = RUNNING_STALE_AFTER_MS): boolean {
   if (!updatedAt) return false;
   const ms = Date.parse(updatedAt);
-  return Number.isFinite(ms) && Date.now() - ms > STALE_AFTER_MS;
+  return Number.isFinite(ms) && Date.now() - ms > staleAfterMs;
 }
 
 function isAfterOrEqual(candidate: string | null, baseline: string | null): boolean {
@@ -379,6 +461,22 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "completed", stage: "completed", progress: 100 };
   }
 
+  if (
+    queueStatus === "id_c1_payment_pending" ||
+    queueStatus === "id_c1_payment_processing" ||
+    queueStatus === "id_b1_evoa_payment_pending" ||
+    queueStatus === "id_b1_evoa_payment_processing"
+  ) {
+    return { status: "running", stage: "payment_handoff", progress: 90 };
+  }
+
+  if (
+    queueStatus === "id_c1_payment_paid" ||
+    queueStatus === "id_b1_evoa_payment_paid"
+  ) {
+    return { status: "completed", stage: "completed", progress: 100 };
+  }
+
   if (queueStatus === "processing" || queueStatus === "france_live_processing") {
     return { status: "running", stage: "mapping_answers", progress: 34 };
   }
@@ -421,18 +519,57 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   return { status: "running", stage: "confirming_result", progress: 92 };
 }
 
-function isPendingQueueStatus(queueStatus: string): boolean {
-  return queueStatus === "pending" || queueStatus.endsWith("_pending");
-}
-
 function isActiveQueue(queue: QueueRow | null): boolean {
   if (!queue) return false;
   const queueStatus = normalizeStatus(queue.status);
   const provider = normalizeStatus(queue.provider);
   if (queueStatus.startsWith("ds160_proof_") || provider === "ceac_proof") return false;
+  if (queueStatus === "retry_superseded") return false;
   if (queueStatus === "done" || queueStatus.endsWith("_prefilled")) return false;
   const derived = deriveQueueStage(queueStatus);
   return derived.status === "scheduled" || derived.status === "queued" || derived.status === "running";
+}
+
+function queueSortTime(queue: QueueRow): number {
+  const latest = latestTimestamp(queue.heartbeat_at, queue.updated_at, queue.created_at);
+  const ms = latest ? Date.parse(latest) : Number.NaN;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function newestQueue(rows: QueueRow[]): QueueRow | null {
+  let selected: QueueRow | null = null;
+  let selectedMs = Number.NEGATIVE_INFINITY;
+  for (const row of rows) {
+    const ms = queueSortTime(row);
+    if (!selected || ms > selectedMs) {
+      selected = row;
+      selectedMs = ms;
+      continue;
+    }
+
+    if (ms === selectedMs) {
+      const rowCreatedMs = row.created_at ? Date.parse(row.created_at) : Number.NEGATIVE_INFINITY;
+      const selectedCreatedMs = selected.created_at ? Date.parse(selected.created_at) : Number.NEGATIVE_INFINITY;
+      if (Number.isFinite(rowCreatedMs) && rowCreatedMs > selectedCreatedMs) {
+        selected = row;
+        selectedMs = ms;
+      }
+    }
+  }
+  return selected;
+}
+
+export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | null {
+  const submissionRows = rows.filter((row) => {
+    const status = normalizeStatus(row.status);
+    const provider = normalizeStatus(row.provider);
+    return !status.startsWith("ds160_proof_") && provider !== "ceac_proof";
+  });
+
+  // The latest explicit retry is authoritative even when it has already
+  // failed. Falling back to an older payment-pending row would make the UI
+  // look active forever after a newer cloud worker attempt has terminated.
+  return newestQueue(submissionRows);
 }
 
 export function deriveNonTerminalStatus(
@@ -447,12 +584,24 @@ export function deriveNonTerminalStatus(
     application.submission_result_updated_at,
     application.updated_at,
   );
+  const activeQueue = isActiveQueue(queue);
   const queueMessage =
     queue?.error_message?.trim() ||
     queue?.last_error?.trim() ||
-    extractResultError(application.submission_result);
+    (activeQueue ? null : extractResultError(application.submission_result));
   const currentStage = normalizeStatus(queue?.current_stage);
   const error = queueMessage;
+
+  if (currentStage === "bank_authentication_waiting") {
+    return {
+      status: "running",
+      stage: "payment_handoff",
+      progress: 94,
+      message:
+        "Approve the payment in your SC Mobile Banking App now. The cloud browser is keeping the 3DS session open and will continue automatically.",
+      error: null,
+    };
+  }
 
   if (isVietnamPaymentCheckpointQueue(queue)) {
     return {
@@ -463,6 +612,30 @@ export function deriveNonTerminalStatus(
         queueMessage ??
         "The official Vietnam e-Visa portal reached payment. Continue payment from the official payment page.",
       error: queueMessage,
+    };
+  }
+
+  if (isIndonesiaPaymentCheckpointQueue(queue)) {
+    return {
+      status: "needs_user_action",
+      stage: "payment_handoff",
+      progress: 99,
+      message:
+        queueMessage ??
+        "The official Indonesia e-Visa portal reached payment. Continue payment from the official payment page.",
+      error: queueMessage,
+    };
+  }
+
+  if (isIndonesiaPassportScanInvalidDataQueue(queue)) {
+    const message =
+      "Indonesia official portal could not read required fields from the passport image. Please upload a clearer, well-lit, landscape passport bio page image and retry.";
+    return {
+      status: "needs_user_action",
+      stage: "confirming_result",
+      progress: 99,
+      message,
+      error: message,
     };
   }
 
@@ -499,8 +672,12 @@ export function deriveNonTerminalStatus(
 
   if (
     (queueDerived.status === "queued" || queueDerived.status === "running") &&
-    !isPendingQueueStatus(queueStatus) &&
-    isStale(updatedAt)
+    isStale(
+      updatedAt,
+      queueStatus === "pending" || queueStatus.endsWith("_pending")
+        ? PENDING_PICKUP_STALE_AFTER_MS
+        : RUNNING_STALE_AFTER_MS,
+    )
   ) {
     return {
       status: "stalled",
@@ -525,8 +702,10 @@ export function deriveNonTerminalStatus(
   };
 }
 
-export async function GET(
-  _request: Request,
+const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 8_000;
+
+async function getSubmissionStatus(
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: applicationId } = await context.params;
@@ -534,20 +713,28 @@ export async function GET(
     return NextResponse.json({ error: "Missing application id" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  // Client routes still support the signed legacy client_session cookie. Prefer
+  // it here so status polling keeps working while a Supabase session refreshes.
+  const legacySession = await getClientSessionFromRequest(request);
+  let authUserId: string | null = null;
+  if (!legacySession) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUserId = user?.id ?? null;
+  }
+  if (!legacySession && !authUserId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const admin = createAdminClient();
-  const { data: profile, error: profileError } = await admin
+  const profileQuery = admin
     .from("applicant_profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+    .select("id");
+  const { data: profile, error: profileError } = legacySession
+    ? await profileQuery.eq("id", legacySession.userId).maybeSingle()
+    : await profileQuery.eq("auth_user_id", authUserId!).maybeSingle();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -576,24 +763,25 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: queueData, error: queueError } = await admin
+  const { data: queueRows, error: queueError } = await admin
     .from("submission_queue")
     .select("*")
     .eq("application_id", applicationId)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
 
   if (queueError) {
     return NextResponse.json({ error: queueError.message }, { status: 500 });
   }
 
-  const queue = (queueData ?? null) as QueueRow | null;
+  const queue = selectQueueForSubmissionStatus((queueRows ?? []) as QueueRow[]);
   const queueUpdatedAt = latestTimestamp(queue?.heartbeat_at, queue?.updated_at, queue?.created_at);
   const queueDerived = deriveQueueStage(normalizeStatus(queue?.status));
-  const activeQueueOverridesTerminal =
-    isActiveQueue(queue) && isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
+  // A newly created active queue represents an explicit retry. It must always
+  // override an older terminal application result, even when the application
+  // row has not yet been updated by the worker.
+  const activeQueueOverridesTerminal = isActiveQueue(queue);
   const terminalQueueOverridesApplication =
     !activeQueueOverridesTerminal &&
     queueDerived.status !== "queued" &&
@@ -666,4 +854,41 @@ export async function GET(
     },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error("Submission status upstream request timed out")),
+        SUBMISSION_STATUS_REQUEST_TIMEOUT_MS,
+      );
+    });
+    return await Promise.race([
+      getSubmissionStatus(request, context),
+      timeoutPromise,
+    ]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[submission-status] temporarily unavailable:", message);
+    return NextResponse.json(
+      {
+        error: "Submission status is temporarily unavailable.",
+        retryable: true,
+      },
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": "3",
+        },
+      },
+    );
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }

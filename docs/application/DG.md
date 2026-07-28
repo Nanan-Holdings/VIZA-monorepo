@@ -212,7 +212,7 @@ Rules:
 
 - left side is Chinese only
 - right side is English or official wording only
-- text-like fields keep a `{ zh, en }` pair
+- text-like fields keep a `{ zh, en }` pair; Chinese-side edits may update `en`, while English/official-side edits preserve `zh`
 - editing either side updates the pair and the canonical field value
 - non-text fields share one canonical answer across both sides
 - date, country, select, radio, and checkbox values should not diverge by language
@@ -243,9 +243,22 @@ Backend:
 
 - `field-guidance.routes.ts` builds deterministic fallback guidance from field metadata.
 - It calls `retrieveVisaKnowledge()` when retrieval is enabled.
-- It optionally calls Anthropic when `ANTHROPIC_API_KEY` is available.
+- It optionally calls OpenAI when `OPENAI_API_KEY` is available.
 - It strips Markdown from generated text before returning it.
 - It uses an in-memory cache keyed by visa type, field name, and locale.
+- Initial guidance is cached per field, but follow-up questions are not treated
+  as generic field help. When a user asks about the current question, the
+  backend builds a question-specific RAG query from the field label, field name,
+  current answer, user question, and relevant answers already on the form. For
+  select/radio/country fields, it also compares the user's text against the
+  exact official options and passes that option context to OpenAI. If an address
+  or answer clearly matches one option, the copilot should state that option
+  directly before adding caveats.
+- For standard-answer identity fields such as passport issuing authority,
+  place of issue, passport type, nationality, and passport dates, it injects
+  standard passport-field RAG and must prefer the passport biodata page, MRZ,
+  official identity document, or official dropdown options over free-form
+  inference.
 
 RAG retrieval:
 
@@ -265,6 +278,11 @@ Each country seed should contain:
 - official or authorized source URLs
 - requirements/process chunks
 - exactly one `documentType: "form_requirements"` document
+- the shared `standard_passport_identity_field_rules` chunk inside that
+  `form_requirements` document
+- the source-crawled `official_field_answer_norms` chunk inside that
+  `form_requirements` document when official/authorized source pages contain
+  field-answer evidence
 - photo requirements when available, usually through the photo ingestion script
 
 The shared runtime store is:
@@ -279,6 +297,7 @@ npm run ingest:all-visa-rag
 npm run ingest:country-visa-rag -- --country japan
 npm run ingest:country-visa-rag -- --countries japan,us,indonesia
 npm run ingest:photo-requirements-rag
+npm run enrich:field-answer-norms-rag -- --all
 ```
 
 ## Adding A New Country Form
@@ -340,9 +359,13 @@ Manual checks:
 
 - destination card opens the matching application
 - multiple applications preserve separate progress
-- bilingual fields sync both directions
+- Chinese-side text edits update the English/official side, while English/official-side text edits do not overwrite Chinese text
 - select/date/country controls stay synchronized
 - `问 AI` opens only from the button
 - AI guidance has no Markdown formatting artifacts
 - photo upload copy is country-specific where RAG/source data exists
 - review is read-only and complete
+
+# Taiwan overseas-China tourist entry permit
+
+`TW_OVERSEAS_CN_TOURISM_ENTRY_PERMIT` is a separate Taiwan product for Chinese mainland passport holders resident in Singapore who apply for tourism. It is not an arrival card. Its DB-driven form must keep the Chinese/English two-column contract, select exactly one Singapore eligibility route, collect the matching evidence, require a mainland passport with at least six months validity and a recent white-background photo, and obtain an explicit official-submission declaration. The submission runner uses a VIZA-managed alias at the NIA email-verification boundary; it must return a structured recon checkpoint until an authorized controlled session maps every post-verification official field. Never mark an application submitted merely because the email page loaded.

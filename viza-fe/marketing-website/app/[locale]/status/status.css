@@ -602,59 +602,62 @@
   .chan-chip:hover { background: var(--brand-50); border-color: var(--brand-200); color: var(--brand-600); }
   .chan-chip svg { color: var(--fg-2); }
 
-  /* Footer (mirrors careers) */
-  .site-foot {
-    background: #fafafa;
-    padding: 0 40px;
-    font-family: var(--font-sans);
+  /* ====================================================
+     Mobile responsive overrides (appended; cascade wins)
+     Page nav is the shared SiteNav — legacy .nav rules
+     above are not treated here.
+     ==================================================== */
+
+  /* Heading step-down (fluid) */
+  .hero h1 { font-size: clamp(30px, 7.5vw, 60px); }
+
+  @media (max-width: 900px) {
+    /* Console stacks under hero copy */
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; align-items: start; }
   }
-  .site-foot .foot-rule {
-    max-width: 1280px; margin: 0 auto; height: 1px;
-    background-image: linear-gradient(to right, var(--border-hairline) 50%, transparent 0%);
-    background-size: 8px 1px; background-repeat: repeat-x;
-    position: relative;
+
+  @media (max-width: 720px) {
+    .hero h1 { letter-spacing: -1.2px; }
+    .hero-inner { padding: 40px 20px 56px; }
+    /* 640px decorative circle scales down */
+    .hero::after { width: 360px; height: 360px; right: -120px; bottom: -140px; }
+
+    /* Console stat columns stack */
+    .console { padding: 20px 18px 18px; }
+    .console-numbers { grid-template-columns: 1fr; gap: 12px; }
+    .console-num { padding: 0; border-left: 0; }
+
+    /* Sticky sub-nav: wrap, search takes its own row */
+    .subnav-inner { padding: 12px 20px; flex-wrap: wrap; gap: 10px; }
+    .sub-tabs { flex-wrap: wrap; }
+    .search-box { margin-left: 0; width: 100%; order: 10; }
+
+    .page { padding: 32px 20px 56px; }
+
+    /* Featured row + portal rows: stack the 320px/1fr/auto grid */
+    .feat { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+    .row { grid-template-columns: 1fr; gap: 14px; padding: 16px 20px 20px; }
+    .row-stat { text-align: left; min-width: 0; }
+
+    .panel-head { padding: 18px 20px 14px; }
+    .panel-section-head { flex-direction: column; align-items: flex-start; gap: 12px; margin: 40px 0 16px; }
+    .panel-section-head .legend { flex-wrap: wrap; }
+
+    /* Incidents */
+    .day-group { padding: 18px 20px 20px; }
+    .incident { grid-template-columns: 1fr; gap: 12px; }
+
+    /* Subscribe / SLA strip stacks */
+    .strip { grid-template-columns: 1fr; }
+    .strip .left { padding: 24px 20px; }
+    .strip .right { padding: 24px 20px; }
   }
-  .site-foot .foot-rule::before,
-  .site-foot .foot-rule::after {
-    content: ""; position: absolute; top: -2px;
-    width: 5px; height: 5px; border-radius: 999px;
-    background: var(--border-hairline);
+
+  @media (max-width: 480px) {
+    /* Incident event rows: time + tag on line one, description full width */
+    .ev { grid-template-columns: 92px 1fr; gap: 8px 12px; }
+    .ev .desc { grid-column: 1 / -1; }
+
+    .strip .right .form-row { flex-direction: column; }
+
   }
-  .site-foot .foot-rule::before { left: 0; }
-  .site-foot .foot-rule::after  { right: 0; }
-  .site-foot .foot-main {
-    max-width: 1280px; margin: 0 auto;
-    padding: 56px 0 48px;
-    display: grid;
-    grid-template-columns: 1.6fr 1fr 1.05fr 1.1fr;
-    gap: 48px;
-  }
-  .site-foot .foot-brand .foot-logo img { height: 22px; }
-  .site-foot .foot-brand .foot-tag {
-    margin-top: 22px; max-width: 320px;
-    font-size: 14px; line-height: 1.55;
-    color: var(--fg-2); letter-spacing: -0.01em;
-  }
-  .site-foot .col-head {
-    font: 500 13px/1 var(--font-heading);
-    letter-spacing: 0.02em; color: var(--fg-1); margin: 4px 0 22px;
-  }
-  .site-foot .col-list {
-    list-style: none; padding: 0; margin: 0;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .site-foot .col-list a {
-    color: var(--fg-2); font-size: 14px; transition: color .12s;
-  }
-  .site-foot .col-list a:hover { color: var(--brand-500); }
-  .site-foot .foot-bottom {
-    max-width: 1280px; margin: 0 auto;
-    padding: 24px 0 36px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 24px;
-  }
-  .site-foot .legal { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--fg-2); }
-  .site-foot .legal .sep { width: 3px; height: 3px; border-radius: 999px; background: #d6d6d6; }
-  .site-foot .legal a { color: var(--fg-2); }
-  .site-foot .legal a:hover { color: var(--brand-500); }
-  .site-foot .foot-mark img { height: 22px; opacity: 0.85; }

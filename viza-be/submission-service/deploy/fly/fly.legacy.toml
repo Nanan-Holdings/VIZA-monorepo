@@ -1,0 +1,69 @@
+# Dedicated legacy submission_queue consumer. Country workers must not enable it.
+app = "viza-submission-legacy"
+primary_region = "sin"
+kill_signal = "SIGINT"
+kill_timeout = "5m"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
+  SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
+  # Vietnam e-Visa live jobs use a cloud-only queue status and RPC that older
+  # local workers cannot see or claim.
+  VN_CLOUD_QUEUE_ENABLED = "true"
+  # Vercel registers Indonesia payment cards through the token-protected
+  # internal endpoint. Cards remain in this single always-on machine's memory
+  # for one consumption and are never written to Fly config, logs, or storage.
+  ID_CLOUD_CARD_SESSION_ENABLED = "true"
+  # Vietnam official-fee jobs also use submission_queue, so the protected
+  # one-time card handoff must terminate on this same single-memory worker.
+  VN_CLOUD_CARD_SESSION_ENABLED = "true"
+  VN_OFFICIAL_PAYMENT_AUTOPAY = "true"
+  # Standard Chartered SC Mobile approval is valid for about 100 seconds.
+  # Keep the same cloud browser alive long enough to observe the issuer result.
+  VN_BANK_APP_3DS_WAIT_MS = "115000"
+  # api.evisa.gov.vn currently presents an incomplete certificate chain to
+  # container Chromium. Scope compatibility mode to the Vietnam browser only.
+  VN_IGNORE_HTTPS_ERRORS = "true"
+  # The Fly container has no X server. Indonesia payment continuation must
+  # remain headless; 3DS/OTP is surfaced as a user checkpoint.
+  INDONESIA_PLAYWRIGHT_HEADLESS = "true"
+  # Fly has no interactive display. The MDAC worker must use the browser
+  # provider configured through secrets (or its container Chromium) headlessly.
+  MDAC_PLAYWRIGHT_HEADLESS = "true"
+  MDAC_PLAYWRIGHT_CHANNEL = "bundled"
+  # Philippines eTravel is Cloudflare-protected. The legacy worker must use
+  # the authorized Browserbase session provider instead of container Chromium.
+  PH_ETRAVEL_BROWSERBASE_ENABLED = "true"
+  PH_ETRAVEL_BROWSERBASE_PROXIES = "true"
+  PH_ETRAVEL_BROWSERBASE_COUNTRY = "PH"
+  PH_ETRAVEL_BROWSERBASE_REGION = "ap-southeast-1"
+  PH_ETRAVEL_PLAYWRIGHT_HEADLESS = "true"
+  # France TLS flags remain explicit production gates. Browserbase and the
+  # shared internal token are Fly Secrets, never TOML values.
+  FRANCE_TLS_ACCOUNT_REGISTRATION_ENABLED = "false"
+  FRANCE_TLS_LOCAL_OFFICIAL_SESSION_ENABLED = "false"
+  FRANCE_TLS_LIVE_BOOKING_ENABLED = "false"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    # Keep Fly ingress attached while Supabase has a transient outage. `/ready`
+    # remains available for diagnostics, but the one-time card handoff must
+    # still reach this live in-memory worker so the caller can retry safely.
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "performance"
+  cpus = 2
+  memory_mb = 4096

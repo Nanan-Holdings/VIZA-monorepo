@@ -1,0 +1,47 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fafafa;margin:0;font-family:var(--font-sans)}
+  .stage{width:700px;padding:24px;box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .label{font:500 11px "Geist";letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:12px}
+  .card{background:#fff;border:1px solid #efefef;border-radius:12px;padding:20px}
+  .s{background:rgba(3,52,110,.10);border-radius:6px;animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.55}}
+  .sl-1{height:12px;width:40%;margin-bottom:10px}
+  .sl-2{height:10px;width:100%;margin-bottom:6px}
+  .sl-3{height:10px;width:80%;margin-bottom:20px}
+  .sl-btn{height:36px;width:120px;border-radius:999px}
+  .row{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+  .circle{width:40px;height:40px;border-radius:50%}
+  .lines{flex:1}
+  .stage-row{display:flex;gap:12px;margin-bottom:12px}
+  .stage-cell{flex:1;height:90px;border-radius:16px}
+</style></head>
+<body><div class="stage">
+  <div>
+    <div class="label">Card skeleton</div>
+    <div class="card">
+      <div class="s sl-1"></div>
+      <div class="s sl-2"></div><div class="s sl-2"></div><div class="s sl-3"></div>
+      <div class="s sl-btn"></div>
+    </div>
+  </div>
+  <div>
+    <div class="label">List skeleton</div>
+    <div class="card">
+      <div class="row"><div class="s circle"></div><div class="lines"><div class="s sl-1" style="width:60%"></div><div class="s sl-2" style="width:40%;margin:0"></div></div></div>
+      <div class="row"><div class="s circle"></div><div class="lines"><div class="s sl-1" style="width:55%"></div><div class="s sl-2" style="width:35%;margin:0"></div></div></div>
+      <div class="row" style="margin:0"><div class="s circle"></div><div class="lines"><div class="s sl-1" style="width:65%"></div><div class="s sl-2" style="width:45%;margin:0"></div></div></div>
+    </div>
+  </div>
+  <div style="grid-column:1/-1">
+    <div class="label">Stage timeline skeleton</div>
+    <div class="stage-row">
+      <div class="s stage-cell"></div>
+      <div class="s stage-cell"></div>
+      <div class="s stage-cell"></div>
+      <div class="s stage-cell"></div>
+      <div class="s stage-cell"></div>
+    </div>
+  </div>
+</div></body></html>

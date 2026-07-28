@@ -20,7 +20,9 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       dateOfBirth: "1990-01-01",
       gender: "female",
       nationality: "China",
+      passportIssueDate: "2020-01-01",
       passportNumber: "E12345678",
+      passportIssuingCountry: "China",
       passportExpiryDate: "2030-12-31",
       email: "test@example.com",
       phone: "+86 13800138000",
@@ -33,18 +35,40 @@ function basePayload(overrides: Partial<SubmissionPayload> = {}): SubmissionPayl
       accommodationAddress: "Test Hotel, Manila",
     },
     countrySpecific: {
+      registration_for: "FOR_ME",
       travel_type: "ARRIVAL",
       transport_type: "AIR",
+      first_name: "TEST",
+      last_name: "USER",
+      passport_issuing_authority: "China",
+      residence_address_line1: "Hunan",
+      purpose_of_travel: "POV001",
+      traveller_type: "AIRCRAFT PASSENGER",
+      airline_name: "TC002",
       flight_number: "PR101",
-      port_of_entry: "NINOY AQUINO INTERNATIONAL AIRPORT",
-      country_of_birth: "CHINA",
-      country_of_residence: "CHINA",
-      occupation: "Software Engineer",
-      philippines_address: "Test Hotel, Manila",
-      has_health_symptoms: "no",
-      has_checked_baggage: "yes",
+      airport_of_origin: "Singapore Changi Airport",
+      flight_departure_date: "2026-06-13",
+      flight_arrival_date: "2026-06-13",
+      port_of_entry: "TP1000",
+      country_of_birth: "CN",
+      country_of_residence: "CN",
+      occupation: "OCC007",
+      destination_type: "HOTEL",
+      destination_hotel_name: "Test Hotel",
+      destination_hotel_address: "Test Hotel, Manila",
+      has_recent_travel_history_30d: "no",
+      has_exposure_to_sick_person_30d: "no",
+      has_been_sick_30d: "no",
+      has_accompanied_family_members: "no",
+      checked_baggage_count: "1",
+      handcarry_baggage_count: "1",
+      first_time_visiting_philippines: "no",
+      customs_information_acknowledgement: "yes",
+      has_baggage_or_currency_to_declare: "no",
       has_dutiable_goods: "no",
       has_currency_over_threshold: "no",
+      customs_signature_file: "submission-artifacts/ph-signature.png",
+      customs_signature_declaration: "yes",
       final_declaration: "yes",
     },
     metadata: {},
@@ -61,11 +85,108 @@ test("normalizePhEtravelPortalPayload maps VIZA answers into official eTravel pa
   assert.equal(payload.travelType, "ARRIVAL");
   assert.equal(payload.transportType, "AIR");
   assert.equal(payload.flightNumber, "PR101");
-  assert.equal(payload.portOfEntry, "NINOY AQUINO INTERNATIONAL AIRPORT");
+  assert.equal(payload.travellerType, "AIRCRAFT PASSENGER");
+  assert.equal(payload.airlineOrVesselName, "TC002");
+  assert.equal(payload.airportOfOrigin, "Singapore Changi Airport");
+  assert.equal(payload.portOfEntry, "TP1000");
   assert.equal(payload.hasHealthSymptoms, false);
   assert.equal(payload.customs.hasCheckedBaggage, true);
+  assert.equal(payload.customs.checkedBaggageCount, "1");
   assert.equal(payload.customs.hasDutiableGoods, false);
   assert.equal(payload.customs.hasCurrencyOverThreshold, false);
+});
+
+test("normalizePhEtravelPortalPayload derives ARRIVAL when the fixed travel type question is absent", () => {
+  const base = basePayload();
+  const { travel_type: _removedTravelType, ...countrySpecific } = base.countrySpecific;
+  const payload = normalizePhEtravelPortalPayload({
+    ...base,
+    countrySpecific,
+  }, {
+    now: new Date("2026-06-12T08:00:00+08:00"),
+  });
+
+  assert.equal(payload.travelType, "ARRIVAL");
+});
+
+test("normalizePhEtravelPortalPayload keeps departure independent and evaluates the window from departure date", () => {
+  const base = basePayload();
+  const payload = normalizePhEtravelPortalPayload({
+    ...base,
+    visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+    trip: { ...base.trip, departureDate: "2026-06-13", arrivalDate: "2026-06-14" },
+    countrySpecific: {
+      ...base.countrySpecific,
+      travel_type: "DEPARTURE",
+      passport_holder_type: "FOREIGNER",
+      departure_airport: "TP1000",
+      destination_country: "SG",
+      destination_port: "Singapore Changi Airport",
+      destination_address: "1 Airport Boulevard, Singapore",
+      flight_departure_date: "2026-06-13",
+      flight_arrival_date: "2026-06-14",
+      has_goods_to_declare: "no",
+      has_currency_to_declare: "no",
+    },
+  }, { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.visaType, "PH_ETRAVEL_DEPARTURE_CARD");
+  assert.equal(payload.travelType, "DEPARTURE");
+  assert.equal(payload.portOfEntry, "TP1000");
+  assert.equal(payload.destinationCountry, "SG");
+  assert.equal(payload.destinationPort, "Singapore Changi Airport");
+  assert.equal(payload.destinationAddress, "1 Airport Boulevard, Singapore");
+  assert.equal(payload.philippinesAddress, null);
+});
+
+test("departure rejects a past departure even when destination arrival is future", () => {
+  const base = basePayload();
+  assert.throws(() => normalizePhEtravelPortalPayload({
+    ...base,
+    visaType: "PH_ETRAVEL_DEPARTURE_CARD",
+    countrySpecific: {
+      ...base.countrySpecific,
+      travel_type: "DEPARTURE",
+      flight_departure_date: "2026-06-10",
+      flight_arrival_date: "2026-06-13",
+    },
+  }, { now: new Date("2026-06-12T08:00:00+08:00") }), (error: unknown) =>
+    error instanceof PhEtravelPortalValidationError && error.missingFields.includes("flight_departure_date"));
+});
+
+test("normalizePhEtravelPortalPayload keeps the three official health answers distinct", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      has_recent_travel_history_30d: "yes",
+      visited_country_30d: "SG",
+      visited_country_30d__2: "MY",
+      has_exposure_to_sick_person_30d: "no",
+      has_been_sick_30d: "yes",
+      sickness_symptom: "SS002",
+      sickness_symptom__2: "SS008",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.hasRecentTravelHistory30d, true);
+  assert.deepEqual(payload.visitedCountries30d, ["SG", "MY"]);
+  assert.equal(payload.hasExposureToSickPerson30d, false);
+  assert.equal(payload.hasBeenSick30d, true);
+  assert.deepEqual(payload.sicknessSymptoms, ["SS002", "SS008"]);
+});
+
+test("normalizePhEtravelPortalPayload carries conditional transit destination answers", () => {
+  const payload = normalizePhEtravelPortalPayload(basePayload({
+    countrySpecific: {
+      ...basePayload().countrySpecific,
+      destination_type: "TRANSIT",
+      destination_transit_airport: "TP3000",
+      destination_country: "HK",
+    },
+  }), { now: new Date("2026-06-12T08:00:00+08:00") });
+
+  assert.equal(payload.destinationTransitAirport, "TP3000");
+  assert.equal(payload.destinationCountry, "HK");
 });
 
 test("normalizePhEtravelPortalPayload rejects wrong country or visa type", () => {
@@ -115,14 +236,60 @@ test("normalizePhEtravelPortalPayload rejects arrivals outside the official 72-h
             ...basePayload().trip,
             arrivalDate: "2026-06-20",
           },
+          countrySpecific: {
+            ...basePayload().countrySpecific,
+            flight_arrival_date: "",
+          },
         }),
         { now: new Date("2026-06-12T08:00:00+08:00") },
       ),
     (error: unknown) => {
       assert.ok(error instanceof PhEtravelPortalValidationError);
-      assert.deepEqual(error.missingFields, ["arrival_date"]);
+      assert.deepEqual(error.missingFields, ["flight_arrival_date"]);
       assert.match(error.message, /72 hours/);
       return true;
     },
   );
+});
+
+test("normalizePhEtravelPortalPayload normalizes slash dates to ISO dates", () => {
+  const payload = normalizePhEtravelPortalPayload(
+    basePayload({
+      personal: {
+        ...basePayload().personal,
+        phone: "0086 13800138000",
+      },
+      trip: {
+        ...basePayload().trip,
+        arrivalDate: "06/20/2026",
+      },
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        flight_arrival_date: "",
+      },
+    }),
+    { now: new Date("2026-06-20T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.arrivalDate, "2026-06-20");
+});
+
+test("normalizePhEtravelPortalPayload derives mobile code and number from personal phone", () => {
+  const payload = normalizePhEtravelPortalPayload(
+    basePayload({
+      personal: {
+        ...basePayload().personal,
+        phone: "+86 13800138000",
+      },
+      countrySpecific: {
+        ...basePayload().countrySpecific,
+        mobile_country_code: "",
+        mobile_number: "",
+      },
+    }),
+    { now: new Date("2026-06-12T08:00:00+08:00") },
+  );
+
+  assert.equal(payload.mobileCountryCode, "+86");
+  assert.equal(payload.mobileNumber, "13800138000");
 });

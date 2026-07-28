@@ -22,6 +22,7 @@ import { unitedArabEmirates } from "./united-arab-emirates";
 import { france } from "./france";
 import { italy } from "./italy";
 import { india } from "./india";
+import { vizaTest } from "./viza-test";
 
 const CONTENT_ZH: Record<string, VisaContent> = {
   indonesia,
@@ -40,6 +41,7 @@ const CONTENT_ZH: Record<string, VisaContent> = {
   france,
   italy,
   india,
+  "viza-test": vizaTest,
 };
 
 export function contentZhBySlug(slug: string): VisaContent | undefined {

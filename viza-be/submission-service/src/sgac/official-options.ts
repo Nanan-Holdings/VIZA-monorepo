@@ -3,7 +3,7 @@ export interface SgacOfficialCodeOption {
   label: string;
 }
 
-// Generated from ICA SGAC /sgac-services/common/code/retrieveCodeResult on 2026-06-23.
+// Verified against ICA SGAC /sgac-services/common/code/retrieveCodeResult on 2026-07-16.
 export const SGAC_CITY_OPTIONS: SgacOfficialCodeOption[] = [
   {
     "code": "1632, 7001, KBL",
@@ -9245,6 +9245,14 @@ export const SGAC_NATIONALITY_OPTIONS: SgacOfficialCodeOption[] = [
     "label": "CHINESE"
   },
   {
+    "code": "CHN_HK",
+    "label": "CHINESE / HONG KONG SAR"
+  },
+  {
+    "code": "CHN_MC",
+    "label": "CHINESE / MACAO SAR"
+  },
+  {
     "code": "COL",
     "label": "COLOMBIAN"
   },
@@ -10922,6 +10930,10 @@ export const SGAC_HOTEL_OPTIONS: SgacOfficialCodeOption[] = [
     "label": "ASCOTT ORCHARD SINGAPORE"
   },
   {
+    "code": "M0106",
+    "label": "ASCOTT ORCHARD SINGAPORE"
+  },
+  {
     "code": "M0042",
     "label": "ASCOTT SINGAPORE RAFFLES PLACE"
   },
@@ -11822,6 +11834,10 @@ export const SGAC_HOTEL_OPTIONS: SgacOfficialCodeOption[] = [
     "label": "JIN DONG HOTEL"
   },
   {
+    "code": "S0531",
+    "label": "JIN DONG HOTEL"
+  },
+  {
     "code": "L0076",
     "label": "JW MARRIOTT HOTEL SINGAPORE SOUTH BEACH"
   },
@@ -11927,6 +11943,10 @@ export const SGAC_HOTEL_OPTIONS: SgacOfficialCodeOption[] = [
   },
   {
     "code": "S0221",
+    "label": "LODGE 41"
+  },
+  {
+    "code": "S0534",
     "label": "LODGE 41"
   },
   {

@@ -1,8 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { type Download, type Page } from "@playwright/test";
-import { solveCaptcha } from "../captcha";
+import { type Download, type Page, type Response } from "@playwright/test";
 import { createArrivalCardBrowserSession } from "../arrival-card-browser";
 import { TDAC_OFFICIAL_PORTAL_URL, type TdacPortalPayload } from "./normalize";
 
@@ -21,31 +20,35 @@ export class TdacPortalError extends Error {
   readonly screenshotPaths: string[];
   readonly portalSummary?: string;
   readonly code: string;
+  readonly logs: string[];
 
-  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string }) {
+  constructor(message: string, options: { code: string; screenshotPaths?: string[]; portalSummary?: string; logs?: string[] }) {
     super(message);
     this.name = "TdacPortalError";
     this.code = options.code;
-    this.screenshotPaths = options.screenshotPaths ?? [];
+    this.screenshotPaths = (options.screenshotPaths ?? []).filter(Boolean);
     this.portalSummary = options.portalSummary;
+    this.logs = options.logs ?? [];
   }
+}
+
+function isRemoteBrowserPolicyBlock(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /classified as Government and blocked by Bright Data|proxy_error|network-access#residential-proxy-network-policy/i.test(message);
 }
 
 async function saveScreenshot(page: Page, name: string, logs: string[]): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-"));
   const filePath = path.join(dir, `${name}-${Date.now()}.png`);
-  await page.screenshot({ path: filePath, fullPage: true });
-  logs.push(`tdac_screenshot ${filePath}`);
-  return filePath;
-}
-
-interface TurnstileParams {
-  sitekey: string | null;
-  action: string | null;
-  cData: string | null;
-  chlPageData: string | null;
-  pageUrl: string;
-  userAgent: string;
+  try {
+    await page.screenshot({ path: filePath, fullPage: true });
+    logs.push(`tdac_screenshot ${filePath}`);
+    return filePath;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    logs.push(`tdac_screenshot_failed ${name} ${message}`);
+    return "";
+  }
 }
 
 async function installTurnstileHook(page: Page): Promise<void> {
@@ -79,82 +82,6 @@ async function installTurnstileHook(page: Page): Promise<void> {
   });
 }
 
-async function readTurnstileParams(page: Page): Promise<TurnstileParams> {
-  return page.evaluate(() => {
-    const w = window as typeof window & {
-      __vizaTurnstileParams?: Record<string, unknown>;
-    };
-    const captured = w.__vizaTurnstileParams ?? {};
-    const elementSitekey = document.querySelector("[data-sitekey]")?.getAttribute("data-sitekey");
-    const iframeSitekey = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe"))
-      .map((iframe) => {
-        try {
-          const url = new URL(iframe.src);
-          return url.searchParams.get("sitekey") ?? url.searchParams.get("k");
-        } catch {
-          return null;
-        }
-      })
-      .find((value): value is string => Boolean(value));
-    const capturedSitekey = typeof captured.sitekey === "string" && captured.sitekey.trim()
-      ? captured.sitekey
-      : null;
-    const capturedAction = typeof captured.action === "string" && captured.action.trim()
-      ? captured.action
-      : null;
-    const capturedCData = typeof captured.cData === "string" && captured.cData.trim()
-      ? captured.cData
-      : null;
-    const capturedChlPageData = typeof captured.chlPageData === "string" && captured.chlPageData.trim()
-      ? captured.chlPageData
-      : null;
-    const capturedPageUrl = typeof captured.pageUrl === "string" && captured.pageUrl.trim()
-      ? captured.pageUrl
-      : null;
-    const capturedUserAgent = typeof captured.userAgent === "string" && captured.userAgent.trim()
-      ? captured.userAgent
-      : null;
-
-    return {
-      sitekey: capturedSitekey ?? elementSitekey ?? iframeSitekey ?? null,
-      action: capturedAction,
-      cData: capturedCData,
-      chlPageData: capturedChlPageData,
-      pageUrl: capturedPageUrl ?? window.location.href,
-      userAgent: capturedUserAgent ?? navigator.userAgent,
-    };
-  });
-}
-
-async function waitForTurnstileParams(page: Page, timeoutMs = 15_000): Promise<TurnstileParams> {
-  const started = Date.now();
-  let latest = await readTurnstileParams(page);
-  while (!latest.sitekey && Date.now() - started < timeoutMs) {
-    await page.waitForTimeout(250);
-    latest = await readTurnstileParams(page);
-  }
-  return latest;
-}
-
-async function applyTurnstileToken(page: Page, token: string): Promise<void> {
-  await page.evaluate((captchaToken) => {
-    const w = window as typeof window & {
-      __vizaTurnstileCallback?: (token: string) => void;
-    };
-    const fields = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-      "input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response'], input[name='g-recaptcha-response'], textarea[name='g-recaptcha-response']",
-    );
-    fields.forEach((field) => {
-      field.value = captchaToken;
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-      field.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    if (typeof w.__vizaTurnstileCallback === "function") {
-      w.__vizaTurnstileCallback(captchaToken);
-    }
-  }, token);
-}
-
 async function arrivalButtonEnabled(page: Page): Promise<boolean> {
   const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
   return !(await arrivalButton.isDisabled().catch(() => true));
@@ -169,19 +96,190 @@ async function waitForArrivalButtonEnabled(page: Page, timeoutMs: number): Promi
   return arrivalButtonEnabled(page);
 }
 
-async function solveWithBrowserApiCaptchaCdp(page: Page, logs: string[]): Promise<void> {
-  try {
-    logs.push("tdac_brightdata_captcha_solve_started");
-    const session = await page.context().newCDPSession(page);
-    const sendBrightDataCommand = session.send as unknown as (
-      method: string,
-      params?: Record<string, unknown>,
-    ) => Promise<unknown>;
-    const result = await sendBrightDataCommand("Captcha.solve", { detectTimeout: 30_000 });
-    logs.push(`tdac_brightdata_captcha_solve_result ${JSON.stringify(result)}`);
-  } catch (error) {
-    logs.push(`tdac_brightdata_captcha_solve_failed ${error instanceof Error ? error.message : String(error)}`);
+async function waitForTdacCloudflareClearance(page: Page, logs: string[], timeoutMs: number): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (await arrivalButtonEnabled(page)) {
+      logs.push("tdac_cloudflare_clearance_button_enabled");
+      return true;
+    }
+    await page.waitForTimeout(2_000);
   }
+
+  const state = await page.evaluate(() => {
+    const text = document.body?.innerText?.replace(/\s+/g, " ").slice(0, 240) ?? "";
+    const hasChallenge = Boolean(
+      document.querySelector("iframe[src*='challenges.cloudflare.com'], input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']"),
+    );
+    const hasArrivalButton = Array.from(document.querySelectorAll("button"))
+      .some((button) => /Arrival Card/i.test(button.textContent ?? ""));
+    return { hasChallenge, hasArrivalButton, text };
+  }).catch(() => ({ hasChallenge: true, hasArrivalButton: false, text: "" }));
+  logs.push(
+    `tdac_cloudflare_clearance_timeout hasChallenge=${state.hasChallenge} hasArrivalButton=${state.hasArrivalButton} text=${state.text}`,
+  );
+  return false;
+}
+
+async function waitForTdacPersonalForm(page: Page, timeoutMs: number): Promise<boolean> {
+  const selectors = "input[formcontrolname='familyName'], #mat-input-0";
+  return page.locator(selectors).first().waitFor({ state: "visible", timeout: timeoutMs }).then(() => true).catch(() => false);
+}
+
+async function waitForTdacLandingUnblocked(page: Page, logs: string[], timeoutMs = 120_000): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const state = await page.evaluate(() => {
+      const text = document.body?.innerText?.replace(/\s+/g, " ").trim() ?? "";
+      const hasArrivalButton = Array.from(document.querySelectorAll("button"))
+        .some((button) => /Arrival Card/i.test(button.textContent ?? "") && !(button as HTMLButtonElement).disabled);
+      const hasCloudflareChallenge = Boolean(
+        document.querySelector("iframe[src*='challenges.cloudflare.com'], input[name='cf-turnstile-response'], textarea[name='cf-turnstile-response']"),
+      );
+      const hasCloudflareSuccessOverlay = /Success!\s*CLOUDFLARE|CLOUDFLARE\s*Privacy|验证成功\s*故障排除/i.test(text);
+      const hasBusyBackdrop = Boolean(
+        document.querySelector(".cdk-overlay-backdrop, .ngx-spinner-overlay, .loading, .spinner, [class*='spinner']"),
+      );
+      return {
+        hasArrivalButton,
+        hasCloudflareChallenge,
+        hasCloudflareSuccessOverlay,
+        hasBusyBackdrop,
+        text: text.slice(0, 240),
+      };
+    }).catch(() => ({
+      hasArrivalButton: false,
+      hasCloudflareChallenge: true,
+      hasCloudflareSuccessOverlay: true,
+      hasBusyBackdrop: true,
+      text: "",
+    }));
+
+    if (
+      state.hasArrivalButton
+      && !state.hasCloudflareChallenge
+      && !state.hasCloudflareSuccessOverlay
+      && !state.hasBusyBackdrop
+    ) {
+      logs.push("tdac_landing_unblocked_ready");
+      return true;
+    }
+
+    await page.waitForTimeout(1_500);
+  }
+
+  logs.push("tdac_landing_unblocked_timeout_continue");
+  return false;
+}
+
+async function dismissCloudflareSuccessArtifacts(page: Page, logs: string[]): Promise<void> {
+  const dismissed = await page.evaluate(() => {
+    const bodyText = document.body?.innerText?.replace(/\s+/g, " ") ?? "";
+    const hasSolvedWidget = /Success!\s*CLOUDFLARE|CLOUDFLARE\s*Privacy|验证成功\s*故障排除/i.test(bodyText);
+    const hasEnabledArrivalButton = Array.from(document.querySelectorAll("button"))
+      .some((button) => /Arrival Card/i.test(button.textContent ?? "") && !(button as HTMLButtonElement).disabled);
+
+    if (!hasSolvedWidget || !hasEnabledArrivalButton) {
+      return 0;
+    }
+
+    let count = 0;
+    const selectors = [
+      "iframe[src*='challenges.cloudflare.com']",
+      "input[name='cf-turnstile-response']",
+      "textarea[name='cf-turnstile-response']",
+      ".cf-turnstile",
+      ".cdk-overlay-backdrop",
+      ".ngx-spinner-overlay",
+    ];
+
+    for (const selector of selectors) {
+      document.querySelectorAll(selector).forEach((element) => {
+        const removable = element.closest("div") ?? element;
+        (removable as HTMLElement).style.setProperty("display", "none", "important");
+        (removable as HTMLElement).style.setProperty("pointer-events", "none", "important");
+        count += 1;
+      });
+    }
+
+    document.querySelectorAll("div, iframe").forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      const text = element.textContent?.replace(/\s+/g, " ") ?? "";
+      const style = window.getComputedStyle(element);
+      const zIndex = Number.parseInt(style.zIndex || "0", 10);
+      const looksLikeSolvedWidget = /Success!\s*CLOUDFLARE|CLOUDFLARE\s*Privacy|验证成功\s*故障排除/i.test(text);
+      const coversCenter = rect.width > 200 && rect.height > 50 && rect.left < window.innerWidth / 2 && rect.right > window.innerWidth / 2;
+      if (looksLikeSolvedWidget || (coversCenter && zIndex >= 0 && /fixed|absolute/i.test(style.position))) {
+        (element as HTMLElement).style.setProperty("display", "none", "important");
+        (element as HTMLElement).style.setProperty("pointer-events", "none", "important");
+        count += 1;
+      }
+    });
+
+    document.body.style.removeProperty("overflow");
+    document.documentElement.style.removeProperty("overflow");
+    return count;
+  }).catch(() => 0);
+
+  if (dismissed > 0) {
+    logs.push(`tdac_cloudflare_success_artifacts_dismissed=${dismissed}`);
+    await page.waitForTimeout(1_000);
+  }
+}
+
+async function openTdacAddRoute(page: Page, logs: string[], screenshots: string[]): Promise<boolean> {
+  const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
+  const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
+  const arrivalButtonCount = await arrivalButton.count().catch(() => 0);
+
+  if (arrivalButtonCount > 0 && !(await arrivalButton.isDisabled().catch(() => true))) {
+    logs.push("tdac_open_add_route_via_arrival_button");
+    await waitForTdacLandingUnblocked(page, logs, 10_000);
+    await dismissCloudflareSuccessArtifacts(page, logs);
+    await arrivalButton.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => undefined);
+    await arrivalButton.click({ timeout: 15_000, force: true }).catch(async (error) => {
+      logs.push(`tdac_arrival_button_playwright_click_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      await arrivalButton.evaluate((button) => {
+        (button as HTMLButtonElement).click();
+      });
+    });
+    if (await waitForTdacPersonalForm(page, 60_000)) return true;
+    await dismissCloudflareSuccessArtifacts(page, logs);
+    if (await waitForTdacPersonalForm(page, 30_000)) return true;
+    screenshots.push(await saveScreenshot(page, "after-arrival-button-click-no-form", logs));
+  }
+
+  logs.push("tdac_open_add_route_hash_current_page");
+  await dismissCloudflareSuccessArtifacts(page, logs);
+  await page.evaluate(() => {
+    window.location.hash = "/tac/arrival-card/add";
+  }).catch((error) => {
+    logs.push(`tdac_current_hash_navigation_failed ${error instanceof Error ? error.message : String(error)}`);
+  });
+  if (await waitForTdacPersonalForm(page, 60_000)) return true;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    logs.push(`tdac_open_add_route_hash_attempt=${attempt}`);
+    await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch((error) => {
+      logs.push(`tdac_home_reload_before_hash_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    });
+    await page.waitForTimeout(2_000 * attempt);
+    await page.evaluate(() => {
+      window.location.hash = "/tac/arrival-card/add";
+    }).catch((error) => {
+      throw new Error(`tdac_hash_navigation_failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    if (await waitForTdacPersonalForm(page, 60_000)) return true;
+
+    logs.push(`tdac_open_add_route_direct_attempt=${attempt}`);
+    await page.goto(addRoute, { waitUntil: "domcontentloaded", timeout: 90_000 }).catch((error) => {
+      logs.push(`tdac_direct_add_route_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    });
+    if (await waitForTdacPersonalForm(page, 60_000)) return true;
+    screenshots.push(await saveScreenshot(page, `after-add-route-attempt-${attempt}`, logs));
+  }
+
+  return false;
 }
 
 async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Promise<boolean> {
@@ -227,30 +325,6 @@ async function clickTurnstileCheckboxIfVisible(page: Page, logs: string[]): Prom
   return false;
 }
 
-async function solveTurnstileIfPresent(page: Page, logs: string[]): Promise<boolean> {
-  if (await clickTurnstileCheckboxIfVisible(page, logs)) return true;
-
-  const params = await waitForTurnstileParams(page);
-  if (!params.sitekey) return false;
-
-  logs.push("tdac_turnstile_solve_started");
-  const solve = await solveCaptcha({
-    type: "turnstile",
-    siteKey: params.sitekey,
-    pageUrl: params.pageUrl,
-    action: params.action ?? undefined,
-    cdata: params.cData ?? undefined,
-    pageData: params.chlPageData ?? undefined,
-    userAgent: params.userAgent,
-    timeoutMs: 120_000,
-  });
-  await applyTurnstileToken(page, solve.text);
-  logs.push(`tdac_turnstile_solved durationMs=${solve.durationMs} solveId=${solve.solveId}`);
-  await page.waitForTimeout(3_000);
-  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
-  return true;
-}
-
 function extractReference(text: string): string | null {
   const candidates = [
     /TH\s+Digital\s+Arrival\s+Card\s+No\.?\s*[:#-]?\s*([A-Z0-9-]{6,})/i,
@@ -278,8 +352,48 @@ function dateParts(isoDate: string): { year: string; month: string; day: string;
 function officialCountryPattern(value: string): RegExp {
   const normalized = value.trim().toUpperCase();
   if (!normalized) return /$a/;
+  if (/^[A-Z]{3}$/i.test(normalized)) {
+    const escapedCode = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${escapedCode}\\s*:`, "i");
+  }
   const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\b|${escaped.replace(/\s+/g, "\\s+")}`, "i");
+}
+
+function normalizeTdacDropdownText(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}0-9]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tdacDropdownMatchText(target: string, option: string): boolean {
+  const normalizedTarget = normalizeTdacDropdownText(target);
+  const normalizedOption = normalizeTdacDropdownText(option);
+  if (!normalizedTarget || !normalizedOption) return false;
+  if (normalizedOption === normalizedTarget) return true;
+  if (normalizedOption.includes(normalizedTarget)) return true;
+  if (normalizedTarget.includes(normalizedOption)) return true;
+
+  const targetNoSpace = normalizedTarget.replace(/\s+/g, "");
+  const optionNoSpace = normalizedOption.replace(/\s+/g, "");
+  if (targetNoSpace.length >= 4 && optionNoSpace.includes(targetNoSpace)) return true;
+
+  const targetTokens = normalizedTarget.split(" ").filter(Boolean);
+  const optionTokens = new Set(normalizedOption.split(" ").filter(Boolean));
+  return targetTokens.every((token) => optionTokens.has(token));
+}
+
+function tdacOptionMatches(optionText: RegExp | string, optionValue: string): boolean {
+  if (typeof optionText === "string") {
+    if (optionValue.includes(optionText)) return true;
+    return tdacDropdownMatchText(optionText, optionValue);
+  }
+  const normalizedOption = normalizeTdacDropdownText(optionValue);
+  return optionText.test(optionValue) || optionText.test(normalizedOption);
 }
 
 function tdacCountrySearchValue(value: string): string {
@@ -289,20 +403,127 @@ function tdacCountrySearchValue(value: string): string {
     .trim();
   const aliases: Record<string, string> = {
     CHINA: "CHN",
+    "PEOPLE'S REPUBLIC OF CHINA": "CHN",
     "PEOPLE S REPUBLIC OF CHINA": "CHN",
-    KOREA: "KOR",
-    "KOREA REPUBLIC OF": "KOR",
-    "REPUBLIC OF KOREA": "KOR",
-    "SOUTH KOREA": "KOR",
+    KOREA: "REPUBLIC OF KOREA",
+    "KOREA REPUBLIC OF": "REPUBLIC OF KOREA",
+    "REPUBLIC OF KOREA": "REPUBLIC OF KOREA",
+    "SOUTH KOREA": "REPUBLIC OF KOREA",
     "UNITED STATES": "USA",
     "UNITED STATES OF AMERICA": "USA",
     AMERICA: "USA",
+    USA: "USA",
     MALAYSIA: "MYS",
+    MAL: "MYS",
+    MYS: "MYS",
     SINGAPORE: "SGP",
+    SGP: "SGP",
     THAILAND: "THA",
+    THA: "THA",
   };
   const codeMatch = normalized.match(/^[A-Z]{3}\b/);
   return aliases[normalized] ?? codeMatch?.[0] ?? value.toUpperCase();
+}
+
+export interface TdacOfficialApiResponse {
+  url: string;
+  status: number;
+  method: string;
+  requestBody: unknown;
+  body: unknown;
+}
+
+export interface TdacPortalRunOptions {
+  headless?: boolean;
+  stopBeforeSubmit?: boolean;
+  auditFullOfficialDropdowns?: boolean;
+  officialDropdownAuditSkipLabels?: ReadonlySet<string>;
+  /**
+   * Read-only audit hook for official non-security API responses loaded before
+   * final submission. This is used to refresh TDAC dropdown contract data
+   * without recording action tokens or submitted applicant answers.
+   */
+  onInitialOfficialApiResponse?: (response: TdacOfficialApiResponse) => void | Promise<void>;
+}
+
+function tdacCountrySearchCandidates(value: string): string[] {
+  const primary = tdacCountrySearchValue(value);
+  const normalized = value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+  const candidateMap: Record<string, string[]> = {
+    CHN: ["CHN", "PEOPLE'S REPUBLIC OF CHINA", "CHINA"],
+    CHINA: ["CHN", "PEOPLE'S REPUBLIC OF CHINA", "CHINA"],
+    "PEOPLE S REPUBLIC OF CHINA": ["CHN", "PEOPLE'S REPUBLIC OF CHINA", "CHINA"],
+    SGP: ["SGP", "THE REPUBLIC OF SINGAPORE", "SINGAPORE"],
+    SINGAPORE: ["SGP", "THE REPUBLIC OF SINGAPORE", "SINGAPORE"],
+    THA: ["THA", "THAILAND"],
+    THAILAND: ["THA", "THAILAND"],
+    USA: ["USA", "UNITED STATES OF AMERICA", "UNITED STATES"],
+    "UNITED STATES": ["USA", "UNITED STATES OF AMERICA", "UNITED STATES"],
+    "UNITED STATES OF AMERICA": ["USA", "UNITED STATES OF AMERICA", "UNITED STATES"],
+    MYS: ["MYS", "MALAYSIA"],
+    MALAYSIA: ["MYS", "MALAYSIA"],
+  };
+  return Array.from(new Set([primary, ...(candidateMap[normalized] ?? candidateMap[primary] ?? []), value.toUpperCase()]))
+    .filter(Boolean);
+}
+
+export function tdacNationalitySearchValue(value: string): string {
+  const normalized = value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+  if (/^[A-Z0-9]{3}$/.test(normalized)) return normalized;
+  const aliases: Record<string, string> = {
+    CHINA: "CHINESE",
+    CHN: "CHINESE",
+    "PEOPLE S REPUBLIC OF CHINA": "CHINESE",
+    KOREA: "KOREAN",
+    "KOREA REPUBLIC OF": "KOREAN",
+    "REPUBLIC OF KOREA": "KOREAN",
+    "SOUTH KOREA": "KOREAN",
+    "UNITED STATES": "AMERICAN",
+    "UNITED STATES OF AMERICA": "AMERICAN",
+    USA: "AMERICAN",
+    AMERICA: "AMERICAN",
+    MALAYSIA: "MALAYSIAN",
+    SINGAPORE: "SINGAPOREAN",
+    THAILAND: "THAI",
+  };
+  return aliases[normalized] ?? value.toUpperCase();
+}
+
+export function tdacOfficialOptionSearchValue(value: string): string {
+  const compositeParts = value
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const lastPart = compositeParts.at(-1) ?? value;
+  const officialPart = /^\d{5}$/.test(lastPart) && compositeParts.length > 1
+    ? compositeParts.at(-2) ?? lastPart
+    : lastPart;
+  return officialPart
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+const TDAC_CHINA_CITY_TO_PROVINCE_ALIASES: Record<string, string> = {
+  CHANGSHA: "HUNAN",
+};
+
+function resolveTdacResidenceCityForCountry(residenceCountry: string, residenceCity: string): string {
+  const normalizedCity = tdacOfficialOptionSearchValue(residenceCity);
+  if (!normalizedCity) return residenceCity;
+  const normalizedCountry = residenceCountry.trim().toUpperCase();
+  if (normalizedCountry === "CHINA" || normalizedCountry === "CHN") {
+    const alias = TDAC_CHINA_CITY_TO_PROVINCE_ALIASES[normalizeTdacDropdownText(normalizedCity)];
+    return alias ?? normalizedCity;
+  }
+  return normalizedCity;
 }
 
 function tdacGenderLabel(value: string): string {
@@ -324,12 +545,8 @@ function tdacTransportLabel(value: string): RegExp {
   const labels: Record<string, RegExp> = {
     commercial_flight: /COMMERCIAL\s+FLIGHT/i,
     private_cargo_airline: /PRIVATE\/CARGO\s+AIRLINE/i,
-    bus: /^BUS$/i,
     car: /^CAR$/i,
-    lorry: /^LORRY$/i,
-    motorcycle: /^MOTORCYCLE$/i,
-    rail: /^RAIL$/i,
-    van: /^VAN$/i,
+    train: /^TRAIN$/i,
     cruise: /^CRUISE$/i,
     commercial_vessel: /COMMERCIAL\s+VESSEL/i,
     others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
@@ -341,13 +558,15 @@ function tdacPurposeLabel(value: string): RegExp {
   const normalized = value.trim().toLowerCase();
   const labels: Record<string, RegExp> = {
     holiday: /^HOLIDAY$/i,
-    business: /^BUSINESS$/i,
-    education: /^EDUCATION$/i,
-    employment: /^EMPLOYMENT$/i,
     meeting: /^MEETING$/i,
-    medical: /^MEDICAL$/i,
-    return_resident: /RETURN\s+RESIDENT/i,
-    transit: /^TRANSIT$/i,
+    sports: /^SPORTS$/i,
+    business: /^BUSINESS$/i,
+    incentive: /^INCENTIVE$/i,
+    medical_wellness: /^MEDICAL\s*&\s*WELLNESS$/i,
+    education: /^EDUCATION$/i,
+    convention: /^CONVENTION$/i,
+    employment: /^EMPLOYMENT$/i,
+    exhibition: /^EXHIBITION$/i,
     others: /OTHERS\s*\(PLEASE\s+SPECIFY\)/i,
   };
   return labels[normalized] ?? new RegExp(normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -372,6 +591,38 @@ async function fillInput(page: Page, selector: string, value: string, logs: stri
   await field.fill(value, { timeout: 15_000 });
   await field.blur().catch(() => undefined);
   logs.push(`tdac_filled ${selector}`);
+}
+
+async function firstVisibleSelector(page: Page, selectors: string[], timeoutMs = 30_000): Promise<string> {
+  const startedAt = Date.now();
+  let diagnostics: string[] = [];
+  while (Date.now() - startedAt < timeoutMs) {
+    diagnostics = [];
+    for (const selector of selectors) {
+      const locator = page.locator(selector);
+      const count = await locator.count().catch(() => 0);
+      let visibleCount = 0;
+      for (let index = 0; index < count; index += 1) {
+        if (await locator.nth(index).isVisible().catch(() => false)) visibleCount += 1;
+      }
+      diagnostics.push(`${selector}:count=${count}:visible=${visibleCount}`);
+      if (visibleCount > 0) return selector;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`TDAC visible selector not found. Tried ${diagnostics.join(" | ") || selectors.join(" | ")}`);
+}
+
+async function fillInputAny(page: Page, selectors: string[], value: string, logs: string[], label: string): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await fillInput(page, selector, value, logs);
+  logs.push(`tdac_filled_any ${label} selector=${selector}`);
+}
+
+async function forceSetInputAny(page: Page, selectors: string[], value: string, logs: string[], label: string): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await forceSetInput(page, selector, value, logs);
+  logs.push(`tdac_force_filled_any ${label} selector=${selector}`);
 }
 
 async function forceSetInput(page: Page, selector: string, value: string, logs: string[]): Promise<void> {
@@ -457,12 +708,26 @@ async function selectAutocomplete(
   logs.push(`tdac_selected ${selector}=${value}`);
 }
 
+async function selectAutocompleteAny(
+  page: Page,
+  selectors: string[],
+  value: string,
+  logs: string[],
+  label: string,
+  optionText: RegExp | string = value,
+): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await selectAutocomplete(page, selector, value, logs, optionText);
+  logs.push(`tdac_selected_any ${label} selector=${selector}`);
+}
+
 async function selectOfficialAutocomplete(
   page: Page,
   selector: string,
   value: string,
   logs: string[],
   label: string,
+  allowNoVisibleOptions = false,
   optionText: RegExp | string = value,
 ): Promise<void> {
   const field = page.locator(selector).first();
@@ -478,29 +743,125 @@ async function selectOfficialAutocomplete(
   });
   await field.click({ timeout: 10_000 }).catch(() => undefined);
   await field.press(process.platform === "darwin" ? "Meta+A" : "Control+A").catch(() => undefined);
-  await field.fill(value, { timeout: 15_000 });
+  await field.fill("", { timeout: 15_000 }).catch(() => undefined);
+  await field.type(value, { delay: 35, timeout: 15_000 });
+  await field.press("ArrowDown").catch(() => undefined);
   await page.waitForTimeout(800);
-  const option = typeof optionText === "string"
-    ? page.locator("mat-option, .mat-mdc-option, [role='option']").filter({ hasText: optionText }).first()
-    : page.locator("mat-option, .mat-mdc-option, [role='option']").filter({ hasText: optionText }).first();
-  if (!(await option.isVisible({ timeout: 8_000 }).catch(() => false))) {
+  try {
+    await clickVisibleOption(page, optionText, logs, label, 20_000);
+  } catch {
+    const fieldValue = await field.inputValue().catch(() => "");
+    const fieldEnabled = !(await field.isDisabled().catch(() => true));
     const visibleOptions = await page.locator("mat-option, .mat-mdc-option, [role='option']")
       .evaluateAll((elements) => elements
         .map((element) => element.textContent?.replace(/\s+/g, " ").trim())
         .filter(Boolean)
         .slice(0, 12))
       .catch(() => []);
+    const extraSummary = `fieldValue=${fieldValue || "<empty>"}; enabled=${fieldEnabled}`;
+    if (allowNoVisibleOptions) {
+      logs.push(`tdac_official_select_official_fallback_no_options ${label}: ${value}`);
+      await field.press("Tab").catch(() => undefined);
+      return;
+    }
     throw new TdacPortalError(
       `Official TDAC dropdown option not found for ${label}: "${value}". Please use a value from the official TDAC dropdown list.`,
       {
         code: "tdac_official_dropdown_option_not_found",
-        portalSummary: `${label}: ${value}; visible options: ${visibleOptions.join(" | ") || "none"}`,
+        portalSummary: `${label}: ${value}; ${extraSummary}; visible options: ${visibleOptions.join(" | ") || "none"}`,
       },
     );
   }
-  await option.click({ timeout: 10_000 });
   await page.waitForTimeout(500);
   logs.push(`tdac_selected_official ${selector}=${value}`);
+}
+
+async function selectOfficialAutocompleteAny(
+  page: Page,
+  selectors: string[],
+  value: string,
+  logs: string[],
+  label: string,
+  allowNoVisibleOptions = false,
+  optionText: RegExp | string = value,
+): Promise<void> {
+  const selector = await firstVisibleSelector(page, selectors);
+  await selectOfficialAutocomplete(
+    page,
+    selector,
+    value,
+    logs,
+    label,
+    allowNoVisibleOptions,
+    optionText,
+  );
+  logs.push(`tdac_selected_official_any ${label} selector=${selector}`);
+}
+
+async function selectOfficialAutocompleteAnyCandidateValues(
+  page: Page,
+  selectors: string[],
+  values: string[],
+  logs: string[],
+  label: string,
+  allowNoVisibleOptions = false,
+): Promise<void> {
+  let lastError: unknown = null;
+  for (const value of values) {
+    try {
+      await selectOfficialAutocompleteAny(
+        page,
+        selectors,
+        value,
+        logs,
+        label,
+        allowNoVisibleOptions,
+        officialCountryPattern(value),
+      );
+      logs.push(`tdac_selected_official_candidate ${label}=${value}`);
+      return;
+    } catch (error) {
+      lastError = error;
+      logs.push(
+        `tdac_official_candidate_failed ${label}=${value} ${
+          error instanceof Error ? error.message.split("\n")[0] : String(error)
+        }`,
+      );
+    }
+  }
+  if (lastError instanceof Error) throw lastError;
+  throw new Error(`Official TDAC ${label} candidate selection failed.`);
+}
+
+async function clickVisibleOption(
+  page: Page,
+  optionText: RegExp | string,
+  logs: string[],
+  label: string,
+  timeoutMs = 20_000,
+): Promise<void> {
+  const startedAt = Date.now();
+  const matches = (text: string): boolean => tdacOptionMatches(optionText, text);
+  let visibleOptions: string[] = [];
+  let optionCount = 0;
+  while (Date.now() - startedAt < timeoutMs) {
+    const options = page.locator("mat-option, .mat-mdc-option, [role='option']");
+    optionCount = await options.count().catch(() => 0);
+    visibleOptions = [];
+    for (let index = 0; index < optionCount; index += 1) {
+      const option = options.nth(index);
+      if (!(await option.isVisible().catch(() => false))) continue;
+      const text = (await option.innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+      if (text) visibleOptions.push(text);
+      if (matches(text)) {
+        await option.click({ timeout: 10_000 });
+        logs.push(`tdac_clicked_visible_option ${label}=${text}`);
+        return;
+      }
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`TDAC dropdown option not found for ${label}: ${optionText}; optionCount=${optionCount}; visibleOptions=${JSON.stringify(visibleOptions.slice(0, 40))}`);
 }
 
 async function selectMatSelect(
@@ -518,11 +879,24 @@ async function selectMatSelect(
       })));
     throw new Error(`TDAC mat-select not found: ${selector}; available=${JSON.stringify(controls).slice(0, 1200)}`);
   }
-  await waitForMatSelectEnabled(page, selector, logs, 30_000);
+  await waitForMatSelectEnabled(page, selector, logs, 30_000).catch(async () => {
+    const controlName = selector.match(/formcontrolname=['"]([^'"]+)['"]/)?.[1] ?? "unknown";
+    const diagnostics = await field.evaluate((element) => ({
+      ariaDisabled: element.getAttribute("aria-disabled"),
+      className: String(element.className || "").slice(0, 300),
+      text: (element.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 200),
+    })).catch(() => null);
+    logs.push(`tdac_mat_select_disabled control=${controlName} diagnostics=${JSON.stringify(diagnostics)}`);
+    const screenshotPath = await saveScreenshot(page, `mat-select-disabled-${controlName}`, logs);
+    throw new TdacPortalError(`Official TDAC ${controlName} dropdown stayed disabled after its parent selection.`, {
+      code: "tdac_mat_select_disabled",
+      screenshotPaths: [screenshotPath],
+      portalSummary: JSON.stringify({ controlName, diagnostics }),
+      logs,
+    });
+  });
   await field.click({ timeout: 15_000 });
-  const option = page.locator("mat-option, .mat-mdc-option, [role='option']").filter({ hasText: optionText }).first();
-  await option.waitFor({ state: "visible", timeout: 20_000 });
-  await option.click({ timeout: 15_000 });
+  await clickVisibleOption(page, optionText, logs, selector);
   logs.push(`tdac_selected_mat ${selector}`);
 }
 
@@ -600,10 +974,28 @@ async function clickRadioByText(page: Page, text: string, logs: string[], occurr
       if (!visible) continue;
       if (visibleIndex === occurrence) {
         await candidate.scrollIntoViewIfNeeded().catch(() => undefined);
-        await candidate.click({ timeout: 10_000 }).catch(async () => {
-          await candidate.click({ timeout: 10_000, force: true });
-        });
-        logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index}`);
+        const input = candidate.locator("input[type='radio']").first();
+        if (await input.count().catch(() => 0)) {
+          await input.check({ timeout: 10_000, force: true }).catch(async () => {
+            await input.click({ timeout: 5_000, force: true });
+          });
+          if (!await input.isChecked().catch(() => false)) {
+            await input.evaluate((element) => (element as HTMLInputElement).click()).catch(() => undefined);
+          }
+          await input.dispatchEvent("input").catch(() => undefined);
+          await input.dispatchEvent("change").catch(() => undefined);
+          await page.waitForTimeout(300);
+          const checked = await input.isChecked().catch(() => false);
+          logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index} checked=${checked}`);
+          if (!checked) {
+            throw new Error(`Official TDAC radio option did not remain selected: ${text} occurrence=${occurrence}`);
+          }
+        } else {
+          await candidate.click({ timeout: 10_000 }).catch(async () => {
+            await candidate.click({ timeout: 10_000, force: true });
+          });
+          logs.push(`tdac_radio ${text} occurrence=${occurrence} selector=${selector} candidate=${index}`);
+        }
         return;
       }
       visibleIndex += 1;
@@ -613,29 +1005,114 @@ async function clickRadioByText(page: Page, text: string, logs: string[], occurr
 }
 
 async function checkTransitPassenger(page: Page, logs: string[]): Promise<void> {
-  const checkbox = page.locator("mat-checkbox, .mat-mdc-checkbox, label").filter({
+  const label = page.locator("label").filter({
     hasText: /transit passenger|don't stay in Thailand/i,
   }).first();
+  const checkboxHost = page.locator("mat-checkbox, .mat-mdc-checkbox, [sit-validate-input='notStayInTh']").filter({
+    hasText: /transit passenger|don't stay in Thailand/i,
+  }).first();
+  let input = page.locator([
+    "input[formcontrolname='notStayInTh']",
+    "input[sit-validate-input='notStayInTh']",
+    "[sit-validate-input='notStayInTh'] input[type='checkbox']",
+  ].join(", ")).first();
+  if (await input.count() === 0 && await checkboxHost.count() > 0) {
+    input = checkboxHost.locator("input[type='checkbox']").first();
+  }
+  if (await input.count() === 0 && await label.count() > 0) {
+    const inputId = await label.getAttribute("for").catch(() => null);
+    if (inputId && /^[A-Za-z][\w:.-]*$/.test(inputId)) {
+      input = page.locator(`#${inputId}`).first();
+    }
+  }
+  const hasInput = await input.count() > 0;
+  const checkbox = hasInput
+    ? input
+    : await label.isVisible({ timeout: 2_000 }).catch(() => false)
+      ? label
+      : checkboxHost;
   if (!(await checkbox.isVisible({ timeout: 5_000 }).catch(() => false))) {
     logs.push("tdac_transit_checkbox_not_visible");
+    throw new Error("Official TDAC transit passenger checkbox was not visible after departure details were filled.");
+  }
+  const checkboxDisabled = hasInput
+    ? await input.isDisabled().catch(() => false)
+    : await checkboxHost.getAttribute("class")
+      .then((className) => /(?:mdc-checkbox--disabled|mat-mdc-checkbox-disabled)/.test(className ?? ""))
+      .catch(() => false);
+  if (checkboxDisabled) {
+    logs.push("tdac_transit_checkbox_disabled_same_day_inferred");
     return;
   }
-  const checked = await checkbox.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
-  if (!checked) {
-    await checkbox.scrollIntoViewIfNeeded().catch(() => undefined);
-    const container = page.locator("[sit-validate-input='notStayInTh']").first();
-    if (await container.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      await container.click({ timeout: 5_000, force: true }).catch(() => undefined);
+
+  const readCheckedState = async (): Promise<boolean> => {
+    if (hasInput) {
+      return input.isChecked().catch(() => false);
     }
-    const nowChecked = await checkbox.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
-    if (!nowChecked) {
-      await checkbox.click({ timeout: 10_000, force: true });
+
+    if (await checkboxHost.count()) {
+      const ariaChecked = await checkboxHost.getAttribute("aria-checked").catch(() => null);
+      if (ariaChecked === "true") return true;
+      const hostClass = await checkboxHost.getAttribute("class").catch(() => "");
+      return /mat-(?:mdc-)?checkbox-checked/.test(hostClass ?? "");
+    }
+    return false;
+  };
+
+  await checkbox.scrollIntoViewIfNeeded().catch(() => undefined);
+  if (!(await readCheckedState())) {
+    if (hasInput) {
+      await input.check({ timeout: 10_000, force: true }).catch(() => undefined);
+    }
+    if (!(await readCheckedState())) {
+      if (await label.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        await label.click({ timeout: 5_000, force: true }).catch(() => undefined);
+      } else {
+        await checkboxHost.click({ timeout: 5_000, force: true }).catch(() => undefined);
+      }
     }
   }
-  const finalChecked = await checkbox.getAttribute("aria-checked").then((value) => value === "true").catch(() => false);
+
+  let finalChecked = false;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    finalChecked = await readCheckedState();
+    if (finalChecked) break;
+    await page.waitForTimeout(250);
+  }
   logs.push(`tdac_transit_passenger_checked=${finalChecked}`);
   if (!finalChecked) {
-    throw new Error("Official TDAC transit passenger checkbox could not be selected while same-day arrival/departure made accommodation fields unavailable.");
+    const diagnostics = await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll("input[type='checkbox'], mat-checkbox, .mat-mdc-checkbox, label"))
+        .filter((node) => /transit passenger|don't stay in thailand/i.test(node.textContent ?? "")
+          || /notstayinth/i.test(node.getAttribute("formcontrolname") ?? "")
+          || /notstayinth/i.test(node.getAttribute("sit-validate-input") ?? ""));
+      return nodes.slice(0, 8).map((node) => {
+        const element = node as HTMLInputElement;
+        return {
+          tag: node.tagName.toLowerCase(),
+          id: element.id || null,
+          for: node.getAttribute("for"),
+          formControlName: node.getAttribute("formcontrolname"),
+          sitValidateInput: node.getAttribute("sit-validate-input"),
+          type: element.type || null,
+          checked: typeof element.checked === "boolean" ? element.checked : null,
+          disabled: typeof element.disabled === "boolean" ? element.disabled : null,
+          ariaChecked: node.getAttribute("aria-checked"),
+          className: String(node.className || "").slice(0, 200),
+        };
+      });
+    }).catch(() => []);
+    logs.push(`tdac_transit_checkbox_diagnostics=${JSON.stringify(diagnostics)}`);
+    const screenshotPath = await saveScreenshot(page, "transit-checkbox-unselected", logs);
+    throw new TdacPortalError(
+      "Official TDAC transit passenger checkbox could not be selected while same-day arrival/departure made accommodation fields unavailable.",
+      {
+        code: "tdac_transit_checkbox_unselected",
+        screenshotPaths: [screenshotPath],
+        portalSummary: JSON.stringify(diagnostics),
+        logs,
+      },
+    );
   }
 }
 
@@ -730,6 +1207,98 @@ async function clickButtonIfVisible(page: Page, label: RegExp, logs: string[], t
   return false;
 }
 
+interface TdacOfficialInvalidField {
+  label: string;
+  message: string;
+}
+
+async function getTdacOfficialInvalidFields(page: Page): Promise<TdacOfficialInvalidField[]> {
+  await page.evaluate("globalThis.__name = globalThis.__name || ((fn) => fn)").catch(() => undefined);
+  return page.evaluate(() => {
+    const compact = (value: string | null | undefined): string => (value ?? "").replace(/\s+/g, " ").trim();
+    const isVisible = (element: Element): boolean => {
+      const htmlElement = element as HTMLElement;
+      const rect = htmlElement.getBoundingClientRect();
+      const style = window.getComputedStyle(htmlElement);
+      return rect.width > 0
+        && rect.height > 0
+        && style.display !== "none"
+        && style.visibility !== "hidden"
+        && style.opacity !== "0";
+    };
+    const labelFor = (element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): string => {
+      const explicitId = element.id ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`) : null;
+      const container = element.closest(".mat-mdc-form-field, .mat-form-field, .row, .form-group, div");
+      const candidate = compact([
+        element.getAttribute("aria-label"),
+        element.getAttribute("placeholder"),
+        explicitId?.textContent,
+        container?.querySelector("label, mat-label, .mat-mdc-form-field-label")?.textContent,
+        element.getAttribute("formcontrolname"),
+        element.getAttribute("name"),
+        element.id,
+      ].find((value) => compact(value)));
+      return candidate || "Unknown TDAC field";
+    };
+
+    const invalidControls = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+      "input, select, textarea",
+    ))
+      .filter((element) => {
+        const type = element instanceof HTMLInputElement ? element.type : "";
+        return type !== "hidden" && !element.disabled && isVisible(element);
+      })
+      .filter((element) => {
+        try {
+          return typeof element.checkValidity === "function" && !element.checkValidity();
+        } catch {
+          return false;
+        }
+      })
+      .map((element) => ({
+        label: labelFor(element),
+        message: compact(element.validationMessage) || "Invalid or missing value",
+      }));
+
+    const errorTexts = Array.from(document.querySelectorAll<HTMLElement>(
+      "mat-error, .mat-mdc-form-field-error, .invalid-feedback, .text-danger, .error-message, [class*='error']",
+    ))
+      .filter(isVisible)
+      .map((element) => compact(element.textContent))
+      .filter((text) => text && !/cloudflare|debug|stack/i.test(text))
+      .slice(0, 12)
+      .map((text) => ({ label: "Official TDAC message", message: text }));
+
+    const seen = new Set<string>();
+    return [...invalidControls, ...errorTexts].filter((entry) => {
+      const key = `${entry.label}:${entry.message}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 20);
+  });
+}
+
+async function assertTdacOfficialFormValid(
+  page: Page,
+  screenshots: string[],
+  logs: string[],
+  stage: string,
+): Promise<void> {
+  const invalidFields = await getTdacOfficialInvalidFields(page);
+  if (invalidFields.length === 0) {
+    logs.push(`tdac_official_form_valid stage=${stage}`);
+    return;
+  }
+  screenshots.push(await saveScreenshot(page, `official-invalid-${stage}`, logs));
+  const summary = invalidFields.map((field) => `${field.label}: ${field.message}`).join(" | ");
+  throw new TdacPortalError(`Official TDAC form validation failed before ${stage}: ${summary}`, {
+    code: "tdac_official_form_validation_failed",
+    screenshotPaths: screenshots,
+    portalSummary: summary,
+  });
+}
+
 async function waitForTdacSubmissionOutcome(page: Page, screenshots: string[], logs: string[]): Promise<string> {
   const startedAt = Date.now();
   let latestText = "";
@@ -748,10 +1317,14 @@ async function waitForTdacSubmissionOutcome(page: Page, screenshots: string[], l
 
     if (errorLike && !stillOnPreview) {
       screenshots.push(await saveScreenshot(page, "after-submit-error", logs));
-      throw new TdacPortalError("Official TDAC portal returned an error after final submit.", {
+      const invalidFields = await getTdacOfficialInvalidFields(page);
+      const invalidSummary = invalidFields.map((field) => `${field.label}: ${field.message}`).join(" | ");
+      throw new TdacPortalError(invalidSummary
+        ? `Official TDAC portal returned validation errors after final submit: ${invalidSummary}`
+        : "Official TDAC portal returned an error after final submit.", {
         code: "tdac_official_submit_error",
         screenshotPaths: screenshots,
-        portalSummary: normalized.slice(0, 1_000),
+        portalSummary: (invalidSummary || normalized).slice(0, 1_000),
       });
     }
 
@@ -759,6 +1332,15 @@ async function waitForTdacSubmissionOutcome(page: Page, screenshots: string[], l
   }
 
   screenshots.push(await saveScreenshot(page, "after-submit-timeout", logs));
+  const invalidFields = await getTdacOfficialInvalidFields(page);
+  if (invalidFields.length > 0) {
+    const summary = invalidFields.map((field) => `${field.label}: ${field.message}`).join(" | ");
+    throw new TdacPortalError(`Official TDAC form validation failed after final submit: ${summary}`, {
+      code: "tdac_official_form_validation_failed",
+      screenshotPaths: screenshots,
+      portalSummary: summary,
+    });
+  }
   throw new TdacPortalError("Official TDAC final confirmation page was not reached after final submit.", {
     code: "tdac_final_confirmation_not_reached",
     screenshotPaths: screenshots,
@@ -768,25 +1350,54 @@ async function waitForTdacSubmissionOutcome(page: Page, screenshots: string[], l
 
 async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<string[]> {
   const pdfs: string[] = [];
+  const makeFilePath = (fileName: string): string => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-pdf-"));
+    return path.join(dir, fileName.replace(/[<>:"/\\|?*]+/g, "-"));
+  };
+
+  const saveConfirmationPagePdf = async (): Promise<string | null> => {
+    const filePath = makeFilePath(`tdac-confirmation-page-${Date.now()}.pdf`);
+    try {
+      await page.pdf({
+        path: filePath,
+        format: "A4",
+        printBackground: true,
+      });
+      const stat = await fs.promises.stat(filePath);
+      if (stat.size < 10_000) {
+        logs.push(`tdac_confirmation_page_pdf_too_small bytes=${stat.size}`);
+        return null;
+      }
+      logs.push(`tdac_confirmation_page_pdf_saved ${filePath} bytes=${stat.size}`);
+      return filePath;
+    } catch (error) {
+      logs.push(`tdac_confirmation_page_pdf_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      return null;
+    }
+  };
+
   const saveDownload = async (download: Download | null): Promise<string | null> => {
     if (!download) return null;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viza-tdac-pdf-"));
     const suggested = download.suggestedFilename() || `tdac-confirmation-${Date.now()}.pdf`;
     const safeName = suggested.toLowerCase().endsWith(".pdf") ? suggested : `${suggested}.pdf`;
-    const filePath = path.join(dir, safeName.replace(/[<>:"/\\|?*]+/g, "-"));
+    const filePath = makeFilePath(safeName);
     try {
-      const downloadedPath = await download.path().catch(() => null);
-      if (downloadedPath) {
-        await fs.promises.copyFile(downloadedPath, filePath);
-      } else {
-        await download.saveAs(filePath);
-      }
+      await download.saveAs(filePath);
       logs.push(`tdac_pdf_downloaded ${filePath}`);
       return filePath;
     } catch (error) {
-      logs.push(`tdac_pdf_save_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-      return null;
+      logs.push(`tdac_pdf_saveas_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
     }
+    try {
+      const downloadedPath = await download.path().catch(() => null);
+      if (!downloadedPath) return null;
+      await fs.promises.copyFile(downloadedPath, filePath);
+      logs.push(`tdac_pdf_downloaded ${filePath}`);
+      return filePath;
+    } catch (error) {
+      logs.push(`tdac_pdf_copy_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    }
+    return null;
   };
 
   const trigger = page.locator("a, button", { hasText: /download|pdf|print/i }).first();
@@ -817,14 +1428,51 @@ async function downloadTdacPdfIfAvailable(page: Page, logs: string[]): Promise<s
       if (savedPath) pdfs.push(savedPath);
     }
   }
+  if (pdfs.length === 0) {
+    const fallbackPath = await saveConfirmationPagePdf();
+    if (fallbackPath) pdfs.push(fallbackPath);
+  }
   if (pdfs.length === 0) logs.push("tdac_pdf_download_unavailable_after_success");
   return pdfs;
 }
 
-async function prepareTdacFinalSubmit(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
-  const emailInput = page.locator("input[type='email'], input[placeholder*='@'], input[placeholder*='EXAMPLE']").last();
-  await emailInput.waitFor({ state: "visible", timeout: 20_000 });
-  await emailInput.fill(payload.emailAddress, { timeout: 10_000 });
+async function prepareTdacFinalSubmit(
+  page: Page,
+  payload: TdacPortalPayload,
+  screenshots: string[],
+  logs: string[],
+): Promise<void> {
+  let emailSelector: string;
+  try {
+    emailSelector = await firstVisibleSelector(
+      page,
+      [
+        "input[formcontrolname='email']",
+        "input[name='email']",
+        "input[type='email']",
+        "input[placeholder*='@']",
+        "input[placeholder*='example' i]",
+        "input[placeholder*='email' i]",
+        "input[aria-label*='email' i]",
+        "xpath=//*[contains(translate(normalize-space(.), 'EMAIL', 'email'), 'email')]/following::input[1]",
+      ],
+      90_000,
+    );
+  } catch (error) {
+    screenshots.push(await saveScreenshot(page, "final-email-unavailable", logs));
+    const portalText = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+    throw new TdacPortalError("TDAC Preview did not expose the final confirmation email field.", {
+      code: "tdac_final_email_unavailable",
+      screenshotPaths: screenshots,
+      portalSummary: portalText.slice(0, 500),
+      logs: [
+        ...logs,
+        `tdac_final_email_unavailable ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
+      ],
+    });
+  }
+  const emailInput = page.locator(emailSelector).last();
+  await emailInput.fill(payload.emailAddress, { timeout: 15_000 });
   logs.push("tdac_final_email_filled");
 
   const termsCheckbox = page.locator("mat-checkbox, .mat-mdc-checkbox, input[type='checkbox']").last();
@@ -835,39 +1483,80 @@ async function prepareTdacFinalSubmit(page: Page, payload: TdacPortalPayload, lo
   await page.waitForTimeout(1_000);
 }
 
-async function fillTdacPersonalStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
+async function fillTdacPersonalStep(
+  page: Page,
+  payload: TdacPortalPayload,
+  screenshots: string[],
+  logs: string[],
+): Promise<void> {
   const dob = dateParts(payload.dateOfBirth);
-  await fillInput(page, "#mat-input-0", payload.familyName.toUpperCase(), logs);
-  await fillInput(page, "#mat-input-1", payload.firstName.toUpperCase(), logs);
-  await fillInput(page, "#mat-input-2", (payload.middleName || "").toUpperCase(), logs);
-  await fillInput(page, "#mat-input-3", payload.passportNumber.toUpperCase(), logs);
-  const nationalitySearch = tdacCountrySearchValue(payload.nationality);
-  await selectAutocomplete(page, "#mat-input-25", nationalitySearch, logs, officialCountryPattern(nationalitySearch));
-  await selectAutocomplete(page, "#mat-input-18", dob.year, logs);
-  await selectAutocomplete(page, "#mat-input-19", dob.month, logs);
-  await selectAutocomplete(page, "#mat-input-20", dob.day, logs);
-  await fillInput(page, "#mat-input-4", payload.occupation.toUpperCase(), logs);
+  await fillInputAny(page, ["input[formcontrolname='familyName']", "#mat-input-0"], payload.familyName.toUpperCase(), logs, "family_name");
+  await fillInputAny(page, ["input[formcontrolname='firstName']", "#mat-input-1"], payload.firstName.toUpperCase(), logs, "first_name");
+  await fillInputAny(page, ["input[formcontrolname='middleName']", "#mat-input-2"], (payload.middleName || "").toUpperCase(), logs, "middle_name");
+  await fillInputAny(page, ["input[formcontrolname='passportNo']", "input[formcontrolname='passportNumber']", "#mat-input-3"], payload.passportNumber.toUpperCase(), logs, "passport_number");
+  const nationalitySearch = tdacNationalitySearchValue(payload.nationality);
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='nationality']", "#mat-input-25"],
+    nationalitySearch,
+    logs,
+    "nationality",
+    false,
+    officialCountryPattern(nationalitySearch),
+  );
+  await selectAutocompleteAny(page, ["input[formcontrolname='birthYear']", "#mat-input-18"], dob.year, logs, "birth_year");
+  await selectAutocompleteAny(page, ["input[formcontrolname='birthMonth']", "#mat-input-19"], dob.month, logs, "birth_month");
+  await selectAutocompleteAny(page, ["input[formcontrolname='birthDay']", "#mat-input-20"], dob.day, logs, "birth_day");
+  await fillInputAny(page, ["input[formcontrolname='occupation']", "#mat-input-4"], payload.occupation.toUpperCase(), logs, "occupation");
   await clickRadioByText(page, tdacGenderLabel(payload.gender), logs);
   if (payload.visaNumber) {
-    await fillInput(page, "#mat-input-5", payload.visaNumber.toUpperCase(), logs);
+    await fillInputAny(page, ["input[formcontrolname='visaNo']", "input[formcontrolname='visaNumber']", "#mat-input-5"], payload.visaNumber.toUpperCase(), logs, "visa_number");
   }
   const residenceCountrySearch = tdacCountrySearchValue(payload.residenceCountry);
-  await selectAutocomplete(page, "#mat-input-26", residenceCountrySearch, logs, officialCountryPattern(residenceCountrySearch));
-  await waitForEnabled(page, "#mat-input-27", logs);
-  await fillInput(page, "#mat-input-27", payload.residenceCity.toUpperCase(), logs);
-  await fillInput(page, "#mat-input-6", payload.phoneCountryCode.replace(/\D/g, ""), logs);
-  await fillInput(page, "#mat-input-7", payload.phoneNumber.replace(/\D/g, ""), logs);
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='countryOfResidence']", "input[formcontrolname='residenceCountry']", "#mat-input-26"],
+    residenceCountrySearch,
+    logs,
+    "residence_country",
+    false,
+    officialCountryPattern(residenceCountrySearch),
+  );
+  const residenceRegionSearch = resolveTdacResidenceCityForCountry(residenceCountrySearch, payload.residenceCity);
+  await selectOfficialAutocompleteAny(
+    page,
+    ["input[formcontrolname='cityStateOfResidence']", "input[formcontrolname='residenceCity']", "#mat-input-27"],
+    residenceRegionSearch,
+    logs,
+    "residence_city",
+    true,
+    new RegExp(residenceRegionSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+  );
+  await fillInputAny(page, ["input[formcontrolname='telCode']", "input[formcontrolname='phoneCountryCode']", "#mat-input-6"], payload.phoneCountryCode.replace(/\D/g, ""), logs, "phone_country_code");
+  await fillInputAny(page, ["input[formcontrolname='telNo']", "input[formcontrolname='phoneNumber']", "#mat-input-7"], payload.phoneNumber.replace(/\D/g, ""), logs, "phone_number");
+  await assertTdacOfficialFormValid(page, screenshots, logs, "personal-continue");
   await saveScreenshot(page, "personal-before-continue", logs);
   await clickFirstEnabledButton(page, /^Continue$/i, logs);
 }
 
-async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
+async function fillTdacTripStep(
+  page: Page,
+  payload: TdacPortalPayload,
+  screenshots: string[],
+  logs: string[],
+): Promise<void> {
   const arrival = dateParts(payload.arrivalDate);
   const departure = dateParts(payload.departureDate);
   await page.waitForTimeout(2_000);
-  await fillMaterialDateInput(page, "#mat-input-8", arrival.slashDate, logs);
-  const countryBoardedSearch = tdacCountrySearchValue(payload.countryBoarded);
-  await selectAutocomplete(page, "#mat-input-28", countryBoardedSearch, logs, officialCountryPattern(countryBoardedSearch));
+  await fillMaterialDateInput(page, "input[formcontrolname='arrDate']", arrival.slashDate, logs);
+  await selectOfficialAutocompleteAnyCandidateValues(
+    page,
+    ["input[formcontrolname='countryBoarded']", "input[formcontrolname='countryTerritoryBoarded']", "#mat-input-28"],
+    tdacCountrySearchCandidates(payload.countryBoarded),
+    logs,
+    "country_boarded",
+    false,
+  );
   await selectMatSelect(page, "mat-select[formcontrolname='traPurposeId']", tdacPurposeLabel(payload.purposeOfTravel), logs);
   if (payload.purposeOfTravel === "others" && payload.purposeOfTravelOther) {
     await fillVisibleInputNearMatSelect(
@@ -889,11 +1578,8 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
       "arrival_transport_other",
     );
   }
-  await fillInput(page, "#mat-input-11", payload.arrivalTransportNumber.toUpperCase(), logs);
-  if (payload.isTransitTraveler) {
-    await checkTransitPassenger(page, logs);
-  }
-  await fillMaterialDateInput(page, "#mat-input-12", departure.slashDate, logs);
+  await fillInputAny(page, ["input[formcontrolname='arrFlightNo']", "input[formcontrolname='arrVehicleNo']", "input[formcontrolname='arrivalTransportNo']", "#mat-input-11"], payload.arrivalTransportNumber.toUpperCase(), logs, "arrival_transport_number");
+  await fillMaterialDateInput(page, "input[formcontrolname='deptDate']", departure.slashDate, logs);
   await clickRadioByText(page, tdacTravelModeLabel(payload.departureModeOfTravel), logs, 1);
   await selectMatSelect(page, "mat-select[formcontrolname='deptTranModeId']", tdacTransportLabel(payload.departureModeOfTransport), logs);
   if (payload.departureModeOfTransport === "others" && payload.departureTransportOther) {
@@ -905,17 +1591,21 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
       "departure_transport_other",
     );
   }
-  await fillInput(page, "#mat-input-14", payload.departureTransportNumber.toUpperCase(), logs);
+  await fillInputAny(page, ["input[formcontrolname='deptFlightNo']", "input[formcontrolname='deptVehicleNo']", "input[formcontrolname='departureTransportNo']", "#mat-input-14"], payload.departureTransportNumber.toUpperCase(), logs, "departure_transport_number");
+  if (payload.isTransitTraveler) {
+    await checkTransitPassenger(page, logs);
+  }
   await page.keyboard.press("Tab").catch(() => undefined);
+  await page.locator("mat-select[formcontrolname='accTypeId']").first().scrollIntoViewIfNeeded().catch(() => undefined);
   await saveScreenshot(page, "trip-before-accommodation", logs);
-  const accommodationEnabled = await waitForMatSelectEnabled(page, "mat-select[formcontrolname='accTypeId']", logs, 5_000)
+  const accommodationEnabled = await waitForMatSelectEnabled(page, "mat-select[formcontrolname='accTypeId']", logs, 30_000)
     .then(() => true)
     .catch(() => false);
   if (accommodationEnabled && !payload.isTransitTraveler) {
-    const province = (payload.province || "").toUpperCase();
-    const district = (payload.district || "").toUpperCase();
-    const subDistrict = (payload.subDistrict || "LUMPHINI").toUpperCase();
-    const postalCode = payload.postalCode || "10330";
+    const province = tdacOfficialOptionSearchValue(payload.province || "");
+    const district = tdacOfficialOptionSearchValue(payload.district || "");
+    const subDistrict = tdacOfficialOptionSearchValue(payload.subDistrict || "");
+    const postalCode = payload.postalCode || "";
     await selectMatSelect(page, "mat-select[formcontrolname='accTypeId']", tdacAccommodationLabel(payload.accommodationType || "hotel"), logs);
     if (payload.accommodationType === "others" && payload.accommodationTypeOther) {
       await fillVisibleInputNearMatSelect(
@@ -926,51 +1616,398 @@ async function fillTdacTripStep(page: Page, payload: TdacPortalPayload, logs: st
         "accommodation_type_other",
       );
     }
-    await selectOfficialAutocomplete(page, "#mat-input-29", province, logs, "Province", new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectOfficialAutocomplete(page, "#mat-input-30", district, logs, "District", new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await selectOfficialAutocomplete(page, "#mat-input-31", subDistrict, logs, "Subdistrict", new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
-    await forceSetInput(page, "#mat-input-16", postalCode, logs);
-    await forceSetInput(page, "#mat-input-17", payload.addressInThailand || "", logs);
+    await selectOfficialAutocompleteAny(
+      page,
+      ["input[formcontrolname='province']", "#mat-input-29"],
+      province,
+      logs,
+      "Province",
+      false,
+      new RegExp(province.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    );
+    if (district) {
+      await selectOfficialAutocompleteAny(
+        page,
+        ["input[formcontrolname='district']", "input[formcontrolname='area']", "#mat-input-30"],
+        district,
+        logs,
+        "District",
+        true,
+        new RegExp(district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      );
+    }
+    if (subDistrict) {
+      await selectOfficialAutocompleteAny(
+        page,
+        ["input[formcontrolname='subDistrict']", "input[formcontrolname='subArea']", "#mat-input-31"],
+        subDistrict,
+        logs,
+        "Subdistrict",
+        true,
+        new RegExp(subDistrict.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      );
+    }
+    if (postalCode) {
+      await forceSetInputAny(page, ["input[formcontrolname='postCode']", "input[formcontrolname='postalCode']", "#mat-input-16"], postalCode, logs, "postal_code");
+    }
+    await forceSetInputAny(page, ["textarea[formcontrolname='address']", "input[formcontrolname='address']", "#mat-input-17"], payload.addressInThailand || "", logs, "address_in_thailand");
   } else if (payload.isTransitTraveler) {
     logs.push("tdac_same_day_transit_skip_accommodation");
   } else {
-    logs.push("tdac_accommodation_disabled_by_portal_skip");
+    screenshots.push(await saveScreenshot(page, "accommodation-section-unavailable", logs));
+    throw new TdacPortalError(
+      "Official TDAC accommodation section was not available for a non-transit traveller after trip details were filled.",
+      {
+        code: "tdac_accommodation_section_unavailable",
+        screenshotPaths: screenshots,
+        portalSummary: "Non-transit TDAC submissions require accommodation_type, address_in_thailand, and province.",
+      },
+    );
   }
+  await assertTdacOfficialFormValid(page, screenshots, logs, "trip-continue");
   await clickFirstEnabledButton(page, /^Continue$/i, logs);
 }
 
-async function fillTdacHealthStep(page: Page, payload: TdacPortalPayload, logs: string[]): Promise<void> {
+async function fillTdacHealthStep(
+  page: Page,
+  payload: TdacPortalPayload,
+  screenshots: string[],
+  logs: string[],
+): Promise<void> {
   await page.waitForTimeout(1_000);
   for (const country of payload.countriesVisitedLast14Days) {
-    const countrySearch = tdacCountrySearchValue(country);
-    await selectAutocomplete(page, "#mat-mdc-chip-list-input-0", countrySearch, logs, officialCountryPattern(countrySearch));
+    await selectOfficialAutocompleteAnyCandidateValues(
+      page,
+      ["input[matchipinputfor]", "#mat-mdc-chip-list-input-0"],
+      tdacCountrySearchCandidates(country),
+      logs,
+      "countries_visited_last_14_days",
+    );
+  }
+
+  const yellowFeverPrompt = page
+    .getByText(/Do you have Yellow Fever Vaccination Certificate/i)
+    .first();
+  if (await yellowFeverPrompt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    if (payload.yellowFeverVaccinationCertificate === undefined) {
+      screenshots.push(await saveScreenshot(page, "conditional-health-answer-required", logs));
+      throw new TdacPortalError(
+        "TDAC requires the applicant to declare whether they have a Yellow Fever Vaccination Certificate.",
+        {
+          code: "tdac_conditional_health_answer_required",
+          screenshotPaths: screenshots,
+          portalSummary:
+            "The official health step requires yellow_fever_vaccination_certificate because the traveller's health-risk inputs triggered additional questions.",
+          logs,
+        },
+      );
+    }
+    await clickRadioByText(
+      page,
+      payload.yellowFeverVaccinationCertificate ? "YES" : "NO",
+      logs,
+    );
+    if (payload.yellowFeverVaccinationCertificate) {
+      screenshots.push(await saveScreenshot(page, "yellow-fever-certificate-details-required", logs));
+      throw new TdacPortalError(
+        "TDAC requires the Yellow Fever vaccination date and certificate upload after answering Yes.",
+        {
+          code: "tdac_yellow_fever_certificate_details_required",
+          screenshotPaths: screenshots,
+          portalSummary:
+            "The applicant answered Yes to the Yellow Fever certificate question; vaccination date and certificate evidence must be supplied before submission.",
+          logs,
+        },
+      );
+    }
+    logs.push("tdac_yellow_fever_certificate_answered_no");
   }
   await clickFirstEnabledButton(page, /^Preview$/i, logs);
 }
 
 export async function runTdacPortalSubmission(
   payload: TdacPortalPayload,
-  options: { headless?: boolean; stopBeforeSubmit?: boolean } = {},
+  options: TdacPortalRunOptions = {},
 ): Promise<TdacPortalSubmissionResult> {
   const logs: string[] = [`tdac_start application=${payload.applicationId}`];
   const screenshots: string[] = [];
-  const browserSession = await createArrivalCardBrowserSession({
+  let browserSession = await createArrivalCardBrowserSession({
     prefix: "TDAC",
     headless: options.headless,
   });
-  const page = browserSession.page;
+  let page = browserSession.page;
   logs.push(`tdac_browser_provider=${browserSession.provider}`);
   logs.push(...browserSession.diagnostics);
 
   try {
-    if (!browserSession.nativeCloudflareUnblock) {
-      await installTurnstileHook(page);
-    } else {
-      logs.push("tdac_brightdata_native_cloudflare_unblock_enabled");
+    const officialRequestTemplates = new Map<string, {
+      url: string;
+      headers: Record<string, string>;
+      requestBody: unknown;
+    }>();
+    let initialOfficialData: Record<string, unknown> | null = null;
+    const auditInitialOfficialResponse = async (response: Response): Promise<void> => {
+      if (!options.onInitialOfficialApiResponse) return;
+      const url = response.url();
+      if (!url.startsWith("https://tdac.immigration.go.th/arrival-card-api/api/v1/")) return;
+      if (url.includes("/security/")) return;
+      const contentType = response.headers()["content-type"] ?? "";
+      if (!contentType.toLowerCase().includes("application/json")) return;
+      const body = await response.json().catch(() => undefined);
+      if (body === undefined) return;
+      const endpoint = new URL(url).pathname;
+      const headers = await response.request().allHeaders();
+      for (const headerName of Object.keys(headers)) {
+        if (
+          headerName.startsWith(":") ||
+          headerName === "content-length" ||
+          headerName === "cookie" ||
+          headerName === "host"
+        ) {
+          delete headers[headerName];
+        }
+      }
+      officialRequestTemplates.set(endpoint, {
+        url,
+        headers,
+        requestBody: response.request().postDataJSON(),
+      });
+      if (endpoint.endsWith("/arrivalcard/gotoAdd")) {
+        const data = (body as { data?: unknown }).data;
+        if (data && typeof data === "object" && !Array.isArray(data)) {
+          initialOfficialData = data as Record<string, unknown>;
+        }
+      }
+      await options.onInitialOfficialApiResponse({
+        url,
+        status: response.status(),
+        method: response.request().method(),
+        requestBody: response.request().postDataJSON(),
+        body,
+      });
+    };
+    const attachInitialOfficialResponseAudit = (): void => {
+      if (options.onInitialOfficialApiResponse) {
+        page.on("response", auditInitialOfficialResponse);
+      }
+    };
+    const detachInitialOfficialResponseAudit = (): void => {
+      page.off("response", auditInitialOfficialResponse);
+    };
+    const runFullOfficialDropdownAudit = async (): Promise<void> => {
+      if (!options.auditFullOfficialDropdowns || !options.onInitialOfficialApiResponse) return;
+
+      const auditPost = async (
+        endpoint: string,
+        requestBody: Record<string, unknown>,
+        auditLabel: string,
+      ): Promise<unknown> => {
+        const template = officialRequestTemplates.get(endpoint);
+        if (!template) {
+          throw new Error(`TDAC official dropdown audit request template was not observed: ${endpoint}`);
+        }
+        let lastFailure = "";
+        for (let attempt = 1; attempt <= 5; attempt += 1) {
+          const response = await browserSession.context.request.post(template.url, {
+            headers: template.headers,
+            data: requestBody,
+            timeout: 120_000,
+          });
+          const responseText = await response.text();
+          try {
+            const body = JSON.parse(responseText) as unknown;
+            await options.onInitialOfficialApiResponse?.({
+              url: `${template.url}#audit=${encodeURIComponent(auditLabel)}`,
+              status: response.status(),
+              method: "POST",
+              requestBody,
+              body,
+            });
+            return body;
+          } catch {
+            lastFailure = `status=${response.status()} contentType=${response.headers()["content-type"] ?? "unknown"}`;
+            if (attempt < 5) {
+              await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+            }
+          }
+        }
+        throw new Error(`TDAC official dropdown audit returned a non-JSON response after retries: ${auditLabel}; ${lastFailure}`);
+      };
+      const responseData = (body: unknown): Array<Record<string, unknown>> => {
+        if (!body || typeof body !== "object") return [];
+        const data = (body as { data?: unknown }).data;
+        return Array.isArray(data)
+          ? data.filter((item): item is Record<string, unknown> =>
+              Boolean(item) && typeof item === "object" && !Array.isArray(item))
+          : [];
+      };
+      const mapWithConcurrency = async <T>(
+        values: T[],
+        concurrency: number,
+        task: (value: T) => Promise<void>,
+      ): Promise<void> => {
+        let cursor = 0;
+        const workers = Array.from(
+          { length: Math.min(concurrency, values.length) },
+          async () => {
+            while (cursor < values.length) {
+              const index = cursor;
+              cursor += 1;
+              const value = values[index];
+              if (value !== undefined) await task(value);
+            }
+          },
+        );
+        await Promise.all(workers);
+      };
+
+      await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchNationalityActiveSelectItem",
+        { term: "" },
+        "nationalities-all",
+      );
+      const countriesWithPhoneBody = await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchCountryWithPhoneSelectItem",
+        { term: "", ddcCountrys: null },
+        "countries-with-phone-all",
+      );
+      await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchCountrySelectItem",
+        { term: "" },
+        "countries-all",
+      );
+      await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchDdcCountrySelectItem",
+        { term: "", ddcCountrys: "" },
+        "ddc-countries-all",
+      );
+      const provincesBody = await auditPost(
+        "/arrival-card-api/api/v1/selectitem/searchProvinceSelectItem",
+        { term: "" },
+        "provinces-all",
+      );
+
+      const travelModes = Array.isArray(initialOfficialData?.listTraMode)
+        ? initialOfficialData.listTraMode as Array<{ key?: unknown; value?: unknown }>
+        : [];
+      for (const travelMode of travelModes) {
+        if (typeof travelMode.key !== "string" || typeof travelMode.value !== "string") continue;
+        await auditPost(
+          "/arrival-card-api/api/v1/selectitem/searchTranModeSelectItem",
+          { modeOfTravelId: travelMode.key },
+          `transport-${travelMode.value.toLowerCase()}`,
+        );
+      }
+
+      await mapWithConcurrency(responseData(countriesWithPhoneBody), 3, async (country) => {
+        if (typeof country.id !== "string" || typeof country.value !== "string") return;
+        const countryCode = country.value.split(":")[0]?.trim().toUpperCase();
+        if (!countryCode) return;
+        if (options.officialDropdownAuditSkipLabels?.has(`residence-${countryCode}`)) return;
+        await auditPost(
+          "/arrival-card-api/api/v1/selectitem/searchSuggestionStateOfResidence",
+          { countryId: country.id, term: "" },
+          `residence-${countryCode}`,
+        );
+      });
+
+      await mapWithConcurrency(responseData(provincesBody), 3, async (province) => {
+        if (typeof province.key !== "string" || typeof province.value !== "string") return;
+        const provinceLabel = province.value.trim().toUpperCase();
+        const districtsBody = await auditPost(
+          "/arrival-card-api/api/v1/selectitem/searchDistrictSelectItem",
+          { term: "", provinceCode: province.key },
+          `districts-${provinceLabel}`,
+        );
+        const districtItems = responseData(districtsBody);
+        const districtLabelCounts = new Map<string, number>();
+        for (const district of districtItems) {
+          if (typeof district.value !== "string") continue;
+          const label = district.value.trim().toUpperCase();
+          districtLabelCounts.set(label, (districtLabelCounts.get(label) ?? 0) + 1);
+        }
+        await mapWithConcurrency(districtItems, 4, async (district) => {
+          if (typeof district.key !== "string" || typeof district.value !== "string") return;
+          const districtLabel = district.value.trim().toUpperCase();
+          const districtPostcode = typeof district.code === "string" ? district.code.trim() : "";
+          const discriminator = (districtLabelCounts.get(districtLabel) ?? 0) > 1
+            ? `-${districtPostcode || "NO-POSTCODE"}`
+            : "";
+          const auditLabel = `subdistricts-${provinceLabel}-${districtLabel}${discriminator}`;
+          if (options.officialDropdownAuditSkipLabels?.has(auditLabel)) return;
+          await auditPost(
+            "/arrival-card-api/api/v1/selectitem/searchSubDistrictSelectItem",
+            { term: "", provinceCode: province.key, districtCode: district.key },
+            auditLabel,
+          );
+        });
+      });
+    };
+    attachInitialOfficialResponseAudit();
+
+    const prepareBrowserPage = async () => {
+      if (!browserSession.nativeCloudflareUnblock) {
+        await installTurnstileHook(page);
+      } else {
+        logs.push("tdac_remote_browser_native_cloudflare_unblock_enabled");
+      }
+    };
+    const gotoOfficialPortal = async (): Promise<boolean> => {
+      let policyBlocked = false;
+      await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 120_000 }).catch((error) => {
+        if (isRemoteBrowserPolicyBlock(error)) {
+          policyBlocked = true;
+          logs.push("tdac_remote_browser_api_policy_blocked");
+          return;
+        }
+        logs.push(`tdac_goto_domcontentloaded_timeout_continue ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+      });
+      return policyBlocked;
+    };
+
+    await prepareBrowserPage();
+    let policyBlocked = await gotoOfficialPortal();
+    if (policyBlocked && browserSession.provider === "remote-browser-api") {
+      await page.waitForTimeout(5_000);
+      const loadedDespiteGotoError = await page.locator("button", { hasText: /arrival card/i }).first().count().then((count) => count > 0).catch(() => false);
+      if (loadedDespiteGotoError) {
+        logs.push("tdac_remote_browser_api_policy_blocked_but_landing_loaded");
+        policyBlocked = false;
+      }
     }
-    await page.goto(TDAC_OFFICIAL_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 120_000 }).catch((error) => {
-      logs.push(`tdac_goto_domcontentloaded_timeout_continue ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-    });
+    for (let retry = 1; policyBlocked && browserSession.provider === "remote-browser-api" && retry <= 2; retry += 1) {
+      screenshots.push(await saveScreenshot(page, `browser-api-policy-blocked-retry-${retry}`, logs));
+      await browserSession.close().catch(() => undefined);
+      logs.push(`tdac_remote_browser_api_policy_blocked_retry_browser_api attempt=${retry}`);
+      browserSession = await createArrivalCardBrowserSession({
+        prefix: "TDAC",
+        headless: options.headless,
+      });
+      page = browserSession.page;
+      attachInitialOfficialResponseAudit();
+      logs.push(`tdac_browser_provider=${browserSession.provider}`);
+      logs.push(...browserSession.diagnostics);
+      await prepareBrowserPage();
+      policyBlocked = await gotoOfficialPortal();
+      if (policyBlocked) {
+        await page.waitForTimeout(5_000);
+        const loadedDespiteRetryError = await page.locator("button", { hasText: /arrival card/i }).first().count().then((count) => count > 0).catch(() => false);
+        if (loadedDespiteRetryError) {
+          logs.push(`tdac_remote_browser_api_policy_blocked_but_landing_loaded retry=${retry}`);
+          policyBlocked = false;
+        }
+      }
+    }
+    if (policyBlocked) {
+      screenshots.push(await saveScreenshot(page, "browser-api-policy-blocked-final", logs));
+      const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+      throw new TdacPortalError("TDAC Browser API provider blocked the official portal.", {
+        code: "tdac_browser_api_provider_blocked",
+        screenshotPaths: screenshots,
+        portalSummary: text.slice(0, 500),
+        logs,
+      });
+    }
     await page.waitForTimeout(8_000);
     await page.locator("button", { hasText: /arrival card/i }).first().waitFor({
       state: "visible",
@@ -979,22 +2016,37 @@ export async function runTdacPortalSubmission(
     screenshots.push(await saveScreenshot(page, "landing", logs));
 
     const arrivalButton = page.locator("button", { hasText: /arrival card/i }).first();
-    if ((await arrivalButton.count()) === 0) {
+    const arrivalButtonCount = await arrivalButton.count();
+    if (arrivalButtonCount === 0) {
       const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
-      throw new TdacPortalError("Official TDAC Arrival Card button was not found on the portal landing page.", {
-        code: "tdac_arrival_button_not_found",
-        screenshotPaths: screenshots,
-        portalSummary: text.slice(0, 500),
-      });
-    }
-    if (await arrivalButton.isDisabled().catch(() => false)) {
+      logs.push(`tdac_arrival_button_not_found_continue_to_add_route ${text.slice(0, 500).replace(/\s+/g, " ")}`);
+    } else if (await arrivalButton.isDisabled().catch(() => false)) {
       screenshots.push(await saveScreenshot(page, "turnstile-before-solve", logs));
-      if (browserSession.nativeCloudflareUnblock) {
-        await solveWithBrowserApiCaptchaCdp(page, logs);
-        logs.push("tdac_waiting_for_browser_api_cloudflare_clearance");
-        await waitForArrivalButtonEnabled(page, 120_000);
+      if (browserSession.provider === "browserbase" || browserSession.nativeCloudflareUnblock) {
+        logs.push(`tdac_waiting_for_managed_browser_cloudflare_clearance provider=${browserSession.provider}`);
+        let enabledAfterManagedWait = await waitForTdacCloudflareClearance(page, logs, 120_000);
+        if (!enabledAfterManagedWait) {
+          await clickTurnstileCheckboxIfVisible(page, logs);
+          enabledAfterManagedWait = await waitForTdacCloudflareClearance(page, logs, 60_000);
+        }
+        if (!enabledAfterManagedWait) {
+          screenshots.push(await saveScreenshot(page, "cloudflare-not-cleared", logs));
+          const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+          throw new TdacPortalError("TDAC Cloudflare challenge was not cleared by the managed browser.", {
+            code: "tdac_cloudflare_not_cleared",
+            screenshotPaths: screenshots,
+            portalSummary: text.slice(0, 500),
+            logs,
+          });
+        }
       } else {
-        await solveTurnstileIfPresent(page, logs);
+        const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
+        throw new TdacPortalError("TDAC Cloudflare challenge requires Browser API clearance; 2captcha is disabled for TDAC.", {
+          code: "tdac_browser_api_required",
+          screenshotPaths: screenshots,
+          portalSummary: text.slice(0, 500),
+          logs,
+        });
       }
       await page.waitForTimeout(3_000);
       screenshots.push(await saveScreenshot(page, "turnstile-after-solve", logs));
@@ -1003,43 +2055,15 @@ export async function runTdacPortalSubmission(
         const remoteBrowserFailure = browserSession.diagnostics.find((line) =>
           line.startsWith("tdac_remote_browser_api_failed"),
         );
-        const message = remoteBrowserFailure
-          ? "Official TDAC Arrival Card button remained disabled after Cloudflare Turnstile verification. The configured Browser API endpoint could not be used; verify the Browser API zone is active, credentials are current, and any IP allowlist permits this workstation."
-          : "Official TDAC Arrival Card button remained disabled after Turnstile solve.";
-        throw new TdacPortalError(
-          message,
-          {
-            code: "tdac_arrival_button_disabled_after_captcha",
-            screenshotPaths: screenshots,
-            portalSummary: [
-              remoteBrowserFailure,
-              text.slice(0, 500),
-            ].filter(Boolean).join("\n\n"),
-          },
-        );
+        logs.push([
+          "tdac_arrival_button_disabled_after_captcha_continue_to_add_route",
+          remoteBrowserFailure,
+          text.slice(0, 500).replace(/\s+/g, " "),
+        ].filter(Boolean).join(" | "));
       }
     }
 
-    await arrivalButton.click({ timeout: 15_000 }).catch((error) => {
-      logs.push(`tdac_arrival_click_continue_to_route ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-    });
-    await page.waitForTimeout(3_000);
-    const addRoute = "https://tdac.immigration.go.th/arrival-card/#/tac/arrival-card/add";
-    let personalFormReady = await page.locator("#mat-input-0").first().isVisible({ timeout: 5_000 }).catch(() => false);
-    for (let attempt = 1; !personalFormReady && attempt <= 3; attempt += 1) {
-      logs.push(`tdac_open_add_route_attempt=${attempt}`);
-      await page.goto(addRoute, {
-        waitUntil: "domcontentloaded",
-        timeout: 90_000,
-      }).catch((error) => {
-        logs.push(`tdac_direct_add_route_timeout_continue attempt=${attempt} ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
-      });
-      personalFormReady = await page.locator("#mat-input-0").first().isVisible({ timeout: 45_000 }).catch(() => false);
-      if (!personalFormReady) {
-        await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 }).catch(() => undefined);
-        personalFormReady = await page.locator("#mat-input-0").first().isVisible({ timeout: 30_000 }).catch(() => false);
-      }
-    }
+    const personalFormReady = await openTdacAddRoute(page, logs, screenshots);
     screenshots.push(await saveScreenshot(page, "after-entry", logs));
     if (!personalFormReady) {
       const text = await page.locator("body").innerText({ timeout: 10_000 }).catch(() => "");
@@ -1047,18 +2071,21 @@ export async function runTdacPortalSubmission(
         code: "tdac_form_not_loaded",
         screenshotPaths: screenshots,
         portalSummary: text.slice(0, 500),
+        logs,
       });
     }
 
-    await fillTdacPersonalStep(page, payload, logs);
+    await fillTdacPersonalStep(page, payload, screenshots, logs);
     await page.waitForTimeout(3_000);
     screenshots.push(await saveScreenshot(page, "after-personal", logs));
 
-    await fillTdacTripStep(page, payload, logs);
+    await fillTdacTripStep(page, payload, screenshots, logs);
     await page.waitForTimeout(3_000);
     screenshots.push(await saveScreenshot(page, "after-trip", logs));
 
-    await fillTdacHealthStep(page, payload, logs);
+    await fillTdacHealthStep(page, payload, screenshots, logs);
+    await runFullOfficialDropdownAudit();
+    detachInitialOfficialResponseAudit();
     await page.waitForTimeout(3_000);
     screenshots.push(await saveScreenshot(page, "after-health-preview", logs));
 
@@ -1068,6 +2095,7 @@ export async function runTdacPortalSubmission(
         code: "tdac_stopped_before_submit",
         screenshotPaths: screenshots,
         portalSummary: currentText.slice(0, 500),
+        logs,
       });
     }
 
@@ -1077,8 +2105,9 @@ export async function runTdacPortalSubmission(
         logs.push(`tdac_dialog_accept_failed ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
       });
     });
-    await prepareTdacFinalSubmit(page, payload, logs);
+    await prepareTdacFinalSubmit(page, payload, screenshots, logs);
     screenshots.push(await saveScreenshot(page, "before-final-submit", logs));
+    await assertTdacOfficialFormValid(page, screenshots, logs, "final-submit");
     await clickFirstEnabledButton(page, /^Submit$/i, logs);
     await page.waitForTimeout(2_000);
     await clickButtonIfVisible(page, /^(Confirm|OK|Yes|Submit)$/i, logs, 10_000);
