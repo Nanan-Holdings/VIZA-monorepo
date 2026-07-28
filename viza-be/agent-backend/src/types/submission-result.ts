@@ -279,6 +279,9 @@ export interface TwSubmissionResult {
   caseNumber?: string;
   pagesFilled?: string[];
   capturedAt?: string;
+  /** Whether the CAPTCHA was auto-solved and pre-filled (best-effort,
+   *  unverified — the automation never clicks the real submit button). */
+  captchaAutoFilled?: boolean;
   error?: string;
   url?: string;
 }

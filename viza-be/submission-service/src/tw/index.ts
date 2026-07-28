@@ -48,6 +48,8 @@ export {
 
 export { waitForTwVerificationCode, type TwVerificationCodeEmail } from "./inbox";
 
+export { solveTwCaptcha, type TwCaptchaSolveOutcome } from "./captcha";
+
 export {
   fillTwEntryPermitApplication,
   HK_MACAU_EMBASSY_OFFICE_VALUES,
