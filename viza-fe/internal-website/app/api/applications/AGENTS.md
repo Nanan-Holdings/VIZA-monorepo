@@ -23,6 +23,9 @@ ports directly.
   `enqueue_official_fee_submission` RPC. It serializes by application, reuses
   claimed work, supersedes only same-application stale work, and prevents
   duplicate active browser jobs.
+- Generic retry enqueue must call the service-role `enqueue_submission_retry`
+  RPC so supersede-and-insert is atomic. Never reintroduce separate update and
+  insert calls; concurrent retries for one application must reuse one job.
 - Korea C-3-9 routes may render the filled Annex-17 fallback PDF, proxy official
   e-Form/KVAC actions to gated `viza-be/submission-service` runners, expose
   redacted evidence artifacts, and record appointment state in existing

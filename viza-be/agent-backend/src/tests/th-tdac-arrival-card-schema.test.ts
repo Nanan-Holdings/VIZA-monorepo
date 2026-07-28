@@ -2,8 +2,18 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { TH_TDAC_FORM_FIELDS } from "../../scripts/th-tdac/form-fields";
 import {
+  TDAC_OFFICIAL_PROVINCE_LABELS,
+  TDAC_OFFICIAL_TRANSPORT_LABELS_BY_MODE,
+} from "../../scripts/th-tdac/tdac-official-dropdowns.generated";
+import {
+  TDAC_BOARDED_COUNTRY_OPTIONS,
   TDAC_COUNTRY_HEALTH_RULES,
-  TDAC_COUNTRY_OPTIONS,
+  TDAC_DISTRICT_OPTIONS_BY_PROVINCE,
+  TDAC_NATIONALITY_OPTIONS,
+  TDAC_RESIDENCE_COUNTRY_OPTIONS,
+  TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY,
+  TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT,
+  TDAC_VISITED_COUNTRY_OPTIONS,
   TDAC_YELLOW_FEVER_COUNTRY_CODES,
   TDAC_YELLOW_FEVER_SHOW_IF,
 } from "../../scripts/th-tdac/official-options";
@@ -86,9 +96,9 @@ describe("Thailand TDAC arrival-card schema seed", () => {
   });
 
   test("classifies every official country option and the exact 42 yellow-fever countries", () => {
-    expect(TDAC_COUNTRY_HEALTH_RULES).toHaveLength(TDAC_COUNTRY_OPTIONS.length);
+    expect(TDAC_COUNTRY_HEALTH_RULES).toHaveLength(TDAC_VISITED_COUNTRY_OPTIONS.length);
     expect(new Set(TDAC_COUNTRY_HEALTH_RULES.map((rule) => rule.countryCode))).toEqual(
-      new Set(TDAC_COUNTRY_OPTIONS.map((country) => country.value)),
+      new Set(TDAC_VISITED_COUNTRY_OPTIONS.map((country) => country.value)),
     );
     expect(TDAC_COUNTRY_HEALTH_RULES.every(
       (rule) => rule.additionalQuestions === "none" || rule.additionalQuestions === "yellow_fever",
@@ -97,6 +107,55 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     expect(TDAC_COUNTRY_HEALTH_RULES.filter(
       (rule) => rule.additionalQuestions === "yellow_fever",
     ).map((rule) => rule.countryCode).sort()).toEqual([...TDAC_YELLOW_FEVER_COUNTRY_CODES].sort());
+  });
+
+  test("uses the exact field-specific official TDAC country contracts", () => {
+    expect(TDAC_NATIONALITY_OPTIONS).toHaveLength(259);
+    expect(TDAC_BOARDED_COUNTRY_OPTIONS).toHaveLength(259);
+    expect(TDAC_RESIDENCE_COUNTRY_OPTIONS).toHaveLength(260);
+    expect(TDAC_VISITED_COUNTRY_OPTIONS).toHaveLength(260);
+
+    for (const options of [
+      TDAC_NATIONALITY_OPTIONS,
+      TDAC_BOARDED_COUNTRY_OPTIONS,
+      TDAC_RESIDENCE_COUNTRY_OPTIONS,
+      TDAC_VISITED_COUNTRY_OPTIONS,
+    ]) {
+      expect(new Set(options.map((item) => item.value)).size).toBe(options.length);
+      expect(options.some((item) => item.value === "ATA")).toBe(false);
+    }
+
+    expect(TDAC_NATIONALITY_OPTIONS.some((item) => item.value === "THA")).toBe(false);
+    expect(TDAC_BOARDED_COUNTRY_OPTIONS.some((item) => item.value === "THA")).toBe(false);
+    expect(TDAC_RESIDENCE_COUNTRY_OPTIONS.some((item) => item.value === "THA")).toBe(true);
+    expect(TDAC_VISITED_COUNTRY_OPTIONS.some((item) => item.value === "THA")).toBe(true);
+
+    for (const code of ["ANT", "GBN", "N02", "PCI", "RKS", "SCT", "UNO", "XKX", "XXA", "XXB", "XXC", "XXX"]) {
+      expect(TDAC_BOARDED_COUNTRY_OPTIONS.some((item) => item.value === code), code).toBe(true);
+    }
+
+    expect(field("nationality")?.options).toBe(TDAC_NATIONALITY_OPTIONS);
+    expect(field("country_territory_of_residence")?.options).toBe(TDAC_RESIDENCE_COUNTRY_OPTIONS);
+    expect(field("country_boarded")?.options).toBe(TDAC_BOARDED_COUNTRY_OPTIONS);
+    expect(field("countries_visited_last_14_days")?.options).toBe(TDAC_VISITED_COUNTRY_OPTIONS);
+  });
+
+  test("covers every official residence and Thailand administrative dropdown branch", () => {
+    expect(Object.keys(TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY)).toHaveLength(260);
+    expect(Object.keys(TDAC_DISTRICT_OPTIONS_BY_PROVINCE)).toHaveLength(77);
+    expect(Object.values(TDAC_DISTRICT_OPTIONS_BY_PROVINCE).flat()).toHaveLength(927);
+    expect(Object.keys(TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT)).toHaveLength(927);
+
+    const ayutthayaBangSai = TDAC_DISTRICT_OPTIONS_BY_PROVINCE.phra_nakhon_si_ayutthaya
+      ?.filter((item) => item.official_label.toUpperCase() === "BANG SAI");
+    expect(ayutthayaBangSai).toHaveLength(2);
+    expect(ayutthayaBangSai?.map((item) => item.label_en).sort()).toEqual([
+      "BANG SAI (13190)",
+      "BANG SAI (13270)",
+    ]);
+    for (const district of ayutthayaBangSai ?? []) {
+      expect(TDAC_SUBDISTRICT_OPTIONS_BY_DISTRICT[district.value]?.length).toBeGreaterThan(0);
+    }
   });
 
   test("shows official health questions for risk countries selected in any TDAC trigger field", () => {
@@ -146,6 +205,37 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     expect(field("nationality")?.options?.length).toBeGreaterThan(200);
     expect(field("province")?.options?.length).toBe(77);
     expect(field("address_in_thailand")?.validation_rules).toMatchObject({ maxLength: 215 });
+  });
+
+  test("matches official province, transport, and health dropdown order exactly", () => {
+    expect(field("province")?.options?.map((item) => item.official_label)).toEqual(
+      TDAC_OFFICIAL_PROVINCE_LABELS,
+    );
+    const arrivalTransport = field("arrival_mode_of_transport")?.validation_rules
+      ?.dependent_options as Record<string, Array<{ official_label: string }>>;
+    expect(arrivalTransport.air.map((item) => item.official_label)).toEqual(
+      TDAC_OFFICIAL_TRANSPORT_LABELS_BY_MODE.AIR,
+    );
+    expect(arrivalTransport.land.map((item) => item.official_label)).toEqual(
+      TDAC_OFFICIAL_TRANSPORT_LABELS_BY_MODE.LAND,
+    );
+    expect(arrivalTransport.sea.map((item) => item.official_label)).toEqual(
+      TDAC_OFFICIAL_TRANSPORT_LABELS_BY_MODE.SEA,
+    );
+    expect(field("health_symptoms_last_14_days")?.options?.map((item) => item.official_label)).toEqual([
+      "Diarrhea",
+      "Vomiting",
+      "Abdominal pain",
+      "Fever",
+      "Rash",
+      "Headache",
+      "Sore throat",
+      "Jaundice",
+      "Cough or shortness of breath",
+      "Enlarge lymph glands or tender lumps",
+      "No Symptom",
+      "Other (Please Specify)",
+    ]);
   });
 
   test("matches the current official purpose dropdown exactly", () => {

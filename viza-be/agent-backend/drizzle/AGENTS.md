@@ -124,6 +124,9 @@ The current internal automation migrations are:
   official-fee enqueue operations per application, supersedes stale work and
   manual checkpoints, and enforces one active payment browser job per
   application/provider.
+- `0119_submission_retry_queue_isolation.sql`: makes generic retry enqueue a
+  per-application transaction, reuses an already-active job, expires stale
+  checkpoints, and enforces one active submission job per application.
 
 ## Guardrails
 

@@ -10,6 +10,9 @@ Scope: Singapore `SG_ARRIVAL_CARD` form schema only.
 - `option-translations.zh.json` stores the reviewed zh-CN display snapshot for
   SGAC official dropdown values. Hotel keys must match the deduplicated ICA
   hotel list exactly; official English values remain unchanged for submission.
+- City/port labels must cover every ICA English option one-to-one, use standard
+  Chinese geographical names when available, contain no untranslated Latin
+  text, and compact repeated ICA hierarchy segments for natural display.
 - Regenerate and web-review all hotel labels with
   `SGAC_TRANSLATION_WEB=1 npx tsx scripts/sgac/generate-hotel-translations.ts`.
   Verified property/group overrides in that script take precedence over model

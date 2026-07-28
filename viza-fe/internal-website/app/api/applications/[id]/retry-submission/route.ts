@@ -12,7 +12,6 @@ import {
   validatePhEtravelFlightDates,
 } from "@/features/ph-etravel/date-window";
 import {
-  ACTIVE_SUBMISSION_QUEUE_STATUSES,
   isDs160VisaType,
   isDigitalArrivalCardApplication,
   isFranceVisasVisaType,
@@ -25,8 +24,6 @@ import {
   isVietnamPrearrivalApplication,
   queueProviderForApplication,
   queueStatusForApplication,
-  retryQueueInsertCanUseLegacyPayload,
-  RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES,
   type SubmissionMode,
   type SubmissionQueueStatus,
 } from "@/lib/submission-queue";
@@ -70,6 +67,11 @@ type RetrySubmissionRequest = {
 type RetryQueueInsertResult = {
   error: string | null;
   jobId: string | null;
+  queueStatus: SubmissionQueueStatus | null;
+  mode: SubmissionMode | null;
+  provider: string | null;
+  reusedExisting: boolean;
+  supersededCount: number;
 };
 
 type SgacScheduleDecision =
@@ -864,40 +866,58 @@ async function insertRetryQueueRow(
     currentStage?: string | null;
   },
 ): Promise<RetryQueueInsertResult> {
-  const { data, error } = await admin.from("submission_queue").insert({
-    application_id: input.applicationId,
-    status: input.queueStatus,
-    mode: input.mode,
-    provider: input.provider,
-    attempts: 0,
-    last_error: null,
-    current_stage: input.currentStage ?? null,
-    created_at: input.now,
-    updated_at: input.now,
-  }).select("id").single();
-  if (!error) {
-    const row = data as { id?: string | null } | null;
-    return { error: null, jobId: row?.id ?? null };
+  const { data, error } = await admin.rpc("enqueue_submission_retry", {
+    p_application_id: input.applicationId,
+    p_status: input.queueStatus,
+    p_mode: input.mode,
+    p_provider: input.provider,
+    p_current_stage: input.currentStage ?? null,
+    p_now: input.now,
+  });
+  if (error) {
+    return {
+      error: error.message,
+      jobId: null,
+      queueStatus: null,
+      mode: null,
+      provider: null,
+      reusedExisting: false,
+      supersededCount: 0,
+    };
   }
 
-  const canUseLegacyPayload = retryQueueInsertCanUseLegacyPayload(error, {
-    mode: input.mode,
-    queueStatus: input.queueStatus,
-  });
-  if (!canUseLegacyPayload) return { error: error.message, jobId: null };
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  const jobId = typeof row?.queue_id === "string" ? row.queue_id : null;
+  const queueStatus = typeof row?.queue_status === "string"
+    ? row.queue_status as SubmissionQueueStatus
+    : null;
+  const queueMode = row?.queue_mode === "dry_run" || row?.queue_mode === "live_assisted"
+    ? row.queue_mode
+    : null;
+  if (!jobId || !queueStatus) {
+    return {
+      error: "Submission retry queue RPC returned no job.",
+      jobId: null,
+      queueStatus: null,
+      mode: null,
+      provider: null,
+      reusedExisting: false,
+      supersededCount: 0,
+    };
+  }
 
-  const { data: legacyData, error: legacyError } = await admin.from("submission_queue").insert({
-    application_id: input.applicationId,
-    status: input.queueStatus,
-    attempts: 0,
-    last_error: null,
-    current_stage: input.currentStage ?? null,
-    created_at: input.now,
-    updated_at: input.now,
-  }).select("id").single();
-  if (legacyError) return { error: legacyError.message, jobId: null };
-  const legacyRow = legacyData as { id?: string | null } | null;
-  return { error: null, jobId: legacyRow?.id ?? null };
+  return {
+    error: null,
+    jobId,
+    queueStatus,
+    mode: queueMode,
+    provider: typeof row?.queue_provider === "string" ? row.queue_provider : null,
+    reusedExisting: row?.reused_existing === true,
+    supersededCount:
+      typeof row?.superseded_count === "number"
+        ? row.superseded_count
+        : Number(row?.superseded_count ?? 0),
+  };
 }
 
 async function readSgacDateAnswers(
@@ -1372,34 +1392,6 @@ export async function POST(
     });
   }
 
-  const { data: activeQueue, error: activeQueueError } = await admin
-    .from("submission_queue")
-    .select("id, status, mode, provider")
-    .eq("application_id", applicationId)
-    .in("status", ACTIVE_SUBMISSION_QUEUE_STATUSES)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (activeQueueError) {
-    return NextResponse.json({ error: activeQueueError.message }, { status: 500 });
-  }
-  if (activeQueue) {
-    return NextResponse.json({
-      ok: true,
-      applicationId,
-      jobId: activeQueue.id,
-      queueStatus: activeQueue.status,
-      mode: activeQueue.mode ?? mode,
-      provider: activeQueue.provider ?? queueProviderForApplication(
-        ownedApplication.country,
-        ownedApplication.visa_type,
-        mode,
-      ),
-      alreadyQueued: true,
-      result: ownedApplication.submission_result,
-    });
-  }
-
   let queueStatus = queueStatusForApplication(
     ownedApplication.country,
     ownedApplication.visa_type,
@@ -1582,19 +1574,6 @@ export async function POST(
     }
   }
 
-  const { error: supersedeError } = await admin
-    .from("submission_queue")
-    .update({
-      status: "retry_superseded",
-      updated_at: now,
-    })
-    .eq("application_id", applicationId)
-    .in("status", RETRY_SUPERSEDABLE_SUBMISSION_QUEUE_STATUSES);
-
-  if (supersedeError) {
-    return NextResponse.json({ error: supersedeError.message }, { status: 500 });
-  }
-
   const queueResult = await insertRetryQueueRow(admin, {
     applicationId,
     queueStatus,
@@ -1614,6 +1593,19 @@ export async function POST(
   });
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
+  }
+  if (queueResult.reusedExisting) {
+    return NextResponse.json({
+      ok: true,
+      applicationId,
+      jobId: queueResult.jobId,
+      queueStatus: queueResult.queueStatus,
+      mode: queueResult.mode ?? mode,
+      provider: queueResult.provider ?? provider,
+      alreadyQueued: true,
+      supersededCount: queueResult.supersededCount,
+      result: ownedApplication.submission_result,
+    });
   }
 
   const { error: appUpdateError } = await admin
@@ -1644,6 +1636,7 @@ export async function POST(
     queueStatus,
     mode,
     provider,
+    supersededCount: queueResult.supersededCount,
     scheduled: Boolean(scheduledResult),
     scheduledFor,
     result: scheduledResult,
