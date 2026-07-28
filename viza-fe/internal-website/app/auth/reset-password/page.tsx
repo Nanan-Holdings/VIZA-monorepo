@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { updatePassword } from "@/app/actions/password-reset";
 import { createBrowserClient } from "@supabase/ssr";
+import { normalizeSupabaseEnvValue } from "@/lib/supabase/env";
 import {
   AlertCircle,
   Loader2,
@@ -34,8 +35,14 @@ export default function ResetPasswordPage() {
   // Check for valid password recovery session
   useEffect(() => {
     const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      normalizeSupabaseEnvValue(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        "NEXT_PUBLIC_SUPABASE_URL"
+      ),
+      normalizeSupabaseEnvValue(
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      )
     );
 
     // Listen for auth state changes to detect PASSWORD_RECOVERY event
