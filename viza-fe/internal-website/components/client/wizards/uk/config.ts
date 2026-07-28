@@ -58,11 +58,6 @@ const CONTACT_FIELDS: GenericField[] = [
   { kind: "yesno", key: "owns_home", labelKey: "fields.ownsHome" },
 ];
 
-const UKVI_FIELDS: GenericField[] = [
-  { kind: "yesno", key: "has_existing_ukvi_account", labelKey: "fields.hasUkviAccount" },
-  { kind: "email", key: "ukvi_account_email", labelKey: "fields.ukviEmail", placeholderKey: "fields.ukviEmailPlaceholder" },
-];
-
 const UK_ADDRESS_FIELDS: GenericField[] = [
   { kind: "text", key: "uk_address_line1", labelKey: "fields.ukAddress", placeholderKey: "fields.ukAddressPlaceholder" },
   { kind: "text", key: "uk_address_city", labelKey: "fields.ukCity" },
@@ -96,7 +91,7 @@ const HISTORY_FIELDS: GenericField[] = [
   { kind: "yesno", key: "has_been_refused_other_visa", labelKey: "fields.hasBeenRefusedOtherVisa" },
 ];
 
-// Extra UKVI questions the gov.uk form asks that aren't covered elsewhere.
+// Extra gov.uk visitor questions not covered by the other steps.
 // Field keys deliberately match the seed field_names the submission-service
 // page-bindings fillers consume, so normalizeUkAnswers passes them straight
 // through (familyInUk, hasDependants, travellingWithOtherPeople, …).
@@ -173,7 +168,6 @@ const STEP_FIELD_MAP: Record<string, GenericField[]> = {
   personal: PERSONAL_FIELDS,
   passport: PASSPORT_FIELDS,
   contact: CONTACT_FIELDS,
-  ukvi: UKVI_FIELDS,
   uk_address: UK_ADDRESS_FIELDS,
   employment: EMPLOYMENT_FIELDS,
   history: HISTORY_FIELDS,
@@ -194,7 +188,6 @@ function reviewSections(form: UkForm): WizardReviewSection[] {
     { titleKey: "review.personal", editStepKey: "personal", rows: fieldRows(form, PERSONAL_FIELDS.map((f) => f.key)) },
     { titleKey: "review.passport", editStepKey: "passport", rows: fieldRows(form, PASSPORT_FIELDS.map((f) => f.key)) },
     { titleKey: "review.contact", editStepKey: "contact", rows: fieldRows(form, CONTACT_FIELDS.map((f) => f.key)) },
-    { titleKey: "review.ukvi", editStepKey: "ukvi", rows: fieldRows(form, UKVI_FIELDS.map((f) => f.key)) },
     { titleKey: "review.tripDates", editStepKey: "trip_dates", rows: fieldRows(form, TRIP_DATES_KEYS) },
     { titleKey: "review.ukAddress", editStepKey: "uk_address", rows: fieldRows(form, UK_ADDRESS_FIELDS.map((f) => f.key)) },
     { titleKey: "review.employment", editStepKey: "employment", rows: fieldRows(form, EMPLOYMENT_FIELDS.map((f) => f.key)) },
@@ -258,7 +251,6 @@ export const ukConfig: WizardConfig<UkForm> = {
     genericStep("personal", "personal"),
     genericStep("passport", "passport"),
     genericStep("contact", "contact"),
-    genericStep("ukvi", "ukvi"),
     {
       key: "trip_dates",
       titleKey: "steps.tripDates.label",

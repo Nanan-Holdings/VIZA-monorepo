@@ -22,6 +22,7 @@ import { chromium as playwrightChromium } from "@playwright/test";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import PlaywrightExtraDefault from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { resolveBrightDataCredentials } from "../shared/brightdata-credentials.js";
 
 type ChromiumLauncher = {
   chromium: {
@@ -68,6 +69,13 @@ export interface StealthBrowserOptions {
    * government domains by policy; those must use the residential proxy.
    */
   antiBot?: boolean;
+  /**
+   * Whether to egress through the Bright Data residential proxy when
+   * `BRIGHTDATA_PROXY_HOST` is set. Defaults to `true` (existing behaviour for
+   * CEAC and other runners). Set to `false` to launch from the local IP,
+   * mirroring the France-Visas flow (`launchFvBrowser`) which uses no proxy.
+   */
+  residentialProxy?: boolean;
 }
 
 export interface StealthBrowserHandles {
@@ -189,17 +197,18 @@ export async function launchStealthBrowser(
   // egress from a residential IP. RECON_PROXY_COUNTRY pins the exit country
   // (gov portals geo-gate); a per-launch session id keeps the IP sticky.
   const proxyHost = process.env.BRIGHTDATA_PROXY_HOST;
-  if (proxyHost) {
-    const port = process.env.BRIGHTDATA_PROXY_PORT ?? "33335";
-    const baseUser = process.env.BRIGHTDATA_USERNAME ?? "";
-    const password = process.env.BRIGHTDATA_PASSWORD ?? "";
-    const country = (process.env.RECON_PROXY_COUNTRY ?? "in").toLowerCase();
-    const session = randomBytes(6).toString("hex");
-    launchOpts.proxy = {
-      server: `http://${proxyHost}:${port}`,
-      username: `${baseUser}-country-${country}-session-${session}`,
-      password,
-    };
+  if (proxyHost && options.residentialProxy !== false) {
+    const creds = resolveBrightDataCredentials();
+    if (creds) {
+      const port = process.env.BRIGHTDATA_PROXY_PORT ?? "33335";
+      const country = (process.env.RECON_PROXY_COUNTRY ?? "in").toLowerCase();
+      const session = randomBytes(6).toString("hex");
+      launchOpts.proxy = {
+        server: `http://${proxyHost}:${port}`,
+        username: `${creds.username}-country-${country}-session-${session}`,
+        password: creds.password,
+      };
+    }
   }
   const browser = await extra.chromium.launch(launchOpts);
 

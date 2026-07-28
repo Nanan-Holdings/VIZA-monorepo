@@ -12,6 +12,7 @@ import { UK_URLS } from "./selectors";
 import { assertPage } from "./pages";
 import { assertNoGate } from "./gates";
 import { UkSessionBootstrapError } from "./errors";
+import { assertUkBrightDataCredentials, ensureUkEgressCountry, ukUsesResidentialProxy } from "./proxy-egress";
 
 export interface UkSessionOptions {
   headless?: boolean;
@@ -34,6 +35,11 @@ export async function startUkSession(
   const headless = options.headless ?? true;
   const navigationTimeoutMs = options.navigationTimeoutMs ?? 60_000;
 
+  if (ukUsesResidentialProxy()) {
+    ensureUkEgressCountry();
+    assertUkBrightDataCredentials();
+  }
+
   let browser: Browser | null = null;
   let context: BrowserContext | null = null;
 
@@ -42,6 +48,8 @@ export async function startUkSession(
       headless,
       acceptDownloads: true,
       userAgent: options.userAgent,
+      // Default: local IP (mirror France). Set UK_USE_LOCAL_IP=false for GB proxy.
+      residentialProxy: ukUsesResidentialProxy(),
     });
     browser = handles.browser;
     context = handles.context;

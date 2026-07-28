@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { supabase } from "../supabase.js";
 import { resolveEgressCountry } from "./country-overrides";
+import {
+  resolveBrightDataCredentials,
+  BRIGHTDATA_CREDENTIALS_HELP,
+} from "../shared/brightdata-credentials.js";
 
 /**
  * Bright Data residential proxy session helper (INFRA-004).
@@ -62,8 +66,10 @@ export async function getProxyForApplicant(
 ): Promise<ProxyConnection> {
   const host = getEnvOrThrow("BRIGHTDATA_PROXY_HOST");
   const port = getEnvOrThrow("BRIGHTDATA_PROXY_PORT");
-  const baseUser = getEnvOrThrow("BRIGHTDATA_USERNAME");
-  const password = getEnvOrThrow("BRIGHTDATA_PASSWORD");
+  const creds = resolveBrightDataCredentials();
+  if (!creds) {
+    throw new Error(`[proxy] Bright Data credentials missing. ${BRIGHTDATA_CREDENTIALS_HELP}`);
+  }
   const stickyMinutes = ctx.stickyMinutes ?? 30;
 
   const geo = resolveEgressCountry(country);
@@ -71,7 +77,7 @@ export async function getProxyForApplicant(
 
   // Bright Data username convention: -country-XX-session-<id>-session_duration-<m>.
   // We append city when an override pins to a specific PoP.
-  const userParts: string[] = [baseUser];
+  const userParts: string[] = [creds.username];
   userParts.push(`country-${geo.brightDataCountry}`);
   if (geo.city) userParts.push(`city-${geo.city}`);
   userParts.push(`session-${sessionId}`);
@@ -96,7 +102,7 @@ export async function getProxyForApplicant(
   return {
     server: `http://${host}:${port}`,
     username,
-    password,
+    password: creds.password,
     sessionId,
     brightDataCountry: geo.brightDataCountry,
     city: geo.city ?? null,

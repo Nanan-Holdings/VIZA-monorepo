@@ -35,6 +35,12 @@ export const PROXY_COUNTRY_OVERRIDES: Readonly<Record<string, ProxyOverride>> =
       brightDataCountry: "us",
       reason: "CEAC anti-bot tolerates US residential",
     },
+    // UKVI: geo-gates and anti-bot-protects non-GB IPs.
+    united_kingdom: {
+      country: "united_kingdom",
+      brightDataCountry: "gb",
+      reason: "UKVI geo-gates by IP; GB residential egress required",
+    },
     // Vietnam: tolerant of foreign IPs but the user-agent locale
     // fingerprint stays coherent when egress is in-country.
     vietnam: {

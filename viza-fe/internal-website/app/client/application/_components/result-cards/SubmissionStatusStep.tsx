@@ -9,6 +9,7 @@ import type {
   GenericSubmissionResult,
   SubmissionResult,
   SubmissionResultStatus,
+  UkSubmissionResult,
 } from "@/lib/submission-result";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,16 @@ import { UkResultCard } from "./UkResultCard";
 import { VnResultCard } from "./VnResultCard";
 import { AuResultCard } from "./AuResultCard";
 import { JpResultCard } from "./JpResultCard";
+import { TwResultCard } from "./TwResultCard";
 import {
   isDs160VisaType,
   isMalaysiaMdacApplication,
   isFranceVisasVisaType,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
+  isUkStandardVisitorApplication,
+  isUkMisroutedDryRunError,
+  isUkPrefillSubmissionResult,
   isVietnamEVisaApplication,
   type SubmissionMode,
 } from "@/lib/submission-queue";
@@ -395,6 +400,11 @@ function GenericResultCard({
     franceLiveEnabled &&
     isFranceCountry(applicationCountry) &&
     isFranceVisasVisaType(applicationVisaType ?? result.visaType);
+  const canStartUkPrefill =
+    Boolean(applicationId) &&
+    result.status === "submitted_mock" &&
+    result.mode === "dry_run" &&
+    isUkStandardVisitorApplication(applicationCountry, applicationVisaType ?? result.visaType);
   const liveTarget = canStartDs160Live ? "ds160" : canStartFranceLive ? "france" : null;
   const Icon = unsupported || actionRequired ? AlertTriangle : FlaskConical;
   const title = actionRequired
@@ -473,6 +483,40 @@ function GenericResultCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "live_assisted",
+          country: applicationCountry,
+          visaType: applicationVisaType ?? result.visaType,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || `retry-submission returned ${response.status}`);
+      }
+      window.location.reload();
+    } catch (error) {
+      setLiveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setStartingLive(false);
+    }
+  };
+
+  const startUkPrefill = async () => {
+    if (!applicationId || startingLive || !canStartUkPrefill) return;
+
+    const confirmed = window.confirm(
+      isZh
+        ? "这会在 apply-uk-visa.service.gov.uk 创建真实 UKVI 账号并自动填写申请表，停在 £135 支付页由你本人完成付款。确认继续？"
+        : "This will create a real UKVI account on apply-uk-visa.service.gov.uk, pre-fill your application, and stop at the £135 payment page for you to pay. Continue?",
+    );
+    if (!confirmed) return;
+
+    setStartingLive(true);
+    setLiveError(null);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "dry_run",
           country: applicationCountry,
           visaType: applicationVisaType ?? result.visaType,
         }),
@@ -582,6 +626,34 @@ function GenericResultCard({
                 : liveTarget === "ds160"
                   ? (isZh ? "提交" : "Submit")
                   : (isZh ? "启动 France-Visas 官网辅助填写" : "Start France-Visas live assisted fill")}
+            </Button>
+          </div>
+        )}
+
+        {canStartUkPrefill && (
+          <div className="rounded-md border border-brand-100 bg-brand-50 p-3">
+            <div className="flex items-start gap-2 text-sm leading-relaxed text-brand-900">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+              <span>
+                {isZh
+                  ? "表单校验已通过。点击下方按钮将在 gov.uk 创建真实 UKVI 账号、自动填写全部页面，并停在 £135 签证费支付页——最后付款需你在官网完成。"
+                  : "Validation passed. The button below creates a real UKVI account on gov.uk, pre-fills every page, and stops at the £135 visa fee — you complete payment on the official site."}
+              </span>
+            </div>
+            <Button
+              type="button"
+              className="mt-3 w-full"
+              onClick={startUkPrefill}
+              disabled={startingLive}
+            >
+              {startingLive ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="mr-2 h-4 w-4" />
+              )}
+              {startingLive
+                ? (isZh ? "正在提交到 gov.uk" : "Submitting to gov.uk")
+                : (isZh ? "提交到 gov.uk" : "Submit to gov.uk")}
             </Button>
           </div>
         )}
@@ -844,6 +916,53 @@ function FranceResubmitPanel({
   );
 }
 
+function UkResubmitPanel({
+  isZh,
+  busy,
+  disabled,
+  error,
+  onSubmitAgain,
+}: {
+  isZh: boolean;
+  busy: boolean;
+  disabled: boolean;
+  error: string | null;
+  onSubmitAgain: () => void;
+}) {
+  return (
+    <Card className="rounded-xl border-brand-100 bg-brand-50/50">
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">
+            {isZh ? "继续 gov.uk 自动填表" : "Continue gov.uk automated pre-fill"}
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {isZh
+              ? "会先保存当前表单里的最新答案，再通过 UK 专用 worker 继续填写 gov.uk（与 France-Visas 一样走 live assisted 队列）。"
+              : "VIZA saves your latest answers first, then enqueues a UK-specific live worker to continue gov.uk pre-fill (same live-assisted pattern as France-Visas)."}
+          </p>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+        </div>
+        <Button
+          type="button"
+          onClick={onSubmitAgain}
+          disabled={disabled || busy}
+          className="shrink-0"
+        >
+          {busy ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCw className="mr-2 h-4 w-4" />
+          )}
+          {busy
+            ? (isZh ? "正在提交" : "Submitting")
+            : (isZh ? "继续填表" : "Continue pre-fill")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 /**
  * Drives the final wizard step from the same-origin submission-status API,
  * with the parent application's realtime props as a terminal-state fallback.
@@ -926,12 +1045,16 @@ export function SubmissionStatusStep({
     () => visualStatusFromApplication(status),
     [status],
   );
-  const snapshotIsActive = isActiveSnapshot(snapshot);
-  const terminalPropsAvailable =
-    !snapshotIsActive &&
+  const parentHasTerminalSubmission =
     Boolean(result) &&
     fallbackVisualStatus !== "queued" &&
     fallbackVisualStatus !== "running";
+  const snapshotIsActive = isActiveSnapshot(snapshot);
+  const terminalPropsAvailable =
+    parentHasTerminalSubmission &&
+    (!snapshotIsActive ||
+      fallbackVisualStatus === "needs_user_action" ||
+      fallbackVisualStatus === "completed");
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -978,8 +1101,14 @@ export function SubmissionStatusStep({
     snapshot?.visaType ?? visaType,
   );
   const isDs160Submission = isDs160VisaType(snapshot?.visaType ?? visaType);
+  const isUkSubmission = isUkStandardVisitorApplication(
+    snapshot?.country ?? country,
+    snapshot?.visaType ?? visaType,
+  );
   const retryModes = isFranceSubmissionCurrent
     ? [{ mode: "live_assisted" as const, label: isZh ? "再次提交申请" : "Submit again" }]
+    : isUkSubmission
+      ? [{ mode: "live_assisted" as const, label: isZh ? "继续 gov.uk 填表" : "Continue gov.uk pre-fill" }]
     : isSgacSubmission || isMdacSubmission || isTdacSubmission || isDs160Submission
     ? [{ mode: "live_assisted" as const, label: isZh ? "提交" : "Submit" }]
     : supportsLiveRetry(snapshot?.country ?? country, snapshot?.visaType ?? visaType)
@@ -994,7 +1123,11 @@ export function SubmissionStatusStep({
   useEffect(() => {
     if (!applicationId) return;
     if (completedWithResult) return;
-    if ((failed || stalled) && snapshot?.queue) return;
+    if (failed && snapshot?.queue && !parentHasTerminalSubmission) {
+      const misroute = isUkStandardVisitorApplication(country, visaType) &&
+        isUkMisroutedDryRunError(snapshot?.error ?? effectiveError);
+      if (!misroute) return;
+    }
 
     let cancelled = false;
     const poll = async () => {
@@ -1073,7 +1206,7 @@ export function SubmissionStatusStep({
     applicationId,
     completedWithResult,
     failed,
-    stalled,
+    parentHasTerminalSubmission,
     country,
     visaType,
     result,
@@ -1105,6 +1238,70 @@ export function SubmissionStatusStep({
           } as const)
         : null;
 
+  const ukStoredResult = useMemo(() => {
+    if (isUkPrefillSubmissionResult(result)) return result;
+    if (isUkPrefillSubmissionResult(snapshot?.result)) return snapshot.result;
+    if (isUkPrefillSubmissionResult(effectiveResult)) return effectiveResult;
+    return null;
+  }, [effectiveResult, result, snapshot?.result]);
+
+  const ukActionRequired =
+    isUkSubmission &&
+    (normalizeStatus(status) === "action_required" ||
+      normalizeStatus(snapshot?.applicationStatus ?? null) === "action_required" ||
+      normalizeStatus(effectiveApplicationStatus) === "action_required" ||
+      effectiveStatus === "needs_user_action");
+
+  const ukMisrouteError = isUkMisroutedDryRunError(retryError ?? effectiveError);
+  const ukPrefillStillRunning =
+    !ukStoredResult &&
+    snapshotIsActive &&
+    (snapshot?.status === "running" || snapshot?.status === "queued");
+
+  if (isUkSubmission && applicationId && ukStoredResult && (ukActionRequired || !ukPrefillStillRunning)) {
+    return (
+      <div className="space-y-4">
+        {ukMisrouteError && (
+          <Card className="rounded-xl border-brand-200 bg-brand-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-brand-900">
+                <ShieldCheck className="h-5 w-5 text-brand-500" />
+                {isZh ? "自动填表部分完成" : "Automated pre-fill partially completed"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm leading-relaxed text-brand-900">
+              <p>
+                {isZh
+                  ? "之前显示的 profile.phone 等错误来自旧 worker 的误校验，不是你的表单缺字段。"
+                  : "Earlier profile.phone-style errors came from a legacy worker — your form answers are complete."}
+              </p>
+              <p className="text-brand-800">
+                {isZh
+                  ? `gov.uk 上约 ${ukStoredResult.prefillProgress?.pagesFilled ?? 0}/${ukStoredResult.prefillProgress?.totalPages ?? 44} 页已保存。`
+                  : `About ${ukStoredResult.prefillProgress?.pagesFilled ?? 0}/${ukStoredResult.prefillProgress?.totalPages ?? 44} pages are saved on gov.uk.`}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        <UkResubmitPanel
+          isZh={isZh}
+          busy={resubmitting}
+          disabled={!applicationId}
+          error={retryError}
+          onSubmitAgain={() => {
+            void handleRetry("live_assisted").catch(() => undefined);
+          }}
+        />
+        <UkResultCard
+          applicationId={applicationId}
+          result={ukStoredResult as UkSubmissionResult}
+          applicationCountry={country}
+          applicationVisaType={visaType}
+        />
+      </div>
+    );
+  }
+
   if (
     vietnamPaymentCheckpointResult &&
     (failed || stalled || actionWithResult || completedWithResult)
@@ -1118,6 +1315,37 @@ export function SubmissionStatusStep({
           vietnamPaymentCheckpointResult,
           snapshot?.queue?.id ?? null,
         )}
+      </div>
+    );
+  }
+
+  if (failed && isUkSubmission && ukMisrouteError && !ukStoredResult) {
+    return (
+      <div className="space-y-4">
+        <Card className="rounded-xl border-brand-200 bg-brand-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3 text-brand-900">
+              <ShieldCheck className="h-5 w-5 text-brand-500" />
+              {isZh ? "表单数据完整，但自动填表被旧 worker 拦截" : "Your answers are complete — an old worker blocked auto-fill"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm leading-relaxed text-brand-900">
+            <p>
+              {isZh
+                ? "这不是缺 phone/address 等字段。请刷新此页；若仍无进度，请用下方按钮通过 UK 专用 worker 重新排队（与 France-Visas 相同方式）。"
+                : "This is not missing phone/address data. Refresh this page; if progress is still missing, use the button below to re-enqueue via the UK-specific worker (same pattern as France-Visas)."}
+            </p>
+          </CardContent>
+        </Card>
+        <UkResubmitPanel
+          isZh={isZh}
+          busy={resubmitting}
+          disabled={!applicationId}
+          error={retryError}
+          onSubmitAgain={() => {
+            void handleRetry("live_assisted").catch(() => undefined);
+          }}
+        />
       </div>
     );
   }
@@ -1287,7 +1515,12 @@ function renderSubmissionResultCard(
       ) : null;
     case "UK":
       return applicationId ? (
-        <UkResultCard applicationId={applicationId} result={result} />
+        <UkResultCard
+          applicationId={applicationId}
+          result={result}
+          applicationCountry={country}
+          applicationVisaType={visaType}
+        />
       ) : null;
     case "VN":
       return <VnResultCard applicationId={applicationId} result={result} jobId={jobId} />;
@@ -1301,6 +1534,8 @@ function renderSubmissionResultCard(
       return applicationId ? (
         <JpResultCard applicationId={applicationId} result={result} />
       ) : null;
+    case "TW":
+      return <TwResultCard result={result} />;
     case "GENERIC":
       return (
         <GenericResultCard

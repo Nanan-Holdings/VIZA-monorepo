@@ -44,7 +44,11 @@ describe("queueStatusForVisaType", () => {
     expect(isDs160VisaType("US-B1/B2")).toBe(true);
     expect(queueProviderForVisaType("DS160", "dry_run")).toBe("ceac_dry_run");
     expect(queueProviderForVisaType("DS160", "live_assisted")).toBe("ceac_live");
-    expect(queueProviderForVisaType("UK_STANDARD_VISITOR", "live_assisted")).toBeNull();
+    expect(queueProviderForVisaType("UK_STANDARD_VISITOR", "dry_run")).toBe("uk_standard_visitor");
+    expect(queueProviderForVisaType("UK_STANDARD_VISITOR", "live_assisted")).toBe("uk_standard_visitor_live");
+    expect(queueStatusForApplication("united_kingdom", "UK_STANDARD_VISITOR", "live_assisted")).toBe(
+      "uk_live_assisted_pending",
+    );
   });
 
   it("marks France Schengen submissions with the France-Visas provider for each mode", () => {
@@ -70,6 +74,12 @@ describe("queueStatusForVisaType", () => {
   it("uses live official mode for the one-click Vietnam submit action", () => {
     expect(submitModeForPrimaryApplicationAction("vietnam", "evisa_tourism")).toBe("live_assisted");
     expect(submitModeForPrimaryApplicationAction("VN", "VN_E_VISA")).toBe("live_assisted");
+    expect(submitModeForPrimaryApplicationAction("united_kingdom", "UK_STANDARD_VISITOR")).toBe(
+      "live_assisted",
+    );
+    expect(submissionQueueRequiresServerEnqueue("united_kingdom", "UK_STANDARD_VISITOR", "dry_run")).toBe(
+      true,
+    );
     expect(submitModeForPrimaryApplicationAction("indonesia", "B211A")).toBe("dry_run");
   });
 
