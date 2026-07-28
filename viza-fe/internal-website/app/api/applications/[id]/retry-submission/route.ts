@@ -36,8 +36,6 @@ type ApplicationForRetry = {
   applicant_id: string;
   country: string | null;
   visa_type: string | null;
-  submission_result_status: string | null;
-  submission_result: unknown | null;
   arrival_date: string | null;
   departure_date: string | null;
   purpose: string | null;
