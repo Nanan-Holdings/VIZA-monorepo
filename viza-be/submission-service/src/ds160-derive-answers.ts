@@ -472,12 +472,48 @@ export function deriveDS160Answers(
   applyAliases(answers);
   normalizeCeacValueCodes(answers);
   normalizeCeacTextFields(answers);
+  derivePassportPageConsistency(answers);
   deriveIntendedArrivalDate(answers);
   deriveDateSplits(answers);
   deriveLengthOfStay(answers);
   deriveContactPageConsistency(answers);
   deriveNaFlags(answers);
   return answers;
+}
+
+/**
+ * Reconcile the applicant-facing "passport has an expiration date" answer
+ * with CEAC's inverse "No Expiration / Does Not Apply" checkbox.
+ *
+ * A persisted expiration date is the strongest source of truth. This also
+ * repairs older records that stored passport_has_expiry=N while retaining a
+ * date, which would otherwise submit contradictory states to CEAC.
+ */
+function derivePassportPageConsistency(answers: Record<string, string>): void {
+  const expirationDate = answers.passport_expiration_date?.trim();
+  const hasExpirationDate = Boolean(
+    expirationDate &&
+    !isNaToken(expirationDate) &&
+    parseIsoDate(expirationDate),
+  );
+
+  if (hasExpirationDate) {
+    answers.passport_has_expiry = "Y";
+    answers.passport_expiry_na = "N";
+    return;
+  }
+
+  if (answers.passport_has_expiry === "N") {
+    answers.passport_expiry_na = "Y";
+    delete answers.passport_expiry_day;
+    delete answers.passport_expiry_month;
+    delete answers.passport_expiry_year;
+    return;
+  }
+
+  if (answers.passport_has_expiry === "Y") {
+    answers.passport_expiry_na = "N";
+  }
 }
 
 function deriveContactPageConsistency(answers: Record<string, string>): void {
