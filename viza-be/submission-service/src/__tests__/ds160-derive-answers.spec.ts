@@ -92,4 +92,36 @@ describe("deriveDS160Answers", () => {
 
     assert.equal(answers.has_other_education, "N");
   });
+
+  it("uses the intended date for the no-specific-plans CEAC branch", () => {
+    const answers = deriveDS160Answers({
+      has_specific_travel_plans: "no",
+      arrival_date: "2026-09-10",
+      intended_arrival_date: "2026-10-20",
+      intended_arrival_date_day: "10",
+      intended_arrival_date_month: "SEP",
+      intended_arrival_date_year: "2026",
+    });
+
+    assert.equal(answers.has_specific_travel_plans, "N");
+    assert.equal(answers.intended_arrival_date, "2026-10-20");
+    assert.equal(answers.intended_arrival_date_day, "20");
+    assert.equal(answers.intended_arrival_date_month, "OCT");
+    assert.equal(answers.intended_arrival_date_year, "2026");
+  });
+
+  it("uses the booked arrival date for the specific-plans CEAC branch", () => {
+    const answers = deriveDS160Answers({
+      has_specific_travel_plans: "yes",
+      arrival_date: "2026-09-10",
+      intended_arrival_date: "2026-10-20",
+    });
+
+    assert.equal(answers.has_specific_travel_plans, "Y");
+    assert.equal(answers.intended_arrival_date, "2026-09-10");
+    assert.equal(answers.intended_arrival_date_day, "10");
+    assert.equal(answers.intended_arrival_date_month, "SEP");
+    assert.equal(answers.intended_arrival_date_year, "2026");
+    assert.equal(answers.arrival_date_month, "SEP");
+  });
 });

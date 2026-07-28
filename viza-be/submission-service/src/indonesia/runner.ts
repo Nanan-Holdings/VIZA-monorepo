@@ -3527,6 +3527,15 @@ async function continueFromIndonesiaOtpPage(
   }
   await dismissIndonesiaDialogs(page, diagnostics);
   await capturePaymentArtifact(page, input, diagnostics, "otp");
+  await input.onStage?.(
+    /\/(?:web|front)\/application-detail-otp\//i.test(page.url())
+      ? "official_application_email_otp_waiting"
+      : "official_account_email_otp_waiting",
+    {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    },
+  );
 
   const code = await waitForIndonesiaOtpCode(input, diagnostics);
   if (!code) return false;
@@ -3643,10 +3652,21 @@ export function isIndonesiaPortalAccountOtpChallenge(input: {
   const text = (input.text ?? "").replace(/\s+/g, " ").trim().toLowerCase();
   if (!/evisa\.imigrasi\.go\.id/i.test(url)) return false;
   if (/finpay\.id|\/pg\/payment\b/i.test(url)) return false;
+  if (/\/(?:web|front)\/application-detail-otp\//i.test(url)) return false;
   if (/\b(bank|issuer|3ds|3d secure|card number|cardholder|cvv|cvc|nomor kartu|kode keamanan)\b/i.test(text)) {
     return false;
   }
   return true;
+}
+
+export function isIndonesiaApplicationDetailOtpChallenge(input: {
+  url: string | null | undefined;
+  controlsVisible: boolean;
+}): boolean {
+  if (!input.controlsVisible) return false;
+  return /^https:\/\/evisa\.imigrasi\.go\.id\/(?:web|front)\/application-detail-otp\//i.test(
+    input.url ?? "",
+  );
 }
 
 async function reopenIndonesiaAccountLogin(
@@ -4425,6 +4445,10 @@ export async function probeIndonesiaPortal(
       }
 
       const accountOtpControlsVisible = !advanced && await hasIndonesiaPortalEmailOtpControls(page);
+      const applicationDetailOtpChallenge = !advanced && isIndonesiaApplicationDetailOtpChallenge({
+        url,
+        controlsVisible: accountOtpControlsVisible,
+      });
       const accountOtpChallenge = !advanced && isIndonesiaPortalAccountOtpChallenge({
         url,
         text,
@@ -4435,7 +4459,14 @@ export async function probeIndonesiaPortal(
         accountOtpChallenge
       )) {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
-        if (!advanced && accountOtpChallenge) {
+        if (!advanced && applicationDetailOtpChallenge) {
+          session.diagnostics.push(
+            "indonesia_application_detail_otp_unresolved_restarting_application",
+          );
+          savedApplicationUrl = null;
+          await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+          advanced = true;
+        } else if (!advanced && accountOtpChallenge) {
           advanced = await reopenIndonesiaAccountLogin(page, input, session.diagnostics);
         }
       }

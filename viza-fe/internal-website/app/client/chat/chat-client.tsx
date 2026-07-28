@@ -246,13 +246,13 @@ function ChatSessionPanel({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white text-gray-900 shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#e8e8e8] px-5 py-5">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[#e5e5e5] bg-white text-gray-900 shadow-sm">
+      <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-4">
         <div>
-          <p className="text-lg font-semibold leading-tight text-[#3d3d3d]">
+          <p className="text-base font-semibold leading-tight text-[#3d3d3d]">
             VIZA chats
           </p>
-          <p className="mt-1 text-base leading-snug text-[rgba(0,0,0,0.48)]">
+          <p className="mt-1 text-xs leading-snug text-[rgba(0,0,0,0.48)]">
             Separate visa conversations
           </p>
         </div>
@@ -282,23 +282,23 @@ function ChatSessionPanel({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-3 py-3">
         <button
-          className="mb-4 flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-lg font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={actionDisabled}
           onClick={onNewSession}
           type="button"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-4 w-4" />
           <span>New chat</span>
         </button>
 
         {sessions.length === 0 ? (
-          <p className="px-3 py-8 text-center text-base text-gray-400">
+          <p className="px-3 py-8 text-center text-sm text-gray-400">
             No conversations yet
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {sessions.map((session) => {
               const active = session.id === activeSessionId;
               const title = getSessionDisplayTitle(session);
@@ -318,7 +318,7 @@ function ChatSessionPanel({
                     <input
                       aria-label="Conversation title"
                       autoFocus
-                      className="w-full rounded bg-white px-2.5 py-2 text-base text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
+                      className="w-full rounded bg-white px-2.5 py-2 text-sm text-gray-900 outline-none ring-1 ring-transparent focus:ring-[#03346E]/30"
                       disabled={pendingSessionAction !== null}
                       maxLength={80}
                       onChange={(event) => setDraftTitle(event.target.value)}
@@ -332,14 +332,14 @@ function ChatSessionPanel({
                     />
                     <div className="mt-2 flex items-center gap-2">
                       <button
-                        className="rounded-md bg-[#03346E] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#022a58] disabled:opacity-40"
+                        className="rounded-md bg-[#03346E] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#022a58] disabled:opacity-40"
                         disabled={pendingSessionAction !== null}
                         type="submit"
                       >
                         Save
                       </button>
                       <button
-                        className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-white disabled:opacity-40"
+                        className="rounded-md px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-white disabled:opacity-40"
                         disabled={pendingSessionAction !== null}
                         onClick={cancelRename}
                         type="button"
@@ -358,10 +358,10 @@ function ChatSessionPanel({
                     key={session.id}
                   >
                     <div className="min-w-0 flex-1 px-2">
-                      <span className="block text-base font-medium text-red-700">
+                      <span className="block text-sm font-medium text-red-700">
                         Delete conversation?
                       </span>
-                      <span className="block truncate text-sm text-red-500">
+                      <span className="block truncate text-xs text-red-500">
                         {title}
                       </span>
                     </div>
@@ -401,15 +401,15 @@ function ChatSessionPanel({
                 >
                   <button
                     aria-pressed={active}
-                    className="min-w-0 flex-1 px-3 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-h-11 min-w-0 flex-1 px-2.5 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={actionDisabled}
                     onClick={() => onSelectSession(session.id)}
                     type="button"
                   >
-                    <span className="block truncate text-lg font-medium leading-snug">
+                    <span className="block truncate text-sm font-medium leading-snug">
                       {title}
                     </span>
-                    <span className="mt-1 block text-base leading-snug text-gray-400">
+                    <span className="mt-0.5 block text-xs leading-snug text-gray-400">
                       {formatSessionDate(session.createdAt)}
                     </span>
                   </button>
@@ -1582,6 +1582,7 @@ export function ChatClient({
           <ChatMessage
             role={msg.role === "user" ? "user" : "agent"}
             content={msg.content}
+            density="compact"
             timestamp={msg.timestamp}
           />
         </div>
@@ -1602,7 +1603,7 @@ export function ChatClient({
       {chatMode === "viza" && !sessionPanelCollapsed && (
         <>
           <aside
-            className="absolute bottom-4 left-4 top-4 z-20 hidden w-[280px] lg:block"
+            className="absolute bottom-3 left-3 top-3 z-20 hidden w-[240px] lg:block"
             data-testid="viza-session-sidebar"
           >
             <ChatSessionPanel
@@ -1621,7 +1622,7 @@ export function ChatClient({
           </aside>
 
           {sessionPanelOpen && (
-            <div className="fixed inset-0 z-40 lg:hidden">
+            <div className="fixed inset-x-0 bottom-0 top-[104px] z-40 lg:hidden">
               <button
                 aria-label="Close chat list"
                 className="absolute inset-0 bg-black/20"
@@ -1631,7 +1632,7 @@ export function ChatClient({
                 }}
                 type="button"
               />
-              <aside className="absolute bottom-4 left-4 top-4 w-[min(84vw,320px)] shadow-xl">
+              <aside className="absolute bottom-3 left-3 top-3 w-[min(82vw,280px)] shadow-xl">
                 <ChatSessionPanel
                   activeSessionId={sessionId}
                   disabled={isStreaming || isLoadingMessages}
@@ -1663,14 +1664,14 @@ export function ChatClient({
       )}
 
       {chatMode === "viza" && sessionPanelCollapsed && sessionPanelOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-[104px] z-40 lg:hidden">
           <button
             aria-label="Close chat list"
             className="absolute inset-0 bg-black/20"
             onClick={() => setSessionPanelOpen(false)}
             type="button"
           />
-          <aside className="absolute bottom-4 left-4 top-4 w-[min(84vw,320px)] shadow-xl">
+          <aside className="absolute bottom-3 left-3 top-3 w-[min(82vw,280px)] shadow-xl">
             <ChatSessionPanel
               activeSessionId={sessionId}
               disabled={isStreaming || isLoadingMessages}
@@ -1961,13 +1962,8 @@ export function ChatClient({
                   chatMode === "travel" ? "max-w-[2100px]" : "max-w-[980px]"
                 )}
               >
-                <div
-                  className={cn(
-                    "mx-auto mb-2 mt-3 flex w-full items-center gap-2",
-                    chatMode === "travel" ? "max-w-[2060px]" : "max-w-[900px]"
-                  )}
-                >
-                  {chatMode === "viza" && sessionPanelCollapsed && (
+                {chatMode === "viza" && sessionPanelCollapsed && (
+                  <div className="mx-auto mb-2 mt-3 flex w-full max-w-[900px] items-center">
                     <button
                       aria-label="Open VIZA chat list"
                       className="absolute left-4 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#03346E] shadow-sm transition-colors hover:bg-gray-50 lg:hidden"
@@ -1976,32 +1972,6 @@ export function ChatClient({
                     >
                       <PanelLeft className="h-4 w-4" />
                     </button>
-                  )}
-                  <button
-                    className={cn(
-                      "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
-                      chatMode === "viza"
-                        ? "bg-[#03346E] text-white"
-                        : "bg-white text-[#03346E] border border-[#03346E]/30 hover:bg-[#03346E]/5"
-                    )}
-                    onClick={() => selectChatMode("viza")}
-                    type="button"
-                  >
-                    {t("vizaAI")}
-                  </button>
-                  <button
-                    className={cn(
-                      "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
-                      chatMode === "travel"
-                        ? "bg-[#03346E] text-white"
-                        : "bg-white text-[#03346E] border border-[#03346E]/30 hover:bg-[#03346E]/5"
-                    )}
-                    onClick={() => selectChatMode("travel")}
-                    type="button"
-                  >
-                    {t("travelAI")}
-                  </button>
-                  {chatMode === "viza" && sessionPanelCollapsed && (
                     <button
                       aria-label="New VIZA chat"
                       className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#03346E]/20 bg-white text-[#03346E] transition-colors hover:bg-[#03346E]/5 disabled:cursor-not-allowed disabled:opacity-40"
@@ -2011,8 +1981,8 @@ export function ChatClient({
                     >
                       <Plus className="h-4 w-4" />
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {chatMode === "travel" ? (
                   <div className="w-full min-h-0 flex-1 overflow-hidden">
@@ -2023,7 +1993,7 @@ export function ChatClient({
                     <div
                       ref={messagesContainerRef}
                       onScroll={checkScrollPosition}
-                      className="flex-1 overflow-y-auto space-y-12 mb-0 relative overscroll-y-contain min-h-0 w-full max-w-[900px] mx-auto pt-10"
+                      className="relative mx-auto mb-0 w-full max-w-[760px] flex-1 space-y-8 overflow-y-auto overscroll-y-contain pt-6 min-h-0"
                       style={{ WebkitOverflowScrolling: "touch" }}
                     >
                   {continuousChat.isLoadingMore && (
@@ -2058,6 +2028,7 @@ export function ChatClient({
                       <ChatMessage
                         role="agent"
                         content={t("newChatGreeting")}
+                        density="compact"
                       />
                     </motion.div>
                   )}
@@ -2108,11 +2079,15 @@ export function ChatClient({
                       />
 
                       <ChatInput
+                        buttonClassName="h-11 w-11"
+                        className="mx-auto w-full max-w-[760px] flex-row items-end gap-2 rounded-[26px] px-3 py-2 shadow-sm"
                         onSend={handleSendMessage}
                         disabled={isLoadingMessages}
                         isConnecting={status === "connecting"}
+                        placeholder={t("inputPlaceholder")}
+                        textareaClassName="min-h-11 py-2 text-base leading-7"
                       />
-                      <p className="mt-3 text-center text-sm text-gray-400">
+                      <p className="mt-2 text-center text-xs text-gray-400">
                         {t("consultantDisclaimer")}
                       </p>
                     </div>
