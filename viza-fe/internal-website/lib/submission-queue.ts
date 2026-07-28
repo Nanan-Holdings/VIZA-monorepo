@@ -115,6 +115,7 @@ export type SubmissionQueueStatus =
   | "retry_superseded";
 
 export type SubmissionMode = "dry_run" | "live_assisted";
+export type SubmissionRetryIntent = "retry" | "new_application";
 
 const DS160_VISA_TYPES = new Set([
   "DS160",
@@ -352,6 +353,17 @@ function normalizeCountry(country: string | null | undefined): string {
 
 export function isDs160VisaType(visaType: string | null | undefined): boolean {
   return DS160_VISA_TYPES.has(normalizeVisaType(visaType));
+}
+
+export function parseSubmissionRetryIntent(value: unknown): SubmissionRetryIntent {
+  return value === "new_application" ? "new_application" : "retry";
+}
+
+export function isFreshDs160SubmissionIntent(
+  intent: SubmissionRetryIntent,
+  visaType: string | null | undefined,
+): boolean {
+  return intent === "new_application" && isDs160VisaType(visaType);
 }
 
 export function isFranceVisasVisaType(visaType: string | null | undefined): boolean {
