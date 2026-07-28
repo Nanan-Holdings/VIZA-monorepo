@@ -65,6 +65,19 @@ const NATIONALITY_DEMONYM_LABELS: Record<string, string> = {
   american: VN_COUNTRY_NAME_BY_ALPHA3.USA,
   british: VN_COUNTRY_NAME_BY_ALPHA3.GBR,
 };
+const COUNTRY_ALPHA3_ALIAS_BY_NORMALIZED: Record<string, string> = {
+  hk: "CHN",
+  hkg: "CHN",
+  "hong kong": "CHN",
+  "hong kong sar": "CHN",
+  "hong kong special administrative region": "CHN",
+  mo: "CHN",
+  mac: "CHN",
+  macao: "CHN",
+  "macao sar": "CHN",
+  macau: "CHN",
+  "macau sar": "CHN",
+};
 const NATIONALITY_LABELS = buildCountryOptionLabels({
   cn: "China",
   prc: "China",
@@ -225,6 +238,8 @@ export function normalizeVnCountryOptionText(rawValue: string): string | null {
     return VN_COUNTRY_NAME_BY_ALPHA3[alpha3];
   }
   const lookup = normalizeCountryLookupKey(trimmed);
+  const aliasedAlpha3 = COUNTRY_ALPHA3_ALIAS_BY_NORMALIZED[lookup];
+  if (aliasedAlpha3) return VN_COUNTRY_NAME_BY_ALPHA3[aliasedAlpha3] ?? null;
   return COUNTRY_NAME_BY_NORMALIZED[lookup] ?? NATIONALITY_DEMONYM_LABELS[lookup] ?? null;
 }
 
@@ -233,7 +248,8 @@ export function getVnCountryAlpha3ForOptionText(rawValue: string): string | null
   if (!trimmed) return null;
   const alpha3 = trimmed.toUpperCase();
   if (/^[A-Z0-9-]{1,3}$/.test(alpha3) && VN_COUNTRY_NAME_BY_ALPHA3[alpha3]) return alpha3;
-  return COUNTRY_ALPHA3_BY_NORMALIZED_NAME[normalizeCountryLookupKey(trimmed)] ?? null;
+  const lookup = normalizeCountryLookupKey(trimmed);
+  return COUNTRY_ALPHA3_ALIAS_BY_NORMALIZED[lookup] ?? COUNTRY_ALPHA3_BY_NORMALIZED_NAME[lookup] ?? null;
 }
 
 export function getVnCountryOptionIndex(rawValue: string): number | null {
