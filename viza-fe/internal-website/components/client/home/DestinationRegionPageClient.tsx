@@ -14,6 +14,7 @@ import {
   type PopularVisaDestination,
   type VisaDestinationRegionGroup,
 } from "@/lib/visa-destinations";
+import { DestinationFlag } from "./DestinationFlag";
 import {
   getUserVisaPackages,
   selectUserVisaDestination,
@@ -161,9 +162,7 @@ export function DestinationRegionPageClient({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-[34px] leading-none" aria-hidden="true">
-                        {destination.flag}
-                      </span>
+                      <DestinationFlag flag={destination.flag} />
                       <div>
                         <p className="font-heading text-[18px] font-medium leading-tight text-[#222]">
                           {countryName}

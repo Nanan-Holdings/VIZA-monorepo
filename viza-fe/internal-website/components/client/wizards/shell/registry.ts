@@ -21,6 +21,7 @@ import { caConfig } from "../ca/config";
 import { trConfig } from "../tr/config";
 import { inConfig } from "../in/config";
 import { jpConfig } from "../jp/config";
+import { twConfig } from "../tw/config";
 
 const REGISTRY: Record<string, WizardConfig<unknown>> = {
   [usConfig.visaType]: usConfig as WizardConfig<unknown>,
@@ -38,6 +39,7 @@ const REGISTRY: Record<string, WizardConfig<unknown>> = {
   [trConfig.visaType]: trConfig as WizardConfig<unknown>,
   [inConfig.visaType]: inConfig as WizardConfig<unknown>,
   [jpConfig.visaType]: jpConfig as WizardConfig<unknown>,
+  [twConfig.visaType]: twConfig as WizardConfig<unknown>,
 };
 
 export function pickWizardConfig(visaType: string | null | undefined): WizardConfig<unknown> | null {
@@ -79,6 +81,7 @@ export const LAUNCH_WIZARD_CONTRACT: LaunchWizardEntry[] = [
   { country: "france", visaType: "EU_SCHENGEN_C_SHORT_STAY" },
   { country: "italy", visaType: "EU_SCHENGEN_C_SHORT_STAY" },
   { country: "india", visaType: "IN_E_VISA" },
+  { country: "taiwan", visaType: "TW_ENTRY_PERMIT" },
 ];
 
 /** Launch countries whose wizard config is missing (excludes comingSoon). */

@@ -26,6 +26,12 @@
  *   - unsupported            Controlled unsupported-country state
  *   - needs_user_action      Safe halt at a human checkpoint such as payment,
  *                            CAPTCHA, final review, or applicant submit
+ *   - stopped_at_captcha     TW: form filled to the CAPTCHA + "確認資料"
+ *                            submit step; halted intentionally. There is no
+ *                            payment gate in this flow — the real government
+ *                            fee is only payable after NIA approval, in a
+ *                            separate later session, so this is TW's only
+ *                            halt state (no `stopped_at_pay` equivalent).
  */
 
 export type SubmissionResult =
@@ -37,6 +43,7 @@ export type SubmissionResult =
   | DigitalArrivalCardSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
+  | TwSubmissionResult
   | GenericSubmissionResult
   | GenericEvisaSubmissionResult;
 
@@ -150,6 +157,12 @@ export interface UkSubmissionResult {
   portalUsername: string;
   generatedPasswordCipher: string;
   applicationReference?: string;
+  /** Optional prefill progress summary (pre-existing field; not currently populated). */
+  prefillProgress?: {
+    pagesFilled: number;
+    pagesSkipped: number;
+    totalPages: number;
+  };
 }
 
 export interface VnSubmissionResult {
@@ -291,6 +304,34 @@ export interface JpSubmissionResult {
    * resolved relative to the website origin.
    */
   formAPdfUrl: string;
+}
+
+/**
+ * TW_ENTRY_PERMIT — Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺
+ * 觀光入境許可). No persistent portal account exists for this country (the
+ * official site verifies the applicant's email via a one-time OTP inline
+ * during automation, not a registered account like `UkSubmissionResult`).
+ * The automation stops right before the official site's CAPTCHA and
+ * "確認資料" (confirm data) submit button — it never solves the CAPTCHA and
+ * never clicks final submit. There is no payment step to halt before: the
+ * real government fee (NT$600 / NT$1,000) is only payable after National
+ * Immigration Agency approval, in a separate later session on the official
+ * site, so the FE must not build any "pay now" UI for this result.
+ */
+export interface TwSubmissionResult {
+  country: "TW";
+  status: "stopped_at_captcha" | "failed";
+  /** 20-digit temporary save number, or 12-digit receipt number once submitted by the applicant. */
+  caseNumber?: string;
+  /** coa.immigration.gov.tw application URL the applicant opens to enter the CAPTCHA and submit themselves. Present on "stopped_at_captcha". */
+  portalUrl?: string;
+  /** Section labels (e.g. "Delivery Location", "Applicant Identity") the automation filled before stopping. */
+  pagesFilled?: string[];
+  /** ISO timestamp the automation reached the CAPTCHA step. */
+  capturedAt?: string;
+  /** Present on "failed". */
+  error?: string;
+  url?: string;
 }
 
 export interface GenericSubmissionResult {

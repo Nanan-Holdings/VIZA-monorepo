@@ -708,6 +708,7 @@
       "Requested Information": "所需信息",
       "ImmiAccount": "ImmiAccount 账户",
       "UKVI Account": "UKVI 账户",
+      "Passport Upload": "护照上传",
       "Travel Details": "旅行信息",
       "Trip Details": "行程详情",
       "Visit Details": "访问详情",
@@ -3570,7 +3571,8 @@
         "trip": "行程信息",
         "declaration": "声明"
       }
-    }
+    },
+    "tw": {}
   },
   "documents": {
     "title": "文件",

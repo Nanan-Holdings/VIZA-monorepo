@@ -28,6 +28,10 @@
  *   - unsupported            Controlled unsupported-country state
  *   - needs_user_action      Safe halt at a human checkpoint such as payment,
  *                            CAPTCHA, final review, or applicant submit
+ *   - stopped_at_captcha     TW: every field filled, halted at the CAPTCHA +
+ *                            "確認資料" submit boundary — no CAPTCHA solving,
+ *                            no persistent account (single continuous
+ *                            session with an email-OTP checkpoint instead)
  */
 
 export type SubmissionResult =
@@ -39,6 +43,7 @@ export type SubmissionResult =
   | DigitalArrivalCardSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
+  | TwSubmissionResult
   | GenericSubmissionResult;
 
 export interface UsSubmissionResult {
@@ -144,6 +149,32 @@ export interface UkSubmissionResult {
    */
   generatedPasswordCipher: string;
   applicationReference?: string;
+}
+
+/**
+ * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). No persistent
+ * portal account exists for this country (the official site verifies the
+ * applicant's email via a one-time OTP inline during automation, not a
+ * registered account like UkSubmissionResult). The automation stops right
+ * before the official site's CAPTCHA and "確認資料" (confirm data) submit
+ * button — it never solves the CAPTCHA and never clicks final submit. There
+ * is no payment step to halt before: the real government fee (NT$600 /
+ * NT$1,000) is only payable after National Immigration Agency approval, in a
+ * separate later session on the official site, so the FE must not build any
+ * "pay now" UI for this result. See docs/tw-entry-permit-auto-submit-plan.md.
+ */
+export interface TwSubmissionResult {
+  country: "TW";
+  status: "stopped_at_captcha" | "failed";
+  /** The official portal's application URL, for the applicant to finish themselves. Present on "stopped_at_captcha". */
+  portalUrl?: string;
+  /** 20-digit temporary save number or 12-digit submission number, if captured. */
+  caseNumber?: string;
+  pagesFilled?: string[];
+  capturedAt?: string;
+  /** Present on "failed". */
+  error?: string;
+  url?: string;
 }
 
 export interface VnSubmissionResult {

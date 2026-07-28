@@ -40,6 +40,7 @@ export type SubmissionResult =
   | DigitalArrivalCardSubmissionResult
   | AuSubmissionResult
   | JpSubmissionResult
+  | TwSubmissionResult
   | GenericSubmissionResult;
 
 export interface UsSubmissionResult {
@@ -257,6 +258,29 @@ export interface AuSubmissionResult {
   portalUsername: string;
   /** submission-artifacts bucket path; FE mints a signed URL on demand. */
   reviewScreenshotStoragePath?: string;
+}
+
+/**
+ * Taiwan Online Entry Permit (旅居海外大陸地區人民申請來臺觀光入境許可). No persistent
+ * portal account exists for this country (the official site verifies the
+ * applicant's email via a one-time OTP inline during automation, not a
+ * registered account like UkSubmissionResult). The automation stops right
+ * before the official site's CAPTCHA and "確認資料" (confirm data) submit
+ * button — it never solves the CAPTCHA and never clicks final submit. There
+ * is no payment step to halt before: the real government fee (NT$600 /
+ * NT$1,000) is only payable after National Immigration Agency approval, in a
+ * separate later session on the official site. See
+ * docs/tw-entry-permit-auto-submit-plan.md.
+ */
+export interface TwSubmissionResult {
+  country: "TW";
+  status: "stopped_at_captcha" | "failed";
+  portalUrl?: string;
+  caseNumber?: string;
+  pagesFilled?: string[];
+  capturedAt?: string;
+  error?: string;
+  url?: string;
 }
 
 export interface JpSubmissionResult {
