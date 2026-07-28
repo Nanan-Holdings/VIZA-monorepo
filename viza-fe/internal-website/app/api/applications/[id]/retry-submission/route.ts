@@ -14,6 +14,8 @@ import {
   isPhilippinesEtravelApplication,
   isSgArrivalCardApplication,
   isThailandTdacApplication,
+  isUkStandardVisitorApplication,
+  isUkPrefillSubmissionResult,
   isVietnamEVisaApplication,
   queueProviderForApplication,
   queueStatusForApplication,
@@ -33,6 +35,8 @@ type ApplicationForRetry = {
   purpose: string | null;
   accommodation_name: string | null;
   accommodation_address: string | null;
+  submission_result: Record<string, unknown> | null;
+  submission_result_status: string | null;
 };
 
 type ProfileForRetry = {
@@ -196,6 +200,10 @@ function isFranceLiveRetryApplication(country: string | null, visaType: string |
   return isFranceCountry(country) && isFranceVisasVisaType(visaType);
 }
 
+function isUkLiveRetryApplication(country: string | null, visaType: string | null): boolean {
+  return isUkStandardVisitorApplication(country, visaType);
+}
+
 function liveRetryEnabledForApplication(country: string | null, visaType: string | null): boolean {
   if (isVietnamEVisaApplication(country, visaType)) {
     return (
@@ -208,6 +216,9 @@ function liveRetryEnabledForApplication(country: string | null, visaType: string
       envEnabled("FRANCE_LIVE_SUBMISSION_ENABLED", "NEXT_PUBLIC_FRANCE_LIVE_SUBMISSION_ENABLED") &&
       envModeLive("FRANCE_SUBMISSION_MODE", "NEXT_PUBLIC_FRANCE_SUBMISSION_MODE")
     );
+  }
+  if (isUkLiveRetryApplication(country, visaType)) {
+    return process.env.NEXT_PUBLIC_UK_LIVE_SUBMISSION_ENABLED !== "false";
   }
   if (isDs160VisaType(visaType)) {
     return (
@@ -1215,7 +1226,7 @@ export async function POST(
 
   const { data: application, error: applicationError } = await admin
     .from("applications")
-    .select("id, applicant_id, country, visa_type, arrival_date, departure_date, purpose, accommodation_name, accommodation_address")
+    .select("id, applicant_id, country, visa_type, arrival_date, departure_date, purpose, accommodation_name, accommodation_address, submission_result, submission_result_status")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -1272,6 +1283,7 @@ export async function POST(
     const supportsLiveAssisted =
       isDs160VisaType(ownedApplication.visa_type) ||
       isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isUkLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isVietnamEVisaApplication(ownedApplication.country, ownedApplication.visa_type) ||
       isDigitalArrivalCardApplication(ownedApplication.country, ownedApplication.visa_type);
     if (!provider || !supportsLiveAssisted) {
@@ -1469,13 +1481,34 @@ export async function POST(
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
 
+  const preservePortalPrefillResult =
+    mode === "live_assisted" &&
+    !scheduledResult &&
+    (isUkLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type) ||
+      isFranceLiveRetryApplication(ownedApplication.country, ownedApplication.visa_type)) &&
+    ownedApplication.submission_result != null &&
+    (isUkPrefillSubmissionResult(ownedApplication.submission_result) ||
+      (typeof ownedApplication.submission_result === "object" &&
+        ownedApplication.submission_result !== null &&
+        (ownedApplication.submission_result as { country?: unknown }).country === "FR"));
+
+  const nextSubmissionResult = scheduledResult
+    ?? (preservePortalPrefillResult ? ownedApplication.submission_result : null);
+  const nextSubmissionResultStatus = scheduledResult
+    ? "scheduled"
+    : preservePortalPrefillResult
+      ? (ownedApplication.submission_result_status === "action_required"
+          ? "action_required"
+          : "waiting")
+      : "waiting";
+
   const { error: appUpdateError } = await admin
     .from("applications")
     .update({
       status: "submitted",
       submitted_at: now,
-      submission_result_status: scheduledResult ? "scheduled" : "waiting",
-      submission_result: scheduledResult,
+      submission_result_status: nextSubmissionResultStatus,
+      submission_result: nextSubmissionResult,
       confirmation_number: null,
       submission_result_updated_at: now,
       updated_at: now,
@@ -1495,6 +1528,6 @@ export async function POST(
     provider,
     scheduled: Boolean(scheduledResult),
     scheduledFor,
-    result: scheduledResult,
+    result: nextSubmissionResult,
   });
 }

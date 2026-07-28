@@ -11,6 +11,7 @@
  *      BRIGHTDATA_USERNAME, BRIGHTDATA_PASSWORD.
  */
 import { randomBytes } from "node:crypto";
+import { resolveBrightDataCredentials } from "./brightdata-credentials.js";
 
 export interface BrightDataProxy {
   server: string;
@@ -21,13 +22,13 @@ export interface BrightDataProxy {
 export function brightDataProxy(country: string): BrightDataProxy | undefined {
   const host = process.env.BRIGHTDATA_PROXY_HOST;
   if (!host) return undefined;
+  const creds = resolveBrightDataCredentials();
+  if (!creds) return undefined;
   const port = process.env.BRIGHTDATA_PROXY_PORT ?? "33335";
-  const baseUser = process.env.BRIGHTDATA_USERNAME ?? "";
-  const password = process.env.BRIGHTDATA_PASSWORD ?? "";
   const cc = (country || "in").toLowerCase();
   return {
     server: `http://${host}:${port}`,
-    username: `${baseUser}-country-${cc}-session-${randomBytes(6).toString("hex")}`,
-    password,
+    username: `${creds.username}-country-${cc}-session-${randomBytes(6).toString("hex")}`,
+    password: creds.password,
   };
 }

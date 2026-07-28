@@ -35,6 +35,13 @@ interface DynamicStepFormProps {
   saving?: boolean;
   country?: string | null;
   visaType?: string;
+  /**
+   * Field names whose input is provided by an external control (e.g. the
+   * passport OCR upload card rendered above the form). These are not rendered
+   * inside the form body, but still participate in required validation, so the
+   * step's value must be supplied through `prefill`.
+   */
+  externallyHandledFieldNames?: string[];
 }
 
 const REPEAT_GROUP_MAX_OVERRIDES: Record<string, number> = {
@@ -448,11 +455,18 @@ function isCurrentDocumentExpiryField(field: VisaFormFieldRow, valueKey: string)
   );
 }
 
+function isUkAccommodationStayDateField(_field: VisaFormFieldRow, valueKey: string): boolean {
+  const baseKey = stripRepeatInstanceSuffix(valueKey).toLowerCase();
+  return baseKey === "uk_accommodation_arrival_date" || baseKey === "uk_accommodation_departure_date";
+}
+
 function isCurrentDepartureDateField(field: VisaFormFieldRow, valueKey: string): boolean {
+  if (isUkAccommodationStayDateField(field, valueKey)) return false;
   return currentFieldMatchesAny(field, valueKey, DEPARTURE_DATE_CANDIDATES);
 }
 
 function isCurrentArrivalDateField(field: VisaFormFieldRow, valueKey: string): boolean {
+  if (isUkAccommodationStayDateField(field, valueKey)) return false;
   return currentFieldMatchesAny(field, valueKey, ARRIVAL_DATE_CANDIDATES);
 }
 
@@ -835,6 +849,16 @@ function getLocalFieldIssue(
   }
 
   const repeatSuffix = getRepeatInstanceSuffix(valueKey);
+
+  if (isUkAccommodationStayDateField(field, valueKey)) {
+    const accArrival = parseFlexibleDate(values[`uk_accommodation_arrival_date${repeatSuffix}`] ?? "");
+    const accDeparture = parseFlexibleDate(values[`uk_accommodation_departure_date${repeatSuffix}`] ?? "");
+    if (accArrival && accDeparture && accDeparture < accArrival) {
+      return issue("error", isZh ? "离开日期不能早于抵达日期" : "Departure date cannot be earlier than arrival date");
+    }
+    return issue("ok", isZh ? "AI 填写帮助" : "AI field guidance");
+  }
+
   const issueDate = parseFlexibleDate(findAnswerValue(
     values,
     DOCUMENT_ISSUE_DATE_CANDIDATES,
@@ -1638,8 +1662,13 @@ export function DynamicStepForm({
   saving,
   country,
   visaType,
+  externallyHandledFieldNames,
 }: DynamicStepFormProps) {
   const tButtons = useTranslations("application.dynamicButtons");
+  const externallyHandled = useMemo(
+    () => new Set(externallyHandledFieldNames ?? []),
+    [externallyHandledFieldNames],
+  );
   const locale = useLocale();
   const isChineseInterface = isChineseLocale(locale);
   const [activeGuidanceKey, setActiveGuidanceKey] = useState<string | null>(null);
@@ -2393,6 +2422,9 @@ export function DynamicStepForm({
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyboardShortcuts} className="flex flex-col gap-3">
       {step.fields.map((field) => {
+        // Skip fields handled by an external control (e.g. passport OCR upload
+        // card). They stay in required validation but are not rendered here.
+        if (externallyHandled.has(field.fieldName)) return null;
         // Evaluate conditional logic — force-show fields that are LT24-disabled rather than hiding them
         if (!evaluateShowIf(field, values, step.fields) && !isDisabledByLT24(field, field.fieldName, values, step.fields)) return null;
         // Hide fields gated by an unanswered toggle (e.g. travel plans)

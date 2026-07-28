@@ -29,6 +29,9 @@ export type SubmissionQueueStatus =
   | "uk_prefill_processing"
   | "uk_prefilled"
   | "uk_prefill_failed"
+  | "uk_live_assisted_pending"
+  | "uk_live_processing"
+  | "uk_live_official_portal_opened"
   | "uk_blocked"
   | "vn_dry_run_pending"
   | "vn_dry_run_processing"
@@ -150,6 +153,28 @@ const PHILIPPINES_ETRAVEL_TYPES = new Set([
   "PH_ETRAVEL_ARRIVAL_CARD",
 ]);
 
+const UK_COUNTRY_ALIASES = new Set([
+  "UK",
+  "GB",
+  "UNITED_KINGDOM",
+  "GREAT_BRITAIN",
+  "ENGLAND",
+]);
+
+const UK_STANDARD_VISITOR_TYPES = new Set([
+  "UK_STANDARD_VISITOR",
+]);
+
+export function isUkStandardVisitorApplication(
+  country: string | null | undefined,
+  visaType: string | null | undefined,
+): boolean {
+  return (
+    UK_COUNTRY_ALIASES.has(normalizeCountry(country)) &&
+    UK_STANDARD_VISITOR_TYPES.has(normalizeVisaType(visaType))
+  );
+}
+
 export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "pending",
   "processing",
@@ -166,6 +191,8 @@ export const ACTIVE_SUBMISSION_QUEUE_STATUSES: SubmissionQueueStatus[] = [
   "france_live_official_portal_opened",
   "uk_prefill_pending",
   "uk_prefill_processing",
+  "uk_live_assisted_pending",
+  "uk_live_processing",
   "vn_dry_run_pending",
   "vn_dry_run_processing",
   "vn_live_assisted_pending",
@@ -360,6 +387,9 @@ export function queueStatusForSubmissionMode(
   if (isFranceVisasVisaType(visaType) && mode === "live_assisted") {
     return "france_live_assisted_pending";
   }
+  if (UK_STANDARD_VISITOR_TYPES.has(normalizeVisaType(visaType)) && mode === "live_assisted") {
+    return "uk_live_assisted_pending";
+  }
   return queueStatusForVisaType(visaType);
 }
 
@@ -387,6 +417,37 @@ export function queueStatusForApplication(
   return queueStatusForSubmissionMode(visaType, mode);
 }
 
+export function isUkMisroutedDryRunError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return (
+    /dry-run validation failed/i.test(message) &&
+    (message.includes("profile.phone") ||
+      message.includes("profile.address") ||
+      message.includes("trip.arrivalDate"))
+  );
+}
+
+export function isUkPrefillSubmissionResult(
+  result: unknown,
+): result is { country: "UK"; prefillProgress?: { pagesFilled?: number; totalPages?: number } } {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "country" in result &&
+    (result as { country?: string }).country === "UK" &&
+    "prefillProgress" in result
+  );
+}
+
+export function ukPrefillProgressPercent(result: {
+  prefillProgress?: { pagesFilled?: number; totalPages?: number };
+}): number | null {
+  const filled = result.prefillProgress?.pagesFilled;
+  const total = result.prefillProgress?.totalPages;
+  if (typeof filled !== "number" || typeof total !== "number" || total <= 0) return null;
+  return Math.max(0, Math.min(100, Math.round((filled / total) * 100)));
+}
+
 export function queueProviderForVisaType(
   visaType: string | null | undefined,
   mode: SubmissionMode,
@@ -408,6 +469,9 @@ export function queueProviderForVisaType(
   }
   if (PHILIPPINES_ETRAVEL_TYPES.has(normalizeVisaType(visaType))) {
     return mode === "live_assisted" ? "philippines_etravel_live" : "philippines_etravel_dry_run";
+  }
+  if (UK_STANDARD_VISITOR_TYPES.has(normalizeVisaType(visaType))) {
+    return mode === "live_assisted" ? "uk_standard_visitor_live" : "uk_standard_visitor";
   }
   return null;
 }
@@ -442,6 +506,7 @@ export function submissionQueueRequiresServerEnqueue(
 ): boolean {
   return (
     mode === "live_assisted" ||
+    isUkStandardVisitorApplication(country, visaType) ||
     isVietnamEVisaApplication(country, visaType) ||
     isDigitalArrivalCardApplication(country, visaType)
   );
@@ -488,7 +553,11 @@ export function submitModeForPrimaryApplicationAction(
   country: string | null | undefined,
   visaType: string | null | undefined,
 ): SubmissionMode {
-  if (isVietnamEVisaApplication(country, visaType) || isDigitalArrivalCardApplication(country, visaType)) {
+  if (
+    isUkStandardVisitorApplication(country, visaType) ||
+    isVietnamEVisaApplication(country, visaType) ||
+    isDigitalArrivalCardApplication(country, visaType)
+  ) {
     return "live_assisted";
   }
   return "dry_run";

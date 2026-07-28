@@ -55,6 +55,8 @@ import {
 import type { SubmissionPayload } from "./country-submissions/types";
 import { pollAndRun } from "./queue/worker";
 import { runnerJobHandler } from "./queue/handler";
+import { runUkHalt } from "./queue/halt-runners";
+import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
@@ -130,6 +132,11 @@ import {
   type FranceSubmissionConfig,
 } from "./france-live-config";
 import {
+  loadUkSubmissionConfig,
+  validateUkLiveStart,
+  type UkSubmissionConfig,
+} from "./uk-live-config";
+import {
   createUSAppointmentRunnerRepository,
   loadUSAppointmentRunnerConfig,
   pollUSAppointmentAssistedJobs,
@@ -191,6 +198,8 @@ const STALE_QUEUE_STATUSES: SubmissionQueueItem["status"][] = [
   "france_live_processing",
   "uk_prefill_pending",
   "uk_prefill_processing",
+  "uk_live_assisted_pending",
+  "uk_live_processing",
   "vn_dry_run_pending",
   "vn_dry_run_processing",
   "vn_live_assisted_pending",
@@ -236,24 +245,51 @@ function isDryRunQueueItem(item: SubmissionQueueItem): boolean {
   );
 }
 
+/** Portal prefill/live handlers below — must not be swallowed by the global dry-run gate. */
+function hasDedicatedPortalQueueHandler(item: SubmissionQueueItem): boolean {
+  return (
+    isUkJob(item) ||
+    isAuJob(item) ||
+    isFvJob(item) ||
+    isDs160Job(item) ||
+    isDs160ProofJob(item) ||
+    isVnJob(item) ||
+    isSgacJob(item) ||
+    isMdacJob(item) ||
+    isTdacJob(item) ||
+    isPhEtravelJob(item)
+  );
+}
+
 function isLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
   return (
     item.mode === "live_assisted" ||
     item.status.startsWith("ds160_live_assisted_") ||
     item.status.startsWith("ds160_proof_") ||
     item.status.startsWith("france_live_") ||
+    item.status.startsWith("uk_live_") ||
     item.status.startsWith("vn_live_assisted_") ||
     item.status.startsWith("sgac_live_assisted_") ||
     item.status.startsWith("mdac_live_assisted_") ||
     item.status.startsWith("tdac_live_assisted_") ||
     item.status.startsWith("phetravel_live_assisted_") ||
     item.provider === "france_visas_live" ||
+    item.provider === "uk_standard_visitor_live" ||
     item.provider === "vietnam_evisa_live" ||
     item.provider === "sg_arrival_card_live" ||
     item.provider === "malaysia_mdac_live" ||
     item.provider === "thailand_tdac_live" ||
     item.provider === "philippines_etravel_live" ||
     item.provider === "ceac_proof"
+  );
+}
+
+function isUkLiveAssistedQueueItem(item: SubmissionQueueItem): boolean {
+  return (
+    item.mode === "live_assisted" ||
+    item.status === "uk_live_assisted_pending" ||
+    item.status.startsWith("uk_live_") ||
+    item.provider === "uk_standard_visitor_live"
   );
 }
 
@@ -289,6 +325,7 @@ async function fetchPendingItems(): Promise<SubmissionQueueItem[]> {
       "fv_prefill_pending",
       "france_live_assisted_pending",
       "uk_prefill_pending",
+      "uk_live_assisted_pending",
       "vn_dry_run_pending",
       "vn_live_assisted_pending",
       "vn_payment_pending",
@@ -327,6 +364,7 @@ function queuePriority(item: SubmissionQueueItem): number {
   if (item.status === "tdac_dry_run_pending") return 1;
   if (item.status === "phetravel_dry_run_pending") return 1;
   if (item.status === "vn_live_assisted_pending") return 2;
+  if (item.status === "uk_live_assisted_pending") return 2;
   if (item.status === "vn_dry_run_pending") return 3;
   return 10;
 }
@@ -348,7 +386,14 @@ function isFvJob(item: SubmissionQueueItem): boolean {
 }
 
 function isUkJob(item: SubmissionQueueItem): boolean {
-  return item.status === "uk_prefill_pending";
+  return (
+    item.status === "uk_prefill_pending" ||
+    item.status === "uk_live_assisted_pending" ||
+    item.status.startsWith("uk_prefill_") ||
+    item.status.startsWith("uk_live_") ||
+    item.provider === "uk_standard_visitor" ||
+    item.provider === "uk_standard_visitor_live"
+  );
 }
 
 function isVnJob(item: SubmissionQueueItem): boolean {
@@ -2648,6 +2693,32 @@ async function updateSubmissionQueueCompat(
   throw new Error("submission_queue update failed after removing unsupported columns.");
 }
 
+async function processUkConfigBlockedItem(
+  item: SubmissionQueueItem,
+  reason: string,
+): Promise<void> {
+  console.warn(
+    `[uk] Live assisted blocked for application=${redactIdentifier(item.application_id)}: ${reason}`,
+  );
+
+  await supabase
+    .from("submission_queue")
+    .update({
+      status: "uk_blocked",
+      mode: "live_assisted",
+      provider: "uk_standard_visitor_live",
+      last_error: reason,
+      manual_action_status: "blocked",
+      official_status: "blocked_by_config",
+      error_code: "live_mode_config",
+      error_message: reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", item.id);
+
+  await markSubmissionFailed(item.application_id, reason);
+}
+
 async function processFvConfigBlockedItem(
   item: SubmissionQueueItem,
   reason: string,
@@ -3093,260 +3164,102 @@ async function processFvItem(
 
 // ─── UK Standard Visitor Job Processor ───────────────────────────────
 //
-// Two paths:
-//   1. RESUME (preferred): if a uk_accounts row exists for the applicant,
-//      walk the in-flight application via forceResume URL → 44 application
-//      pages → Documents → Declaration → halt at Pay. Writes a full
-//      UkSubmissionResult on success.
-//   2. PRE-AUTH SCAFFOLD: if no uk_accounts row, drive the pre-auth flow
-//      (language → country → VAC → start) and stop at the registration
-//      page. Caller / human registers, persists creds back to uk_accounts,
-//      and the next poll picks up the resume path.
-async function loadUkAccount(applicantId: string): Promise<UkAccount | null> {
-  const { data, error } = await supabase
-    .from("uk_accounts")
-    .select("*")
-    .eq("applicant_id", applicantId)
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(`Failed to load uk_accounts: ${error.message}`);
-  return (data ?? null) as UkAccount | null;
-}
-
-function decryptUkPassword(encrypted: string): string {
-  // Try the project cipher first; if the column is still plaintext (dev
-  // parity), pass it through unchanged. Production rows are encrypted.
-  try {
-    return decryptSecret(encrypted);
-  } catch {
-    return encrypted;
-  }
-}
-
-async function processUkItem(item: SubmissionQueueItem): Promise<void> {
+// Delegates to runUkHalt (register → resume → 44 pages → halt at pay).
+async function processUkItem(item: SubmissionQueueItem, config?: UkSubmissionConfig): Promise<void> {
   const runId = createRunId("uk");
+  const live = isUkLiveAssistedQueueItem(item);
+  const ukConfig = config ?? loadUkSubmissionConfig();
+  const processingStatus: SubmissionQueueItem["status"] = live
+    ? "uk_live_processing"
+    : "uk_prefill_processing";
+  const successStatus: SubmissionQueueItem["status"] = live ? "uk_prefilled" : "uk_prefilled";
   console.log(
-    `[uk] Starting run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
+    `[uk] Starting ${live ? "live" : "prefill"} run ${runId} for application=${redactIdentifier(item.application_id)} (attempt ${item.attempts + 1})`,
   );
 
-  await supabase
-    .from("submission_queue")
-    .update({ status: "uk_prefill_processing", updated_at: new Date().toISOString() })
-    .eq("id", item.id);
+  const writeUkStage = async (
+    currentStage: string,
+    patch: Record<string, unknown> = {},
+  ): Promise<void> => {
+    const now = new Date().toISOString();
+    await updateSubmissionQueueCompat(item.id, {
+      current_stage: currentStage,
+      heartbeat_at: now,
+      updated_at: now,
+      ...patch,
+    });
+  };
+
+  await writeUkStage("starting", { status: processingStatus });
   await setSubmissionStatus(item.application_id, "processing");
 
-  const { profile, application } = await loadApplicantData(item.application_id);
-  let account = await loadUkAccount(application.applicant_id);
-
-  // Lazy-upsert from /application answers: the seed exposes step-0 fields
-  // uk_account_email / uk_account_password / uk_resume_url. The applicant
-  // fills them on the form; the worker materializes them into uk_accounts
-  // on first run so subsequent polls take the resume path automatically.
-  if (!account) {
-    const ukAnswers = await loadDs160Answers(item.application_id);
-    const email = ukAnswers["uk_account_email"];
-    const password = ukAnswers["uk_account_password"];
-    const resumeUrl = ukAnswers["uk_resume_url"];
-    if (email && password && resumeUrl) {
-      const passwordEncrypted = encryptSecret(password);
-      const { error: upsertErr } = await supabase
-        .from("uk_accounts")
-        .upsert(
-          {
-            applicant_id: application.applicant_id,
-            email,
-            password_encrypted: passwordEncrypted,
-            resume_url: resumeUrl,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "applicant_id,email" },
-        );
-      if (upsertErr) {
-        console.warn(`[uk] uk_accounts upsert failed: ${upsertErr.message}`);
-      } else {
-        account = await loadUkAccount(application.applicant_id);
-      }
-    }
-  }
-
-  // ── RESUME path ────────────────────────────────────────────────────
-  if (account) {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "uk-resume-"));
-    try {
-      const answers = await loadDs160Answers(item.application_id);
-      const result = await resumeUkApplication(
-        {
-          resumeUrl: account.resume_url,
-          password: decryptUkPassword(account.password_encrypted),
-          email: account.email,
-          answers,
-        },
-        { headless: true, runId, outputDir: tempDir },
+  const heartbeatTimer = setInterval(() => {
+    const now = new Date().toISOString();
+    void updateSubmissionQueueCompat(item.id, {
+      heartbeat_at: now,
+      updated_at: now,
+    }).catch((error) => {
+      console.warn(
+        `[uk] Heartbeat update failed for queue=${redactIdentifier(item.id)}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
-
-      if (result.status === "stopped_at_pay" || result.status === "halted_before_pay") {
-        const ukPayload: UkSubmissionResult = {
-          country: "UK",
-          status: "stopped_at_pay",
-          portalUrl: result.portalUrl,
-          portalUsername: result.portalUsername,
-          generatedPasswordCipher: encryptSecret(decryptUkPassword(account.password_encrypted)),
-          ...(result.status === "stopped_at_pay" && result.applicationReference
-            ? { applicationReference: result.applicationReference }
-            : {}),
-        };
-        await writeSubmissionResult(item.application_id, ukPayload, "stopped_at_pay");
-        await supabase
-          .from("submission_queue")
-          .update({
-            status: "uk_prefilled",
-            uk_result_payload: result as unknown as Record<string, unknown>,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", item.id);
-        console.log(
-          `[uk] Resume run ${runId} ${result.status} — pages filled=${result.pagesFilled.length}`,
-        );
-        return;
-      }
-
-      // result.status === "failed"
-      const errorMsg = typeof result.error?.message === "string" ? result.error.message : `failed at ${result.failedAt}`;
-      const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : "uk_prefill_pending";
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: newStatus,
-          attempts: newAttempts,
-          last_error: errorMsg,
-          uk_result_payload: result as unknown as Record<string, unknown>,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-      if (newStatus === "uk_prefill_failed") {
-        await markSubmissionFailed(item.application_id, errorMsg);
-        await sendFailureAlert(item.application_id, `[UK resume] ${errorMsg}`);
-      }
-      console.error(`[uk] Resume run ${runId} failed: ${errorMsg}`);
-      return;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      const newAttempts = item.attempts + 1;
-      const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : "uk_prefill_pending";
-      await supabase
-        .from("submission_queue")
-        .update({
-          status: newStatus,
-          attempts: newAttempts,
-          last_error: errorMsg,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-      if (newStatus === "uk_prefill_failed") {
-        await markSubmissionFailed(item.application_id, errorMsg);
-        await sendFailureAlert(item.application_id, `[UK resume] ${errorMsg}`);
-      }
-      console.error(`[uk] Resume run ${runId} unhandled error:`, errorMsg);
-      return;
-    } finally {
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
-    }
-  }
-
-  // ── PRE-AUTH SCAFFOLD path (fallback when no uk_accounts row) ──────
-  void profile; // silence unused-var
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "uk-run-"));
-  let session: Awaited<ReturnType<typeof startUkSession>> | null = null;
-  try {
-    const answers = await loadDs160Answers(item.application_id);
-    session = await startUkSession({ headless: true, runId });
-    const result = await orchestrateUkFill(session, {
-      answers,
-      runId,
-      outputDir: tempDir,
     });
+  }, 45_000);
 
-    // Pre-auth scaffold-only success: reached registration page. We mark
-    // as `uk_prefilled` so ops can see the run completed its current
-    // scope, but the payload's `handoffReady=false` and `reason` make
-    // clear there's more to do.
-    await supabase
-      .from("submission_queue")
-      .update({
-        status: "uk_prefilled",
-        uk_result_payload: result as unknown as Record<string, unknown>,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+  try {
+    await writeUkStage("loading_application_data");
+    const { application } = await loadApplicantData(item.application_id);
+    await writeUkStage("ensuring_inbox_alias");
+    await ensureApplicantInboxAlias(application.applicant_id);
 
-    if (result.handoffReady) {
-      // Post-auth runner extension landed: capture portal credentials and
-      // surface to user. Reads through the applicant vault — no env
-      // fallback (SECRETS-002). Crashes loudly via VaultMissError if the
-      // expected secrets were not seeded.
-      const applicantId = application.applicant_id;
-      const portalUrl = await applicantVault.require(applicantId, "uk.portal.resume_url");
-      const portalUsername = await applicantVault.require(applicantId, "uk.portal.username");
-      const portalPassword = await applicantVault.require(applicantId, "uk.portal.password");
-      const ukPayload: UkSubmissionResult = {
-        country: "UK",
-        status: "stopped_at_pay",
-        portalUrl,
-        portalUsername,
-        generatedPasswordCipher: encryptSecret(portalPassword),
-      };
-      await writeSubmissionResult(item.application_id, ukPayload, "stopped_at_pay");
-    } else {
-      console.log(
-        `[uk] Run ${runId} stopped at ${result.stoppedAt.id} (pre-auth scaffold) — submission_result not written until walk extension lands`,
-      );
+    await writeUkStage("gov_uk_automation");
+    if (live) {
+      await writeUkStage("gov_uk_portal_opened", { status: "uk_live_official_portal_opened" });
     }
-    console.log(`[uk] Run ${runId} stopped at ${result.stoppedAt.id} — ${result.reason}`);
+    const outcome = await runUkHalt(item.application_id, item.id);
+    await writeUkStage("halted_before_pay", { status: successStatus });
+    console.log(
+      `[uk] Run ${runId} halted @ ${outcome.reachedStep} (outcome=${outcome.outcome})`,
+    );
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    const errorPayload = serializeUkError(err);
-    const newAttempts = item.attempts + 1;
 
-    // Gate errors (maintenance / 5xx / rate-limit) are external UKVI
-    // blockers — retrying within the worker won't help. Mark as
-    // blocked immediately and alert, mirroring the CEAC pattern.
-    if (isUkGateError(err)) {
+    if (err instanceof NeedsHumanError) {
       await supabase
         .from("submission_queue")
         .update({
-          status: "uk_blocked",
-          last_error: `[UK gate] ${errorMsg}`,
-          uk_result_payload: errorPayload,
+          status: "action_required",
+          last_error: errorMsg,
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.id);
-      await markSubmissionFailed(item.application_id, `[UK gate] ${errorMsg}`);
-      await sendFailureAlert(item.application_id, `[UK gate] ${errorMsg}`);
-      console.error(`[uk] Run ${runId} GATED:`, errorMsg);
+      await markSubmissionFailed(item.application_id, errorMsg);
+      console.warn(`[uk] Run ${runId} needs human: ${errorMsg}`);
       return;
     }
 
-    const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : "uk_prefill_pending";
+    const newAttempts = item.attempts + 1;
+    const retryStatus: SubmissionQueueItem["status"] = live
+      ? "uk_live_assisted_pending"
+      : "uk_prefill_pending";
+    const newStatus = newAttempts >= MAX_ATTEMPTS ? "uk_prefill_failed" : retryStatus;
     await supabase
       .from("submission_queue")
       .update({
         status: newStatus,
         attempts: newAttempts,
         last_error: errorMsg,
-        uk_result_payload: errorPayload,
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
-
     if (newStatus === "uk_prefill_failed") {
       await markSubmissionFailed(item.application_id, errorMsg);
       await sendFailureAlert(item.application_id, `[UK] ${errorMsg}`);
     }
     console.error(`[uk] Run ${runId} failed:`, errorMsg);
   } finally {
-    if (session) await session.close();
-    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore cleanup */ }
+    clearInterval(heartbeatTimer);
   }
 }
 
@@ -5808,6 +5721,14 @@ async function processDryRunItem(
   item: SubmissionQueueItem,
   source: "global_dry_run" | "legacy_fallback" | "ds160_default_dry_run",
 ): Promise<void> {
+  if (isUkJob(item)) {
+    console.warn(
+      `[dry-run] UK queue item ${redactIdentifier(item.id)} reached dry-run (${source}); delegating to UK prefill`,
+    );
+    await processUkItem(item);
+    return;
+  }
+
   console.log(
     `[dry-run] Processing application=${redactIdentifier(item.application_id)} via ${source} (attempt ${item.attempts + 1})`,
   );
@@ -5860,6 +5781,27 @@ async function processDryRunItem(
       result.status === "submitted_mock" ? "submitted_mock" : "unsupported";
 
     if (validationFailed) {
+      try {
+        const { application } = await loadApplicantData(item.application_id);
+        const normalizedCountry = application.country?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+        if (
+          (normalizedCountry === "united_kingdom" ||
+            normalizedCountry === "uk" ||
+            normalizedCountry === "gb") &&
+          application.visa_type?.toUpperCase() === "UK_STANDARD_VISITOR"
+        ) {
+          console.warn(
+            `[dry-run] UK application ${redactIdentifier(item.application_id)} hit legacy dry-run validation; delegating to UK prefill`,
+          );
+          await processUkItem(item);
+          return;
+        }
+      } catch (delegateErr) {
+        console.warn(
+          `[dry-run] UK delegate failed for ${redactIdentifier(item.application_id)}:`,
+          delegateErr instanceof Error ? delegateErr.message : String(delegateErr),
+        );
+      }
       await markSubmissionFailed(item.application_id, result.message);
     } else if (isSgacDryRun) {
       const liveJobId = await enqueueSgacLiveAfterDryRun(item, answers);
@@ -6005,7 +5947,10 @@ async function pollOnce(): Promise<void> {
     const item = await normalizeDigitalArrivalCardQueueItem(
       await normalizeSgacQueueItem(await normalizeVietnamQueueItem(rawItem)),
     );
-    if (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item))) {
+    if (
+      !hasDedicatedPortalQueueHandler(item) &&
+      (isDryRunQueueItem(item) || (isSubmissionDryRunMode() && !isLiveAssistedQueueItem(item)))
+    ) {
       await processDryRunItem(item, "global_dry_run");
     } else if (isDs160ProofJob(item)) {
       const ds160Config = loadDs160SubmissionConfig();
@@ -6063,7 +6008,15 @@ async function pollOnce(): Promise<void> {
 
       await processFvItem(item, franceConfig);
     } else if (isUkJob(item)) {
-      await processUkItem(item);
+      const ukConfig = loadUkSubmissionConfig();
+      if (isUkLiveAssistedQueueItem(item)) {
+        const liveStartError = validateUkLiveStart(ukConfig);
+        if (liveStartError) {
+          await processUkConfigBlockedItem(item, liveStartError);
+          continue;
+        }
+      }
+      await processUkItem(item, ukConfig);
     } else if (isVnJob(item)) {
       if (item.status === "vn_payment_pending") {
         await processVnPaymentItem(item);

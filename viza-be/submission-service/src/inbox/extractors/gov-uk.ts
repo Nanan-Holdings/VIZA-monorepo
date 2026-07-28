@@ -12,13 +12,16 @@ export const govUkProfile: ExtractorProfile = {
     "notifications.service.gov.uk",
     "apply-uk-visa.service.gov.uk",
     "service.gov.uk",
+    "amazonses.com",
   ],
+  subjectMatch: /uk visa application|sign in details|security code|verification code/i,
   extract: ({ subject, text, html }) => {
     const haystack = [subject ?? "", text ?? "", html ?? ""].join("\n");
     const code =
       /(?:security|verification)\s+code[^0-9]{0,16}(\d{4,8})/i.exec(haystack)?.[1] ??
       /\b(\d{6})\b/.exec(subject ?? "")?.[1];
     const link =
+      /https?:\/\/[^\s"'<>]*visas-immigration\.service\.gov\.uk\/resume\/[^\s"'<>]+/i.exec(haystack)?.[0] ??
       /https?:\/\/[^\s"'<>]*apply-uk-visa\.service\.gov\.uk[^\s"'<>]+/i.exec(haystack)?.[0] ??
       /https?:\/\/[^\s"'<>]*\.service\.gov\.uk[^\s"'<>]+/i.exec(haystack)?.[0];
     const reference =

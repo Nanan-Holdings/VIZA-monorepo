@@ -189,7 +189,12 @@ async function clickAdvance(page: Page): Promise<boolean> {
     .locator('button[type="submit"], input[type="submit"]')
     .all();
   for (const btn of buttons) {
-    const text = ((await btn.textContent()) ?? (await btn.getAttribute("value")) ?? "").trim();
+    // <input type="submit"> has no text NODE — textContent() is "" (not
+    // null), so `?? getAttribute("value")` never falls through. Check both
+    // explicitly and prefer whichever is non-empty.
+    const textContent = ((await btn.textContent()) ?? "").trim();
+    const valueAttr = ((await btn.getAttribute("value")) ?? "").trim();
+    const text = textContent || valueAttr;
     if (SAFE_ADVANCE_PATTERNS.some((rx) => rx.test(text))) {
       await btn.click({ timeout: 5_000 }).catch(() => undefined);
       return true;

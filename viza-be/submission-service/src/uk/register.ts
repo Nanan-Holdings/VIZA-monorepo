@@ -21,6 +21,8 @@ import { startUkSession } from "./session.js";
 import { orchestrateUkFill } from "./orchestrator.js";
 import { UK_PAGE_SELECTORS, UK_SUBMIT_SELECTOR } from "./selectors.js";
 import { waitForUkResumeEmail } from "./inbox.js";
+import { solveUkRegistrationCaptchaWithRetry } from "./register-captcha.js";
+import { ensureUkEgressCountry, ukUsesResidentialProxy } from "./proxy-egress.js";
 import { encryptSecret } from "../secret-cipher.js";
 
 export interface UkRegisterInput {
@@ -55,7 +57,7 @@ async function aliasForApplicant(applicantId: string): Promise<string> {
     .maybeSingle();
   if (error) throw new Error(`inbox_alias lookup failed: ${error.message}`);
   if (!data?.inbox_alias) {
-    throw new Error(`applicant ${applicantId} has no inbox_alias — call assignApplicantInboxAlias() first`);
+    throw new Error(`applicant ${applicantId} has no inbox_alias — call ensureApplicantInboxAlias() first`);
   }
   return String(data.inbox_alias).toLowerCase();
 }
@@ -63,8 +65,9 @@ async function aliasForApplicant(applicantId: string): Promise<string> {
 export async function registerUkAccount(input: UkRegisterInput): Promise<UkRegisterResult> {
   const email = await aliasForApplicant(input.applicantId);
   const password = generatePassword();
-  // UKVI geo-gates by IP; egress GB. stealth-browser reads RECON_PROXY_COUNTRY.
-  process.env.RECON_PROXY_COUNTRY = process.env.RECON_PROXY_COUNTRY ?? "gb";
+  if (ukUsesResidentialProxy()) {
+    ensureUkEgressCountry();
+  }
 
   // UKVI behind a residential proxy is slow; give the first paint room.
   const session = await startUkSession({
@@ -83,9 +86,12 @@ export async function registerUkAccount(input: UkRegisterInput): Promise<UkRegis
     }
 
     const { page } = session;
-    await page.fill(UK_PAGE_SELECTORS.registration.email.selector, email, { timeout: 10_000 });
-    await page.fill(UK_PAGE_SELECTORS.registration.password1.selector, password, { timeout: 10_000 });
-    await page.fill(UK_PAGE_SELECTORS.registration.password2.selector, password, { timeout: 10_000 });
+    const fillRegistrationForm = async (): Promise<void> => {
+      await page.fill(UK_PAGE_SELECTORS.registration.email.selector, email, { timeout: 10_000 });
+      await page.fill(UK_PAGE_SELECTORS.registration.password1.selector, password, { timeout: 10_000 });
+      await page.fill(UK_PAGE_SELECTORS.registration.password2.selector, password, { timeout: 10_000 });
+    };
+    await fillRegistrationForm();
 
     if (process.env.UK_REGISTER_COMMIT !== "1") {
       return {
@@ -95,12 +101,42 @@ export async function registerUkAccount(input: UkRegisterInput): Promise<UkRegis
       };
     }
 
+    // Best-effort CAPTCHA, mirroring the France-Visas registration flow: solve
+    // via 2captcha when gov.uk presents an image CAPTCHA, no-op otherwise. A
+    // failed solve reloads the page (clearing fields), so we pass the form
+    // filler to re-enter email/password between retries.
+    try {
+      await solveUkRegistrationCaptchaWithRetry(page, 3, fillRegistrationForm);
+    } catch (err) {
+      return {
+        status: "failed",
+        reason: `registration captcha: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+
     // COMMIT: creates the UKVI account and triggers the verification email.
+    const registrationStartedAt = new Date().toISOString();
     await page.click(UK_SUBMIT_SELECTOR, { timeout: 10_000 });
+
+    // Persist credentials before waiting so a slow inbox does not lose the
+    // generated password if the mail arrives after the poll timeout.
+    const { error: preUpsertErr } = await supabase.from("uk_accounts").upsert(
+      {
+        applicant_id: input.applicantId,
+        email,
+        password_encrypted: encryptSecret(password),
+        resume_url: "",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "applicant_id,email" },
+    );
+    if (preUpsertErr) {
+      return { status: "failed", reason: `uk_accounts pre-upsert failed: ${preUpsertErr.message}` };
+    }
 
     // UKVI emails a resume/continue link to the alias; the inbox ingest worker
     // must be running for this to resolve.
-    const resumeEmail = await waitForUkResumeEmail(input.applicantId, 180_000);
+    const resumeEmail = await waitForUkResumeEmail(input.applicantId, 180_000, registrationStartedAt);
     const resumeUrl = resumeEmail.resumeUrl;
     if (!resumeUrl) {
       return { status: "failed", reason: "registration submitted but no resume link found in verification email" };

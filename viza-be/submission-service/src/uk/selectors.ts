@@ -26,7 +26,7 @@ export const UK_URLS = {
 /** Submit button, present on every form. Button named "submit" shadows
  *  form.submit(); always click this rather than calling submit(). */
 export const UK_SUBMIT_SELECTOR =
-  'button[name="submit"], input[type="submit"]#submit';
+  'button[name="submit"], input[type="submit"]#submit, input[name="submit"], button[type="submit"]';
 
 /** H1 heading on every page. Used alongside form.action for page detection. */
 export const UK_HEADING_SELECTOR = "h1";
@@ -47,6 +47,18 @@ export const UK_PAGE_SELECTORS = {
         "en", "zh", "hi", "ru", "tr", "th", "ar", "ur", "bn", "fr",
         "id", "ja", "ko", "pt", "si", "es", "vi", "gu", "ta",
       ],
+    },
+  },
+  confirm_visa_type: {
+    /** Radio: visaType. The Standard Visitor route is the first option,
+     *  "Visit or transit visa" (value `visit-visa-ooc-standard`). This page
+     *  (`/apply-uk-visa`, "Confirm your visa type") appears in the live flow
+     *  after language selection and before the biometrics country page. */
+    visaType: {
+      selector: 'input[name="visaType"]',
+      idPattern: "visaType_{value}",
+      type: "radio" as const,
+      standardVisitorValue: "visit-visa-ooc-standard",
     },
   },
   country_selection: {

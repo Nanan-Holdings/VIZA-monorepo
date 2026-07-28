@@ -148,6 +148,51 @@ describe("normalizeUkAnswers — key + value translation", () => {
     assert.equal(out.travelling_in_organised_group, "no");
     assert.equal(out.travelling_with_non_partner, "yes");
   });
+
+  it("accepts seed field_names from the DB-driven form", () => {
+    const out = normalizeUkAnswers({
+      answers: {
+        given_names: "Wei",
+        surname: "Zhang",
+        phone_number: "+86 191222872689",
+        home_address_line_1: "12 Nanjing Road",
+        home_address_country: "China",
+        passport_issue_date: "2020-01-02",
+        passport_expiry_date: "2030-01-02",
+        passport_place_of_issue: "Shanghai",
+        uk_arrival_date: "2026-08-01",
+        uk_departure_date: "2026-08-15",
+        planned_spend_amount: "3000",
+        planned_spend_currency: "GBP",
+        monthly_outgoings_amount: "5000",
+        monthly_outgoings_currency: "CNY",
+        immigration_status_in_residence_country: "permanentResident",
+        immigration_status_pr_year: "2006",
+        home_ownership: "own",
+        years_at_address: "10",
+        tourism_sub_purpose: "tourist",
+        purpose_of_visit: "tourism",
+        mother_given_names: "Li",
+        father_given_names: "Zhang",
+      },
+    });
+    assert.equal(out.phone_number, "86191222872689");
+    assert.equal(out.home_address_line_1, "12 Nanjing Road");
+    assert.equal(out.home_address_country, "CHN");
+    assert.equal(out.home_address_country_label, "China");
+    assert.equal(out.passport_issue_date, "2020-01-02");
+    assert.equal(out.passport_issuing_authority, "Shanghai");
+    assert.equal(out.planned_arrival_date, "2026-08-01");
+    assert.equal(out.planned_departure_date, "2026-08-15");
+    assert.equal(out.planned_spend_amount, "3000");
+    assert.equal(out.monthly_outgoings_amount, "5000");
+    assert.equal(out.current_immigration_status, "permanent_resident");
+    assert.equal(out.permanent_resident_year, "2006");
+    assert.equal(out.home_ownership_label, "I own it");
+    assert.equal(out.tourism_purpose, "tourist");
+    assert.equal(out.mother_given_names, "Li");
+    assert.equal(out.visit_activities_description.length > 0, true);
+  });
 });
 
 describe("normalizeUkAnswers — guards", () => {

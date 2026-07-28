@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  isUkMisroutedDryRunError,
+  isUkPrefillSubmissionResult,
+  ukPrefillProgressPercent,
+} from "@/lib/submission-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -237,10 +242,24 @@ function deriveTerminalApplicationStatus(
   queue: QueueRow | null,
 ): DerivedStatus | null {
   const appStatus = normalizeStatus(application.submission_result_status);
-  const resultError = extractResultError(application.submission_result);
-  const queueError = queue?.last_error?.trim() || null;
+  const storedResult = application.submission_result;
+  const ukPrefillStored = isUkPrefillSubmissionResult(storedResult);
+  const resultError = extractResultError(storedResult);
+  const queueError = queue?.last_error?.trim() || queue?.error_message?.trim() || null;
+  const staleUkMisroute =
+    ukPrefillStored && queueError ? isUkMisroutedDryRunError(queueError) : false;
 
   if (appStatus === "failed") {
+    if (ukPrefillStored) {
+      const progress = ukPrefillProgressPercent(storedResult) ?? 99;
+      return {
+        status: "needs_user_action",
+        stage: "payment_handoff",
+        progress,
+        message: "UK gov.uk pre-fill partially completed.",
+        error: null,
+      };
+    }
     return {
       status: "failed",
       stage: "failed",
@@ -291,12 +310,16 @@ function deriveTerminalApplicationStatus(
 
   if (ACTION_REQUIRED_APPLICATION_STATUSES.has(appStatus)) {
     const stage = stageForActionStatus(appStatus);
+    const ukProgress = ukPrefillStored ? ukPrefillProgressPercent(storedResult) : null;
     return {
       status: "needs_user_action",
       stage,
-      progress: 99,
-      message: resultError ?? queueError ?? messageForStage(stage),
-      error: resultError ?? queueError,
+      progress: ukProgress ?? 99,
+      message:
+        ukPrefillStored
+          ? "UK gov.uk pre-fill partially completed."
+          : resultError ?? queueError ?? messageForStage(stage),
+      error: ukPrefillStored || staleUkMisroute ? null : resultError ?? queueError,
     };
   }
 
@@ -361,6 +384,18 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
   }
 
   if (queueStatus === "france_live_official_portal_opened") {
+    return { status: "running", stage: "filling_form", progress: 48 };
+  }
+
+  if (queueStatus === "uk_live_assisted_pending") {
+    return { status: "queued", stage: "preparing", progress: 12 };
+  }
+
+  if (queueStatus === "uk_live_processing") {
+    return { status: "running", stage: "mapping_answers", progress: 34 };
+  }
+
+  if (queueStatus === "uk_live_official_portal_opened") {
     return { status: "running", stage: "filling_form", progress: 48 };
   }
 
@@ -455,6 +490,11 @@ export function deriveNonTerminalStatus(
         "SG Arrival Card is scheduled for automatic submission when the ICA three-day window opens.",
       error: null,
     };
+  }
+
+  const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
+  if (terminalFromApplication && !isActiveQueue(queue)) {
+    return terminalFromApplication;
   }
 
   if (
@@ -560,16 +600,24 @@ export async function GET(
     queueDerived.status !== "running" &&
     isAfterOrEqual(queueUpdatedAt, application.submission_result_updated_at);
   const queueResult = synthesizeQueueResult(queue, application);
+  const storedResult = application.submission_result;
   const queueOverridesApplication = activeQueueOverridesTerminal || terminalQueueOverridesApplication;
-  const derived = queueOverridesApplication
-    ? deriveNonTerminalStatus(application, queue)
-    : deriveTerminalApplicationStatus(application, queue) ??
-      deriveNonTerminalStatus(application, queue);
+  const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
+  const derived =
+    terminalFromApplication && !isActiveQueue(queue)
+      ? terminalFromApplication
+      : queueOverridesApplication
+        ? deriveNonTerminalStatus(application, queue)
+        : terminalFromApplication ?? deriveNonTerminalStatus(application, queue);
   const updatedAt = latestTimestamp(
     application.submission_result_updated_at,
     queue?.updated_at,
     application.updated_at,
   );
+  const resolvedResult =
+    queueResult ??
+    (isUkPrefillSubmissionResult(storedResult) ? storedResult : null) ??
+    (activeQueueOverridesTerminal ? null : storedResult ?? null);
 
   return NextResponse.json(
     {
@@ -582,7 +630,7 @@ export async function GET(
       stage: derived.stage,
       progress: derived.progress,
       message: derived.message,
-      result: queueResult ?? (activeQueueOverridesTerminal ? null : application.submission_result ?? null),
+      result: resolvedResult,
       error: derived.error,
       updatedAt,
       applicationStatus: queueResult

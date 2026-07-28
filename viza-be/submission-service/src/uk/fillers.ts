@@ -11,11 +11,13 @@
  */
 
 import type { Page } from "@playwright/test";
+import { resolveCountryIso3 } from "./country-iso3";
 
-const SHORT_TIMEOUT = 5_000;
-const SETTLE_MS = 150;
+const SHORT_TIMEOUT = 4_000;
+const SETTLE_MS = 0;
 
 async function settle(page: Page): Promise<void> {
+  if (SETTLE_MS <= 0) return;
   await page.waitForTimeout(SETTLE_MS);
 }
 
@@ -27,6 +29,8 @@ export async function ukFillText(page: Page, domId: string, value: string): Prom
   if (!value) return;
   const input = page.locator(`#${cssEscape(domId)}`).first();
   if ((await input.count()) === 0) return;
+  const current = (await input.inputValue().catch(() => "")).trim();
+  if (current === value.trim()) return;
   await input.fill(value, { timeout: SHORT_TIMEOUT });
   await input.press("Tab", { timeout: SHORT_TIMEOUT }).catch(() => undefined);
   await settle(page);
@@ -127,10 +131,74 @@ export async function ukPickRadio(
     const labelText = await page.locator(`label[for="${cssEscape(id)}"]`).first().textContent().catch(() => null);
     if (!labelText) continue;
     if (labelText.trim().toLowerCase() === visibleLabel.trim().toLowerCase()) {
+      if (await radio.isChecked().catch(() => false)) return;
       await radio.check({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
       await settle(page);
       return;
     }
+  }
+}
+
+/** Pick a gov.uk yes/no radio group backed by `true`/`false` values. */
+export async function ukPickBooleanRadio(
+  page: Page,
+  groupName: string,
+  yes: boolean,
+): Promise<void> {
+  const candidates = yes
+    ? ["true", "True", "yes", "Yes", "1"]
+    : ["false", "False", "no", "No", "0"];
+  for (const value of candidates) {
+    const radio = page
+      .locator(`input[type="radio"][name="${cssEscape(groupName)}"][value="${cssEscape(value)}"]`)
+      .first();
+    if ((await radio.count()) > 0) {
+      if (await radio.isChecked().catch(() => false)) return;
+      await radio.check({ force: true, timeout: SHORT_TIMEOUT }).catch(() => undefined);
+      await settle(page);
+      return;
+    }
+  }
+  await ukPickRadio(page, groupName, yes ? "Yes" : "No");
+}
+
+/** `isCorrespondenceAddress`: true = correspondence same as home address. */
+export async function ukPickCorrespondenceAddressSame(
+  page: Page,
+  sameAsHome: boolean,
+): Promise<void> {
+  const targetId = sameAsHome ? "isCorrespondenceAddress_true" : "isCorrespondenceAddress_false";
+  const label = page.locator(`label[for="${cssEscape(targetId)}"]`).first();
+  if ((await label.count()) > 0) {
+    await label.click({ timeout: SHORT_TIMEOUT });
+    await page.waitForTimeout(300);
+  } else {
+    const radio = page.locator(`#${cssEscape(targetId)}`).first();
+    if ((await radio.count()) > 0) {
+      await radio.click({ force: true, timeout: SHORT_TIMEOUT });
+      await page.waitForTimeout(300);
+    } else {
+      await ukPickBooleanRadio(page, "isCorrespondenceAddress", sameAsHome);
+    }
+  }
+
+  const checked = await page
+    .locator(`#${cssEscape(targetId)}`)
+    .first()
+    .isChecked()
+    .catch(() => false);
+  if (!checked) {
+    await page
+      .evaluate((id) => {
+        const el = document.getElementById(id) as HTMLInputElement | null;
+        if (!el) return;
+        el.checked = true;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        el.dispatchEvent(new Event("click", { bubbles: true }));
+      }, targetId)
+      .catch(() => undefined);
+    await page.waitForTimeout(300);
   }
 }
 
@@ -199,9 +267,56 @@ export async function ukSelectCountry(
   const sel = page.locator(`#${cssEscape(baseId)}`).first();
   if ((await sel.count()) === 0) return;
 
-  // Try ISO-3 value first (e.g. "CHN"), then visible label (e.g. "China").
+  const iso3 =
+    (resolveCountryIso3(codeOrLabel) ??
+      (await sel
+        .evaluate((el, label) => {
+          const normalized = label.trim().toLowerCase();
+          const opt = Array.from((el as HTMLSelectElement).options).find(
+            (o) =>
+              o.value.toUpperCase() === label.toUpperCase() ||
+              o.text.trim().toLowerCase() === normalized,
+          );
+          return opt?.value ?? "";
+        }, codeOrLabel)
+        .catch(() => ""))) ||
+    codeOrLabel.toUpperCase();
+
+  const optionText = await sel
+    .evaluate((el, v) => {
+      const opt = Array.from((el as HTMLSelectElement).options).find((o) => o.value === v);
+      return opt?.text ?? "";
+    }, iso3)
+    .catch(() => "");
+
+  const uiId = `${baseId}_ui`;
+  const ui = page.locator(`#${cssEscape(uiId)}`).first();
+  if (optionText && (await ui.count()) > 0) {
+    try {
+      await ui.click({ timeout: 5_000 });
+      await ui.fill("");
+      await ui.pressSequentially(optionText, { delay: 25, timeout: 10_000 });
+      await page.waitForTimeout(400);
+      const option = page.getByRole("option", { name: optionText, exact: true }).first();
+      if ((await option.count()) > 0 && (await option.isVisible().catch(() => false))) {
+        await option.click({ timeout: 5_000 });
+      } else {
+        await ui.press("ArrowDown", { timeout: 2_000 });
+        await page.waitForTimeout(200);
+        await ui.press("Enter", { timeout: 2_000 });
+      }
+      const committed = await sel.evaluate((el) => (el as HTMLSelectElement).value).catch(() => "");
+      if (committed === iso3) {
+        await settle(page);
+        return;
+      }
+    } catch {
+      /* fall through to forced select */
+    }
+  }
+
   let selected = await sel
-    .selectOption(codeOrLabel.toUpperCase(), { timeout: SHORT_TIMEOUT })
+    .selectOption(iso3, { timeout: SHORT_TIMEOUT, force: true })
     .then(() => true)
     .catch(() => false);
   if (!selected) {
@@ -211,17 +326,21 @@ export async function ukSelectCountry(
       .catch(() => false);
   }
   if (!selected) return;
+  await sel
+    .evaluate((el) => {
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    })
+    .catch(() => undefined);
   await settle(page);
 
-  // Sync the visible autocomplete input from the chosen option's text.
-  const uiId = `${baseId}_ui`;
   if ((await page.locator(`#${cssEscape(uiId)}`).count()) > 0) {
     const display = await sel
       .locator("option:checked")
       .first()
       .textContent()
       .catch(() => null);
-    await ukFillText(page, uiId, (display ?? codeOrLabel).trim());
+    await ukFillText(page, uiId, (display ?? optionText ?? codeOrLabel).trim());
   }
 }
 
@@ -237,17 +356,181 @@ export async function ukFillPhoneSplit(
   if (number) await ukFillText(page, "phone_number", number);
 }
 
+function extractSlugFromUkUrl(url: string): string | null {
+  const match = url.match(/application\.0\.([^/?#]+)/i);
+  return match?.[1] ?? null;
+}
+
+export interface UkFormProbe {
+  url: string;
+  formAction: string | null;
+  heading: string | null;
+}
+
+/** gov.uk keeps `/next` across steps — form.action + h1 are the real page identity. */
+export async function probeUkFormState(page: Page): Promise<UkFormProbe> {
+  return page.evaluate(() => {
+    const form = document.querySelector("form");
+    const heading = document.querySelector("h1");
+    return {
+      url: location.href,
+      formAction: form?.getAttribute("action") ?? null,
+      heading: heading?.textContent?.trim() ?? null,
+    };
+  });
+}
+
+export function extractSlugFromFormAction(action: string | null): string | null {
+  if (!action) return null;
+  const match = action.match(/application\.0\.([^/?#]+)/i);
+  return match?.[1] ?? null;
+}
+
+export function resolveUkPageSlug(probe: UkFormProbe): string | null {
+  return extractSlugFromUkUrl(probe.url) ?? extractSlugFromFormAction(probe.formAction);
+}
+
+function formStateAdvanced(before: UkFormProbe, after: UkFormProbe): boolean {
+  if (isTerminalUkPage(after.url)) return true;
+  if (
+    before.url.includes("/edit/application.0.") &&
+    after.url.includes("/save/application.0.")
+  ) {
+    const beforeSlug =
+      extractSlugFromUkUrl(before.url) ?? extractSlugFromFormAction(before.formAction);
+    const afterSlug =
+      extractSlugFromUkUrl(after.url) ?? extractSlugFromFormAction(after.formAction);
+    if (beforeSlug && afterSlug && beforeSlug === afterSlug) return true;
+  }
+  const beforeUrlSlug = extractSlugFromUkUrl(before.url);
+  const afterUrlSlug = extractSlugFromUkUrl(after.url);
+  if (afterUrlSlug && beforeUrlSlug && afterUrlSlug !== beforeUrlSlug) return true;
+  if (before.formAction !== after.formAction && after.formAction) return true;
+  if (before.heading !== after.heading && after.heading) return true;
+  const beforeActionSlug = extractSlugFromFormAction(before.formAction);
+  const afterActionSlug = extractSlugFromFormAction(after.formAction);
+  if (afterActionSlug && beforeActionSlug && afterActionSlug !== beforeActionSlug) return true;
+  return false;
+}
+
+function isTerminalUkPage(url: string): boolean {
+  return /\/Documents|\/Declaration|\/pay\b/i.test(url);
+}
+
+export async function ukPageHasValidationErrors(page: Page): Promise<boolean> {
+  const summary = page.locator(".govuk-error-summary");
+  if ((await summary.count()) > 0) {
+    const visible = await summary.first().isVisible().catch(() => false);
+    if (visible) {
+      const text = ((await summary.first().textContent().catch(() => "")) ?? "").trim();
+      if (text.length > 0) return true;
+    }
+  }
+  const messages = page.locator(".govuk-error-message");
+  const n = await messages.count();
+  for (let i = 0; i < n; i++) {
+    const msg = messages.nth(i);
+    if (!(await msg.isVisible().catch(() => false))) continue;
+    const text = ((await msg.textContent().catch(() => "")) ?? "").trim();
+    if (text.length > 0) return true;
+  }
+  return false;
+}
+
+export async function ukValidationErrorText(page: Page): Promise<string | null> {
+  const summary = page.locator(".govuk-error-summary");
+  if ((await summary.count()) > 0) {
+    const text = ((await summary.first().textContent().catch(() => "")) ?? "").trim();
+    if (text.length > 0) return text;
+  }
+  const messages = page.locator(".govuk-error-message");
+  const parts: string[] = [];
+  const n = await messages.count();
+  for (let i = 0; i < n; i++) {
+    const msg = messages.nth(i);
+    if (!(await msg.isVisible().catch(() => false))) continue;
+    const text = ((await msg.textContent().catch(() => "")) ?? "").trim();
+    if (text.length > 0) parts.push(text);
+  }
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
+async function waitForUkSaveProgress(
+  page: Page,
+  before: UkFormProbe,
+  timeoutMs: number,
+): Promise<UkFormProbe> {
+  const deadline = Date.now() + Math.min(timeoutMs, 25_000);
+  while (Date.now() < deadline) {
+    await page.waitForLoadState("domcontentloaded", { timeout: 4_000 }).catch(() => undefined);
+    const after = await probeUkFormState(page);
+    if (formStateAdvanced(before, after)) return after;
+    if (isTerminalUkPage(after.url)) return after;
+    await page.waitForTimeout(150);
+  }
+  return probeUkFormState(page);
+}
+
+function ukSubmitLocator(page: Page) {
+  return page.locator(
+    'input#submit, input[name="submit"], button[name="submit"][type="submit"]',
+  ).first();
+}
+
+/** gov.uk /save/application.0.* ack pages need an extra Save click to advance. */
+export async function clickThroughUkSaveAck(
+  page: Page,
+  navTimeoutMs = 20_000,
+): Promise<UkFormProbe> {
+  const probe = await probeUkFormState(page);
+  if (!probe.url.includes("/save/application.0.")) return probe;
+  const submit = ukSubmitLocator(page);
+  if ((await submit.count()) === 0) return probe;
+  await submit.scrollIntoViewIfNeeded().catch(() => undefined);
+  await submit.click({ timeout: 20_000 });
+  await page.waitForLoadState("domcontentloaded", { timeout: navTimeoutMs }).catch(() => undefined);
+  return waitForUkSaveProgress(page, probe, navTimeoutMs);
+}
+
 /**
  * Click the universal "Save and continue" submit. Returns the URL the
  * portal navigates to after the click.
  */
-export async function ukClickSaveContinue(page: Page, navTimeoutMs = 30_000): Promise<string> {
-  const submit = page.locator('input#submit, input[name="submit"][value="Save and continue"]').first();
-  await Promise.all([
-    page.waitForLoadState("domcontentloaded", { timeout: navTimeoutMs }).catch(() => undefined),
-    submit.click({ timeout: 10_000 }),
-  ]);
-  return page.url();
+export async function ukClickSaveContinue(
+  page: Page,
+  navTimeoutMs = 30_000,
+): Promise<{ url: string; navigated: boolean }> {
+  const before = await probeUkFormState(page);
+  const submit = ukSubmitLocator(page);
+  // 8s was too tight — gov.uk (especially through the residential proxy) can
+  // take a few seconds to make the submit button interactive after a page
+  // that just ran client-side JS (e.g. Documents' checkbox handling), and a
+  // bare Playwright "Timeout 8000ms exceeded" gave no hint of which case
+  // we'd hit. Scroll it into view first and give it real room before
+  // failing with a clearer, page-identifying error.
+  if ((await submit.count()) === 0) {
+    throw new Error(`ukClickSaveContinue: no submit control found at ${page.url()}`);
+  }
+  await submit.scrollIntoViewIfNeeded().catch(() => undefined);
+  await submit.click({ timeout: 20_000 });
+  await page.waitForLoadState("domcontentloaded", { timeout: navTimeoutMs }).catch(() => undefined);
+  const after = await waitForUkSaveProgress(page, before, navTimeoutMs);
+  if (await ukPageHasValidationErrors(page)) {
+    return { url: after.url, navigated: false };
+  }
+  const landedOnSaveAck =
+    before.url.includes("/edit/application.0.") &&
+    after.url.includes("/save/application.0.");
+  if (formStateAdvanced(before, after) || landedOnSaveAck) {
+    if (after.url.includes("/save/application.0.")) {
+      const postAck = await clickThroughUkSaveAck(page, navTimeoutMs);
+      const advanced =
+        formStateAdvanced(after, postAck) || postAck.url.includes("/edit/application.0.");
+      return { url: postAck.url, navigated: advanced || landedOnSaveAck };
+    }
+    return { url: after.url, navigated: true };
+  }
+  return { url: after.url, navigated: false };
 }
 
 function cssEscape(id: string): string {
