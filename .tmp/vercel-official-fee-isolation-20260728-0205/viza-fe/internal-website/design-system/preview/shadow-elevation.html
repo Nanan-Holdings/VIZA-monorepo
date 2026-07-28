@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body { background: #fafafa; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 8px 4px 4px; }
+  .card2 { background: #fff; border: 1px solid var(--border-hairline); border-radius: 12px; height: 80px; display: flex; align-items: flex-end; padding: 10px 12px; font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--fg-2); }
+  .s-xs { box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .s-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); }
+  .s { box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+  .s-md { box-shadow: 0 4px 8px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04); }
+</style></head>
+<body><div class="stage">
+  <div class="grid">
+    <div class="card2 s-xs">shadow-xs</div>
+    <div class="card2 s-sm">shadow-sm · card default</div>
+    <div class="card2 s">shadow</div>
+    <div class="card2 s-md">shadow-md · hover</div>
+  </div>
+</div></body></html>

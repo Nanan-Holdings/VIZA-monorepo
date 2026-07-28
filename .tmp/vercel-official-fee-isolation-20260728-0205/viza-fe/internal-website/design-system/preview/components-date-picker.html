@@ -1,0 +1,109 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#fff}
+  .group{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+  .group:last-child{margin:0}
+  .group h4{font:500 11px "Geist", system-ui, sans-serif;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.45);margin:0 0 2px}
+  label{font:500 14px/1 "Geist", system-ui, sans-serif;color:#374151;letter-spacing:-.2px;margin-bottom:6px;display:block}
+
+  /* DatePicker trigger — matches components/ui/date-picker.tsx: h-12 rounded-lg border-[#e8e8e8] text-[15px] */
+  .dt{height:48px;border-radius:8px;border:1px solid #e8e8e8;padding:0 12px;display:inline-flex;align-items:center;gap:8px;font:400 15px "Geist","PingFang SC",system-ui,sans-serif;color:#3d3d3d;background:transparent;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.04);min-width:240px}
+  .dt .ic{width:16px;height:16px;color:#9ca3af;flex-shrink:0}
+  .dt .mtd{color:rgba(0,0,0,.45)}
+  .dt.focus{box-shadow:0 0 0 1px #03346E;border-color:#03346E}
+
+  /* react-day-picker calendar — --cell-size: 2rem (32px), dropdown caption, ghost day buttons */
+  .cal{display:inline-block;border:1px solid #efefef;border-radius:8px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.08);padding:12px}
+  .cal .nav{position:relative;display:flex;align-items:center;justify-content:center;height:32px;margin-bottom:4px}
+  .cal .nav .arr{position:absolute;top:0;width:32px;height:32px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#3d3d3d;background:transparent;border:0}
+  .cal .nav .arr:hover{background:#f3f4f6}
+  .cal .nav .arr.prev{left:0}
+  .cal .nav .arr.next{right:0}
+  .cal .dropdowns{display:flex;gap:6px;align-items:center;font:500 14px "Switzer",system-ui,sans-serif;color:#3d3d3d;letter-spacing:-.2px}
+  .cal .ddrop{border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;font:500 14px "Switzer",system-ui,sans-serif}
+  .cal .ddrop::after{content:"▾";font-size:10px;opacity:.5}
+  .cal .grid{border-collapse:collapse;width:calc(32px*7)}
+  .cal .dow{display:flex}
+  .cal .dow span{flex:1;height:32px;display:inline-flex;align-items:center;justify-content:center;font:400 12.8px "Geist",system-ui,sans-serif;color:rgba(0,0,0,.45);user-select:none}
+  .cal .wk{display:flex;margin-top:6px}
+  .cal .d{flex:1;aspect-ratio:1/1;display:inline-flex;align-items:center;justify-content:center;font:400 13px "Geist",system-ui,sans-serif;color:#3d3d3d;border:0;background:transparent;cursor:pointer;position:relative;border-radius:6px}
+  .cal .d:hover{background:#f3f4f6}
+  .cal .d.out{color:rgba(0,0,0,.35)}
+  .cal .d.disabled{color:rgba(0,0,0,.4);opacity:.5;cursor:not-allowed}
+  .cal .d.disabled:hover{background:transparent}
+  /* today: bg-accent */
+  .cal .d.today{background:#f3f4f6;color:#3d3d3d;font-weight:500}
+  /* single selected: bg-primary */
+  .cal .d.sel-single{background:#03346E;color:#fff;font-weight:500}
+  /* range start / end: bg-primary + rounded-md */
+  .cal .d.range-start{background:#03346E;color:#fff;font-weight:500;border-radius:6px}
+  .cal .d.range-end{background:#03346E;color:#fff;font-weight:500;border-radius:6px}
+  /* range middle: bg-accent + rounded-none */
+  .cal .d.range-mid{background:#f3f4f6;color:#3d3d3d;border-radius:0}
+  /* range edges' cell wrapper rounding for continuous pill look */
+  .cal .cell{flex:1;aspect-ratio:1/1;display:flex;align-items:stretch;justify-content:stretch;padding:0}
+  .cal .cell.in-range{background:#f3f4f6}
+  .cal .cell.range-l{background:linear-gradient(90deg,transparent 50%,#f3f4f6 50%)}
+  .cal .cell.range-r{background:linear-gradient(90deg,#f3f4f6 50%,transparent 50%)}
+  .cal .cell > .d{width:100%;height:100%;aspect-ratio:auto;border-radius:6px}
+</style></head>
+<body><div class="stage">
+
+<div class="group">
+  <h4>DatePicker · trigger (placeholder / selected · zh format)</h4>
+  <div style="display:flex;gap:14px;flex-wrap:wrap">
+    <div><label>出生日期</label><div class="dt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span class="mtd">请选择日期</span></div></div>
+    <div><label>出生日期</label><div class="dt focus"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>1990年3月14日</div></div>
+  </div>
+</div>
+
+<div class="group">
+  <h4>DatePicker · trigger (en format, two up)</h4>
+  <div style="display:flex;gap:14px;flex-wrap:wrap">
+    <div><label>Date of birth</label><div class="dt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span class="mtd">Pick a date</span></div></div>
+    <div><label>Date of birth</label><div class="dt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>March 14th, 1990</div></div>
+  </div>
+</div>
+
+<div class="group">
+  <h4>Calendar · open, single selection (captionLayout: dropdown)</h4>
+  <div class="cal" style="width:280px">
+    <div class="nav">
+      <button class="arr prev" aria-label="Prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="dropdowns"><span class="ddrop">May</span><span class="ddrop">2026</span></div>
+      <button class="arr next" aria-label="Next"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+    <div class="grid">
+      <div class="dow"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="wk"><button class="d out">26</button><button class="d out">27</button><button class="d out">28</button><button class="d out">29</button><button class="d out">30</button><button class="d">1</button><button class="d">2</button></div>
+      <div class="wk"><button class="d">3</button><button class="d">4</button><button class="d">5</button><button class="d">6</button><button class="d">7</button><button class="d">8</button><button class="d">9</button></div>
+      <div class="wk"><button class="d">10</button><button class="d">11</button><button class="d sel-single">12</button><button class="d">13</button><button class="d">14</button><button class="d">15</button><button class="d">16</button></div>
+      <div class="wk"><button class="d">17</button><button class="d">18</button><button class="d">19</button><button class="d">20</button><button class="d">21</button><button class="d">22</button><button class="d today">23</button></div>
+      <div class="wk"><button class="d">24</button><button class="d">25</button><button class="d">26</button><button class="d">27</button><button class="d">28</button><button class="d">29</button><button class="d">30</button></div>
+      <div class="wk"><button class="d">31</button><button class="d out">1</button><button class="d out">2</button><button class="d out">3</button><button class="d out">4</button><button class="d out">5</button><button class="d out">6</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="group">
+  <h4>Calendar · open, range selection (May 12 → May 19)</h4>
+  <div class="cal" style="width:280px">
+    <div class="nav">
+      <button class="arr prev" aria-label="Prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <div class="dropdowns"><span class="ddrop">May</span><span class="ddrop">2026</span></div>
+      <button class="arr next" aria-label="Next"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+    <div class="grid">
+      <div class="dow"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="wk"><button class="d out">26</button><button class="d out">27</button><button class="d out">28</button><button class="d out">29</button><button class="d out">30</button><button class="d">1</button><button class="d">2</button></div>
+      <div class="wk"><button class="d">3</button><button class="d">4</button><button class="d">5</button><button class="d">6</button><button class="d">7</button><button class="d">8</button><button class="d">9</button></div>
+      <div class="wk"><button class="d">10</button><button class="d">11</button><button class="d range-start">12</button><button class="d range-mid">13</button><button class="d range-mid">14</button><button class="d range-mid">15</button><button class="d range-mid">16</button></div>
+      <div class="wk"><button class="d range-mid">17</button><button class="d range-mid">18</button><button class="d range-end">19</button><button class="d">20</button><button class="d">21</button><button class="d">22</button><button class="d today">23</button></div>
+      <div class="wk"><button class="d">24</button><button class="d">25</button><button class="d">26</button><button class="d">27</button><button class="d">28</button><button class="d">29</button><button class="d">30</button></div>
+      <div class="wk"><button class="d">31</button><button class="d out">1</button><button class="d out">2</button><button class="d out">3</button><button class="d out">4</button><button class="d out">5</button><button class="d out">6</button></div>
+    </div>
+  </div>
+</div>
+
+</div></body></html>

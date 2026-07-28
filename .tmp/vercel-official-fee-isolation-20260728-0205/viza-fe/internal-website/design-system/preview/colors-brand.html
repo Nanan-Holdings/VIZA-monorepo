@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  .swatches { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; }
+  .swatch { border-radius: 8px; overflow: hidden; border: 1px solid var(--border-hairline); }
+  .swatch .chip { height: 72px; }
+  .swatch .meta { padding: 6px 8px; background: #fff; }
+  .swatch .num { font-family: var(--font-heading); font-weight: 600; font-size: 13px; color: var(--fg-1); }
+  .swatch .hex { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--fg-2); }
+  .primary-mark { position: absolute; top: 6px; right: 8px; font-size: 9px; font-weight: 600; color: #fff; background: rgba(0,0,0,0.25); padding: 1px 6px; border-radius: 10px; }
+  .swatch.primary { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+</style></head>
+<body><div class="stage">
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background:#EEF3FA"></div><div class="meta"><div class="num">50</div><div class="hex">#EEF3FA</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#D4E0F0"></div><div class="meta"><div class="num">100</div><div class="hex">#D4E0F0</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#AABFDF"></div><div class="meta"><div class="num">200</div><div class="hex">#AABFDF</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#7A9DCE"></div><div class="meta"><div class="num">300</div><div class="hex">#7A9DCE</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#3D6DAD"></div><div class="meta"><div class="num">400</div><div class="hex">#3D6DAD</div></div></div>
+    <div class="swatch primary" style="position:relative"><div class="chip" style="background:#03346E;position:relative"><span class="primary-mark">PRIMARY</span></div><div class="meta"><div class="num">500</div><div class="hex">#03346E</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#022B5C"></div><div class="meta"><div class="num">600</div><div class="hex">#022B5C</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#01214A"></div><div class="meta"><div class="num">700</div><div class="hex">#01214A</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#011737"></div><div class="meta"><div class="num">800</div><div class="hex">#011737</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#000D21"></div><div class="meta"><div class="num">900</div><div class="hex">#000D21</div></div></div>
+  </div>
+</div></body></html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+  body{background:#F3F4F6;margin:0}
+  .wrap{position:relative;width:700px;height:460px;overflow:hidden;background:
+    linear-gradient(180deg,#03346E 0%,#3D6DAD 100%);}
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+  .behind{position:absolute;inset:24px;display:grid;grid-template-columns:1fr 1fr;gap:16px;opacity:.35}
+  .ghost-card{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;height:80px}
+  .dialog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:440px;background:#fff;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.35);padding:24px;font-family:var(--font-sans)}
+  .dialog .x{position:absolute;right:16px;top:16px;width:32px;height:32px;color:#6b7280;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background .15s}
+  .dialog .x:hover{background:#f3f4f6;color:#3d3d3d}
+  .dialog .x svg{width:20px;height:20px;display:block}
+  .dialog h4{font:600 18px/1.3 var(--font-heading);letter-spacing:-.4px;color:#3d3d3d;margin:0 0 6px}
+  .dialog p{font:400 14px/1.5 var(--font-sans);color:rgba(0,0,0,.55);margin:0 0 18px}
+  .drow{display:flex;justify-content:flex-end;gap:8px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:6px;font:500 14px var(--font-sans);border:1px solid transparent;cursor:pointer}
+  .btn-cancel{background:transparent;color:#3d3d3d;border-color:#e8e8e8}
+  .btn-primary{background:#03346E;color:#fff}
+  .lbl{position:absolute;left:16px;top:14px;font:500 10px "Geist",system-ui;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+</style></head>
+<body>
+<div class="wrap">
+  <span class="lbl">Dialog · modal · centered · 440px</span>
+  <div class="behind">
+    <div class="ghost-card"></div><div class="ghost-card"></div>
+    <div class="ghost-card"></div><div class="ghost-card"></div>
+  </div>
+  <div class="scrim"></div>
+  <div class="dialog">
+    <span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+    <h4>Delete this application?</h4>
+    <p>Your draft for Indonesia B211A will be permanently removed. This action cannot be undone.</p>
+    <div class="drow">
+      <button class="btn btn-cancel">Cancel</button>
+      <button class="btn btn-primary" style="background:hsl(0 72% 51%)">Delete</button>
+    </div>
+  </div>
+</div>
+</body></html>

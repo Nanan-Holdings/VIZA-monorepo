@@ -140,3 +140,43 @@ describe("applicant inbox alias", () => {
     assert.match(result.alias, /^appl-[0-9a-z]{26}@haggstorm\.com$/);
   });
 });
+
+describe("applicant inbox routing", () => {
+  it("accepts a domain with a usable MX record", async () => {
+    const { assertInboxAliasDomainRoutable } = await import("../wait-for-message");
+
+    await assert.doesNotReject(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => [{ exchange: "inbound.example.org", priority: 10 }],
+      ),
+    );
+  });
+
+  it("rejects a domain without a usable MX record", async () => {
+    const {
+      assertInboxAliasDomainRoutable,
+      InboxDomainUnroutableError,
+    } = await import("../wait-for-message");
+
+    await assert.rejects(
+      assertInboxAliasDomainRoutable("appl-test@example.org", async () => []),
+      InboxDomainUnroutableError,
+    );
+  });
+
+  it("rejects a null MX domain", async () => {
+    const {
+      assertInboxAliasDomainRoutable,
+      InboxDomainUnroutableError,
+    } = await import("../wait-for-message");
+
+    await assert.rejects(
+      assertInboxAliasDomainRoutable(
+        "appl-test@example.org",
+        async () => [{ exchange: ".", priority: 0 }],
+      ),
+      InboxDomainUnroutableError,
+    );
+  });
+});

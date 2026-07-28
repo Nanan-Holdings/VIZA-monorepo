@@ -2,6 +2,7 @@ import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { Locator } from "playwright";
 import { connectBrowserbaseCloudBrowser } from "../src/browserbase-session";
 import { extractAuto } from "../src/inbox/extractors";
 import { inbox } from "../src/inbox/wait-for-message";
@@ -36,6 +37,33 @@ async function waitForTurnstile(page: CloudPage): Promise<void> {
     const token = document.querySelector<HTMLInputElement>("input[name='cf-turnstile-response']")?.value ?? "";
     return token.trim().length > 0;
   }, undefined, { timeout: 60_000 });
+}
+
+async function fillAngularEmail(page: CloudPage, target: Locator, value: string): Promise<void> {
+  await target.click();
+  await target.press("Control+A");
+  await target.pressSequentially(value, { delay: 30 });
+  await target.press("Tab");
+  await page.waitForTimeout(500);
+  await target.evaluate((element) => {
+    const input = element as HTMLInputElement;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+  });
+  await page.waitForTimeout(500);
+  const retained = await target.inputValue().then((current) => current === value).catch(() => false);
+  if (!retained) throw new Error("VFS email field did not retain the account alias.");
+  const fieldErrors = await target.locator("xpath=ancestor::mat-form-field[1]")
+    .locator("mat-error,.mat-mdc-form-field-error")
+    .evaluateAll((elements) => elements
+      .filter((element) => Boolean((element as HTMLElement).offsetWidth || (element as HTMLElement).offsetHeight))
+      .map((element) => (element.textContent ?? "").replace(/\s+/g, " ").trim())
+      .filter(Boolean))
+    .catch(() => [] as string[]);
+  if (fieldErrors.some((message) => /mandatory|valid email|invalid/i.test(message))) {
+    throw new Error("VFS client-side validation rejected the account alias.");
+  }
 }
 
 async function main(): Promise<void> {
@@ -186,17 +214,7 @@ async function main(): Promise<void> {
         throw new Error(`VFS activation page exposed ${activationInputMetadata.length} visible text inputs; refusing an ambiguous fill.`);
       }
       const activationEmail = activationInputs.first();
-      await activationEmail.clear();
-      await activationEmail.pressSequentially(profile.inbox_alias, { delay: 20 });
-      await activationEmail.evaluate((element) => {
-        element.dispatchEvent(new Event("change", { bubbles: true }));
-        (element as HTMLInputElement).blur();
-      });
-      const activationEmailReady = await activationEmail.evaluate((element) => {
-        const input = element as HTMLInputElement;
-        return input.value.length > 0 && input.validity.valid;
-      });
-      if (!activationEmailReady) throw new Error("VFS activation email field did not retain a valid value.");
+      await fillAngularEmail(cloud.page, activationEmail, profile.inbox_alias);
       try {
         await waitForTurnstile(cloud.page);
       } catch {
@@ -205,12 +223,7 @@ async function main(): Promise<void> {
         const retryActivationEmail = cloud.page.locator(
           "main input:not([type='hidden']):not([type='checkbox']), form input:not([type='hidden']):not([type='checkbox'])",
         ).filter({ visible: true }).first();
-        await retryActivationEmail.clear();
-        await retryActivationEmail.pressSequentially(profile.inbox_alias, { delay: 20 });
-        await retryActivationEmail.evaluate((element) => {
-          element.dispatchEvent(new Event("change", { bubbles: true }));
-          (element as HTMLInputElement).blur();
-        });
+        await fillAngularEmail(cloud.page, retryActivationEmail, profile.inbox_alias);
         await waitForTurnstile(cloud.page);
       }
       const activationRequestedAt = new Date().toISOString();
@@ -294,17 +307,7 @@ async function main(): Promise<void> {
     }
     const fillResetEmail = async (): Promise<void> => {
       const target = cloud.page.getByLabel(/email/i).first();
-      await target.clear();
-      await target.pressSequentially(profile.inbox_alias, { delay: 25 });
-      await target.evaluate((element) => {
-        element.dispatchEvent(new Event("change", { bubbles: true }));
-        (element as HTMLInputElement).blur();
-      });
-      const retained = await target.evaluate((element) => {
-        const input = element as HTMLInputElement;
-        return input.value.length > 0 && input.validity.valid;
-      });
-      if (!retained) throw new Error("VFS password-reset email field did not retain a valid value.");
+      await fillAngularEmail(cloud.page, target, profile.inbox_alias);
     };
     await fillResetEmail();
     try {
