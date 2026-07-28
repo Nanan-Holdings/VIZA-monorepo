@@ -104,13 +104,23 @@ export function UsResultCard({
       const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "live_assisted" }),
+        body: JSON.stringify({
+          mode: "live_assisted",
+          intent: "new_application",
+        }),
       });
-      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: unknown;
+        jobId?: unknown;
+        alreadySubmitted?: unknown;
+      } | null;
       if (!response.ok) {
         throw new Error(
           typeof payload?.error === "string" ? payload.error : `${t("newApplicationError")} (${response.status})`,
         );
+      }
+      if (payload?.alreadySubmitted === true || typeof payload?.jobId !== "string") {
+        throw new Error(t("newApplicationError"));
       }
       window.location.reload();
     } catch (error) {

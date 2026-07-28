@@ -1079,7 +1079,44 @@ function normalizeTdacStepValues(
   values: Record<string, string>,
   visaType?: string,
 ): Record<string, string> {
-  if (visaType !== "TH_TDAC_ARRIVAL_CARD") return values;
+  const resolvedVisaType = visaType ?? fields[0]?.visaType;
+  if (resolvedVisaType === "VN_E_VISA" || resolvedVisaType === "evisa_tourism") {
+    const next = { ...values };
+    const legacyChinaAliases = new Set([
+      "hk",
+      "hkg",
+      "hong_kong",
+      "hong_kong_sar",
+      "hong_kong_special_administrative_region",
+      "mo",
+      "mac",
+      "macao",
+      "macao_sar",
+      "macau",
+      "macau_sar",
+    ]);
+    for (const field of fields) {
+      if (![
+        "nationality",
+        "other_nationality",
+        "other_vietnam_passport_nationality",
+        "relative_nationality",
+      ].includes(field.fieldName)) {
+        continue;
+      }
+      const currentValue = next[field.fieldName]?.trim();
+      if (!currentValue || !field.options?.length) continue;
+      const normalizedValue = normalizeComparableOptionValue(currentValue);
+      if (legacyChinaAliases.has(normalizedValue)) {
+        next[field.fieldName] = "CHN";
+        continue;
+      }
+      const canonical = findCanonicalOptionValue(field.options, currentValue);
+      if (canonical) next[field.fieldName] = canonical;
+    }
+    return next;
+  }
+  if (resolvedVisaType !== "TH_TDAC_ARRIVAL_CARD") return values;
 
   const next = { ...values };
   const fieldByName = new Map(fields.map((field) => [field.fieldName, field]));

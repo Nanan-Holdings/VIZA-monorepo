@@ -44,6 +44,8 @@ Before changing this route, read:
 - `app/client/application/_components/result-cards/__tests__`: focused regression tests for confirmation/result cards.
   `DigitalArrivalCardResultCard.test.tsx` verifies that Vietnam Pre-Arrival QR
   and confirmation PDF artifacts are rendered as authenticated downloads.
+  `UsResultCard.test.tsx` verifies that the completed DS-160 action requests a
+  fresh application instead of being swallowed by completed-result idempotency.
 
 ## Guardrails
 

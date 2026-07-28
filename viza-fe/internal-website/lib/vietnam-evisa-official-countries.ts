@@ -1,0 +1,281 @@
+import { countries } from "country-data-list";
+
+import type { VisaFormFieldOption } from "@/types/visa-form-fields";
+
+/**
+ * Exact option order and labels returned by the official Vietnam e-Visa API:
+ * client-service/public/dm-qt/get-all?type=
+ *
+ * Keep this source in lockstep with submission-service/src/vietnam/country-options.ts.
+ * The parity tests compare every code and label, not only common ISO entries.
+ */
+export const VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS_SOURCE = `AFG|Afghanistan
+ALB|Albania
+DZA|Algeria
+AND|Andorra
+AGO|Angola
+ATG|Antigua and Barbuda
+ARG|Argentina
+ARM|Armenia
+AUS|Australia
+AUT|Austria
+AZE|Azerbaijan
+BHS|Bahamas
+BHR|Bahrain
+BGD|Bangladesh
+BRB|Barbados
+BLR|Belarus
+BEL|Belgium
+BLZ|Belize
+BEN|Benin
+BMU|Bermuda
+BTN|Bhutan
+BOL|Bolivia
+BIH|Bosnia and Herzegovina
+BWA|Botswana
+BRA|Brazil
+IOT|British India Ocean Territory
+BRN|Bruney
+BGR|Bulgaria
+BFA|Burkina Faso
+BDI|Burundi
+KHM|Cambodia
+CMR|Cameroon
+CAN|Canada
+CPV|Cape Verde
+CAF|Central African Republic
+TCD|Chad
+CHL|Chile
+CHN|China
+TWN|China(Taiwan)
+COL|Colombia
+COM|Comoros
+COG|Congo
+CRI|Costa Rica
+CIV|Cote d' Ivoire
+HRV|Croatia
+CUB|Cuba
+CYP|Cyprus
+CZE|Czech Republic
+COD|Democratic Republic of the Congo
+DNK|Denmark
+DJI|Djibouti
+DMA|Dominica
+DOM|Dominican Republic
+ECU|Ecuador
+EGY|Egypt
+SLV|El Salvado
+GNQ|Equatorial Guinea
+ERI|Eritrea
+EST|Estonia
+ETH|Ethiopia
+FJI|Fiji
+FIN|Finland
+FRA|France
+GAB|Gabon
+GMB|Gambia
+GEO|Georgia
+D|Germany
+GHA|Ghana
+GIB|Gibraltar
+GRC|Greece
+GRL|Greenland
+GRD|Grenada
+GTM|Guatemala
+GIN|Guinea
+GNB|Guinea-Bissau
+GUY|Guyana
+HTI|Haiti
+VAT|Holy See (Vatican City State )
+HND|Honduras
+HUN|Hungary
+ISL|Iceland
+IND|India
+IDN|Indonesia
+IRN|Iran Ilasmic Republic of
+IRQ|Iraq
+IRL|Ireland
+ISR|Israel
+ITA|Italy
+JAM|Jamaica
+JPN|Japan
+JOR|Jordan
+KAZ|Kazakhstan
+KEN|Kenya
+KIR|Kiribati
+KOR|Korea (South)
+PRK|Korea Democratic Peoples Republic of
+RKS|Kosovo
+KWT|Kuwait
+KGZ|Kyrgyzstan
+LAO|Lao Peoples Democratic Republic
+LVA|Latvia
+LBN|Lebanon
+LSO|Lesotho
+LBR|Liberia
+LBY|Libyan Arab Jamahiriya
+LIE|Liechtenstein
+LTU|Lithuania
+LUX|Luxembourg
+MKD|Macedonia
+MDG|Madagascar
+MWI|Malawi
+MYS|Malaysia
+MDV|Maldives
+MLI|Mali
+MLT|Malta
+MHL|Marshall Islands
+MRT|Mauritania
+MUS|Mauritius
+MEX|Mexico
+FSM|Micronesia
+MDA|Moldova
+MCO|Monaco
+MNG|Mongolia
+MNE|Montenegro
+MSR|Montserrat
+MAR|Morocco
+MOZ|Mozambique
+MMR|Myanmar
+NAM|Namibia
+NRU|Nauru
+NPL|Nepal
+NLD|Netherland
+NZL|New Zealand
+NIC|Nicaragua
+NER|Niger
+NGA|Nigeria
+NOR|Norway
+OMN|Oman
+PAK|Pakistan
+PLW|Palau
+PSE|Palestine
+PAN|Panama
+PNG|Papua New Guinea
+PRY|Paraguay
+PER|Peru
+PHL|Philippines
+POL|Poland
+PRT|Portugal
+QAT|Qatar
+ROU|Romania
+RUS|Russia
+RWA|Rwanda
+KNA|Saint Kitts and Nevis
+LCA|Saint Lucia
+VCT|Saint Vincent and the Grenadines
+SMR|San Marino
+STP|Sao Tome and Principe
+SAU|Saudi Arabia
+SC-|Scotland
+SEN|Senegal
+SRB|Serbia
+SYC|Seychelles
+SLE|Sierra Leone
+SGP|Singapore
+SVK|Slovakia
+SVN|Slovenia
+SLB|Solomon Islands
+SOM|Somalia
+ZAF|South Africa
+SSD|South Sudan
+ESP|Spain
+LKA|Sri Lanka
+SDN|Sudan
+SUR|Suriname
+SWZ|Swaziland
+SWE|Sweden
+CHE|Switzerland
+SYR|Syrian Arab Republic
+TJK|Tajikistan
+TZA|Tanzania United Republic of
+THA|Thailand
+TLS|Timor Leste
+TGO|Togo
+TON|Tonga
+TTO|Trinidad and Tobago
+TUN|Tunisia
+TUR|Turkey
+TKM|Turkmenistan
+TUV|Tuvalu
+UGA|Uganda
+UKR|Ukraine
+ARE|United Arab Emirates
+GBD|United Kingdom British Territories Citizen
+GBR|United Kingdom of Great Britain and Northern Ireland
+UNO|United Nations Organization
+USA|United States of America
+URY|Uruguay
+UZB|Uzbekistan
+VUT|Vanuatu
+VEN|Venezuela
+VNM|Viet Nam
+WSM|Western Samoa
+YEM|Yemen
+ZMB|Zambia
+ZWE|Zimbabwe`;
+
+export interface VietnamEVisaOfficialCountryRow {
+  code: string;
+  officialLabel: string;
+}
+
+export type VietnamEVisaOfficialCountryOption =
+  Exclude<VisaFormFieldOption, string> & { value: string; text: string };
+
+export const VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS: VietnamEVisaOfficialCountryRow[] =
+  VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS_SOURCE.split("\n").map((row) => {
+    const separatorIndex = row.indexOf("|");
+    return {
+      code: row.slice(0, separatorIndex),
+      officialLabel: row.slice(separatorIndex + 1),
+    };
+  });
+
+const alpha2ByAlpha3 = new Map(
+  countries.all.map((country) => [country.alpha3.toUpperCase(), country.alpha2.toUpperCase()]),
+);
+
+const NON_STANDARD_ALPHA3_TO_ALPHA2: Record<string, string> = {
+  D: "DE",
+  RKS: "XK",
+  "SC-": "GB",
+  GBD: "GB",
+};
+
+const NON_STANDARD_CHINESE_LABELS: Record<string, string> = {
+  D: "德国",
+  RKS: "科索沃",
+  "SC-": "苏格兰",
+  GBD: "英国海外领土公民",
+  UNO: "联合国组织",
+};
+
+function getChineseLabel(code: string, officialLabel: string): string {
+  const manualLabel = NON_STANDARD_CHINESE_LABELS[code];
+  if (manualLabel) return manualLabel;
+
+  const alpha2 = alpha2ByAlpha3.get(code) ?? NON_STANDARD_ALPHA3_TO_ALPHA2[code];
+  if (!alpha2) return officialLabel;
+  try {
+    return new Intl.DisplayNames(["zh-CN"], { type: "region" }).of(alpha2) ?? officialLabel;
+  } catch {
+    return officialLabel;
+  }
+}
+
+export const VIETNAM_E_VISA_OFFICIAL_COUNTRY_OPTIONS: VietnamEVisaOfficialCountryOption[] =
+  VIETNAM_E_VISA_OFFICIAL_COUNTRY_ROWS.map(({ code, officialLabel }) => ({
+    value: code,
+    text: officialLabel,
+    label_en: officialLabel,
+    label_zh: getChineseLabel(code, officialLabel),
+    official_label: officialLabel,
+  }));
+
+export const VIETNAM_E_VISA_COUNTRY_FIELD_NAMES = new Set([
+  "nationality",
+  "other_nationality",
+  "other_vietnam_passport_nationality",
+  "relative_nationality",
+]);

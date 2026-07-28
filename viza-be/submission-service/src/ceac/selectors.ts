@@ -49,13 +49,13 @@ export const CEAC_HEADING_SELECTOR = "h2, .SubHead, [id*='SiteContentPlaceHolder
  * a ValidationSummary control when a page is submitted with invalid fields.
  */
 export const CEAC_VALIDATION_SUMMARY_SELECTOR =
-  '[id*="ValidationSummary"], .error, .validation-summary-errors';
+  '[id*="ValidationSummary"], .error, .validation-summary-errors, .validation-summary, [role="alert"]';
 
 /**
  * Selector for per-field validation messages (asp:RequiredFieldValidator etc).
  */
 export const CEAC_FIELD_ERROR_SELECTOR =
-  '[id*="RequiredFieldValidator"], [id*="RegularExpressionValidator"], [id*="CompareValidator"]';
+  '[id*="RequiredFieldValidator"], [id*="RegularExpressionValidator"], [id*="CompareValidator"], [id*="CustomValidator"], [id*="Validator"], .field-validation-error, .error-message';
 
 /**
  * Application-ID display. On CEAC, once an application is started the ID is
