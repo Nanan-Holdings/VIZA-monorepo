@@ -896,6 +896,10 @@ async function forceTextValue(el: Locator, value: string): Promise<void> {
 
 const RADIO_FIELDS_REQUIRING_CLICK: ReadonlySet<string> = new Set([
   "has_immediate_us_relatives",
+  // CEAC's passport lost/stolen RadioButtonList participates in WebForms
+  // client validation. A DOM-only checked assignment looks selected but
+  // does not run the control's click handler, so Next can remain on Passport.
+  "passport_lost_or_stolen",
 ]);
 
 async function fillPageFields(

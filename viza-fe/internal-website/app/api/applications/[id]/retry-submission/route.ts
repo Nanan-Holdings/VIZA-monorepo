@@ -15,6 +15,7 @@ import {
 import {
   isDs160VisaType,
   isDigitalArrivalCardApplication,
+  isFreshDs160SubmissionIntent,
   isFranceVisasVisaType,
   isIndonesiaEVisaApplication,
   isMalaysiaMdacApplication,
@@ -25,10 +26,12 @@ import {
   isUkPrefillSubmissionResult,
   isVietnamEVisaApplication,
   isVietnamPrearrivalApplication,
+  parseSubmissionRetryIntent,
   queueProviderForApplication,
   queueStatusForApplication,
   type SubmissionMode,
   type SubmissionQueueStatus,
+  type SubmissionRetryIntent,
 } from "@/lib/submission-queue";
 
 type ApplicationForRetry = {
@@ -64,6 +67,7 @@ type ProfileForRetry = {
 
 type RetrySubmissionRequest = {
   mode: SubmissionMode | null;
+  intent: SubmissionRetryIntent;
   country: string | null;
   visaType: string | null;
 };
@@ -241,17 +245,20 @@ async function readRetrySubmissionRequest(request: Request): Promise<RetrySubmis
   try {
     const body = (await request.json()) as {
       mode?: unknown;
+      intent?: unknown;
       country?: unknown;
       visaType?: unknown;
     };
     return {
       mode: body.mode === "live_assisted" || body.mode === "dry_run" ? body.mode : null,
+      intent: parseSubmissionRetryIntent(body.intent),
       country: typeof body.country === "string" && body.country.trim() ? body.country : null,
       visaType: typeof body.visaType === "string" && body.visaType.trim() ? body.visaType : null,
     };
   } catch {
     return {
       mode: null,
+      intent: "retry",
       country: null,
       visaType: null,
     };
@@ -1412,7 +1419,18 @@ export async function POST(
     );
   }
 
-  if (hasCompletedOfficialSubmission(ownedApplication)) {
+  const freshDs160Submission = isFreshDs160SubmissionIntent(
+    requestedSubmission.intent,
+    ownedApplication.visa_type,
+  );
+  if (requestedSubmission.intent === "new_application" && !freshDs160Submission) {
+    return NextResponse.json(
+      { error: "Starting a new application is only supported for DS-160 submissions." },
+      { status: 400 },
+    );
+  }
+
+  if (hasCompletedOfficialSubmission(ownedApplication) && !freshDs160Submission) {
     return NextResponse.json({
       ok: true,
       applicationId,
@@ -1645,6 +1663,23 @@ export async function POST(
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
   if (queueResult.reusedExisting) {
+    if (freshDs160Submission) {
+      const { error: appUpdateError } = await admin
+        .from("applications")
+        .update({
+          status: "submitted",
+          submitted_at: now,
+          submission_result_status: "waiting",
+          submission_result: null,
+          confirmation_number: null,
+          submission_result_updated_at: now,
+          updated_at: now,
+        })
+        .eq("id", applicationId);
+      if (appUpdateError) {
+        return NextResponse.json({ error: appUpdateError.message }, { status: 500 });
+      }
+    }
     return NextResponse.json({
       ok: true,
       applicationId,
@@ -1653,6 +1688,7 @@ export async function POST(
       mode: queueResult.mode ?? mode,
       provider: queueResult.provider ?? provider,
       alreadyQueued: true,
+      newApplication: freshDs160Submission,
       supersededCount: queueResult.supersededCount,
       result: ownedApplication.submission_result,
     });
@@ -1707,6 +1743,7 @@ export async function POST(
     queueStatus,
     mode,
     provider,
+    newApplication: freshDs160Submission,
     supersededCount: queueResult.supersededCount,
     scheduled: Boolean(scheduledResult),
     scheduledFor,

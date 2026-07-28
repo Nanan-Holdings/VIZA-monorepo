@@ -1380,6 +1380,10 @@ async function insertSubmissionQueueJob(
         mode: input.mode,
         country: input.country,
         visaType: input.visaType,
+        // DS-160 retries must start a fresh CEAC application even when this
+        // VIZA application already has an older successful submission. This
+        // helper is also used by the result card's onResubmit path.
+        intent: isDs160VisaType(input.visaType) ? "new_application" : "retry",
       }),
     });
     if (!response.ok) {

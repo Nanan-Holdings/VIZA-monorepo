@@ -3527,6 +3527,15 @@ async function continueFromIndonesiaOtpPage(
   }
   await dismissIndonesiaDialogs(page, diagnostics);
   await capturePaymentArtifact(page, input, diagnostics, "otp");
+  await input.onStage?.(
+    /\/(?:web|front)\/application-detail-otp\//i.test(page.url())
+      ? "official_application_email_otp_waiting"
+      : "official_account_email_otp_waiting",
+    {
+      url: page.url(),
+      title: await page.title().catch(() => null),
+    },
+  );
 
   const code = await waitForIndonesiaOtpCode(input, diagnostics);
   if (!code) return false;
@@ -3631,6 +3640,64 @@ export function shouldSubmitIndonesiaPortalEmailOtp(input: {
     /\/front\/login|\/login|\/otp|verification/i.test(url) &&
     /\b(enter otp|otp code|one time password|verification code|authentication code|kode otp|kode verifikasi|login process|masuk ke akun)\b/i.test(text)
   );
+}
+
+export function isIndonesiaPortalAccountOtpChallenge(input: {
+  url: string | null | undefined;
+  text?: string | null;
+  controlsVisible: boolean;
+}): boolean {
+  if (!input.controlsVisible) return false;
+  const url = input.url ?? "";
+  const text = (input.text ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!/evisa\.imigrasi\.go\.id/i.test(url)) return false;
+  if (/finpay\.id|\/pg\/payment\b/i.test(url)) return false;
+  if (/\/(?:web|front)\/application-detail-otp\//i.test(url)) return false;
+  if (/\b(bank|issuer|3ds|3d secure|card number|cardholder|cvv|cvc|nomor kartu|kode keamanan)\b/i.test(text)) {
+    return false;
+  }
+  return true;
+}
+
+export function isIndonesiaApplicationDetailOtpChallenge(input: {
+  url: string | null | undefined;
+  controlsVisible: boolean;
+}): boolean {
+  if (!input.controlsVisible) return false;
+  return /^https:\/\/evisa\.imigrasi\.go\.id\/(?:web|front)\/application-detail-otp\//i.test(
+    input.url ?? "",
+  );
+}
+
+async function reopenIndonesiaAccountLogin(
+  page: Page,
+  input: IndonesiaPortalProbeInput,
+  diagnostics: string[],
+): Promise<boolean> {
+  let loginUrl: string;
+  try {
+    loginUrl = new URL("/front/login", page.url() || input.portalUrl).toString();
+  } catch {
+    diagnostics.push("indonesia_account_otp_login_recovery_url_failed");
+    return false;
+  }
+  diagnostics.push("indonesia_account_otp_unresolved_reopening_login");
+  const navigated = await page
+    .goto(loginUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: input.timeoutMs ?? 60_000,
+    })
+    .then(() => true)
+    .catch((error: unknown) => {
+      diagnostics.push(
+        `indonesia_account_otp_login_recovery_failed ${error instanceof Error ? error.message : String(error)}`.slice(0, 180),
+      );
+      return false;
+    });
+  if (!navigated) return false;
+  await page.waitForTimeout(1_500);
+  await dismissIndonesiaDialogs(page, diagnostics);
+  return true;
 }
 
 async function continueFromIndonesiaPaymentDetail(
@@ -3787,7 +3854,16 @@ async function waitForUserPaymentCompletion(
     input.userPaymentHandoff?.takeOneTimeCard?.() ??
     null;
   if (oneTimeCard) {
-    await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
+    const cardSubmitted = await payIndonesiaPortalWithOneTimeCard(activePage, oneTimeCard, diagnostics);
+    if (!cardSubmitted) {
+      const controlsVisible = await hasIndonesiaPortalEmailOtpControls(activePage);
+      if (isIndonesiaPortalAccountOtpChallenge({ url, text, controlsVisible })) {
+        diagnostics.push("indonesia_payment_blocked_by_unresolved_account_otp");
+        return { state: "login_required", title, text, url };
+      }
+      diagnostics.push("indonesia_payment_card_submission_not_started");
+      return { state: "unknown", title, text, url };
+    }
     activePage = await resolveActiveIndonesiaPaymentPage(activePage, diagnostics);
     title = await activePage.title().catch(() => null);
     text = await activePage.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
@@ -4368,11 +4444,31 @@ export async function probeIndonesiaPortal(
         advanced = true;
       }
 
+      const accountOtpControlsVisible = !advanced && await hasIndonesiaPortalEmailOtpControls(page);
+      const applicationDetailOtpChallenge = !advanced && isIndonesiaApplicationDetailOtpChallenge({
+        url,
+        controlsVisible: accountOtpControlsVisible,
+      });
+      const accountOtpChallenge = !advanced && isIndonesiaPortalAccountOtpChallenge({
+        url,
+        text,
+        controlsVisible: accountOtpControlsVisible,
+      });
       if (!advanced && (
         shouldSubmitIndonesiaPortalEmailOtp({ url, text }) ||
-        await hasIndonesiaPortalEmailOtpControls(page)
+        accountOtpChallenge
       )) {
         advanced = await continueFromIndonesiaOtpPage(page, input, session.diagnostics);
+        if (!advanced && applicationDetailOtpChallenge) {
+          session.diagnostics.push(
+            "indonesia_application_detail_otp_unresolved_restarting_application",
+          );
+          savedApplicationUrl = null;
+          await reopenIndonesiaPortalFromScratch(page, input, session.diagnostics);
+          advanced = true;
+        } else if (!advanced && accountOtpChallenge) {
+          advanced = await reopenIndonesiaAccountLogin(page, input, session.diagnostics);
+        }
       }
 
       if (!advanced && isExistingApplicationWarningText(text)) {
