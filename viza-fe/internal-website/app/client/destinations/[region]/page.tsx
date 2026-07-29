@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getUserVisaPackages } from "@/app/actions/user-package";
 import { DestinationRegionPageClient } from "@/components/client/home/DestinationRegionPageClient";
 import {
   getDisplayVisaDestinationsForRegion,
@@ -20,11 +21,13 @@ export default async function DestinationRegionPage({ params }: PageProps) {
   const { region: regionId } = await params;
   const region = getVisaDestinationRegionGroup(regionId);
   if (!region || region.id === "schengen") notFound();
+  const selectedPackages = await getUserVisaPackages();
 
   return (
     <DestinationRegionPageClient
       region={region}
       destinations={getDisplayVisaDestinationsForRegion(region.id)}
+      initialSelectedPackages={selectedPackages}
     />
   );
 }

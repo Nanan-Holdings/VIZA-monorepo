@@ -10,6 +10,7 @@
 
 export const TEST_DS160_ANSWERS: Record<string, string> = {
   // Personal Information 1
+  consular_post: "BEJ",
   surname: "TESTER",
   given_names: "JOHN ALEX",
   full_name_native_alphabet: "N/A",

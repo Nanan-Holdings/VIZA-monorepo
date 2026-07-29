@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Search } from "lucide-react";
@@ -17,7 +17,6 @@ import {
 } from "@/lib/visa-destinations";
 import { DestinationFlag } from "./DestinationFlag";
 import {
-  getUserVisaPackages,
   selectUserVisaDestination,
   type UserVisaPackage,
 } from "@/app/actions/user-package";
@@ -33,32 +32,37 @@ function isSelectedDestination(
   );
 }
 
+const SUPPORT_LABELS_ZH: Record<string, string> = {
+  "Visitor intake": "访客申请表",
+  "DS-160 form": "DS-160 表单",
+  "Indonesia eVisa": "印度尼西亚电子签证",
+  "Indonesia e-VoA": "印度尼西亚电子落地签",
+  "Philippines eTravel": "菲律宾 eTravel 申报",
+  "Schengen countries": "申根国家",
+  "Schengen Type C": "申根 C 类签证",
+  "UKVI form": "英国签证与移民局表单",
+  "Vietnam pre-arrival declaration": "越南入境前申报",
+  "Application categories": "申请类别",
+  "Destination region": "目的地区域",
+};
+
 export function DestinationRegionPageClient({
   region,
   destinations,
+  initialSelectedPackages,
 }: {
   region: VisaDestinationRegionGroup;
   destinations: PopularVisaDestination[];
+  initialSelectedPackages: UserVisaPackage[];
 }) {
   const router = useRouter();
   const locale = useLocale();
   const destinationMessages = useTranslations("home.popularDestinations");
   const isZh = locale.toLowerCase().startsWith("zh");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPackages, setSelectedPackages] = useState<UserVisaPackage[]>([]);
   const [pendingDestinationId, setPendingDestinationId] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let isMounted = true;
-    getUserVisaPackages().then((packages) => {
-      if (isMounted) setSelectedPackages(packages);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -77,16 +81,21 @@ export function DestinationRegionPageClient({
     setPendingDestinationId(destination.id);
 
     startTransition(async () => {
-      const result = await selectUserVisaDestination(destination.id);
-      if (!result.success) {
-        setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
-        setPendingDestinationId(null);
-        return;
-      }
+      try {
+        const result = await selectUserVisaDestination(destination.id);
+        if (!result.success) {
+          setSelectionError(result.error ?? (isZh ? "暂时无法选择该目的地，请重试。" : "Could not select this destination. Please try again."));
+          setPendingDestinationId(null);
+          return;
+        }
 
-      router.push(
-        `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
-      );
+        router.push(
+          `/client/application?country=${encodeURIComponent(destination.country)}&visaType=${encodeURIComponent(destination.visaType)}`,
+        );
+      } catch {
+        setSelectionError(isZh ? "服务器响应异常，请刷新页面后重试。" : "The server returned an unexpected response. Refresh the page and try again.");
+        setPendingDestinationId(null);
+      }
     });
   }
 
@@ -104,7 +113,7 @@ export function DestinationRegionPageClient({
         <section className="rounded-[18px] border border-[#e7edf5] bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[14px] font-semibold text-[#03346E]">{isZh ? region.name : "Destination region"}</p>
+              <p className="text-[14px] font-semibold text-[#03346E]">{isZh ? "目的地区域" : "Destination region"}</p>
               <h1 className="mt-2 font-heading text-[28px] font-medium leading-tight text-[#2f2f2f] sm:text-[44px]">
                 {isZh ? region.nameZh : region.name}
               </h1>
@@ -132,7 +141,7 @@ export function DestinationRegionPageClient({
 
           <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3">
             {filteredDestinations.map((destination) => {
-              const selected = isSelectedDestination(destination, selectedPackages);
+              const selected = isSelectedDestination(destination, initialSelectedPackages);
               const loading = isPending && pendingDestinationId === destination.id;
               const isGroup = destination.kind === "group";
               const actionLabel = isGroup
@@ -187,7 +196,9 @@ export function DestinationRegionPageClient({
                       <span className="rounded-full bg-[#f3f6fa] px-2.5 py-1 text-[12px] font-medium text-[#526174]">
                         {isGroup
                           ? destinationMessages("categoryCount", { count: destination.countryCount ?? 0 })
-                          : destination.supportLabel}
+                          : isZh
+                            ? (SUPPORT_LABELS_ZH[destination.supportLabel] ?? "签证申请表")
+                            : destination.supportLabel}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[14px] font-semibold text-[#03346E]">
                         {loading ? (isZh ? "正在开始" : "Starting") : actionLabel}
