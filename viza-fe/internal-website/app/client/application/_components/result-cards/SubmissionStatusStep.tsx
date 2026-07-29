@@ -1576,11 +1576,8 @@ export function SubmissionStatusStep({
     durableTerminalPropsAvailable,
     localRetryActive,
     snapshotIsActive,
+    snapshotAvailable: snapshot !== null,
   });
-  const parentHasTerminalSubmission =
-    Boolean(result) &&
-    fallbackVisualStatus !== "queued" &&
-    fallbackVisualStatus !== "running";
   const effectiveStatus = terminalPropsAvailable
     ? fallbackVisualStatus
     : snapshot?.status ?? fallbackVisualStatus;
@@ -1838,6 +1835,7 @@ export function SubmissionStatusStep({
     activeRetryQueueId,
     applicationId,
     completedWithResult,
+    effectiveError,
     failed,
     country,
     isZh,
@@ -1845,6 +1843,7 @@ export function SubmissionStatusStep({
     visaType,
     result,
     snapshotHasQueue,
+    snapshot?.error,
     status,
   ]);
 
@@ -1888,12 +1887,13 @@ export function SubmissionStatusStep({
           } as const)
         : null;
 
-  const ukStoredResult = useMemo(() => {
-    if (isUkPrefillSubmissionResult(result)) return result;
-    if (isUkPrefillSubmissionResult(snapshot?.result)) return snapshot.result;
-    if (isUkPrefillSubmissionResult(effectiveResult)) return effectiveResult;
-    return null;
-  }, [effectiveResult, result, snapshot?.result]);
+  const ukStoredResult = isUkPrefillSubmissionResult(result)
+    ? result
+    : isUkPrefillSubmissionResult(snapshot?.result)
+      ? snapshot.result
+      : isUkPrefillSubmissionResult(effectiveResult)
+        ? effectiveResult
+        : null;
 
   const ukActionRequired =
     isUkSubmission &&
