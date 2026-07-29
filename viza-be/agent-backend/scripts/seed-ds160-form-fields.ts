@@ -3204,22 +3204,6 @@ const FIELDS: FieldDef[] = [
     options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
   },
   {
-    field_name: "who_is_paying",
-    label: "Who is paying for your trip?",
-    field_type: "select",
-    required: true,
-    step_number: 3,
-    step_name: "Travel Information",
-    display_order: 91,
-    options: [
-      { value: "S", text: "Self" },
-      { value: "O", text: "Other Person" },
-      { value: "P", text: "Present Employer" },
-      { value: "U", text: "U.S. Petitioner" },
-      { value: "C", text: "Other Company/Organization" },
-    ],
-  },
-  {
     field_name: "vwp_denial",
     label: "Have you ever been denied a U.S. Visa Waiver Program (ESTA) authorization?",
     field_type: "radio",

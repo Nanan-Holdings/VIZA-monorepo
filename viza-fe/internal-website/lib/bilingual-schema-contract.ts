@@ -602,6 +602,7 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   declaration_awareness_refusal: "我已知悉虚假陈述可能导致拒签、已发签证被撤销并承担法律责任",
   declaration_undertaking_to_leave: "我承诺在获发签证的有效期届满前离开成员国领土",
   final_declaration: "我声明以上信息真实、准确且完整，并愿对虚假申报承担相应责任",
+  trip_payer_type: "谁为您的旅行付费？",
 };
 
 const LABEL_ZH_OVERRIDES: Record<string, string> = {

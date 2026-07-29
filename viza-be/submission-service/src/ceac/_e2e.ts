@@ -29,6 +29,7 @@ import { detectPage } from "./pages";
 import { orchestrateFill } from "./orchestrator";
 import { createRecoveryTracker } from "./artifacts";
 import { TEST_DS160_ANSWERS, TEST_DS160_PROFILE } from "./test-ds160-fixture";
+import { deriveDS160Answers } from "../ds160-derive-answers";
 import { loadAnswersForApplication } from "./answer-loader";
 
 const OUT_DIR = path.join(__dirname, "../../e2e-out");
@@ -52,7 +53,10 @@ async function resolveAnswerSource(
     return loaded;
   }
   log(`Using hardcoded TEST_DS160_ANSWERS fixture (no CEAC_TEST_APPLICATION_ID)`);
-  return { answers: TEST_DS160_ANSWERS, profile: TEST_DS160_PROFILE };
+  return {
+    answers: deriveDS160Answers({ ...TEST_DS160_ANSWERS }),
+    profile: TEST_DS160_PROFILE,
+  };
 }
 
 async function main() {
