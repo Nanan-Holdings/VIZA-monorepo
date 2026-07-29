@@ -5000,6 +5000,8 @@
       "newApplication": "Submit a new application",
       "startingNewApplication": "Creating new submission job",
       "newApplicationError": "Could not create the new submission job",
+      "continueAutomaticSubmission": "Continue automatic submission",
+      "continuingAutomaticSubmission": "Starting automatic submission",
       "applicationId": "Application ID",
       "surnameFirst5": "Surname (first 5 letters)",
       "yearOfBirth": "Year of birth",

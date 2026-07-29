@@ -5086,6 +5086,8 @@
       "newApplication": "重新提交新的申请表",
       "startingNewApplication": "正在创建新提交任务",
       "newApplicationError": "创建新提交任务失败",
+      "continueAutomaticSubmission": "继续自动提交",
+      "continuingAutomaticSubmission": "正在启动自动提交",
       "applicationId": "Application ID",
       "surnameFirst5": "姓氏前 5 个字母",
       "yearOfBirth": "出生年份",

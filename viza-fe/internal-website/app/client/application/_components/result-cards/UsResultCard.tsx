@@ -338,29 +338,33 @@ export function UsResultCard({
           </a>
         </Button>
 
-        {submitted && (
-          <div className="space-y-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={startNewApplication}
-              disabled={!applicationId || startingNewApplication}
-            >
-              {startingNewApplication ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="mr-2 h-4 w-4" />
-              )}
-              {startingNewApplication ? t("startingNewApplication") : t("newApplication")}
-            </Button>
-            {newApplicationError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {newApplicationError}
-              </div>
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant={submitted ? "outline" : "default"}
+            className="w-full"
+            onClick={startNewApplication}
+            disabled={!applicationId || startingNewApplication}
+          >
+            {startingNewApplication ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="mr-2 h-4 w-4" />
             )}
-          </div>
-        )}
+            {startingNewApplication
+              ? submitted
+                ? t("startingNewApplication")
+                : t("continuingAutomaticSubmission")
+              : submitted
+                ? t("newApplication")
+                : t("continueAutomaticSubmission")}
+          </Button>
+          {newApplicationError && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {newApplicationError}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
