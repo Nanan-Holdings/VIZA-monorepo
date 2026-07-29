@@ -19,7 +19,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   date_of_birth_day: "15",
   date_of_birth_month: "JUN",
   date_of_birth_year: "1990",
-  has_other_names: "no",
+  other_names_used: "no",
   has_telecode: "no",
   city_of_birth: "LONDON",
   state_of_birth: "ENGLAND",
@@ -34,7 +34,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   us_taxpayer_id_na: "Y",
 
   // Travel Information
-  has_specific_travel_plans: "no",
+  has_specific_plans: "no",
   purpose_of_trip: "B",
   purpose_of_trip_specify: "B1/B2",
   trip_payer_type: "self",
@@ -73,7 +73,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   passport_expiry_day: "01",
   passport_expiry_month: "01",
   passport_expiry_year: "2030",
-  passport_lost_or_stolen: "no",
+  lost_passport: "no",
 
   // US Contact
   us_contact_surname: "DOE",
@@ -110,16 +110,16 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
 
   // Work / Education — Previous
   has_previous_employer: "no",
-  has_other_education: "no",
+  has_attended_education: "no",
 
   // Work / Education — Additional
   has_clan_tribe: "no",
   language_name: "ENGLISH",
-  has_countries_visited: "no",
-  has_organization: "no",
+  has_traveled_last_five_years: "no",
+  has_belonged_to_organization: "no",
   has_specialized_skills: "no",
   has_served_military: "no",
-  has_served_insurgent: "no",
+  has_served_paramilitary: "no",
 
   // Security and Background Part 1
   has_communicable_disease: "no",
@@ -169,9 +169,9 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   primary_phone: "442079251234",
   mobile_phone_na: "Y",
   work_phone_na: "Y",
-  has_other_phone: "no",
+  has_other_phones: "no",
   email_address: "tester@example.com",
-  has_other_email: "no",
+  has_other_emails: "no",
   has_social_media: "no",
   social_media_provider: "NONE",
   social_media_identifier: "N/A",
