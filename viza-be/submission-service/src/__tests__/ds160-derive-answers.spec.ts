@@ -65,6 +65,26 @@ describe("deriveDS160Answers", () => {
     assert.equal(answers.mother_in_us, "Y");
   });
 
+  it("normalizes canonical portal choice values for CEAC controls", () => {
+    const answers = deriveDS160Answers({
+      sex: "male",
+      marital_status: "single",
+      has_specific_travel_plans: "no",
+      trip_payer_type: "self",
+      purpose_of_trip_specify: "B1/B2",
+      intended_length_of_stay_unit: "DAY(S)",
+    });
+
+    assert.equal(answers.sex, "M");
+    assert.equal(answers.marital_status, "S");
+    assert.equal(answers.has_specific_travel_plans, "N");
+    assert.equal(answers.trip_payer_type, "self");
+    assert.equal(answers.who_is_paying, "S");
+    assert.equal(answers.travel_payer, "S");
+    assert.equal(answers.purpose_of_trip_specify, "B1-B2");
+    assert.equal(answers.intended_length_of_stay_unit, "D");
+  });
+
   it("derives present education fallback fields for CEAC required inputs", () => {
     const answers = deriveDS160Answers({
       primary_occupation: "education",
