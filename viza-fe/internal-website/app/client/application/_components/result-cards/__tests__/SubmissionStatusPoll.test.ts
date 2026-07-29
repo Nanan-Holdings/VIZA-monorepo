@@ -61,6 +61,7 @@ describe("submission status polling", () => {
         durableTerminalPropsAvailable: true,
         localRetryActive: false,
         snapshotIsActive: true,
+        snapshotAvailable: true,
       }),
     ).toBe(false);
     expect(
@@ -68,7 +69,19 @@ describe("submission status polling", () => {
         durableTerminalPropsAvailable: true,
         localRetryActive: false,
         snapshotIsActive: false,
+        snapshotAvailable: false,
       }),
     ).toBe(true);
+  });
+
+  it("lets a newer terminal poll replace a stale terminal server prop", () => {
+    expect(
+      shouldPreferDurableTerminalProps({
+        durableTerminalPropsAvailable: true,
+        localRetryActive: false,
+        snapshotIsActive: false,
+        snapshotAvailable: true,
+      }),
+    ).toBe(false);
   });
 });

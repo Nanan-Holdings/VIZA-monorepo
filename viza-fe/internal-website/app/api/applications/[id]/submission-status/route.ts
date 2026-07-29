@@ -83,6 +83,22 @@ const COMPLETED_APPLICATION_STATUSES = new Set([
   "form_ready_for_agency",
 ]);
 
+const COMPLETED_QUEUE_STATUSES = new Set([
+  "done",
+  "submitted",
+  "lodged",
+  "filed",
+  "vn_submitted",
+  "ds160_submitted",
+  "france_submitted",
+  "mdac_live_assisted_submitted",
+  "mdac_live_assisted_completed",
+  "tdac_live_assisted_submitted",
+  "tdac_live_assisted_completed",
+  "phetravel_live_assisted_submitted",
+  "phetravel_live_assisted_completed",
+]);
+
 const ACTION_REQUIRED_APPLICATION_STATUSES = new Set([
   "needs_user_action",
   "action_required",
@@ -441,7 +457,7 @@ function deriveQueueStage(queueStatus: string): Pick<DerivedStatus, "status" | "
     return { status: "needs_user_action", stage: "payment_handoff", progress: 99 };
   }
 
-  if (queueStatus === "done") {
+  if (COMPLETED_QUEUE_STATUSES.has(queueStatus)) {
     return { status: "completed", stage: "completed", progress: 100 };
   }
 
@@ -575,6 +591,7 @@ export function selectQueueForSubmissionStatus(rows: QueueRow[]): QueueRow | nul
 export function deriveNonTerminalStatus(
   application: ApplicationForStatus,
   queue: QueueRow | null,
+  preferQueue = false,
 ): DerivedStatus {
   const queueStatus = normalizeStatus(queue?.status);
   const queueDerived = deriveQueueStage(queueStatus);
@@ -666,7 +683,7 @@ export function deriveNonTerminalStatus(
   }
 
   const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
-  if (terminalFromApplication && !isActiveQueue(queue)) {
+  if (terminalFromApplication && !isActiveQueue(queue) && !preferQueue) {
     return terminalFromApplication;
   }
 
@@ -700,6 +717,17 @@ export function deriveNonTerminalStatus(
       (currentStage ? `Current stage: ${currentStage}.` : messageForStage(queueDerived.stage)),
     error: queueDerived.status === "failed" ? error ?? "Submission failed." : error,
   };
+}
+
+export function deriveSubmissionStatus(
+  application: ApplicationForStatus,
+  queue: QueueRow | null,
+  queueOverridesApplication: boolean,
+): DerivedStatus {
+  const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
+  return queueOverridesApplication
+    ? deriveNonTerminalStatus(application, queue, true)
+    : terminalFromApplication ?? deriveNonTerminalStatus(application, queue);
 }
 
 const SUBMISSION_STATUS_REQUEST_TIMEOUT_MS = 8_000;
@@ -790,13 +818,7 @@ async function getSubmissionStatus(
   const queueResult = synthesizeQueueResult(queue, application);
   const storedResult = application.submission_result;
   const queueOverridesApplication = activeQueueOverridesTerminal || terminalQueueOverridesApplication;
-  const terminalFromApplication = deriveTerminalApplicationStatus(application, queue);
-  const derived =
-    terminalFromApplication && !isActiveQueue(queue)
-      ? terminalFromApplication
-      : queueOverridesApplication
-        ? deriveNonTerminalStatus(application, queue)
-        : terminalFromApplication ?? deriveNonTerminalStatus(application, queue);
+  const derived = deriveSubmissionStatus(application, queue, queueOverridesApplication);
   const updatedAt = latestTimestamp(
     application.submission_result_updated_at,
     queue?.updated_at,
