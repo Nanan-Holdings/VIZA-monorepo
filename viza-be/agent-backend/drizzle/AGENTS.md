@@ -130,6 +130,8 @@ The current internal automation migrations are:
 - `0120_vn_evisa_strict_validity_range.sql`: requires the Vietnam e-Visa
   validity end date to be at least one calendar day after its start date,
   matching the official portal's strict date-order validation.
+- `0121_ds160_consular_post.sql`: adds the required CEAC China issuing-post
+  selector to the DS-160 form using the live official location codes.
 
 ## Guardrails
 

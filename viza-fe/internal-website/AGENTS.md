@@ -165,6 +165,9 @@ Travel AI UI, Supabase auth, and Next.js API proxy routes.
   `supabase/migrations/20260728090000_vn_evisa_strict_validity_range.sql`:
   `visa_valid_to` must be at least one calendar day after `visa_valid_from`,
   matching the official portal rather than allowing a same-day interval.
+- The required U.S. DS-160 China issuing-post selector is applied by
+  `supabase/migrations/20260729054904_add_ds160_consular_post.sql`; its stored
+  values are the live CEAC location codes consumed by submission-service.
 - Vietnam e-Visa photo and face-match rules live in
   `supabase/migrations/20260625_vn_evisa_photo_face_rules.sql`,
   `app/client/documents/actions.ts`, `app/actions/face-match.ts`,
