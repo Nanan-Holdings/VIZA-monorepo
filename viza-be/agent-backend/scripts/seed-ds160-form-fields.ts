@@ -43,6 +43,26 @@ interface FieldDef {
 }
 
 const FIELDS: FieldDef[] = [
+  {
+    field_name: "consular_post",
+    label: "Location where you will be submitting your application",
+    field_type: "select",
+    required: true,
+    step_number: 1,
+    step_name: "Personal Information 1",
+    display_order: 0,
+    validation_rules: {
+      label_zh: "您计划在哪个美国使领馆申请签证？",
+      official_source: "CEAC DS-160 start-page location selector",
+    },
+    options: [
+      { value: "BEJ", text: "CHINA, BEIJING" },
+      { value: "GUZ", text: "CHINA, GUANGZHOU" },
+      { value: "SHG", text: "CHINA, SHANGHAI" },
+      { value: "SNY", text: "CHINA, SHENYANG" },
+      { value: "WUH", text: "CHINA, WUHAN" },
+    ],
+  },
   // ═══════════════════════════════════════════════════════════════════════════
   // STEP 1: Personal Information 1
   // ═══════════════════════════════════════════════════════════════════════════

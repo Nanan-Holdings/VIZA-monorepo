@@ -16,6 +16,7 @@ import {
   queueStatusForApplication,
   queueStatusForVisaType,
   submitModeForPrimaryApplicationAction,
+  visaTypesReferToSameApplication,
 } from "@/lib/submission-queue";
 
 describe("queueStatusForVisaType", () => {
@@ -46,6 +47,9 @@ describe("queueStatusForVisaType", () => {
 
   it("marks U.S. DS-160 submissions with the CEAC provider for each mode", () => {
     expect(isDs160VisaType("US-B1/B2")).toBe(true);
+    expect(visaTypesReferToSameApplication("B1_B2", "DS160")).toBe(true);
+    expect(visaTypesReferToSameApplication("US_B1_B2", "DS-160")).toBe(true);
+    expect(visaTypesReferToSameApplication("B1_B2", "VN_E_VISA")).toBe(false);
     expect(queueProviderForVisaType("DS160", "dry_run")).toBe("ceac_dry_run");
     expect(queueProviderForVisaType("DS160", "live_assisted")).toBe("ceac_live");
     expect(queueProviderForVisaType("UK_STANDARD_VISITOR", "dry_run")).toBe("uk_standard_visitor");

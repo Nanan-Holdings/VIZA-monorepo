@@ -6,6 +6,7 @@
 
 const ZH_LABELS: Record<string, string> = {
   // ─── Step 1: Personal Information ───────────────────────────────────────
+  "Location where you will be submitting your application": "您计划在哪个美国使领馆申请签证？",
   "Surnames": "姓氏",
   "Surname (as in passport)": "姓氏（与护照一致）",
   "Given Names": "名字",
@@ -407,6 +408,11 @@ const ZH_PLACEHOLDERS: Record<string, string> = {
 };
 
 const ZH_OPTIONS: Record<string, string> = {
+  "CHINA, BEIJING": "中国，北京（美国驻华大使馆）",
+  "CHINA, GUANGZHOU": "中国，广州（美国驻广州总领事馆）",
+  "CHINA, SHANGHAI": "中国，上海（美国驻上海总领事馆）",
+  "CHINA, SHENYANG": "中国，沈阳（美国驻沈阳总领事馆）",
+  "CHINA, WUHAN": "中国，武汉（美国驻武汉总领事馆）",
   "Yes": "是",
   "No": "否",
   "Male": "男",
