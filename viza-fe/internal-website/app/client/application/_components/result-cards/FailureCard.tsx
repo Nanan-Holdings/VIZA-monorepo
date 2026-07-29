@@ -39,6 +39,7 @@ type FvOfficialAccount = {
 };
 
 const VALIDATION_LABELS: Record<string, string> = {
+  "profile.address": "居住地址 / Home address",
   "trip.purpose": "旅行目的 / Purpose of travel",
   "trip.accommodationName": "住宿名称 / Accommodation name",
   "answers.phone_number": "电话号码 / Phone number",
@@ -67,6 +68,7 @@ const VALIDATION_LABELS: Record<string, string> = {
   "answers.purpose_of_entry": "入境目的 / Purpose of entry",
   "answers.intended_date_of_entry": "计划入境日期 / Intended entry date",
   "answers.intended_length_of_stay": "预计停留时间 / Length of stay",
+  "answers.intended_length_of_stay_value": "预计停留时间 / Length of stay",
   "answers.accommodation_name": "住宿名称 / Accommodation name",
   "answers.residential_address_in_vietnam": "越南住宿地址 / Address in Viet Nam",
   "answers.intended_province_city": "拟停留省/市 / Province or city",
@@ -82,7 +84,17 @@ const VALIDATION_LABELS: Record<string, string> = {
   "answers.final_declaration": "最终声明确认 / Final declaration",
 };
 
-function parseValidationError(errorMessage?: string): { title: string; fields: string[] } | null {
+function localizedValidationLabel(field: string, isZh: boolean): string {
+  const label = VALIDATION_LABELS[field];
+  if (!label) return isZh ? "必填信息尚未完整" : field;
+  const [zh, en] = label.split(" / ", 2);
+  return isZh ? zh ?? label : en ?? label;
+}
+
+function parseValidationError(
+  errorMessage: string | undefined,
+  isZh: boolean,
+): { title: string; fields: string[] } | null {
   if (!errorMessage) return null;
   const marker = errorMessage.match(/^(Dry-run validation failed|Live-assisted validation failed):\s*(?:missing\s*)?/i);
   if (!marker) return null;
@@ -97,10 +109,32 @@ function parseValidationError(errorMessage?: string): { title: string; fields: s
   if (rawFields.length === 0) return null;
   return {
     title: marker[1]?.toLowerCase().startsWith("live")
-      ? "Live assisted needs more information before it can start."
-      : "Dry-run validation found missing information.",
-    fields: rawFields.map((field) => VALIDATION_LABELS[field] ?? field),
+      ? isZh
+        ? "启动官网自动填写前，还需要补充以下信息。"
+        : "Live assisted needs more information before it can start."
+      : isZh
+        ? "云端演练发现以下必填信息尚未完整。"
+        : "Dry-run validation found missing information.",
+    fields: rawFields.map((field) => localizedValidationLabel(field, isZh)),
   };
+}
+
+function localizedFailureMessage(errorMessage: string, isZh: boolean): string {
+  if (!isZh) return errorMessage;
+  const normalized = errorMessage.toLowerCase();
+  if (
+    normalized.includes("requires an uploaded applicant photo") ||
+    normalized.includes("applicant photo before ceac submission")
+  ) {
+    return "提交 DS-160 前必须上传符合要求的申请人照片。";
+  }
+  if (normalized.includes("requested visa type does not match")) {
+    return "所选签证类型与当前申请的签证类型不一致。";
+  }
+  if (normalized.includes("worker did not pick it up")) {
+    return "云端任务未被及时领取，请重新提交。";
+  }
+  return "云端任务未能完成，错误详情已记录。请重新提交；如果仍然失败，请联系支持人员。";
 }
 
 function isWorkerPickupError(errorMessage?: string): boolean {
@@ -207,7 +241,10 @@ export function FailureCard({
   const cardExpiryRef = useRef<HTMLInputElement>(null);
   const cardCvvRef = useRef<HTMLInputElement>(null);
   const cardHolderNameRef = useRef<HTMLInputElement>(null);
-  const validationError = parseValidationError(errorMessage);
+  const validationError = parseValidationError(errorMessage, isZh);
+  const displayErrorMessage = errorMessage
+    ? localizedFailureMessage(errorMessage, isZh)
+    : null;
   const workerPickupError = isWorkerPickupError(errorMessage);
   const vnPrearrivalVisaNumberError = isVnPrearrivalVisaNumberError(errorMessage);
   const vnPrearrivalOtpErrorKind = getVnPrearrivalOtpErrorKind(errorMessage);
@@ -399,9 +436,9 @@ export function FailureCard({
               ))}
             </ul>
           </div>
-        ) : errorMessage && (
+        ) : displayErrorMessage && (
           <pre className="whitespace-pre-wrap break-words rounded-md border border-input bg-muted/50 p-3 text-xs leading-relaxed text-foreground">
-            {errorMessage}
+            {displayErrorMessage}
           </pre>
         )}
         {applicationId &&
