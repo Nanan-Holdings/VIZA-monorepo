@@ -242,11 +242,11 @@ describe("bilingual schema contract", () => {
     }));
     const payer = normalizeBilingualFormField(field({
       visaType: "DS160",
-      fieldName: "who_is_paying",
-      label: "Who is paying for your trip?",
+      fieldName: "trip_payer_type",
+      label: "Person/Entity Paying for Your Trip",
       fieldType: "select",
       validationRules: { label_zh: "谁为您此次英国之行付费？" },
-      options: [{ value: "S", text: "Self" }],
+      options: [{ value: "self", text: "SELF" }],
     }));
     const maritalStatus = normalizeBilingualFormField(field({
       visaType: "DS160",

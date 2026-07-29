@@ -67,7 +67,7 @@ const ZH_LABELS: Record<string, string> = {
   "City": "城市",
   "State": "州",
   "ZIP Code": "邮编",
-  "Person/Entity Paying for Your Trip": "为您旅行付费的个人/机构",
+  "Person/Entity Paying for Your Trip": "谁为您的旅行付费？",
   "Who is paying for your trip?": "谁为您的旅行付费？",
   "Surnames of Person Paying for Trip": "付费人姓氏",
   "Given Names of Person Paying for Trip": "付费人名字",
