@@ -44,6 +44,10 @@ ports directly.
 - `viza-fe/internal-website/app/api/applications/[id]/ds160-proof/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-artifact/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/arrival-card-new-application/route.ts`
+- `viza-fe/internal-website/app/api/applications/[id]/new-application/route.ts`
+  creates a new blank U.S. DS-160 VIZA draft from a submitted application and
+  returns the explicit form URL; it must not copy answers or enqueue official
+  submission work.
 - `viza-fe/internal-website/app/api/applications/[id]/sgac-new-application/route.ts`
 - `viza-fe/internal-website/app/api/applications/[id]/submission-status/route.ts`
   returns a retryable `503` response when its database dependency times out so

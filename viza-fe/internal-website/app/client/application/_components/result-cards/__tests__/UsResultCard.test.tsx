@@ -3,8 +3,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UsSubmissionResult } from "@/lib/submission-result";
 import { UsResultCard } from "../UsResultCard";
 
+const { push } = vi.hoisted(() => ({
+  push: vi.fn(),
+}));
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
 }));
 
 const submittedResult: UsSubmissionResult = {
@@ -27,10 +35,14 @@ const stoppedAtSignResult: UsSubmissionResult = {
 describe("UsResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    push.mockReset();
   });
 
-  it("requests a fresh DS-160 application instead of a completed-submission retry", async () => {
-    const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+  it("creates a new VIZA draft and navigates back to the form", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      applicationId: "new-draft-id",
+      href: "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2",
+    }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
@@ -38,14 +50,11 @@ describe("UsResultCard", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/applications/viza-application-id/retry-submission",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            mode: "live_assisted",
-            intent: "new_application",
-          }),
-        }),
+        "/api/applications/viza-application-id/new-application",
+        { method: "POST" },
+      );
+      expect(push).toHaveBeenCalledWith(
+        "/client/application/long-form?applicationId=new-draft-id&country=united_states&visaType=B1_B2",
       );
     });
   });

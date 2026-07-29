@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   CalendarCheck,
@@ -82,6 +83,7 @@ export function UsResultCard({
   applicationId?: string;
   result: UsSubmissionResult;
 }) {
+  const router = useRouter();
   const t = useTranslations("usAppointment.ds160Card");
   const nextT = useTranslations("usAppointment.nextStepCard");
   const securityAnswer = result.securityAnswer && result.securityAnswer !== "[REDACTED]"
@@ -101,23 +103,39 @@ export function UsResultCard({
     setStartingNewApplication(true);
     setNewApplicationError(null);
     try {
-      const response = await fetch(`/api/applications/${applicationId}/retry-submission`, {
+      const endpoint = submitted
+        ? `/api/applications/${applicationId}/new-application`
+        : `/api/applications/${applicationId}/retry-submission`;
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "live_assisted",
-          intent: "new_application",
-        }),
+        ...(submitted
+          ? {}
+          : {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                mode: "live_assisted",
+                intent: "new_application",
+              }),
+            }),
       });
       const payload = (await response.json().catch(() => null)) as {
         error?: unknown;
         jobId?: unknown;
         alreadySubmitted?: unknown;
+        applicationId?: unknown;
+        href?: unknown;
       } | null;
       if (!response.ok) {
         throw new Error(
           typeof payload?.error === "string" ? payload.error : `${t("newApplicationError")} (${response.status})`,
         );
+      }
+      if (submitted) {
+        if (typeof payload?.applicationId !== "string" || typeof payload.href !== "string") {
+          throw new Error(t("newApplicationError"));
+        }
+        router.push(payload.href);
+        return;
       }
       if (payload?.alreadySubmitted === true || typeof payload?.jobId !== "string") {
         throw new Error(t("newApplicationError"));
