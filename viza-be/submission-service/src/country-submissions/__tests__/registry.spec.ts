@@ -257,7 +257,7 @@ test("from-records: maps Schengen dynamic answers into required dry-run trip fie
     gender: "Male",
     nationality: "Singapore",
     occupation: "Student",
-    address: "1 Test Street, Singapore 000001",
+    address: null,
     passport_number: "TEST123456",
     passport_issue_date: "2023-01-01",
     passport_expiry_date: "2033-01-01",
@@ -291,10 +291,12 @@ test("from-records: maps Schengen dynamic answers into required dry-run trip fie
     intended_arrival_date: "2026-10-01",
     intended_departure_date: "2026-10-10",
     purpose_of_journey: "tourism",
+    home_address_line1: "1 Test Street, Singapore 000001",
     accommodation_name: "Test Hotel",
     accommodation_address_line_1: "1 Test Hotel Road",
   });
 
+  assert.equal(dryRunApplication.profile.address, "1 Test Street, Singapore 000001");
   assert.equal(dryRunApplication.trip.arrivalDate, "2026-10-01");
   assert.equal(dryRunApplication.trip.departureDate, "2026-10-10");
   assert.equal(dryRunApplication.trip.purpose, "tourism");
