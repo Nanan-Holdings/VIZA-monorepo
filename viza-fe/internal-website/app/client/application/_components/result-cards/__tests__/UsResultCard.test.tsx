@@ -19,6 +19,11 @@ const submittedResult: UsSubmissionResult = {
   retrievalUrl: "https://ceac.state.gov/GenNIV/Default.aspx?ApplicationID=AA00EXAMPLE",
 };
 
+const stoppedAtSignResult: UsSubmissionResult = {
+  ...submittedResult,
+  status: "stopped_at_sign",
+};
+
 describe("UsResultCard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -30,6 +35,27 @@ describe("UsResultCard", () => {
 
     render(<UsResultCard applicationId="viza-application-id" result={submittedResult} />);
     fireEvent.click(screen.getByRole("button", { name: "newApplication" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/applications/viza-application-id/retry-submission",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            mode: "live_assisted",
+            intent: "new_application",
+          }),
+        }),
+      );
+    });
+  });
+
+  it("offers automatic continuation when the prior run stopped before official confirmation", async () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsResultCard applicationId="viza-application-id" result={stoppedAtSignResult} />);
+    fireEvent.click(screen.getByRole("button", { name: "continueAutomaticSubmission" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(

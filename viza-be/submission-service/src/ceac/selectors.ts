@@ -28,7 +28,9 @@ export const CEAC_NAV_SELECTORS = {
   // `btnNextPageComplete` (value="No – Continue Form") that otherwise
   // match on `id*="btnNext"` and get picked first.
   next:
-    'input[type="submit"].next, input[type="submit"][value^="Next:"], input[type="submit"][value="Next"], input[id*="btnNext"]:not([id*="Complete"])',
+    'input[type="submit"].next:not([id*="Complete"])[value^="Next:"], input[type="submit"].next:not([id*="Complete"])[value="Next"], input[type="submit"]:not([id*="Complete"])[value^="Next:"], input[type="submit"]:not([id*="Complete"])[value="Next"], input[id*="btnNext"]:not([id*="Complete"])',
+  continueAfterPageComplete:
+    '[id*="btnNextPageComplete"], input[type="submit"][value*="Continue Form" i], input[type="submit"][value="Save and Continue" i], button:has-text("Continue Form"), button:has-text("Save and Continue"), a:has-text("Continue Form")',
   back:
     'input[type="submit"].back, input[type="submit"][value^="Back:"], input[type="submit"][value="Back"], input[id*="btnBack"]',
   save: 'input[type="submit"][value*="Save"], input[id*="btnSave"]',
