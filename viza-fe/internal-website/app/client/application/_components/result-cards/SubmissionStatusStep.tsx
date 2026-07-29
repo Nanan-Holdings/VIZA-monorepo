@@ -1848,13 +1848,25 @@ export function SubmissionStatusStep({
   ]);
 
   if (resubmitting) {
+    const isPaymentCardRetry =
+      isVietnamEVisaApplication(country, visaType) ||
+      isIndonesiaEVisaApplication(country, visaType) ||
+      initialResultTargetsIndonesia;
     return (
       <div className="space-y-4">
         <WaitingCard
           status="queued"
           stage="preparing"
           serverProgress={fallbackProgressForStatus("queued", country, visaType)}
-          message={isZh ? "正在安全发送银行卡并启动 Fly 云端任务。" : "Securely sending the card and starting the Fly cloud job."}
+          message={
+            isPaymentCardRetry
+              ? isZh
+                ? "正在安全发送银行卡信息并启动云端任务。"
+                : "Securely sending the card and starting the cloud job."
+              : isZh
+                ? "正在安全发送申请资料并启动云端任务。"
+                : "Securely sending the application data and starting the cloud job."
+          }
           applicationId={applicationId}
           country={country}
           visaType={visaType}

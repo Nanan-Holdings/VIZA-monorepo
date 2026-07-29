@@ -1422,13 +1422,20 @@ export async function POST(
 
   const now = new Date().toISOString();
   const requestedSubmission = await readRetrySubmissionRequest(request);
-  const mode = requestedSubmission.mode;
-  if (!mode) {
+  const requestedMode = requestedSubmission.mode;
+  if (!requestedMode) {
     return NextResponse.json(
       { error: "Submission retry mode is required. Choose dry_run or live_assisted." },
       { status: 400 },
     );
   }
+  // This marker is reserved for the isolated production smoke application.
+  // Never allow a client retry button to upgrade its synthetic answers into a
+  // live CEAC task, even if an older failure card requests live_assisted.
+  const mode: SubmissionMode =
+    ownedApplication.purpose === "VIZA_PLACEHOLDER_DRY_RUN"
+      ? "dry_run"
+      : requestedMode;
 
   if (!requestedValueMatchesApplication(requestedSubmission.country, ownedApplication.country)) {
     return NextResponse.json(
