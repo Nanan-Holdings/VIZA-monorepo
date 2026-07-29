@@ -921,6 +921,7 @@ function FinalConfirmationPanel({
   isZh,
   liveAssistedTarget,
   liveAssistedEnabled,
+  forceDryRun,
   missingFields,
   requirementsLoading,
   submittingMode,
@@ -930,6 +931,7 @@ function FinalConfirmationPanel({
   isZh: boolean;
   liveAssistedTarget: LiveAssistedTarget;
   liveAssistedEnabled: boolean;
+  forceDryRun: boolean;
   missingFields: MissingApplicationField[];
   requirementsLoading: boolean;
   submittingMode: SubmissionMode | null;
@@ -955,8 +957,9 @@ function FinalConfirmationPanel({
 
   const hasMissing = missingFields.length > 0;
   const isSubmitting = submittingMode !== null;
-  const baseDisabled = isSubmitting || hasMissing || requirementsLoading;
-  const hasLiveAssistedTarget = liveAssistedTarget !== null;
+  const baseDisabled =
+    isSubmitting || (!forceDryRun && (hasMissing || requirementsLoading));
+  const hasLiveAssistedTarget = liveAssistedTarget !== null && !forceDryRun;
   const isFrance = liveAssistedTarget === "france";
   const isVietnam = liveAssistedTarget === "vietnam";
   const isVietnamPrearrival = liveAssistedTarget === "vn_prearrival";
@@ -1030,13 +1033,17 @@ function FinalConfirmationPanel({
         holderName: cardHolderName,
       }
     : undefined;
-  const submitCopy = isZh
-    ? hasLiveAssistedTarget
-      ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
-      : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
-    : hasLiveAssistedTarget
-      ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
-      : "Click Submit to create the background submission job and show progress here.";
+  const submitCopy = forceDryRun
+    ? isZh
+      ? "这是隔离的云端演练，只验证 VIZA 与 Fly 提交链路，不会打开或填写官方 CEAC 网站。"
+      : "This isolated cloud dry run verifies the VIZA-to-Fly submission path without opening or filling the official CEAC website."
+    : isZh
+      ? hasLiveAssistedTarget
+        ? "点击“提交”后，VIZA 会创建真实官网提交任务，自动填写官方表单，并在本页显示进度和官方编号。"
+        : "点击“提交”后，VIZA 会创建后台提交任务，并在本页显示进度和结果。"
+      : hasLiveAssistedTarget
+        ? "Click Submit to create a real official-site submission job. VIZA fills the official form and shows progress and official evidence here."
+        : "Click Submit to create the background submission job and show progress here.";
   const liveSafetyCopy = isFrance
     ? (isZh
         ? "France-Visas 提交会使用 VIZA 保存的答案、官方账号和必要的注册验证码处理来创建/更新官网申请；付款、预约或官网风控如果出现，会作为后续状态展示。"
@@ -1728,6 +1735,7 @@ export default function ApplicationPage() {
   const [submittingMode, setSubmittingMode] = useState<SubmissionMode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitMissingFields, setSubmitMissingFields] = useState<MissingApplicationField[]>([]);
+  const [forceDryRun, setForceDryRun] = useState(false);
   // Dynamic form answers keyed by field_name
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
   const [draftVersion, setDraftVersion] = useState(0);
@@ -2155,6 +2163,9 @@ export default function ApplicationPage() {
   const visibleMissingFields = submitMissingFields.length > 0
     ? submitMissingFields
     : tabCompletion.missingFields;
+  const confirmationMissingFields = forceDryRun
+    ? visibleMissingFields.filter((item) => item.stepId !== documentStepIndex)
+    : visibleMissingFields;
   const showSubmissionStatusStep = shouldShowSubmissionStatusStep({
     submittedAt: appState.submittedAt,
     submissionResultStatus: appState.submissionResultStatus,
@@ -2226,6 +2237,8 @@ export default function ApplicationPage() {
           return;
         }
       }
+
+      setForceDryRun(application?.purpose === "VIZA_PLACEHOLDER_DRY_RUN");
 
       if (profile) {
         // Load DS-160 answers from visa_application_answers first (the source of truth)
@@ -2890,7 +2903,9 @@ export default function ApplicationPage() {
       if (!applicationId) throw new Error(t("errors.noApplicationFound"));
 
       await saveAllDynamicDrafts();
-      const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot());
+      const missing = getCurrentSubmitMissingFields(buildCurrentAnswerSnapshot()).filter(
+        (item) => !forceDryRun || item.stepId !== documentStepIndex,
+      );
       setSubmitMissingFields(missing);
       if (missing.length > 0) {
         setCurrentStep(statusStepIndex);
@@ -3468,7 +3483,8 @@ export default function ApplicationPage() {
                               isZh={isZhInterface}
                               liveAssistedTarget={liveAssistedTarget}
                               liveAssistedEnabled={liveAssistedEnabled}
-                              missingFields={visibleMissingFields}
+                              forceDryRun={forceDryRun}
+                              missingFields={confirmationMissingFields}
                               requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                               submittingMode={saving ? submittingMode ?? "dry_run" : null}
                               onEdit={handleStepNavigation}
@@ -3569,7 +3585,8 @@ export default function ApplicationPage() {
                               isZh={isZhInterface}
                               liveAssistedTarget={liveAssistedTarget}
                               liveAssistedEnabled={liveAssistedEnabled}
-                              missingFields={visibleMissingFields}
+                              forceDryRun={forceDryRun}
+                              missingFields={confirmationMissingFields}
                               requirementsLoading={!documentCenterLoaded && Boolean(appState.applicationId)}
                               submittingMode={saving ? submittingMode ?? "dry_run" : null}
                               onEdit={handleStepNavigation}
