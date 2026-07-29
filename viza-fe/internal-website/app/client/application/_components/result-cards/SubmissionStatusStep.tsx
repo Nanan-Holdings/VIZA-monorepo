@@ -728,14 +728,14 @@ function GenericResultCard({
       ? (isZh ? "需要人工操作" : "Manual action required")
     : unsupported
       ? (isZh ? "暂不支持自动提交" : "Automated submission unavailable")
-      : (isZh ? "Dry-run 已完成" : "Dry-run submission complete");
+      : (isZh ? "云端演练已完成" : "Dry-run submission complete");
   const badge = isIndonesiaAction
     ? (isZh ? "自动处理中" : "Automating")
     : actionRequired
       ? (isZh ? "需操作" : "Action required")
     : unsupported
       ? (isZh ? "暂不支持" : "Unsupported")
-      : "Dry run";
+      : (isZh ? "演练" : "Dry run");
   const body = unsupported
     ? (isZh
         ? "自动提交暂未支持该国家，我们可以先帮你整理材料和生成申请草稿。"
@@ -745,7 +745,9 @@ function GenericResultCard({
           localizeActionText(result.message, isZh) ??
           result.actionInstructions ??
           result.message)
-      : result.message;
+      : isZh && result.mode === "dry_run" && result.status === "submitted_mock"
+        ? "云端演练已完成，提交链路运行正常；本次没有向任何外部官网提交申请。"
+        : result.message;
 
   useEffect(() => {
     if (!jobId || !officialManualAction) return;
@@ -947,7 +949,9 @@ function GenericResultCard({
 
         {result.mode === "dry_run" && result.confirmationNumber && (
           <div className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2">
-            <div className="text-xs text-brand-500">Mock confirmation</div>
+            <div className="text-xs text-brand-500">
+              {isZh ? "演练确认编号" : "Mock confirmation"}
+            </div>
             <div className="mt-0.5 font-mono text-sm font-medium text-foreground">
               {result.confirmationNumber}
             </div>
