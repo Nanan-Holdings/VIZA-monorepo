@@ -102,6 +102,15 @@ interface KeyAlias {
 }
 
 const KEY_ALIASES: ReadonlyArray<KeyAlias> = [
+  { from: "other_names_used", to: "has_other_names" },
+  { from: "has_specific_plans", to: "has_specific_travel_plans" },
+  { from: "has_other_phones", to: "has_other_phone" },
+  { from: "has_other_emails", to: "has_other_email" },
+  { from: "lost_passport", to: "passport_lost_or_stolen" },
+  { from: "has_attended_education", to: "has_other_education" },
+  { from: "has_traveled_last_five_years", to: "has_countries_visited" },
+  { from: "has_belonged_to_organization", to: "has_organization" },
+  { from: "has_served_paramilitary", to: "has_served_insurgent" },
   { from: "trip_payer_type", to: "who_is_paying" },
   { from: "home_address_state_province", to: "home_address_state" },
   { from: "home_address_postal_code", to: "home_address_postal" },
