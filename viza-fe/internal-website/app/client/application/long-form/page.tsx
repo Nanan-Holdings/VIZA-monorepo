@@ -2169,6 +2169,10 @@ export default function ApplicationPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setCurrentStep(0);
+    setCompletedUpTo(0);
+    setDynamicAnswers({});
+    initialStepResolvedRef.current = false;
     setAppState((prev) => ({
       ...prev,
       applicationId: null,
