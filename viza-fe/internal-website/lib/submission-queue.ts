@@ -382,6 +382,15 @@ export function isDs160VisaType(visaType: string | null | undefined): boolean {
   return DS160_VISA_TYPES.has(normalizeVisaType(visaType));
 }
 
+export function visaTypesReferToSameApplication(
+  requested: string | null | undefined,
+  actual: string | null | undefined,
+): boolean {
+  if (!requested) return true;
+  if (isDs160VisaType(requested) && isDs160VisaType(actual)) return true;
+  return normalizeVisaType(requested) === normalizeVisaType(actual);
+}
+
 export function parseSubmissionRetryIntent(value: unknown): SubmissionRetryIntent {
   return value === "new_application" ? "new_application" : "retry";
 }

@@ -44,6 +44,7 @@ import {
   buildPhotoFileFromDownloadedDocument,
   type CeacRunResult,
   type ConfirmApplicationResult,
+  resolveCeacStartLocationCode,
 } from "./ceac";
 import { writeSubmissionResult, markSubmissionFailed, setSubmissionStatus } from "./result-writer";
 import {
@@ -1384,23 +1385,6 @@ function applyEnglishAliases(answers: Record<string, string>): void {
       answers[baseKey] = value;
     }
   }
-}
-
-function resolveCeacStartLocationCode(answers: Record<string, string>): string {
-  const candidates = [
-    answers["consular_post"],
-    answers["embassy_or_consulate"],
-    answers["location_where_applying_for_visa"],
-    process.env.CEAC_LOCATION_CODE,
-    "NSS",
-  ];
-
-  for (const candidate of candidates) {
-    const code = candidate?.trim();
-    if (code) return code.toUpperCase();
-  }
-
-  return "NSS";
 }
 
 function failedStatusForQueueStatus(status: SubmissionQueueItem["status"]): SubmissionQueueItem["status"] {

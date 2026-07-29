@@ -29,6 +29,7 @@ import {
   parseSubmissionRetryIntent,
   queueProviderForApplication,
   queueStatusForApplication,
+  visaTypesReferToSameApplication,
   type SubmissionMode,
   type SubmissionQueueStatus,
   type SubmissionRetryIntent,
@@ -309,6 +310,29 @@ function requestedValueMatchesApplication(
 ): boolean {
   if (!requested) return true;
   return normalizeComparable(requested) === normalizeComparable(actual);
+}
+
+async function validateDs160ConsularPost(
+  admin: ReturnType<typeof createAdminClient>,
+  applicationId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data, error } = await admin
+    .from("visa_application_answers")
+    .select("value_text, value_json")
+    .eq("application_id", applicationId)
+    .eq("field_name", "consular_post")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  const value = (answerValueToText(data ?? {}) ?? "").trim().toUpperCase();
+  if (!["BEJ", "GUZ", "SHG", "SNY", "WUH"].includes(value)) {
+    return {
+      ok: false,
+      error:
+        "请选择您计划提交 DS-160 的美国使领馆（北京、广州、上海、沈阳或武汉），然后再提交申请。",
+    };
+  }
+  return { ok: true };
 }
 
 function isFranceLiveRetryApplication(country: string | null, visaType: string | null): boolean {
@@ -1412,7 +1436,7 @@ export async function POST(
       { status: 400 },
     );
   }
-  if (!requestedValueMatchesApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
+  if (!visaTypesReferToSameApplication(requestedSubmission.visaType, ownedApplication.visa_type)) {
     return NextResponse.json(
       { error: "Requested visa type does not match the application visa type." },
       { status: 400 },
@@ -1445,6 +1469,19 @@ export async function POST(
       alreadySubmitted: true,
       result: ownedApplication.submission_result,
     });
+  }
+
+  if (isDs160VisaType(ownedApplication.visa_type)) {
+    const postValidation = await validateDs160ConsularPost(admin, applicationId);
+    if (!postValidation.ok) {
+      return NextResponse.json(
+        {
+          error: postValidation.error,
+          code: "ds160_consular_post_required",
+        },
+        { status: 422 },
+      );
+    }
   }
 
   let queueStatus = queueStatusForApplication(
