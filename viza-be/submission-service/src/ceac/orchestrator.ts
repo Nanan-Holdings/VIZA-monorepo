@@ -257,7 +257,8 @@ export async function orchestrateFill(
             console.log(
               `[orchestrator] Photo accepted — landed at ${uploadResult.postContinueUrl}`,
             );
-            await recordSectionCheckpoint(page, {
+            session.page = uploadResult.page;
+            await recordSectionCheckpoint(uploadResult.page, {
               ...checkpointOpts,
               details: { section: "upload_photo", filled: true, photoUploaded: true },
             });
@@ -272,9 +273,15 @@ export async function orchestrateFill(
                   ? err.message
                   : String(err);
             console.warn(
-              `[orchestrator] Photo upload did not complete (${reason}) — falling back to handoff_ready`,
+              `[orchestrator] Photo upload did not complete (${reason})`,
             );
-            // Fall through to the handoff_ready stop below
+            if (options.finalSubmit?.passportNumber) {
+              throw new PhotoRejectedError(
+                `Automatic DS-160 submission stopped because the official photo step failed: ${reason}`,
+                reason,
+              );
+            }
+            // Legacy prefill-only callers may still hand off the photo step.
           }
         }
 
@@ -436,13 +443,14 @@ export async function orchestrateFill(
           console.log(
             `[orchestrator] Sign certification page detected — advancing to final signature controls`,
           );
-          await certifySignAndSubmitPage(page, {
+          const finalSignaturePage = await certifySignAndSubmitPage(page, {
             passportNumber: options.finalSubmit.passportNumber,
             diagnosticPath: path.join(outputDir, "sign-certify-dom.json"),
           });
-          const afterSignCertify = await detectPage(page);
+          session.page = finalSignaturePage;
+          const afterSignCertify = await detectPage(finalSignaturePage);
           if (afterSignCertify.id === "confirmation") {
-            return await buildSubmittedResultFromConfirmation(page, {
+            return await buildSubmittedResultFromConfirmation(finalSignaturePage, {
               tracker,
               runId,
               datArtifact,
@@ -450,7 +458,7 @@ export async function orchestrateFill(
               captchaAttempts: 1,
             });
           }
-          await advance(page, {
+          await advance(finalSignaturePage, {
             from: "sign_and_submit",
             to: ["sign_and_submit", "confirmation"],
           });
@@ -655,25 +663,28 @@ async function selectCeacOption(el: Locator, value: string): Promise<void> {
 async function certifySignAndSubmitPage(
   page: Page,
   options: { passportNumber: string; diagnosticPath?: string },
-): Promise<void> {
+): Promise<Page> {
   if (options.diagnosticPath) await dumpSignCertifyDom(page, options.diagnosticPath);
   await choosePreparerNo(page);
   await fillSignCertifyPassportNumber(page, options.passportNumber.trim());
   await solveSignCertifyCaptcha(page);
-  await clickSignCertifySubmit(page);
+  const activePage = await clickSignCertifySubmit(page);
 
-  await page.evaluate(() => {
+  await activePage.evaluate(() => {
     const maybeValidNavigation = (window as unknown as { ValidNavigation?: () => unknown }).ValidNavigation;
     if (typeof maybeValidNavigation === "function") maybeValidNavigation();
     const maybeValidatorUpdate = (window as unknown as { ValidatorUpdateIsValid?: () => unknown }).ValidatorUpdateIsValid;
     if (typeof maybeValidatorUpdate === "function") maybeValidatorUpdate();
   }).catch(() => undefined);
 
-  const next = page
+  const afterSubmit = await detectPage(activePage);
+  if (afterSubmit.id === "confirmation") return activePage;
+
+  const next = activePage
     .locator('input[type="submit"].next, input[type="submit"][value^="Next:"], input[id*="UpdateButton"]')
     .first();
   await next.waitFor({ state: "visible", timeout: 10_000 });
-  await page.waitForFunction(
+  await activePage.waitForFunction(
     (selector) => {
       const button = document.querySelector(selector) as HTMLInputElement | null;
       return Boolean(button && !button.disabled);
@@ -686,6 +697,7 @@ async function certifySignAndSubmitPage(
       el.removeAttribute("disabled");
     });
   });
+  return activePage;
 }
 
 async function choosePreparerNo(page: Page): Promise<void> {
@@ -772,7 +784,7 @@ async function solveSignCertifyCaptcha(page: Page): Promise<void> {
   await captchaInput.fill(solve.text.trim());
 }
 
-async function clickSignCertifySubmit(page: Page): Promise<void> {
+async function clickSignCertifySubmit(page: Page): Promise<Page> {
   const signButton = page
     .locator(
       [
@@ -783,13 +795,36 @@ async function clickSignCertifySubmit(page: Page): Promise<void> {
       ].join(", "),
     )
     .first();
-  if ((await signButton.count().catch(() => 0)) === 0) return;
+  if ((await signButton.count().catch(() => 0)) === 0) return page;
 
+  const context = page.context();
+  const popupPromise = context.waitForEvent("page", { timeout: 15_000 }).catch(() => null);
   await signButton.scrollIntoViewIfNeeded().catch(() => undefined);
   await Promise.all([
     page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined),
     signButton.click({ force: true, timeout: 10_000 }),
   ]);
+
+  if (page.isClosed()) {
+    const popup = await popupPromise;
+    if (popup) {
+      await popup.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+      return popup;
+    }
+    const survivingPage = context.pages().find((candidate) => !candidate.isClosed());
+    if (survivingPage) return survivingPage;
+    throw new Error("CEAC closed the Sign and Submit page without opening a continuation page.");
+  }
+
+  const popup = await Promise.race([
+    popupPromise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1_000)),
+  ]);
+  if (popup) {
+    await popup.waitForLoadState("domcontentloaded", { timeout: 15_000 }).catch(() => undefined);
+    return popup;
+  }
+  return page;
 }
 
 async function buildSubmittedResultFromConfirmation(
