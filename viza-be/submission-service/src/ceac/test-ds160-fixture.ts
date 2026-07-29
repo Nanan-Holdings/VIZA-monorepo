@@ -38,6 +38,7 @@ export const TEST_DS160_ANSWERS: Record<string, string> = {
   trip_payer_type: "self",
   intended_arrival_date: "2026-12-10",
   intended_length_of_stay: "14",
+  intended_length_of_stay_value: "14",
   intended_length_of_stay_unit: "DAY(S)",
   us_address_street: "123 MAIN ST",
   us_address_city: "NEW YORK",

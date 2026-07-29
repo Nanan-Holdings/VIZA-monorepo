@@ -415,6 +415,18 @@ export function buildCountrySubmissionApplication(
   const normalizedAnswers = { ...answers };
   const normalizedCountry = application.country.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const normalizedVisaType = application.visa_type.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const isUsDs160 =
+    (normalizedCountry === "us" ||
+      normalizedCountry === "usa" ||
+      normalizedCountry === "united_states") &&
+    (normalizedVisaType === "ds160" || normalizedVisaType === "us_b1_b2");
+  if (isUsDs160) {
+    // The portal's canonical DS-160 field is `intended_length_of_stay`,
+    // while the cloud provider validates the CEAC numeric control name.
+    setIfMissing(normalizedAnswers, "intended_length_of_stay_value", [
+      answers.intended_length_of_stay,
+    ]);
+  }
   const isVietnamApplication =
     normalizedCountry === "vn" ||
     normalizedCountry === "vietnam" ||
@@ -519,7 +531,11 @@ export function buildCountrySubmissionApplication(
       address: firstAnswer(normalizedAnswers, [
         "address",
         "home_address",
+        "home_address_line1",
+        "home_address_line_1",
         "residential_address",
+        "residential_address_line1",
+        "residential_address_line_1",
         "permanent_residential_address",
         "contact_address",
       ]) ?? profile.address,
