@@ -230,4 +230,55 @@ describe("bilingual schema contract", () => {
     expect(resolveOptionDisplayLabel(samples[3].options, "single", "zh")).toBe("未婚");
     expect(resolveOptionDisplayLabel(samples[3].options, "single", "zh")).not.toBe("单次");
   });
+
+  it("uses accurate Chinese-only DS-160 labels and marital-status options", () => {
+    const travelPlans = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "has_specific_travel_plans",
+      label: "Have you made specific travel plans?",
+      fieldType: "radio",
+      validationRules: { label_zh: "是否计划?" },
+      options: [{ value: "yes", text: "Yes" }, { value: "no", text: "No" }],
+    }));
+    const payer = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "who_is_paying",
+      label: "Who is paying for your trip?",
+      fieldType: "select",
+      validationRules: { label_zh: "谁为您此次英国之行付费？" },
+      options: [{ value: "S", text: "Self" }],
+    }));
+    const maritalStatus = normalizeBilingualFormField(field({
+      visaType: "DS160",
+      fieldName: "marital_status",
+      label: "Marital Status",
+      fieldType: "select",
+      options: [
+        { value: "married", text: "MARRIED" },
+        { value: "common_law", text: "COMMON LAW MARRIAGE" },
+        { value: "civil_union", text: "CIVIL UNION/DOMESTIC PARTNERSHIP" },
+        { value: "single", text: "SINGLE" },
+        { value: "widowed", text: "WIDOWED" },
+        { value: "divorced", text: "DIVORCED" },
+        { value: "legally_separated", text: "LEGALLY SEPARATED" },
+        { value: "other", text: "OTHER" },
+      ],
+    }));
+
+    expect(resolveLocalizedFieldLabel(travelPlans, "zh")).toBe("是否已有具体旅行计划？");
+    expect(resolveLocalizedFieldLabel(payer, "zh")).toBe("谁为您的旅行付费？");
+    expect(resolveLocalizedOptions(payer.options, "zh")?.[0]).toMatchObject({ text: "本人" });
+    expect(resolveLocalizedOptions(maritalStatus.options, "zh")?.map((option) => (
+      typeof option === "string" ? option : option.text
+    ))).toEqual([
+      "已婚",
+      "事实婚姻",
+      "民事结合/家庭伴侣关系",
+      "未婚",
+      "丧偶",
+      "离婚",
+      "合法分居",
+      "其他",
+    ]);
+  });
 });

@@ -12,7 +12,7 @@ type BilingualSide = "zh" | "en";
 
 type FieldLike = Pick<
   VisaFormFieldRow,
-  "fieldName" | "fieldType" | "label" | "placeholder" | "required" | "stepName" | "validationRules" | "options"
+  "visaType" | "fieldName" | "fieldType" | "label" | "placeholder" | "required" | "stepName" | "validationRules" | "options"
 >;
 
 type OptionObject = Extract<VisaFormFieldOption, { value: string }>;
@@ -602,10 +602,6 @@ const FIELD_NAME_ZH_OVERRIDES: Record<string, string> = {
   declaration_awareness_refusal: "我已知悉虚假陈述可能导致拒签、已发签证被撤销并承担法律责任",
   declaration_undertaking_to_leave: "我承诺在获发签证的有效期届满前离开成员国领土",
   final_declaration: "我声明以上信息真实、准确且完整，并愿对虚假申报承担相应责任",
-
-  // UK Standard Visitor — full field_name → zh set. Spread LAST so these win
-  // over any generic entry above for shared field names.
-  ...UK_FIELD_NAME_ZH,
 };
 
 const LABEL_ZH_OVERRIDES: Record<string, string> = {
@@ -1174,6 +1170,22 @@ function deriveChineseFromLabel(field: FieldLike): string | null {
 }
 
 export function deriveChineseFieldLabel(field: FieldLike): string {
+  const isDs160 = ["DS160", "B1_B2", "US_B1_B2"].includes(field.visaType.toUpperCase());
+  if (isDs160) {
+    const officialLabelTranslation = getChineseLabel(field.label, field.fieldName);
+    if (
+      hasCjk(officialLabelTranslation) &&
+      !isVagueChineseLabel(officialLabelTranslation) &&
+      officialLabelTranslation !== field.label
+    ) {
+      return officialLabelTranslation;
+    }
+  }
+
+  const isUkStandardVisitor = field.visaType.toUpperCase() === "UK_STANDARD_VISITOR";
+  const ukLabel = isUkStandardVisitor ? UK_FIELD_NAME_ZH[normalizeFieldName(field.fieldName)] : null;
+  if (ukLabel) return ukLabel;
+
   const metadataLabel = getRuleText(field, ["label_zh", "zh_label"]);
   if (metadataLabel && hasCjk(metadataLabel) && !isVagueChineseLabel(metadataLabel)) return metadataLabel;
 
@@ -1304,23 +1316,53 @@ function optionValue(option: VisaFormFieldOption): string {
   return typeof option === "string" ? option : option.value;
 }
 
-function deriveChineseOptionLabel(option: VisaFormFieldOption): string {
+function removeRedundantEnglishGloss(label: string): string {
+  return label.replace(
+    /\s*[(（](\p{Script=Latin}[\p{Script=Latin}\s.'’/-]{2,})[)）]\s*$/u,
+    (_match, gloss: string) => {
+      const compact = gloss.replace(/[^A-Za-z0-9/+.-]/g, "");
+      const isOfficialCode =
+        !/\s/.test(gloss) &&
+        (compact.length <= 3 ||
+          /\d/.test(compact) ||
+          (compact.includes("/") && compact.split("/").every((part) => part.length <= 4)) ||
+          compact === "NATO");
+      return isOfficialCode ? ` (${gloss})` : "";
+    },
+  ).trim();
+}
+
+function deriveChineseOptionLabel(option: VisaFormFieldOption, field?: FieldLike): string {
+  const isDs160 = Boolean(
+    field && ["DS160", "B1_B2", "US_B1_B2"].includes(field.visaType.toUpperCase()),
+  );
   if (typeof option !== "string") {
     const existing = clean(option.label_zh);
-    if (existing && hasCjk(existing)) return existing;
+    if (existing && hasCjk(existing)) {
+      return isDs160 ? removeRedundantEnglishGloss(existing) : existing;
+    }
   }
 
   const value = optionValue(option);
   const rawText = optionText(option);
+  if (isDs160) {
+    const translated = getChineseOptionText(rawText);
+    if (translated && hasCjk(translated) && translated !== rawText) {
+      return removeRedundantEnglishGloss(translated);
+    }
+  }
+
   const normalizedValue = value.toLowerCase();
   const exact = OPTION_ZH_BY_VALUE[normalizedValue] ?? OPTION_ZH_BY_VALUE[rawText.toLowerCase()];
-  if (exact) return exact;
+  if (exact) return isDs160 ? removeRedundantEnglishGloss(exact) : exact;
 
   const vietnamSpecific = getVietnamSpecificChineseOptionLabel(value, rawText);
   if (vietnamSpecific) return vietnamSpecific;
 
   const translated = getChineseOptionText(rawText);
-  if (translated && hasCjk(translated) && translated !== rawText) return translated;
+  if (translated && hasCjk(translated) && translated !== rawText) {
+    return isDs160 ? removeRedundantEnglishGloss(translated) : translated;
+  }
 
   const fromValue = fieldNameToChinese(value);
   if (fromValue && !isVagueChineseLabel(fromValue)) return fromValue;
@@ -1336,11 +1378,11 @@ function deriveEnglishOptionLabel(option: VisaFormFieldOption): string {
   return getEnglishOptionText(optionText(option));
 }
 
-export function normalizeBilingualOption(option: VisaFormFieldOption): VisaFormFieldOption {
+export function normalizeBilingualOption(option: VisaFormFieldOption, field?: FieldLike): VisaFormFieldOption {
   const value = optionValue(option);
   const text = optionText(option) || value;
   const labelEn = deriveEnglishOptionLabel(option);
-  const labelZh = deriveChineseOptionLabel(option);
+  const labelZh = deriveChineseOptionLabel(option, field);
 
   if (typeof option === "string") {
     return {
@@ -1382,7 +1424,7 @@ export function normalizeBilingualFormField<T extends VisaFormFieldRow>(field: T
       ...(helperZh ? { helper_zh: helperZh } : {}),
       ...(helperEn ? { helper_en: helperEn } : {}),
     },
-    options: field.options?.map(normalizeBilingualOption) ?? field.options,
+    options: field.options?.map((option) => normalizeBilingualOption(option, field)) ?? field.options,
   };
 }
 
