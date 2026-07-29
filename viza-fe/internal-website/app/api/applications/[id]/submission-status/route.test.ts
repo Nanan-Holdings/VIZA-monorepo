@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deriveNonTerminalStatus, selectQueueForSubmissionStatus } from "./route";
+import {
+  deriveNonTerminalStatus,
+  deriveSubmissionStatus,
+  selectQueueForSubmissionStatus,
+} from "./route";
 
 const ukStoppedAtPayResult = {
   country: "UK",
@@ -250,6 +254,47 @@ describe("deriveNonTerminalStatus", () => {
     expect(status.status).toBe("needs_user_action");
     expect(status.stage).toBe("payment_handoff");
     expect(status.error).toBeNull();
+  });
+});
+
+describe("deriveSubmissionStatus", () => {
+  it("lets a newer completed queue replace an older stalled application result", () => {
+    const status = deriveSubmissionStatus(
+      {
+        id: "application-id",
+        applicant_id: "applicant-id",
+        country: "United States",
+        visa_type: "B1_B2",
+        submitted_at: null,
+        submission_result: {
+          status: "stalled",
+          error: "Submission job stalled because the worker did not pick it up in time.",
+        },
+        submission_result_status: "stalled",
+        submission_result_updated_at: "2026-07-29T04:30:00.000Z",
+        updated_at: "2026-07-29T04:30:00.000Z",
+      },
+      {
+        id: "queue-id",
+        status: "ds160_submitted",
+        attempts: 1,
+        mode: "live_assisted",
+        provider: "ceac",
+        last_error: null,
+        error_code: null,
+        error_message: null,
+        current_stage: "completed",
+        heartbeat_at: "2026-07-29T04:36:00.000Z",
+        manual_action_status: null,
+        official_status: null,
+        created_at: "2026-07-29T04:31:00.000Z",
+        updated_at: "2026-07-29T04:36:00.000Z",
+      },
+      true,
+    );
+
+    expect(status.status).toBe("completed");
+    expect(status.progress).toBe(100);
   });
 });
 

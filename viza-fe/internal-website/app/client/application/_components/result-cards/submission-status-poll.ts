@@ -39,10 +39,21 @@ export function shouldPreferDurableTerminalProps({
   durableTerminalPropsAvailable,
   localRetryActive,
   snapshotIsActive,
+  snapshotAvailable,
 }: {
   durableTerminalPropsAvailable: boolean;
   localRetryActive: boolean;
   snapshotIsActive: boolean;
+  snapshotAvailable: boolean;
 }): boolean {
-  return durableTerminalPropsAvailable && !localRetryActive && !snapshotIsActive;
+  // The props are the server-rendered starting point, while a successfully
+  // polled snapshot is newer by definition. Keeping an old terminal prop
+  // authoritative after polling means a temporary "stalled" result can mask a
+  // later worker pickup or completion until the whole page is reloaded.
+  return (
+    durableTerminalPropsAvailable &&
+    !localRetryActive &&
+    !snapshotIsActive &&
+    !snapshotAvailable
+  );
 }
