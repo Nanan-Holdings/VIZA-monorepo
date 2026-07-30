@@ -6052,7 +6052,25 @@ const VN_PREARRIVAL_FORWARDING_CONSENT = {
 async function hasCurrentVnPrearrivalEmailForwardingConsent(
   applicantId: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase
+  const { data: accountConsent, error: accountConsentError } = await supabase
+    .from("consent_event")
+    .select("id")
+    .eq("applicant_id", applicantId)
+    .eq("doc_kind", VN_PREARRIVAL_FORWARDING_CONSENT.type)
+    .eq("doc_version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
+    .limit(1)
+    .maybeSingle();
+  if (accountConsentError) {
+    throw new Error(
+      `Vietnam Pre-Arrival account email forwarding consent lookup failed: ${accountConsentError.message}`,
+    );
+  }
+  if (accountConsent?.id) {
+    return true;
+  }
+
+  // Compatibility for explicit consent captured on an older application.
+  const { data: applicationConsent, error: applicationConsentError } = await supabase
     .from("consent_events")
     .select("id")
     .eq("applicant_id", applicantId)
@@ -6062,10 +6080,12 @@ async function hasCurrentVnPrearrivalEmailForwardingConsent(
     .eq("accepted", true)
     .limit(1)
     .maybeSingle();
-  if (error) {
-    throw new Error(`Vietnam Pre-Arrival email forwarding consent lookup failed: ${error.message}`);
+  if (applicationConsentError) {
+    throw new Error(
+      `Vietnam Pre-Arrival application email forwarding consent lookup failed: ${applicationConsentError.message}`,
+    );
   }
-  return Boolean(data?.id);
+  return Boolean(applicationConsent?.id);
 }
 
 async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Promise<void> {

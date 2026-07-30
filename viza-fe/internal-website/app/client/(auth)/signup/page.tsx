@@ -412,6 +412,17 @@ export default function ClientSignupPage() {
         console.error('Could not record signup consent:', consentError)
       }
       try {
+        const { initializeAuthenticatedApplicantInbox } = await import(
+          '@/app/actions/applicant-inbox'
+        )
+        await initializeAuthenticatedApplicantInbox()
+      } catch (inboxError) {
+        // Registration should still complete if inbox provisioning is
+        // temporarily unavailable. The authenticated client shell retries and
+        // requires forwarding authorization on the user's first portal visit.
+        console.error('Could not provision applicant inbox alias:', inboxError)
+      }
+      try {
         await awardReferralSignupPoints(supabase, referralCode, user.id)
       } catch (referralError) {
         console.error('Could not award referral points:', referralError)

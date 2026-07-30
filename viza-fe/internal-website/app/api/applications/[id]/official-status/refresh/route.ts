@@ -192,7 +192,7 @@ export async function POST(
     { onConflict: "idempotency_key", ignoreDuplicates: true },
   );
 
-  await wakeCloudSubmissionWorker(null);
+  await wakeCloudSubmissionWorker(null, { target: "vietnam" });
 
   return NextResponse.json({
     ok: true,
