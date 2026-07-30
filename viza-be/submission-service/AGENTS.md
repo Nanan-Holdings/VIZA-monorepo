@@ -450,6 +450,12 @@ filling and one-shot submission for the applicant.
   staging and immediately before a rolling deploy. Runtime secrets are staged
   into that release so secret synchronization cannot independently restart the
   single memory-backed worker.
+- `src/idle-exit-controller.ts`, `src/work-availability.ts`, and
+  `src/scheduled-work.ts` own Fly scale-to-zero safety. A Fly worker may exit
+  cleanly only after the configured idle grace, a second five-second
+  authoritative queue check, and confirmation that no protected in-memory
+  payment or Korea browser session remains. Future-window arrival-card rows do
+  not count as runnable work until their persisted `scheduledFor` date.
 - `scripts/run-us-appointment-register.ts`: local USVisaScheduling account
   registration helper. It requires a configured `US_APPOINTMENT_BROWSER_API_ENDPOINT`
   or `US_APPOINTMENT_CDP_ENDPOINT` unless explicitly run with `--local-browser`,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isScheduledSubmissionDue } from "./work-availability.js";
+import { isScheduledSubmissionDue } from "./scheduled-work.js";
 
 test("scheduled arrival cards become due in their portal timezone", () => {
   const beforeSingaporeMidnight = new Date("2026-07-30T15:59:00.000Z");
@@ -28,4 +28,3 @@ test("malformed scheduled metadata is treated as work", () => {
     true,
   );
 });
-

@@ -1,6 +1,6 @@
 import "server-only";
 
-type WakeEnvironment = NodeJS.ProcessEnv;
+type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
 export const FLY_WAKE_COUNTRIES = [
   "indonesia",
@@ -155,4 +155,3 @@ export async function ensureFlyMachineStarted(
   inFlightStarts.set(target, operation);
   return operation;
 }
-

@@ -48,7 +48,7 @@ export interface HealthServerOptions {
   wakeSubmissionQueue?: () => void;
   onWorkStart?: () => void;
   onWorkFinish?: () => void;
-  getLifecycle?: () => Record<string, unknown>;
+  getLifecycle?: () => object;
   port?: number;
 }
 

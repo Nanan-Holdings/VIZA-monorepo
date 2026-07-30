@@ -1,7 +1,7 @@
 import "server-only";
 import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 
-type WakeEnvironment = NodeJS.ProcessEnv;
+type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
 export type SubmissionWorkerWakeResult =
   | { ok: true }
