@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       countries:
-        description: Comma-separated country slugs, or "all"
+        description: Comma-separated country slugs, "all", or "none" for legacy-only
         required: true
         default: all
         type: string
@@ -81,14 +81,18 @@ jobs:
       - name: Deploy country workers
         shell: bash
         run: |
-          if [[ "${{ inputs.countries }}" == "all" ]]; then
-            countries=$(jq -r '.countries[]' viza-be/submission-service/deploy/fly/countries.json)
+          if [[ "${{ inputs.countries }}" == "none" ]]; then
+            echo "Skipping country workers for a legacy-only deployment."
           else
-            countries=$(tr ',' '\n' <<< "${{ inputs.countries }}" | xargs -n1)
+            if [[ "${{ inputs.countries }}" == "all" ]]; then
+              countries=$(jq -r '.countries[]' viza-be/submission-service/deploy/fly/countries.json)
+            else
+              countries=$(tr ',' '\n' <<< "${{ inputs.countries }}" | xargs -n1)
+            fi
+            while read -r country; do
+              bash viza-be/submission-service/scripts/fly/deploy-country.sh "$country" "$IMAGE"
+            done <<< "$countries"
           fi
-          while read -r country; do
-            bash viza-be/submission-service/scripts/fly/deploy-country.sh "$country" "$IMAGE"
-          done <<< "$countries"
       - name: Deploy legacy worker
         # Country workers and the legacy queue consumer are independent
         # production targets. A transient country /ready timeout must not skip
