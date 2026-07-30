@@ -1,4 +1,5 @@
 import "server-only";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 
 type WakeEnvironment = NodeJS.ProcessEnv;
 
@@ -26,14 +27,23 @@ export async function wakeCloudSubmissionWorker(
   } = {},
 ): Promise<SubmissionWorkerWakeResult> {
   const env = options.env ?? process.env;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const machineWake = await ensureFlyMachineStarted("legacy", {
+    env,
+    fetchImpl,
+  });
   const config = resolveWakeConfig(env);
-  if (!config) return { ok: false, reason: "not_configured" };
+  if (!config) {
+    return machineWake.ok
+      ? { ok: true }
+      : { ok: false, reason: "not_configured" };
+  }
   if (env.NODE_ENV === "production" && !config.baseUrl.startsWith("https://")) {
     return { ok: false, reason: "insecure_url" };
   }
 
   try {
-    const response = await (options.fetchImpl ?? fetch)(
+    const response = await fetchImpl(
       `${config.baseUrl}/internal/submission-queue/wake`,
       {
         method: "POST",
@@ -46,10 +56,12 @@ export async function wakeCloudSubmissionWorker(
         signal: AbortSignal.timeout(20_000),
       },
     );
-    return response.ok
+    return response.ok || machineWake.ok
       ? { ok: true }
       : { ok: false, reason: "request_failed" };
   } catch {
-    return { ok: false, reason: "request_failed" };
+    return machineWake.ok
+      ? { ok: true }
+      : { ok: false, reason: "request_failed" };
   }
 }

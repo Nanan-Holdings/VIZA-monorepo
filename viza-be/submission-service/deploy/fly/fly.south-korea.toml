@@ -10,6 +10,7 @@ primary_region = "sin"
   RUNNER_JOB_COUNTRY = "south_korea"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "false"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "true"
+  SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
   KR_KVAC_LOCAL_OFFICIAL_SESSION_ENABLED = "true"
   KR_VISA_PORTAL_EFORM_LOCAL_ENABLED = "true"
   KR_VISA_PORTAL_EFORM_LIVE_ENABLED = "true"
@@ -29,6 +30,10 @@ primary_region = "sin"
     method = "GET"
     timeout = "5s"
     path = "/ready"
+
+[[restart]]
+  policy = "on-failure"
+  retries = 10
 
 [[vm]]
   cpu_kind = "shared"

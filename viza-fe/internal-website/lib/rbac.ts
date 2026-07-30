@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmailAllowed } from "@/lib/admin-access";
 
 export type UserRole = "admin" | "staff" | "customer_service";
 
@@ -39,6 +40,10 @@ export async function getCurrentUser() {
     .single();
 
   if (userError || !userData) {
+    return null;
+  }
+
+  if (userData.role === "admin" && !isAdminEmailAllowed(userData.email)) {
     return null;
   }
 

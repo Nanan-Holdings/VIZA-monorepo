@@ -129,6 +129,12 @@ __pycache__/
 # Generated output files
 knowledge-base/visa-news.json
 
+# Local temporary directories (at any workspace depth)
+**/.tmp/
+**/.temp/
+**/tmp/
+**/temp/
+
 # Submission service recon/diagnostic artifacts (HTML/PNG dumps)
 viza-be/submission-service/diag-out/
 viza-be/submission-service/e2e-out/

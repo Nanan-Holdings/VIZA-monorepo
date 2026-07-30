@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { getImpersonationSession } from "@/lib/impersonation-session";
 import type { KrSubmissionResult } from "@/lib/submission-result";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -86,6 +87,7 @@ async function ensureLocalKoreaEformWorker(baseUrl: string) {
 }
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  await ensureFlyMachineStarted("south_korea");
   const baseUrl = submissionServiceBaseUrl();
   const url = `${baseUrl}${path}`;
   const internalToken = process.env.KR_SUBMISSION_INTERNAL_TOKEN?.trim();

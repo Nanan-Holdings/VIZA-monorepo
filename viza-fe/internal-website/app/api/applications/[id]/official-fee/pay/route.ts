@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import {
   isIndonesiaEVisaApplication,
   queueProviderForApplication,
@@ -560,6 +561,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   if (countryPath === "vietnam") {
     const cloud = getVietnamCloudCardSessionConfig();
     if (cloud) {
+      await ensureFlyMachineStarted("legacy");
       const result = await postOneTimeCardSession({
         endpoint: `${cloud.baseUrl}/internal/vietnam/card-session`,
         applicationId,
@@ -588,6 +590,7 @@ async function registerOneTimeCardSession(applicationId: string, application: Ap
   if (countryPath === "indonesia") {
     const cloud = getIndonesiaCloudCardSessionConfig();
     if (cloud) {
+      await ensureFlyMachineStarted("legacy");
       const result = await postOneTimeCardSession({
         endpoint: `${cloud.baseUrl}/internal/indonesia/card-session`,
         applicationId,

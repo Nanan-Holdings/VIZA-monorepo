@@ -713,9 +713,7 @@ export function describeTravelFormPayload(payload: TravelFormPayload): string {
 }
 
 export function createTravelFormMessage(payload: TravelFormPayload): string {
-  const visibleText = describeTravelFormPayload(payload);
-  const hiddenPayload = `<!--${FORM_PAYLOAD_PREFIX}${JSON.stringify(payload)}-->`;
-  return `${visibleText}\n\n${hiddenPayload}`;
+  return describeTravelFormPayload(payload);
 }
 
 function isTravelOrderComplete(cities: string[], order: string[]): boolean {

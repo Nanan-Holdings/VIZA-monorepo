@@ -1,5 +1,6 @@
 export type TravelDestinationCard = {
   type: "destination";
+  selection_state?: "recommendation" | "selected";
   id?: string;
   destination_id?: string;
   title: string;

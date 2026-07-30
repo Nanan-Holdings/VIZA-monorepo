@@ -11,6 +11,9 @@ website automation monitoring, coverage, and billing support.
 ## Key Flows
 
 - `login/page.tsx`: admin login form using `app/actions/auth.ts`.
+- Admin login is portal-aware and requires both a `users.role = 'admin'`
+  record and an email accepted by `lib/admin-access.ts`; production access is
+  limited to the explicit staff allowlist.
 - `(dashboard)/layout.tsx`: server-side role gate through `lib/rbac.ts`.
 - `admin-layout-content.tsx`: fixed desktop admin shell and sidebar.
 - `(dashboard)/page.tsx`: dashboard shell.
@@ -63,5 +66,6 @@ dashboard routes redirect to `/admin/login`.
 - `viza-fe/internal-website/app/admin/(dashboard)/billing/AGENTS.md`
 - `viza-fe/internal-website/app/admin/(dashboard)/support/page.tsx`
 - `viza-fe/internal-website/lib/rbac.ts`
+- `viza-fe/internal-website/lib/admin-access.ts`
 - `viza-fe/internal-website/app/actions/auth.ts`
 - `viza-fe/internal-website/lib/supabase/admin.ts`

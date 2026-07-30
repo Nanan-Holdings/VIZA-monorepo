@@ -745,6 +745,50 @@ export const travelItinerarySessions = pgTable("travel_itinerary_sessions", {
 	updatedAtIdx: index("travel_itinerary_sessions_updated_at_idx").on(table.updatedAt),
 }));
 
+export const travelAgentSessions = pgTable("travel_agent_sessions", {
+	id: text("id").primaryKey(),
+	userId: uuid("user_id").notNull(),
+	applicationId: uuid("application_id"),
+	stateJson: jsonb("state_json").default({}).notNull(),
+	stateVersion: bigint("state_version", { mode: "number" }).default(0).notNull(),
+	memorySummary: text("memory_summary").default("").notNull(),
+	openaiPreviousResponseId: text("openai_previous_response_id"),
+	pendingActionsJson: jsonb("pending_actions_json").default([]).notNull(),
+	legacyDestinationReviewJson: jsonb("legacy_destination_review_json").default([]).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	userUpdatedIdx: index("travel_agent_sessions_user_updated_idx").on(table.userId, table.updatedAt),
+	applicationIdx: index("travel_agent_sessions_application_idx").on(table.applicationId),
+}));
+
+export const travelAgentMessages = pgTable("travel_agent_messages", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	sessionId: text("session_id").notNull(),
+	userId: uuid("user_id").notNull(),
+	externalMessageId: text("external_message_id").notNull(),
+	role: text("role").notNull(),
+	content: text("content").notNull(),
+	openaiResponseId: text("openai_response_id"),
+	responseJson: jsonb("response_json"),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+	sessionCreatedIdx: index("travel_agent_messages_session_created_idx").on(table.sessionId, table.createdAt),
+	userCreatedIdx: index("travel_agent_messages_user_created_idx").on(table.userId, table.createdAt),
+	sessionExternalRoleIdx: uniqueIndex("travel_agent_messages_session_external_role_unique_idx").on(
+		table.sessionId,
+		table.externalMessageId,
+		table.role
+	),
+}));
+
+export const travelUserPreferences = pgTable("travel_user_preferences", {
+	userId: uuid("user_id").primaryKey(),
+	preferencesJson: jsonb("preferences_json").default({}).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const travelUnresolvedDestinations = pgTable("travel_unresolved_destinations", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	userInput: text("user_input").notNull(),
@@ -912,6 +956,12 @@ export type NewTravelDestinationCard = typeof travelDestinationCards.$inferInser
 
 export type TravelItinerarySession = typeof travelItinerarySessions.$inferSelect;
 export type NewTravelItinerarySession = typeof travelItinerarySessions.$inferInsert;
+export type TravelAgentSession = typeof travelAgentSessions.$inferSelect;
+export type NewTravelAgentSession = typeof travelAgentSessions.$inferInsert;
+export type TravelAgentMessage = typeof travelAgentMessages.$inferSelect;
+export type NewTravelAgentMessage = typeof travelAgentMessages.$inferInsert;
+export type TravelUserPreference = typeof travelUserPreferences.$inferSelect;
+export type NewTravelUserPreference = typeof travelUserPreferences.$inferInsert;
 
 export type TravelUnresolvedDestination = typeof travelUnresolvedDestinations.$inferSelect;
 export type NewTravelUnresolvedDestination = typeof travelUnresolvedDestinations.$inferInsert;

@@ -374,6 +374,7 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
   const router = useRouter();
   const t = useTranslations("settings");
   const locale = useLocale();
+  const isZh = locale.toLowerCase().startsWith("zh");
   const [email, setEmail] = useState("");
   const [profile, setProfile] = useState<ApplicantSettingsProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1503,6 +1504,16 @@ export function SettingsContent({ view = "home" }: { view?: SettingsView }) {
               title={t("rows.language.title")}
               description={t("rows.language.description")}
               href="/client/help/getting-started/complete-your-profile"
+            />
+            <SettingsRow
+              icon={MessageCircle}
+              title={isZh ? "旅行偏好记忆" : "Travel preference memory"}
+              description={
+                isZh
+                  ? "查看或清除旅行顾问可在新对话中复用的偏好"
+                  : "Review or clear preferences the Travel Advisor may reuse"
+              }
+              href="/client/settings/travel-memory"
             />
           </SectionCard>
 

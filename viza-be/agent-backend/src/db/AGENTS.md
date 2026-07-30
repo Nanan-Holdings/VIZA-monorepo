@@ -33,6 +33,8 @@ Supabase service-role client setup for the agent backend.
   manual checkpoint table.
 - `../../drizzle/0111_vietnam_evisa_status_tracking_delivery.sql`: new-only
   Vietnam status tracking, daily scheduling, atomic claims, and artifact audit.
+- `../../drizzle/0124_travel_agent_conversation_state.sql`: durable Travel
+  Agent state versions, idempotent messages, model continuity, and preferences.
 
 ## Ownership Boundaries
 
@@ -61,6 +63,9 @@ For schema changes, also run any affected route/eval tests.
 - `submission_queue`
 - `visa_chat_sessions`
 - `visa_chat_messages`
+- `travel_agent_sessions`
+- `travel_agent_messages`
+- `travel_user_preferences`
 - `visa_documents`
 - `visa_chunks`
 - `visa_form_fields`

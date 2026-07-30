@@ -1,22 +1,21 @@
 import { getTravelBackendUrl } from "@/lib/travel/backend";
 
-const CACHE_HEALTH_TIMEOUT_MS = 1_500;
+const HEALTH_TIMEOUT_MS = 2_500;
 
-type TravelHealthResponse = {
-  ok: boolean;
-  llmConfigured: boolean;
-  llmReachable: boolean;
-  googlePlacesConfigured: boolean;
-  cacheReachable: boolean;
-  travelBackendReachable: boolean;
+type ServiceHealth = {
+  configured: boolean;
+  reachable: boolean;
 };
 
-async function checkTravelBackendReachable(): Promise<boolean> {
+async function boundedFetch(
+  url: string,
+  init: RequestInit
+): Promise<boolean> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2_500);
+  const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
-    const response = await fetch(`${getTravelBackendUrl()}/docs`, {
-      method: "GET",
+    const response = await fetch(url, {
+      ...init,
       cache: "no-store",
       signal: controller.signal,
     });
@@ -28,58 +27,70 @@ async function checkTravelBackendReachable(): Promise<boolean> {
   }
 }
 
-async function checkCacheReachable(): Promise<boolean> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!supabaseUrl || !serviceRoleKey) return false;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), CACHE_HEALTH_TIMEOUT_MS);
-  try {
-    // This cache check is optional for local startup. Query the REST endpoint
-    // directly so its AbortSignal bounds DNS/network failures as well.
-    const response = await fetch(
-      `${supabaseUrl.replace(/\/$/, "")}/rest/v1/travel_destinations?select=id&limit=1`,
-      {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-        signal: controller.signal,
-      }
-    );
-    return response.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timeout);
-  }
+async function checkOpenAI(): Promise<ServiceHealth> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) return { configured: false, reachable: false };
+  const reachable = await boundedFetch(
+    "https://api.openai.com/v1/models",
+    { method: "GET", headers: { Authorization: `Bearer ${apiKey}` } }
+  );
+  return { configured: true, reachable };
 }
 
-export async function GET() {
-  const llmConfigured = Boolean(process.env.OPENAI_API_KEY?.trim());
-  const googlePlacesConfigured = Boolean(
+async function checkTravelService(): Promise<ServiceHealth> {
+  const configured = Boolean(process.env.TRAVEL_BACKEND_URL?.trim());
+  const reachable = await boundedFetch(`${getTravelBackendUrl()}/docs`, {
+    method: "GET",
+  });
+  return { configured, reachable };
+}
+
+async function checkSessionDatabase(): Promise<ServiceHealth> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { configured: false, reachable: false };
+  }
+  const reachable = await boundedFetch(
+    `${supabaseUrl.replace(/\/$/, "")}/rest/v1/travel_agent_sessions?select=id&limit=1`,
+    {
+      method: "GET",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    }
+  );
+  return { configured: true, reachable };
+}
+
+function placesHealth(): ServiceHealth {
+  const configured = Boolean(
     process.env.GOOGLE_MAPS_API_KEY?.trim() ||
       process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim()
   );
-  const [travelBackendReachable, cacheReachable] = await Promise.all([
-    checkTravelBackendReachable(),
-    checkCacheReachable(),
-  ]);
-  const llmReachable = llmConfigured && travelBackendReachable;
-  const body: TravelHealthResponse = {
-    ok: llmReachable,
-    llmConfigured,
-    llmReachable,
-    googlePlacesConfigured,
-    cacheReachable,
-    travelBackendReachable,
-  };
+  return { configured, reachable: configured };
+}
 
-  return Response.json(body, {
-    status: 200,
-    headers: { "Cache-Control": "no-store" },
-  });
+export async function GET() {
+  const [openai, travelService, sessionDatabase] = await Promise.all([
+    checkOpenAI(),
+    checkTravelService(),
+    checkSessionDatabase(),
+  ]);
+  const places = placesHealth();
+  const services = { openai, travelService, sessionDatabase, places };
+  return Response.json(
+    {
+      ok: openai.reachable && sessionDatabase.reachable,
+      services,
+      // Compatibility fields for clients during the protocol rollout.
+      llmConfigured: openai.configured,
+      llmReachable: openai.reachable,
+      googlePlacesConfigured: places.configured,
+      cacheReachable: sessionDatabase.reachable,
+      travelBackendReachable: travelService.reachable,
+    },
+    { status: 200, headers: { "Cache-Control": "no-store" } }
+  );
 }

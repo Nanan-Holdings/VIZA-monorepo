@@ -12,6 +12,8 @@ location data.
 
 - `planner.ts`: source of truth for structured Travel state, required field
   order, form payload messages, itinerary parsing, and backend payloads.
+- `conversation-state.ts`: server-owned state coercion and explicit
+  `set/add/remove/unset/reset` operation validation.
 - `chat-types.ts`: Travel chat message, quick reply, and card types.
 - `backend.ts`: safe JSON proxy helper for Next route handlers.
 - `itinerary-fallback.ts`: server-only itinerary generation fallback pipeline

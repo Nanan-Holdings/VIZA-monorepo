@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isAdminEmailAllowed } from "@/lib/admin-access";
 import { normalizeSupabaseEnvValue } from "./env";
 
 export async function updateSession(request: NextRequest) {
@@ -71,6 +72,8 @@ export async function updateSession(request: NextRequest) {
       .single();
 
     const userRole = userData?.role;
+    const hasAdminAccess =
+      userRole === "admin" && isAdminEmailAllowed(user.email);
 
     // Block users with no role in the `users` table from accessing any protected path.
     if (!userRole && isProtectedPath) {
@@ -80,14 +83,14 @@ export async function updateSession(request: NextRequest) {
     }
 
     // /admin/* is admin-only — redirect others to admin login
-    if (userRole !== "admin" && isProtectedPath) {
+    if (!hasAdminAccess && isProtectedPath) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
 
     // Redirect authenticated admins away from admin login page
-    if (userRole === "admin" && isAdminLogin) {
+    if (hasAdminAccess && isAdminLogin) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin";
       return NextResponse.redirect(url);

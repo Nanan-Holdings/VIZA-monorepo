@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getClientSessionWithFallback } from "@/lib/client-session";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isRebookingAfterCancellation,
@@ -242,6 +243,7 @@ function submissionServiceBaseUrl() {
 }
 
 async function postSubmissionService<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  await ensureFlyMachineStarted("south_korea");
   const url = `${submissionServiceBaseUrl()}${path}`;
   const internalToken = process.env.KR_SUBMISSION_INTERNAL_TOKEN?.trim();
   const response = await fetch(url, {
