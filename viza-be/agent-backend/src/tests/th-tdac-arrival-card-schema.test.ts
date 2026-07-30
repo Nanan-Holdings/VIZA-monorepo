@@ -158,6 +158,60 @@ describe("Thailand TDAC arrival-card schema seed", () => {
     }
   });
 
+  test("localizes all official Anguilla and Hong Kong residence regions", () => {
+    expect(TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY.AIA).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          official_label: "STONEY GROUND",
+          label_en: "STONEY GROUND",
+          label_zh: "斯托尼格朗德",
+        }),
+        expect.objectContaining({
+          official_label: "THE VALLEY",
+          label_en: "THE VALLEY",
+          label_zh: "瓦利",
+        }),
+      ]),
+    );
+    expect(TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY.HKG).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          official_label: "CENTRAL AND WESTERN",
+          label_en: "CENTRAL AND WESTERN",
+          label_zh: "中西区",
+        }),
+        expect.objectContaining({
+          official_label: "KWAI TSING",
+          label_en: "KWAI TSING",
+          label_zh: "葵青区",
+        }),
+      ]),
+    );
+
+    for (const countryCode of ["AIA", "HKG"]) {
+      const options = TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY[countryCode] ?? [];
+      expect(options.length).toBeGreaterThan(0);
+      expect(
+        options.filter((item) => item.label_zh === item.label_en),
+        `${countryCode} should not expose untranslated English labels in the Chinese UI`,
+      ).toEqual([]);
+    }
+  });
+
+  test("provides Chinese-only display labels for every official residence region", () => {
+    const allOptions = Object.values(
+      TDAC_RESIDENCE_REGION_OPTIONS_BY_COUNTRY,
+    ).flat();
+    expect(allOptions).toHaveLength(5_091);
+
+    for (const option of allOptions) {
+      expect(option.label_zh, option.official_label).toMatch(/[\u3400-\u9fff]/);
+      expect(option.label_zh, option.official_label).not.toMatch(/[A-Za-z]/);
+      expect(option.label_zh).not.toBe(option.label_en);
+      expect(option.official_label).toBe(option.label_en);
+    }
+  });
+
   test("shows official health questions for risk countries selected in any TDAC trigger field", () => {
     expect(field("yellow_fever_vaccination_certificate")?.conditional_logic).toMatchObject({
       showIf: TDAC_YELLOW_FEVER_SHOW_IF,
