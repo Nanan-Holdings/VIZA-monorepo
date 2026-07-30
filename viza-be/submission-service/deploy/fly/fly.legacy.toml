@@ -7,6 +7,7 @@ kill_timeout = "5m"
 [env]
   NODE_ENV = "production"
   PORT = "8080"
+  RUNNER_MACHINE_KIND = "legacy"
   SUBMISSION_SERVICE_LEGACY_QUEUE_ENABLED = "true"
   SUBMISSION_SERVICE_RUNNER_JOB_CONSUMER_ENABLED = "false"
   SUBMISSION_SERVICE_IDLE_EXIT_MS = "120000"
@@ -52,7 +53,7 @@ kill_timeout = "5m"
   internal_port = 8080
   force_https = true
   auto_stop_machines = "off"
-  auto_start_machines = true
+  auto_start_machines = false
   # Queue-depth autoscaling stops only after two safe deploy-readiness checks.
   min_machines_running = 0
 

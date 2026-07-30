@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientSessionFromRequest } from "@/lib/client-session";
 import { compareFaces } from "@/lib/face/match";
 import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
+import { enqueueRunnerPoolJob } from "@/lib/queue/enqueue";
+import { resolveRunnerPoolFlow } from "@/lib/queue/flows";
 import {
   evaluateSgacSubmissionWindow,
   validateSgacTravelDates,
@@ -235,6 +237,20 @@ function isFranceCountry(country: string | null): boolean {
 
 function normalizeComparable(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
+}
+
+function runnerPoolAvailableAt(
+  scheduledFor: string | null,
+  country: string | null,
+): string | undefined {
+  if (!scheduledFor || !/^\d{4}-\d{2}-\d{2}$/u.test(scheduledFor)) return undefined;
+  const normalized = normalizeComparable(country);
+  const offset =
+    normalized === "vietnam" || normalized === "vn" ||
+    normalized === "thailand" || normalized === "th"
+      ? "+07:00"
+      : "+08:00";
+  return new Date(`${scheduledFor}T00:00:00${offset}`).toISOString();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1640,23 +1656,58 @@ export async function POST(
     }
   }
 
-  const queueResult = await insertRetryQueueRow(admin, {
-    applicationId,
-    queueStatus,
-    mode,
-    provider,
-    now,
-    currentStage:
-      queueStatus === "sgac_live_assisted_scheduled"
-        ? "scheduled_for_ica_window"
-        : queueStatus === "mdac_live_assisted_scheduled"
-          ? "scheduled_for_mdac_window"
-          : queueStatus === "tdac_live_assisted_scheduled"
-            ? "scheduled_for_tdac_window"
-            : queueStatus === "phetravel_live_assisted_scheduled"
-              ? "scheduled_for_phetravel_window"
-            : null,
-  });
+  const poolFlow = resolveRunnerPoolFlow(
+    ownedApplication.country,
+    ownedApplication.visa_type,
+  );
+  const useRunnerPool =
+    process.env.RUNNER_POOL_MIGRATION_ENABLED === "true" &&
+    mode === "live_assisted" &&
+    poolFlow !== null;
+  const poolEnqueue = useRunnerPool
+    ? await enqueueRunnerPoolJob(
+        applicationId,
+        ownedApplication.country ?? "",
+        poolFlow,
+        {
+          metadata: { retryIntent: requestedSubmission.intent },
+          availableAt: runnerPoolAvailableAt(
+            scheduledFor,
+            ownedApplication.country,
+          ),
+        },
+      )
+    : null;
+  const queueResult: RetryQueueInsertResult = poolEnqueue
+    ? {
+        error: null,
+        jobId: poolEnqueue.id,
+        queueStatus:
+          poolEnqueue.transport === "submission_queue"
+            ? (poolEnqueue.status as SubmissionQueueStatus | null)
+            : queueStatus,
+        mode,
+        provider,
+        reusedExisting: !poolEnqueue.created,
+        supersededCount: 0,
+      }
+    : await insertRetryQueueRow(admin, {
+        applicationId,
+        queueStatus,
+        mode,
+        provider,
+        now,
+        currentStage:
+          queueStatus === "sgac_live_assisted_scheduled"
+            ? "scheduled_for_ica_window"
+            : queueStatus === "mdac_live_assisted_scheduled"
+              ? "scheduled_for_mdac_window"
+              : queueStatus === "tdac_live_assisted_scheduled"
+                ? "scheduled_for_tdac_window"
+                : queueStatus === "phetravel_live_assisted_scheduled"
+                  ? "scheduled_for_phetravel_window"
+                  : null,
+      });
   if (queueResult.error) {
     return NextResponse.json({ error: queueResult.error }, { status: 500 });
   }
@@ -1689,6 +1740,8 @@ export async function POST(
       newApplication: freshDs160Submission,
       supersededCount: queueResult.supersededCount,
       result: ownedApplication.submission_result,
+      queueTransport: poolEnqueue?.transport ?? "submission_queue",
+      workerTriggered: poolEnqueue?.workerTriggered ?? false,
     });
   }
 
@@ -1732,7 +1785,9 @@ export async function POST(
 
   const workerTriggered = scheduledResult
     ? false
-    : (await wakeCloudSubmissionWorker(queueResult.jobId)).ok;
+    : poolEnqueue
+      ? poolEnqueue.workerTriggered
+      : (await wakeCloudSubmissionWorker(queueResult.jobId)).ok;
 
   return NextResponse.json({
     ok: true,
@@ -1747,5 +1802,6 @@ export async function POST(
     scheduledFor,
     result: nextSubmissionResult,
     workerTriggered,
+    queueTransport: poolEnqueue?.transport ?? "submission_queue",
   });
 }

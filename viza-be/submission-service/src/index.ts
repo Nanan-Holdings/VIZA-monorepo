@@ -61,6 +61,10 @@ import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
 import { IdleExitController } from "./idle-exit-controller.js";
+import {
+  RunnerSlotLease,
+  type RunnerMachineKind,
+} from "./runner-slot-lease.js";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
@@ -347,6 +351,9 @@ const VN_CLOUD_QUEUE_ENABLED = readBooleanEnv(
   false,
 );
 const RUNNER_JOB_COUNTRY = process.env.RUNNER_JOB_COUNTRY?.trim().toLowerCase() || undefined;
+const RUNNER_MACHINE_KIND = (
+  process.env.RUNNER_MACHINE_KIND?.trim().toLowerCase() || ""
+) as RunnerMachineKind | "";
 
 function isSubmissionDryRunMode(): boolean {
   return process.env.VIZA_SUBMISSION_DRY_RUN === "1";
@@ -6052,7 +6059,22 @@ const VN_PREARRIVAL_FORWARDING_CONSENT = {
 async function hasCurrentVnPrearrivalEmailForwardingConsent(
   applicantId: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase
+  const { data: accountConsent, error: accountError } = await supabase
+    .from("consent_event")
+    .select("id")
+    .eq("applicant_id", applicantId)
+    .eq("doc_kind", VN_PREARRIVAL_FORWARDING_CONSENT.type)
+    .eq("doc_version", VN_PREARRIVAL_FORWARDING_CONSENT.version)
+    .limit(1)
+    .maybeSingle();
+  if (accountError) {
+    throw new Error(
+      `Vietnam Pre-Arrival account email forwarding consent lookup failed: ${accountError.message}`,
+    );
+  }
+  if (accountConsent?.id) return true;
+
+  const { data: applicationConsent, error: applicationError } = await supabase
     .from("consent_events")
     .select("id")
     .eq("applicant_id", applicantId)
@@ -6062,10 +6084,12 @@ async function hasCurrentVnPrearrivalEmailForwardingConsent(
     .eq("accepted", true)
     .limit(1)
     .maybeSingle();
-  if (error) {
-    throw new Error(`Vietnam Pre-Arrival email forwarding consent lookup failed: ${error.message}`);
+  if (applicationError) {
+    throw new Error(
+      `Vietnam Pre-Arrival application email forwarding consent lookup failed: ${applicationError.message}`,
+    );
   }
-  return Boolean(data?.id);
+  return Boolean(applicationConsent?.id);
 }
 
 async function processVietnamPrearrivalLiveItem(item: SubmissionQueueItem): Promise<void> {
@@ -7726,9 +7750,15 @@ async function poll(): Promise<void> {
 
 // QUE-002: runner_job consumer wiring. Runs alongside the legacy
 // submission_queue poll. Stops cleanly on SIGTERM for Cloud Run shutdown.
-const RUNNER_WORKER_ID = `submission-service-${process.pid}`;
+const RUNNER_WORKER_ID =
+  process.env.FLY_MACHINE_ID?.trim() ||
+  process.env.SUBMISSION_SERVICE_WORKER_ID?.trim() ||
+  `local-submission-service-${process.pid}`;
 const runnerAbort = new AbortController();
 let runnerStarted = false;
+let runnerPoolDatabaseHealthy = true;
+let runnerSlotLease: RunnerSlotLease | null = null;
+let shutdownFinalizing = false;
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -7764,16 +7794,27 @@ async function consumeIndonesiaCardSessionWithGrace(
   return card;
 }
 
+function finishShutdown(): void {
+  if (shutdownFinalizing) return;
+  shutdownFinalizing = true;
+  void (async () => {
+    await runnerSlotLease?.stop();
+    runnerSlotLease = null;
+    console.log("[main] Shutdown complete");
+    process.exit(0);
+  })();
+}
+
 function closeHealthServer(): void {
   if (!healthServer) {
-    process.exitCode = 0;
+    finishShutdown();
     return;
   }
   const server = healthServer;
   healthServer = null;
   server.close(() => {
-    console.log("[main] Health server closed; shutdown complete");
-    process.exit(0);
+    console.log("[main] Health server closed");
+    finishShutdown();
   });
   server.closeIdleConnections();
 }
@@ -7789,10 +7830,10 @@ function shutdownRunner(signal: string): void {
     clearInterval(legacyPollTimer);
     legacyPollTimer = null;
   }
-  if (!pollInFlight) {
+  if (!pollInFlight && !runnerJobInFlight) {
     closeHealthServer();
   } else {
-    console.log("[main] Waiting for the active submission_queue item to finish before shutdown");
+    console.log("[main] Waiting for active queue work to finish before shutdown");
   }
 }
 process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
@@ -7808,6 +7849,9 @@ async function isSafeForIdleExit(): Promise<boolean> {
     hasIndonesiaCardSessions() ||
     hasActiveKoreaKvacOfficialSessions()
   ) {
+    return false;
+  }
+  if (!runnerPoolDatabaseHealthy || (runnerSlotLease && !runnerSlotLease.isHealthy())) {
     return false;
   }
 
@@ -7828,6 +7872,25 @@ async function isSafeForIdleExit(): Promise<boolean> {
 async function main(): Promise<void> {
   // DEP-003: fail fast on misconfiguration before doing any work.
   validateEnv();
+
+  const flyMachineId = process.env.FLY_MACHINE_ID?.trim();
+  if (flyMachineId && RUNNER_MACHINE_KIND) {
+    runnerSlotLease = new RunnerSlotLease({
+      machineId: flyMachineId,
+      kind: RUNNER_MACHINE_KIND,
+      renewEveryMs: 15_000,
+      onLeaseLost: () => shutdownRunner("capacity slot reassigned"),
+    });
+    const acquired = await runnerSlotLease.start();
+    if (!acquired) {
+      console.log(
+        `[capacity] No logical slot is available for kind=${RUNNER_MACHINE_KIND}; exiting without polling.`,
+      );
+      await runnerSlotLease.stop();
+      runnerSlotLease = null;
+      return;
+    }
+  }
 
   const configuredIdleMs = Number.parseInt(
     process.env.SUBMISSION_SERVICE_IDLE_EXIT_MS ?? "0",
@@ -7970,6 +8033,12 @@ async function main(): Promise<void> {
     void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
       country: RUNNER_JOB_COUNTRY,
       signal: runnerAbort.signal,
+      onClaimHealthy: () => {
+        runnerPoolDatabaseHealthy = true;
+      },
+      onClaimError: () => {
+        runnerPoolDatabaseHealthy = false;
+      },
       onJobStart: () => {
         runnerJobInFlight = true;
         idleExitController?.workStarted();
@@ -7977,6 +8046,9 @@ async function main(): Promise<void> {
       onJobFinish: () => {
         runnerJobInFlight = false;
         idleExitController?.workFinished();
+        if (shutdownRequested && !pollInFlight) {
+          closeHealthServer();
+        }
       },
     }).catch((err) => {
       console.error("[main] runner_job consumer crashed", err);

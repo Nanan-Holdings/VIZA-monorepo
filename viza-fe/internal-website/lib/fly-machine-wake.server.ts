@@ -1,4 +1,5 @@
 import "server-only";
+import { withAdmin } from "@/lib/auth/with-admin";
 
 type WakeEnvironment = Partial<NodeJS.ProcessEnv>;
 
@@ -12,15 +13,31 @@ export const FLY_WAKE_COUNTRIES = [
 ] as const;
 
 export type FlyWakeCountry = (typeof FLY_WAKE_COUNTRIES)[number];
-export type FlyWakeTarget = FlyWakeCountry | "legacy";
+export type FlyWakeTarget = FlyWakeCountry | "legacy" | "pool";
 
 export type FlyMachineWakeResult =
   | { ok: true; target: FlyWakeTarget; app: string; state: "already_running" | "start_requested" }
   | {
       ok: false;
       target: string;
-      reason: "unmanaged_target" | "not_configured" | "machine_not_found" | "request_failed";
+      reason:
+        | "unmanaged_target"
+        | "not_configured"
+        | "machine_not_found"
+        | "capacity_full"
+        | "request_failed";
     };
+
+export type FlyMachineCapacityResult =
+  | {
+      ok: true;
+      target: FlyWakeTarget;
+      app: string;
+      desired: number;
+      active: number;
+      started: number;
+    }
+  | Extract<FlyMachineWakeResult, { ok: false }>;
 
 interface FlyMachineSummary {
   id: string;
@@ -28,6 +45,7 @@ interface FlyMachineSummary {
 }
 
 const TARGET_APPS: Record<FlyWakeTarget, string> = {
+  pool: "viza-runner-pool",
   legacy: "viza-submission-legacy",
   indonesia: "viza-runner-indonesia",
   vietnam: "viza-runner-vietnam",
@@ -54,12 +72,76 @@ const COUNTRY_ALIASES: Record<string, FlyWakeCountry> = {
   south_korea: "south_korea",
 };
 
-const inFlightStarts = new Map<FlyWakeTarget, Promise<FlyMachineWakeResult>>();
+const inFlightCapacity = new Map<FlyWakeTarget, Promise<FlyMachineCapacityResult>>();
 
 function normalizeTarget(target: string): FlyWakeTarget | null {
   const normalized = target.trim().toLowerCase().replace(/[\s-]+/gu, "_");
   if (normalized === "legacy") return "legacy";
+  if (normalized === "pool" || normalized === "runner_pool") return "pool";
   return COUNTRY_ALIASES[normalized] ?? null;
+}
+
+function slotKind(target: FlyWakeTarget): "pool" | "legacy" | "south_korea" | null {
+  if (target === "pool" || target === "legacy" || target === "south_korea") {
+    return target;
+  }
+  return null;
+}
+
+function slotEnforcementConfigured(env: WakeEnvironment): boolean {
+  return Boolean(
+    env.SUPABASE_SERVICE_ROLE_KEY?.trim() &&
+      (env.NEXT_PUBLIC_SUPABASE_URL?.trim() || env.SUPABASE_URL?.trim()),
+  );
+}
+
+async function reserveSlot(
+  target: FlyWakeTarget,
+  machineId: string,
+  env: WakeEnvironment,
+): Promise<{ reserved: boolean; evictedPoolMachineId: string | null }> {
+  const kind = slotKind(target);
+  if (!kind || !slotEnforcementConfigured(env)) {
+    return { reserved: true, evictedPoolMachineId: null };
+  }
+  return withAdmin("system", "fly-machine-wake:reserve-slot", async (admin) => {
+    if (kind === "legacy" || kind === "south_korea") {
+      const { data, error } = await admin.rpc("reserve_sticky_runner_machine_slot", {
+        p_machine_id: machineId,
+        p_kind: kind,
+        p_lease_seconds: 1800,
+      });
+      if (error) throw new Error(`Sticky Machine slot reserve failed: ${error.message}`);
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        reserved: Boolean(row && typeof row.slot_number === "number"),
+        evictedPoolMachineId:
+          row && typeof row.evicted_pool_machine_id === "string"
+            ? row.evicted_pool_machine_id
+            : null,
+      };
+    }
+    const { data, error } = await admin.rpc("reserve_runner_machine_slot", {
+      p_machine_id: machineId,
+      p_kind: kind,
+      p_lease_seconds: 1800,
+    });
+    if (error) throw new Error(`Machine slot reserve failed: ${error.message}`);
+    return {
+      reserved: typeof data === "number",
+      evictedPoolMachineId: null,
+    };
+  });
+}
+
+async function releaseSlot(machineId: string, env: WakeEnvironment): Promise<void> {
+  if (!slotEnforcementConfigured(env)) return;
+  await withAdmin("system", "fly-machine-wake:release-slot", async (admin) => {
+    const { error } = await admin.rpc("release_runner_machine_slot", {
+      p_machine_id: machineId,
+    });
+    if (error) throw new Error(`Machine slot release failed: ${error.message}`);
+  });
 }
 
 function flyApiConfig(env: WakeEnvironment): { token: string; baseUrl: string } | null {
@@ -89,15 +171,18 @@ async function flyRequest(
   });
 }
 
-async function startTarget(
+async function reconcileCapacity(
   target: FlyWakeTarget,
+  rawDesired: number,
   env: WakeEnvironment,
   fetchImpl: typeof fetch,
-): Promise<FlyMachineWakeResult> {
+): Promise<FlyMachineCapacityResult> {
   const config = flyApiConfig(env);
   if (!config) return { ok: false, target, reason: "not_configured" };
 
   const app = TARGET_APPS[target];
+  const desiredLimit = target === "pool" ? 10 : 1;
+  const desired = Math.max(0, Math.min(desiredLimit, Math.floor(rawDesired)));
   try {
     const listResponse = await flyRequest(
       `${config.baseUrl}/apps/${encodeURIComponent(app)}/machines`,
@@ -107,29 +192,104 @@ async function startTarget(
     if (!listResponse.ok) return { ok: false, target, reason: "request_failed" };
 
     const machines = (await listResponse.json()) as FlyMachineSummary[];
-    const alreadyRunning = machines.some(
+    const activeMachines = machines.filter(
       (machine) => machine.state === "started" || machine.state === "starting",
     );
-    if (alreadyRunning) return { ok: true, target, app, state: "already_running" };
-
-    const candidate = machines
-      .filter((machine) => machine.state === "stopped" || machine.state === "suspended")
-      .sort((left, right) => left.id.localeCompare(right.id))[0];
-    if (!candidate) return { ok: false, target, reason: "machine_not_found" };
-
-    const startResponse = await flyRequest(
-      `${config.baseUrl}/apps/${encodeURIComponent(app)}/machines/${encodeURIComponent(candidate.id)}/start`,
-      config.token,
-      fetchImpl,
-      { method: "POST", body: "{}" },
-    );
-    if (startResponse.ok || startResponse.status === 409) {
-      return { ok: true, target, app, state: "start_requested" };
+    if (activeMachines.length >= desired) {
+      return {
+        ok: true,
+        target,
+        app,
+        desired,
+        active: activeMachines.length,
+        started: 0,
+      };
     }
-    return { ok: false, target, reason: "request_failed" };
+
+    const candidates = machines
+      .filter((machine) => machine.state === "stopped" || machine.state === "suspended")
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const needed = desired - activeMachines.length;
+    if (candidates.length < needed) {
+      return { ok: false, target, reason: "machine_not_found" };
+    }
+
+    let started = 0;
+    let capacityBlocked = false;
+    for (const candidate of candidates.slice(0, needed)) {
+      const reservation = await reserveSlot(target, candidate.id, env);
+      if (!reservation.reserved) {
+        capacityBlocked = true;
+        continue;
+      }
+      if (reservation.evictedPoolMachineId) {
+        const stopResponse = await flyRequest(
+          `${config.baseUrl}/apps/${TARGET_APPS.pool}/machines/${encodeURIComponent(reservation.evictedPoolMachineId)}/stop`,
+          config.token,
+          fetchImpl,
+          { method: "POST", body: "{}" },
+        );
+        if (!stopResponse.ok && stopResponse.status !== 409) {
+          await releaseSlot(candidate.id, env).catch(() => undefined);
+          return { ok: false, target, reason: "request_failed" };
+        }
+      }
+      const startResponse = await flyRequest(
+        `${config.baseUrl}/apps/${encodeURIComponent(app)}/machines/${encodeURIComponent(candidate.id)}/start`,
+        config.token,
+        fetchImpl,
+        { method: "POST", body: "{}" },
+      );
+      if (startResponse.ok || startResponse.status === 409) {
+        started += 1;
+        continue;
+      }
+      await releaseSlot(candidate.id, env).catch(() => undefined);
+      return { ok: false, target, reason: "request_failed" };
+    }
+    if (started === 0 && capacityBlocked) {
+      return { ok: false, target, reason: "capacity_full" };
+    }
+    return {
+      ok: true,
+      target,
+      app,
+      desired,
+      active: activeMachines.length + started,
+      started,
+    };
   } catch {
     return { ok: false, target, reason: "request_failed" };
   }
+}
+
+export async function ensureFlyMachineCapacity(
+  rawTarget: string,
+  desired: number,
+  options: {
+    env?: WakeEnvironment;
+    fetchImpl?: typeof fetch;
+  } = {},
+): Promise<FlyMachineCapacityResult> {
+  const target = normalizeTarget(rawTarget);
+  if (!target) return { ok: false, target: rawTarget, reason: "unmanaged_target" };
+
+  const existing = inFlightCapacity.get(target);
+  if (existing) {
+    await existing;
+  }
+  const operation = reconcileCapacity(
+    target,
+    desired,
+    options.env ?? process.env,
+    options.fetchImpl ?? fetch,
+  ).finally(() => {
+    if (inFlightCapacity.get(target) === operation) {
+      inFlightCapacity.delete(target);
+    }
+  });
+  inFlightCapacity.set(target, operation);
+  return operation;
 }
 
 export async function ensureFlyMachineStarted(
@@ -141,17 +301,12 @@ export async function ensureFlyMachineStarted(
 ): Promise<FlyMachineWakeResult> {
   const target = normalizeTarget(rawTarget);
   if (!target) return { ok: false, target: rawTarget, reason: "unmanaged_target" };
-
-  const existing = inFlightStarts.get(target);
-  if (existing) return existing;
-
-  const operation = startTarget(
+  const capacity = await ensureFlyMachineCapacity(target, 1, options);
+  if (!capacity.ok) return capacity;
+  return {
+    ok: true,
     target,
-    options.env ?? process.env,
-    options.fetchImpl ?? fetch,
-  ).finally(() => {
-    inFlightStarts.delete(target);
-  });
-  inFlightStarts.set(target, operation);
-  return operation;
+    app: capacity.app,
+    state: capacity.started > 0 ? "start_requested" : "already_running",
+  };
 }

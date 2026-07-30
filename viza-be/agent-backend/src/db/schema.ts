@@ -387,6 +387,55 @@ export const submissionQueue = pgTable("submission_queue", {
 	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+export const runnerJobs = pgTable("runner_job", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	applicationId: uuid("application_id").notNull(),
+	country: text("country").notNull(),
+	flowKey: text("flow_key"),
+	status: text("status").default("queued").notNull(),
+	attempts: integer("attempts").default(0).notNull(),
+	maxAttempts: integer("max_attempts").default(3).notNull(),
+	correlationId: text("correlation_id"),
+	lastError: text("last_error"),
+	enqueuedAt: timestamp("enqueued_at", { withTimezone: true }).defaultNow().notNull(),
+	availableAt: timestamp("available_at", { withTimezone: true }).defaultNow().notNull(),
+	startedAt: timestamp("started_at", { withTimezone: true }),
+	finishedAt: timestamp("finished_at", { withTimezone: true }),
+	leasedBy: text("leased_by"),
+	leasedUntil: timestamp("leased_until", { withTimezone: true }),
+	metadata: jsonb("metadata"),
+}, (table) => ({
+	statusCountryIdx: index("idx_runner_job_status_country").on(
+		table.status,
+		table.country,
+		table.enqueuedAt,
+	),
+	applicationIdx: index("idx_runner_job_application").on(table.applicationId),
+	leaseIdx: index("idx_runner_job_lease_active").on(table.leasedUntil),
+	poolClaimIdx: index("runner_job_pool_claim_idx").on(
+		table.status,
+		table.availableAt,
+		table.enqueuedAt,
+	),
+}));
+
+export const runnerConcurrencyCaps = pgTable("runner_concurrency_cap", {
+	country: text("country").primaryKey(),
+	maxConcurrent: integer("max_concurrent").default(1).notNull(),
+	paused: boolean("paused").default(false).notNull(),
+	notes: text("notes"),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const runnerMachineSlots = pgTable("runner_machine_slot", {
+	slotNumber: smallint("slot_number").primaryKey(),
+	ownerMachineId: text("owner_machine_id").unique(),
+	ownerKind: text("owner_kind"),
+	leaseUntil: timestamp("lease_until", { withTimezone: true }),
+	acquiredAt: timestamp("acquired_at", { withTimezone: true }),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const ds160SubmissionJobs = pgTable("ds160_submission_jobs", {
 	id: uuid("id").primaryKey().defaultRandom(),
 	applicationId: uuid("application_id").notNull(),

@@ -36,7 +36,7 @@ can_stop_safely() {
 jq -c '.[]' "$decisions" | while read -r decision; do
   kind="$(jq -r '.kind // "country"' <<<"$decision")"
   desired="$(jq -r '.desired' <<<"$decision")"
-  if [[ "$kind" == "legacy" ]]; then
+  if [[ "$kind" == "legacy" || "$kind" == "pool" ]]; then
     app="$(jq -r '.app' <<<"$decision")"
     paused="false"
   else
@@ -67,8 +67,8 @@ jq -c '.[]' "$decisions" | while read -r decision; do
   fi
 
   if [[ "$desired" -gt "$total" ]]; then
-    "$fly_bin" scale count "$desired" --app "$app" --yes
-    machines="$("$fly_bin" machine list --app "$app" --json)"
+    echo "[autoscale] app=$app retains $total Machine(s), below desired=$desired; deploy capacity explicitly" >&2
+    desired="$total"
   fi
 
   mapfile -t started_ids < <(
@@ -81,9 +81,21 @@ jq -c '.[]' "$decisions" | while read -r decision; do
     if [[ "$desired" -eq 0 ]] && ! can_stop_safely "$app"; then
       continue
     fi
-    for ((i = desired; i < started; i++)); do
-      "$fly_bin" machine stop "${started_ids[$i]}" --app "$app"
+    busy_machine_ids="$(jq -r '.busyMachineIds[]? // empty' <<<"$decision")"
+    to_stop=$((started - desired))
+    stopped_count=0
+    for ((i = started - 1; i >= 0 && stopped_count < to_stop; i--)); do
+      machine_id="${started_ids[$i]}"
+      if grep -Fxq "$machine_id" <<<"$busy_machine_ids"; then
+        echo "[autoscale] app=$app machine=$machine_id is actively leased; skipping stop"
+        continue
+      fi
+      "$fly_bin" machine stop "$machine_id" --app "$app"
+      stopped_count=$((stopped_count + 1))
     done
+    if [[ "$stopped_count" -lt "$to_stop" ]]; then
+      echo "[autoscale] app=$app kept $((to_stop - stopped_count)) busy Machine(s) above desired capacity"
+    fi
   elif [[ "$started" -lt "$desired" ]]; then
     needed=$((desired - started))
     mapfile -t stopped_ids < <(
