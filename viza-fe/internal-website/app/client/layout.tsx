@@ -11,6 +11,7 @@ import {
   isIgnorableClientSessionCheckError,
   parseClientSessionResponse,
 } from "./session-check-errors";
+import { AliasForwardingConsentGate } from "./_components/alias-forwarding-consent-gate";
 
 // sessionStorage keys for tracking the session this browser tab has verified.
 // Browsers can copy sessionStorage into target=_blank tabs, so every stored
@@ -350,6 +351,7 @@ function ClientLayoutContent({
         isLoggingOut={isLoggingOut}
         menuReady={menuReady}
       />
+      <AliasForwardingConsentGate enabled={sessionValid === true} />
 
       <main
         className={clsx(

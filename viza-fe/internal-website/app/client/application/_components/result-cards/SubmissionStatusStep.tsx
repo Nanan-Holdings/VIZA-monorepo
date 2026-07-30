@@ -1508,10 +1508,13 @@ export function SubmissionStatusStep({
         });
         return;
       }
-      // A failed DS-160 already has a persisted answer set. Retry it directly
-      // through the fresh-application endpoint instead of re-running the
-      // long-form save/validation callback before the queue write.
-      if (onResubmit && !isDs160VisaType(retryVisaType)) {
+      // DS-160 and digital arrival cards already have durable answer sets.
+      // Retry them directly instead of re-running long-form validation before
+      // the queue write; that old path can fail before the worker is woken.
+      const retryFromPersistedAnswers =
+        isDs160VisaType(retryVisaType) ||
+        isArrivalCardTarget(retryCountry, retryVisaType);
+      if (onResubmit && !retryFromPersistedAnswers) {
         await onResubmit(mode, vietnamPaymentCard);
         setSnapshot(null);
         return;
