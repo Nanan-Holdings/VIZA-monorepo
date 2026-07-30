@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { wakeCloudSubmissionWorker } from "@/lib/submission-worker-wake.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -190,6 +191,8 @@ export async function POST(
     },
     { onConflict: "idempotency_key", ignoreDuplicates: true },
   );
+
+  await wakeCloudSubmissionWorker(null);
 
   return NextResponse.json({
     ok: true,

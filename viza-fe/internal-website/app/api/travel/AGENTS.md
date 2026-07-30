@@ -14,9 +14,10 @@ service URL off the client.
   pipeline in `lib/travel/itinerary-fallback.ts`, returning structured
   fallback metadata and never raw backend errors.
 - `itinerary/revise/route.ts`: revise an existing itinerary.
-- `chat/route.ts`: Travel chat response endpoint.
-- `health/route.ts`: Travel Agent runtime health endpoint for frontend/backend,
-  LLM, Google Places, and cache readiness.
+- `chat/route.ts`: authenticated, idempotent server-side Travel Agent
+  coordinator using versioned state and OpenAI response continuity.
+- `health/route.ts`: independent OpenAI, Python Travel Service, session
+  database, and Places readiness instead of one coupled AI status.
 - `flights/route.ts`: flight option search.
 - `hotels/route.ts`: hotel option search.
 - `geocode/route.ts`: server-side Google Geocoding API lookup for city,
@@ -33,6 +34,8 @@ service URL off the client.
   database cache upsert, safe placeholder handling, and enrichment job queueing.
 - `sessions/route.ts`: authenticated Travel chat/itinerary archive persistence
   with localStorage fallback in the client.
+- `preferences/route.ts`: authenticated view, item deletion, and full clearing
+  for explicitly saved cross-session Travel preferences.
 
 ## Ownership Boundaries
 

@@ -60,6 +60,7 @@ import { runUkHalt } from "./queue/halt-runners";
 import { NeedsHumanError } from "./queue/types";
 import { validateEnv } from "./config/validate-env";
 import { startHealthServer } from "./health-server";
+import { IdleExitController } from "./idle-exit-controller.js";
 import { decryptSecret, encryptSecret } from "./secret-cipher";
 import { applicantVault } from "./applicant-vault";
 import type {
@@ -217,6 +218,11 @@ import {
   runIndonesiaLiveSubmission,
 } from "./indonesia";
 import { hasPreparedIndonesiaPortalAccount } from "./indonesia/managed-account";
+import { hasActiveKoreaKvacOfficialSessions } from "./korea-kvac/live-session.js";
+import {
+  hasCountryRunnerWork,
+  hasLegacyWorkerWork,
+} from "./work-availability.js";
 
 const POLL_INTERVAL_MS = Number.parseInt(
   process.env.VIZA_SUBMISSION_POLL_INTERVAL_MS ?? "30000",
@@ -7613,14 +7619,17 @@ async function pollOnce(): Promise<void> {
     try {
       const queuedDailyChecks = await enqueueDueVietnamStatusChecks();
       if (queuedDailyChecks > 0) {
+        idleExitController?.noteActivity();
         console.log(`[poll] Queued ${queuedDailyChecks} daily Vietnam official status check(s).`);
       }
       const queuedEmailChecks = await enqueueVietnamEmailTriggeredChecks();
       if (queuedEmailChecks > 0) {
+        idleExitController?.noteActivity();
         console.log(`[poll] Queued ${queuedEmailChecks} email-triggered Vietnam status check(s).`);
       }
       const processedStatusChecks = await processQueuedVietnamStatusChecks();
       if (processedStatusChecks > 0) {
+        idleExitController?.noteActivity();
         console.log(`[poll] Processed ${processedStatusChecks} Vietnam official status check(s).`);
       }
     } catch (err) {
@@ -7633,6 +7642,7 @@ async function pollOnce(): Promise<void> {
         createUSAppointmentRunnerRepository(),
       );
       if (processedUsAppointmentJobs > 0) {
+        idleExitController?.noteActivity();
         console.log(
           `[poll] Processed ${processedUsAppointmentJobs} US appointment assisted job(s).`,
         );
@@ -7667,7 +7677,12 @@ async function pollOnce(): Promise<void> {
   console.log(`[poll] Found ${items.length} pending item(s).`);
 
   console.log(`[poll] Processing pending item(s) with concurrency=${concurrency}.`);
-  await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
+  idleExitController?.workStarted();
+  try {
+    await runSubmissionQueueBatch(items, processPendingQueueItem, { concurrency });
+  } finally {
+    idleExitController?.workFinished();
+  }
 
   if (!targetJobId) {
     await markStaleQueueItemsTimedOut();
@@ -7679,6 +7694,9 @@ let immediatePollRequested = false;
 let legacyPollTimer: NodeJS.Timeout | null = null;
 let healthServer: ReturnType<typeof startHealthServer> | null = null;
 let shutdownRequested = false;
+let runnerJobInFlight = false;
+let activeHttpWork = 0;
+let idleExitController: IdleExitController | null = null;
 
 function wakeSubmissionQueue(): void {
   if (shutdownRequested) return;
@@ -7763,6 +7781,7 @@ function closeHealthServer(): void {
 function shutdownRunner(signal: string): void {
   if (shutdownRequested) return;
   shutdownRequested = true;
+  idleExitController?.stop();
   console.log(`[main] ${signal} received — stopping queue consumers`);
   runnerAbort.abort();
   immediatePollRequested = false;
@@ -7779,18 +7798,71 @@ function shutdownRunner(signal: string): void {
 process.on("SIGTERM", () => shutdownRunner("SIGTERM"));
 process.on("SIGINT", () => shutdownRunner("SIGINT"));
 
+async function isSafeForIdleExit(): Promise<boolean> {
+  if (
+    shutdownRequested ||
+    pollInFlight ||
+    runnerJobInFlight ||
+    activeHttpWork > 0 ||
+    hasVietnamCardSessions() ||
+    hasIndonesiaCardSessions() ||
+    hasActiveKoreaKvacOfficialSessions()
+  ) {
+    return false;
+  }
+
+  try {
+    if (RUNNER_JOB_COUNTRY && await hasCountryRunnerWork(RUNNER_JOB_COUNTRY)) {
+      return false;
+    }
+    if (LEGACY_SUBMISSION_QUEUE_ENABLED && await hasLegacyWorkerWork()) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("[idle] Authoritative work check failed; keeping Machine running.", error);
+    return false;
+  }
+}
+
 async function main(): Promise<void> {
   // DEP-003: fail fast on misconfiguration before doing any work.
   validateEnv();
+
+  const configuredIdleMs = Number.parseInt(
+    process.env.SUBMISSION_SERVICE_IDLE_EXIT_MS ?? "0",
+    10,
+  );
+  const idleMs = Number.isFinite(configuredIdleMs) ? Math.max(0, configuredIdleMs) : 0;
+  idleExitController = new IdleExitController({
+    enabled: Boolean(process.env.FLY_MACHINE_ID) && idleMs > 0,
+    idleMs: idleMs || 120_000,
+    isSafeToExit: isSafeForIdleExit,
+    onExit: () => shutdownRunner("idle timeout"),
+  });
+  idleExitController.start();
 
   // DEP-004: local handoff endpoints and Cloud Run probes should be available
   // before slower runner configuration logging and queue startup complete.
   healthServer = startHealthServer({
     isWorkerStarted: () => runnerStarted,
-    isWorkerBusy: () => pollInFlight,
+    isWorkerBusy: () => pollInFlight || runnerJobInFlight || activeHttpWork > 0,
     hasOneTimeCardSessions: () =>
       hasVietnamCardSessions() || hasIndonesiaCardSessions(),
     wakeSubmissionQueue,
+    onWorkStart: () => {
+      activeHttpWork += 1;
+      idleExitController?.workStarted();
+    },
+    onWorkFinish: () => {
+      activeHttpWork = Math.max(0, activeHttpWork - 1);
+      idleExitController?.workFinished();
+    },
+    getLifecycle: () => idleExitController?.snapshot() ?? {
+      state: "booting",
+      activeWork: 0,
+      idleSince: null,
+    },
   });
 
   console.log("[main] VIZA Submission Service starting...");
@@ -7877,6 +7949,7 @@ async function main(): Promise<void> {
 
   if (/^(1|true|yes|on)$/i.test(process.env.SUBMISSION_SERVICE_LOCAL_ENDPOINTS_ONLY ?? "")) {
     runnerStarted = true;
+    idleExitController.markReady();
     console.log("[main] Local endpoints only mode enabled; submission polling and runner_job consumer are disabled.");
     return;
   }
@@ -7897,12 +7970,21 @@ async function main(): Promise<void> {
     void pollAndRun(RUNNER_WORKER_ID, runnerJobHandler, {
       country: RUNNER_JOB_COUNTRY,
       signal: runnerAbort.signal,
+      onJobStart: () => {
+        runnerJobInFlight = true;
+        idleExitController?.workStarted();
+      },
+      onJobFinish: () => {
+        runnerJobInFlight = false;
+        idleExitController?.workFinished();
+      },
     }).catch((err) => {
       console.error("[main] runner_job consumer crashed", err);
     });
   } else {
     runnerStarted = true;
   }
+  idleExitController.markReady();
 }
 
 main().catch((err) => {

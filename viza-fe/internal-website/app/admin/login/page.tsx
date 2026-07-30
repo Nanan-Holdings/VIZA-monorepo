@@ -112,6 +112,7 @@ export default function AdminLoginPage() {
           className="flex flex-col gap-[clamp(12px,1.8vh,18px)]"
         >
           <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="portal" value="admin" />
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="email"

@@ -44,6 +44,8 @@ privacy/data-rights controls.
   and payment-method shortcuts.
 - `travelers/page.tsx`: common/frequent traveler management.
 - `privacy/page.tsx`: privacy/data-rights page.
+- `travel-memory/page.tsx`: view, delete, and clear explicitly saved
+  cross-session Travel Agent preferences.
 - `security/password/page.tsx` and `security/email/page.tsx`: account security
   update entry points.
 

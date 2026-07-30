@@ -1,4 +1,5 @@
 import { withAdmin } from "@/lib/auth/with-admin";
+import { ensureFlyMachineStarted } from "@/lib/fly-machine-wake.server";
 import { assertKnownCountry } from "@/lib/queue/countries";
 
 /**
@@ -28,7 +29,7 @@ export async function enqueueRunnerJob(
   // QUE-004: validate + normalize the country against the shared contract
   // so the consumer's dispatch table never sees an unroutable value.
   const normalizedCountry = assertKnownCountry(country);
-  return withAdmin("system", "lib/queue:enqueue", async (admin) => {
+  const result = await withAdmin("system", "lib/queue:enqueue", async (admin) => {
     const { data: existing } = await admin
       .from("runner_job")
       .select("id, status")
@@ -58,4 +59,13 @@ export async function enqueueRunnerJob(
     }
     return { id: data.id as string, created: true };
   });
+  const wake = await ensureFlyMachineStarted(normalizedCountry);
+  if (!wake.ok && wake.reason !== "unmanaged_target" && wake.reason !== "not_configured") {
+    console.warn("[runner-job] Fly wake failed; scheduled autoscaling remains available.", {
+      country: normalizedCountry,
+      jobId: result.id.slice(0, 8),
+      reason: wake.reason,
+    });
+  }
+  return result;
 }

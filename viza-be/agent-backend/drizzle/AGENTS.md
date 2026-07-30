@@ -65,6 +65,9 @@ The current internal automation migrations are:
 - `0123_viza_knowledge_releases_and_chat_memory.sql`: versioned RAG releases,
   structured entry rules, durable per-session VIZA memory, and redacted agent
   diagnostics.
+- `0124_travel_agent_conversation_state.sql`: server-owned Travel Agent state,
+  optimistic versions, idempotent messages, OpenAI response continuity, and
+  opt-in cross-session preferences.
 - `0094_vn_evisa_documents_and_labels.sql`: Vietnam e-Visa package document
   requirements and bilingual label metadata so the app uses official materials
   instead of generic fallback requirements.

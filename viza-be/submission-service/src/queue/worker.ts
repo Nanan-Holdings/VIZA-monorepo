@@ -195,7 +195,13 @@ export type JobHandler = (job: RunnerJob) => Promise<void>;
 export async function pollAndRun(
   workerId: string,
   handler: JobHandler,
-  opts: { country?: string; pollMs?: number; signal?: AbortSignal } = {},
+  opts: {
+    country?: string;
+    pollMs?: number;
+    signal?: AbortSignal;
+    onJobStart?: (job: RunnerJob) => void;
+    onJobFinish?: (job: RunnerJob) => void;
+  } = {},
 ): Promise<void> {
   const pollMs = opts.pollMs ?? 5_000;
   for (;;) {
@@ -212,6 +218,7 @@ export async function pollAndRun(
       await new Promise((r) => setTimeout(r, pollMs));
       continue;
     }
+    opts.onJobStart?.(job);
     try {
       await handler(job);
       await markSucceeded(job.id);
@@ -222,6 +229,8 @@ export async function pollAndRun(
       } catch (markErr) {
         console.error(`[queue] mark failed write failed`, markErr);
       }
+    } finally {
+      opts.onJobFinish?.(job);
     }
   }
 }
