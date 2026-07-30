@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const testState = vi.hoisted(() => ({
+  authSession: {
+    userId: "user-1",
+    sessionKind: "supabase",
+  } as { userId: string; sessionKind: string } | null,
   session: {
     id: "session-1",
     state_json: {},
@@ -18,8 +22,8 @@ const testState = vi.hoisted(() => ({
   openAIRequests: [] as Array<Record<string, unknown>>,
 }));
 
-vi.mock("@/lib/client-session", () => ({
-  getUserFromSupabaseSession: vi.fn(async () => ({ userId: "user-1" })),
+vi.mock("@/lib/travel/auth", () => ({
+  getTravelUserSession: vi.fn(async () => testState.authSession),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -204,6 +208,10 @@ function modelTurn(text: string) {
 
 describe("Travel Agent server coordinator", () => {
   beforeEach(() => {
+    testState.authSession = {
+      userId: "user-1",
+      sessionKind: "supabase",
+    };
     testState.session.state_json = createInitialTravelState();
     testState.session.state_version = 0;
     testState.session.memory_summary = "";
@@ -231,6 +239,20 @@ describe("Travel Agent server coordinator", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("returns a localized session error without calling OpenAI", async () => {
+    testState.authSession = null;
+    const response = await postTravelChat(request("下周", "m1"));
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body).toEqual({
+      error: "登录状态已过期，请重新登录后继续。你的旅行计划没有发生变化。",
+      code: "session_expired",
+    });
+    expect(testState.openAIRequests).toEqual([]);
+    expect(testState.session.state_version).toBe(0);
   });
 
   it("recommends destinations without selecting one", async () => {

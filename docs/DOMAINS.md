@@ -109,23 +109,24 @@ Prod is env-driven, but these hardcoded **fallbacks** were updated to
 
 ---
 
-## 6. Deferred: per-applicant inbound-mail alias system
+## 6. Per-applicant inbound-mail alias system
 
-**Not yet migrated — still on `haggstorm.com`.** The submission-service
-automation mints per-applicant email aliases (`appl-<ulid>@haggstorm.com`)
-and ingests government reply mail via **Cloudflare Email Routing** →
-`viza-be/email-worker` → Supabase/R2. This is a separate mail-*receiving*
-system from the customer-facing senders above; it is not on the signup
-path.
+New applicant inbox aliases use `appl-<ulid>@viza.it.com`. Government reply
+mail is ingested through **Cloudflare Email Routing** →
+`viza-be/email-worker` → Supabase/R2.
 
-Files still pinned to `haggstorm.com`:
-`viza-be/submission-service/**` (alias.ts, inbound-ingest.ts, france-tls,
-indonesia, ph-etravel, us-appointment, uk + their tests),
-`viza-be/email-worker/**`, `viza-fe/internal-website/app/actions/applicant-inbox.ts`,
-`viza-be/agent-backend/src/services/us-appointment/repository.ts`,
-`viza-be/agent-backend/scripts/*` (ops alert senders `ops@haggstorm.com`).
+Existing `@haggstorm.com` aliases are intentionally not rewritten because an
+official portal may already have registered that exact address. The legacy IMAP
+ingest path accepts both domains during the transition. Cloud environments
+should set:
 
-To migrate: set up Cloudflare Email Routing (MX + catch-all) on
-`viza.it.com`, deploy the email-worker against the new zone, then update
-the `ALIAS_DOMAIN` / `INBOX_ALIAS_DOMAIN` constants + their test fixtures.
-Do this as one focused change so the runner ingestion and tests stay green.
+- `INBOX_ALIAS_DOMAIN=viza.it.com`
+- `INBOX_ALIAS_DOMAINS=viza.it.com,haggstorm.com`
+- `APPLICANT_INBOX_ALIAS_DOMAIN=viza.it.com`
+
+The code and DNS migrations are complete. Cloudflare Email Routing for
+`viza.it.com` was activated on 2026-07-30, and its enabled catch-all routes to
+`viza-email-worker`. A live Gmail smoke reached the worker and created an
+`inbound_email` row in Supabase. The apex uses Cloudflare's three inbound MX
+records; the separate `send.viza.it.com` Amazon SES MX remains in place for
+outbound mail.

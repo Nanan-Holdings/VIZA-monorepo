@@ -1,6 +1,6 @@
 # viza-email-worker
 
-Cloudflare Email Worker that ingests every message at `*@haggstorm.com`
+Cloudflare Email Worker that ingests every message at `*@viza.it.com`
 into the Supabase `inbound_email` table (INBOX-002). Cloudflare's native
 forwarding sends the original RFC 822 message to the applicant's verified
 destination address, so official QR/PDF attachments remain intact. When the
@@ -37,7 +37,7 @@ npm run deploy
 ```
 
 Then bind the deployed worker as the catch-all in
-`Cloudflare → haggstorm.com → Email → Email Routing → Routes →
+`Cloudflare → viza.it.com → Email → Email Routing → Routes →
 Catch-all → Send to a Worker`.
 
 R2 is optional. After enabling it for the account, create

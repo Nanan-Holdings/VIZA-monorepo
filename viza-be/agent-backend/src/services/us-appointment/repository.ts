@@ -37,7 +37,9 @@ const DS160_APPOINTMENT_POST_FIELD_NAMES = [
 ] as const;
 
 const SIMPLIFIED_FORM_STATE_KEY = "__simplified_form_state";
-const APPLICANT_INBOX_DOMAIN = "haggstorm.com";
+const APPLICANT_INBOX_DOMAIN =
+  process.env.APPLICANT_INBOX_ALIAS_DOMAIN?.trim().toLowerCase().replace(/^@/u, "") ||
+  "viza.it.com";
 
 export interface InsertAppointmentAccountInput {
   userId: string;

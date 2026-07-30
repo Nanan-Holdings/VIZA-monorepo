@@ -97,7 +97,7 @@ territory. Until then, those runners stay blocked on data, not code.
 ## Inbox keystone (gated-portal verification)
 
 Gated portals email an OTP/verification link during signup. The chain:
-per-applicant alias `appl-<ulid>@haggstorm.com` → Cloudflare Email Routing
+per-applicant alias `appl-<ulid>@viza.it.com` → Cloudflare Email Routing
 catch-all → forwards to the IMAP mailbox → **`src/email/inbound-ingest.ts`**
 recovers the alias from the recipient headers and writes `inbound_email` →
 `inbox.waitForMessage()` (and the per-provider extractors) read it. Run the

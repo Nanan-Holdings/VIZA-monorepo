@@ -109,7 +109,7 @@ describe("applicant inbox alias", () => {
     const result = await ensureApplicantInboxAlias("profile-1", client as never);
 
     assert.equal(result.created, true);
-    assert.match(result.alias, /^appl-[0-9a-z]{26}@haggstorm\.com$/);
+    assert.match(result.alias, /^appl-[0-9a-z]{26}@viza\.it\.com$/);
   });
 
   it("supports custom domain for generated alias", async () => {
@@ -137,7 +137,7 @@ describe("applicant inbox alias", () => {
     const result = await ensureApplicantInboxAlias("profile-1", client as never);
 
     assert.equal(result.created, true);
-    assert.match(result.alias, /^appl-[0-9a-z]{26}@haggstorm\.com$/);
+    assert.match(result.alias, /^appl-[0-9a-z]{26}@viza\.it\.com$/);
   });
 });
 

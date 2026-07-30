@@ -6,7 +6,7 @@ Scope: this file applies to `viza-be/email-worker/**`.
 
 This Cloudflare Email Worker owns the live VIZA applicant alias inbox path:
 
-`appl-*@haggstorm.com` -> Cloudflare Email Routing -> Supabase `inbound_email`
+`appl-*@viza.it.com` -> Cloudflare Email Routing -> Supabase `inbound_email`
 -> applicant real email forwarding. R2 raw-message archival is optional until
 the Cloudflare account enables R2.
 

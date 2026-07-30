@@ -1,5 +1,5 @@
-import { getUserFromSupabaseSession } from "@/lib/client-session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTravelUserSession } from "@/lib/travel/auth";
 import {
   applyTravelStateOperations,
   coerceTravelState,
@@ -747,14 +747,25 @@ async function saveExplicitPreferences(
 }
 
 export async function POST(request: Request) {
-  const auth = await getUserFromSupabaseSession();
-  if (!auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
   const input = parseRequest(await request.json().catch(() => null));
   if (!input) {
     return Response.json(
       { error: "Invalid Travel Agent request." },
       { status: 400 }
+    );
+  }
+
+  const auth = await getTravelUserSession();
+  if (!auth) {
+    return Response.json(
+      {
+        error:
+          input.locale === "zh"
+            ? "登录状态已过期，请重新登录后继续。你的旅行计划没有发生变化。"
+            : "Your session has expired. Sign in again to continue. Your trip was not changed.",
+        code: "session_expired",
+      },
+      { status: 401 }
     );
   }
   if (!process.env.OPENAI_API_KEY?.trim()) {

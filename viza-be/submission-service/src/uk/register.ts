@@ -4,7 +4,7 @@
  * `orchestrateUkFill` deliberately stops at the "register an email" page
  * because creating a UKVI account requires an email we can read verification
  * mail from. Now that the inbox pipeline is live (per-applicant
- * `appl-*@haggstorm.com` alias → Cloudflare → ingest → `inbound_email`), this
+ * `appl-*@viza.it.com` alias → Cloudflare → ingest → `inbound_email`), this
  * worker completes the step:
  *
  *   reach registration → fill alias + generated password → submit →

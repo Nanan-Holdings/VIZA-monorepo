@@ -1639,6 +1639,7 @@ function sanitizeTravelGenerationDetail(
   locale: InterfaceLocale
 ): string {
   const trimmed = detail.trim();
+  const normalized = trimmed.toLowerCase();
   if (!trimmed) {
     return locale === "zh"
       ? "请稍后重试；如果仍失败，请联系 VIZA 支持。"
@@ -1647,12 +1648,22 @@ function sanitizeTravelGenerationDetail(
 
   if (
     trimmed.startsWith("{") ||
-    trimmed.includes("fetch failed") ||
-    trimmed.includes("Internal Server Error")
+    normalized.includes("fetch failed") ||
+    normalized.includes("internal server error")
   ) {
     return locale === "zh"
       ? "旅行服务暂时不可用，已尝试备用生成路径。请稍后重试。"
       : "The travel service is temporarily unavailable. Backup generation was attempted; please retry shortly.";
+  }
+
+  if (
+    normalized.includes("unauthorized") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("session_expired")
+  ) {
+    return locale === "zh"
+      ? "登录状态已过期，请重新登录后继续。你的旅行计划没有发生变化。"
+      : "Your session has expired. Sign in again to continue. Your trip was not changed.";
   }
 
   return trimmed;
@@ -4903,6 +4914,13 @@ export function TravelChatClient({
                 stateSnapshot: result.state,
                 stateVersion: result.state_version,
               }));
+            }
+            if (response.status === 401) {
+              throw new Error(
+                interfaceLocale === "zh"
+                  ? "登录状态已过期，请重新登录后继续。你的旅行计划没有发生变化。"
+                  : "Your session has expired. Sign in again to continue. Your trip was not changed."
+              );
             }
             throw new Error(
               result.error ||
