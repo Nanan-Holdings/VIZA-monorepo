@@ -62,25 +62,51 @@ const LEGACY_CLAIMABLE_QUEUE_STATUSES = [
   "vn_cloud_live_pending",
   "vn_payment_pending",
   "vn_prearrival_dry_run_pending",
-  "vn_prearrival_live_assisted_scheduled",
   "vn_prearrival_live_assisted_pending",
   "sgac_dry_run_pending",
-  "sgac_live_assisted_scheduled",
   "sgac_live_assisted_pending",
   "mdac_dry_run_pending",
-  "mdac_live_assisted_scheduled",
   "mdac_live_assisted_pending",
   "tdac_dry_run_pending",
-  "tdac_live_assisted_scheduled",
   "tdac_live_assisted_pending",
   "id_c1_live_assisted_pending",
   "id_b1_evoa_live_assisted_pending",
   "phetravel_dry_run_pending",
-  "phetravel_live_assisted_scheduled",
   "phetravel_live_assisted_pending",
   "vn_prefill_pending",
   "au_prefill_pending",
 ] as const;
+
+const LEGACY_SCHEDULED_QUEUE_STATUSES = [
+  "vn_prearrival_live_assisted_scheduled",
+  "sgac_live_assisted_scheduled",
+  "mdac_live_assisted_scheduled",
+  "tdac_live_assisted_scheduled",
+  "phetravel_live_assisted_scheduled",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function scheduledTimeZone(status: string): string {
+  if (status.startsWith("vn_")) return "Asia/Ho_Chi_Minh";
+  if (status.startsWith("tdac_")) return "Asia/Bangkok";
+  if (status.startsWith("phetravel_")) return "Asia/Manila";
+  return "Asia/Singapore";
+}
+
+function dateInTimeZone(now: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const read = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${read("year")}-${read("month")}-${read("day")}`;
+}
 
 async function fetchDepth(): Promise<QueueDepthRow[]> {
   const supabase = createClient(
@@ -103,7 +129,45 @@ async function fetchLegacyQueueDepth(): Promise<number> {
     .in("status", [...LEGACY_CLAIMABLE_QUEUE_STATUSES])
     .lt("attempts", 3);
   if (error) throw new Error(`submission_queue depth read: ${error.message}`);
-  return count ?? 0;
+
+  const { data: scheduledRows, error: scheduledError } = await supabase
+    .from("submission_queue")
+    .select("application_id, status")
+    .in("status", [...LEGACY_SCHEDULED_QUEUE_STATUSES])
+    .lt("attempts", 3)
+    .limit(1_000);
+  if (scheduledError) {
+    throw new Error(`scheduled submission_queue depth read: ${scheduledError.message}`);
+  }
+  if (!scheduledRows?.length) return count ?? 0;
+
+  const applicationIds = [
+    ...new Set(scheduledRows.map((row) => String(row.application_id))),
+  ];
+  const { data: applications, error: applicationError } = await supabase
+    .from("applications")
+    .select("id, submission_result")
+    .in("id", applicationIds);
+  if (applicationError) {
+    throw new Error(`scheduled applications read: ${applicationError.message}`);
+  }
+  const resultByApplication = new Map(
+    (applications ?? []).map((application) => [
+      String(application.id),
+      application.submission_result,
+    ]),
+  );
+  const now = new Date();
+  const dueScheduled = scheduledRows.filter((row) => {
+    const result = resultByApplication.get(String(row.application_id));
+    const scheduledFor =
+      isRecord(result) && typeof result.scheduledFor === "string"
+        ? result.scheduledFor.trim()
+        : "";
+    if (!/^\d{4}-\d{2}-\d{2}$/u.test(scheduledFor)) return true;
+    return scheduledFor <= dateInTimeZone(now, scheduledTimeZone(String(row.status)));
+  }).length;
+  return (count ?? 0) + dueScheduled;
 }
 
 function decide(rows: QueueDepthRow[]): ScaleDecision[] {

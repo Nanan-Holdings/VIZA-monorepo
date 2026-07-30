@@ -46,6 +46,9 @@ export interface HealthServerOptions {
   isWorkerBusy?: () => boolean;
   hasOneTimeCardSessions?: () => boolean;
   wakeSubmissionQueue?: () => void;
+  onWorkStart?: () => void;
+  onWorkFinish?: () => void;
+  getLifecycle?: () => Record<string, unknown>;
   port?: number;
 }
 
@@ -595,10 +598,14 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
   const port = opts.port ?? Number(process.env.PORT ?? 8080);
 
   const server = http.createServer((req, res) => {
+    const runTracked = (operation: Promise<void>): void => {
+      opts.onWorkStart?.();
+      void operation.finally(() => opts.onWorkFinish?.());
+    };
     const url = req.url ?? "/";
     if (req.method === "GET" && url === "/health") {
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ status: "ok" }));
+      res.end(JSON.stringify({ status: "ok", ...(opts.getLifecycle?.() ?? {}) }));
       return;
     }
     if (req.method === "GET" && url === "/ready") {
@@ -625,15 +632,16 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
       sendJson(res, readiness.safeToDeploy ? 200 : 409, {
         status: readiness.safeToDeploy ? "safe" : "busy",
         ...readiness,
+        ...(opts.getLifecycle?.() ?? {}),
       });
       return;
     }
     if (req.method === "POST" && url === "/local/vietnam/card-session") {
-      void handleVietnamCardSession(req, res);
+      runTracked(handleVietnamCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/vietnam/card-session") {
-      void handleVietnamCardSession(req, res);
+      runTracked(handleVietnamCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/submission-queue/wake") {
@@ -641,72 +649,77 @@ export function startHealthServer(opts: HealthServerOptions): http.Server {
         sendJson(res, 403, { error: "forbidden" });
         return;
       }
-      opts.wakeSubmissionQueue();
-      sendJson(res, 202, {
-        ok: true,
-        accepted: true,
-        workerBusy: opts.isWorkerBusy?.() ?? false,
-      });
+      opts.onWorkStart?.();
+      try {
+        opts.wakeSubmissionQueue();
+        sendJson(res, 202, {
+          ok: true,
+          accepted: true,
+          workerBusy: opts.isWorkerBusy?.() ?? false,
+        });
+      } finally {
+        opts.onWorkFinish?.();
+      }
       return;
     }
     if (req.method === "POST" && url === "/local/indonesia/card-session") {
-      void handleIndonesiaCardSession(req, res);
+      runTracked(handleIndonesiaCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/indonesia/card-session") {
-      void handleIndonesiaCardSession(req, res);
+      runTracked(handleIndonesiaCardSession(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/start") {
-      void handleKoreaKvacSmsStart(req, res);
+      runTracked(handleKoreaKvacSmsStart(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/submit") {
-      void handleKoreaKvacSmsSubmit(req, res);
+      runTracked(handleKoreaKvacSmsSubmit(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/sms/complete") {
-      void handleKoreaKvacSmsComplete(req, res);
+      runTracked(handleKoreaKvacSmsComplete(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/cancel/query") {
-      void handleKoreaKvacCancelQuery(req, res);
+      runTracked(handleKoreaKvacCancelQuery(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/confirmation/print") {
-      void handleKoreaKvacPrintConfirmation(req, res);
+      runTracked(handleKoreaKvacPrintConfirmation(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-kvac/cancel/confirm") {
-      void handleKoreaKvacCancelConfirm(req, res);
+      runTracked(handleKoreaKvacCancelConfirm(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/korea-eform/generate") {
-      void handleKoreaEformGenerate(req, res);
+      runTracked(handleKoreaEformGenerate(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/france-tls/check-slots") {
-      void handleFranceTlsCheckSlots(req, res);
+      runTracked(handleFranceTlsCheckSlots(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/france-tls/register-account") {
-      void handleFranceTlsRegisterAccount(req, res);
+      runTracked(handleFranceTlsRegisterAccount(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/france-tls/book-selected-slot") {
-      void handleFranceTlsBookSelectedSlot(req, res);
+      runTracked(handleFranceTlsBookSelectedSlot(req, res));
       return;
     }
     if (req.method === "POST" && url === "/local/japan-vfs-sg/observe") {
-      void handleJapanVfsSingaporeObserve(req, res);
+      runTracked(handleJapanVfsSingaporeObserve(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/japan-vfs-sg/book-selected-slot") {
-      void handleJapanVfsSingaporeBook(req, res);
+      runTracked(handleJapanVfsSingaporeBook(req, res));
       return;
     }
     if (req.method === "POST" && url === "/internal/japan-vfs-sg/payment-session") {
-      void handleJapanVfsSingaporePaymentSession(req, res);
+      runTracked(handleJapanVfsSingaporePaymentSession(req, res));
       return;
     }
     if (req.method === "GET" && url === "/local/vietnam/card-session") {

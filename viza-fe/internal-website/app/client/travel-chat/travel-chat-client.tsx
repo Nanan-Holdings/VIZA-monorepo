@@ -60,6 +60,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   FORM_PAYLOAD_PREFIX,
   buildTravelStateFromMessages,
+  createInitialTravelState,
   createTravelFormMessage,
   getFieldQuestionForState,
   nextMissingField,
@@ -165,7 +166,10 @@ type TravelAgentChatResponse = {
   mode?: string;
   quick_replies?: TravelQuickReply[];
   cards?: TravelDestinationCard[];
-  candidate_payload?: Record<string, unknown>;
+  state?: TravelState;
+  state_version?: number;
+  applied_operations?: unknown[];
+  pending_confirmation?: boolean;
   sources?: Array<{ id?: string; title?: string; type?: string }>;
 };
 
@@ -176,6 +180,12 @@ type TravelHealthResponse = {
   googlePlacesConfigured: boolean;
   cacheReachable: boolean;
   travelBackendReachable: boolean;
+  services?: {
+    openai: { configured: boolean; reachable: boolean };
+    travelService: { configured: boolean; reachable: boolean };
+    sessionDatabase: { configured: boolean; reachable: boolean };
+    places: { configured: boolean; reachable: boolean };
+  };
 };
 
 type TravelItineraryApiError = {
@@ -247,6 +257,9 @@ type TravelChatSession = {
   activeVersionId?: string;
   versions?: TravelTripVersion[];
   savedGooglePlaces?: TravelGooglePlaceItineraryItem[];
+  stateSnapshot?: TravelState;
+  stateVersion?: number;
+  legacyDestinationReview?: string[];
   updatedAt: string;
 };
 
@@ -303,9 +316,9 @@ type TravelRevisionResult = {
 };
 
 const INITIAL_ASSISTANT_TEXT =
-  "嗨，我是 VIZA Travel Buddy。你可以直接告诉我想去的国家、出行日期、天数、预算和偏好，也可以先让我给你一些目的地灵感。";
+  "嗨，我是你的 VIZA 旅行顾问。目的地还没想好也没关系，我们可以从你喜欢的旅行感觉慢慢聊起。";
 const INITIAL_ASSISTANT_TEXT_EN =
-  "Hi, I’m VIZA Travel Buddy. Tell me your destination, travel dates, trip length, budget, and preferences, or ask me for destination ideas first.";
+  "Hi, I’m your VIZA Travel Advisor. It’s completely fine if you have no destination yet—we can start with the kind of trip you enjoy.";
 
 const INITIAL_QUICK_REPLIES: TravelQuickReply[] = [
   { label: "我不知道去哪", value: "我不知道去哪" },
@@ -829,6 +842,9 @@ function createTravelChatSession(locale: InterfaceLocale): TravelChatSession {
     messages: createInitialTravelMessages(locale),
     versions: [],
     savedGooglePlaces: [],
+    stateSnapshot: createInitialTravelState(),
+    stateVersion: 0,
+    legacyDestinationReview: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -1020,6 +1036,14 @@ function isTravelChatSession(value: unknown): value is TravelChatSession {
     (value.savedGooglePlaces === undefined ||
       (Array.isArray(value.savedGooglePlaces) &&
         value.savedGooglePlaces.every(isTravelGooglePlaceItineraryItem))) &&
+    (value.stateSnapshot === undefined ||
+      isTravelStateLike(value.stateSnapshot)) &&
+    (value.stateVersion === undefined ||
+      (typeof value.stateVersion === "number" &&
+        Number.isInteger(value.stateVersion) &&
+        value.stateVersion >= 0)) &&
+    (value.legacyDestinationReview === undefined ||
+      isStringArray(value.legacyDestinationReview)) &&
     typeof value.updatedAt === "string" &&
     Array.isArray(value.messages) &&
     value.messages.every((message) => isTravelChatMessage(message))
@@ -1237,6 +1261,32 @@ function normalizeTravelChatSession(
   const activeVersionId =
     migratedVersions.find((version) => version.id === session.activeVersionId)
       ?.id ?? migratedVersions[migratedVersions.length - 1]?.id;
+  const legacyState =
+    session.stateSnapshot ??
+    buildTravelStateFromMessages(toChatLikeMessages(session.messages));
+  const legacyDestinationReview = session.stateSnapshot
+    ? session.legacyDestinationReview ?? []
+    : Array.from(
+        new Set([
+          ...legacyState.countries,
+          ...legacyState.cities,
+        ])
+      );
+  const stateSnapshot = session.stateSnapshot
+    ? legacyState
+    : {
+        ...legacyState,
+        country: null,
+        countries: [],
+        cities: [],
+        seed_country: null,
+        seed_city: null,
+        city_days: {},
+        destination_confirmed: false,
+        travel_order: [],
+        selected_flights: [],
+        selected_hotels: [],
+      };
 
   return {
     ...session,
@@ -1245,6 +1295,9 @@ function normalizeTravelChatSession(
     activeVersionId,
     versions: migratedVersions,
     savedGooglePlaces: normalizeSavedGooglePlaces(session.savedGooglePlaces),
+    stateSnapshot,
+    stateVersion: session.stateVersion ?? 0,
+    legacyDestinationReview,
     updatedAt: session.updatedAt || new Date().toISOString(),
   };
 }
@@ -2714,30 +2767,6 @@ function withLocalCandidateDisplay(
   return Object.keys(display).length > 0 ? { ...payload, display } : payload;
 }
 
-function createHiddenCandidatePayloadMessage(
-  response: TravelAgentChatResponse
-): TravelChatMessage | null {
-  if (!response.candidate_payload) return null;
-
-  const payload = withLocalCandidateDisplay(
-    coerceTravelFormCandidatePayload(response.candidate_payload)
-  );
-  const hasDestination =
-    (payload.cities?.length ?? 0) > 0 || (payload.countries?.length ?? 0) > 0;
-  if (!hasDestination) return null;
-
-  return {
-    id: createMessageId(),
-    role: "user",
-    parts: [
-      {
-        type: "text",
-        text: `<!--${FORM_PAYLOAD_PREFIX}${JSON.stringify(payload)}-->`,
-      },
-    ],
-  };
-}
-
 function candidatePayloadHasSpecificTripSlots(
   payload: Record<string, unknown>
 ): boolean {
@@ -3519,8 +3548,8 @@ export function TravelChatClient({
   );
 
   const travelState = useMemo(
-    () => buildTravelStateFromMessages(toChatLikeMessages(messages)),
-    [messages]
+    () => activeSession?.stateSnapshot ?? createInitialTravelState(),
+    [activeSession?.stateSnapshot]
   );
   const latestItinerary = useMemo(
     () => getTravelItineraryFromMessages(messages),
@@ -3782,6 +3811,7 @@ export function TravelChatClient({
       message.parts.forEach((part) => {
         if (part.type !== "destination_cards") return;
         part.cards.forEach((card) => {
+          if (card.selection_state === "recommendation") return;
           if (!card.map_marker) return;
           const city = card.city ?? card.title;
           const key = normalizeCityKey(city);
@@ -4823,6 +4853,243 @@ export function TravelChatClient({
       setStatus("submitted");
 
       try {
+        if (typeof window !== "undefined") {
+          const latestUserMessage = [...nextMessages]
+            .reverse()
+            .find((message) => message.role === "user");
+          const latestVisibleUserText = latestUserMessage
+            ? getVisibleMessageText(latestUserMessage)
+            : "";
+          const sessionSnapshot =
+            sessionsRef.current.find((session) => session.id === sessionId) ??
+            activeSession;
+          if (!latestUserMessage || !latestVisibleUserText) {
+            throw new Error(
+              interfaceLocale === "zh"
+                ? "没有找到要发送的内容。"
+                : "There is no message to send."
+            );
+          }
+
+          const response = await fetch("/api/travel/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId,
+              messageId: latestUserMessage.id,
+              text: latestVisibleUserText,
+              locale: travelAgentLocale,
+              expectedStateVersion: sessionSnapshot?.stateVersion ?? 0,
+              applicationId: applicationId ?? null,
+            }),
+          });
+          const result = (await response.json().catch(() => ({}))) as
+            TravelAgentChatResponse & {
+              error?: string;
+              code?: string;
+              debug?: string;
+            };
+          if (!response.ok) {
+            if (result.debug) {
+              console.error("[travel-chat] local coordinator diagnostic", result.debug);
+            }
+            if (
+              response.status === 409 &&
+              result.state &&
+              typeof result.state_version === "number"
+            ) {
+              updateTravelSession(sessionId, (session) => ({
+                ...session,
+                stateSnapshot: result.state,
+                stateVersion: result.state_version,
+              }));
+            }
+            throw new Error(
+              result.error ||
+                (interfaceLocale === "zh"
+                  ? "旅行顾问暂时无法回复。"
+                  : "The Travel Advisor is temporarily unavailable.")
+            );
+          }
+          if (!result.state || typeof result.state_version !== "number") {
+            throw new Error(
+              interfaceLocale === "zh"
+                ? "旅行顾问返回了无效结果，你的计划没有变化。"
+                : "The Travel Advisor returned an invalid result. Your trip was not changed."
+            );
+          }
+
+          let assistantMessage = createAssistantMessageFromAgentResponse(
+            result,
+            interfaceLocale
+          );
+          let createdVersion: TravelTripVersion | null = null;
+          const existingItinerary = sessionSnapshot
+            ? getTravelItineraryFromMessages(sessionSnapshot.messages)
+            : [];
+          const sessionVersions = sessionSnapshot?.versions ?? [];
+          const currentVersion =
+            sessionVersions.find(
+              (version) => version.id === sessionSnapshot?.activeVersionId
+            ) ??
+            sessionVersions[sessionVersions.length - 1] ??
+            null;
+
+          if (
+            result.mode === "modify_itinerary" &&
+            existingItinerary.length > 0
+          ) {
+            const revisionResponse = await fetch(
+              "/api/travel/itinerary/revise",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  current_version_id: currentVersion?.id,
+                  user_prompt: latestVisibleUserText,
+                  conversation_history: toAgentChatMessages(nextMessages),
+                  state: result.state,
+                  current_itinerary:
+                    currentVersion?.itinerary ?? existingItinerary,
+                  active_modules: {
+                    selected_flights: result.state.selected_flights,
+                    selected_hotels: result.state.selected_hotels,
+                  },
+                  locale: travelAgentLocale,
+                }),
+              }
+            );
+            if (!revisionResponse.ok) {
+              throw new Error(
+                interfaceLocale === "zh"
+                  ? "行程修改服务暂时不可用，你刚才确认的旅行信息仍已保存。"
+                  : "Itinerary revision is temporarily unavailable. Your confirmed trip details are still saved."
+              );
+            }
+            const revision = parseTravelRevisionResponse(
+              (await revisionResponse.json()) as unknown,
+              currentVersion?.itinerary ?? existingItinerary,
+              interfaceLocale
+            );
+            if (revision.action === "revise") {
+              const revisedState = applyRevisionPatches(
+                result.state,
+                revision.statePatch,
+                revision.modulePatch,
+                revision.itinerary
+              );
+              assistantMessage = createItineraryAssistantMessage({
+                itinerary: revision.itinerary,
+                selectedFlights: revisedState.selected_flights,
+                selectedHotels: revisedState.selected_hotels,
+                intro: revision.reply,
+                modulePatch: revision.modulePatch,
+                quickReplies: revision.quickReplies,
+                locale: interfaceLocale,
+              });
+              createdVersion = createTravelTripVersion({
+                itinerary: revision.itinerary,
+                travelState: revisedState,
+                versionNumber: sessionVersions.length + 1,
+                parentVersionId:
+                  sessionSnapshot?.activeVersionId ??
+                  sessionVersions[sessionVersions.length - 1]?.id,
+                sourceMessageId: assistantMessage.id,
+                userPrompt: latestVisibleUserText,
+                editSummary: revision.editSummary,
+                modulePatch: revision.modulePatch,
+                locale: interfaceLocale,
+              });
+            }
+          } else {
+            const itineraryPayload = toTravelPayload(result.state);
+            if (itineraryPayload && existingItinerary.length === 0) {
+              const itineraryResponse = await fetch("/api/travel/itinerary", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  ...itineraryPayload,
+                  locale: travelAgentLocale,
+                  conversation_history: toAgentChatMessages(nextMessages),
+                }),
+              });
+              const itineraryResult = (await itineraryResponse
+                .json()
+                .catch(() => ({}))) as
+                | TravelItineraryApiResponse
+                | Record<string, unknown>;
+              if (!itineraryResponse.ok || itineraryResult.success === false) {
+                throw new Error(
+                  extractItineraryApiMessage(
+                    itineraryResult,
+                    interfaceLocale
+                  ) ||
+                    (interfaceLocale === "zh"
+                      ? "行程生成服务暂时不可用，你刚才确认的旅行信息仍已保存。"
+                      : "Itinerary generation is temporarily unavailable. Your confirmed trip details are still saved.")
+                );
+              }
+              const itinerary = parseItineraryFromResponse(itineraryResult);
+              if (!itinerary.length) {
+                throw new Error(
+                  interfaceLocale === "zh"
+                    ? "这次没有生成有效行程，你刚才确认的旅行信息仍已保存。"
+                    : "No valid itinerary was generated. Your confirmed trip details are still saved."
+                );
+              }
+              const modulePatch = buildItineraryModulePatch(itineraryResult);
+              assistantMessage = createItineraryAssistantMessage({
+                itinerary,
+                selectedFlights: itineraryPayload.selected_flights,
+                selectedHotels: itineraryPayload.selected_hotels,
+                intro: buildItinerarySuccessIntro(
+                  interfaceLocale,
+                  itineraryResult
+                ),
+                modulePatch,
+                quickReplies:
+                  interfaceLocale === "zh"
+                    ? ITINERARY_REVISION_QUICK_REPLIES
+                    : ITINERARY_REVISION_QUICK_REPLIES_EN,
+                locale: interfaceLocale,
+              });
+              createdVersion = createTravelTripVersion({
+                itinerary,
+                travelState: result.state,
+                versionNumber: sessionVersions.length + 1,
+                sourceMessageId: assistantMessage.id,
+                userPrompt: latestVisibleUserText,
+                editSummary:
+                  interfaceLocale === "zh"
+                    ? "生成初始行程"
+                    : "Generated the initial itinerary",
+                modulePatch,
+                locale: interfaceLocale,
+              });
+            }
+          }
+          updateTravelSession(sessionId, (session) => {
+            const baseMessages = session.messages.some(
+              (message) => message.id === latestUserMessage.id
+            )
+              ? session.messages
+              : nextMessages;
+            return {
+              ...session,
+              messages: [...baseMessages, assistantMessage],
+              stateSnapshot: result.state,
+              stateVersion: result.state_version,
+              versions: createdVersion
+                ? [...(session.versions ?? []), createdVersion]
+                : session.versions,
+              activeVersionId:
+                createdVersion?.id ?? session.activeVersionId,
+              updatedAt: new Date().toISOString(),
+            };
+          });
+          return;
+        }
+
         const state = buildTravelStateFromMessages(
           toChatLikeMessages(nextMessages)
         );
@@ -5056,62 +5323,11 @@ export function TravelChatClient({
             return;
           }
 
-          const response = await fetch("/api/travel/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              messages: toAgentChatMessages(nextMessages),
-              state,
-              locale: travelAgentLocale,
-            }),
-          });
-
-          if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(
-              detail ||
-                (interfaceLocale === "zh"
-                  ? "无法生成旅行对话回复。"
-                  : "Unable to generate a travel chat response.")
-            );
-          }
-
-          const result = (await response.json()) as TravelAgentChatResponse;
-          const hiddenCandidateMessage =
-            createHiddenCandidatePayloadMessage(result);
-          const assistantMessage = createAssistantMessageFromAgentResponse(
-            result,
-            interfaceLocale
+          throw new Error(
+            interfaceLocale === "zh"
+              ? "旅行顾问只能在浏览器会话中使用。"
+              : "The Travel Advisor requires a browser session."
           );
-          const followUpMessage = (() => {
-            if (!hiddenCandidateMessage) return null;
-            const stateWithCandidate = buildTravelStateFromMessages(
-              toChatLikeMessages([...nextMessages, hiddenCandidateMessage])
-            );
-            if (toTravelPayload(stateWithCandidate)) return null;
-            const field = nextMissingField(stateWithCandidate);
-            if (!field) return null;
-            return {
-              id: createMessageId(),
-              role: "assistant" as const,
-              parts: [
-                {
-                  type: "text" as const,
-                  text: getFieldQuestionForState(stateWithCandidate, field),
-                },
-                { type: "planner_form" as const },
-              ],
-            };
-          })();
-          setSessionMessages(sessionId, (prev) => [
-            ...prev,
-            ...(hiddenCandidateMessage ? [hiddenCandidateMessage] : []),
-            assistantMessage,
-            ...(followUpMessage ? [followUpMessage] : []),
-          ]);
-          return;
         }
 
         setSessionMapMode(sessionId, false);
@@ -5223,8 +5439,8 @@ export function TravelChatClient({
                 type: "text",
                 text:
                   (interfaceLocale === "zh"
-                    ? "抱歉，暂时无法生成旅行计划。\n\n"
-                    : "Sorry, I can’t generate the travel plan right now.\n\n") +
+                    ? "抱歉，这次没能顺利回复你。\n\n"
+                    : "Sorry, I couldn’t complete that reply.\n\n") +
                   detail,
               },
             ],
@@ -5236,6 +5452,7 @@ export function TravelChatClient({
     },
     [
       activeSession,
+      applicationId,
       interfaceLocale,
       sessions,
       setSessionMapMode,
@@ -5540,9 +5757,27 @@ export function TravelChatClient({
   const selectedGooglePlaceAttribution = selectedGooglePlaceDisplay
     ? formatGoogleAttribution(selectedGooglePlaceDisplay.attribution, isZh)
     : null;
-  const showTravelHealthWarning =
-    Boolean(travelHealthError) ||
-    (travelHealth !== null && !travelHealth.llmReachable);
+  const travelHealthWarning = (() => {
+    if (travelHealthError) {
+      return isZh
+        ? "暂时无法读取旅行服务状态，但你的旅行计划没有发生变化。"
+        : "Travel service status is unavailable, but your trip has not changed.";
+    }
+    if (travelHealth && !travelHealth.llmReachable) {
+      return isZh
+        ? "旅行顾问暂时无法回复。你的输入会保留，旅行计划不会被修改。"
+        : "The Travel Advisor cannot reply right now. Your input is kept and your trip will not be changed.";
+    }
+    if (
+      travelHealth?.services &&
+      !travelHealth.services.sessionDatabase.reachable
+    ) {
+      return isZh
+        ? "旅行会话数据库暂时不可用，当前计划无法安全保存。"
+        : "The travel session database is unavailable, so this trip cannot be saved safely.";
+    }
+    return "";
+  })();
 
   return (
     <div
@@ -5552,15 +5787,13 @@ export function TravelChatClient({
           : "h-[calc(100dvh-8.75rem)] min-h-0 sm:h-[calc(100dvh-9rem)] lg:h-[calc(100dvh-9.5rem)]"
       }`}
     >
-      {showTravelHealthWarning && (
+      {travelHealthWarning && (
         <div
           className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
           data-testid="travel-health-warning"
           role="status"
         >
-          {isZh
-            ? "旅行 AI 暂时无法连接，请稍后重试。你的输入已保留。"
-            : "Travel AI is temporarily unavailable. Please try again shortly; your input is kept."}
+          {travelHealthWarning}
         </div>
       )}
 
